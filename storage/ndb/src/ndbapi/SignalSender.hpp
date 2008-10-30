@@ -51,17 +51,28 @@ public:
   int unlock();
 
   Uint32 getOwnRef() const;
-  Uint32 getAliveNode() const;
   const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
+  /*
+    Return bitmask of all defined nodes of a certain type
+    returns all defined nodes by default.
+   */
+  void getNodes(NodeBitmask& mask,
+                NodeInfo::NodeType type = NodeInfo::INVALID);
+
   SendStatus sendSignal(Uint16 nodeId, const SimpleSignal *);
-  
+  SendStatus sendSignal(Uint16 nodeId, SimpleSignal& sig,
+                        Uint16 recBlock, Uint16 gsn, Uint32 len);
+  NodeBitmask broadcastSignal(NodeBitmask mask, SimpleSignal& sig,
+                              Uint16 recBlock, Uint16 gsn, Uint32 len);
+
   SimpleSignal * waitFor(Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint16 gsn, Uint32 timeOutMillis = 0);  
 
-  Uint32 get_an_alive_node() { return theFacade->get_an_alive_node(); }
+  Uint32 get_an_alive_node() const { return theFacade->get_an_alive_node(); }
+  Uint32 getAliveNode() const { return get_an_alive_node(); }
   bool get_node_alive(NodeId n) const { return theFacade->get_node_alive(n); }
 
 private:

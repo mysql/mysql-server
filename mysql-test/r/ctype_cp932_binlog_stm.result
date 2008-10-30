@@ -40,9 +40,9 @@ IN ind DECIMAL(10,2))
 BEGIN
 INSERT INTO t4 VALUES (ins1, ins2, ind);
 END
-master-bin.000001	785	Query	1	993	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172),  NAME_CONST('ins2',_cp932 0xED40ED41ED42),  NAME_CONST('ind',47.93))
-master-bin.000001	993	Query	1	1082	use `test`; DROP PROCEDURE bug18293
-master-bin.000001	1082	Query	1	1161	use `test`; DROP TABLE t4
+master-bin.000001	785	Query	1	1049	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172 COLLATE 'latin1_swedish_ci'),  NAME_CONST('ins2',_cp932 0xED40ED41ED42 COLLATE 'cp932_japanese_ci'),  NAME_CONST('ind',47.93))
+master-bin.000001	1049	Query	1	1138	use `test`; DROP PROCEDURE bug18293
+master-bin.000001	1138	Query	1	1217	use `test`; DROP TABLE t4
 End of 5.0 tests
 SHOW BINLOG EVENTS FROM 365;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error

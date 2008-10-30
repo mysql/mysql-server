@@ -88,7 +88,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
   /* Connect to management server */
 
   end_time= NdbTick_CurrentMillisecond();
-  end_time+= opt_ndb_wait_connected;
+  end_time+= 1000 * opt_ndb_wait_connected;
 
   while ((res= g_ndb_cluster_connection->connect(0,0,0)) == 1)
   {

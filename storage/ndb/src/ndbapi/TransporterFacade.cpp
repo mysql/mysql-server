@@ -312,9 +312,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        break;
 
      case GSN_API_REGCONF:
+     {
        clusterMgr->execAPI_REGCONF(theData);
+
+       // Distribute signal to all threads/blocks
+       NdbApiSignal tSignal(* header);
+       tSignal.setDataPtr(theData);
+       for_each(&tSignal, ptr);
        break;
-     
+     }
+
      case GSN_API_REGREF:
        clusterMgr->execAPI_REGREF(theData);
        break;
@@ -386,6 +393,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        
      }
      return;
+  } else if (tRecBlockNo >= MIN_API_FIXED_BLOCK_NO &&
+             tRecBlockNo <= MAX_API_FIXED_BLOCK_NO) {
+    Uint32 dynamic= m_fixed2dynamic[tRecBlockNo - MIN_API_FIXED_BLOCK_NO];
+    oe = m_threads.get(dynamic);
+    if (oe.m_object != 0 && oe.m_executeFunction != 0) {
+      NdbApiSignal tmpSignal(*header);
+      NdbApiSignal * tSignal = &tmpSignal;
+      tSignal->setDataPtr(theData);
+      (* oe.m_executeFunction) (oe.m_object, tSignal, ptr);
+    }//if   
   } else {
     ; // Ignore all other block numbers.
     if(header->theVerId_signalNumber != GSN_API_REGREQ) {
@@ -701,6 +718,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_batch_size= DEF_BATCH_SIZE;
   m_max_trans_id = 0;
 
+  for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
+    m_fixed2dynamic[i]= RNIL;
+
   theClusterMgr = new ClusterMgr(* this);
 
 #ifdef API_TRACE
@@ -929,9 +949,20 @@ TransporterFacade::open(void* objRef,
                         int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
-  int r= m_threads.open(objRef, fun, statusFun, blockNo);
+  int r= m_threads.open(objRef, fun, statusFun);
   if (r < 0)
     DBUG_RETURN(r);
+
+  if (unlikely(blockNo != -1)){
+    // Using fixed block number, add fixed->dymamic mapping
+    Uint32 fixed_index= blockNo - MIN_API_FIXED_BLOCK_NO;
+
+    assert(blockNo >= MIN_API_FIXED_BLOCK_NO &&
+           fixed_index <= NO_API_FIXED_BLOCKS);
+
+    m_fixed2dynamic[fixed_index]= r;
+  }
+
 #if 1
   if (theOwnId > 0) {
     (*statusFun)(objRef, numberToRef(r, theOwnId), true, true);
@@ -1644,14 +1675,14 @@ TransporterFacade::get_an_alive_node()
 #endif
   NodeId i;
   for (i = theStartNodeId; i < MAX_NDB_NODES; i++) {
-    if (get_node_alive(i)){
+    if (getIsDbNode(i) && get_node_alive(i)){
       DBUG_PRINT("info", ("Node %d is alive", i));
       theStartNodeId = ((i + 1) % MAX_NDB_NODES);
       DBUG_RETURN(i);
     }
   }
   for (i = 1; i < theStartNodeId; i++) {
-    if (get_node_alive(i)){
+    if (getIsDbNode(i) && get_node_alive(i)){
       DBUG_PRINT("info", ("Node %d is alive", i));
       theStartNodeId = ((i + 1) % MAX_NDB_NODES);
       DBUG_RETURN(i);
@@ -1686,8 +1717,7 @@ TransporterFacade::ThreadData::expand(Uint32 size){
 int
 TransporterFacade::ThreadData::open(void* objRef, 
 				    ExecuteFunction fun, 
-				    NodeStatusFunction fun2,
-                                    int blockNo)
+				    NodeStatusFunction fun2)
 {
   Uint32 nextFree = m_firstFree;
 
@@ -1695,40 +1725,15 @@ TransporterFacade::ThreadData::open(void* objRef,
     return -1;
   }
 
-  Object_Execute oe = { objRef , fun };
-
-  if (unlikely(blockNo >= 0)) {
-    // Open block with fixed number
-    Uint32 index= numberToIndex(blockNo);
-
-    if(index > m_statusNext.size()){
-      expand(index - m_statusNext.size());
-    }
-
-    m_use_cnt++;
-
-    // Single linked free list, relink the previous one that points to this
-    for(Uint32 i = 0; i < m_statusNext.size(); i++){
-      if (m_statusNext[i] == index){
-        m_statusNext[i]= m_statusNext[index];
-        break;
-      }
-    }
-
-    m_statusNext[index] = INACTIVE;
-    m_objectExecute[index] = oe;
-    m_statusFunction[index] = fun2;
-
-    return indexToNumber(index);
-  }
-
   if(nextFree == END_OF_LIST){
     expand(10);
     nextFree = m_firstFree;
   }
-  
+
   m_use_cnt++;
   m_firstFree = m_statusNext[nextFree];
+
+  Object_Execute oe = { objRef , fun };
 
   m_statusNext[nextFree] = INACTIVE;
   m_objectExecute[nextFree] = oe;
@@ -1950,6 +1955,18 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
     signalLogger.flushSignalLog();
   }
 #endif
+
+  if (nodeId == theFacade->ownId())
+  {
+    SignalHeader tmp= s->header;
+    tmp.theSendersBlockRef = getOwnRef();
+    theFacade->deliver_signal(&tmp,
+                              1, // JBB
+                              (Uint32*)&s->theData[0],
+                              (LinearSectionPtr*)&s->ptr[0]);
+    return SEND_OK;
+  }
+
   assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
          s->readSignalNumber() == GSN_API_REGREQ);
   

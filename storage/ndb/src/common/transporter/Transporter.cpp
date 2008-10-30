@@ -42,7 +42,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
-    m_send_iovec_used(0),
     m_type(_type),
     m_transporter_registry(t_reg)
 {
@@ -244,7 +243,6 @@ Transporter::doDisconnect() {
 
   m_connected= false;
 
-  m_send_iovec_used= 0;
   get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
 }

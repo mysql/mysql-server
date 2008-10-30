@@ -168,13 +168,13 @@ public:
   void reportError(NodeId nodeId, TransporterError errorCode,
                    const char *info = 0);
   void transporter_recv_from(NodeId node);
-  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
   {
     return theTransporterRegistry->get_bytes_to_send_iovec(node, dst, max);
   }
-  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes)
+  Uint32 bytes_sent(NodeId node, Uint32 bytes)
   {
-    return theTransporterRegistry->bytes_sent(node, src, bytes);
+    return theTransporterRegistry->bytes_sent(node, bytes);
   }
   bool has_data_to_send(NodeId node)
   {
@@ -283,7 +283,7 @@ private:
     Vector<Object_Execute> m_objectExecute;
     Vector<NodeStatusFunction> m_statusFunction;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction, int);
+    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
     int close(int number);
     void expand(Uint32 size);
 
@@ -303,7 +303,8 @@ private:
       return (m_statusNext[index] & (1 << 16)) != 0;
     }
   } m_threads;
-  
+
+  Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
   Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 

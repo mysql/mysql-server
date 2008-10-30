@@ -300,7 +300,7 @@ public:
   
   Uint32 pollReceive(Uint32 timeOutMillis);
   void performReceive();
-  void performSend(NodeId nodeId);
+  int performSend(NodeId nodeId);
   void performSend();
   
   /**
@@ -455,31 +455,23 @@ private:
 
     /* Send buffer for one transporter is kept in a single-linked list. */
     struct SendBufferPage *m_next;
+
     /* Bytes of send data available in this page. */
-    Uint32 m_bytes;
+    Uint16 m_bytes;
+    /* Start of unsent data */
+    Uint16 m_start;
+
     /* Data; real size is to the end of one page. */
-    unsigned char m_data[1];
+    unsigned char m_data[2];
   };
 
   /* Send buffer for one transporter. */
   struct SendBuffer {
+    /* Total size of data in buffer, from m_offset_start_data to end. */
+    Uint32 m_used_bytes;
     /* Linked list of active buffer pages with first and last pointer. */
     SendBufferPage *m_first_page;
     SendBufferPage *m_last_page;
-    /**
-     * Current page == the first one with data not yet returned from
-     * get_bytes_to_send_iovec().
-     */
-    SendBufferPage *m_current_page;
-    /**
-     * Offset (in m_current_page) of next data to return from
-     * get_bytes_to_send_iovec().
-     */
-    Uint32 m_offset_unsent_data;
-    /* Offset (in m_first_page) of data not yet passed to bytes_sent(). */
-    Uint32 m_offset_start_data;
-    /* Total size of data in buffer, from m_offset_start_data to end. */
-    Uint32 m_used_bytes;
   };
 
   SendBufferPage *alloc_page();
@@ -501,8 +493,8 @@ private:
   Uint32 m_total_max_send_buffer;
 
 public:
-  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
-  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes);
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
+  Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
 
   void reset_send_buffer(NodeId node);

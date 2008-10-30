@@ -38,6 +38,7 @@ struct SchemaTransImplReq
   };
 
   STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_REQ );
   Uint32 senderRef;
   Uint32 transId;
   Uint32 transKey;
@@ -56,6 +57,7 @@ struct SchemaTransImplReq
 struct SchemaTransImplConf
 {
   STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_CONF );
   Uint32 senderRef;
   Uint32 transKey;
   Uint32 opKey;

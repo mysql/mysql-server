@@ -1,3 +1,9 @@
+# Note: This test is tricky. It reuses the prerequisites generated for
+#       replication tests (master+slave server and connections) for its
+#       own purposes. But the replication feature itself is stopped.
+#
+
+
 # should work with embedded server after mysqltest is fixed
 --source include/not_embedded.inc
 --source include/federated.inc
@@ -7,10 +13,12 @@ connection default;
 # Disable concurrent inserts to avoid test failures when reading
 # data from concurrent connections (insert might return before
 # the data is actually in the table).
-SET @OLD_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @OLD_MASTER_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= 0;
 
 connection slave;
+SET @OLD_SLAVE_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= 0;
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
@@ -24,7 +32,7 @@ CREATE TABLE federated.t1 (
 connection master;
 DROP TABLE IF EXISTS federated.t1;
 # test too many items (malformed) in the comment string url
---error 1432
+--error ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `group` int NOT NULL default 0,
@@ -36,7 +44,7 @@ CREATE TABLE federated.t1 (
   CONNECTION='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
 
 # test not enough items (malformed) in the comment string url
---error 1432 
+--error ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE 
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `group` int NOT NULL default 0,
@@ -58,7 +66,7 @@ eval CREATE TABLE federated.t1 (
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t3';
---error 1431
+--error ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST
 SELECT * FROM federated.t1;
 DROP TABLE federated.t1;
 
@@ -73,7 +81,7 @@ eval CREATE TABLE federated.t1 (
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://user:pass@127.0.0.1:$SLAVE_MYPORT/federated/t1';
---error 1429
+--error ER_CONNECT_TO_FOREIGN_DATA_SOURCE
 SELECT * FROM federated.t1;
 DROP TABLE federated.t1;
 
@@ -95,6 +103,7 @@ INSERT INTO federated.t1 (id, `group`) VALUES (3, 42);
 INSERT INTO federated.t1 (id, `a\\b`) VALUES (4, 23);
 INSERT INTO federated.t1 (id, `a\\`) VALUES (5, 1);
 
+--sorted_result
 SELECT * FROM federated.t1;
 DELETE FROM federated.t1;
 DROP TABLE federated.t1;
@@ -197,12 +206,14 @@ INSERT INTO federated.t1 (name, other) VALUES ('Ninth Name', 99999);
 INSERT INTO federated.t1 (name, other) VALUES ('Tenth Name', 101010);
 
 # basic select
+--sorted_result
 SELECT * FROM federated.t1;
 # with PRIMARY KEY index_read_idx
 SELECT * FROM federated.t1 WHERE id = 5;
 SELECT * FROM federated.t1 WHERE name = 'Sixth Name';
 SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
 SELECT * FROM federated.t1 WHERE name = 'Sixth Name' AND other = 44444;
+--sorted_result
 SELECT * FROM federated.t1 WHERE name like '%th%';
 UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
 SELECT * FROM federated.t1 WHERE name = '3rd name';
@@ -274,6 +285,7 @@ INSERT INTO federated.t1 (name, other, created)
   VALUES ('Tenth Name', 101010, '2005-03-12 12:00:01');
 
 # basic select
+--sorted_result
 SELECT * FROM federated.t1;
 # with PRIMARY KEY index_read_idx
 SELECT * FROM federated.t1 WHERE id = 5;
@@ -282,6 +294,7 @@ SELECT * FROM federated.t1 WHERE id = 5;
 SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
 # with regular key index_read -> index_read_idx
 SELECT * FROM federated.t1 WHERE other = 44444;
+--sorted_result
 SELECT * FROM federated.t1 WHERE name like '%th%';
 # update - update_row, index_read_idx
 UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
@@ -334,9 +347,12 @@ INSERT INTO federated.t1 (name, other) VALUES ('Eigth Name', 88888);
 INSERT INTO federated.t1 (name, other) VALUES ('Ninth Name', 99999);
 INSERT INTO federated.t1 (other) VALUES ('fee fie foe fum');
 
+--sorted_result
 SELECT * FROM federated.t1 WHERE other IS NULL;
+--sorted_result
 SELECT * FROM federated.t1 WHERE name IS NULL;
 SELECT * FROM federated.t1 WHERE name IS NULL and other IS NULL;
+--sorted_result
 SELECT * FROM federated.t1 WHERE name IS NULL or other IS NULL;
 
 UPDATE federated.t1
@@ -347,6 +363,7 @@ UPDATE federated.t1 SET other = 'two two two two' WHERE name = 'Second Name';
 UPDATE federated.t1 SET other = 'seven seven' WHERE name like 'Sev%';
 UPDATE federated.t1 SET name = 'Tenth Name' WHERE other like 'fee fie%';
 SELECT * FROM federated.t1 WHERE name IS NULL OR other IS NULL ;
+--sorted_result
 SELECT * FROM federated.t1;
 
 # test multi-keys
@@ -417,6 +434,7 @@ INSERT INTO federated.t1 (name, bincol, floatval, other)
   VALUES ('second', 0x66, 22.22, 2222);
 INSERT INTO federated.t1 (name, bincol, floatval, other)
   VALUES ('third', 'g', 22.22, 2222);
+--sorted_result
 SELECT * FROM federated.t1;
 SELECT * FROM federated.t1 WHERE name = 'second';
 SELECT * FROM federated.t1 WHERE bincol= 'f';
@@ -425,6 +443,7 @@ SELECT * FROM federated.t1 WHERE bincol= 0x67;
 SELECT * FROM federated.t1 WHERE bincol= 'g';
 SELECT * FROM federated.t1 WHERE floatval=11.11;
 SELECT * FROM federated.t1 WHERE name='third';
+--sorted_result
 SELECT * FROM federated.t1 WHERE other=2222;
 SELECT * FROM federated.t1 WHERE name='third' and other=2222;
 
@@ -498,32 +517,47 @@ SELECT * FROM federated.t1 WHERE id = 5
 SELECT * FROM federated.t1 WHERE id = 5 
   AND col2 = 'five 5 five five 5' AND col3 = 5 
   AND col4 = 55555;
+--sorted_result
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
   OR (col2 = 'three Three' AND col3 = 33);
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
   OR (col2 = 444 AND col3 = 4444444);
+--sorted_result
 SELECT * FROM federated.t1 WHERE id = 1 
   OR col1 = 10
   OR col2 = 'Two two' 
   OR col3 = 33
   OR col4 = 4444444;
+--sorted_result
 SELECT * FROM federated.t1 WHERE id > 5; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id >= 5; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id < 5; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id <= 5; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id != 5; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id > 3 AND id < 7; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id > 3 AND id <= 7; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id >= 3 AND id <= 7; 
 SELECT * FROM federated.t1 WHERE id < 3 AND id <= 7; 
 SELECT * FROM federated.t1 WHERE id < 3 AND id > 7; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE id < 3 OR id > 7; 
 SELECT * FROM federated.t1 WHERE col2 = 'three Three'; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE col2 > 'one'; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE col2 LIKE 's%'; 
 SELECT * FROM federated.t1 WHERE col2 LIKE 'si%'; 
 SELECT * FROM federated.t1 WHERE col2 LIKE 'se%'; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE col2 NOT LIKE 'e%'; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE col2 <> 'one One'; 
 
 # more multi-column indexes, in the primary key
@@ -577,13 +611,19 @@ SELECT * FROM federated.t1 WHERE col3 = 'bababababa';
 SELECT * FROM federated.t1 WHERE col1 =  'gggg' AND col2 = 'ggggggggggggggggggg'; 
 SELECT * FROM federated.t1 WHERE col1 =  'gggg' AND col3 = 'gagagagaga'; 
 SELECT * FROM federated.t1 WHERE col1 =  'ffff' AND col4 = 'fcfcfcfcfcfcfcfc'; 
+--sorted_result
 SELECT * FROM federated.t1 WHERE col1 >  'bbbb';
+--sorted_result
 SELECT * FROM federated.t1 WHERE col1 >=  'bbbb';
 SELECT * FROM federated.t1 WHERE col1 <  'bbbb';
+--sorted_result
 SELECT * FROM federated.t1 WHERE col1 <=  'bbbb';
+--sorted_result
 SELECT * FROM federated.t1 WHERE col1 <>  'bbbb';
 SELECT * FROM federated.t1 WHERE col1 LIKE  'b%';
+--sorted_result
 SELECT * FROM federated.t1 WHERE col4 LIKE  '%b%';
+--sorted_result
 SELECT * FROM federated.t1 WHERE col1 NOT LIKE  'c%';
 SELECT * FROM federated.t1 WHERE col4 NOT LIKE  '%c%';
 connection slave;
@@ -614,11 +654,13 @@ INSERT INTO federated.t1 VALUES ('ccd', '112', 'zzzz');
 
 # let's see what the foreign database says 
 connection slave;
+--sorted_result
 SELECT col3 FROM federated.t1 WHERE  (
 (col1 = 'aaa' AND col2 >= '111') OR col1 > 'aaa') AND 
 (col1 < 'ccc' OR ( col1 = 'ccc' AND col2 <= '111')); 
 
 connection master;
+--sorted_result
 SELECT col3 FROM federated.t1 WHERE  (
 (col1 = 'aaa' AND col2 >= '111') OR col1 > 'aaa') AND 
 (col1 < 'ccc' OR ( col1 = 'ccc' AND col2 <= '111')); 
@@ -653,6 +695,7 @@ INSERT INTO federated.t1 (name, floatval, other)
   VALUES ('foo', 33.33333332, NULL);
 INSERT INTO federated.t1 (name, floatval, other)
   VALUES (0, 00.3333, NULL);
+--sorted_result
 SELECT * FROM federated.t1;
 SELECT count(*) FROM federated.t1 
 WHERE id IS NULL 
@@ -683,6 +726,7 @@ INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
 INSERT INTO federated.t1 VALUES (3, " A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  ");
 INSERT INTO federated.t1 VALUES(4, "Die �bersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest f�r jemanden, der seine Zielsprache ernst nimmt:");
+--sorted_result
 SELECT * FROM federated.t1;
 
 connection slave;
@@ -1041,6 +1085,7 @@ eval CREATE TABLE federated.t1 (
 INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('ASDFWERQWETWETAWETA', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2003-03-03 03:03:03');
 INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
 INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('DEUEUEUEUEUEUEUEUEU', 'jimbob', '2004-04-04 04:04:04');
+--sorted_result
 SELECT * FROM federated.t1;
 # test blob indexes
 SELECT * FROM federated.t1 WHERE fileguts = 'jimbob';
@@ -1061,6 +1106,7 @@ CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
 INSERT INTO federated.t1 VALUES (0x00);
 INSERT INTO federated.t1 VALUES (0x0001);
 INSERT INTO federated.t1 VALUES (0x0100);
+--sorted_result
 SELECT HEX(a) FROM federated.t1;
 
 # # simple tests for cyrillic, given to me by 
@@ -1139,6 +1185,7 @@ INSERT INTO federated.t1 (name, country_id, other) VALUES ('Monty', 4, 33333);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Sanja', 5, 33333);
 
 #inner join
+--sorted_result
 SELECT federated.t1.name AS name, federated.t1.country_id AS country_id,
 federated.t1.other AS other, federated.countries.country AS country 
 FROM federated.t1, federated.countries WHERE
@@ -1212,7 +1259,7 @@ INSERT INTO federated.alter_me (id, name) VALUES (2, 'David');
 
 SELECT * FROM federated.alter_me;
 
---error 1031
+--error ER_ILLEGAL_HA
 ALTER TABLE federated.alter_me MODIFY COLUMN id int(16) NOT NULL;
 
 SELECT * FROM federated.alter_me;
@@ -1884,4 +1931,9 @@ create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';
 
 --echo End of 5.1 tests
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
+connection slave;
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
+
+connection default;
 source include/federated_cleanup.inc;

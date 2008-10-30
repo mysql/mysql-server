@@ -140,7 +140,8 @@ my_bool my_net_init(NET *net, Vio* vio)
 
   if (vio != 0)					/* If real connection */
   {
-    net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
+    /* Return native socket type in net->fd as is part of ABI */
+    net->fd  = MY_SOCKET_FORMAT_VALUE(vio_fd(vio));	/* For perl DBI/DBD */
 #if defined(MYSQL_SERVER) && !defined(__WIN__)
     if (!(test_flags & TEST_BLOCKING))
     {

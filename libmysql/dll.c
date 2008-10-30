@@ -89,9 +89,20 @@ BOOL APIENTRY LibMain(HANDLE hInst,DWORD ul_reason_being_called,
   UNREFERENCED_PARAMETER(lpReserved);
 } /* LibMain */
 
+
+static BOOL do_libmain;
 int __stdcall DllMain(HANDLE hInst,DWORD ul_reason_being_called,LPVOID lpReserved)
 {
-  return LibMain(hInst,ul_reason_being_called,lpReserved);
+  /*
+    Unless environment variable LIBMYSQL_DLLINIT is set, do nothing.
+    The environment variable is checked once, during the first call to DllMain()
+    (in DLL_PROCESS_ATTACH hook).
+  */
+  if (ul_reason_being_called == DLL_PROCESS_ATTACH)
+    do_libmain = (getenv("LIBMYSQL_DLLINIT") != NULL);
+  if (do_libmain)
+    return LibMain(hInst,ul_reason_being_called,lpReserved);
+  return TRUE;
 }
 
 #elif defined(WINDOWS)

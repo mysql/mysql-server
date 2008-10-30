@@ -161,9 +161,6 @@ TransporterRegistry::allocate_send_buffers(Uint32 total_send_buffer)
     SendBuffer &b = m_send_buffers[i];
     b.m_first_page = NULL;
     b.m_last_page = NULL;
-    b.m_current_page = NULL;
-    b.m_offset_unsent_data = 0;
-    b.m_offset_start_data = 0;
     b.m_used_bytes = 0;
   }
 
@@ -1166,13 +1163,16 @@ TransporterRegistry::performReceive()
  * In multi-threaded cases, this must be protected by send lock (can use
  * different locks for each node).
  */
-void
+int
 TransporterRegistry::performSend(NodeId nodeId)
 {
   Transporter *t = get_transporter(nodeId);
-  if (t && t->has_data_to_send() && t->isConnected() &&
-      is_connected(nodeId))
-    t->doSend();
+  if (t && t->isConnected() && is_connected(nodeId))
+  {
+    return t->doSend();
+  }
+
+  return 0;
 }
 
 void
@@ -1912,7 +1912,7 @@ TransporterRegistry::updateWritePtr(TransporterSendBufferHandle *handle,
   }
 }
 
-int
+Uint32
 TransporterRegistry::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
                                              Uint32 max)
 {
@@ -1920,48 +1920,24 @@ TransporterRegistry::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
 
   if (max == 0)
     return 0;
+
+  Uint32 count = 0;
   SendBuffer *b = m_send_buffers + node;
-
-  SendBufferPage *page = b->m_current_page;
-  if (page == NULL)
-    return 0;
-
-  Uint32 offset = b->m_offset_unsent_data;
-  assert(offset <= page->m_bytes);
-  if (offset == page->m_bytes)
-    return 0;
-
-  dst[0].iov_base = (char*)(page->m_data + offset);
-  dst[0].iov_len = page->m_bytes - offset;
-  Uint32 count = 1;
-  page = page->m_next;
-
+  SendBufferPage *page = b->m_first_page;
   while (page != NULL && count < max)
   {
-    dst[count].iov_base = (char*)page->m_data;
+    dst[count].iov_base = page->m_data+page->m_start;
     dst[count].iov_len = page->m_bytes;
+    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
     page = page->m_next;
     count++;
-  }
-
-  if (page != NULL)
-  {
-    b->m_current_page = page;
-    b->m_offset_unsent_data = 0;
-  }
-  else
-  {
-    assert(b->m_last_page != NULL);
-    b->m_current_page = b->m_last_page;
-    b->m_offset_unsent_data = b->m_last_page->m_bytes;
   }
 
   return count;
 }
 
 Uint32
-TransporterRegistry::bytes_sent(NodeId node, const struct iovec *src,
-                                Uint32 bytes)
+TransporterRegistry::bytes_sent(NodeId node, Uint32 bytes)
 {
   assert(m_use_default_send_buffer);
 
@@ -1975,68 +1951,27 @@ TransporterRegistry::bytes_sent(NodeId node, const struct iovec *src,
   b->m_used_bytes = used_bytes;
 
   SendBufferPage *page = b->m_first_page;
-  assert(page != NULL);
-
-  /**
-   * On the first page, part of the page may have been sent previously, as
-   * indicated by b->m_offset_start_data.
-   *
-   * Additionally, there may be more data on the page than what was sent, or
-   * else we will need to release this (and possibly more) pages.
-   */
-  assert(b->m_offset_start_data < page->m_bytes);
-  Uint32 rest = page->m_bytes - b->m_offset_start_data;
-  if (rest > bytes)
+  while (bytes && bytes >= page->m_bytes)
   {
-    b->m_offset_start_data += bytes;
-    return used_bytes;
-  }
-  bytes -= rest;
-  /**
-   * Now loop, releasing pages until we find one where not all data has been sent.
-   */
-  for(;;) {
-    if (page == b->m_last_page)
-    {
-      /**
-       * Don't free the last page if emptied completely.
-       * Instead keep it for storing more data later.
-       */
-      break;
-    }
-    SendBufferPage *next = page->m_next;
-    assert(next != NULL);
-    if (page == b->m_current_page)
-    {
-      assert(page->m_bytes == b->m_offset_unsent_data);
-      b->m_current_page = next;
-      b->m_offset_unsent_data = 0;
-    }
-    release_page(page);
-    page = next;
-    if (bytes == 0)
-      break;
-    assert(page != NULL);
-    if (bytes < page->m_bytes)
-      break;
+    SendBufferPage * tmp = page;
     bytes -= page->m_bytes;
+    page = page->m_next;
+    release_page(tmp);
   }
-  if (page == NULL)
+
+  if (bytes)
   {
-    /* We have sent everything we had. */
-    assert(bytes == 0);
-    assert(b->m_current_page == NULL);
-    assert(b->m_offset_unsent_data == 0);
-    b->m_first_page = NULL;
-    b->m_last_page = NULL;
-    b->m_offset_start_data = 0;
+    page->m_start += bytes;
+    page->m_bytes -= bytes;
+    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
+    b->m_first_page = page;
   }
   else
   {
-    /* We have sent only part of a page. */
-    b->m_first_page = page;
-    b->m_offset_start_data = bytes;
+    b->m_first_page = 0;
+    b->m_last_page = 0;
   }
+
   return used_bytes;
 }
 
@@ -2046,8 +1981,7 @@ TransporterRegistry::has_data_to_send(NodeId node)
   assert(m_use_default_send_buffer);
 
   SendBuffer *b = m_send_buffers + node;
-  return (b->m_current_page != NULL &&
-          b->m_current_page->m_bytes > b->m_offset_unsent_data);
+  return (b->m_first_page != NULL && b->m_first_page->m_bytes);
 }
 
 void
@@ -2065,9 +1999,6 @@ TransporterRegistry::reset_send_buffer(NodeId node)
   }
   b->m_first_page = NULL;
   b->m_last_page = NULL;
-  b->m_current_page = NULL;
-  b->m_offset_unsent_data = 0;
-  b->m_offset_start_data = 0;
   b->m_used_bytes = 0;
 }
 
@@ -2100,18 +2031,16 @@ TransporterRegistry::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   assert(m_use_default_send_buffer);
 
   SendBuffer *b = m_send_buffers + node;
-  Uint32 *p;
-
-  if (b->m_used_bytes + lenBytes > max_use)
-    return NULL;
 
   /* First check if we have room in already allocated page. */
   SendBufferPage *page = b->m_last_page;
-  if (page != NULL && page->m_bytes + lenBytes <= page->max_data_bytes())
+  if (page != NULL && page->m_bytes + page->m_start + lenBytes <= page->max_data_bytes())
   {
-    p = (Uint32 *)(page->m_data + page->m_bytes);
-    return p;
+    return (Uint32 *)(page->m_data + page->m_start + page->m_bytes);
   }
+
+  if (b->m_used_bytes + lenBytes > max_use)
+    return NULL;
 
   /* Allocate a new page. */
   page = alloc_page();
@@ -2119,23 +2048,16 @@ TransporterRegistry::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
     return NULL;
   page->m_next = NULL;
   page->m_bytes = 0;
+  page->m_start = 0;
 
   if (b->m_last_page == NULL)
   {
     b->m_first_page = page;
     b->m_last_page = page;
-    b->m_current_page = page;
-    b->m_offset_unsent_data = 0;
-    b->m_offset_start_data = 0;
   }
   else
   {
     assert(b->m_first_page != NULL);
-    if (b->m_current_page == NULL)
-    {
-      b->m_current_page = page;
-      b->m_offset_unsent_data = 0;
-    }
     b->m_last_page->m_next = page;
     b->m_last_page = page;
   }
@@ -2153,40 +2075,6 @@ TransporterRegistry::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
   assert(page->m_bytes + lenBytes <= page->max_data_bytes());
   page->m_bytes += lenBytes;
   b->m_used_bytes += lenBytes;
-
-  /**
-   * If we have no data not returned from get_bytes_to_send_iovec(), and the
-   * first signal spills over into a new page, we move the current pointer to
-   * not have to deal with a page with zero data in get_bytes_to_send_iovec().
-   */
-  if (b->m_current_page != NULL &&
-      b->m_current_page->m_bytes == b->m_offset_unsent_data)
-  {
-    b->m_current_page = b->m_current_page->m_next;
-    assert(b->m_current_page == page);
-    b->m_offset_unsent_data = 0;
-  }
-  /**
-   * If all data has been sent, and the first new signal spills over into a
-   * new page, we get a first page with no data which we need to free.
-   */
-  SendBufferPage *tmp = b->m_first_page;
-  if (tmp != NULL && tmp->m_bytes == b->m_offset_start_data)
-  {
-    b->m_first_page = tmp->m_next;
-    assert(b->m_first_page == page);
-    assert(b->m_current_page == page);
-    release_page(tmp);
-    b->m_offset_start_data = 0;
-  }
-
-  /**
-   * ToDo: To get better buffer utilization, we might at this point attempt
-   * to copy back part of the new data into a previous page.
-   *
-   * This will be especially worthwhile in case of big long signals.
-   */
-
   return b->m_used_bytes;
 }
 

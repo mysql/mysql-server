@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ class Config {
 public:
   Config(struct ndb_mgm_configuration *config_values = NULL);
   Config(ConfigValues* config_values);
+  Config(const Config*);
   virtual ~Config();
 
   void print() const;
@@ -43,6 +44,12 @@ public:
    */
   Uint32 getGeneration() const;
   bool setGeneration(Uint32);
+
+  /*
+    Returns name of the config
+  */
+  const char* getName() const;
+  bool setName(const char* new_name);
 
   /*
    Pack the config into a UtilBuffer and return it's size in bytes
@@ -80,7 +87,9 @@ public:
 
 private:
   bool setValue(Uint32 section, Uint32 section_no,
-                Uint32 id, Uint32 new_gen);
+                Uint32 id, Uint32 new_val);
+  bool setValue(Uint32 section, Uint32 section_no,
+                Uint32 id, const char* new_val);
 
   bool illegal_change(const Properties&) const;
   bool equal(const Properties&) const;

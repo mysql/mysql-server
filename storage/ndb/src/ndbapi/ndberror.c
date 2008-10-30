@@ -237,6 +237,7 @@ ErrorBundle ErrorCodes[] = {
    * Internal Temporary
    */
   { 702,  DMEC, IT, "Request to non-master" },
+  { 787,  DMEC, IT, "Schema transaction aborted" },
   
   /**
    * Internal errors
@@ -267,6 +268,7 @@ ErrorBundle ErrorCodes[] = {
   { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
   { 782,  DMEC, IE, "Invalid schema transaction id from NDB API" },
   { 784,  DMEC, TR, "Invalid schema transaction state" },
+  { 786,  DMEC, TR, "Missing schema operation at takeover of schema transaction" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
   { 829,  DMEC, IE, "829" },
@@ -417,8 +419,10 @@ ErrorBundle ErrorCodes[] = {
   { 906,  DMEC, SE, "Unsupported attribute type in index" },
   { 907,  DMEC, SE, "Unsupported character set in table or index" },
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
+  { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
   { 1226, DMEC, SE, "Table is being dropped" },
+  { 1227, HA_WRONG_CREATE_OPTION, SE, "Invalid schema version" },
   { 1228, DMEC, SE, "Cannot use drop table for drop index" },
   { 1229, DMEC, SE, "Too long frm data supplied" },
   { 1231, DMEC, SE, "Invalid table or index to scan" },

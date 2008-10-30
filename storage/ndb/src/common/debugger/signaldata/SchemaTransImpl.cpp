@@ -23,51 +23,92 @@ bool
 printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData,
                            Uint32 len, Uint16 rbn)
 {
-#if 0
   const SchemaTransImplReq* sig = (const SchemaTransImplReq*)theData;
-  const Uint32 phaseInfo = sig->phaseInfo;
-  Uint32 mode = SchemaTransImplReq::getMode(phaseInfo);
-  Uint32 phase = SchemaTransImplReq::getPhase(phaseInfo);
-  Uint32 gsn = SchemaTransImplReq::getGsn(phaseInfo);
+  //const Uint32 phaseInfo = sig->phaseInfo;
+  //Uint32 mode = SchemaTransImplReq::getMode(phaseInfo);
+  //Uint32 phase = SchemaTransImplReq::getPhase(phaseInfo);
   const Uint32 requestInfo = sig->requestInfo;
+  const Uint32 rt = DictSignal::getRequestType(requestInfo);
   Uint32 opExtra = DictSignal::getRequestExtra(requestInfo);
-  const Uint32 operationInfo = sig->operationInfo;
-  Uint32 opIndex = SchemaTransImplReq::getOpIndex(operationInfo);
-  Uint32 opDepth = SchemaTransImplReq::getOpDepth(operationInfo);
-  const Uint32 iteratorInfo = sig->iteratorInfo;
-  Uint32 listId = SchemaTransImplReq::getListId(iteratorInfo);
-  Uint32 listIndex = SchemaTransImplReq::getListIndex(iteratorInfo);
-  Uint32 itRepeat = SchemaTransImplReq::getItRepeat(iteratorInfo);
+  //const Uint32 operationInfo = sig->operationInfo;
+  //Uint32 opIndex = SchemaTransImplReq::getOpIndex(operationInfo);
+  //Uint32 opDepth = SchemaTransImplReq::getOpDepth(operationInfo);
+  //const Uint32 iteratorInfo = sig->iteratorInfo;
+  //Uint32 listId = SchemaTransImplReq::getListId(iteratorInfo);
+  //Uint32 listIndex = SchemaTransImplReq::getListIndex(iteratorInfo);
+  //Uint32 itRepeat = SchemaTransImplReq::getItRepeat(iteratorInfo);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transKey: %u", sig->transKey);
   fprintf(output, " opKey: %u", sig->opKey);
   fprintf(output, "\n");
+/*
   fprintf(output, " mode: %u [%s] phase: %u [%s]",
           mode, DictSignal::getTransModeName(mode),
           phase, DictSignal::getTransPhaseName(phase));
   fprintf(output, "\n");
+*/
   fprintf(output, " requestInfo: 0x%x", requestInfo);
+  switch(rt) {
+  case(SchemaTransImplReq::RT_START):
+    fprintf(output, " RequestType: RT_START");
+    break;
+  case(SchemaTransImplReq::RT_PARSE):
+    fprintf(output, " RequestType: RT_PARSE");
+    break;
+  case(SchemaTransImplReq::RT_FLUSH_PREPARE):
+    fprintf(output, " RequestType: RT_FLUSH_PREPARE");
+    break;
+  case(SchemaTransImplReq::RT_PREPARE):
+    fprintf(output, " RequestType: RT_PREPARE");
+    break;
+  case(SchemaTransImplReq::RT_ABORT_PARSE):
+    fprintf(output, " RequestType: RT_ABORT_PARSE");
+    break;
+  case(SchemaTransImplReq::RT_ABORT_PREPARE):
+    fprintf(output, " RequestType: RT_ABORT_PREPARE");
+    break;
+  case(SchemaTransImplReq::RT_FLUSH_COMMIT):
+    fprintf(output, " RequestType: RT_FLUSH_COMMIT");
+    break;
+  case(SchemaTransImplReq::RT_COMMIT):
+    fprintf(output, " RequestType: RT_COMMIT");
+    break;
+  case(SchemaTransImplReq::RT_FLUSH_COMPLETE):
+    fprintf(output, " RequestType: RT_FLUSH_COMPLETE");
+    break;
+  case(SchemaTransImplReq::RT_COMPLETE):
+    fprintf(output, " RequestType: RT_COMPLETE");
+    break;
+  case(SchemaTransImplReq::RT_END):
+    fprintf(output, " RequestType: RT_END");
+    break;
+  }
   fprintf(output, " opExtra: %u", opExtra);
   fprintf(output, " requestFlags: [%s]",
           DictSignal::getRequestFlagsText(requestInfo));
   fprintf(output, "\n");
-  fprintf(output, " opIndex: %u", opIndex);
-  fprintf(output, " opDepth: %u", opDepth);
-  fprintf(output, "\n");
-  fprintf(output, " listId: %u", listId);
-  fprintf(output, " listIndex: %u", listIndex);
-  fprintf(output, " itRepeat: %u", itRepeat);
-  fprintf(output, "\n");
-  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+//  fprintf(output, " opIndex: %u", opIndex);
+//  fprintf(output, " opDepth: %u", opDepth);
+//  fprintf(output, "\n");
+//  fprintf(output, " listId: %u", listId);
+//  fprintf(output, " listIndex: %u", listIndex);
+//  fprintf(output, " itRepeat: %u", itRepeat);
+//  fprintf(output, "\n");
+  if (len == SchemaTransImplReq::SignalLength)
+    fprintf(output, " clientRef: 0x%x", sig->start.clientRef);
   fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");
   const Uint32 fixed_len = SchemaTransImplReq::SignalLength;
   if (len > fixed_len) {
+    Uint32 gsn = sig->parse.gsn;
     fprintf(output, "piggy-backed: %u %s\n", gsn, getSignalName(gsn));
     const Uint32* pb_data = &theData[fixed_len];
     const Uint32 pb_len = len - fixed_len;
     switch (gsn) {
       // internal operation signals
+    case GSN_SCHEMA_TRANS_BEGIN_REQ:
+      printSCHEMA_TRANS_BEGIN_REQ(output, pb_data, pb_len, rbn);
+      break;
     case GSN_CREATE_TAB_REQ:
       printCREATE_TAB_REQ(output, pb_data, pb_len, rbn);
       break;
@@ -108,8 +149,7 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData,
     break;
     }
   }
-#endif
-  return false;
+  return true;
 }
 
 bool

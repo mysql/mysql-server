@@ -9560,25 +9560,27 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
 {
   if(c_copyGCIMaster.m_copyReason != CopyGCIReq::IDLE)
   {
+    jam();
     /**
      * There can currently only be two waiting
      */
     for (Uint32 i = 0; i<CopyGCIMaster::WAIT_CNT; i++)
     {
+      jam();
       if (c_copyGCIMaster.m_waiting[i] == CopyGCIReq::IDLE)
       {
         jam();
         c_copyGCIMaster.m_waiting[i] = reason;
         return;
       }
-
-      /**
-       * Code should *not* request more than WAIT_CNT copy-gci's
-       *   so this is an internal error
-       */
-      ndbrequire(false);
-      return;
     }
+
+    /**
+     * Code should *not* request more than WAIT_CNT copy-gci's
+     *   so this is an internal error
+     */
+    ndbrequire(false);
+    return;
   }
   c_copyGCIMaster.m_copyReason = reason;
 
@@ -14387,7 +14389,8 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jam();
     ok = true;
-    sd->output = c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
+    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups) 
+      * c_fragments_per_node * cnoReplicas;
     break;
   }
   ndbrequire(ok);
