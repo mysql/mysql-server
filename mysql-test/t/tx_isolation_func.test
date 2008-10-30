@@ -75,10 +75,12 @@ INSERT INTO t1 VALUES(24, 24);
 --echo ** Connection con0 **
 connection con0;
 SET SESSION tx_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
 
 --echo ** Connection con1 **
 connection con1;
 SET SESSION tx_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
 
 #
 # Testing WHERE on keys using IN clause

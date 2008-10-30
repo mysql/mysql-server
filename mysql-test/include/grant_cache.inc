@@ -136,7 +136,7 @@ connect (user3,localhost,mysqltest_3,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user3;
 select "user3";
 --replace_result 127.0.0.1 localhost
---error ER_COLUMNACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from t1;
 select a from t1;
 --replace_result 127.0.0.1 localhost
