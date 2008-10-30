@@ -15,8 +15,6 @@
 
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
-#include <my_global.h>
-#include <mysql_com.h>
 
 #define RNIL    0xffffff00
 
@@ -183,9 +181,8 @@
  * Bits/mask used for coding/decoding blockno/blockinstance
  */
 #define NDBMT_BLOCK_BITS 9
-#define NDBMT_BLOCK_MASK 0x001FF
+#define NDBMT_BLOCK_MASK ((1 << NDBMT_BLOCK_BITS) - 1)
 #define NDBMT_BLOCK_INSTANCE_BITS 7
-#define NDBMT_BLOCK_INSTANCE_MASK 0xFE00
 
 #define MAX_NDBMT_LQH_WORKERS 4
 #define MAX_NDBMT_LQH_THREADS 4

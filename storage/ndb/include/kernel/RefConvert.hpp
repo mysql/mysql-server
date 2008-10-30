@@ -18,6 +18,7 @@
 
 #include <assert.h>
 #include "kernel_types.h"
+#include "ndb_limits.h"
 
 /*
  * In multithreaded kernel, BlockNumber includes the main block
@@ -27,20 +28,21 @@
 inline
 BlockNumber blockToMain(Uint32 block){
   assert(block < (1 << 16));
-  return (BlockNumber)(block & ((1 << 9) - 1));
+  return (BlockNumber)(block & ((1 << NDBMT_BLOCK_BITS) - 1));
 }
 
 inline
 BlockInstance blockToInstance(Uint32 block){
   assert(block < (1 << 16));
-  return (BlockNumber)(block >> 9);
+  return (BlockNumber)(block >> NDBMT_BLOCK_BITS);
 }
 
 inline
 BlockNumber numberToBlock(Uint32 main, Uint32 instance)
 {
-  assert(main < (1 << 9) && instance < (1 << (16 - 9)));
-  return (BlockNumber)(main | (instance << 9));
+  assert(main < (1 << NDBMT_BLOCK_BITS) && 
+         instance < (1 << NDBMT_BLOCK_INSTANCE_BITS));
+  return (BlockNumber)(main | (instance << NDBMT_BLOCK_BITS));
 }
 
 /**
@@ -65,7 +67,7 @@ BlockNumber refToBlock(Uint32 ref){
  */
 inline
 BlockNumber refToMain(Uint32 ref){
-  return (BlockNumber)((ref >> 16) & ((1 << 9) - 1));
+  return (BlockNumber)((ref >> 16) & ((1 << NDBMT_BLOCK_BITS) - 1));
 }
 
 /**
@@ -73,7 +75,7 @@ BlockNumber refToMain(Uint32 ref){
  */
 inline
 BlockInstance refToInstance(Uint32 ref){
-  return (BlockInstance)(ref >> (16 + 9));
+  return (BlockInstance)(ref >> (16 + NDBMT_BLOCK_BITS));
 }
 
 /**
@@ -90,8 +92,12 @@ BlockReference numberToRef(Uint32 block, Uint32 node){
  */
 inline 
 BlockReference numberToRef(Uint32 main, Uint32 instance, Uint32 node){
-  assert(node < (1 << 16) && main < (1 << 9) && instance < (1 << (16 - 9)));
-  return (BlockReference)(node | (main << 16) | (instance << (16 + 9)));
+  assert(node < (1 << 16) && 
+         main < (1 << NDBMT_BLOCK_BITS) && 
+         instance < (1 << NDBMT_BLOCK_INSTANCE_BITS));
+  return (BlockReference)(node | 
+                          (main << 16) | 
+                          (instance << (16 + NDBMT_BLOCK_BITS)));
 }
 
 #endif
