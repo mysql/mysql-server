@@ -19,7 +19,7 @@ static void test_dump_empty_db (void) {
     unlink(fname);
     r = toku_open_brt(fname, 0, 1, &t, 1024, ct, null_txn, toku_default_compare_fun, null_db);
     assert(r==0);
-    if (verbose) toku_dump_brt(t);
+    if (verbose) toku_dump_brt(stdout, t);
     r = toku_close_brt(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     toku_memory_check_all_free();
@@ -282,7 +282,7 @@ static void  test_read_what_was_written (void) {
 	    if (i<600) {
 		int verify_result=toku_verify_brt(brt);
 		if (verify_result) {
-		    toku_dump_brt(brt);
+		    toku_dump_brt(stdout, brt);
 		    assert(0);
 		}
 		{
@@ -294,7 +294,7 @@ static void  test_read_what_was_written (void) {
 			r=toku_brt_lookup(brt, toku_fill_dbt(&k, key, strlen(key)+1), toku_init_dbt(&v));
 			if (r!=0) {
 			    if (verbose) printf("%s:%d r=%d on lookup(key=%s) after i=%d\n", __FILE__, __LINE__, r, key, i);
-			    toku_dump_brt(brt);
+			    toku_dump_brt(stdout, brt);
 			}
 			assert(r==0);
 		    }
