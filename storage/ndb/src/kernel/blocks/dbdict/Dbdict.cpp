@@ -20434,23 +20434,13 @@ Dbdict::createNodegroup_abortParse(Signal* signal, SchemaOpPtr op_ptr)
   sendTransConf(signal, op_ptr);
 }
 
-static
-Uint32
-cnt_nodes(const Uint32 * nodes, Uint32 bound)
-{
-  for (Uint32 i = 0; i<bound; i++)
-    if (nodes[i] == 0)
-      return i;
-  return bound;
-}
-
 bool
 Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
-  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+  //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
 
   if (createNodegroupRecPtr.p->m_map_created == false)
   {
