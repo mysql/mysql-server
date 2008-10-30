@@ -1,3 +1,10 @@
+2008-10-30	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/handler0vars.h,
+	handler/win_delay_loader.cc, mysql-test/innodb_bug40360.result,
+	mysql-test/innodb_bug40360.test:
+	Fix Bug#40360 Binlog related errors with binlog off
+
 2008-10-29	The InnoDB Team
 
 	* include/data0type.ic:
