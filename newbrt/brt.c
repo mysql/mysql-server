@@ -1751,7 +1751,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     case BRT_NONE:
 	break;
     }
-    return EINVAL;
+    abort();
 }
 
 static int
