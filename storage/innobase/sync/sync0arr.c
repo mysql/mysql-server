@@ -834,8 +834,8 @@ sync_array_object_signalled(
 /*========================*/
 	sync_array_t*	arr)	/* in: wait array */
 {
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
-	__sync_fetch_and_add(&(arr->sg_count),1);
+#ifdef UNIV_SYNC_ATOMIC
+	(void)os_atomic_increment((volatile lint *)&(arr->sg_count), 1);
 #else
 	sync_array_enter(arr);
 

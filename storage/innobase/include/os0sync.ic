@@ -45,9 +45,10 @@ os_fast_mutex_trylock(
 #endif
 }
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
 /**************************************************************
-Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins. */
+Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins
+or Solaris atomic_* functions. */
 UNIV_INLINE
 ibool
 os_compare_and_swap(
@@ -57,11 +58,15 @@ os_compare_and_swap(
 	lint		oldVal,		/* in: value to compare to */
 	lint		newVal)		/* in: value to swap in */
 {
-	if(__sync_bool_compare_and_swap(ptr, oldVal, newVal)) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+#ifdef HAVE_GCC_ATOMIC_BULTINS
+	return (__sync_bool_compare_and_swap(ptr, oldVal, newVal));
+#elif HAVE_SOLARIS_ATOMIC
+	lint retVal = (lint)atomic_cas_ulong((volatile ulong_t *)ptr,
+		oldVal, newVal);
+	return (retVal == oldVal);
+#else
+#error "Need support for atomic ops"
+#endif
 }
 
 /**************************************************************
@@ -74,8 +79,13 @@ os_atomic_increment(
 	volatile lint*	ptr,		/* in: pointer to target */
 	lint		amount)		/* in: amount of increment */
 {
-	lint newVal = __sync_add_and_fetch(ptr, amount);
-	return newVal;
+#ifdef HAVE_GCC_ATOMIC_BULTINS
+	return (__sync_add_and_fetch(ptr, amount));
+#elif HAVE_SOLARIS_ATOMIC
+	return ((lint)atomic_add_long_nv((volatile ulong_t *)ptr, amount));
+#else
+#error "Need support for atomic ops"
+#endif
 }
 
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */

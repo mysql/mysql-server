@@ -1068,9 +1068,9 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: The InnoDB memory heap has been disabled.\n");
 #endif
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
 	fprintf(stderr,
-		"InnoDB: Mutex and rw_lock use GCC atomic builtins.\n");
+		"InnoDB: Mutex and rw_lock use atomics.\n");
 #endif
 
 	/* Since InnoDB does not currently clean up all its internal data
