@@ -26,6 +26,7 @@
 #include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
+#include <NdbConfig.h>
 
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters_debug.h>
@@ -337,6 +338,13 @@ Configuration::fetch_configuration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "StopOnError missing");
   }
+
+  const char * datadir;
+  if(iter.get(CFG_NODE_DATADIR, &datadir)){
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
+	      "DataDir missing");
+  }
+  NdbConfig_SetPath(datadir);
 
   m_mgmds.clear();
   for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
@@ -994,17 +1002,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfOrderedIndexes * 4);
 
     cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
-  }
-
-  // NDBMT
-  {
-    uint workers = 4;
-    uint threads = 2;
-    assert(workers <= MAX_NDBMT_LQH_WORKERS);
-    assert(threads <= MAX_NDBMT_LQH_THREADS);
-    assert(workers % threads == 0);
-    cfg.put(CFG_NDBMT_LQH_WORKERS, workers);
-    cfg.put(CFG_NDBMT_LQH_THREADS, threads);
   }
 
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();

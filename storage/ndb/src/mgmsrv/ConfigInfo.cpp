@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,6 +191,9 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 /****************************************************************************
  * Config Rules declarations
  ****************************************************************************/
+static bool add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
+                               struct InitConfigFileParser::Context &ctx,
+                               const char * rule_data);
 static bool sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			  struct InitConfigFileParser::Context &ctx, 
 			  const char * rule_data);
@@ -211,11 +214,12 @@ static bool saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>&,
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
+  { add_system_section, 0 },
   { sanity_checks, 0 },
   { add_node_connections, 0 },
   { set_connection_priorities, 0 },
   { check_node_vs_replicas, 0 },
-  { saveSectionsInConfigValues, "Node,Connection" },
+  { saveSectionsInConfigValues, "SYSTEM,Node,Connection" },
   { 0, 0 }
 };
 	  
@@ -348,6 +352,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
+  /***************************************************************************
+   * DB
+   ***************************************************************************/
+
   {
     CFG_SYS_CONFIG_GENERATION,
     "ConfigGenerationNumber",
@@ -407,10 +415,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
-  
-  /***************************************************************************
-   * DB
-   ***************************************************************************/
+
   {
     CFG_SECTION_NODE,
     DB_TOKEN,
@@ -1219,7 +1224,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    MYSQLCLUSTERDIR,
+    ".",
     0, 0 },
 
   {
@@ -1598,6 +1603,45 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_NO_NODEGROUP)
   },
 
+  {
+    CFG_DB_MT_THREADS,
+    "MaxNoOfExecutionThreads",
+    DB_TOKEN,
+    "For ndbmtd, specify max no of execution threads",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "3",
+    "8"
+  },
+
+  {
+    CFG_NDBMT_LQH_WORKERS,
+    "__ndbmt_lqh_workers",
+    DB_TOKEN,
+    "For ndbmtd specify no of lqh workers",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "1",
+    "4"
+  },
+
+  {
+    CFG_NDBMT_LQH_THREADS,
+    "__ndbmt_lqh_threads",
+    DB_TOKEN,
+    "For ndbmtd specify no of lqh threads",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "1",
+    "4"
+  },
+  
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -1817,7 +1861,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    MYSQLCLUSTERDIR,
+    "",
     0, 0 },
 
   {
@@ -3237,8 +3281,6 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
     return false;
   }
 
-  ndbout << "transformSystem " << name << endl;
-
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
   
   return true;
@@ -3976,6 +4018,42 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
   return true;
 }
 
+
+static bool
+add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
+                   struct InitConfigFileParser::Context &ctx,
+                   const char * rule_data)
+{
+  if (!ctx.m_userProperties.contains("SYSTEM")) {
+    ConfigInfo::ConfigRuleSection s;
+
+    // Generate a unique name for this new cluster
+    time_t now = ::time((time_t*)NULL);
+    struct tm* tm_now = ::localtime(&now);
+
+    char name_buf[18];
+    BaseString::snprintf(name_buf, sizeof(name_buf),
+                         "MC_%d%.2d%.2d%.2d%.2d%.2d",
+                         tm_now->tm_year + 1900,
+                         tm_now->tm_mon + 1,
+                         tm_now->tm_mday,
+                         tm_now->tm_hour,
+                         tm_now->tm_min,
+                         tm_now->tm_sec);
+
+    s.m_sectionType = BaseString("SYSTEM");
+    s.m_sectionData = new Properties(true);
+    s.m_sectionData->put("Name", name_buf);
+    s.m_sectionData->put("Type", "SYSTEM");
+
+    // ndbout_c("Generated new SYSTEM section with name '%s'", name_buf);
+
+    sections.push_back(s);
+  }
+  return true;
+}
+
+
 static bool
 sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 	      struct InitConfigFileParser::Context &ctx, 
@@ -4161,6 +4239,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   Uint32 nodeId1, nodeId2, dummy;
 
+  // DB -> DB
   for (i= 0; p_db_nodes.get("", i, &nodeId1); i++){
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
@@ -4172,6 +4251,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     }
   }
 
+  // API -> DB
   for (i= 0; p_api_nodes.get("", i, &nodeId1); i++){
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
@@ -4182,6 +4262,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     }
   }
 
+  // MGM -> DB
   for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++){
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
@@ -4191,7 +4272,19 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
       }
     }
   }
-  
+
+  // MGM -> MGM
+  for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++){
+    for (Uint32 j= i+1;; j++){
+      if(!p_mgm_nodes.get("", j, &nodeId2)) break;
+      if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy))
+      {
+	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,0))
+	  goto err;
+     }
+    }
+  }
+
   DBUG_RETURN(true);
 err:
   DBUG_RETURN(false);

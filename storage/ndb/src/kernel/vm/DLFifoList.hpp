@@ -88,7 +88,7 @@ public:
   bool first(Ptr<T> &) const ;
 
   /**
-   * Update ptr to first element in list
+   * Update ptr to last element in list
    *
    * Return true if ok, false if empty
    */

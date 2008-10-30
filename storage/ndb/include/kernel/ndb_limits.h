@@ -161,6 +161,12 @@
 #define GLOBAL_PAGE_SIZE_WORDS 8192
 
 /*
+ * Schema transactions
+ */
+#define MAX_SCHEMA_TRANSACTIONS 5
+#define MAX_SCHEMA_OPERATIONS 256
+
+/*
  * Long signals
  */
 #define NDB_SECTION_SEGMENT_SZ 60

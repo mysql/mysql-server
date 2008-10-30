@@ -715,6 +715,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_SCHEMA_TRANS_BEGIN_REF:
   case GSN_SCHEMA_TRANS_END_CONF:
   case GSN_SCHEMA_TRANS_END_REF:
+  case GSN_SCHEMA_TRANS_END_REP:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
   case GSN_CREATE_HASH_MAP_REF:
@@ -912,6 +913,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
     return;
   } 
+  case GSN_API_REGCONF:{
+    return; // Ignore
+  }
   default:
     tFirstDataPtr = NULL;
     goto InvalidSignal;

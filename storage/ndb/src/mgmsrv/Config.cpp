@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,13 +19,11 @@
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 
-
 static void require(bool b)
 {
   if (!b)
     abort();
 }
-
 
 Config::Config(struct ndb_mgm_configuration *config_values) :
   m_configValues(config_values)
@@ -36,6 +34,18 @@ Config::Config(struct ndb_mgm_configuration *config_values) :
 Config::Config(ConfigValues *config_values) :
   m_configValues((struct ndb_mgm_configuration*)config_values)
 {
+}
+
+Config::Config(const Config* conf)
+{
+  // TODO Magnus, improve copy constructor
+  // to not use pack/unpack
+  assert(conf);
+  UtilBuffer buf;
+  conf->pack(buf);
+  ConfigValuesFactory cvf;
+  cvf.unpack(buf);
+  m_configValues= (struct ndb_mgm_configuration*)cvf.getConfigValues();
 }
 
 
@@ -110,29 +120,44 @@ Config::getGeneration() const
 }
 
 
+const char*
+Config::getName() const
+{
+  const char* name;
+  ConfigIter iter(this, CFG_SECTION_SYSTEM);
+
+  if (iter.get(CFG_SYS_NAME, &name))
+    return 0;
+
+  return name;
+}
+
 
 bool
 Config::setValue(Uint32 section, Uint32 section_no,
                  Uint32 id, Uint32 new_val)
 {
   ConfigValues::Iterator iter(m_configValues->m_config);
-  if (iter.openSection(section, section_no)){
-    if (!iter.set(id, new_val))
-      return false;
-  }
-  else
-  {
-    ConfigValuesFactory cf(&m_configValues->m_config);
-    if (!cf.openSection(section, section_no))
-      return false;
-    if (!cf.put(CFG_TYPE_OF_SECTION, section))
-      return false;
-    if (!cf.put(id, new_val))
-      return false;
-    cf.closeSection();
+  if (!iter.openSection(section, section_no))
+    return false;
 
-    m_configValues= (struct ndb_mgm_configuration*)cf.getConfigValues();
-  }
+  if (!iter.set(id, new_val))
+    return false;
+
+  return true;
+}
+
+
+bool
+Config::setValue(Uint32 section, Uint32 section_no,
+                 Uint32 id, const char* new_val)
+{
+  ConfigValues::Iterator iter(m_configValues->m_config);
+  if (!iter.openSection(section, section_no))
+    return false;
+
+  if (!iter.set(id, new_val))
+    return false;
 
   return true;
 }
@@ -144,6 +169,15 @@ Config::setGeneration(Uint32 new_gen)
   return setValue(CFG_SECTION_SYSTEM, 0,
                   CFG_SYS_CONFIG_GENERATION,
                   new_gen);
+}
+
+
+bool
+Config::setName(const char* new_name)
+{
+  return setValue(CFG_SECTION_SYSTEM, 0,
+                  CFG_SYS_NAME,
+                  new_name);
 }
 
 
@@ -168,7 +202,6 @@ add_diff(const char* name, const char* key,
          Properties& diff,
          const char* value_name, Properties* value)
 {
-
   Properties *section;
   // Create a new section if it did not exist
   if (!diff.getCopy(key, &section)){
@@ -187,7 +220,8 @@ add_diff(const char* name, const char* key,
   require(value->get("Type", &type));
 
   // Add the value to the section if not already added
-  if (!section->put(value_name, value))
+  require(value->put("Name", value_name));
+  if (!section->put("Value", value))
     require(section->getPropertiesErrno() ==
             E_PROPERTIES_ELEMENT_ALREADY_EXISTS);
 
@@ -537,6 +571,7 @@ Config::diff2str(const Properties& diff_list, BaseString& str) const
 
       Uint32 type;
       require(what->get("Type", &type));
+      require(what->get("Name", &name));
       switch (type) {
       case DT_DIFF:
       {

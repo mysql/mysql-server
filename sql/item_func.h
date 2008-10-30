@@ -1294,6 +1294,17 @@ class Item_func_set_user_var :public Item_func
 {
   enum Item_result cached_result_type;
   user_var_entry *entry;
+  /*
+    The entry_thd variable is used:
+    1) to skip unnecessary updates of the entry field (see above);
+    2) to reset the entry field that was initialized in the other thread
+       (for example, an item tree of a trigger that updates user variables
+       may be shared between several connections, and the entry_thd field
+       prevents updates of one connection user variables from a concurrent
+       connection calling the same trigger that initially updated some
+       user variable it the first connection context).
+  */
+  THD *entry_thd;
   char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
@@ -1309,7 +1320,8 @@ class Item_func_set_user_var :public Item_func
 public:
   LEX_STRING name; // keep it public
   Item_func_set_user_var(LEX_STRING a,Item *b)
-    :Item_func(b), cached_result_type(INT_RESULT), name(a)
+    :Item_func(b), cached_result_type(INT_RESULT),
+     entry(NULL), entry_thd(NULL), name(a)
   {}
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();
@@ -1340,6 +1352,7 @@ public:
   }
   void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
   bool register_field_in_read_map(uchar *arg);
+  bool set_entry(THD *thd, bool create_if_not_exists);
 };
 
 

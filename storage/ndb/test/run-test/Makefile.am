@@ -42,7 +42,6 @@ LDADD_LOC = $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \
                       -I$(top_srcdir)/ndb/src/mgmsrv \
                       -I$(top_srcdir)/ndb/include/mgmcommon \
-                      -DMYSQLCLUSTERDIR="\"\"" \
                  -DDEFAULT_PREFIX="\"$(prefix)\""
 
 atrt_LDFLAGS = -static @ndb_bin_am_ldflags@

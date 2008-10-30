@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,6 +115,10 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "datadir", 256,
+    "Data directory for this node",
+    (uchar**) &opts.datadir, (uchar**) &opts.datadir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -161,12 +165,14 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  if (opts.mycnf == 0 && opts.config_filename == 0)
-  {
-    MY_STAT buf;
-    if (my_stat("config.ini", &buf, MYF(0)) != NULL)
-      opts.config_filename = "config.ini";
-  }
+  /**
+     Install signal handler for SIGPIPE
+     Done in TransporterFacade as well.. what about Configretriever?
+   */
+#if !defined NDB_WIN32
+  signal(SIGPIPE, SIG_IGN);
+#endif
+
 start:
 
   g_eventLogger->info("NDB Cluster Management Server. %s", NDB_VERSION_STRING);
@@ -176,14 +182,6 @@ start:
     g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
     exit(1);
   }
-
-  /**
-     Install signal handler for SIGPIPE
-     Done in TransporterFacade as well.. what about Configretriever?
-   */
-#if !defined NDB_WIN32
-  signal(SIGPIPE, SIG_IGN);
-#endif
 
   /* Init mgm, load or fetch config */
   if (!mgm->init()) {

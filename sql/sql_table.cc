@@ -3615,6 +3615,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                         bool internal_tmp_table,
                         uint select_field_count)
 {
+  char buf[256];
   TABLE *name_lock= 0;
   bool result;
   Ha_global_schema_lock_guard global_schema_lock_guard(thd);
@@ -3644,6 +3645,11 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
+    sprintf(buf, "%u thd->open_tables: %p ->next: %p",
+            __LINE__,
+            thd->open_tables,
+            thd->open_tables ? thd->open_tables->next : (void*)0);
+    sql_print_information(buf);
     if (lock_table_name_if_not_cached(thd, db, table_name, &name_lock))
     {
       result= TRUE;
@@ -3667,11 +3673,22 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
       goto unlock;
     }
   }
-
+  //****
+  sprintf(buf, "%u thd->open_tables: %p ->next: %p",
+          __LINE__,
+          thd->open_tables,
+          thd->open_tables ? thd->open_tables->next : (void*)0);
+  sql_print_information(buf);
   result= mysql_create_table_no_lock(thd, db, table_name, create_info,
                                      alter_info,
                                      internal_tmp_table,
                                      select_field_count);
+  //****
+  sprintf(buf, "%u thd->open_tables: %p ->next: %p",
+          __LINE__,
+          thd->open_tables,
+          thd->open_tables ? thd->open_tables->next : (void*)0);
+  sql_print_information(buf);
 
 unlock:
   if (name_lock)
@@ -5016,8 +5033,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=) store_create_info(thd, table, &query,
-                                               create_info);
+        IF_DBUG(int result=)
+          store_create_info(thd, table, &query,
+                            create_info, FALSE /* show_database */);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -5191,6 +5209,8 @@ void setup_ha_alter_flags(Alter_info *alter_info, HA_ALTER_FLAGS *alter_flags)
     *alter_flags|= HA_ALTER_PARTITION;
   if (ALTER_FOREIGN_KEY & flags)
     *alter_flags|= HA_ALTER_FOREIGN_KEY;
+  if (ALTER_TABLE_REORG & flags)
+    *alter_flags|= HA_ALTER_TABLE_REORG;
 }
 
 
@@ -5249,6 +5269,7 @@ compare_tables(THD *thd,
   bool varchar= create_info->varchar;
   uint candidate_key_count= 0;
   bool not_nullable= true;
+  DBUG_ENTER("compare_tables");
 
   /*
     Create a copy of alter_info.
@@ -5267,9 +5288,6 @@ compare_tables(THD *thd,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
-
-  DBUG_ENTER("compare_tables");
-
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
                                  &tmp_alter_info,
@@ -6623,16 +6641,24 @@ view_err:
   if (table_type == DB_TYPE_NDBCLUSTER ||
       (create_info->db_type && create_info->db_type->db_type == DB_TYPE_NDBCLUSTER))
   {
-    /*
-      To avoid deadlock in this situation
-    */
     if (thd->locked_tables)
     {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      DBUG_RETURN(TRUE);
+      /*
+        To avoid deadlock in this situation:
+        - if other thread has lock do not enter lock queue
+        and report an error instead
+      */
+      if (global_schema_lock_guard.lock(1))
+      {
+        my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                   ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+        DBUG_RETURN(TRUE);
+      }
     }
-    global_schema_lock_guard.lock();
+    else
+    {
+      global_schema_lock_guard.lock();
+    }
   }
   if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);
