@@ -1396,14 +1396,14 @@ private:
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
   void findApiConnectFail(Signal* signal);
-  void findTcConnectFail(Signal* signal);
+  void findTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initApiConnectFail(Signal* signal);
-  void initTcConnectFail(Signal* signal);
+  void initTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal);
   void setupFailData(Signal* signal);
   void updateApiStateFail(Signal* signal);
-  void updateTcStateFail(Signal* signal);
+  void updateTcStateFail(Signal* signal, Uint32 instanceKey);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,

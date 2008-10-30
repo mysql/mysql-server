@@ -7150,7 +7150,8 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	     * We also update the timer to ensure we don't get time-out 
 	     * too early.
 	     *--------------------------------------------------------------*/
-            BlockReference TBRef = calcLqhBlockRef(hostptr.i);
+            Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
+            BlockReference TBRef = numberToRef(DBLQH, instanceKey, hostptr.i);
             signal->theData[0] = tcConnectptr.i;
             signal->theData[1] = cownref;
             signal->theData[2] = apiConnectptr.p->transid[0];
@@ -7981,8 +7982,9 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   tapplOprec   = lqhTransConf->apiOpRec;
   const Uint32 tableId = lqhTransConf->tableId;
   Uint32 gci_lo = lqhTransConf->gci_lo;
+  Uint32 fragId = lqhTransConf->fragId;
   if (ttransStatus == LqhTransConf::Committed && 
-      unlikely(signal->getLength() < LqhTransConf::SignalLength))
+      unlikely(signal->getLength() < LqhTransConf::SignalLength_GCI_LO))
   {
     jam();
     gci_lo = 0;
@@ -8023,9 +8025,23 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     apiConnectptr.p->ndbapiConnect = tapplOprec;
   }
   
-  if (ttransStatus != LqhTransConf::Marker){
+  if (ttransStatus != LqhTransConf::Marker)
+  {
     jam();
-    findTcConnectFail(signal);
+
+    Uint32 instanceKey;
+
+    if (unlikely(signal->getLength() < LqhTransConf::SignalLength_FRAG_ID))
+    {
+      jam();
+      instanceKey = 0;
+    }
+    else
+    {
+      jam();
+      instanceKey = getInstanceKey(tableId, fragId);
+    }
+    findTcConnectFail(signal, instanceKey);
   }
 }//Dbtc::execLQH_TRANSCONF()
 
@@ -8478,7 +8494,8 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
         ptrCheckGuard(hostptr, chostFilesize, hostRecord);
         if (hostptr.p->hostStatus == HS_ALIVE) {
           jam();
-          tblockref = calcLqhBlockRef(hostptr.i);
+          Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
+          tblockref = numberToRef(DBLQH, instanceKey, hostptr.i);
           setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
           tcConnectptr.p->tcConnectstate = OS_WAIT_ABORT_CONF;
           apiConnectptr.p->apiConnectstate = CS_WAIT_ABORT_CONF;
@@ -8897,7 +8914,7 @@ FAF_LOOP:
 /*----------------------------------------------------------*/
 /*       FIND THE TC CONNECT AND IF NOT FOUND ALLOCATE A NEW  */
 /*----------------------------------------------------------*/
-void Dbtc::findTcConnectFail(Signal* signal) 
+void Dbtc::findTcConnectFail(Signal* signal, Uint32 instanceKey) 
 {
   UintR tftfHashNumber;
 
@@ -8915,7 +8932,7 @@ void Dbtc::findTcConnectFail(Signal* signal)
       linkTcInConnectionlist(signal);
       tcConnectptr.p->nextTcFailHash = ctcConnectFailHash[tftfHashNumber];
       ctcConnectFailHash[tftfHashNumber] = tcConnectptr.i;
-      initTcConnectFail(signal);
+      initTcConnectFail(signal, instanceKey);
       return;
     } else {
       ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
@@ -8923,7 +8940,7 @@ void Dbtc::findTcConnectFail(Signal* signal)
         jam();  /* FRAGMENTID = TC_OPREC HERE, LOOP ANOTHER TURN */
         tcConnectptr.i = tcConnectptr.p->nextTcFailHash;
       } else {
-        updateTcStateFail(signal);
+        updateTcStateFail(signal, instanceKey);
         return;
       }//if
     }//if
@@ -9001,7 +9018,7 @@ void Dbtc::initApiConnectFail(Signal* signal)
 /*       INITIALISE AT TC CONNECT AT TAKE OVER WHEN ALLOCATING*/
 /*       THE TC CONNECT RECORD.                               */
 /*------------------------------------------------------------*/
-void Dbtc::initTcConnectFail(Signal* signal) 
+void Dbtc::initTcConnectFail(Signal* signal, Uint32 instanceKey) 
 {
   tcConnectptr.p->apiConnect = apiConnectptr.i;
   tcConnectptr.p->tcOprec = ttcOprec;
@@ -9013,7 +9030,8 @@ void Dbtc::initTcConnectFail(Signal* signal)
   tcConnectptr.p->failData[treplicaNo] = ttransStatus;
   tcConnectptr.p->lastReplicaNo = LqhTransConf::getLastReplicaNo(treqinfo);
   tcConnectptr.p->dirtyOp = LqhTransConf::getDirtyFlag(treqinfo);
-  
+  tcConnectptr.p->lqhInstanceKey = instanceKey;
+
 }//Dbtc::initTcConnectFail()
 
 /*----------------------------------------------------------*/
@@ -9252,7 +9270,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
 /*       WE ALSO NEED TO CHECK THAT THERE IS CONSISTENCY      */
 /*       BETWEEN THE DIFFERENT REPLICAS.                      */
 /*------------------------------------------------------------*/
-void Dbtc::updateTcStateFail(Signal* signal) 
+void Dbtc::updateTcStateFail(Signal* signal, Uint32 instanceKey) 
 {
   const Uint8 treplicaNo     = LqhTransConf::getReplicaNo(treqinfo);
   const Uint8 tlastReplicaNo = LqhTransConf::getLastReplicaNo(treqinfo);
@@ -9267,6 +9285,7 @@ void Dbtc::updateTcStateFail(Signal* signal)
   
   regTcPtr->tcNodedata[treplicaNo] = tnodeid;
   regTcPtr->failData[treplicaNo] = ttransStatus;  
+  ndbrequire(regTcPtr->lqhInstanceKey == instanceKey)
 }//Dbtc::updateTcStateFail()
 
 void Dbtc::execTCGETOPSIZEREQ(Signal* signal) 
