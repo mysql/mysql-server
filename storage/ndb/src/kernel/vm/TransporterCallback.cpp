@@ -97,6 +97,15 @@ TransporterRegistry globalTransporterRegistry(&myTransporterCallback);
 
 #ifdef NDBD_MULTITHREADED
 static SectionSegmentPool::Cache cache(1024,1024);
+
+void
+mt_set_section_chunk_size()
+{
+  g_sectionSegmentPool.setChunkSize(256);
+}
+
+#else
+void mt_set_section_chunk_size(){}
 #endif
 
 void

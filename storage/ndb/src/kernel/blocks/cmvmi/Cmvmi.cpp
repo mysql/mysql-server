@@ -47,6 +47,8 @@
 extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
+extern void mt_set_section_chunk_size();
+
 Cmvmi::Cmvmi(Block_context& ctx) :
   SimulatedBlock(CMVMI, ctx)
   ,subscribers(subscriberPool)
@@ -70,6 +72,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   long_sig_buffer_size= long_sig_buffer_size / sizeof(SectionSegment);
   g_sectionSegmentPool.setSize(long_sig_buffer_size,
                                true,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
+
+  mt_set_section_chunk_size();
 
   // Add received signals
   addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);

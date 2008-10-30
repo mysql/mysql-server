@@ -89,8 +89,6 @@ public:
    */
   bool seize(Ptr<T> &);
 
-  bool seizeList(Uint32 & n, Ptr<T> &);
-
   /**
    * Allocate object <b>i</b> from pool - update Ptr
    */
@@ -133,7 +131,7 @@ public:
    */
   struct Cache
   {
-    Cache(Uint32 a0 = 128, Uint32 a1 = 128) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    Cache(Uint32 a0 = 512, Uint32 a1 = 256) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
     Uint32 m_first_free;
     Uint32 m_free_cnt;
     Uint32 m_alloc_cnt;
@@ -151,8 +149,13 @@ public:
   void release(LockFun, Cache&, Uint32 i);
   void release(LockFun, Cache&, Ptr<T> &);
   void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
+
+  void setChunkSize(Uint32 sz);
 protected:
-  void releaseList(LockFun, Cache&, Uint32 n);
+  void releaseChunk(LockFun, Cache&, Uint32 n);
+
+  bool seizeChunk(Uint32 & n, Ptr<T> &);
+  void releaseChunk(Uint32 n, Uint32 first, Uint32 last);
 
 protected:
   friend class Array<T>;
@@ -325,6 +328,39 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
 
   ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
   return false; // not reached
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::setChunkSize(Uint32 sz)
+{
+  Uint32 i;
+  for (i = 0; i + sz < size; i += sz)
+  {
+    theArray[i].chunkSize = sz;
+    theArray[i].lastChunk = i + sz - 1;
+    theArray[i].nextChunk = i + sz;
+  }
+
+  theArray[i].chunkSize = size - i;
+  theArray[i].lastChunk = size - 1;
+  theArray[i].nextChunk = RNIL;
+
+#ifdef ARRAY_GUARD
+  {
+    Uint32 ff = firstFree;
+    Uint32 sum = 0;
+    while (ff != RNIL)
+    {
+      sum += theArray[ff].chunkSize;
+      Uint32 last = theArray[ff].lastChunk;
+      assert(theArray[last].nextPool == theArray[ff].nextChunk);
+      ff = theArray[ff].nextChunk;
+    }
+    assert(sum == size);
+  }
+#endif
 }
 
 template <class T>
@@ -680,29 +716,6 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
 template <class T>
 inline
 bool
-ArrayPool<T>::seizeList(Uint32 & cnt, Ptr<T> & ptr){
-  Uint32 save = cnt;
-  Uint32 tmp = save - 1;
-  if (seize(ptr))
-  {
-    Ptr<T> prev = ptr;
-    Ptr<T> curr;
-    while (tmp && seize(curr))
-    {
-      prev.p->nextPool = curr.i;
-      prev = curr;
-      tmp--;
-    }
-    prev.p->nextPool = RNIL;
-    cnt = save - tmp;
-    return true;
-  }
-  return false;
-}
-
-template <class T>
-inline
-bool
 ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
   Uint32 ff = firstFree;
   Uint32 prev = RNIL;
@@ -951,6 +964,100 @@ ArrayPool<T>::release(Ptr<T> & ptr){
 template <class T>
 inline
 bool
+ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
+{
+  Uint32 save = cnt;
+  int tmp = save;
+  Uint32 ff = firstFree;
+  ptr.i = ff;
+  ptr.p = theArray + ff;
+
+  if (ff != RNIL)
+  {
+    Uint32 prev;
+    do 
+    {
+      if (0)
+        ndbout_c("seizeChunk(%u) ff: %u tmp: %d chunkSize: %u lastChunk: %u nextChunk: %u",
+                 save, ff, tmp, 
+                 theArray[ff].chunkSize, 
+                 theArray[ff].lastChunk,
+                 theArray[ff].nextChunk);
+      
+      tmp -= theArray[ff].chunkSize;
+      prev = theArray[ff].lastChunk;
+      assert(theArray[ff].nextChunk == theArray[prev].nextPool);
+      ff = theArray[ff].nextChunk;
+    } while (tmp > 0 && ff != RNIL);
+    
+    cnt = (save - tmp);
+    noOfFree -= (save - tmp);
+    firstFree = ff;
+    theArray[prev].nextPool = RNIL;
+    
+#ifdef ARRAY_GUARD
+    if (theAllocatedBitmask)
+    {
+      Uint32 tmpI = ptr.i;
+      for(Uint32 i = 0; i<cnt; i++){
+        if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmpI)){
+          /**
+           * Seizing an already seized element
+           */
+          ErrorReporter::handleAssert("ArrayPool<T>::seizeChunk", 
+                                      __FILE__, __LINE__);
+        } else {
+          BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, tmpI);
+        }
+        tmpI = theArray[tmpI].nextPool;
+      }
+    }
+#endif
+    return true;
+  }
+
+  return false;
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
+{
+  Uint32 ff = firstFree;
+  firstFree = first;
+  theArray[first].nextChunk = ff;
+  theArray[last].nextPool = ff;
+  noOfFree += cnt;
+
+  assert(theArray[first].chunkSize == cnt);
+  assert(theArray[first].lastChunk == last);
+  
+#ifdef ARRAY_GUARD
+  if (theAllocatedBitmask)
+  {
+    Uint32 tmp = first;
+    for(Uint32 i = 0; i<cnt; i++){
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp)){
+        BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, tmp);
+      } else {
+        /**
+         * Relesing a already released element
+         */
+        ErrorReporter::handleAssert("ArrayPool<T>::releaseList", 
+                                    __FILE__, __LINE__);
+        return;
+      }
+      tmp = theArray[tmp].nextPool;
+    }
+  }
+#endif
+}
+
+
+template <class T>
+inline
+bool
 ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 {
   DUMP("seize", "-> ");
@@ -968,7 +1075,7 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 
   Uint32 tmp = c.m_alloc_cnt;
   l.lock();
-  bool ret = seizeList(tmp, p);
+  bool ret = seizeChunk(tmp, p);
   l.unlock();
 
   if (ret)
@@ -1002,7 +1109,7 @@ ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
 
   if (c.m_free_cnt > 2 * c.m_max_free_cnt)
   {
-    releaseList(l, c, c.m_max_free_cnt);
+    releaseChunk(l, c, c.m_alloc_cnt);
   }
 }
 
@@ -1018,14 +1125,14 @@ ArrayPool<T>::releaseList(LockFun l, Cache& c,
 
   if (c.m_free_cnt > 2 * c.m_max_free_cnt)
   {
-    releaseList(l, c, c.m_max_free_cnt);
+    releaseChunk(l, c, c.m_alloc_cnt);
   }
 }
 
 template <class T>
 inline
 void
-ArrayPool<T>::releaseList(LockFun l, Cache& c, Uint32 n)
+ArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
 {
   DUMP("releaseListImpl", "-> ");
   Uint32 ff = c.m_first_free;
@@ -1042,8 +1149,11 @@ ArrayPool<T>::releaseList(LockFun l, Cache& c, Uint32 n)
 
   DUMP("", "\n");
 
+  theArray[ff].chunkSize = i;
+  theArray[ff].lastChunk = prev;
+
   l.lock();
-  releaseList(i, ff, prev);
+  releaseChunk(i, ff, prev);
   l.unlock();
 }
 
