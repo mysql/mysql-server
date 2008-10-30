@@ -29,7 +29,7 @@ EXTRA="-fast"			# Remove comment to target current machine
 
 STD="-mt -D_FORTEC_ $EXTRA $EXTRA_64_BIT"
 CC=cc-5.0 CFLAGS="-Xa -xstrconst $STD" \
-CXX=CC CXXFLAGS="-noex $STD" \
+CXX=CC CXXFLAGS="-noex $STD" LIBS="-lmtmalloc" \
 ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --prefix=$PREFIX
 
 make -j 4
