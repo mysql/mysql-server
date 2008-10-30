@@ -460,9 +460,9 @@ struct rw_lock_struct {
 	os_event_t	wait_ex_event;
 				/* Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 	mutex_t	mutex;		/* The mutex protecting rw_lock_struct */
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 
 	UT_LIST_NODE_T(rw_lock_t) list;
 				/* All allocated rw locks are put into a

@@ -123,6 +123,13 @@ by one. */
 /* Use malloc instead of innodb additional memory pool (great with tcmalloc) */
 #define UNIV_DISABLE_MEM_POOL
 
+#if defined(HAVE_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMIC)
+/*
+ * We have a full set of atomic ops available - we will use them
+ */
+#define UNIV_SYNC_ATOMIC
+#endif
+
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG

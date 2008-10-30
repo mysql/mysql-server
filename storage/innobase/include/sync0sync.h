@@ -16,6 +16,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "os0sync.h"
 #include "sync0arr.h"
+#include "my_atomic.h"
 
 #ifndef UNIV_HOTBACKUP
 extern my_bool	timed_mutexes;
@@ -476,7 +477,10 @@ struct mutex_struct {
  				test-and-set instruction in Win32 and
  				x86 32/64 with GCC 4.1.0 or later version */
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#elif defined(MY_ATOMIC_NOLOCK)
+				/* We have my_atomic_* routines that are
+				intrinsically atomic, so no need for the
+				mutex. */
 #else
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
