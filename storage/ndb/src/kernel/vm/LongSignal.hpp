@@ -26,9 +26,18 @@ struct SectionSegment {
 
   STATIC_CONST( DataLength = NDB_SECTION_SEGMENT_SZ );
   
-  Uint32 m_ownerRef;
-  Uint32 m_sz;
-  Uint32 m_lastSegment;
+  union {
+    Uint32 m_sz;
+    Uint32 chunkSize;
+  };
+  union {
+    Uint32 m_ownerRef;
+    Uint32 nextChunk;
+  };
+  union {
+    Uint32 m_lastSegment;
+    Uint32 lastChunk;  // 
+  };
   union {
     Uint32 m_nextSegment;
     Uint32 nextPool;
