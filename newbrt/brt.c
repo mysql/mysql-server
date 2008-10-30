@@ -1189,8 +1189,7 @@ static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
 			    newlen, disksize, new_data);
     case BRT_NONE: break;
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 static int apply_cmd_to_le_both (TXNID xid,
@@ -1238,8 +1237,7 @@ static int apply_cmd_to_le_both (TXNID xid,
 			    newlen, disksize, new_data);
     case BRT_NONE: break;
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 static int apply_cmd_to_le_provdel (TXNID xid,
@@ -1373,8 +1371,7 @@ apply_cmd_to_leaf (BRT_CMD cmd,
 	case BRT_NONE:
 	    break;
 	}
-	assert(0);
-	return 0;
+	abort();
     } else {
 	LESWITCHCALL(stored_data, apply_cmd_to, cmd,
 		     newlen, disksize, new_data);
