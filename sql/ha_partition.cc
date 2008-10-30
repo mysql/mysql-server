@@ -3824,8 +3824,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
       Need to set unordered scan ongoing since we can come here even when
       it isn't set.
     */
-    DBUG_PRINT("info", ("key_len %lu (%lu), doing unordered scan",
-                        key_len, m_curr_key_info[0]->key_length));
+    DBUG_PRINT("info", ("doing unordered scan"));
     m_ordered_scan_ongoing= FALSE;
     error= handle_unordered_scan_next_partition(buf);
   }
@@ -5806,7 +5805,7 @@ bool ha_partition::check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                               uint table_changes)
 {
   handler **file;
-  bool ret;
+  bool ret= COMPATIBLE_DATA_YES;
 
   /*
     The check for any partitioning related changes have already been done
@@ -5828,7 +5827,7 @@ bool ha_partition::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
 {
   handler **file;
-  int ret;
+  int ret= 0;
 
   /*
     There has already been a check in fix_partition_func in mysql_alter_table
@@ -5846,7 +5845,7 @@ int ha_partition::prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)
 {
   handler **file;
-  int ret;
+  int ret= 0;
 
   /*
     DROP INDEX does not affect partitioning.
