@@ -19,6 +19,9 @@
 #include <my_global.h>
 #include <ndb_types.h>
 
+/* NAME_LEN */
+#include <mysql_com.h>
+
 #define NDB_PORT "@ndb_port@"
 #define NDB_TCP_BASE_PORT "@ndb_port_base@"
 
