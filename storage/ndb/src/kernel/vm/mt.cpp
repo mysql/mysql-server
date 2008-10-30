@@ -260,6 +260,7 @@ void
 lock_slow(struct thr_spin_lock* sl)
 {
   volatile unsigned* val = &sl->m_lock;
+  mt_lock_stat* s = lookup_lock(sl); // lookup before owning lock
 
 loop:
   Uint32 spins = 0;
@@ -271,7 +272,6 @@ loop:
   if (unlikely(xcng(val, 1) != 0))
     goto loop;
 
-  mt_lock_stat* s = lookup_lock(sl);
   if (s)
   {
     s->m_spin_count += spins;
