@@ -7534,7 +7534,7 @@ Dbdict::check_supported_add_fragment(Uint16* newdata, const Uint16* olddata)
   }
 
   Uint32 fragments = newdata[1];
-  if (fragments <= olddata[1])
+  if (fragments < olddata[1])
   {
     jam();
     return AlterTableRef::UnsupportedChange;
