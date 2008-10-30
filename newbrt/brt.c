@@ -1766,6 +1766,45 @@ brt_merge_child (BRT t, BRTNODE node, int childnum, BOOL *did_io)
     return 0;
 }
 
+static int
+brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger) {
+    switch (re) {
+    case RE_STABLE: return 0;
+    case RE_FISSIBLE:
+	return brt_split_child(t, node, childnum, logger);
+    case RE_FUSIBLE:
+	return brt_merge_child(t, node, childnum, did_io);
+    }
+    abort(); // this cannot happen
+}
+
+static int
+brt_handle_maybe_reactive_child_at_root (BRT brt, CACHEKEY *rootp, BRTNODE *nodep, enum reactivity re, TOKULOGGER logger) {
+    BRTNODE node = *nodep;
+    switch (re) {
+    case RE_STABLE:
+	return 0;
+    case RE_FISSIBLE:
+	// The root node should split, so make a new root.
+	{
+	    BRTNODE nodea,nodeb;
+	    DBT splitk;
+	    if (node->height==0) {
+		int r = brtleaf_split(logger, toku_cachefile_filenum(brt->cf), brt, node, &nodea, &nodeb, &splitk);
+		if (r!=0) return r;
+	    } else {
+		int r = brt_nonleaf_split(brt, node, &nodea, &nodeb, &splitk, logger);
+		if (r!=0) return r;
+	    }
+	    return brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, nodep);
+	}
+    case RE_FUSIBLE:
+	return 0; // Cannot merge anything at the root, so return happy.
+    }
+    abort();
+
+}
+
 static void find_heaviest_child (BRTNODE node, int *childnum) {
     int max_child = 0;
     int max_weight = BNC_NBYTESINBUF(node, 0);
@@ -1896,21 +1935,9 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	int original_n_children = node->u.n.n_children;
 	for (i=0; i<original_n_children; i++) {
 	    int childnum = original_n_children - 1 -i;
-	    switch (child_re[childnum]) {
-	    case RE_STABLE:   goto next_child; // Could be a continue, but it seems fragile
-	    case RE_FISSIBLE:
-		r = brt_split_child(t, node, childnum, logger);
-		if (r!=0) goto return_r;
-		goto reacted;
-	    case RE_FUSIBLE:
-		r = brt_merge_child(t, node, childnum, did_io);
-		if (r!=0) goto return_r;
-		goto reacted;
-	    }
-	    abort(); // this cannot happen
-	reacted:
+	    r = brt_handle_maybe_reactive_child(t, node, childnum, child_re[childnum], did_io, logger);
+	    if (r!=0) break;
 	    if (*did_io) break;
-	next_child: ; /* nothing */
 	}
     return_r:
 	toku_free(child_re);
@@ -1948,27 +1975,7 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
     }
     //printf("%s:%d should_split=%d node_size=%" PRIu64 "\n", __FILE__, __LINE__, should_split, brtnode_memory_size(node));
 
-    switch (re) {
-    case RE_STABLE:
-	return 0;
-    case RE_FISSIBLE:
-	// The root node should split, so make a new root.
-	{
-	    BRTNODE nodea,nodeb;
-	    DBT splitk;
-	    if (node->height==0) {
-		int r = brtleaf_split(logger, toku_cachefile_filenum(brt->cf), brt, node, &nodea, &nodeb, &splitk);
-		if (r!=0) return r;
-	    } else {
-		int r = brt_nonleaf_split(brt, node, &nodea, &nodeb, &splitk, logger);
-		if (r!=0) return r;
-	    }
-	    return brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, nodep);
-	}
-    case RE_FUSIBLE:
-	return 0; // Cannot merge anything at the root, so return happy.
-    }
-    abort();
+    return brt_handle_maybe_reactive_child_at_root(brt, rootp, nodep, re, logger);
 }
 
 static void compute_and_fill_remembered_hash (BRT brt, int rootnum) {
@@ -2907,19 +2914,9 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
     int r = brt_search_node(brt, childnode, search, newkey, newval, &child_re, logger, omtcursor);
     if (r!=0) goto return_r;
 
-    switch (child_re) {
-    case RE_STABLE: goto return_r;
-    case RE_FISSIBLE:
-	r = brt_split_child(brt, node, childnum, logger);
-	goto return_r;
-    case RE_FUSIBLE:
-	{
-	    BOOL did_io = FALSE;
-	    r = brt_merge_child(brt, node, childnum, &did_io);
-	    goto return_r;
-	}
-    }
-    abort(); // enum is broken
+    BOOL did_io = FALSE;
+    r = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, logger);
+
  return_r:
     {
 	int rr = toku_cachetable_unpin(brt->cf, childnode->thisnodename, childnode->fullhash, childnode->dirty, brtnode_memory_size(childnode)); 
@@ -3007,27 +3004,7 @@ toku_brt_search (BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULO
         r = brt_search_node(brt, node, search, newkey, newval, &re, logger, omtcursor);
 	if (r!=0) goto return_r;
 
-	switch (re) {
-	case RE_STABLE: goto return_r;
-	case RE_FISSIBLE:
-	    // The root node should split, so make a new root.
-	    {
-		BRTNODE nodea,nodeb;
-		DBT splitk;
-		if (node->height==0) {
-		    r = brtleaf_split(logger, toku_cachefile_filenum(brt->cf), brt, node, &nodea, &nodeb, &splitk);
-		    if (r!=0) goto return_r;
-		} else {
-		    r = brt_nonleaf_split(brt, node, &nodea, &nodeb, &splitk, logger);
-		    if (r!=0) goto return_r;
-		}
-		r = brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, &node);
-		goto return_r;
-	    }
-	case RE_FUSIBLE:
-	    goto return_r; // Cannot merge anything at the root, so return happy.
-	}
-	abort(); // cannot happen
+	r = brt_handle_maybe_reactive_child_at_root(brt, rootp, &node, re, logger);
     }
 
  return_r:
