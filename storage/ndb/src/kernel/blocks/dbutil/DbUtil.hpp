@@ -147,7 +147,12 @@ public:
    * @brief   For storing SimpleProperties objects and similar temporary data
    */
   struct Page32 {
-    Uint32  data[UTIL_WORDS_PER_PAGE];
+    union {
+      Uint32 data[UTIL_WORDS_PER_PAGE];
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
     Uint32  nextPool;                  // Note: This used as data when seized
   };
 

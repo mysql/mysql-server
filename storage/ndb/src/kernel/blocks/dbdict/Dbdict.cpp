@@ -7534,7 +7534,7 @@ Dbdict::check_supported_add_fragment(Uint16* newdata, const Uint16* olddata)
   }
 
   Uint32 fragments = newdata[1];
-  if (fragments <= olddata[1])
+  if (fragments < olddata[1])
   {
     jam();
     return AlterTableRef::UnsupportedChange;
@@ -18052,7 +18052,9 @@ Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
   LockQueue::Iterator iter;
   if (m_dict_lock.first(this, m_dict_lock_pool, iter))
   {
+#ifdef MARTIN
     infoEvent("Iterating lock queue");
+#endif
     do {
       if (NodeBitmask::get(theFailedNodes, 
                            refToNode(iter.m_curr.p->m_req.senderRef)))
@@ -18117,7 +18119,9 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
     ndbassert(false);
     break;
   }
+#ifdef MARTIN
   infoEvent("Busy with schema transaction");
+#endif
   return SchemaTransBeginRef::Busy;
 }
 
@@ -20434,23 +20438,13 @@ Dbdict::createNodegroup_abortParse(Signal* signal, SchemaOpPtr op_ptr)
   sendTransConf(signal, op_ptr);
 }
 
-static
-Uint32
-cnt_nodes(const Uint32 * nodes, Uint32 bound)
-{
-  for (Uint32 i = 0; i<bound; i++)
-    if (nodes[i] == 0)
-      return i;
-  return bound;
-}
-
 bool
 Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
-  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+  //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
 
   if (createNodegroupRecPtr.p->m_map_created == false)
   {
@@ -21701,7 +21695,7 @@ Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
         op_ptr.p->m_magic = SchemaOp::DICT_MAGIC;
         const char* opType = info.m_opType;
         D("seizeSchemaOp" << V(op_key) << V(opType));
-#ifdef VM_TRACE
+#ifdef MARTIN
         ndbout_c("Dbdict::seizeSchemaOp: op_key %u, op_type %s", op_key, opType);
 #endif
         return true;
@@ -21733,7 +21727,7 @@ Dbdict::releaseSchemaOp(SchemaOpPtr& op_ptr)
 {
   Uint32 op_key = op_ptr.p->op_key;
   D("releaseSchemaOp" << V(op_key));
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::releaseSchemaOp: op_key %u", op_key);
 #endif
 
@@ -22044,7 +22038,7 @@ Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr)
 {
   Uint32 trans_key = c_opRecordSequence + 1;
   if (seizeSchemaTrans(trans_ptr, trans_key)) {
-#ifdef VM_TRACE
+#ifdef MARTIN
     ndbout_c("Dbdict::seizeSchemaTrans: Seized schema trans %u", trans_key);
 #endif
     c_opRecordSequence = trans_key;
@@ -22072,7 +22066,7 @@ Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
 {
   Uint32 trans_key = trans_ptr.p->trans_key;
   D("releaseSchemaTrans" << V(trans_key));
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::releaseSchemaTrans: Releasing trans %u", trans_key);
 #endif
 
@@ -22112,7 +22106,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
   const SchemaTransBeginReq* req =
     (const SchemaTransBeginReq*)signal->getDataPtr();
   Uint32 clientRef = req->clientRef;
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::execSCHEMA_TRANS_BEGIN_REQ: received GSN_SCHEMA_TRANS_BEGIN_REQ from 0x%8x", clientRef);
 #endif
 
@@ -22317,7 +22311,7 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       setError(error, SchemaTransEndRef::NotMaster, __LINE__);
       break;
     }
-#ifdef VM_TRACE
+#ifdef MARTIN
     ndbout_c("Dbdict::execSCHEMA_TRANS_END_REQ: trans %u, state %u", trans_ptr.i, trans_ptr.p->m_state);
 #endif
 
@@ -22563,7 +22557,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
   Uint32 senderRef = ref->senderRef;
   Uint32 nodeId = refToNode(senderRef);
 
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Got SCHEMA_TRANS_IMPL_REF from node %u, error %u", nodeId, ref->errorCode);
 #endif
   if (ref->errorCode == SchemaTransImplRef::NF_FakeErrorREF)
@@ -23105,7 +23099,7 @@ Dbdict::trans_abort_parse_next(Signal* signal,
 {
   jam();
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::trans_abort_parse_next: op %u state %u", op_ptr.i,op_ptr.p->m_state); 
 #endif
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
@@ -23264,7 +23258,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
 {
   jam();
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PREPARE);
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::trans_abort_prepare_next: op %u state %u", op_ptr.p->op_key, op_ptr.p->m_state); 
 #endif 
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
@@ -23348,7 +23342,7 @@ Dbdict::trans_abort_prepare_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PREPARE);
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::trans_abort_prepare_done");
 #endif
   /**
@@ -23580,7 +23574,7 @@ void
 Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("trans_commit");
 #endif
 
@@ -23614,7 +23608,7 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
                                   Uint32 ret)
 {
   jamEntry();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("trans_commit_mutex_locked");
 #endif
   SchemaTransPtr trans_ptr;
@@ -23698,7 +23692,7 @@ Dbdict::trans_commit_next(Signal* signal,
                           SchemaOpPtr op_ptr)
 {
   jam();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("Dbdict::trans_commit_next: op %u state %u", op_ptr.i,op_ptr.p->m_state); 
 #endif
   op_ptr.p->m_state = SchemaOp::OS_COMMITTING;
@@ -23816,7 +23810,10 @@ Dbdict::trans_commit_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_commit_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
+#ifdef MARTIN
   ndbout_c("trans_commit_done");
+#endif
+
   Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
   Callback c = { safe_cast(&Dbdict::trans_commit_mutex_unlocked), trans_ptr.i };
   mutex.unlock(c);
@@ -23828,7 +23825,7 @@ Dbdict::trans_commit_mutex_unlocked(Signal* signal,
                                     Uint32 ret)
 {
   jamEntry();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("trans_commit_mutex_unlocked");
 #endif
   SchemaTransPtr trans_ptr;
@@ -23886,7 +23883,7 @@ void
 Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("trans_complete_start %u", trans_ptr.p->trans_key);
 #endif
   trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMPLETE;
@@ -24327,7 +24324,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     goto err;
   }
 
-#ifndef DBUG_OFF
+#ifdef MARTIN
   char buf[256];
   switch(rt) {
   case(SchemaTransImplReq::RT_START):
@@ -24729,7 +24726,7 @@ Dbdict::slave_commit_mutex_locked(Signal* signal,
                                   Uint32 ret)
 {
   jamEntry();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("slave_commit_mutex_locked");
 #endif
   SchemaTransPtr trans_ptr;
@@ -24745,7 +24742,7 @@ Dbdict::slave_commit_mutex_unlocked(Signal* signal,
                                     Uint32 ret)
 {
   jamEntry();
-#ifdef VM_TRACE
+#ifdef MARTIN
   ndbout_c("slave_commit_mutex_unlocked");
 #endif
   SchemaTransPtr trans_ptr;
