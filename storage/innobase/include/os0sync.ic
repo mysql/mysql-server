@@ -58,7 +58,7 @@ os_compare_and_swap(
 	lint		oldVal,		/* in: value to compare to */
 	lint		newVal)		/* in: value to swap in */
 {
-#ifdef HAVE_GCC_ATOMIC_BULTINS
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
 	return (__sync_bool_compare_and_swap(ptr, oldVal, newVal));
 #elif HAVE_SOLARIS_ATOMIC
 	lint retVal = (lint)atomic_cas_ulong((volatile ulong_t *)ptr,
@@ -79,7 +79,7 @@ os_atomic_increment(
 	volatile lint*	ptr,		/* in: pointer to target */
 	lint		amount)		/* in: amount of increment */
 {
-#ifdef HAVE_GCC_ATOMIC_BULTINS
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
 	return (__sync_add_and_fetch(ptr, amount));
 #elif HAVE_SOLARIS_ATOMIC
 	return ((lint)atomic_add_long_nv((volatile ulong_t *)ptr, amount));
