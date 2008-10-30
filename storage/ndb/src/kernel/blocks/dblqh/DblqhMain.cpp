@@ -18859,9 +18859,6 @@ void Dblqh::sendAborted(Signal* signal)
  * ------------------------------------------------------------------------- */
 void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
 {
-  /**
-   * wl4391_todo need to send instance key to take-over TC
-   */
   tcNodeFailptr.i = tcConnectptr.p->tcNodeFailrec;
   ptrCheckGuard(tcNodeFailptr, ctcNodeFailrecFileSize, tcNodeFailRecord);
 
@@ -18890,6 +18887,7 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
   lqhTransConf->apiOpRec        = tcConnectptr.p->applOprec;
   lqhTransConf->tableId         = tcConnectptr.p->tableref;
   lqhTransConf->gci_lo          = tcConnectptr.p->gci_lo;
+  lqhTransConf->fragId          = tcConnectptr.p->fragmentid;
   sendSignal(tcNodeFailptr.p->newTcBlockref, GSN_LQH_TRANSCONF, 
 	     signal, LqhTransConf::SignalLength, JBB);
   tcNodeFailptr.p->tcRecNow = tcConnectptr.i + 1;
