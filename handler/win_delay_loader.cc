@@ -55,6 +55,7 @@ bool*			wdl_mysqld_embedded;
 uint*			wdl_lower_case_table_names;
 ulong*			wdl_specialflag;
 int*			wdl_my_umask;
+bool*			wdl_opt_bin_log;
 
 /***********************************************************************
 The following is defined in ha_innodb.cc. It is used for copying the
@@ -607,6 +608,8 @@ wdl_get_external_variables(void)
 	GET_SYM("?specialflag@@3KA", wdl_specialflag, ulong);
 	GET_SYM("?builtin_innobase_plugin@@3PAUst_mysql_plugin@@A",
 		builtin_innobase_plugin_ptr, struct st_mysql_plugin);
+	GET_SYM("?opt_bin_log@@3_NA",
+		wdl_opt_bin_log, bool);
 
 	GET_SYM2("?system_charset_info@@3PEAUcharset_info_st@@EA",
 		 "?system_charset_info@@3PAUcharset_info_st@@A",
