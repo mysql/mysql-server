@@ -169,8 +169,6 @@ trx_create(
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 
-	trx->auto_inc_lock = NULL;
-
 	trx->global_read_view_heap = mem_heap_create(256);
 	trx->global_read_view = NULL;
 	trx->read_view = NULL;
@@ -180,6 +178,10 @@ trx_create(
 	trx->xid.formatID = -1;
 
 	trx->n_autoinc_rows = 0;
+
+	/* Remember to free the vector explicitly. */
+	trx->autoinc_locks = ib_vector_create(
+		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
 
 	trx_reset_new_rec_lock_info(trx);
 
@@ -305,7 +307,6 @@ trx_free(
 	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 
 	ut_a(!trx->has_search_latch);
-	ut_a(!trx->auto_inc_lock);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -322,6 +323,10 @@ trx_free(
 	trx->global_read_view = NULL;
 
 	ut_a(trx->read_view == NULL);
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->autoinc_locks);
 
 	mem_free(trx);
 }
