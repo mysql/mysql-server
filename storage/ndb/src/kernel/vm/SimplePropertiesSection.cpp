@@ -251,7 +251,7 @@ SimplePropertiesSectionWriter::getPtr(struct SegmentedSectionPtr & dst){
     m_head->m_lastSegment = m_currentSegment->m_lastSegment;
 
     if((m_pos % SectionSegment::DataLength) == 0){
-      m_pool.release(m_currentSegment->m_lastSegment);
+      m_pool.release(SP_POOL_ARG m_currentSegment->m_lastSegment);
       m_head->m_lastSegment = m_prevPtrI;
     }
 
