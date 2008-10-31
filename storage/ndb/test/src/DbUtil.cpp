@@ -28,7 +28,8 @@ DbUtil::DbUtil(const char* _dbname,
   m_connected(false),
   m_user("root"),
   m_pass(""),
-  m_dbname(_dbname)
+  m_dbname(_dbname),
+  m_silent(false)
 {
   const char* env= getenv("MYSQL_HOME");
   if (env && strlen(env))
@@ -335,9 +336,10 @@ DbUtil::selectCountTable(const char * table)
 
 bool
 DbUtil::runQuery(const char* sql,
-                    const Properties& args,
-                    SqlResultSet& rows){
+                 const Properties& args,
+                 SqlResultSet& rows){
 
+  clear_error();
   rows.clear();
   if (!isConnected())
     return false;
@@ -350,7 +352,7 @@ DbUtil::runQuery(const char* sql,
   MYSQL_STMT *stmt= mysql_stmt_init(m_mysql);
   if (mysql_stmt_prepare(stmt, sql, strlen(sql)))
   {
-    g_err << "Failed to prepare: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to prepare: ", m_mysql);
     return false;
   }
 
@@ -393,14 +395,14 @@ DbUtil::runQuery(const char* sql,
   }
   if (mysql_stmt_bind_param(stmt, bind_param))
   {
-    g_err << "Failed to bind param: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to bind param: ", m_mysql);
     mysql_stmt_close(stmt);
     return false;
   }
 
   if (mysql_stmt_execute(stmt))
   {
-    g_err << "Failed to execute: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to execute: ", m_mysql);
     mysql_stmt_close(stmt);
     return false;
   }
@@ -414,7 +416,7 @@ DbUtil::runQuery(const char* sql,
 
   if (mysql_stmt_store_result(stmt))
   {
-    g_err << "Failed to store result: " << mysql_error(m_mysql) << endl;
+    report_error("Failed to store result: ", m_mysql);
     mysql_stmt_close(stmt);
     return false;
   }
@@ -452,7 +454,7 @@ DbUtil::runQuery(const char* sql,
     }
 
     if (mysql_stmt_bind_result(stmt, bind_result)){
-      g_err << "Failed to bind result: " << mysql_error(m_mysql) << endl;
+      report_error("Failed to bind result: ", m_mysql);
       mysql_stmt_close(stmt);
       return false;
     }
@@ -525,6 +527,12 @@ DbUtil::doQuery(const char* query, const Properties& args,
   return true;
 }
 
+bool
+DbUtil::doQuery(const char* query, const Properties& args){
+  SqlResultSet result;
+  return doQuery(query, args, result);
+}
+
 
 bool
 DbUtil::doQuery(BaseString& str){
@@ -545,6 +553,12 @@ DbUtil::doQuery(BaseString& str, const Properties& args,
 }
 
 
+bool
+DbUtil::doQuery(BaseString& str, const Properties& args){
+  return doQuery(str.c_str(), args);
+}
+
+
 /* Return MySQL Error String */
 
 const char *
@@ -560,6 +574,17 @@ DbUtil::getErrorNumber()
 {
   return mysql_errno(this->getMysql());
 }
+
+void
+DbUtil::report_error(const char* message, MYSQL* mysql)
+{
+  m_last_errno= mysql_errno(mysql);
+  m_last_error.assfmt("%d: %s", m_last_errno, mysql_error(mysql));
+
+  if (!m_silent)
+    g_err << message << m_last_error << endl;
+}
+
 
 /* DIE */
 
