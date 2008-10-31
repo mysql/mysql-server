@@ -97,10 +97,12 @@ public:
   bool doQuery(const char* query);
   bool doQuery(const char* query, SqlResultSet& result);
   bool doQuery(const char* query, const Properties& args, SqlResultSet& result);
+  bool doQuery(const char* query, const Properties& args);
 
   bool doQuery(BaseString& str);
   bool doQuery(BaseString& str, SqlResultSet& result);
   bool doQuery(BaseString& str, const Properties& args, SqlResultSet& result);
+  bool doQuery(BaseString& str, const Properties& args);
 
   bool waitConnected(int timeout);
 
@@ -131,8 +133,12 @@ public:
   bool selectDb(const char *);
   bool createDb(BaseString&);
   int getErrorNumber();
+  const char* last_error() const { return m_last_error.c_str(); }
+  int last_errno() const { return m_last_errno; }
 
   unsigned long selectCountTable(const char * table);
+
+  void silent() { m_silent= true; };
 
 protected:
 
@@ -158,6 +164,14 @@ private:
   BaseString m_default_group;
 
   unsigned int m_port;     // MySQL Server port
+
+  int m_last_errno;
+  BaseString m_last_error;
+
+  bool m_silent;
+
+  void report_error(const char* message, MYSQL* mysql);
+  void clear_error(void) { m_last_errno= 0; m_last_error.clear(); }
 
   void setDbName(const char * name){m_dbname.assign(name);};
   void setUser(const char * user_name){m_user.assign(user_name);};
