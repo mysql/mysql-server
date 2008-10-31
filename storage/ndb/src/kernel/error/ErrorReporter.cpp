@@ -32,7 +32,8 @@
 
 static int WriteMessage(int thrdMessageID,
 			const char* thrdProblemData, 
-			const char* thrdObjRef);
+			const char* thrdObjRef,
+                        NdbShutdownType & nst);
 
 static void dumpJam(FILE* jamStream, 
 		    Uint32 thrdTheEmulatedJamIndex, 
@@ -199,11 +200,12 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line, int
   BaseString::snprintf(refMessage, 100, "%s line: %d (block: %s)",
 	   file, line, blockName);
 #endif
-  WriteMessage(ec, message, refMessage);
+  NdbShutdownType nst = s_errorHandlerShutdownType;
+  WriteMessage(ec, message, refMessage, nst);
 
   childReportError(ec);
 
-  NdbShutdown(s_errorHandlerShutdownType);
+  NdbShutdown(nst);
   exit(1);                                      // Deadcode
 }
 
@@ -213,25 +215,31 @@ ErrorReporter::handleError(int messageID,
 			   const char* objRef,
 			   NdbShutdownType nst)
 {
-  WriteMessage(messageID, problemData, objRef);
+  if(messageID == NDBD_EXIT_ERROR_INSERT)
+  {
+    nst = NST_ErrorInsert;
+  } 
+  else 
+  {
+    if (nst == NST_ErrorHandler)
+      nst = s_errorHandlerShutdownType;
+  }
+  
+  WriteMessage(messageID, problemData, objRef, nst);
 
   g_eventLogger->info(problemData);
   g_eventLogger->info(objRef);
 
   childReportError(messageID);
 
-  if(messageID == NDBD_EXIT_ERROR_INSERT){
-    NdbShutdown(NST_ErrorInsert);
-  } else {
-    if (nst == NST_ErrorHandler)
-      nst = s_errorHandlerShutdownType;
-    NdbShutdown(nst);
-  }
+  NdbShutdown(nst);
 }
 
 int 
 WriteMessage(int thrdMessageID,
-	     const char* thrdProblemData, const char* thrdObjRef){
+	     const char* thrdProblemData, 
+             const char* thrdObjRef,
+             NdbShutdownType & nst){
   FILE *stream;
   unsigned offset;
   unsigned long maxOffset;  // Maximum size of file.
@@ -328,7 +336,7 @@ WriteMessage(int thrdMessageID,
   
   if (theTraceFileName) {
     /* Attempt to stop all processing to be able to dump a consistent state. */
-    globalScheduler.traceDumpPrepare();
+    globalScheduler.traceDumpPrepare(nst);
 
     char *traceFileEnd = theTraceFileName + strlen(theTraceFileName);
     for (Uint32 i = 0; i < threadCount; i++)
