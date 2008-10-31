@@ -1901,7 +1901,25 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	BOOL did_merge;
 	r = maybe_merge_pinned_nodes(t, childa, childb, logger, &did_merge);
 	if (r!=0) goto return_r;
-	if (did_merge) abort(); // cannot handle it.
+	if (did_merge) {
+	    {
+		struct kv_pair *delete_this_key = node->u.n.childkeys[childnuma];
+		node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, delete_this_key);
+		toku_free(delete_this_key);
+	    }
+	    toku_fifo_free(&BNC_BUFFER(node, childnumb));
+	    node->u.n.n_children--;
+	    memmove(&node->u.n.childinfos[childnumb],
+		    &node->u.n.childinfos[childnumb+1],
+		    (node->u.n.n_children-childnumb)*sizeof(node->u.n.childinfos[0]));
+	    REALLOC_N(node->u.n.n_children, node->u.n.childinfos);
+	    memmove(&node->u.n.childkeys[childnuma],
+		    &node->u.n.childkeys[childnuma+1],
+		    (node->u.n.n_children-childnumb)*sizeof(node->u.n.childkeys[0]));
+	    REALLOC_N(node->u.n.n_children-1, node->u.n.childkeys);
+	    fixup_child_fingerprint(node, childnuma, childa, t, logger);
+			   
+	}
     }
  return_r:
     // Unpin both, and return the first nonzero error code that is found
