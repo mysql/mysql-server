@@ -3615,7 +3615,6 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                         bool internal_tmp_table,
                         uint select_field_count)
 {
-  char buf[256];
   TABLE *name_lock= 0;
   bool result;
   Ha_global_schema_lock_guard global_schema_lock_guard(thd);
@@ -3645,11 +3644,6 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    sprintf(buf, "%u thd->open_tables: %p ->next: %p",
-            __LINE__,
-            thd->open_tables,
-            thd->open_tables ? thd->open_tables->next : (void*)0);
-    sql_print_information(buf);
     if (lock_table_name_if_not_cached(thd, db, table_name, &name_lock))
     {
       result= TRUE;
@@ -3673,22 +3667,10 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
       goto unlock;
     }
   }
-  //****
-  sprintf(buf, "%u thd->open_tables: %p ->next: %p",
-          __LINE__,
-          thd->open_tables,
-          thd->open_tables ? thd->open_tables->next : (void*)0);
-  sql_print_information(buf);
   result= mysql_create_table_no_lock(thd, db, table_name, create_info,
                                      alter_info,
                                      internal_tmp_table,
                                      select_field_count);
-  //****
-  sprintf(buf, "%u thd->open_tables: %p ->next: %p",
-          __LINE__,
-          thd->open_tables,
-          thd->open_tables ? thd->open_tables->next : (void*)0);
-  sql_print_information(buf);
 
 unlock:
   if (name_lock)
