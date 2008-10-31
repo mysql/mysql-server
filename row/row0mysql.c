@@ -852,19 +852,18 @@ row_update_statistics_if_needed(
 }
 
 /*************************************************************************
-Unlocks an AUTO_INC type lock possibly reserved by trx. */
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
 UNIV_INTERN
 void
 row_unlock_table_autoinc_for_mysql(
 /*===============================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/* in/out: transaction */
 {
-	if (!trx->auto_inc_lock) {
+	mutex_enter(&kernel_mutex);
 
-		return;
-	}
+	lock_release_autoinc_locks(trx);
 
-	lock_table_unlock_auto_inc(trx);
+	mutex_exit(&kernel_mutex);
 }
 
 /*************************************************************************
@@ -881,16 +880,20 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in the MySQL
 					table handle */
 {
-	trx_t*		trx		= prebuilt->trx;
-	ins_node_t*	node		= prebuilt->ins_node;
-	que_thr_t*	thr;
-	ulint		err;
-	ibool		was_lock_wait;
+	trx_t*			trx	= prebuilt->trx;
+	ins_node_t*		node	= prebuilt->ins_node;
+	const dict_table_t*	table	= prebuilt->table;
+	que_thr_t*		thr;
+	ulint			err;
+	ibool			was_lock_wait;
 
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	if (trx->auto_inc_lock) {
+	/* If we already hold an AUTOINC lock on the table then do nothing.
+        Note: We peek at the value of the current owner without acquiring
+	the kernel mutex. **/
+	if (trx == table->autoinc_trx) {
 
 		return(DB_SUCCESS);
 	}

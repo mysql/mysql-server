@@ -58,7 +58,7 @@ dict_mem_table_create(
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
 
-	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
+	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 

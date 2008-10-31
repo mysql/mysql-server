@@ -24,6 +24,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "hash0hash.h"
 #include "que0types.h"
+#include "trx0types.h"
 
 /* Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -381,13 +382,6 @@ struct dict_table_struct{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	lock_t*		auto_inc_lock;/* a buffer for an auto-inc lock
-				for this table: we allocate the memory here
-				so that individual transactions can get it
-				and release it without a need to allocate
-				space from the lock heap of the trx:
-				otherwise the lock heap would grow rapidly
-				if we do a large insert from a select */
 	dulint		query_cache_inv_trx_id;
 				/* transactions whose trx id < than this
 				number are not allowed to store to the MySQL
@@ -438,12 +432,33 @@ struct dict_table_struct{
 				any latch, because this is only used for
 				heuristics */
 	/*----------------------*/
+				/* The following fields are used by the
+				AUTOINC code.  The actual collection of
+				tables locked during AUTOINC read/write is
+				kept in trx_t. In order to quickly determine
+				whether a transaction has locked the AUTOINC
+				lock we keep a pointer to the transaction
+				here in the autoinc_trx variable. This is to
+				avoid acquiring the kernel mutex and scanning
+				the vector in trx_t.
+
+				When an AUTOINC lock has to wait, the
+				corresponding lock instance is created on
+				the trx lock heap rather than use the
+				pre-allocated instance in autoinc_lock below.*/
+	lock_t*		autoinc_lock;
+				/* a buffer for an AUTOINC lock
+				for this table: we allocate the memory here
+				so that individual transactions can get it
+				and release it without a need to allocate
+				space from the lock heap of the trx:
+				otherwise the lock heap would grow rapidly
+				if we do a large insert from a select */
 	mutex_t		autoinc_mutex;
 				/* mutex protecting the autoincrement
 				counter */
 	ib_uint64_t	autoinc;/* autoinc counter value to give to the
 				next inserted row */
-	/*----------------------*/
 	ulong		n_waiting_or_granted_auto_inc_locks;
 				/* This counter is used to track the number
 				of granted and pending autoinc locks on this
@@ -453,6 +468,9 @@ struct dict_table_struct{
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the
 				lock but there can be multiple waiters. */
+	const trx_t*		autoinc_trx;
+				/* The transaction that currently holds the
+				the AUTOINC lock on this table. */
 	/*----------------------*/
 
 #ifdef UNIV_DEBUG
