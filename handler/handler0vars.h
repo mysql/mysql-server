@@ -27,7 +27,6 @@ extern	bool*			wdl_mysqld_embedded;
 extern	uint*			wdl_lower_case_table_names;
 extern	ulong*			wdl_specialflag;
 extern	int*			wdl_my_umask;
-extern	bool*			wdl_opt_bin_log;
 
 #define my_charset_bin		(*wdl_my_charset_bin)
 #define my_charset_latin1	(*wdl_my_charset_latin1)
@@ -48,6 +47,5 @@ extern	bool*			wdl_opt_bin_log;
 #define lower_case_table_names	(*wdl_lower_case_table_names)
 #define specialflag		(*wdl_specialflag)
 #define my_umask		(*wdl_my_umask)
-#define opt_bin_log		(*wdl_opt_bin_log)
 
 #endif
