@@ -30,6 +30,8 @@
 
 template <class T> class Array;
 
+//#define ARRAY_CHUNK_GUARD
+
 /**
  * Template class used for implementing an
  *   pool of object (in an array with a free list)
@@ -151,6 +153,10 @@ public:
   void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
 
   void setChunkSize(Uint32 sz);
+#ifdef ARRAY_CHUNK_GUARD
+  void checkChunks();
+#endif
+
 protected:
   void releaseChunk(LockFun, Cache&, Uint32 n);
 
@@ -218,6 +224,9 @@ protected:
   T * theArray;
   void * alloc_ptr;
   Uint32 *theAllocatedBitmask;
+#ifdef ARRAY_GUARD
+  bool chunk;
+#endif
 };
 
 template <class T>
@@ -230,6 +239,7 @@ ArrayPool<T>::ArrayPool(){
   alloc_ptr = 0;
 #ifdef ARRAY_GUARD
   theAllocatedBitmask = 0;
+  chunk = false;
 #endif
 }
 
@@ -348,18 +358,11 @@ ArrayPool<T>::setChunkSize(Uint32 sz)
   theArray[i].nextChunk = RNIL;
 
 #ifdef ARRAY_GUARD
-  {
-    Uint32 ff = firstFree;
-    Uint32 sum = 0;
-    while (ff != RNIL)
-    {
-      sum += theArray[ff].chunkSize;
-      Uint32 last = theArray[ff].lastChunk;
-      assert(theArray[last].nextPool == theArray[ff].nextChunk);
-      ff = theArray[ff].nextChunk;
-    }
-    assert(sum == size);
-  }
+  chunk = true;
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
 #endif
 }
 
@@ -683,6 +686,10 @@ template <class T>
 inline
 bool
 ArrayPool<T>::seize(Ptr<T> & ptr){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 ff = firstFree;
   if(ff != RNIL){
     firstFree = theArray[ff].nextPool;
@@ -717,6 +724,10 @@ template <class T>
 inline
 bool
 ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 ff = firstFree;
   Uint32 prev = RNIL;
   while(ff != i && ff != RNIL){
@@ -772,6 +783,10 @@ ArrayPool<T>::findId(Uint32 i) const {
 template<class T>
 Uint32
 ArrayPool<T>::seizeN(Uint32 n){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 curr = firstFree;
   Uint32 prev = RNIL;
   Uint32 sz = 0;
@@ -818,6 +833,10 @@ template<class T>
 inline
 void 
 ArrayPool<T>::releaseN(Uint32 base, Uint32 n){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 curr = firstFree;
   Uint32 prev = RNIL;
   while(curr < base){
@@ -855,6 +874,10 @@ template<class T>
 inline
 void 
 ArrayPool<T>::releaseList(Uint32 n, Uint32 first, Uint32 last){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
 
   assert( n != 0 );
 
@@ -895,6 +918,11 @@ template <class T>
 inline
 void
 ArrayPool<T>::release(Uint32 _i){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   const Uint32 i = _i;
   if(likely(i < size)){
     Uint32 ff = firstFree;
@@ -928,6 +956,11 @@ template <class T>
 inline
 void
 ArrayPool<T>::release(Ptr<T> & ptr){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 i = ptr.i;
   if(likely(i < size)){
     Uint32 ff = firstFree;
@@ -961,11 +994,53 @@ ArrayPool<T>::release(Ptr<T> & ptr){
 #define DUMP(a,b)
 #endif
 
+#ifdef ARRAY_CHUNK_GUARD
+template <class T>
+inline
+void
+ArrayPool<T>::checkChunks()
+{
+#ifdef ARRAY_GUARD
+  assert(chunk == true);
+#endif
+
+  Uint32 ff = firstFree;
+  Uint32 sum = 0;
+  while (ff != RNIL)
+  {
+    sum += theArray[ff].chunkSize;
+    Uint32 last = theArray[ff].lastChunk;
+    assert(theArray[last].nextPool == theArray[ff].nextChunk);
+    if (theAllocatedBitmask)
+    {
+      Uint32 tmp = ff;
+      while(tmp != last)
+      {
+        assert(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp));
+        tmp = theArray[tmp].nextPool;
+      }
+      assert(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp));
+    }
+
+    ff = theArray[ff].nextChunk;
+  }
+  assert(sum == noOfFree);
+}
+#endif
+
 template <class T>
 inline
 bool
 ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
 {
+#ifdef ARRAY_GUARD
+  assert(chunk == true);
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+
   Uint32 save = cnt;
   int tmp = save;
   Uint32 ff = firstFree;
@@ -1013,6 +1088,11 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
       }
     }
 #endif
+
+#ifdef ARRAY_CHUNK_GUARD
+    checkChunks();
+#endif
+
     return true;
   }
 
@@ -1024,6 +1104,14 @@ inline
 void
 ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
 {
+#ifdef ARRAY_GUARD
+  assert(chunk == true);
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+
   Uint32 ff = firstFree;
   firstFree = first;
   theArray[first].nextChunk = ff;
@@ -1051,6 +1139,10 @@ ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
       tmp = theArray[tmp].nextPool;
     }
   }
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
 #endif
 }
 
