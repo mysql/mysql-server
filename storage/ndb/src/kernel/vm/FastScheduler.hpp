@@ -121,7 +121,7 @@ public:
   */
 
   /* Called before dumping, intended to stop any still running processing. */
-  void traceDumpPrepare();
+  void traceDumpPrepare(NdbShutdownType&);
   /* Number of threads to create trace files for (thread id 0 .. N-1). */
   Uint32 traceDumpGetNumThreads();
   /* Get jam() buffers etc. for specific thread. */

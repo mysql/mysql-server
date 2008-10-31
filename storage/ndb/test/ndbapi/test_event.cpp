@@ -1686,8 +1686,9 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_RETURN(NDBT_OK);
 }
 
-static int restartAllNodes()
+static int restartAllNodes(int & cnt)
 {
+  cnt = 0;
   NdbRestarter restarter;
   int id = 0;
   do {
@@ -1702,6 +1703,7 @@ static int restartAllNodes()
       break;
     }
     id = id % restarter.getNumDbNodes();
+    cnt++;
   } while (id);
   return id != 0;
 }
@@ -1712,17 +1714,19 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
   Ndb * ndb= GETNDB(step);
   int result = NDBT_OK;
   NdbRestarter restarter;
-  int loops = ctx->getNumLoops();
+  int loops = 2*ctx->getNumLoops();
 
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
     return NDBT_OK;
   }
+  NdbDictionary::Table copy(* ctx->getTab());
   do
   {
+    const NdbDictionary::Table* pTab = 
+      ndb->getDictionary()->getTable(copy.getName());
     result = NDBT_FAILED;
-    const NdbDictionary::Table* pTab = ctx->getTab();
     if (createEvent(ndb, *pTab, ctx))
     {
       g_err << "createEvent failed" << endl;
@@ -1740,7 +1744,8 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     ndbout << "Restarting with dropped events with subscribers" << endl;
-    if (restartAllNodes())
+    int cnt0 = 0, cnt1 = 0;
+    if (restartAllNodes(cnt0))
       break;
     if (ndb->getDictionary()->dropTable(pTab->getName()) != 0){
       g_err << "Failed to drop " << pTab->getName() <<" in db" << endl;
@@ -1748,23 +1753,23 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
     }
     ndbout << "Restarting with dropped events and dropped "
            << "table with subscribers" << endl;
-    if (restartAllNodes())
+    if (restartAllNodes(cnt1))
       break;
     if (ndb->dropEventOperation(pOp))
     {
       g_err << "Failed dropEventOperation" << endl;
       break;
     }
-    NdbDictionary::Table tmp(*pTab);
     //tmp.setNodeGroupIds(0, 0);
-    if (ndb->getDictionary()->createTable(tmp) != 0){
+    if (ndb->getDictionary()->createTable(copy) != 0){
       g_err << "createTable failed: "
             << ndb->getDictionary()->getNdbError() << endl;
       break;
     }
     result = NDBT_OK;
-  } while (--loops);
-
+    loops -= (cnt0 + cnt1);
+  } while (--loops > 0);
+  
   DBUG_RETURN(result);
 }
 
