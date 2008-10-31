@@ -1754,18 +1754,20 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     abort();
 }
 
+static LEAFENTRY
+fetch_from_buf (OMT omt, u_int32_t idx) {
+    OMTVALUE v;
+    int r = toku_omt_fetch(omt, idx, &v, NULL);
+    assert(r==0);
+    return (LEAFENTRY)v;
+}
+
 static int
 merge_leaf_nodes (BRTNODE a, BRTNODE b) {
     OMT omta = a->u.l.buffer;
     OMT omtb = b->u.l.buffer;
     while (toku_omt_size(omtb)>0) {
-	LEAFENTRY le;
-	{
-	    OMTVALUE v;
-	    int r = toku_omt_fetch(omtb, 0, &v, NULL);
-	    assert(r==0);
-	    le = v;
-	}
+	LEAFENTRY le = fetch_from_buf(omtb, 0);
 	u_int32_t le_size = leafentry_memsize(le);
 	u_int32_t le_crc  = toku_le_crc(le);
 	{
@@ -1791,7 +1793,56 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
 }
 
 static int
-maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge)
+balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
+// Effect: 
+//  If b is bigger then move stuff from b to a until b is the smaller.
+//  If a is bigger then move stuff from a to b until a is the smaller.
+{
+    BOOL move_from_right = (toku_serialize_brtnode_size(a) < toku_serialize_brtnode_size(b));
+    BRTNODE from = move_from_right ? b : a;
+    BRTNODE to   = move_from_right ? a : b;
+    OMT  omtfrom = from->u.l.buffer;
+    OMT  omtto   = to  ->u.l.buffer;
+    assert(toku_serialize_brtnode_size(to) <= toku_serialize_brtnode_size(from)); // Could be equal in some screwy cases.
+    while (toku_serialize_brtnode_size(to) <  toku_serialize_brtnode_size(from)) {
+	int from_idx = move_from_right ? 0                    : toku_omt_size(omtfrom)-1;
+	int to_idx   = move_from_right ? toku_omt_size(omtto) : 0;
+	LEAFENTRY le = fetch_from_buf(omtfrom, from_idx);
+	u_int32_t le_size = leafentry_memsize(le);
+	u_int32_t le_crc  = toku_le_crc(le);
+	{
+	    LEAFENTRY new_le = mempool_malloc_from_omt(omtto, &to->u.l.buffer_mempool, le_size);
+	    assert(new_le);
+	    memcpy(new_le, le, le_size);
+	    int r = toku_omt_insert_at(omtto, new_le, to_idx);
+	    assert(r==0);
+	    to  ->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
+	    to  ->local_fingerprint     += to->rand4fingerprint * le_crc;
+	}
+	{
+	    int r = toku_omt_delete_at(omtfrom, from_idx);
+	    assert(r==0);
+	    from->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
+	    from->local_fingerprint     -= from->rand4fingerprint * le_crc;
+	    toku_mempool_mfree(&from->u.l.buffer_mempool, 0, le_size);
+	}
+    }
+    assert(toku_omt_size(a->u.l.buffer)>0);
+    {
+	LEAFENTRY le = fetch_from_buf(a->u.l.buffer, toku_omt_size(a->u.l.buffer)-1);
+	if (a->flags&TOKU_DB_DUPSORT) {
+	    *splitk = kv_pair_malloc(le_any_key(le), le_any_keylen(le), le_any_val(le), le_any_vallen(le));
+	} else {
+	    *splitk = kv_pair_malloc(le_any_key(le), le_any_keylen(le), 0, 0);
+	}
+    }
+    // Boundary case: If both were empty then the loop will fall through.  (Generally if they are the same size the loop falls through.)
+    return 0;
+}
+
+
+static int
+maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    (We do this if the resulting node is not fissible)
 //         or distribute the leafentries evenly between a and b.   (If a and be are already evenly distributed, we may do nothing.)
 {
@@ -1802,7 +1853,7 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
 	*did_merge = FALSE;
 	if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) return 0; // no need to do anything if both are more than 1/4 of a node.
 	// one is less than 1/4 of a node, and together they are more than 3/4 of a node.
-	abort();
+	return balance_leaf_nodes(a, b, splitk);
     } else {
 	// we are merging them.
 	*did_merge = TRUE;
@@ -1810,27 +1861,28 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
     }
     t=t; logger=logger;
 }
-    
+
 static int
-maybe_merge_pinned_nonleaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge)
+maybe_merge_pinned_nonleaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
 {
     abort();
-    t=t; a=a; b=b; logger=logger; did_merge=did_merge;
+    t=t; a=a; b=b; logger=logger; did_merge=did_merge; splitk=splitk;
 }
 
 static int
-maybe_merge_pinned_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge)
+maybe_merge_pinned_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.  (We do this if the resulting node is not fissible)
 //             or distribute a and b evenly and set *did_merge = FALSE  (If a and be are already evenly distributed, we may do nothing.)
 //  If we distribute:
 //    For leaf nodes, we distribute the leafentries evenly.
 //    For nonleaf nodes, we distribute the children evenly.  That may leave one or both of the nodes overfull, but that's OK.
+//  If we distribute, we set *splitk to a malloced pivot key.
 {
     assert(a->height == b->height);
     if (a->height == 0)
-	return maybe_merge_pinned_leaf_nodes(t, a, b, logger, did_merge);
+	return maybe_merge_pinned_leaf_nodes(t, a, b, logger, did_merge, splitk);
     else {
-	return maybe_merge_pinned_nonleaf_nodes(t, a, b, logger, did_merge);
+	return maybe_merge_pinned_nonleaf_nodes(t, a, b, logger, did_merge, splitk);
     }
 }
 
@@ -1899,7 +1951,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
     int r;
     {
 	BOOL did_merge;
-	r = maybe_merge_pinned_nodes(t, childa, childb, logger, &did_merge);
+	struct kv_pair *splitk_kvpair;
+	r = maybe_merge_pinned_nodes(t, childa, childb, logger, &did_merge, &splitk_kvpair);
 	if (r!=0) goto return_r;
 	if (did_merge) {
 	    {
@@ -1918,7 +1971,12 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 		    (node->u.n.n_children-childnumb)*sizeof(node->u.n.childkeys[0]));
 	    REALLOC_N(node->u.n.n_children-1, node->u.n.childkeys);
 	    fixup_child_fingerprint(node, childnuma, childa, t, logger);
-			   
+	} else {
+	    // If we didn't merge the nodes, then we may have mucked with the pivot.
+	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
+	    toku_free(node->u.n.childkeys[childnuma]);
+	    node->u.n.childkeys[childnuma] = splitk_kvpair;
+	    node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
 	}
     }
  return_r:
@@ -3869,6 +3927,11 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 	//printf("%s %s\n", lorange ? lorange : "NULL", hirange ? hirange : "NULL");
 	{
 	    int i;
+	    for (i=0; i+1< node->u.n.n_children; i++) {
+		fprintf(file, "%*spivotkey %d =", depth+1, "", i);
+		toku_print_BYTESTRING(file, toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]), node->u.n.childkeys[i]->key);
+		fprintf(file, "\n");
+	    }
 	    for (i=0; i< node->u.n.n_children; i++) {
 		fprintf(file, "%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
@@ -3893,17 +3956,19 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 	    }
 	}
     } else {
-	fprintf(file, "%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange=%u %u\n",
-	       depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
+	fprintf(file, "%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange (key only)=",
+		depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer);
+	if (lorange) { toku_print_BYTESTRING(file, lolen, (void*)lorange); } else { fprintf(file, "-\\infty"); } fprintf(file, " ");
+	if (hirange) { toku_print_BYTESTRING(file, hilen, (void*)hirange); } else { fprintf(file, "\\infty"); } fprintf(file, "\n");
 	int size = toku_omt_size(node->u.l.buffer);
 	int i;
-	if (0) 
 	for (i=0; i<size; i++) {
 	    OMTVALUE v;
 	    r = toku_omt_fetch(node->u.l.buffer, i, &v, 0);
 	    assert(r==0);
 	    fprintf(file, " [%d]=", i);
 	    print_leafentry(file, v);
+	    fprintf(file, "\n");
 	}
 	//	     printf(" (%d)%u ", len, *(int*)le_any_key(data)));
 	fprintf(file, "\n");
