@@ -140,7 +140,7 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       /* Use standard C library for double to string conversions */
       char fmtbuf[32];
       double d= va_arg(ap, double);
-      if(fmt-percent_pos+1 < sizeof(fmtbuf)-1)
+      if(fmt-percent_pos+1 < (int)sizeof(fmtbuf)-1)
         continue;
       memmove(fmtbuf, percent_pos, (fmt - percent_pos)+1);
       fmtbuf[fmt-percent_pos+1]= 0;
