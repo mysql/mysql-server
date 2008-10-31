@@ -461,7 +461,7 @@ print_restart(FILE * output, Signal* signal, Uint32 aLevel)
 }
 
 void
-FastScheduler::traceDumpPrepare()
+FastScheduler::traceDumpPrepare(NdbShutdownType&)
 {
   /* No-operation in single-threaded ndbd. */
 }
