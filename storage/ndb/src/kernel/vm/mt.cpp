@@ -2990,7 +2990,7 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
 }
 
 void
-FastScheduler::traceDumpPrepare()
+FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
 {
   /*
    * We are about to generate trace files for all threads.
@@ -3046,6 +3046,7 @@ FastScheduler::traceDumpPrepare()
   }
   if (g_thr_repository.stopped_threads < waitFor_count)
   {
+    nst = NST_Watchdog; // Make this abort fast
     ndbout_c("Warning: %d thread(s) did not stop before starting crash dump.",
              waitFor_count - g_thr_repository.stopped_threads);
   }
