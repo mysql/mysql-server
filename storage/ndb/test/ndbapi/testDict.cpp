@@ -5358,8 +5358,8 @@ err:
 
 static ST_Errins
 st_test_local_create_list[] = {
-  ST_Errins(8033, 291, 1),    // TC trigger
-  ST_Errins(8033, 291, 0),
+  ST_Errins(8033, 293, 1),    // TC trigger
+  ST_Errins(8033, 293, 0),
   ST_Errins(4003, 4237, 1),   // TUP trigger
   ST_Errins(4003, 4237, 0),
   ST_Errins(8034, 292, 1),    // TC index
