@@ -163,12 +163,12 @@ row_update_prebuilt_trx(
 					handle */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
-Unlocks an AUTO_INC type lock possibly reserved by trx. */
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
 UNIV_INTERN
 void
 row_unlock_table_autoinc_for_mysql(
 /*===============================*/
-	trx_t*	trx);	/* in: transaction */
+	trx_t*	trx);			/* in/out: transaction */
 /*************************************************************************
 Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
 AUTO_INC lock gives exclusive access to the auto-inc counter of the
