@@ -3074,6 +3074,16 @@ static int mark_recovery_success(void)
 }
 
 
+/*
+  Return 1 if table has changed during the current transaction
+*/
+
+bool ha_maria::is_changed() const
+{
+  return file->state->changed;
+}
+
+
 static int ha_maria_init(void *p)
 {
   int res;
