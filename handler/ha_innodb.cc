@@ -9708,11 +9708,15 @@ innodb_plugin_init(void)
 				/* found the corresponding parameter */
 
 				/* check if the flags are the same,
-				ignoring differences in the READONLY flag;
+				ignoring differences in the READONLY or
+				NOSYSVAR flags;
 				e.g. we are not copying string variable to
-				an integer one */
-				if (((*sta)->flags & ~PLUGIN_VAR_READONLY)
-				    != ((*dyn)->flags & ~PLUGIN_VAR_READONLY)) {
+				an integer one, but we do not care if it is
+				readonly in the static and not in the
+				dynamic */
+				if (((*sta)->flags ^ (*dyn)->flags)
+				    & ~(PLUGIN_VAR_READONLY
+					| PLUGIN_VAR_NOSYSVAR)) {
 
 					fprintf(stderr,
 						"InnoDB: %s in static InnoDB "
