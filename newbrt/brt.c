@@ -1755,16 +1755,164 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 }
 
 static int
-brt_merge_child (BRT t, BRTNODE node, int childnum, BOOL *did_io)
+merge_leaf_nodes (BRTNODE a, BRTNODE b) {
+    OMT omta = a->u.l.buffer;
+    OMT omtb = b->u.l.buffer;
+    while (toku_omt_size(omtb)>0) {
+	LEAFENTRY le;
+	{
+	    OMTVALUE v;
+	    int r = toku_omt_fetch(omtb, 0, &v, NULL);
+	    assert(r==0);
+	    le = v;
+	}
+	u_int32_t le_size = leafentry_memsize(le);
+	u_int32_t le_crc  = toku_le_crc(le);
+	{
+	    LEAFENTRY new_le = mempool_malloc_from_omt(omta, &a->u.l.buffer_mempool, le_size);
+	    assert(new_le);
+	    memcpy(new_le, le, le_size);
+	    int r = toku_omt_insert_at(omta, new_le, toku_omt_size(a->u.l.buffer));
+	    assert(r==0);
+	    a->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
+	    a->local_fingerprint     += a->rand4fingerprint * le_crc;
+	}
+	{
+	    int r = toku_omt_delete_at(omtb, 0);
+	    assert(r==0);
+	    b->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
+	    b->local_fingerprint     -= b->rand4fingerprint * le_crc;
+	    toku_mempool_mfree(&b->u.l.buffer_mempool, 0, le_size);
+	}
+    }
+    a->dirty = 1;
+    b->dirty = 1;
+    return 0;
+}
+
+static int
+maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge)
+// Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    (We do this if the resulting node is not fissible)
+//         or distribute the leafentries evenly between a and b.   (If a and be are already evenly distributed, we may do nothing.)
 {
-    t = t; node = node; childnum = childnum; did_io=did_io;
+    unsigned int sizea = toku_serialize_brtnode_size(a);
+    unsigned int sizeb = toku_serialize_brtnode_size(b);
+    if ((sizea + sizeb)*4 > (a->nodesize*3)) {
+	// the combined size is more than 3/4 of a node, so don't merge them.
+	*did_merge = FALSE;
+	if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) return 0; // no need to do anything if both are more than 1/4 of a node.
+	// one is less than 1/4 of a node, and together they are more than 3/4 of a node.
+	abort();
+    } else {
+	// we are merging them.
+	*did_merge = TRUE;
+	return merge_leaf_nodes(a, b);
+    }
+    t=t; logger=logger;
+}
+    
+static int
+maybe_merge_pinned_nonleaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge)
+{
+    abort();
+    t=t; a=a; b=b; logger=logger; did_merge=did_merge;
+}
+
+static int
+maybe_merge_pinned_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge)
+// Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.  (We do this if the resulting node is not fissible)
+//             or distribute a and b evenly and set *did_merge = FALSE  (If a and be are already evenly distributed, we may do nothing.)
+//  If we distribute:
+//    For leaf nodes, we distribute the leafentries evenly.
+//    For nonleaf nodes, we distribute the children evenly.  That may leave one or both of the nodes overfull, but that's OK.
+{
+    assert(a->height == b->height);
+    if (a->height == 0)
+	return maybe_merge_pinned_leaf_nodes(t, a, b, logger, did_merge);
+    else {
+	return maybe_merge_pinned_nonleaf_nodes(t, a, b, logger, did_merge);
+    }
+}
+
+static int
+brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKULOGGER logger)
+{
+    if (node->u.n.n_children < 2) return 0; // if no siblings, we are merged as best we can.
+
+    int childnuma,childnumb;
+    if (childnum_to_merge > 0) {
+	childnuma = childnum_to_merge-1;
+	childnumb = childnum_to_merge;
+    } else {
+	childnuma = childnum_to_merge;
+	childnumb = childnum_to_merge+1;
+    }
+    assert(0 <= childnuma);
+    assert(childnuma+1 == childnumb);    
+    assert(childnumb < node->u.n.n_children);
+
+    assert(node->height>0);
+
+    if (toku_fifo_n_entries(BNC_BUFFER(node,childnuma))>0) {
+	enum reactivity re = RE_STABLE;
+	int r = flush_this_child(t, node, childnuma, logger, &re, did_io);
+	if (r!=0) return r;
+    }
+    if (toku_fifo_n_entries(BNC_BUFFER(node,childnumb))>0) {
+	enum reactivity re = RE_STABLE;
+	int r = flush_this_child(t, node, childnumb, logger, &re, did_io);
+	if (r!=0) return r;
+    }
+
+    // We suspect that at least one of the children is fusible, but they might not be.
+    
+    BRTNODE childa, childb;
+    {
+	void *childnode_v;
+	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnuma);
+	int r = toku_cachetable_get_and_pin(t->cf, BNC_BLOCKNUM(node, childnuma), childfullhash, &childnode_v, NULL,
+					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
+	if (r!=0) return r;
+	childa = childnode_v;
+    }
+    {
+	void *childnode_v;
+	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnumb);
+	int r = toku_cachetable_get_and_pin(t->cf, BNC_BLOCKNUM(node, childnumb), childfullhash, &childnode_v, NULL,
+					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
+	if (r!=0) {
+	    toku_unpin_brtnode(t, childa); // ignore the result
+	    return r;
+	}
+	childb = childnode_v;
+    }
+
+    // now we have both children pinned in main memory.
+
+    // But we aren't actually ready to merge things.
     static int printcount=0;
     printcount++;
     if (0==(printcount & (printcount-1))) {// is printcount a power of two?
-	printf("%s:%d %s not ready (%d invocations)\n", __FILE__, __LINE__, __func__, printcount);
+	printf("%s:%d %s not ready (%d invocations)  (childnuma=%d childnumb=%d\n", __FILE__, __LINE__, __func__, printcount, childnuma, childnumb);
     }
-    return 0;
-}
+
+    int r;
+    {
+	BOOL did_merge;
+	r = maybe_merge_pinned_nodes(t, childa, childb, logger, &did_merge);
+	if (r!=0) goto return_r;
+	if (did_merge) abort(); // cannot handle it.
+    }
+ return_r:
+    // Unpin both, and return the first nonzero error code that is found
+    {
+	int rra = toku_unpin_brtnode(t, childa);
+	int rrb = toku_unpin_brtnode(t, childb);
+	if (rra) return rra;
+	if (rrb) return rrb;
+    }
+    return r;
+    }
 
 static int
 brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger) {
@@ -1773,7 +1921,7 @@ brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivi
     case RE_FISSIBLE:
 	return brt_split_child(t, node, childnum, logger);
     case RE_FUSIBLE:
-	return brt_merge_child(t, node, childnum, did_io);
+	return brt_merge_child(t, node, childnum, did_io, logger);
     }
     abort(); // this cannot happen
 }
