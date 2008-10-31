@@ -1865,8 +1865,11 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
 static int
 maybe_merge_pinned_nonleaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
 {
-    abort();
-    t=t; a=a; b=b; logger=logger; did_merge=did_merge; splitk=splitk;
+//    abort();
+    *did_merge = FALSE;
+    *splitk    = 0;
+    t=t; a=a; b=b; logger=logger;
+    return 0;
 }
 
 static int
@@ -1951,7 +1954,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
     int r;
     {
 	BOOL did_merge;
-	struct kv_pair *splitk_kvpair;
+	struct kv_pair *splitk_kvpair = 0;
 	r = maybe_merge_pinned_nodes(t, childa, childb, logger, &did_merge, &splitk_kvpair);
 	if (r!=0) goto return_r;
 	if (did_merge) {
@@ -1973,10 +1976,12 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	    fixup_child_fingerprint(node, childnuma, childa, t, logger);
 	} else {
 	    // If we didn't merge the nodes, then we may have mucked with the pivot.
-	    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
-	    toku_free(node->u.n.childkeys[childnuma]);
-	    node->u.n.childkeys[childnuma] = splitk_kvpair;
-	    node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
+	    if (splitk_kvpair) {
+		node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
+		toku_free(node->u.n.childkeys[childnuma]);
+		node->u.n.childkeys[childnuma] = splitk_kvpair;
+		node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
+	    }
 	}
     }
  return_r:
