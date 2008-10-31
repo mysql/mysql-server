@@ -1,8 +1,9 @@
 2008-10-31	The InnoDB Team
-	* dict/dict0mem.c include/dict0mem.h include/lock0lock.h
-	  include/row0mysql.h include/trx0trx.h include/univ.i
-	  include/ut0vec.h include/ut0vec.ic lock/lock0lock.c
-	  row/row0mysql.c trx/trx0trx.c:
+
+	* dict/dict0mem.c, include/dict0mem.h, include/lock0lock.h,
+	include/row0mysql.h, include/trx0trx.h, include/univ.i,
+	include/ut0vec.h, include/ut0vec.ic, lock/lock0lock.c,
+	row/row0mysql.c, trx/trx0trx.c:
 	Fix Bug#26316 Triggers create duplicate entries on auto-increment
 	columns
 
