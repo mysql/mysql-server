@@ -70,6 +70,7 @@ extern "C" {
 #include "ha_innodb.h"
 #include "i_s.h"
 #include "handler0vars.h"
+#include "mysql_addons.h"
 
 #ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
@@ -81,11 +82,6 @@ extern pthread_mutex_t LOCK_thread_count;
 but we need it here */
 bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_VERSION_ID < 50124 */
-
-/* we need to check if binary logging is enabled in
-ha_innobase::external_lock(), see http://bugs.mysql.com/40360.
-The variable opt_bin_log is defined in mysqld.cc inside #ifdef MYSQL_SERVER */
-extern bool	opt_bin_log;
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
@@ -7698,12 +7694,11 @@ ha_innobase::external_lock(
 	READ UNCOMMITTED and READ COMMITTED since the necessary
 	locks cannot be taken. In this case, we print an
 	informative error message and return with an error. */
-	if (lock_type == F_WRLCK)
+	if (lock_type == F_WRLCK && ib_bin_log_is_engaged(thd))
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
-		if (opt_bin_log
-		    && tx_isolation <= ISO_READ_COMMITTED
+		if (tx_isolation <= ISO_READ_COMMITTED
 		    && binlog_format == BINLOG_FORMAT_STMT)
 		{
 			char buf[256];
