@@ -53,11 +53,11 @@ Assert Questions == 16
 SHOW STATUS LIKE 'Questions';
 Variable_name	Value
 Questions	16
-Global status updated; Assert diff == 5
+Global status updated; Assert diff == 4
 FLUSH STATUS;
-SELECT 5;
-5
-5
+SELECT 4;
+4
+4
 DROP TABLE t1,t2;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
