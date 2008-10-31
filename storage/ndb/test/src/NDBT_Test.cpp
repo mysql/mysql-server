@@ -784,6 +784,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
    diskbased = false;
    tsname = NULL;
    temporaryTables = false;
+   runonce = false;
 }
 
 
