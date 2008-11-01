@@ -237,8 +237,11 @@ NdbShutdown(NdbShutdownType type,
 #endif
     
 
+#ifndef NDB_WIN32
 #define UNLOAD (type == NST_ErrorInsert && opt_core)
-    
+#else
+#define UNLOAD (0)
+#endif
     /**
      * Don't touch transporter here (yet)
      *   cause with ndbmtd, there are locks and nasty stuff
