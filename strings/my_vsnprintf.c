@@ -30,9 +30,15 @@
 
   IMPLEMENTION:
     Supports following formats:
-    %#[l]d
-    %#[l]u
-    %#[l]x
+    %#[l][l]d
+    %#[l][l]u
+    %#[l][l]x
+    %p
+    %zd
+    %zx
+    %f
+    %g
+    %e
     %#.#b 	Local format; note first # is ignored and second is REQUIRED
     %#.#s	Note first # is ignored
     
@@ -43,8 +49,9 @@
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
+  const char *percent_pos;
   size_t length, width;
-  uint pre_zero, have_long;
+  uint pre_zero, have_long, have_longlong;
 
   for (; *fmt ; fmt++)
   {
@@ -55,12 +62,13 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       *to++= *fmt;			/* Copy ordinary char */
       continue;
     }
+    percent_pos = fmt;
     fmt++;					/* skip '%' */
     /* Read max fill size (only used with %d and %u) */
     if (*fmt == '-')
       fmt++;
     length= width= 0;
-    pre_zero= have_long= 0;
+    pre_zero= have_long= have_longlong = 0;
     if (*fmt == '*')
     {
       fmt++;
@@ -90,7 +98,20 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == 'l')
     {
       fmt++;
-      have_long= 1;
+      if (fmt[1] != 'l')
+        have_long= 1;
+      else
+      {
+        fmt++;
+        have_longlong= 1;
+      }
+    }
+    else if(*fmt == 'z')
+    {
+      fmt++;
+      have_longlong = (sizeof(size_t) == sizeof(longlong));
+      if(!have_longlong)
+        have_long = 1;
     }
     if (*fmt == 's')				/* String parameter */
     {
@@ -113,29 +134,63 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       to+= width;
       continue;
     }
-    else if (*fmt == 'd' || *fmt == 'u'|| *fmt== 'x')	/* Integer parameter */
+    else if (*fmt == 'f' || *fmt =='g' || *fmt=='e' ||
+             *fmt == 'F' || *fmt =='G' || *fmt=='E' )
     {
-      register long larg;
+      /* Use standard C library for double to string conversions */
+      char fmtbuf[32];
+      double d= va_arg(ap, double);
+      if(fmt-percent_pos+1 < (int)sizeof(fmtbuf)-1)
+        continue;
+      memmove(fmtbuf, percent_pos, (fmt - percent_pos)+1);
+      fmtbuf[fmt-percent_pos+1]= 0;
+#if (_MSC_VER)
+      /* Microsoft compiler needs _snprintf with underscore*/
+      to+= _snprintf(to, end-to, fmtbuf, d);
+#else
+      to+= snprintf(to, end-to, fmtbuf, d);
+#endif
+      continue;
+    }
+    else if (*fmt == 'd' || *fmt == 'u'|| *fmt== 'x' || *fmt =='p')
+    /* Integer parameter */
+    {
+      register longlong larg;
       size_t res_length, to_length;
       char *store_start= to, *store_end;
       char buff[32];
+      if (*fmt == 'p')
+      {
+       have_longlong= (sizeof(void *) == sizeof(longlong));
+       if(!have_longlong)
+         have_long = 1;
+      }
 
       if ((to_length= (size_t) (end-to)) < 16 || length)
 	store_start= buff;
-      if (have_long)
+      if (have_longlong)
+        larg = va_arg(ap,longlong);
+      else if (have_long)
         larg = va_arg(ap, long);
       else
         if (*fmt == 'd')
           larg = va_arg(ap, int);
         else
-          larg= (long) (uint) va_arg(ap, int);
+          larg= (longlong) (uint) va_arg(ap, int);
       if (*fmt == 'd')
-	store_end= int10_to_str(larg, store_start, -10);
+	store_end= longlong10_to_str(larg, store_start, -10);
       else
         if (*fmt== 'u')
-          store_end= int10_to_str(larg, store_start, 10);
+          store_end= longlong10_to_str(larg, store_start, 10);
+        else if(*fmt == 'p')
+        {
+          store_start[0] = '0';
+          store_start[1] = 'x';
+          store_end= ll2str(larg, store_start + 2, 16, 0);
+        }
         else
-          store_end= int2str(larg, store_start, 16, 0);
+          store_end= ll2str(larg, store_start, 16, 0);
+
       if ((res_length= (size_t) (store_end - store_start)) > to_length)
 	break;					/* num doesn't fit in output */
       /* If %#d syntax was used, we have to pre-zero/pre-space the string */

@@ -20,12 +20,13 @@
 
 #include <dirent.h>
 
-#ifndef _DIRENT_HAVE_D_TYPE
 #include <sys/stat.h>
-#endif
+
+#include <util/BaseString.hpp>
 
 class DirIteratorImpl {
   DIR* m_dirp;
+  const char *m_path;
 
   bool is_regular_file(struct dirent* dp) const {
 #ifdef _DIRENT_HAVE_D_TYPE
@@ -33,15 +34,19 @@ class DirIteratorImpl {
       Using dirent's d_type field to determine if
       it's a regular file
     */
-    return (dp->d_type == DT_REG);
-#else
+    if(dp->d_type != DT_UNKNOWN)
+      return (dp->d_type == DT_REG);
+#endif
     /* Using stat to read more info about the file */
+    BaseString fullpath;
+    fullpath.assfmt("%s/%s", m_path, dp->d_name);
+
     struct stat buf;
-    if (stat(dp->d_name, &buf))
+    if (stat(fullpath.c_str(), &buf))
       return false; // 'stat' failed
 
     return S_ISREG(buf.st_mode);
-#endif
+
   }
 
 public:
@@ -56,6 +61,7 @@ public:
     if ((m_dirp = opendir(path)) == NULL){
       return -1;
     }
+    m_path= path;
     return 0;
   }
 

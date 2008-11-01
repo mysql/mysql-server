@@ -238,6 +238,7 @@ typedef struct _db_code_state_ {
   uint u_line;                  /* User source code line number */
   int  locked;                  /* If locked with _db_lock_file_ */
   const char *u_keyword;        /* Keyword for current macro */
+  char cvtbuf[1024];            /* Conversion buffer */
 } CODE_STATE;
 
 /*
@@ -1158,8 +1159,8 @@ void _db_doprnt_(const char *format,...)
     else
       (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
     (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    (void) vfprintf(cs->stack->out_file, format, args);
-    (void) fputc('\n',cs->stack->out_file);
+    (void) my_vsnprintf(cs->cvtbuf, sizeof(cs->cvtbuf), format, args);
+    (void) fprintf(cs->stack->out_file,"%s\n",cs->cvtbuf);
     dbug_flush(cs);
     errno=save_errno;
   }
@@ -1851,13 +1852,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
       else
       {
         newfile= !EXISTS(name);
-        if (!(fp= fopen(name,
-#if defined(MSDOS) || defined(__WIN__)
-		append ? "a+c" : "wc"
-#else
-                append ? "a+" : "w"
-#endif
-		)))
+        if (!(fp= fopen(name, append ? "a+" : "w")))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);
           perror("");

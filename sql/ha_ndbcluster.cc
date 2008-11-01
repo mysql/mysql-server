@@ -8845,6 +8845,7 @@ static int ndbcluster_init(void *p)
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
   ndbcluster_hton= (handlerton *)p;
+  ndbcluster_global_schema_lock_init();
 
   {
     handlerton *h= ndbcluster_hton;
@@ -8899,6 +8900,7 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
+    ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
 
@@ -8916,6 +8918,7 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
+    ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
 
@@ -8972,6 +8975,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_ready);
+  ndbcluster_global_schema_lock_deinit();
   DBUG_RETURN(0);
 }
 

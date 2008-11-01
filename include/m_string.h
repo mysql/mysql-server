@@ -215,6 +215,7 @@ extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
+#define ll2str(A,B,C,D) int2str((A),(B),(C),(D))
 #define longlong2str(A,B,C) int2str((A),(B),(C),1)
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
 #undef strtoll
@@ -228,7 +229,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #endif
 #else
 #ifdef HAVE_LONG_LONG
-extern char *longlong2str(longlong val,char *dst,int radix);
+extern char *ll2str(longlong val,char *dst,int radix, int upcase);
+#define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
 #if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO))
 extern longlong strtoll(const char *str, char **ptr, int base);
