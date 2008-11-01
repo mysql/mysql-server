@@ -199,6 +199,7 @@ NDBT_TESTSUITE_END(testSQL);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testSQL);
   return testSQL.execute(argc, argv);
 }
 
