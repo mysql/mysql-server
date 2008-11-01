@@ -1145,6 +1145,9 @@ BackupFile::openFile(){
   info << "Opening file '" << m_fileName << "'\n";
   int r= azopen(&m_file,m_fileName, O_RDONLY);
 
+  if(m_file.file < 0)
+    r= -1;
+
   if (r==0)
   {
     struct stat buf;
@@ -1258,10 +1261,10 @@ void
 BackupFile::setName(const char * p, const char * n){
   const Uint32 sz = sizeof(m_path);
   if(p != 0 && strlen(p) > 0){
-    if(p[strlen(p)-1] == '/'){
+    if(p[strlen(p)-1] == DIR_SEPARATOR[0]){
       BaseString::snprintf(m_path, sz, "%s", p);
     } else {
-      BaseString::snprintf(m_path, sz, "%s%s", p, "/");
+      BaseString::snprintf(m_path, sz, "%s%s", p, DIR_SEPARATOR);
     }
   } else {
     m_path[0] = 0;

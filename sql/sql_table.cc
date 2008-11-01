@@ -3667,7 +3667,6 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
       goto unlock;
     }
   }
-
   result= mysql_create_table_no_lock(thd, db, table_name, create_info,
                                      alter_info,
                                      internal_tmp_table,
@@ -5016,8 +5015,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=) store_create_info(thd, table, &query,
-                                               create_info);
+        IF_DBUG(int result=)
+          store_create_info(thd, table, &query,
+                            create_info, FALSE /* show_database */);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -5251,6 +5251,7 @@ compare_tables(THD *thd,
   bool varchar= create_info->varchar;
   uint candidate_key_count= 0;
   bool not_nullable= true;
+  DBUG_ENTER("compare_tables");
 
   /*
     Create a copy of alter_info.
@@ -5269,9 +5270,6 @@ compare_tables(THD *thd,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
-
-  DBUG_ENTER("compare_tables");
-
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
                                  &tmp_alter_info,
@@ -6625,16 +6623,24 @@ view_err:
   if (table_type == DB_TYPE_NDBCLUSTER ||
       (create_info->db_type && create_info->db_type->db_type == DB_TYPE_NDBCLUSTER))
   {
-    /*
-      To avoid deadlock in this situation
-    */
     if (thd->locked_tables)
     {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      DBUG_RETURN(TRUE);
+      /*
+        To avoid deadlock in this situation:
+        - if other thread has lock do not enter lock queue
+        and report an error instead
+      */
+      if (global_schema_lock_guard.lock(1))
+      {
+        my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                   ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+        DBUG_RETURN(TRUE);
+      }
     }
-    global_schema_lock_guard.lock();
+    else
+    {
+      global_schema_lock_guard.lock();
+    }
   }
   if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);

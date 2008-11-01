@@ -487,3 +487,18 @@ select * from t2 where a=4 or b=4;
 
 drop table t1, t2;
 
+#
+# Bug #37943: Reproducible mysqld crash/sigsegv in sel_trees_can_be_ored
+#
+
+CREATE TABLE t1 (a varchar(8), b set('a','b','c','d','e','f','g','h'),
+                 KEY b(b), KEY a(a));
+INSERT INTO t1 VALUES ('y',''), ('z','');
+
+#should not crash
+SELECT b,a from t1 WHERE (b!='c' AND b!='f' && b!='h') OR 
+  (a='pure-S') OR (a='DE80337a') OR (a='DE80799');
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests
