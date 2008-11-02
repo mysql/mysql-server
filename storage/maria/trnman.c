@@ -222,7 +222,7 @@ static TrID new_trid()
 static uint get_short_trid(TRN *trn)
 {
   int i= (int) ((global_trid_generator + (intptr)trn) * 312089 %
-                SHORT_TRID_MAX + 1);
+                SHORT_TRID_MAX) + 1;
   uint res=0;
 
   for ( ; !res ; i= 1)

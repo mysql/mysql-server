@@ -824,6 +824,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     VOID(my_rwlock_init(&share->mmap_lock, NULL));
 
     share->row_is_visible= _ma_row_visible_always;
+    share->lock.get_status= _ma_reset_update_flag;
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */
