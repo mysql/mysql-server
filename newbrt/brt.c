@@ -999,8 +999,8 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     //verify_local_fingerprint_nonleaf(node);
 
-    REALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
-    REALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
+    XREALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
+    XREALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
     // Slide the children over.
     BNC_SUBTREE_FINGERPRINT       (node, node->u.n.n_children+1)=0;
     BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, node->u.n.n_children+1)=0;
@@ -1863,17 +1863,39 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
 }
 
 static int
-maybe_merge_pinned_nonleaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
+maybe_merge_pinned_nonleaf_nodes (BRT t,
+				  BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
+				  BRTNODE a, BRTNODE b,
+				  TOKULOGGER logger,
+				  BOOL *did_merge,
+				  struct kv_pair **splitk)
 {
-//    abort();
-    *did_merge = FALSE;
-    *splitk    = 0;
-    t=t; a=a; b=b; logger=logger;
+    int old_n_children = a->u.n.n_children;
+    int new_n_children = old_n_children + b->u.n.n_children;
+    XREALLOC_N(new_n_children, a->u.n.childinfos);
+    memcpy(a->u.n.childinfos + old_n_children,
+	   b->u.n.childinfos,
+	   b->u.n.n_children);
+    XREALLOC_N(new_n_children-1, a->u.n.childkeys);
+    a->u.n.childkeys[old_n_children-1] = parent_splitk;
+    memcpy(a->u.n.childkeys + old_n_children,
+	   b->u.n.childkeys,
+	   b->u.n.n_children-1);
+    a->u.n.totalchildkeylens += b->u.n.totalchildkeylens;
+    a->u.n.n_bytes_in_buffers += b->u.n.n_bytes_in_buffers;
+    a->u.n.n_children = new_n_children;
+    fixup_child_fingerprint(parent, childnum_of_parent, a, t, logger);
+    abort(); // must deallocate b.
+    abort(); // don't forget to reuse blocknums
+    *did_merge = TRUE;
+    *splitk    = NULL;
     return 0;
 }
 
 static int
-maybe_merge_pinned_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
+maybe_merge_pinned_nodes (BRT t,
+			  BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
+			  BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.  (We do this if the resulting node is not fissible)
 //             or distribute a and b evenly and set *did_merge = FALSE  (If a and be are already evenly distributed, we may do nothing.)
 //  If we distribute:
@@ -1885,7 +1907,7 @@ maybe_merge_pinned_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *
     if (a->height == 0)
 	return maybe_merge_pinned_leaf_nodes(t, a, b, logger, did_merge, splitk);
     else {
-	return maybe_merge_pinned_nonleaf_nodes(t, a, b, logger, did_merge, splitk);
+	return maybe_merge_pinned_nonleaf_nodes(t, parent, childnum_of_parent, parent_splitk, a, b, logger, did_merge, splitk);
     }
 }
 
@@ -1955,7 +1977,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
     {
 	BOOL did_merge;
 	struct kv_pair *splitk_kvpair = 0;
-	r = maybe_merge_pinned_nodes(t, childa, childb, logger, &did_merge, &splitk_kvpair);
+	r = maybe_merge_pinned_nodes(t, node, childnuma, node->u.n.childkeys[childnuma], childa, childb, logger, &did_merge, &splitk_kvpair);
 	if (r!=0) goto return_r;
 	if (did_merge) {
 	    {
