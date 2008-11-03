@@ -2314,7 +2314,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         trnman_new_statement(trn);
       }
 
-      if (file->s->lock.get_status)
+      /* If handler uses versioning */
+      if (file->s->lock_key_trees)
       {
         if (_ma_setup_live_state(file))
           DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -2513,7 +2514,8 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
         if (handler->s->base.born_transactional)
         {
           _ma_set_trn_for_table(handler, trn);
-          if (handler->s->lock.get_status)
+          /* If handler uses versioning */
+          if (handler->s->lock_key_trees)
           {
             if (_ma_setup_live_state(handler))
               error= HA_ERR_OUT_OF_MEM;

@@ -318,7 +318,8 @@ void _ma_copy_status(void* to, void *from)
 }
 
 
-void _ma_reset_update_flag(void *param)
+void _ma_reset_update_flag(void *param,
+                           my_bool concurrent_insert __attribute__((unused)))
 {
   MARIA_HA *info=(MARIA_HA*) param;
   info->state->changed= 0;
