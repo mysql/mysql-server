@@ -19,6 +19,8 @@ static int valsize = sizeof (long long);
 static int do_verify =0; /* Do a slow verify after every insert. */
 
 static int verbose = 1;
+static int do_serial = 1;
+static int do_random = 1;
 
 static CACHETABLE ct;
 static BRT t;
@@ -81,24 +83,39 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
     int iteration;
     for (i=0, iteration=0; i<n_elements; i+=ITEMS_TO_INSERT_PER_ITERATION, iteration++) {
 	gettimeofday(&t1,0);
-	serial_insert_from(i);
+	if (do_serial)
+            serial_insert_from(i);
 	gettimeofday(&t2,0);
-	if (verbose) {
+	if (verbose && do_serial) {
 	    printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
 	    fflush(stdout);
 	}
 	gettimeofday(&t1,0);
-	random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
+        if (do_random)
+            random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
-	if (verbose) {
+	if (verbose && do_random) {
 	    printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
-	    printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
+        }
+        if (verbose && (do_serial || do_random)) {
+            double f = 0;
+            if (do_serial) f += 1.0;
+            if (do_random) f += 1.0;
+	    printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*f/tdiff(&t2, starttime))*(iteration+1));
 	}
     }
 }
 
 static void usage() {
-    printf("benchmark-test [-v] [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [ITERATIONS]\n");
+    printf("benchmark-test [OPTIONS] [ITERATIONS]\n");
+    printf("[-v]\n");
+    printf("[-q]\n");
+    printf("[--nodesize NODESIZE]\n");
+    printf("[--keysize KEYSIZE]\n");
+    printf("[--valsize VALSIZE]\n");
+    printf("[--noserial]\n");
+    printf("[--norandom]\n");
+    printf("[--verify]\n");
 }
 
 int main (int argc, char *argv[]) {
@@ -125,6 +142,10 @@ int main (int argc, char *argv[]) {
             }
         } else if (strcmp(arg, "--verify")==0) {
 	    do_verify = 1;
+        } else if (strcmp(arg, "--noserial") == 0) {
+            do_serial = 0;
+        } else if (strcmp(arg, "--norandom") == 0) {
+            do_random = 0;
 	} else if (strcmp(arg, "-v")==0) {
 	    verbose++;
 	} else if (strcmp(arg, "-q")==0) {
@@ -161,8 +182,11 @@ int main (int argc, char *argv[]) {
     toku_shutdown();
     gettimeofday(&t3,0);
     if (verbose) {
+        int f = 0;
+        if (do_serial) f += 1;
+        if (do_random) f += 1;
 	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
-	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), f*total_n_items, f*total_n_items/tdiff(&t3, &t1));
     }
     if (verbose>1) {
 	toku_malloc_report();
