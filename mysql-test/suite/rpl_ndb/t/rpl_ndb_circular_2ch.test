@@ -6,6 +6,7 @@
 #############################################################
 --source include/have_ndb.inc
 --source include/ndb_master-slave_2ch.inc
+--source include/have_binlog_format_mixed_or_row.inc
 --echo
 
 # Check server_id and set auto_increment_* variables
