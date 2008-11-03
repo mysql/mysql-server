@@ -63,6 +63,7 @@ static const Uint32 MAX_SIGNALS_PER_JB = 100;
  */
 static const Uint32 MAX_SIGNALS_BEFORE_FLUSH_RECEIVER = 2;
 static const Uint32 MAX_SIGNALS_BEFORE_FLUSH_OTHER = 20;
+static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 
 //#define NDB_MT_LOCK_TO_CPU
 
@@ -528,6 +529,9 @@ struct thr_jb_write_state
 
   /* Number of signals inserted since last flush to thr_job_queue. */
   Uint32 m_pending_signals;
+
+  /* Number of signals inserted since last wakeup */
+  Uint32 m_pending_signals_wakeup;
 };
 
 /*
@@ -1209,9 +1213,14 @@ flush_write_state(Uint32 dst, thr_job_queue *q, thr_jb_write_state *w)
   w->m_write_buffer->m_len = w->m_write_pos;
   wmb();
   q->m_write_index = w->m_write_index;
+  w->m_pending_signals_wakeup += w->m_pending_signals;
   w->m_pending_signals = 0;
 
-  wakeup(&(g_thr_repository.m_thread[dst].m_waiter));
+  if (w->m_pending_signals_wakeup >= MAX_SIGNALS_BEFORE_WAKEUP)
+  {
+    w->m_pending_signals_wakeup = 0;
+    wakeup(&(g_thr_repository.m_thread[dst].m_waiter));
+  }
 }
 
 static
@@ -1224,8 +1233,9 @@ flush_jbb_write_state(thr_data *selfptr)
   for (Uint32 thr_no = 0; thr_no < thr_count; thr_no ++)
   {
     thr_jb_write_state *w = selfptr->m_write_states + thr_no;
-    if (w->m_pending_signals > 0)
+    if (w->m_pending_signals || w->m_pending_signals_wakeup)
     {
+      w->m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
       thr_job_queue *q = g_thr_repository.m_thread[thr_no].m_in_queue + self;
       flush_write_state(thr_no, q, w);
     }
@@ -2592,6 +2602,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
   w.m_pending_signals = 0;
+  w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
   bool buf_used = insert_signal(q, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
   flush_write_state(dst, q, &w);
@@ -2706,6 +2717,7 @@ sendprioa_STOP_FOR_CRASH(Uint32 dst)
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
   w.m_pending_signals = 0;
+  w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
   insert_signal(q, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
   flush_write_state(dst, q, &w);
@@ -2793,6 +2805,7 @@ thr_init2(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt
     selfptr->m_write_states[i].m_write_buffer =
       rep->m_thread[i].m_in_queue[thr_no].m_buffers[0];
     selfptr->m_write_states[i].m_pending_signals = 0;
+    selfptr->m_write_states[i].m_pending_signals_wakeup = 0;
   }    
 }
 
