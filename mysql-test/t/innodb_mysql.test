@@ -38,9 +38,8 @@ drop table t1, t2;
 
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SHOW VARIABLES LIKE 'log_bin';
-SELECT @@session.binlog_format;
-SELECT @@session.tx_isolation;
+query_vertical select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
 
