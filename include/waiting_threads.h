@@ -30,13 +30,11 @@ typedef struct st_wt_resource_type {
   const void *(*make_key)(WT_RESOURCE_ID *id, uint *len);
 } WT_RESOURCE_TYPE;
 
-/* we want to compare this struct with memcmp, make it packed */
-#pragma pack(1)
 struct st_wt_resource_id {
   ulonglong value;
   WT_RESOURCE_TYPE *type;
 };
-#pragma pack()
+#define sizeof_WT_RESOURCE_ID (sizeof(ulonglong)+sizeof(void*))
 
 #define WT_WAIT_STATS  24
 #define WT_CYCLE_STATS 32

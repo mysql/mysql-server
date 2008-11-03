@@ -280,7 +280,7 @@ void wt_init()
   DBUG_ENTER("wt_init");
 
   lf_hash_init(&reshash, sizeof(WT_RESOURCE), LF_HASH_UNIQUE, 0,
-               sizeof(struct st_wt_resource_id), 0, 0);
+               sizeof_WT_RESOURCE_ID, 0, 0);
   reshash.alloc.constructor= wt_resource_init;
   reshash.alloc.destructor= wt_resource_destroy;
   /*
@@ -396,9 +396,7 @@ void wt_thd_destroy(WT_THD *thd)
 */
 int wt_resource_id_memcmp(void *a, void *b)
 {
-  /* assert that the structure is not padded with random bytes */
-  compile_time_assert(sizeof(WT_RESOURCE_ID)==sizeof(ulonglong)+sizeof(void*));
-  return memcmp(a, b, sizeof(WT_RESOURCE_ID));
+  return memcmp(a, b, sizeof_WT_RESOURCE_ID);
 }
 
 /**
@@ -657,7 +655,7 @@ static int unlock_lock_and_free_resource(WT_THD *thd, WT_RESOURCE *rc)
   /* XXX if (rc->id.type->make_key) key= rc->id.type->make_key(&rc->id, &keylen); else */
   {
     key= &rc->id;
-    keylen= sizeof(rc->id);
+    keylen= sizeof_WT_RESOURCE_ID;
   }
 
   /*
@@ -751,7 +749,7 @@ int wt_thd_will_wait_for(WT_THD *thd, WT_THD *blocker, WT_RESOURCE_ID *resid)
     /* XXX if (restype->make_key) key= restype->make_key(resid, &keylen); else */
     {
       key= resid;
-      keylen= sizeof(*resid);
+      keylen= sizeof_WT_RESOURCE_ID;
     }
 
     DBUG_PRINT("wt", ("first blocker"));
