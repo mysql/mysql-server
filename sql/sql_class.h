@@ -664,10 +664,17 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+  /*
+    Number of statements sent from the client
+  */
+  ulong questions;
 
   /*
-    Status variables which it does not make sense to add to
-    global status variable counter
+    IMPORTANT!
+    SEE last_system_status_var DEFINITION BELOW.
+
+    Below 'last_system_status_var' are all variables which doesn't make any
+    sense to add to the /global/ status variable counter.
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -678,7 +685,7 @@ typedef struct system_status_var
   counter
 */
 
-#define last_system_status_var com_stmt_close
+#define last_system_status_var questions
 
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -920,7 +927,7 @@ struct st_savepoint {
   uint                 length, nht;
 };
 
-enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
+enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
 extern const char *xa_state_names[];
 
 typedef struct st_xid_state {
@@ -928,6 +935,8 @@ typedef struct st_xid_state {
   XID  xid;                           // transaction identifier
   enum xa_states xa_state;            // used by external XA only
   bool in_thd;
+  /* Error reported by the Resource Manager (RM) to the Transaction Manager. */
+  uint rm_error;
 } XID_STATE;
 
 extern pthread_mutex_t LOCK_xid_cache;
