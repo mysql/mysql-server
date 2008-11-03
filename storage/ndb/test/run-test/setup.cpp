@@ -371,15 +371,6 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     return false;
   }
   
-  if (proc.m_proc.m_path.length())
-  {
-    proc.m_proc.m_env.appfmt(" CMD=\"%s", proc.m_proc.m_path.c_str());
-    if (proc.m_proc.m_args.length())
-      proc.m_proc.m_env.append(" ");
-    proc.m_proc.m_env.append(proc.m_proc.m_args);
-    proc.m_proc.m_env.append("\" ");
-  }
-  
   if (type == atrt_process::AP_MYSQLD)
   {
     /**
