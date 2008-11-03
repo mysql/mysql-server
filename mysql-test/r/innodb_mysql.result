@@ -1670,14 +1670,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t1, t2;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SHOW VARIABLES LIKE 'log_bin';
-Variable_name	Value
-log_bin	OFF
-SELECT @@session.binlog_format;
-@@session.binlog_format
-STATEMENT
-SELECT @@session.tx_isolation;
-@@session.tx_isolation
-READ-COMMITTED
+select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
+@@session.sql_log_bin	1
+@@session.binlog_format	STATEMENT
+@@session.tx_isolation	READ-COMMITTED
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
