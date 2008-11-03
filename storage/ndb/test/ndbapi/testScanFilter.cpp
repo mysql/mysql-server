@@ -709,13 +709,14 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     ERR_EXIT(dict, "Can't get table"TABLE_NAME);
 	
 	const NdbDictionary::Column *col[COL_LEN];
-  for(int i = 0; i < COL_LEN; i++)
+
+  for(int ii = 0; ii < COL_LEN; ii++)
   {
     char tmp[128];
-    col[i] = table->getColumn(COL_NAME[i]);
-	  if(!col[i]) 
+    col[ii] = table->getColumn(COL_NAME[ii]);
+	  if(!col[ii]) 
     {
-      BaseString::snprintf(tmp, 128, "Can't get column %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get column %s", COL_NAME[ii]);
       ERR_EXIT(dict, tmp);
     }
   }
@@ -736,13 +737,13 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     ERR_EXIT(scan, "Can't set up read");
   
   NdbRecAttr *rec[COL_LEN];
-  for(int i = 0; i < COL_LEN; i++)
+  for(int ii = 0; ii < COL_LEN; ii++)
   {
     char tmp[128];
-    rec[i] = scan->getValue(COL_NAME[i]);
-	  if(!rec[i]) 
+    rec[ii] = scan->getValue(COL_NAME[ii]);
+	  if(!rec[ii]) 
     {
-      BaseString::snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[ii]);
       ERR_EXIT(scan, tmp);
     }
   }

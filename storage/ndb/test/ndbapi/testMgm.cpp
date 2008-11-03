@@ -701,7 +701,7 @@ int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
   NdbMgmd mgmd;
 
   const char *mgm= mgmd.getConnectString();
-  int i, r, ncol;
+  int r, ncol;
   char rowbuf[1024];
   char **cols;
   int current_size_colnum= 0;
@@ -718,7 +718,7 @@ int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
 
   ndb_mgm_ndbinfo_getcolums(h,ncol,100,cols);
 
-  for(i=0;i<ncol;i++)
+  for(int i=0;i<ncol;i++)
   {
     if(strcmp(cols[i],"CURRENT_SIZE")==0)
       current_size_colnum= i;
