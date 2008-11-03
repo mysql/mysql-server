@@ -816,7 +816,7 @@ defineNdbRecordOperation(ThreadNdb* pThread,
     break;
   }//case
   case stRead: {     // Read Case
-    op = pTrans->readTuple(g_record[0],record,g_record[0],record);
+    op = pTrans->readTuple(g_record[0],record,g_record[0],record, NdbOperation::LM_CommittedRead);
     break;
   }//case
   case stUpdate:{    // Update Case
@@ -858,8 +858,8 @@ static void setTableNames()
   int i;
   for (i = 0; i < MAXTABLES ; i++){
     if (theStdTableNameFlag==0){
-      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
-               (int)(NdbTick_CurrentMillisecond()/1000));
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", i, 
+               (unsigned)(NdbTick_CurrentMillisecond()+rand()));
     } else {
       BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     }
