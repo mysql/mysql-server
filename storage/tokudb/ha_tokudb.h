@@ -186,8 +186,10 @@ private:
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
-    int pack_row(DBT * row, const uchar * record);
+    int pack_row(DBT * row, const uchar * record, bool strip_pk);
+    u_int32_t place_key_into_mysql_buff(uchar * record, uchar* data, uint index);
     void unpack_key(uchar * record, DBT const *key, uint index);
+    u_int32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
     DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, uchar inf_byte);
@@ -327,6 +329,9 @@ public:
     bool primary_key_is_clustered() {
         return true;
     }
+    bool supports_clustered_keys() {
+        return true;
+    }
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
@@ -341,7 +346,7 @@ public:
     void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     void read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
-    void unpack_row(uchar * record, DBT const *row, DBT const *key);
+    void unpack_row(uchar * record, DBT const *row, DBT const *key, bool pk_stripped);
 
     int heavi_ret_val;
 
