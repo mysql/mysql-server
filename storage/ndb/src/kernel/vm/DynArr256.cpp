@@ -323,7 +323,7 @@ DynArr256::expand(Uint32 pos)
   
   alloc[idx] = m_head.m_ptr_i;
   m_head.m_sz = 1;
-  for (Uint32 i = 0; i<idx; i++)
+  for (i = 0; i<idx; i++)
   {
     m_head.m_ptr_i = alloc[i];
     Uint32 * ptr = get(0);
