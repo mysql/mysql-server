@@ -117,6 +117,8 @@ private:
   void execNODE_FAILREP  (const Uint32 * theData);
   void execNF_COMPLETEREP(const Uint32 * theData);
 
+  void check_wait_for_hb(NodeId nodeId);
+
   inline void set_node_alive(Node& node, bool alive){
     if(node.m_alive && !alive)
     {
