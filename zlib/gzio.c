@@ -7,6 +7,11 @@
 
 /* @(#) $Id$ */
 
+/* Need to be included "early" to control other headers */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 
 #include "zutil.h"

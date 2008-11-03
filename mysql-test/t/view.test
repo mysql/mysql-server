@@ -3560,6 +3560,15 @@ DROP VIEW v1;
 
 ###########################################################################
 
+#
+# Bug#39040: valgrind errors/crash when creating views with binlog logging 
+# enabled
+#
+# Bug is visible only when running in valgrind with binary logging.
+CREATE VIEW v1 AS SELECT 1;
+DROP VIEW v1;
+
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.0 tests.
 --echo # -----------------------------------------------------------------
