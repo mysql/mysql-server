@@ -4277,7 +4277,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++){
     for (Uint32 j= i+1;; j++){
       if(!p_mgm_nodes.get("", j, &nodeId2)) break;
-      if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy))
+      if(!p_connections2.get("", nodeId1+(nodeId2<<16), &dummy))
       {
 	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,0))
 	  goto err;
