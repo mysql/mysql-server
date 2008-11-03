@@ -425,6 +425,15 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   node.m_info.m_heartbeat_cnt = 0;
   node.hbCounter = 0;
 
+  check_wait_for_hb(nodeId);
+
+  node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
+}
+
+
+void
+ClusterMgr::check_wait_for_hb(NodeId nodeId)
+{
   if(waitingForHB)
   {
     waitForHBFromNodes.clear(nodeId);
@@ -435,8 +444,9 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
       NdbCondition_Broadcast(waitForHBCond);
     }
   }
-  node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
+  return;
 }
+
 
 void
 ClusterMgr::execAPI_REGREF(const Uint32 * theData){
@@ -465,9 +475,7 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
     break;
   }
 
-  waitForHBFromNodes.clear(nodeId);
-  if(waitForHBFromNodes.isclear())
-    NdbCondition_Signal(waitForHBCond);
+  check_wait_for_hb(nodeId);
 }
 
 void
