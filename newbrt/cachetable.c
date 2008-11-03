@@ -976,14 +976,12 @@ int toku_cachetable_close (CACHETABLE *tp) {
     return 0;
 }
 
-#if 0
 // this is broken. needs to wait for writebacks to complete
-int toku_cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
+int toku_cachetable_upnin_and_remove (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, int write_me) {
     /* Removing something already present is OK. */
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     int count = 0;
-    u_int32_t fullhash = toku_cachetable_hash(cachefile, key);
     cachetable_lock(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
@@ -999,7 +997,6 @@ int toku_cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     note_hash_count(count);
     return 0;
 }
-#endif
 
 #if 0
 static void flush_and_keep (PAIR flush_me) {
