@@ -107,7 +107,9 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (i) (PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+(PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 create table t1 (a int)
