@@ -31,12 +31,12 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 static void
 cachetable_unpin_and_remove_test (int n) {
     if (verbose) printf("%s %d\n", __FUNCTION__, n);
-    const int test_limit = 2*n;
+    const int table_limit = 2*n;
     int r;
     int i;
 
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    r = toku_create_cachetable(&ct, table_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -93,15 +93,37 @@ cachetable_unpin_and_remove_test (int n) {
 static void
 cachetable_put_evict_remove_test (int n) {
     if (verbose) printf("%s %d\n", __FUNCTION__, n);
-    const int test_limit = 2*n;
+    const int table_limit = n-1;
     int r;
+    int i;
 
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    r = toku_create_cachetable(&ct, table_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
+
+    u_int32_t hi[n];
+    for (i=0; i<n; i++)
+        hi[i] = toku_cachetable_hash(f1, make_blocknum(i));
+
+    // put 0, 1, 2, ... should evict 0
+    for (i=0; i<n; i++) {
+        r = toku_cachetable_put(f1, make_blocknum(i), hi[i], (void *)(long)i, 1, flush, fetch, 0);
+        assert(r == 0);
+        r = toku_cachetable_unpin(f1, make_blocknum(i), hi[i], CACHETABLE_CLEAN, 1);
+        assert(r == 0);
+    }
+
+    // get 0
+    void *v; long s;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(0), hi[0], &v, &s, flush, fetch, 0);
+    assert(r == 0);
+        
+    // remove 0
+    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(0));
+    assert(r == 0);
 
     r = toku_cachefile_close(&f1, NULL_LOGGER); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
@@ -110,6 +132,6 @@ cachetable_put_evict_remove_test (int n) {
 int main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     cachetable_unpin_and_remove_test(8);
-    cachetable_put_evict_remove_test(8);
+    cachetable_put_evict_remove_test(4);
     return 0;
 }
