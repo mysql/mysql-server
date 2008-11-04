@@ -38,9 +38,6 @@ skip-slave-start
 # test results will vary, thus a relative path is used.
 slave-load-tmpdir=          ../../tmp
 
-
-rpl-recovery-rank=          @mysqld.2.server-id
-
 loose-innodb
 
 
