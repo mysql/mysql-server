@@ -605,8 +605,6 @@ wdl_get_external_variables(void)
 	GET_SYM("?lower_case_table_names@@3IA",
 		wdl_lower_case_table_names, uint);
 	GET_SYM("?specialflag@@3KA", wdl_specialflag, ulong);
-	GET_SYM("?builtin_innobase_plugin@@3PAUst_mysql_plugin@@A",
-		builtin_innobase_plugin_ptr, struct st_mysql_plugin);
 
 	GET_SYM2("?system_charset_info@@3PEAUcharset_info_st@@EA",
 		 "?system_charset_info@@3PAUcharset_info_st@@A",
@@ -620,6 +618,12 @@ wdl_get_external_variables(void)
 	GET_SYM2("?binlog_format_names@@3PAPEBDA",
 		 "?binlog_format_names@@3PAPBDA",
 		 wdl_binlog_format_names, char*);
+
+	/* It is fine if builtin_innobase_plugin is not available. */
+	builtin_innobase_plugin_ptr = (struct st_mysql_plugin*)
+		wdl_get_varaddr_from_map(
+			hmod,
+			"?builtin_innobase_plugin@@3PAUst_mysql_plugin@@A");
 
 #ifndef DBUG_OFF
 	GET_PROC_ADDR(_db_enter_);
