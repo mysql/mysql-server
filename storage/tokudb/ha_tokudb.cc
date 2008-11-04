@@ -4899,22 +4899,31 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     uchar* tmp_record = NULL;
     THD* thd = ha_thd(); 
     uchar* tmp_record2 = NULL;
+    //
+    // these variables are for error handling
+    //
+    uint num_files_created = 0;
+    uint num_DB_opened = 0;
+    //
+    // number of DB files we have open currently, before add_index is executed
+    //
+    uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
 
     newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
     tmp_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
     tmp_record2 = (uchar *)my_malloc(2*table_arg->s->rec_buff_length,MYF(MY_WME));
+    if (newname == NULL || 
+        tmp_key_buff == NULL ||
+        tmp_prim_key_buff == NULL ||
+        tmp_record == NULL ||
+        tmp_record2 == NULL) {
+        error = ENOMEM;
+        goto cleanup;
+    }
 
-    //
-    // number of DB files we have open currently, before add_index is executed
-    //
-    uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
-    //
-    // these variables are for error handling
-    //
-    uint num_files_created = 0;
-    uint num_DB_opened = 0;
+
     
     //
     // in unpack_row, MySQL passes a buffer that is this long,
@@ -5128,6 +5137,7 @@ cleanup:
     my_free(tmp_key_buff,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_prim_key_buff,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_record,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_record2,MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
