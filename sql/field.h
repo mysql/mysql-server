@@ -1853,6 +1853,8 @@ public:
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
 private:
   int do_save_field_metadata(uchar *first_byte);
+  bool compare_enum_values(TYPELIB *values);
+  uint is_equal(Create_field *new_field);
 };
 
 
