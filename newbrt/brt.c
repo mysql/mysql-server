@@ -234,6 +234,7 @@ int toku_brt_debug_mode = 0;
 #endif
 
 static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
+    assert(node->height>0 && childnum<node->u.n.n_children);
     switch (BNC_HAVE_FULLHASH(node, childnum)) {
     case TRUE:
 	{
@@ -1078,7 +1079,7 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
 }
 
 static int
-brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger)
+brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger, BOOL *did_react)
 {
     if (0) {
 	printf("%s:%d Node %" PRIu64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
@@ -1128,6 +1129,7 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger)
 	if (r!=0) return r;
     }
     // printf("%s:%d child did split\n", __FILE__, __LINE__);
+    *did_react = TRUE;
     {
 	int r = handle_split_of_child (t, node, childnum, nodea, nodeb, &splitk, logger);
 	if (0) {
@@ -1688,7 +1690,7 @@ brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 //  The re_array[i] gets set to the reactivity of any modified child i.  (And there may be several such children.)
 {
     /* find all children that need a copy of the command */
-    unsigned int *MALLOC_N(node->u.n.n_children, sendchild);
+    unsigned int sendchild[node->u.n.n_children];
     unsigned int delidx = 0;
 #define sendchild_append(i) \
         if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
@@ -1724,7 +1726,6 @@ brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     }
     r=0;
  return_r:
-    toku_free(sendchild);
     return r;
 }
 
@@ -1928,7 +1929,7 @@ maybe_merge_pinned_nodes (BRT t,
 }
 
 static int
-brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKULOGGER logger)
+brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKULOGGER logger, BOOL *did_react)
 {
     if (node->u.n.n_children < 2) return 0; // if no siblings, we are merged as best we can.
 
@@ -1991,6 +1992,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	r = maybe_merge_pinned_nodes(t, node, childnuma, node->u.n.childkeys[childnuma], childa, childb, logger, &did_merge, &splitk_kvpair);
 	if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) assert(childa->u.n.childkeys[i]); }
 	//(toku_verify_counts(childa), toku_verify_estimates(t,childa));
+	*did_react = did_merge;
 	if (did_merge) assert(!splitk_kvpair); else assert(splitk_kvpair);
 	if (r!=0) goto return_r;
 
@@ -2035,13 +2037,13 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
     }
 
 static int
-brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger) {
+brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger, BOOL *did_react) {
     switch (re) {
     case RE_STABLE: return 0;
     case RE_FISSIBLE:
-	return brt_split_child(t, node, childnum, logger);
+	return brt_split_child(t, node, childnum, logger, did_react);
     case RE_FUSIBLE:
-	return brt_merge_child(t, node, childnum, did_io, logger);
+	return brt_merge_child(t, node, childnum, did_io, logger, did_react);
     }
     abort(); // this cannot happen
 }
@@ -2186,7 +2188,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
     if (node->height==0) {
 	return brt_leaf_put_cmd(t, node, cmd, logger, re);
     } else {
-	enum reactivity *MALLOC_N(node->u.n.n_children, child_re);
+	enum reactivity child_re[node->u.n.n_children];
 	{ int i; for (i=0; i<node->u.n.n_children; i++) child_re[i]=RE_STABLE; }
 	int r = brt_nonleaf_put_cmd(t, node, cmd, logger, child_re, did_io);
 	if (r!=0) goto return_r;
@@ -2203,12 +2205,12 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	int original_n_children = node->u.n.n_children;
 	for (i=0; i<original_n_children; i++) {
 	    int childnum = original_n_children - 1 -i;
-	    r = brt_handle_maybe_reactive_child(t, node, childnum, child_re[childnum], did_io, logger);
+	    BOOL did_react; // ignore the result.
+	    r = brt_handle_maybe_reactive_child(t, node, childnum, child_re[childnum], did_io, logger, &did_react);
 	    if (r!=0) break;
 	    if (*did_io) break;
 	}
     return_r:
-	toku_free(child_re);
 	*re = get_nonleaf_reactivity(node);
 	return r;
     }
@@ -3158,7 +3160,10 @@ static int
 brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, TOKULOGGER logger, OMTCURSOR omtcursor);
 
 /* search in a node's child */
-static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *parent_re, TOKULOGGER logger, OMTCURSOR omtcursor) {
+static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *parent_re, TOKULOGGER logger, OMTCURSOR omtcursor, BOOL *did_react)
+// Effect: Search in a node's child.
+//  If we change the shape, set *did_react = TRUE.  Else set *did_react = FALSE.
+{
 
     /* if the child's buffer is not empty then empty it */
     if (BNC_NBYTESINBUF(node, childnum) > 0) {
@@ -3180,15 +3185,16 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
     BRTNODE childnode = node_v;
     enum reactivity child_re = RE_STABLE;
     int r = brt_search_node(brt, childnode, search, newkey, newval, &child_re, logger, omtcursor);
-    if (r!=0) goto return_r;
+    // Even if r is reactive, we want to handle the maybe reactive child.
+    {
+	BOOL did_io = FALSE;
+	int rr = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, logger, did_react);
+	if (rr!=0) r = rr; // if we got an error, then return rr.  Else we will return the r from brt_search_node().
+    }
 
-    BOOL did_io = FALSE;
-    r = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, logger);
-
- return_r:
     {
 	int rr = toku_cachetable_unpin(brt->cf, childnode->thisnodename, childnode->fullhash, childnode->dirty, brtnode_memory_size(childnode)); 
-	assert(rr == 0);
+	if (rr!=0) r = rr;
     }
     *parent_re = get_nonleaf_reactivity(node);
     
@@ -3196,30 +3202,37 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
 }
 
 static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, TOKULOGGER logger, OMTCURSOR omtcursor) {
-    int c;
+ again:
+    {
 
-    /* binary search is overkill for a small array */
-    int child[node->u.n.n_children];
+	int c;
 
-    /* scan left to right or right to left depending on the search direction */
-    for (c = 0; c < node->u.n.n_children; c++) 
-        child[c] = search->direction & BRT_SEARCH_LEFT ? c : node->u.n.n_children - 1 - c;
+	/* binary search is overkill for a small array */
+	int child[node->u.n.n_children];
 
-    for (c = 0; c < node->u.n.n_children-1; c++) {
-        int p = search->direction & BRT_SEARCH_LEFT ? child[c] : child[c] - 1;
-        struct kv_pair *pivot = node->u.n.childkeys[p];
-        DBT pivotkey, pivotval;
-        if (search->compare(search, 
-                            toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)), 
-                            brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
-            int r = brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, omtcursor);
-	    assert(r != EAGAIN);
-	    if (r == 0) return r;
-        }
-    }
+	/* scan left to right or right to left depending on the search direction */
+	for (c = 0; c < node->u.n.n_children; c++) 
+	    child[c] = search->direction & BRT_SEARCH_LEFT ? c : node->u.n.n_children - 1 - c;
+
+	for (c = 0; c < node->u.n.n_children-1; c++) {
+	    int p = search->direction & BRT_SEARCH_LEFT ? child[c] : child[c] - 1;
+	    struct kv_pair *pivot = node->u.n.childkeys[p];
+	    DBT pivotkey, pivotval;
+	    if (search->compare(search, 
+				toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)), 
+				brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
+		BOOL did_change_shape;
+		int r = brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, omtcursor, &did_change_shape);
+		assert(r != EAGAIN);
+		if (r == 0) return r;
+		if (did_change_shape) goto again;
+	    }
+	}
     
-    /* check the first (left) or last (right) node if nothing has been found */
-    return brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, omtcursor);
+	/* check the first (left) or last (right) node if nothing has been found */
+	BOOL did_change_shape; // ignore this
+	return brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, omtcursor, &did_change_shape);
+    }
 }
 
 static int
