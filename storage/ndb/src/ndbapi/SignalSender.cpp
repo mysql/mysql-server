@@ -327,7 +327,11 @@ SignalSender::execNodeStatus(void* signalSender,
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
     NdbNodeBitmask::clear(rep->theNodes);
-    NdbNodeBitmask::set(rep->theNodes,nodeId);
+
+    // Mark ndb nodes as failed in bitmask
+    const ClusterMgr::Node node= ss->getNodeInfo(nodeId);
+    if (node.m_info.getType() ==  NodeInfo::DB)
+      NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
 
   ss->m_jobBuffer.push_back(s);
