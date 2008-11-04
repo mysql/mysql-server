@@ -449,7 +449,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     /* Ensure we have space in the key buffer for transaction id's */
     if (share->base.born_transactional)
       share->base.max_key_length= ALIGN_SIZE(share->base.max_key_length +
-                                             MAX_PACK_TRANSID_SIZE);
+                                             MARIA_MAX_PACK_TRANSID_SIZE);
 
     /*
       If page cache is not initialized, then assume we will create the
