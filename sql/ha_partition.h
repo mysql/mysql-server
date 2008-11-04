@@ -1003,8 +1003,7 @@ public:
     virtual bool is_crashed() const;
 
     private:
-    int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
-                              uint flags, bool all_parts);
+    int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt, uint flags);
     public:
   /*
     -------------------------------------------------------------------------

@@ -1453,7 +1453,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   FALSE,
                                                   show_table_options))))
     {
-       packet->append(STRING_WITH_LEN(" /*!50100"));
+       packet->append(STRING_WITH_LEN("\n/*!50100"));
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
        my_free(part_syntax, MYF(0));
