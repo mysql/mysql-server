@@ -18,6 +18,7 @@
 
 #include <NdbOut.hpp>
 #include <mgmapi_config_parameters.h>
+#include <ndb_version.h>
 
 class NodeInfo {
 public:
@@ -60,6 +61,27 @@ NodeInfo::getType() const {
   return (NodeType)m_type;
 }
 
+
+class NdbVersion {
+  Uint32 m_ver;
+public:
+  NdbVersion(Uint32 ver) : m_ver(ver) {};
+
+  friend NdbOut& operator<<(NdbOut&, const NdbVersion&);
+};
+
+
+inline
+NdbOut&
+operator<<(NdbOut& ndbout, const NdbVersion& ver){
+  ndbout.print("%d.%d.%d",
+               ndbGetMajor(ver.m_ver),
+               ndbGetMinor(ver.m_ver),
+               ndbGetBuild(ver.m_ver));
+  return ndbout;
+}
+
+
 inline
 NdbOut &
 operator<<(NdbOut& ndbout, const NodeInfo & info){
@@ -82,8 +104,8 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
     break;
   }
 
-  ndbout << " ndb version: " << info.m_version
-	 << " mysql version; " << info.m_mysql_version
+  ndbout << " ndb version: " << NdbVersion(info.m_version)
+	 << " mysql version: " << NdbVersion(info.m_mysql_version)
 	 << " connect count: " << info.m_connectCount
 	 << "]";
   return ndbout;

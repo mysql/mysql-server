@@ -49,7 +49,9 @@ public:
   void startThread();
 
   void forceHB();
-  void set_max_api_reg_req_interval(unsigned int millisec) { m_max_api_reg_req_interval = millisec; }
+  void set_max_api_reg_req_interval(unsigned int millisec) {
+    m_max_api_reg_req_interval = millisec;
+  }
 
 private:
   void threadMain();
@@ -104,8 +106,7 @@ private:
    * Used for controlling start/stop of the thread
    */
   NdbMutex*     clusterMgrThreadMutex;
-  
-  void showState(NodeId nodeId);
+
   void reportNodeFailed(NodeId nodeId, bool disconnect = false);
   
   /**
@@ -120,6 +121,11 @@ private:
   void check_wait_for_hb(NodeId nodeId);
 
   inline void set_node_alive(Node& node, bool alive){
+
+    // Only DB nodes can be "alive"
+    assert(!alive ||
+           (alive && node.m_info.getType() == NodeInfo::DB));
+
     if(node.m_alive && !alive)
     {
       assert(noOfAliveNodes);
@@ -131,6 +137,8 @@ private:
     }
     node.m_alive = alive;
   }
+
+  void print_nodes(const char* where, NdbOut& out = ndbout);
 };
 
 inline
