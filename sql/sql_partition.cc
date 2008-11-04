@@ -2078,16 +2078,16 @@ char *generate_partition_syntax(partition_info *part_info,
     err+= add_string_len(fptr, part_info->part_func_string,
                          part_info->part_func_len);
   err+= add_end_parenthesis(fptr);
-  err+= add_space(fptr);
   if ((!part_info->use_default_no_partitions) &&
        part_info->use_default_partitions)
   {
+    err+= add_string(fptr, "\n");
     err+= add_string(fptr, "PARTITIONS ");
     err+= add_int(fptr, part_info->no_parts);
-    err+= add_space(fptr);
   }
   if (part_info->is_sub_partitioned())
   {
+    err+= add_string(fptr, "\n");
     err+= add_subpartition_by(fptr);
     /* Must be hash partitioning for subpartitioning */
     if (part_info->linear_hash_ind)
@@ -2100,13 +2100,12 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_string_len(fptr, part_info->subpart_func_string,
                            part_info->subpart_func_len);
     err+= add_end_parenthesis(fptr);
-    err+= add_space(fptr);
     if ((!part_info->use_default_no_subpartitions) && 
           part_info->use_default_subpartitions)
     {
+      err+= add_string(fptr, "\n");
       err+= add_string(fptr, "SUBPARTITIONS ");
       err+= add_int(fptr, part_info->no_subparts);
-      err+= add_space(fptr);
     }
   }
   tot_no_parts= part_info->partitions.elements;
@@ -2115,6 +2114,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (!part_info->use_default_partitions)
   {
     bool first= TRUE;
+    err+= add_string(fptr, "\n");
     err+= add_begin_parenthesis(fptr);
     i= 0;
     do
@@ -2126,6 +2126,7 @@ char *generate_partition_syntax(partition_info *part_info,
         if (!first)
         {
           err+= add_comma(fptr);
+          err+= add_string(fptr, "\n");
           err+= add_space(fptr);
         }
         first= FALSE;
@@ -2140,6 +2141,7 @@ char *generate_partition_syntax(partition_info *part_info,
         }
         else
         {
+          err+= add_string(fptr, "\n");
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -2154,6 +2156,8 @@ char *generate_partition_syntax(partition_info *part_info,
             if (j != (no_subparts-1))
             {
               err+= add_comma(fptr);
+              err+= add_string(fptr, "\n");
+              err+= add_space(fptr);
               err+= add_space(fptr);
             }
             else
