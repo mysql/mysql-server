@@ -136,10 +136,11 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result =brtnode_header_overhead;
     assert(sizeof(off_t)==8);
     if (node->height>0) {
-	result+=4; /* n_children */
 	result+=4; /* subtree fingerpirnt */
+	result+=4; /* n_children */
 	result+=4*(node->u.n.n_children-1); /* key lengths*/
         if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
+	assert(node->u.n.totalchildkeylens < (1<<30));
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
 	result+=(8+4+4+8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and the leafentry_estimate. */
 	result+=node->u.n.n_bytes_in_buffers;

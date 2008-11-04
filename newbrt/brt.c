@@ -353,7 +353,6 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //	//if (node->log_lsn.lsn>33320) printf("%s:%d node%lld lsn=%lld\n", __FILE__, __LINE__, node->thisnodename, node->log_lsn.lsn);
 //    }
     VERIFY_NODE(brt,node);
-    if (node->height>0) { int i; for (i=0; i+1<node->u.n.n_children; i++) assert(node->u.n.childkeys[i]); }
     return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, node->dirty, brtnode_memory_size(node));
 }
 
@@ -1883,7 +1882,7 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
     memcpy(a->u.n.childkeys + old_n_children,
 	   b->u.n.childkeys,
 	   (b->u.n.n_children-1)*sizeof(b->u.n.childkeys[0]));
-    a->u.n.totalchildkeylens += b->u.n.totalchildkeylens;
+    a->u.n.totalchildkeylens += b->u.n.totalchildkeylens + toku_brt_pivot_key_len(t, parent_splitk);
     a->u.n.n_bytes_in_buffers += b->u.n.n_bytes_in_buffers;
     a->u.n.n_children = new_n_children;
 
@@ -1895,7 +1894,6 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
 //    abort(); // don't forget to reuse blocknums
     *did_merge = TRUE;
     *splitk    = NULL;
-    { int i; for (i=0; i+1<a->u.n.n_children; i++) assert(a->u.n.childkeys[i]); }
     return 0;
 }
 
@@ -1984,22 +1982,12 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 
     // now we have both children pinned in main memory.
 
-    // But we aren't actually ready to merge things.
-    static int printcount=0;
-    printcount++;
-    if (0==(printcount & (printcount-1))) {// is printcount a power of two?
-	printf("%s:%d %s not ready (%d invocations)  (childnuma=%d childnumb=%d\n", __FILE__, __LINE__, __func__, printcount, childnuma, childnumb);
-    }
-
     int r;
     BOOL did_merge;
     {
 	struct kv_pair *splitk_kvpair = 0;
 	struct kv_pair *old_split_key = node->u.n.childkeys[childnuma];
 	unsigned int deleted_size = toku_brt_pivot_key_len(t, old_split_key);
-	printf("%s:%d Maybe merging pinned nodes\n", __FILE__, __LINE__);
-	if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) assert(childa->u.n.childkeys[i]); }
-	{ int i; for (i=0; i+1<node->u.n.n_children; i++) assert(node->u.n.childkeys[i]); }
 	r = maybe_merge_pinned_nodes(t, node, childnuma, node->u.n.childkeys[childnuma], childa, childb, logger, &did_merge, &splitk_kvpair);
 	if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) assert(childa->u.n.childkeys[i]); }
 	//(toku_verify_counts(childa), toku_verify_estimates(t,childa));
@@ -2009,7 +1997,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	node->u.n.totalchildkeylens -= deleted_size; // The key was free()'d inside the maybe_merge_pinned_nodes.
 
 	if (did_merge) {
-	    printf("%s:%d %s did_merge\n", __FILE__, __LINE__, __func__);
 	    toku_fifo_free(&BNC_BUFFER(node, childnumb));
 	    node->u.n.n_children--;
 	    memmove(&node->u.n.childinfos[childnumb],
@@ -2036,8 +2023,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	int rra = toku_unpin_brtnode(t, childa);
 	int rrb;
 	if (did_merge) {
-	    rrb = toku_cachetable_unpin_and_remove(t->cf, childb->thisnodename, node->fullhash, 0);
-	    toku_brtnode_free(&childb);
+	    rrb = toku_cachetable_unpin_and_remove(t->cf, childb->thisnodename);
 	} else {
 	    rrb = toku_unpin_brtnode(t, childb);
 	}
@@ -2050,7 +2036,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 
 static int
 brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger) {
-    { int i; for (i=0; i+1<node->u.n.n_children; i++) assert(node->u.n.childkeys[i]); }
     switch (re) {
     case RE_STABLE: return 0;
     case RE_FISSIBLE:

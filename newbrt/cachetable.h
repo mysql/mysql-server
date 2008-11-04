@@ -105,8 +105,8 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash
 // Returns: 0 if success, otherwise returns an error number.
 int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, int dirty, long size);
 
-int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY, u_int32_t fullhash, int /*write_me_if_dirty*/); /* Removing something already present is OK. */
-// Effect: Remove an object from the cachetable, writing it if the object is dirty.
+int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing something already present is OK. */
+// Effect: Remove an object from the cachetable.  Don't write it back.
 // Requires: The object must be pinned exactly once.
 
 int toku_cachetable_assert_all_unpinned (CACHETABLE);
