@@ -976,29 +976,38 @@ int toku_cachetable_close (CACHETABLE *tp) {
     return 0;
 }
 
-// this is broken. needs to wait for writebacks to complete
 int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
-    /* Removing something already present is OK. */
+    int r = ENOENT;
+    // Removing something already present is OK.
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     int count = 0;
     cachetable_lock(t);
     u_int32_t fullhash = toku_cachetable_hash(cachefile, key);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
-	count++;
+        count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    p->dirty = 0; // clear the dirty bit.  We're just supposed to remove it.
 	    assert(p->rwlock.pinned==1);
             ctpair_read_unlock(&p->rwlock);
-	    assert(ctpair_users(&p->rwlock)==0);
-	    cachetable_maybe_remove_and_free_pair(t, p);
+            struct writequeue cq;
+            writequeue_init(&cq);
+            p->cq = &cq;
+            if (!p->writing)
+                flush_and_remove(t, p, 0);
+            PAIR pp = 0;
+            r = writequeue_deq(&cq, &t->mutex, &pp); 
+            assert(r == 0 && pp == p);
+            cachetable_complete_write_pair(t, p, TRUE);
+            writequeue_destroy(&cq);
+            r = 0;
 	    goto done;
 	}
     }
  done:
     cachetable_unlock(t);
     note_hash_count(count);
-    return 0;
+    return r;
 }
 
 #if 0
@@ -1229,6 +1238,7 @@ void toku_cachefile_set_userdata (CACHEFILE cf, void *userdata, int (*close_user
     cf->userdata = userdata;
     cf->close_userdata = close_userdata;
 }
+
 void *toku_cachefile_get_userdata(CACHEFILE cf) {
     return cf->userdata;
 }
