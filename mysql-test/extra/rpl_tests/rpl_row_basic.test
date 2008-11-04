@@ -471,3 +471,102 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 sync_slave_with_master;
+
+#
+# BUG#40004: Replication failure with no PK + no indexes
+#
+
+# The test cases are taken from the bug report. It is difficult to
+# produce a test case that generates a HA_ERR_RECORD_DELETED, so we go
+# with the test cases we have.
+
+connection master;
+
+eval CREATE TABLE t1 (a int) ENGINE=$type;
+
+INSERT IGNORE INTO t1 VALUES (NULL);
+INSERT INTO t1 ( a ) VALUES ( 0 );
+INSERT INTO t1 ( a ) VALUES ( 9 );
+INSERT INTO t1 ( a ) VALUES ( 2 );
+INSERT INTO t1 ( a ) VALUES ( 9 );
+INSERT INTO t1 ( a ) VALUES ( 5 );
+
+UPDATE t1 SET a = 5 WHERE a = 9;
+DELETE FROM t1 WHERE a < 6;
+UPDATE t1 SET a = 9 WHERE a < 3;
+INSERT INTO t1 ( a ) VALUES ( 3 );
+UPDATE t1 SET a = 0 WHERE a < 4;
+UPDATE t1 SET a = 8 WHERE a < 5;
+
+sync_slave_with_master;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+#
+# Bug #39752: Replication failure on RBR + MyISAM + no PK
+#
+
+# The test cases are taken from the bug report. It is difficult to
+# produce a test case that generates a HA_ERR_RECORD_DELETED, so we go
+# with the test cases we have.
+
+connection master;
+
+--disable_warnings
+eval CREATE TABLE t1 (a bit) ENGINE=$type;
+INSERT IGNORE INTO t1 VALUES (NULL);
+INSERT INTO t1 ( a ) VALUES ( 0 );
+UPDATE t1 SET a = 0 WHERE a = 1 LIMIT 3;
+INSERT INTO t1 ( a ) VALUES ( 5 );
+DELETE FROM t1 WHERE a < 2 LIMIT 4;
+DELETE FROM t1 WHERE a < 9 LIMIT 4;
+INSERT INTO t1 ( a ) VALUES ( 9 );
+UPDATE t1 SET a = 8 WHERE a = 0 LIMIT 6;
+INSERT INTO t1 ( a ) VALUES ( 8 );
+UPDATE t1 SET a = 0 WHERE a < 6 LIMIT 0;
+INSERT INTO t1 ( a ) VALUES ( 4 );
+INSERT INTO t1 ( a ) VALUES ( 3 );
+UPDATE t1 SET a = 0 WHERE a = 7 LIMIT 6;
+DELETE FROM t1 WHERE a = 4 LIMIT 7;
+UPDATE t1 SET a = 9 WHERE a < 2 LIMIT 9;
+UPDATE t1 SET a = 0 WHERE a < 9 LIMIT 2;
+DELETE FROM t1 WHERE a < 0 LIMIT 5;
+INSERT INTO t1 ( a ) VALUES ( 5 );
+UPDATE t1 SET a = 4 WHERE a < 6 LIMIT 4;
+INSERT INTO t1 ( a ) VALUES ( 5 );
+UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 8;
+DELETE FROM t1 WHERE a < 8 LIMIT 8;
+INSERT INTO t1 ( a ) VALUES ( 6 );
+DELETE FROM t1 WHERE a < 6 LIMIT 7;
+UPDATE t1 SET a = 7 WHERE a = 3 LIMIT 7;
+UPDATE t1 SET a = 8 WHERE a = 0 LIMIT 6;
+INSERT INTO t1 ( a ) VALUES ( 7 );
+DELETE FROM t1 WHERE a < 9 LIMIT 4;
+INSERT INTO t1 ( a ) VALUES ( 7 );
+INSERT INTO t1 ( a ) VALUES ( 6 );
+UPDATE t1 SET a = 8 WHERE a = 3 LIMIT 4;
+DELETE FROM t1 WHERE a = 2 LIMIT 9;
+DELETE FROM t1 WHERE a = 1 LIMIT 4;
+UPDATE t1 SET a = 4 WHERE a = 2 LIMIT 7;
+INSERT INTO t1 ( a ) VALUES ( 0 );
+DELETE FROM t1 WHERE a < 3 LIMIT 0;
+UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
+INSERT INTO t1 ( a ) VALUES ( 1 );
+UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 3;
+--enable_warnings
+
+sync_slave_with_master;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+sync_slave_with_master;

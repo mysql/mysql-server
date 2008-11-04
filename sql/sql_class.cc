@@ -2852,7 +2852,10 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
-  return (int) thd->variables.binlog_format;
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+    return (int) thd->variables.binlog_format;
+  else
+    return BINLOG_FORMAT_UNSPEC;
 }
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
