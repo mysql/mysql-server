@@ -120,6 +120,7 @@ static int                              theDirtyFlag = 0;
 static int                              theWriteFlag = 0;
 static int                              theStdTableNameFlag = 0;
 static int                              theTableCreateFlag = 0;
+static int                              tConnections = 1;
 
 #define START_REAL_TIME
 #define STOP_REAL_TIME
@@ -172,7 +173,7 @@ tellThreads(StartType what)
     ThreadStart[i] = what;
 }
 
-static Ndb_cluster_connection *g_cluster_connection= 0;
+static Ndb_cluster_connection * g_cluster_connection = 0;
 
 NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
@@ -231,14 +232,24 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   setAttrNames();
   setTableNames();
 
-  Ndb_cluster_connection con;
-  if(con.connect(12, 5, 1) != 0)
+  g_cluster_connection = new Ndb_cluster_connection [tConnections];
+  if (tConnections > 1)
   {
-    return NDBT_ProgramExit(NDBT_FAILED);
+    printf("Creating %u connections...", tConnections);
+    fflush(stdout);
   }
-  g_cluster_connection= &con;
-
-  Ndb * pNdb = new Ndb(g_cluster_connection, "TEST_DB");      
+  for (int i = 0; i < tConnections; i++)
+  {
+    if(g_cluster_connection[i].connect(12, 5, 1) != 0)
+      return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  if (tConnections > 1)
+  {
+    printf("\n");
+    fflush(stdout);
+  }
+  
+  Ndb * pNdb = new Ndb(g_cluster_connection+0, "TEST_DB");      
   pNdb->init();
   tNodeId = pNdb->getNodeId();
 
@@ -533,7 +544,7 @@ threadLoop(void* ThreadData)
   StartType tType;
   ThreadNdb* tabThread = (ThreadNdb*)ThreadData;
   int threadNo = tabThread->ThreadNo;
-  localNdb = new Ndb(g_cluster_connection, "TEST_DB");
+  localNdb = new Ndb(g_cluster_connection+(threadNo % tConnections), "TEST_DB");
   localNdb->init(1024);
   localNdb->waitUntilReady(10000);
   unsigned int threadBase = (threadNo << 16) + tNodeId ;
@@ -1089,6 +1100,8 @@ readArguments(int argc, const char** argv){
       i--;
     } else if (strcmp(argv[i], "-r") == 0){
       tExtraReadLoop = atoi(argv[i+1]);
+    } else if (strcmp(argv[i], "-con") == 0){
+      tConnections = atoi(argv[i+1]);
     } else {
       return -1;
     }
