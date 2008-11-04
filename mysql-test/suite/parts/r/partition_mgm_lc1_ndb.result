@@ -55,7 +55,15 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION parta ENGINE = ndbcluster, PARTITION partB ENGINE = ndbcluster, PARTITION Partc ENGINE = ndbcluster, PARTITION PartD ENGINE = ndbcluster, PARTITION partE ENGINE = ndbcluster, PARTITION Partf ENGINE = ndbcluster, PARTITION PartG ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION parta ENGINE = ndbcluster,
+ PARTITION partB ENGINE = ndbcluster,
+ PARTITION Partc ENGINE = ndbcluster,
+ PARTITION PartD ENGINE = ndbcluster,
+ PARTITION partE ENGINE = ndbcluster,
+ PARTITION Partf ENGINE = ndbcluster,
+ PARTITION PartG ENGINE = ndbcluster) */
 ALTER TABLE TableA COALESCE PARTITION 4;
 SELECT * FROM TableA;
 a
@@ -75,7 +83,11 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION parta ENGINE = ndbcluster, PARTITION partB ENGINE = ndbcluster, PARTITION Partc ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION parta ENGINE = ndbcluster,
+ PARTITION partB ENGINE = ndbcluster,
+ PARTITION Partc ENGINE = ndbcluster) */
 # Test of REORGANIZE PARTITIONS
 # Should not work on HASH/KEY
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB,Partc INTO
@@ -107,7 +119,11 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = ndbcluster, PARTITION parta COMMENT = 'Previusly named partB' ENGINE = ndbcluster, PARTITION Partc ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION partB COMMENT = 'Previusly named parta' ENGINE = ndbcluster,
+ PARTITION parta COMMENT = 'Previusly named partB' ENGINE = ndbcluster,
+ PARTITION Partc ENGINE = ndbcluster) */
 # Test of RENAME TABLE
 RENAME TABLE TableA to TableB;
 SELECT * FROM TableB;
@@ -175,7 +191,11 @@ SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = ndbcluster, PARTITION parta COMMENT = 'Previusly named partB' ENGINE = ndbcluster, PARTITION Partc ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION partB COMMENT = 'Previusly named parta' ENGINE = ndbcluster,
+ PARTITION parta COMMENT = 'Previusly named partB' ENGINE = ndbcluster,
+ PARTITION Partc ENGINE = ndbcluster) */
 # Test of REMOVE PARTITIONING
 ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
