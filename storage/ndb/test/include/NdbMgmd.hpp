@@ -38,13 +38,11 @@ class NdbMgmd {
   }
 public:
   NdbMgmd() :
-    m_connect_str(getenv("NDB_CONNECTSTRING")),
     m_handle(NULL)
     {
-      if (!m_connect_str.length()){
-        fprintf(stderr, "Could not init NdbConnectString");
-        abort();
-      }
+      const char* connect_string= getenv("NDB_CONNECTSTRING");
+      if (connect_string)
+        m_connect_str.assign(connect_string);
     }
 
   ~NdbMgmd()
