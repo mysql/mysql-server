@@ -126,13 +126,19 @@ DROP TABLE t1,t2;
 --echo #
 --echo # Bug#37870: Usage of uninitialized value caused failed assertion.
 --echo #
-create table t1 (dt datetime not null);
+create table t1 (dt datetime not null, t time not null);
 create table t2 (dt datetime not null);
-insert into t1 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
+insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
+('2001-01-01 1:1:1', '1:1:1');
 insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
 flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+flush tables;
+EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
+flush tables;
+SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
 drop tables t1, t2;
 
 # End of 5.0 tests.
