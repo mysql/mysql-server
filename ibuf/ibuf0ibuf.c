@@ -2999,7 +2999,6 @@ ibuf_insert_low(
 	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
-	ulint		bits;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
@@ -3115,23 +3114,27 @@ ibuf_insert_low(
 		goto function_exit;
 	}
 
-	bits = ibuf_bitmap_page_get_bits(bitmap_page, page_no, zip_size,
-					 IBUF_BITMAP_FREE, &bitmap_mtr);
+	if (op == IBUF_OP_INSERT) {
+		ulint	bits = ibuf_bitmap_page_get_bits(
+			bitmap_page, page_no, zip_size, IBUF_BITMAP_FREE,
+			&bitmap_mtr);
 
-	if (buffered + entry_size + page_dir_calc_reserved_space(1)
-	    > ibuf_index_page_calc_free_from_bits(zip_size, bits)) {
-		mtr_commit(&bitmap_mtr);
+		if (buffered + entry_size + page_dir_calc_reserved_space(1)
+		    > ibuf_index_page_calc_free_from_bits(zip_size, bits)) {
+			mtr_commit(&bitmap_mtr);
 
-		/* It may not fit */
-		err = DB_STRONG_FAIL;
+			/* It may not fit */
+			err = DB_STRONG_FAIL;
 
-		do_merge = TRUE;
+			do_merge = TRUE;
 
-		ibuf_get_merge_page_nos(
-			FALSE, btr_pcur_get_rec(&pcur),
-			space_ids, space_versions, page_nos, &n_stored);
+			ibuf_get_merge_page_nos(
+				FALSE, btr_pcur_get_rec(&pcur),
+				space_ids, space_versions,
+				page_nos, &n_stored);
 
-		goto function_exit;
+			goto function_exit;
+		}
 	}
 
 	/* Patch correct counter value to the entry to insert. This can
