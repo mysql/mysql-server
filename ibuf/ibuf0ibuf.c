@@ -2527,6 +2527,114 @@ ibuf_contract_after_insert(
 }
 
 /*************************************************************************
+Determine if an insert buffer record has been encountered already. */
+static
+ibool
+ibuf_get_volume_buffered_hash(
+/*==========================*/
+				/* out: TRUE if a new record,
+				FALSE if possible duplicate */
+	const rec_t*	rec,	/* in: ibuf record in post-4.1 format */
+	byte*		hash,	/* in/out: hash array */
+	ulint		size)	/* in: size of hash array, in bytes */
+{
+	ulint		len;
+	ulint		fold;
+	const byte*	types;
+	ulint		types_len;
+	ulint		bitmask;
+
+	types = rec_get_nth_field_old(rec, 3, &types_len);
+	len = ibuf_rec_get_size(rec, types, rec_get_n_fields_old(rec) - 4,
+				FALSE);
+	fold = ut_fold_binary(types + types_len, len);
+
+	hash += (fold / 8) % size;
+	bitmask = 1 << (fold % 8);
+
+	if (*hash & bitmask) {
+
+		return(FALSE);
+	}
+
+	/* We have not seen this record yet.  Insert it. */
+	*hash |= bitmask;
+
+	return(TRUE);
+}
+
+/*************************************************************************
+Update the estimate of the number of records on a page. */
+static
+void
+ibuf_get_volume_buffered_count(
+/*===========================*/
+	const rec_t*	rec,	/* in: insert buffer record */
+	byte*		hash,	/* in/out: hash array */
+	ulint		size,	/* in: size of hash array, in bytes */
+	ulint*		n_recs)	/* in/out: estimated number of records
+				on the page that rec points to */
+{
+	ulint		len;
+	const byte*	field;
+	ibuf_op_t	ibuf_op;
+
+	ut_ad(ibuf_inside());
+	ut_ad(rec_get_n_fields_old(rec) > 2);
+
+	field = rec_get_nth_field_old(rec, 1, &len);
+
+	if (UNIV_UNLIKELY(len > 1)) {
+		/* This is a < 4.1.x format record.  Ignore it in the
+		count, because deletes cannot be buffered if there are
+		old-style records for the page. */
+
+		return;
+	}
+
+	field = rec_get_nth_field_old(rec, 3, &len);
+
+	switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
+			    IBUF_REC_INFO_SIZE)) {
+	default:
+		ut_error;
+	case 0:
+	case 1:
+		/* This record does not include an operation counter.
+		Ignore it in the count, because deletes cannot be
+		buffered if there are old-style records for the page. */
+		return;
+
+	case IBUF_REC_INFO_SIZE:
+		ibuf_op = (ibuf_op_t) field[IBUF_REC_OFFSET_TYPE];
+		break;
+	}
+
+	switch (ibuf_op) {
+	case IBUF_OP_INSERT:
+		/* Inserts can be done by
+		btr_cur_set_deleted_flag_for_ibuf().  Because
+		delete-mark and insert operations can be pointing to
+		the same records, we must not count duplicates. */
+	case IBUF_OP_DELETE_MARK:
+		/* There must be a record to delete-mark.
+		See if this record has been already buffered. */
+		if (ibuf_get_volume_buffered_hash(rec, hash, size)) {
+			(*n_recs)++;
+		}
+		break;
+	case IBUF_OP_DELETE:
+		/* A record will be removed from the page. */
+		if (*n_recs > 0) {
+			(*n_recs)--;
+		}
+		break;
+	default:
+		ut_error;
+	}
+}
+
+/*************************************************************************
 Gets an upper limit for the combined size of entries buffered in the insert
 buffer for a given page. */
 static
@@ -2556,6 +2664,7 @@ ibuf_get_volume_buffered(
 	page_t*	prev_page;
 	ulint	next_page_no;
 	page_t*	next_page;
+	byte	hash_bitmap[128]; /* bitmap of buffered records */
 
 	ut_a(trx_sys_multiple_tablespace_format);
 
@@ -2643,6 +2752,8 @@ ibuf_get_volume_buffered(
 	}
 
 count_later:
+	memset(hash_bitmap, 0, sizeof hash_bitmap);
+
 	rec = btr_pcur_get_rec(pcur);
 
 	if (!page_rec_is_supremum(rec)) {
@@ -2663,28 +2774,8 @@ count_later:
 
 		volume += ibuf_rec_get_volume(rec);
 
-		switch (ibuf_rec_get_op_type(rec)) {
-		case IBUF_OP_INSERT:
-			/* Inserts can be done by
-			btr_cur_set_deleted_flag_for_ibuf().  Because
-			delete-mark and insert operations can be
-			pointing to the same records, we must not
-			count one of the operations.  Let us count
-			only the delete-mark operations. */
-			break;
-		case IBUF_OP_DELETE_MARK:
-			/* There must be a record to delete-mark. */
-			(*n_recs)++;
-			break;
-		case IBUF_OP_DELETE:
-			/* A record will be removed from the page. */
-			if (*n_recs > 0) {
-				(*n_recs)--;
-			}
-			break;
-		default:
-			ut_error;
-		}
+		ibuf_get_volume_buffered_count(
+			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
 	}
@@ -2733,28 +2824,8 @@ count_later:
 
 		volume += ibuf_rec_get_volume(rec);
 
-		switch (ibuf_rec_get_op_type(rec)) {
-		case IBUF_OP_INSERT:
-			/* Inserts can be done by
-			btr_cur_set_deleted_flag_for_ibuf().  Because
-			delete-mark and insert operations can be
-			pointing to the same records, we must not
-			count one of the operations.  Let us count
-			only the delete-mark operations. */
-			break;
-		case IBUF_OP_DELETE_MARK:
-			/* There must be a record to delete-mark. */
-			(*n_recs)++;
-			break;
-		case IBUF_OP_DELETE:
-			/* A record will be removed from the page. */
-			if (*n_recs > 0) {
-				(*n_recs)--;
-			}
-			break;
-		default:
-			ut_error;
-		}
+		ibuf_get_volume_buffered_count(
+			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
 	}
