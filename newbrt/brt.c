@@ -727,8 +727,6 @@ brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE 
 
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
     u_int32_t break_at = 0;
-    node->u.l.seqinsert = 0;
-    // Don't mess around with splitting specially for sequential insertions any more.
     {
         OMTVALUE *MALLOC_N(n_leafentries, leafentries);
         assert(leafentries);
@@ -739,10 +737,15 @@ brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE 
             u_int32_t sumlesizes=0;
             for (i=0; i<n_leafentries; i++) sumlesizes += leafentry_disksize(leafentries[i]);
             u_int32_t sumsofar=0;
-            for (i=0; i<n_leafentries; i++) {
+            // split in half if not sequentially inserted
+            // otherwise put 1/4 in the new node (current minimum size given the node fusing algorithm)
+            u_int32_t f = 2; // 1/2
+            if (node->u.l.seqinsert*2 >= n_leafentries) f = 4; // 1/4 
+            node->u.l.seqinsert = 0;
+            for (i=n_leafentries-1; i>0; i--) {
                 assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
                 sumsofar += leafentry_disksize(leafentries[i]);
-                if (sumsofar*2 >= sumlesizes) {
+                if (sumsofar*f >= sumlesizes) {
                     break_at = i;
                     break;
                 }
