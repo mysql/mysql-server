@@ -13,7 +13,7 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 // Define GCOV if you want to get test-coverage information that ignores the assert statements.
 #define GCOV
 #ifdef GCOV
- #define SLOW_ASSERT
+#undef SLOW_ASSERT
 #define WHEN_GCOV(x)
 #define WHEN_NOT_GCOV(x) x
 #else
