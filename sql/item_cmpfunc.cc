@@ -413,11 +413,15 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
     /*
-      Store the value of the field/constant if it references an outer field because
-      the call to save_in_field below overrides that value.
-      Don't save value of the field for EXPLAIN since it's not initialized.
+      Store the value of the field/constant if it references an outer field
+      because the call to save_in_field below overrides that value.
+      Don't save field value if no data has been read yet.
+      Outer constant values are always saved.
     */
-    if (field_item->depended_from && (!thd->lex->describe || field_item->const_item()))
+    bool save_field_value= (field_item->depended_from &&
+                            (field_item->const_item() ||
+                             !(field->table->status & STATUS_NO_RECORD)));
+    if (save_field_value)
       orig_field_val= field->val_int();
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
     {
@@ -428,7 +432,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       result= 1;					// Item was replaced
     }
     /* Restore the original field value. */
-    if (field_item->depended_from && (!thd->lex->describe || field_item->const_item()))
+    if (save_field_value)
     {
       result= field->store(orig_field_val, TRUE);
       /* orig_field_val must be a valid value that can be restored back. */
