@@ -37,6 +37,13 @@ static TRN committed_list_min, committed_list_max;
 /* a counter, used to generate transaction ids */
 static TrID global_trid_generator;
 
+/*
+  The minimum existing transaction id for trnman_get_min_trid()
+  The default value is used when transaction manager not initialize;
+  Probably called from maria_chk
+*/
+static TrID trid_min_read_from= ~(TrID) 0;
+
 /* the mutex for everything above */
 static pthread_mutex_t LOCK_trn_list;
 
@@ -158,6 +165,7 @@ int trnman_init(TrID initial_trid)
 
   pool= 0;
   global_trid_generator= initial_trid;
+  trid_min_read_from= initial_trid;
   lf_hash_init(&trid_to_trn, sizeof(TRN*), LF_HASH_UNIQUE,
                0, 0, trn_get_hash_key, 0);
   DBUG_PRINT("info", ("pthread_mutex_init LOCK_trn_list"));
@@ -303,6 +311,7 @@ TRN *trnman_new_trn(WT_THD *wt)
   if (!trn->pins)
   {
     trnman_free_trn(trn);
+    pthread_mutex_unlock(&LOCK_trn_list);
     return 0;
   }
 
@@ -315,6 +324,7 @@ TRN *trnman_new_trn(WT_THD *wt)
   trn->next= &active_list_max;
   trn->prev= active_list_max.prev;
   active_list_max.prev= trn->prev->next= trn;
+  trid_min_read_from= active_list_min.next->min_read_from;
   DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
 
@@ -437,6 +447,8 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     trn->next= free_me;
     free_me= trn;
   }
+  trid_min_read_from= active_list_min.next->min_read_from;
+
   if ((*trnman_end_trans_hook)(trn, commit,
                                active_list_min.next != &active_list_max))
     res= -1;
@@ -787,25 +799,14 @@ TRN *trnman_get_any_trn()
 
 
 /**
-  Returns the minimum existing transaction id
-
-  @notes
-    This can only be called when we have at least one running transaction.
+  Returns the minimum existing transaction id. May return a too small
+  number in race conditions, but this is ok as the value is used to
+  remove not visible transid from index/rows.
 */
 
 TrID trnman_get_min_trid()
 {
-  TrID min_read_from;
-  if (short_trid_to_active_trn == NULL)
-  {
-    /* Transaction manager not initialize; Probably called from maria_chk */
-    return ~(TrID) 0;
-  }
-
-  pthread_mutex_lock(&LOCK_trn_list);
-  min_read_from= active_list_min.next->min_read_from;
-  pthread_mutex_unlock(&LOCK_trn_list);
-  return min_read_from;
+  return trid_min_read_from;
 }
 
 
