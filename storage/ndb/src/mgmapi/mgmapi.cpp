@@ -409,7 +409,7 @@ ndb_mgm_call(NdbMgmHandle handle,
   out.println("");
 
   if (cmd_bulk)
-    out.println("%s", cmd_bulk);
+    out.println(cmd_bulk);
 
   DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 
