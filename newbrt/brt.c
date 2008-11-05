@@ -3260,15 +3260,16 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
     verify_local_fingerprint_nonleaf(node);
     verify_local_fingerprint_nonleaf(childnode);
     {
+	int rr = toku_unpin_brtnode(brt, childnode); // unpin the childnode before handling the reactive child (because that may make the childnode disappear.)
+	if (rr!=0) r = rr;
+    }
+
+    {
 	BOOL did_io = FALSE;
 	int rr = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, logger, did_react);
 	if (rr!=0) r = rr; // if we got an error, then return rr.  Else we will return the r from brt_search_node().
     }
 
-    {
-	int rr = toku_unpin_brtnode(brt, childnode);
-	if (rr!=0) r = rr;
-    }
     *parent_re = get_nonleaf_reactivity(node);
     
     verify_local_fingerprint_nonleaf(node);
