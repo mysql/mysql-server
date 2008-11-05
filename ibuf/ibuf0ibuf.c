@@ -220,6 +220,9 @@ top of this file. */
 
 #define IBUF_REC_INFO_SIZE	4	/* Combined size of info fields at
 					the beginning of the fourth field */
+#if IBUF_REC_INFO_SIZE >= DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+# error "IBUF_REC_INFO_SIZE >= DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
+#endif
 
 /* Offsets for the fields at the beginning of the fourth field */
 #define IBUF_REC_OFFSET_COUNTER	0
@@ -2533,7 +2536,7 @@ ibuf_get_volume_buffered(
 				/* out: upper limit for the volume of
 				buffered inserts for the index page, in bytes;
 				we may also return UNIV_PAGE_SIZE, if the
-				entries for the index page span on several
+				entries for the index page span several
 				pages in the insert buffer */
 	btr_pcur_t*	pcur,	/* in: pcur positioned at a place in an
 				insert buffer tree where we would insert an
