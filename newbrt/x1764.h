@@ -21,7 +21,7 @@ struct x1764 {
 void x1764_init(struct x1764 *l);
 // Effect: Initialize *l.
 
-inline void x1764_add (struct x1764 *l, const void *vbuf, int len);
+void x1764_add (struct x1764 *l, const void *vbuf, int len);
 // Effect: Add more bytes to *l.
 
 u_int32_t x1764_finish (struct x1764 *l);

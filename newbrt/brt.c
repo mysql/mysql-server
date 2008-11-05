@@ -1784,7 +1784,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 
 static LEAFENTRY
 fetch_from_buf (OMT omt, u_int32_t idx) {
-    OMTVALUE v;
+    OMTVALUE v = 0;
     int r = toku_omt_fetch(omt, idx, &v, NULL);
     assert(r==0);
     return (LEAFENTRY)v;
@@ -4103,7 +4103,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 	int size = toku_omt_size(node->u.l.buffer);
 	int i;
 	for (i=0; i<size; i++) {
-	    OMTVALUE v;
+	    OMTVALUE v = 0;
 	    r = toku_omt_fetch(node->u.l.buffer, i, &v, 0);
 	    assert(r==0);
 	    fprintf(file, " [%d]=", i);
