@@ -144,7 +144,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
   KeyReqStruct req_struct;
   tmpOp.m_tuple_location.m_page_no= pageId;
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
-
+  tmpOp.op_struct.op_type = ZREAD; // valgrind
   setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   Tuple_header *tuple_ptr= req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
@@ -357,6 +357,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
     Operationrec tmpOp;
     tmpOp.m_tuple_location.m_page_no = pageId;
     tmpOp.m_tuple_location.m_page_idx = pageIndex;
+    tmpOp.op_struct.op_type = ZREAD; // valgrind
     setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   }
 
