@@ -3515,8 +3515,10 @@ ibuf_delete(
 		if (UNIV_UNLIKELY(page_get_n_recs(page) == 1)) {
 			/* Refuse to delete the last record. */
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: refusing to merge a buffered delete"
-			      " that would make a page empty\n", stderr);
+			fprintf(stderr, "  InnoDB: refusing a buffered delete"
+				" that would empty space %lu page %lu\n",
+				(ulong) buf_block_get_space(block),
+				(ulong) buf_block_get_page_no(block));
 			rec_print_new(stderr, rec, offsets);
 			goto func_exit;
 		}
