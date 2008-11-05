@@ -3061,6 +3061,9 @@ private:
     Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr, tabPtrP->total_rec_size);
     if (unlikely(dst == 0))
       return 0;
+#ifdef HAVE_purify
+    bzero(dst, tabPtrP->total_rec_size);
+#endif
     dst += ((tabPtrP->m_no_of_attributes + 31) >> 5);
     return (Tuple_header*)dst;
   }
