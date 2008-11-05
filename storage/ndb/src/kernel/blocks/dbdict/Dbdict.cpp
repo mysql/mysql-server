@@ -4145,8 +4145,6 @@ void Dbdict::send_nf_complete_rep(Signal* signal)
       nfCompRep->failedNodeId = nodePtr.i;
       sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
 		 NFCompleteRep::SignalLength, JBB);
-      
-      //c_aliveNodes.clear(i);
     }//if
   }//for
 
@@ -4173,27 +4171,7 @@ void Dbdict::handle_master_takeover(Signal* signal)
   jam();
   NodeRecordPtr masterNodePtr;
   c_nodes.getPtr(masterNodePtr, c_masterNodeId);
-  SchemaTransPtr trans_ptr;
-  if (!c_schemaTransList.first(trans_ptr))
-  {
-    /*
-      New master has no knowledge of any pending transaction.
-    */
-    jam();
-    if (c_aliveNodes.count() == 1)
-    {
-      /*
-	This is the only node, we are done
-       */
-      jam();
-      NodeFailRep * const nodeFailRep = (NodeFailRep *)&signal->theData[0];
-      *nodeFailRep = masterNodePtr.p->nodeFailRep;
-      masterNodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
-      send_nf_complete_rep(signal);
-      return;
-    }
-  }
-
+  
   masterNodePtr.p->m_nodes = c_aliveNodes;
   NodeReceiverGroup rg(DBDICT, masterNodePtr.p->m_nodes);
   {
@@ -17479,6 +17457,8 @@ void Dbdict::check_takeover_replies(Signal* signal)
       No slave found any pending transactions, we are done
      */
     jam();
+    memcpy(signal->theData, &masterNodePtr.p->nodeFailRep, 
+           sizeof(masterNodePtr.p->nodeFailRep));
     send_nf_complete_rep(signal);
     return;
   }
