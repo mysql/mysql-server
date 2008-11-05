@@ -105,6 +105,17 @@ c1
 5
 6
 7
+INSERT INTO t1 VALUES (100);
+INSERT INTO t1 VALUES (NULL);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`c1`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 # Simple test with NULL
 CREATE TABLE t1 (
@@ -368,6 +379,19 @@ c1
 25
 26
 27
+INSERT INTO t1 VALUES (100);
+INSERT INTO t1 VALUES (NULL);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`c1`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (c1)
+PARTITIONS 2 */
 DROP TABLE t1;
 # Test with two threads
 # con default
