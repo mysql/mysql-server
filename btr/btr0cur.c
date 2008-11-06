@@ -528,6 +528,14 @@ retry_page_get:
 		buf_mode = BUF_GET_IF_IN_POOL_OR_WATCH;
 	}
 
+	if (height == 0
+	    && buf_mode != BUF_GET_IF_IN_POOL
+	    && buf_mode != BUF_GET_IF_IN_POOL_OR_WATCH
+	    && !dict_index_is_clust(index)) {
+		fprintf(stderr, "fetching %lu:%lu of %s\n",
+			(ulong) space, (ulong) page_no, index->name);
+	}
+
 	block = buf_page_get_gen(
 		space, zip_size, page_no, rw_latch, guess, buf_mode,
 		__FILE__, __LINE__, mtr);
