@@ -205,7 +205,7 @@ void Dbtup::releaseCopyProcedure()
   first.p->m_lastSegment= cCopyLastSeg;
   
   cCopyLastSeg= RNIL;
-};
+}
   
 
 void Dbtup::copyProcedure(Signal* signal,

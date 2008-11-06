@@ -129,7 +129,7 @@ public:
 DirIterator::DirIterator() :
   m_impl(*new DirIteratorImpl())
 {
-};
+}
 
 DirIterator::~DirIterator()
 {
