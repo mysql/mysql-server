@@ -286,7 +286,7 @@ LocalConfig::readConnectString(const char * connectString,
   bool return_value = parseString(connectString, err);
   if (!return_value) {
     BaseString err2;
-    err2.assfmt("Reading %d \"%s\": %s", info, connectString, err.c_str());
+    err2.assfmt("Reading %s \"%s\": %s", info, connectString, err.c_str());
     setError(0,err2.c_str());
   }
   return return_value;

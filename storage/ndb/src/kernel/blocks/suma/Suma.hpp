@@ -210,7 +210,7 @@ public:
       R_SUB_STOP_REQ,
       R_START_ME_REQ,
       R_API_FAIL_REQ,
-      R_SUB_ABORT_START_REQ,
+      R_SUB_ABORT_START_REQ
     };
 
     Uint32 m_opType;

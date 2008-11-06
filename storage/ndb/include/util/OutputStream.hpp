@@ -26,10 +26,12 @@ class OutputStream {
 public:
   OutputStream() {}
   virtual ~OutputStream() {}
-  virtual int print(const char * fmt, ...) = 0;
-  virtual int println(const char * fmt, ...) = 0;
-  virtual void flush() {}
-  virtual void reset_timeout() {}
+  virtual int print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3) = 0;
+  virtual int println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3) = 0;
+  virtual void flush() {};
+  virtual void reset_timeout() {};
 };
 
 class FileOutputStream : public OutputStream {
@@ -39,8 +41,10 @@ public:
   virtual ~FileOutputStream() {}
   FILE *getFile() { return f; }
 
-  int print(const char * fmt, ...);
-  int println(const char * fmt, ...);
+  int print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  int println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   void flush() { fflush(f); }
 };
 
@@ -56,8 +60,10 @@ public:
   bool timedout() { return m_timedout; }
   void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;}
 
-  int print(const char * fmt, ...);
-  int println(const char * fmt, ...);
+  int print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  int println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 };
 
 
@@ -68,8 +74,10 @@ public:
                            unsigned write_timeout_ms = 1000);
   virtual ~BufferedSockOutputStream();
 
-  int print(const char * fmt, ...);
-  int println(const char * fmt, ...);
+  int print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  int println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 
   void flush();
 };
