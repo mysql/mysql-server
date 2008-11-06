@@ -85,7 +85,7 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
       m_map[i].m_next = m_firstFree;
       m_firstFree = i;
     } else {
-      g_eventLogger->error("NdbObjectIdMap::unmap(%u, 0x%x) obj=0x%x",
+      g_eventLogger->error("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
                            id, (long) object, (long) obj);
       DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
                           id, (long) object, (long) obj));

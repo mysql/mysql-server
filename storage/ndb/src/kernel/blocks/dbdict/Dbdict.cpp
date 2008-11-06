@@ -12656,7 +12656,7 @@ Dbdict::buildIndex_recvReply(Signal* signal, const BuildIndxConf* conf,
     if (ref == 0) {
       infoEvent("DICT: index %u rebuild done", (unsigned)key);
     } else {
-      warningEvent("DICT: index %u rebuild failed: code=%d line=%d node=%d",
+      warningEvent("DICT: index %u rebuild failed: code=%d",
 		   (unsigned)key, ref->getErrorCode());
     }
     rebuildIndexes(signal, key + 1);

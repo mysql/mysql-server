@@ -228,7 +228,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void alert(const char* pMsg, ...) const;
+  virtual void alert(const char* pMsg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void alert(BaseString &pMsg) const { alert(pMsg.c_str()); };
   
   /**
@@ -236,7 +237,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void critical(const char* pMsg, ...) const;
+  virtual void critical(const char* pMsg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void critical(BaseString &pMsg) const { critical(pMsg.c_str()); };
 
   /**
@@ -244,7 +246,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void error(const char* pMsg, ...) const;
+  virtual void error(const char* pMsg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void error(BaseString &pMsg) const { error(pMsg.c_str()); };
 
   /**
@@ -252,7 +255,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void warning(const char* pMsg, ...) const;
+  virtual void warning(const char* pMsg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void warning(BaseString &pMsg) const { warning(pMsg.c_str()); };
 
   /**
@@ -260,7 +264,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void info(const char* pMsg, ...) const;
+  virtual void info(const char* pMsg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void info(BaseString &pMsg) const { info(pMsg.c_str()); };
 
   /**
@@ -268,7 +273,8 @@ public:
    *
    * @param pMsg the message.
    */
-  virtual void debug(const char* pMsg, ...) const;
+  virtual void debug(const char* pMsg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   virtual void debug(BaseString &pMsg) const { debug(pMsg.c_str()); };
 
   /*
