@@ -2527,6 +2527,114 @@ ibuf_contract_after_insert(
 }
 
 /*************************************************************************
+Determine if an insert buffer record has been encountered already. */
+static
+ibool
+ibuf_get_volume_buffered_hash(
+/*==========================*/
+				/* out: TRUE if a new record,
+				FALSE if possible duplicate */
+	const rec_t*	rec,	/* in: ibuf record in post-4.1 format */
+	byte*		hash,	/* in/out: hash array */
+	ulint		size)	/* in: size of hash array, in bytes */
+{
+	ulint		len;
+	ulint		fold;
+	const byte*	types;
+	ulint		types_len;
+	ulint		bitmask;
+
+	types = rec_get_nth_field_old(rec, 3, &types_len);
+	len = ibuf_rec_get_size(rec, types, rec_get_n_fields_old(rec) - 4,
+				FALSE);
+	fold = ut_fold_binary(types + types_len, len);
+
+	hash += (fold / 8) % size;
+	bitmask = 1 << (fold % 8);
+
+	if (*hash & bitmask) {
+
+		return(FALSE);
+	}
+
+	/* We have not seen this record yet.  Insert it. */
+	*hash |= bitmask;
+
+	return(TRUE);
+}
+
+/*************************************************************************
+Update the estimate of the number of records on a page. */
+static
+void
+ibuf_get_volume_buffered_count(
+/*===========================*/
+	const rec_t*	rec,	/* in: insert buffer record */
+	byte*		hash,	/* in/out: hash array */
+	ulint		size,	/* in: size of hash array, in bytes */
+	ulint*		n_recs)	/* in/out: estimated number of records
+				on the page that rec points to */
+{
+	ulint		len;
+	const byte*	field;
+	ibuf_op_t	ibuf_op;
+
+	ut_ad(ibuf_inside());
+	ut_ad(rec_get_n_fields_old(rec) > 2);
+
+	field = rec_get_nth_field_old(rec, 1, &len);
+
+	if (UNIV_UNLIKELY(len > 1)) {
+		/* This is a < 4.1.x format record.  Ignore it in the
+		count, because deletes cannot be buffered if there are
+		old-style records for the page. */
+
+		return;
+	}
+
+	field = rec_get_nth_field_old(rec, 3, &len);
+
+	switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
+			    IBUF_REC_INFO_SIZE)) {
+	default:
+		ut_error;
+	case 0:
+	case 1:
+		/* This record does not include an operation counter.
+		Ignore it in the count, because deletes cannot be
+		buffered if there are old-style records for the page. */
+		return;
+
+	case IBUF_REC_INFO_SIZE:
+		ibuf_op = (ibuf_op_t) field[IBUF_REC_OFFSET_TYPE];
+		break;
+	}
+
+	switch (ibuf_op) {
+	case IBUF_OP_INSERT:
+		/* Inserts can be done by
+		btr_cur_set_deleted_flag_for_ibuf().  Because
+		delete-mark and insert operations can be pointing to
+		the same records, we must not count duplicates. */
+	case IBUF_OP_DELETE_MARK:
+		/* There must be a record to delete-mark.
+		See if this record has been already buffered. */
+		if (ibuf_get_volume_buffered_hash(rec, hash, size)) {
+			(*n_recs)++;
+		}
+		break;
+	case IBUF_OP_DELETE:
+		/* A record will be removed from the page. */
+		if (*n_recs > 0) {
+			(*n_recs)--;
+		}
+		break;
+	default:
+		ut_error;
+	}
+}
+
+/*************************************************************************
 Gets an upper limit for the combined size of inserts buffered for a
 given page. */
 static
@@ -2545,6 +2653,8 @@ ibuf_get_volume_buffered(
 				or BTR_MODIFY_TREE */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: page number of an index page */
+	ulint*		n_recs,	/* out: minimum number of records on the page
+				after the buffered changes have been applied */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	volume;
@@ -2554,6 +2664,7 @@ ibuf_get_volume_buffered(
 	page_t*	prev_page;
 	ulint	next_page_no;
 	page_t*	next_page;
+	byte	hash_bitmap[128]; /* bitmap of buffered records */
 
 	ut_a(trx_sys_multiple_tablespace_format);
 
@@ -2564,6 +2675,7 @@ ibuf_get_volume_buffered(
 	pcur */
 
 	volume = 0;
+	*n_recs = 0;
 
 	rec = btr_pcur_get_rec(pcur);
 	page = page_align(rec);
@@ -2640,6 +2752,8 @@ ibuf_get_volume_buffered(
 	}
 
 count_later:
+	memset(hash_bitmap, 0, sizeof hash_bitmap);
+
 	rec = btr_pcur_get_rec(pcur);
 
 	if (!page_rec_is_supremum(rec)) {
@@ -2659,6 +2773,9 @@ count_later:
 		}
 
 		volume += ibuf_rec_get_volume(rec);
+
+		ibuf_get_volume_buffered_count(
+			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
 	}
@@ -2706,6 +2823,9 @@ count_later:
 		}
 
 		volume += ibuf_rec_get_volume(rec);
+
+		ibuf_get_volume_buffered_count(
+			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
 	}
@@ -2989,6 +3109,7 @@ ibuf_insert_low(
 	dtuple_t*	ibuf_entry;
 	mem_heap_t*	heap;
 	ulint		buffered;
+	ulint		min_n_recs;
 	rec_t*		ins_rec;
 	ibool		old_bit_value;
 	page_t*		bitmap_page;
@@ -3093,7 +3214,16 @@ ibuf_insert_low(
 
 	/* Find out the volume of already buffered inserts for the same index
 	page */
-	buffered = ibuf_get_volume_buffered(&pcur, space, page_no, &mtr);
+	buffered = ibuf_get_volume_buffered(&pcur, space, page_no,
+					    &min_n_recs, &mtr);
+
+	if (op == IBUF_OP_DELETE && min_n_recs == 0) {
+		/* The page could become empty after the record is
+		deleted.  Refuse to buffer the operation. */
+		err = DB_STRONG_FAIL;
+
+		goto function_exit;
+	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));
@@ -3515,17 +3645,6 @@ ibuf_delete(
 		offsets = rec_get_offsets(
 			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-		if (UNIV_UNLIKELY(page_get_n_recs(page) == 1)) {
-			/* Refuse to delete the last record. */
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: refusing a buffered delete"
-				" that would empty space %lu page %lu\n",
-				(ulong) buf_block_get_space(block),
-				(ulong) buf_block_get_page_no(block));
-			rec_print_new(stderr, rec, offsets);
-			goto func_exit;
-		}
-
 		lock_update_delete(block, rec);
 
 		if (!page_zip) {
@@ -3547,7 +3666,6 @@ ibuf_delete(
 			ibuf_update_free_bits_low(block, max_ins_size, mtr);
 		}
 
-func_exit:
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
