@@ -2817,7 +2817,7 @@ const NdbIndexScanOperation::IndexBound*
 NdbIndexScanOperation::getIndexBoundFromRecAttr(NdbRecAttr* recAttr)
 {
   return &((OldApiScanRangeDefinition*)recAttr->aRef())->ib;
-};
+}
 
 
 /* Method called to release any resources allocated by the old 
