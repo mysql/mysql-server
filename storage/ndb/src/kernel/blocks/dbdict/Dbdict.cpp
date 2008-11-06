@@ -4129,6 +4129,10 @@ void Dbdict::send_nf_complete_rep(Signal* signal)
   NdbNodeBitmask tmp;
   tmp.assign(NdbNodeBitmask::Size, theFailedNodes);
 
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  ownNodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE; // reset take-over
+
   for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
     if(tmp.get(i)) {
@@ -25129,7 +25133,6 @@ send_node_fail_rep:
     */
     NodeFailRep * const nodeFailRep = (NodeFailRep *)&signal->theData[0];
     *nodeFailRep = ownNodePtr.p->nodeFailRep;
-    ownNodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
     send_nf_complete_rep(signal);
   }
 }
