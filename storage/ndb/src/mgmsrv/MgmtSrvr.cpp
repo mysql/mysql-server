@@ -610,6 +610,9 @@ MgmtSrvr::setClusterLog(const Config* config)
 
   if (m_opts.non_interactive)
     g_eventLogger->createConsoleHandler();
+
+  if (m_opts.verbose)
+    g_eventLogger->enable(Logger::LL_DEBUG);
 }
 
 

@@ -131,6 +131,7 @@ public:
     int no_nodeid_checks;
     int print_full_config;
     const char* datadir;
+    int verbose;
   };
 
   MgmtSrvr(); // Not implemented
