@@ -2797,7 +2797,7 @@ ibuf_get_entry_counter_low(
 
 	if (mach_read_from_4(field) != space) {
 
-		return(ULINT_UNDEFINED);
+		return(0);
 	}
 
 	/* Check the page offset. */
@@ -2806,7 +2806,7 @@ ibuf_get_entry_counter_low(
 
 	if (mach_read_from_4(field) != page_no) {
 
-		return(ULINT_UNDEFINED);
+		return(0);
 	}
 
 	/* Check if the record contains a counter field. */
