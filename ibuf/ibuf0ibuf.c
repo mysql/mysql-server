@@ -2527,8 +2527,8 @@ ibuf_contract_after_insert(
 }
 
 /*************************************************************************
-Gets an upper limit for the combined size of entries buffered in the insert
-buffer for a given page. */
+Gets an upper limit for the combined size of inserts buffered for a
+given page. */
 static
 ulint
 ibuf_get_volume_buffered(
@@ -2560,7 +2560,7 @@ ibuf_get_volume_buffered(
 	ut_ad((pcur->latch_mode == BTR_MODIFY_PREV)
 	      || (pcur->latch_mode == BTR_MODIFY_TREE));
 
-	/* Count the volume of records earlier in the alphabetical order than
+	/* Count the volume of inserts earlier in the alphabetical order than
 	pcur */
 
 	volume = 0;
