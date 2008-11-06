@@ -16,6 +16,7 @@
 
 #include "ConfigManager.hpp"
 #include "MgmtSrvr.hpp"
+#include "DirIterator.hpp"
 
 #include <NdbConfig.h>
 
@@ -40,7 +41,8 @@ require(bool v)
 
 extern "C" const char* opt_connect_str;
 
-ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts) :
+ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
+                             const char* datadir) :
   MgmtThread("ConfigManager"),
   m_opts(opts),
   m_facade(NULL),
@@ -57,7 +59,7 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts) :
   m_client_ref(RNIL),
   m_prepared_config(NULL),
   m_node_id(0),
-  m_datadir(NULL)
+  m_datadir(datadir)
 {
 }
 
@@ -71,54 +73,223 @@ ConfigManager::~ConfigManager()
 }
 
 
+/**
+   alone_on_host
+
+   Check if this is the only node of "type" on
+   this host
+
+*/
+
+static bool
+alone_on_host(Config* conf,
+              Uint32 own_type,
+              Uint32 own_nodeid)
+{
+  ConfigIter iter(conf, CFG_SECTION_NODE);
+  for (iter.first(); iter.valid(); iter.next())
+  {
+    Uint32 type;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type) ||
+       type != own_type)
+      continue;
+
+    Uint32 nodeid;
+    if(iter.get(CFG_NODE_ID, &nodeid) ||
+       nodeid == own_nodeid)
+      continue;
+
+    const char * hostname;
+    if(iter.get(CFG_NODE_HOST, &hostname))
+      continue;
+
+    if (SocketServer::tryBind(0,hostname))
+    {
+      // Another MGM node was also setup on this host
+      g_eventLogger->debug("Not alone on host %s, node %d "     \
+                           "will also run here",
+                           hostname, nodeid);
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/**
+   find_nodeid_from_datadir
+
+   Check if datadir only contains config files
+   with one nodeid -> read the latest and confirm
+   there should only be one mgm node on this host
+*/
+
+NodeId
+ConfigManager::find_nodeid_from_datadir(void)
+{
+  BaseString config_name;
+  DirIterator iter;
+
+  if (iter.open(m_datadir) != 0)
+    return 0;
+
+  const char* name;
+  unsigned found_nodeid= 0;
+  unsigned nodeid;
+  char extra; // Avoid matching ndb_2_config.bin.2.tmp
+  unsigned version, max_version = 0;
+  while ((name = iter.next_file()) != NULL)
+  {
+    if (sscanf(name,
+               "ndb_%u_config.bin.%u%c",
+               &nodeid, &version, &extra) == 2)
+    {
+      ndbout_c("match: %s", name);
+
+      if (nodeid != found_nodeid)
+      {
+        if (found_nodeid != 0)
+          return 0; // Found more than one nodeid
+        found_nodeid= nodeid;
+      }
+
+      if (version > max_version)
+        max_version = version;
+    }
+  }
+
+  if (max_version == 0)
+    return 0;
+
+  config_name.assfmt("%s%sndb_%u_config.bin.%u",
+                     m_datadir, DIR_SEPARATOR, found_nodeid, max_version);
+
+  Config* conf;
+  if (!(conf = load_saved_config(config_name)))
+    return 0;
+
+  if (!m_config_retriever.verifyConfig(conf->m_configValues,
+                                       found_nodeid) ||
+      !alone_on_host(conf, NDB_MGM_NODE_TYPE_MGM, found_nodeid))
+  {
+    delete conf;
+    return 0;
+  }
+
+  delete conf;
+  return found_nodeid;
+}
+
+
+/**
+   find_own_nodeid
+
+   Return the nodeid of the MGM node
+   defined to run on this host
+
+   Return 0 if more than one node is defined
+*/
+
+static NodeId
+find_own_nodeid(Config* conf)
+{
+  NodeId found_nodeid= 0;
+  ConfigIter iter(conf, CFG_SECTION_NODE);
+  for (iter.first(); iter.valid(); iter.next())
+  {
+    Uint32 type;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type) ||
+       type != NDB_MGM_NODE_TYPE_MGM)
+      continue;
+
+    Uint32 nodeid;
+    require(iter.get(CFG_NODE_ID, &nodeid) == 0);
+
+    const char * hostname;
+    if(iter.get(CFG_NODE_HOST, &hostname))
+      continue;
+
+    if (SocketServer::tryBind(0,hostname))
+    {
+      // This node is setup to run on this host
+      if (found_nodeid == 0)
+        found_nodeid = nodeid;
+      else
+        return 0; // More than one host on this node
+    }
+  }
+  return found_nodeid;
+}
+
+
+NodeId
+ConfigManager::find_nodeid_from_config(void)
+{
+  if (!m_opts.mycnf &&
+      !m_opts.config_filename)
+    return 0;
+
+  Config* conf = load_config();
+  if (conf == NULL)
+    return 0;
+
+  NodeId found_nodeid = find_own_nodeid(conf);
+  if (found_nodeid == 0 ||
+      !m_config_retriever.verifyConfig(conf->m_configValues, found_nodeid))
+  {
+    delete conf;
+    return 0;
+  }
+
+  return found_nodeid;
+
+}
+
 
 bool
 ConfigManager::init_nodeid(void)
 {
   DBUG_ENTER("ConfigManager::init_nodeid");
 
-  NodeId nodeid= m_config_retriever.get_configuration_nodeid();
-  DBUG_PRINT("info", ("nodeid: %d", nodeid));
-
+  NodeId nodeid = m_config_retriever.get_configuration_nodeid();
   if (nodeid)
   {
     // Nodeid was specifed on command line or in NDB_CONNECTSTRING
-    m_node_id= nodeid;
+    g_eventLogger->debug("Got nodeid: %d from command line "    \
+                         "or NDB_CONNECTSTRING", m_node_id);
+    m_node_id = nodeid;
     DBUG_RETURN(true);
   }
 
-#if 0
+  nodeid = find_nodeid_from_datadir();
+  if (nodeid)
+  {
+    // Found nodeid by searching in datadir
+    g_eventLogger->debug("Got nodeid: %d from searching in datadir",
+                         nodeid);
+    m_node_id = nodeid;
+    DBUG_RETURN(true);
+  }
+
+  nodeid = find_nodeid_from_config();
+  if (nodeid)
+  {
+    // Found nodeid by looking in the config given on command line
+    g_eventLogger->debug("Got nodeid: %d from config file given "       \
+                         "on command line",
+                         nodeid);
+    m_node_id = nodeid;
+    DBUG_RETURN(true);
+  }
+
+
   // We _could_ try connecting to other running mgmd(s)
   // and fetch our nodeid. But, that introduces a dependency
   // that is not beneficial for a shared nothing cluster, since
   // it might only work when other mgmd(s) are started. If all
   // mgmd(s) is down it would require manual intervention.
   // Better to require the node id to always be specified
-  // on the command line(or some other "local" magic by
-  // examining --datadir)
-
-  // Try to alloc nodeid from other mgmd
-  char buf[128];
-  g_eventLogger->info("Trying to get nodeid from other mgmd(s) "\
-                      "using '%s'...",
-                      m_config_retriever.get_connectstring(buf, sizeof(buf)));
-
-  if (m_config_retriever.do_connect(3, /* retry */
-                                    1, /* delay */
-                                    0  /* verbose */) == 0)
-  {
-    g_eventLogger->info("Connected...");
-
-    nodeid = m_config_retriever.allocNodeId(3, /* retry */
-                                            1  /* delay */);
-    if (nodeid == 0)
-    {
-      // Failed to alloc nodeid from other mgmd
-      g_eventLogger->error(m_config_retriever.getErrorString());
-      DBUG_RETURN(false);
-    }
-  }
-#endif
+  // on the command line(or the above _local_ magic)
 
   g_eventLogger->error("Could not determine which nodeid to use for "\
                        "this node. Specify it with --ndb-nodeid=<nodeid> "\
@@ -147,34 +318,6 @@ ConfigManager::init(void)
     DBUG_RETURN(false);
   }
 
-  // Check datadir
-  if (m_opts.datadir)
-  {
-    // Specified on commmand line
-    if (access(m_opts.datadir, F_OK))
-    {
-      g_eventLogger->error("Directory '%s' specified with --datadir "   \
-                           "does not exist", m_opts.datadir);
-      DBUG_RETURN(false);
-    }
-    m_datadir= m_opts.datadir;
-  }
-  else
-  {
-    // Compiled in path MYSQLCLUSTERDIR
-    if (access(MYSQLCLUSTERDIR, F_OK))
-    {
-      g_eventLogger->error("The default data directory '%s' "            \
-                           "does not exist. Either create it or "       \
-                           "specify a different directory with "        \
-                           "--datadir=<path>",
-                           MYSQLCLUSTERDIR);
-      DBUG_RETURN(false);
-    }
-    m_datadir= MYSQLCLUSTERDIR;
-  }
-  DBUG_PRINT("info", ("datadir: %s", m_datadir));
-
   if (!init_nodeid())
     DBUG_RETURN(false);
 
@@ -184,6 +327,7 @@ ConfigManager::init(void)
     Config* conf = NULL;
     if (!(conf = load_saved_config(config_bin_name)))
       DBUG_RETURN(false);
+    g_eventLogger->info("Loaded config from '%s'", config_bin_name.c_str());
 
     if (!config_ok(conf))
       DBUG_RETURN(false);
@@ -193,19 +337,9 @@ ConfigManager::init(void)
 
     if (m_opts.mycnf || m_opts.config_filename)
     {
-      Config* new_conf = NULL;
-      if (m_opts.mycnf && (new_conf = load_init_mycnf()) == NULL)
-      {
-        g_eventLogger->error("Could not load configuration from 'my.cnf'");
+      Config* new_conf = load_config();
+      if (new_conf == NULL)
         DBUG_RETURN(false);
-      }
-      else if (m_opts.config_filename &&
-               (new_conf = load_init_config(m_opts.config_filename)) == NULL)
-      {
-        g_eventLogger->error("Could not load configuration from '%s'",
-                             m_opts.config_filename);
-        DBUG_RETURN(false);
-      }
 
       /* Copy the necessary values from old to new config */
       if (!new_conf->setGeneration(m_config->getGeneration()))
@@ -244,19 +378,9 @@ ConfigManager::init(void)
   {
     if (m_opts.mycnf || m_opts.config_filename)
     {
-      Config* conf = NULL;
-      if (m_opts.mycnf && (conf = load_init_mycnf()) == NULL)
-      {
-        g_eventLogger->error("Could not load configuration from 'my.cnf'");
+      Config* conf = load_config();
+      if (conf == NULL)
         DBUG_RETURN(false);
-      }
-      else if (m_opts.config_filename &&
-               (conf = load_init_config(m_opts.config_filename)) == NULL)
-      {
-        g_eventLogger->error("Could not load initial configuration from '%s'",
-                             m_opts.config_filename);
-        DBUG_RETURN(false);
-      }
 
       if (!config_ok(conf))
         DBUG_RETURN(false);
@@ -339,7 +463,7 @@ ConfigManager::prepareConfigChange(const Config* config)
   m_config_name.assfmt("%s/ndb_%u_config.bin.%u",
                        m_datadir, m_node_id, generation);
   g_eventLogger->debug("Preparing configuration, generation: %d name: %s",
-                      m_config_name.c_str());
+                       generation, m_config_name.c_str());
 
   /* Check file name is free */
   if (access(m_config_name.c_str(), F_OK) == 0)
@@ -487,7 +611,7 @@ ConfigManager::config_ok(const Config* conf)
       // Using the builtin default --datadir
       g_eventLogger->error("The builtin data directory '%s' does "      \
                            "not match DataDir=%s specified in "         \
-                           "configuation. Either specify --datadir=%s " \
+                           "configuration. Either specify --datadir=%s " \
                            "on command line or remove the DataDir=%s "  \
                            "from configuration in order to use the "    \
                            "builtin default.",
@@ -1423,7 +1547,7 @@ ConfigManager::run()
 #include "InitConfigFileParser.hpp"
 
 Config*
-ConfigManager::load_init_config(const char* config_filename)
+ConfigManager::load_init_config(const char* config_filename) const
 {
    InitConfigFileParser parser;
    g_eventLogger->info("Reading cluster configuration from '%s'",
@@ -1433,11 +1557,31 @@ ConfigManager::load_init_config(const char* config_filename)
 
 
 Config*
-ConfigManager::load_init_mycnf(void)
+ConfigManager::load_init_mycnf(void) const
 {
   InitConfigFileParser parser;
   g_eventLogger->info("Reading cluster configuration using my.cnf");
   return parser.parse_mycnf();
+}
+
+
+Config*
+ConfigManager::load_config(void) const
+{
+  Config* new_conf = NULL;
+  if (m_opts.mycnf && (new_conf = load_init_mycnf()) == NULL)
+  {
+    g_eventLogger->error("Could not load configuration from 'my.cnf'");
+    return NULL;
+  }
+  else if (m_opts.config_filename &&
+           (new_conf = load_init_config(m_opts.config_filename)) == NULL)
+  {
+    g_eventLogger->error("Could not load configuration from '%s'",
+                         m_opts.config_filename);
+    return NULL;
+  }
+  return new_conf;
 }
 
 
@@ -1478,8 +1622,6 @@ ConfigManager::fetch_config(void)
   DBUG_RETURN(new Config(tmp));
 }
 
-
-#include "DirIterator.hpp"
 
 bool
 ConfigManager::saved_config_exists(BaseString& config_name) const
@@ -1531,7 +1673,6 @@ ConfigManager::load_saved_config(const BaseString& config_name)
     return NULL;
   }
 
-  g_eventLogger->info("Loaded config from '%s'", config_name.c_str());
   Config* conf = new Config(tmp);
   if (conf == NULL)
     g_eventLogger->error("Failed to load config, out of memory");

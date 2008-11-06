@@ -2016,8 +2016,10 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     }
     delete decoded;
 
-    //m_mgmsrv.setConfig(new Config(cvf.getConfigValues()));
-
+    int res;
+    Config new_config(cvf.getConfigValues());
+    if ((res= m_mgmsrv.change_config(new_config)) != 0)
+      result.assfmt("error: %d", res);
   }
 
 done:

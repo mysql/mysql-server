@@ -381,7 +381,6 @@ TransporterFacade::getNodeGrp(NodeId n) const {
 inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
-
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   return node.m_alive;
 }
@@ -396,9 +395,10 @@ inline
 bool
 TransporterFacade::get_node_stopping(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
+  assert(node.m_info.getType() == NodeInfo::DB);
   return (!node.m_state.getSingleUserMode() &&
-          (node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
-          (node.m_state.startLevel == NodeState::SL_STOPPING_2));
+          ((node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
+           (node.m_state.startLevel == NodeState::SL_STOPPING_2)));
 }
 
 inline
@@ -406,18 +406,11 @@ bool
 TransporterFacade::getIsNodeSendable(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   const Uint32 startLevel = node.m_state.startLevel;
+  assert(node.m_info.getType() == NodeInfo::DB);
 
-  if (node.m_info.m_type == NodeInfo::DB) {
-    return node.compatible && (startLevel == NodeState::SL_STARTED ||
-                               startLevel == NodeState::SL_STOPPING_1 ||
-                               node.m_state.getSingleUserMode());
-  } else {
-    ndbout_c("TransporterFacade::getIsNodeSendable: Illegal node type: "
-             "%d of node: %d", 
-             node.m_info.m_type, n);
-    abort();
-    return false; // to remove compiler warning
-  }
+  return node.compatible && (startLevel == NodeState::SL_STARTED ||
+                             startLevel == NodeState::SL_STOPPING_1 ||
+                             node.m_state.getSingleUserMode());
 }
 
 inline

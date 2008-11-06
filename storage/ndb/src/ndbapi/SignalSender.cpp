@@ -143,7 +143,7 @@ SignalSender::getNodes(NodeBitmask& mask,
                        NodeInfo::NodeType type)
 {
   mask.clear();
-  for(Uint32 i = 0; i < MAX_NODES; i++)
+  for(Uint32 i = 1; i < MAX_NODES; i++)
   {
     const ClusterMgr::Node& node= getNodeInfo(i);
     if(!node.defined)
@@ -327,16 +327,94 @@ SignalSender::execNodeStatus(void* signalSender,
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
     NdbNodeBitmask::clear(rep->theNodes);
-    NdbNodeBitmask::set(rep->theNodes,nodeId);
+
+    // Mark ndb nodes as failed in bitmask
+    const ClusterMgr::Node node= ss->getNodeInfo(nodeId);
+    if (node.m_info.getType() ==  NodeInfo::DB)
+      NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
 
   ss->m_jobBuffer.push_back(s);
   NdbCondition_Signal(ss->m_cond);
 }
 
+
+template<class T>
+NodeId
+SignalSender::find_node(const NodeBitmask& mask, T & t)
+{
+  unsigned n= 0;
+  do {
+     n= mask.find(n+1);
+
+     if (n == NodeBitmask::NotFound)
+       return 0;
+
+    assert(n < MAX_NODES);
+
+  } while (!t.found_ok(*this, getNodeInfo(n)));
+
+  return n;
+}
+
+
+class FindConfirmedNode {
+public:
+  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+    return node.m_api_reg_conf;
+  }
+};
+
+
+NodeId
+SignalSender::find_confirmed_node(const NodeBitmask& mask)
+{
+  FindConfirmedNode f;
+  return find_node(mask, f);
+}
+
+
+class FindConnectedNode {
+public:
+  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+    return node.connected;
+  }
+};
+
+
+NodeId
+SignalSender::find_connected_node(const NodeBitmask& mask)
+{
+  FindConnectedNode f;
+  return find_node(mask, f);
+}
+
+
+class FindAliveNode {
+public:
+  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+    return node.m_alive;
+  }
+};
+
+
+NodeId
+SignalSender::find_alive_node(const NodeBitmask& mask)
+{
+  FindAliveNode f;
+  return find_node(mask, f);
+}
+
+
 #if __SUNPRO_CC != 0x560
 template SimpleSignal* SignalSender::waitFor<WaitForNode>(unsigned, WaitForNode&);
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
+template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
+                                                           FindConfirmedNode&);
+template NodeId SignalSender::find_node<FindAliveNode>(const NodeBitmask&,
+                                                       FindAliveNode&);
+template NodeId SignalSender::find_node<FindConnectedNode>(const NodeBitmask&,
+                                                           FindConnectedNode&);
 #endif
 template class Vector<SimpleSignal*>;
   
