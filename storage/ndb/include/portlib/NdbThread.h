@@ -41,46 +41,6 @@ typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
 typedef size_t NDB_THREAD_STACKSIZE;
 
-#ifdef HAVE_LINUX_SCHEDULING
-  typedef pid_t NDB_TID_TYPE;
-#else
-#ifdef HAVE_SOLARIS_AFFINITY
-  typedef id_t NDB_TID_TYPE;
-#else
-  typedef int NDB_TID_TYPE;
-#endif
-#endif
-
-#ifdef HAVE_LINUX_SCHEDULING
-  typedef pid_t NDB_THAND_TYPE;
-#else
-#ifdef HAVE_PTHREAD_SELF
-  typedef pthread_t NDB_THAND_TYPE;
-#else
-  typedef int NDB_THAND_TYPE;
-#endif
-#endif
-
-/**
- * Three functions that are used in conjunctions with SocketClient
- * threads and SocketServer threads. In the NDB kernel they are
- * used to set real-time properties and lock threads to CPU's. In
- * the NDB API they are dummy subroutines.
- * ndb_thread_add_thread_id is used before starting run method in thread.
- * ndb_thread_remove_thread_id is called immediately after returning from
- * run-method in thread.
- * ndb_thread_fill_thread_object is called before calling
- * ndb_thread_add_thread_id to prepare parameters.
- */
-void*
-ndb_thread_add_thread_id(void *param);
-
-void*
-ndb_thread_remove_thread_id(void *param);
-
-void
-ndb_thread_fill_thread_object(void *param, uint *len, my_bool server);
-
 struct NdbThread;
 
 /*
@@ -101,22 +61,17 @@ void NdbThread_set_shm_sigmask(my_bool block);
  *  * returnvalue: pointer to the created thread
  */
 struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
-                      NDB_THREAD_ARG *p_thread_arg,
-  		      const NDB_THREAD_STACKSIZE thread_stack_size,
-		      const char* p_thread_name,
-                      NDB_THREAD_PRIO thread_prio);
+                                   NDB_THREAD_ARG *p_thread_arg,
+                                   const NDB_THREAD_STACKSIZE thread_stack_size,
+                                   const char* p_thread_name,
+                                   NDB_THREAD_PRIO thread_prio);
 
-struct NdbThread* NdbThread_CreateWithFunc(NDB_THREAD_FUNC *p_thread_func,
-                      NDB_THREAD_ARG *p_thread_arg,
-  		      const NDB_THREAD_STACKSIZE thread_stack_size,
-		      const char* p_thread_name,
-                      NDB_THREAD_PRIO thread_prio,
-                      NDB_THREAD_FUNC *start_func,
-                      NDB_THREAD_ARG start_obj,
-                      size_t start_obj_len,
-                      NDB_THREAD_FUNC *end_func,
-                      NDB_THREAD_ARG end_obj,
-                      size_t end_obj_len);
+
+/**
+ * Create a thread-object for "main" that can be used with
+ *   other NdbThread_*-functions
+ */
+struct NdbThread* NdbThread_CreateObject(const char * name);
 
 /**
  * Destroy a thread
@@ -125,7 +80,6 @@ struct NdbThread* NdbThread_CreateWithFunc(NDB_THREAD_FUNC *p_thread_func,
  *
  */
 void NdbThread_Destroy(struct NdbThread** p_thread);
-
  
 /**
  * Waitfor a thread, suspend the execution of the calling thread
@@ -152,25 +106,21 @@ void NdbThread_Exit(void *status);
 int NdbThread_SetConcurrencyLevel(int level);
 
 /**
- * Get thread id
+ * Get "Tid" for thread
+ *   should only be used for printing etc...
+ *   return -1, if not supported on platform
  */
-NDB_TID_TYPE NdbThread_getThreadId();
+int NdbThread_GetTid(struct NdbThread*);
 
 /**
- * Get thread handle
+ * Set Scheduler for thread
  */
-NDB_THAND_TYPE NdbThread_getThreadHandle();
-
-/**
- * Set Scheduler for pid
- */
-int NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
-                           my_bool high_prio);
+int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
 
 /**
  * Lock Thread to CPU
  */
-int NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id);
+int NdbThread_LockCPU(struct NdbThread*, Uint32 cpu);
 
 /**
  * Fetch and set thread-local storage entry.
