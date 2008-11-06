@@ -2469,8 +2469,6 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
                                     ~(PARTITION_DISABLED_TABLE_FLAGS)) |
                                    (PARTITION_ENABLED_TABLE_FLAGS)))
     {
-      DBUG_PRINT("error", ("check_table_flag 0x%x != 0x%x table_flags()",
-                           check_table_flags, (*file)->ha_table_flags()));
       error= HA_ERR_INITIALIZATION;
       goto err_handler;
     }
