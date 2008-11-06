@@ -647,7 +647,6 @@ done:
   return result;
 }
 
-
 #include <mgmapi_internal.h>
 
 int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
@@ -847,6 +846,78 @@ done:
 }
 
 
+int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmHandle h;
+
+  ndb_mgm_node_type types[2] = {
+    NDB_MGM_NODE_TYPE_NDB,
+    NDB_MGM_NODE_TYPE_UNKNOWN
+  };
+
+  NdbMgmd mgmd;
+  struct ndb_mgm_cluster_state *state;
+  const char *connectstring= mgmd.getConnectString();
+  int iterations = ctx->getNumLoops();
+  int delay = 2;
+
+  h= ndb_mgm_create_handle();
+  if ( h == 0)
+  {
+    ndbout_c("Unable to create handle");
+    return NDBT_FAILED;
+  }
+  if (ndb_mgm_set_connectstring(h, connectstring) == -1)
+  {
+    ndbout_c("Unable to set connectstring");
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_FAILED;
+  }
+  if (ndb_mgm_connect(h,0,0,0))
+  {
+    ndbout_c("connect failed, %d: %s",
+             ndb_mgm_get_latest_error(h),
+             ndb_mgm_get_latest_error_msg(h));
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_FAILED;
+  }
+
+  int result= NDBT_OK;
+  while (iterations-- != 0 && result == NDBT_OK)
+  {
+    state = ndb_mgm_get_status(h);
+    if(state == NULL) {
+      ndbout_c("Could not get status!");
+      result= NDBT_FAILED;
+      continue;
+    }
+    free(state);
+
+    state = ndb_mgm_get_status2(h, types);
+    if(state == NULL){
+      ndbout_c("Could not get status2!");
+      result= NDBT_FAILED;
+      continue;
+    }
+    free(state);
+
+    state = ndb_mgm_get_status2(h, 0);
+    if(state == NULL){
+      ndbout_c("Could not get status2 second time!");
+      result= NDBT_FAILED;
+      continue;
+    }
+    free(state);
+
+    NdbSleep_MilliSleep(delay);
+  }
+  // No disconnect, destroy should take care of that
+  // ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+  return result;
+}
+
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -895,6 +966,16 @@ TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
 TESTCASE("MgmLogRotation",
 	 "Test log rotation"){
   INITIALIZER(runTestMgmLogRotation);
+
+}
+TESTCASE("TestStatus",
+	 "Test status and status2"){
+  INITIALIZER(runTestStatus);
+
+}
+TESTCASE("TestStatus200",
+	 "Test status and status2 with 200 threads"){
+  STEPS(runTestStatus, 200);
 
 }
 NDBT_TESTSUITE_END(testMgm);
