@@ -578,7 +578,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
       for (unsigned i = 0; i < theNdb->theNoOfCompletedTransactions; i++)
         anyway += theNdb->theCompletedTransactionsArray[i] == this;
       if (anyway) {
-        theNdb->printState("execute %x", this);
+        theNdb->printState("execute %lx", (long)this);
         abort();
       }
 #endif
@@ -1043,7 +1043,7 @@ NdbTransaction::release(){
   theInUseState = false;
 #ifdef VM_TRACE
   if (theListState != NotInList) {
-    theNdb->printState("release %x", this);
+    theNdb->printState("release %lx", (long)this);
     abort();
   }
 #endif

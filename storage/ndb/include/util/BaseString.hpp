@@ -97,10 +97,12 @@ public:
 		     const BaseString &separator = BaseString(" "));
 
   /** @brief Assigns from a format string a la printf() */
-  BaseString& assfmt(const char* ftm, ...);
+  BaseString& assfmt(const char* ftm, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 
   /** @brief Appends a format string a la printf() to the end */
-  BaseString& appfmt(const char* ftm, ...);
+  BaseString& appfmt(const char* ftm, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 
   /**
    * Split a string into a vector of strings. Separate the string where
@@ -183,7 +185,8 @@ public:
   /**
    * snprintf on some platforms need special treatment
    */
-  static int snprintf(char *str, size_t size, const char *format, ...);
+  static int snprintf(char *str, size_t size, const char *format, ...)
+    ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 private:
   char* m_chr;

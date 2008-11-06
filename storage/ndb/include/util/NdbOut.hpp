@@ -76,8 +76,10 @@ public:
   NdbOut(OutputStream &);
   virtual ~NdbOut();
 
-  void print(const char * fmt, ...);
-  void println(const char * fmt, ...);
+  void print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  void println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   
   OutputStream * m_out;
 private:
@@ -125,7 +127,7 @@ private:
 };
 
 #else
-void ndbout_c(const char * fmt, ...);
+void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 #endif
 
 #endif
