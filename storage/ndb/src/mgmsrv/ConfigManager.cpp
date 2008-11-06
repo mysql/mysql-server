@@ -40,7 +40,8 @@ require(bool v)
 
 extern "C" const char* opt_connect_str;
 
-ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts) :
+ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
+                             const char* datadir) :
   MgmtThread("ConfigManager"),
   m_opts(opts),
   m_facade(NULL),
@@ -57,7 +58,7 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts) :
   m_client_ref(RNIL),
   m_prepared_config(NULL),
   m_node_id(0),
-  m_datadir(NULL)
+  m_datadir(datadir)
 {
 }
 
@@ -146,34 +147,6 @@ ConfigManager::init(void)
     g_eventLogger->error(m_config_retriever.getErrorString());
     DBUG_RETURN(false);
   }
-
-  // Check datadir
-  if (m_opts.datadir)
-  {
-    // Specified on commmand line
-    if (access(m_opts.datadir, F_OK))
-    {
-      g_eventLogger->error("Directory '%s' specified with --datadir "   \
-                           "does not exist", m_opts.datadir);
-      DBUG_RETURN(false);
-    }
-    m_datadir= m_opts.datadir;
-  }
-  else
-  {
-    // Compiled in path MYSQLCLUSTERDIR
-    if (access(MYSQLCLUSTERDIR, F_OK))
-    {
-      g_eventLogger->error("The default data directory '%s' "            \
-                           "does not exist. Either create it or "       \
-                           "specify a different directory with "        \
-                           "--datadir=<path>",
-                           MYSQLCLUSTERDIR);
-      DBUG_RETURN(false);
-    }
-    m_datadir= MYSQLCLUSTERDIR;
-  }
-  DBUG_PRINT("info", ("datadir: %s", m_datadir));
 
   if (!init_nodeid())
     DBUG_RETURN(false);

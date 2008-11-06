@@ -306,14 +306,86 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
 }
 
 
+static bool
+create_directory(const char* dir)
+{
+#ifdef __WIN__
+  if (CreateDirectory(dir, NULL) == 0)
+  {
+    g_eventLogger->warning("Failed to create directory '%s', error: %d",
+                           dir, GetLastError());
+    return false;
+  }
+#else
+  if (mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR ) != 0)
+  {
+    g_eventLogger->warning("Failed to create directory '%s', error: %d",
+                           dir, errno);
+    return false;
+  }
+#endif
+  return true;
+}
+
+
+/*
+  check_datadir
+
+  Make sure datadir exist and try to create it if not
+
+*/
+
+const char*
+MgmtSrvr::check_datadir() const
+{
+  if (m_opts.datadir)
+  {
+    // Specified on commmand line
+    if (access(m_opts.datadir, F_OK))
+    {
+      g_eventLogger->error("Directory '%s' specified with --datadir "   \
+                           "does not exist", m_opts.datadir);
+      return NULL;
+    }
+    return m_opts.datadir;
+  }
+  else
+  {
+    // Compiled in path MYSQLCLUSTERDIR
+    if (access(MYSQLCLUSTERDIR, F_OK))
+    {
+      g_eventLogger->info("The default data directory '%s' "            \
+                          "does not exist. Trying to create it...",
+                          MYSQLCLUSTERDIR);
+
+      if (!create_directory(MYSQLCLUSTERDIR) ||
+          access(MYSQLCLUSTERDIR, F_OK))
+      {
+        g_eventLogger->error("Could not create directory '%s'. "        \
+                             "Either create it manually or "            \
+                             "specify a different directory with "      \
+                             "--datadir=<path>",
+                             MYSQLCLUSTERDIR);
+        return NULL;
+      }
+
+      g_eventLogger->info("Sucessfully created data directory");
+    }
+    return MYSQLCLUSTERDIR;
+  }
+}
+
 
 bool
 MgmtSrvr::init()
 {
   DBUG_ENTER("MgmtSrvr::init");
 
+  const char* datadir;
+  if (!(datadir= check_datadir()))
+    DBUG_RETURN(false);
 
-  if (!(m_config_manager= new ConfigManager(m_opts)))
+  if (!(m_config_manager= new ConfigManager(m_opts, datadir)))
   {
     g_eventLogger->error("Failed to create ConfigManager");
     DBUG_RETURN(false);
