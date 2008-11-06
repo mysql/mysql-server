@@ -17464,6 +17464,7 @@ void Dblqh::initFragrec(Signal* signal,
   fragptr.p->fragDistributionKey = 0;
   fragptr.p->activeTcCounter = 0;
   fragptr.p->tableFragptr = RNIL;
+  fragptr.p->m_copy_started_state = 0;
 }//Dblqh::initFragrec()
 
 /* ========================================================================== 
