@@ -115,3 +115,62 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
  * storage/ndb/test/ndbapi/testBitfield.cpp
  * to get coverage from automated testing
  */
+
+int
+BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
+{
+  int cnt = 0;
+  BaseString tmp(src);
+  Vector<BaseString> list;
+  tmp.split(list, ",");
+  for (unsigned i = 0; i<list.size(); i++)
+  {
+    list[i].trim();
+    if (list[i].empty())
+      continue;
+    unsigned num = 0;
+    char * delim = strchr(list[i].c_str(), '-');
+    unsigned first = 0;
+    unsigned last = 0;
+    if (delim == 0)
+    {
+      int res = sscanf(list[i].c_str(), "%u", &first);
+      if (res != 1)
+      {
+        return -1;
+      }
+      last = first;
+    }
+    else
+    {
+      * delim = 0;
+      delim++;
+      int res0 = sscanf(list[i].c_str(), "%u", &first);
+      if (res0 != 1)
+      {
+        return -1;
+      }
+      int res1 = sscanf(delim, "%u", &last);
+      if (res1 != 1)
+      {
+        return -1;
+      }
+      if (first > last)
+      {
+        unsigned tmp = first;
+        first = last;
+        last = tmp;
+      }
+    }
+    
+    for (unsigned j = first; j<(last+1); j++)
+    {
+      if (j >= (size << 5))
+        return -2;
+
+      cnt++;
+      BitmaskImpl::set(size, data, j);
+    }
+  }
+  return cnt;
+}
