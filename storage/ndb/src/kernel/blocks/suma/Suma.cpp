@@ -1162,7 +1162,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     for(Uint32 i = 0; i<c_no_of_buckets; i++)
     {
       Bucket* ptr= c_buckets + i;
-      infoEvent("Bucket %d %d%d-%x switch gci: %d max_acked_gci: %d max_gci: %d tail: %d head: %d",
+      infoEvent("Bucket %d %d%d-%x switch gci: %llu max_acked_gci: %llu max_gci: %llu tail: %d head: %d",
 		i, 
 		m_active_buckets.get(i),
 		m_switchover_buckets.get(i),
@@ -3803,7 +3803,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   rep->flags = flags;
   rep->senderRef  = reference();
   rep->gcp_complete_rep_count = m_gcp_complete_rep_count;
-  
+
   if(m_gcp_complete_rep_count && !c_subscriber_nodes.isclear())
   {
     CRASH_INSERTION(13033);

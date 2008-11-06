@@ -227,7 +227,7 @@ NdbScanOperation::addInterpretedCode(Uint32 aTC_ConnectPtr,
   theAI_LenInCurrAI= theCurrentATTRINFO->getLength();
 
   return res;
-};
+}
 
 /* Method for handling scanoptions passed into 
  * NdbTransaction::scanTable or scanIndex
@@ -969,7 +969,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   m_savedBatchOldApi= batch;
 
   return 0;
-};
+}
 
 /* Most of the scan definition work for old + NdbRecord API scans is done here */
 int 
@@ -1350,7 +1350,7 @@ NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
   return nextResult(&dummyOutRowPtr,
                     fetchAllowed,
                     forceSend);
-};
+}
 
 /* nextResult() for NdbRecord operation. */
 int

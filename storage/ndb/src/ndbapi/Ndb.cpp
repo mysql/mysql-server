@@ -687,7 +687,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   }//if
 #ifdef VM_TRACE
   if (tConnection->theListState != NdbTransaction::NotInList) {
-    printState("startTransactionLocal %x", tConnection);
+    printState("startTransactionLocal %lx", (long)tConnection);
     abort();
   }
 #endif

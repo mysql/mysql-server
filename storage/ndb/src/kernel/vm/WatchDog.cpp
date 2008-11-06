@@ -139,7 +139,7 @@ WatchDog::run()
       g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
                           (Uint64)my_tms.tms_utime,
                           (Uint64)my_tms.tms_stime);
-      g_eventLogger->warning("Watchdog: Warning overslept %u ms, expected %u ms.",
+      g_eventLogger->warning("Watchdog: Warning overslept %llu ms, expected %u ms.",
                              NdbTick_getMicrosPassed(last_time, now)/1000,
                              sleep_time);
     }
