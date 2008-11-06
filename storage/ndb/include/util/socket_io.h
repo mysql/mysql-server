@@ -35,9 +35,9 @@ extern "C" {
                    const char[], int len);
 
   int print_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
-                   const char *, ...);
+                   const char *, ...) ATTRIBUTE_FORMAT(printf, 4, 5);
   int println_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
-                     const char *, ...);
+                     const char *, ...) ATTRIBUTE_FORMAT(printf, 4, 5);
   int vprint_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
                     const char *, va_list);
   int vprintln_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,

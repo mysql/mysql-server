@@ -214,7 +214,7 @@ NdbScanOperation::addInterpretedCode()
   }
 
   return res;
-};
+}
 
 /* Method for handling scanoptions passed into 
  * NdbTransaction::scanTable or scanIndex
@@ -957,7 +957,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   m_savedBatchOldApi= batch;
 
   return 0;
-};
+}
 
 /* Most of the scan definition work for old + NdbRecord API scans is done here */
 int 
@@ -1340,7 +1340,7 @@ NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
   return nextResult(&dummyOutRowPtr,
                     fetchAllowed,
                     forceSend);
-};
+}
 
 /* nextResult() for NdbRecord operation. */
 int
@@ -2787,7 +2787,7 @@ const NdbIndexScanOperation::IndexBound*
 NdbIndexScanOperation::getIndexBoundFromRecAttr(NdbRecAttr* recAttr)
 {
   return &((OldApiScanRangeDefinition*)recAttr->aRef())->ib;
-};
+}
 
 
 /* Method called to release any resources allocated by the old 

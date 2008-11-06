@@ -1931,7 +1931,7 @@ BackupRestore::check_compat_common(const NDBCOL &old_col,
   }
 
   return false;
-};
+}
 
 void *
 BackupRestore::convert_int8_int16(const void *old_data,
