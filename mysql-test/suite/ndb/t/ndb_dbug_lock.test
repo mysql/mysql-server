@@ -47,6 +47,7 @@ lock tables t1 write;
 --echo # issue alter in parallell, which should be hanging waiting on
 --connection another_con
 --send alter table t1 add column (d int)
+--sleep 1
 
 --echo # check thread state which should be:
 --echo # "Waiting for allowed to take ndbcluster global schema lock"
