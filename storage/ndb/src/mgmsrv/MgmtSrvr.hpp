@@ -361,7 +361,9 @@ public:
                      SOCKET_SIZE_TYPE *client_addr_len,
 		     int &error_code, BaseString &error_string,
                      int log_event = 1);
-  
+
+  int change_config(Config& new_config);
+
   /**
    *
    */

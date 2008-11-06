@@ -144,6 +144,7 @@ private:
 inline
 const ClusterMgr::Node &
 ClusterMgr::getNodeInfo(NodeId nodeId) const {
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   return theNodes[nodeId];
 }
 
