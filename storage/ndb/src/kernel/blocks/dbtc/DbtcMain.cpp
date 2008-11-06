@@ -3098,13 +3098,13 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   regTcPtr->tcNodedata[3] = Tdata6;
 
   Uint8 Toperation = regTcPtr->operation;
-  Uint8 Tdirty = regTcPtr->dirtyOp;
+  Uint8 TopSimple = regTcPtr->opSimple;
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
   regCachePtr->fragmentDistributionKey = (tnodeinfo >> 16) & 255;
   if (Toperation == ZREAD || Toperation == ZREAD_EX) {
-    if (Tdirty == 1) {
+    if (TopSimple == 1){
       jam();
       /*-------------------------------------------------------------*/
       /*       A SIMPLE READ CAN SELECT ANY OF THE PRIMARY AND       */
