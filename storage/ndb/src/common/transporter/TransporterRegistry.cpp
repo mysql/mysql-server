@@ -1543,30 +1543,20 @@ TransporterRegistry::start_clients_thread()
   DBUG_VOID_RETURN;
 }
 
-bool
+struct NdbThread*
 TransporterRegistry::start_clients()
 {
-  char thread_object[THREAD_CONTAINER_SIZE];
-  uint len;
-
   m_run_start_clients_thread= true;
-  ndb_thread_fill_thread_object((void*)thread_object, &len, FALSE);
-  m_start_clients_thread= NdbThread_CreateWithFunc(run_start_clients_C,
+  m_start_clients_thread= NdbThread_Create(run_start_clients_C,
 					   (void**)this,
 					   32768,
 					   "ndb_start_clients",
-					   NDB_THREAD_PRIO_LOW,
-                                           ndb_thread_add_thread_id,
-                                           thread_object,
-                                           len,
-                                           ndb_thread_remove_thread_id,
-                                           thread_object,
-                                           len);
-  if (m_start_clients_thread == 0) {
+					   NDB_THREAD_PRIO_LOW);
+  if (m_start_clients_thread == 0)
+  {
     m_run_start_clients_thread= false;
-    return false;
   }
-  return true;
+  return m_start_clients_thread;
 }
 
 bool

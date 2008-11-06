@@ -152,7 +152,7 @@ public:
   virtual ~TransporterRegistry();
 
   bool start_service(SocketServer& server);
-  bool start_clients();
+  struct NdbThread* start_clients();
   bool stop_clients();
   void start_clients_thread();
   void update_connections();

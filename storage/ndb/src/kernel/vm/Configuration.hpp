@@ -37,19 +37,11 @@ enum ThreadTypes
 
 struct ThreadInfo
 {
-  NDB_TID_TYPE threadId;
-  NDB_THAND_TYPE threadHandle;
   enum ThreadTypes type;
+  struct NdbThread* pThread;
 };
 
 class Configuration;
-
-struct ThreadContainer
-{
-  Configuration *conf;
-  enum ThreadTypes type;
-  Uint32 index;
-};
 
 class ConfigRetriever;
 
@@ -86,15 +78,15 @@ public:
 
   void setAllRealtimeScheduler();
   void setAllLockCPU(bool exec_thread);
-  int setLockCPU(NDB_TID_TYPE threadId,
+  int setLockCPU(NdbThread*,
                  enum ThreadTypes type,
                  bool exec_thread,
                  bool init);
-  int setRealtimeScheduler(NDB_THAND_TYPE threadHandle,
+  int setRealtimeScheduler(NdbThread*,
                            enum ThreadTypes type,
                            bool real_time,
                            bool init);
-  Uint32 addThreadId(enum ThreadTypes type);
+  Uint32 addThread(struct NdbThread*, enum ThreadTypes type);
   void removeThreadId(Uint32 index);
   void yield_main(Uint32 thread_index, bool start);
   void initThreadArray();

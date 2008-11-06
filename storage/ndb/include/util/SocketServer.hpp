@@ -99,7 +99,7 @@ public:
   /**
    * start/stop the server
    */
-  void startServer();
+  struct NdbThread* startServer();
   void stopServer();
   
   /**

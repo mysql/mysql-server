@@ -165,7 +165,7 @@ public:
 
   void execute( Request* request );
 
-  virtual void doStart();
+  virtual struct NdbThread* doStart();
 
   virtual void shutdown();
 
