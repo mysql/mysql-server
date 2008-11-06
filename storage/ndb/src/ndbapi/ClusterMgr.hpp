@@ -144,7 +144,8 @@ private:
 inline
 const ClusterMgr::Node &
 ClusterMgr::getNodeInfo(NodeId nodeId) const {
-  assert(nodeId > 0 && nodeId < MAX_NODES);
+  // Check array bounds
+  assert(nodeId >= 0 && nodeId < MAX_NODES);
   return theNodes[nodeId];
 }
 
@@ -162,6 +163,8 @@ ClusterMgr::isClusterAlive() const {
 inline
 void
 ClusterMgr::hb_received(NodeId nodeId) {
+  // Check array bounds + don't allow node 0 to be touched
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   theNodes[nodeId].m_info.m_heartbeat_cnt= 0;
 }
 
