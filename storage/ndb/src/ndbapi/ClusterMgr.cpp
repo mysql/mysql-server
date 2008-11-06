@@ -81,11 +81,13 @@ ClusterMgr::~ClusterMgr()
 void
 ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
   for(iter.first(); iter.valid(); iter.next()){
-    Uint32 tmp = 0;
-    if(iter.get(CFG_NODE_ID, &tmp))
+    Uint32 nodeId = 0;
+    if(iter.get(CFG_NODE_ID, &nodeId))
       continue;
 
-    theNodes[tmp].defined = true;
+    // Check array bounds + don't allow node 0 to be touched
+    assert(nodeId > 0 && nodeId < MAX_NODES);
+    theNodes[nodeId].defined = true;
 
     unsigned type;
     if(iter.get(CFG_TYPE_OF_SECTION, &type))
@@ -93,13 +95,13 @@ ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
 
     switch(type){
     case NODE_TYPE_DB:
-      theNodes[tmp].m_info.m_type = NodeInfo::DB;
+      theNodes[nodeId].m_info.m_type = NodeInfo::DB;
       break;
     case NODE_TYPE_API:
-      theNodes[tmp].m_info.m_type = NodeInfo::API;
+      theNodes[nodeId].m_info.m_type = NodeInfo::API;
       break;
     case NODE_TYPE_MGM:
-      theNodes[tmp].m_info.m_type = NodeInfo::MGM;
+      theNodes[nodeId].m_info.m_type = NodeInfo::MGM;
       break;
     default:
       type = type;
@@ -257,6 +259,8 @@ ClusterMgr::threadMain( ){
        * at specified timing intervals
        */
       const NodeId nodeId = i;
+      // Check array bounds + don't allow node 0 to be touched
+      assert(nodeId > 0 && nodeId < MAX_NODES);
       Node & theNode = theNodes[nodeId];
       
       if (!theNode.defined)
@@ -540,6 +544,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 void
 ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
 
+  // Check array bounds + don't allow node 0 to be touched
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   Node & theNode = theNodes[nodeId];
  
   set_node_alive(theNode, false);
