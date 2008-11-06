@@ -391,7 +391,8 @@ int Logger::getHandlerCount() {
   if(m_pSyslogHandler) r++;
   r+=m_pHandlerList->size();
   return r;
-};
+}
+
 
 LogHandler* Logger::getHandler(int i) {
   if(i==0) return m_pConsoleHandler;
