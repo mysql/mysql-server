@@ -4084,7 +4084,7 @@ int ha_partition::read_range_next()
 {
   DBUG_ENTER("ha_partition::read_range_next");
 
-  if (m_ordered)
+  if (m_ordered_scan_ongoing)
   {
     DBUG_RETURN(handle_ordered_next(table->record[0], eq_range));
   }
