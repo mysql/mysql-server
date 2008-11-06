@@ -5894,6 +5894,7 @@ ha_innobase::create(
 				| DICT_TF_FORMAT_ZIP
 				  << DICT_TF_FORMAT_SHIFT;
 			break;
+#if 0
 		case 8:
 			flags = 4 << DICT_TF_ZSSIZE_SHIFT
 				| DICT_TF_COMPACT
@@ -5906,8 +5907,9 @@ ha_innobase::create(
 				| DICT_TF_FORMAT_ZIP
 				  << DICT_TF_FORMAT_SHIFT;
 			break;
-#if DICT_TF_ZSSIZE_MAX != 5
-# error "DICT_TF_ZSSIZE_MAX != 5"
+#endif
+#if DICT_TF_ZSSIZE_MAX != 3
+# error "DICT_TF_ZSSIZE_MAX != 3"
 #endif
 		}
 
