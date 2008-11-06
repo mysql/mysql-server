@@ -269,7 +269,7 @@ NdbThread_getThreadId()
 #else
 #ifdef HAVE_SOLARIS_AFFINITY
   id_t tid;
-  tid = _lw_self();
+  tid = _lwp_self();
   return tid;
 #else
   return 0;
