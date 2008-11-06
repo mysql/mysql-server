@@ -61,7 +61,7 @@ prefix="/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
-warning_mode=
+warning_mode="pedantic"
 
 parse_options "$@"
 
