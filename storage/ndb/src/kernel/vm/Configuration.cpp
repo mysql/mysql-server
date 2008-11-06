@@ -1099,7 +1099,7 @@ Configuration::setLockCPU(NDB_TID_TYPE threadId,
       cpu_id != NO_LOCK_CPU)
   {
     int error_no;
-    ndbout << "Lock threadId = " << threadId;
+    ndbout << "Lock threadId = " << (unsigned)threadId;
     ndbout << " to CPU id = " << cpu_id << endl;
     if ((error_no = NdbThread_LockCPU(threadId, cpu_id)))
     {
