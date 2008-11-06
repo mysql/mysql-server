@@ -618,4 +618,26 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN (SELECT 1 FROM t1, t2 WHERE 0);
 
 DROP TABLE t1, t2;
 
+#
+# Bug #37894: Assertion in init_read_record_seq in handler.h line 1444
+#
+
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY,
+  int_key INT,
+  varchar_key VARCHAR(5) UNIQUE,
+  varchar_nokey VARCHAR(5)
+);
+INSERT INTO t1 VALUES (9, 7,NULL,NULL), (10,8,'p' ,'p');
+
+SELECT varchar_nokey
+FROM t1
+WHERE NULL NOT IN (
+ SELECT INNR.pk FROM t1 AS INNR2
+   LEFT JOIN t1 AS INNR ON ( INNR2.int_key = INNR.int_key )
+   WHERE INNR.varchar_key > 'n{'
+);
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests

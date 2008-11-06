@@ -181,4 +181,21 @@ c1	c2
 3	3
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
+CREATE TABLE t1 (i INT, d DATE);
+INSERT INTO t1 VALUES (1, '2008-01-01'), (2, '2008-01-02'), (3, '2008-01-03');
+SELECT COALESCE(d, d), IFNULL(d, d), IF(i, d, d),
+CASE i WHEN i THEN d ELSE d END, GREATEST(d, d), LEAST(d, d)
+FROM t1 ORDER BY RAND();
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+2008-01-01	2008-01-01	2008-01-01	2008-01-01	2008-01-01	2008-01-01
+2008-01-02	2008-01-02	2008-01-02	2008-01-02	2008-01-02	2008-01-02
+2008-01-03	2008-01-03	2008-01-03	2008-01-03	2008-01-03	2008-01-03
+COALESCE(d, d)	IFNULL(d, d)	IF(i, d, d)	CASE i WHEN i THEN d ELSE d END	GREATEST(d, d)	LEAST(d, d)
+def				CASE i WHEN i THEN d ELSE d END	CASE i WHEN i THEN d ELSE d END	10	10	10	Y	128	0	63
+def				COALESCE(d, d)	COALESCE(d, d)	10	10	10	Y	128	0	63
+def				GREATEST(d, d)	GREATEST(d, d)	10	10	10	Y	128	0	63
+def				IF(i, d, d)	IF(i, d, d)	10	10	10	Y	128	0	63
+def				IFNULL(d, d)	IFNULL(d, d)	10	10	10	Y	128	0	63
+def				LEAST(d, d)	LEAST(d, d)	10	10	10	Y	128	0	63
+DROP TABLE t1;
 End of 5.0 tests
