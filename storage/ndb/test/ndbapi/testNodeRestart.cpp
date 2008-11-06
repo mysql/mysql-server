@@ -1469,7 +1469,6 @@ runBug26481(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug26450(NDBT_Context* ctx, NDBT_Step* step)
 {
-  Uint32 i;
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
   
@@ -1497,7 +1496,7 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
   if (runClearTable(ctx, step))
     return NDBT_FAILED;
 
-  for (i = 0; i < 2; i++)
+  for (int i = 0; i < 2; i++)
   {
     if (res.restartAll(false, true, i > 0))
       return NDBT_FAILED;
