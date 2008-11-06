@@ -101,24 +101,17 @@ WatchDog::unregisterWatchedThread(Uint32 threadId)
   NdbMutex_Unlock(m_mutex);
 }
 
-void
+struct NdbThread*
 WatchDog::doStart()
 {
-  struct ThreadContainer container;
   theStop = false;
-  container.conf = globalEmulatorData.theConfiguration;
-  container.type = WatchDogThread;
-  theThreadPtr = NdbThread_CreateWithFunc(runWatchDog, 
+  theThreadPtr = NdbThread_Create(runWatchDog,
 				  (void**)this, 
 				  32768,
 				  "ndb_watchdog",
-                                  NDB_THREAD_PRIO_HIGH,
-                                  ndb_thread_add_thread_id,
-                                  &container,
-                                  sizeof(container),
-                                  ndb_thread_remove_thread_id,
-                                  &container,
-                                  sizeof(container));
+                                  NDB_THREAD_PRIO_HIGH);
+
+  return theThreadPtr;
 }
 
 void

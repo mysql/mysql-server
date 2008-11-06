@@ -47,7 +47,7 @@ public:
   WatchDog(Uint32 interval = 3000);
   ~WatchDog();
  
-  void doStart();
+  struct NdbThread* doStart();
   void doStop();
 
   Uint32 setCheckInterval(Uint32 interval);

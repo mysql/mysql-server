@@ -1684,6 +1684,7 @@ runops()
   Op* gci_op[g_maxtab][g_maxpk];
   uint left = 0; // number of table pks with ops
   Uint32 pk1;
+  unsigned int i;
   for (unsigned int i = 0; i < maxrun(); i++) {
     Run& r = run(i);
     for (pk1 = 0; pk1 < g_opts.maxpk; pk1++) {
@@ -1702,9 +1703,9 @@ runops()
       left++;
     }
   }
-  uint i;
+
   while (left != 0) {
-    i = urandom(maxrun());
+    unsigned int i = urandom(maxrun());
     pk1 = urandom(g_opts.maxpk);
     if (gci_op[i][pk1] == 0)
       continue;

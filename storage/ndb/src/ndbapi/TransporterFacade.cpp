@@ -58,22 +58,6 @@ static int indexToNumber(int index)
 /*****************************************************************************
  * Call back functions
  *****************************************************************************/
-
-void* ndb_thread_add_thread_id(void *param)
-{
-  return NULL;
-}
-
-void *ndb_thread_remove_thread_id(void *param)
-{
-  return NULL;
-}
-
-void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
-{
-  *len = 0;
-}
-
 void
 TransporterFacade::reportError(NodeId nodeId,
                                TransporterError errorCode, const char *info)
@@ -506,7 +490,7 @@ runSendRequest_C(void * me)
 void TransporterFacade::threadMainSend(void)
 {
   theTransporterRegistry->startSending();
-  if (!theTransporterRegistry->start_clients()){
+  if (theTransporterRegistry->start_clients() == 0){
     ndbout_c("Unable to start theTransporterRegistry->start_clients");
     exit(0);
   }

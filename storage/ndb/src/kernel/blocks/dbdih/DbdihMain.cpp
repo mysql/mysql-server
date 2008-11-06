@@ -14132,14 +14132,14 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
 {
   NodeGroupRecordPtr NGPtr;
   NodeRecordPtr mngNodeptr;
-  Uint32 i, j;
+  Uint32 j;
 
   /**-----------------------------------------------------------------------
    * ASSIGN ALL ACTIVE NODES INTO NODE GROUPS. HOT SPARE NODES ARE ASSIGNED 
    * TO NODE GROUP ZNIL
    *-----------------------------------------------------------------------*/
   cnoOfNodeGroups = 0;
-  for (i = 0; nodeArray[i] != RNIL; i++)
+  for (Uint32 i = 0; nodeArray[i] != RNIL; i++)
   {
     jam();
     mngNodeptr.i = nodeArray[i];
@@ -14171,7 +14171,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
       break;
   }
 
-  for (i = 0; nodeArray[i] != RNIL; i++)
+  for (Uint32 i = 0; nodeArray[i] != RNIL; i++)
   {
     jam();
     mngNodeptr.i = nodeArray[i];
@@ -14225,14 +14225,14 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
   /**
    * Init sysfile
    */
-  for(i = 0; i < MAX_NDB_NODES; i++)
+  for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
   {
     jam();
     Sysfile::setNodeGroup(i, SYSFILE->nodeGroups, NO_NODE_GROUP_ID);
     Sysfile::setNodeStatus(i, SYSFILE->nodeStatus,Sysfile::NS_NotDefined);
   }
 
-  for (i = 0; nodeArray[i] != RNIL; i++)
+  for (Uint32 i = 0; nodeArray[i] != RNIL; i++)
   {
     jam();
     Uint32 nodeId = mngNodeptr.i = nodeArray[i];
@@ -14266,7 +14266,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
                            mngNodeptr.p->activeStatus);
   }
 
-  for (i = 0; i<cnoOfNodeGroups; i++)
+  for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
   {
     jam();
     bool alive = false;
@@ -14283,18 +14283,18 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
 	alive = true;
 	break;
       }
-    }
 
-    if (!alive)
-    {
-      char buf[255];
-      BaseString::snprintf
-	(buf, sizeof(buf), 
-	 "Illegal initial start, no alive node in nodegroup %u", i);
-      progError(__LINE__, 
-		NDBD_EXIT_INSUFFICENT_NODES,
-		buf);
-      
+      if (!alive)
+      {
+        char buf[255];
+        BaseString::snprintf
+          (buf, sizeof(buf), 
+           "Illegal initial start, no alive node in nodegroup %u", i);
+        progError(__LINE__, 
+                  NDBD_EXIT_INSUFFICENT_NODES,
+                  buf);
+        
+      }
     }
   }
 }//Dbdih::makeNodeGroups()
