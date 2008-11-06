@@ -3883,7 +3883,5 @@ template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;
 
-template class Vector<BaseString>;
-template class Vector< Vector<Uint32> >;
 template class Vector< Vector<BaseString> >;
 
