@@ -119,6 +119,10 @@ static struct my_option my_long_options[] =
     "Data directory for this node",
     (uchar**) &opts.datadir, (uchar**) &opts.datadir, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "verbose", 'v',
+    "Write more log messages",
+    (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -158,6 +162,9 @@ int main(int argc, char** argv)
 
   /* Output to console initially */
   g_eventLogger->createConsoleHandler();
+
+  if (opts.verbose)
+    g_eventLogger->enable(Logger::LL_DEBUG);
 
   if (opts.mycnf && opts.config_filename)
   {
