@@ -3549,7 +3549,7 @@ bool MgmtSrvr::connect_to_self()
 
   buf.assfmt("%s:%u",
              m_opts.bind_address ? m_opts.bind_address : "localhost",
-             getPort());
+             m_port);
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
 
   if(ndb_mgm_connect(mgm_handle, 0, 0, 0) < 0)
@@ -3790,6 +3790,89 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       return SEND_OR_RECEIVE_FAILED;
     }
   }
+
+  return 0;
+}
+
+
+int
+MgmtSrvr::change_config(Config& new_config)
+{
+  SignalSender ss(theFacade);
+  ss.lock();
+
+  SimpleSignal ssig;
+  UtilBuffer buf;
+  new_config.pack(buf);
+  ssig.ptr[0].p = (Uint32*)buf.get_data();
+  ssig.ptr[0].sz = (buf.length() + 3) / 4;
+  ssig.header.m_noOfSections = 1;
+
+  ConfigChangeReq *req= CAST_PTR(ConfigChangeReq, ssig.getDataPtrSend());
+  req->length = buf.length();
+
+  NodeBitmask mgm_nodes;
+  ss.getNodes(mgm_nodes, NodeInfo::MGM);
+
+  NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
+  if (nodeId == 0)
+    return -1; // Hrmpf?
+
+  if (ss.sendSignal(nodeId, ssig,
+                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                    ConfigChangeReq::SignalLength) != SEND_OK)
+    return SEND_OR_RECEIVE_FAILED;
+  mgm_nodes.clear(nodeId);
+
+  bool done = false;
+  while(!done)
+  {
+    SimpleSignal *signal= ss.waitFor();
+
+    switch(signal->readSignalNumber()){
+    case GSN_CONFIG_CHANGE_CONF:
+      done= true;
+      break;
+    case GSN_CONFIG_CHANGE_REF:
+    {
+      const ConfigChangeRef * const ref =
+        CAST_CONSTPTR(ConfigChangeRef, signal->getDataPtr());
+      g_eventLogger->debug("Got CONFIG_CHANGE_REF, error: %d", ref->errorCode);
+      switch(ref->errorCode)
+      {
+      case ConfigChangeRef::NotMaster:{
+        // Retry with next node if any
+        NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
+        if (nodeId == 0)
+          return -1; // Hrmpf?
+
+        if (ss.sendSignal(nodeId, ssig,
+                          MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                          ConfigChangeReq::SignalLength) != SEND_OK)
+          return SEND_OR_RECEIVE_FAILED;
+        mgm_nodes.clear(nodeId);
+        break;
+      }
+
+      default:
+        return ref->errorCode;
+      }
+
+      break;
+    }
+
+    case GSN_API_REGCONF:
+      // Ignore;
+      break;
+
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+
+    }
+  }
+
+  g_eventLogger->info("Config change completed");
 
   return 0;
 }

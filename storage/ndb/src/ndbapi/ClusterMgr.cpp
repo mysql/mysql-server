@@ -107,6 +107,11 @@ ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
     }
   }
 
+  /* Init own node info */
+  Node &node= theNodes[theFacade.ownId()];
+  assert(node.defined);
+  node.m_api_reg_conf= true;
+
 #if 1
   print_nodes("init");
 #endif
