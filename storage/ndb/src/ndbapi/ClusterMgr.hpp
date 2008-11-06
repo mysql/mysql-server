@@ -145,7 +145,7 @@ inline
 const ClusterMgr::Node &
 ClusterMgr::getNodeInfo(NodeId nodeId) const {
   // Check array bounds
-  assert(nodeId >= 0 && nodeId < MAX_NODES);
+  assert(nodeId < MAX_NODES);
   return theNodes[nodeId];
 }
 
