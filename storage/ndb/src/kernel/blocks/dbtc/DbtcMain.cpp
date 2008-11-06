@@ -3092,7 +3092,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   regTcPtr->lqhInstanceKey = (Tdata2 >> 24) & 127;// 1 bit used for reorg moving
 
   Uint8 Toperation = regTcPtr->operation;
-  Uint8 Tdirty = regTcPtr->dirtyOp;
+  Uint8 TopSimple = regTcPtr->opSimple;
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
@@ -3100,8 +3100,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   if (Toperation == ZREAD || Toperation == ZREAD_EX)
   {
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
-
-    if (Tdirty == 1) {
+    if (TopSimple == 1){
       jam();
       /*-------------------------------------------------------------*/
       /*       A SIMPLE READ CAN SELECT ANY OF THE PRIMARY AND       */
