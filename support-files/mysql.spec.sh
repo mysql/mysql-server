@@ -279,7 +279,20 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
 	    --with-readline \
-	    "
+		--with-innodb \
+%if %{CLUSTER_BUILD}
+		--with-ndbcluster \
+%else
+		--without-ndbcluster \
+%endif
+		--with-archive-storage-engine \
+		--with-csv-storage-engine \
+		--with-blackhole-storage-engine \
+		--with-federated-storage-engine \
+		--with-partition \
+		--with-big-tables \
+		--enable-shared \
+		"
  make
 }
 
@@ -305,6 +318,8 @@ mkdir -p $RBR%{_libdir}/mysql
 #
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
+
+# Build the Debug binary.
 
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
 # including exceptions into the code
@@ -333,20 +348,8 @@ CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip /
 cd mysql-debug-%{mysql_version} &&
 CFLAGS=\"$CFLAGS\" \
 CXXFLAGS=\"$CXXFLAGS\" \
-BuildMySQL "--enable-shared \
+BuildMySQL "\
 		--with-debug \
-		--with-innodb \
-%if %{CLUSTER_BUILD}
-		--with-ndbcluster \
-%else
-		--without-ndbcluster \
-%endif
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-blackhole-storage-engine \
-		--with-federated-storage-engine \
-	        --with-partition \
-	        --with-big-tables \
 		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
 
 # We might want to save the config log file
@@ -366,20 +369,8 @@ fi
 (cd mysql-release-%{mysql_version} &&
 CFLAGS=\"$CFLAGS\" \
 CXXFLAGS=\"$CXXFLAGS\" \
-BuildMySQL "--enable-shared \
-		--with-innodb \
-%if %{CLUSTER_BUILD}
-		--with-ndbcluster \
-%else
-		--without-ndbcluster \
-%endif
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-blackhole-storage-engine \
-		--with-federated-storage-engine \
-	        --with-partition \
+BuildMySQL "\
 		--with-embedded-server \
-	        --with-big-tables \
 		--with-comment=\"MySQL Community Server (GPL)\"")
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -700,7 +691,6 @@ fi
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
-%attr(755, root, root) %{_bindir}/mysql_upgrade_shell
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
 %attr(755, root, root) %{_bindir}/mysqladmin
@@ -840,6 +830,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Thu Nov 06 2008 Kent Boortz <kent.boortz@sun.com>
+
+- Removed "mysql_upgrade_shell"
+- Removed some copy/paste between debug and normal build
+
 * Thu Nov 06 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.

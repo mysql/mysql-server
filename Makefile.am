@@ -159,6 +159,8 @@ test-bt:
 	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist ; \
@@ -175,14 +177,27 @@ test-bt:
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
 
-# Re-enable the "jp" suite when bug#28563 is fixed
-#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-#	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
+test-bt-fast:
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
+	        --skip-ndbcluster --ps-protocol
+	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
+	  cd mysql-test ; \
+	    MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
+	          --with-ndbcluster-only ; \
+	else \
+	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
+	fi
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features
+
+test-bt-debug-fast:
 
 # Keep these for a while
 test-pl:	test
