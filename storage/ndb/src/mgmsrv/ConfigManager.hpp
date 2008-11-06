@@ -72,13 +72,16 @@ class ConfigManager : public MgmtThread {
   const char* m_datadir;
 
   /* Functions used from 'init' */
-  Config* load_init_config(const char*);
-  Config* load_init_mycnf(void);
+  Config* load_init_config(const char*) const;
+  Config* load_init_mycnf(void) const;
+  Config* load_config(void) const;
   Config* fetch_config(void);
   bool save_config(const Config* conf);
   bool save_config(void);
   bool saved_config_exists(BaseString& config_name) const;
   Config* load_saved_config(const BaseString& config_name);
+  NodeId find_nodeid_from_datadir(void);
+  NodeId find_nodeid_from_config(void);
   bool init_nodeid(void);
 
   /* Set the new config and inform subscribers */
@@ -129,7 +132,8 @@ class ConfigManager : public MgmtThread {
   void sendConfigCheckConf(SignalSender& ss, BlockReference to) const;
 
 public:
-  ConfigManager(const MgmtSrvr::MgmtOpts&);
+  ConfigManager(const MgmtSrvr::MgmtOpts&,
+                const char* datadir);
   virtual ~ConfigManager();
   bool init();
   void set_facade(TransporterFacade* facade) { m_facade= facade; };

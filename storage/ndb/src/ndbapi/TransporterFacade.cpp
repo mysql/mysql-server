@@ -1675,14 +1675,14 @@ TransporterFacade::get_an_alive_node()
 #endif
   NodeId i;
   for (i = theStartNodeId; i < MAX_NDB_NODES; i++) {
-    if (getIsDbNode(i) && get_node_alive(i)){
+    if (get_node_alive(i)){
       DBUG_PRINT("info", ("Node %d is alive", i));
       theStartNodeId = ((i + 1) % MAX_NDB_NODES);
       DBUG_RETURN(i);
     }
   }
   for (i = 1; i < theStartNodeId; i++) {
-    if (getIsDbNode(i) && get_node_alive(i)){
+    if (get_node_alive(i)){
       DBUG_PRINT("info", ("Node %d is alive", i));
       theStartNodeId = ((i + 1) % MAX_NDB_NODES);
       DBUG_RETURN(i);

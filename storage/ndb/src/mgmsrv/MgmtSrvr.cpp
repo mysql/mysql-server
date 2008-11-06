@@ -306,14 +306,86 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
 }
 
 
+static bool
+create_directory(const char* dir)
+{
+#ifdef __WIN__
+  if (CreateDirectory(dir, NULL) == 0)
+  {
+    g_eventLogger->warning("Failed to create directory '%s', error: %d",
+                           dir, GetLastError());
+    return false;
+  }
+#else
+  if (mkdir(dir, S_IRUSR | S_IWUSR | S_IXUSR ) != 0)
+  {
+    g_eventLogger->warning("Failed to create directory '%s', error: %d",
+                           dir, errno);
+    return false;
+  }
+#endif
+  return true;
+}
+
+
+/*
+  check_datadir
+
+  Make sure datadir exist and try to create it if not
+
+*/
+
+const char*
+MgmtSrvr::check_datadir() const
+{
+  if (m_opts.datadir)
+  {
+    // Specified on commmand line
+    if (access(m_opts.datadir, F_OK))
+    {
+      g_eventLogger->error("Directory '%s' specified with --datadir "   \
+                           "does not exist", m_opts.datadir);
+      return NULL;
+    }
+    return m_opts.datadir;
+  }
+  else
+  {
+    // Compiled in path MYSQLCLUSTERDIR
+    if (access(MYSQLCLUSTERDIR, F_OK))
+    {
+      g_eventLogger->info("The default data directory '%s' "            \
+                          "does not exist. Trying to create it...",
+                          MYSQLCLUSTERDIR);
+
+      if (!create_directory(MYSQLCLUSTERDIR) ||
+          access(MYSQLCLUSTERDIR, F_OK))
+      {
+        g_eventLogger->error("Could not create directory '%s'. "        \
+                             "Either create it manually or "            \
+                             "specify a different directory with "      \
+                             "--datadir=<path>",
+                             MYSQLCLUSTERDIR);
+        return NULL;
+      }
+
+      g_eventLogger->info("Sucessfully created data directory");
+    }
+    return MYSQLCLUSTERDIR;
+  }
+}
+
 
 bool
 MgmtSrvr::init()
 {
   DBUG_ENTER("MgmtSrvr::init");
 
+  const char* datadir;
+  if (!(datadir= check_datadir()))
+    DBUG_RETURN(false);
 
-  if (!(m_config_manager= new ConfigManager(m_opts)))
+  if (!(m_config_manager= new ConfigManager(m_opts, datadir)))
   {
     g_eventLogger->error("Failed to create ConfigManager");
     DBUG_RETURN(false);
@@ -610,6 +682,9 @@ MgmtSrvr::setClusterLog(const Config* config)
 
   if (m_opts.non_interactive)
     g_eventLogger->createConsoleHandler();
+
+  if (m_opts.verbose)
+    g_eventLogger->enable(Logger::LL_DEBUG);
 }
 
 
@@ -3474,7 +3549,7 @@ bool MgmtSrvr::connect_to_self()
 
   buf.assfmt("%s:%u",
              m_opts.bind_address ? m_opts.bind_address : "localhost",
-             getPort());
+             m_port);
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
 
   if(ndb_mgm_connect(mgm_handle, 0, 0, 0) < 0)
@@ -3715,6 +3790,89 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       return SEND_OR_RECEIVE_FAILED;
     }
   }
+
+  return 0;
+}
+
+
+int
+MgmtSrvr::change_config(Config& new_config)
+{
+  SignalSender ss(theFacade);
+  ss.lock();
+
+  SimpleSignal ssig;
+  UtilBuffer buf;
+  new_config.pack(buf);
+  ssig.ptr[0].p = (Uint32*)buf.get_data();
+  ssig.ptr[0].sz = (buf.length() + 3) / 4;
+  ssig.header.m_noOfSections = 1;
+
+  ConfigChangeReq *req= CAST_PTR(ConfigChangeReq, ssig.getDataPtrSend());
+  req->length = buf.length();
+
+  NodeBitmask mgm_nodes;
+  ss.getNodes(mgm_nodes, NodeInfo::MGM);
+
+  NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
+  if (nodeId == 0)
+    return -1; // Hrmpf?
+
+  if (ss.sendSignal(nodeId, ssig,
+                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                    ConfigChangeReq::SignalLength) != SEND_OK)
+    return SEND_OR_RECEIVE_FAILED;
+  mgm_nodes.clear(nodeId);
+
+  bool done = false;
+  while(!done)
+  {
+    SimpleSignal *signal= ss.waitFor();
+
+    switch(signal->readSignalNumber()){
+    case GSN_CONFIG_CHANGE_CONF:
+      done= true;
+      break;
+    case GSN_CONFIG_CHANGE_REF:
+    {
+      const ConfigChangeRef * const ref =
+        CAST_CONSTPTR(ConfigChangeRef, signal->getDataPtr());
+      g_eventLogger->debug("Got CONFIG_CHANGE_REF, error: %d", ref->errorCode);
+      switch(ref->errorCode)
+      {
+      case ConfigChangeRef::NotMaster:{
+        // Retry with next node if any
+        NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
+        if (nodeId == 0)
+          return -1; // Hrmpf?
+
+        if (ss.sendSignal(nodeId, ssig,
+                          MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                          ConfigChangeReq::SignalLength) != SEND_OK)
+          return SEND_OR_RECEIVE_FAILED;
+        mgm_nodes.clear(nodeId);
+        break;
+      }
+
+      default:
+        return ref->errorCode;
+      }
+
+      break;
+    }
+
+    case GSN_API_REGCONF:
+      // Ignore;
+      break;
+
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+
+    }
+  }
+
+  g_eventLogger->info("Config change completed");
 
   return 0;
 }

@@ -131,6 +131,7 @@ public:
     int no_nodeid_checks;
     int print_full_config;
     const char* datadir;
+    int verbose;
   };
 
   MgmtSrvr(); // Not implemented
@@ -139,6 +140,11 @@ public:
 
   ~MgmtSrvr();
 
+private:
+  /* Function used from 'init' */
+  const char* check_datadir() const;
+
+public:
   /*
     To be called after constructor.
   */
@@ -355,7 +361,9 @@ public:
                      SOCKET_SIZE_TYPE *client_addr_len,
 		     int &error_code, BaseString &error_string,
                      int log_event = 1);
-  
+
+  int change_config(Config& new_config);
+
   /**
    *
    */

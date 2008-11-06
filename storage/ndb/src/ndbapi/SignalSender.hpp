@@ -61,6 +61,10 @@ public:
   void getNodes(NodeBitmask& mask,
                 NodeInfo::NodeType type = NodeInfo::INVALID);
 
+  NodeId find_confirmed_node(const NodeBitmask& mask);
+  NodeId find_connected_node(const NodeBitmask& mask);
+  NodeId find_alive_node(const NodeBitmask& mask);
+
   SendStatus sendSignal(Uint16 nodeId, const SimpleSignal *);
   SendStatus sendSignal(Uint16 nodeId, SimpleSignal& sig,
                         Uint16 recBlock, Uint16 gsn, Uint32 len);
@@ -93,6 +97,9 @@ private:
 
   template<class T>
   SimpleSignal * waitFor(Uint32 timeOutMillis, T & t);
+
+  template<class T>
+  NodeId find_node(const NodeBitmask& mask, T & t);
 };
 
 #endif
