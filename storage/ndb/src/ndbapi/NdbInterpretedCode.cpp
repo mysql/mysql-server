@@ -836,7 +836,7 @@ NdbInterpretedCode::ret_sub()
   m_flags&= ~(InSubroutineDef);
 
   return add1(Interpreter::RETURN);
-};
+}
 
 /* Get a CodeMetaInfo object given a number
  * Label numbers start from 0.  Subroutine numbers start from
