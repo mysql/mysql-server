@@ -112,7 +112,7 @@ ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
   assert(node.defined);
   node.m_api_reg_conf= true;
 
-#if 1
+#if 0
   print_nodes("init");
 #endif
 
