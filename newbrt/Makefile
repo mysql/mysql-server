@@ -45,7 +45,7 @@ VGRIND    = valgrind --quiet --error-exitcode=1 --leak-check=yes
 
 ifeq ($(CC),icc)
     #icc only:
-    OPTFLAGS = -O3 -ip -ipo2
+    OPTFLAGS = -O3 -ip
     COMBINE_C = -ipo-c
     FORMAT= #No argument for extra format warnings.
     WALL  = -Wall -Wcheck # '-Wextra' becomes '-Wcheck' in icc
