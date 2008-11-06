@@ -170,26 +170,30 @@ SHOW TABLES;
 Tables_in_MySQL_Test_DB
 TableA
 tablea
+RENAME TABLE TableA to tableA;
 SELECT * FROM tablea;
 a
 1
-1
 10
+2
+7
+8
+9
+SELECT * FROM tableA;
+a
+1
 10
 11
 12
-2
 2
 3
 4
 5
 6
 7
-7
-8
 8
 9
-9
+RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
@@ -206,7 +210,6 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
 10
 11
 12
@@ -216,10 +219,7 @@ a
 5
 6
 7
-7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
@@ -406,26 +406,30 @@ SHOW TABLES;
 Tables_in_MySQL_Test_DB
 TableA
 tablea
+RENAME TABLE TableA to tableA;
 SELECT * FROM tablea;
 a
 1
-1
 10
+2
+7
+8
+9
+SELECT * FROM tableA;
+a
+1
 10
 11
 12
-2
 2
 3
 4
 5
 6
 7
-7
-8
 8
 9
-9
+RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
@@ -442,12 +446,9 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
-10
 10
 11
 12
-2
 2
 3
 4
@@ -455,8 +456,6 @@ a
 6
 7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
@@ -638,26 +637,30 @@ SHOW TABLES;
 Tables_in_MySQL_Test_DB
 TableA
 tablea
+RENAME TABLE TableA to tableA;
 SELECT * FROM tablea;
 a
 1
-1
 10
+2
+7
+8
+9
+SELECT * FROM tableA;
+a
+1
 10
 11
 12
-2
 2
 3
 4
 5
 6
 7
-7
-8
 8
 9
-9
+RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
@@ -674,22 +677,16 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
-10
 10
 11
 12
-2
 2
 3
 4
 5
 6
 7
-7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
@@ -866,23 +863,27 @@ SHOW TABLES;
 Tables_in_MySQL_Test_DB
 TableA
 tablea
+RENAME TABLE TableA to tableA;
 SELECT * FROM tablea;
 a
 1
-1
 10
-12
 2
+7
+8
+9
+SELECT * FROM tableA;
+a
+1
+12
 3
 4
 5
 6
 7
-7
-8
 8
 9
-9
+RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
@@ -899,19 +900,13 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
-10
 12
-2
 3
 4
 5
 6
 7
-7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
