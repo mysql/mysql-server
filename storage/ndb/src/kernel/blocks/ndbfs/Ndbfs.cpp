@@ -678,7 +678,8 @@ Ndbfs::createAsyncFile(){
   AsyncFile* file = new PosixAsyncFile(* this);
 #endif
 
-  file->doStart();
+  struct NdbThread* thr = file->doStart();
+  globalEmulatorData.theConfiguration->addThread(thr, NdbfsThread);
 
   // Put the file in list of all files
   theFiles.push_back(file);

@@ -557,7 +557,7 @@ int main(int argc, char** argv)
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
-  globalEmulatorData.theWatchDog->doStart();
+  NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
   {
     /*
@@ -643,15 +643,24 @@ int main(int argc, char** argv)
 		"Connection to mgmd terminated before setup was complete", 
 		"StopOnError missing");
 
-  if (!globalTransporterRegistry.start_clients()){
+  NdbThread* pTrp = globalTransporterRegistry.start_clients();
+  if (pTrp == 0)
+  {
     ndbout_c("globalTransporterRegistry.start_clients() failed");
     exit(-1);
   }
-  globalEmulatorData.m_socket_server->startServer();
+
+  NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();
+
+  globalEmulatorData.theConfiguration->addThread(pTrp, SocketClientThread);
+  globalEmulatorData.theConfiguration->addThread(pWatchdog, WatchDogThread);
+  globalEmulatorData.theConfiguration->addThread(pSockServ, SocketServerThread);
 
   //  theConfig->closeConfiguration();
   {
-    Uint32 inx = globalEmulatorData.theConfiguration->addThreadId(MainThread);
+    NdbThread *pThis = NdbThread_CreateObject(0);
+    Uint32 inx = globalEmulatorData.theConfiguration->addThread(pThis,
+                                                                MainThread);
     globalEmulatorData.theThreadConfig->ipControlLoop(inx);
     globalEmulatorData.theConfiguration->removeThreadId(inx);
   }
