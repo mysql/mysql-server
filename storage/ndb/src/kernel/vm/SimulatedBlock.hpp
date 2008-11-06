@@ -393,8 +393,10 @@ protected:
   /**
    * General info event (sent to cluster log)
    */
-  void infoEvent(const char * msg, ...) const ;
-  void warningEvent(const char * msg, ...) const ;
+  void infoEvent(const char * msg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  void warningEvent(const char * msg, ...) const
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   
   /**
    * Get node state

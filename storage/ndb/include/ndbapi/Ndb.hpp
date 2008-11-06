@@ -1881,7 +1881,9 @@ private:
 			     struct LinearSectionPtr ptr[3]);
   static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
-  void printState(const char* fmt, ...);
+#include <my_attribute.h>
+  void printState(const char* fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 #endif
 };
 

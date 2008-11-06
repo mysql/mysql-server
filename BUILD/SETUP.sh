@@ -61,7 +61,7 @@ prefix="/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
-warning_mode=
+warning_mode="pedantic"
 
 parse_options "$@"
 
@@ -93,6 +93,9 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
   warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
   warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+
+  # Make "printf like format specifier warnings" into error
+  #warnings="$warnings -Werror=format"
 
 # For more warnings, uncomment the following line
 # warnings="$global_warnings -Wshadow"
