@@ -129,7 +129,8 @@ class ConfigManager : public MgmtThread {
   void sendConfigCheckConf(SignalSender& ss, BlockReference to) const;
 
 public:
-  ConfigManager(const MgmtSrvr::MgmtOpts&);
+  ConfigManager(const MgmtSrvr::MgmtOpts&,
+                const char* datadir);
   virtual ~ConfigManager();
   bool init();
   void set_facade(TransporterFacade* facade) { m_facade= facade; };

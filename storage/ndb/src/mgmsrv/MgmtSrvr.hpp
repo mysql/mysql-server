@@ -140,6 +140,11 @@ public:
 
   ~MgmtSrvr();
 
+private:
+  /* Function used from 'init' */
+  const char* check_datadir() const;
+
+public:
   /*
     To be called after constructor.
   */
