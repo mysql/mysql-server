@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.29)
+AM_INIT_AUTOMAKE(mysql, 5.1.30)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -405,12 +405,15 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-# If ln -f does not exists use -s (AFS systems)
-if test -n "$LN_CP_F"; then
-  LN_CP_F="$LN_CP_F -s"
-fi
-fi
+case $SYSTEM_TYPE in
+  *netware*) ;;
+  *)
+    # If ln -f does not exists use -s (AFS systems)
+    if test -n "$LN_CP_F"; then
+      LN_CP_F="$LN_CP_F -s"
+    fi
+    ;;
+esac
 
 AC_PATH_PROG(MV, mv, mv)
 AC_PATH_PROG(RM, rm, rm)
@@ -1642,14 +1645,16 @@ else
   OPTIMIZE_CXXFLAGS="-O"
 fi
 
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
-  DEBUG_CFLAGS="-g -DDEBUG -sym internal,codeview4"
-  DEBUG_CXXFLAGS="-g -DDEBUG -sym internal,codeview4"
-  DEBUG_OPTIMIZE_CC="-DDEBUG"
-  DEBUG_OPTIMIZE_CXX="-DDEBUG"
-  OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
-  OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
-fi
+case $SYSTEM_TYPE in
+  *netware*)
+    DEBUG_CFLAGS="-g -DDEBUG -sym internal,codeview4"
+    DEBUG_CXXFLAGS="-g -DDEBUG -sym internal,codeview4"
+    DEBUG_OPTIMIZE_CC="-DDEBUG"
+    DEBUG_OPTIMIZE_CXX="-DDEBUG"
+    OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
+    OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
+    ;;
+esac
 
 # If the user specified CFLAGS, we won't add any optimizations
 if test -n "$SAVE_CFLAGS"
@@ -1915,15 +1920,18 @@ MYSQL_TZNAME
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-MYSQL_CHECK_LONGLONG_TO_FLOAT
-if test "$ac_cv_conv_longlong_to_float" != "yes"
-then
-  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
-If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-again])
-fi
-fi
+case $SYSTEM_TYPE in
+  *netware*) ;;
+  *)
+    MYSQL_CHECK_LONGLONG_TO_FLOAT
+    if test "$ac_cv_conv_longlong_to_float" != "yes"
+    then
+      AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+ If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
+    again])
+    fi
+    ;;
+esac
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
 AC_CHECK_TYPES([u_int32_t])
@@ -2549,11 +2557,12 @@ readline_h_ln_cmd=""
 readline_link=""
 want_to_use_readline="no"
 
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
-then
+case $SYSTEM_TYPE in
+  *netware*)
     # For NetWare, do not need readline
     echo "Skipping readline"
-else
+    ;;
+  *)
     if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
     then
 	readline_topdir="cmd-line-utils"
@@ -2606,7 +2615,8 @@ else
 	      be built with libreadline. Please use --with-libedit to use
 	      the bundled version of libedit instead.])
     fi
-fi
+    ;;
+esac
 
 AC_SUBST(readline_dir)
 AC_SUBST(readline_topdir)
