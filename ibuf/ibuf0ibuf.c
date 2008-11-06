@@ -2676,6 +2676,7 @@ ibuf_get_volume_buffered(
 
 	volume = 0;
 	*n_recs = 0;
+	memset(hash_bitmap, 0, sizeof hash_bitmap);
 
 	rec = btr_pcur_get_rec(pcur);
 	page = page_align(rec);
@@ -2697,6 +2698,9 @@ ibuf_get_volume_buffered(
 		}
 
 		volume += ibuf_rec_get_volume(rec);
+
+		ibuf_get_volume_buffered_count(
+			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_prev(rec);
 	}
@@ -2747,6 +2751,9 @@ ibuf_get_volume_buffered(
 		}
 
 		volume += ibuf_rec_get_volume(rec);
+
+		ibuf_get_volume_buffered_count(
+			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_prev(rec);
 	}
