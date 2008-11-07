@@ -380,7 +380,7 @@ bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
-bool opt_endinfo, using_udf_functions;
+bool using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
@@ -412,14 +412,10 @@ handlerton *partition_hton;
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 const char *opt_ndbcluster_connectstring= 0;
-const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024]= {0};
-unsigned opt_ndb_constrbuf_len= 0;
 my_bool	opt_ndb_shm;
 ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
 ulong opt_ndb_cluster_connection_pool;
-const char *opt_ndb_mgmd;
-ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
 ulong ndb_report_thresh_binlog_epoch_slip= 0;
 ulong ndb_report_thresh_binlog_mem_usage= 0;
@@ -427,6 +423,11 @@ my_bool opt_ndb_log_update_as_write= FALSE;
 my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
 
+extern bool opt_endinfo;
+extern const char *opt_ndb_connectstring;
+extern unsigned opt_ndb_constrbuf_len;
+extern const char *opt_ndb_mgmd;
+extern ulong opt_ndb_nodeid;
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
 extern const char *opt_ndb_distribution;
