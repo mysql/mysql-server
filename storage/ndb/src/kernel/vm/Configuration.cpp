@@ -471,15 +471,18 @@ Configuration::setupConfiguration(){
 	      "RealtimeScheduler missing");
   }
 
-  if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &_executeLockCPU)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "LockExecuteThreadToCPU missing");
+  const char * mask;
+  if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
+  {
+    if (_executeLockCPU.parseMask(mask) < 0)
+    {
+      _executeLockCPU.clear();
+    }
   }
 
-  if(iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "LockMaintThreadsToCPU missing");
-  }
+  _maintLockCPU = NO_LOCK_CPU;
+  iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU);
+
   if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, &_timeBetweenWatchDogCheckInitial)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheckInitial missing");
@@ -570,16 +573,38 @@ Configuration::realtimeScheduler(bool realtime_on)
 Uint32
 Configuration::executeLockCPU() const
 {
-  return _executeLockCPU;
+  unsigned res = _executeLockCPU.find(0);
+  if (res == _executeLockCPU.NotFound)
+    return NO_LOCK_CPU;
+  else
+    return res;
 }
 
 void
 Configuration::executeLockCPU(Uint32 value)
 {
-  Uint32 old_value = _executeLockCPU;
-  _executeLockCPU = value;
-  if (value != old_value)
+  if (value >= NDB_CPU_MASK_SZ)
+  {
+    value = NO_LOCK_CPU;
+  }
+
+  bool changed = false;
+  if (value == NO_LOCK_CPU)
+  {
+    changed = _executeLockCPU.count() > 0;
+    _executeLockCPU.clear();
+  }
+  else
+  {
+    changed = _executeLockCPU.get(value) == false;
+    _executeLockCPU.clear();
+    _executeLockCPU.set(value);
+  }
+
+  if (changed)
+  {
     setAllLockCPU(TRUE);
+  }
 }
 
 Uint32
@@ -1083,7 +1108,7 @@ Configuration::setLockCPU(NdbThread * pThread,
       (!exec_thread && type == MainThread))
     return 0;
   if (type == MainThread)
-    cpu_id = _executeLockCPU;
+    cpu_id = executeLockCPU();
   else
     cpu_id = _maintLockCPU;
   if (!init ||
@@ -1121,7 +1146,14 @@ Configuration::addThread(struct NdbThread* pThread, enum ThreadTypes type)
   threadInfo[i].type = type;
   NdbMutex_Unlock(threadIdMutex);
   setRealtimeScheduler(pThread, type, _realtimeScheduler, TRUE);
-  setLockCPU(pThread, type, (type == MainThread), TRUE);
+  if (type != MainThread)
+  {
+    /**
+     * main threads are set in ThreadConfig::ipControlLoop
+     * as it's handled differently with mt
+     */
+    setLockCPU(pThread, type, (type == MainThread), TRUE);
+  }
   return i;
 }
 

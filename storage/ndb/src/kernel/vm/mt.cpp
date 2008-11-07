@@ -39,6 +39,7 @@
 #include <DebuggerNames.hpp>
 #include <signaldata/StopForCrash.hpp>
 #include "TransporterCallbackKernel.hpp"
+#include <NdbSleep.h>
 
 #include "mt-asm.h"
 
@@ -724,6 +725,9 @@ struct thr_data
   BlockNumber m_instance_list[MAX_INSTANCES_PER_THREAD];
 
   SectionSegmentPool::Cache m_sectionPoolCache;
+
+  Uint32 m_cpu;
+  NdbThread* m_thread;
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -2294,48 +2298,40 @@ init_thread(thr_data *selfptr)
   selfptr->m_waiter.init();
   selfptr->m_jam.theEmulatedJamIndex = 0;
   selfptr->m_jam.theEmulatedJamBlockNumber = 0;
-  memset(selfptr->m_jam.theEmulatedJam, 0, sizeof(selfptr->m_jam.theEmulatedJam));
+  bzero(selfptr->m_jam.theEmulatedJam, sizeof(selfptr->m_jam.theEmulatedJam));
   NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, &selfptr->m_jam);
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_THREAD, selfptr);
 
   unsigned thr_no = selfptr->m_thr_no;
   globalEmulatorData.theWatchDog->registerWatchedThread(&selfptr->m_watchdog_counter,
                                                         thr_no);
-  BaseString tmp;
-
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_THREAD, selfptr);
-  tmp.appfmt("thr: %u ", thr_no);
-#ifdef SYS_gettid
-  tmp.appfmt("tid: %u ", (unsigned)syscall(SYS_gettid));
-#endif
-
-#if 0
-#if defined SYS_gettid && defined HAVE_SCHED_SETAFFINITY
-  bool lock_to_cpu = false;
-  if (lock_to_cpu)
   {
-    uint cpu_no = 1;
-    if (!(thr_no <= 1 || thr_no == num_threads - 1))
+    while(selfptr->m_thread == 0)
+      NdbSleep_MilliSleep(30);
+  }
+
+  BaseString tmp;
+  tmp.appfmt("thr: %u ", thr_no);
+
+  int tid = NdbThread_GetTid(selfptr->m_thread);
+  if (tid != -1)
+  {
+    tmp.appfmt("tid: %u ", (unsigned)syscall(SYS_gettid));
+  }
+
+  if (selfptr->m_cpu != NO_LOCK_CPU)
+  {
+    tmp.appfmt("cpu: %u ", selfptr->m_cpu);
+    int res = NdbThread_LockCPU(selfptr->m_thread, selfptr->m_cpu);
+    if (res == 0)
     {
-      cpu_no = (thr_no & 3);
+      tmp.appfmt("OK ");
     }
-    tmp.appfmt("cpu: %u ", cpu_no);
+    else
     {
-      unsigned tid = (unsigned)syscall(SYS_gettid);
-      cpu_set_t mask;
-      CPU_ZERO(&mask);
-      CPU_SET(cpu_no, &mask);
-      if (sched_setaffinity(tid, sizeof(mask), &mask) == 0)
-      {
-        tmp.appfmt("OK ");
-      }
-      else
-      {
-        tmp.appfmt("err: %u ", errno);
-      }
+      tmp.appfmt("err: %u ", res);
     }
   }
-#endif
-#endif
   
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
   {
@@ -2790,6 +2786,9 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
     selfptr->m_instance_list[i] = 0;
 
   bzero(&selfptr->m_send_buffers, sizeof(selfptr->m_send_buffers));
+
+  selfptr->m_thread = 0;
+  selfptr->m_cpu = NO_LOCK_CPU;
 }
 
 /* Have to do this after init of all m_in_queues is done. */
@@ -2885,11 +2884,106 @@ ThreadConfig::init(EmulatorData *emulatorData)
   ::rep_init(&g_thr_repository, num_threads, emulatorData->m_mem_manager);
 }
 
-void ThreadConfig::ipControlLoop(Uint32 thread_index)
+static
+void
+setcpuaffinity(struct thr_repository* rep)
+{
+  Bitmask<NDB_CPU_MASK_SZ/32> mask =
+    globalEmulatorData.theConfiguration->getExecuteCpuMask();
+
+
+  bool mtlqh = globalData.ndbMtLqhThreads > 0;
+  unsigned cnt = mask.count();
+  if (cnt == 0)
+  {
+    return;
+  }
+  else if (cnt >= num_threads)
+  {
+    unsigned cpu = mask.find(0);
+    for (unsigned thr_no = 0; thr_no < num_threads; thr_no++)
+    {
+      rep->m_thread[thr_no].m_cpu = cpu;
+      cpu = mask.find(cpu + 1);
+    }
+  }
+  else if (cnt == 1)
+  {
+    unsigned cpu = mask.find(0);
+    for (unsigned thr_no = 0; thr_no < num_threads; thr_no++)
+    {
+      rep->m_thread[thr_no].m_cpu = cpu;
+    }
+  }
+  else if (mtlqh)
+  {
+    if (cnt > globalData.ndbMtLqhThreads)
+    {
+      /**
+       * let each LQH have it's on CPU and rest share...
+       */
+      // LQH threads start with 2
+      unsigned cpu = mask.find(0);
+      for (unsigned thr_no = 2; thr_no < num_threads - 1; thr_no++)
+      {
+        rep->m_thread[thr_no].m_cpu = cpu;
+        mask.clear(cpu);
+        cpu = mask.find(cpu + 1);
+      }
+
+      cpu = mask.find(0);
+      rep->m_thread[0].m_cpu = cpu; // TC
+      rep->m_thread[1].m_cpu = cpu; // backup/suma
+      if ((cpu = mask.find(cpu + 1)) == mask.NotFound)
+      {
+        cpu = mask.find(0);
+      }
+      rep->m_thread[receiver_thread_no].m_cpu = cpu; // receiver
+    }
+    else
+    {
+      // put receiver, tc, backup/suma in 1 thread, and round robin LQH for rest
+      unsigned cpu = mask.find(0);
+      rep->m_thread[0].m_cpu = cpu; // TC
+      rep->m_thread[1].m_cpu = cpu; // backup/suma
+      rep->m_thread[receiver_thread_no].m_cpu = cpu; // receiver
+      mask.clear(cpu);
+      cpu = mask.find(0);
+      for (unsigned thr_no = 2; thr_no < num_threads - 1; thr_no++)
+      {
+        rep->m_thread[thr_no].m_cpu = cpu;
+        cpu = mask.find(cpu + 1);
+        if (cpu == mask.NotFound)
+        {
+          cpu = mask.find(0);
+        }
+      }
+    }
+  }
+  else
+  {
+    /**
+     * mt-classic and cnt > 1
+     */
+    assert(num_threads == 3);
+    unsigned cpu = mask.find(0);
+    rep->m_thread[1].m_cpu = cpu; // LQH
+    cpu = mask.find(cpu + 1);
+    rep->m_thread[0].m_cpu = cpu;
+    rep->m_thread[2].m_cpu = cpu;
+  }
+}
+
+void
+ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
 {
   unsigned int thr_no;
   struct thr_repository* rep = &g_thr_repository;
-  NdbThread *threads[MAX_THREADS];
+
+  /**
+   * assign threads to CPU's
+   */
+  setcpuaffinity(rep);
 
   /*
    * Start threads for all execution threads, except for the receiver
@@ -2901,19 +2995,22 @@ void ThreadConfig::ipControlLoop(Uint32 thread_index)
 
     if (thr_no == receiver_thread_no)
       continue;                 // Will run in the main thread.
+
     /*
      * The NdbThread_Create() takes void **, but that is cast to void * when
      * passed to the thread function. Which is kind of strange ...
      */
-    threads[thr_no] = NdbThread_Create(mt_job_thread_main,
-                                           (void **)(rep->m_thread + thr_no),
-                                           1024*1024,
-                                           "execute thread", //ToDo add number
-                                           NDB_THREAD_PRIO_MEAN);
-    assert(threads[thr_no] != NULL);
+    rep->m_thread[thr_no].m_thread =
+      NdbThread_Create(mt_job_thread_main,
+                       (void **)(rep->m_thread + thr_no),
+                       1024*1024,
+                       "execute thread", //ToDo add number
+                       NDB_THREAD_PRIO_MEAN);
+    assert(rep->m_thread[thr_no].m_thread != NULL);
   }
 
   /* Now run the main loop for thread 0 directly. */
+  rep->m_thread[receiver_thread_no].m_thread = pThis;
   mt_receiver_thread_main(&(rep->m_thread[receiver_thread_no]));
 
   /* Wait for all threads to shutdown. */
@@ -2922,8 +3019,8 @@ void ThreadConfig::ipControlLoop(Uint32 thread_index)
     if (thr_no == receiver_thread_no)
       continue;
     void *dummy_return_status;
-    NdbThread_WaitFor(threads[thr_no], &dummy_return_status);
-    NdbThread_Destroy(&(threads[thr_no]));
+    NdbThread_WaitFor(rep->m_thread[thr_no].m_thread, &dummy_return_status);
+    NdbThread_Destroy(&(rep->m_thread[thr_no].m_thread));
   }
 }
 
