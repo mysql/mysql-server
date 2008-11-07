@@ -96,7 +96,7 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   warnings="$warnings -Wunused-value -Wunused-variable"
 
   # Make "printf like format specifier warnings" into error
-  warnings="$warnings -Werror=format"
+  #warnings="$warnings -Werror=format"
 
 # For more warnings, uncomment the following line
 # warnings="$global_warnings -Wshadow"
