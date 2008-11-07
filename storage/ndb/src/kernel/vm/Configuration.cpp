@@ -1094,6 +1094,7 @@ Configuration::setLockCPU(NdbThread * pThread,
                           bool exec_thread,
                           bool init)
 {
+  (void)init;
   Uint32 cpu_id;
   int tid = NdbThread_GetTid(pThread);
   if (tid == -1)
@@ -1111,8 +1112,8 @@ Configuration::setLockCPU(NdbThread * pThread,
     cpu_id = executeLockCPU();
   else
     cpu_id = _maintLockCPU;
-  if (!init ||
-      cpu_id != NO_LOCK_CPU)
+
+  if (cpu_id != NO_LOCK_CPU)
   {
     int error_no;
     ndbout << "Lock threadId = " << tid;
