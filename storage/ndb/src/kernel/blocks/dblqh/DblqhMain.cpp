@@ -18896,7 +18896,7 @@ Dblqh::validate_filter(Signal* signal)
       start += 3;
       break;
     default:
-      infoEvent("Invalid filter op: 0x%x pos: %d",
+      infoEvent("Invalid filter op: 0x%x pos: %ld",
 		* start,
 		start - (signal->theData + 1));
       return false;
