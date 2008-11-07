@@ -1089,6 +1089,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
         memcpy(&vv, val.data, val.size);
         assert(vv == (int) htonl(i));
 
+	//if (n==512 && i<=360) { printf("i=%d\n", i); toku_dump_brt(stdout, t); }
         r = toku_brt_cursor_delete(cursor, 0, null_txn); assert(r == 0);
     }
     assert(i == -1);

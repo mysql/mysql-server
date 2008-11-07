@@ -291,8 +291,15 @@ main (int argc, const char *argv[]) {
         }
     } else {
 	BLOCKNUM blocknum;
+	printf("Block translation:");
+	for (blocknum.b=0; blocknum.b<h->unused_blocks.b; blocknum.b++) {
+	    printf(" %" PRIu64 ":", blocknum.b);
+	    if (h->block_translation[blocknum.b].size == -1) printf("free");
+	    else printf("%" PRIu64 ":%" PRIu64, h->block_translation[blocknum.b].diskoff, h->block_translation[blocknum.b].size);
+	}
 	for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
-	    dump_node(f, blocknum, h);
+	    if (h->block_translation[blocknum.b].size != -1)
+		dump_node(f, blocknum, h);
         }
     }
     toku_brtheader_free(h);

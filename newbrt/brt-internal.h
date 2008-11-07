@@ -115,8 +115,8 @@ struct remembered_hash {
 };
 
 struct block_translation_pair {
-    DISKOFF diskoff;
-    DISKOFF size;
+    DISKOFF diskoff; // When in free list, set to the next free block.  In this case it's really a BLOCKNUM.
+    DISKOFF size;    // set to 0xFFFFFFFFFFFFFFFF for free
 };
 
 // The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.

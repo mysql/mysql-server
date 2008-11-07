@@ -546,13 +546,59 @@ void toku_brtheader_free (struct brt_header *h) {
     toku_free(h);
 }
 
+void
+extend_block_translation (BLOCKNUM blocknum, struct brt_header *h)
+// Effect: Record a block translation.  This means extending the translation table, and setting the diskoff and size to zero in any of the unused spots.
+{
+    if (h->translated_blocknum_limit <= (u_int64_t)blocknum.b) {
+	if (h->block_translation == 0) assert(h->translated_blocknum_limit==0);
+	u_int64_t new_limit = blocknum.b + 1;
+	u_int64_t old_limit = h->translated_blocknum_limit;
+	u_int64_t j;
+	XREALLOC_N(new_limit, h->block_translation);
+	for (j=old_limit; j<new_limit; j++) {
+	    h->block_translation[j].diskoff = 0;
+	    h->block_translation[j].size    = 0;
+	}
+	h->translated_blocknum_limit = new_limit;
+    }
+}
+
+const DISKOFF diskoff_is_null = (DISKOFF)-1; // in a freelist, this indicates end of list
+const DISKOFF size_is_free = (DISKOFF)-1;
+
 static int
 allocate_diskblocknumber (BLOCKNUM *res, BRT brt, TOKULOGGER logger __attribute__((__unused__))) {
-    assert(brt->h->free_blocks.b == -1); // no blocks in the free list
-    BLOCKNUM result = brt->h->unused_blocks;
-    brt->h->unused_blocks.b++;
-    brt->h->dirty = 1;
+    BLOCKNUM result;
+    if (brt->h->free_blocks.b == diskoff_is_null) {
+	// no blocks in the free list
+	result = brt->h->unused_blocks;
+	brt->h->unused_blocks.b++;
+    } else {
+	result = brt->h->free_blocks;
+	assert(brt->h->block_translation[result.b].size = size_is_free);
+	brt->h->block_translation[result.b].size = 0;
+	brt->h->free_blocks.b = brt->h->block_translation[result.b].diskoff; // pop the freelist
+    }
+    assert(result.b>0);
     *res = result;
+    brt->h->dirty = 1;
+    return 0;
+}
+
+static int
+free_diskblocknumber (BLOCKNUM *b, struct brt_header *h, TOKULOGGER logger __attribute__((__unused__)))
+// Effect: Free a diskblock
+//  Watch out for the case where the disk block was never yet written to disk and is beyond the translated_blocknum_limit.
+{
+    extend_block_translation(*b, h);
+    assert((u_int64_t)b->b <= h->translated_blocknum_limit);
+    assert(h->block_translation[b->b].size != size_is_free);
+    h->block_translation[b->b].size = size_is_free;
+    h->block_translation[b->b].diskoff = h->free_blocks.b;
+    h->free_blocks.b = b->b;
+    b->b = 0;
+    h->dirty = 1;
     return 0;
 }
 
@@ -2080,14 +2126,18 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
     // Unpin both, and return the first nonzero error code that is found
     assert(node->dirty);
     {
+	int rrb1 = 0;
 	int rra = toku_unpin_brtnode(t, childa);
 	int rrb;
 	if (did_merge) {
-	    rrb = toku_cachetable_unpin_and_remove(t->cf, childb->thisnodename);
+	    BLOCKNUM bn = childb->thisnodename;
+	    rrb = toku_cachetable_unpin_and_remove(t->cf, bn);
+	    rrb1 = free_diskblocknumber(&bn, t->h, logger);
 	} else {
 	    rrb = toku_unpin_brtnode(t, childb);
 	}
 
+	if (rrb1) return rrb1;
 	if (rra) return rra;
 	if (rrb) return rrb;
     }
@@ -4125,6 +4175,12 @@ int toku_dump_brt (FILE *f, BRT brt) {
     CACHEKEY *rootp;
     assert(brt->h);
     u_int32_t fullhash;
+    u_int64_t i;
+    fprintf(f, "Block translation:");
+    for (i=0; i<brt->h->translated_blocknum_limit; i++) {
+        fprintf(f, " %"PRIu64": %"PRId64" %"PRId64"", i, brt->h->block_translation[i].diskoff, brt->h->block_translation[i].size);
+    }
+    fprintf(f, "\n");
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0, 0, 0);
 }

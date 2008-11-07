@@ -294,7 +294,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 	assert(r==Z_OK);
     }
 
-    if (0) printf("Size before compressing %u, after compression %lu\n", calculated_size-uncompressed_magic_len, compressed_len);
+    if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %lu\n", blocknum.b, calculated_size-uncompressed_magic_len, compressed_len);
 
     ((int32_t*)(compressed_buf+uncompressed_magic_len))[0] = htonl(compressed_len);
     ((int32_t*)(compressed_buf+uncompressed_magic_len))[1] = htonl(uncompressed_len);
@@ -308,18 +308,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 	//printf("%s:%d translated_blocknum_limit=%lu blocknum.b=%lu\n", __FILE__, __LINE__, h->translated_blocknum_limit, blocknum.b);
 	//printf("%s:%d allocator=%p\n", __FILE__, __LINE__, h->block_allocator);
 	//printf("%s:%d bt=%p\n", __FILE__, __LINE__, h->block_translation);
-	if (h->translated_blocknum_limit <= (u_int64_t)blocknum.b) {
-	    if (h->block_translation == 0) assert(h->translated_blocknum_limit==0);
-	    u_int64_t new_limit = blocknum.b + 1;
-	    u_int64_t old_limit = h->translated_blocknum_limit;
-	    u_int64_t j;
-	    XREALLOC_N(new_limit, h->block_translation);
-	    for (j=old_limit; j<new_limit; j++) {
-		h->block_translation[j].diskoff = 0;
-		h->block_translation[j].size    = 0;
-	    }
-	    h->translated_blocknum_limit = new_limit;
-	}
+	extend_block_translation(blocknum, h);
 	if (h->block_translation[blocknum.b].size > 0) {
 	    block_allocator_free_block(h->block_allocator, h->block_translation[blocknum.b].diskoff);
 	    h->block_translation[blocknum.b].diskoff = 0;
@@ -344,6 +333,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 }
 
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
+    if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
     assert(0 <= blocknum.b && (u_int64_t)blocknum.b < h->translated_blocknum_limit);
     DISKOFF offset = h->block_translation[blocknum.b].diskoff;
     TAGMALLOC(BRTNODE, result);
@@ -371,8 +361,8 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	compressed_size   = ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
 	if (compressed_size<=0   || compressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
 	uncompressed_size = ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
+	if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
 	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
-	if (0) printf("Compressed size = %u, uncompressed size=%u\n", compressed_size, uncompressed_size);
     }
     
     //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, uncompressed_size);
