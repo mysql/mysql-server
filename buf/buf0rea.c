@@ -177,9 +177,6 @@ buf_read_ahead_random(
 	ulint	offset)	/* in: page number of a page which the current thread
 			wants to access */
 {
-#if 1
-	return(0);
-#else
 	ib_int64_t	tablespace_version;
 	ulint		recent_blocks	= 0;
 	ulint		count;
@@ -312,7 +309,6 @@ read_ahead:
 
 	++srv_read_ahead_rnd;
 	return(count);
-#endif
 }
 
 /************************************************************************
@@ -399,9 +395,6 @@ buf_read_ahead_linear(
 	ulint	offset)	/* in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
 {
-#if 1
-	return(0);
-#else
 	ib_int64_t	tablespace_version;
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
@@ -634,7 +627,6 @@ buf_read_ahead_linear(
 
 	++srv_read_ahead_seq;
 	return(count);
-#endif
 }
 
 /************************************************************************
