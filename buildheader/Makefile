@@ -12,7 +12,7 @@
 # 4. make hs
 
 BDB = 4_4
-BDBDIR = ../../berkeleydb
+BDBDIR = ../../../berkeleydb
 MYSQL_H = -I$(BDBDIR)/db-4.1.25/build_unix/
 OPTFLAGS = -O2
 CFLAGS = -Wall -W -Werror -g $(OPTFLAGS)

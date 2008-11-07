@@ -81,6 +81,9 @@ void print_defines (void) {
     dodefine(DB_USE_ENVIRON);
     dodefine(DB_USE_ENVIRON_ROOT);
 
+#ifdef DB_READ_UNCOMMITTED
+    dodefine(DB_READ_UNCOMMITTED);
+#endif
     dodefine(DB_KEYEMPTY);
     dodefine(DB_KEYEXIST);
     dodefine(DB_LOCK_DEADLOCK);
