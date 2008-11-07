@@ -363,6 +363,43 @@ TYPELIB query_cache_type_typelib=
   array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
 };
 
+
+/**
+  Helper function for determine if a SELECT statement has a SQL_NO_CACHE
+  directive.
+  
+  @param sql A pointer to the first white space character after SELECT
+  
+  @return
+   @retval TRUE The character string contains SQL_NO_CACHE
+   @retval FALSE No directive found.
+*/
+ 
+static bool has_no_cache_directive(char *sql)
+{
+  int i=0;
+  while (sql[i] == ' ')
+    ++i;
+    
+  if (my_toupper(system_charset_info, sql[i])    == 'S' &&
+      my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
+      my_toupper(system_charset_info, sql[i+2])  == 'L' &&
+      my_toupper(system_charset_info, sql[i+3])  == '_' &&
+      my_toupper(system_charset_info, sql[i+4])  == 'N' &&
+      my_toupper(system_charset_info, sql[i+5])  == 'O' &&
+      my_toupper(system_charset_info, sql[i+6])  == '_' &&
+      my_toupper(system_charset_info, sql[i+7])  == 'C' &&
+      my_toupper(system_charset_info, sql[i+8])  == 'A' &&
+      my_toupper(system_charset_info, sql[i+9])  == 'C' &&
+      my_toupper(system_charset_info, sql[i+10]) == 'H' &&
+      my_toupper(system_charset_info, sql[i+11]) == 'E' &&
+      my_toupper(system_charset_info, sql[i+12]) == ' ')
+    return TRUE;
+  
+  return FALSE;       
+}
+
+
 /*****************************************************************************
  Query_cache_block_table method(s)
 *****************************************************************************/
@@ -1083,6 +1120,16 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
         sql[i] != '/')
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+      goto err;
+    }
+    
+    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+    {
+      /*
+        We do not increase 'refused' statistics here since it will be done
+        later when the query is parsed.
+      */
+      DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
       goto err;
     }
   }
