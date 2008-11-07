@@ -21,6 +21,7 @@
 #include <ndb_types.h>
 #include <NdbMutex.h>
 #include <NdbThread.h>
+#include <Bitmask.hpp>
 
 enum ThreadTypes
 {
@@ -34,6 +35,7 @@ enum ThreadTypes
 
 #define MAX_NDB_THREADS 256
 #define NO_LOCK_CPU 65535
+#define NDB_CPU_MASK_SZ 256
 
 struct ThreadInfo
 {
@@ -72,6 +74,9 @@ public:
 
   Uint32 executeLockCPU() const;
   void executeLockCPU(Uint32 value);
+  const Bitmask<NDB_CPU_MASK_SZ/32> & getExecuteCpuMask() const {
+    return _executeLockCPU;
+  }
 
   Uint32 maintLockCPU() const;
   void maintLockCPU(Uint32 value);
@@ -140,7 +145,7 @@ private:
   Uint32 _schedulerExecutionTimer;
   Uint32 _schedulerSpinTimer;
   Uint32 _realtimeScheduler;
-  Uint32 _executeLockCPU;
+  Bitmask<NDB_CPU_MASK_SZ/32> _executeLockCPU;
   Uint32 _maintLockCPU;
   Uint32 _timeBetweenWatchDogCheckInitial;
 
