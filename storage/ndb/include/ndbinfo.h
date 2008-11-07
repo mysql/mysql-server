@@ -39,7 +39,7 @@ struct ndbinfo_column {
 
 struct ndbinfo_table {
   NDBINFO_TABLE_MEMBERS
-  struct ndbinfo_column col[];
+  struct ndbinfo_column col[0];
 };
 
 /* because MSVC compiler hates you (or rather, zero length arrays) */

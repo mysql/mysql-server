@@ -2452,7 +2452,7 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   if (getNodeActiveStatus(nodePtr.i) == Sysfile::NS_NotDefined)
   {
     jam();
-    infoEvent("Adding node % to sysfile, NS_Configured",
+    infoEvent("Adding node %d to sysfile, NS_Configured",
               nodePtr.i);
     setNodeActiveStatus(nodePtr.i, Sysfile::NS_Configured);
     Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups,
