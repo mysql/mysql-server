@@ -14,6 +14,7 @@ enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY } run_mode = RUN_HWC;
 int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
 long limitcount=-1;
+u_int32_t cachesize = 127*1024*1024;
 
 void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
@@ -39,6 +40,10 @@ void parse_args (int argc, const char *argv[]) {
 	    argv++; argc--;
 	    errno=0; limitcount=strtol(*argv, &end, 10); assert(errno==0);
 	    printf("Limiting count to %ld\n", limitcount);
+        } else if (strcmp(*argv, "--cachesize")==0 && argc>0) {
+            char *end;
+            argv++; argc--;
+            cachesize=(u_int32_t)strtol(*argv, &end, 10);
 	} else {
 	    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
 	    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
@@ -49,6 +54,7 @@ void parse_args (int argc, const char *argv[]) {
 	    fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
 	    fprintf(stderr, "  --nox               no transactions\n");
 	    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
+            fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
 	    exit(1);
 	}
 	argc--;
@@ -71,7 +77,7 @@ char *dbfilename = "bench.db";
 void setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
-    r = env->set_cachesize(env, 0, 127*1024*1024, 1);                                     assert(r==0);
+    r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
     r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, 0644);   assert(r==0);
     r = db_create(&db, env, 0);                                                           assert(r==0);
     if (do_txns) {
@@ -248,6 +254,27 @@ int main (int argc, const char *argv[]) {
         extern void toku_print_trace_mem();
         toku_print_trace_mem();
     }
+#if 0
+    char fname[256];
+    sprintf(fname, "/proc/%d/status", getpid());
+    FILE *f = fopen(fname, "r");
+    if (f) {
+        char line[256];
+        while (fgets(line, sizeof line, f))
+            fputs(line, stdout);
+        fclose(f);
+    }
+    {
+    sprintf(fname, "/proc/%d/statm", getpid());
+    FILE *f = fopen(fname, "r");
+    if (f) {
+        char line[256];
+        while (fgets(line, sizeof line, f))
+            fputs(line, stdout);
+        fclose(f);
+    }
+    }
+#endif
 #endif
     return 0;
 }
