@@ -288,13 +288,23 @@ ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find tar
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 create table t1(a int auto_increment primary key, b int);
 insert into t1 values (NULL, 1);
-reset master;
 set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create table t1(a int auto_increment primary key, b int)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -304,5 +314,4 @@ a	b
 1	1
 5	1
 6	1
-drop table t1;
 drop table t1;
