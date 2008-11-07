@@ -193,7 +193,7 @@ int main(int argc, char** argv){
   }
   delete com;
 
-  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return ret;
 }
 

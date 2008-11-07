@@ -252,7 +252,7 @@ start:
 
   g_eventLogger->close();
 
-  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return 0;
 }
 

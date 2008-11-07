@@ -70,7 +70,7 @@ ndb_std_get_one_option(int optid,
     {
       DBUG_PUSH("d:t");
     }
-    opt_endinfo= 1;
+    opt_ndb_endinfo= 1;
     break;
 #endif
   case 'V':
