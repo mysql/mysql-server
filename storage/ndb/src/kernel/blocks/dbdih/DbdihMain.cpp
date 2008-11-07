@@ -2975,7 +2975,6 @@ void Dbdih::execUPDATE_TOREQ(Signal* signal)
   return;
 
 ref:
-  ndbassert(false);
   UpdateToRef* ref = (UpdateToRef*)signal->getDataPtrSend();
   ref->senderData = req.senderData;
   ref->senderRef = reference();
@@ -3884,8 +3883,6 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
   jamEntry();
   UpdateToRef* ref = (UpdateToRef*)signal->getDataPtr();
   Uint32 errCode = ref->errorCode;
-
-  ndbassert(false);
 
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
