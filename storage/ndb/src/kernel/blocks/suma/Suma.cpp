@@ -85,6 +85,8 @@ extern EventLogger * g_eventLogger;
 #define DBUG_VOID_RETURN { ndbout_c("%s:%d <", __FILE__, __LINE__); return; }
 #endif
 
+#define DBG_3R 0
+
 /**
  * @todo:
  * SUMA crashes if an index is created at the same time as
@@ -292,7 +294,7 @@ Suma::execSTTOR(Signal* signal) {
       }
       
       ndbassert(tmp.get(getOwnNodeId()));
-      m_gcp_complete_rep_count = tmp.count();// I contribute 1 gcp complete rep
+      m_gcp_complete_rep_count = m_active_buckets.count();
     }
     else
       m_gcp_complete_rep_count = 0; // I contribute 1 gcp complete rep
@@ -342,34 +344,62 @@ Suma::execSTTOR(Signal* signal) {
 #include <ndb_version.h>
 
 void
-Suma::send_dict_lock_req(Signal* signal)
+Suma::send_dict_lock_req(Signal* signal, Uint32 state)
 {
-  if (ndbd_suma_dictlock(getNodeInfo(c_masterNodeId).m_version))
+  if (state == DictLockReq::SumaStartMe &&
+      !ndbd_suma_dictlock_startme(getNodeInfo(c_masterNodeId).m_version))
+  {
+    jam();
+    goto notsupported;
+  }
+  else if (state == DictLockReq::SumaHandOver &&
+           !ndbd_suma_dictlock_handover(getNodeInfo(c_masterNodeId).m_version))
+  {
+    jam();
+    goto notsupported;
+  }
+
   {
     jam();
     DictLockReq* req = (DictLockReq*)signal->getDataPtrSend();
-    req->lockType = DictLockReq::SumaStartMe;
-    req->userPtr = 0;
+    req->lockType = state;
+    req->userPtr = state;
     req->userRef = reference();
     sendSignal(calcDictBlockRef(c_masterNodeId),
                GSN_DICT_LOCK_REQ, signal, DictLockReq::SignalLength, JBB);
   }
-  else
-  {
-    jam();
-    c_startup.m_restart_server_node_id = 0;
-    send_start_me_req(signal);
-  }
+  return;
+
+notsupported:
+  DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
+  conf->userPtr = state;
+  execDICT_LOCK_CONF(signal);
 }
 
 void
 Suma::execDICT_LOCK_CONF(Signal* signal)
 {
   jamEntry();
-  c_startup.m_restart_server_node_id = 0;
 
-  CRASH_INSERTION(13039);
-  send_start_me_req(signal);
+  DictLockConf* conf = (DictLockConf*)signal->getDataPtr();
+  Uint32 state = conf->userPtr;
+
+  switch(state){
+  case DictLockReq::SumaStartMe:
+    jam();
+    c_startup.m_restart_server_node_id = 0;
+    CRASH_INSERTION(13039);
+    send_start_me_req(signal);
+    return;
+  case DictLockReq::SumaHandOver:
+    jam();
+    send_handover_req(signal);
+    return;
+  default:
+    jam();
+    jamLine(state);
+    ndbrequire(false);
+  }
 }
 
 void
@@ -378,10 +408,38 @@ Suma::execDICT_LOCK_REF(Signal* signal)
   jamEntry();
 
   DictLockRef* ref = (DictLockRef*)signal->getDataPtr();
+  Uint32 state = ref->userPtr;
 
   ndbrequire(ref->errorCode == DictLockRef::TooManyRequests);
   signal->theData[0] = SumaContinueB::RETRY_DICT_LOCK;
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 1);
+  signal->theData[1] = state;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 2);
+}
+
+void
+Suma::send_dict_unlock_ord(Signal* signal, Uint32 state)
+{
+  if (state == DictLockReq::SumaStartMe &&
+      !ndbd_suma_dictlock_startme(getNodeInfo(c_masterNodeId).m_version))
+  {
+    jam();
+    return;
+  }
+  else if (state == DictLockReq::SumaHandOver &&
+           !ndbd_suma_dictlock_handover(getNodeInfo(c_masterNodeId).m_version))
+  {
+    jam();
+    return;
+  }
+
+  jam();
+  DictUnlockOrd* ord = (DictUnlockOrd*)signal->getDataPtrSend();
+  ord->lockPtr = 0;
+  ord->lockType = state;
+  ord->senderData = state;
+  ord->senderRef = reference();
+  sendSignal(calcDictBlockRef(c_masterNodeId),
+             GSN_DICT_UNLOCK_ORD, signal, DictUnlockOrd::SignalLength, JBB);
 }
 
 void
@@ -441,18 +499,7 @@ Suma::execSUMA_START_ME_CONF(Signal* signal)
   infoEvent("Suma: node %d has completed restoring me", 
 	    c_startup.m_restart_server_node_id);
   sendSTTORRY(signal);  
-
-  if (ndbd_suma_dictlock(getNodeInfo(c_masterNodeId).m_version))
-  {
-    jam();
-    DictUnlockOrd* ord = (DictUnlockOrd*)signal->getDataPtrSend();
-    ord->lockPtr = 0;
-    ord->lockType = DictLockReq::SumaStartMe;
-    ord->senderData = 0;
-    ord->senderRef = reference();
-    sendSignal(calcDictBlockRef(c_masterNodeId),
-               GSN_DICT_UNLOCK_ORD, signal, DictUnlockOrd::SignalLength, JBB);
-  }
+  send_dict_unlock_ord(signal, DictLockReq::SumaStartMe);
   c_startup.m_restart_server_node_id= 0;
 }
 
@@ -518,6 +565,15 @@ Suma::execREAD_NODESCONF(Signal* signal){
     tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
     ndbrequire(tmp.isclear()); // No nodes can be started during SR
   }
+
+  if (DBG_3R)
+  {
+    for (Uint32 i = 0; i<MAX_NDB_NODES; i++)
+    {
+      if (c_alive_nodes.get(i))
+        ndbout_c("%u c_alive_nodes.set(%u)", __LINE__, i);
+    }
+  }
   
   c_masterNodeId = conf->masterNodeId;
   
@@ -542,6 +598,29 @@ Suma::getNodeGroupMembers(Signal* signal)
   DBUG_VOID_RETURN;
 }
 
+static
+bool
+valid_seq(Uint32 n, Uint32 r, Uint16 dst[])
+{
+  Uint16 tmp[MAX_REPLICAS];
+  for (Uint32 i = 0; i<r; i++)
+  {
+    tmp[i] = n % r;
+    for (Uint32 j = 0; j<i; j++)
+      if (tmp[j] == tmp[i])
+        return false;
+    n /= r;
+  }
+
+  /**
+   * reverse order for backward compatibility (with 2 replica)
+   */
+  for (Uint32 i = 0; i<r; i++)
+    dst[i] = tmp[r-i-1];
+
+  return true;
+}
+
 void
 Suma::fix_nodegroup()
 {
@@ -563,15 +642,40 @@ Suma::fix_nodegroup()
     for(i = 1; i <= replicas; i++)
       buckets *= i;
 
-    for(i = 0; i<buckets; i++)
+    Uint32 tot = 0;
+    switch(replicas){
+    case 1:
+      tot = 1;
+      break;
+    case 2:
+      tot = 4; // 2^2
+      break;
+    case 3:
+      tot = 27; // 3^3
+      break;
+    case 4:
+      tot = 256; // 4^4
+      break;
+      ndbrequire(false);
+    }
+    Uint32 cnt = 0;
+    for (i = 0; i<tot; i++)
     {
-      Bucket* ptr= c_buckets+i;
-      for(Uint32 j= 0; j< replicas; j++)
+      Bucket* ptr= c_buckets + cnt;
+      if (valid_seq(i, replicas, ptr->m_nodes))
       {
-        ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
+        jam();
+        if (DBG_3R) printf("bucket %u : ", cnt);
+        for (Uint32 j = 0; j<replicas; j++)
+        {
+          ptr->m_nodes[j] = c_nodesInGroup[ptr->m_nodes[j]];
+          if (DBG_3R) printf("%u ", ptr->m_nodes[j]);
+        }
+        if (DBG_3R) printf("\n");
+        cnt++;
       }
     }
-
+    ndbrequire(cnt == buckets);
     c_no_of_buckets= buckets;
   }
   else
@@ -610,7 +714,7 @@ Suma::execCHECKNODEGROUPSCONF(Signal *signal)
   {
     jam();
     
-    send_dict_lock_req(signal);
+    send_dict_lock_req(signal, DictLockReq::SumaStartMe);
 
     return;
   }
@@ -648,7 +752,7 @@ Suma::check_start_handover(Signal* signal)
     if (c_no_of_buckets)
     {
       jam();
-      send_handover_req(signal);
+      send_dict_lock_req(signal, DictLockReq::SumaHandOver);
     }
     else
     {
@@ -746,7 +850,7 @@ Suma::execCONTINUEB(Signal* signal){
     return;
   case SumaContinueB::RETRY_DICT_LOCK:
     jam();
-    send_dict_lock_req(signal);
+    send_dict_lock_req(signal, signal->theData[1]);
     return;
   }
 }
@@ -1118,7 +1222,27 @@ Suma::execINCL_NODEREQ(Signal* signal){
   const Uint32 nodeId  = signal->theData[1];
 
   ndbrequire(!c_alive_nodes.get(nodeId));
-  c_alive_nodes.set(nodeId);
+  if (c_nodes_in_nodegroup_mask.get(nodeId))
+  {
+    /**
+     *
+     * XXX TODO: This should be removed
+     *           But, other nodes are (incorrectly) reported as started
+     *                even if they're not "started", but only INCL_NODEREQ'ed
+     */
+    c_alive_nodes.set(nodeId);
+
+    /**
+     *
+     * Nodes in nodegroup will be "alive" when
+     *   sending SUMA_HANDOVER_REQ
+     */
+  }
+  else
+  {
+    jam();
+    c_alive_nodes.set(nodeId);
+  }
   
   signal->theData[0] = nodeId;
   signal->theData[1] = reference();
@@ -3666,20 +3790,16 @@ Suma::get_responsible_node(Uint32 bucket) const
     node= ptr->m_nodes[i];
     if(c_alive_nodes.get(node))
     {
-      break;
+#ifdef NODEFAIL_DEBUG2
+      theCounts[node]++;
+      ndbout_c("Suma:responsible n=%u, D=%u, id = %u, count=%u",
+               n,D, id, theCounts[node]);
+#endif
+      return node;
     }
   }
   
-  
-#ifdef NODEFAIL_DEBUG2
-  if(node != 0)
-  {
-    theCounts[node]++;
-    ndbout_c("Suma:responsible n=%u, D=%u, id = %u, count=%u",
-	     n,D, id, theCounts[node]);
-  }
-#endif
-  return node;
+  return 0;
 }
 
 Uint32 
@@ -4032,7 +4152,7 @@ found:
    */
   if(!m_switchover_buckets.isclear())
   {
-    NdbNodeBitmask takeover_nodes;
+    bool unlock = false;
     NdbNodeBitmask handover_nodes;
     Uint32 i = m_switchover_buckets.find(0);
     for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
@@ -4057,7 +4177,8 @@ found:
 	  m_active_buckets.set(i);
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_STARTING;
 	  ndbout_c("starting");
-	  m_gcp_complete_rep_count = 1;
+	  m_gcp_complete_rep_count++;
+          unlock = true;
 	}
 	else if(state & Bucket::BUCKET_TAKEOVER)
 	{
@@ -4081,8 +4202,8 @@ found:
 	  bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS + 1;
 
 	  m_active_buckets.set(i);
+          m_gcp_complete_rep_count++;
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_TAKEOVER;
-	  takeover_nodes.set(c_buckets[i].m_switchover_node);
 	}
 	else if (state & Bucket::BUCKET_HANDOVER)
 	{
@@ -4092,6 +4213,7 @@ found:
           jam();
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_HANDOVER;
 	  handover_nodes.set(c_buckets[i].m_switchover_node);
+          m_gcp_complete_rep_count--;
 	  ndbout_c("handover");
 	}
         else if (state & Bucket::BUCKET_CREATED)
@@ -4122,10 +4244,6 @@ found:
         }
       }
     }
-    ndbassert(handover_nodes.count() == 0 || 
-	      m_gcp_complete_rep_count > handover_nodes.count());
-    m_gcp_complete_rep_count -= handover_nodes.count();
-    m_gcp_complete_rep_count += takeover_nodes.count();
 
     if(getNodeState().startLevel == NodeState::SL_STARTING && 
        m_switchover_buckets.isclear() && 
@@ -4133,6 +4251,12 @@ found:
     {
       jam();
       sendSTTORRY(signal);
+    }
+
+    if (unlock)
+    {
+      jam();
+      send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
     }
   }
 
@@ -4842,7 +4966,7 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
   {
     jam();
     c_restart.m_waiting_on_self = 0;
-    if (!ndbd_suma_dictlock(getNodeInfo(refToNode(c_restart.m_ref)).m_version))
+    if (!ndbd_suma_dictlock_startme(getNodeInfo(refToNode(c_restart.m_ref)).m_version))
     {
       jam();
       /**
@@ -5044,7 +5168,9 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   // mark all active buckets really belonging to restarting SUMA
 
   c_alive_nodes.set(nodeId);
-  
+  if (DBG_3R)
+    ndbout_c("%u c_alive_nodes.set(%u)", __LINE__, nodeId);
+
   Bucket_mask tmp;
   for( Uint32 i = 0; i < c_no_of_buckets; i++) 
   {
@@ -5100,10 +5226,20 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
   ndbout_c("Suma::execSUMA_HANDOVER_CONF, gci = %u", gci);
 #endif
 
+  char buf[255];
+  tmp.getText(buf);
+  infoEvent("Suma: handover from node %d gci: %d buckets: %s (%d)",
+	    nodeId, gci, buf, c_no_of_buckets);
+  g_eventLogger->info("Suma: handover from node %d gci: %d buckets: %s (%d)",
+                      nodeId, gci, buf, c_no_of_buckets);
+
   for( Uint32 i = 0; i < c_no_of_buckets; i++) 
   {
     if (tmp.get(i))
     {
+      if (DBG_3R)
+        ndbout_c("%u : %u %u", i, get_responsible_node(i), getOwnNodeId());
+
       ndbrequire(get_responsible_node(i) == getOwnNodeId());
       // We should run this bucket, but _nodeId_ is
       c_buckets[i].m_switchover_gci = (Uint64(gci) << 32) - 1;
@@ -5111,10 +5247,6 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
     }
   }
   
-  char buf[255];
-  tmp.getText(buf);
-  infoEvent("Suma: handover from node %d gci: %d buckets: %s (%d)",
-	    nodeId, gci, buf, c_no_of_buckets);
   m_switchover_buckets.bitOR(tmp);
   c_startup.m_handover_nodes.clear(nodeId);
   DBUG_VOID_RETURN;

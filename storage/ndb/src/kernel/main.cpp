@@ -661,7 +661,7 @@ int main(int argc, char** argv)
     NdbThread *pThis = NdbThread_CreateObject(0);
     Uint32 inx = globalEmulatorData.theConfiguration->addThread(pThis,
                                                                 MainThread);
-    globalEmulatorData.theThreadConfig->ipControlLoop(inx);
+    globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
     globalEmulatorData.theConfiguration->removeThreadId(inx);
   }
   NdbShutdown(NST_Normal);

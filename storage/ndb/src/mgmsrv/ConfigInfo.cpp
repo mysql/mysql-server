@@ -622,11 +622,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_EXECUTE_LOCK_CPU,
     "LockExecuteThreadToCPU",
     DB_TOKEN,
-    "CPU ID indicating which CPU will run the execution thread",
+    "CPU list indicating which CPU will run the execution thread(s)",
     ConfigInfo::CI_USED,
     true,
-    ConfigInfo::CI_INT,
-    "65535",
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
     "0",
     "65535" },
 
@@ -638,7 +638,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     true,
     ConfigInfo::CI_INT,
-    "65535",
+    UNDEFINED,
     "0",
     "65535" },
 
