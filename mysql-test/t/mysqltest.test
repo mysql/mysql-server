@@ -2183,5 +2183,29 @@ select 1;
 --exec echo "--select 1;" | $MYSQL_TEST 2>&1
 
 
+# ----------------------------------------------------------------------------
+# BUG#35701: please allow test language variables in connection and sync_slave_with_master
+# Test that "connection $variable" works and that $CURRENT_CONNECTION has the right value.
+# ----------------------------------------------------------------------------
+
+connect (con1,localhost,root,,);
+--echo $CURRENT_CONNECTION
+
+connection default;
+--echo $CURRENT_CONNECTION
+
+connection con1;
+--echo $CURRENT_CONNECTION
+
+let $x= default;
+let $y= con1;
+
+connection $x;
+--echo $CURRENT_CONNECTION
+
+connection $y;
+--echo $CURRENT_CONNECTION
+
+
 --echo End of tests
 

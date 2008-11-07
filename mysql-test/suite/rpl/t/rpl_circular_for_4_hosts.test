@@ -127,7 +127,7 @@ INSERT INTO t1(b,c) VALUES('A',3);
 INSERT INTO t1(b,c) VALUES('B',3);
 --connection master_d
 INSERT INTO t1(b,c) VALUES('D',3);
---connection master_a  
+connection master_a;
 
 --sync_slave_with_master master_b
 --sync_slave_with_master master_d
