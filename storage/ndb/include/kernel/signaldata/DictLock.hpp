@@ -37,6 +37,7 @@ public:
     ,DropFileLock    = 10
     ,DropFilegroupLock = 11
     ,SumaStartMe = 12
+    ,SumaHandOver = 13
   };
 private:
   Uint32 userPtr;
@@ -47,6 +48,7 @@ private:
 class DictLockConf {
   friend class Dbdict;
   friend class Dbdih;
+  friend class Suma;
 public:
   STATIC_CONST( SignalLength = 3 );
 private:
