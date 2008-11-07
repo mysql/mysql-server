@@ -185,8 +185,12 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
     files around (indeed it could be that the control file alone was deleted
     or not restored, and we should not go on with life at this point).
 
-    TODO: For now we trust (this is alpha version), but for beta if would
-    be great to verify.
+    Things should still be relatively safe as if someone tries to use
+    an old table with a new control file the different uuid:s between
+    the files will cause ma_open() to generate an HA_ERR_OLD_FILE
+    error. When used from mysqld this will cause the table to be open
+    in repair mode which will remove all dependencies between the
+    table and the old control file.
 
     We could have a tool which can rebuild the control file, by reading the
     directory of logs, finding the newest log, reading it to find last

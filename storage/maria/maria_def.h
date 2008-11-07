@@ -146,14 +146,15 @@ typedef struct st_maria_state_info
 #define MARIA_KEYDEF_SIZE	(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
-#define MARIA_MAX_KEY_BUFF	(HA_MAX_KEY_BUFF + MAX_PACK_TRANSID_SIZE)
+#define MARIA_MAX_KEY_BUFF	(HA_MAX_KEY_BUFF + MARIA_MAX_PACK_TRANSID_SIZE)
 #define MARIA_COLUMNDEF_SIZE	(2*7+1+1+4)
 #define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
-/* Internal management bytes needed to store 2 keys on an index page */
-#define MAX_PACK_TRANSID_SIZE (TRANSID_SIZE+1)
-#define MIN_TRANSID_PACK_PREFIX (256-TRANSID_SIZE*2)
-#define MARIA_INDEX_OVERHEAD_SIZE (MAX_PACK_TRANSID_SIZE * 2)
+/* Internal management bytes needed to store 2 transid/key on an index page */
+#define MARIA_MAX_PACK_TRANSID_SIZE   (TRANSID_SIZE+1)
+#define MARIA_TRANSID_PACK_OFFSET     (256- TRANSID_SIZE - 1)
+#define MARIA_MIN_TRANSID_PACK_OFFSET (MARIA_TRANSID_PACK_OFFSET-TRANSID_SIZE)
+#define MARIA_INDEX_OVERHEAD_SIZE     (MARIA_MAX_PACK_TRANSID_SIZE * 2)
 #define MARIA_DELETE_KEY_NR  255	/* keynr for deleted blocks */
 
 /*
@@ -941,8 +942,8 @@ extern my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 extern uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid);
 extern ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from);
 #define transid_packed_length(data) \
-  ((data)[0] < MIN_TRANSID_PACK_PREFIX ? 1 : \
-   (uint) (257 - (uchar) (data)[0]))
+  ((data)[0] < MARIA_MIN_TRANSID_PACK_OFFSET ? 1 : \
+   (uint) ((uchar) (data)[0]) - (MARIA_TRANSID_PACK_OFFSET - 1))
 #define key_has_transid(key) (*(key) & 1)
 
 extern MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,

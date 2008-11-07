@@ -449,7 +449,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     /* Ensure we have space in the key buffer for transaction id's */
     if (share->base.born_transactional)
       share->base.max_key_length= ALIGN_SIZE(share->base.max_key_length +
-                                             MAX_PACK_TRANSID_SIZE);
+                                             MARIA_MAX_PACK_TRANSID_SIZE);
 
     /*
       If page cache is not initialized, then assume we will create the
@@ -824,6 +824,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     VOID(my_rwlock_init(&share->mmap_lock, NULL));
 
     share->row_is_visible= _ma_row_visible_always;
+    share->lock.get_status= _ma_reset_update_flag;
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */

@@ -96,6 +96,8 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
   pthread_mutex_unlock(&share->intern_lock);
   /* The current item can't be deleted as it's the first one visible for us */
   tables->state_start=  tables->state_current= history->state;
+  tables->state_current.changed= 0;
+
   DBUG_PRINT("info", ("records: %ld", (ulong) tables->state_start.records));
 
 end:
@@ -262,6 +264,7 @@ void _ma_get_status(void* param, my_bool concurrent_insert)
 #endif
   info->state_save= info->s->state.state;
   info->state= &info->state_save;
+  info->state->changed= 0;
   info->append_insert_at_end= concurrent_insert;
   DBUG_VOID_RETURN;
 }
@@ -312,6 +315,14 @@ void _ma_restore_status(void *param)
 void _ma_copy_status(void* to, void *from)
 {
   ((MARIA_HA*) to)->state= &((MARIA_HA*) from)->state_save;
+}
+
+
+void _ma_reset_update_flag(void *param,
+                           my_bool concurrent_insert __attribute__((unused)))
+{
+  MARIA_HA *info=(MARIA_HA*) param;
+  info->state->changed= 0;
 }
 
 
