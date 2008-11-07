@@ -34,7 +34,7 @@ extern "C" {
 
 #define NONE
 OPT_EXTERN(int,opt_ndb_nodeid,NONE);
-OPT_EXTERN(my_bool,opt_endinfo,=0);
+OPT_EXTERN(my_bool,opt_ndb_endinfo,=0);
 OPT_EXTERN(my_bool,opt_ndb_shm,NONE);
 OPT_EXTERN(my_bool,opt_core,NONE);
 OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);

@@ -380,7 +380,7 @@ bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
-bool using_udf_functions;
+bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
@@ -423,7 +423,6 @@ my_bool opt_ndb_log_update_as_write= FALSE;
 my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
 
-extern bool opt_endinfo;
 extern const char *opt_ndb_connectstring;
 extern unsigned opt_ndb_constrbuf_len;
 extern const char *opt_ndb_mgmd;
