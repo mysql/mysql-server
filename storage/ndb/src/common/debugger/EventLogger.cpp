@@ -897,8 +897,8 @@ void getTextLogFileInitStatus(QQQQ) {
   if (theData[2])
     BaseString::snprintf(m_text, m_text_len,
                          "Local redo log file initialization status:\n"
-                         "#Total files: %lu, Completed: %lu\n"
-                         "#Total MBytes: %lu, Completed: %lu",
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
 //                         refToNode(theData[1]),
                          theData[2], theData[3],
                          theData[4], theData[5]);
@@ -910,8 +910,8 @@ void getTextLogFileInitStatus(QQQQ) {
 void getTextLogFileInitCompStatus(QQQQ) {
     BaseString::snprintf(m_text, m_text_len,
                          "Local redo log file initialization completed:\n"
-                         "#Total files: %lu, Completed: %lu\n"
-                         "#Total MBytes: %lu, Completed: %lu",
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
 //                         refToNode(theData[1]),
                          theData[2], theData[3],
                          theData[4], theData[5]);
