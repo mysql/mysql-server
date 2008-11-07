@@ -1390,7 +1390,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["sql", "libexec", "sbin"],
+		     ["sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
@@ -1420,12 +1420,12 @@ sub executable_setup () {
   {
     $exe_ndbd=
       my_find_bin($basedir,
-		  ["storage/ndb/src/kernel", "libexec"],
+		  ["storage/ndb/src/kernel", "libexec", "bin"],
 		  "ndbd");
 
     $exe_ndb_mgmd=
       my_find_bin($basedir,
-		  ["storage/ndb/src/mgmsrv", "libexec"],
+		  ["storage/ndb/src/mgmsrv", "libexec", "bin"],
 		  "ndb_mgmd");
 
     $exe_ndb_waiter=
@@ -2537,7 +2537,8 @@ sub mysql_install_db {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share", "scripts"],
+			     ["mysql", "sql/share", "share/mysql",
+			      "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
