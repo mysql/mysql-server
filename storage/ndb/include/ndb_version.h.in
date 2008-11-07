@@ -189,7 +189,7 @@ ndb_pnr(Uint32 version)
 static
 inline
 int
-ndbd_suma_dictlock(Uint32 x)
+ndbd_suma_dictlock_startme(Uint32 x)
 {
   const Uint32 major = (x >> 16) & 0xFF;
   const Uint32 minor = (x >>  8) & 0xFF;
@@ -271,5 +271,15 @@ ndb_scan_distributionkey(Uint32 version)
 
 #define NDBD_FILTER_INSTANCE_63 NDB_MAKE_VERSION(6,3,16)
 #define NDBD_COPY_GCI_RESTART_NR NDB_MAKE_VERSION(6,3,18)
+
+#define NDBD_SUMA_DICTLOCK_HANDOVER NDB_MAKE_VERSION(6,4,0)
+
+static
+inline
+int
+ndbd_suma_dictlock_handover(Uint32 x)
+{
+  return (x >= NDBD_SUMA_DICTLOCK_HANDOVER);
+}
 
 #endif

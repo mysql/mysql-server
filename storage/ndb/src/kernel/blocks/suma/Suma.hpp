@@ -529,7 +529,8 @@ private:
   Uint32 c_nodesInGroup[MAX_REPLICAS];
   NdbNodeBitmask c_nodes_in_nodegroup_mask;  // NodeId's of nodes in nodegroup
 
-  void send_dict_lock_req(Signal* signal);
+  void send_dict_lock_req(Signal* signal, Uint32 state);
+  void send_dict_unlock_ord(Signal* signal, Uint32 state);
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
   void send_handover_req(Signal* signal);

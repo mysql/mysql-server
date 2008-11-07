@@ -17035,7 +17035,8 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
   const DictLockType* lt = getDictLockType(req.lockType);
 
   Uint32 err;
-  if (req.lockType == DictLockReq::SumaStartMe)
+  if (req.lockType == DictLockReq::SumaStartMe ||
+      req.lockType == DictLockReq::SumaHandOver)
   {
     jam();
     
@@ -17047,6 +17048,14 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
       goto ref;
     }
     
+    if (req.lockType == DictLockReq::SumaHandOver &&
+        !c_sub_startstop_lock.isclear())
+    {
+      g_eventLogger->info("refing dict lock to %u", refToNode(req.userRef));
+      err = DictLockRef::TooManyRequests;
+      goto ref;
+    }
+
     c_sub_startstop_lock.set(refToNode(req.userRef));
     
     g_eventLogger->info("granting dict lock to %u", refToNode(req.userRef));
@@ -17158,7 +17167,8 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
     req.userRef = signal->getSendersBlockRef();
   }
 
-  if (ord->lockType ==  DictLockReq::SumaStartMe)
+  if (ord->lockType == DictLockReq::SumaStartMe ||
+      ord->lockType == DictLockReq::SumaHandOver)
   {
     jam();
     g_eventLogger->info("clearing dict lock for %u", refToNode(ord->senderRef));
