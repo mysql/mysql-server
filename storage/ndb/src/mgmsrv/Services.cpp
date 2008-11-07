@@ -860,7 +860,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 
   if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("set loglevel reply");
-    m_output->println("result: Invalid loglevel", errorString.c_str());
+    m_output->println("result: Invalid loglevel: %s", errorString.c_str());
     m_output->println("");
     return;
   }
