@@ -326,13 +326,17 @@ CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-except
 
 (
 # We are in a subshell, so we can modify variables just for one run.
-CFLAGS=`echo $CFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //' -e 's/$/ -g/'`
-CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //' -e 's/$/ -g/'`
+CFLAGS=`echo   " $CFLAGS "   | \
+    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
+        -e 's/^ //' -e 's/ $//'`
+CXXFLAGS=`echo " $CXXFLAGS " | \
+    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
+        -e 's/^ //' -e 's/ $//'`
 
 # Add -g and --with-debug.
 cd mysql-debug-%{mysql_version} &&
-CFLAGS=\"$CFLAGS\" \
-CXXFLAGS=\"$CXXFLAGS\" \
+CFLAGS="$CFLAGS" \
+CXXFLAGS="$CXXFLAGS" \
 BuildMySQL "--enable-shared \
 		--with-debug \
 		--with-innodb \
@@ -364,8 +368,8 @@ fi
 ##############################################################################
 
 (cd mysql-release-%{mysql_version} &&
-CFLAGS=\"$CFLAGS\" \
-CXXFLAGS=\"$CXXFLAGS\" \
+CFLAGS="$CFLAGS" \
+CXXFLAGS="$CXXFLAGS" \
 BuildMySQL "--enable-shared \
 		--with-innodb \
 %if %{CLUSTER_BUILD}
@@ -840,6 +844,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Correct yesterday's fix, so that it also works for the last flag,
+  and fix a wrong quoting: un-quoted quote marks must not be escaped.
+
 * Thu Nov 06 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.
