@@ -1,0 +1,11 @@
+# Same test as rpl_truncate_7ndb.test, but with mixed mode
+# This is marked with 'big_test' just because the rpl_truncate_7ndb test is
+# so slow...
+
+# Last Change:  2008-09-03
+# Change Author:  pcrews
+# Change:  Moved test to rpl_ndb suite, updated location of --source .test file
+
+--source include/have_binlog_format_mixed.inc
+--source include/big_test.inc
+--source suite/rpl_ndb/t/rpl_truncate_7ndb.test

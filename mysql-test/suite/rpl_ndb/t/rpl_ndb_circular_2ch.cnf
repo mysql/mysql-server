@@ -3,17 +3,14 @@
 [mysqld.1.1]
 server-id= 1
 log-bin
-log-slave-updates
 
 [mysqld.2.1]
 server-id= 1
 log-bin
-log-slave-updates
 
 [mysqld.1.slave]
 server-id= 2
 log-bin
-log-slave-updates
 skip-slave-start
 
 [mysqld.2.slave]
@@ -25,7 +22,6 @@ master-user=		@mysqld.2.1.#user
 master-connect-retry=	1
 init-rpl-role=		slave
 log-bin
-log-slave-updates
 skip-slave-start
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
 

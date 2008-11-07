@@ -2036,17 +2036,6 @@ void var_set_errno(int sql_errno)
 
 
 /*
-  Update $mysql_get_server_version variable with version
-  of the currently connected server
-*/
-
-void var_set_mysql_get_server_version(MYSQL* mysql)
-{
-  var_set_int("$mysql_get_server_version", mysql_get_server_version(mysql));
-}
-
-
-/*
   Set variable from the result of a query
 
   SYNOPSIS
@@ -4461,36 +4450,51 @@ void set_reconnect(MYSQL* mysql, int val)
 }
 
 
-int select_connection_name(const char *name)
+/**
+  Change the current connection to the given st_connection, and update
+  $mysql_get_server_version and $CURRENT_CONNECTION accordingly.
+*/
+void set_current_connection(struct st_connection *con)
 {
-  DBUG_ENTER("select_connection_name");
-  DBUG_PRINT("enter",("name: '%s'", name));
-
-  if (!(cur_con= find_connection_by_name(name)))
-    die("connection '%s' not found in connection pool", name);
-
+  cur_con= con;
   /* Update $mysql_get_server_version to that of current connection */
-  var_set_mysql_get_server_version(&cur_con->mysql);
-
-  DBUG_RETURN(0);
+  var_set_int("$mysql_get_server_version",
+              mysql_get_server_version(&con->mysql));
+  /* Update $CURRENT_CONNECTION to the name of the current connection */
+  var_set_string("$CURRENT_CONNECTION", con->name);
 }
 
 
-int select_connection(struct st_command *command)
+void select_connection_name(const char *name)
 {
-  char *name;
-  char *p= command->first_argument;
-  DBUG_ENTER("select_connection");
+  DBUG_ENTER("select_connection_name");
+  DBUG_PRINT("enter",("name: '%s'", name));
+  st_connection *con= find_connection_by_name(name);
 
-  if (!*p)
-    die("Missing connection name in connect");
-  name= p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
-  if (*p)
-    *p++= 0;
-  command->last_argument= p;
-  DBUG_RETURN(select_connection_name(name));
+  if (!con)
+    die("connection '%s' not found in connection pool", name);
+
+  set_current_connection(con);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void select_connection(struct st_command *command)
+{
+  DBUG_ENTER("select_connection");
+  static DYNAMIC_STRING ds_connection;
+  const struct command_arg connection_args[] = {
+    { "connection_name", ARG_STRING, TRUE, &ds_connection, "Name of the connection that we switch to." }
+  };
+  check_command_args(command, command->first_argument, connection_args,
+                     sizeof(connection_args)/sizeof(struct command_arg),
+                     ',');
+
+  DBUG_PRINT("info", ("changing connection: %s", ds_connection.str));
+  select_connection_name(ds_connection.str);
+  dynstr_free(&ds_connection);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -4898,14 +4902,11 @@ void do_connect(struct st_command *command)
     if (!(con_slot->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
     con_slot->name_len= strlen(con_slot->name);
-    cur_con= con_slot;
-    
+    set_current_connection(con_slot);
+
     if (con_slot == next_con)
       next_con++; /* if we used the next_con slot, advance the pointer */
   }
-
-  /* Update $mysql_get_server_version to that of current connection */
-  var_set_mysql_get_server_version(&cur_con->mysql);
 
   dynstr_free(&ds_connection_name);
   dynstr_free(&ds_host);
@@ -7478,37 +7479,37 @@ int main(int argc, char **argv)
   if (cursor_protocol_enabled)
     ps_protocol_enabled= 1;
 
-  cur_con= connections;
-  if (!( mysql_init(&cur_con->mysql)))
+  st_connection *con= connections;
+  if (!( mysql_init(&con->mysql)))
     die("Failed in mysql_init()");
   if (opt_compress)
-    mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
-  mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
 
   if (opt_use_ssl)
   {
-    mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(&con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
-    mysql_options(&cur_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(&con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
   }
 #endif
 
-  if (!(cur_con->name = my_strdup("default", MYF(MY_WME))))
+  if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
-  safe_connect(&cur_con->mysql, cur_con->name, opt_host, opt_user, opt_pass,
+  safe_connect(&con->mysql, con->name, opt_host, opt_user, opt_pass,
                opt_db, opt_port, unix_sock);
 
   /* Use all time until exit if no explicit 'start_timer' */
@@ -7521,8 +7522,7 @@ int main(int argc, char **argv)
   */
   var_set_errno(-1);
 
-  /* Update $mysql_get_server_version to that of current connection */
-  var_set_mysql_get_server_version(&cur_con->mysql);
+  set_current_connection(con);
 
   if (opt_include)
   {
