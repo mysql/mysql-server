@@ -1916,7 +1916,7 @@ TransporterRegistry::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
   SendBufferPage *page = b->m_first_page;
   while (page != NULL && count < max)
   {
-    dst[count].iov_base = page->m_data+page->m_start;
+    dst[count].iov_base = (char*)page->m_data+page->m_start;
     dst[count].iov_len = page->m_bytes;
     assert(page->m_start + page->m_bytes <= page->max_data_bytes());
     page = page->m_next;
