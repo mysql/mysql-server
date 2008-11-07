@@ -615,7 +615,7 @@ MgmApiSession::getConfig(Parser_t::Context &,
 
   m_output->println("get config reply");
   m_output->println("result: Ok");
-  m_output->println("Content-Length: %d", strlen(tmp_str));
+  m_output->println("Content-Length: %ld", strlen(tmp_str));
   m_output->println("Content-Type: ndbconfig/octet-stream");
   SLEEP_ERROR_INSERTED(2);
   m_output->println("Content-Transfer-Encoding: base64");
@@ -868,7 +868,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 
   if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("set loglevel reply");
-    m_output->println("result: Invalid loglevel", errorString.c_str());
+    m_output->println("result: Invalid loglevel: %s", errorString.c_str());
     m_output->println("");
     return;
   }
