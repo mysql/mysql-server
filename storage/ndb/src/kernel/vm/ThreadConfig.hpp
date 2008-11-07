@@ -29,7 +29,7 @@ public:
   ~ThreadConfig();
   void init(EmulatorData *emulatorData);
 
-  void ipControlLoop(Uint32 thread_index);
+  void ipControlLoop(NdbThread*, Uint32 thread_index);
 
   int doStart(NodeState::StartLevel startLevel);
 private:
