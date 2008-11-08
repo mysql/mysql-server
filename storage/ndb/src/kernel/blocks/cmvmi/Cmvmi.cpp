@@ -212,6 +212,15 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   if (nodeId == 0)
   {
     nodeId= refToNode(signal->getSendersBlockRef());
+
+    if (nodeId == 0)
+    {
+      /* Event reporter supplied no node id,
+       * assume it was local
+       */
+      nodeId= getOwnNodeId();
+    }
+
     eventReport->setNodeId(nodeId);
   }
 
