@@ -636,3 +636,16 @@ select (giga = repeat(@stuff, 2000)) from t1 where a=0;
 (giga = repeat(@stuff, 2000))
 1
 drop table t1;
+create table t1 (
+id int, 
+data longblob, 
+primary key(id))
+engine=ndb;
+set @blurb= repeat('B', 1000000);
+set @blurbHash= sha1(@blurb);
+set autocommit = 1;
+insert into t1 values (1, @blurb);
+create table result_space (k int primary key, result int) engine=myisam;
+set autocommit = 0;
+drop table result_space;
+drop table t1;
