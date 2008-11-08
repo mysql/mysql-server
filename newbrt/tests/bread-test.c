@@ -30,7 +30,7 @@ test (int seed) {
 	    sizesn[i] = htonl(sizes[i]);
 	    int j;
 	    for (j=0; j<sizes[i]; j++) {
-		buf[i][j]=random();
+	      buf[i][j]=(char)random();
 	    }
 	    int r = write(fd, buf[i], sizes[i]);
 	    assert(r==sizes[i]);
