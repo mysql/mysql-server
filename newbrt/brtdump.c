@@ -293,9 +293,9 @@ main (int argc, const char *argv[]) {
 	BLOCKNUM blocknum;
 	printf("Block translation:");
 	for (blocknum.b=0; blocknum.b<h->unused_blocks.b; blocknum.b++) {
-	    printf(" %" PRIu64 ":", blocknum.b);
+	    printf(" %" PRId64 ":", blocknum.b);
 	    if (h->block_translation[blocknum.b].size == -1) printf("free");
-	    else printf("%" PRIu64 ":%" PRIu64, h->block_translation[blocknum.b].diskoff, h->block_translation[blocknum.b].size);
+	    else printf("%" PRId64 ":%" PRId64, h->block_translation[blocknum.b].diskoff, h->block_translation[blocknum.b].size);
 	}
 	for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
 	    if (h->block_translation[blocknum.b].size != -1)
