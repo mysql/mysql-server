@@ -423,10 +423,10 @@ my_bool opt_ndb_log_update_as_write= FALSE;
 my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
 
-extern const char *opt_ndb_connectstring;
-extern unsigned opt_ndb_constrbuf_len;
-extern const char *opt_ndb_mgmd;
-extern ulong opt_ndb_nodeid;
+extern "C" const char *opt_ndb_connectstring;
+extern "C" unsigned opt_ndb_constrbuf_len;
+extern "C" const char *opt_ndb_mgmd;
+extern "C" ulong opt_ndb_nodeid;
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
 extern const char *opt_ndb_distribution;
