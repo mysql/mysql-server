@@ -588,3 +588,114 @@ select sha1(giga) from t1;
 select (giga = repeat(@stuff, 2000)) from t1 where a=0;
 
 drop table t1;
+
+# bug# 39867 : Blob part operation error handling 
+# We attempt to generate a transporter overload
+# and check that an error is generated, rather than 
+# rubbish being silently returned.
+# Since transporter overload is not easy to reliably
+# reproduce, this testcase passes when all SELECTS
+# return either the correct result, or fail with
+# MySQL error 1297, and warnings about transporter
+# overload from Ndb. (1218)
+# The testcase will fail if there is no error, and 
+# incorrect data/NULL, or if there is an error other 
+# than 1297 due to 1218.
+#
+
+create table t1 (
+        id int, 
+        data longblob, 
+        primary key(id))
+        engine=ndb;
+
+set @blurb= repeat('B', 1000000); # ~1MB of stuff
+set @blurbHash= sha1(@blurb);
+
+set autocommit = 1;
+
+let $mysqltest_loopcounter= 500;
+let $success_count=0;
+let $fail_count=0;
+
+
+insert into t1 values (1, @blurb);
+
+create table result_space (k int primary key, result int) engine=myisam;
+
+--disable_result_log
+--disable_query_log
+
+while ($mysqltest_loopcounter)
+{
+  # Allow success or unmapped error type (1297).
+  --error 0,1297
+  insert into result_space select 1, (sha1(data) = @blurbHash) from t1 where id=1;  
+
+  let $orig_errno= $mysql_errno;
+
+  # Statement execution success path
+  if (!$orig_errno)
+  {
+    # Test that the SHA1 of the data read was as expected 
+    # (e.g. comparison returned true) 
+    let $is_right_answer=`SELECT result from result_space where k=1`;
+
+    if (!$is_right_answer)
+    {
+      --enable_result_log
+      echo SELECT succeeded but gave bad result.
+      SHOW WARNINGS;
+      die "Bad data returned";
+    }
+    #echo Success gave correct result;
+    inc $success_count;
+  }
+  
+  # Statement execution failure path
+  if ($orig_errno)
+  {
+    inc $fail_count;
+    #echo FAIL;
+
+    # For the error we are interested in (1218), MySQLD returns a generic error
+    # code (1297).  We use the warning info to check the Ndb error.
+    # Note that sometimes the end of the warning states 'from NDB', sometimes
+    # 'from NDBCLUSTER'.  Probably it should be made consistent.
+    #
+    let $warning_message= query_get_value("SHOW WARNINGS", Message, 1);
+    let $is_correct_message= `SELECT "$warning_message" LIKE "Got temporary error 1218 'Send Buffers overloaded in NDB kernel' from NDB%"`;
+
+    if (!$is_correct_message)
+    {
+      --enable_result_log
+      echo SELECT failed with incorrect error ($mysql_errno);
+      SHOW WARNINGS;
+      die "Incorrect error from statement";
+    }
+    #echo Failed as expected;
+  }
+
+  delete from result_space;
+
+  #echo $mysqltest_loopcounter;
+  
+  dec $mysqltest_loopcounter;
+
+  if ($fail_count = 20)
+  {
+    # That's enough punishment
+    #echo Exiting loop early at iteration $mysqltest_loopcounter;
+    let $mysqltest_loopcounter= 0;
+  }
+}
+
+--enable_result_log
+--enable_query_log
+
+# Interesting, but can't output as it's different every time
+# echo Successes $success_count;
+# echo Failures $fail_count;
+set autocommit = 0;
+drop table result_space;
+drop table t1;

@@ -2433,9 +2433,10 @@ void Dblqh::noFreeRecordLab(Signal* signal,
     releaseTcrec(signal, tcConnectptr);
   }
 
-  if (LqhKeyReq::getSimpleFlag(reqInfo) && 
+  if (LqhKeyReq::getDirtyFlag(reqInfo) && 
       LqhKeyReq::getOperation(reqInfo) == ZREAD){ 
     jam();
+    /* Dirty read sends TCKEYREF direct to client, and nothing to TC */
     ndbrequire(LqhKeyReq::getApplicationAddressFlag(reqInfo));
     const Uint32 apiRef   = lqhKeyReq->variableData[0];
     const Uint32 apiOpRec = lqhKeyReq->variableData[1];
@@ -2449,6 +2450,9 @@ void Dblqh::noFreeRecordLab(Signal* signal,
     sendTCKEYREF(signal, apiRef, signal->getSendersBlockRef(), 0);
   } else {
     jam();
+    /* All ops apart from dirty read send LQHKEYREF to TC
+     * (This includes simple read)
+     */
 
     const Uint32 clientPtr = lqhKeyReq->clientConnectPtr;
     Uint32 TcOprec = clientPtr;

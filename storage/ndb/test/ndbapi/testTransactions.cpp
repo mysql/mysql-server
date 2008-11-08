@@ -109,6 +109,23 @@ OperationTestCase matrix[] = {
   { "ScanExScanDe",     true, "SCAN-EX",1, "SCAN-DE", 266, X,   0, 1 },
 #endif
 
+  { "SimpleReadRead",   true, "S-READ", 1, "READ",      0, 1,   0, 1 },
+  { "SimpleReadReadEx", true, "S-READ", 1, "READ-EX",   0, 1,   0, 1 }, // no lock held
+  { "SimpleReadSimpleRead",
+                        true, "S-READ", 1, "S-READ",    0, 1,   0, 1 },
+  { "SimpleReadDirtyRead",
+                        true, "S-READ", 1, "D-READ",    0, 1,   0, 1 },
+  { "SimpleReadInsert", true, "S-READ", 1, "INSERT",  630, X,   0, 1 }, // no lock held
+  { "SimpleReadUpdate", true, "S-READ", 1, "UPDATE",    0, 2,   0, 2 }, // no lock held
+  { "SimpleReadDelete", true, "S-READ", 1, "DELETE",    0, X, 626, X }, // no lock held
+  { "SimpleReadScan",   true, "S-READ", 1, "SCAN",      0, 1,   0, 1 },
+  { "SimpleReadScanHl", true, "S-READ", 1, "SCAN-HL",   0, 1,   0, 1 },
+  { "SimpleReadScanEx", true, "S-READ", 1, "SCAN-EX",   0, 1,   0, 1 }, // no lock held
+#if 0
+  { "SimpleReadScanUp", true, "S-READ", 1, "SCAN-UP",   0, 1,   0, 2 }, // no lock held
+  { "SimpleReadScanDe", true, "S-READ", 1, "SCAN-DE",   0, X, 626, X }, // no lock held
+#endif
+
   { "ReadExRead",       true, "READ-EX",1, "READ",    266, X,   0, 1 },
   { "ReadExReadEx",     true, "READ-EX",1, "READ-EX", 266, X,   0, 1 },
   { "ReadExSimpleRead", true, "READ-EX",1, "S-READ",  266, X,   0, 1 },
@@ -169,6 +186,9 @@ OperationTestCase matrix[] = {
   { "DeleteScanDe",     true, "DELETE", X, "SCAN-DE", 266, X, 626, X }
 #endif
 
+
+
+
 };
 
 #define CHECK(a, b) { int x = a; int y = b; if (x != y) { \
@@ -193,7 +213,7 @@ runOp(HugoOperations & hugoOps,
   } else if(strcmp(op, "READ-EX") == 0){
     C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Exclusive) == 0);  
   } else if(strcmp(op, "S-READ") == 0){
-    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);      
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_SimpleRead) == 0);      
   } else if(strcmp(op, "D-READ") == 0){
     C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_CommittedRead) == 0); 
   } else if(strcmp(op, "INSERT") == 0){
