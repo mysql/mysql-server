@@ -765,6 +765,10 @@ cmd: testNdbApi
 args: -n Bug28443
 
 max-time: 500
+cmd: testNdbApi
+args: -n BadColNameHandling T6
+
+max-time: 500
 cmd: testInterpreter
 args: T1 
 
@@ -1167,3 +1171,4 @@ cmd: test_event
 args -r 5000 -n Bug30780 T1
 
 #EOF 2008-08-11
+

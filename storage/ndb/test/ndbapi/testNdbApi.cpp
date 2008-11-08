@@ -626,6 +626,175 @@ int runGetNdbOperationNoTab(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+  if (pNdb == NULL){
+    ndbout << "pNdb == NULL" << endl;      
+    return NDBT_FAILED;  
+  }
+  if (pNdb->init()){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+  
+  const int CASES= 5;
+  int i;
+
+  for (i= 0; i < CASES; i++)
+  {
+    ndbout << "Case " << i << endl;
+    NdbConnection* pCon = pNdb->startTransaction();
+    if (pCon == NULL){
+      pNdb->closeTransaction(pCon);  
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    
+    /* Cases 0-3 use PK ops, 4 + use scans */ 
+    NdbOperation* pOp = (i < 4 ? pCon->getNdbOperation(pTab->getName()):
+                         pCon->getNdbScanOperation(pTab->getName()));
+    if (pOp == NULL){
+      ERR(pCon->getNdbError());
+      pNdb->closeTransaction(pCon);  
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+
+    bool failed= false;
+    int expectedError= 0;
+    HugoOperations hugoOps(*pTab);
+
+    switch(i) {
+    case 0:
+      if (pOp->readTuple() != 0){
+        ERR(pCon->getNdbError());
+        pNdb->closeTransaction(pCon);
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+      
+      // getValue should fail, we check that we get correct errors
+      // in expected places.
+      expectedError= 4004;
+      failed= (pOp->getValue("MOST_IMPROBABLE2") == NULL);
+      break;
+
+    case 1:
+      if (pOp->readTuple() != 0){
+        ERR(pCon->getNdbError());
+        pNdb->closeTransaction(pCon);
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+      
+      // equal should fail, we check that we get correct errors
+      // in expected places.
+      expectedError= 4004;
+      failed= (pOp->equal("MOST_IMPROBABLE2", 0) != 0);
+      break;
+
+    case 2:
+      if (pOp->writeTuple() != 0){
+        ERR(pCon->getNdbError());
+        pNdb->closeTransaction(pCon);
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+
+      // set equality on pk columns
+      for(int a = 0; a<pTab->getNoOfColumns(); a++){
+        if (pTab->getColumn(a)->getPrimaryKey() == true){
+          if(hugoOps.equalForAttr(pOp, a, 1) != 0){
+            const NdbError err = pCon->getNdbError();
+            ERR(err);
+            pNdb->closeTransaction(pCon);
+            delete pNdb;
+            return NDBT_FAILED;
+          }
+        }
+      }
+      
+      // setValue should fail, we check that we get correct errors
+      // in expected places.
+      expectedError= 4004;
+      failed= (pOp->setValue("MOST_IMPROBABLE2", 0) != 0);
+      break;
+
+    case 3:
+      if (pOp->readTuple() != 0){
+        ERR(pCon->getNdbError());
+        pNdb->closeTransaction(pCon);
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+      
+      // getBlobHandle should fail, we check that we get correct errors
+      // in expected places.
+      expectedError= 4004;
+      failed= (pOp->getBlobHandle("MOST_IMPROBABLE2") == NULL);
+      break;
+
+    case 4:
+    {
+      NdbScanOperation* sop= (NdbScanOperation*) pOp;
+      if (sop->readTuples() != 0){
+        ERR(pCon->getNdbError());
+        pNdb->closeTransaction(pCon);
+        delete pNdb;
+        return NDBT_FAILED;
+      }
+      
+      // getBlobHandle should fail, we check that we get correct errors
+      // in expected places.
+      expectedError= 4004;
+      ndbout << "About to call getBlobHandle" << endl;
+      failed= (sop->getBlobHandle("MOST_IMPROBABLE2") == NULL);
+
+      sop->close();
+      break;
+    } 
+    
+    default:
+      break;
+    }
+
+    if (failed)
+    {
+      const NdbError opErr= pOp->getNdbError();
+      const NdbError transErr = pCon->getNdbError();
+      ERR(opErr);
+      ERR(transErr);
+      if (opErr.code != transErr.code) {
+        ndbout << "Error reporting mismatch, expected " 
+               << expectedError << endl;
+        result = NDBT_FAILED;
+      }
+      if (opErr.code != expectedError){
+        ndbout << "No or bad error detected, expected " 
+               << expectedError << endl;
+        result = NDBT_FAILED;	
+      }
+    } else {
+      ndbout << "Case " << i << " did not fail" << endl;
+      result = NDBT_FAILED;
+    }
+
+    pNdb->closeTransaction(pCon);
+
+    if (result == NDBT_FAILED)
+      break;
+  } // for
+  
+  delete pNdb;
+
+  return result;
+}
+
 int runMissingOperation(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const NdbDictionary::Table* pTab = ctx->getTab();
@@ -1853,6 +2022,10 @@ TESTCASE("WaitUntilReady",
 TESTCASE("GetOperationNoTab", 
 	"Call getNdbOperation on a table that does not exist\n"){ 
   INITIALIZER(runGetNdbOperationNoTab);
+}
+TESTCASE("BadColNameHandling",
+         "Call methods with an invalid column name and check error handling\n"){
+  INITIALIZER(runBadColNameHandling);
 }
 TESTCASE("MissingOperation", 
 	"Missing operation request(insertTuple) should give an error code\n"){ 
