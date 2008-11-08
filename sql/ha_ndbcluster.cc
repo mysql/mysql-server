@@ -655,6 +655,33 @@ ha_ndbcluster::copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record)
   return row;
 }
 
+/**
+ * findBlobError
+ * This method attempts to find an error in the hierarchy of runtime
+ * NDBAPI objects from Blob up to transaction.
+ * It will return -1 if no error is found, 0 if an error is found.
+ */
+int findBlobError(NdbError& error, NdbBlob* pBlob)
+{
+  error= pBlob->getNdbError();
+  if (error.code != 0)
+    return 0;
+  
+  const NdbOperation* pOp= pBlob->getNdbOperation();
+  error= pOp->getNdbError();
+  if (error.code != 0)
+    return 0;
+  
+  NdbTransaction* pTrans= pOp->getNdbTransaction();
+  error= pTrans->getNdbError();
+  if (error.code != 0)
+    return 0;
+  
+  /* No error on any of the objects */
+  return -1;
+}
+
+
 int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
@@ -733,7 +760,19 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
       uchar *buf= ha->m_blobs_buffer + offset;
       uint32 len= ha->m_blobs_buffer_size - offset;
       if (ndb_blob->readData(buf, len) != 0)
-          ERR_RETURN(ndb_blob->getNdbError());
+      {
+        NdbError err;
+        if (findBlobError(err, ndb_blob) == 0)
+        {
+          ERR_RETURN(err);
+        }
+        else
+        {
+          /* Should always have some error code set */
+          assert(err.code != 0);
+          ERR_RETURN(err);
+        }
+      }   
       DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u",
                           i, offset, (long) buf, len));
       DBUG_ASSERT(len == len64);

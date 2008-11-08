@@ -26,10 +26,8 @@
 #define MAX_NDB_OBJECTS 32678
 
 #define CHECK(b) if (!(b)) { \
-  ndbout << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
-  continue; } 
+  ndbout << "ERR: failed on line " << __LINE__ << endl; \
+  return -1; } 
 
 #define CHECKE(b) if (!(b)) { \
   errors++; \
@@ -1326,6 +1324,7 @@ op_row(NdbTransaction* pTrans, HugoOperations& hugoOps,
   case 3:
   case 4:
   case 5:
+  case 12:
     pOp = pTrans->getNdbOperation(pTab->getName());
     break;
   case 9:
@@ -1365,10 +1364,13 @@ op_row(NdbTransaction* pTrans, HugoOperations& hugoOps,
   case 11:
     pOp->deleteTuple();
     break;
+  case 12:
+    CHECK(!pOp->simpleRead());
+    break;
   default:
     abort();
   }
-  
+
   for(int a = 0; a<pTab->getNoOfColumns(); a++){
     if (pTab->getColumn(a)->getPrimaryKey() == true){
       if(hugoOps.equalForAttr(pOp, a, row) != 0){
@@ -1384,8 +1386,9 @@ op_row(NdbTransaction* pTrans, HugoOperations& hugoOps,
   case 6:
   case 7:
   case 8:
+  case 12:
     for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      pOp->getValue(a);
+      CHECK(pOp->getValue(a));
     }
     break;
   case 3: 
@@ -1427,6 +1430,8 @@ static void print(int op)
   case 9:  str = "noop      "; break;
   case 10: str = "uk update "; break;
   case 11: str = "uk delete "; break;
+  case 12: str = "pk read-si"; break;
+
   default:
     abort();
   }
@@ -1457,9 +1462,10 @@ runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
 
   printf("case: <op1>     <op2>       c/nc ao/ie\n");
   Uint32 tno = 0;
-  for (Uint32 op1 = 0; op1 < 12; op1++)
+  for (Uint32 op1 = 0; op1 < 13; op1++)
   {
-    for (Uint32 op2 = op1; op2 < 12; op2++)
+    // NOTE : I get a node crash if the following loop starts from 0!
+    for (Uint32 op2 = op1; op2 < 13; op2++)
     {
       int ret;
       NdbTransaction* pTrans = 0;
@@ -1486,25 +1492,25 @@ runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
 	
 
 	hugoTrans.loadTable(pNdb, 1);
-	pTrans = pNdb->startTransaction();
-	op_row(pTrans, hugoOps, pTab, op1, 0);
+	CHECK(pTrans = pNdb->startTransaction());
+	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 0));
 	ret = pTrans->execute(et, ao);
 	pTrans->close();
 	printf("%d ", ret);
 	hugoTrans.clearTable(pNdb);
 
 	hugoTrans.loadTable(pNdb, 1);
-	pTrans = pNdb->startTransaction();
-	op_row(pTrans, hugoOps, pTab, op1, 1);
+	CHECK(pTrans = pNdb->startTransaction());
+	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 1));
 	ret = pTrans->execute(et, ao);
 	pTrans->close();
 	printf("%d ", ret);
 	hugoTrans.clearTable(pNdb);
       
 	hugoTrans.loadTable(pNdb, 1);
-	pTrans = pNdb->startTransaction();
-	op_row(pTrans, hugoOps, pTab, op1, 0);
-	op_row(pTrans, hugoOps, pTab, op2, 1);
+	CHECK(pTrans = pNdb->startTransaction());
+	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 0));
+	CHECK(!op_row(pTrans, hugoOps, pTab, op2, 1));
 	ret = pTrans->execute(et, ao);
 	pTrans->close();
 	printf("%d\n", ret);
@@ -1728,6 +1734,85 @@ done:
   return result;
 }
 
+int
+simpleReadAbortOnError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Simple read has some error handling issues
+   * Setting the operation to be AbortOnError can expose these
+   */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  HugoOperations hugoOps(*pTab);
+  NdbRestarter restarter;
+
+  hugoOps.startTransaction(pNdb);
+  CHECK(!hugoOps.pkWriteRecord(pNdb,0));
+  CHECK(!hugoOps.execute_Commit(pNdb, AbortOnError));
+
+  NdbTransaction* trans;
+  
+  CHECK(trans= pNdb->startTransaction());
+
+  /* Insert error 5047 which causes next LQHKEYREQ to fail due
+   * to 'transporter overload'
+   * Error insert is self-clearing
+   */
+  restarter.insertErrorInAllNodes(5047);
+
+  /* Create SimpleRead on row 0, which exists (though we'll get
+   * 'transporter overload for this'
+   */
+  NdbOperation* op;
+  CHECK(op= trans->getNdbOperation(pTab));
+
+  CHECK(!op->simpleRead());
+
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(op, a, 0) != 0){
+        restarter.insertErrorInAllNodes(0);  
+	return NDBT_FAILED;
+      }
+    }
+  }
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    CHECK(op->getValue(a));
+  }
+  
+  CHECK(!op->setAbortOption(NdbOperation::AbortOnError));
+
+  /* Create normal read on row 0 which will succeed */
+  NdbOperation* op2;
+  CHECK(op2= trans->getNdbOperation(pTab));
+
+  CHECK(!op2->readTuple());
+
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    if (pTab->getColumn(a)->getPrimaryKey() == true){
+      if(hugoOps.equalForAttr(op2, a, 0) != 0){
+        restarter.insertErrorInAllNodes(0);  
+	return NDBT_FAILED;
+      }
+    }
+  }
+  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+    CHECK(op2->getValue(a));
+  }
+  
+  CHECK(!op2->setAbortOption(NdbOperation::AbortOnError));
+
+
+  CHECK(trans->execute(NoCommit) == -1);
+
+  CHECK(trans->getNdbError().code == 1218); // Transporter Overload
+
+  restarter.insertErrorInAllNodes(0);  
+
+  return NDBT_OK;
+  
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -1839,6 +1924,10 @@ TESTCASE("Bug28443",
 TESTCASE("Bug37158", 
 	 ""){ 
   INITIALIZER(runBug37158);
+}
+TESTCASE("SimpleReadAbortOnError",
+         "Test behaviour of Simple reads with Abort On Error"){
+  INITIALIZER(simpleReadAbortOnError);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
