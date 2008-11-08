@@ -263,6 +263,13 @@ public:
    */
   const NdbError& getNdbError() const;
   /**
+   * Get a pointer to the operation which this Blob Handle
+   * was initially created as part of.
+   * Note that this could be a scan operation.
+   * Note that the pointer returned is a const pointer.
+   */
+  const NdbOperation* getNdbOperation() const;  
+  /**
    * Return info about all blobs in this operation.
    *
    * Get first blob in list.

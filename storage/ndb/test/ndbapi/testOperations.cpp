@@ -59,6 +59,20 @@ OperationTestCase matrix[] = {
   { "FReadUpdate",     false, "READ", 626, 0, "UPDATE",  626, 0, 626, 0 },
   { "FReadDelete",     false, "READ", 626, 0, "DELETE",  626, 0, 626, 0 },
 
+  { "FSimpleReadRead", false, "S-READ", 626, 0, "READ",    626, 0, 626, 0 },
+  { "FSimpleReadReadEx", 
+                       false, "S-READ", 626, 0, "READ-EX", 626, 0, 626, 0 },
+  { "FSimpleReadSimpleRead",
+                       false, "S-READ", 626, 0, "S-READ",  626, 0, 626, 0 },
+  { "FSimpleReadDirtyRead",
+                       false, "S-READ", 626, 0, "D-READ",  626, 0, 626, 0 },
+  { "FSimpleReadInsert",  
+                       false, "S-READ", 626, 0, "INSERT",    0, 1,   0, 1 },
+  { "FSimpleReadUpdate",
+                       false, "S-READ", 626, 0, "UPDATE",  626, 0, 626, 0 },
+  { "FSimpleReadDelete",
+                       false, "S-READ", 626, 0, "DELETE",  626, 0, 626, 0 },
+
   { "ReadExRead",       true, "READ-EX", 0, 0, "READ",      0, 0,   0, 0 },
   { "ReadExReadEx",     true, "READ-EX", 0, 0, "READ-EX",   0, 0,   0, 0 },
   { "ReadExSimpleRead", true, "READ-EX", 0, 0, "S-READ",    0, 0,   0, 0 },
@@ -118,7 +132,7 @@ runOp(HugoOperations & hugoOps,
   } else if(strcmp(op, "READ-EX") == 0){
     C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Exclusive), 0);      
   } else if(strcmp(op, "S-READ") == 0){
-    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read), 0);
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_SimpleRead), 0);
   } else if(strcmp(op, "D-READ") == 0){
     C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_CommittedRead), 0);
   } else if(strcmp(op, "INSERT") == 0){
