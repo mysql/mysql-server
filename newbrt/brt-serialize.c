@@ -749,7 +749,7 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
     h->block_translation_size_on_disk    = 4 + 16 * h->translated_blocknum_limit;
     h->block_translation_address_on_disk = rbuf_diskoff(&rc);
     // Set up the the block translation buffer.
-    create_block_allocator(&h->block_allocator, h->nodesize, BLOCK_ALLOCATOR_ALIGNMENT);
+    create_block_allocator(&h->block_allocator, BLOCK_ALLOCATOR_HEADER_RESERVE, BLOCK_ALLOCATOR_ALIGNMENT);
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, h->translated_blocknum_limit, h->block_translation_address_on_disk);
     if (h->block_translation_address_on_disk == 0) {
 	h->block_translation = 0;
