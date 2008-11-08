@@ -838,6 +838,7 @@ public:
    * @return method number where the error occured.
    */
   int getNdbErrorLine();
+  int getNdbErrorLine() const;
 
   /**
    * Get table name of this operation.
@@ -886,6 +887,11 @@ public:
    */
   AbortOption getAbortOption() const;
   int setAbortOption(AbortOption);
+
+  /**
+   * Get NdbTransaction object pointer for this operation
+   */
+  virtual NdbTransaction* getNdbTransaction() const;
   
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   
@@ -1042,7 +1048,6 @@ protected:
 
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
 
@@ -1479,6 +1484,13 @@ NdbOperation::setStartIndicator()
 inline
 int
 NdbOperation::getNdbErrorLine()
+{
+  return theErrorLine;
+}
+
+inline
+int
+NdbOperation::getNdbErrorLine() const
 {
   return theErrorLine;
 }

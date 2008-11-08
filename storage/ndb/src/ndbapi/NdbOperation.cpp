@@ -519,7 +519,7 @@ NdbOperation::getTable() const
 }
 
 NdbTransaction* 
-NdbOperation::getNdbTransaction()
+NdbOperation::getNdbTransaction() const
 {
   return theNdbCon; 
 }
