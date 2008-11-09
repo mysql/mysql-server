@@ -18,6 +18,7 @@
 #include <NdbThread.h>
 #include <my_pthread.h>
 #include <NdbMem.h>
+#include <my_sys.h>
 
 #ifdef HAVE_LINUX_SCHEDULING
 #ifndef _GNU_SOURCE
@@ -26,7 +27,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sched.h>
-#include <sys/syscall.h>],
+#include <sys/syscall.h>
 #elif defined HAVE_SOLARIS_AFFINITY
 #include <sys/types.h>
 #include <sys/lwp.h>
@@ -48,6 +49,7 @@ int g_ndb_shm_signum= 0;
 
 struct NdbThread 
 { 
+  volatile int inited;
   pthread_t thread;
 #if defined HAVE_SOLARIS_AFFINITY
   id_t tid;
@@ -135,6 +137,7 @@ ndb_thread_wrapper(void* _ss){
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       settid(ss);
+      ss->inited = 1;
       ret= (* ss->func)(ss->object);
       DBUG_POP();
       NdbThread_Exit(ret);
@@ -171,6 +174,7 @@ NdbThread_CreateObject(const char * name)
   tmpThread->thread = getpid();
 #endif
   settid(tmpThread);
+  tmpThread->inited = 1;
 
   return tmpThread;
 }
@@ -216,6 +220,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 #ifdef PTHREAD_CREATE_JOINABLE /* needed on SCO */
   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
 #endif
+  tmpThread->inited = 0;
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
   result = pthread_create(&tmpThread->thread, 
@@ -229,6 +234,12 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   }
 
   pthread_attr_destroy(&thread_attr);
+
+  for (result = 0; result < 100 && tmpThread->inited == 0; result++)
+  {
+    my_sleep(100*1000); // 100ms
+  }
+
   DBUG_PRINT("exit",("ret: 0x%lx", (long) tmpThread));
   DBUG_RETURN(tmpThread);
 }
