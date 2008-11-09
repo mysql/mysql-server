@@ -128,8 +128,6 @@ int NdbThread_LockCPU(struct NdbThread*, Uint32 cpu);
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
 void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
 
-void NdbThread_Init();
-
 #ifdef	__cplusplus
 }
 #endif

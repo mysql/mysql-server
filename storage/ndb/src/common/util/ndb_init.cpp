@@ -28,6 +28,8 @@ static int ndb_init_called = 0;
 
 extern "C" void NdbCondition_Init();
 extern "C" void NdbTick_Init();
+extern "C" int NdbThread_Init();
+extern "C" void NdbThread_End();
 
 extern "C"
 {
@@ -49,6 +51,7 @@ ndb_init_internal()
   }
   NdbTick_Init();
   NdbCondition_Init();
+  NdbThread_Init();
 }
 
 int
@@ -71,6 +74,7 @@ ndb_init()
 void
 ndb_end_internal()
 {
+  NdbThread_End();
   if (g_ndb_connection_mutex) 
   {
     NdbMutex_Destroy(g_ndb_connection_mutex);

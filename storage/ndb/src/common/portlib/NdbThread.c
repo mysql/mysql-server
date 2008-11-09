@@ -18,7 +18,8 @@
 #include <NdbThread.h>
 #include <my_pthread.h>
 #include <NdbMem.h>
-#include <my_sys.h>
+#include <NdbMutex.h>
+#include <NdbCondition.h>
 
 #ifdef HAVE_LINUX_SCHEDULING
 #ifndef _GNU_SOURCE
@@ -41,7 +42,8 @@ int g_min_prio = 0;
 int g_max_prio = 0;
 int g_prio = 0;
 
-/*#define USE_PTHREAD_EXTRAS*/
+static NdbMutex *g_ndb_thread_mutex = 0;
+static struct NdbCondition * g_ndb_thread_condition = 0;
 
 #ifdef NDB_SHM_TRANSPORTER
 int g_ndb_shm_signum= 0;
@@ -137,7 +139,10 @@ ndb_thread_wrapper(void* _ss){
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       settid(ss);
+      NdbMutex_Lock(g_ndb_thread_mutex);
       ss->inited = 1;
+      NdbCondition_Signal(g_ndb_thread_condition);
+      NdbMutex_Unlock(g_ndb_thread_mutex);
       ret= (* ss->func)(ss->object);
       DBUG_POP();
       NdbThread_Exit(ret);
@@ -223,22 +228,28 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->inited = 0;
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
+
+  NdbMutex_Lock(g_ndb_thread_mutex);
   result = pthread_create(&tmpThread->thread, 
 			  &thread_attr,
   		          ndb_thread_wrapper,
   		          tmpThread);
-  if (result != 0)
-  {
-    NdbMem_Free((char *)tmpThread);
-    tmpThread = 0;
-  }
 
   pthread_attr_destroy(&thread_attr);
 
-  for (result = 0; result < 100 && tmpThread->inited == 0; result++)
+  if (result != 0)
   {
-    my_sleep(100*1000); // 100ms
+    NdbMem_Free((char *)tmpThread);
+    NdbMutex_Unlock(g_ndb_thread_mutex);
+    return 0;
   }
+
+  do
+  {
+    NdbCondition_WaitTimeout(g_ndb_thread_condition, g_ndb_thread_mutex, 100);
+  } while (tmpThread->inited == 0);
+
+  NdbMutex_Unlock(g_ndb_thread_mutex);
 
   DBUG_PRINT("exit",("ret: 0x%lx", (long) tmpThread));
   DBUG_RETURN(tmpThread);
@@ -442,12 +453,6 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
 
 static pthread_key_t tls_keys[NDB_THREAD_TLS_MAX];
 
-void NdbThread_Init()
-{
-  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
-  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
-}
-
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
 {
   return pthread_getspecific(tls_keys[key]);
@@ -457,3 +462,28 @@ void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value)
 {
   pthread_setspecific(tls_keys[key], value);
 }
+
+int
+NdbThread_Init()
+{ 
+  g_ndb_thread_mutex = NdbMutex_Create();
+  g_ndb_thread_condition = NdbCondition_Create();
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+  return 0;
+}
+
+void
+NdbThread_End()
+{
+  if (g_ndb_thread_mutex)
+  {
+    NdbMutex_Destroy(g_ndb_thread_mutex);
+  }
+  
+  if (g_ndb_thread_condition)
+  {
+    NdbCondition_Destroy(g_ndb_thread_condition);
+  }
+}
+
