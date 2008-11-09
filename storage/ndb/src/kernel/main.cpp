@@ -388,7 +388,6 @@ int main(int argc, char** argv)
 
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
-  NdbThread_Init();
   globalEmulatorData.create();
 
   // Parse command line options
