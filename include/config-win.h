@@ -371,6 +371,9 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_OPENSSL 1
 #define HAVE_YASSL 1
 
+#define COMMUNITY_SERVER 1
+#define ENABLED_PROFILING 1
+
 /* Define charsets you want */
 /* #undef HAVE_CHARSET_armscii8 */
 /* #undef HAVE_CHARSET_ascii */
