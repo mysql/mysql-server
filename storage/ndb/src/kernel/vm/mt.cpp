@@ -2316,7 +2316,7 @@ init_thread(thr_data *selfptr)
   int tid = NdbThread_GetTid(selfptr->m_thread);
   if (tid != -1)
   {
-    tmp.appfmt("tid: %u ", (unsigned)syscall(SYS_gettid));
+    tmp.appfmt("tid: %u ", tid);
   }
 
   if (selfptr->m_cpu != NO_LOCK_CPU)
