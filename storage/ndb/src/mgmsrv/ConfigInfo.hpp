@@ -83,7 +83,8 @@ public:
      */
     union {
       const char*  _default;
-      Uint32       _section_type; // if _type = CI_SECTION
+      UintPtr      _section_type; // if _type = CI_SECTION
+      /** NOTE must be UintPtr to be of same size as _default */
     };
     const char*    _min;
     const char*    _max;
