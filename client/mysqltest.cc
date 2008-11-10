@@ -503,8 +503,8 @@ public:
   void open(const char* dir, const char* name, const char* ext)
   {
     DBUG_ENTER("LogFile::open");
-    DBUG_PRINT("enter", ("dir: %s, name: %s",
-                         name, dir));
+    DBUG_PRINT("enter", ("dir: '%s', name: '%s'",
+                         dir, name));
     if (!name)
     {
       m_file= stdout;
