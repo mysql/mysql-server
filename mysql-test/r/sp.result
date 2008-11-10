@@ -6646,6 +6646,24 @@ ttt
 2
 drop function func30787;
 drop table t1;
+CREATE TABLE t1 (id INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+CREATE PROCEDURE test_sp()
+SELECT t1.* FROM t1 RIGHT JOIN t1 t2 ON t1.id=t2.id;
+CALL test_sp();
+id
+1
+2
+3
+4
+CALL test_sp();
+id
+1
+2
+3
+4
+DROP PROCEDURE test_sp;
+DROP TABLE t1;
 create table t1(c1 INT);
 create function f1(p1 int) returns varchar(32)
 return 'aaa';

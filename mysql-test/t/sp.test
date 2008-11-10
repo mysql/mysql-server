@@ -7793,6 +7793,21 @@ select (select func30787(f1)) as ttt from t1;
 drop function func30787;
 drop table t1;
 
+#
+# Bug #33811: Call to stored procedure with SELECT * / RIGHT JOIN fails
+# after the first time
+#
+CREATE TABLE t1 (id INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+
+CREATE PROCEDURE test_sp()
+  SELECT t1.* FROM t1 RIGHT JOIN t1 t2 ON t1.id=t2.id;
+
+CALL test_sp();
+CALL test_sp();
+
+DROP PROCEDURE test_sp;
+DROP TABLE t1;
 
 #
 # Bug#38291 memory corruption and server crash with view/sp/function
