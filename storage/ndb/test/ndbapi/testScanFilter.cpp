@@ -49,15 +49,7 @@ const char COL_LEN = 7;
 * there are six columns, 'i', 'j', 'k', 'l', 'm', 'n', and each on is equal to 1 or 1,
 * Since each tuple should be unique in this case, then TUPLE_NUM = 2 power 6 = 64 
 */
-#ifdef _AIX
-/*
-  IBM xlC_r breaks on the initialization with pow():
-  "The expression must be an integral constant expression."
-*/
-const int TUPLE_NUM = 64;
-#else
-const int TUPLE_NUM = (int)pow(2, COL_LEN-1);
-#endif
+const int TUPLE_NUM = 1 << (COL_LEN - 1);
 
 /*
 * the recursive level of random scan filter, can 
@@ -487,7 +479,7 @@ int get_column_id(char ch)
 */
 bool check_col_equal_one(int tuple_no, int col_id)
 {
-  int i = (int)pow((double)2, (double)(6 - col_id));
+  int i = 1 << (6 - col_id);
   int j = tuple_no / i;
   if(j % 2)
     return true;
