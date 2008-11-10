@@ -462,7 +462,7 @@ private:
     Uint16 m_start;
 
     /* Data; real size is to the end of one page. */
-    unsigned char m_data[2];
+    char m_data[2];
   };
 
   /* Send buffer for one transporter. */
