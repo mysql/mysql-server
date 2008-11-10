@@ -4397,7 +4397,11 @@ sub start_mysqltest ($) {
   {
     mtr_add_arg($args, "--record");
 
-    mtr_add_arg($args, "--result-file=%s", $tinfo->{record_file});
+    # When recording to a non existing result file
+    # the name of that file is in "record_file"
+    if ( defined $tinfo->{'record_file'} ) {
+      mtr_add_arg($args, "--result-file=%s", $tinfo->{record_file});
+    }
   }
 
   if ( $opt_client_gdb )
