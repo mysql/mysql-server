@@ -196,6 +196,8 @@ my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
 my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
 my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
 
+my $opt_parallel= $ENV{MTR_PARALLEL};
+
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
@@ -210,10 +212,6 @@ sub main {
   # in all cases where the calling tool does not log the commands
   # directly before it executes them, like "make test-force-pl" in RPM builds.
   mtr_report("Logging: $0 ", join(" ", @ARGV));
-
-  my $opt_parallel= $ENV{MTR_PARALLEL};
-  Getopt::Long::Configure("pass_through");
-  GetOptions('parallel=i' => \$opt_parallel) or usage(0, "Can't read options");
 
   command_line_setup();
 
@@ -712,6 +710,7 @@ sub set_vardir {
 
 }
 
+
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
@@ -730,6 +729,9 @@ sub command_line_setup {
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
              'vs-config'                => \$opt_vs_config,
+
+	     # Max number of parallel threads to use
+	     'parallel=i'               => \$opt_parallel,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -1041,6 +1043,11 @@ sub command_line_setup {
   if ( $opt_record and ! @opt_cases )
   {
     mtr_error("Will not run in record mode without a specific test case");
+  }
+
+  if ( $opt_record ) {
+    # Use only one worker with --record
+    $opt_parallel= 1;
   }
 
   # --------------------------------------------------------------------------
