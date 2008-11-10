@@ -6,15 +6,14 @@
 
 #define FNAME __FILE__ ".tdb"
 
-#define TC(expr, expect) ({        \
+#define TC(expr, expect)           \
   try {                            \
     expr;                          \
     assert(expect==0); 	           \
   } catch (DbException e) {        \
     if (e.get_errno()!=expect) fprintf(stderr, "err=%d %s\n", e.get_errno(), db_strerror(e.get_errno())); \
     assert(e.get_errno()==expect); \
-  }                                \
-})
+  }                              
 
 void test_no_env () {
 #if 0

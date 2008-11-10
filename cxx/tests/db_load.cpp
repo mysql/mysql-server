@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <db_cxx.h>
 
-void hexdump(Dbt *d) {
+static void hexdump(Dbt *d) {
     unsigned char *cp = (unsigned char *) d->get_data();
     int n = d->get_size();
     printf(" ");
@@ -11,7 +11,7 @@ void hexdump(Dbt *d) {
     printf("\n");
 }
 
-void hexput(Dbt *d, unsigned char c) {
+static void hexput(Dbt *d, int c) {
     unsigned char *cp = (unsigned char *) d->get_data();
     int n = d->get_size();
     int ulen = d->get_ulen();
@@ -21,18 +21,18 @@ void hexput(Dbt *d, unsigned char c) {
         d->set_data(cp);
         d->set_ulen(newulen);
     }
-    cp[n++] = c;
+    cp[n++] = (unsigned char)c;
     d->set_size(n);
 }
 
-int hextrans(int c) {
+static int hextrans(int c) {
     if ('0' <= c && c <= '9') return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
     if ('A' <= c && c <= 'F') return c - 'A' + 10;
     return 0;
 }
 
-int hexload(Dbt *d) {
+static int hexload(Dbt *d) {
     d->set_size(0);
     int c = getchar();
     if (c == EOF || c != ' ') return 0;
@@ -49,10 +49,10 @@ int hexload(Dbt *d) {
     return 1;
 }
 
-int dbload(char *dbfile, char *dbname) {
+static int dbload(char *dbfile, char *dbname) {
     int r;
 
-#if USE_ENV
+#if defined(USE_ENV) && USE_ENV
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
     r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     Db db(&env, DB_CXX_NO_EXCEPTIONS);
@@ -62,7 +62,7 @@ int dbload(char *dbfile, char *dbname) {
     r = db.open(0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777); 
     if (r != 0) {
         printf("cant open %s:%s\n", dbfile, dbname);
-#if USE_ENV
+#if defined(USE_ENV) && USE_ENV
         r = env.close(0); assert(r == 0);
 #endif
         return 1;
@@ -81,13 +81,13 @@ int dbload(char *dbfile, char *dbname) {
     if (val.get_data()) free(val.get_data());
 
     r = db.close(0); assert(r == 0);
-#if USE_ENV
+#if defined(USE_ENV) && USE_ENV
     r = env.close(0); assert(r == 0);
 #endif
     return 0;
 }
 
-int usage() {
+static int usage() {
     printf("db_load [-s DBNAME] DBFILE\n");
     return 1;
 }

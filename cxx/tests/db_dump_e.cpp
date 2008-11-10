@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <db_cxx.h>
 
-void hexdump(Dbt *d) {
+static void hexdump(Dbt *d) {
     unsigned char *cp = (unsigned char *) d->get_data();
     int n = d->get_size();
     printf(" ");
@@ -12,10 +12,10 @@ void hexdump(Dbt *d) {
     printf("\n");
 }
 
-int dbdump(char *dbfile, char *dbname) {
+static int dbdump(char *dbfile, char *dbname) {
     int r;
 
-#if USE_ENV
+#if defined(USE_ENV) && USE_ENV
     DbEnv env(0);
     r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     Db db(&env, 0);
@@ -27,7 +27,7 @@ int dbdump(char *dbfile, char *dbname) {
 	assert(r==0);
     } catch (DbException e) {
 	printf("Cannot open %s:%s due to error %d\n", dbfile, dbname, e.get_errno());
-#if USE_ENV
+#if defined(USE_ENV) && USE_ENV
         r = env.close(0); assert(r == 0);
 #endif
         return 1;
@@ -56,13 +56,13 @@ int dbdump(char *dbfile, char *dbname) {
 
     r = cursor->close(); assert(r == 0);
     r = db.close(0); assert(r == 0);
-#if USE_ENV
+#if defined(USE_ENV) && USE_ENV
     r = env.close(0); assert(r == 0);
 #endif
     return 0;
 }
 
-int usage() {
+static int usage() {
     printf("db_dump [-s DBNAME] DBFILE\n");
     return 1;
 }
