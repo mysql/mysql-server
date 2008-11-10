@@ -47,16 +47,16 @@ FLUSH STATUS;
 let $org_questions= `SHOW GLOBAL STATUS LIKE 'questions'`;
 SELECT 1;
 connection default;
-disconnect con1;
 --echo Assert Questions == 16
 SHOW STATUS LIKE 'Questions';
---echo Global status updated; Assert diff == 5
+--echo Global status updated; Assert diff == 4
 FLUSH STATUS;
 let $new_questions= `SHOW GLOBAL STATUS LIKE 'questions'`;
 --disable_log
 let $diff= `SELECT SUBSTRING('$new_questions',10)-SUBSTRING('$org_questions',10)`;
 --enable_log
 eval SELECT $diff;
+disconnect con1;
 DROP TABLE t1,t2;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
