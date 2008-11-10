@@ -181,8 +181,6 @@ my $opt_callgrind;
 our $opt_warnings= 1;
 
 our $opt_skip_ndbcluster= 0;
-our $opt_skip_ndbcluster_slave= 0;
-our $opt_with_ndbcluster;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
@@ -731,7 +729,6 @@ sub command_line_setup {
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
-             'with-ndbcluster|ndb'      => \$opt_with_ndbcluster,
              'vs-config'                => \$opt_vs_config,
 
              # Config file to use as template for all tests
@@ -743,8 +740,6 @@ sub command_line_setup {
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
-             'skip-ndbcluster-slave|skip-ndb-slave'
-                                        => \$opt_skip_ndbcluster_slave,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
              'skip-test=s'              => \&collect_option,
@@ -2063,7 +2058,6 @@ sub check_ndbcluster_support ($) {
   if ($opt_skip_ndbcluster)
   {
     mtr_report(" - skipping ndbcluster");
-    $opt_skip_ndbcluster_slave= $opt_skip_ndbcluster;
     return;
   }
 
@@ -2071,7 +2065,6 @@ sub check_ndbcluster_support ($) {
   {
     mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
     $opt_skip_ndbcluster= 2;
-    $opt_skip_ndbcluster_slave= 2;
     return;
   }
 
@@ -4403,6 +4396,7 @@ sub start_mysqltest ($) {
   if ( $opt_record )
   {
     mtr_add_arg($args, "--record");
+
     mtr_add_arg($args, "--result-file=%s", $tinfo->{record_file});
   }
 
@@ -4674,7 +4668,6 @@ Options to control what engine/variation to run
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
   skip-ssl              Dont start server with support for ssl connections
-  ndb|with-ndbcluster   Use cluster as default table type
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 
