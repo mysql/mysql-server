@@ -602,6 +602,12 @@ struct thr_tq
 struct thr_send_page
 {
   static const Uint32 PGSIZE = 32768;
+#ifdef SIZEOF_CHARP == 4
+  static const Uint32 HEADER_SIZE = 8;
+#else
+  static const Uint32 HEADER_SIZE = 12;
+#endif
+
   static Uint32 max_bytes() {
     return PGSIZE - offsetof(thr_send_page, m_data);
   }
@@ -616,7 +622,7 @@ struct thr_send_page
   Uint16 m_start;
 
   /* Data; real size is to the end of one page. */
-  unsigned char m_data[2];
+  char m_data[2];
 };
 
 /**
@@ -1408,7 +1414,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
     wi[thr] = src[thr].m_write_index;
   }
 
-  Uint32 sentinel[thr_send_page::PGSIZE - thr_send_page::max_bytes()];
+  Uint32 sentinel[thr_send_page::HEADER_SIZE];
   thr_send_page* sentinel_page = (thr_send_page*)sentinel;
   sentinel_page->m_next = 0;
 
