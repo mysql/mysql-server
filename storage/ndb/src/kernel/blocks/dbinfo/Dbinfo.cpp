@@ -65,7 +65,8 @@ void Dbinfo::execSTTOR(Signal *signal)
 
   const Uint32 startphase  = signal->theData[1];
 
-  if (startphase == 3) {
+  if (startphase == 3) 
+  {
     jam();
     signal->theData[0] = reference();
     sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
@@ -126,7 +127,7 @@ void Dbinfo::execDBINFO_TRANSID_AI(Signal* signal)
   char *row= rowbuf;
   copy((Uint32*)rowbuf, ptr);
 
-  Uint32 rowsz= ptr.sz;
+  //Uint32 rowsz= ptr.sz;
   int len;
 
   for(int i=0; i<ncols; i++)
@@ -227,9 +228,9 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
   const Uint32 tableId= req.tableId;
   const Uint32 senderRef= req.senderRef;
   const Uint32 apiTxnId= req.apiTxnId;
-  const Uint32 colBitmapLo= req.colBitmapLo;
-  const Uint32 colBitmapHi= req.colBitmapHi;
-  const Uint32 requestInfo= req.requestInfo;
+  //const Uint32 colBitmapLo= req.colBitmapLo;
+  //const Uint32 colBitmapHi= req.colBitmapHi;
+  //const Uint32 requestInfo= req.requestInfo;
 
   Uint32 i;
   int j;
@@ -253,7 +254,10 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
     dbinfo_ratelimit_init(&rl, &req);
 
     if(!(req.requestInfo & DbinfoScanReq::StartScan))
-      startid= req.cur_item;
+    {
+      jam();
+      startid= req.cursor.cur_item;
+    }
 
     for(i=startid;dbinfo_ratelimit_continue(&rl) && i<number_ndbinfo_tables;i++)
     {
@@ -277,6 +281,7 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
     }
     else
     {
+      jam();
       DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
       conf->tableId= req.tableId;
       conf->senderRef= req.senderRef;
@@ -296,8 +301,9 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
     if(!(req.requestInfo & DbinfoScanReq::StartScan))
     {
-      startTableId= req.cur_item >> 8;
-      startColumnId= req.cur_item & 0xFF;
+      jam();
+      startTableId= req.cursor.cur_item >> 8;
+      startColumnId= req.cursor.cur_item & 0xFF;
     }
 
     struct ndbinfo_table *t;
@@ -313,6 +319,7 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
       for(j=startColumnId; continue_sending && j<t->ncols;j++)
       {
+        jam();
         dbinfo_write_row_init(&r, buf, sizeof(buf));
         dbinfo_write_row_column(&r, (char*)&i, sizeof(i));
         dbinfo_write_row_column(&r, (char*)&j, sizeof(j));
@@ -334,6 +341,7 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
     }
     else
     {
+      jam();
       DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
       conf->tableId= req.tableId;
       conf->senderRef= req.senderRef;
@@ -375,17 +383,17 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
       DbinfoScanReq *oreq= (DbinfoScanReq*)signal->getDataPtrSend();
 
       memcpy(signal->getDataPtrSend(),&ireq,DbinfoScanReq::SignalLength*sizeof(Uint32));
-      oreq->cur_requestInfo= 0;
-      oreq->cur_node= 0;
-      oreq->cur_block= DBINFO;
-      oreq->cur_item= 0;
+      oreq->cursor.cur_requestInfo= 0;
+      oreq->cursor.cur_node= 0;
+      oreq->cursor.cur_block= DBINFO;
+      oreq->cursor.cur_item= 0;
 
-      for(oreq->cur_node= 0;
-          !c_aliveNodes.get(oreq->cur_node);
-          oreq->cur_node++)
+      for(oreq->cursor.cur_node= 0;
+          !c_aliveNodes.get(oreq->cursor.cur_node);
+          oreq->cursor.cur_node++)
         ;
 
-      sendSignal(numberToRef(DBINFO,oreq->cur_node), GSN_DBINFO_SCANREQ,
+      sendSignal(numberToRef(DBINFO,oreq->cursor.cur_node), GSN_DBINFO_SCANREQ,
                  signal, DbinfoScanReq::SignalLengthWithCursor, JBB);
     }
     else
@@ -393,10 +401,11 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
       /**
        * We have a cursor, so we need to continue scanning.
        */
+      jam();
       int next_dbinfo_block= 0;
-      if(req.cur_block != DBINFO)
+      if(req.cursor.cur_block != DBINFO)
       {
-        while(dbinfo_blocks[next_dbinfo_block] != req.cur_block
+        while(dbinfo_blocks[next_dbinfo_block] != req.cursor.cur_block
             && dbinfo_blocks[next_dbinfo_block] != 0)
         {
           jam();
@@ -409,9 +418,9 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
       memcpy(signal->getDataPtrSend(),&ireq,signal->getLength()*sizeof(Uint32));
 
-      oreq->cur_block= dbinfo_blocks[next_dbinfo_block];
+      oreq->cursor.cur_block= dbinfo_blocks[next_dbinfo_block];
 
-      sendSignal(numberToRef(oreq->cur_block,oreq->cur_node),
+      sendSignal(numberToRef(oreq->cursor.cur_block, oreq->cursor.cur_node),
                  GSN_DBINFO_SCANREQ,
                  signal, signal->getLength(), JBB);
     }
@@ -428,8 +437,8 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
   const Uint32 tableId= conf.tableId;
   const Uint32 senderRef= conf.senderRef;
   const Uint32 apiTxnId= conf.apiTxnId;
-  const Uint32 colBitmapLo= conf.colBitmapLo;
-  const Uint32 colBitmapHi= conf.colBitmapHi;
+  //const Uint32 colBitmapLo= conf.colBitmapLo;
+  //const Uint32 colBitmapHi= conf.colBitmapHi;
 
   DbinfoScanReq *oreq= (DbinfoScanReq*)signal->getDataPtrSend();
 
@@ -442,7 +451,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
      */
     jam();
     oreq->requestInfo &= ~(DbinfoScanReq::StartScan);
-    sendSignal(numberToRef(oreq->cur_block,oreq->cur_node),
+    sendSignal(numberToRef(oreq->cursor.cur_block, oreq->cursor.cur_node),
                GSN_DBINFO_SCANREQ,
                signal, signal->getLength(), JBB);
     return;
@@ -457,9 +466,10 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
     return;
   }
 
-  if(conf.cur_block != DBINFO)
+  if(conf.cursor.cur_block != DBINFO)
   {
-    while(dbinfo_blocks[next_dbinfo_block] != conf.cur_block
+    jam();
+    while(dbinfo_blocks[next_dbinfo_block] != conf.cursor.cur_block
           && dbinfo_blocks[next_dbinfo_block] != 0)
     {
       jam();
@@ -471,21 +481,23 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
 
   if(dbinfo_blocks[next_dbinfo_block]!=0)
   {
-    oreq->cur_block= dbinfo_blocks[next_dbinfo_block];
+    jam();
+    oreq->cursor.cur_block= dbinfo_blocks[next_dbinfo_block];
   }
   else
   {
-    for(oreq->cur_node++;
-        !c_aliveNodes.get(oreq->cur_node)
-          && oreq->cur_node < MAX_NDB_NODES;
-        oreq->cur_node++)
+    for(oreq->cursor.cur_node++;
+        !c_aliveNodes.get(oreq->cursor.cur_node)
+          && oreq->cursor.cur_node < MAX_NDB_NODES;
+        oreq->cursor.cur_node++)
       ;
 
-    if(oreq->cur_node < MAX_NDB_NODES)
+    if(oreq->cursor.cur_node < MAX_NDB_NODES)
     {
-      oreq->cur_requestInfo= 0;
-      oreq->cur_block= DBINFO;
-      oreq->cur_item= 0;
+      jam();
+      oreq->cursor.cur_requestInfo= 0;
+      oreq->cursor.cur_block= DBINFO;
+      oreq->cursor.cur_item= 0;
     }
     else
     {
@@ -499,7 +511,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
     }
   }
 
-  sendSignal(numberToRef(oreq->cur_block,oreq->cur_node),
+  sendSignal(numberToRef(oreq->cursor.cur_block, oreq->cursor.cur_node),
              GSN_DBINFO_SCANREQ,
              signal, signal->getLength(), JBB);
 }
