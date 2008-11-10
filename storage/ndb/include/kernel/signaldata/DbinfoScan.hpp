@@ -18,6 +18,14 @@
 
 #include "SignalData.hpp"
 
+struct DbinfoScanCursor
+{
+  Uint32 cur_requestInfo;
+  Uint32 cur_node;
+  Uint32 cur_block;
+  Uint32 cur_item;
+};
+
 /**
  * SENDER:  API,MGM
  * RECIVER: DBINFO
@@ -49,11 +57,11 @@ struct DbinfoScanReq
   Uint32 rows_total;
   Uint32 word_total;
 
-  Uint32 cur_requestInfo;
-  Uint32 cur_node;
-  Uint32 cur_block;
-  Uint32 cur_item;
-  Uint32 cursor[0];
+  union
+  {
+    Uint32 cursordata[1];
+    struct DbinfoScanCursor cursor;
+  };
 };
 
 /**
@@ -87,11 +95,11 @@ public:
   Uint32 rows_total;
   Uint32 word_total;
 
-  Uint32 cur_requestInfo;
-  Uint32 cur_node;
-  Uint32 cur_block;
-  Uint32 cur_item;
-  Uint32 cursor[0];
+  union
+  {
+    Uint32 cursordata[1];
+    struct DbinfoScanCursor cursor;
+  };
 };
 
 /**
