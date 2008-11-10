@@ -1149,7 +1149,7 @@ int toku_cachetable_assert_all_unpinned (CACHETABLE t) {
 	for (p=t->table[i]; p; p=p->hash_chain) {
 	    assert(ctpair_pinned(&p->rwlock)>=0);
 	    if (ctpair_pinned(&p->rwlock)) {
-		printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
+		//printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
 		some_pinned=1;
 	    }
 	}
