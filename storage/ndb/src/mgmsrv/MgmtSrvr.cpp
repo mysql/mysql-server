@@ -3770,9 +3770,9 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       {
         memcpy(req,conf,signal->header.theLength*sizeof(Uint32));
         req->requestInfo &= ~(DbinfoScanReq::StartScan);
-        ssig.set(ss, TestOrd::TraceAPI, req->cur_block, GSN_DBINFO_SCANREQ,
-                 DbinfoScanReq::SignalLengthWithCursor);
-        nodeId= req->cur_node;
+        ssig.set(ss, TestOrd::TraceAPI, req->cursor.cur_block, 
+                 GSN_DBINFO_SCANREQ, DbinfoScanReq::SignalLengthWithCursor);
+        nodeId= req->cursor.cur_node;
 
         do_send= 1;
         continue;
