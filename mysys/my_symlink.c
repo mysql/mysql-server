@@ -90,16 +90,6 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #endif /* HAVE_READLINK */
 }
 
-/*
-  Resolve all symbolic links in path
-  'to' may be equal to 'filename'
-
-  Because purify gives a lot of UMR errors when using realpath(),
-  this code is disabled when using purify.
-
-  If MY_RESOLVE_LINK is given, only do realpath if the file is a link.
-*/
-
 #if defined(SCO)
 #define BUFF_LEN 4097
 #elif defined(MAXPATHLEN)
@@ -124,10 +114,15 @@ int my_is_symlink(const char *filename __attribute__((unused)))
 }
 
 
+/*
+  Resolve all symbolic links in path
+  'to' may be equal to 'filename'
+*/
+
 int my_realpath(char *to, const char *filename,
 		myf MyFlags __attribute__((unused)))
 {
-#if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_REALPATH) && !defined(HAVE_BROKEN_REALPATH)
   int result=0;
   char buff[BUFF_LEN];
   char *ptr;
