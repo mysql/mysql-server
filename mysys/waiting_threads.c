@@ -396,6 +396,8 @@ void wt_thd_destroy(WT_THD *thd)
 */
 int wt_resource_id_memcmp(void *a, void *b)
 {
+  /* we use the fact that there's no padding in the middle of WT_RESOURCE_ID */
+  compile_time_assert(offsetof(WT_RESOURCE_ID, type) == sizeof(ulonglong));
   return memcmp(a, b, sizeof_WT_RESOURCE_ID);
 }
 
