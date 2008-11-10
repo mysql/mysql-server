@@ -758,7 +758,6 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	EVENTS	EVENT_DEFINITION
-information_schema	EVENTS	SQL_MODE
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
 information_schema	PARTITIONS	PARTITION_DESCRIPTION
@@ -768,8 +767,6 @@ information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
-information_schema	TRIGGERS	SQL_MODE
-information_schema	TRIGGERS	DEFINER
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
@@ -1646,4 +1643,13 @@ drop table t1;
 drop function f1;
 select * from information_schema.tables where 1=sleep(100000);
 select * from information_schema.columns where 1=sleep(100000);
+explain select count(*) from information_schema.tables;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
+explain select count(*) from information_schema.columns;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	columns	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases
+explain select count(*) from information_schema.views;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	views	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases
 End of 5.1 tests.
