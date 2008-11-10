@@ -602,7 +602,7 @@ struct thr_tq
 struct thr_send_page
 {
   static const Uint32 PGSIZE = 32768;
-#ifdef SIZEOF_CHARP == 4
+#if SIZEOF_CHARP == 4
   static const Uint32 HEADER_SIZE = 8;
 #else
   static const Uint32 HEADER_SIZE = 12;
