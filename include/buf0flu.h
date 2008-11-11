@@ -126,6 +126,22 @@ buf_flush_validate(void);
 		/* out: TRUE if ok */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+/************************************************************************
+Initialize the red-black tree to speed up insertions into the flush_list
+during recovery process. Should be called at the start of recovery
+process before any page has been read/written. */
+UNIV_INTERN
+void
+buf_flush_init_flush_rbt(void);
+/*==========================*/
+
+/************************************************************************
+Frees up the red-black tree. */
+UNIV_INTERN
+void
+buf_flush_free_flush_rbt(void);
+/*==========================*/
+
 /* When buf_flush_free_margin is called, it tries to make this many blocks
 available to replacement in the free list and at the end of the LRU list (to
 make sure that a read-ahead batch can be read efficiently in a single
