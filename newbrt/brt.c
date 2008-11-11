@@ -2618,14 +2618,14 @@ static int brt_open_file(BRT brt, const char *fname, const char *fname_in_env, i
     brt = brt;
     mode_t mode = 0777;
     int r;
-    int fd = open(fname, O_RDWR, mode);
+    int fd = open(fname, O_RDWR | O_BINARY, mode);
     if (fd==-1) {
         r = errno;
         if (errno == ENOENT) {
             if (!is_create) {
                 return r;
             }
-            fd = open(fname, O_RDWR | O_CREAT, mode);
+            fd = open(fname, O_RDWR | O_CREAT | O_BINARY, mode);
             if (fd == -1) {
                 r = errno; return r;
             }

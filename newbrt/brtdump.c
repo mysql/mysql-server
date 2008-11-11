@@ -254,7 +254,7 @@ main (int argc, const char *argv[]) {
     }
     assert(argc==1);
     const char *n = argv[0];
-    int f = open(n, O_RDONLY);  assert(f>=0);
+    int f = open(n, O_RDONLY + O_BINARY);  assert(f>=0);
     struct brt_header *h;
     dump_header(f, &h);
     if (interactive) {

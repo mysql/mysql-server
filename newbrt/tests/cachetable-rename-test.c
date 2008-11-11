@@ -83,7 +83,7 @@ static void test_rename (void) {
     const char fname[] = __FILE__ "rename.dat";
     r=toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     for (i=0; i<TRIALLIMIT; i++) {
 	int ra = random()%3;
@@ -165,6 +165,7 @@ static void test_rename (void) {
 int main (int argc, const char *argv[]) {
     // parse args
     default_parse_args(argc, argv);
+    os_initialize_settings(verbose);
 
     // run tests
     int i;

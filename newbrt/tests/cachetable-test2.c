@@ -149,7 +149,7 @@ static void test_chaining (void) {
 	r = snprintf(fname[i], FILENAME_LEN, __FILE__ ".%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
 	unlink(fname[i]);
-	r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, 0777);   assert(r==0);
+	r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 	}
     for (i=0; i<N_PRESENT_LIMIT; i++) {
 	int fnum = i%N_FILES;
@@ -220,7 +220,7 @@ static void test_chaining (void) {
 	    CACHEFILE oldcf=f[i];
 	    r = toku_cachefile_close(&f[i], 0);                           assert(r==0);
 	    file_is_not_present(oldcf);
-	    r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR, 0777); assert(r==0);
+	    r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r==0);
 	}
     }
     for (i=0; i<N_FILES; i++) {
@@ -230,13 +230,11 @@ static void test_chaining (void) {
     test_mutex_destroy();
 }
 
-#if 0
 static void __attribute__((__noreturn__))
 usage (const char *progname) {
     fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
     exit(1);
 }
-#endif
 
 int main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);

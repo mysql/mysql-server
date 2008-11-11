@@ -1,5 +1,6 @@
+#include "portability.h"
 #include <string.h>
-
+#include "brttypes.h"
 #include "leafentry.h"
 
 static void test_leafentry_1 (void) {

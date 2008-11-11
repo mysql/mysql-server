@@ -233,7 +233,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
 }
 
 int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
-    int fd = open(fname, flags, mode);
+    int fd = open(fname, flags+O_BINARY, mode);
     if (fd<0) return errno;
     return toku_cachetable_openfd (cf, t, fd, fname);
 }

@@ -14,7 +14,7 @@ int main (int argc __attribute__((__unused__)),
 	  char *argv[] __attribute__((__unused__))) {
     int r;
     system(rmrf);
-    r = mkdir(dname, 0700);    assert(r==0);
+    r = os_mkdir(dname, S_IRWXU);    assert(r==0);
     TOKULOGGER logger;
     r = toku_logger_create(&logger);
     assert(r == 0);
