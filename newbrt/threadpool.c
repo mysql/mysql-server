@@ -7,11 +7,11 @@ struct threadpool {
     int max_threads;
     int current_threads;
     int busy_threads;
-    pthread_t pids[];
+    toku_pthread_t pids[];
 };
 
 int threadpool_create(THREADPOOL *threadpoolptr, int max_threads) {
-    size_t size = sizeof (struct threadpool) + max_threads*sizeof (pthread_t);
+    size_t size = sizeof (struct threadpool) + max_threads*sizeof (toku_pthread_t);
     struct threadpool *threadpool = malloc(size);
     if (threadpool == 0)
         return ENOMEM;
@@ -30,7 +30,7 @@ void threadpool_destroy(THREADPOOL *threadpoolptr) {
     int i;
     for (i=0; i<threadpool->current_threads; i++) {
         int r; void *ret;
-        r = pthread_join(threadpool->pids[i], &ret);
+        r = toku_pthread_join(threadpool->pids[i], &ret);
         assert(r == 0);
     }
     *threadpoolptr = 0;
@@ -39,7 +39,7 @@ void threadpool_destroy(THREADPOOL *threadpoolptr) {
 
 void threadpool_maybe_add(THREADPOOL threadpool, void *(*f)(void *), void *arg) {
     if ((threadpool->current_threads == 0 || threadpool->busy_threads < threadpool->current_threads) && threadpool->current_threads < threadpool->max_threads) {
-        int r = pthread_create(&threadpool->pids[threadpool->current_threads], 0, f, arg);
+        int r = toku_pthread_create(&threadpool->pids[threadpool->current_threads], 0, f, arg);
         if (r == 0) {
             threadpool->current_threads++;
             threadpool_set_thread_busy(threadpool);

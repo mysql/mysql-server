@@ -10,7 +10,7 @@
 #include "memarena.h"
 #include <stdio.h>
 #if !defined(TOKU_WINDOWS)
-#include <pthread.h>
+#include <toku_pthread.h>
 #endif
 #include <sys/types.h>
 #include <string.h>
@@ -24,16 +24,16 @@
 #define LOGGER_BUF_SIZE (1<<24)
 
 struct mylock {
-    pthread_mutex_t lock;
+    toku_pthread_mutex_t lock;
     int is_locked;
 };
 
 static inline int ml_init(struct mylock *l) {
     l->is_locked=0;
-    return pthread_mutex_init(&l->lock, 0);
+    return toku_pthread_mutex_init(&l->lock, 0);
 }
 static inline int ml_lock(struct mylock *l) {
-    int r = pthread_mutex_lock(&l->lock);
+    int r = toku_pthread_mutex_lock(&l->lock);
     assert(l->is_locked==0);
     l->is_locked=1;
     return r;
@@ -41,11 +41,11 @@ static inline int ml_lock(struct mylock *l) {
 static inline int ml_unlock(struct mylock *l) {
     assert(l->is_locked==1);
     l->is_locked=0;
-    return pthread_mutex_unlock(&l->lock);
+    return toku_pthread_mutex_unlock(&l->lock);
 }
 static inline int ml_destroy(struct mylock *l) {
     assert(l->is_locked==0);
-    return pthread_mutex_destroy(&l->lock);
+    return toku_pthread_mutex_destroy(&l->lock);
 }
 
 

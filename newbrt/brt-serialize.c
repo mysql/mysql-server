@@ -43,13 +43,13 @@ static void maybe_preallocate_in_file (int fd, u_int64_t size) {
 }
 
 // This mutex protects pwrite from running in parallel, and also protects modifications to the block allocator.
-static pthread_mutex_t pwrite_mutex = PTHREAD_MUTEX_INITIALIZER;
+static toku_pthread_mutex_t pwrite_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static int pwrite_is_locked=0;
 
 static inline void
 lock_for_pwrite (void) {
     // Locks the pwrite_mutex. 
-    int r = pthread_mutex_lock(&pwrite_mutex);
+    int r = toku_pthread_mutex_lock(&pwrite_mutex);
     assert(r==0);
     pwrite_is_locked = 1;
 }
@@ -57,7 +57,7 @@ lock_for_pwrite (void) {
 static inline void
 unlock_for_pwrite (void) {
     pwrite_is_locked = 0;
-    int r = pthread_mutex_unlock(&pwrite_mutex);
+    int r = toku_pthread_mutex_unlock(&pwrite_mutex);
     assert(r==0);
 }
 

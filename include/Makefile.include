@@ -1,0 +1,385 @@
+# -*- Mode: Makefile -*-
+
+# TODO: Find a way to point out directories (i.e. current dir, or root dir)
+# TODO: Find the names of the icc windows library includes.. i.e. dlls/etc.
+# TODO: Find icc equivalents for W64 (warn about 32 vs 64 bit incompatibility
+# TODO: Add (linux) icc warning about windows porting issues.
+# TODO: There is an icc option for short 1-liner diagnostics.. see if there is
+# an opposite!  (i.e. long diagnostics which maybe will give us a stack trace
+# for warnings)
+# TODO: Learn how the hell to use idb.
+#
+# Default include makefile.
+# Before (or after?) including this makefile, define the following variables
+# 	INCLUDES = -I $(TOKUROOT)/.. -I . -I $(TOKUROOT)/... #Whatever include directories
+# 		List of directories to include for search paths.
+# 	TOKUROOT = absolute path of the root of this branch.
+# 		TODO: find alternative way to do this.
+# 	BINS     = base names for bins
+# 	SUBDIRS  = Subdirs to make/clean
+#
+# On cygwin do:
+#   make CYGWIN=cygwin check
+#
+# For default=debug (no optimization) do
+#   make DEBUG=1
+
+# For verbose output do
+#   make VERBOSE=1
+# For very verbose output do 
+#   make VERBOSE=2
+
+# For CIL do
+#   make CIL=1
+
+# For coverage do
+#   make GCOV=1
+
+# For profiling do
+#   make PROF=1
+
+# To make warnings be warnngs instead of errors do
+#   make WERROR=
+
+.DELETE_ON_ERROR:
+
+ifneq ($(GCOV),)
+    GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+endif
+
+ifneq ($(PROF),)
+    PROF_FLAGS = -pg
+endif
+
+OPT_OPTFLAGS = -O3 -finline-functions
+DBG_OPTFLAGS = -O0
+
+ifeq ($(VERBOSE),2)
+VERBVERBOSE=-v
+MAYBEATSIGN= 
+else ifeq ($(VERBOSE),1)
+  VERBVERBOSE=-q
+  MAYBEATSIGN=
+ else
+  VERBVERBOSE=-q
+  MAYBEATSIGN=@
+endif
+
+CPPFLAGS = $(INCLUDEDIRS) -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)include
+
+#CFLAG default options
+# Add -Wconversion #DISABLED for now.
+
+WERROR    = -Werror
+WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast
+ifeq ($(SKIP_NORETURN),)
+WALL     += -Wmissing-noreturn
+endif
+
+FORMAT    = -Wmissing-format-attribute
+VISIBILITY= -fvisibility=hidden
+FPICFLAGS = -fPIC
+SHADOW    = -Wshadow
+SYMBOLS   = -g3 -ggdb3
+PORTABILITY=
+SKIP_WARNING=
+COMBINE_C = -combine -c
+LIBPORTABILITY   = $(TOKUROOT)lib/libportability.$(AEXT)
+
+PORTABILITY_HEADERS= $(TOKUROOT)linux
+ALWAYS_LINK= $(LIBPORTABILITY) -lz -lpthread 
+C99       = -std=c99
+W64       = #-Wshorten-64-to-32
+BINOUTPUT = -o
+OOUTPUT   = -o
+AROUTPUT  =#empty
+BINSUF=#none
+WRONGBINSUF=.exe
+OEXT=o
+WRONGOEXT=obj
+AEXT=a
+WRONGAEXT=lib
+SOEXT=so
+WRONGSOEXT=dll
+AR=ar
+DBG_ARFLAGS=r
+OPT_ARFLAGS=r
+LINK=-l
+DEPEND_COMPILE += \
+	$(TOKUROOT)include/db.h \
+	$(TOKUROOT)include/os.h \
+	$(TOKUROOT)include/portability.h \
+	$(TOKUROOT)include/rdtsc.h \
+# keep this line so I can have a \ on the previous line
+CCQUIET=
+
+comma:=,
+empty:=#
+space:=$(empty) $(empty)
+LINK_LPATH=$(patsubst %,-Wl$(comma)-rpath$(comma)%,$(RPATH_DIRS))
+LINK_RPATH=$(patsubst %,-L%$(space),$(RPATH_DIRS))
+DLINK_FILES_PREPROCESS_1=$(patsubst %.$(SOEXT),%,$(DLINK_FILES))
+DLINK_FILES_PREPROCESS_2=$(patsubst lib%,%,$(notdir $(DLINK_FILES_PREPROCESS_1)))
+LINK_DLINK_FILES=$(patsubst %,$(LINK)%,$(notdir $(DLINK_FILES_PREPROCESS_2)))
+
+CRUNTIME=
+DEPEND_LINK += \
+	$(LIBPORTABILITY) \
+	$(LINK_FILES) \
+# keep this line so I can have a \ on the previous line
+
+
+ifeq ($(CYGWIN),)
+    OS_CHOICE=linux
+else ifneq ($(CC),icc)
+    OS_CHOICE=linux
+else
+    OS_CHOICE=windows
+endif
+
+DEPEND_COMPILE += $(wildcard $(TOKUROOT)$(OS_CHOICE)/*.h)
+
+#Tools
+VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes \
+       --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
+       --suppressions=$(TOKUROOT)src/tests/bdb.suppressions
+HGRIND=valgrind --quiet --tool=helgrind
+
+# When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
+# When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
+
+ifeq ($(CC),icc)
+    #icc only:
+    OPT_OPTFLAGS = -O3 -ip -ipo1
+    DBG_OPTFLAGS = -O0
+    COMBINE_C = -ipo-c
+    FORMAT= #No argument for extra format warnings.
+    WALL  = -Wall -Wcheck # '-Wextra' becomes '-Wcheck' in icc
+    SYMBOLS= -g -debug all -inline-debug-info
+    PORTABILITY=-diag-enable port-win
+    AR=xiar
+    ifneq ($(CYGWIN),)
+	#Cygwin
+        ICC_NOWARN=-Qdiag-disable:
+        SKIP_WARNING += $(ICC_NOWARN)869    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
+    else
+	#Linux
+        ICC_NOWARN=-diag-disable #Need the space
+    endif
+    SKIP_WARNING += $(ICC_NOWARN)177     # Don't complain about static variables that are not used.
+    #SKIP_WARNING += $(ICC_NOWARN)188     # Don't complain about enumerated type mixed with another type.
+    SKIP_WARNING += $(ICC_NOWARN)589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+    SKIP_WARNING += $(ICC_NOWARN)981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+    SKIP_WARNING += $(ICC_NOWARN)1324    # Don't complain about rdtsc clobbering its registers more than once.
+endif
+
+ifneq ($(CYGWIN),)
+    #Cygwin (Windows) Must override some settings
+    BINSUF=.exe
+    WRONGBINSUF=#empty
+    ALWAYS_LINK=$(LIBPORTABILITY) /usr/lib/libz.a
+    VGRIND   =#No Valgrind in cygwin
+    HGRIND   =#No Hgrind in cygwin
+    FPICFLAGS=#FPIC is default and not allowed as an option.
+    VISIBILITY=#Not supported
+    SHADOW=#Not supported
+    ifeq ($(CC),icc)
+	#Cygwin icc only
+	ifeq ($(CRUNTIME),)
+	ifneq ($(DEBUG),)
+	    CRUNTIME=MDd
+	else
+	    CRUNTIME=MD
+	endif
+	endif
+        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
+        LINK=#Empty
+        BINOUTPUT=-Fe
+        OOUTPUT=-Fo
+        AROUTPUT=/out:
+        OEXT=obj
+        WRONGOEXT=o
+        AEXT=lib
+        WRONGAEXT=a
+        SOEXT=dll
+        WRONGSOEXT=so
+        C99       = -Qstd=c99
+        OPT_OPTFLAGS = -Ox -Qip -Qipo1
+        DBG_OPTFLAGS = -Od
+        COMBINE_C = -Qipo-c
+        WERROR = -WX # Windows icc version of -Werror
+        SYMBOLS= -Zi -debug:all -Qinline-debug-info
+        PORTABILITY=
+        SKIP_WARNING += $(ICC_NOWARN)1786    # Don't complain about 'read/write/other standards' being deprecated
+        PORTABILITY_HEADERS = $(TOKUROOT)windows
+        AR=xilib
+        DBG_AROPT=-qnoipo
+        OPT_AROPT=-qipo
+        DBG_ARFLAGS=$(DBG_AROPT) -lib /VERBOSE /WX /NOLOGO
+        OPT_ARFLAGS=$(OPT_AROPT) -lib /VERBOSE /WX /NOLOGO
+        CCQUIET=-nologo
+        LINK_DLINK_FILES=$(patsubst %.$(SOEXT),%.$(AEXT),$(DLINK_FILES))
+        LINK_RPATH=
+        LINK_LPATH=
+        DEPEND_LINK += $(LINK_DLINK_FILES)
+        W64 = -Wport #-Wp64 
+    else
+        #Cygwin gcc only
+        FORMAT = -Wno-format
+    endif
+endif
+
+ifneq ($(DEBUG),)
+    OPTFLAGS = $(DBG_OPTFLAGS)
+    ARFLAGS  = $(DBG_ARFLAGS)
+else
+    OPTFLAGS = $(OPT_OPTFLAGS)
+    ARFLAGS  = $(OPT_ARFLAGS)
+endif
+
+CFLAGS = $(WALL) $(W64) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW)
+CFLAGS += $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
+CFLAGS += $(SYMBOLS) $(SKIP_WARNING) $(C99) $(CCQUIET)
+
+LDFLAGS_NOLIB = $(OPTFLAGS) $(SYMBOLS) $(GCOV_FLAGS) $(PROF_FLAGS)
+LDFLAGS = $(LDFLAGS_NOLIB) $(LINK_FILES) $(ALWAYS_LINK) $(LINK_DLINK_FILES) $(LINK_RPATH) $(LINK_LPATH)
+ifneq ($(CRUNTIME),)
+LDFLAGS += -$(CRUNTIME)
+CFLAGS += -$(CRUNTIME)
+endif
+# Need XOPEN_SOURCE=600 to get strtoll()
+CPPFLAGS += -D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+
+#TODO: Fix this up if we want to keep using CIL.
+#ifeq ($(CIL),1)
+#	CC=../../cil/cil-1.3.6/bin/cilly --merge --keepmerged
+#endif
+
+# When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
+
+ifneq ($(CYGWIN),)
+    CSCOPE=mlcscope
+else
+    CSCOPE=cscope
+endif
+
+.PHONY: tags
+tags: cscope.out TAGS
+
+TAGS: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	$(MAYBEATSIGN)etags $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+
+cscope.files: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	$(MAYBEATSIGN)(echo $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch] | tr " " "\n") > $@ # Very long command line quieted.
+
+cscope.out: cscope.files $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	$(MAYBEATSIGN)$(CSCOPE) -b
+
+.PHONY: clean clean-default
+clean: clean-default
+
+clean-default:
+	$(MAYBEATSIGN)rm -f $(BINS) *.$(AEXT) *.$(SOEXT) *.$(OEXT)
+	$(MAYBEATSIGN)rm -f *.bb *.bbg *.da *.gcov *.gcno *.gcda
+	$(MAYBEATSIGN)rm -f *.exe *.obj *.pdb *.ilk TAGS cscope.out cscope.files
+
+#Prevent using the wrong extensions/target types (Otherwise prereqs get confused).
+%$(WRONGBINSUF): %.c
+	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*$(BINSUF)" && false
+%$(WRONGBINSUF): %.$(WRONGOEXT)
+	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*$(BINSUF)" && false
+%.$(WRONGOEXT): %.c
+	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*.$(OEXT)" && false
+%.$(WRONGAEXT):
+	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*.$(AEXT)" && false
+%.$(WRONGSOEXT):
+	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*.$(SOEXT)" && false
+
+ifeq ($(SKIP_LIBPORTABILITYRULE),)
+ifeq ($(CYGWIN),)
+$(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
+	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) -s install
+else ifneq ($(CC),icc)
+$(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
+	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) -s install
+else
+$(LIBPORTABILITY): $(TOKUROOT)windows/*.[ch]
+	$(MAYBEATSIGN)cd $(TOKUROOT)windows && $(MAKE) -s install
+endif
+endif
+
+ifeq ($(SKIP_LOCKTREERULE),)
+LOCKTREE         = $(TOKUROOT)src/lock_tree/locktree.$(AEXT)
+LOCKTREE_LINEAR  = $(TOKUROOT)src/lock_tree/locktree_linear.$(AEXT)
+LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
+LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
+$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG): $(@D)*.[ch]
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
+endif
+
+ifeq ($(SKIP_RANGETREERULE),)
+RANGETREE        = $(TOKUROOT)src/range_tree/rangetree.$(AEXT)
+RANGETREE_LINEAR = $(TOKUROOT)src/range_tree/rangetree_linear.$(AEXT)
+RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
+RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
+$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG): $(@D)*.[ch]
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
+endif
+
+ifeq ($(SKIP_NEWBRTRULE),)
+NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
+$(NEWBRT): $(@D)*.[ch]
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
+endif
+
+BIN_FROM_C_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS)
+BIN_FROM_C_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS_NOLIB)
+%$(BINSUF):%.c       $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+
+BIN_FROM_O_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS)
+BIN_FROM_O_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS_NOLIB)
+%$(BINSUF):%.$(OEXT) $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_O_FLAGS)
+
+O_FROM_C_FLAGS=  $(CFLAGS) $(CPPFLAGS) -c $(OOUTPUT)$@
+%.$(OEXT):%.c        $(DEPEND_COMPILE)
+	$(MAYBEATSIGN)$(CC) $< $(O_FROM_C_FLAGS) 
+
+%.$(AEXT):
+	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $^
+
+
+ifeq ($(SOEXT),so)
+EXPORTMAPFILE=export.map
+EXPORTMAP = -Wl,--version-script=$(EXPORTMAPFILE)
+SHARED=-shared
+endif
+ifeq ($(SOEXT),dll)
+    ifeq ($(DEBUG),)
+        SHARED=/LD
+    else
+        SHARED=/LDd
+    endif
+EXPORTMAPFILE=export.def
+EXPORTMAP=/link /def:$(EXPORTMAPFILE)
+endif
+
+SO_FLAGS=$(SHARED) $(BIN_FROM_O_FLAGS) $(EXPORTMAP)
+%.$(SOEXT): $(EXPORTMAPFILE)
+	$(MAYBEATSIGN)$(CC) $(SO_FLAGS)
+
+#Testing tools
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+SUMMARIZE_SHOULD_FAIL= ;if test $$? = 0; then printf "%-60sXFAIL\n" $(HERE)/$@; else printf "%-60sXPASS\n" $(HERE)/$@ ; test 0 = 1; fi
+INVERTER=;test $$? -ne 0
+else
+SUMMARIZE_CMD =
+endif
+
+#Auto change variables from raw to include .exe if necessary.
+BINS = $(patsubst %,%$(BINSUF),$(BINS_RAW))
+OBJS = $(patsubst %,%.$(OEXT),$(OBJS_RAW))
+REGRESSION_TESTS = $(patsubst %,%$(BINSUF),$(REGRESSION_TESTS_RAW))
+

@@ -8,7 +8,7 @@
  *****************************************
  *
  * TokuDB employs readers/writers locks for the ephemeral locks (e.g.,
- * on BRT nodes) Why not just use the pthread_rwlock API?
+ * on BRT nodes) Why not just use the toku_pthread_rwlock API?
  *
  *   1) we need multiprocess rwlocks (not just multithreaded)
  *

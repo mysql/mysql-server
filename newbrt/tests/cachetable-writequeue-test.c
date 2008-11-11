@@ -36,9 +36,9 @@ static void
 test_simple_enq_deq (int n) {
     struct writequeue writequeue, *wq = &writequeue;
     int r;
-    pthread_mutex_t mutex; 
+    toku_pthread_mutex_t mutex; 
 
-    r = pthread_mutex_init(&mutex, 0); assert(r == 0);
+    r = toku_pthread_mutex_init(&mutex, 0); assert(r == 0);
     writequeue_init(wq);
     assert(writequeue_empty(wq));
     PAIR pairs[n];
@@ -56,7 +56,7 @@ test_simple_enq_deq (int n) {
     }
     assert(writequeue_empty(wq));
     writequeue_destroy(wq);
-    r = pthread_mutex_destroy(&mutex); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&mutex); assert(r == 0);
 }
 
 // setting the wq closed should cause deq to return EINVAL
@@ -75,19 +75,19 @@ test_set_closed (void) {
 
 struct writequeue_with_mutex {
     struct writequeue writequeue;
-    pthread_mutex_t mutex;
+    toku_pthread_mutex_t mutex;
 };
 
 static void
 writequeue_with_mutex_init (struct writequeue_with_mutex *wqm) {
     writequeue_init(&wqm->writequeue);
-    int r = pthread_mutex_init(&wqm->mutex, 0); assert(r == 0);
+    int r = toku_pthread_mutex_init(&wqm->mutex, 0); assert(r == 0);
 }
 
 static void
 writequeue_with_mutex_destroy (struct writequeue_with_mutex *wqm) {
     writequeue_destroy(&wqm->writequeue);
-    int r = pthread_mutex_destroy(&wqm->mutex); assert(r == 0);
+    int r = toku_pthread_mutex_destroy(&wqm->mutex); assert(r == 0);
 }
 
 static void *
@@ -95,11 +95,11 @@ test_set_closed_waiter(void *arg) {
     struct writequeue_with_mutex *wqm = arg;
     int r;
 
-    r = pthread_mutex_lock(&wqm->mutex); assert(r == 0);
+    r = toku_pthread_mutex_lock(&wqm->mutex); assert(r == 0);
     PAIR p;
     r = writequeue_deq(&wqm->writequeue, &wqm->mutex, &p);
     assert(r == EINVAL);
-    r = pthread_mutex_unlock(&wqm->mutex); assert(r == 0);
+    r = toku_pthread_mutex_unlock(&wqm->mutex); assert(r == 0);
     return arg;
 }
 
@@ -109,12 +109,12 @@ test_set_closed_thread (void) {
     int r;
 
     writequeue_with_mutex_init(wqm);
-    pthread_t tid;
-    r = pthread_create(&tid, 0, test_set_closed_waiter, wqm); assert(r == 0);
+    toku_pthread_t tid;
+    r = toku_pthread_create(&tid, 0, test_set_closed_waiter, wqm); assert(r == 0);
     sleep(1);
     writequeue_set_closed(&wqm->writequeue);
     void *ret;
-    r = pthread_join(tid, &ret);
+    r = toku_pthread_join(tid, &ret);
     assert(r == 0 && ret == wqm);
     writequeue_with_mutex_destroy(wqm);
 }
@@ -126,14 +126,14 @@ test_set_closed_thread (void) {
 // writers when the wq size <= 1/2 of the wq limit
 
 struct rwfc {
-    pthread_mutex_t mutex;
+    toku_pthread_mutex_t mutex;
     struct writequeue writequeue;
     int current, limit;
 };
 
 static void rwfc_init (struct rwfc *rwfc, int limit) {
     int r;
-    r = pthread_mutex_init(&rwfc->mutex, 0); assert(r == 0);
+    r = toku_pthread_mutex_init(&rwfc->mutex, 0); assert(r == 0);
     writequeue_init(&rwfc->writequeue);
     rwfc->current = 0; rwfc->limit = limit;
 }
@@ -142,7 +142,7 @@ static void
 rwfc_destroy (struct rwfc *rwfc) {
     int r;
     writequeue_destroy(&rwfc->writequeue);
-    r = pthread_mutex_destroy(&rwfc->mutex); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&rwfc->mutex); assert(r == 0);
 }
 
 static void *
@@ -151,16 +151,16 @@ rwfc_reader (void *arg) {
     int r;
     while (1) {
         PAIR ctpair;
-        r = pthread_mutex_lock(&rwfc->mutex); assert(r == 0);
+        r = toku_pthread_mutex_lock(&rwfc->mutex); assert(r == 0);
         r = writequeue_deq(&rwfc->writequeue, &rwfc->mutex, &ctpair);
         if (r == EINVAL) {
-            r = pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
+            r = toku_pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
             break;
         }
         if (2*rwfc->current-- > rwfc->limit && 2*rwfc->current <= rwfc->limit) {
             writequeue_wakeup_write(&rwfc->writequeue);
         }
-        r = pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
+        r = toku_pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
         destroy_pair(ctpair);
         usleep(random() % 100);
     }
@@ -172,25 +172,25 @@ test_flow_control (int limit, int n) {
     struct rwfc my_rwfc, *rwfc = &my_rwfc;
     int r;
     rwfc_init(rwfc, limit);
-    pthread_t tid;
-    r = pthread_create(&tid, 0, rwfc_reader, rwfc); assert(r == 0);
+    toku_pthread_t tid;
+    r = toku_pthread_create(&tid, 0, rwfc_reader, rwfc); assert(r == 0);
     sleep(1);     // this is here to block the reader on the first deq
     int i;
     for (i=0; i<n; i++) {
         PAIR ctpair = new_pair();
-        r = pthread_mutex_lock(&rwfc->mutex); assert(r == 0);
+        r = toku_pthread_mutex_lock(&rwfc->mutex); assert(r == 0);
         writequeue_enq(&rwfc->writequeue, ctpair);
         rwfc->current++;
         while (rwfc->current >= rwfc->limit) {
             // printf("%d - %d %d\n", i, rwfc->current, rwfc->limit);
             writequeue_wait_write(&rwfc->writequeue, &rwfc->mutex);
         }
-        r = pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
+        r = toku_pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
         // usleep(random() % 1);
     }
     writequeue_set_closed(&rwfc->writequeue);
     void *ret;
-    r = pthread_join(tid, &ret); assert(r == 0);
+    r = toku_pthread_join(tid, &ret); assert(r == 0);
     rwfc_destroy(rwfc);
 }
 
