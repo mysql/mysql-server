@@ -729,7 +729,7 @@ private:
   void execTC_SCHVERCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
 
-  void send_nf_complete_rep(Signal* signal);
+  void send_nf_complete_rep(Signal* signal, const NodeFailRep*);
 
   void execINCL_NODEREQ(Signal* signal);
   void execAPI_FAILREQ(Signal* signal);
