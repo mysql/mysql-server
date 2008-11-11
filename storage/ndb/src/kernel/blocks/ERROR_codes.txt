@@ -6,7 +6,7 @@ Next DBTUP 4029
 Next DBLQH 5051
 Next DBDICT 6013
 Next DBDIH 7215
-Next DBTC 8064
+Next DBTC 8065
 Next CMVMI 9000
 Next BACKUP 10041
 Next DBUTIL 11002
@@ -251,6 +251,7 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5041: Crash is receiving simple read from other TC on different node
 
 8050: Send TCKEYREF is operation is non local
+8064: Send TCKEYREF is unique index operation is non local
 
 5100,5101: Drop ABORT req in primary replica
            Crash on "next" ABORT

@@ -3041,6 +3041,16 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     return;
   }
   
+  if(ERROR_INSERTED(8064) && signal->theData[3] != getOwnNodeId() &&
+     DictTabInfo::isUniqueIndex(localTabptr.p->tableType) &&
+     regTcPtr->isIndexOp(regTcPtr->m_special_op_flags))
+  {
+    ndbassert(false);
+    signal->theData[1] = 626;
+    execDIGETNODESREF(signal);
+    return;
+  }
+
   if(ERROR_INSERTED(8050) && signal->theData[3] != getOwnNodeId())
   {
     ndbassert(false);
