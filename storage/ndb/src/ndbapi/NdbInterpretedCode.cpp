@@ -508,13 +508,16 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
     DBUG_RETURN(error(BadAttributeId));
   }
 
+  Uint32 sigLen= len;
+  Uint32 sendLen= len;
+
   if (val == NULL)
-    len = 0;
+    sigLen = sendLen = 0;
   else {
     if (! col->getStringType())
     {
       /* Fixed size type */
-      len= col->m_attrSize * col->m_arraySize;
+      sigLen= sendLen= col->m_attrSize * col->m_arraySize;
     }
     else
     {
@@ -525,7 +528,7 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
       if ((branch_type != Interpreter::LIKE) &&
           (branch_type != Interpreter::NOT_LIKE))
       {
-        if (! col->get_var_length(val, len))
+        if (! col->get_var_length_bug39645(val, sigLen, sendLen))
         {
           DBUG_RETURN(error(BadLength));
         }
@@ -536,15 +539,24 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   if (col->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
+  Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
+
+  if (sigLen != sendLen)
+  {
+    // bug39645
+    memcpy(tempData, val, sigLen);
+    val = tempData;
+  }
+
   if (add_branch(Interpreter::BranchCol(c, 0, 0, false), Label) != 0)
     DBUG_RETURN(-1);
 
-  if (add1(Interpreter::BranchCol_2(attrId, len)) != 0)
+  if (add1(Interpreter::BranchCol_2(attrId, sendLen)) != 0)
     DBUG_RETURN(-1);
 
   /* Get value byte length rounded up to nearest 32-bit word */
-  Uint32 len2 = Interpreter::mod4(len);
-  if(len2 == len){
+  Uint32 len2 = Interpreter::mod4(sendLen);
+  if(len2 == sendLen){
     /* Whole number of 32-bit words */
     DBUG_RETURN(addN((Uint32*)val, len2 >> 2));
   } else {
@@ -555,7 +567,7 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
 
     /* Zero insignificant bytes in last word */
     Uint32 tmp = 0;
-    for (Uint32 i = 0; i < len-len2; i++) {
+    for (Uint32 i = 0; i < sendLen-len2; i++) {
       char* p = (char*)&tmp;
       p[i] = ((char*)val)[len2+i];
     }
