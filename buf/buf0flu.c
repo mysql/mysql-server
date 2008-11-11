@@ -37,6 +37,142 @@ buf_flush_validate_low(void);
 		/* out: TRUE if ok */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+/**********************************************************************
+Insert a block in the flush_rbt and returns a pointer to its
+predecessor or NULL if no predecessor. The ordering is maintained
+on the basis of the <oldest_modification, space, offset> key. */
+static
+buf_page_t*
+buf_flush_insert_in_flush_rbt(
+/*==========================*/
+				/* out: pointer to the predecessor or
+				NULL if no predecessor. */
+	buf_page_t*	bpage)	/* in: bpage to be inserted. */
+{
+	buf_page_t*		prev = NULL;
+	const ib_rbt_node_t*	c_node;
+	const ib_rbt_node_t*	p_node;
+
+	ut_ad(buf_pool_mutex_own());
+
+	/* Insert this buffer into the rbt. */
+	c_node = rbt_insert(buf_pool->flush_rbt, &bpage, &bpage);
+	ut_a(c_node != NULL);
+
+	/* Get the predecessor. */
+	p_node = rbt_prev(buf_pool->flush_rbt, c_node);
+
+	if (p_node != NULL) {
+		prev = *rbt_value(buf_page_t*, p_node);
+		ut_a(prev != NULL);
+	}
+
+	return(prev);
+}
+
+/*************************************************************
+Delete a bpage from the flush_rbt. */
+static
+void
+buf_flush_delete_from_flush_rbt(
+/*============================*/
+	buf_page_t*	bpage)	/* in: bpage to be removed. */
+{
+
+	ibool	ret = FALSE;
+
+	ut_ad(buf_pool_mutex_own());
+	ret = rbt_delete(buf_pool->flush_rbt, &bpage);
+	ut_ad(ret);
+}
+
+/*********************************************************************
+Compare two modified blocks in the buffer pool. The key for comparison
+is:
+key = <oldest_modification, space, offset>
+This comparison is used to maintian ordering of blocks in the
+buf_pool->flush_rbt.
+Note that for the purpose of flush_rbt, we only need to order blocks
+on the oldest_modification. The other two fields are used to uniquely
+identify the blocks. */
+static
+int
+buf_flush_block_cmp(
+/*================*/
+					/* out:
+					< 0 if b2 < b1,
+					0 if b2 == b1,
+					> 0 if b2 > b1 */
+	const void*	p1,		/* in: block1 */
+	const void*	p2)		/* in: block2 */
+{
+	int		ret;
+
+	ut_ad(p1 != NULL);
+	ut_ad(p2 != NULL);
+
+	const buf_page_t* b1 = *(const buf_page_t**) p1;
+	const buf_page_t* b2 = *(const buf_page_t**) p2;
+
+	ut_ad(b1 != NULL);
+	ut_ad(b2 != NULL);
+
+	ut_ad(b1->in_flush_list);
+	ut_ad(b2->in_flush_list);
+
+	if (b2->oldest_modification
+	    > b1->oldest_modification) {
+		return(1);
+	}
+
+	if (b2->oldest_modification
+	    < b1->oldest_modification) {
+		return(-1);
+	}
+
+	/* If oldest_modification is same then decide on the space. */
+	ret = (int)(b2->space - b1->space);
+
+	/* Or else decide ordering on the offset field. */
+	return(ret ? ret : (int)(b2->offset - b1->offset));
+}
+
+/************************************************************************
+Initialize the red-black tree to speed up insertions into the flush_list
+during recovery process. Should be called at the start of recovery
+process before any page has been read/written. */
+UNIV_INTERN
+void
+buf_flush_init_flush_rbt(void)
+/*==========================*/
+{
+	buf_pool_mutex_enter();
+
+	/* Create red black tree for speedy insertions in flush list. */
+	buf_pool->flush_rbt = rbt_create(sizeof(buf_page_t*),
+					 buf_flush_block_cmp);
+	buf_pool_mutex_exit();
+}
+
+/************************************************************************
+Frees up the red-black tree. */
+UNIV_INTERN
+void
+buf_flush_free_flush_rbt(void)
+/*==========================*/
+{
+	buf_pool_mutex_enter();
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(buf_flush_validate_low());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+	rbt_free(buf_pool->flush_rbt);
+	buf_pool->flush_rbt = NULL;
+
+	buf_pool_mutex_exit();
+}
+
 /************************************************************************
 Inserts a modified block into the flush list. */
 UNIV_INTERN
@@ -49,6 +185,13 @@ buf_flush_insert_into_flush_list(
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
 		  <= bpage->oldest_modification));
+
+	/* If we are in the recovery then we need to update the flush
+	red-black tree as well. */
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+		buf_flush_insert_sorted_into_flush_list(bpage);
+		return;
+	}
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
@@ -120,12 +263,27 @@ buf_flush_insert_sorted_into_flush_list(
 	}
 
 	prev_b = NULL;
-	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-	while (b && b->oldest_modification > bpage->oldest_modification) {
-		ut_ad(b->in_flush_list);
-		prev_b = b;
-		b = UT_LIST_GET_NEXT(list, b);
+	/* For the most part when this function is called the flush_rbt
+	should not be NULL. In a very rare boundary case it is possible
+	that the flush_rbt has already been freed by the recovery thread
+	before the last page was hooked up in the flush_list by the
+	io-handler thread. In that case we'll  just do a simple
+	linear search in the else block. */
+	if (buf_pool->flush_rbt) {
+
+		prev_b = buf_flush_insert_in_flush_rbt(bpage);
+
+	} else {
+
+		b = UT_LIST_GET_FIRST(buf_pool->flush_list);
+
+		while (b && b->oldest_modification
+		       > bpage->oldest_modification) {
+			ut_ad(b->in_flush_list);
+			prev_b = b;
+			b = UT_LIST_GET_NEXT(list, b);
+		}
 	}
 
 	if (prev_b == NULL) {
@@ -240,6 +398,11 @@ buf_flush_remove(
 	case BUF_BLOCK_FILE_PAGE:
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
 		break;
+	}
+
+	/* If the flush_rbt is active then delete from it as well. */
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+		buf_flush_delete_from_flush_rbt(bpage);
 	}
 
 	bpage->oldest_modification = 0;
@@ -1274,6 +1437,15 @@ buf_flush_validate_low(void)
 		ut_ad(bpage->in_flush_list);
 		ut_a(buf_page_in_file(bpage));
 		ut_a(om > 0);
+
+		/* If we are in recovery mode i.e.: flush_rbt != NULL
+		then each block in the flush_list must also be present
+		in the flush_rbt. */
+		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+			ut_a(*rbt_value(buf_page_t*,
+			     rbt_lookup(buf_pool->flush_rbt, &bpage))
+			     == bpage);
+		}
 
 		bpage = UT_LIST_GET_NEXT(list, bpage);
 
