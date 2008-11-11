@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, Sun Microsystems Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,153 +14,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <ndb_opt_defaults.h>
 #include <IPCConfig.hpp>
-#include <NdbOut.hpp>
-#include <NdbHost.h>
 
-#include <TransporterDefinitions.hpp>
 #include <TransporterRegistry.hpp>
-#include <Properties.hpp>
-
-#include <mgmapi_configuration.hpp>
-#include <mgmapi_config_parameters.h>
-
-#if defined DEBUG_TRANSPORTER
-#define DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
-#else
-#define DEBUG(t)
-#endif
-
-IPCConfig::IPCConfig(Properties * p)
-{
-  theNoOfRemoteNodes = 0;
-  the_ownId = 0;
-  if(p != 0)
-    props = new Properties(* p);
-  else
-    props = 0;
-}
-
-
-IPCConfig::~IPCConfig()
-{
-  if(props != 0){
-    delete props;
-  }
-}
-
-int
-IPCConfig::init(){
-  Uint32 nodeId;
-
-  if(props == 0) return -1;
-  if(!props->get("LocalNodeId", &nodeId)) {
-    DEBUG( "Did not find local node id." );
-    return -1;
-  }
-  the_ownId = nodeId;
-  
-  Uint32 noOfConnections;
-  if(!props->get("NoOfConnections", &noOfConnections)) {
-    DEBUG( "Did not find noOfConnections." );
-    return -1;
-  }
-  
-  for(Uint32 i = 0; i<noOfConnections; i++){
-    const Properties * tmp;
-    Uint32 node1, node2;
-
-    if(!props->get("Connection", i, &tmp)) {
-      DEBUG( "Did not find Connection." );
-      return -1;
-    }
-    if(!tmp->get("NodeId1", &node1)) {
-      DEBUG( "Did not find NodeId1." );
-      return -1;
-    }
-    if(!tmp->get("NodeId2", &node2)) {
-      DEBUG( "Did not find NodeId2." );
-      return -1;
-    }
-
-    if(node1 == the_ownId && node2 != the_ownId)
-      if(!addRemoteNodeId(node2)) {
-	DEBUG( "addRemoteNodeId(node2) failed." );
-	return -1;
-      }
-
-    if(node1 != the_ownId && node2 == the_ownId)
-      if(!addRemoteNodeId(node1)) {
-	DEBUG( "addRemoteNodeId(node2) failed." );
-	return -1;
-      }
-  }
-  return 0;
-}
-
-bool
-IPCConfig::addRemoteNodeId(NodeId nodeId){
-  for(int i = 0; i<theNoOfRemoteNodes; i++)
-    if(theRemoteNodeIds[i] == nodeId)
-      return false;
-  theRemoteNodeIds[theNoOfRemoteNodes] = nodeId;
-  theNoOfRemoteNodes++;
-  return true;
-}
-
-/**
- * Supply a nodeId,
- *  and get next higher node id
- * Returns false if none found
- */
-bool
-IPCConfig::getNextRemoteNodeId(NodeId & nodeId) const {
-  NodeId returnNode = MAX_NODES + 1;
-  for(int i = 0; i<theNoOfRemoteNodes; i++)
-    if(theRemoteNodeIds[i] > nodeId){
-      if(theRemoteNodeIds[i] < returnNode){
-	returnNode = theRemoteNodeIds[i];
-      }
-    }
-  if(returnNode == (MAX_NODES + 1))
-    return false;
-  nodeId = returnNode;
-  return true;
-}
-
-
-Uint32 
-IPCConfig::getREPHBFrequency(NodeId id) const {
-  const Properties * tmp;
-  Uint32 out;
-
-  /**
-   *  Todo: Fix correct heartbeat
-   */
-  if (!props->get("Node", id, &tmp) || 
-      !tmp->get("HeartbeatIntervalRepRep", &out)) {
-    DEBUG("Illegal Node or HeartbeatIntervalRepRep in config.");    
-    out = 10000;
-  }
-  
-  return out;
-}
-
-const char* 
-IPCConfig::getNodeType(NodeId id) const {
-  const char * out;
-  const Properties * tmp;
-
-  if (!props->get("Node", id, &tmp) || !tmp->get("Type", &out)) {
-    DEBUG("Illegal Node or NodeType in config.");
-    out = "Unknown";
-  }
-
-  return out;
-}
 
 #include <mgmapi.h>
+#include <mgmapi_configuration.hpp>
+
 Uint32
 IPCConfig::configureTransporters(Uint32 nodeId,
 				 const struct ndb_mgm_configuration & config,
