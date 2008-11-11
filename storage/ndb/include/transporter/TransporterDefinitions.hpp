@@ -92,11 +92,6 @@ struct TransporterConfiguration {
       Uint32 shmSize;
       int    signum;
     } shm;
-    
-    struct {
-      Uint32 prioASignalSize;
-      Uint32 prioBSignalSize;
-    } ose;
 
     struct {
       Uint32 sendLimit;        // Packet size
