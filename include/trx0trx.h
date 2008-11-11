@@ -18,6 +18,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "dict0types.h"
 #include "trx0xa.h"
+#include "ut0vec.h"
 
 /* Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
@@ -601,9 +602,6 @@ struct trx_struct{
 					to srv_conc_innodb_enter, if the value
 					here is > 0, we decrement this by 1 */
 	/*------------------------------*/
-	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
-					the transaction; note that it is also
-					in the lock list trx_locks */
 	dict_index_t*	new_rec_locks[2];/* these are normally NULL; if
 					srv_locks_unsafe_for_binlog is TRUE
 					or session is using READ COMMITTED
@@ -735,9 +733,15 @@ struct trx_struct{
 	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
 					records which are currently processed
 					by a rollback operation */
+	/*------------------------------*/
 	ulint		n_autoinc_rows;	/* no. of AUTO-INC rows required for
 					an SQL statement. This is useful for
 					multi-row INSERTs */
+	ib_vector_t*    autoinc_locks;  /* AUTOINC locks held by this
+					transaction. Note that these are
+					also in the lock list trx_locks. This
+					vector needs to be freed explicitly
+					when the trx_t instance is desrtoyed */
 	/*------------------------------*/
 	char detailed_error[256];	/* detailed error message for last
 					error, or empty. */
