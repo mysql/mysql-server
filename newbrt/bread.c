@@ -3,14 +3,14 @@
 #include "includes.h"
 
 struct bread {
-    off_t current_offset;   // The current offset to be read (in the file).  That offset includes anything that is unread in the buffer.
+    toku_off_t current_offset;   // The current offset to be read (in the file).  That offset includes anything that is unread in the buffer.
     int fd;
     size_t bufsize;
     char *buf;              // A buffer of size bufsize;
     int bufoff;             // The current offset buf.
 };
 
-BREAD create_bread_from_fd_initialize_at(int fd, off_t filesize, size_t bufsize) {
+BREAD create_bread_from_fd_initialize_at(int fd, toku_off_t filesize, size_t bufsize) {
     BREAD MALLOC(result);
     result->current_offset=filesize;
     result->fd=fd;
@@ -31,7 +31,7 @@ ssize_t bread_backwards(BREAD br, void *vbuf, size_t nbytes) {
     char *buf=vbuf;
     ssize_t result=0;
     while (nbytes > 0) {
-	assert(br->current_offset >= (off_t)nbytes);
+	assert(br->current_offset >= (toku_off_t)nbytes);
 	// read whatever we can out of the buffer.
 	{
 	    size_t to_copy = ((size_t)br->bufoff >= nbytes) ? nbytes : (size_t)br->bufoff;

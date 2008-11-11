@@ -22,6 +22,7 @@ typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
 //typedef const void *bytevec;
 
+typedef int64_t toku_off_t;
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
@@ -41,7 +42,9 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 /* Make the FILEID a struct for the same reason. */
 typedef struct __toku_fileid { u_int32_t fileid; } FILENUM;
 
+#ifndef TOKU_WINDOWS
 typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
+#endif
 
 typedef struct tokulogger *TOKULOGGER;
 #define NULL_LOGGER ((TOKULOGGER)0)

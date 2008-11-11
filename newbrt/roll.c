@@ -115,7 +115,7 @@ int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN 
     return do_insertion (BRT_ABORT_ANY, xid, filenum, key, 0, txn);
 }
 
-int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn) {
+int toku_commit_fileentries (int fd, toku_off_t filesize, TOKUTXN txn) {
     BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
     int r=0;
     MEMARENA ma = memarena_create();
@@ -133,7 +133,7 @@ int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn) {
     return r;
 }
 
-int toku_rollback_fileentries (int fd, off_t filesize, TOKUTXN txn) {
+int toku_rollback_fileentries (int fd, toku_off_t filesize, TOKUTXN txn) {
     BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
     assert(f);
     int r=0;

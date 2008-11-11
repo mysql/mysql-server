@@ -124,6 +124,7 @@ struct cachefile {
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
+#if defined __linux__
     {
 	static int did_mallopt = 0;
 	if (!did_mallopt) {
@@ -131,6 +132,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
 	    did_mallopt = 1;
 	}
     }
+#endif
     TAGMALLOC(CACHETABLE, t);
     if (t == 0) return ENOMEM;
     t->n_in_table = 0;
@@ -154,7 +156,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     r = toku_pthread_mutex_init(&t->mutex, 0); assert(r == 0);
 
     // set the max number of writeback threads to min(MAX_WRITER_THREADS,nprocs_online)
-    int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+    int nprocs = os_get_number_active_processors();
     if (nprocs > MAX_WRITER_THREADS) nprocs = MAX_WRITER_THREADS;
     r = threadpool_create(&t->threadpool, nprocs); assert(r == 0);
 
@@ -565,34 +567,12 @@ static void flush_and_remove (CACHETABLE ct, PAIR p, int write_me) {
 #endif
 }
 
-static unsigned long toku_maxrss=0;
-
-unsigned long toku_get_maxrss(void) {
-    return toku_maxrss;
-}
-
-static unsigned long check_maxrss (void) __attribute__((__unused__));
-static unsigned long check_maxrss (void) {
-    pid_t pid = getpid();
-    char fname[100];
-    snprintf(fname, sizeof(fname), "/proc/%d/statm", pid);
-    FILE *f = fopen(fname, "r");
-    unsigned long ignore = 0, rss = 0;
-    if (f) {
-        fscanf(f, "%lu %lu", &ignore, &rss);
-        fclose(f);
-    }
-    if (toku_maxrss<rss) toku_maxrss=rss;
-    return rss;
-}
-
-
 static int maybe_flush_some (CACHETABLE t, long size) {
     int r = 0;
 again:
     if (size + t->size_current > t->size_limit + t->size_writing) {
 	{
-	    unsigned long rss __attribute__((__unused__)) = check_maxrss();
+	    //unsigned long rss __attribute__((__unused__)) = check_max_rss();
 	    //printf("this-size=%.6fMB projected size = %.2fMB  limit=%2.fMB  rss=%2.fMB\n", size/(1024.0*1024.0), (size+t->size_current)/(1024.0*1024.0), t->size_limit/(1024.0*1024.0), rss/256.0);
 	    //struct mallinfo m = mallinfo();
 	    //printf(" arena=%d hblks=%d hblkhd=%d\n", m.arena, m.hblks, m.hblkhd);
@@ -1035,13 +1015,13 @@ int cachetable_fsync (CACHETABLE t) {
 #endif
 
 #if 0
-int cachefile_pwrite (CACHEFILE cf, const void *buf, size_t count, off_t offset) {
+int cachefile_pwrite (CACHEFILE cf, const void *buf, size_t count, toku_off_t offset) {
     ssize_t r = pwrite(cf->fd, buf, count, offset);
     if (r==-1) return errno;
     assert((size_t)r==count);
     return 0;
 }
-int cachefile_pread  (CACHEFILE cf, void *buf, size_t count, off_t offset) {
+int cachefile_pread  (CACHEFILE cf, void *buf, size_t count, toku_off_t offset) {
     ssize_t r = pread(cf->fd, buf, count, offset);
     if (r==-1) return errno;
     if (r==0) return -1; /* No error for EOF ??? */

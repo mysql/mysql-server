@@ -9,7 +9,7 @@
 #include <sys/types.h>
 typedef struct bread *BREAD;
 
-BREAD create_bread_from_fd_initialize_at(int fd, off_t filesize, size_t bufsize);
+BREAD create_bread_from_fd_initialize_at(int fd, toku_off_t filesize, size_t bufsize);
 // Effect:  Given a file descriptor, fd, that points at a file of size filesize, create a BREAD.
 // Requires: The filesize must be correct.  The fd must be an open fd.
 

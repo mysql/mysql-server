@@ -166,8 +166,8 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 int toku_maybe_spill_rollbacks (TOKUTXN txn);
 
 struct roll_entry;
-int toku_rollback_fileentries (int fd, off_t filesize, TOKUTXN txn);
-int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn);
+int toku_rollback_fileentries (int fd, toku_off_t filesize, TOKUTXN txn);
+int toku_commit_fileentries (int fd, toku_off_t filesize, TOKUTXN txn);
 int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item);
 int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item);
 

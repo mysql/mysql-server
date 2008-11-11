@@ -136,8 +136,8 @@ int toku_cachefile_flush (CACHEFILE);
 void toku_cachefile_refup (CACHEFILE cfp); 
 
 // Return on success (different from pread and pwrite)
-//int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, off_t offset);
-//int cachefile_pread  (CACHEFILE, void *buf, size_t count, off_t offset);
+//int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, toku_off_t offset);
+//int cachefile_pread  (CACHEFILE, void *buf, size_t count, toku_off_t offset);
 
 // Get the file descriptor associated with the cachefile
 // Return the file descriptor 

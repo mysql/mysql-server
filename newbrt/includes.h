@@ -7,9 +7,15 @@
 #define _FILE_OFFSET_BITS 64
 
 // Portability first!
+#include "stdint.h"
 #include "portability.h"
+#include "os.h"
 
-#if !defined(TOKU_WINDOWS)
+#if defined(TOKU_WINDOWS)
+#include "zlib.h"
+#include "toku_pthread.h"
+#include <dirent.h>
+#else
 #include <dirent.h>
 #include <inttypes.h>
 #include <toku_pthread.h>

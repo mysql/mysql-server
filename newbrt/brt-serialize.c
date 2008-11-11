@@ -34,7 +34,7 @@ static void maybe_preallocate_in_file (int fd, u_int64_t size) {
 	const int N = umin64(size, 16<<20); // Double the size of the file, or add 16MB, whichever is less.
 	char *MALLOC_N(N, wbuf);
 	memset(wbuf, 0, N);
-	off_t start_write = alignup(sbuf.st_size, 4096);
+	toku_off_t start_write = alignup(sbuf.st_size, 4096);
 	assert(start_write >= sbuf.st_size);
 	ssize_t r = pwrite(fd, wbuf, N, start_write);
 	assert(r==N);
@@ -62,7 +62,7 @@ unlock_for_pwrite (void) {
 }
 
 static ssize_t
-toku_pwrite (int fd, const void *buf, size_t count, off_t offset)
+toku_pwrite (int fd, const void *buf, size_t count, toku_off_t offset)
 // requires that the pwrite has been locked
 {
     assert(pwrite_is_locked);
@@ -84,7 +84,7 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 					    4+   // localfingerprint
 					    4);  // crc32 at the end
 
-static int deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
+static int deserialize_fifo_at (int fd, toku_off_t at, FIFO *fifo);
 
 static int
 addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
@@ -134,7 +134,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 // This is the size of the uncompressed data, including the uncompressed header, and including the 4 bytes for the information about how big is the compressed version, and how big is the uncompressed version.
 unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result =brtnode_header_overhead;
-    assert(sizeof(off_t)==8);
+    assert(sizeof(toku_off_t)==8);
     if (node->height>0) {
 	result+=4; /* subtree fingerpirnt */
 	result+=4; /* n_children */
@@ -861,7 +861,7 @@ unsigned int toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
 // For now, just do all the writes as separate system calls.  This function is hardly ever called, and 
 // we might not be able to allocate a large enough buffer to hold everything,
 // and it would be more complex to batch up several writes.
-int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
+int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
     //printf("%s:%d Serializing fifo at %" PRId64 " (count=%d)\n", __FILE__, __LINE__, freeoff, toku_fifo_n_entries(fifo));
     lock_for_pwrite();
     {
@@ -902,7 +902,7 @@ int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
 }
 
 static int
-read_int (int fd, off_t *at, u_int32_t *result) {
+read_int (int fd, toku_off_t *at, u_int32_t *result) {
     int v;
     ssize_t r = pread(fd, &v, 4, *at);
     if (r<0) return errno;
@@ -913,7 +913,7 @@ read_int (int fd, off_t *at, u_int32_t *result) {
 }
 
 static int
-read_char (int fd, off_t *at, char *result) {
+read_char (int fd, toku_off_t *at, char *result) {
     ssize_t r = pread(fd, result, 1, *at);
     if (r<0) return errno;
     assert(r==1);
@@ -922,7 +922,7 @@ read_char (int fd, off_t *at, char *result) {
 }
 
 static int
-read_u_int64_t (int fd, off_t *at, u_int64_t *result) {
+read_u_int64_t (int fd, toku_off_t *at, u_int64_t *result) {
     u_int32_t v1=0,v2=0;
     int r;
     if ((r = read_int(fd, at, &v1))) return r;
@@ -932,7 +932,7 @@ read_u_int64_t (int fd, off_t *at, u_int64_t *result) {
 }
 
 static int
-read_nbytes (int fd, off_t *at, char **data, u_int32_t len) {
+read_nbytes (int fd, toku_off_t *at, char **data, u_int32_t len) {
     char *result = toku_malloc(len);
     if (result==0) return errno;
     ssize_t r = pread(fd, result, len, *at);
@@ -944,7 +944,7 @@ read_nbytes (int fd, off_t *at, char **data, u_int32_t len) {
     return 0;
 }
 
-static int deserialize_fifo_at (int fd, off_t at, FIFO *fifo) {
+static int deserialize_fifo_at (int fd, toku_off_t at, FIFO *fifo) {
     FIFO result;
     int r = toku_fifo_create(&result);
     if (r) return r;
