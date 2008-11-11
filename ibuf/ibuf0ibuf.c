@@ -2581,6 +2581,12 @@ ibuf_get_volume_buffered_count(
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
+	if (!n_recs) {
+		/* The records only need to be counted when
+		IBUF_OP_DELETE is being buffered. */
+		return;
+	}
+
 	field = rec_get_nth_field_old(rec, 1, &len);
 
 	if (UNIV_UNLIKELY(len > 1)) {
@@ -2655,8 +2661,9 @@ ibuf_get_volume_buffered(
 				or BTR_MODIFY_TREE */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: page number of an index page */
-	ulint*		n_recs,	/* out: minimum number of records on the page
-				after the buffered changes have been applied */
+	ulint*		n_recs,	/* in/out: minimum number of records on the
+				page after the buffered changes have been
+				applied, or NULL to disable the counting */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	volume;
@@ -2677,7 +2684,6 @@ ibuf_get_volume_buffered(
 	pcur */
 
 	volume = 0;
-	*n_recs = 0;
 	memset(hash_bitmap, 0, sizeof hash_bitmap);
 
 	rec = btr_pcur_get_rec(pcur);
@@ -3223,8 +3229,11 @@ ibuf_insert_low(
 
 	/* Find out the volume of already buffered inserts for the same index
 	page */
+	min_n_recs = 0;
 	buffered = ibuf_get_volume_buffered(&pcur, space, page_no,
-					    &min_n_recs, &mtr);
+					    op == IBUF_OP_DELETE
+					    ? &min_n_recs
+					    : NULL, &mtr);
 
 	if (op == IBUF_OP_DELETE && min_n_recs == 0) {
 		/* The page could become empty after the record is
