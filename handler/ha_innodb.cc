@@ -69,6 +69,8 @@ extern "C" {
 
 #include "ha_innodb.h"
 #include "i_s.h"
+#include "handler0vars.h"
+#include "mysql_addons.h"
 
 #ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
@@ -107,7 +109,11 @@ undefined.  Map it to NULL. */
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* These must be weak global variables in the dynamic plugin. */
 struct handlerton* innodb_hton_ptr;
+#ifdef __WIN__
+struct st_mysql_plugin*	builtin_innobase_plugin_ptr;
+#else
 int builtin_innobase_plugin;
+#endif /* __WIN__ */
 /********************************************************************
 Copy InnoDB system variables from the static InnoDB to the dynamic
 plugin. */
@@ -163,7 +169,7 @@ static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
-static my_bool innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_adaptive_hash_index		= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -520,7 +526,7 @@ thd_is_replication_slave_thread(
 /**********************************************************************
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
-inline
+static inline
 void
 innodb_srv_conc_enter_innodb(
 /*=========================*/
@@ -537,7 +543,7 @@ innodb_srv_conc_enter_innodb(
 /**********************************************************************
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
-inline
+static inline
 void
 innodb_srv_conc_exit_innodb(
 /*========================*/
@@ -556,7 +562,7 @@ Releases possible search latch and InnoDB thread FIFO ticket. These should
 be released at each SQL statement end, and also when mysqld passes the
 control to the client. It does no harm to release these also in the middle
 of an SQL statement. */
-inline
+static inline
 void
 innobase_release_stat_resources(
 /*============================*/
@@ -630,7 +636,7 @@ thd_lock_wait_timeout(
 
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
-inline
+static inline
 trx_t*&
 thd_to_trx(
 /*=======*/
@@ -674,7 +680,7 @@ Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
 time calls srv_active_wake_master_thread. This function should be used
 when a single database operation may introduce a small need for
 server utility activity, like checkpointing. */
-inline
+static inline
 void
 innobase_active_small(void)
 /*=======================*/
@@ -948,6 +954,99 @@ innobase_get_charset(
 	return(thd_charset((THD*) mysql_thd));
 }
 
+#if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
+/***********************************************************************
+Map an OS error to an errno value. The OS error number is stored in
+_doserrno and the mapped value is stored in errno) */
+extern "C"
+void __cdecl
+_dosmaperr(
+	unsigned long);	/* in: OS error value */
+
+/*************************************************************************
+Creates a temporary file. */
+extern "C" UNIV_INTERN
+int
+innobase_mysql_tmpfile(void)
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+{
+	int	fd;				/* handle of opened file */
+	HANDLE	osfh;				/* OS handle of opened file */
+	char*	tmpdir;				/* point to the directory
+						where to create file */
+	TCHAR	path_buf[MAX_PATH - 14];	/* buffer for tmp file path.
+						The length cannot be longer
+						than MAX_PATH - 14, or
+						GetTempFileName will fail. */
+	char	filename[MAX_PATH];		/* name of the tmpfile */
+	DWORD	fileaccess = GENERIC_READ	/* OS file access */
+			     | GENERIC_WRITE
+			     | DELETE;
+	DWORD	fileshare = FILE_SHARE_READ	/* OS file sharing mode */
+			    | FILE_SHARE_WRITE
+			    | FILE_SHARE_DELETE;
+	DWORD	filecreate = CREATE_ALWAYS;	/* OS method of open/create */
+	DWORD	fileattrib =			/* OS file attribute flags */
+			     FILE_ATTRIBUTE_NORMAL
+			     | FILE_FLAG_DELETE_ON_CLOSE
+			     | FILE_ATTRIBUTE_TEMPORARY
+			     | FILE_FLAG_SEQUENTIAL_SCAN;
+
+	DBUG_ENTER("innobase_mysql_tmpfile");
+
+	tmpdir = my_tmpdir(&mysql_tmpdir_list);
+
+	/* The tmpdir parameter can not be NULL for GetTempFileName. */
+	if (!tmpdir) {
+		uint	ret;
+
+		/* Use GetTempPath to determine path for temporary files. */
+		ret = GetTempPath(sizeof(path_buf), path_buf);
+		if (ret > sizeof(path_buf) || (ret == 0)) {
+
+			_dosmaperr(GetLastError());	/* map error */
+			DBUG_RETURN(-1);
+		}
+
+		tmpdir = path_buf;
+	}
+
+	/* Use GetTempFileName to generate a unique filename. */
+	if (!GetTempFileName(tmpdir, "ib", 0, filename)) {
+
+		_dosmaperr(GetLastError());	/* map error */
+		DBUG_RETURN(-1);
+	}
+
+	DBUG_PRINT("info", ("filename: %s", filename));
+
+	/* Open/Create the file. */
+	osfh = CreateFile(filename, fileaccess, fileshare, NULL,
+			  filecreate, fileattrib, NULL);
+	if (osfh == INVALID_HANDLE_VALUE) {
+
+		/* open/create file failed! */
+		_dosmaperr(GetLastError());	/* map error */
+		DBUG_RETURN(-1);
+	}
+
+	do {
+		/* Associates a CRT file descriptor with the OS file handle. */
+		fd = _open_osfhandle((intptr_t) osfh, 0);
+	} while (fd == -1 && errno == EINTR);
+
+	if (fd == -1) {
+		/* Open failed, close the file handle. */
+
+		_dosmaperr(GetLastError());	/* map error */
+		CloseHandle(osfh);		/* no need to check if
+						CloseHandle fails */
+	}
+
+	DBUG_RETURN(fd);
+}
+#else
 /*************************************************************************
 Creates a temporary file. */
 extern "C" UNIV_INTERN
@@ -979,6 +1078,7 @@ innobase_mysql_tmpfile(void)
 	}
 	return(fd2);
 }
+#endif /* defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN) */
 
 /*************************************************************************
 Wrapper around MySQL's copy_and_convert function, see it for
@@ -1194,7 +1294,7 @@ ha_innobase::~ha_innobase()
 Updates the user_thd field in a handle and also allocates a new InnoDB
 transaction handle if needed, and updates the transaction fields in the
 prebuilt struct. */
-inline
+UNIV_INTERN inline
 void
 ha_innobase::update_thd(
 /*====================*/
@@ -1231,7 +1331,7 @@ Registers that InnoDB takes part in an SQL statement, so that MySQL knows to
 roll back the statement if the statement results in an error. This MUST be
 called for every SQL statement that may be rolled back by MySQL. Calling this
 several times to register the same statement is allowed, too. */
-inline
+static inline
 void
 innobase_register_stmt(
 /*===================*/
@@ -1250,7 +1350,7 @@ MUST be called for every transaction for which the user may call commit or
 rollback. Calling this several times to register the same transaction is
 allowed, too.
 This function also registers the current SQL statement. */
-inline
+static inline
 void
 innobase_register_trx_and_stmt(
 /*===========================*/
@@ -1983,8 +2083,6 @@ innobase_init(
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
-
-	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
 
 	btr_search_disabled = (ibool) !innobase_adaptive_hash_index;
 
@@ -3038,7 +3136,7 @@ ha_innobase::close(void)
 
 /******************************************************************
 Gets field offset for a field in a table. */
-inline
+static inline
 uint
 get_field_offset(
 /*=============*/
@@ -3082,7 +3180,7 @@ field_in_record_is_null(
 /******************************************************************
 Sets a field in a record to SQL NULL. Uses the record format
 information in table to track the null bit in record. */
-inline
+static inline
 void
 set_field_in_record_to_null(
 /*========================*/
@@ -3291,7 +3389,7 @@ get_innobase_type_from_mysql_type(
 /***********************************************************************
 Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
 storage format. */
-inline
+static inline
 void
 innobase_write_to_2_little_endian(
 /*==============================*/
@@ -3307,7 +3405,7 @@ innobase_write_to_2_little_endian(
 /***********************************************************************
 Reads an unsigned integer value < 64k from 2 bytes, in the little-endian
 storage format. */
-inline
+static inline
 uint
 innobase_read_from_2_little_endian(
 /*===============================*/
@@ -4637,7 +4735,7 @@ ha_innobase::index_end(void)
 /*************************************************************************
 Converts a search mode flag understood by MySQL to a flag understood
 by InnoDB. */
-inline
+static inline
 ulint
 convert_search_mode_to_innobase(
 /*============================*/
@@ -5875,40 +5973,21 @@ ha_innobase::create(
 
 	if (create_info->key_block_size
 	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
-		switch (create_info->key_block_size) {
-		case 1:
-			flags = 1 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 2:
-			flags = 2 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 4:
-			flags = 3 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 8:
-			flags = 4 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 16:
-			flags = 5 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-#if DICT_TF_ZSSIZE_MAX != 5
-# error "DICT_TF_ZSSIZE_MAX != 5"
-#endif
+		/* Determine the page_zip.ssize corresponding to the
+		requested page size (key_block_size) in kilobytes. */
+
+		ulint	ssize, ksize;
+		ulint	key_block_size = create_info->key_block_size;
+
+		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
+		     ssize++, ksize <<= 1) {
+			if (key_block_size == ksize) {
+				flags = ssize << DICT_TF_ZSSIZE_SHIFT
+					| DICT_TF_COMPACT
+					| DICT_TF_FORMAT_ZIP
+					  << DICT_TF_FORMAT_SHIFT;
+				break;
+			}
 		}
 
 		if (!srv_file_per_table) {
@@ -5960,12 +6039,16 @@ ha_innobase::create(
 			/* No KEY_BLOCK_SIZE */
 			if (form->s->row_type == ROW_TYPE_COMPRESSED) {
 				/* ROW_FORMAT=COMPRESSED without
-				KEY_BLOCK_SIZE implies
-				KEY_BLOCK_SIZE=8. */
-				flags = 4 << DICT_TF_ZSSIZE_SHIFT
+				KEY_BLOCK_SIZE implies half the
+				maximum KEY_BLOCK_SIZE. */
+				flags = (DICT_TF_ZSSIZE_MAX - 1)
+					<< DICT_TF_ZSSIZE_SHIFT
 					| DICT_TF_COMPACT
 					| DICT_TF_FORMAT_ZIP
-					  << DICT_TF_FORMAT_SHIFT;
+					<< DICT_TF_FORMAT_SHIFT;
+#if DICT_TF_ZSSIZE_MAX < 1
+# error "DICT_TF_ZSSIZE_MAX < 1"
+#endif
 			}
 		}
 
@@ -6777,7 +6860,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (srv_stats_on_metadata) {
+		if (innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -7553,7 +7636,7 @@ ha_innobase::start_stmt(
 
 /**********************************************************************
 Maps a MySQL trx isolation level code to the InnoDB isolation level code */
-inline
+static inline
 ulint
 innobase_map_isolation_level(
 /*=========================*/
@@ -7596,12 +7679,12 @@ ha_innobase::external_lock(
 	READ UNCOMMITTED and READ COMMITTED since the necessary
 	locks cannot be taken. In this case, we print an
 	informative error message and return with an error. */
-	if (lock_type == F_WRLCK)
+	if (lock_type == F_WRLCK && ib_bin_log_is_engaged(thd))
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
-		if (tx_isolation <= ISO_READ_COMMITTED &&
-		    binlog_format == BINLOG_FORMAT_STMT)
+		if (tx_isolation <= ISO_READ_COMMITTED
+		    && binlog_format == BINLOG_FORMAT_STMT)
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),
@@ -9343,7 +9426,7 @@ static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
+  PLUGIN_VAR_OPCMDARG,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
@@ -9568,6 +9651,20 @@ innodb_plugin_init(void)
 #error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
 #endif
 
+	/* Copy the system variables. */
+
+	struct st_mysql_plugin*		builtin;
+	struct st_mysql_sys_var**	sta; /* static parameters */
+	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
+
+#ifdef __WIN__
+	if (!builtin_innobase_plugin_ptr) {
+
+		return(true);
+	}
+
+	builtin = builtin_innobase_plugin_ptr;
+#else
 	switch (builtin_innobase_plugin) {
 	case 0:
 		return(true);
@@ -9577,22 +9674,18 @@ innodb_plugin_init(void)
 		return(false);
 	}
 
-	/* Copy the system variables. */
-
-	struct st_mysql_plugin*		builtin;
-	struct st_mysql_sys_var**	sta; /* static parameters */
-	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
-
 	builtin = (struct st_mysql_plugin*) &builtin_innobase_plugin;
+#endif
 
 	for (sta = builtin->system_vars; *sta != NULL; sta++) {
 
-		/* do not copy session variables */
-		if ((*sta)->flags & PLUGIN_VAR_THDLOCAL) {
-			continue;
-		}
-
 		for (dyn = innobase_system_variables; *dyn != NULL; dyn++) {
+
+			/* do not copy session variables */
+			if (((*sta)->flags | (*dyn)->flags)
+			    & PLUGIN_VAR_THDLOCAL) {
+				continue;
+			}
 
 			if (innobase_match_parameter((*sta)->name,
 						     (*dyn)->name)) {
@@ -9600,11 +9693,15 @@ innodb_plugin_init(void)
 				/* found the corresponding parameter */
 
 				/* check if the flags are the same,
-				ignoring differences in the READONLY flag;
+				ignoring differences in the READONLY or
+				NOSYSVAR flags;
 				e.g. we are not copying string variable to
-				an integer one */
-				if (((*sta)->flags & ~PLUGIN_VAR_READONLY)
-				    != ((*dyn)->flags & ~PLUGIN_VAR_READONLY)) {
+				an integer one, but we do not care if it is
+				readonly in the static and not in the
+				dynamic */
+				if (((*sta)->flags ^ (*dyn)->flags)
+				    & ~(PLUGIN_VAR_READONLY
+					| PLUGIN_VAR_NOSYSVAR)) {
 
 					fprintf(stderr,
 						"InnoDB: %s in static InnoDB "

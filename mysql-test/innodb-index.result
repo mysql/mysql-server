@@ -69,8 +69,6 @@ t1	CREATE TABLE `t1` (
 explain select * from t1 force index(c) order by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	c	10	NULL	4	
-drop index c on t1;
-ERROR 42000: This table type requires a primary key
 alter table t1 add primary key (a), drop index c;
 show create table t1;
 Table	Create Table

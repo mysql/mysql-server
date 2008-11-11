@@ -3648,25 +3648,6 @@ try_find_index:
 	goto loop;
 }
 
-/**************************************************************************
-Determines whether a string starts with the specified keyword. */
-UNIV_INTERN
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-					/* out: TRUE if str starts
-					with keyword */
-	void*		mysql_thd,	/* in: MySQL thread handle */
-	const char*	str,		/* in: string to scan for keyword */
-	const char*	keyword)	/* in: keyword to look for */
-{
-	struct charset_info_st*	cs	= innobase_get_charset(mysql_thd);
-	ibool			success;
-
-	dict_accept(cs, str, keyword, &success);
-	return(success);
-}
-
 /*************************************************************************
 Scans a table create SQL string and adds to the data dictionary the foreign
 key constraints declared in the string. This function should be called after

@@ -18,6 +18,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "read0types.h"
 #include "hash0hash.h"
+#include "ut0vec.h"
 
 #ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
@@ -490,14 +491,6 @@ lock_table_unlock(
 /*==============*/
 	lock_t*	lock);	/* in: lock */
 /*************************************************************************
-Releases an auto-inc lock a transaction possibly has on a table.
-Releases possible other transactions waiting for this lock. */
-UNIV_INTERN
-void
-lock_table_unlock_auto_inc(
-/*=======================*/
-	trx_t*	trx);	/* in: transaction */
-/*************************************************************************
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 UNIV_INTERN
@@ -653,6 +646,13 @@ ulint
 lock_number_of_rows_locked(
 /*=======================*/
 	trx_t*	trx);	/* in: transaction */
+/***********************************************************************
+Release all the transaction's autoinc locks. */
+UNIV_INTERN
+void
+lock_release_autoinc_locks(
+/*=======================*/
+	trx_t*		trx);		/* in/out: transaction */
 
 /***********************************************************************
 Gets the type of a lock. Non-inline version for using outside of the

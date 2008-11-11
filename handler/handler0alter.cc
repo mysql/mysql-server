@@ -18,6 +18,7 @@ extern "C" {
 }
 
 #include "ha_innodb.h"
+#include "handler0vars.h"
 
 /*****************************************************************
 Copies an InnoDB column to a MySQL field.  This function is
