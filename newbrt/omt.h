@@ -221,7 +221,7 @@ int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
 // Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in omt.
 // Rational: Although the functional iterator requires defining another function (as opposed to C++ style iterator), it is much easier to read.
 
-int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index);
+int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t idx);
 // Effect: Increases indexes of all items at slot >= index by 1.
 //         Insert value into the position at index.
 //
@@ -233,7 +233,7 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index);
 // Performance: time=O(\log N) amortized time.
 // Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index);
+int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t idx);
 // Effect:  Replaces the item at index with value.
 // Returns:
 //   0       success
@@ -242,7 +242,7 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index);
 // Performance: time=O(\log N)
 // Rationale: The BRT needs to be able to replace a value with another copy of the same value (allocated in a different location)
 
-int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *index);
+int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *idx);
 // Effect:  Insert value into the OMT.
 //   If there is some i such that $h(V_i, v)=0$ then returns DB_KEYEXIST.
 //   Otherwise, let i be the minimum value such that $h(V_i, v)>0$.
@@ -260,7 +260,7 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
 // Performance: time=O(\log N) amortized.
 // Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-int toku_omt_delete_at(OMT omt, u_int32_t index);
+int toku_omt_delete_at(OMT omt, u_int32_t idx);
 // Effect: Delete the item in slot index.
 //         Decreases indexes of all items at slot >= index by 1.
 // Returns
@@ -270,7 +270,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t index);
 // Rationale: To delete an item, first find its index using toku_omt_find, then delete it.
 // Performance: time=O(\log N) amortized.
 
-void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t index);
+void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t idx);
 // Effect:
 //  Set the abstract index.
 // Requires:
@@ -291,14 +291,14 @@ int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c);
 //   function, the function must remove c's association with the old
 //   OMT, and associate it with the new OMT.
 
-int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c);
+int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *idx, OMTCURSOR c);
 // Effect:  Find the smallest i such that h(V_i, extra)>=0
 //  If there is such an i and h(V_i,extra)==0 then set *index=i and return 0.
 //  If there is such an i and h(V_i,extra)>0  then set *index=i and return DB_NOTFOUND.
 //  If there is no such i then set *index=toku_omt_size(V) and return DB_NOTFOUND.
 // Requires: index!=NULL
 
-int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index, OMTCURSOR c);
+int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *idx, OMTCURSOR c);
 //   Effect:
 //    If direction >0 then find the smallest i such that h(V_i,extra)>0.
 //    If direction <0 then find the largest  i such that h(V_i,extra)<0.
@@ -359,7 +359,7 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 //    -...-0...0+...+
 //        AC    B
 
-int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t index);
+int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t idx);
 // Effect: Create a new OMT, storing it in *newomt.
 //  The values to the right of index (starting at index) are moved to *newomt.
 // Requires: omt != NULL
@@ -422,7 +422,7 @@ int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v);
 // Performance:  time=O(log N) worst case, expected time=O(1) for a randomly
 //  chosen initial position.
 
-int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *index);
+int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *idx);
 // Effect: Stores c's offset in *index.
 // Requires: index != NULL
 // Returns

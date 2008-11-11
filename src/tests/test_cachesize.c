@@ -22,13 +22,13 @@ size_from (u_int32_t gbytes, u_int32_t bytes) {
     return ((u_int64_t)gbytes << 30) + bytes;
 }
 
-static void
+static inline void
 size_to (u_int64_t s, u_int32_t *gbytes, u_int32_t *bytes) {
     *gbytes = s >> 30;
     *bytes = s & ((1<<30) - 1);
 }
 
-static void
+static inline void
 expect_le (u_int64_t a, u_int32_t gbytes, u_int32_t bytes) {
     u_int64_t b = size_from(gbytes, bytes);
     if (a != b && verbose)

@@ -20,6 +20,10 @@ OPTFLAGS = -O2
 CFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
 # CFLAGS += -pg
 
+ifeq ($(CC),icc)
+CFLAGS += -diag-disable 981
+endif
+
 LDFLAGS += -lpthread
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include
@@ -33,7 +37,7 @@ TDB_LDFLAGS = -L../lib -ltokudb -Wl,-rpath,$(PWD)/../lib -lpthread -lz
 
 TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
-TARGETS = $(TARGET_BDB) $(TARGET_TDB) scanscan-tokudb
+TARGETS = $(TARGET_BDB) scanscan-bdb $(TARGET_TDB) scanscan-tokudb
 
 default: build
 build: $(TARGETS) 
@@ -73,6 +77,8 @@ scanscan-tokudb: scanscan.c
 	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
 endif
 db-benchmark-test-bdb: db-benchmark-test.c
+	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
+scanscan-bdb: scanscan.c
 	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
 
 PARGS =
