@@ -951,40 +951,42 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
         if (extraCol->getStorageType( )== NDB_STORAGETYPE_DISK)
           no_disk_flag=0;
 
-        Uint32 length;
+        Uint32 sigLen = 0;
+        Uint32 sendLen = 0;
         
         if (pvalue==NULL)
-          length=0;
+          sigLen= sendLen= 0;
         else
         { 
-          length=extraCol->getSizeInBytes();          
-          if (extraCol->getArrayType() != NdbDictionary::Column::ArrayTypeFixed)
+          if (! NdbColumnImpl::getImpl(*extraCol).get_var_length_bug39645(pvalue, 
+                                                                          sigLen, 
+                                                                          sendLen))
           {
-            Uint32 lengthInfoBytes;
-            if (!NdbSqlUtil::get_var_length((Uint32) extraCol->getType(),
-                                            pvalue,
-                                            length,
-                                            lengthInfoBytes,
-                                            length))
-            {
-              // Length parameter in equal/setValue is incorrect
-              setErrorCodeAbort(4209);
-              return -1;
-            }
+            // Length parameter in equal/setValue is incorrect
+            setErrorCodeAbort(4209);
+            return -1;
           }
         }       
         
+        Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
+
+        if (sigLen != sendLen) // Bug 39645
+        {
+          memcpy(tempData, pvalue, sigLen);
+          pvalue= tempData;
+        }
+
         // Add ATTRINFO
         res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                         extraCol->getAttrId(), length,
+                                         extraCol->getAttrId(), sendLen,
                                          &attrInfoPtr, &remain);
         if(res)
           return res;
 
-        if(length>0)
+        if(sendLen>0)
         {
           res=insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                           (char*)pvalue, length,
+                                           (char*)pvalue, sendLen,
                                            &attrInfoPtr, &remain);
           if(res)
             return res;

@@ -145,6 +145,27 @@ NdbRecAttr::receive_data(const Uint32 * data32, Uint32 sz)
   const unsigned char* data = (const unsigned char*)data32;
   if(sz)
   {
+    /* Bug 39645 - correct for Disk Var type mapping to Fixed */
+    if (unlikely(m_column->getStorageType() == NDB_STORAGETYPE_DISK))
+    {
+      Uint32 oldSz= sz;
+
+      switch (m_column->getType()) {
+      case NDB_TYPE_VARCHAR:
+      case NDB_TYPE_VARBINARY:
+        sz= data[0] + 1;
+        break;
+      case NDB_TYPE_LONGVARCHAR:
+      case NDB_TYPE_LONGVARBINARY:
+        sz= data[0] + (data[1] << 8) + 2;
+        break;
+      default:
+        ;
+      }
+      assert( sz <= oldSz );
+    }
+    /* End of Bug 39645 */
+
     if (unlikely(m_getVarValue != NULL)) {
       // ONLY for blob V2 implementation
       assert(m_column->getType() == NdbDictionary::Column::Longvarchar ||
@@ -157,6 +178,7 @@ NdbRecAttr::receive_data(const Uint32 * data32, Uint32 sz)
       data += 2;
       sz -= 2;
     }
+
     if(!copyoutRequired())
       memcpy(theRef, data, sz);
     else

@@ -411,6 +411,9 @@ NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL7", NdbDictionary::Column::Varbinary, 88, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL8", NdbDictionary::Column::Longvarbinary, 270, false, true, 0, NdbDictionary::Column::StorageTypeDisk)
+
 };
 static
 const

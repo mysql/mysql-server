@@ -143,6 +143,11 @@ public:
 
   // Get total length in bytes, used by NdbOperation
   bool get_var_length(const void* value, Uint32& len) const;
+
+  // Get significant and send length in bytes, accounting for bug39645 
+  bool get_var_length_bug39645(const void* value, 
+                               Uint32& sigLen, 
+                               Uint32& sendLen) const;
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
@@ -866,6 +871,7 @@ NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
 {
   DBUG_ENTER("NdbColumnImpl::get_var_length");
   Uint32 max_len = m_attrSize * m_arraySize;
+
   switch (m_arrayType) {
   case NDB_ARRAYTYPE_SHORT_VAR:
     len = 1 + *((Uint8*)value);
@@ -882,6 +888,70 @@ NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
   }
   DBUG_RETURN(len <= max_len);
 }
+
+// Useful until 6.4 where WL4499 removes the need.
+inline
+bool
+NdbColumnImpl::get_var_length_bug39645(const void* value, 
+                                       Uint32& sigLen,
+                                       Uint32& sendLen) const
+{
+  DBUG_ENTER("NdbColumnImpl::get_var_length_bug39645");
+  Uint32 max_len = m_attrSize * m_arraySize;
+  
+  sendLen= max_len;
+
+  /* Special code for bug 39645 to help avoid copying too much
+   * from user space (and potentially reading bad memory
+   * Not needed when true VARCHAR to disk is implemented (WL4499)
+   */
+  if (unlikely(m_storageType == NDB_STORAGETYPE_DISK))
+  {
+    /* Disk VARCHAR/BINARY have arrayType of NDB_ARRAYTYPE_FIXED,
+     * but we should treat as VAR types w.r.t. determining 
+     * actual data length
+     */
+    DBUG_PRINT("info", ("DISK based : type=%u", m_type));
+
+    switch (m_type) {
+    case NDB_TYPE_VARCHAR: // Fall through
+    case NDB_TYPE_VARBINARY:
+      sigLen = 1 + *((Uint8*)value);
+      DBUG_PRINT("info", ("SHORT_VAR_DISK: sigLen=%u max_len=%u", sigLen, max_len));
+      DBUG_RETURN(sigLen <= max_len);
+
+    case NDB_TYPE_LONGVARCHAR: // Fall through
+    case NDB_TYPE_LONGVARBINARY:
+      sigLen = 2 + uint2korr((char*)value);
+      DBUG_PRINT("info", ("MEDIUM_VAR: sigLen=%u max_len=%u", sigLen, max_len));
+      DBUG_RETURN(sigLen <= max_len);
+    default:
+      // Fixed size disk type - fall through 
+      // to normal processing below
+      ;
+    }
+  }
+
+  /* Normal path */
+  switch (m_arrayType) {
+  case NDB_ARRAYTYPE_SHORT_VAR:
+    sigLen = 1 + *((Uint8*)value);
+    DBUG_PRINT("info", ("SHORT_VAR: sigLen=%u max_len=%u", sigLen, max_len));
+    break;
+  case NDB_ARRAYTYPE_MEDIUM_VAR:
+    sigLen = 2 + uint2korr((char*)value);
+    DBUG_PRINT("info", ("MEDIUM_VAR: sigLen=%u max_len=%u", sigLen, max_len));
+    break;
+  default:
+    sigLen = max_len;
+    DBUG_PRINT("info", ("FIXED: sigLen=%u max_len=%u", sigLen, max_len));
+    DBUG_RETURN(true);
+  }
+
+  sendLen= sigLen;
+  DBUG_RETURN(sigLen <= max_len);
+}
+
 
 inline
 NdbTableImpl &
