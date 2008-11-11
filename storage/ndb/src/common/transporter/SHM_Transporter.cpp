@@ -131,19 +131,19 @@ SHM_Transporter::setupBuffers(){
 
 #ifdef DEBUG_TRANSPORTER 
     printf("-- (%d - %d) - Server -\n", localNodeId, remoteNodeId);
-    printf("Reader at: %d (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
-    printf("sharedReadIndex1 at %d (%p) = %d\n", 
+    printf("Reader at: %ld (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
+    printf("sharedReadIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex1-shmBuf, 
 	   sharedReadIndex1, *sharedReadIndex1);
-    printf("sharedWriteIndex1 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex1-shmBuf, 
 	   sharedWriteIndex1, *sharedWriteIndex1);
 
-    printf("Writer at: %d (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
-    printf("sharedReadIndex2 at %d (%p) = %d\n", 
+    printf("Writer at: %ld (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
+    printf("sharedReadIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex2-shmBuf, 
 	   sharedReadIndex2, *sharedReadIndex2);
-    printf("sharedWriteIndex2 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex2-shmBuf, 
 	   sharedWriteIndex2, *sharedWriteIndex2);
 
@@ -171,19 +171,19 @@ SHM_Transporter::setupBuffers(){
     * clientStatusFlag = 1;
 #ifdef DEBUG_TRANSPORTER
     printf("-- (%d - %d) - Client -\n", localNodeId, remoteNodeId);
-    printf("Reader at: %d (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
-    printf("sharedReadIndex2 at %d (%p) = %d\n", 
+    printf("Reader at: %ld (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
+    printf("sharedReadIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex2-shmBuf, 
 	   sharedReadIndex2, *sharedReadIndex2);
-    printf("sharedWriteIndex2 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex2-shmBuf, 
 	   sharedWriteIndex2, *sharedWriteIndex2);
 
-    printf("Writer at: %d (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
-    printf("sharedReadIndex1 at %d (%p) = %d\n", 
+    printf("Writer at: %ld (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
+    printf("sharedReadIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex1-shmBuf, 
 	   sharedReadIndex1, *sharedReadIndex1);
-    printf("sharedWriteIndex1 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex1-shmBuf, 
 	   sharedWriteIndex1, *sharedWriteIndex1);
     
