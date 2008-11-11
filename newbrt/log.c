@@ -3,8 +3,6 @@
 
 #include "includes.h"
 
-static char dev_null[] = "/dev/null";
-
 void* toku_malloc_in_rollback(TOKUTXN txn, size_t size) {
     return malloc_in_memarena(txn->rollentry_arena, size);
 }
@@ -139,9 +137,11 @@ static int open_logfile (TOKULOGGER logger) {
     char fname[fnamelen];
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, logger->next_log_file_number);
     if (logger->write_log_files) {
-        logger->fd = creat(fname, O_EXCL | 0700);        if (logger->fd==-1) return errno;
+        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     if (logger->fd==-1) return errno;
     } else {
-        logger->fd = open(dev_null, O_RDWR+O_BINARY);    if (logger->fd==-1) return errno;
+        logger->fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);           
+        // printf("%s: %s %d\n", __FUNCTION__, DEV_NULL_FILE, logger->fd); fflush(stdout);
+        if (logger->fd==-1) return errno;
     }
     logger->next_log_file_number++;
     int version_l = htonl(log_format_version);
@@ -510,13 +510,13 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER 
     return 0;
 }
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, mode);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), filenum, bs, mode);
     if (r!=0) return r;
-    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), bs);
+    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), filenum, bs);
     return r;
 }
 

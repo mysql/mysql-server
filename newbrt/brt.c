@@ -2614,11 +2614,13 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum, TOKULOGGER log
 }
 
 // open a file for use by the brt.  if the file does not exist, create it.
-static int brt_open_file(BRT brt, const char *fname, const char *fname_in_env, int is_create, TOKUTXN txn, int *fdp) {
+static int brt_open_file(BRT brt, const char *fname, int is_create, int *fdp, BOOL *did_create) {
     brt = brt;
-    mode_t mode = 0777;
+    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r;
-    int fd = open(fname, O_RDWR | O_BINARY, mode);
+    int fd;
+    *did_create = FALSE;
+    fd = open(fname, O_RDWR | O_BINARY, mode);
     if (fd==-1) {
         r = errno;
         if (errno == ENOENT) {
@@ -2629,10 +2631,7 @@ static int brt_open_file(BRT brt, const char *fname, const char *fname_in_env, i
             if (fd == -1) {
                 r = errno; return r;
             }
-            r = toku_logger_log_fcreate(txn, fname_in_env, mode);
-            if (r != 0) {
-                close(fd); return r;
-            }
+            *did_create = TRUE;
         } else
             return r;
     }
@@ -2760,16 +2759,23 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     t->txn_that_created = 0; // Uses 0 for no transaction.
     {
         int fd = -1;
-        r = brt_open_file(t, fname, fname_in_env, is_create, txn, &fd);
+        BOOL did_create = FALSE;
+        r = brt_open_file(t, fname, is_create, &fd, &did_create);
         if (r != 0) {
             t->database_name = 0; goto died0a;
         }
 	r=toku_cachetable_openfd(&t->cf, cachetable, fd, fname_in_env);
         if (r != 0) goto died0a;
-	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
+        if (did_create) {
+            mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+            r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode);
+            if (r != 0) goto died_after_open;
+        }
+	r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
     if (r!=0) {
-	if (0) { died_after_open: toku_cachefile_close(&t->cf, toku_txn_logger(txn)); }
+	died_after_open: 
+        toku_cachefile_close(&t->cf, toku_txn_logger(txn));
         t->database_name = 0;
 	goto died0a;
     }
@@ -2852,28 +2858,6 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     assert(t->h);
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE -> %p\n", t));
     return 0;
-}
-
-int toku_brt_reopen(BRT brt, const char *fname, const char *fname_in_env, TOKUTXN txn) {
-    int r;
-
-    // create a new file
-    int fd = -1;
-    r = brt_open_file(brt, fname, fname_in_env, TRUE, txn, &fd);
-    if (r != 0) return r;
-
-    // set the cachefile
-    r = toku_cachefile_set_fd(brt->cf, fd, fname_in_env);
-    assert(r == 0);
-    brt->h = 0;  // set_fd should close the header
-    toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(brt->cf));
-
-    // init the tree header
-    r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
-    if (r == -1) {
-        r = brt_alloc_init_header(brt, NULL, txn);
-    }
-    return r;
 }
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
