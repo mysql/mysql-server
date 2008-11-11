@@ -1087,13 +1087,16 @@ NdbOperation::branch_col(Uint32 type,
     abort();
   }
 
+  Uint32 sigLen= len;
+  Uint32 sendLen= len;
+
   if (val == NULL)
-    len = 0;
+    sigLen= sendLen = 0;
   else {
     if (! col->getStringType())
     {
       /* Fixed size type */
-      len= col->m_attrSize * col->m_arraySize;
+      sigLen= sendLen= col->m_attrSize * col->m_arraySize;
     }
     else
     {
@@ -1104,7 +1107,7 @@ NdbOperation::branch_col(Uint32 type,
       if ((type != Interpreter::LIKE) &&
           (type != Interpreter::NOT_LIKE))
       {
-        if (! col->get_var_length(val, len))
+        if (! col->get_var_length_bug39645(val, sigLen, sendLen))
         {
           setErrorCodeAbort(4209);
           DBUG_RETURN(-1);
@@ -1115,9 +1118,15 @@ NdbOperation::branch_col(Uint32 type,
 
   m_no_disk_flag &= (col->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
 
+  /* We copy the data if it's not 32-bit aligned, or 
+   * if we need to send more data than the user provides (Bug 39645)
+   */
+  bool needCopy= ( (((UintPtr)val & 3) != 0) || // Not aligned
+                   (sigLen != sendLen));        // Bug 39645
+
   Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
-  if (((UintPtr)val & 3) != 0) {
-    memcpy(tempData, val, len);
+  if (needCopy) {
+    memcpy(tempData, val, sigLen);
     val = tempData;
   }
 
@@ -1127,17 +1136,17 @@ NdbOperation::branch_col(Uint32 type,
   if (insertBranch(Label) == -1)
     DBUG_RETURN(-1);
   
-  if (insertATTRINFO(Interpreter::BranchCol_2(col->m_attrId, len)))
+  if (insertATTRINFO(Interpreter::BranchCol_2(col->m_attrId, sendLen)))
     DBUG_RETURN(-1);
   
-  Uint32 len2 = Interpreter::mod4(len);
-  if(len2 == len){
+  Uint32 len2 = Interpreter::mod4(sendLen);
+  if(len2 == sendLen){
     insertATTRINFOloop((Uint32*)val, len2 >> 2);
   } else {
     len2 -= 4;
     insertATTRINFOloop((Uint32*)val, len2 >> 2);
     Uint32 tmp = 0;
-    for (Uint32 i = 0; i < len-len2; i++) {
+    for (Uint32 i = 0; i < sendLen-len2; i++) {
       char* p = (char*)&tmp;
       p[i] = ((char*)val)[len2+i];
     }
