@@ -2535,19 +2535,18 @@ ibuf_get_volume_buffered_hash(
 				/* out: TRUE if a new record,
 				FALSE if possible duplicate */
 	const rec_t*	rec,	/* in: ibuf record in post-4.1 format */
+	const byte*	types,	/* in: fields */
+	const byte*	data,	/* in: start of user record data */
 	byte*		hash,	/* in/out: hash array */
 	ulint		size)	/* in: size of hash array, in bytes */
 {
 	ulint		len;
 	ulint		fold;
-	const byte*	types;
-	ulint		types_len;
 	ulint		bitmask;
 
-	types = rec_get_nth_field_old(rec, 3, &types_len);
 	len = ibuf_rec_get_size(rec, types, rec_get_n_fields_old(rec) - 4,
 				FALSE);
-	fold = ut_fold_binary(types + types_len, len);
+	fold = ut_fold_binary(data, len);
 
 	hash += (fold / 8) % size;
 	bitmask = 1 << (fold % 8);
@@ -2619,7 +2618,10 @@ ibuf_get_volume_buffered_count(
 	case IBUF_OP_DELETE_MARK:
 		/* There must be a record to delete-mark.
 		See if this record has been already buffered. */
-		if (ibuf_get_volume_buffered_hash(rec, hash, size)) {
+		if (ibuf_get_volume_buffered_hash(rec,
+						  field + IBUF_REC_INFO_SIZE,
+						  field + len,
+						  hash, size)) {
 			(*n_recs)++;
 		}
 		break;
