@@ -5973,40 +5973,21 @@ ha_innobase::create(
 
 	if (create_info->key_block_size
 	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
-		switch (create_info->key_block_size) {
-		case 1:
-			flags = 1 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 2:
-			flags = 2 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 4:
-			flags = 3 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 8:
-			flags = 4 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-		case 16:
-			flags = 5 << DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
-				  << DICT_TF_FORMAT_SHIFT;
-			break;
-#if DICT_TF_ZSSIZE_MAX != 5
-# error "DICT_TF_ZSSIZE_MAX != 5"
-#endif
+		/* Determine the page_zip.ssize corresponding to the
+		requested page size (key_block_size) in kilobytes. */
+
+		ulint	ssize, ksize;
+		ulint	key_block_size = create_info->key_block_size;
+
+		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
+		     ssize++, ksize <<= 1) {
+			if (key_block_size == ksize) {
+				flags = ssize << DICT_TF_ZSSIZE_SHIFT
+					| DICT_TF_COMPACT
+					| DICT_TF_FORMAT_ZIP
+					  << DICT_TF_FORMAT_SHIFT;
+				break;
+			}
 		}
 
 		if (!srv_file_per_table) {
@@ -6058,12 +6039,16 @@ ha_innobase::create(
 			/* No KEY_BLOCK_SIZE */
 			if (form->s->row_type == ROW_TYPE_COMPRESSED) {
 				/* ROW_FORMAT=COMPRESSED without
-				KEY_BLOCK_SIZE implies
-				KEY_BLOCK_SIZE=8. */
-				flags = 4 << DICT_TF_ZSSIZE_SHIFT
+				KEY_BLOCK_SIZE implies half the
+				maximum KEY_BLOCK_SIZE. */
+				flags = (DICT_TF_ZSSIZE_MAX - 1)
+					<< DICT_TF_ZSSIZE_SHIFT
 					| DICT_TF_COMPACT
 					| DICT_TF_FORMAT_ZIP
-					  << DICT_TF_FORMAT_SHIFT;
+					<< DICT_TF_FORMAT_SHIFT;
+#if DICT_TF_ZSSIZE_MAX < 1
+# error "DICT_TF_ZSSIZE_MAX < 1"
+#endif
 			}
 		}
 
