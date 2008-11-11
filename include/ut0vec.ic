@@ -5,7 +5,7 @@ ulint
 ib_vector_size(
 /*===========*/
 				/* out: number of elements in vector */
-	ib_vector_t*	vec)	/* in: vector */
+	const ib_vector_t*	vec)	/* in: vector */
 {
 	return(vec->used);
 }
@@ -23,4 +23,48 @@ ib_vector_get(
 	ut_a(n < vec->used);
 
 	return(vec->data[n]);
+}
+
+/********************************************************************
+Remove the last element from the vector. */
+UNIV_INLINE
+void*
+ib_vector_pop(
+/*==========*/
+				/* out: last vector element */
+	ib_vector_t*    vec)    /* in/out: vector */
+{
+	void*           elem;
+
+	ut_a(vec->used > 0);
+	--vec->used;
+	elem = vec->data[vec->used];
+
+	ut_d(vec->data[vec->used] = NULL);
+	UNIV_MEM_INVALID(&vec->data[vec->used], sizeof(*vec->data));
+
+	return(elem);
+}
+
+/********************************************************************
+Free the underlying heap of the vector. Note that vec is invalid
+after this call. */
+UNIV_INLINE
+void
+ib_vector_free(
+/*===========*/
+	ib_vector_t*    vec)    /* in, own: vector */
+{
+	mem_heap_free(vec->heap);
+}
+
+/********************************************************************
+Test whether a vector is empty or not. */
+UNIV_INLINE
+ibool
+ib_vector_is_empty(
+/*===============*/			/* out: TRUE if empty else FALSE */
+	const ib_vector_t*	vec)	/* in vector to test */
+{
+	return(ib_vector_size(vec) == 0);
 }

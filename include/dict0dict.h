@@ -299,17 +299,6 @@ dict_table_replace_index_in_foreign_list(
 /*=====================================*/
 	dict_table_t*	table,  /* in/out: table */
 	dict_index_t*	index);	/* in: index to be replaced */
-/**************************************************************************
-Determines whether a string starts with the specified keyword. */
-UNIV_INTERN
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-					/* out: TRUE if str starts
-					with keyword */
-	void*		mysql_thd,	/* in: MySQL thread handle */
-	const char*	str,		/* in: string to scan for keyword */
-	const char*	keyword);	/* in: keyword to look for */
 /*************************************************************************
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
