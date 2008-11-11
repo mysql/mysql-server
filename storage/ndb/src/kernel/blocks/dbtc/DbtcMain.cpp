@@ -3093,6 +3093,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 
   Uint8 Toperation = regTcPtr->operation;
   Uint8 TopSimple = regTcPtr->opSimple;
+  Uint8 TopDirty = regTcPtr->dirtyOp;
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
@@ -3100,7 +3101,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   if (Toperation == ZREAD || Toperation == ZREAD_EX)
   {
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
-    if (TopSimple == 1){
+    if (TopSimple == 1 && TopDirty == 0){
       jam();
       /*-------------------------------------------------------------*/
       /*       A SIMPLE READ CAN SELECT ANY OF THE PRIMARY AND       */
