@@ -42,6 +42,8 @@ static int createEvent(Ndb *pNdb,
 	  << pNdb->getNdbError().message << endl;
     return NDBT_FAILED;
   }
+  
+  myDict->dropEvent(eventName);
 
   NdbDictionary::Event myEvent(eventName);
   myEvent.setTable(tab.getName());
