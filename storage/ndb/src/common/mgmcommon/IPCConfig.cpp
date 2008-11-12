@@ -21,6 +21,22 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 
+
+/* Return true if node with "nodeId" is a MGM node */
+static bool is_mgmd(Uint32 nodeId,
+                    const struct ndb_mgm_configuration & config)
+{
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, nodeId))
+    abort();
+  Uint32 type;
+  if(iter.get(CFG_TYPE_OF_SECTION, &type))
+    abort();
+
+  return (type == NODE_TYPE_MGM);
+}
+
+
 bool
 IPCConfig::configureTransporters(Uint32 nodeId,
                                  const struct ndb_mgm_configuration & config,
@@ -30,11 +46,15 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
   DBUG_ENTER("IPCConfig::configureTransporters");
 
-  /**
-   * Iterate over all MGM's an construct a connectstring
-   * create mgm_handle and give it to the Transporter Registry
-   */
+
+  if (!is_mgmd(nodeId, config))
   {
+
+    /**
+     * Iterate over all MGM's and construct a connectstring
+     * create mgm_handle and give it to the Transporter Registry
+     */
+
     const char *separator= "";
     BaseString connect_string;
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
@@ -109,19 +129,11 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 nodeIdServer= 0;
     if(iter.get(CFG_CONNECTION_NODE_ID_SERVER, &nodeIdServer)) break;
 
-    /*
-      We check the node type.
-    */
-    Uint32 node1type, node2type;
-    ndb_mgm_configuration_iterator node1iter(config, CFG_SECTION_NODE);
-    ndb_mgm_configuration_iterator node2iter(config, CFG_SECTION_NODE);
-    node1iter.find(CFG_NODE_ID,nodeId1);
-    node2iter.find(CFG_NODE_ID,nodeId2);
-    node1iter.get(CFG_TYPE_OF_SECTION,&node1type);
-    node2iter.get(CFG_TYPE_OF_SECTION,&node2type);
-
-    if(node1type==NODE_TYPE_MGM || node2type==NODE_TYPE_MGM)
+    if(is_mgmd(nodeId1, config) || is_mgmd(nodeId2, config))
+    {
+      // All connections with MGM uses the mgm port as server
       conf.isMgmConnection= true;
+    }
     else
       conf.isMgmConnection= false;
 
