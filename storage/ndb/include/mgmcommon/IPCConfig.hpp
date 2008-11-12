@@ -18,10 +18,19 @@
 
 struct IPCConfig
 {
-  /* Returns the number of transporters configured */
-  static Uint32 configureTransporters(Uint32 nodeId,
-				      const struct ndb_mgm_configuration &,
-				      class TransporterRegistry &);
+  /*
+    configure_transporters
+
+    Create and configure transporters in TransporterRegistry
+
+    Returns:
+      true  - sucessfully created and (re)configured transporters
+      false - at least one transporter could not be created
+              or (re)configured
+  */
+  static bool configureTransporters(Uint32 nodeId,
+                                    const struct ndb_mgm_configuration &,
+                                    class TransporterRegistry &);
 };
 
 #endif // IPCConfig_H

@@ -51,12 +51,6 @@ enum IOState {
   HaltIO     = 3
 };
 
-enum TransporterType {
-  tt_TCP_TRANSPORTER = 1,
-  tt_SCI_TRANSPORTER = 2,
-  tt_SHM_TRANSPORTER = 3
-  // ID 4 was OSE Transporter which has been removed. Don't use ID 4.
-};
 
 static const char *performStateString[] = 
   { "is connected",
@@ -198,17 +192,21 @@ public:
   IOState ioState(NodeId nodeId);
   void setIOState(NodeId nodeId, IOState state);
 
-  /** 
-   * createTransporter
+private:
+
+  bool createTCPTransporter(TransporterConfiguration * config);
+  bool createSCITransporter(TransporterConfiguration * config);
+  bool createSHMTransporter(TransporterConfiguration * config);
+
+public:
+  /**
+   *   configureTransporter
    *
-   * If the config object indicates that the transporter
-   * to be created will act as a server and no server is
-   * started, startServer is called. A transporter of the selected kind
-   * is created and it is put in the transporter arrays.
+   *   Configure a transporter, ie. create new if it
+   *   does not exist otherwise try to reconfigure it
+   *
    */
-  bool createTCPTransporter(struct TransporterConfiguration * config);
-  bool createSCITransporter(struct TransporterConfiguration * config);
-  bool createSHMTransporter(struct TransporterConfiguration * config);
+  bool configureTransporter(TransporterConfiguration * config);
 
   /**
    * Allocate send buffer for default send buffer handling.
@@ -324,8 +322,6 @@ public:
   void add_transporter_interface(NodeId remoteNodeId, const char *interf,
 		  		 int s_port);	// signed port. <0 is dynamic
   Transporter* get_transporter(NodeId nodeId);
-  NodeId get_localNodeId() { return localNodeId; };
-
   struct in_addr get_connect_address(NodeId node_id) const;
 protected:
   
@@ -339,7 +335,6 @@ private:
 
   int sendCounter;
   NodeId localNodeId;
-  bool nodeIdSpecified;
   unsigned maxTransporters;
   int nTransporters;
   int nTCPTransporters;
@@ -498,6 +493,9 @@ public:
   bool has_data_to_send(NodeId node);
 
   void reset_send_buffer(NodeId node);
+
+  void print_transporters(const char* where, NdbOut& out = ndbout);
+
 };
 
 inline void
