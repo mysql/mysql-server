@@ -1,0 +1,16 @@
+EXPORTS
+	db_create @1
+	db_env_create @2
+	db_strerror @3
+	db_version @4
+	log_compare @5
+	db_env_set_func_fsync @6
+	
+	toku_get_maxrss @7
+	
+	toku_ydb_error_all_cases @8
+	toku_set_trace_file @9
+	toku_close_trace_file @10
+	
+	toku_add_trace_mem @11
+	toku_print_trace_mem @12

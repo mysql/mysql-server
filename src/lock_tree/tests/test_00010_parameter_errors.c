@@ -291,5 +291,6 @@ int main(int argc, const char *argv[]) {
     do_range_test(toku_lt_acquire_range_read_lock);
     do_range_test(toku_lt_acquire_range_write_lock);
 
+    toku_ltm_close(ltm);
     return 0;
 }

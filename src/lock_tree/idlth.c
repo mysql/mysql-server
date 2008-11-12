@@ -9,6 +9,7 @@
   
 */
 
+#include "portability.h"
 #include <idlth.h>
 #include <assert.h>
 #include <errno.h>
@@ -119,7 +120,7 @@ void toku_idlth_delete(toku_idlth* idlth, toku_db_id* key) {
     current->prev_in_iteration->next_in_iteration = current->next_in_iteration;
     current->next_in_iteration->prev_in_iteration = current->prev_in_iteration;
     prev->next_in_bucket = current->next_in_bucket;
-    toku_db_id_remove_ref(current->value.db_id);
+    toku_db_id_remove_ref(&current->value.db_id);
     idlth->free(current);
     idlth->num_keys--;
     return;
@@ -165,7 +166,7 @@ static inline void toku__idlth_clear(toku_idlth* idlth, BOOL clean) {
     while (next != head) {
         element = next;
         next    = toku__idlth_next(idlth);
-        toku_db_id_remove_ref(element->value.db_id);
+        toku_db_id_remove_ref(&element->value.db_id);
         idlth->free(element);
     }
     /* If clean is true, then we want to restore it to 'just created' status.

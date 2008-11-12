@@ -517,4 +517,6 @@ int toku__lt_point_cmp(const toku_point* x, const toku_point* y);
 
 toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
 
+toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
+
 #endif

@@ -19,6 +19,7 @@
 */
 
 //Defines BOOL data type.
+#include "portability.h"
 #include <brttypes.h>
 #include <db.h>
 

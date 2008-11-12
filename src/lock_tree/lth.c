@@ -9,6 +9,7 @@
   
 */
 
+#include "portability.h"
 #include "lth.h"
 #include <assert.h>
 #include <errno.h>

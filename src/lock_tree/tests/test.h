@@ -1,3 +1,4 @@
+#include "portability.h"
 #include <string.h>
 #include <locktree.h>
 #include <db.h>
@@ -18,7 +19,7 @@ int verbose=0;
 
 BOOL want_panic = FALSE;
 
-int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
+static inline int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
     int x = *(int*)a->data;
     int y = *(int*)b->data;
 
@@ -26,24 +27,24 @@ int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
 }
 
 
-int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+static inline int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
 toku_dbt_cmp compare_fun = dbcmp;
 toku_dbt_cmp dup_compare = dbcmp;
 
-toku_dbt_cmp get_compare_fun_from_db(__attribute__((unused)) DB* db) {
+static inline toku_dbt_cmp get_compare_fun_from_db(__attribute__((unused)) DB* db) {
     return compare_fun;
 }
 
-toku_dbt_cmp get_dup_compare_from_db(__attribute__((unused)) DB* db) {
+static inline toku_dbt_cmp get_dup_compare_from_db(__attribute__((unused)) DB* db) {
     return dup_compare;
 }
 
 BOOL panicked = FALSE;
 
-int dbpanic(DB* db, int r) {
+static inline int dbpanic(DB* db, int r) {
     if (verbose) printf("AHH!!!! %d is rampaging! Run away %p!!!\n", r, db);
     panicked = TRUE;
     assert(want_panic);
@@ -51,18 +52,20 @@ int dbpanic(DB* db, int r) {
 }
 
 
-#define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); })
-#define CKERR2(r,r2) ({ if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); })
+#define CKERR(r) { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); }
+#define CKERR2(r,r2) { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); }
 
-void parse_args (int argc, const char *argv[]) {
+static inline void parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
 	int resultcode=0;
 	if (strcmp(argv[1], "-v")==0) {
 	    verbose++;
+	} else if (strcmp(argv[1], "-q")==0) {
+	    verbose=0;
 	} else if (strcmp(argv[1], "-h")==0) {
 	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-h]\n", argv0);
+	    fprintf(stderr, "Usage:\n%s [-v|-h-q]\n", argv0);
 	    exit(resultcode);
 	} else {
 	    resultcode=1;
@@ -84,7 +87,7 @@ static inline u_int32_t myrandom (void) {
 }
 
 
-DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
+static inline DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
     dbt->size = size;
@@ -101,7 +104,7 @@ DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
  */
 // extern int toku__lt_point_cmp(void* a, void* b);
 
-void init_point(toku_point* point, toku_lock_tree* tree) {
+static inline void init_point(toku_point* point, toku_lock_tree* tree) {
     assert(point && tree);
     memset(point, 0, sizeof(toku_point));
     point->lt = tree;
@@ -110,7 +113,7 @@ void init_point(toku_point* point, toku_lock_tree* tree) {
 int mallocced = 0;
 int failon    = -1;
 
-void* fail_malloc(size_t size) {
+static inline void* fail_malloc(size_t size) {
     if (++mallocced == failon) {
         errno = ENOMEM;
         return NULL;

@@ -1,7 +1,10 @@
 /* Test for a memory leak from just closing the lock tree manager (should close
    all lock trees. */
 
+#include "portability.h"
+#include <fcntl.h>
 #include "test.h"
+#include <unistd.h>
 
 static void initial_setup(void);
 
@@ -13,6 +16,7 @@ static toku_db_id*     db_ids[100];
 static char            subdb [100][5];
 static u_int32_t max_locks = 10;
 int  nums[10000];
+int fd;
 
 static void setup_ltm(void) {
     assert(!ltm);
@@ -111,6 +115,7 @@ static void run_test(BOOL dups) {
 
 static void initial_setup(void) {
     u_int32_t i;
+    fd = open(TESTDIR "/file.db", O_CREAT|O_RDWR, S_IRWXU);
 
     ltm = NULL;
     assert(sizeof(db_ids) / sizeof(db_ids[0]) == sizeof(lts) / sizeof(lts[0]));
@@ -118,9 +123,19 @@ static void initial_setup(void) {
     for (i = 0; i < sizeof(lts) / sizeof(lts[0]); i++) {
         lts[i] = NULL;
         sprintf(subdb[i], "%05x", i);
-        if (!db_ids[i]) toku_db_id_create(&db_ids[i], DIR, subdb[i]);
+        if (!db_ids[i]) toku_db_id_create(&db_ids[i], fd, subdb[i]);
         assert(db_ids[i]);
         lt_refs[i] = 0;
+    }
+}
+
+static void close_test(void) {
+    u_int32_t i;
+    for (i = 0; i < sizeof(lts) / sizeof(lts[0]); i++) {
+        assert(lt_refs[i]==0); //The internal reference isn't counted.
+        assert(db_ids[i]);
+        toku_db_id_remove_ref(&db_ids[i]);
+        assert(!db_ids[i]);
     }
 }
 
@@ -129,8 +144,8 @@ int main(int argc, const char *argv[]) {
     compare_fun = intcmp;
     dup_compare = intcmp;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " TESTDIR);
+    os_mkdir(TESTDIR, S_IRWXU|S_IRWXG|S_IRWXO);
 
     initial_setup();
 
@@ -138,5 +153,7 @@ int main(int argc, const char *argv[]) {
     
     run_test(TRUE);
 
+    close(fd);
+    close_test();
     return 0;
 }
