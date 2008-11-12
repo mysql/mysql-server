@@ -11,7 +11,7 @@
 #include "portability.h"
 #include "os.h"
 
-#if defined(TOKU_WINDOWS)
+#if TOKU_WINDOWS
 #include "zlib.h"
 #include "toku_pthread.h"
 #include <dirent.h>
