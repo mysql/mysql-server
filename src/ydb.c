@@ -772,11 +772,11 @@ static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags
 }
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
-void toku_default_errcall(const char *errpfx, char *msg) {
+static void toku_default_errcall(const char *errpfx, char *msg) {
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
 #else
-void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg) {
+static void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg) {
     env = env;
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
@@ -1135,7 +1135,6 @@ int txn_commit(DB_TXN * txn, u_int32_t flags) {
 }
 #endif
 
-int log_compare(const DB_LSN * a, const DB_LSN * b) __attribute__((__noreturn__));
 int log_compare(const DB_LSN * a, const DB_LSN * b) {
     toku_ydb_lock();
     fprintf(stderr, "%s:%d log_compare(%p,%p)\n", __FILE__, __LINE__, a, b);
@@ -2970,7 +2969,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     } else {
         unsigned int limit = nodesize / (3*BRT_FANOUT-1);
         if (key->size >= limit || data->size >= limit)
-            return toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %d bytes", limit);
+            return toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %u bytes", limit);
     }
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
@@ -3219,7 +3218,7 @@ cleanup:
     return r;
 }
 
-int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
+static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
     //READ_UNCOMMITTED transactions do not need read locks.
@@ -3236,7 +3235,7 @@ int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, cons
     return r;
 }
 
-int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
 
@@ -3346,14 +3345,14 @@ static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_
     toku_ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
-int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
+static int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     toku_ydb_lock();
     int r = toku_db_pre_acquire_read_lock(db, txn, key_left, val_left, key_right, val_right);
     toku_ydb_unlock();
     return r;
 }
 
-int locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+static int locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     toku_ydb_lock();
     int r = toku_db_pre_acquire_table_lock(db, txn);
     toku_ydb_unlock();

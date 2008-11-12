@@ -88,6 +88,8 @@ struct __toku_dbc_internal {
    Ephemeral locking
 
    ********************************************************* */
+void toku_ydb_lock_init(void);
+void toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
 
@@ -121,7 +123,9 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
                               const char *fmt, va_list ap)
     __attribute__((format (printf, 5, 0)))
     __attribute__((__visibility__("default"))); // this is needed by the C++ interface. 
-int toku_ydb_do_error (const DB_ENV *, int, const char *, ...);
+
+int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *string, ...)
+                       __attribute__((__format__(__printf__, 3, 4)));
 
 /* Location specific debug print-outs */
 void toku_ydb_barf(void);
@@ -129,6 +133,7 @@ void toku_ydb_notef(const char *, ...);
 
 /* Environment related errors */
 int toku_env_is_panicked(DB_ENV *dbenv);
-void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...);
+void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) 
+                         __attribute__((__format__(__printf__, 3, 4)));
 
 #endif

@@ -267,7 +267,7 @@ static int tokutrace_db_open(DB * db, DB_TXN * txn, const char *fname, const cha
     if (tracefile) {
 	fprintf(tracefile, "db_open %d %d %d %s %s %d %u %d\n",
 		r,
-		dbpairnum(db), txnpairnum(txn), fname, dbname, dbtype, flags, mode);
+		dbpairnum(db), txnpairnum(txn), fname, dbname, (int)dbtype, flags, mode);
     }
     tunlock();
     return r;
