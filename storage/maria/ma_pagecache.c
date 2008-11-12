@@ -97,8 +97,9 @@
 
 #define PCBLOCK_INFO(B) \
   DBUG_PRINT("info", \
-             ("block: 0x%lx  fd: %lu  page: %lu  s: %0x  hshL: 0x%lx  req: %u/%u " \
-              "wrlocks: %u  rdlocks %u  rdlocks_q: %u  pins: %u", \
+             ("block: 0x%lx  fd: %lu  page: %lu  s: %0x  hshL: " \
+              " 0x%lx  req: %u/%u wrlocks: %u  rdlocks %u  " \
+              "rdlocks_q: %u  pins: %u  status: %u", \
               (ulong)(B), \
               (ulong)((B)->hash_link ? \
                       (B)->hash_link->file.file : \
@@ -113,7 +114,7 @@
                      (B)->hash_link->requests : \
                        0), \
               block->wlocks, block->rlocks, block->rlocks_queue, \
-              (uint)(B)->pins))
+              (uint)(B)->pins, (uint)(B)->status))
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;
@@ -2598,6 +2599,8 @@ static void read_block(PAGECACHE *pagecache,
 {
 
   DBUG_ENTER("read_block");
+  DBUG_PRINT("enter", ("read block: 0x%lx  primary: %d",
+                       (ulong)block, primary));
   if (primary)
   {
     size_t error;
@@ -2605,9 +2608,6 @@ static void read_block(PAGECACHE *pagecache,
       This code is executed only by threads
       that submitted primary requests
     */
-
-    DBUG_PRINT("read_block",
-               ("page to be read by primary request"));
 
     pagecache->global_cache_read++;
     /* Page is not in buffer yet, is to be read from disk */
@@ -2655,9 +2655,7 @@ static void read_block(PAGECACHE *pagecache,
       This code is executed only by threads
       that submitted secondary requests
     */
-    DBUG_PRINT("read_block",
-               ("secondary request waiting for new page to be read"));
-    {
+
 #ifdef THREAD
       struct st_my_thread_var *thread= my_thread_var;
       /* Put the request into a queue and wait until it can be processed */
@@ -2674,7 +2672,6 @@ static void read_block(PAGECACHE *pagecache,
       KEYCACHE_DBUG_ASSERT(0);
       /* No parallel requests in single-threaded case */
 #endif
-    }
     DBUG_PRINT("read_block",
                ("secondary request: new page in cache"));
   }
@@ -3310,7 +3307,6 @@ restart:
                         page_cache_page_type_str[type]));
     if (((block->status & PCBLOCK_ERROR) == 0) && (page_st != PAGE_READ))
     {
-      DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
       /* The requested page is to be read into the block buffer */
       read_block(pagecache, block,
                  (my_bool)(page_st == PAGE_TO_BE_READ));
@@ -3845,6 +3841,7 @@ restart:
   {
     /* Key cache is used */
     int page_st;
+    my_bool need_page_ready_signal= FALSE;
 
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (!pagecache->can_be_used)
@@ -3859,10 +3856,7 @@ restart:
     reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                   (pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
-                      (write_mode != PAGECACHE_WRITE_DONE &&
-                       lock != PAGECACHE_LOCK_LEFT_WRITELOCKED &&
-                       lock != PAGECACHE_LOCK_WRITE_UNLOCK &&
-                       lock != PAGECACHE_LOCK_WRITE_TO_READ),
+                      TRUE,
                       reg_request, &page_st);
     if (!block)
     {
@@ -3872,6 +3866,21 @@ restart:
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       /* Write to the disk key cache is in resize at the moment*/
       goto no_key_cache;
+    }
+    DBUG_PRINT("info", ("page status: %d", page_st));
+    if (!(block->status & PCBLOCK_ERROR) &&
+        ((page_st == PAGE_TO_BE_READ &&
+          (offset || size < pagecache->block_size)) ||
+         (page_st == PAGE_WAIT_TO_BE_READ)))
+    {
+      /* The requested page is to be read into the block buffer */
+      read_block(pagecache, block,
+                 (my_bool)(page_st == PAGE_TO_BE_READ));
+      DBUG_PRINT("info", ("read is done"));
+    }
+    else if (page_st == PAGE_TO_BE_READ)
+    {
+      need_page_ready_signal= TRUE;
     }
 
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
@@ -3958,6 +3967,12 @@ restart:
       if (size == pagecache->block_size)
         block->status&= ~PCBLOCK_ERROR;
     }
+
+#ifdef THREAD
+    if (need_page_ready_signal &&
+        block->wqueue[COND_FOR_REQUESTED].last_thread)
+      wqueue_release_queue(&block->wqueue[COND_FOR_REQUESTED]);
+#endif
 
     if (first_REDO_LSN_for_page)
     {
