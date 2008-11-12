@@ -440,9 +440,10 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	    return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
 	}
     }
+#if !TOKU_WINDOWS
     else if ((flags & DB_USE_ENVIRON) ||
              ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) home = getenv("DB_HOME");
-
+#endif
     unused_flags &= ~DB_USE_ENVIRON & ~DB_USE_ENVIRON_ROOT; 
 
     if (!home) home = ".";
@@ -2568,10 +2569,10 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
             return r2;
         }
 
-#define cleanup() ({ \
+#define cleanup() { \
             if (data.data) toku_free(data.data); \
             if (pkey.data) toku_free(pkey.data); \
-        })
+        }
 
         memset(&data, 0, sizeof data); data.flags = DB_DBT_REALLOC;
         memset(&pkey, 0, sizeof pkey); pkey.flags = DB_DBT_REALLOC;
