@@ -1198,6 +1198,9 @@ public:
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
+  /**
+    The cached_table_flags is set at ha_open and ha_external_lock
+  */
   Table_flags ha_table_flags() const { return cached_table_flags; }
   /**
     These functions represent the public interface to *users* of the
@@ -1738,7 +1741,7 @@ public:
     if (ht->alter_table_flags)
       return ht->alter_table_flags(flags);
     return 0;
-  } 
+  }
 
 protected:
   /* Service methods for use by storage engines. */

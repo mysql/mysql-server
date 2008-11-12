@@ -7,11 +7,23 @@
 # check that CSV engine was compiled in
 --source include/have_csv.inc
 
-SET @old_general_log_state = @@global.general_log;
-SET @old_slow_log_state = @@global.slow_query_log;
-
 --disable_ps_protocol
 use mysql;
+
+# Capture initial settings of system variables
+# so that we can revert to old state after manipulation for testing
+# NOTE:  PLEASE USE THESE VALUES TO 'RESET' SYSTEM VARIABLES
+# Capturing old values within the tests results in loss of values
+# due to people not paying attention to previous tests' changes, captures
+# or improper cleanup
+SET @saved_long_query_time = @@long_query_time;
+SET @saved_log_output = @@log_output;
+SET @saved_general_log = @@GLOBAL.general_log;
+SET @saved_slow_query_log = @@GLOBAL.slow_query_log;
+
+SELECT @saved_long_query_time, @saved_log_output, @saved_general_log, @saved_slow_query_log;
+
+
 
 #
 # Check that log tables work and we can do basic selects. This also
@@ -164,6 +176,7 @@ set session long_query_time=1;
 select sleep(2);
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
 select * from mysql.slow_log;
+set @@session.long_query_time = @saved_long_query_time;
 
 #
 # Bug #18559 log tables cannot change engine, and gets deadlocked when
@@ -308,6 +321,7 @@ unlock tables;
 # Bug #21785 Server crashes after rename of the log table
 #
 
+SET SESSION long_query_time = 1000;
 --disable_warnings
 drop table if exists mysql.renamed_general_log;
 drop table if exists mysql.renamed_slow_log;
@@ -368,6 +382,7 @@ set global slow_query_log='ON';
 
 RENAME TABLE general_log2 TO general_log;
 RENAME TABLE slow_log2 TO slow_log;
+SET SESSION long_query_time = @saved_long_query_time;
 
 # this should work
 set global general_log='ON';
@@ -447,7 +462,7 @@ use test;
 #            AUTO_INCREMENT numbers)
 #
 
-SET @my_log_output= @@global.log_output;
+SET @saved_log_output= @@global.log_output;
 SET GLOBAL LOG_OUTPUT = 'TABLE';
 
 ## test the general log
@@ -480,8 +495,6 @@ ALTER TABLE mysql.general_log ENGINE = CSV;
 
 ## test the slow query log
 
-SET @old_long_query_time:=@@long_query_time;
-
 SET GLOBAL slow_query_log = 0;
 FLUSH LOGS;
 
@@ -507,14 +520,14 @@ SELECT "My own slow query", sleep(2);
 SELECT * FROM mysql.slow_log WHERE seq >= 2 LIMIT 3;
 
 SET GLOBAL slow_query_log = 0;
-SET SESSION long_query_time =@old_long_query_time;
+SET SESSION long_query_time =@saved_long_query_time;
 FLUSH LOGS;
 
 ALTER TABLE mysql.slow_log DROP COLUMN seq;
 ALTER TABLE mysql.slow_log ENGINE = CSV;
 
-SET GLOBAL general_log = @old_general_log_state;
-SET GLOBAL slow_query_log = @old_slow_log_state;
+SET GLOBAL general_log = @saved_general_log;
+SET GLOBAL slow_query_log = @saved_slow_query_log;
 
 #
 # Bug#25422 (Hang with log tables)
@@ -797,9 +810,6 @@ END //
 
 DELIMITER ;//
 
-SET @old_general_log_state = @@global.general_log;
-SET @old_slow_log_state = @@global.slow_query_log;
-
 SET GLOBAL general_log = ON;
 SET GLOBAL slow_query_log = ON;
 
@@ -821,8 +831,8 @@ DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
 DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
 DROP DATABASE IF EXISTS `db_17876`;
 
-SET GLOBAL general_log = @old_general_log_state;
-SET GLOBAL slow_query_log = @old_slow_log_state;
+SET GLOBAL general_log = @saved_general_log;
+SET GLOBAL slow_query_log = @saved_slow_query_log;
 
 #
 # Bug#21557 entries in the general query log truncated at 1000 characters.
@@ -830,7 +840,6 @@ SET GLOBAL slow_query_log = @old_slow_log_state;
 
 select CONNECTION_ID() into @thread_id;
 truncate table mysql.general_log;
-set @old_general_log_state = @@global.general_log;
 set global general_log = on;
 --disable_result_log
 set @lparam = "000 001 002 003 004 005 006 007 008 009"
@@ -941,7 +950,7 @@ execute long_query using @lparam;
 set global general_log = off;
 select command_type, argument from mysql.general_log where thread_id = @thread_id;
 deallocate prepare long_query;
-set global general_log = @old_general_log_state;
+set global general_log = @saved_general_log;
 
 #
 # Bug#34306: Can't make copy of log tables when server binary log is enabled
@@ -954,9 +963,6 @@ DROP TABLE IF EXISTS general_log_copy;
 --enable_warnings
 
 CREATE TABLE log_count (count BIGINT(21));
-
-SET @old_general_log_state = @@global.general_log;
-SET @old_slow_log_state = @@global.slow_query_log;
 
 SET GLOBAL general_log = ON;
 SET GLOBAL slow_query_log = ON;
@@ -984,15 +990,14 @@ INSERT INTO general_log_copy SELECT * FROM mysql.general_log;
 INSERT INTO log_count (count) VALUES ((SELECT count(*) FROM mysql.general_log));
 DROP TABLE general_log_copy;
 
-SET GLOBAL general_log = @old_general_log_state;
-SET GLOBAL slow_query_log = @old_slow_log_state;
+SET GLOBAL general_log = @saved_general_log;
+SET GLOBAL slow_query_log = @saved_slow_query_log;
 
 DROP TABLE log_count;
 
 #
 # Bug #31700: thd->examined_row_count not incremented for 'const' type queries
 #
-SET @old_slow_log_state = @@global.slow_query_log;
 
 SET SESSION long_query_time = 0;
 SET GLOBAL slow_query_log = ON;
@@ -1017,7 +1022,9 @@ DROP TABLE t1;
 
 TRUNCATE TABLE mysql.slow_log;
 
-SET GLOBAL log_output= @my_log_output;
-SET GLOBAL slow_query_log = @old_slow_log_state;
-SET SESSION long_query_time =@old_long_query_time;
-
+# RESET altered system variables before exiting the test
+SET GLOBAL log_output= @saved_log_output;
+SET GLOBAL slow_query_log = @saved_slow_query_log;
+SET GLOBAL general_log=@saved_general_log;
+SET SESSION long_query_time =@saved_long_query_time;
+SET GLOBAL LOG_OUTPUT = @saved_log_output;
