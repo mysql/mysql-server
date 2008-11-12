@@ -102,9 +102,28 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 }
 
 Transporter::~Transporter(){
-  if (m_socket_client)
-    delete m_socket_client;
+  delete m_socket_client;
 }
+
+
+bool
+Transporter::configure(const TransporterConfiguration* conf)
+{
+  if (configure_derived(conf) &&
+      conf->s_port == m_s_port &&
+      strcmp(conf->remoteHostName, remoteHostName) == 0 &&
+      strcmp(conf->localHostName, localHostName) == 0 &&
+      conf->remoteNodeId == remoteNodeId &&
+      conf->localNodeId == localNodeId &&
+      (conf->serverNodeId == conf->localNodeId) == isServer &&
+      conf->checksum == checksumUsed &&
+      conf->signalId == signalIdUsed &&
+      conf->isMgmConnection == isMgmConnection &&
+      conf->type == m_type)
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {

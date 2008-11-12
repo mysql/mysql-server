@@ -99,6 +99,20 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
   DBUG_VOID_RETURN;
 } 
  
+
+bool
+SCI_Transporter::configure_derived(const TransporterConfiguration* conf)
+{
+  if (conf->sci.sendLimit == (m_PacketSize + 3)/4 &&
+      conf->sci.bufferSize == m_buffersize &&
+      conf->sci.nLocalAdapters == m_adapters &&
+      conf->sci.remoteSciNodeId0 == m_remoteNodes[0] &&
+      conf->sci.remoteSciNodeId1 == m_remoteNodes[1])
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
+
 void SCI_Transporter::disconnectImpl() 
 { 
   DBUG_ENTER("SCI_Transporter::disconnectImpl");

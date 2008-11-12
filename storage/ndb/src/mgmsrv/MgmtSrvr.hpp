@@ -484,6 +484,8 @@ private:
 
   class ConfigManager* m_config_manager;
 
+  bool m_need_restart;
+
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
 
