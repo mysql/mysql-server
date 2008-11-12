@@ -6,22 +6,22 @@
 const char *toku_patent_string = "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it.";
 const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved.";
 
+#include "portability.h"
+#include <toku_pthread.h>
 #include <ctype.h>
 #include <errno.h>
-#include <libgen.h>
 #include <limits.h>
-#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include "toku_assert.h"
+#include "ydb.h"
 #include "ydb-internal.h"
 #include "brt-internal.h"
 #include "cachetable.h"
@@ -40,6 +40,12 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
+
+void toku_ydb_init(void) {
+}
+
+void toku_ydb_destroy(void) {
+}
 
 /* the ydb reference is used to cleanup the library when there are no more references to it */
 static int toku_ydb_refs = 0;
@@ -1215,7 +1221,7 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     int r = toku_close_brt(db->i->brt, db->dbenv->i->logger);
     if (r != 0)
         return r;
-    if (db->i->db_id) { toku_db_id_remove_ref(db->i->db_id); }
+    if (db->i->db_id) { toku_db_id_remove_ref(&db->i->db_id); }
     if (db->i->lt) {
         r = toku_lt_remove_ref(db->i->lt);
         if (r!=0) { return r; }
@@ -2819,6 +2825,12 @@ static toku_dbt_cmp toku_db_get_dup_compare(DB* db) {
     return db->i->brt->dup_compare;
 }
 
+static int toku_db_fd(DB *db, int *fdp) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    return toku_brt_get_fd(db->i->brt, fdp);
+}
+
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
@@ -2906,8 +2918,11 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         toku_brt_get_flags(db->i->brt, &brtflags);
         dups = (BOOL)((brtflags & TOKU_DB_DUPSORT || brtflags & TOKU_DB_DUP));
 
-        r = toku_db_id_create(&db->i->db_id, db->i->full_fname,
-                              db->i->database_name);
+        int db_fd;
+        r = toku_db_fd(db, &db_fd);
+        if (r!=0) goto error_cleanup;
+        assert(db_fd>=0);
+        r = toku_db_id_create(&db->i->db_id, db_fd, db->i->database_name);
         if (r!=0) { goto error_cleanup; }
         r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, dups, db->i->db_id);
         if (r!=0) { goto error_cleanup; }
@@ -2917,7 +2932,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
  
 error_cleanup:
     if (db->i->db_id) {
-        toku_db_id_remove_ref(db->i->db_id);
+        toku_db_id_remove_ref(&db->i->db_id);
         db->i->db_id = NULL;
     }
     if (db->i->database_name) {
@@ -3058,7 +3073,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
 
     //TODO: Verify DB* db not yet opened
     //TODO: Verify db file not in use. (all dbs in the file must be unused)
-    r = toku_db_open(db, NULL, fname, dbname, DB_UNKNOWN, 0, 0777);
+    r = toku_db_open(db, NULL, fname, dbname, DB_UNKNOWN, 0, S_IRWXU|S_IRWXG|S_IRWXO);
     if (r!=0) { goto cleanup; }
     if (db->i->lt) {
         /* Lock tree exists, therefore:
@@ -3098,7 +3113,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
 cleanup:
     if (need_close) { r2 = toku_db_close(db, 0); }
     if (full_name)  { toku_free(full_name); }
-    if (db_id)      { toku_db_id_remove_ref(db_id); }
+    if (db_id)      { toku_db_id_remove_ref(&db_id); }
     return r ? r : r2;
 }
 
@@ -3188,12 +3203,6 @@ static int toku_db_stat(DB * db, void *v, u_int32_t flags) {
     abort();
 }
 #endif
-
-static int toku_db_fd(DB *db, int *fdp) {
-    HANDLE_PANICKED_DB(db);
-    if (!db_opened(db)) return EINVAL;
-    return toku_brt_get_fd(db->i->brt, fdp);
-}
 
 static int toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
     HANDLE_PANICKED_DB(db);
@@ -3379,20 +3388,8 @@ static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t
 
     *row_count = 0;
 
-    // flush the cached tree blocks
-    r = toku_brt_flush(db->i->brt);
-    if (r != 0) 
-        return r;
+    r = toku_brt_truncate(db->i->brt);
 
-    // rename the db file and log the rename operation (for now, just unlink the file)
-    r = unlink(db->i->full_fname);
-    if (r == -1) 
-        r = errno;
-    if (r != 0) 
-        return r;
-
-    // reopen the new db file
-    r = toku_brt_reopen(db->i->brt, db->i->full_fname, db->i->fname, txn ? txn->i->tokutxn : NULL_TXN);
     return r;
 }
 
