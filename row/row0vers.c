@@ -48,16 +48,13 @@ row_vers_impl_x_locked_off_kernel(
 	rec_t*		clust_rec;
 	ulint*		clust_offsets;
 	rec_t*		version;
-	rec_t*		prev_version;
 	dulint		trx_id;
-	dulint		prev_trx_id;
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
 	dtuple_t*	row;
 	dtuple_t*	entry	= NULL; /* assignment to eliminate compiler
 					warning */
 	trx_t*		trx;
-	ulint		vers_del;
 	ulint		rec_del;
 	ulint		err;
 	mtr_t		mtr;
@@ -141,6 +138,11 @@ row_vers_impl_x_locked_off_kernel(
 	version = clust_rec;
 
 	for (;;) {
+		rec_t*		prev_version;
+		ulint		vers_del;
+		row_ext_t*	ext;
+		dulint		prev_trx_id;
+
 		mutex_exit(&kernel_mutex);
 
 		/* While we retrieve an earlier version of clust_rec, we
@@ -157,46 +159,58 @@ row_vers_impl_x_locked_off_kernel(
 						  heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
-		if (prev_version) {
-			row_ext_t*	ext;
+		if (prev_version == NULL) {
+			mutex_enter(&kernel_mutex);
 
-			clust_offsets = rec_get_offsets(
-				prev_version, clust_index, NULL,
-				ULINT_UNDEFINED, &heap);
+			if (!trx_is_active(trx_id)) {
+				/* Transaction no longer active: no
+				implicit x-lock */
 
-			vers_del = rec_get_deleted_flag(prev_version,
-							comp);
-			prev_trx_id = row_get_rec_trx_id(prev_version,
-							 clust_index,
-						 	 clust_offsets);
-
-			/* If the trx_id and prev_trx_id are
-			different and if the prev_version is marked
-			deleted then the prev_trx_id must have
-			already committed for the trx_id to be able to
-			modify the row. Therefore, prev_trx_id cannot
-			hold any implicit lock. */
-			if (0 != ut_dulint_cmp(trx_id, prev_trx_id)
-			    && vers_del) {
-	
-				mutex_enter(&kernel_mutex);
 				break;
 			}
 
-			/* The stack of versions is locked by mtr.
-			Thus, it is safe to fetch the prefixes for
-			externally stored columns. */
-			row = row_build(ROW_COPY_POINTERS, clust_index,
-					prev_version, clust_offsets,
-					NULL, &ext, heap);
-			entry = row_build_index_entry(row, ext, index, heap);
-			/* entry may be NULL if a record was inserted
-			in place of a deleted record, and the BLOB
-			pointers of the new record were not
-			initialized yet.  But in that case,
-			prev_version should be NULL. */
-			ut_a(entry);
+			/* If the transaction is still active,
+			clust_rec must be a fresh insert, because no
+			previous version was found. */
+			ut_ad(err == DB_SUCCESS);
+
+			/* It was a freshly inserted version: there is an
+			implicit x-lock on rec */
+
+			trx = trx_get_on_id(trx_id);
+
+			break;
 		}
+
+		clust_offsets = rec_get_offsets(prev_version, clust_index,
+						NULL, ULINT_UNDEFINED, &heap);
+
+		vers_del = rec_get_deleted_flag(prev_version, comp);
+		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index,
+						 clust_offsets);
+
+		/* If the trx_id and prev_trx_id are different and if
+		the prev_version is marked deleted then the
+		prev_trx_id must have already committed for the trx_id
+		to be able to modify the row. Therefore, prev_trx_id
+		cannot hold any implicit lock. */
+		if (vers_del && 0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
+
+			mutex_enter(&kernel_mutex);
+			break;
+		}
+
+		/* The stack of versions is locked by mtr.  Thus, it
+		is safe to fetch the prefixes for externally stored
+		columns. */
+		row = row_build(ROW_COPY_POINTERS, clust_index, prev_version,
+				clust_offsets, NULL, &ext, heap);
+		entry = row_build_index_entry(row, ext, index, heap);
+		/* entry may be NULL if a record was inserted in place
+		of a deleted record, and the BLOB pointers of the new
+		record were not initialized yet.  But in that case,
+		prev_version should be NULL. */
+		ut_a(entry);
 
 		mutex_enter(&kernel_mutex);
 
@@ -206,25 +220,15 @@ row_vers_impl_x_locked_off_kernel(
 			break;
 		}
 
-		/* If the transaction is still active, the previous version
-		of clust_rec must be accessible if not a fresh insert; we
-		may assert the following: */
-
-		ut_ad(err == DB_SUCCESS);
-
-		if (prev_version == NULL) {
-			/* It was a freshly inserted version: there is an
-			implicit x-lock on rec */
-
-			trx = trx_get_on_id(trx_id);
-
-			break;
-		}
-
 		/* If we get here, we know that the trx_id transaction is
 		still active and it has modified prev_version. Let us check
 		if prev_version would require rec to be in a different
 		state. */
+
+		/* The previous version of clust_rec must be
+		accessible, because the transaction is still active
+		and clust_rec was not a fresh insert. */
+		ut_ad(err == DB_SUCCESS);
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
