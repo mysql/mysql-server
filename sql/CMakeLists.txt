@@ -27,9 +27,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/zlib
 )
 
-SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc 
-                            ${CMAKE_SOURCE_DIR}/sql/message.h 
-                            ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
+SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
                             ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
                             ${CMAKE_SOURCE_DIR}/include/mysql_version.h
                             ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
@@ -135,14 +133,6 @@ ADD_CUSTOM_COMMAND(
                                --output=sql_yacc.cc sql_yacc.yy
         DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy)
 
-IF(WIN32)
-  # Windows message file
-  ADD_CUSTOM_COMMAND(
-          OUTPUT ${PROJECT_SOURCE_DIR}/sql/message.h
-#                ${PROJECT_SOURCE_DIR}/sql/message.rc
-          COMMAND mc ARGS message.mc
-          DEPENDS ${PROJECT_SOURCE_DIR}/sql/message.mc)
-ENDIF(WIN32)
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
@@ -165,7 +155,7 @@ ADD_DEPENDENCIES(mysqld GenServerSource)
 
 # Remove the auto-generated files as part of 'Clean Solution'
 SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
-                         "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
+                         "lex_hash.h;sql_yacc.h;sql_yacc.cc")
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings GenError)

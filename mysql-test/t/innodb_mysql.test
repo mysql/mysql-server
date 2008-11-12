@@ -29,3 +29,17 @@ insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
 explain select a from t2 where a=b;
 drop table t1, t2;
 
+#
+# Bug #40360: Binlog related errors with binlog off
+#
+# This bug is triggered when the binlog format is STATEMENT and the
+# binary log is turned off. In this case, no error should be shown for
+# the statement since there are no replication issues.
+
+SET SESSION BINLOG_FORMAT=STATEMENT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+query_vertical select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
+CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+

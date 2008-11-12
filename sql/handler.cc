@@ -263,7 +263,7 @@ handler *get_ha_partition(partition_info *part_info)
   DBUG_ENTER("get_ha_partition");
   if ((partition= new ha_partition(partition_hton, part_info)))
   {
-    if (partition->initialise_partition(current_thd->mem_root))
+    if (partition->initialize_partition(current_thd->mem_root))
     {
       delete partition;
       partition= 0;
@@ -1278,7 +1278,12 @@ int ha_rollback_trans(THD *thd, bool all)
     trans->ha_list= 0;
     trans->no_2pc=0;
     if (is_real_trans)
-      thd->transaction.xid_state.xid.null();
+    {
+      if (thd->transaction_rollback_request)
+        thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
+      else
+        thd->transaction.xid_state.xid.null();
+    }
     if (all)
     {
       thd->variables.tx_isolation=thd->session_tx_isolation;
@@ -2765,7 +2770,7 @@ int handler::check_collation_compatibility()
 {
   ulong mysql_version= table->s->mysql_version;
 
-  if (mysql_version < 50048)
+  if (mysql_version < 50124)
   {
     KEY *key= table->key_info;
     KEY *key_end= key + table->s->keys;
@@ -2779,15 +2784,18 @@ int handler::check_collation_compatibility()
           continue;
         Field *field= table->field[key_part->fieldnr - 1];
         uint cs_number= field->charset()->number;
-        if (mysql_version < 50048 &&
-            (cs_number == 11 || /* ascii_general_ci - bug #29499, bug #27562 */
-             cs_number == 41 || /* latin7_general_ci - bug #29461 */
-             cs_number == 42 || /* latin7_general_cs - bug #29461 */
-             cs_number == 20 || /* latin7_estonian_cs - bug #29461 */
-             cs_number == 21 || /* latin2_hungarian_ci - bug #29461 */
-             cs_number == 22 || /* koi8u_general_ci - bug #29461 */
-             cs_number == 23 || /* cp1251_ukrainian_ci - bug #29461 */
-             cs_number == 26))  /* cp1250_general_ci - bug #29461 */
+        if ((mysql_version < 50048 &&
+             (cs_number == 11 || /* ascii_general_ci - bug #29499, bug #27562 */
+              cs_number == 41 || /* latin7_general_ci - bug #29461 */
+              cs_number == 42 || /* latin7_general_cs - bug #29461 */
+              cs_number == 20 || /* latin7_estonian_cs - bug #29461 */
+              cs_number == 21 || /* latin2_hungarian_ci - bug #29461 */
+              cs_number == 22 || /* koi8u_general_ci - bug #29461 */
+              cs_number == 23 || /* cp1251_ukrainian_ci - bug #29461 */
+              cs_number == 26)) || /* cp1250_general_ci - bug #29461 */
+             (mysql_version < 50124 &&
+             (cs_number == 33 || /* utf8_general_ci - bug #27877 */
+              cs_number == 35))) /* ucs2_general_ci - bug #27877 */
           return HA_ADMIN_NEEDS_UPGRADE;
       }  
     }  
@@ -3333,8 +3341,8 @@ handler::ha_create_handler_files(const char *name, const char *old_name,
 int
 handler::ha_change_partitions(HA_CREATE_INFO *create_info,
                      const char *path,
-                     ulonglong *copied,
-                     ulonglong *deleted,
+                     ulonglong * const copied,
+                     ulonglong * const deleted,
                      const uchar *pack_frm_data,
                      size_t pack_frm_len)
 {

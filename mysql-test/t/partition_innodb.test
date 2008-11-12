@@ -1,6 +1,46 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
 
+#
+# Bug37721: ORDER BY when WHERE contains non-partitioned index column
+# wrong order since it did not use pk as second compare
+--echo # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY (a),
+  INDEX (b))
+ENGINE InnoDB
+PARTITION BY HASH(a)
+PARTITIONS 3;
+# This will give the middle partition the highest value
+INSERT INTO t1 VALUES (0,0),(4,0),(2,0);
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+ALTER TABLE t1 DROP INDEX b;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a VARCHAR(600),
+  b VARCHAR(600),
+  PRIMARY KEY (a),
+  INDEX (b))
+ENGINE InnoDB
+PARTITION BY KEY(a)
+PARTITIONS 3;
+# This will give the middle partition the highest value
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'1'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'3'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'2'),repeat('0',257));
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+ALTER TABLE t1 DROP INDEX b;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+DROP TABLE t1;
+
+#
 # Bug#32948 - FKs allowed to reference partitioned table
 #
 -- echo # Bug#32948
