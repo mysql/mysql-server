@@ -45,9 +45,11 @@ class TCP_Transporter : public Transporter {
 private:
   // Initialize member variables
   TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
-  
+
   // Disconnect, delete send buffers and receive buffer
   virtual ~TCP_Transporter();
+
+  virtual bool configure_derived(const TransporterConfiguration* conf);
 
   /**
    * Allocate buffers for sending and receiving

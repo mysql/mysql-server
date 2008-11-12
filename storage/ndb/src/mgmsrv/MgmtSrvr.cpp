@@ -265,6 +265,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
   m_local_config(NULL),
   _ownReference(0),
   m_config_manager(NULL),
+  m_need_restart(false),
   theFacade(NULL),
   _isStopThread(false),
   _logLevelThreadSleep(500),
@@ -743,7 +744,16 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
   setClusterLog(m_local_config);
 
-  // TODO Magnus, Reload ClusterMgr::theNodes
+  if (theFacade)
+  {
+    if (!theFacade->configure(_ownNodeId,
+                              m_local_config->m_configValues))
+    {
+      g_eventLogger->warning("Could not reconfigure everything online, "
+                             "this node need a restart");
+      m_need_restart= true;
+    }
+  }
 
   DBUG_VOID_RETURN;
 }

@@ -64,6 +64,18 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   m_signal_threshold = 4096;
 }
 
+
+bool
+SHM_Transporter::configure_derived(const TransporterConfiguration* conf)
+{
+  if ((key_t)conf->shm.shmKey == shmKey &&
+      (int)conf->shm.shmSize == shmSize &&
+      conf->shm.signum == g_ndb_shm_signum)
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
+
 SHM_Transporter::~SHM_Transporter(){
   doDisconnect();
 }

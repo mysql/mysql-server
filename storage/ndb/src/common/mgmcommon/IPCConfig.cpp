@@ -21,11 +21,12 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 
-Uint32
+bool
 IPCConfig::configureTransporters(Uint32 nodeId,
-				 const struct ndb_mgm_configuration & config,
-				 class TransporterRegistry & tr){
-  TransporterConfiguration conf;
+                                 const struct ndb_mgm_configuration & config,
+                                 class TransporterRegistry & tr)
+{
+  bool result= true;
 
   DBUG_ENTER("IPCConfig::configureTransporters");
 
@@ -58,9 +59,23 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
   }
 
-  Uint32 noOfTransportersCreated= 0;
+
+  /* Remove transporter to nodes that does not exist anymore */
+  for (int i= 1; i < MAX_NODES; i++)
+  {
+    ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
+    if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
+    {
+      // Transporter exist in TransporterResgistry but not
+      // in configuration
+      ndbout_c("The connection to node %d could not "
+               "be removed at this time", i);
+      result= false; // Need restart
+    }
+  }
+
+  TransporterConfiguration conf;
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
-  
   for(iter.first(); iter.valid(); iter.next()){
     
     bzero(&conf, sizeof(conf));
@@ -146,21 +161,22 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_SHM_KEY, &conf.shm.shmKey)) break;
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shm.shmSize)) break;
 
-      Uint32 tmp;
-      if(iter.get(CFG_SHM_SIGNUM, &tmp)) break;
-      conf.shm.signum= tmp;
+      Uint32 signum;
+      if(iter.get(CFG_SHM_SIGNUM, &signum)) break;
+      conf.shm.signum= signum;
 
-      if(!tr.createSHMTransporter(&conf)){
-        DBUG_PRINT("error", ("Failed to create SHM Transporter from %d to %d",
+      conf.type = tt_SHM_TRANSPORTER;
+
+      if(!tr.configureTransporter(&conf)){
+        DBUG_PRINT("error", ("Failed to configure SHM Transporter "
+                             "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-	ndbout << "Failed to create SHM Transporter from: " 
-	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
+	ndbout_c("Failed to configure SHM Transporter to node %d",
+                conf.remoteNodeId);
+        result = false;
       }
-      DBUG_PRINT("info", ("Created SHM Transporter using shmkey %d, "
+      DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
 			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
-
       break;
 
     case CONNECTION_TYPE_SCI:
@@ -178,13 +194,16 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       } else {
         conf.sci.nLocalAdapters = 2;
       }
-     if(!tr.createSCITransporter(&conf)){
-        DBUG_PRINT("error", ("Failed to create SCI Transporter from %d to %d",
+      conf.type = tt_SCI_TRANSPORTER;
+      if(!tr.configureTransporter(&conf)){
+        DBUG_PRINT("error", ("Failed to configure SCI Transporter "
+                             "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-	ndbout << "Failed to create SCI Transporter from: " 
-	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
+	ndbout_c("Failed to configure SCI Transporter to node %d",
+                 conf.remoteNodeId);
+        result = false;
       } else {
-        DBUG_PRINT("info", ("Created SCI Transporter: Adapters = %d, "
+        DBUG_PRINT("info", ("Configured SCI Transporter: Adapters = %d, "
 			    "remote SCI node id %d",
                    conf.sci.nLocalAdapters, conf.sci.remoteSciNodeId0));
         DBUG_PRINT("info", ("Host 1 = %s, Host 2 = %s, sendLimit = %d, "
@@ -196,8 +215,6 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 			      "second remote SCI node id = %d",
 			      conf.sci.remoteSciNodeId1)); 
         }
-	noOfTransportersCreated++;
-	continue;
       }
      break;
 
@@ -217,14 +234,15 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       iter.get(CFG_TCP_RCV_BUF_SIZE, &conf.tcp.tcpRcvBufSize);
       iter.get(CFG_TCP_MAXSEG_SIZE, &conf.tcp.tcpMaxsegSize);
       iter.get(CFG_CONNECTION_OVERLOAD, &conf.tcp.tcpOverloadLimit);
+
+      conf.type = tt_TCP_TRANSPORTER;
       
-      if(!tr.createTCPTransporter(&conf)){
-	ndbout << "Failed to create TCP Transporter from: " 
-	       << nodeId << " to: " << remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
+      if(!tr.configureTransporter(&conf)){
+	ndbout_c("Failed to configure TCP Transporter to node %d",
+                 conf.remoteNodeId);
+        result= false;
       }
-      DBUG_PRINT("info", ("Created TCP Transporter: sendBufferSize = %d, "
+      DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
 			  "maxReceiveSize = %d", conf.tcp.sendBufferSize,
 			  conf.tcp.maxReceiveSize));
       break;
@@ -235,6 +253,6 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     } // switch
   } // for
 
-  DBUG_RETURN(noOfTransportersCreated);
+  DBUG_RETURN(result);
 }
   
