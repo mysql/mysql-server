@@ -118,9 +118,9 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
 {
   if (conf->tcp.sendBufferSize == m_max_send_buffer &&
       conf->tcp.maxReceiveSize == maxReceiveSize &&
-      conf->tcp.tcpSndBufSize == sockOptSndBufSize &&
-      conf->tcp.tcpRcvBufSize == sockOptRcvBufSize &&
-      conf->tcp.tcpMaxsegSize == sockOptTcpMaxSeg &&
+      (int)conf->tcp.tcpSndBufSize == sockOptSndBufSize &&
+      (int)conf->tcp.tcpRcvBufSize == sockOptRcvBufSize &&
+      (int)conf->tcp.tcpMaxsegSize == sockOptTcpMaxSeg &&
       overload_limit(conf) == m_overload_limit)
     return true; // No change
 ndbout_c("configure_derived, can't reconfigure");
