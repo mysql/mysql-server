@@ -53,11 +53,16 @@ public:
   STATIC_CONST( MAX_NO_THREADS = 4711 );
   TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
-  bool init(Uint32, const ndb_mgm_configuration *);
 
-  int start_instance(int, const ndb_mgm_configuration*);
+  int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
-  
+
+  /*
+    (Re)configure the TransporterFacade
+    to a specific configuration
+  */
+  bool configure(NodeId, const ndb_mgm_configuration *);
+
   /**
    * Register this block for sending/receiving signals
    * @blockNo block number to use, -1 => any blockNumber
@@ -222,8 +227,7 @@ private:
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;
-  int theOwnId;
-
+  NodeId theOwnId;
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
