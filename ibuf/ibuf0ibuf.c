@@ -3663,6 +3663,9 @@ ibuf_delete(
 		offsets = rec_get_offsets(
 			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
+		/* Refuse to delete the last record. */
+		ut_a(page_get_n_recs(page) > 1);
+
 		lock_update_delete(block, rec);
 
 		if (!page_zip) {
