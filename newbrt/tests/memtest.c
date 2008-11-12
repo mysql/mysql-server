@@ -34,9 +34,11 @@ test_mempool_malloc_mfree (size_t size) {
     void *vp[size];
     size_t i;
     for (i=0;; i++) {
-        vp[i] = toku_mempool_malloc(&mempool, 1, 1);
-        if (vp[i] == 0) 
+        void *tp = toku_mempool_malloc(&mempool, 1, 1);
+        if (tp == 0) 
             break;
+        assert(i < size);
+        vp[i] = tp;
     }
     assert(i == size);
 
