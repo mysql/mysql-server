@@ -771,6 +771,7 @@ static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags
     return 1;
 }
 
+#if 0
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
 static void toku_default_errcall(const char *errpfx, char *msg) {
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
@@ -780,6 +781,7 @@ static void toku_default_errcall(const DB_ENV *env, const char *errpfx, const ch
     env = env;
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
+#endif
 #endif
 
 static int locked_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
@@ -862,7 +864,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     MALLOC(result);
     if (result == 0) { r = ENOMEM; goto cleanup; }
     memset(result, 0, sizeof *result);
-    result->err = toku_locked_env_err;
+    result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_locked_env_err;
     result->open = locked_env_open;
     result->close = locked_env_close;
     result->txn_checkpoint = locked_env_txn_checkpoint;
@@ -1138,8 +1140,9 @@ int txn_commit(DB_TXN * txn, u_int32_t flags) {
 int log_compare(const DB_LSN * a, const DB_LSN * b) {
     toku_ydb_lock();
     fprintf(stderr, "%s:%d log_compare(%p,%p)\n", __FILE__, __LINE__, a, b);
-    abort();
+    assert(0);
     toku_ydb_unlock();
+    return 0;
 }
 
 static int maybe_do_associate_create (DB_TXN*txn, DB*primary, DB*secondary) {

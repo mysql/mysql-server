@@ -1,30 +1,26 @@
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-
 # standard build: make
 # build with Berkeley DB 4.1: make BDBDIR=/usr/local/BerkeleyDB.4.1
 # build with TokuDB: make BDBDIR=~/svn/tokudb
 # build with g++: make CC=g++
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+# -*- Mode: Makefile -*-
 
+.DEFAULT_GOAL= build
+TOKUROOT=../
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I../range_tree -I../lock_tree
+DEPEND_COMPILE += \
+	../*.h \
+	../range_tree/*.h \
+	../lock_tree/*.h \
+	test.h \
+#end
+
+SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test
-ifeq ($(SUMMARIZE),1)
-SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
-QUIET = -q
-else
-SUMMARIZE_CMD =
-QUIET =
-endif
+include $(TOKUROOT)include/Makefile.include
 
 BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
 
-OPTFLAGS = -O2
-CFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
-# CFLAGS += -pg
-
-ifeq ($(CC),icc)
-CFLAGS += -diag-disable 981
-endif
-
-LDFLAGS += -lpthread
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib -lpthread
@@ -32,57 +28,80 @@ else
 BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb
 endif
-TDB_CPPFLAGS = -I../include
-TDB_LDFLAGS = -L../lib -ltokudb -Wl,-rpath,$(PWD)/../lib -lpthread -lz
+TOKUDB=libtokudb.$(SOEXT)
+TDB_DLINK_FILES = $(TOKUROOT)lib/$(TOKUDB)
 
-TARGET_BDB = db-benchmark-test-bdb
-TARGET_TDB = db-benchmark-test-tokudb
-TARGETS = $(TARGET_BDB) scanscan-bdb $(TARGET_TDB) scanscan-tokudb
+TARGET_BDB = db-benchmark-test-bdb$(BINSUF)
+TARGET_TDB = db-benchmark-test-tokudb$(BINSUF)
+SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
+TARGETS = $(TARGET_BDB) $(TARGET_TDB) $(SCANSCAN_TDB)
 
 default: build
 build: $(TARGETS) 
+build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
 check: check-default check-xfast check-x
 
 check-default: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
+	$(MAYBEATSIGN)$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
+	$(MAYBEATSIGN)$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
 
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
-	./$(TARGET_TDB) $(QUIET) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
+	$(MAYBEATSIGN)./$(TARGET_TDB) $(QUIET) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
 
 
 clean:
-	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
+	$(MAYBEATSIGN)rm -f $(TARGETS)
+	$(MAYBEATSIGN)rm -rf $(BENCHDBS)
+
+$(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS += -DDIRSUF=tokudb
+
+ifneq ($(PROF),)
+    USE_STATIC=1
+endif
 
 # A hack to make gprof work.  See #515.
-ifeq ($(PROF_FLAGS),-pg)
+ifneq ($(USE_STATIC),)
+$(TARGET_TDB) $(SCANSCAN_TDB): DLINK_FILES=
+
 OFILES = \
-	../src/ydb.o ../src/errors.o ../src/elocks.o \
-	../newbrt/newbrt.o \
-	../src/lock_tree/locktree.o ../src/lock_tree/rth.o ../src/lock_tree/lth.o ../src/lock_tree/idlth.o ../src/lock_tree/db_id.o \
-	../src/range_tree/rangetree.o
-db-benchmark-test-tokudb: db-benchmark-test.c
-	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(OFILES) -lz $< -o $@ -DDIRSUF=tokudb
-scanscan-tokudb: scanscan.c
-	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(OFILES) -lz $< -o $@ -DDIRSUF=tokudb
+	$(TOKUROOT)src/ydb.lib \
+	$(TOKUROOT)src/range_tree/rangetree.lib \
+	$(TOKUROOT)src/lock_tree/locktree.lib \
+	$(TOKUROOT)newbrt/newbrt.lib \
+	$(LIBPORTABILITY) \
+#end
+
+$(TARGET_TDB): db-benchmark-test.c
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+$(SCANSCAN_TDB): scanscan.c
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
 else
-db-benchmark-test-tokudb: db-benchmark-test.c
-	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
-scanscan-tokudb: scanscan.c
-	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
+$(TARGET_TDB) $(SCANSCAN_TDB): DLINK_FILES=$(TDB_DLINK_FILES)
+ifeq ($(SOEXT),dll) #Windows does not support rpath.
+$(TOKUDB): $(TOKUROOT)lib/$(TOKUDB)
+	$(MAYBEATSIGN)cp $< $@
+$(TOKUROOT)lib/$(TOKUDB):
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F).install
+$(TARGET_TDB) $(SCANSCAN_TDB): $(TOKUDB)
 endif
-db-benchmark-test-bdb: db-benchmark-test.c
-	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
-scanscan-bdb: scanscan.c
+$(TARGET_TDB) $(SCANSCAN_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
+$(TARGET_TDB): db-benchmark-test.c
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+$(SCANSCAN_TDB): scanscan.c
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+endif
+
+$(TARGET_BDB): db-benchmark-test.c
 	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
 
 PARGS =
-ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7: db-benchmark-test-tokudb
-	./db-benchmark-test-tokudb --env $@.dir $(PARGS)
+
+ptest%: $(TARGET_TDB)
+	./$< --env $@.dir $(PARGS)
 parallel-test-8: ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7
 

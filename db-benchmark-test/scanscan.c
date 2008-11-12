@@ -1,12 +1,14 @@
 /* Scan the bench.tokudb/bench.db over and over. */
 
+#include <portability.h>
 #include <assert.h>
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/resource.h>
-#include <sys/time.h>
+//#include <sys/resource.h>
+//#include <sys/time.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 const char *pname;
@@ -32,12 +34,8 @@ static void parse_args (int argc, const char *argv[]) {
 	    if (specified_run_mode && run_mode!=RUN_VERIFY) goto two_modes;
 	    run_mode = RUN_HWC;
 	} else if (strcmp(*argv, "--prelock")==0) prelock=1;
-#if defined(DB_PRELOCKED)        
-	else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
-#endif
-#if defined(DB_PRELOCKED_WRITE)
+        else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
-#endif
 	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
 	else if (strcmp(*argv, "--count")==0)            {
 	    char *end;
@@ -59,7 +57,7 @@ static void parse_args (int argc, const char *argv[]) {
 	    fprintf(stderr, "  --nox               no transactions\n");
 	    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
             fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
-	    exit(1);
+            exit(1);
 	}
 	argc--;
 	argv++;
@@ -73,22 +71,21 @@ DB_TXN *tid=0;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
 int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 char *dbfilename = "bench.db";
 
-static void setup (void) {
+static void scanscan_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
     r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
-    r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, 0644);   assert(r==0);
+    r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);   assert(r==0);
     r = db_create(&db, env, 0);                                                           assert(r==0);
     if (do_txns) {
 	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     }
-    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, 0644);                           assert(r==0);
-#if defined(DB_PRELOCKED)
+    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);                           assert(r==0);
     if (prelock) {
 	r = db->pre_acquire_read_lock(db,
 				      tid,
@@ -96,17 +93,17 @@ static void setup (void) {
 				      db->dbt_pos_infty(), db->dbt_pos_infty());
 	assert(r==0);
     }
-#endif
 }
 
-static void shutdown (void) {
+static void scanscan_shutdown (void) {
     int r;
+    r = db->close(db, 0);                                       assert(r==0);
     if (do_txns) {
 	r = tid->commit(tid, 0);                                    assert(r==0);
     }
-    r = db->close(db, 0);                                       assert(r==0);
     r = env->close(env, 0);                                     assert(r==0);
-#if 0
+
+#if 0 && defined TOKUDB
     {
 	extern unsigned long toku_get_maxrss(void);
 	printf("maxrss=%.2fMB\n", toku_get_maxrss()/256.0);
@@ -149,8 +146,6 @@ static void scanscan_hwc (void) {
     }
 }
 
-#if defined(TOKUDB)
-
 struct extra_count {
     long long totalbytes;
     int rowcounter;
@@ -186,15 +181,11 @@ static void scanscan_lwc (void) {
     }
 }
 
-#endif
-
 struct extra_verify {
     long long totalbytes;
     int rowcounter;
     DBT k,v; // the k and v are gotten using the old cursor
 };
-
-#if defined(TOKUDB)
 
 static void checkbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_verify *e=extrav;
@@ -208,7 +199,6 @@ static void checkbytes (DBT const *key, DBT const *data, void *extrav) {
     assert(e->v.data != data->data);
 }
     
-#endif
 
 static void scanscan_verify (void) {
     int r;
@@ -230,14 +220,11 @@ static void scanscan_verify (void) {
             c_get_flags |= lock_flag;
         }
 	while (1) {
-	    int r2 = dbc1->c_get(dbc1, &v.k, &v.v, c_get_flags);
-#if defined(TOKUDB)
-	    int r1 = dbc2->c_getf_next(dbc2, f_flags, checkbytes, &v);
+	    int r1,r2;
+	    r2 = dbc1->c_get(dbc1, &v.k, &v.v, c_get_flags);
+	    r1 = dbc2->c_getf_next(dbc2, f_flags, checkbytes, &v);
 	    assert(r1==r2);
 	    if (r1) break;
-#else
-	    if (r2) break;
-#endif
 	}
 	r = dbc1->c_close(dbc1);                                      assert(r==0);
 	r = dbc2->c_close(dbc2);                                      assert(r==0);
@@ -252,17 +239,15 @@ int main (int argc, const char *argv[]) {
 
     parse_args(argc,argv);
 
-    setup();
+    scanscan_setup();
     switch (run_mode) {
-    case RUN_HWC:    scanscan_hwc();    break;
-#if defined(TOKUDB)
-    case RUN_LWC:    scanscan_lwc();    break;
-#endif
-    case RUN_VERIFY: scanscan_verify(); break;
-
-    default: assert(0);
+    case RUN_HWC:    scanscan_hwc();    goto ok;
+    case RUN_LWC:    scanscan_lwc();    goto ok;
+    case RUN_VERIFY: scanscan_verify(); goto ok;
     }
-    shutdown();
+    assert(0);
+ ok:
+    scanscan_shutdown();
 
 #if 0 && defined TOKUDB
     if (0) {
@@ -276,6 +261,7 @@ int main (int argc, const char *argv[]) {
         extern void toku_print_trace_mem();
         toku_print_trace_mem();
     }
+#endif
 #if defined __linux__ && __linux__
     char fname[256];
     sprintf(fname, "/proc/%d/status", getpid());
@@ -289,7 +275,6 @@ int main (int argc, const char *argv[]) {
         }
         fclose(f);
     }
-#endif
 #endif
     return 0;
 }
