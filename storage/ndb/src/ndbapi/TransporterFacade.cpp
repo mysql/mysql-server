@@ -362,6 +362,16 @@ execute(void * callbackObj, SignalHeader * const header,
        }
        break;
      }
+     case GSN_TAKE_OVERTCCONF:
+     {
+       /**
+	* Report
+	*/
+       NdbApiSignal tSignal(* header);
+       tSignal.setDataPtr(theData);
+       theFacade->for_each(&tSignal, ptr);
+       return;
+     }
      default:
        break;
        

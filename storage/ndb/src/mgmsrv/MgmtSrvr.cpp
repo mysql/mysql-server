@@ -855,6 +855,8 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	do_send = 1; // retry with other node
       continue;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -1169,6 +1171,8 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 	stoppedNodes.bitOR(mask);
       break;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
 #ifdef VM_TRACE
@@ -1729,6 +1733,8 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       nodes.clear(rep->failedNodeId);
       break;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -2014,6 +2020,9 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     ndbout << "TAMPER ORD" << endl;
     break;
 
+  case GSN_TAKE_OVERTCCONF:
+    break;
+
   default:
     g_eventLogger->error("Unknown signal received. SignalNumber: "
                          "%i from (%d, %x)",
@@ -2208,6 +2217,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       // ignore NF_COMPLETEREP will come
       continue;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -2721,6 +2732,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       // master node will report aborted backup
       break;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;

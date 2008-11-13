@@ -7354,6 +7354,9 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     nfRep->failedNodeId = hostptr.i;
     sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
 	       NFCompleteRep::SignalLength, JBB);
+
+    sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal, 
+	       NFCompleteRep::SignalLength, JBB);
   }
 
   CRASH_INSERTION(8058);
