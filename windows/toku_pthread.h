@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <windows.h>
+
 // pthread types
 
 typedef struct toku_pthread_attr {
