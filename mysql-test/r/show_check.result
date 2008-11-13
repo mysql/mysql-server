@@ -100,19 +100,19 @@ drop table t1;
 show variables like "wait_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			VARIABLES	VARIABLE_NAME	Variable_name	253	64	12	N	1	0	8
-def			VARIABLES	VARIABLE_VALUE	Value	253	20480	5	Y	0	0	8
+def			VARIABLES	VARIABLE_VALUE	Value	253	1024	5	Y	0	0	8
 Variable_name	Value
 wait_timeout	28800
 show variables like "WAIT_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			VARIABLES	VARIABLE_NAME	Variable_name	253	64	12	N	1	0	8
-def			VARIABLES	VARIABLE_VALUE	Value	253	20480	5	Y	0	0	8
+def			VARIABLES	VARIABLE_VALUE	Value	253	1024	5	Y	0	0	8
 Variable_name	Value
 wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			VARIABLES	VARIABLE_NAME	Variable_name	253	64	0	N	1	0	8
-def			VARIABLES	VARIABLE_VALUE	Value	253	20480	0	Y	0	0	8
+def			VARIABLES	VARIABLE_VALUE	Value	253	1024	0	Y	0	0	8
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
