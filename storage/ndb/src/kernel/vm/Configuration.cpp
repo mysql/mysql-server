@@ -845,8 +845,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
   Uint32 noOfMetaTablesDict= noOfMetaTables;
-  if (noOfMetaTablesDict > MAX_TABLES)
-    noOfMetaTablesDict= MAX_TABLES;
+  if (noOfMetaTablesDict > NDB_MAX_TABLES)
+    noOfMetaTablesDict= NDB_MAX_TABLES;
 
   {
     /**

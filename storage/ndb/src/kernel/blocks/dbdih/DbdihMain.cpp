@@ -6875,7 +6875,7 @@ static void set_default_node_groups(Signal *signal, Uint32 noFrags)
   Uint32 i;
   node_group_array[0] = 0;
   for (i = 1; i < noFrags; i++)
-    node_group_array[i] = UNDEF_NODEGROUP;
+    node_group_array[i] = NDB_UNDEF_NODEGROUP;
 }
 
 static Uint32 find_min_index(const Uint32* array, Uint32 cnt)
@@ -6998,7 +6998,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       {
         jam();
         NGPtr.i = node_group_id[fragNo];
-        if (NGPtr.i == UNDEF_NODEGROUP)
+        if (NGPtr.i == NDB_UNDEF_NODEGROUP)
         {
           jam();
 	  NGPtr.i = c_node_groups[default_node_group];
