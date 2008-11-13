@@ -83,6 +83,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
 
+static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table);
 
 /***************************************************************************
 ** List all table types supported
@@ -2072,7 +2073,8 @@ static bool show_status_array(THD *thd, const char *wild,
                               enum enum_var_type value_type,
                               struct system_status_var *status_var,
                               const char *prefix, TABLE *table,
-                              bool ucase_names)
+                              bool ucase_names,
+                              COND *cond)
 {
   MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
   char * const buff= (char *) &buff_data;
@@ -2082,8 +2084,12 @@ static bool show_status_array(THD *thd, const char *wild,
   int len;
   LEX_STRING null_lex_str;
   SHOW_VAR tmp, *var;
+  COND *partial_cond= 0;
+  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  bool res= FALSE;
   DBUG_ENTER("show_status_array");
 
+  thd->count_cuted_fields= CHECK_FIELD_WARN;  
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
 
@@ -2091,6 +2097,7 @@ static bool show_status_array(THD *thd, const char *wild,
   if (*prefix)
     *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
+  partial_cond= make_cond_for_info_schema(cond, table->pos_in_table_list);
 
   for (; variables->name; variables++)
   {
@@ -2099,6 +2106,9 @@ static bool show_status_array(THD *thd, const char *wild,
     if (ucase_names)
       make_upper(name_buffer);
 
+    restore_record(table, s->default_values);
+    table->field[0]->store(name_buffer, strlen(name_buffer),
+                           system_charset_info);
     /*
       if var->type is SHOW_FUNC, call the function.
       Repeat as necessary, if new var is again SHOW_FUNC
@@ -2110,12 +2120,13 @@ static bool show_status_array(THD *thd, const char *wild,
     if (show_type == SHOW_ARRAY)
     {
       show_status_array(thd, wild, (SHOW_VAR *) var->value, value_type,
-                        status_var, name_buffer, table, ucase_names);
+                        status_var, name_buffer, table, ucase_names, partial_cond);
     }
     else
     {
       if (!(wild && wild[0] && wild_case_compare(system_charset_info,
-                                                 name_buffer, wild)))
+                                                 name_buffer, wild)) &&
+          (!partial_cond || partial_cond->val_int()))
       {
         char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
@@ -2202,21 +2213,23 @@ static bool show_status_array(THD *thd, const char *wild,
           DBUG_ASSERT(0);
           break;
         }
-        restore_record(table, s->default_values);
-        table->field[0]->store(name_buffer, strlen(name_buffer),
-                               system_charset_info);
         table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
 
         pthread_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))
-          DBUG_RETURN(TRUE);
+        {
+          res= TRUE;
+          goto end;
+        }
       }
     }
   }
-
-  DBUG_RETURN(FALSE);
+end:
+  thd->count_cuted_fields= save_count_cuted_fields;
+  DBUG_RETURN(res);
 }
 
 
@@ -5244,7 +5257,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   rw_rdlock(&LOCK_system_variables_hash);
   res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars),
-                         option_type, NULL, "", tables->table, upper_case_names);
+                         option_type, NULL, "", tables->table, upper_case_names, cond);
   rw_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
 }
@@ -5287,7 +5300,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
-                         upper_case_names);
+                         upper_case_names, cond);
   pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
@@ -6456,7 +6469,7 @@ ST_FIELD_INFO variables_fields_info[]=
 {
   {"VARIABLE_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Variable_name",
    SKIP_OPEN_TABLE},
-  {"VARIABLE_VALUE", 20480, MYSQL_TYPE_STRING, 0, 1, "Value", SKIP_OPEN_TABLE},
+  {"VARIABLE_VALUE", 1024, MYSQL_TYPE_STRING, 0, 1, "Value", SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -6615,9 +6628,9 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0, 0},
   {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
-   fill_status, make_old_format, 0, -1, -1, 0, 0},
+   fill_status, make_old_format, 0, 0, -1, 0, 0},
   {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
-   fill_variables, make_old_format, 0, -1, -1, 0, 0},
+   fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0,
    OPEN_TABLE_ONLY},
@@ -6642,14 +6655,14 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
   {"SESSION_STATUS", variables_fields_info, create_schema_table,
-   fill_status, make_old_format, 0, -1, -1, 0, 0},
+   fill_status, make_old_format, 0, 0, -1, 0, 0},
   {"SESSION_VARIABLES", variables_fields_info, create_schema_table,
-   fill_variables, make_old_format, 0, -1, -1, 0, 0},
+   fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"STATISTICS", stat_fields_info, create_schema_table, 
    get_all_tables, make_old_format, get_schema_stat_record, 1, 2, 0,
    OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
   {"STATUS", variables_fields_info, create_schema_table, fill_status, 
-   make_old_format, 0, -1, -1, 1, 0},
+   make_old_format, 0, 0, -1, 1, 0},
   {"TABLES", tables_fields_info, create_schema_table, 
    get_all_tables, make_old_format, get_schema_tables_record, 1, 2, 0,
    OPTIMIZE_I_S_TABLE},
@@ -6665,7 +6678,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
    fill_schema_user_privileges, 0, 0, -1, -1, 0, 0},
   {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
-   make_old_format, 0, -1, -1, 1, 0},
+   make_old_format, 0, 0, -1, 1, 0},
   {"VIEWS", view_fields_info, create_schema_table, 
    get_all_tables, 0, get_schema_views_record, 1, 2, 0,
    OPEN_VIEW_ONLY|OPTIMIZE_I_S_TABLE},
