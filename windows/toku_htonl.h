@@ -5,7 +5,7 @@
 #error
 #endif
 
-#if __cplusplus
+#if defined __cplusplus
 extern "C" {
 #endif
 
@@ -36,7 +36,7 @@ static inline uint32_t toku_ntohl(uint32_t i) {
 
 #endif
 
-#if __cplusplus
+#if defined __cplusplus
 };
 #endif
 
