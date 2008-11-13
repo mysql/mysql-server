@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     if (argc == 2 && !strcmp(argv[1], "-v")) verbose = 1;
     
     system("rm -rf " ENVDIR);
-    r=mkdir(ENVDIR, 0777); assert(r==0);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     r = db_env_create(&dbenv, 0);
     assert(r == 0);

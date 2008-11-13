@@ -81,15 +81,15 @@ do_abort_delete_first_or_last(int N,
 			      ) {
     int r,i;
     system("rm -rf " ENVDIR);
-    r=mkdir(ENVDIR, 0777);       assert(r==0);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
 
     r=db_env_create(&env, 0); assert(r==0);
     env->set_errfile(env, stderr);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=db->set_pagesize(db, 4096); // Use a small page
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
-    r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+    r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=txn->commit(txn, 0);    assert(r==0);
 
     // First fill up the db

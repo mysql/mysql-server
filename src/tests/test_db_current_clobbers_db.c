@@ -20,9 +20,9 @@ DB_TXN* null_txn = NULL;
 int main (int UU(argc), char UU(*argv[])) {
     int r;
     system("rm -rf " ENVDIR);
-    r=mkdir(ENVDIR, 0777);    CKERR(r);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);    CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->open(env, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r = db->open(db, null_txn, "foo.db", "main", DB_BTREE, DB_CREATE, 0666); CKERR(r);
     DBC *cursor;

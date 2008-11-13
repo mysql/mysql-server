@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
 
     if (!do_resume) {
         system("rm -rf " ENVDIR);
-        mkdir(ENVDIR, 0777);
+        toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     }
 
     int r;
@@ -104,12 +104,12 @@ int main(int argc, char *argv[]) {
 
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_cachesize(env, 0, 8000000, 1); assert(r == 0);
-    r = env->open(env, ENVDIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, 0777); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     DB *db;
 
     r = db_create(&db, env, 0); assert(r == 0);
-    r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE + DB_THREAD, 0777); assert(r == 0);
+    r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE + DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     struct db_inserter work[nthreads];
 

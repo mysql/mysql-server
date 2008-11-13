@@ -12,7 +12,7 @@ static void
 test_txn_abort (void) {
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int r;
     int i;
@@ -24,7 +24,7 @@ test_txn_abort (void) {
     r = db_env_create(&env, 0); CKERR(r);
     r = env->set_data_dir(env, ENVDIR);
     r = env->set_lg_dir(env, ENVDIR);
-    r = env->open(env, 0, DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN | DB_PRIVATE | DB_CREATE, 0777); 
+    r = env->open(env, 0, DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN | DB_PRIVATE | DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
     CKERR(r);
 
     DB_TXN *txn = 0;
@@ -32,7 +32,7 @@ test_txn_abort (void) {
 
     DB *db;
     r = db_create(&db, env, 0); CKERR(r);
-    r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+    r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = txn->commit(txn, 0); CKERR(r);
 
 

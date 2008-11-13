@@ -15,7 +15,7 @@ test_789(void) {
 
     /* setup test directory */
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     /* setup environment */
     DB_ENV *env;
@@ -24,7 +24,7 @@ test_789(void) {
         r = env->set_data_dir(env, ENVDIR);
         r = env->set_lg_dir(env, ENVDIR);
         env->set_errfile(env, stdout);
-        r = env->open(env, 0, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, 0777); 
+        r = env->open(env, 0, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
         assert(r == 0);
     }
 
@@ -35,7 +35,7 @@ test_789(void) {
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
 
         r = db_create(&db, env, 0); assert(r == 0);
-        r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+        r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
         r = txn->commit(txn, 0); assert(r == 0);
     }

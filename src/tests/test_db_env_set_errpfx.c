@@ -16,7 +16,7 @@ int main() {
     int r;
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_env_create(&dbenv, 0);
     assert(r == 0);

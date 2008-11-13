@@ -24,7 +24,7 @@ static void make_db (int n_locks) {
     int i;
 
     system("rm -rf " ENVDIR);
-    r=mkdir(ENVDIR, 0777);       assert(r==0);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
     env->set_errfile(env, 0);
     if (n_locks>0) {
@@ -39,10 +39,10 @@ static void make_db (int n_locks) {
         r=env->get_lk_max_locks(env, &set_locks);
         assert(r == 0 && set_locks == (u_int32_t)n_locks);
     }
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
-    r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+    r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=tid->commit(tid, 0);    assert(r==0);
     
 #ifndef TOKUDB

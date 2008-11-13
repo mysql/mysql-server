@@ -723,7 +723,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
   
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
 #ifdef USE_BDB
     /* dup tests */

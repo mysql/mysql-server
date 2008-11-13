@@ -22,11 +22,11 @@ int main() {
 
     system("rm -rf " ENVDIR);
 
-    r=mkdir(ENVDIR, 0777); assert(r==0);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     r=db_env_create(&env, 0);   assert(r==0);
     // Note: without DB_INIT_MPOOL the BDB library will fail on db->open().
-    r=env->open(env, ENVDIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE|DB_INIT_LOG, 0777); assert(r==0);
+    r=env->open(env, ENVDIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE|DB_INIT_LOG, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     r = db_create(&db, env, 0);
     CKERR(r);

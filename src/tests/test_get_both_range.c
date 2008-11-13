@@ -168,7 +168,7 @@ int main(int argc, const char *argv[]) {
 	snprintf(rmcmd, sizeof(rmcmd), "rm -rf %s", annotated_envdir);
 	system(rmcmd);
     }
-    mkdir(annotated_envdir, 0777);
+    toku_os_mkdir(annotated_envdir, S_IRWXU+S_IRWXG+S_IRWXO);
 
     if (doi==0) { 
 	for (i=1; i <= 256; i *= 2) {

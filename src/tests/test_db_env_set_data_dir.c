@@ -18,7 +18,7 @@ int main() {
     int r;
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_env_create(&dbenv, 0); assert(r == 0);
 
@@ -39,7 +39,7 @@ int main() {
     DB *db;
     r = db_create(&db, dbenv, 0); assert(r == 0);
 
-    r = db->open(db, 0, "test.db", "main", DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    r = db->open(db, 0, "test.db", "main", DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
     
     r = db->close(db, 0); assert(r == 0);
     

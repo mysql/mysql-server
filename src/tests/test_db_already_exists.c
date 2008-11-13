@@ -22,7 +22,7 @@ int main() {
     int r;
 
     system("rm -rf " ENVDIR);
-    r=mkdir(ENVDIR, 0777); assert(r==0);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
     r=chdir(ENVDIR);       assert(r==0);
 
     r = db_create(&db, null_env, 0);                                         CKERR(r);

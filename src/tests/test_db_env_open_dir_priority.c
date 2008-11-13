@@ -43,17 +43,17 @@ reinit_config (int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
     r = fchdir(rootfd);                 assert(r == 0);
 
     r = system("rm -rf " ENVDIR);          assert(r == 0);
-    r = mkdir(ENVDIR, 0777);               assert(r == 0);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);               assert(r == 0);
     r = chdir(ENVDIR);                     assert(r == 0);
     unsetenv(DB_HOME);
 
     if (set_home) {
         db_dir = "home";
-        r = mkdir(db_dir, 0777);        assert(r == 0);
+        r = toku_os_mkdir(db_dir, S_IRWXU+S_IRWXG+S_IRWXO);        assert(r == 0);
     }
     else if (set_DB_ENVIRON && set_DB_HOME) {
         db_dir = "DB_HOME";
-        r = mkdir(db_dir, 0777);        assert(r == 0);
+        r = toku_os_mkdir(db_dir, S_IRWXU+S_IRWXG+S_IRWXO);        assert(r == 0);
     }
     else db_dir = ".";
     

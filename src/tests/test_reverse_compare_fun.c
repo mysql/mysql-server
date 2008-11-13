@@ -66,7 +66,7 @@ test_reverse_compare (int n, int dup_flags) {
     int i;
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);

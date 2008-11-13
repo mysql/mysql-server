@@ -155,7 +155,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
   
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int limit = 1<<13;
     if (verbose > 1)

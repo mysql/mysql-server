@@ -28,7 +28,7 @@ setup(void) {
     int r;
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     dbenv = 0;
     /* Open/create primary */
     r = db_create(&db, dbenv, 0);                                               CKERR(r);

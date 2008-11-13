@@ -17,7 +17,7 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
 
     // setup test directory
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // setup environment
     DB_ENV *env;
@@ -26,7 +26,7 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
         r = env->set_data_dir(env, ENVDIR);
         r = env->set_lg_dir(env, ENVDIR);
         env->set_errfile(env, stdout);
-        r = env->open(env, 0, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, 0777); 
+        r = env->open(env, 0, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
         assert(r == 0);
     }
 
@@ -35,7 +35,7 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
     {
         DB_TXN *txn = 0;
         r = db_create(&db, env, 0); assert(r == 0);
-        r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+        r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
     }
 
     // insert to fill up a node

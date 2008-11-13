@@ -192,7 +192,7 @@ int main() {
     int r;
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     second_setup();
     insert_test();
