@@ -144,6 +144,9 @@ private:
    * Destructor. Disconnects the transporter. 
    */ 
 	~SCI_Transporter();    
+
+  virtual bool configure_derived(const TransporterConfiguration* conf);
+
   bool m_mapped; 
   bool m_initLocal; 
   bool m_sciinit; 

@@ -307,7 +307,10 @@ ConfigValuesFactory::ConfigValuesFactory(ConfigValues * cfg){
 ConfigValuesFactory::~ConfigValuesFactory()
 {
   if(m_cfg)
+  {
+    m_cfg->~ConfigValues();
     free(m_cfg);
+  }
 }
 
 ConfigValues *

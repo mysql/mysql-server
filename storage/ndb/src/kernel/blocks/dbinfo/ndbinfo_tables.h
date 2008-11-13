@@ -24,7 +24,7 @@ extern "C" {
 
 /** Reserved for DBINFO only */
 DECLARE_NDBINFO_TABLE(ndbinfo_TABLES,3)
-     = {{"TABLES",3,0},
+     = { "TABLES", 3, 0,
         {
           {"TABLE_ID",  NDBINFO_TYPE_NUMBER},
           {"TABLE_NAME",NDBINFO_TYPE_STRING},
@@ -33,7 +33,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_TABLES,3)
 
 /** Reserved for DBINFO only */
 DECLARE_NDBINFO_TABLE(ndbinfo_COLUMNS,4)
-     = {{"COLUMNS",4,0},
+     = { "COLUMNS", 4, 0,
         {
           {"TABLE_ID",    NDBINFO_TYPE_NUMBER},
           {"COLUMN_ID",   NDBINFO_TYPE_NUMBER},
@@ -42,7 +42,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_COLUMNS,4)
         }};
 
 DECLARE_NDBINFO_TABLE(ndbinfo_MEMUSAGE,6)
-     = {{"MEMUSAGE",6,0},
+     = { "MEMUSAGE", 6, 0,
         {
           {"RESOURCE_NAME",    NDBINFO_TYPE_STRING},
           {"NODE_ID",          NDBINFO_TYPE_NUMBER},
@@ -53,7 +53,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_MEMUSAGE,6)
         }};
 
 DECLARE_NDBINFO_TABLE(ndbinfo_LOGDESTINATION,5) =
-{{"LOGDESTINATION",5,0},
+{ "LOGDESTINATION", 5, 0,
  {
    {"NODE_ID",NDBINFO_TYPE_NUMBER},
    {"TYPE",NDBINFO_TYPE_STRING},
@@ -64,7 +64,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_LOGDESTINATION,5) =
 };
 
 DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_RECORDS,11)
-= {{"BACKUP_RECORDS",11,0},
+= { "BACKUP_RECORDS", 11, 0,
    {
      {"NODE_ID",          NDBINFO_TYPE_NUMBER},
      {"BACKUP_RECORD",    NDBINFO_TYPE_NUMBER},
@@ -81,7 +81,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_RECORDS,11)
 };
 
 DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_PARAMETERS,14)
-= {{"BACKUP_PARAMETERS",14,0},
+= { "BACKUP_PARAMETERS", 14, 0,
    {
      {"NODE_ID",                  NDBINFO_TYPE_NUMBER},
      {"CURRENT_DISK_WRITE_SPEED", NDBINFO_TYPE_NUMBER},
@@ -101,7 +101,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_PARAMETERS,14)
 };
 
 DECLARE_NDBINFO_TABLE(ndbinfo_POOLS,5)
-= {{"POOLS",5 ,0},
+= { "POOLS", 5, 0,
    {
      {"NODE_ID",                  NDBINFO_TYPE_NUMBER},
      {"BLOCK",                    NDBINFO_TYPE_STRING},
@@ -113,7 +113,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_POOLS,5)
 
 static Uint32 number_ndbinfo_tables= 7;
 
-#define DBINFOTBL(x) (struct ndbinfo_table*)&(x).t
+#define DBINFOTBL(x) (struct ndbinfo_table*)&x
 
 struct ndbinfo_table *ndbinfo_tables[] = {
   DBINFOTBL(ndbinfo_TABLES),
