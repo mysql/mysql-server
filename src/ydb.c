@@ -19,7 +19,7 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <db.h>
 #include "toku_assert.h"
 #include "ydb.h"
 #include "ydb-internal.h"
