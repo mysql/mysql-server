@@ -310,6 +310,7 @@ SELECT UPDATE_TIME, checksum INTO @UPDATE_TIME, @checksum
 FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
+FLUSH TABLES;
 SELECT UPDATE_TIME > @UPDATE_TIME
 AS "Is current UPDATE_TIME bigger than before last INSERT?"
 FROM information_schema.tables
