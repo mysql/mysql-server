@@ -29,6 +29,7 @@
 
 #include <NdbApi.hpp>
 #include <ndbapi_limits.h>
+#include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 #define NDB_DEFAULT_AUTO_PREFETCH 32
@@ -327,6 +328,9 @@ class Thd_ndb
   uint m_max_violation_count;
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
+
+  uint m_transaction_no_hint_count[MAX_NDB_NODES];
+  uint m_transaction_hint_count[MAX_NDB_NODES];
 
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
@@ -711,6 +715,12 @@ private:
       return m_thd_ndb->trans;
     return start_transaction(error);
   }
+
+  NdbTransaction *start_transaction_row(const uchar *record,
+                                        int &error);
+  NdbTransaction *start_transaction_key(uint index,
+                                        const uchar *key_data,
+                                        int &error);
 
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,
