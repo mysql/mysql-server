@@ -372,6 +372,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        }
        break;
      }
+     case GSN_TAKE_OVERTCCONF:
+     {
+       /**
+	* Report
+	*/
+       NdbApiSignal tSignal(* header);
+       tSignal.setDataPtr(theData);
+       for_each(&tSignal, ptr);
+       return;
+     }
      default:
        break;
        
