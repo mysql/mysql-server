@@ -54,7 +54,7 @@ static inline enum le_state get_le_state(LEAFENTRY le) {
 
 static inline void putint (unsigned char *p, u_int32_t i) {
 #if 1
-    *(u_int32_t*)p = htonl(i);
+    *(u_int32_t*)p = toku_htonl(i);
 #else
     p[0]=(i>>24)&0xff;
     p[1]=(i>>16)&0xff;
@@ -68,7 +68,7 @@ static inline void putint64 (unsigned char *p, u_int64_t i) {
 }
 static inline u_int32_t getint (unsigned char *p) {
 #if 1
-    return ntohl(*(u_int32_t*)p);
+    return toku_ntohl(*(u_int32_t*)p);
 #else
     return (p[0]<<24)+(p[1]<<16)+(p[2]<<8)+(p[3]);
 #endif

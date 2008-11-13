@@ -28,7 +28,7 @@ test (int seed) {
 	assert(fd>=0);
 	for (i=0; i<RECORDS; i++) {
 	    sizes[i]  = random()%100;
-	    sizesn[i] = htonl(sizes[i]);
+	    sizesn[i] = toku_htonl(sizes[i]);
 	    int j;
 	    for (j=0; j<sizes[i]; j++) {
 		buf[i][j]=(char)random();
@@ -50,7 +50,7 @@ test (int seed) {
 	i--;
 	int sizen;
 	{ int r = bread_backwards(br, &sizen, 4); assert(r==4); }
-	int sizeh=ntohl(sizen);
+	int sizeh=toku_ntohl(sizen);
 	assert(sizeh==sizes[i]);
 	assert(0<=sizeh && sizeh<100);
 	{

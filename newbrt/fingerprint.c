@@ -6,10 +6,10 @@
 // Calculate the fingerprint for a kvpair
 static void toku_calc_more_murmur_kvpair (struct x1764 *mm, const void *key, int keylen, const void *val, int vallen) {
     int i;
-    i = htonl(keylen);
+    i = toku_htonl(keylen);
     x1764_add(mm,  (void*)&i, 4);
     x1764_add(mm,  key, keylen);
-    i = htonl(vallen);
+    i = toku_htonl(vallen);
     x1764_add(mm, (void*)&i, 4);
     x1764_add(mm, val, vallen);
 }
@@ -27,8 +27,8 @@ u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp) {
 
 u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen) {
     unsigned char type_c = (unsigned char)type;
-    unsigned int a = htonl(xid>>32);
-    unsigned int b = htonl(xid&0xffffffff);
+    unsigned int a = toku_htonl(xid>>32);
+    unsigned int b = toku_htonl(xid&0xffffffff);
     struct x1764 mm;
     x1764_init(&mm);
     x1764_add(&mm, &type_c, 1);

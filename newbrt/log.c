@@ -144,7 +144,7 @@ static int open_logfile (TOKULOGGER logger) {
         if (logger->fd==-1) return errno;
     }
     logger->next_log_file_number++;
-    int version_l = htonl(log_format_version);
+    int version_l = toku_htonl(log_format_version);
     r = write_it(logger->fd, "tokulogg", 8);             if (r!=8) return errno;
     r = write_it(logger->fd, &version_l, 4);             if (r!=4) return errno;
     logger->fsynced_lsn = logger->written_lsn;
@@ -780,8 +780,8 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
 	if (r!=4) {
 	    return DB_BADFORMAT;
 	}
-	//printf("tokulog v.%d\n", ntohl(version));
-	*versionp=ntohl(version);
+	//printf("tokulog v.%d\n", toku_ntohl(version));
+	*versionp=toku_ntohl(version);
     }
     return 0;
 }
@@ -1004,7 +1004,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 int toku_read_rollback_backwards(BREAD br, struct roll_entry **item, MEMARENA ma) {
     u_int32_t nbytes_n; ssize_t sr;
     if ((sr=bread_backwards(br, &nbytes_n, 4))!=4) { assert(sr<0); return errno; }
-    u_int32_t n_bytes=ntohl(nbytes_n);
+    u_int32_t n_bytes=toku_ntohl(nbytes_n);
     unsigned char *buf = malloc_in_memarena(ma, n_bytes);
     if (buf==0) return errno;
     if ((sr=bread_backwards(br, buf, n_bytes-4))!=(ssize_t)n_bytes-4) { assert(sr<0); return errno; }
