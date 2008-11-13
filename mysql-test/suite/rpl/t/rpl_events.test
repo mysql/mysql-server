@@ -5,10 +5,11 @@
 # in both row based and statement based format                   #
 ##################################################################
 
-set global event_scheduler=1;
-
 --source include/not_embedded.inc
 --source include/master-slave.inc
+
+SET @old_event_scheduler = @@global.event_scheduler;
+set global event_scheduler=1;
 
 let $engine_type= MyISAM;
 
@@ -51,5 +52,6 @@ sync_slave_with_master;
 # that there is no bad timing cauing it to try to access the table.
 
 connection master;
+SET @@global.event_scheduler= @old_event_scheduler;
 DROP TABLE t28953;
 sync_slave_with_master;

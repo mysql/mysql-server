@@ -14,6 +14,9 @@ START SLAVE;
 
 --echo **** On Master ****
 connection master;
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
+
 eval SET SESSION BINLOG_FORMAT=$format;
 eval SET GLOBAL  BINLOG_FORMAT=$format;
 
@@ -40,3 +43,5 @@ source include/show_binlog_events.inc;
 
 connection master;
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;

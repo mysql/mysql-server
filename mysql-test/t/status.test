@@ -287,10 +287,15 @@ show procedure status where name ='proc37908' and 1 in (select f1 from db37908.t
 --error 1142
 show function status where name ='func37908' and 1 in (select func37908());
 
-connection root;
+connection default;
+disconnect con1;
+disconnect user1;
+disconnect root;
 drop database db37908;
 drop procedure proc37908;
 drop function func37908;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+DROP USER mysqltest_1@localhost;
 # End of 5.1 tests
 
 # Restore global concurrent_insert value. Keep in the end of the test file.
