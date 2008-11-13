@@ -3,6 +3,7 @@
 
 /* Test using performance metrics only, to see if group commit is working. */
 
+#include <stdint.h>
 #include <db.h>
 #include <toku_pthread.h>
 #include <sys/stat.h>

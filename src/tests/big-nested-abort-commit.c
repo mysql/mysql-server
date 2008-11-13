@@ -7,6 +7,7 @@
  *     big child commits, parent commits
  */
 
+#include <stdint.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"

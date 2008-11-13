@@ -10,6 +10,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <stdint.h>
 #include <db.h>
 
 #include "test.h"

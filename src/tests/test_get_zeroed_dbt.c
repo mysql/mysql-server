@@ -1,5 +1,6 @@
 /* Test to see if DB->get works on a zeroed DBT. */
 
+#include <stdint.h>
 #include <db.h>
 #include <string.h>
 #include <stdlib.h>
