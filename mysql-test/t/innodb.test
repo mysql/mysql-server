@@ -1317,6 +1317,7 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 
 # Test for innodb_thread_concurrency variable
+SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=1001;
 show variables like "innodb_thread_concurrency";
@@ -1324,6 +1325,7 @@ set global innodb_thread_concurrency=0;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
+SET @@global.innodb_thread_concurrency= @old_innodb_thread_concurrency;
 
 # Test for innodb_concurrency_tickets variable
 show variables like "innodb_concurrency_tickets";

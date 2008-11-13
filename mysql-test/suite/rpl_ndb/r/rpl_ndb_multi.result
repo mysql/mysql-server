@@ -52,4 +52,6 @@ c1	c2	c3
 row3	C	3
 row4	D	4
 row5	E	5
+==== clean up ====
+DROP TABLE t1;
 STOP SLAVE;
