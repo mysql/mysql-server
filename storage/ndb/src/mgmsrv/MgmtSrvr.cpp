@@ -265,6 +265,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
   m_local_config(NULL),
   _ownReference(0),
   m_config_manager(NULL),
+  m_need_restart(false),
   theFacade(NULL),
   _isStopThread(false),
   _logLevelThreadSleep(500),
@@ -743,7 +744,16 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
   setClusterLog(m_local_config);
 
-  // TODO Magnus, Reload ClusterMgr::theNodes
+  if (theFacade)
+  {
+    if (!theFacade->configure(_ownNodeId,
+                              m_local_config->m_configValues))
+    {
+      g_eventLogger->warning("Could not reconfigure everything online, "
+                             "this node need a restart");
+      m_need_restart= true;
+    }
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -973,11 +983,10 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	do_send = 1; // retry with other node
       continue;
     }
-
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       // Ignore
       continue;
-
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -1294,7 +1303,8 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       break;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
 #ifdef VM_TRACE
@@ -1857,7 +1867,8 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       break;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -1993,6 +2004,7 @@ retry:
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2051,6 +2063,7 @@ MgmtSrvr::endSchemaTrans(SignalSender& ss, NodeId nodeId,
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2144,6 +2157,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2218,6 +2232,7 @@ MgmtSrvr::dropNodegroup(int ng)
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2515,6 +2530,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     ndbout << "TAMPER ORD" << endl;
     break;
   case GSN_API_REGCONF:
+  case GSN_TAKE_OVERTCCONF:
     break;
 
   case GSN_DBINFO_SCANREQ:
@@ -2711,7 +2727,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       continue;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -3232,7 +3249,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
       break;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -3770,9 +3788,9 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       {
         memcpy(req,conf,signal->header.theLength*sizeof(Uint32));
         req->requestInfo &= ~(DbinfoScanReq::StartScan);
-        ssig.set(ss, TestOrd::TraceAPI, req->cur_block, GSN_DBINFO_SCANREQ,
-                 DbinfoScanReq::SignalLengthWithCursor);
-        nodeId= req->cur_node;
+        ssig.set(ss, TestOrd::TraceAPI, req->cursor.cur_block, 
+                 GSN_DBINFO_SCANREQ, DbinfoScanReq::SignalLengthWithCursor);
+        nodeId= req->cursor.cur_node;
 
         do_send= 1;
         continue;
@@ -3783,6 +3801,7 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       }
       break;
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
     default:
@@ -3862,6 +3881,7 @@ MgmtSrvr::change_config(Config& new_config)
     }
 
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
 

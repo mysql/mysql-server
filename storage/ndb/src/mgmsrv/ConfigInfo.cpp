@@ -4521,13 +4521,14 @@ ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo& info,
     const ConfigInfo::ParamInfo & param = info.m_ParamInfo[j];
     if (param._type == ConfigInfo::CI_SECTION &&
         param._paramId == section &&
-        (section_type == (Uint32)~0 || param._section_type == section_type))
+        (section_type == ~(Uint32)0 || 
+         Uint32(param._section_type) == section_type))
     {
       m_section_name= param._section;
-      break;
+      return;
     }
   }
-  assert(m_section_name);
+  abort();
 }
 
 

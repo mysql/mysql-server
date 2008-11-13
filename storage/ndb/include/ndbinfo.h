@@ -39,17 +39,12 @@ struct ndbinfo_column {
 
 struct ndbinfo_table {
   NDBINFO_TABLE_MEMBERS
-  struct ndbinfo_column col[0];
-};
-
-/* because MSVC compiler hates you (or rather, zero length arrays) */
-struct ndbinfo_table_internal {
-  NDBINFO_TABLE_MEMBERS
+  struct ndbinfo_column col[1];
 };
 
 #define DECLARE_NDBINFO_TABLE(var, num)         \
-struct ndbinfostruct##var {                      \
-  struct ndbinfo_table_internal t;                       \
+struct ndbinfostruct##var {                     \
+  NDBINFO_TABLE_MEMBERS                         \
   struct ndbinfo_column col[num];               \
 } var
 
@@ -105,10 +100,10 @@ int dbinfo_write_row_column_uint32(struct dbinfo_row *r, Uint32 value);
   conf->colBitmapLo= (req).colBitmapLo;                                 \
   conf->colBitmapHi= (req).colBitmapHi;                                 \
   conf->requestInfo= (req).requestInfo | DbinfoScanConf::MoreData;      \
-  conf->cur_requestInfo= 0;                                             \
-  conf->cur_node= getOwnNodeId();                                       \
-  conf->cur_block= number();                                            \
-  conf->cur_item= (itemnumber);                                         \
+  conf->cursor.cur_requestInfo= 0;                                      \
+  conf->cursor.cur_node= getOwnNodeId();                                \
+  conf->cursor.cur_block= number();                                     \
+  conf->cursor.cur_item= (itemnumber);                                  \
   conf->maxRows= (rl).maxRows;                                          \
   conf->maxBytes= (rl).maxBytes;                                        \
   conf->rows_total= (rl).rows_total + (rl).rows;                        \

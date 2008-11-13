@@ -711,7 +711,9 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
     if(props == 0)
       break;
 
-    m_impl.m_transporter_facade->start_instance(nodeId, props);
+    if (m_impl.m_transporter_facade->start_instance(nodeId, props) < 0)
+      DBUG_RETURN(-1);
+
     if (m_impl.init_nodes_vector(nodeId, *props))
     {
       ndbout_c("Ndb_cluster_connection::connect: malloc failure");
