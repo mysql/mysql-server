@@ -1,6 +1,6 @@
 /* A simple case to see if recovery works. */
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

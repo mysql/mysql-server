@@ -4,7 +4,7 @@
 /* Like test_log5 except abort. */
 
 #include <assert.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

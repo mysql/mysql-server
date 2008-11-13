@@ -5,7 +5,7 @@
    compare function */
 
 #include <assert.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>

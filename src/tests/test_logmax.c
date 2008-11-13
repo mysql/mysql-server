@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <dirent.h>
 #include <fcntl.h>

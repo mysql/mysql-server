@@ -4,7 +4,7 @@
  */
 
 #include <assert.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <string.h>

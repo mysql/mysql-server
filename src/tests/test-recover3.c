@@ -5,7 +5,7 @@
 //   run recovery.
 //   Verify that the data is present.
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

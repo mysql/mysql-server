@@ -6,7 +6,7 @@
 /* This test_log8 inserts to a db, closes, reopens, and inserts more to db.  We want to make sure that the recovery of the buffers works. */
 
 #include <assert.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

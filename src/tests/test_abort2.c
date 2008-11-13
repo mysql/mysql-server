@@ -4,7 +4,7 @@
  * Make sure those middle things made it back into the tree.
  */
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"
