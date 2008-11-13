@@ -633,7 +633,8 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   }
 
   *count = rows;
-  DBUG_PRINT("value", ("rows=%llu flags=%o", rows, flags));
+  DBUG_PRINT("value", ("rows=%u/%u flags=%x",
+                       (unsigned)(rows>>32), (unsigned)(rows), flags));
   DBUG_RETURN(0);
 }
 
