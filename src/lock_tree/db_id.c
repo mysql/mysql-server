@@ -54,7 +54,7 @@ int toku_db_id_create(toku_db_id** pdbid, int fd,
     if (!db_id) { r = ENOMEM; goto cleanup; }
     memset(db_id, 0, sizeof(*db_id));
 
-    r = os_get_unique_file_id(fd, &db_id->id);
+    r = toku_os_get_unique_file_id(fd, &db_id->id);
     if (r!=0) goto cleanup;
 
     db_id->sub_database_name = toku_strdup(sub_database_name);

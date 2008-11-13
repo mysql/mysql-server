@@ -9,7 +9,7 @@
 // Portability first!
 #include "stdint.h"
 #include "portability.h"
-#include "os.h"
+#include "toku_os.h"
 
 #if TOKU_WINDOWS
 #include "zlib.h"

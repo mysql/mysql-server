@@ -76,7 +76,7 @@ static void readit (void) {
     struct timeval start, end;
     struct timeval start_usertime, start_systime;
     struct timeval end_usertime, end_systime;
-    os_get_process_times(&start_usertime, &start_systime);
+    toku_os_get_process_times(&start_usertime, &start_systime);
     gettimeofday(&start, 0);
     int i, r;
     void *block;
@@ -90,7 +90,7 @@ static void readit (void) {
     r = toku_cachefile_close(&f, 0);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);
     gettimeofday(&end, 0);
-    os_get_process_times(&end_usertime, &end_systime);
+    toku_os_get_process_times(&end_usertime, &end_systime);
     double diff = tdiff(&end, &start);
     double udiff = tdiff(&end_usertime, &start_usertime);
     double sdiff = tdiff(&end_systime, &start_systime);

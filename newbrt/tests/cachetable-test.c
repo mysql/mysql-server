@@ -299,7 +299,7 @@ static void test_nested_pin (void) {
     assert(r==0);
     r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, 0, test_object_size);
     assert(r==0);
-    //    os_usleep(1*1000000);
+    //    toku_os_usleep(1*1000000);
     r = toku_cachefile_close(&f, 0); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
 }

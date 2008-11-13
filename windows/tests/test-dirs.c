@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include "portability.h"
-#include "os.h"
+#include "toku_os.h"
 #include <dirent.h>
 
 int verbose;
@@ -52,13 +52,13 @@ int main(int argc, char *argv[]) {
     assert(found == -1);
 
     // try to walk an empty directory
-    r = os_mkdir(TESTDIR, 0777); assert(r==0);
+    r = toku_os_mkdir(TESTDIR, 0777); assert(r==0);
     found = walk(TESTDIR);
     assert(found == 0);
     //Try to delete the empty directory
     system("rm -rf " TESTDIR);
     
-    r = os_mkdir(TESTDIR, 0777); assert(r==0);
+    r = toku_os_mkdir(TESTDIR, 0777); assert(r==0);
     // walk a directory with a bunch of files in it
 #define N 100
     for (i=0; i<N; i++) {

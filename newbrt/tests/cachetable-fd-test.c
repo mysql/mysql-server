@@ -45,7 +45,7 @@ cachetable_fd_test (void) {
 
 int main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
-    os_initialize_settings(verbose);
+    toku_os_initialize_settings(verbose);
 
     cachetable_fd_test();
     return 0;

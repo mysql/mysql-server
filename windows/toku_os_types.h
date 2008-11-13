@@ -1,10 +1,11 @@
-#if !defined(OS_INTERFACE_WINDOWS_H)
-#define OS_INTERFACE_WINDOWS_H
+#if !defined(TOKU_OS_TYPES_H)
+#define TOKUOS_TYPES_H
+
 #include <stdlib.h>
 #include <direct.h>
 
 // define an OS handle
-typedef void *os_handle_t;
+typedef void *toku_os_handle_t;
 typedef int  pid_t; 
 typedef int  mode_t;
 

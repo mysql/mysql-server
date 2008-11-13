@@ -17,7 +17,7 @@ int main(void) {
 
     test_stat(".");
 
-    r = os_mkdir("testdir", S_IRWXU);
+    r = toku_os_mkdir("testdir", S_IRWXU);
     assert(r == 0);
 
     test_stat("testdir");

@@ -1,8 +1,8 @@
-#if !defined(OS_INTERFACE_LINUX_H)
-#define OS_INTERFACE_LINUX_H
+#if !defined(TOKU_OS_TYPES_H)
+#define TOKU_OS_TYPES_H
 #include <sys/types.h>
 
-typedef int os_handle_t;
+typedef int toku_os_handle_t;
 
 struct fileid {
     dev_t st_dev; /* device and inode are enough to uniquely identify a file in unix. */

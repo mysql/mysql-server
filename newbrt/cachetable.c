@@ -160,7 +160,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     r = toku_pthread_mutex_init(&t->mutex, 0); assert(r == 0);
 
     // set the max number of writeback threads to min(MAX_WRITER_THREADS,nprocs_online)
-    int nprocs = os_get_number_active_processors();
+    int nprocs = toku_os_get_number_active_processors();
     if (nprocs > MAX_WRITER_THREADS) nprocs = MAX_WRITER_THREADS;
     r = threadpool_create(&t->threadpool, nprocs); assert(r == 0);
 
@@ -197,7 +197,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
     int r;
     CACHEFILE extant;
     struct fileid fileid;
-    r = os_get_unique_file_id(fd, &fileid);
+    r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
         r=errno; close(fd); 
         return r;
@@ -1234,7 +1234,7 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
 
     null_fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);           
     assert(null_fd>=0);
-    os_get_unique_file_id(null_fd, &fileid);
+    toku_os_get_unique_file_id(null_fd, &fileid);
     close(cf->fd);
     cf->fd = null_fd;
     if (cf->fname) {

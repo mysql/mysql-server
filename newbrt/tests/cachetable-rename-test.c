@@ -165,7 +165,7 @@ static void test_rename (void) {
 int main (int argc, const char *argv[]) {
     // parse args
     default_parse_args(argc, argv);
-    os_initialize_settings(verbose);
+    toku_os_initialize_settings(verbose);
 
     // run tests
     int i;

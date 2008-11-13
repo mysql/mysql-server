@@ -2,7 +2,7 @@
 #define _TOKU_DIRENT_H
 
 //The DIR functions do not exist in windows, but the Linux API ends up
-//just using a wrapper.  We might convert these into an os_* type api.
+//just using a wrapper.  We might convert these into an toku_os_* type api.
 
 DIR *opendir(const char *name);
 

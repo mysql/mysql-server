@@ -186,7 +186,7 @@ test_flow_control (int limit, int n) {
             writequeue_wait_write(&rwfc->writequeue, &rwfc->mutex);
         }
         r = toku_pthread_mutex_unlock(&rwfc->mutex); assert(r == 0);
-        // os_usleep(random() % 1);
+        // toku_os_usleep(random() % 1);
     }
     writequeue_set_closed(&rwfc->writequeue);
     void *ret;

@@ -9,7 +9,7 @@
 #include "test.h"
 
 static inline unsigned int getmyid() {
-    return os_gettid();
+    return toku_os_gettid();
 }
 
 typedef unsigned int my_t;
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
             work[i].endno = n;
     }
 
-    if (verbose) printf("pid:%d\n", os_getpid());
+    if (verbose) printf("pid:%d\n", toku_os_getpid());
 
     for (i=1; i<nthreads; i++) {
         r = toku_pthread_create(&work[i].tid, 0, do_inserts, &work[i]); assert(r == 0);

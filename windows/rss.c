@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <os.h>
+#include <toku_os.h>
 
 #define DO_MEMORY_INFO 1
 
@@ -21,7 +21,7 @@ get_memory_info(PROCESS_MEMORY_COUNTERS *meminfo) {
 #endif
 
 int
-os_get_rss(int64_t *rss) {
+toku_os_get_rss(int64_t *rss) {
     int r;
 #if DO_MEMORY_INFO
     PROCESS_MEMORY_COUNTERS meminfo;
@@ -37,7 +37,7 @@ os_get_rss(int64_t *rss) {
 }
 
 int
-os_get_max_rss(int64_t *maxrss) {
+toku_os_get_max_rss(int64_t *maxrss) {
     int r;
 #if DO_MEMORY_INFO
     PROCESS_MEMORY_COUNTERS meminfo;

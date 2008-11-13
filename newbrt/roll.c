@@ -168,7 +168,7 @@ int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     assert(fd>=0);
 
     int64_t fsize = 0;
-    r = os_get_file_size(fd, &fsize);
+    r = toku_os_get_file_size(fd, &fsize);
     assert(r==0);
     r = toku_commit_fileentries(fd, fsize, txn);
     assert(r==0);
@@ -185,7 +185,7 @@ int toku_rollback_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
     int64_t fsize = 0;
-    r = os_get_file_size(fd, &fsize);
+    r = toku_os_get_file_size(fd, &fsize);
     assert(r==0);
     r = toku_rollback_fileentries(fd, fsize, txn);
     assert(r==0);

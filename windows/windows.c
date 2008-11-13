@@ -112,7 +112,7 @@ fsync(int fildes) {
 }
 
 int
-os_get_file_size(int fildes, int64_t *size) {
+toku_os_get_file_size(int fildes, int64_t *size) {
     struct _stat64 sbuf;
     int r = _fstati64(fildes, &sbuf);
     if (r==0) {
@@ -122,7 +122,7 @@ os_get_file_size(int fildes, int64_t *size) {
 }
 
 uint64_t 
-os_get_phys_memory_size(void) {
+toku_os_get_phys_memory_size(void) {
     MEMORYSTATUS memory_status;
     GlobalMemoryStatus(&memory_status);
     return memory_status.dwTotalPhys;
@@ -130,14 +130,14 @@ os_get_phys_memory_size(void) {
 
 
 int 
-os_get_number_processors(void) {
+toku_os_get_number_processors(void) {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     return system_info.dwNumberOfProcessors;
 }
 
 int 
-os_get_number_active_processors(void) {
+toku_os_get_number_active_processors(void) {
     SYSTEM_INFO system_info;
     DWORD mask, n;
     GetSystemInfo(&system_info);
@@ -148,14 +148,14 @@ os_get_number_active_processors(void) {
 }
 
 int 
-os_get_pagesize(void) {
+toku_os_get_pagesize(void) {
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     return system_info.dwPageSize;
 }
 
 int
-os_get_unique_file_id(int fildes, struct fileid *id) {
+toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     int r;
     BY_HANDLE_FILE_INFORMATION info;
     HANDLE filehandle;
@@ -197,7 +197,7 @@ convert_filetime_timeval(FILETIME ft, struct timeval *tv) {
 }
 
 int
-os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) {
+toku_os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) {
     FILETIME w_createtime, w_exittime, w_usertime, w_kerneltime;
 
     if (GetProcessTimes(GetCurrentProcess(), &w_createtime, &w_exittime, &w_kerneltime, &w_usertime)) {
@@ -209,7 +209,7 @@ os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) {
 }
 
 int
-os_getpid(void) {
+toku_os_getpid(void) {
 #if 0
     return _getpid();
 #else
@@ -218,7 +218,7 @@ os_getpid(void) {
 }
 
 int 
-os_gettid(void) {
+toku_os_gettid(void) {
     return GetCurrentThreadId();
 }
 
@@ -243,13 +243,13 @@ gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 
 int
-os_lock_file(char *name) {
+toku_os_lock_file(char *name) {
     int fd = _sopen(name, O_CREAT, _SH_DENYRW, S_IREAD|S_IWRITE);
     return fd;
 }
 
 int
-os_unlock_file(int fildes) {
+toku_os_unlock_file(int fildes) {
     int r = close(fildes);
     return r;
 }
@@ -277,7 +277,7 @@ pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset) {
 }
 
 int
-os_mkdir(const char *pathname, mode_t mode) {
+toku_os_mkdir(const char *pathname, mode_t mode) {
     int r = mkdir(pathname);
     UNUSED_WARNING(mode);
     if (r!=0) r = errno;
@@ -324,7 +324,7 @@ static void ignoreParameterHandler(const wchar_t* expression,
 }
 
 int
-os_initialize_settings(int verbosity) {
+toku_os_initialize_settings(int verbosity) {
     int r;
     static int initialized = 0;
     assert(initialized==0);
