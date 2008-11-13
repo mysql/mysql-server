@@ -255,7 +255,7 @@ static char* analyse_one_map(char *map_str, uint16 *source, uint16 *dest)
   map_str++;
 
   number= strtol(map_str, &end_ptr, 10);
-  if (!end_ptr || number < 0 || number >= UNDEF_NODEGROUP)
+  if (!end_ptr || number < 0 || number >= NDB_UNDEF_NODEGROUP)
   {
     DBUG_RETURN(NULL);
   }
@@ -295,7 +295,7 @@ static void init_nodegroup_map()
   {
     ng_map[i].no_maps= 0;
     for (j= 0; j < MAX_MAPS_PER_NODE_GROUP; j++)
-      ng_map[i].map_array[j]= UNDEF_NODEGROUP;
+      ng_map[i].map_array[j]= NDB_UNDEF_NODEGROUP;
   }
 }
 
