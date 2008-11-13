@@ -2322,6 +2322,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       goto send_result;
     }
 
+    if (table->schema_table)
+    {
+      result_code= HA_ADMIN_NOT_IMPLEMENTED;
+      goto send_result;
+    }
+
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
