@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <db.h>
 #include "ydb.h"
 
 #if defined(__GNUC__)
