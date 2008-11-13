@@ -136,6 +136,18 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
+
+static void
+mgmd_exit(int result)
+{
+  g_eventLogger->close();
+
+  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
+  exit(result);
+}
+
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -152,7 +164,7 @@ int main(int argc, char** argv)
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
-    exit(ho_error);
+    mgmd_exit(ho_error);
 
   if (opts.interactive ||
       opts.non_interactive ||
@@ -169,7 +181,7 @@ int main(int argc, char** argv)
   if (opts.mycnf && opts.config_filename)
   {
     g_eventLogger->error("Both --mycnf and -f is not supported");
-    exit(1);
+    mgmd_exit(1);
   }
 
   /**
@@ -187,13 +199,13 @@ start:
   mgm= new MgmtSrvr(opts, opt_connect_str);
   if (mgm == NULL) {
     g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
-    exit(1);
+    mgmd_exit(1);
   }
 
   /* Init mgm, load or fetch config */
   if (!mgm->init()) {
     delete mgm;
-    exit(1);
+    mgmd_exit(1);
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
@@ -204,7 +216,7 @@ start:
     if (localNodeId == 0) {
       g_eventLogger->error("Couldn't get own node id");
       delete mgm;
-      exit(1);
+      mgmd_exit(1);
     }
 
     // Become a daemon
@@ -215,14 +227,14 @@ start:
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
       g_eventLogger->error("Cannot become daemon: %s", NdbDaemon_ErrorText);
       delete mgm;
-      exit(1);
+      mgmd_exit(1);
     }
   }
 
   /* Start mgm services */
   if (!mgm->start()) {
     delete mgm;
-    exit(1);
+    mgmd_exit(1);
   }
 
   if(opts.interactive) {
@@ -250,9 +262,6 @@ start:
     goto start;
   }
 
-  g_eventLogger->close();
-
-  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-  return 0;
+  mgmd_exit(0);
 }
 
