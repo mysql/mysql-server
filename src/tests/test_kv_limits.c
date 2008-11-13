@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <db.h>
 
@@ -138,7 +137,7 @@ int main(int argc, const char *argv[]) {
             if (i+1 >= argc)
                 return 1;
             lorange = strtoull(argv[++i], 0, 10);
-            if (lorange > UINT_MAX)
+            if (lorange > ULLONG_MAX)
                 return 2;
             continue;
         }
@@ -146,7 +145,7 @@ int main(int argc, const char *argv[]) {
             if (i+1 >= argc) 
                 return 1;
             hirange = strtoull(argv[++i], 0, 10);
-            if (hirange > UINT_MAX)
+            if (hirange > ULLONG_MAX)
                 return 2;
             continue;
         }

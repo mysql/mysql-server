@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <inttypes.h>
-#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <db.h>
 

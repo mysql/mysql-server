@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
 
     r = dbenv->open(dbenv, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
 #ifdef USE_TDB
+    if (verbose) printf("r=%d\n", r);
     assert(r != 0);
 #else
     if (verbose) printf("test_db_env_open_open_close.bdb skipped.  (BDB apparently does not follow the spec).\n");

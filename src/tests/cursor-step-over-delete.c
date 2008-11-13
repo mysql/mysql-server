@@ -7,7 +7,7 @@ static DB *db;
 DB_TXN *txn;
 
 static void
-setup (void) {
+test_setup (void) {
     system("rm -rf " ENVDIR);
     int r;
     r=mkdir(ENVDIR, 0777);       CKERR(r);
@@ -23,7 +23,7 @@ setup (void) {
 }
 
 static void
-shutdown (void) {
+test_shutdown (void) {
     int r;
     r= db->close(db, 0); CKERR(r);
     r= env->close(env, 0); CKERR(r);
@@ -61,9 +61,9 @@ doit (void) {
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
 
-    setup();
+    test_setup();
     doit();
-    shutdown();
+    test_shutdown();
 
     return 0;
 }

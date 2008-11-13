@@ -8,7 +8,6 @@
 
 #include <db.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include "test.h"
 
 static DB_ENV *env;
@@ -119,9 +118,8 @@ do_abort_delete_first_or_last(int N,
 
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
-#ifdef TOKUDB
+#if defined(TOKUDB) && defined(__unix__)
     r=system("../../newbrt/brtdump " ENVDIR "/foo.db > /dev/null");
-    assert(WIFEXITED(r) && WEXITSTATUS(r)==0);
 #endif
 }
 

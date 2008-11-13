@@ -4,7 +4,6 @@
 #include <db.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include "test.h"
 

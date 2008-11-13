@@ -4,7 +4,6 @@
 /* try a reverse compare function to verify that the database always uses the application's
    compare function */
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <db.h>
 #include <stdio.h>
@@ -45,7 +44,7 @@ expect (DBC *cursor, int k, int v) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", (uint32_t)htonl(k), (uint32_t)htonl(kk), (uint32_t)htonl(v), (uint32_t)htonl(vv));
     assert(kk == k);
     assert(vv == v);
 

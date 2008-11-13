@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <db.h>
 
 #include "test.h"
@@ -52,7 +51,7 @@ expect_cursor_get (DBC *cursor, int k, int v) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", ntohl(k), ntohl(kk), ntohl(v), ntohl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", (uint32_t)ntohl(k), (uint32_t)ntohl(kk), (uint32_t)ntohl(v), (uint32_t)ntohl(vv));
     assert(kk == k);
     assert(vv == v);
 

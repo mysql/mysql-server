@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <arpa/inet.h>
 #include <db.h>
 #include "test.h"
 

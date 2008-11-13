@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <db.h>
 #include "test.h"
 
