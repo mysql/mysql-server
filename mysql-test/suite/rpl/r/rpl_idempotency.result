@@ -6,6 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
 call mtr.add_suppression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
+SET @old_slave_exec_mode= @@global.slave_exec_mode;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
@@ -222,7 +223,7 @@ Last_SQL_Error
 0
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
-set global slave_exec_mode='STRICT';
+SET @@global.slave_exec_mode= @old_slave_exec_mode;
 set @@session.binlog_format= @save_binlog_format;
 drop table t1,t2,ti2,ti1;
 *** end of tests

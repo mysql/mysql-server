@@ -10,6 +10,8 @@
 #
 --source include/have_partition.inc
 
+SET @old_general_log= @@global.general_log;
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -1898,3 +1900,6 @@ select count(*) from t1;
 drop table t1;
 
 --echo End of 5.1 tests
+
+
+SET @@global.general_log= @old_general_log;
