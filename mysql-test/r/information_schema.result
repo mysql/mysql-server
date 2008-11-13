@@ -1651,4 +1651,51 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select count(*) from information_schema.views;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	views	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases
+set global init_connect="drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;";
+select * from information_schema.global_variables where variable_name='init_connect';
+VARIABLE_NAME	VARIABLE_VALUE
+INIT_CONNECT	drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists
+Warnings:
+Warning	1265	Data truncated for column 'VARIABLE_VALUE' at row 1
+set global init_connect="";
 End of 5.1 tests.
