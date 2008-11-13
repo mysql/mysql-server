@@ -3511,6 +3511,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     TABLE_SHARE *share= show_table->s;
     handler *file= show_table->file;
     handlerton *tmp_db_type= share->db_type();
+    bool is_partitioned= FALSE;
     if (share->tmp_table == SYSTEM_TMP_TABLE)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
     else if (share->tmp_table)
@@ -3527,7 +3528,10 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
         share->partition_info_len)
+    {
       tmp_db_type= share->default_part_db_type;
+      is_partitioned= TRUE;
+    }
 #endif
     tmp_buff= (char *) ha_resolve_storage_engine_name(tmp_db_type);
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
@@ -3572,9 +3576,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
                    NullS);
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (show_table->s->db_type() == partition_hton && 
-        show_table->part_info != NULL && 
-        show_table->part_info->no_parts > 0)
+    if (is_partitioned)
       ptr= strmov(ptr, " partitioned");
 #endif
     if (share->transactional != HA_CHOICE_UNDEF)
