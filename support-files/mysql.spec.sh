@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2007 MySQL AB
+# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
 # MA  02110-1301  USA.
 
 %define mysql_version		@VERSION@
-%define mysql_vendor    MySQL AB
+
+# NOTE: "vendor" is used in upgrade/downgrade check, so you can't
+# change these, has to be exactly as is.
+%define mysql_old_vendor	MySQL AB
+%define mysql_vendor		Sun Microsystems, Inc.
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
@@ -37,8 +41,7 @@
 %else
 %define release 0.glibc23
 %endif
-%define license GPL
-%define mysqld_user		mysql
+%define mysqld_user	mysql
 %define mysqld_group	mysql
 %define server_suffix -standard
 %define mysqldatadir /var/lib/mysql
@@ -71,10 +74,10 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-License:	%{license}
+License:	Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under GPL license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
-Packager:	MySQL Production Engineering Team <build@mysql.com>
+Packager:	Sun Microsystems, Inc. Product Engineering Team <build@mysql.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -90,9 +93,11 @@ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
-MySQL AB.
+Sun Microsystems, Inc.
 
-Copyright (C) 2000-2007 MySQL AB
+Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
@@ -112,9 +117,11 @@ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
-MySQL AB.
+Sun Microsystems, Inc.
 
-Copyright (C) 2000-2007 MySQL AB
+Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
@@ -455,6 +462,7 @@ installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
 if [ $? -eq 0 -a -n "$installed" ]; then
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
+  myoldvendor='%{mysql_old_vendor}'
   myvendor='%{mysql_vendor}'
   myversion='%{mysql_version}'
 
@@ -466,12 +474,12 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
 
   error_text=
-  if [ "$vendor" != "$myvendor" ]; then
+  if [ "$vendor" != "$myoldvendor" -a "$vendor" != "$myvendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myvendor.  Some files may be installed
-to different locations, including log files and the service
-startup script in %{_sysconfdir}/init.d/.
+vendor ($vendor) than $myoldvendor or $myvendor.
+Some files may be installed to different locations, including log
+files and the service startup script in %{_sysconfdir}/init.d/.
 "
   fi
 

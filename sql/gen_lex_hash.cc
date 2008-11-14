@@ -451,7 +451,7 @@ int main(int argc,char **argv)
   printf("/*\n\n  Do " "not " "edit " "this " "file " "directly!\n\n*/\n");
 
   printf("\
-/* Copyright (C) 2001-2004 MySQL AB\n\
+/* Copyright 2001-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n\
 \n\
    This program is free software; you can redistribute it and/or modify\n\
    it under the terms of the GNU General Public License as published by\n\
