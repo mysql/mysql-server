@@ -1923,6 +1923,25 @@ DROP TABLE t1;
 connection master;
 DROP TABLE t1;
 
+
+#
+# Bug #34774    key prefix on text field in federated tables can cause
+# server to crash!
+#
+connection slave;
+CREATE TABLE t1 (a TEXT, b TEXT, KEY(b(1)));
+INSERT INTO t1 VALUES (NULL, NULL), (NULL, NULL), (NULL, NULL), (NULL, NULL);
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE t1
+  (a TEXT, b TEXT, KEY(b(1))) ENGINE=FEDERATED
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+SELECT t1.a FROM t1, t1 as t2 WHERE t2.b NOT LIKE t1.b;
+connection slave;
+DROP TABLE t1;
+connection master;
+DROP TABLE t1;
+
 connection default;
 
 --echo End of 5.0 tests
