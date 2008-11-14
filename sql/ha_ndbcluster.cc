@@ -8048,6 +8048,8 @@ bool Thd_ndb::recycle_ndb(THD* thd)
   DBUG_ENTER("recycle_ndb");
   DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
 
+  DBUG_ASSERT(global_schema_lock_trans == NULL);
+
   delete ndb;
   if ((ndb= new Ndb(connection, "")) == NULL)
   {
@@ -8074,6 +8076,11 @@ bool Thd_ndb::recycle_ndb(THD* thd)
 bool
 Thd_ndb::valid_ndb(void)
 {
+  // The ndb object should be valid as long as a
+  // global schema lock transaction is ongoing
+  if (global_schema_lock_trans)
+    return true;
+
   if (unlikely(m_connect_count != connection->get_connect_count()))
     return false;
   return true;
