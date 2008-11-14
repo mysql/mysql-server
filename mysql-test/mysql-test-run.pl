@@ -34,8 +34,34 @@ BEGIN {
   }
 }
 
+BEGIN {
+  # Check backward compatibility support
+  # By setting the environment variable MTR_VERSION
+  # it's possible to use a previous version of
+  # mysql-test-run.pl
+  my $version= $ENV{MTR_VERSION} || 2;
+  if ( $version == 1 )
+  {
+    print "=======================================================\n";
+    print "  WARNING: Using mysql-test-run.pl version 1!  \n";
+    print "=======================================================\n";
+    require "lib/v1/mysql-test-run.pl";
+    exit(1);
+  }
+  elsif ( $version == 2 )
+  {
+    # This is the current version, just continue
+    ;
+  }
+  else
+  {
+    print "ERROR: Version $version of mysql-test-run does not exist!\n";
+    exit(1);
+  }
+}
 
 use lib "lib";
+
 use Cwd;
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path

@@ -24,7 +24,25 @@ test_SCRIPTS =	mtr \
 		mysql-test-run.pl \
 		mysql-stress-test.pl
 
-nobase_test_DATA = lib/mtr_cases.pm \
+nobase_test_DATA = \
+	lib/v1/mysql-test-run.pl \
+	lib/v1/mtr_cases.pl \
+	lib/v1/mtr_io.pl \
+	lib/v1/mtr_report.pl \
+	lib/v1/My/Config.pm \
+	lib/v1/mtr_gcov.pl \
+	lib/v1/mtr_match.pl \
+	lib/v1/mtr_stress.pl \
+	lib/v1/ndb_config_1_node.ini \
+	lib/v1/ndb_config_2_node.ini \
+	lib/v1/mtr_gprof.pl \
+	lib/v1/mtr_misc.pl \
+	lib/v1/mtr_timer.pl \
+	lib/v1/mtr_im.pl \
+	lib/v1/mtr_process.pl \
+	lib/v1/mtr_unique.pl \
+\
+	lib/mtr_cases.pm \
 	lib/mtr_gcov.pl \
 	lib/mtr_gprof.pl \
 	lib/mtr_io.pl \
