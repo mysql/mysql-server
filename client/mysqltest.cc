@@ -525,8 +525,12 @@ public:
 
   void close()
   {
-    if (m_file && m_file != stdout)
-      fclose(m_file);
+    if (m_file) {
+      if (m_file != stdout)
+        fclose(m_file);
+      else
+        fflush(m_file);
+    }
     m_file= NULL;
   }
 
@@ -548,6 +552,8 @@ public:
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
       die("Failed to write %lu bytes to '%s', errno: %d",
           (unsigned long)ds->length, m_file_name, errno);
+    if (fflush(m_file))
+      die("Failed to flush '%s', errno: %d", m_file_name, errno);
     m_bytes_written+= ds->length;
     DBUG_VOID_RETURN;
   }
