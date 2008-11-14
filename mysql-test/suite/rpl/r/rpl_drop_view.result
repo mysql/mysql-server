@@ -25,3 +25,5 @@ select * from v2;
 ERROR 42S02: Table 'test.v2' doesn't exist
 select * from v3;
 ERROR 42S02: Table 'test.v3' doesn't exist
+==== clean up ====
+drop table t1, t2, t3;

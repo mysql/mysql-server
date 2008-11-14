@@ -10,6 +10,8 @@ DROP TABLE IF EXISTS t1;
 RESET SLAVE;
 START SLAVE;
 **** On Master ****
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET GLOBAL  BINLOG_FORMAT=STATEMENT;
 CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
@@ -42,12 +44,16 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;
 STOP SLAVE;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t1;
 RESET SLAVE;
 START SLAVE;
 **** On Master ****
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
 CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
@@ -80,12 +86,16 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;
 STOP SLAVE;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t1;
 RESET SLAVE;
 START SLAVE;
 **** On Master ****
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
 CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
@@ -121,12 +131,16 @@ master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;
 STOP SLAVE;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t1;
 RESET SLAVE;
 START SLAVE;
 **** On Master ****
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET GLOBAL  BINLOG_FORMAT=STATEMENT;
 CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
@@ -159,12 +173,16 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;
 STOP SLAVE;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t1;
 RESET SLAVE;
 START SLAVE;
 **** On Master ****
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
 SET SESSION BINLOG_FORMAT=MIXED;
 SET GLOBAL  BINLOG_FORMAT=MIXED;
 CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
@@ -197,12 +215,16 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;
 STOP SLAVE;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t1;
 RESET SLAVE;
 START SLAVE;
 **** On Master ****
+SET @old_session_binlog_format= @@session.binlog_format;
+SET @old_global_binlog_format= @@global.binlog_format;
 SET SESSION BINLOG_FORMAT=ROW;
 SET GLOBAL  BINLOG_FORMAT=ROW;
 CREATE TABLE t1 (a INT, b LONG) ENGINE=MyISAM;
@@ -242,3 +264,5 @@ master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
 RESET MASTER;
+SET @@session.binlog_format= @old_session_binlog_format;
+SET @@global.binlog_format= @old_global_binlog_format;

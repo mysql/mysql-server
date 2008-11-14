@@ -43,8 +43,13 @@ SET INSERT_ID = 30;
 INSERT INTO t1 VALUES (NULL);
 if (!$skip_update)
 {
+# InnoDB Does not handle this correctly, see bug#14793, bug#21641
   UPDATE t1 SET c1 = 50 WHERE c1 = 17;
   UPDATE t1 SET c1 = 51 WHERE c1 = 19;
+  FLUSH TABLES;
+  UPDATE t1 SET c1 = 40 WHERE c1 = 50;
+  SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
+  AND TABLE_NAME='t1';
   -- error 0, ER_BAD_NULL_ERROR
   UPDATE t1 SET c1 = NULL WHERE c1 = 4;
 if (!$mysql_errno)
@@ -83,6 +88,16 @@ TRUNCATE TABLE t1;
 INSERT INTO t1 VALUES (NULL);
 SHOW CREATE TABLE t1;
 SELECT * FROM t1 ORDER BY c1;
+INSERT INTO t1 VALUES (100);
+INSERT INTO t1 VALUES (NULL);
+if (!$skip_delete)
+{
+DELETE FROM t1 WHERE c1 >= 100;
+}
+# InnoDB does reset auto_increment on OPTIMIZE, Bug#18274
+# Archive does reset auto_increment on OPTIMIZE, Bug#40216
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 -- echo # Simple test with NULL
@@ -184,6 +199,10 @@ if (!$skip_update)
 {
   UPDATE t1 SET c1 = 150 WHERE c1 = 17;
   UPDATE t1 SET c1 = 151 WHERE c1 = 19;
+  FLUSH TABLES;
+  UPDATE t1 SET c1 = 140 WHERE c1 = 150;
+  SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
+  AND TABLE_NAME='t1';
   -- error 0, ER_BAD_NULL_ERROR
   UPDATE t1 SET c1 = NULL WHERE c1 = 4;
 if (!$mysql_errno)
@@ -295,6 +314,15 @@ TRUNCATE TABLE t1;
 INSERT INTO t1 VALUES (NULL);
 SHOW CREATE TABLE t1;
 SELECT * FROM t1 ORDER BY c1;
+INSERT INTO t1 VALUES (100);
+INSERT INTO t1 VALUES (NULL);
+if (!$skip_delete)
+{
+DELETE FROM t1 WHERE c1 >= 100;
+}
+# InnoDB does reset auto_increment on OPTIMIZE, Bug#18274
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 -- echo # Test with two threads

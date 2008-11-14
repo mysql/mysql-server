@@ -6128,8 +6128,26 @@ ER_LOAD_DATA_INVALID_COLUMN
 ER_LOG_PURGE_NO_FILE  
 	eng "Being purged log %s was not found"
 
+ER_XA_RBTIMEOUT XA106
+	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
+
+ER_XA_RBDEADLOCK XA102
+	eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"
+
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
 
 ER_DELAYED_NOT_SUPPORTED  
   eng "DELAYED option not supported for table '%-.192s'"
+
+WARN_NO_MASTER_INFO  
+  eng "The master info structure does not exist"
+
+WARN_OPTION_IGNORED
+  eng "<%-.64s> option ignored"
+
+WARN_PLUGIN_DELETE_BUILTIN
+  eng "Built-in plugins cannot be deleted"
+
+WARN_PLUGIN_BUSY
+  eng "Plugin is busy and will be uninstalled on shutdown"
