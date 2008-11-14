@@ -3462,7 +3462,7 @@ sub check_expected_crash_and_restart {
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
 	# up again
-	my $last_line= mtr_lastlinefromfile($expect_file);
+	my $last_line= mtr_lastlinesfromfile($expect_file, 1);
 	if ($last_line =~ /^wait/ )
 	{
 	  mtr_verbose("Test says wait before restart");
