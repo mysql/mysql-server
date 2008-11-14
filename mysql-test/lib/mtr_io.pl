@@ -19,6 +19,7 @@
 # same name.
 
 use strict;
+use Carp;
 
 sub mtr_fromfile ($);
 sub mtr_tofile ($@);
@@ -26,7 +27,7 @@ sub mtr_tonewfile($@);
 sub mtr_appendfile_to_file ($$);
 sub mtr_grab_file($);
 sub mtr_printfile($);
-sub mtr_lastlinefromfile ($);
+sub mtr_lastlinesfromfile ($$);
 
 # Read a whole file, stripping leading and trailing whitespace.
 sub mtr_fromfile ($) {
@@ -94,17 +95,16 @@ sub mtr_printfile($) {
   return;
 }
 
-sub mtr_lastlinefromfile ($) {
-  my $file=  shift;
+sub mtr_lastlinesfromfile ($$) {
+  croak "usage: mtr_lastlinesfromfile(file,numlines)" unless (@_ == 2);
+  my ($file, $num_lines)= @_; 
   my $text;
-
   open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
-  while (my $line= <FILE>)
-  {
-    $text= $line;
-  }
+  my @lines= reverse <FILE>;
   close FILE;
-  return $text;
+  my $size= scalar(@lines);
+  $num_lines= $size unless ($size >= $num_lines);
+  return join("", reverse(splice(@lines, 0, $num_lines)));
 }
 
 1;

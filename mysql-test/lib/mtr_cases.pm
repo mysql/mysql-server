@@ -688,6 +688,7 @@ sub collect_one_test_case {
   my $tinfo= My::Test->new
     (
      name          => "$suitename.$tname",
+     shortname     => $tname,
      path          => "$testdir/$filename",
 
     );
