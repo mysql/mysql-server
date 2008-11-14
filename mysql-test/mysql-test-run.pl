@@ -2802,7 +2802,8 @@ sub check_testcase($$)
 	{
 	  my $report= mtr_grab_file($err_file);
 	  $tinfo->{comment}.=
-	    "Could not execute 'check-testcase' $mode testcase '$tname':\n";
+	    "Could not execute 'check-testcase' $mode ".
+	      "testcase '$tname' (res: $res):\n";
 	  $tinfo->{comment}.= $report;
 
 	  $result= 2;
@@ -3159,19 +3160,15 @@ sub run_testcase ($) {
 
       my $res= $test->exit_status();
 
+      if ($res == 0 and $opt_warnings and check_warnings($tinfo) )
+      {
+	# Test case suceeded, but it has produced unexpected
+	# warnings, continue in $res == 1
+	$res= 1;
+      }
+
       if ( $res == 0 )
       {
-	if ( $opt_warnings and check_warnings($tinfo) )
-	{
-	  # Found unexpected warnings
-	  report_failure_and_restart($tinfo);
-	  $res= 1;
-	}
-	else
-	{
-	  mtr_report_test_passed($tinfo);
-	}
-
 	my $check_res;
 	if ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
@@ -3187,6 +3184,7 @@ sub run_testcase ($) {
 	    return 1;
 	  }
 	}
+	mtr_report_test_passed($tinfo);
       }
       elsif ( $res == 62 )
       {
@@ -3407,7 +3405,8 @@ sub check_warnings ($) {
       {
 	my $report= mtr_grab_file($err_file);
 	$tinfo->{comment}.=
-	  "Could not execute 'check-warnings' for testcase '$tname':";
+	  "Could not execute 'check-warnings' for ".
+	    "testcase '$tname' (res: $res):\n";
 	$tinfo->{comment}.= $report;
 
 	$result= 2;
@@ -3427,11 +3426,6 @@ sub check_warnings ($) {
 
     return $result;
   }
-
-
-
-
-  return $res;
 
   return $res;
 }
