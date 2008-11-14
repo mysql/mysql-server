@@ -1530,6 +1530,9 @@ ConfigManager::run()
       execCONFIG_CHECK_CONF(ss, sig);
       break;
 
+    case GSN_TAKE_OVERTCCONF:
+      break;
+
     default:
       sig->print();
       g_eventLogger->error("Unknown signal received. SignalNumber: "
