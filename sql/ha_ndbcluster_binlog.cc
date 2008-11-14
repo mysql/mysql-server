@@ -5802,10 +5802,6 @@ restart:
 
             pthread_mutex_unlock(&LOCK_open);
 
-            DBUG_ASSERT(ndb_binlog_tables_inited == FALSE &&
-                        ndb_schema_share == NULL &&
-                        ndb_apply_status_share == NULL);
-
             sql_print_information("NDB Binlog: restarting");
             goto restart_cluster_failure;
           }
