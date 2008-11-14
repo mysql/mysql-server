@@ -26,9 +26,7 @@ sub new {
 #
 sub key {
   my ($self)= @_;
-  my $key= $self->{name};
-  $key.= "+".$self->{combination} if $self->{combination};
-  return $key;
+  return $self->{key};
 }
 
 
@@ -56,6 +54,9 @@ sub is_failed {
 
 sub write_test {
   my ($test, $sock, $header)= @_;
+
+  # Give the test a unique key before serializing it
+  $test->{key}= "$test" unless defined $test->{key};
 
   print $sock $header, "\n";
   while ((my ($key, $value)) = each(%$test)) {
