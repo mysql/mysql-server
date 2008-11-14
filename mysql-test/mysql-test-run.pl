@@ -222,7 +222,7 @@ my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
 my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
 my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
 
-my $opt_parallel= $ENV{MTR_PARALLEL};
+my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
