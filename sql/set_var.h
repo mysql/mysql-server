@@ -105,7 +105,6 @@ public:
   { return type != INT_RESULT; }		/* Assume INT */
   virtual bool check_default(enum_var_type type)
   { return option_limits == 0; }
-  Item *item(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual bool is_struct() { return 0; }
   virtual bool is_readonly() const { return 0; }
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
