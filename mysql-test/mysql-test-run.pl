@@ -3268,8 +3268,14 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     if ( $proc eq $test_timeout_proc )
     {
+      my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
-	"Test case timeout after $opt_testcase_timeout minute(s)\n\n";
+        "Test case timeout after $opt_testcase_timeout minute(s)\n\n";
+      if  (-e $log_file_name)
+      {
+        $tinfo->{comment}.=
+	   "== $log_file_name == \n" . mtr_lastlinesfromfile($log_file_name, 20)."\n";
+      }
       $tinfo->{'timeout'}= $opt_testcase_timeout; # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
       report_failure_and_restart($tinfo);

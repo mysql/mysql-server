@@ -7844,8 +7844,9 @@ int main(int argc, char **argv)
     if ( opt_mark_progress )
       mark_progress(command, parser.current_line);
 
-    /* Write result from command to log file */
+    /* Write result from command to log file immediately */
     log_file.write(&ds_res);
+    log_file.flush();
     dynstr_set(&ds_res, 0);
   }
 
