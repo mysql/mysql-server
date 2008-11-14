@@ -1,0 +1,88 @@
+--source include/have_ndb.inc
+
+CREATE TABLE t1(a int primary key, b varchar(255), c int) engine=ndb;
+
+select * from t1;
+insert into t1 values (1, "row 1", 2);
+
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+connect(con3, localhost, root,,);
+
+connection con1;
+select * from t1;
+connection con2;
+select * from t1;
+connection con3;
+select * from t1;
+
+# Restart cluster nodes "nostart"
+--exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "all restart -n" >> $NDB_TOOLS_OUTPUT
+# Wait for all nodes to enter "nostart"
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" --not-started >> $NDB_TOOLS_OUTPUT
+
+connection con1;
+--error 1296
+select * from t1;
+
+connection con2;
+--error 1296
+select * from t1;
+
+# Don't do anything with the third connection
+#connection con3;
+
+
+# Start cluster nodes again
+--exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "all start" >> $NDB_TOOLS_OUTPUT
+# Wait for all nodes to enter "started"
+--exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" >> $NDB_TOOLS_OUTPUT
+
+
+#
+# Wait until the connection to the
+# cluster has been restored or timeout occurs
+#
+connection default;
+--disable_result_log
+--disable_query_log
+--disable_abort_on_error
+let $counter= 500;
+let $mysql_errno=37;
+while ($mysql_errno)
+{
+  select * from t1;
+
+  dec $counter;
+  if (!$counter)
+  {
+    --die Server failed to reconnect to cluster
+  }
+  --sleep 0.1
+}
+--enable_abort_on_error
+--enable_query_log
+--enable_result_log
+
+# Run selects to show that the cluster are back
+
+connection con1;
+select a,b,c from t1;
+
+connection con2;
+select * from t1;
+
+connection con3;
+select * from t1;
+
+#
+# Wait until mysqld has connected properly to cluster
+#
+--disable_result_log
+--disable_query_log
+source include/ndb_not_readonly.inc;
+--enable_query_log
+--enable_result_log
+
+# Do an insert to see table is writable
+insert into t1 values (2, "row 1", 37);
