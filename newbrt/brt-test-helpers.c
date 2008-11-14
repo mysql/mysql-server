@@ -71,12 +71,8 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     assert(node->height==0);
 
     u_int32_t lesize, disksize;
-    LEAFENTRY tmp_leafentry;
-    r = le_committed(keylen, key, vallen, val, &lesize, &disksize, &tmp_leafentry);
-
-    LEAFENTRY leafentry = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, lesize);
-    memcpy(leafentry, tmp_leafentry, lesize);
-    toku_free(tmp_leafentry);
+    LEAFENTRY leafentry;
+    r = le_committed(keylen, key, vallen, val, &lesize, &disksize, &leafentry, node->u.l.buffer, &node->u.l.buffer_mempool, 0);
 
     OMTVALUE storeddatav;
     u_int32_t idx;

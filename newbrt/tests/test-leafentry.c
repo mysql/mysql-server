@@ -1,13 +1,13 @@
 #include "portability.h"
 #include <string.h>
 #include "brttypes.h"
-#include "leafentry.h"
+#include "includes.h"
 
 static void test_leafentry_1 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_committed(4, "abc", 3, "xy", &msize, &dsize, &l);
+    r = le_committed(4, "abc", 3, "xy", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_COMMITTED,
 		     0, 0, 0, 4,
@@ -24,7 +24,7 @@ static void test_leafentry_2 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_both(0x0123456789abcdef0LL, 3, "ab", 4, "xyz", 5, "lmno", &msize, &dsize, &l);
+    r = le_both(0x0123456789abcdef0LL, 3, "ab", 4, "xyz", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_BOTH,
 		     0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
@@ -41,7 +41,7 @@ static void test_leafentry_3 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_provdel(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l);
+    r = le_provdel(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_PROVDEL,
 		     0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
@@ -57,7 +57,7 @@ static void test_leafentry_4 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_provpair(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l);
+    r = le_provpair(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_PROVPAIR,
 		     0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
@@ -89,7 +89,7 @@ static void test_leafentry_3long (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_provdel(0x0123456789abcdef0LL, 301, zeros, 1025, zeros, &msize, &dsize, &l);
+    r = le_provdel(0x0123456789abcdef0LL, 301, zeros, 1025, zeros, &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     assert(sizeof(expect_3long)==msize);
     assert(msize==dsize);

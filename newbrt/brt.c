@@ -1256,7 +1256,8 @@ should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
 static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
 				      u_int32_t dlen, void *dval,
 				      BRT_CMD cmd,
-				      u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
+				      u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
+				      OMT omt, struct mempool *mp, void **maybe_free) {
     //assert(cmd->u.id.key->size == klen);
     //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
@@ -1265,20 +1266,23 @@ static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
 		       klen, kval,
 		       dlen, dval, 
 		       cmd->u.id.val->size, cmd->u.id.val->data,
-		       newlen, disksize, new_data);
+		       newlen, disksize, new_data,
+		       omt, mp, maybe_free);
     case BRT_DELETE_ANY:
     case BRT_DELETE_BOTH:
 	return le_provdel(cmd->xid,
 			  klen, kval,
 			  dlen, dval,
-			  newlen, disksize, new_data);
+			  newlen, disksize, new_data,
+			  omt, mp, maybe_free);
     case BRT_ABORT_BOTH:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_BOTH:
     case BRT_COMMIT_ANY:
 	// Just return the original committed record
 	return le_committed(klen, kval, dlen, dval,
-			    newlen, disksize, new_data);
+			    newlen, disksize, new_data,
+			    omt, mp, maybe_free);
     case BRT_NONE: break;
     }
     abort(); return 0;
@@ -1289,7 +1293,8 @@ static int apply_cmd_to_le_both (TXNID xid,
 				 u_int32_t clen, void *cval,
 				 u_int32_t plen, void *pval,
 				 BRT_CMD cmd,
-				 u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
+				 u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
+				 OMT omt, struct mempool *mp, void *maybe_free) {
     u_int32_t prev_len;
     void     *prev_val;
     if (xid==cmd->xid) {
@@ -1308,25 +1313,29 @@ static int apply_cmd_to_le_both (TXNID xid,
 		       klen, kval,
 		       prev_len, prev_val,
 		       cmd->u.id.val->size, cmd->u.id.val->data,
-		       newlen, disksize, new_data);
+		       newlen, disksize, new_data,
+		       omt, mp, maybe_free);
     case BRT_DELETE_ANY:
     case BRT_DELETE_BOTH:
 	return le_provdel(cmd->xid,
 			  klen, kval,
 			  prev_len, prev_val,
-			  newlen, disksize, new_data);
+			  newlen, disksize, new_data,
+			  omt, mp, maybe_free);
     case BRT_ABORT_BOTH:
     case BRT_ABORT_ANY:
 	// I don't see how you could have an abort where the xids don't match.  But do it anyway.
 	return le_committed(klen, kval,
 			    prev_len, prev_val,
-			    newlen, disksize, new_data);
+			    newlen, disksize, new_data,
+			    omt, mp, maybe_free);
     case BRT_COMMIT_BOTH:
     case BRT_COMMIT_ANY:
 	// In the future we won't even have these commit messages.
 	return le_committed(klen, kval,
 			    plen, pval,
-			    newlen, disksize, new_data);
+			    newlen, disksize, new_data,
+			    omt, mp, maybe_free);
     case BRT_NONE: break;
     }
     abort(); return 0;
@@ -1336,7 +1345,9 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 				    u_int32_t klen, void *kval,
 				    u_int32_t clen, void *cval,
 				    BRT_CMD cmd,
-				    u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
+				    u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
+				    OMT omt, struct mempool *mp, void *maybe_free)
+{
     // keep the committed value for rollback
     //assert(cmd->u.id.key->size == klen);
     //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
@@ -1347,13 +1358,15 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 			   klen, kval,
 			   clen, cval,
 			   cmd->u.id.val->size, cmd->u.id.val->data,
-			   newlen, disksize, new_data);
+			   newlen, disksize, new_data,
+			   omt, mp, maybe_free);
 	} else {
 	    // It's an insert, but the committed value is deleted (since the xids don't match, we assume the delete took effect)
 	    return le_provpair(cmd->xid,
 			       klen, kval,
 			       cmd->u.id.val->size, cmd->u.id.val->data,
-			       newlen, disksize, new_data);
+			       newlen, disksize, new_data,
+			       omt, mp, maybe_free);
 	}
     case BRT_DELETE_ANY:
     case BRT_DELETE_BOTH:
@@ -1363,7 +1376,8 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 	    return le_provdel(cmd->xid,
 			      klen, kval,
 			      clen, cval,
-			      newlen, disksize, new_data);
+			      newlen, disksize, new_data,
+			      omt, mp, maybe_free);
 	} else {
 	    // The commited value is deleted, and we are deleting, so treat as a delete.
 	    *new_data = 0;
@@ -1374,7 +1388,8 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 	// I don't see how the xids could not match...
 	return le_committed(klen, kval,
 			    clen, cval,
-			    newlen, disksize, new_data);
+			    newlen, disksize, new_data,
+			    omt, mp, maybe_free);
     case BRT_COMMIT_BOTH:
     case BRT_COMMIT_ANY:
 	*new_data = 0;
@@ -1388,7 +1403,8 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 				     u_int32_t klen, void *kval,
 				     u_int32_t plen , void *pval,
 				     BRT_CMD cmd,
-				     u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
+				     u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
+				     OMT omt, struct mempool *mp, void **maybe_free) {
     //assert(cmd->u.id.key->size == klen);
     //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
@@ -1398,14 +1414,16 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 	    return le_provpair(cmd->xid,
 			       klen, kval,
 			       cmd->u.id.val->size, cmd->u.id.val->data,
-			       newlen, disksize, new_data);
+			       newlen, disksize, new_data,
+			       omt, mp, maybe_free);
 	} else {
 	    // the old prov was actually committed.
 	    return le_both(cmd->xid,
 			   klen, kval,
 			   plen, pval,
 			   cmd->u.id.val->size, cmd->u.id.val->data,
-			   newlen, disksize, new_data);
+			   newlen, disksize, new_data,
+			   omt, mp, maybe_free);
 	}
     case BRT_DELETE_BOTH:
     case BRT_DELETE_ANY:
@@ -1418,7 +1436,8 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 	    return le_provdel(cmd->xid,
 			      klen, kval,
 			      plen, pval,
-			      newlen, disksize, new_data);
+			      newlen, disksize, new_data,
+			      omt, mp, maybe_free);
 	}
     case BRT_ABORT_BOTH:
     case BRT_ABORT_ANY:
@@ -1429,7 +1448,8 @@ static int apply_cmd_to_le_provpair (TXNID xid,
     case BRT_COMMIT_BOTH:
 	return le_committed(klen, kval,
 			    plen, pval,
-			    newlen, disksize, new_data);
+			    newlen, disksize, new_data,
+			    omt, mp, maybe_free);
     case BRT_NONE: break;
     }
     abort(); return 0;
@@ -1438,7 +1458,8 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 static int
 apply_cmd_to_leaf (BRT_CMD cmd,
 		   void *stored_data, // NULL if there was no stored data.
-		   u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data)
+		   u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
+		   OMT omt, struct mempool *mp, void **maybe_free)
 {
     if (stored_data==0) {
 	switch (cmd->type) {
@@ -1448,7 +1469,8 @@ apply_cmd_to_leaf (BRT_CMD cmd,
 		int r = le_provpair(cmd->xid,
 				    cmd->u.id.key->size, cmd->u.id.key->data,
 				    cmd->u.id.val->size, cmd->u.id.val->data,
-				    newlen, disksize, &le);
+				    newlen, disksize, &le,
+				    omt, mp, maybe_free);
 		if (r==0) *new_data=le;
 		return r;
 	    }
@@ -1466,7 +1488,8 @@ apply_cmd_to_leaf (BRT_CMD cmd,
 	abort();
     } else {
 	LESWITCHCALL(stored_data, apply_cmd_to, cmd,
-		     newlen, disksize, new_data);
+		     newlen, disksize, new_data,
+		     omt, mp, maybe_free);
     }
     abort(); return 0;
 }
@@ -1480,10 +1503,14 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 {
     FILENUM filenum = toku_cachefile_filenum(t->cf);
     u_int32_t newlen=0, newdisksize=0;
-    LEAFENTRY newdata=0;
-    int r = apply_cmd_to_leaf(cmd, le, &newlen, &newdisksize, &newdata);
+    LEAFENTRY new_le=0;
+    void *maybe_free = 0;
+    // This function may call mempool_malloc_dont_release() to allocate more space.
+    // That means the old pointers are guaranteed to still be good, but the data may have been copied into a new mempool.
+    // We'll have to release the old mempool later.
+    int r = apply_cmd_to_leaf(cmd, le, &newlen, &newdisksize, &new_le, node->u.l.buffer, &node->u.l.buffer_mempool, &maybe_free);
     if (r!=0) return r;
-    if (newdata) assert(newdisksize == leafentry_disksize(newdata));
+    if (new_le) assert(newdisksize == leafentry_disksize(new_le));
     
     //printf("Applying command: %s xid=%lld ", unparse_cmd_type(cmd->type), (long long)cmd->xid);
     //toku_print_BYTESTRING(stdout, cmd->u.id.key->size, cmd->u.id.key->data);
@@ -1491,12 +1518,12 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     //toku_print_BYTESTRING(stdout, cmd->u.id.val->size, cmd->u.id.val->data);
     //printf(" to \n");
     //print_leafentry(stdout, le); printf("\n");
-    //printf(" got "); print_leafentry(stdout, newdata); printf("\n");
+    //printf(" got "); print_leafentry(stdout, new_le); printf("\n");
 
-    if (le && newdata) {
+    if (le && new_le) {
 	if (t->txn_that_created != cmd->xid) {
-	    if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
-	    if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+	    if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) goto return_r;
+	    if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, new_le))) goto return_r;
 	}
 
 	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
@@ -1504,29 +1531,24 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	
 	u_int32_t size = leafentry_memsize(le);
 
-	LEAFENTRY new_le = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, newlen);
-	assert(new_le);
-	memcpy(new_le, newdata, newlen);
-
 	// This mfree must occur after the mempool_malloc so that when the mempool is compressed everything is accounted for.
 	// But we must compute the size before doing the mempool malloc because otherwise the le pointer is no good.
 	toku_mempool_mfree(&node->u.l.buffer_mempool, 0, size); // Must pass 0, since le may be no good any more.
 	
 	node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-	node->local_fingerprint += node->rand4fingerprint*toku_le_crc(newdata);
-	toku_free(newdata);
+	node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
 
-	if ((r = toku_omt_set_at(node->u.l.buffer, new_le, idx))) return r;
+	if ((r = toku_omt_set_at(node->u.l.buffer, new_le, idx))) goto return_r;
 
     } else {
 	if (le) {
 	    // It's there, note that it's gone and remove it from the mempool
 
 	    if (t->txn_that_created != cmd->xid) {
-		if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
+		if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) goto return_r;
 	    }
 
-	    if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) return r;
+	    if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) goto return_r;
 
 	    node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
 	    node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
@@ -1534,23 +1556,24 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	    toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
 
 	}
-	if (newdata) {
-	    LEAFENTRY new_le = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, newlen);
-	    assert(new_le);
-	    memcpy(new_le, newdata, newlen);
-	    if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) return r;
+	if (new_le) {
+	    if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) goto return_r;
 
 	    if (t->txn_that_created != cmd->xid) {
-		if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+		if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, new_le))) goto return_r;
 	    }
 
 	    node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-	    node->local_fingerprint += node->rand4fingerprint*toku_le_crc(newdata);
-	    toku_free(newdata);
+	    node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
 	}
     }
+    r=0;
 //	printf("%s:%d rand4=%08x local_fingerprint=%08x this=%08x\n", __FILE__, __LINE__, node->rand4fingerprint, node->local_fingerprint, toku_calccrc32_kvpair_struct(kv));
-    return 0;
+ return_r:
+
+    if (maybe_free) toku_free(maybe_free); // 
+
+    return r;
 }
 
 static int
@@ -1884,7 +1907,7 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
 	u_int32_t le_size = leafentry_memsize(le);
 	u_int32_t le_crc  = toku_le_crc(le);
 	{
-	    LEAFENTRY new_le = mempool_malloc_from_omt(omta, &a->u.l.buffer_mempool, le_size);
+	    LEAFENTRY new_le = mempool_malloc_from_omt(omta, &a->u.l.buffer_mempool, le_size, 0);
 	    assert(new_le);
 	    memcpy(new_le, le, le_size);
 	    int r = toku_omt_insert_at(omta, new_le, toku_omt_size(a->u.l.buffer));
@@ -1924,7 +1947,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 	u_int32_t le_size = leafentry_memsize(le);
 	u_int32_t le_crc  = toku_le_crc(le);
 	{
-	    LEAFENTRY new_le = mempool_malloc_from_omt(omtto, &to->u.l.buffer_mempool, le_size);
+	    LEAFENTRY new_le = mempool_malloc_from_omt(omtto, &to->u.l.buffer_mempool, le_size, 0);
 	    assert(new_le);
 	    memcpy(new_le, le, le_size);
 	    int r = toku_omt_insert_at(omtto, new_le, to_idx);
@@ -2564,7 +2587,7 @@ static int move_it (OMTVALUE lev, u_int32_t idx, void *v) {
 }
 
 // Compress things, and grow the mempool if needed.
-static int omt_compress_kvspace (OMT omt, struct mempool *memp, size_t added_size) {
+static int omt_compress_kvspace (OMT omt, struct mempool *memp, size_t added_size, void **maybe_free) {
     u_int32_t total_size_needed = memp->free_offset-memp->frag_size + added_size;
     if (total_size_needed+total_size_needed/4 >= memp->size) {
 	memp->size = total_size_needed+total_size_needed/4;
@@ -2577,15 +2600,19 @@ static int omt_compress_kvspace (OMT omt, struct mempool *memp, size_t added_siz
     struct omt_compressor_state oc = { &new_kvspace, omt };
     toku_omt_iterate(omt, move_it, &oc);
 
-    toku_free(memp->base);
+    if (maybe_free) {
+	*maybe_free = memp->base;
+    } else {
+	toku_free(memp->base);
+    }
     *memp = new_kvspace;
     return 0;
 }
 
-void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size) {
+void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free) {
     void *v = toku_mempool_malloc(mp, size, 1);
     if (v==0) {
-	if (0 == omt_compress_kvspace(omt, mp, size)) {
+	if (0 == omt_compress_kvspace(omt, mp, size, maybe_free)) {
 	    v = toku_mempool_malloc(mp, size, 1);
 	    assert(v);
 	}
@@ -2714,7 +2741,7 @@ static int brt_init_header(BRT t, TOKUTXN txn) {
     if ((r=setup_initial_brt_root_node(t, root, toku_txn_logger(txn)))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
     assert(t->h->free_blocks.b==-1);
-    toku_cachefile_set_userdata(t->cf, t->h, toku_brtheader_close);
+    toku_cachefile_set_userdata(t->cf, t->h, toku_brtheader_close, toku_brtheader_checkpoint);
 
     return r;
 }
@@ -2766,7 +2793,7 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cf), make_blocknum(0), &h);
     if (r!=0) return r;
     h->root_put_counter = global_root_put_counter++; 
-    toku_cachefile_set_userdata(cf, (void*)h, toku_brtheader_close);
+    toku_cachefile_set_userdata(cf, (void*)h, toku_brtheader_close, toku_brtheader_checkpoint);
     *header = h;
     return 0;
 }
@@ -2983,7 +3010,9 @@ int toku_brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, 
     return toku_create_cachetable(ct, cachesize, initial_lsn, logger);
 }
 
-int toku_brtheader_close (CACHEFILE cachefile, void *header_v) {
+int
+toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
+{
     struct brt_header *h = header_v;
     //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
     //       block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
@@ -2992,7 +3021,16 @@ int toku_brtheader_close (CACHEFILE cachefile, void *header_v) {
 	u_int64_t write_to = block_allocator_allocated_limit(h->block_allocator); // Must compute this after writing the header.
 	//printf("%s:%d fifo written to %lu\n", __FILE__, __LINE__, write_to);
 	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), write_to, h->fifo);
+	h->dirty = 0;
     }
+    return 0;
+}
+
+int
+toku_brtheader_close (CACHEFILE cachefile, void *header_v)
+{
+    struct brt_header *h = header_v;
+    toku_brtheader_checkpoint(cachefile, h);
     toku_brtheader_free(h);
     return 0;
 }

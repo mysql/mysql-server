@@ -158,7 +158,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     pair->brt->h = h;
     pair->brt->nodesize = h->nodesize;
     pair->brt->flags    = h->nodesize;
-    toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close);
+    toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close, toku_brtheader_checkpoint);
 }
 
 static void
@@ -613,7 +613,7 @@ toku_recover_insertleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int
     node->log_lsn = lsn;
     {
 	int memsize = leafentry_memsize(newleafentry);
-	void *mem = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, memsize);
+	void *mem = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, memsize, 0);
 	assert(mem);
 	memcpy(mem, newleafentry, memsize);
 	r = toku_omt_insert_at(node->u.l.buffer, mem, idx);
