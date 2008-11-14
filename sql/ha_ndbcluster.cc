@@ -3250,7 +3250,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   } 
 
   trans= thd_ndb->trans;
-  if (m_user_defined_partitioning || (!trans && m_use_partition_pruning))
+  if (m_user_defined_partitioning)
   {
     DBUG_ASSERT(m_use_partition_pruning);
     longlong func_value= 0;
@@ -3262,7 +3262,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       m_part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
-    if (m_user_defined_partitioning)
     {
       /*
         We need to set the value of the partition function value in
@@ -4521,6 +4520,13 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     break;
   default:
     break;
+  }
+  if (!m_use_partition_pruning && !m_thd_ndb->trans)
+  {
+    get_partition_set(table, buf, active_index, start_key, &part_spec);
+    if (part_spec.start_part == part_spec.end_part)
+      if (unlikely(!start_transaction_part_id(part_spec.start_part, error)))
+        DBUG_RETURN(error);
   }
   // Start the ordered index scan and fetch the first row
   DBUG_RETURN(ordered_index_scan(start_key, end_key, sorted, desc, buf,
@@ -10566,10 +10572,25 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
     if (read_multi_needs_scan(cur_index_type, key_info, r))
     {
-      // ToDo see if we can use start_transaction_key here
       if (!trans)
-        if (unlikely(!(trans= start_transaction(error))))
+      {
+        // ToDo see if we can use start_transaction_key here instead
+        if (!m_use_partition_pruning)
+        {
+          get_partition_set(table, table->record[0], active_index, &r->start_key,
+                            &part_spec);
+          if (part_spec.start_part == part_spec.end_part)
+          {
+            if (unlikely(!(trans= start_transaction_part_id(part_spec.start_part,
+                                                            error))))
+              DBUG_RETURN(error);
+          }
+          else if (unlikely(!(trans= start_transaction(error))))
+            DBUG_RETURN(error);
+        }
+        else if (unlikely(!(trans= start_transaction(error))))
           DBUG_RETURN(error);
+      }
 
       any_real_read= TRUE;
       /*
