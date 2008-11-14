@@ -71,6 +71,13 @@ drop table t_bug25347;
 drop database d_bug25347;
 use test;
 
+#
+# Bug#39541 CHECK TABLE on information_schema myisam tables produces error
+#
+create view v1 as select * from information_schema.routines;
+check table v1, information_schema.routines;
+drop view v1;
+
 --echo End of 5.0 tests
 
 #
