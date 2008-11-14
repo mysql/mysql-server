@@ -8067,6 +8067,7 @@ bool Thd_ndb::recycle_ndb(THD* thd)
     DBUG_RETURN(false);
   }
 
+  changed_tables.empty();
   trans= NULL;
 
   DBUG_RETURN(true);
@@ -11022,6 +11023,11 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       have been created.
       If not try to create it
     */
+		if (!check_ndb_in_thd(thd, false))
+    {
+      set_timespec(abstime, 1);
+      continue;
+    }
     if (!ndb_binlog_tables_inited)
       ndbcluster_setup_binlog_table_shares(thd);
 
