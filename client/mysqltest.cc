@@ -537,7 +537,10 @@ public:
   void flush()
   {
     if (m_file && m_file != stdout)
-      fflush(m_file);
+    {
+      if (fflush(m_file))
+        die("Failed to flush '%s', errno: %d", m_file_name, errno);
+    }
   }
 
   void write(DYNAMIC_STRING* ds)
@@ -552,8 +555,6 @@ public:
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
       die("Failed to write %lu bytes to '%s', errno: %d",
           (unsigned long)ds->length, m_file_name, errno);
-    if (fflush(m_file))
-      die("Failed to flush '%s', errno: %d", m_file_name, errno);
     m_bytes_written+= ds->length;
     DBUG_VOID_RETURN;
   }
