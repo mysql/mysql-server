@@ -1,10 +1,11 @@
-set global event_scheduler=1;
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET @old_event_scheduler = @@global.event_scheduler;
+set global event_scheduler=1;
 set binlog_format=row;
 DROP EVENT IF EXISTS test.justonce;
 drop table if exists t1,t2;
@@ -190,4 +191,5 @@ select * from t28953;
 END;|
 ALTER EVENT event1 RENAME TO event2;
 DROP EVENT event2;
+SET @@global.event_scheduler= @old_event_scheduler;
 DROP TABLE t28953;

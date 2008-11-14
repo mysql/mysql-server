@@ -885,7 +885,9 @@ t16	CREATE TABLE `t16` (
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (c1) PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (c1)
+PARTITIONS 4 */
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -898,7 +900,9 @@ t16	CREATE TABLE `t16` (
   `c6` int(11) DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (c1) PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (c1)
+PARTITIONS 4 */
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***

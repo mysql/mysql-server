@@ -11,6 +11,8 @@ source include/have_innodb.inc;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
 call mtr.add_suppression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
 
+SET @old_slave_exec_mode= @@global.slave_exec_mode;
+
 connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
@@ -388,7 +390,7 @@ start slave sql_thread;
 connection master;
 sync_slave_with_master;
 #connection slave;
-set global slave_exec_mode='STRICT';
+SET @@global.slave_exec_mode= @old_slave_exec_mode;
 
 # cleanup for bug#31609 tests
 
@@ -399,12 +401,3 @@ drop table t1,t2,ti2,ti1;
 --source include/master-slave-end.inc
 
 --echo *** end of tests
-
-
-
-
-
-
-
-
-
