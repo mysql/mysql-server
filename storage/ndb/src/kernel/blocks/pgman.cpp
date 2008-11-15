@@ -38,8 +38,8 @@ static bool g_dbg_lcp = false;
 #define DBG_LCP(x) if(g_dbg_lcp) ndbout << x
 #endif
 
-Pgman::Pgman(Block_context& ctx) :
-  SimulatedBlock(PGMAN, ctx),
+Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(PGMAN, ctx, instanceNumber),
   m_file_map(m_data_buffer_pool),
   m_page_hashlist(m_page_entry_pool),
   m_page_stack(m_page_entry_pool),
@@ -110,7 +110,17 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   
   if (page_buffer > 0)
   {
-    page_buffer = (page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE; // in pages
+    if (isNdbMtLqh())
+    {
+      // divide between workers - wl4391_todo give extra worker less
+      Uint32 workers = getLqhWorkers() + 1;
+      page_buffer = page_buffer / workers;
+      Uint32 min_buffer = 4*1024*1024;
+      if (page_buffer < min_buffer)
+        page_buffer = min_buffer;
+    }
+    // convert to pages
+    page_buffer = (page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
     m_param.m_max_pages = page_buffer;
     m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_buffer);
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
@@ -157,8 +167,16 @@ Pgman::execSTTOR(Signal* signal)
   switch (startPhase) {
   case 1:
     {
+      if (!isNdbMtLqh()) {
+        c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+      } else if (instance() <= getLqhWorkers()) {
+        c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+        ndbrequire(c_tup != 0);
+      } else {
+        // extra worker
+        c_tup = 0;
+      }
       c_lgman = (Lgman*)globalData.getBlock(LGMAN);
-      c_tup = (Dbtup*)globalData.getBlock(DBTUP);
     }
     break;
   case 3:
@@ -187,7 +205,8 @@ Pgman::sendSTTORRY(Signal* signal)
   signal->theData[4] = 3;
   signal->theData[5] = 7;
   signal->theData[6] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : PGMAN_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
 }
 
 void
@@ -410,8 +429,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     ndbrequire(ptr.p->m_state != 0);
     m_stats.m_page_hits++;
 
-  D("get_page_entry: found");
-  D(ptr);
+    D("get_page_entry: found");
+    D(ptr);
     return true;
   }
 
@@ -697,7 +716,7 @@ Pgman::do_stats_loop(Signal* signal)
 #endif
   Uint32 delay = m_param.m_stats_loop_delay;
   signal->theData[0] = PgmanContinueB::STATS_LOOP;
-  sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
 }
 
 void
@@ -731,7 +750,7 @@ Pgman::do_busy_loop(Signal* signal, bool direct)
   if (restart)
   {
     signal->theData[0] = PgmanContinueB::BUSY_LOOP;
-    sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
   }
   D("<do_busy_loop on=" << m_busy_loop_on << " restart=" << restart);
 }
@@ -744,7 +763,7 @@ Pgman::do_cleanup_loop(Signal* signal)
 
   Uint32 delay = m_param.m_cleanup_loop_delay;
   signal->theData[0] = PgmanContinueB::CLEANUP_LOOP;
-  sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
 }
 
 void
@@ -772,9 +791,9 @@ Pgman::do_lcp_loop(Signal* signal, bool direct)
     Uint32 delay = m_param.m_lcp_loop_delay;
     signal->theData[0] = PgmanContinueB::LCP_LOOP;
     if (delay)
-      sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
     else
-      sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
   }
   D("<do_lcp_loop on=" << m_lcp_loop_on << " restart=" << restart);
 }
@@ -1059,9 +1078,10 @@ Pgman::process_cleanup(Signal* signal)
         ! (state & Page_entry::PAGEOUT))
     {
       D(ptr << " : process_cleanup");
-      c_tup->disk_page_unmap_callback(0, 
-				      ptr.p->m_real_page_i, 
-				      ptr.p->m_dirty_count);
+      if (c_tup != 0)
+        c_tup->disk_page_unmap_callback(0, 
+                                        ptr.p->m_real_page_i, 
+                                        ptr.p->m_dirty_count);
       pageout(signal, ptr);
       max_count--;
     }
@@ -1195,9 +1215,10 @@ Pgman::process_lcp(Signal* signal)
         {
 	  DBG_LCP(" pageout()" << endl);
           ptr.p->m_state |= Page_entry::LCP;
-	  c_tup->disk_page_unmap_callback(0,
-					  ptr.p->m_real_page_i, 
-					  ptr.p->m_dirty_count);
+          if (c_tup != 0)
+            c_tup->disk_page_unmap_callback(0,
+                                            ptr.p->m_real_page_i, 
+                                            ptr.p->m_dirty_count);
           pageout(signal, ptr);
         }
         ptr.p->m_last_lcp = m_last_lcp;
@@ -1410,9 +1431,10 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::PAGEOUT);
 
-  c_tup->disk_page_unmap_callback(1, 
-				  ptr.p->m_real_page_i, 
-				  ptr.p->m_dirty_count);
+  if (c_tup != 0)
+    c_tup->disk_page_unmap_callback(1, 
+                                    ptr.p->m_real_page_i, 
+                                    ptr.p->m_dirty_count);
   
   state &= ~ Page_entry::PAGEOUT;
   state &= ~ Page_entry::EMPTY;
@@ -1601,9 +1623,11 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
     ptr.p->m_state |= (req_flags & DIRTY_FLAGS ? Page_entry::DIRTY : 0);
     if (ptr.p->m_copy_page_i != RNIL)
     {
+      D("<get_page: immediate copy_page");
       return ptr.p->m_copy_page_i;
     }
     
+    D("<get_page: immediate locked");
     return ptr.p->m_real_page_i;
   }
   
@@ -1654,6 +1678,7 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
     {
       release_page_entry(ptr);
     }
+    D("<get_page: error out of requests");
     return -1;
   }
 
@@ -1847,15 +1872,29 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
 
 // page cache client
 
-Page_cache_client::Page_cache_client(SimulatedBlock* block, Pgman* pgman)
+#include <PgmanProxy.hpp>
+
+Page_cache_client::Page_cache_client(SimulatedBlock* block,
+                                     SimulatedBlock* pgman)
 {
   m_block = numberToBlock(block->number(), block->instance());
-  m_pgman = pgman;
+
+  if (pgman->isNdbMtLqh() && pgman->instance() == 0) {
+    m_pgman_proxy = (PgmanProxy*)pgman;
+    m_pgman = 0;
+  } else {
+    m_pgman_proxy = 0;
+    m_pgman = (Pgman*)pgman;
+  }
 }
 
 int
 Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
 {
+  if (m_pgman_proxy != 0) {
+    return m_pgman_proxy->get_page(*this, signal, req, flags);
+  }
+
   Ptr<Pgman::Page_entry> entry_ptr;
   Uint32 file_no = req.m_page.m_file_no;
   Uint32 page_no = req.m_page.m_page_no;
@@ -1893,6 +1932,11 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
 void
 Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
 {
+  if (m_pgman_proxy != 0) {
+    m_pgman_proxy->update_lsn(*this, key, lsn);
+    return;
+  }
+
   Ptr<Pgman::Page_entry> entry_ptr;
   Uint32 file_no = key.m_file_no;
   Uint32 page_no = key.m_page_no;
@@ -1905,10 +1949,13 @@ Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
   m_pgman->update_lsn(entry_ptr, m_block, lsn);
 }
 
-
 int
 Page_cache_client::drop_page(Local_key key, Uint32 page_id)
 {
+  if (m_pgman_proxy != 0) {
+    return m_pgman_proxy->drop_page(*this, key, page_id);
+  }
+
   Ptr<Pgman::Page_entry> entry_ptr;
   Uint32 file_no = key.m_file_no;
   Uint32 page_no = key.m_page_no;
@@ -1925,24 +1972,38 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
 Uint32
 Page_cache_client::create_data_file()
 {
+  if (m_pgman_proxy != 0) {
+    return m_pgman_proxy->create_data_file();
+  }
   return m_pgman->create_data_file();
 }
 
 Uint32
 Page_cache_client::alloc_data_file(Uint32 file_no)
 {
+  if (m_pgman_proxy != 0) {
+    return m_pgman_proxy->alloc_data_file(file_no);
+  }
   return m_pgman->alloc_data_file(file_no);
 }
 
 void
 Page_cache_client::map_file_no(Uint32 file_no, Uint32 fd)
 {
+  if (m_pgman_proxy != 0) {
+    m_pgman_proxy->map_file_no(file_no, fd);
+    return;
+  }
   m_pgman->map_file_no(file_no, fd);
 }
 
 void
 Page_cache_client::free_data_file(Uint32 file_no, Uint32 fd)
 {
+  if (m_pgman_proxy != 0) {
+    m_pgman_proxy->free_data_file(file_no, fd);
+    return;
+  }
   m_pgman->free_data_file(file_no, fd);
 }
 
@@ -2143,8 +2204,8 @@ Pgman::verify_page_lists()
   for (k = 0; k < Page_entry::SUBLIST_COUNT; k++)
   {
     const Page_sublist& pl = *m_page_sublist[k];
-    sprintf(countbuf + strlen(countbuf), "%s%s:%u",
-        k == 0 ? "" : " ", get_sublist_name(k), pl.count());
+    sprintf(countbuf + strlen(countbuf), " %s:%u",
+            get_sublist_name(k), pl.count());
   }
   D("list" << countbuf);
 }
@@ -2391,9 +2452,10 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     if (pl_hash.find(ptr, key))
     {
       ndbout << "pageout " << ptr << endl;
-      c_tup->disk_page_unmap_callback(0,
-				      ptr.p->m_real_page_i, 
-				      ptr.p->m_dirty_count);
+      if (c_tup != 0)
+        c_tup->disk_page_unmap_callback(0,
+                                        ptr.p->m_real_page_i, 
+                                        ptr.p->m_dirty_count);
       pageout(signal, ptr);
     }
   }

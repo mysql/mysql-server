@@ -44,6 +44,7 @@
 #include <DbtuxProxy.hpp>
 #include <BackupProxy.hpp>
 #include <RestoreProxy.hpp>
+#include <PgmanProxy.hpp>
 #include <mt.hpp>
 
 #ifndef VM_TRACE
@@ -98,7 +99,10 @@ SimBlockList::load(EmulatorData& data){
 
   const bool mtLqh = globalData.isNdbMtLqh;
 
-  theList[0] = NEW_BLOCK(Pgman)(ctx);
+  if (!mtLqh)
+    theList[0] = NEW_BLOCK(Pgman)(ctx);
+  else
+    theList[0] = NEW_BLOCK(PgmanProxy)(ctx);
   theList[1]  = NEW_BLOCK(Lgman)(ctx);
   theList[2]  = NEW_BLOCK(Tsman)(ctx);
   if (!mtLqh)

@@ -296,7 +296,7 @@ void Dbtup::execSTTOR(Signal* signal)
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
-    ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN)) != 0);
+    ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN, instance())) != 0);
     cownref = calcInstanceBlockRef(DBTUP);
     break;
   default:

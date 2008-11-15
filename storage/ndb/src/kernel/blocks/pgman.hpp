@@ -235,7 +235,7 @@
 class Pgman : public SimulatedBlock
 {
 public:
-  Pgman(Block_context& ctx);
+  Pgman(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Pgman();
   BLOCK_DEFINES(Pgman);
 
@@ -366,8 +366,8 @@ private:
   typedef DLCFifoList<Page_entry, Page_entry_queue_ptr> Page_queue;
   typedef DLCFifoList<Page_entry, Page_entry_sublist_ptr> Page_sublist;
 
-  class Lgman *c_lgman;
   class Dbtup *c_tup;
+  class Lgman *c_lgman;
 
   // loop status
   bool m_stats_loop_on;
@@ -503,12 +503,14 @@ class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_entry>);
 
 class Page_cache_client
 {
+  friend class PgmanProxy;
   Uint32 m_block; // includes instance
+  class PgmanProxy* m_pgman_proxy; // set if we go via proxy
   Pgman* m_pgman;
   DEBUG_OUT_DEFINES(PGMAN);
 
 public:
-  Page_cache_client(SimulatedBlock* block, Pgman*);
+  Page_cache_client(SimulatedBlock* block, SimulatedBlock* pgman);
 
   struct Request {
     Local_key m_page;
