@@ -51,10 +51,12 @@ void Dbtup::initData()
   cpackedListIndex = 0;
 }//Dbtup::initData()
 
-Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
+Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   : SimulatedBlock(DBTUP, ctx, instanceNumber),
     c_lqh(0),
-    c_pgman(pgman),
+    c_tsman(0),
+    c_lgman(0),
+    c_pgman(0),
     c_extent_hash(c_extent_pool),
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
@@ -294,6 +296,7 @@ void Dbtup::execSTTOR(Signal* signal)
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
+    ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN)) != 0);
     cownref = calcInstanceBlockRef(DBTUP);
     break;
   default:

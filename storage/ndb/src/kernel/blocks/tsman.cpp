@@ -37,14 +37,13 @@
 
 #define DBG_UNDO 0
 
-Tsman::Tsman(Block_context& ctx,
-	     class Pgman* pg, class Lgman* lg) :
+Tsman::Tsman(Block_context& ctx) :
   SimulatedBlock(TSMAN, ctx),
   m_file_hash(m_file_pool),
   m_tablespace_list(m_tablespace_pool),
   m_tablespace_hash(m_tablespace_pool),
-  m_pgman(pg),
-  m_lgman(lg)
+  m_pgman(0),
+  m_lgman(0)
 {
   BLOCK_CONSTRUCTOR(Tsman);
 
@@ -125,10 +124,15 @@ void
 Tsman::execSTTOR(Signal* signal) 
 {
   jamEntry();                            
-
+  Uint32 startPhase = signal->theData[1];
+  switch (startPhase) {
+  case 1:
+    m_pgman = (Pgman*)globalData.getBlock(PGMAN);
+    m_lgman = (Lgman*)globalData.getBlock(LGMAN);
+    ndbrequire(m_pgman != 0 && m_lgman != 0);
+    break;
+  }
   sendSTTORRY(signal);
-  
-  return;
 }
 
 void
