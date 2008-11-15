@@ -1601,7 +1601,7 @@ struct TupHeadInfo {
   Uint32          terrorCode;
 
 public:
-  Dbtup(Block_context&, Pgman*, Uint32 instanceNumber = 0);
+  Dbtup(Block_context&, Uint32 instanceNumber = 0);
   virtual ~Dbtup();
 
   /*

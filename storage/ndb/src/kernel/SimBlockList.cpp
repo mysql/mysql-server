@@ -81,11 +81,6 @@ void
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
-  Dbdict* dbdict = 0;
-  Dbdih* dbdih = 0;
-  Pgman* pg = 0;
-  Lgman* lg = 0;
-  Tsman* ts = 0;
 
   Block_context ctx(*data.theConfiguration, *data.m_mem_manager);
   
@@ -103,26 +98,26 @@ SimBlockList::load(EmulatorData& data){
 
   const bool mtLqh = globalData.isNdbMtLqh;
 
-  theList[0]  = pg = NEW_BLOCK(Pgman)(ctx);
-  theList[1]  = lg = NEW_BLOCK(Lgman)(ctx);
-  theList[2]  = ts = NEW_BLOCK(Tsman)(ctx, pg, lg);
+  theList[0] = NEW_BLOCK(Pgman)(ctx);
+  theList[1]  = NEW_BLOCK(Lgman)(ctx);
+  theList[2]  = NEW_BLOCK(Tsman)(ctx);
   if (!mtLqh)
     theList[3]  = NEW_BLOCK(Dbacc)(ctx);
   else
     theList[3]  = NEW_BLOCK(DbaccProxy)(ctx);
   theList[4]  = NEW_BLOCK(Cmvmi)(ctx);
   theList[5]  = fs;
-  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(ctx);
-  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(ctx);
+  theList[6]  = NEW_BLOCK(Dbdict)(ctx);
+  theList[7]  = NEW_BLOCK(Dbdih)(ctx);
   if (!mtLqh)
     theList[8]  = NEW_BLOCK(Dblqh)(ctx);
   else
     theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
   theList[9]  = NEW_BLOCK(Dbtc)(ctx);
   if (!mtLqh)
-    theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+    theList[10] = NEW_BLOCK(Dbtup)(ctx);
   else
-    theList[10] = NEW_BLOCK(DbtupProxy)(ctx, pg);
+    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);
   theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
   theList[12] = NEW_BLOCK(Qmgr)(ctx);
   theList[13] = NEW_BLOCK(Trix)(ctx);
