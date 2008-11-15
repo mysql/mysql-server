@@ -202,7 +202,7 @@ private:
   Datafile_hash m_file_hash;
   Tablespace_list m_tablespace_list;
   Tablespace_hash m_tablespace_hash;
-  Pgman * m_pgman;
+  SimulatedBlock * m_pgman;
   Lgman * m_lgman;
   
   int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*,

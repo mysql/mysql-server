@@ -127,7 +127,7 @@ Tsman::execSTTOR(Signal* signal)
   Uint32 startPhase = signal->theData[1];
   switch (startPhase) {
   case 1:
-    m_pgman = (Pgman*)globalData.getBlock(PGMAN);
+    m_pgman = globalData.getBlock(PGMAN);
     m_lgman = (Lgman*)globalData.getBlock(LGMAN);
     ndbrequire(m_pgman != 0 && m_lgman != 0);
     break;
