@@ -145,19 +145,13 @@ public:
   Uint32 instance() const {
     return theInstance;
   }
-  Uint32 getWorkerCount() const {
-    ndbrequire(theInstance == 0); // valid only on main instance
-    ndbrequire(theInstanceCount >= 1);
-    return theInstanceCount - 1;
-  }
   SimulatedBlock* getInstance(Uint32 instanceNumber) {
-    ndbrequire(theInstance == 0);
+    ndbrequire(theInstance == 0); // valid only on main instance
     if (instanceNumber == 0)
       return this;
-    if (instanceNumber < theInstanceCount) {
-      ndbrequire(theInstanceList != 0);
+    ndbrequire(instanceNumber < MaxInstances);
+    if (theInstanceList != 0)
       return theInstanceList[instanceNumber];
-    }
     return 0;
   }
   virtual void loadWorkers() {}
@@ -501,8 +495,7 @@ private:
    * In MT LQH main instance is the LQH proxy and the others ("workers")
    * are real LQHs run by multiple threads.
    */
-  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS };
-  Uint32 theInstanceCount;          // set in main
+  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS + 1 }; // main+lqh+extra
   SimulatedBlock** theInstanceList; // set in main, indexed by instance
   SimulatedBlock* theMainInstance;  // set in all
   /*
