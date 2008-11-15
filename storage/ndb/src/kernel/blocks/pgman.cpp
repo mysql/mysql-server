@@ -19,6 +19,7 @@
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/PgmanContinueB.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/DataFileOrd.hpp>
 
 #include <dbtup/Dbtup.hpp>
 
@@ -59,6 +60,8 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
 
   addRecSignal(GSN_LCP_FRAG_ORD, &Pgman::execLCP_FRAG_ORD);
   addRecSignal(GSN_END_LCP_REQ, &Pgman::execEND_LCP_REQ);
+
+  addRecSignal(GSN_DATA_FILE_ORD, &Pgman::execDATA_FILE_ORD);
   
   // loop status
   m_stats_loop_on = false;
@@ -1748,6 +1751,7 @@ Pgman::create_data_file()
       if(*it.data == RNIL)
       {
 	*it.data = (1u << 31) | it.pos;
+        D("create_data_file:" << V(it.pos));
 	return it.pos;
       }
     } while(m_file_map.next(it));
@@ -1758,8 +1762,10 @@ Pgman::create_data_file()
 
   if (m_file_map.append(&fd, 1))
   {
+    D("create_data_file:" << V(file_no));
     return file_no;
   }
+  D("create_data_file: RNIL");
   return RNIL;
 }
 
@@ -1774,7 +1780,10 @@ Pgman::alloc_data_file(Uint32 file_no)
     while (len--)
     {
       if (! m_file_map.append(&fd, 1))
+      {
+        D("alloc_data_file: RNIL");
 	return RNIL;
+      }
     }
   }
 
@@ -1782,9 +1791,13 @@ Pgman::alloc_data_file(Uint32 file_no)
   m_file_map.first(it);
   m_file_map.next(it, file_no);
   if (* it.data != RNIL)
+  {
+    D("alloc_data_file: RNIL");
     return RNIL;
+  }
 
   *it.data = (1u << 31) | file_no;
+  D("alloc_data_file:" << V(file_no));
   return file_no;
 }
 
@@ -1797,6 +1810,7 @@ Pgman::map_file_no(Uint32 file_no, Uint32 fd)
 
   assert(*it.data == ((1u << 31) | file_no));
   *it.data = fd;
+  D("map_file_no:" << V(file_no) << V(fd));
 }
 
 void
@@ -1815,6 +1829,33 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
     ndbrequire(*it.data == fd);
   }
   *it.data = RNIL;
+  D("free_data_file:" << V(file_no) << V(fd));
+}
+
+void
+Pgman::execDATA_FILE_ORD(Signal* signal)
+{
+  const DataFileOrd* ord = (const DataFileOrd*)signal->getDataPtr();
+  Uint32 ret;
+  switch (ord->cmd) {
+  case DataFileOrd::CreateDataFile:
+    ret = create_data_file();
+    ndbrequire(ret == ord->ret);
+    break;
+  case DataFileOrd::AllocDataFile:
+    ret = alloc_data_file(ord->file_no);
+    ndbrequire(ret == ord->ret);
+    break;
+  case DataFileOrd::MapFileNo:
+    map_file_no(ord->file_no, ord->fd);
+    break;
+  case DataFileOrd::FreeDataFile:
+    free_data_file(ord->file_no, ord->fd);
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 }
 
 int
@@ -1970,38 +2011,38 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
 }
 
 Uint32
-Page_cache_client::create_data_file()
+Page_cache_client::create_data_file(Signal* signal)
 {
   if (m_pgman_proxy != 0) {
-    return m_pgman_proxy->create_data_file();
+    return m_pgman_proxy->create_data_file(signal);
   }
   return m_pgman->create_data_file();
 }
 
 Uint32
-Page_cache_client::alloc_data_file(Uint32 file_no)
+Page_cache_client::alloc_data_file(Signal* signal, Uint32 file_no)
 {
   if (m_pgman_proxy != 0) {
-    return m_pgman_proxy->alloc_data_file(file_no);
+    return m_pgman_proxy->alloc_data_file(signal, file_no);
   }
   return m_pgman->alloc_data_file(file_no);
 }
 
 void
-Page_cache_client::map_file_no(Uint32 file_no, Uint32 fd)
+Page_cache_client::map_file_no(Signal* signal, Uint32 file_no, Uint32 fd)
 {
   if (m_pgman_proxy != 0) {
-    m_pgman_proxy->map_file_no(file_no, fd);
+    m_pgman_proxy->map_file_no(signal, file_no, fd);
     return;
   }
   m_pgman->map_file_no(file_no, fd);
 }
 
 void
-Page_cache_client::free_data_file(Uint32 file_no, Uint32 fd)
+Page_cache_client::free_data_file(Signal* signal, Uint32 file_no, Uint32 fd)
 {
   if (m_pgman_proxy != 0) {
-    m_pgman_proxy->free_data_file(file_no, fd);
+    m_pgman_proxy->free_data_file(signal, file_no, fd);
     return;
   }
   m_pgman->free_data_file(file_no, fd);

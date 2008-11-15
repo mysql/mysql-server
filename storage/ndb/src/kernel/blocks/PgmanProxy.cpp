@@ -15,6 +15,7 @@
 
 #include "PgmanProxy.hpp"
 #include "pgman.hpp"
+#include <signaldata/DataFileOrd.hpp>
 
 PgmanProxy::PgmanProxy(Block_context& ctx) :
   LocalProxy(PGMAN, ctx)
@@ -76,59 +77,77 @@ PgmanProxy::drop_page(Page_cache_client& caller,
   return ret;
 }
 
-// wl4391_todo replace unsafe calls by signals
+/*
+ * Following contact all workers.  First the method is called
+ * on extra worker.  Then DATA_FILE_ORD is sent to LQH workers.
+ * The result must be same since configurations are identical.
+ */
 
 Uint32
-PgmanProxy::create_data_file()
+PgmanProxy::create_data_file(Signal* signal)
 {
-  Uint32 ret = RNIL;
+  Pgman* worker = (Pgman*)extraWorkerBlock();
+  Uint32 ret = worker->create_data_file();
   Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    Pgman* worker = (Pgman*)workerBlock(i);
-    Page_cache_client pgman(this, worker);
-    Uint32 ret2 = pgman.create_data_file();
-    ndbrequire(i == 0 || ret == ret2);
-    ret = ret2;
+  for (i = 0; i < c_lqhWorkers; i++) {
+    jam();
+    send_data_file_ord(signal, i, ret,
+                       DataFileOrd::CreateDataFile);
   }
   return ret;
 }
 
 Uint32
-PgmanProxy::alloc_data_file(Uint32 file_no)
+PgmanProxy::alloc_data_file(Signal* signal, Uint32 file_no)
 {
-  Uint32 ret = RNIL;
+  Pgman* worker = (Pgman*)extraWorkerBlock();
+  Uint32 ret = worker->alloc_data_file(file_no);
   Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    Pgman* worker = (Pgman*)workerBlock(i);
-    Page_cache_client pgman(this, worker);
-    Uint32 ret2 = pgman.alloc_data_file(file_no);
-    ndbrequire(i == 0 || ret == ret2);
-    ret = ret2;
+  for (i = 0; i < c_lqhWorkers; i++) {
+    jam();
+    send_data_file_ord(signal, i, ret,
+                       DataFileOrd::AllocDataFile, file_no);
   }
   return ret;
 }
 
 void
-PgmanProxy::map_file_no(Uint32 file_no, Uint32 fd)
+PgmanProxy::map_file_no(Signal* signal, Uint32 file_no, Uint32 fd)
 {
-  Uint32 ret = RNIL;
+  Pgman* worker = (Pgman*)extraWorkerBlock();
+  worker->map_file_no(file_no, fd);
   Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    Pgman* worker = (Pgman*)workerBlock(i);
-    Page_cache_client pgman(this, worker);
-    pgman.map_file_no(file_no, fd);
+  for (i = 0; i < c_lqhWorkers; i++) {
+    jam();
+    send_data_file_ord(signal, i, ~(Uint32)0,
+                       DataFileOrd::MapFileNo, file_no, fd);
   }
 }
 
 void
-PgmanProxy::free_data_file(Uint32 file_no, Uint32 fd)
+PgmanProxy::free_data_file(Signal* signal, Uint32 file_no, Uint32 fd)
 {
+  Pgman* worker = (Pgman*)extraWorkerBlock();
+  worker->free_data_file(file_no, fd);
   Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    Pgman* worker = (Pgman*)workerBlock(i);
-    Page_cache_client pgman(this, worker);
-    pgman.free_data_file(file_no, fd);
+  for (i = 0; i < c_lqhWorkers; i++) {
+    jam();
+    send_data_file_ord(signal, i, ~(Uint32)0,
+                       DataFileOrd::FreeDataFile, file_no, fd);
   }
+}
+
+void
+PgmanProxy::send_data_file_ord(Signal* signal, Uint32 i, Uint32 ret,
+                               Uint32 cmd, Uint32 file_no, Uint32 fd)
+{
+  DataFileOrd* ord = (DataFileOrd*)signal->getDataPtrSend();
+  ord->ret = ret;
+  ord->cmd = cmd;
+  ord->file_no = file_no;
+  ord->fd = fd;
+  sendSignal(workerRef(i), GSN_DATA_FILE_ORD,
+             signal, DataFileOrd::SignalLength, JBB);
 }
 
 BLOCK_FUNCTIONS(PgmanProxy)

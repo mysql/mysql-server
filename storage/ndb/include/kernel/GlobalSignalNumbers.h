@@ -943,7 +943,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* used 695 */
 /* used 696 */
 
-#define GSN_706
 #define GSN_707
 #define GSN_708
 #define GSN_709
@@ -1067,5 +1066,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_NODEGROUP_IMPL_REQ     454
 #define GSN_DROP_NODEGROUP_IMPL_REF     457
 #define GSN_DROP_NODEGROUP_IMPL_CONF    448
+
+#define GSN_DATA_FILE_ORD               706
 
 #endif

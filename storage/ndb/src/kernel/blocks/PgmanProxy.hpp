@@ -40,13 +40,16 @@ protected:
   int drop_page(Page_cache_client& caller,
                 Local_key key, Uint32 page_id);
 
-  Uint32 create_data_file();
+  Uint32 create_data_file(Signal*);
 
-  Uint32 alloc_data_file(Uint32 file_no);
+  Uint32 alloc_data_file(Signal*, Uint32 file_no);
 
-  void map_file_no(Uint32 file_no, Uint32 fd);
+  void map_file_no(Signal*, Uint32 file_no, Uint32 fd);
 
-  void free_data_file(Uint32 file_no, Uint32 fd);
+  void free_data_file(Signal*, Uint32 file_no, Uint32 fd);
+
+  void send_data_file_ord(Signal*, Uint32 i, Uint32 ret,
+                          Uint32 cmd, Uint32 file_no = RNIL, Uint32 fd = RNIL);
 };
 
 #endif
