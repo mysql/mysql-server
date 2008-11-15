@@ -3271,6 +3271,7 @@ sub run_testcase ($) {
       my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
         "Test case timeout after $opt_testcase_timeout minute(s)\n\n";
+      # Add 20 last executed commands from test case log file
       if  (-e $log_file_name)
       {
         $tinfo->{comment}.=
