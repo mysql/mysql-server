@@ -729,6 +729,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_CONFIG_CHANGE_IMPL_REF, "CONFIG_CHANGE_IMPL_REF" }
   ,{ GSN_CONFIG_CHANGE_IMPL_CONF, "CONFIG_CHANGE_IMPL_CONF" }
 
+  ,{ GSN_DATA_FILE_ORD, "DATA_FILE_ORD" }
+
 
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

@@ -503,7 +503,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal){
       file_ptr.p->m_create.m_requestInfo = req->requestInfo;
       
       Page_cache_client pgman(this, m_pgman);
-      pgman.map_file_no(file_ptr.p->m_file_no, file_ptr.p->m_fd);
+      pgman.map_file_no(signal, file_ptr.p->m_file_no, file_ptr.p->m_fd);
       file_ptr.p->m_create.m_loading_extent_page = 1;
       load_extent_pages(signal, file_ptr);
       return;
@@ -670,7 +670,7 @@ Tsman::execFSCLOSECONF(Signal* signal)
   if (ptr.p->m_state == Datafile::FS_CREATING)
   {
     Page_cache_client pgman(this, m_pgman);
-    pgman.free_data_file(ptr.p->m_file_no);  
+    pgman.free_data_file(signal, ptr.p->m_file_no);  
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
@@ -681,7 +681,7 @@ Tsman::execFSCLOSECONF(Signal* signal)
   {
     m_file_hash.remove(ptr);
     Page_cache_client pgman(this, m_pgman);
-    pgman.free_data_file(ptr.p->m_file_no, ptr.p->m_fd);
+    pgman.free_data_file(signal, ptr.p->m_file_no, ptr.p->m_fd);
     DropFileImplConf* conf= (DropFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
@@ -716,7 +716,7 @@ Tsman::open_file(Signal* signal,
      requestInfo == CreateFileImplReq::CreateForce){
     jam();
     Page_cache_client pgman(this, m_pgman);
-    Uint32 file_no = pgman.create_data_file();
+    Uint32 file_no = pgman.create_data_file(signal);
     if(file_no == RNIL)
     {
       return CreateFileImplRef::OutOfFileRecords;
@@ -1048,7 +1048,7 @@ Tsman::execFSREADCONF(Signal* signal){
     osError = 11;
     ptr.p->m_file_no = page->m_file_no;
     Page_cache_client pgman(this, m_pgman);
-    if(pgman.alloc_data_file(ptr.p->m_file_no) == RNIL)
+    if(pgman.alloc_data_file(signal, ptr.p->m_file_no) == RNIL)
     {
       jam();
       break;

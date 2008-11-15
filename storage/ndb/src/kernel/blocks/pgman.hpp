@@ -241,6 +241,7 @@ public:
 
 private:
   friend class Page_cache_client;
+  friend class PgmanProxy;
 
   struct Page_entry; // CC
   friend struct Page_entry;
@@ -436,6 +437,8 @@ protected:
 
   void execDUMP_STATE_ORD(Signal* signal);
 
+  void execDATA_FILE_ORD(Signal*);
+
 private:
   static Uint32 get_sublist_no(Page_state state);
   void set_page_state(Ptr<Page_entry> ptr, Page_state new_state);
@@ -560,22 +563,22 @@ public:
   /**
    * Create file record
    */
-  Uint32 create_data_file();
+  Uint32 create_data_file(Signal*);
 
   /**
    * Alloc datafile record
    */
-  Uint32 alloc_data_file(Uint32 file_no);
+  Uint32 alloc_data_file(Signal*, Uint32 file_no);
 
   /**
    * Map file_no to m_fd
    */
-  void map_file_no(Uint32 m_file_no, Uint32 m_fd);
+  void map_file_no(Signal*, Uint32 m_file_no, Uint32 m_fd);
 
   /**
    * Free file
    */
-  void free_data_file(Uint32 file_no, Uint32 fd = RNIL);
+  void free_data_file(Signal*, Uint32 file_no, Uint32 fd = RNIL);
 };
 
 #endif
