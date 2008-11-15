@@ -66,7 +66,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theNumber(blockNumber),
     theInstance(instanceNumber),
     theReference(numberToRef(blockNumber, instanceNumber, globalData.ownId)),
-    theInstanceCount(0),
     theInstanceList(0),
     theMainInstance(0),
     m_ctx(ctx),
@@ -89,31 +88,26 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_jamBuffer = (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
   NewVarRef = 0;
   
-  SimulatedBlock* main = globalData.getBlock(blockNumber);
+  SimulatedBlock* mainBlock = globalData.getBlock(blockNumber);
 
   if (theInstance == 0) {
-    ndbrequire(main == 0);
-    main = this;
-    globalData.setBlock(blockNumber, main);
-    main->theInstanceCount = 1;
+    ndbrequire(mainBlock == 0);
+    mainBlock = this;
+    globalData.setBlock(blockNumber, mainBlock);
   } else {
-    ndbrequire(main != 0);
-    ndbrequire(theInstance == main->theInstanceCount);
-    ndbrequire(theInstance < MaxInstances);
-    if (theInstance == 1) {
-      ndbrequire(main->theInstanceList == 0);
-      main->theInstanceList = new SimulatedBlock* [MaxInstances];
+    ndbrequire(mainBlock != 0);
+    if (mainBlock->theInstanceList == 0) {
+      mainBlock->theInstanceList = new SimulatedBlock* [MaxInstances];
+      ndbrequire(mainBlock->theInstanceList != 0);
       Uint32 i;
       for (i = 0; i < MaxInstances; i++)
-        main->theInstanceList[i] = 0;
-    } else {
-      ndbrequire(main->theInstanceList != 0);
+        mainBlock->theInstanceList[i] = 0;
     }
-    ndbrequire(main->theInstanceList[theInstance] == 0);
-    main->theInstanceList[theInstance] = this;
-    main->theInstanceCount = theInstance + 1;
+    ndbrequire(theInstance < MaxInstances);
+    ndbrequire(mainBlock->theInstanceList[theInstance] == 0);
+    mainBlock->theInstanceList[theInstance] = this;
   }
-  theMainInstance = main;
+  theMainInstance = mainBlock;
 
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
@@ -172,7 +166,7 @@ SimulatedBlock::~SimulatedBlock()
 
   if (theInstanceList != 0) {
     Uint32 i;
-    for (i = 0; i < theInstanceCount; i++)
+    for (i = 0; i < MaxInstances; i++)
       delete theInstanceList[i];
     delete [] theInstanceList;
   }
@@ -3016,7 +3010,9 @@ bool
 SimulatedBlock::debugOutOn()
 {
   SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
-  return globalSignalLoggers.logMatch(number(), mask);
+  return
+    globalData.testOn &&
+    globalSignalLoggers.logMatch(number(), mask);
 }
 
 const char*

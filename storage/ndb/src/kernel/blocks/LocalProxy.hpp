@@ -33,10 +33,17 @@
  *
  * The LQH proxy is the LQH block seen by other nodes and blocks,
  * unless by-passed for efficiency.  Real LQH instances (workers)
- * run behind it.
+ * run behind it.  The instance number is 1 + worker index.
  *
- * There are also ACC,TUP,TUX,BACKUP,RESTORE proxies and workers.
- * All proxy classes are subclasses of LocalProxy.
+ * There are also proxies and workers for ACC, TUP, TUX, BACKUP,
+ * RESTORE, and PGMAN.  Proxy classes are subclasses of LocalProxy.
+ * Workers with same instance number (one from each class) run in
+ * same thread.
+ *
+ * After LQH workers there is an optional extra worker.  It runs
+ * in the thread of the main block (i.e. the proxy).  Its instance
+ * number is fixed as 1 + MaxLqhWorkers (currently 5) i.e. it skips
+ * over any unused LQH instance numbers.
  */
 
 class LocalProxy : public SimulatedBlock {
@@ -46,24 +53,64 @@ public:
   BLOCK_DEFINES(LocalProxy);
 
 protected:
-  enum { MaxWorkers = MAX_NDBMT_LQH_WORKERS };
-  typedef Bitmask<MaxWorkers> WorkerMask;
+  enum { MaxLqhWorkers = MAX_NDBMT_LQH_WORKERS };
+  enum { MaxExtraWorkers = 1 };
+  enum { MaxWorkers = MaxLqhWorkers + MaxExtraWorkers };
+  typedef Bitmask<(MaxWorkers+31)/32> WorkerMask;
+  Uint32 c_lqhWorkers;
+  Uint32 c_extraWorkers;
   Uint32 c_workers;
+  // no gaps - extra worker has index c_lqhWorkers (not MaxLqhWorkers)
   SimulatedBlock* c_worker[MaxWorkers];
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
   virtual void loadWorkers();
 
-  // worker index to worker instance
-  Uint32 workerInstance(Uint32 i) {
+  // get worker block by index (not by instance)
+
+  SimulatedBlock* workerBlock(Uint32 i) {
     ndbrequire(i < c_workers);
-    return 1 + i;
+    ndbrequire(c_worker[i] != 0);
+    return c_worker[i];
   }
 
-  // worker index to worker ref
+  SimulatedBlock* extraWorkerBlock() {
+    return workerBlock(c_lqhWorkers);
+  }
+
+  // get worker block reference by index (not by instance)
+
   BlockReference workerRef(Uint32 i) {
+    return numberToRef(number(), workerInstance(i), getOwnNodeId());
+  }
+
+  BlockReference extraWorkerRef() {
+    ndbrequire(c_workers == c_lqhWorkers + 1);
+    Uint32 i = c_lqhWorkers;
+    return workerRef(i);
+  }
+
+  // convert between worker index and worker instance
+
+  Uint32 workerInstance(Uint32 i) {
     ndbrequire(i < c_workers);
-    return numberToRef(number(), 1 + i, getOwnNodeId());
+    Uint32 ino;
+    if (i < c_lqhWorkers)
+      ino = 1 + i;
+    else
+      ino = 1 + MaxLqhWorkers;
+    return ino;
+  }
+
+  Uint32 workerIndex(Uint32 ino) {
+    ndbrequire(ino != 0);
+    Uint32 i;
+    if (ino != 1 + MaxLqhWorkers)
+      i = ino - 1;
+    else
+      i = c_lqhWorkers;
+    ndbrequire(i < c_workers);
+    return i;
   }
 
   // support routines and classes ("Ss" = signal state)
