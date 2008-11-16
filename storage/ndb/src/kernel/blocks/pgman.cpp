@@ -24,6 +24,7 @@
 #include <dbtup/Dbtup.hpp>
 
 #include <DebuggerNames.hpp>
+#include <sha1.h>
 
 /**
  * Requests that make page dirty
@@ -2445,8 +2446,30 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   out << " diskpage=" << dec << pe.m_file_no << "," << pe.m_page_no;
   if (pe.m_real_page_i == RNIL)
     out << " realpage=RNIL";
-  else
+  else {
     out << " realpage=" << dec << pe.m_real_page_i;
+#ifdef VM_TRACE
+    if (pe.m_state & Pgman::Page_entry::MAPPED) {
+      Ptr<GlobalPage> gptr;
+      pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i);
+      SHA1_CONTEXT c;
+      uint8 digest[SHA1_HASH_SIZE];
+      mysql_sha1_reset(&c);
+      mysql_sha1_input(&c, (uchar*)gptr.p->data, sizeof(gptr.p->data));
+      mysql_sha1_result(&c, digest);
+      char buf[100];
+      int i;
+      for (i = 0; i < 20; i++) {
+        const char* const hexdigit = "0123456789abcdef";
+        uint8 x = digest[i];
+        buf[2*i + 0] = hexdigit[x >> 4];
+        buf[2*i + 1] = hexdigit[x & 0xF];
+      }
+      buf[2*i] = 0;
+      out << " sha1=" << buf;
+    }
+#endif
+  }
   out << " lsn=" << dec << pe.m_lsn;
   out << " busy_count=" << dec << pe.m_busy_count;
 #ifdef VM_TRACE

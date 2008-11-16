@@ -3126,7 +3126,9 @@ Lgman::stop_run_undo_log(Signal* signal)
 	     LcpFragOrd::SignalLength, JBB);
   
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
+  req->senderData = 0;
   req->senderRef = reference();
+  req->backupId = m_latest_lcp;
   sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 }
