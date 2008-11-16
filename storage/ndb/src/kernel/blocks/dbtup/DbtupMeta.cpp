@@ -337,12 +337,11 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
 	 getNodeState().starting.startPhase <= 4))
     {
-      Callback cb;
+      CallbackPtr cb;
       jam();
 
       cb.m_callbackData= fragOperPtr.i;
-      cb.m_callbackFunction = 
-	safe_cast(&Dbtup::undo_createtable_callback);
+      cb.m_callbackIndex = UNDO_CREATETABLE_CALLBACK;
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
       D("Logfile_client - execTUP_ADD_ATTRREQ");
@@ -1321,8 +1320,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= fragOperPtr.i;
-  req.m_callback.m_callbackFunction = 
-    safe_cast(&Dbtup::undo_createtable_logsync_callback);
+  req.m_callback.m_callbackIndex = UNDO_CREATETABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
   switch(ret){
@@ -1614,10 +1612,9 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
 
   if (logfile_group_id != RNIL)
   {
-    Callback cb;
+    CallbackPtr cb;
     cb.m_callbackData= tabPtr.i;
-    cb.m_callbackFunction = 
-      safe_cast(&Dbtup::drop_table_log_buffer_callback);
+    cb.m_callbackIndex = DROP_TABLE_LOG_BUFFER_CALLBACK;
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
     D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
@@ -1770,10 +1767,9 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
-	Callback cb;
+        CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
-	cb.m_callbackFunction = 
-	  safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
+	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
 #if NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
 	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
@@ -1836,8 +1832,7 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= tablePtrI;
-  req.m_callback.m_callbackFunction = 
-    safe_cast(&Dbtup::drop_table_logsync_callback);
+  req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
   switch(ret){

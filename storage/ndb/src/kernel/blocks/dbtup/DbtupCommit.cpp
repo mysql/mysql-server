@@ -663,10 +663,9 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
      */
     ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
     
-    Callback cb;
+    CallbackPtr cb;
     cb.m_callbackData= regOperPtr.i;
-    cb.m_callbackFunction = 
-      safe_cast(&Dbtup::disk_page_log_buffer_callback);
+    cb.m_callbackIndex = DISK_PAGE_LOG_BUFFER_CALLBACK;
     Uint32 sz= regOperPtr.p->m_undo_buffer_space;
     
     D("Logfile_client - execTUP_COMMITREQ");

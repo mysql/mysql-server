@@ -3741,9 +3741,10 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     PagePtr disk_page = *(PagePtr*)&m_pgman_ptr;
     disk_page_set_dirty(disk_page);
 
-    preq.m_callback.m_callbackFunction =
-      safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
-    res= lgman.get_log_buffer(signal, sz, &preq.m_callback);
+    CallbackPtr cptr;
+    cptr.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
+    cptr.m_callbackData = senderData;
+    res= lgman.get_log_buffer(signal, sz, &cptr);
     switch(res){
     case 0:
       signal->theData[2] = disk_page.i;
@@ -3768,7 +3769,7 @@ timeslice:
 
 void
 Dbtup::nr_delete_page_callback(Signal* signal, 
-			       Uint32 userpointer, Uint32 page_id)
+			       Uint32 userpointer, Uint32 page_id)//unused
 {
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
@@ -3791,10 +3792,9 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
     tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
   
-  Callback cb;
+  CallbackPtr cb;
   cb.m_callbackData = userpointer;
-  cb.m_callbackFunction =
-    safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
+  cb.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
   D("Logfile_client - nr_delete_page_callback");
   Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
   int res= lgman.get_log_buffer(signal, sz, &cb);

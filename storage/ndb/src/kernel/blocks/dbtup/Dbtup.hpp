@@ -360,6 +360,20 @@ public:
   // copy of pgman.m_ptr set after each get_page
   Ptr<GlobalPage> m_pgman_ptr;
 
+  enum CallbackIndex {
+    // lgman
+    UNDO_CREATETABLE_LOGSYNC_CALLBACK = 1,
+    DROP_TABLE_LOGSYNC_CALLBACK = 2,
+    UNDO_CREATETABLE_CALLBACK = 3,
+    DROP_TABLE_LOG_BUFFER_CALLBACK = 4,
+    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 5,
+    NR_DELETE_LOG_BUFFER_CALLBACK = 6,
+    DISK_PAGE_LOG_BUFFER_CALLBACK = 7,
+    COUNT_CALLBACKS = 8
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
+
 enum TransState {
   TRANS_IDLE = 0,
   TRANS_STARTED = 1,

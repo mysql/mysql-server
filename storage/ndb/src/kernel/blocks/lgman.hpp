@@ -80,7 +80,7 @@ protected:
 public:
   struct Log_waiter
   {
-    Callback m_callback;
+    CallbackPtr m_callback;
     union {
       Uint32 m_size;
       Uint64 m_sync_lsn;
@@ -236,6 +236,14 @@ public:
   typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
   typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
+
+  enum CallbackIndex {
+    // lgman
+    ENDLCP_CALLBACK = 1,
+    COUNT_CALLBACKS = 2
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
   
 private:
   friend class Logfile_client;
@@ -324,7 +332,7 @@ public:
 
   struct Request
   {
-    SimulatedBlock::Callback m_callback;
+    SimulatedBlock::CallbackPtr m_callback;
   };
   
   /**
@@ -364,7 +372,7 @@ public:
    *           0 on time slice
    *          -1 on error
    */
-  int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::Callback* m_callback);
+  int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::CallbackPtr*);
 
   int alloc_log_space(Uint32 words) {
     return m_lgman->alloc_log_space(m_logfile_group_id, words);
