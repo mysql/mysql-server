@@ -235,6 +235,20 @@ SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
   return instanceKey;
 }
 
+Uint32
+SimulatedBlock::getInstanceFromKey(Uint32 instanceKey)
+{
+  Uint32 lqhWorkers = globalData.ndbMtLqhWorkers;
+  Uint32 instanceNo;
+  if (lqhWorkers == 0) {
+    instanceNo = 0;
+  } else {
+    assert(instanceKey != 0);
+    instanceNo = 1 + (instanceKey - 1) % lqhWorkers;
+  }
+  return instanceNo;
+}
+
 void
 SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo, 
 			     const char* filename, int lineno) const 
