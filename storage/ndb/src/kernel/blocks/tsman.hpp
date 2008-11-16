@@ -205,6 +205,7 @@ private:
   Tablespace_hash m_tablespace_hash;
   SimulatedBlock * m_pgman;
   Lgman * m_lgman;
+  SimulatedBlock * m_tup;
 
   SafeMutex m_client_mutex;
   void client_lock(BlockNumber block, int line);
@@ -394,6 +395,7 @@ Tablespace_client::alloc_extent(Local_key* key)
   
   if(req->reply.errorCode == 0){
     * key = req->reply.page_id;
+    D("alloc_extent" << V(*key) << V(req->reply.page_count));
     return req->reply.page_count;
   } else {
     return -(int)req->reply.errorCode;
@@ -414,6 +416,7 @@ Tablespace_client::alloc_page_from_extent(Local_key* key, Uint32 bits)
 
   if(req->reply.errorCode == 0){
     *key = req->key;
+    D("alloc_page_from_extent" << V(*key) << V(bits) << V(req->bits));
     return req->bits;
   } else {
     return -(int)req->reply.errorCode;
@@ -433,6 +436,7 @@ Tablespace_client::free_extent(Local_key* key, Uint64 lsn)
   m_tsman->execFREE_EXTENT_REQ(m_signal);
   
   if(req->reply.errorCode == 0){
+    D("free_extent" << V(*key) << V(lsn));
     return 0;
   } else {
     return -(int)req->reply.errorCode;
@@ -444,6 +448,7 @@ int
 Tablespace_client::update_page_free_bits(Local_key *key, 
 					 unsigned committed_bits)
 {
+  D("update_page_free_bits" << V(*key) << V(committed_bits));
   return m_tsman->update_page_free_bits(m_signal, key, committed_bits);
 }
 

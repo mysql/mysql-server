@@ -3426,8 +3426,18 @@ class Dbtup_client
 public:
   Dbtup_client(SimulatedBlock* block, SimulatedBlock* dbtup);
 
+  // LGMAN
+
   void disk_restart_undo(Signal* signal, Uint64 lsn,
                          Uint32 type, const Uint32 * ptr, Uint32 len);
+
+  // TSMAN
+
+  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+				const Local_key* key, Uint32 pages);
+
+  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+			      const Local_key* key, Uint32 bits);
 };
 
 #endif

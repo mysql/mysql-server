@@ -80,6 +80,8 @@ protected:
   // client methods
   friend class Dbtup_client;
 
+  // LGMAN
+
   enum { MaxUndoData = MAX_TUPLE_SIZE_IN_WORDS };
   Uint32 c_proxy_undo_data[MaxUndoData];
 
@@ -115,6 +117,13 @@ protected:
   void disk_restart_undo_finish(Signal*);
 
   void disk_restart_undo_send(Signal*, Uint32 i);
+
+  // TSMAN
+
+  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+				const Local_key* key, Uint32 pages);
+  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+			      const Local_key* key, Uint32 bits);
 };
 
 #endif

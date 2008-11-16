@@ -44,6 +44,7 @@ Tsman::Tsman(Block_context& ctx) :
   m_tablespace_hash(m_tablespace_pool),
   m_pgman(0),
   m_lgman(0),
+  m_tup(0),
   m_client_mutex(2, true)
 {
   BLOCK_CONSTRUCTOR(Tsman);
@@ -160,7 +161,8 @@ Tsman::execSTTOR(Signal* signal)
   case 1:
     m_pgman = globalData.getBlock(PGMAN);
     m_lgman = (Lgman*)globalData.getBlock(LGMAN);
-    ndbrequire(m_pgman != 0 && m_lgman != 0);
+    m_tup = globalData.getBlock(DBTUP);
+    ndbrequire(m_pgman != 0 && m_lgman != 0 && m_tup != 0);
     break;
   }
   sendSTTORRY(signal);
@@ -1266,8 +1268,6 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   Uint32 per_page = ptr.p->m_online.m_extent_headers_per_extent_page;
   Uint32 pages= ptr.p->m_online.m_offset_data_pages - 1;
   Uint32 datapages= ptr.p->m_online.m_data_pages;
-  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
-  ndbrequire(tup != 0);
   for(Uint32 i = 0; i < pages; i++)
   {
     Uint32 page_no = pages - i;
@@ -1279,6 +1279,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
     Page_cache_client pgman(this, m_pgman);
     int real_page_id = pgman.get_page(signal, preq, flags);
     ndbrequire(real_page_id > 0);
+    D("scan_extent_headers" << V(pages) << V(page_no) << V(real_page_id));
 
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)pgman.m_ptr.p;
@@ -1299,6 +1300,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 	page->get_header(extent_no, size);
       if (header->m_table == RNIL)
       {
+        D("extent free" << V(j));
 	header->m_next_free_extent = firstFree;
 	firstFree = page_no * per_page + extent_no;
       }
@@ -1306,26 +1308,29 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
       {
 	Uint32 tableId= header->m_table;
 	Uint32 fragmentId= header->m_fragment_id;
+        Dbtup_client tup(this, m_tup);
 	Local_key key;
 	key.m_file_no = ptr.p->m_file_no;
 	key.m_page_no = 
 	  pages + 1 + size * (page_no * per_page + extent_no - per_page);
 	key.m_page_idx = page_no * per_page + extent_no;
-	if(!tup->disk_restart_alloc_extent(tableId, fragmentId, &key, size))
+	if(!tup.disk_restart_alloc_extent(tableId, fragmentId, &key, size))
 	{
 	  ptr.p->m_online.m_used_extent_cnt++;
 	  for(Uint32 i = 0; i<size; i++, key.m_page_no++)
 	  {
 	    Uint32 bits= header->get_free_bits(i) & COMMITTED_MASK;
 	    header->update_free_bits(i, bits | (bits << UNCOMMITTED_SHIFT));
-	    tup->disk_restart_page_bits(tableId, fragmentId, &key, bits);
+	    tup.disk_restart_page_bits(tableId, fragmentId, &key, bits);
 	  }
+          D("extent used" << V(j) << V(tableId) << V(fragmentId) << V(key));
 	}
 	else
 	{
 	  header->m_table = RNIL;
 	  header->m_next_free_extent = firstFree;
 	  firstFree = page_no * per_page + extent_no;
+          D("extent free" << V(j) << V(tableId) << V(fragmentId) << V(key));
 	}
       }
     }

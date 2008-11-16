@@ -192,6 +192,8 @@ DbtupProxy::sendBUILD_INDX_IMPL_CONF(Signal* signal, Uint32 ssId)
 
 // client methods
 
+// LGMAN
+
 DbtupProxy::Proxy_undo::Proxy_undo()
 {
   m_type = 0;
@@ -411,6 +413,34 @@ DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
   signal->theData[3] = (Uint32)(undo.m_lsn >> 32);
   signal->theData[4] = (Uint32)(undo.m_lsn & 0xFFFFFFFF);
   sendSignal(workerRef(i), GSN_CONTINUEB, signal, 5, JBB, ptr, 1);
+}
+
+// TSMAN
+
+int
+DbtupProxy::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+                                      const Local_key* key, Uint32 pages)
+{
+  // local call so mapping instance key to number is ok
+  Uint32 instanceKey = getInstanceKey(tableId, fragId);
+  Uint32 instanceNo = getInstanceFromKey(instanceKey);
+
+  Uint32 i = workerIndex(instanceNo);
+  Dbtup* dbtup = (Dbtup*)workerBlock(i);
+  return dbtup->disk_restart_alloc_extent(tableId, fragId, key, pages);
+}
+
+void
+DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+                                   const Local_key* key, Uint32 bits)
+{
+  // local call so mapping instance key to number is ok
+  Uint32 instanceKey = getInstanceKey(tableId, fragId);
+  Uint32 instanceNo = getInstanceFromKey(instanceKey);
+
+  Uint32 i = workerIndex(instanceNo);
+  Dbtup* dbtup = (Dbtup*)workerBlock(i);
+  dbtup->disk_restart_page_bits(tableId, fragId, key, bits);
 }
 
 BLOCK_FUNCTIONS(DbtupProxy)
