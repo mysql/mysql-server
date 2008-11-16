@@ -29,6 +29,7 @@
 
 #include <WOPool.hpp>
 #include <SLFifoList.hpp>
+#include <SafeMutex.hpp>
 
 class Lgman : public SimulatedBlock
 {
@@ -259,6 +260,10 @@ private:
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
 
+  SafeMutex m_client_mutex;
+  void client_lock(BlockNumber block, int line);
+  void client_unlock(BlockNumber block, int line);
+
   bool alloc_logbuffer_memory(Ptr<Logfile_group>, Uint32 pages);
   void init_logbuffer_pointers(Ptr<Logfile_group>);
   void free_logbuffer_memory(Ptr<Logfile_group>);
@@ -308,12 +313,14 @@ private:
 class Logfile_client {
   Uint32 m_block; // includes instance
   Lgman * m_lgman;
+  bool m_lock;
   DEBUG_OUT_DEFINES(LGMAN);
 public:
   Uint32 m_logfile_group_id;
 
-  Logfile_client() {}
-  Logfile_client(SimulatedBlock* block, Lgman*, Uint32 logfile_group_id);
+  Logfile_client(SimulatedBlock* block, Lgman*, Uint32 logfile_group_id,
+                 bool lock = true);
+  ~Logfile_client();
 
   struct Request
   {

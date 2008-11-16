@@ -1390,6 +1390,7 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   Logfile_client::Request req;
   req.m_callback.m_callbackData = ptr.i;
   req.m_callback.m_callbackFunction = safe_cast(&Pgman::logsync_callback);
+  D("Logfile_client - pageout");
   Logfile_client lgman(this, c_lgman, RNIL);
   int ret = lgman.sync_lsn(signal, ptr.p->m_lsn, &req, 0);
   if (ret > 0)

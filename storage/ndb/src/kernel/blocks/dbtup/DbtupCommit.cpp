@@ -595,6 +595,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
         disk_page_abort_prealloc(signal, regFragPtr.p, 
 				 &req.m_page, req.m_page.m_page_idx);
         
+        D("Logfile_client - execTUP_COMMITREQ");
         Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
         lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
 	goto skip_disk;
@@ -668,6 +669,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       safe_cast(&Dbtup::disk_page_log_buffer_callback);
     Uint32 sz= regOperPtr.p->m_undo_buffer_space;
     
+    D("Logfile_client - execTUP_COMMITREQ");
     Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
     jamEntry();
