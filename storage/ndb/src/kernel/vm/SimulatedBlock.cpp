@@ -48,6 +48,7 @@
 #include <NdbSqlUtil.hpp>
 
 #include "../blocks/dbdih/Dbdih.hpp"
+#include <signaldata/CallbackSignal.hpp>
 #include "LongSignalImpl.hpp"
 
 #include <EventLogger.hpp>
@@ -120,6 +121,8 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theExecArray[i] = 0;
 
   installSimulatedBlockFunctions();
+
+  m_callbackTableAddr = 0;
 
   CLEAR_ERROR_INSERT_VALUE;
 
@@ -200,6 +203,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
   a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
   a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
+  a[GSN_CALLBACK_CONF] = &SimulatedBlock::execCALLBACK_CONF;
 }
 
 void
@@ -1822,6 +1826,93 @@ SimulatedBlock::execAPI_START_REP(Signal* signal)
 void
 SimulatedBlock::execSEND_PACKED(Signal* signal)
 {
+}
+
+// MT LQH callback CONF via signal
+
+const SimulatedBlock::CallbackEntry&
+SimulatedBlock::getCallbackEntry(Uint32 ci)
+{
+  ndbrequire(m_callbackTableAddr != 0);
+  const CallbackTable& ct = *m_callbackTableAddr;
+  ndbrequire(ci < ct.m_count);
+  return ct.m_entry[ci];
+}
+
+void
+SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
+                                 CallbackPtr& cptr, Uint32 returnCode)
+{
+  Uint32 blockNo = blockToMain(fullBlockNo);
+  Uint32 instanceNo = blockToInstance(fullBlockNo);
+  SimulatedBlock* b = globalData.getBlock(blockNo, instanceNo);
+  ndbrequire(b != 0);
+
+  const CallbackEntry& ce = b->getCallbackEntry(cptr.m_callbackIndex);
+
+  // wl4391_todo add as arg if this is not enough
+  Uint32 senderData = returnCode;
+
+  if (!isNdbMtLqh()) {
+    Callback c;
+    c.m_callbackFunction = ce.m_function;
+    c.m_callbackData = cptr.m_callbackData;
+    b->execute(signal, c, returnCode);
+
+    if (ce.m_flags & CALLBACK_ACK) {
+      jam();
+      CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
+      ack->senderData = senderData;
+      EXECUTE_DIRECT(number(), GSN_CALLBACK_ACK,
+                     signal, CallbackAck::SignalLength);
+    }
+  } else {
+    CallbackConf* conf = (CallbackConf*)signal->getDataPtrSend();
+    conf->senderData = senderData;
+    conf->senderRef = reference();
+    conf->callbackIndex = cptr.m_callbackIndex;
+    conf->callbackData = cptr.m_callbackData;
+    conf->returnCode = returnCode;
+
+    if (ce.m_flags & CALLBACK_DIRECT) {
+      jam();
+      EXECUTE_DIRECT(blockNo, GSN_CALLBACK_CONF,
+                     signal, CallbackConf::SignalLength, instanceNo);
+    } else {
+      jam();
+      BlockReference ref = numberToRef(fullBlockNo, getOwnNodeId());
+      sendSignal(ref, GSN_CALLBACK_CONF,
+                 signal, CallbackConf::SignalLength, JBB);
+    }
+  }
+  cptr.m_callbackIndex = ZNIL;
+}
+
+void
+SimulatedBlock::execCALLBACK_CONF(Signal* signal)
+{
+  const CallbackConf* conf = (const CallbackConf*)signal->getDataPtr();
+
+  Uint32 senderData = conf->senderData;
+  Uint32 senderRef = conf->senderRef;
+
+  ndbrequire(m_callbackTableAddr != 0);
+  const CallbackTable& ct = *m_callbackTableAddr;
+  const CallbackEntry& ce = getCallbackEntry(conf->callbackIndex);
+  CallbackFunction function = ce.m_function;
+
+  Callback callback;
+  callback.m_callbackFunction = function;
+  callback.m_callbackData = conf->callbackData;
+  execute(signal, callback, conf->returnCode);
+
+  if (ce.m_flags & CALLBACK_ACK) {
+    jam();
+    CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
+    ack->senderData = senderData;
+    sendSignal(senderRef, GSN_CALLBACK_ACK,
+               signal, CallbackAck::SignalLength, JBB);
+  }
 }
 
 #ifdef VM_TRACE_TIME

@@ -16,7 +16,12 @@
 #ifndef NDB_SAFE_MUTEX_HPP
 #define NDB_SAFE_MUTEX_HPP
 
+#ifdef __WIN__
+#include <ndb_global.h>
+#include <my_pthread.h>
+#else
 #include <pthread.h>
+#endif
 #include <assert.h>
 #include <ndb_types.h>
 #include <NdbOut.hpp>

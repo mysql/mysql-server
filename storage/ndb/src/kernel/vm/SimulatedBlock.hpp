@@ -720,6 +720,40 @@ protected:
   void execFSSYNCREF(Signal* signal);
   void execFSAPPENDREF(Signal* signal);
 
+  // MT LQH callback CONF via signal
+
+  struct CallbackPtr {
+    Uint32 m_callbackIndex;
+    Uint32 m_callbackData;
+  };
+
+  enum CallbackFlags {
+    CALLBACK_DIRECT = 0x0001, // use EXECUTE_DIRECT (assumed thread safe)
+    CALLBACK_ACK    = 0x0002  // send ack at the end of callback timeslice
+  };
+
+  struct CallbackEntry {
+    CallbackFunction m_function;
+    Uint32 m_flags;
+  };
+
+  struct CallbackTable {
+    Uint32 m_count;
+    CallbackEntry* m_entry; // array
+  };
+
+  CallbackTable* m_callbackTableAddr; // set by block if used
+
+  enum {
+    THE_NULL_CALLBACK = 0 // must assign TheNULLCallbackFunction
+  };
+
+  void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
+  const CallbackEntry& getCallbackEntry(Uint32 ci);
+  void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
+                        CallbackPtr& cptr, Uint32 returnCode);
+  void execCALLBACK_CONF(Signal* signal);
+
   // Variable for storing inserted errors, see pc.H
   ERROR_INSERT_VARIABLE;
 
@@ -817,6 +851,17 @@ SimulatedBlock::execute(Signal* signal, Callback & c, Uint32 returnCode){
   (this->*fun)(signal, c.m_callbackData, returnCode);
 }
 
+inline
+void
+SimulatedBlock::execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode){
+  const CallbackEntry& ce = getCallbackEntry(cptr.m_callbackIndex);
+  cptr.m_callbackIndex = ZNIL;
+  Callback c;
+  c.m_callbackFunction = ce.m_function;
+  c.m_callbackData = cptr.m_callbackData;
+  execute(signal, c, returnCode);
+}
+                        
 inline 
 BlockNumber
 SimulatedBlock::number() const {
