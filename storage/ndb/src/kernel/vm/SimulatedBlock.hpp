@@ -721,12 +721,12 @@ protected:
   void execFSAPPENDREF(Signal* signal);
 
   // MT LQH callback CONF via signal
-
+public:
   struct CallbackPtr {
     Uint32 m_callbackIndex;
     Uint32 m_callbackData;
   };
-
+protected:
   enum CallbackFlags {
     CALLBACK_DIRECT = 0x0001, // use EXECUTE_DIRECT (assumed thread safe)
     CALLBACK_ACK    = 0x0002  // send ack at the end of callback timeslice
