@@ -735,6 +735,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_CALLBACK_CONF, "CALLBACK_CONF" }
   ,{ GSN_CALLBACK_ACK, "CALLBACK_ACK" }
 
+  ,{ GSN_RELEASE_PAGES_REQ, "RELEASE_PAGES_REQ" }
+  ,{ GSN_RELEASE_PAGES_CONF, "RELEASE_PAGES_CONF" }
+
 
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

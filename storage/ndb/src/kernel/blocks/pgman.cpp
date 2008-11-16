@@ -20,6 +20,7 @@
 #include <signaldata/PgmanContinueB.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/DataFileOrd.hpp>
+#include <signaldata/ReleasePages.hpp>
 
 #include <dbtup/Dbtup.hpp>
 
@@ -63,6 +64,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_END_LCP_REQ, &Pgman::execEND_LCP_REQ);
 
   addRecSignal(GSN_DATA_FILE_ORD, &Pgman::execDATA_FILE_ORD);
+  addRecSignal(GSN_RELEASE_PAGES_REQ, &Pgman::execRELEASE_PAGES_REQ);
   
   // loop status
   m_stats_loop_on = false;
@@ -1934,6 +1936,63 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
   
   ndbrequire(false);
   return -1;
+}
+
+void
+Pgman::execRELEASE_PAGES_REQ(Signal* signal)
+{
+  const ReleasePagesReq* req = (const ReleasePagesReq*)signal->getDataPtr();
+  const Uint32 senderData = req->senderData;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 requestType = req->requestType;
+  const Uint32 bucket = req->requestData;
+  ndbrequire(req->requestType == ReleasePagesReq::RT_RELEASE_UNLOCKED);
+
+  Page_hashlist& pl_hash = m_page_hashlist;
+  Page_hashlist::Iterator iter;
+  pl_hash.next(bucket, iter);
+
+  Uint32 loop = 0;
+  while (iter.curr.i != RNIL && (loop++ < 8 || iter.bucket == bucket))
+  {
+    jam();
+    Ptr<Page_entry> ptr = iter.curr;
+    if (!(ptr.p->m_state & Page_entry::LOCKED) &&
+        (ptr.p->m_state & Page_entry::BOUND) &&
+        (ptr.p->m_state & Page_entry::MAPPED)) // should be
+    {
+      jam();
+      D(ptr << ": release");
+      ndbrequire(!(ptr.p->m_state & Page_entry::REQUEST));
+      ndbrequire(!(ptr.p->m_state & Page_entry::EMPTY));
+      ndbrequire(!(ptr.p->m_state & Page_entry::DIRTY));
+      ndbrequire(!(ptr.p->m_state & Page_entry::BUSY));
+      ndbrequire(!(ptr.p->m_state & Page_entry::PAGEIN));
+      ndbrequire(!(ptr.p->m_state & Page_entry::PAGEOUT));
+      ndbrequire(!(ptr.p->m_state & Page_entry::LOGSYNC));
+      drop_page(ptr);
+    }
+    pl_hash.next(iter);
+  }
+
+  if (iter.curr.i != RNIL) {
+    jam();
+    ndbassert(iter.bucket > bucket);
+    ReleasePagesReq* req = (ReleasePagesReq*)signal->getDataPtrSend();
+    req->senderData = senderData;
+    req->senderRef = senderRef;
+    req->requestType = requestType;
+    req->requestData = iter.bucket;
+    sendSignal(reference(), GSN_RELEASE_PAGES_REQ,
+               signal, ReleasePagesReq::SignalLength, JBB);
+    return;
+  }
+
+  ReleasePagesConf* conf = (ReleasePagesConf*)signal->getDataPtrSend();
+  conf->senderData = senderData;
+  conf->senderRef = reference();
+  sendSignal(senderRef, GSN_RELEASE_PAGES_CONF,
+             signal, ReleasePagesConf::SignalLength, JBB);
 }
 
 // page cache client

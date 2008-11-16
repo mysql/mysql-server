@@ -28,6 +28,7 @@ PgmanProxy::PgmanProxy(Block_context& ctx) :
   // GSN_END_LCP_REQ
   addRecSignal(GSN_END_LCP_REQ, &PgmanProxy::execEND_LCP_REQ);
   addRecSignal(GSN_END_LCP_CONF, &PgmanProxy::execEND_LCP_CONF);
+  addRecSignal(GSN_RELEASE_PAGES_CONF, &PgmanProxy::execRELEASE_PAGES_CONF);
 }
 
 PgmanProxy::~PgmanProxy()
@@ -75,6 +76,31 @@ PgmanProxy::execEND_LCP_REQ(Signal* signal)
 
   const Uint32 sb = refToBlock(ss.m_req.senderRef);
   ndbrequire(sb == DBLQH || sb == LGMAN);
+
+  if (sb == LGMAN) {
+    jam();
+    /*
+     * At end of UNDO execution.  Extra PGMAN worker was used to
+     * read up TUP pages.  Release these pages now.
+     */
+    ReleasePagesReq* req = (ReleasePagesReq*)signal->getDataPtrSend();
+    req->senderData = ssId;
+    req->senderRef = reference();
+    req->requestType = ReleasePagesReq::RT_RELEASE_UNLOCKED;
+    req->requestData = 0;
+    sendSignal(extraWorkerRef(), GSN_RELEASE_PAGES_REQ,
+               signal, ReleasePagesReq::SignalLength, JBB);
+    return;
+  }
+  sendREQ(signal, ss);
+}
+
+void
+PgmanProxy::execRELEASE_PAGES_CONF(Signal* signal)
+{
+  const ReleasePagesConf* conf = (const ReleasePagesConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
   sendREQ(signal, ss);
 }
 

@@ -18,6 +18,7 @@
 
 #include <LocalProxy.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/ReleasePages.hpp>
 #include "pgman.hpp"
 
 class PgmanProxy : public LocalProxy {
@@ -79,10 +80,14 @@ protected:
   static Uint32 getSsId(const EndLcpConf* conf) {
     return conf->senderData;
   }
+  static Uint32 getSsId(const ReleasePagesConf* conf) {
+    return conf->senderData;
+  }
   void execEND_LCP_REQ(Signal*);
   void sendEND_LCP_REQ(Signal*, Uint32 ssId);
   void execEND_LCP_CONF(Signal*);
   void sendEND_LCP_CONF(Signal*, Uint32 ssId);
+  void execRELEASE_PAGES_CONF(Signal*);
 
   // client methods
   friend class Page_cache_client;
