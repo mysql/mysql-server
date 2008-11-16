@@ -123,6 +123,7 @@ protected:
     SsFUNC m_sendCONF;  // from proxy to caller
     Uint32 m_worker;    // current worker
     Uint32 m_error;
+    static const char* name() { return "UNDEF"; }
     SsCommon() {
       m_ssId = 0;
       m_sendREQ = 0;
@@ -134,6 +135,7 @@ protected:
 
   // run workers sequentially
   struct SsSequential : SsCommon {
+    SsSequential() {}
   };
   void sendREQ(Signal*, SsSequential& ss);
   void recvCONF(Signal*, SsSequential& ss);
@@ -148,8 +150,11 @@ protected:
   // run workers in parallel
   struct SsParallel : SsCommon {
     WorkerMask m_workerMask;
+    bool m_extraLast;   // run extra after LQH workers
+    Uint32 m_extraSent;
     SsParallel() {
-      m_workerMask.clear();
+      m_extraLast = false;
+      m_extraSent = 0;
     }
   };
   void sendREQ(Signal*, SsParallel& ss);
@@ -161,6 +166,9 @@ protected:
   // for use in sendCONF
   bool firstReply(const SsParallel& ss);
   bool lastReply(const SsParallel& ss);
+  bool lastExtra(Signal* signal, SsParallel& ss);
+  // set all bits in worker mask
+  void setMask(SsParallel& ss);
 
   /*
    * Ss instances are seized from a pool.  Each pool is simply an array
@@ -183,13 +191,27 @@ protected:
 
   Uint32 c_ssIdSeq;
 
-  // convenient for adding non-zero high nibble
-  enum { SsIdBase = (1 << 28) };
+  // convenient for adding non-zero high bit
+  enum { SsIdBase = (1u << 31) };
+
+  template <class Ss>
+  Ss* ssSearch(Uint32 ssId)
+  {
+    SsPool<Ss>& sp = Ss::pool(this);
+    Ss* ssptr = 0;
+    for (Uint32 i = 0; i < Ss::poolSize; i++) {
+      if (sp.m_pool[i].m_ssId == ssId) {
+        ssptr = &sp.m_pool[i];
+        break;
+      }
+    }
+    return ssptr;
+  }
 
   template <class Ss>
   Ss& ssSeize() {
-    const Uint32 base = (1 << 28);
-    const Uint32 mask = (1 << 28) - 1;
+    const Uint32 base = SsIdBase;
+    const Uint32 mask = SsIdBase - 1;
     Uint32 ssId = base | c_ssIdSeq;
     c_ssIdSeq = (c_ssIdSeq + 1) & mask;
     return ssSeize<Ss>(ssId);
@@ -198,21 +220,20 @@ protected:
   template <class Ss>
   Ss& ssSeize(Uint32 ssId) {
     SsPool<Ss>& sp = Ss::pool(this);
-    ndbrequire(ssId != 0);
     ndbrequire(sp.m_usage < Ss::poolSize);
-    Ss* ssptr = 0;
-    for (Uint32 i = 0; i < Ss::poolSize; i++) {
-      Ss& ss = sp.m_pool[i];
-      ndbrequire(ss.m_ssId != ssId);
-      if (ss.m_ssId == 0 && ssptr == 0) {
-        new (&ss) Ss;
-        ss.m_ssId = ssId;
-        ssptr = &ss;
-        // keep looping to verify ssId is unique
-      }
-    }
+    ndbrequire(ssId != 0);
+    Ss* ssptr;
+    // check for duplicate
+    ssptr = ssSearch<Ss>(ssId);
+    ndbrequire(ssptr == 0);
+    // search for free
+    ssptr = ssSearch<Ss>(0);
     ndbrequire(ssptr != 0);
+    // set methods, clear bitmasks, etc
+    new (ssptr) Ss;
+    ssptr->m_ssId = ssId;
     sp.m_usage++;
+    D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
@@ -220,16 +241,27 @@ protected:
   Ss& ssFind(Uint32 ssId) {
     SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(ssId != 0);
-    Ss* ssptr = 0;
-    for (Uint32 i = 0; i < Ss::poolSize; i++) {
-      Ss& ss = sp.m_pool[i];
-      if (ss.m_ssId == ssId) {
-        ssptr = &ss;
-        break;
-      }
-    }
+    Ss* ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
     return *ssptr;
+  }
+
+  /*
+   * In some cases it may not be known if this is first request.
+   * This situation should be avoided by adding signal data or
+   * by keeping state in the proxy instance.
+   */
+  template <class Ss>
+  Ss& ssFindSeize(Uint32 ssId, bool* found) {
+    SsPool<Ss>& sp = Ss::pool(this);
+    ndbrequire(ssId != 0);
+    Ss* ssptr = ssSearch<Ss>(ssId);
+    if (ssptr != 0) {
+      *found = true;
+      return *ssptr;
+    }
+    *found = false;
+    return ssSeize<Ss>(ssId);
   }
 
   template <class Ss>
@@ -237,16 +269,11 @@ protected:
     SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(sp.m_usage != 0);
     ndbrequire(ssId != 0);
-    Ss* ssptr = 0;
-    for (Uint32 i = 0; i < Ss::poolSize; i++) {
-      Ss& ss = sp.m_pool[i];
-      if (ss.m_ssId == ssId) {
-        ss.m_ssId = 0;
-        ssptr = &ss;
-        break;
-      }
-    }
+    D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    Ss* ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
+    ssptr->m_ssId = 0;
+    ndbrequire(sp.m_usage > 0);
     sp.m_usage--;
   }
 
