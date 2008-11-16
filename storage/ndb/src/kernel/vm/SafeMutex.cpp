@@ -32,6 +32,7 @@ SafeMutex::create()
     return ErrState;
   int ret = -1;
 #ifdef HAVE_PTHREAD_MUTEX_RECURSIVE
+#ifndef __WIN__
   if (m_limit > 1 || m_debug) {
     pthread_mutexattr_t attr;
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -40,6 +41,9 @@ SafeMutex::create()
     // error-check mutex does not work right on my linux, skip it
     ret = pthread_mutex_init(&m_mutex, 0);
   }
+#else
+  ret = pthread_mutex_init(&m_mutex, 0);
+#endif
 #else
   if (m_limit > 1 || m_debug)
     return ErrUnsupp;
