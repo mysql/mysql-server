@@ -1018,9 +1018,29 @@ DblqhProxy::execSTART_FRAGREQ(Signal* signal)
 void
 DblqhProxy::execSTART_RECREQ(Signal* signal)
 {
+  if (refToMain(signal->getSendersBlockRef()) == DBLQH) {
+    jam();
+    execSTART_RECREQ_2(signal);
+    return;
+  }
+
   const StartRecReq* req = (const StartRecReq*)signal->getDataPtr();
   Ss_START_RECREQ& ss = ssSeize<Ss_START_RECREQ>();
   ss.m_req = *req;
+
+  // seize records for sub-ops
+  Uint32 i;
+  for (i = 0; i < ss.m_req2cnt; i++) {
+    Ss_START_RECREQ_2::Req tmp;
+    tmp.proxyBlockNo = ss.m_req2[i].m_blockNo;
+    Uint32 ssId2 = getSsId(&tmp);
+    Ss_START_RECREQ_2& ss2 = ssSeize<Ss_START_RECREQ_2>(ssId2);
+    ss.m_req2[i].m_ssId = ssId2;
+
+    // set wait-for bitmask in SsParallel
+    setMask(ss2);
+  }
+
   ndbrequire(signal->getLength() == StartRecReq::SignalLength);
   sendREQ(signal, ss);
 }
@@ -1043,6 +1063,13 @@ void
 DblqhProxy::execSTART_RECCONF(Signal* signal)
 {
   const StartRecConf* conf = (const StartRecConf*)signal->getDataPtr();
+
+  if (refToMain(signal->getSendersBlockRef()) != DBLQH) {
+    jam();
+    execSTART_RECCONF_2(signal);
+    return;
+  }
+
   Uint32 ssId = conf->senderData;
   Ss_START_RECREQ& ss = ssFind<Ss_START_RECREQ>(ssId);
   recvCONF(signal, ss);
@@ -1067,7 +1094,86 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
     ndbrequire(false);
   }
 
+  {
+    Uint32 i;
+    for (i = 0; i < ss.m_req2cnt; i++) {
+      jam();
+      Uint32 ssId2 = ss.m_req2[i].m_ssId;
+      ssRelease<Ss_START_RECREQ_2>(ssId2);
+    }
+  }
   ssRelease<Ss_START_RECREQ>(ssId);
+}
+
+// GSN_START_RECREQ_2 [ sub-op, fictional gsn ]
+
+void
+DblqhProxy::execSTART_RECREQ_2(Signal* signal)
+{
+  ndbrequire(signal->getLength() == Ss_START_RECREQ_2::Req::SignalLength);
+
+  const Ss_START_RECREQ_2::Req* req =
+    (const Ss_START_RECREQ_2::Req*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_START_RECREQ_2& ss = ssFind<Ss_START_RECREQ_2>(ssId);
+
+  // reversed roles
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::sendSTART_RECREQ_2(Signal* signal, Uint32 ssId)
+{
+  Ss_START_RECREQ_2& ss = ssFind<Ss_START_RECREQ_2>(ssId);
+
+  const Ss_START_RECREQ_2::Req* req =
+    (const Ss_START_RECREQ_2::Req*)signal->getDataPtr();
+
+  if (firstReply(ss)) {
+    ss.m_req = *req;
+  } else {
+    // ndbrequire(ss.m_req.lcpId == req->lcpId); wl4391_todo
+    ndbrequire(ss.m_req.proxyBlockNo == req->proxyBlockNo);
+  }
+
+  if (!lastReply(ss))
+    return;
+
+  {
+    Ss_START_RECREQ_2::Req* req =
+      (Ss_START_RECREQ_2::Req*)signal->getDataPtrSend();
+    *req = ss.m_req;
+    BlockReference ref = numberToRef(req->proxyBlockNo, getOwnNodeId());
+    sendSignal(ref, GSN_START_RECREQ,
+               signal, Ss_START_RECREQ_2::Req::SignalLength, JBB);
+  }
+}
+
+void
+DblqhProxy::execSTART_RECCONF_2(Signal* signal)
+{
+  ndbrequire(signal->getLength() == Ss_START_RECREQ_2::Conf::SignalLength);
+
+  const Ss_START_RECREQ_2::Conf* conf =
+    (const Ss_START_RECREQ_2::Conf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_START_RECREQ_2& ss = ssFind<Ss_START_RECREQ_2>(ssId);
+  ss.m_conf = *conf;
+
+  // reversed roles
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendSTART_RECCONF_2(Signal* signal, Uint32 ssId)
+{
+  Ss_START_RECREQ_2& ss = ssFind<Ss_START_RECREQ_2>(ssId);
+
+  Ss_START_RECREQ_2::Conf* conf =
+    (Ss_START_RECREQ_2::Conf*)signal->getDataPtrSend();
+  *conf = ss.m_conf;
+  sendSignal(workerRef(ss.m_worker), GSN_START_RECCONF,
+             signal, Ss_START_RECREQ_2::Conf::SignalLength, JBB);
 }
 
 // GSN_LQH_TRANSREQ
