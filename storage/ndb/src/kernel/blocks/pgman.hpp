@@ -421,6 +421,14 @@ private:
     Uint32 m_current_io_waits;
   } m_stats;
 
+  enum CallbackIndex {
+    // lgman
+    LOGSYNC_CALLBACK = 1,
+    COUNT_CALLBACKS = 2
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
+
 protected:
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);

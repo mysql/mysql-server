@@ -102,6 +102,23 @@ Lgman::Lgman(Block_context & ctx) :
     int ret = m_client_mutex.create();
     ndbrequire(ret == 0);
   }
+
+  {
+    CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
+    ce.m_function = TheNULLCallback.m_callbackFunction;
+    ce.m_flags = 0;
+  }
+  {
+    CallbackEntry& ce = m_callbackEntry[ENDLCP_CALLBACK];
+    ce.m_function = safe_cast(&Lgman::endlcp_callback);
+    ce.m_flags = 0;
+  }
+  {
+    CallbackTable& ct = m_callbackTable;
+    ct.m_count = COUNT_CALLBACKS;
+    ct.m_entry = m_callbackEntry;
+    m_callbackTableAddr = &ct;
+  }
 }
   
 Lgman::~Lgman()
@@ -1150,7 +1167,7 @@ Logfile_client::sync_lsn(Signal* signal,
       wait.p->m_block= m_block;
       wait.p->m_sync_lsn= lsn;
       memcpy(&wait.p->m_callback, &req->m_callback, 
-	     sizeof(SimulatedBlock::Callback));
+	     sizeof(SimulatedBlock::CallbackPtr));
 
       ptr.p->m_max_sync_req_lsn = lsn > ptr.p->m_max_sync_req_lsn ?
 	lsn : ptr.p->m_max_sync_req_lsn;
@@ -1252,10 +1269,9 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   if(waiter.p->m_sync_lsn <= ptr.p->m_last_synced_lsn)
   {
     removed= true;
-    Uint32 blockNo = blockToMain(waiter.p->m_block);
-    Uint32 instanceNo = blockToInstance(waiter.p->m_block);
-    SimulatedBlock* b = globalData.getBlock(blockNo, instanceNo);
-    b->execute(signal, waiter.p->m_callback, logfile_group_id);
+    Uint32 block = waiter.p->m_block;
+    CallbackPtr & callback = waiter.p->m_callback;
+    sendCallbackConf(signal, block, callback, logfile_group_id);
     
     list.releaseFirst(waiter);
   }
@@ -1356,7 +1372,7 @@ Lgman::next_page(Logfile_group* ptrP, Uint32 i)
 
 int
 Logfile_client::get_log_buffer(Signal* signal, Uint32 sz, 
-			       SimulatedBlock::Callback* callback)
+			       SimulatedBlock::CallbackPtr* callback)
 {
   sz += 2; // lsn
   Lgman::Logfile_group key;
@@ -1384,7 +1400,7 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
 
       wait.p->m_size= sz;
       wait.p->m_block= m_block;
-      memcpy(&wait.p->m_callback, callback,sizeof(SimulatedBlock::Callback));
+      memcpy(&wait.p->m_callback, callback,sizeof(SimulatedBlock::CallbackPtr));
     }
 
     return 0;
@@ -1615,10 +1631,9 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   if(waiter.p->m_size + 2*File_formats::UNDO_PAGE_WORDS < free_buffer)
   {
     removed= true;
-    Uint32 blockNo = blockToMain(waiter.p->m_block);
-    Uint32 instanceNo = blockToInstance(waiter.p->m_block);
-    SimulatedBlock* b = globalData.getBlock(blockNo, instanceNo);
-    b->execute(signal, waiter.p->m_callback, logfile_group_id);
+    Uint32 block = waiter.p->m_block;
+    CallbackPtr & callback = waiter.p->m_callback;
+    sendCallbackConf(signal, block, callback, logfile_group_id);
 
     list.releaseFirst(waiter);
   }
@@ -1935,7 +1950,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
 	Logfile_client tmp(this, this, ptr.p->m_logfile_group_id);
 	Logfile_client::Request req;
 	req.m_callback.m_callbackData = ptr.i;
-	req.m_callback.m_callbackFunction = safe_cast(&Lgman::endlcp_callback);
+	req.m_callback.m_callbackIndex = ENDLCP_CALLBACK;
 	ndbrequire(tmp.sync_lsn(signal, lcp_lsn, &req, 0) == 0);
       }
     }

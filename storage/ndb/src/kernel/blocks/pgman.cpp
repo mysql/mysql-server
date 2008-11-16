@@ -84,6 +84,23 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   
   for (Uint32 k = 0; k < Page_entry::SUBLIST_COUNT; k++)
     m_page_sublist[k] = new Page_sublist(m_page_entry_pool);
+
+  {
+    CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
+    ce.m_function = TheNULLCallback.m_callbackFunction;
+    ce.m_flags = 0;
+  }
+  {
+    CallbackEntry& ce = m_callbackEntry[LOGSYNC_CALLBACK];
+    ce.m_function = safe_cast(&Pgman::logsync_callback);
+    ce.m_flags = 0;
+  }
+  {
+    CallbackTable& ct = m_callbackTable;
+    ct.m_count = COUNT_CALLBACKS;
+    ct.m_entry = m_callbackEntry;
+    m_callbackTableAddr = &ct;
+  }
 }
 
 Pgman::~Pgman()
@@ -1389,7 +1406,7 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   // undo WAL
   Logfile_client::Request req;
   req.m_callback.m_callbackData = ptr.i;
-  req.m_callback.m_callbackFunction = safe_cast(&Pgman::logsync_callback);
+  req.m_callback.m_callbackIndex = LOGSYNC_CALLBACK;
   D("Logfile_client - pageout");
   Logfile_client lgman(this, c_lgman, RNIL);
   int ret = lgman.sync_lsn(signal, ptr.p->m_lsn, &req, 0);
