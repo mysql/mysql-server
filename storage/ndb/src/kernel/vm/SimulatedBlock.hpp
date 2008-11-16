@@ -183,6 +183,7 @@ public:
    * via DI*GET*NODES*REQ signals.
    */
   static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
+  static Uint32 getInstanceFromKey(Uint32 instanceKey); // local use only
 
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
