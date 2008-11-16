@@ -943,11 +943,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* used 695 */
 /* used 696 */
 
-#define GSN_707
-#define GSN_708
-#define GSN_709
-
-
 /*
  * EVENT Signals
  */
@@ -1068,5 +1063,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_NODEGROUP_IMPL_CONF    448
 
 #define GSN_DATA_FILE_ORD               706
+
+#define GSN_CALLBACK_REQ                707 /*reserved*/
+#define GSN_CALLBACK_CONF               708
+#define GSN_CALLBACK_ACK                709
 
 #endif
