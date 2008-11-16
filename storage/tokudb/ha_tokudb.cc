@@ -5340,7 +5340,7 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
-ulong ha_tokudb::field_offset(Field *field) {
+inline ulong ha_tokudb::field_offset(Field *field) {
     if (table->record[0] <= field->ptr && field->ptr < table->record[1])
         return field->offset(table->record[0]);
     assert(0);
