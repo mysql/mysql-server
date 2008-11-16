@@ -105,10 +105,30 @@ protected:
   void sendTAB_COMMITCONF(Signal*, Uint32 ssId);
 
   // GSN_LCP_FRAG_ORD
+  struct Ss_LCP_FRAG_ORD : SsParallel {
+    static const char* name() { return "LCP_FRAG_ORD"; }
+    Ss_LCP_FRAG_ORD() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_FRAG_ORD;
+      m_sendCONF = (SsFUNC)0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_LCP_FRAG_ORD>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_LCP_FRAG_ORD;
+    }
+  };
+  SsPool<Ss_LCP_FRAG_ORD> c_ss_LCP_FRAG_ORD;
+  static Uint32 getSsId(const LcpFragOrd* req) {
+    return SsIdBase | (req->lcpId & 0xFFFF);
+  }
+  static Uint32 getSsId(const LcpCompleteRep* conf) {
+    return SsIdBase | (conf->lcpId & 0xFFFF);
+  }
   void execLCP_FRAG_ORD(Signal*);
+  void sendLCP_FRAG_ORD(Signal*, Uint32 ssId);
 
-  // GSN_LCP_COMPLETE_ORD [ fictional gsn ]
+  // GSN_LCP_COMPLETE_ORD [ sub-op, fictional gsn ]
   struct Ss_LCP_COMPLETE_ORD : SsParallel {
+    static const char* name() { return "LCP_COMPLETE_ORD"; }
     LcpFragOrd m_req;
     Ss_LCP_COMPLETE_ORD(){
       m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_COMPLETE_ORD;
@@ -120,12 +140,6 @@ protected:
     }
   };
   SsPool<Ss_LCP_COMPLETE_ORD> c_ss_LCP_COMPLETE_ORD;
-  static Uint32 getSsId(const LcpFragOrd* req) {
-    return SsIdBase | (req->lcpId & 0xFFFF);
-  }
-  static Uint32 getSsId(const LcpCompleteRep* conf) {
-    return SsIdBase | (conf->lcpId & 0xFFFF);
-  }
   void execLCP_COMPLETE_ORD(Signal*);
   void sendLCP_COMPLETE_ORD(Signal*, Uint32 ssId);
   void execLCP_COMPLETE_REP(Signal*);
@@ -133,6 +147,7 @@ protected:
 
   // GSN_GCP_SAVEREQ
   struct Ss_GCP_SAVEREQ : SsParallel {
+    static const char* name() { return "GCP_SAVEREQ"; }
     GCPSaveReq m_req;
     Ss_GCP_SAVEREQ() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendGCP_SAVEREQ;
@@ -261,6 +276,7 @@ protected:
 
   // GSN_START_RECREQ
   struct Ss_START_RECREQ : SsParallel {
+    static const char* name() { return "START_RECREQ"; }
     StartRecReq m_req;
     Ss_START_RECREQ() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendSTART_RECREQ;
@@ -279,6 +295,7 @@ protected:
 
   // GSN_LQH_TRANSREQ
   struct Ss_LQH_TRANSREQ : SsParallel {
+    static const char* name() { return "LQH_TRANSREQ"; }
     LqhTransReq m_req;
     LqhTransConf m_conf; // latest conf
     Ss_LQH_TRANSREQ() {
@@ -298,6 +315,7 @@ protected:
 
   // GSN_EMPTY_LCP_REQ
   struct Ss_EMPTY_LCP_REQ : SsParallel {
+    static const char* name() { return "EMPTY_LCP_REQ"; }
     EmptyLcpReq m_req;
     EmptyLcpConf m_conf; // build final conf here
     Ss_EMPTY_LCP_REQ() {

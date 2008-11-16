@@ -292,7 +292,7 @@ DblqhProxy::execLQHFRAGREQ(Signal* signal)
              GSN_LQHFRAGREQ, signal, signal->getLength(), JBB);
 }
 
-// GSN_TAB_COMMITREQ
+// GSN_TAB_COMMITREQ [ sub-op ]
 
 void
 DblqhProxy::execTAB_COMMITREQ(Signal* signal)
@@ -376,11 +376,35 @@ void
 DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
 {
   const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
-  ndbrequire(req->lastFragmentFlag);
-  execLCP_COMPLETE_ORD(signal);
+
+  if (req->lastFragmentFlag) {
+    jam();
+    execLCP_COMPLETE_ORD(signal);
+    return;
+  }
+
+  Uint32 ssId = getSsId(req);
+  Ss_LCP_FRAG_ORD& ss = ssFindSeize<Ss_LCP_FRAG_ORD>(ssId);
+  sendREQ(signal, ss);
 }
 
-// GSN_LCP_COMPLETE_ORD [ fictional gsn ]
+void
+DblqhProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId)
+{
+  Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
+  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
+
+  NdbLogPartInfo lpinfo(workerInstance(ss.m_worker));
+  if (!lpinfo.partNoOwner(req->tableId, req->fragmentId)) {
+    jam();
+    return;
+  }
+
+  sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
+             signal, LcpFragOrd::SignalLength, JBB);
+}
+
+// GSN_LCP_COMPLETE_ORD [ sub-op, fictional gsn ]
 
 void
 DblqhProxy::execLCP_COMPLETE_ORD(Signal* signal)
@@ -439,6 +463,7 @@ DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_LCP_COMPLETE_ORD>(ssId);
+  ssRelease<Ss_LCP_FRAG_ORD>(ssId);
 }
 
 // GSN_GCP_SAVEREQ
@@ -778,19 +803,7 @@ DblqhProxy::sendALTER_TAB_CONF(Signal* signal, Uint32 ssId)
   ssRelease<Ss_ALTER_TAB_REQ>(ssId);
 }
 
-// GSN_START_RECREQ
-
-void
-DblqhProxy::execSTART_RECREQ(Signal* signal)
-{
-  const StartRecReq* req = (const StartRecReq*)signal->getDataPtr();
-  Ss_START_RECREQ& ss = ssSeize<Ss_START_RECREQ>();
-  ss.m_req = *req;
-  ndbrequire(signal->getLength() == StartRecReq::SignalLength);
-  sendREQ(signal, ss);
-}
-
-// GSN_START_RECREQ
+// GSN_START_FRAGREQ
 
 void
 DblqhProxy::execSTART_FRAGREQ(Signal* signal)
@@ -801,6 +814,18 @@ DblqhProxy::execSTART_FRAGREQ(Signal* signal)
   // wl4391_todo impl. method that fakes senders block-ref
   sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
              GSN_START_FRAGREQ, signal, signal->getLength(), JBB);
+}
+
+// GSN_START_RECREQ
+
+void
+DblqhProxy::execSTART_RECREQ(Signal* signal)
+{
+  const StartRecReq* req = (const StartRecReq*)signal->getDataPtr();
+  Ss_START_RECREQ& ss = ssSeize<Ss_START_RECREQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == StartRecReq::SignalLength);
+  sendREQ(signal, ss);
 }
 
 void
