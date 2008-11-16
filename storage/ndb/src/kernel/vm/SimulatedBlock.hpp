@@ -110,6 +110,7 @@ class SimulatedBlock {
   friend class Page_cache_client;
   friend class Lgman;
   friend class Logfile_client;
+  friend class Tablespace_client;
   friend struct Pool_context;
   friend struct SectionHandle;
   friend class LockQueue;

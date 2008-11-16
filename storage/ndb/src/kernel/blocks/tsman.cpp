@@ -43,7 +43,8 @@ Tsman::Tsman(Block_context& ctx) :
   m_tablespace_list(m_tablespace_pool),
   m_tablespace_hash(m_tablespace_pool),
   m_pgman(0),
-  m_lgman(0)
+  m_lgman(0),
+  m_client_mutex(2, true)
 {
   BLOCK_CONSTRUCTOR(Tsman);
 
@@ -85,10 +86,40 @@ Tsman::Tsman(Block_context& ctx) :
   m_tablespace_hash.setSize(10);
   m_file_hash.setSize(10);
   m_lcp_ongoing = false;
+
+  if (isNdbMtLqh()) {
+    jam();
+    int ret = m_client_mutex.create();
+    ndbrequire(ret == 0);
+  }
 }
   
 Tsman::~Tsman()
 {
+  if (isNdbMtLqh()) {
+    (void)m_client_mutex.destroy();
+  }
+}
+
+void
+Tsman::client_lock(BlockNumber block, int line)
+{
+  if (isNdbMtLqh()) {
+    D("try lock" << hex << V(block) << dec << V(line));
+    int ret = m_client_mutex.lock();
+    ndbrequire(ret == 0);
+    D("got lock" << hex << V(block) << dec << V(line));
+  }
+}
+
+void
+Tsman::client_unlock(BlockNumber block, int line)
+{
+  if (isNdbMtLqh()) {
+    D("unlock" << hex << V(block) << dec << V(line));
+    int ret = m_client_mutex.unlock();
+    ndbrequire(ret == 0);
+  }
 }
 
 BLOCK_FUNCTIONS(Tsman)
@@ -2181,7 +2212,9 @@ Tablespace_client::get_tablespace_info(CreateFilegroupImplReq* rep)
   if(m_tsman->m_tablespace_hash.find(ts_ptr, m_tablespace_id))
   {
     Uint32 logfile_group_id = ts_ptr.p->m_logfile_group_id;
-    Logfile_client lgman(m_tsman, m_tsman->m_lgman, logfile_group_id);
+    // ctor is used here only for logging
+    D("Logfile_client - get_tablespace_info");
+    Logfile_client lgman(m_tsman, m_tsman->m_lgman, logfile_group_id, false);
     rep->tablespace.extent_size = ts_ptr.p->m_extent_size;
     rep->tablespace.logfile_group_id = lgman.m_logfile_group_id;
     return 0;

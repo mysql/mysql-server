@@ -22,6 +22,7 @@
 #include <DLList.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/GetTabInfo.hpp>
+#include <SafeMutex.hpp>
 
 #include "lgman.hpp"
 #include "pgman.hpp"
@@ -204,6 +205,10 @@ private:
   Tablespace_hash m_tablespace_hash;
   SimulatedBlock * m_pgman;
   Lgman * m_lgman;
+
+  SafeMutex m_client_mutex;
+  void client_lock(BlockNumber block, int line);
+  void client_unlock(BlockNumber block, int line);
   
   int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*,
 		SectionHandle* handle);
@@ -270,24 +275,42 @@ Tsman::calc_page_no_in_extent(Uint32 page_no, const Tsman::req* val) const
 class Tablespace_client
 {
 public:
+  Uint32 m_block;
   Tsman * m_tsman;
   Signal* m_signal;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
   Uint32 m_tablespace_id;
+  bool m_lock;
   DEBUG_OUT_DEFINES(TSMAN);
 
 public:
-  Tablespace_client(Signal* signal, Tsman* tsman, 
-		    Uint32 table, Uint32 fragment, Uint32 tablespaceId) {
+  Tablespace_client(Signal* signal, SimulatedBlock* block, Tsman* tsman, 
+		    Uint32 table, Uint32 fragment, Uint32 tablespaceId,
+                    bool lock = true) {
+    Uint32 bno = block->number();
+    Uint32 ino = block->instance();
+    m_block= numberToBlock(bno, ino);
     m_tsman= tsman;
     m_signal= signal;
     m_table_id= table;
     m_fragment_id= fragment;
     m_tablespace_id= tablespaceId;
+    m_lock = lock;
+
+    D("client ctor" << hex << V(m_block) << dec
+      << V(m_table_id) << V(m_fragment_id) << V(m_tablespace_id));
+    if (m_lock)
+      m_tsman->client_lock(m_block, 0);
   }
 
-  Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);
+  Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);//undef
+
+  ~Tablespace_client() {
+    D("client dtor" << hex << V(m_block));
+    if (m_lock)
+      m_tsman->client_unlock(m_block, 0);
+  }
   
   /**
    * Return >0 if success, no of pages in extent, sets key
