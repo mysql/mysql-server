@@ -35,6 +35,7 @@ ADD_LIBRARY(ndbkernel STATIC
             Rope.cpp
             WOPool.cpp
 	    GlobalData.cpp
+	    SafeMutex.cpp
 )
 ADD_LIBRARY(ndbsched STATIC
             TimeQueue.cpp
