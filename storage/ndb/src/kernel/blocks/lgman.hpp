@@ -267,6 +267,7 @@ private:
   Uint32 m_latest_lcp;
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
+  Uint32 m_end_lcp_senderdata;
 
   SafeMutex m_client_mutex;
   void client_lock(BlockNumber block, int line);

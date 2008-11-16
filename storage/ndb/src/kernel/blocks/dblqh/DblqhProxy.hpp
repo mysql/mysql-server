@@ -39,6 +39,20 @@ public:
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
+  // system info
+
+  struct LcpRecord {
+    bool m_idle;
+    Uint32 m_lcpId;
+    Uint32 m_frags;
+    LcpRecord() {
+      m_idle = true;
+      m_lcpId = 0;
+      m_frags = 0; // completed
+    };
+  };
+  LcpRecord c_lcpRecord;
+
   // GSN_NDB_STTOR
   virtual void callNDB_STTOR(Signal*);
 
@@ -106,6 +120,11 @@ protected:
 
   // GSN_LCP_FRAG_ORD
   struct Ss_LCP_FRAG_ORD : SsParallel {
+    /*
+     * Used for entire LCP.  There is no start signal to LQH so we
+     * keep state in LcpRecord.  Last signal has only lastFragmentFlag
+     * set and is treated as a fictional signal GSN_LCP_COMPLETE_ORD.
+     */
     static const char* name() { return "LCP_FRAG_ORD"; }
     Ss_LCP_FRAG_ORD() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_FRAG_ORD;
@@ -120,19 +139,33 @@ protected:
   static Uint32 getSsId(const LcpFragOrd* req) {
     return SsIdBase | (req->lcpId & 0xFFFF);
   }
+  static Uint32 getSsId(const LcpFragRep* conf) {
+    return SsIdBase | (conf->lcpId & 0xFFFF);
+  }
   static Uint32 getSsId(const LcpCompleteRep* conf) {
     return SsIdBase | (conf->lcpId & 0xFFFF);
   }
   void execLCP_FRAG_ORD(Signal*);
   void sendLCP_FRAG_ORD(Signal*, Uint32 ssId);
+  void execLCP_FRAG_REP(Signal*);
 
   // GSN_LCP_COMPLETE_ORD [ sub-op, fictional gsn ]
   struct Ss_LCP_COMPLETE_ORD : SsParallel {
     static const char* name() { return "LCP_COMPLETE_ORD"; }
     LcpFragOrd m_req;
-    Ss_LCP_COMPLETE_ORD(){
+    // pointers to Ss_END_LCP_REQ for PGMAN, TSMAN, LGMAN
+    enum { BlockCnt = 3 };
+    struct BlockInfo {
+      Uint32 m_blockNo;
+      Uint32 m_ssId;
+      BlockInfo() : m_blockNo(0), m_ssId(0) {}
+    } m_endLcp[BlockCnt];
+    Ss_LCP_COMPLETE_ORD() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_COMPLETE_ORD;
       m_sendCONF = (SsFUNC)&DblqhProxy::sendLCP_COMPLETE_REP;
+      m_endLcp[0].m_blockNo = PGMAN;
+      m_endLcp[1].m_blockNo = TSMAN;
+      m_endLcp[2].m_blockNo = LGMAN;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_LCP_COMPLETE_ORD>& pool(LocalProxy* proxy) {
@@ -144,6 +177,45 @@ protected:
   void sendLCP_COMPLETE_ORD(Signal*, Uint32 ssId);
   void execLCP_COMPLETE_REP(Signal*);
   void sendLCP_COMPLETE_REP(Signal*, Uint32 ssId);
+  
+  // GSN_END_LCP_REQ [ sub-op ]
+  struct Ss_END_LCP_REQ : SsParallel {
+    /*
+     * Starts with worker REQs so the roles of sendREQ/sendCONF
+     * are reversed.  Workers are forced to send END_LCP_REQ because
+     * making LCP_COMPLETE_REP answer here is too complicated.
+     * Note TSMAN sends no END_LCP_CONF.
+     */
+    static const char* name() { return "END_LCP_REQ"; }
+    Uint32 m_reqcount;
+    Uint32 m_backupId;
+    Uint32 m_proxyBlockNo;
+    Uint32 m_confcount;
+    EndLcpReq m_req[MaxWorkers];
+    Ss_END_LCP_REQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendEND_LCP_CONF;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendEND_LCP_REQ;
+      m_reqcount = 0;
+      m_backupId = 0;
+      m_proxyBlockNo = 0;
+      m_confcount = 0;
+    };
+    enum { poolSize = 3 }; // PGMAN, TSMAN, LGMAN
+    static SsPool<Ss_END_LCP_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_END_LCP_REQ;
+    }
+  };
+  SsPool<Ss_END_LCP_REQ> c_ss_END_LCP_REQ;
+  static Uint32 getSsId(const EndLcpReq* req) {
+    return (req->proxyBlockNo << 16) | (req->backupId & 0xFFFF);
+  }
+  static Uint32 getSsId(const EndLcpConf* conf) {
+    return conf->senderData;
+  }
+  void execEND_LCP_REQ(Signal*);
+  void sendEND_LCP_REQ(Signal*, Uint32 ssId);
+  void execEND_LCP_CONF(Signal*);
+  void sendEND_LCP_CONF(Signal*, Uint32 ssId);
 
   // GSN_GCP_SAVEREQ
   struct Ss_GCP_SAVEREQ : SsParallel {
