@@ -31,13 +31,39 @@ Dbtup_client::Dbtup_client(SimulatedBlock* block,
   }
 }
 
+// LGMAN
+
 void
 Dbtup_client::disk_restart_undo(Signal* signal, Uint64 lsn,
                                 Uint32 type, const Uint32 * ptr, Uint32 len)
 {
   if (m_dbtup_proxy != 0) {
-    m_dbtup_proxy->disk_restart_undo(signal, lsn, type, ptr,len);
+    m_dbtup_proxy->disk_restart_undo(signal, lsn, type, ptr, len);
     return;
   }
-  m_dbtup->disk_restart_undo(signal, lsn, type, ptr,len);
+  m_dbtup->disk_restart_undo(signal, lsn, type, ptr, len);
+}
+
+// TSMAN
+
+int
+Dbtup_client::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+                                        const Local_key* key, Uint32 pages)
+{
+  if (m_dbtup_proxy != 0) {
+    return
+      m_dbtup_proxy->disk_restart_alloc_extent(tableId, fragId, key, pages);
+  }
+  return m_dbtup->disk_restart_alloc_extent(tableId, fragId, key, pages);
+}
+
+void
+Dbtup_client::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+                                     const Local_key* key, Uint32 bits)
+{
+  if (m_dbtup_proxy != 0) {
+    m_dbtup_proxy->disk_restart_page_bits(tableId, fragId, key, bits);
+    return;
+  }
+  m_dbtup->disk_restart_page_bits(tableId, fragId, key, bits);
 }
