@@ -272,8 +272,11 @@ Pgman::execCONTINUEB(Signal* signal)
         signal->theData[0] = 9999;
         sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 10000, 1);
       }
-      signal->theData[0] = m_end_lcp_req.senderData;
-      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+      EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
+      conf->senderData = m_end_lcp_req.senderData;
+      conf->senderRef = reference();
+      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF,
+                 signal, EndLcpConf::SignalLength, JBB);
     }
     return;
   }
@@ -1272,8 +1275,11 @@ Pgman::process_lcp(Signal* signal)
         sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 10000, 1);
         SET_ERROR_INSERT_VALUE(11008);
       }
-      signal->theData[0] = m_end_lcp_req.senderData;
-      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+      EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
+      conf->senderData = m_end_lcp_req.senderData;
+      conf->senderRef = reference();
+      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF,
+                 signal, EndLcpConf::SignalLength, JBB);
     }
     return false;
   }

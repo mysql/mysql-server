@@ -42,6 +42,9 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
 
   // GSN_LCP_FRAG_ORD
   addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
+  addRecSignal(GSN_LCP_FRAG_REP, &DblqhProxy::execLCP_FRAG_REP);
+  addRecSignal(GSN_END_LCP_REQ, &DblqhProxy::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCP_CONF, &DblqhProxy::execEND_LCP_CONF);
   addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
 
   // GSN_GCP_SAVEREQ
@@ -375,16 +378,55 @@ DblqhProxy::sendTAB_COMMITCONF(Signal* signal, Uint32 ssId)
 void
 DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
 {
+  ndbrequire(signal->getLength() == LcpFragOrd::SignalLength);
+
   const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
+  const LcpFragOrd req_copy = *req;
+  Uint32 ssId = getSsId(req);
+
+  bool found = false;
+  Ss_LCP_FRAG_ORD& ss = ssFindSeize<Ss_LCP_FRAG_ORD>(ssId, &found);
+
+  if (!found) {
+    jam();
+    D("LCP: start" << V(req->lcpId));
+    ndbrequire(c_lcpRecord.m_idle);
+    c_lcpRecord.m_idle = false;
+    c_lcpRecord.m_lcpId = req->lcpId;
+    c_lcpRecord.m_frags = 0;
+
+    // handle start of LCP in PGMAN and TSMAN
+    LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
+    *req = req_copy;
+    EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD,
+                   signal, LcpFragOrd::SignalLength);
+    *req = req_copy;
+    EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
+                   signal, LcpFragOrd::SignalLength);
+  } else {
+    jam();
+    D("LCP: continue" << V(req->lcpId) << V(c_lcpRecord.m_frags));
+    ndbrequire(!c_lcpRecord.m_idle);
+    ndbrequire(c_lcpRecord.m_lcpId == req->lcpId);
+
+    if (c_lcpRecord.m_frags == 0) {
+      // first frag has not replied
+      jam();
+      D("LCP: delay" << V(req->lcpId) << V(c_lcpRecord.m_frags));
+      LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
+      *req = req_copy;
+      sendSignalWithDelay(reference(), GSN_LCP_FRAG_ORD,
+                          signal, 100, LcpFragOrd::SignalLength);
+      return;
+    }
+  }
 
   if (req->lastFragmentFlag) {
     jam();
+    D("LCP: complete" << V(req->lcpId));
     execLCP_COMPLETE_ORD(signal);
     return;
   }
-
-  Uint32 ssId = getSsId(req);
-  Ss_LCP_FRAG_ORD& ss = ssFindSeize<Ss_LCP_FRAG_ORD>(ssId);
   sendREQ(signal, ss);
 }
 
@@ -397,11 +439,43 @@ DblqhProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId)
   NdbLogPartInfo lpinfo(workerInstance(ss.m_worker));
   if (!lpinfo.partNoOwner(req->tableId, req->fragmentId)) {
     jam();
+    skipReq(ss);
     return;
   }
 
   sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
              signal, LcpFragOrd::SignalLength, JBB);
+}
+
+// increment frag count and pass through
+void
+DblqhProxy::execLCP_FRAG_REP(Signal* signal)
+{
+  ndbrequire(signal->getLength() == LcpFragRep::SignalLength);
+
+  const LcpFragRep* conf = (const LcpFragRep*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
+
+  ndbrequire(!c_lcpRecord.m_idle);
+  ndbrequire(c_lcpRecord.m_lcpId == conf->lcpId);
+
+  c_lcpRecord.m_frags++;
+  D("LCP: rep" << V(conf->lcpId) << V(c_lcpRecord.m_frags));
+
+  NodePtr nodePtr;
+  c_nodeList.first(nodePtr);
+  ndbrequire(nodePtr.i != RNIL);
+  while (nodePtr.i != RNIL) {
+    if (nodePtr.p->m_alive) {
+      jam();
+      Uint32 nodeId = nodePtr.p->m_nodeId;
+      BlockReference dihRef = calcDihBlockRef(nodeId);
+      sendSignal(dihRef, GSN_LCP_FRAG_REP,
+                 signal, LcpFragRep::SignalLength, JBB);
+    }
+    c_nodeList.next(nodePtr);
+  }
 }
 
 // GSN_LCP_COMPLETE_ORD [ sub-op, fictional gsn ]
@@ -413,6 +487,21 @@ DblqhProxy::execLCP_COMPLETE_ORD(Signal* signal)
   Uint32 ssId = getSsId(req);
   Ss_LCP_COMPLETE_ORD& ss = ssSeize<Ss_LCP_COMPLETE_ORD>(ssId);
   ss.m_req = *req;
+
+  // seize END_LCP_REQ records
+  Uint32 i;
+  for (i = 0; i < ss.BlockCnt; i++) {
+    EndLcpReq tmp;
+    tmp.backupId = ss.m_req.lcpId;
+    tmp.proxyBlockNo = ss.m_endLcp[i].m_blockNo;
+    Uint32 ssIdEnd = getSsId(&tmp);
+    Ss_END_LCP_REQ& ssEnd = ssSeize<Ss_END_LCP_REQ>(ssIdEnd);
+    ss.m_endLcp[i].m_ssId = ssIdEnd;
+
+    // set wait-for bitmask in SsParallel
+    setMask(ssEnd);
+  }
+
   sendREQ(signal, ss);
 }
 
@@ -440,15 +529,38 @@ void
 DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
 {
   Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
+  Uint32 i;
 
   if (!lastReply(ss))
     return;
+
+  // verify the protocol
+  for (i = 0; i < ss.BlockCnt; i++) {
+    Uint32 ssIdEnd = ss.m_endLcp[i].m_ssId;
+    Ss_END_LCP_REQ& ssEnd = ssFind<Ss_END_LCP_REQ>(ssIdEnd);
+    const Uint32 rb = ssEnd.m_proxyBlockNo;
+    switch (rb) {
+    case PGMAN:
+      ndbrequire(ssEnd.m_confcount == 1);
+      break;
+    case TSMAN:
+      ndbrequire(ssEnd.m_confcount == 0);
+      break;
+    case LGMAN:
+      ndbrequire(ssEnd.m_confcount == 1);
+      break;
+    default:
+      ndbrequire(false);
+      break;
+    }
+  }
 
   NodePtr nodePtr;
   c_nodeList.first(nodePtr);
   ndbrequire(nodePtr.i != RNIL);
   while (nodePtr.i != RNIL) {
     if (nodePtr.p->m_alive) {
+      jam();
       Uint32 nodeId = nodePtr.p->m_nodeId;
       BlockReference dihRef = calcDihBlockRef(nodeId);
 
@@ -462,8 +574,93 @@ DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
     c_nodeList.next(nodePtr);
   }
 
+  for (i = 0; i < ss.BlockCnt; i++) {
+    jam();
+    Uint32 ssIdEnd = ss.m_endLcp[i].m_ssId;
+    ssRelease<Ss_END_LCP_REQ>(ssIdEnd);
+  }
   ssRelease<Ss_LCP_COMPLETE_ORD>(ssId);
   ssRelease<Ss_LCP_FRAG_ORD>(ssId);
+  c_lcpRecord.m_idle = true;
+}
+
+// GSN_END_LCP_REQ [ sub-op ]
+
+void
+DblqhProxy::execEND_LCP_REQ(Signal* signal)
+{
+  ndbrequire(refToMain(signal->getSendersBlockRef()) == DBLQH);
+
+  const EndLcpReq* req = (const EndLcpReq*)signal->getDataPtr();
+  Uint32 rb = req->proxyBlockNo;
+  ndbrequire(rb == PGMAN || rb == TSMAN || rb == LGMAN);
+
+  Uint32 ssId = getSsId(req);
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+
+  if (++ss.m_reqcount == 1) {
+    ss.m_backupId = req->backupId;
+    ss.m_proxyBlockNo = req->proxyBlockNo;
+  } else {
+    ndbrequire(ss.m_backupId == req->backupId);
+    ndbrequire(ss.m_proxyBlockNo == req->proxyBlockNo);
+  }
+
+  // reversed roles
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+
+  const EndLcpReq* req = (const EndLcpReq*)signal->getDataPtr();
+  ss.m_req[ss.m_worker] = *req;
+
+  if (!lastReply(ss)) {
+    jam();
+    return;
+  }
+
+  {
+    const Uint32 rb = ss.m_proxyBlockNo;
+    EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
+    req->senderData = ssId;
+    req->senderRef = reference();
+    req->backupPtr = 0;
+    req->backupId = ss.m_backupId;
+    EXECUTE_DIRECT(rb, GSN_END_LCP_REQ,
+                   signal, EndLcpReq::SignalLength, 0);
+  }
+}
+
+void
+DblqhProxy::execEND_LCP_CONF(Signal* signal)
+{
+  const EndLcpConf* req = (const EndLcpConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  ndbrequire(ss.m_confcount == 0);
+  ss.m_confcount++;
+
+  const Uint32 sb = refToMain(req->senderRef);
+  ndbrequire(sb == PGMAN || sb == LGMAN);
+
+  // reversed roles
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendEND_LCP_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  
+  EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
+  conf->senderData = ss.m_req[ss.m_worker].senderData;
+  conf->senderRef = reference();
+  sendSignal(workerRef(ss.m_worker), GSN_END_LCP_CONF,
+             signal, EndLcpConf::SignalLength, JBB);
 }
 
 // GSN_GCP_SAVEREQ

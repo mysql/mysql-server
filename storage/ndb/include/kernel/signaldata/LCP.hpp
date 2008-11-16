@@ -198,6 +198,8 @@ struct EndLcpReq
   Uint32 senderRef;
   Uint32 backupPtr;
   Uint32 backupId;
+  // extra word for LQH worker to proxy
+  Uint32 proxyBlockNo;
 
   STATIC_CONST( SignalLength = 4 );
 };

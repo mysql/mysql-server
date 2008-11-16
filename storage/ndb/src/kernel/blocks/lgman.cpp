@@ -1845,6 +1845,7 @@ void
 Lgman::execLCP_FRAG_ORD(Signal* signal)
 {
   jamEntry();
+  client_lock(number(), __LINE__);
 
   LcpFragOrd * ord = (LcpFragOrd *)signal->getDataPtr();
   Uint32 lcp_id= ord->lcpId;
@@ -1927,6 +1928,7 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
   }
   
   m_latest_lcp = lcp_id;
+  client_unlock(number(), __LINE__);
 }
 
 void
@@ -1934,6 +1936,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
 {
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   ndbrequire(m_latest_lcp == req->backupId);
+  m_end_lcp_senderdata = req->senderData;
 
   Ptr<Logfile_group> ptr;
   m_logfile_group_list.first(ptr);
@@ -1966,8 +1969,11 @@ Lgman::execEND_LCP_REQ(Signal* signal)
     return;
   }
 
-  signal->theData[0] = 0;
-  sendSignal(DBLQH_REF, GSN_END_LCP_CONF, signal, 1, JBB);
+  EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
+  conf->senderData = m_end_lcp_senderdata;
+  conf->senderRef = reference();
+  sendSignal(DBLQH_REF, GSN_END_LCP_CONF,
+             signal, EndLcpConf::SignalLength, JBB);
 }
 
 void
@@ -1975,6 +1981,7 @@ Lgman::endlcp_callback(Signal* signal, Uint32 ptr, Uint32 res)
 {
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->backupId = m_latest_lcp;
+  req->senderData = m_end_lcp_senderdata;
   execEND_LCP_REQ(signal);
 }
 
