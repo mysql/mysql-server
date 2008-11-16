@@ -148,7 +148,8 @@ LocalProxy::sendREQ(Signal* signal, SsParallel& ss)
 
   ss.m_workerMask.clear();
   ss.m_worker = 0;
-  while (ss.m_worker < c_workers) {
+  const Uint32 count = ss.m_extraLast ? c_lqhWorkers : c_workers;
+  while (ss.m_worker < count) {
     jam();
     ss.m_workerMask.set(ss.m_worker);
     (this->*ss.m_sendREQ)(signal, ss.m_ssId);
@@ -215,6 +216,29 @@ bool
 LocalProxy::lastReply(const SsParallel& ss)
 {
   return ss.m_workerMask.isclear();
+}
+
+bool
+LocalProxy::lastExtra(Signal* signal, SsParallel& ss)
+{
+  if (c_lqhWorkers + ss.m_extraSent < c_workers) {
+    jam();
+    ss.m_worker = c_lqhWorkers + ss.m_extraSent;
+    ss.m_workerMask.set(ss.m_worker);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    ss.m_extraSent++;
+    return false;
+  }
+  return true;
+}
+
+// used in "reverse" proxying (start with worker REQs)
+void
+LocalProxy::setMask(SsParallel& ss)
+{
+  Uint32 i;
+  for (i = 0; i < c_workers; i++)
+    ss.m_workerMask.set(i);
 }
 
 // load workers (before first signal)
