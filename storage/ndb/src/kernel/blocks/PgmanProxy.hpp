@@ -17,6 +17,7 @@
 #define NDB_PGMAN_PROXY_HPP
 
 #include <LocalProxy.hpp>
+#include <signaldata/LCP.hpp>
 #include "pgman.hpp"
 
 class PgmanProxy : public LocalProxy {
@@ -27,6 +28,61 @@ public:
 
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+
+  // GSN_LCP_FRAG_ORD
+  struct Ss_LCP_FRAG_ORD : SsParallel {
+    /*
+     * Sent once from LQH proxy (at LCP) and LGMAN (at SR).
+     * The pgman instances only set a flag and do not reply.
+     */
+    static const char* name() { return "LCP_FRAG_ORD"; }
+    LcpFragOrd m_req;
+    Ss_LCP_FRAG_ORD() {
+      m_sendREQ = (SsFUNC)&PgmanProxy::sendLCP_FRAG_ORD;
+      m_sendCONF = (SsFUNC)0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_LCP_FRAG_ORD>& pool(LocalProxy* proxy) {
+      return ((PgmanProxy*)proxy)->c_ss_LCP_FRAG_ORD;
+    }
+  };
+  SsPool<Ss_LCP_FRAG_ORD> c_ss_LCP_FRAG_ORD;
+  static Uint32 getSsId(const LcpFragOrd* req) {
+    return SsIdBase | (req->lcpId & 0xFFFF);
+  }
+  void execLCP_FRAG_ORD(Signal*);
+  void sendLCP_FRAG_ORD(Signal*, Uint32 ssId);
+
+  // GSN_END_LCP_REQ
+  struct Ss_END_LCP_REQ : SsParallel {
+    /*
+     * Sent once from LQH proxy (at LCP) and LGMAN (at SR).
+     * Each pgman instance runs LCP before we send a CONF.
+     */
+    static const char* name() { return "END_LCP_REQ"; }
+    EndLcpReq m_req;
+    Ss_END_LCP_REQ() {
+      m_sendREQ = (SsFUNC)&PgmanProxy::sendEND_LCP_REQ;
+      m_sendCONF = (SsFUNC)&PgmanProxy::sendEND_LCP_CONF;
+      // extra worker (for extent pages) must run after others
+      m_extraLast = true;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_END_LCP_REQ>& pool(LocalProxy* proxy) {
+      return ((PgmanProxy*)proxy)->c_ss_END_LCP_REQ;
+    }
+  };
+  SsPool<Ss_END_LCP_REQ> c_ss_END_LCP_REQ;
+  static Uint32 getSsId(const EndLcpReq* req) {
+    return SsIdBase | (req->backupId & 0xFFFF);
+  }
+  static Uint32 getSsId(const EndLcpConf* conf) {
+    return conf->senderData;
+  }
+  void execEND_LCP_REQ(Signal*);
+  void sendEND_LCP_REQ(Signal*, Uint32 ssId);
+  void execEND_LCP_CONF(Signal*);
+  void sendEND_LCP_CONF(Signal*, Uint32 ssId);
 
   // client methods
   friend class Page_cache_client;

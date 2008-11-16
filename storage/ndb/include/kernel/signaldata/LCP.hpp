@@ -93,6 +93,7 @@ class LcpFragOrd {
    */
   friend class Dblqh;
   friend class DblqhProxy;
+  friend class PgmanProxy;
 
   friend bool printLCP_FRAG_ORD(FILE *, const Uint32 *, Uint32, Uint16);  
 public:

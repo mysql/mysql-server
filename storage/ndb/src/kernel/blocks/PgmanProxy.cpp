@@ -21,6 +21,13 @@ PgmanProxy::PgmanProxy(Block_context& ctx) :
   LocalProxy(PGMAN, ctx)
 {
   c_extraWorkers = 1;
+
+  // GSN_LCP_FRAG_ORD
+  addRecSignal(GSN_LCP_FRAG_ORD, &PgmanProxy::execLCP_FRAG_ORD);
+
+  // GSN_END_LCP_REQ
+  addRecSignal(GSN_END_LCP_REQ, &PgmanProxy::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCP_CONF, &PgmanProxy::execEND_LCP_CONF);
 }
 
 PgmanProxy::~PgmanProxy()
@@ -31,6 +38,96 @@ SimulatedBlock*
 PgmanProxy::newWorker(Uint32 instanceNo)
 {
   return new Pgman(m_ctx, instanceNo);
+}
+
+// GSN_LCP_FRAG_ORD
+
+void
+PgmanProxy::execLCP_FRAG_ORD(Signal* signal)
+{
+  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_LCP_FRAG_ORD& ss = ssSeize<Ss_LCP_FRAG_ORD>(ssId);
+  ss.m_req = *req;
+  sendREQ(signal, ss);
+  ssRelease<Ss_LCP_FRAG_ORD>(ssId);
+}
+
+void
+PgmanProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId)
+{
+  Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
+  LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
+             signal, LcpFragOrd::SignalLength, JBB);
+}
+
+// GSN_END_LCP_REQ
+
+void
+PgmanProxy::execEND_LCP_REQ(Signal* signal)
+{
+  const EndLcpReq* req = (const EndLcpReq*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_END_LCP_REQ& ss = ssSeize<Ss_END_LCP_REQ>(ssId);
+  ss.m_req = *req;
+
+  const Uint32 sb = refToBlock(ss.m_req.senderRef);
+  ndbrequire(sb == DBLQH || sb == LGMAN);
+  sendREQ(signal, ss);
+}
+
+void
+PgmanProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+
+  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderData = ssId;
+  req->senderRef = reference();
+  sendSignal(workerRef(ss.m_worker), GSN_END_LCP_REQ,
+             signal, EndLcpReq::SignalLength, JBB);
+}
+
+void
+PgmanProxy::execEND_LCP_CONF(Signal* signal)
+{
+  const EndLcpConf* conf = (EndLcpConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+PgmanProxy::sendEND_LCP_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  BlockReference senderRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss)) {
+    jam();
+    return;
+  }
+
+  if (!lastExtra(signal, ss)) {
+    jam();
+    return;
+  }
+
+  if (ss.m_error == 0) {
+    jam();
+    EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
+    conf->senderData = ss.m_req.senderData;
+    conf->senderRef = reference();
+    sendSignal(senderRef, GSN_END_LCP_CONF,
+               signal, EndLcpConf::SignalLength, JBB);
+  } else {
+    ndbrequire(false);
+  }
+
+  ssRelease<Ss_END_LCP_REQ>(ssId);
 }
 
 // client methods
