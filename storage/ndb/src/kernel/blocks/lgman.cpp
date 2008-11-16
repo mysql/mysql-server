@@ -53,6 +53,7 @@ extern EventLogger * g_eventLogger;
 
 Lgman::Lgman(Block_context & ctx) :
   SimulatedBlock(LGMAN, ctx),
+  m_tup(0),
   m_logfile_group_list(m_logfile_group_pool),
   m_logfile_group_hash(m_logfile_group_pool),
   m_client_mutex(2, true)
@@ -183,10 +184,15 @@ void
 Lgman::execSTTOR(Signal* signal) 
 {
   jamEntry();                            
+  Uint32 startPhase = signal->theData[1];
+  switch (startPhase) {
+  case 1:
+    m_tup = globalData.getBlock(DBTUP);
+    ndbrequire(m_tup != 0);
+    break;
+  }
   sendSTTORRY(signal);
-  
-  return;
-}//Lgman::execNDB_STTOR()
+}
 
 void
 Lgman::sendSTTORRY(Signal* signal)
@@ -2790,7 +2796,6 @@ Lgman::execute_undo_record(Signal* signal)
 {
   Uint64 lsn;
   const Uint32* ptr;
-  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
   if((ptr = get_next_undo_record(&lsn)))
   {
     Uint32 len= (* ptr) & 0xFFFF;
@@ -2835,7 +2840,11 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_TUP_DROP:
     case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
     case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-      tup->disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
+      {
+        Dbtup_client tup(this, m_tup);
+        tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
+        jamEntry();
+      }
       return;
     default:
       ndbrequire(false);
@@ -3073,8 +3082,10 @@ Lgman::stop_run_undo_log(Signal* signal)
 	}
       }
       
+      client_lock(number(), __LINE__);
       ptr.p->m_free_file_words = (Uint64)File_formats::UNDO_PAGE_WORDS * 
 	(Uint64)compute_free_file_pages(ptr);
+      client_unlock(number(), __LINE__);
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
       
       ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
@@ -3143,8 +3154,11 @@ Lgman::stop_run_undo_log(Signal* signal)
 void
 Lgman::execEND_LCP_CONF(Signal* signal)
 {
-  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
-  tup->disk_restart_undo(signal, 0, File_formats::Undofile::UNDO_END, 0, 0);
+  {
+    Dbtup_client tup(this, m_tup);
+    tup.disk_restart_undo(signal, 0, File_formats::Undofile::UNDO_END, 0, 0);
+    jamEntry();
+  }
   
   /**
    * pgman has completed flushing all pages

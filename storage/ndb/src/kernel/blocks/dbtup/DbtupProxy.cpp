@@ -13,11 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+// can be removed if DBTUP continueB codes are moved to signaldata
+#define DBTUP_C
+
 #include "DbtupProxy.hpp"
 #include "Dbtup.hpp"
+#include <pgman.hpp>
+#include <signaldata/LgmanContinueB.hpp>
 
 DbtupProxy::DbtupProxy(Block_context& ctx) :
-  LocalProxy(DBTUP, ctx)
+  LocalProxy(DBTUP, ctx),
+  c_pgman(0)
 {
   // GSN_DROP_TAB_REQ
   addRecSignal(GSN_DROP_TAB_REQ, &DbtupProxy::execDROP_TAB_REQ);
@@ -37,6 +43,21 @@ SimulatedBlock*
 DbtupProxy::newWorker(Uint32 instanceNo)
 {
   return new Dbtup(m_ctx, instanceNo);
+}
+
+// GSN_STTOR
+
+void
+DbtupProxy::callSTTOR(Signal* signal)
+{
+  Uint32 startPhase = signal->theData[1];
+  switch (startPhase) {
+  case 1:
+    c_pgman = (Pgman*)globalData.getBlock(PGMAN);
+    ndbrequire(c_pgman != 0);
+    break;
+  }
+  backSTTOR(signal);
 }
 
 // GSN_DROP_TAB_REQ
@@ -167,6 +188,229 @@ DbtupProxy::sendBUILD_INDX_IMPL_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_BUILD_INDX_IMPL_REQ>(ssId);
+}
+
+// client methods
+
+DbtupProxy::Proxy_undo::Proxy_undo()
+{
+  m_type = 0;
+  m_len = 0;
+  m_ptr = 0;
+  m_lsn = (Uint64)0;
+  m_key.setNull();
+  m_page_id = ~(Uint32)0;
+  m_table_id = ~(Uint32)0;
+  m_fragment_id = ~(Uint32)0;
+  m_instance_no = ~(Uint32)0;
+  m_actions = 0;
+}
+
+void
+DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
+                              Uint32 type, const Uint32 * ptr, Uint32 len)
+{
+  Proxy_undo& undo = c_proxy_undo;
+  new (&undo) Proxy_undo;
+
+  D("proxy: disk_restart_undo" << V(type) << hex << V(ptr) << dec << V(len) << V(lsn));
+  undo.m_type = type;
+  undo.m_len = len;
+  undo.m_ptr = ptr;
+  undo.m_lsn = lsn;
+
+  switch (undo.m_type) {
+  case File_formats::Undofile::UNDO_LCP_FIRST:
+  case File_formats::Undofile::UNDO_LCP:
+    {
+      undo.m_table_id = ptr[1] >> 16;
+      undo.m_fragment_id = ptr[1] & 0xFFFF;
+      undo.m_actions |= Proxy_undo::SendToAll;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+    }
+    break;
+  case File_formats::Undofile::UNDO_TUP_ALLOC:
+    {
+      const Dbtup::Disk_undo::Alloc* rec =
+        (const Dbtup::Disk_undo::Alloc*)ptr;
+      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+      undo.m_key.m_page_no = rec->m_page_no;
+      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+      undo.m_actions |= Proxy_undo::ReadTupPage;
+      undo.m_actions |= Proxy_undo::GetInstance;
+    }
+    break;
+  case File_formats::Undofile::UNDO_TUP_UPDATE:
+    {
+      const Dbtup::Disk_undo::Update* rec =
+        (const Dbtup::Disk_undo::Update*)ptr;
+      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+      undo.m_key.m_page_no = rec->m_page_no;
+      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+      undo.m_actions |= Proxy_undo::ReadTupPage;
+      undo.m_actions |= Proxy_undo::GetInstance;
+    }
+    break;
+  case File_formats::Undofile::UNDO_TUP_FREE:
+    {
+      const Dbtup::Disk_undo::Free* rec =
+        (const Dbtup::Disk_undo::Free*)ptr;
+      undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
+      undo.m_key.m_page_no = rec->m_page_no;
+      undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
+      undo.m_actions |= Proxy_undo::ReadTupPage;
+      undo.m_actions |= Proxy_undo::GetInstance;
+    }
+    break;
+  case File_formats::Undofile::UNDO_TUP_CREATE:
+  case File_formats::Undofile::UNDO_TUP_DROP:
+    {
+      undo.m_actions |= Proxy_undo::SendToAll;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+    }
+    break;
+#if NOT_YET_UNDO_ALLOC_EXTENT
+  case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
+    ndbrequire(false);
+    break;
+#endif
+#if NOT_YET_UNDO_FREE_EXTENT
+  case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
+    ndbrequire(false);
+    break;
+#endif
+  case File_formats::Undofile::UNDO_END:
+    {
+      undo.m_actions |= Proxy_undo::SendToAll;
+    }
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  if (undo.m_actions & Proxy_undo::ReadTupPage) {
+    jam();
+    /*
+     * Page request goes to the extra PGMAN worker (our thread).
+     * TUP worker reads same page again via another PGMAN worker.
+     * MT-LGMAN is planned, do not optimize (pass page) now
+     * wl4391 todo - extra worker to free unlocked pages after SR
+     */
+    Page_cache_client pgman(this, c_pgman);
+    Page_cache_client::Request req;
+
+    req.m_page = undo.m_key;
+    req.m_callback.m_callbackData = 0;
+    req.m_callback.m_callbackFunction = 
+      safe_cast(&DbtupProxy::disk_restart_undo_callback);
+
+    int ret = pgman.get_page(signal, req, 0);
+    ndbrequire(ret >= 0);
+    if (ret > 0) {
+      jam();
+      execute(signal, req.m_callback, (Uint32)ret);
+    }
+    return;
+  }
+
+  disk_restart_undo_finish(signal);
+}
+
+void
+DbtupProxy::disk_restart_undo_callback(Signal* signal, Uint32, Uint32 page_id)
+{
+  Proxy_undo& undo = c_proxy_undo;
+  undo.m_page_id = page_id;
+
+  Ptr<GlobalPage> gptr;
+  m_global_page_pool.getPtr(gptr, undo.m_page_id);
+
+  ndbrequire(undo.m_actions & Proxy_undo::ReadTupPage);
+  {
+    jam();
+    const Tup_page* page = (const Tup_page*)gptr.p;
+    const File_formats::Page_header& header = page->m_page_header;
+    const Uint32 page_type = header.m_page_type;
+
+    if (page_type == 0) { // wl4391_todo ?
+      jam();
+      ndbrequire(header.m_page_lsn_hi == 0 && header.m_page_lsn_lo == 0);
+      undo.m_actions |= Proxy_undo::NoExecute;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+      D("proxy: callback" << V(page_type));
+    } else {
+      ndbrequire(page_type == File_formats::PT_Tup_fixsize_page ||
+                 page_type == File_formats::PT_Tup_varsize_page);
+
+      undo.m_table_id = page->m_table_id;
+      undo.m_fragment_id = page->m_fragment_id;
+      D("proxy: callback" << V(undo.m_table_id) << V(undo.m_fragment_id));
+    }
+  }
+
+  disk_restart_undo_finish(signal);
+}
+
+void
+DbtupProxy::disk_restart_undo_finish(Signal* signal)
+{
+  Proxy_undo& undo = c_proxy_undo;
+
+  if (undo.m_actions & Proxy_undo::SendUndoNext) {
+    jam();
+    signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
+    sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+  }
+
+  if (undo.m_actions & Proxy_undo::NoExecute) {
+    jam();
+    return;
+  }
+
+  if (undo.m_actions & Proxy_undo::GetInstance) {
+    jam();
+    Uint32 instanceKey = getInstanceKey(undo.m_table_id, undo.m_fragment_id);
+    Uint32 instanceNo = getInstanceFromKey(instanceKey);
+    undo.m_instance_no = instanceNo;
+  }
+
+  if (!(undo.m_actions & Proxy_undo::SendToAll)) {
+    jam();
+    ndbrequire(undo.m_instance_no != 0);
+    Uint32 i = undo.m_instance_no - 1;
+    disk_restart_undo_send(signal, i);
+  } else {
+    jam();
+    Uint32 i;
+    for (i = 0; i < c_workers; i++) {
+      disk_restart_undo_send(signal, i);
+    }
+  }
+}
+
+void
+DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
+{
+  /*
+   * Send undo entry via long signal because:
+   * 1) a method call would execute in another non-mutexed Pgman
+   * 2) MT-LGMAN is planned, do not optimize (pass pointer) now
+   */
+  const Proxy_undo& undo = c_proxy_undo;
+  ndbrequire(undo.m_len <= MaxUndoData);
+  memcpy(c_proxy_undo_data, undo.m_ptr, undo.m_len << 2);
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = c_proxy_undo_data;
+  ptr[0].sz = undo.m_len;
+
+  signal->theData[0] = ZDISK_RESTART_UNDO;
+  signal->theData[1] = undo.m_type;
+  signal->theData[2] = undo.m_len;
+  signal->theData[3] = (Uint32)(undo.m_lsn >> 32);
+  signal->theData[4] = (Uint32)(undo.m_lsn & 0xFFFFFFFF);
+  sendSignal(workerRef(i), GSN_CONTINUEB, signal, 5, JBB, ptr, 1);
 }
 
 BLOCK_FUNCTIONS(DbtupProxy)

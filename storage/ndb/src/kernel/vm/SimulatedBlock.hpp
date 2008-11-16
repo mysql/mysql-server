@@ -111,6 +111,7 @@ class SimulatedBlock {
   friend class Lgman;
   friend class Logfile_client;
   friend class Tablespace_client;
+  friend class Dbtup_client;
   friend struct Pool_context;
   friend struct SectionHandle;
   friend class LockQueue;

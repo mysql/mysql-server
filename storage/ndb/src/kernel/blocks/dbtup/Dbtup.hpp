@@ -323,6 +323,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZFREE_VAR_PAGES 13
 #define ZFREE_PAGES 14
 #define ZREBUILD_FREE_PAGE_LIST 15
+#define ZDISK_RESTART_UNDO 16
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -3177,11 +3178,17 @@ public:
     Ptr<Page> m_page_ptr;
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
+    Apply_undo();
   };
 
   void disk_restart_lcp_id(Uint32 table, Uint32 frag, Uint32 lcpId);
   
 private:
+  // these 2 were file-static before mt-lqh
+  bool f_undo_done;
+  Dbtup::Apply_undo f_undo;
+  Uint32 c_proxy_undo_data[MAX_TUPLE_SIZE_IN_WORDS];
+
   void disk_restart_undo_next(Signal*);
   void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
@@ -3405,5 +3412,22 @@ Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   memcpy(dst, src, 4*len);
 }
+
+// Dbtup_client provides proxying similar to Page_cache_client
+
+class Dbtup_client
+{
+  friend class DbtupProxy;
+  Uint32 m_block;
+  class DbtupProxy* m_dbtup_proxy; // set if we go via proxy
+  Dbtup* m_dbtup;
+  DEBUG_OUT_DEFINES(DBTUP);
+
+public:
+  Dbtup_client(SimulatedBlock* block, SimulatedBlock* dbtup);
+
+  void disk_restart_undo(Signal* signal, Uint64 lsn,
+                         Uint32 type, const Uint32 * ptr, Uint32 len);
+};
 
 #endif
