@@ -437,6 +437,7 @@ protected:
 
   void execLCP_FRAG_ORD(Signal*);
   void execEND_LCP_REQ(Signal*);
+  void execRELEASE_PAGES_REQ(Signal*);
   
   void execFSREADCONF(Signal*);
   void execFSREADREF(Signal*);
