@@ -17,8 +17,6 @@
 #define DBTUP_DISK_ALLOC_CPP
 #include "Dbtup.hpp"
 
-static bool f_undo_done = true;
-
 static
 NdbOut&
 operator<<(NdbOut& out, const Ptr<Dbtup::Page> & ptr)
@@ -739,6 +737,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
 
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
+    D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
     restart_setup_page(fragPtr.p->m_disk_alloc_info, pagePtr);
   }
 
@@ -902,6 +901,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   Uint32 used = pagePtr.p->uncommitted_used_space;
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
+    D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
     restart_setup_page(alloc, pagePtr);
     idx = alloc.calc_page_free_bits(free);
     used = 0;
@@ -947,6 +947,7 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
 	       f_undo_done == false))
   {
     jam();
+    D("disk_page_unmap_callback" << V(type) << V(f_undo_done));
     return ;
   }
 
@@ -1404,8 +1405,6 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
   
 #include <signaldata/LgmanContinueB.hpp>
 
-static Dbtup::Apply_undo f_undo;
-
 #define DBG_UNDO 0
 
 void
@@ -1429,7 +1428,8 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     Uint32 tableId = ptr[1] >> 16;
     Uint32 fragId = ptr[1] & 0xFFFF;
     disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_LCP, lcp);
-    disk_restart_undo_next(signal);
+    if (!isNdbMtLqh())
+      disk_restart_undo_next(signal);
     
     if (DBG_UNDO)
     {
@@ -1478,7 +1478,8 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
       if (tabPtr.p->fragrec[i] != RNIL)
 	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
 			      Fragrecord::UC_CREATE, 0);
-    disk_restart_undo_next(signal);
+    if (!isNdbMtLqh())
+      disk_restart_undo_next(signal);
 
     if (DBG_UNDO)
     {
@@ -1497,7 +1498,8 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
       if (tabPtr.p->fragrec[i] != RNIL)
 	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
 			      Fragrecord::UC_CREATE, 0);
-    disk_restart_undo_next(signal);
+    if (!isNdbMtLqh())
+      disk_restart_undo_next(signal);
 
     if (DBG_UNDO)
     {

@@ -29,6 +29,11 @@ public:
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
+  class Pgman* c_pgman; // PGMAN proxy
+
+  // GSN_STTOR
+  virtual void callSTTOR(Signal*);
+
   // GSN_DROP_TAB_REQ
   struct Ss_DROP_TAB_REQ : SsParallel {
     DropTabReq m_req;
@@ -71,6 +76,45 @@ protected:
   void execBUILD_INDX_IMPL_CONF(Signal*);
   void execBUILD_INDX_IMPL_REF(Signal*);
   void sendBUILD_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // client methods
+  friend class Dbtup_client;
+
+  enum { MaxUndoData = MAX_TUPLE_SIZE_IN_WORDS };
+  Uint32 c_proxy_undo_data[MaxUndoData];
+
+  struct Proxy_undo {
+    Uint32 m_type;
+    Uint32 m_len;
+    const Uint32* m_ptr;
+    Uint64 m_lsn;
+    // from undo entry and page
+    Local_key m_key;
+    Uint32 m_page_id;
+    Uint32 m_table_id;
+    Uint32 m_fragment_id;
+    Uint32 m_instance_no;
+    enum {
+      SendToAll = 1,
+      ReadTupPage = 2,
+      GetInstance = 4,
+      NoExecute = 8,
+      SendUndoNext = 16
+    };
+    Uint32 m_actions;
+    Proxy_undo();
+  };
+  Proxy_undo c_proxy_undo;
+
+  void disk_restart_undo(Signal*, Uint64 lsn,
+                         Uint32 type, const Uint32 * ptr, Uint32 len);
+
+  // next 3 are helper methods
+  void disk_restart_undo_callback(Signal*, Uint32, Uint32 page_id);
+
+  void disk_restart_undo_finish(Signal*);
+
+  void disk_restart_undo_send(Signal*, Uint32 i);
 };
 
 #endif

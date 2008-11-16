@@ -247,6 +247,7 @@ public:
   
 private:
   friend class Logfile_client;
+  SimulatedBlock* m_tup;
 
   /**
    * Alloc/free space in log

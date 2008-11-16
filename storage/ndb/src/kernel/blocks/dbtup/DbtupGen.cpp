@@ -60,7 +60,8 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     c_extent_hash(c_extent_pool),
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
-    c_undo_buffer(&ctx.m_mm)
+    c_undo_buffer(&ctx.m_mm),
+    f_undo_done(true)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
 
@@ -212,6 +213,19 @@ Dbtup::~Dbtup()
   
 }//Dbtup::~Dbtup()
 
+Dbtup::Apply_undo::Apply_undo()
+{
+  m_type = 0;
+  m_len = 0;
+  m_ptr = 0;
+  m_lsn = (Uint64)0;
+  m_table_ptr.setNull();
+  m_fragment_ptr.setNull();
+  m_page_ptr.setNull();
+  m_extent_ptr.setNull();
+  m_key.setNull();
+}
+
 BLOCK_FUNCTIONS(Dbtup)
 
 void Dbtup::execCONTINUEB(Signal* signal) 
@@ -318,6 +332,27 @@ void Dbtup::execCONTINUEB(Signal* signal)
   {
     jam();
     rebuild_page_free_list(signal);
+    return;
+  }
+  case ZDISK_RESTART_UNDO:
+  {
+    jam();
+    if (!assembleFragments(signal)) {
+      jam();
+      return;
+    }
+    Uint32 type = signal->theData[1];
+    Uint32 len = signal->theData[2];
+    Uint64 lsn_hi = signal->theData[3];
+    Uint64 lsn_lo = signal->theData[4];
+    Uint64 lsn = (lsn_hi << 32) | lsn_lo;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.m_cnt == 1);
+    SegmentedSectionPtr ssptr;
+    handle.getSection(ssptr, 0);
+    ::copy(c_proxy_undo_data, ssptr);
+    releaseSections(handle);
+    disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);
     return;
   }
 
