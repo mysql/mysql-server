@@ -14894,12 +14894,13 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
     
-    signal->theData[0] = c_lcpId;
-    if (!isNdbMtLqh()) // wl4391_todo DD
-    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    else {
-    signal->theData[0] = LGMAN_REF;
-    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      signal->theData[0] = c_lcpId;
+      sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    } else {
+      signal->theData[0] = c_lcpId;
+      signal->theData[1] = LGMAN;
+      sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
     }
     return;
   }
@@ -14968,12 +14969,13 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
     
-    signal->theData[0] = c_lcpId;
-    if (!isNdbMtLqh()) // wl4391_todo DD
-    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    else {
-    signal->theData[0] = LGMAN_REF;
-    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      signal->theData[0] = c_lcpId;
+      sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    } else {
+      signal->theData[0] = c_lcpId;
+      signal->theData[1] = LGMAN;
+      sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
     }
   }//if
 }//Dblqh::execSTART_RECREQ()
@@ -15005,12 +15007,13 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   case LGMAN:
     jam();
     lcpPtr.p->m_outstanding++;
-    signal->theData[0] = c_lcpId;
-    if (!isNdbMtLqh()) // wl4391_todo DD
-    sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    else {
-    signal->theData[0] = TSMAN_REF;
-    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      signal->theData[0] = c_lcpId;
+      sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    } else {
+      signal->theData[0] = c_lcpId;
+      signal->theData[1] = TSMAN;
+      sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
     }
     return;
     break;

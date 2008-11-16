@@ -348,11 +348,24 @@ protected:
 
   // GSN_START_RECREQ
   struct Ss_START_RECREQ : SsParallel {
+    /*
+     * The proxy is also proxy for signals from workers to global
+     * blocks LGMAN, TSMAN.  These are run (sequentially) using
+     * the sub-op START_RECREQ_2.
+     */
     static const char* name() { return "START_RECREQ"; }
     StartRecReq m_req;
+    // pointers to START_RECREQ_2 for LGMAN, TSMAN
+    enum { m_req2cnt = 2 };
+    struct {
+      Uint32 m_blockNo;
+      Uint32 m_ssId;
+    } m_req2[m_req2cnt];
     Ss_START_RECREQ() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendSTART_RECREQ;
       m_sendCONF = (SsFUNC)&DblqhProxy::sendSTART_RECCONF;
+      m_req2[0].m_blockNo = LGMAN;
+      m_req2[1].m_blockNo = TSMAN;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_START_RECREQ>& pool(LocalProxy* proxy) {
@@ -364,6 +377,45 @@ protected:
   void sendSTART_RECREQ(Signal*, Uint32 ssId);
   void execSTART_RECCONF(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
+
+  // GSN_START_RECREQ_2 [ sub-op, fictional gsn ]
+  struct Ss_START_RECREQ_2 : SsParallel {
+#ifdef VM_TRACE
+    static const char* name() { return "START_RECREQ_2"; }
+#endif
+    struct Req {
+      enum { SignalLength = 2 };
+      Uint32 lcpId;
+      Uint32 proxyBlockNo;
+    };
+    // senderData is unnecessary as signal is unique per proxyBlockNo
+    struct Conf {
+      enum { SignalLength = 1 };
+      Uint32 senderRef;
+    };
+    Req m_req;
+    Conf m_conf;
+    Ss_START_RECREQ_2() {
+      // reversed sendREQ/sendCONF
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendSTART_RECCONF_2;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendSTART_RECREQ_2;
+    }
+    enum { poolSize = 2 };
+    static SsPool<Ss_START_RECREQ_2>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_START_RECREQ_2;
+    }
+  };
+  SsPool<Ss_START_RECREQ_2> c_ss_START_RECREQ_2;
+  Uint32 getSsId(const Ss_START_RECREQ_2::Req* req) {
+    return SsIdBase | req->proxyBlockNo;
+  }
+  Uint32 getSsId(const Ss_START_RECREQ_2::Conf* conf) {
+    return SsIdBase | refToBlock(conf->senderRef);
+  }
+  void execSTART_RECREQ_2(Signal*);
+  void sendSTART_RECREQ_2(Signal*, Uint32 ssId);
+  void execSTART_RECCONF_2(Signal*);
+  void sendSTART_RECCONF_2(Signal*, Uint32 ssId);
 
   // GSN_LQH_TRANSREQ
   struct Ss_LQH_TRANSREQ : SsParallel {
