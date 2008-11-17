@@ -19,6 +19,14 @@
 
 static toku_pthread_mutex_t ydb_big_lock = TOKU_PTHREAD_MUTEX_INITIALIZER;
 
+void toku_ydb_lock_init(void) {
+    int r = toku_pthread_mutex_init(&ydb_big_lock, NULL); assert(r == 0);
+}
+
+void toku_ydb_lock_destroy(void) {
+    int r = toku_pthread_mutex_destroy(&ydb_big_lock); assert(r == 0);
+}
+
 void toku_ydb_lock(void) {
     int r = toku_pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
 }
