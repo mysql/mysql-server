@@ -759,7 +759,6 @@ int runTestMgmLogRotation(NDBT_Context* ctx, NDBT_Step* step)
   NdbMgmd mgmd;
   const char *mgm= mgmd.getConnectString();
   int result= NDBT_FAILED;
-  const char *logdest= NULL;
   int mgmid= 0;
   off_t current_size= 0, max_size= 0;
   int i,j;
