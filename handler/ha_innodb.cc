@@ -608,7 +608,8 @@ thd_is_select(
 }
 
 /**********************************************************************
-Returns true if the thread has XA support. */
+Returns true if the thread supports XA,
+global value of innodb_supports_xa if thd is NULL. */
 extern "C" UNIV_INTERN
 ibool
 thd_supports_xa(
