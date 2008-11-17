@@ -697,9 +697,6 @@ int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
 
 int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
 {
-  NdbMgmd mgmd;
-
-  const char *mgm= mgmd.getConnectString();
   int r, ncol;
   char rowbuf[1024];
   char **cols;
