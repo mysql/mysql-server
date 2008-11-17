@@ -335,6 +335,10 @@ class Thd_ndb
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;
+
+  unsigned m_connect_count;
+  bool valid_ndb(void);
+  bool recycle_ndb(THD* thd);
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
