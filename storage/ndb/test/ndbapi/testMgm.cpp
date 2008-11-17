@@ -963,11 +963,13 @@ TESTCASE("SetConfig",
 TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
   STEPS(runGetConfig, 100);
 }
+#if 0
 TESTCASE("MgmLogRotation",
 	 "Test log rotation"){
   INITIALIZER(runTestMgmLogRotation);
 
 }
+#endif
 TESTCASE("TestStatus",
 	 "Test status and status2"){
   INITIALIZER(runTestStatus);
