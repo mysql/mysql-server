@@ -549,7 +549,8 @@ sync_array_find_thread(
 		cell = sync_array_get_nth_cell(arr, i);
 
 		if (cell->wait_object != NULL
-		    && os_thread_eq(cell->thread, thread)) {
+		    && os_thread_eq(cell->thread, thread)
+		    && cell->waiting)) {
 
 			return(cell);	/* Found */
 		}
@@ -886,6 +887,10 @@ sync_arr_wake_threads_if_sema_free(void)
 			continue;
 		}
 			count++;
+
+		if (!cell->waiting) {
+			continue;
+		}
 
 			if (sync_arr_cell_can_wake_up(cell)) {
 
