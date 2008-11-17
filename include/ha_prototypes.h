@@ -214,7 +214,8 @@ ibool
 thd_supports_xa(
 /*============*/
 			/* out: true if thd supports XA */
-	void*	thd);	/* in: thread handle (THD*) */
+	void*	thd);	/* in: thread handle (THD*), or NULL to query
+			the global innodb_supports_xa */
 
 /**********************************************************************
 Returns true if the thread is executing in innodb_strict_mode. */
