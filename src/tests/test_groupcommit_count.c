@@ -3,7 +3,7 @@
 
 /* Test by counting the fsyncs, to see if group commit is working. */
 
-#include <portability.h>
+#include <toku_portability.h>
 #include <db.h>
 #include <toku_pthread.h>
 #include <sys/stat.h>

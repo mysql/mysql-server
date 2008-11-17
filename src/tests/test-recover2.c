@@ -1,6 +1,6 @@
 /* A simple case to see if recovery works. */
 
-#include <portability.h>
+#include <toku_portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

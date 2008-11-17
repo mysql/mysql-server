@@ -4,7 +4,7 @@
 /* Like test_log3 except do abort */
 
 #include <assert.h>
-#include <portability.h>
+#include <toku_portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

@@ -4,7 +4,7 @@
 /* Do test_log1, except abort instead of commit. */
 
 #include <assert.h>
-#include <portability.h>
+#include <toku_portability.h>
 #include <db.h>
 #include <errno.h>
 #include <stdio.h>

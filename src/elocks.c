@@ -11,7 +11,7 @@
    every call (including methods) into the tokudb library gets the lock 
    no internal function should invoke a method through an object */
 
-#include "portability.h"
+#include "toku_portability.h"
 #include "ydb-internal.h"
 #include <assert.h>
 #include <toku_pthread.h>
