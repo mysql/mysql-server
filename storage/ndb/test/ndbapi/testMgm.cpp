@@ -746,8 +746,8 @@ int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
 
   }
 
-  ndbout_c("CURRENT SIZE = %llu",*current_size);
-  ndbout_c("MAX SIZE = %llu",*max_size);
+  ndbout_c("CURRENT SIZE = %lu",*current_size);
+  ndbout_c("MAX SIZE = %lu",*max_size);
 
   free(cols);
 
