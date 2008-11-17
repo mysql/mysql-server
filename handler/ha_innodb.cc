@@ -608,6 +608,19 @@ thd_is_select(
 }
 
 /**********************************************************************
+Returns true if the thread has XA support. */
+extern "C" UNIV_INTERN
+ibool
+thd_supports_xa(
+/*============*/
+			/* out: true if thd has XA support */
+	void*	thd)	/* in: thread handle (THD*), or NULL to query
+			the global innodb_supports_xa */
+{
+	return(THDVAR((THD*) thd, support_xa));
+}
+
+/**********************************************************************
 Returns true if the thread is executing in innodb_strict_mode. */
 extern "C" UNIV_INTERN
 ibool
@@ -1238,9 +1251,6 @@ check_trx_exists(
 		trx->mysql_thd = thd;
 		trx->mysql_query_str = thd_query(thd);
 
-		/* Update the info whether we should skip XA steps that eat
-		CPU time */
-		trx->support_xa = THDVAR(thd, support_xa);
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -2299,9 +2309,6 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
-	/* Update the info whether we should skip XA steps that eat CPU time */
-	trx->support_xa = THDVAR(thd, support_xa);
-
 	/* Since we will reserve the kernel mutex, we have to release
 	the search system latch first to obey the latching order. */
 
@@ -2427,9 +2434,6 @@ innobase_rollback(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	trx = check_trx_exists(thd);
-
-	/* Update the info whether we should skip XA steps that eat CPU time */
-	trx->support_xa = THDVAR(thd, support_xa);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -8843,7 +8847,10 @@ innobase_xa_prepare(
 		trx->active_trans = 2;
 	}
 
-	if (!THDVAR(thd, support_xa)) {
+	/* we use support_xa value as it was seen at transaction start
+	time, not the current session variable value. Any possible changes
+	to the session variable take effect only in the next transaction */
+	if (!trx->support_xa) {
 
 		return(0);
 	}
