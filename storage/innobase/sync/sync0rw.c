@@ -209,7 +209,7 @@ rw_lock_create_func(
 #endif /* UNIV_SYNC_ATOMIC */
 
 	lock->lock_word = X_LOCK_DECR;
-	rw_lock_set_waiters(lock, 0);
+	lock->waiters = 0;
 	lock->writer_thread = -1;
 	lock->pass = 0;
 
@@ -369,7 +369,7 @@ lock_loop:
 
 		/* Set waiters before checking lock_word to ensure wake-up
                 signal is sent. This may lead to some unnecessary signals. */
-		rw_lock_set_waiters(lock, 1);
+		rw_lock_set_waiters(lock);
 
 		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
 			sync_array_free_cell(sync_primary_wait_array, index);
@@ -634,7 +634,7 @@ lock_loop:
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
-	rw_lock_set_waiters(lock, 1);
+	rw_lock_set_waiters(lock);
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		sync_array_free_cell(sync_primary_wait_array, index);
