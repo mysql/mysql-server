@@ -844,8 +844,6 @@ done:
 
 int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbMgmHandle h;
-
   ndb_mgm_node_type types[2] = {
     NDB_MGM_NODE_TYPE_NDB,
     NDB_MGM_NODE_TYPE_UNKNOWN
@@ -853,35 +851,16 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbMgmd mgmd;
   struct ndb_mgm_cluster_state *state;
-  const char *connectstring= mgmd.getConnectString();
   int iterations = ctx->getNumLoops();
   int delay = 2;
 
-  h= ndb_mgm_create_handle();
-  if ( h == 0)
-  {
-    ndbout_c("Unable to create handle");
+  if (!mgmd.connect())
     return NDBT_FAILED;
-  }
-  if (ndb_mgm_set_connectstring(h, connectstring) == -1)
-  {
-    ndbout_c("Unable to set connectstring");
-    ndb_mgm_destroy_handle(&h);
-    return NDBT_FAILED;
-  }
-  if (ndb_mgm_connect(h,0,0,0))
-  {
-    ndbout_c("connect failed, %d: %s",
-             ndb_mgm_get_latest_error(h),
-             ndb_mgm_get_latest_error_msg(h));
-    ndb_mgm_destroy_handle(&h);
-    return NDBT_FAILED;
-  }
 
   int result= NDBT_OK;
   while (iterations-- != 0 && result == NDBT_OK)
   {
-    state = ndb_mgm_get_status(h);
+    state = ndb_mgm_get_status(mgmd.handle());
     if(state == NULL) {
       ndbout_c("Could not get status!");
       result= NDBT_FAILED;
@@ -889,7 +868,7 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
     }
     free(state);
 
-    state = ndb_mgm_get_status2(h, types);
+    state = ndb_mgm_get_status2(mgmd.handle(), types);
     if(state == NULL){
       ndbout_c("Could not get status2!");
       result= NDBT_FAILED;
@@ -897,7 +876,7 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
     }
     free(state);
 
-    state = ndb_mgm_get_status2(h, 0);
+    state = ndb_mgm_get_status2(mgmd.handle(), 0);
     if(state == NULL){
       ndbout_c("Could not get status2 second time!");
       result= NDBT_FAILED;
@@ -907,9 +886,6 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 
     NdbSleep_MilliSleep(delay);
   }
-  // No disconnect, destroy should take care of that
-  // ndb_mgm_disconnect(h);
-  ndb_mgm_destroy_handle(&h);
   return result;
 }
 
