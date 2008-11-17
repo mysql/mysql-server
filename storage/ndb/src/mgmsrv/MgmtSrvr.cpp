@@ -421,7 +421,6 @@ MgmtSrvr::init()
   BaseString error_string;
   if (!alloc_node_id(&nodeId, NDB_MGM_NODE_TYPE_MGM,
                      0, /* client_addr */
-                     0, /* client_addr_len */
                      error_code, error_string,
                      0 /* log_event */ ))
   {
@@ -2734,7 +2733,6 @@ bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			enum ndb_mgm_node_type type,
 			struct sockaddr *client_addr, 
-			SOCKET_SIZE_TYPE *client_addr_len,
 			int &error_code, BaseString &error_string,
                         int log_event)
 {
