@@ -225,7 +225,12 @@ Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
                           &dwBytesRead,
                           &ov);
     if(!bRead){
-      return GetLastError();
+      int err = GetLastError();
+      if (err == ERROR_HANDLE_EOF && req->action == Request::readPartial)
+      {
+        return 0;
+      }
+      return err;
     }
     bytes_read = dwBytesRead;
 
