@@ -812,7 +812,8 @@ int
 HugoTransactions::pkReadRecords(Ndb* pNdb, 
 				int records,
 				int batch,
-				NdbOperation::LockMode lm){
+				NdbOperation::LockMode lm,
+                                int _rand){
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
@@ -857,11 +858,23 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     if (timer_active)
       NdbTick_getMicroTimer(&timer_start);
 
-    if(pkReadRecord(pNdb, r, batch, lm) != NDBT_OK)
+    if (_rand == 0)
     {
-      ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
+      if(pkReadRecord(pNdb, r, batch, lm) != NDBT_OK)
+      {
+        ERR(pTrans->getNdbError());
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      if(pkReadRandRecord(pNdb, records, batch, lm) != NDBT_OK)
+      {
+        ERR(pTrans->getNdbError());
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
+      }
     }
     
     check = pTrans->execute(Commit, AbortOnError);

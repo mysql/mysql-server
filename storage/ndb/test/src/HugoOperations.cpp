@@ -147,6 +147,82 @@ rand_lock_mode:
   return NDBT_OK;
 }
 
+int HugoOperations::pkReadRandRecord(Ndb* pNdb,
+                                     int records,
+                                     int numRecords,
+                                     NdbOperation::LockMode lm){
+  int a;  
+  allocRows(numRecords);
+  indexScans.clear();
+  int check;
+
+  NdbOperation* pOp = 0;
+  pIndexScanOp = 0;
+
+  for(int r=0; r < numRecords; r++){
+    
+    if(pOp == 0)
+    {
+      pOp = getOperation(pTrans, NdbOperation::ReadRequest);
+    }
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+rand_lock_mode:
+    switch(lm){
+    case NdbOperation::LM_Read:
+    case NdbOperation::LM_Exclusive:
+    case NdbOperation::LM_CommittedRead:
+    case NdbOperation::LM_SimpleRead:
+      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
+	 pIndexScanOp == 0)
+      {
+	pIndexScanOp = ((NdbIndexScanOperation*)pOp);
+	check = pIndexScanOp->readTuples(lm);
+        /* Record NdbIndexScanOperation ptr for later... */
+        indexScans.push_back(pIndexScanOp);
+      }
+      else
+	check = pOp->readTuple(lm);
+      break;
+    default:
+      lm = (NdbOperation::LockMode)((rand() >> 16) & 3);
+      goto rand_lock_mode;
+    }
+    
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    // Define primary keys
+    if (equalForRow(pOp, rand() % records) != 0)
+      return NDBT_FAILED;
+
+    if(pIndexScanOp)
+      pIndexScanOp->end_of_bound(r);
+    
+    if(r == 0 || pIndexScanOp == 0)
+    {
+      // Define attributes to read  
+      for(a = 0; a<tab.getNoOfColumns(); a++){
+	if((rows[r]->attributeStore(a) = 
+	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	  ERR(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      } 
+    }
+    /* Note pIndexScanOp will point to the 'last' index scan op
+     * we used.  The full list is in the indexScans vector
+     */
+    pOp = pIndexScanOp;
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::pkUpdateRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords,
