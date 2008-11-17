@@ -251,6 +251,9 @@ extern ulint srv_read_ahead_seq;
 /* variable to count the number of random read-aheads were done */
 extern ulint srv_read_ahead_rnd;
 
+/* Number of threads that may have missed a lock wait wakeup */
+extern ulint sync_wake_ups;
+
 /* In this structure we store status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 
@@ -545,6 +548,7 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;
 	ulint innodb_rows_updated;
 	ulint innodb_rows_deleted;
+	ulint innodb_wake_ups;
 };
 
 /* The server system struct */

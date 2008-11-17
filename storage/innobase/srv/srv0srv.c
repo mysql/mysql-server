@@ -1939,6 +1939,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_wake_ups = sync_wake_ups;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
