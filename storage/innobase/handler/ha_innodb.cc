@@ -433,6 +433,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
+  {"wake_ups",
+  (char*) &export_vars.innodb_wake_ups,		  SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
