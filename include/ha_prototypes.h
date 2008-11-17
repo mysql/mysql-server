@@ -207,6 +207,16 @@ innobase_get_charset(
 	void*	mysql_thd);	/* in: MySQL thread handle */
 
 /**********************************************************************
+Returns true if the thread supports XA,
+global value of innodb_supports_xa if thd is NULL. */
+
+ibool
+thd_supports_xa(
+/*============*/
+			/* out: true if thd supports XA */
+	void*	thd);	/* in: thread handle (THD*) */
+
+/**********************************************************************
 Returns true if the thread is executing in innodb_strict_mode. */
 
 ibool
