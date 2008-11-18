@@ -11023,7 +11023,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       have been created.
       If not try to create it
     */
-		if (!check_ndb_in_thd(thd, false))
+    if (!check_ndb_in_thd(thd, false))
     {
       set_timespec(abstime, 1);
       continue;
