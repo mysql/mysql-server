@@ -384,6 +384,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thread_count--;
   thd->store_globals();
+  thd->unlink();
   delete thd;
   mysql->thd=0;
 }
@@ -627,6 +628,7 @@ void *create_embedded_thd(int client_flag)
   bzero((char*) &thd->net, sizeof(thd->net));
 
   thread_count++;
+  threads.append(thd);
   return thd;
 err:
   delete(thd);
