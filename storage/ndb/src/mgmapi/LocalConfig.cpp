@@ -231,7 +231,7 @@ LocalConfig::parseBindAddress(const char * buf)
     if (buf == tempString2)
       break;
     // try to add port 0 to see if it works
-    snprintf(tempString2, sizeof(tempString2),"%s:0", buf);
+    BaseString::snprintf(tempString2, sizeof(tempString2),"%s:0", buf);
     buf= tempString2;
   } while(1);
   return false;
