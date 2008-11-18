@@ -1543,7 +1543,7 @@ Note	1265	Data truncated for column '5.05 / 0.014' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `5.05 / 0.014` decimal(10,6) default NULL
+  `5.05 / 0.014` decimal(10,6) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 5.05 / 0.014
