@@ -529,8 +529,8 @@ static void smart_dbt_callback_ror_heavi(DBT const *key, DBT  const *row, void *
 ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar *record)
 {
     const uchar *key;     /* Key */
-    ulonglong   unsigned_autoinc;  /* Unsigned auto-increment */
-    longlong      signed_autoinc;  /* Signed auto-increment */
+    ulonglong   unsigned_autoinc = 0;  /* Unsigned auto-increment */
+    longlong      signed_autoinc = 0;  /* Signed auto-increment */
     enum { unsigned_type, signed_type } autoinc_type;
     float float_tmp;   /* Temporary variable */
     double double_tmp; /* Temporary variable */
