@@ -5071,4 +5071,19 @@ select * from t1;
 a
 foo
 drop table t1;
+create table bug39616_1(id int NOT NULL, d varchar(50) NOT NULL) ENGINE=csv;
+select * from bug39616_1;
+id	d
+1	integer sans quotes
+1	string sans quotes
+1	string end quotes"
+1	quotes"in between" strings 
+1	Integer with quote and string with no quote
+1	escape sequence 
+ " \  \a within quotes
+drop table bug39616_1;
+create table bug39616_1(id int NOT NULL, d varchar(50) NOT NULL) ENGINE=csv;
+select * from bug39616_1;
+id	d
+drop table bug39616_1;
 End of 5.0 tests
