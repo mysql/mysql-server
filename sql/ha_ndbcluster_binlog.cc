@@ -5364,6 +5364,42 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
 }
 
 
+static void
+remove_event_operations(Ndb* ndb)
+{
+  DBUG_ENTER("remove_event_operations");
+  NdbEventOperation *op;
+  while ((op= ndb->getEventOperation()))
+  {
+    DBUG_ASSERT(!IS_NDB_BLOB_PREFIX(op->getEvent()->getTable()->getName()));
+    DBUG_PRINT("info", ("removing event operation on %s",
+                        op->getEvent()->getName()));
+
+    Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
+    DBUG_ASSERT(event_data);
+
+    NDB_SHARE *share= event_data->share;
+    DBUG_ASSERT(share != NULL);
+    DBUG_ASSERT(share->op == op || share->new_op == op);
+
+    delete event_data;
+    op->setCustomData(NULL);
+
+    (void) pthread_mutex_lock(&share->mutex);
+    share->op= 0;
+    share->new_op= 0;
+    (void) pthread_mutex_unlock(&share->mutex);
+
+    DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
+                             share->key, share->use_count));
+    free_share(&share);
+
+    ndb->dropEventOperation(op);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 pthread_handler_t ndb_binlog_thread_func(void *arg)
 {
   THD *thd; /* needs to be first for thread_stack */
@@ -5431,6 +5467,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
+restart_cluster_failure:
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       s_ndb->init())
   {
@@ -5743,6 +5780,32 @@ restart:
                                                 &post_epoch_log_list,
                                                 &post_epoch_unlock_list,
                                                 &mem_root);
+#ifdef NOT_YET
+          if (unlikely(pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE))
+          {
+            sql_print_information("NDB Binlog: cluster failure detected");
+            pthread_mutex_lock(&LOCK_open);
+
+            pthread_mutex_lock(&injector_mutex);
+
+            remove_event_operations(s_ndb);
+            delete s_ndb;
+            s_ndb= 0;
+            schema_ndb= 0;
+
+            remove_event_operations(i_ndb);
+            delete i_ndb;
+            i_ndb= 0;
+            injector_ndb= 0;
+
+            hash_free(&ndb_schema_objects);
+
+            pthread_mutex_unlock(&LOCK_open);
+
+            sql_print_information("NDB Binlog: restarting");
+            goto restart_cluster_failure;
+          }
+#endif
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));
@@ -6133,63 +6196,13 @@ err:
   /* remove all event operations */
   if (s_ndb)
   {
-    NdbEventOperation *op;
-    DBUG_PRINT("info",("removing all event operations"));
-    while ((op= s_ndb->getEventOperation()))
-    {
-      DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(op->getEvent()->getTable()->getName()));
-      DBUG_PRINT("info",("removing event operation on %s",
-                         op->getEvent()->getName()));
-      Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
-      NDB_SHARE *share= (event_data)?event_data->share:NULL;
-      DBUG_ASSERT(share != 0);
-      DBUG_ASSERT(share->op == op || share->new_op == op);
-      if (event_data)
-      {
-        delete event_data;
-        op->setCustomData(NULL);
-      }
-      (void) pthread_mutex_lock(&share->mutex);
-      share->op= 0;
-      share->new_op= 0;
-      (void) pthread_mutex_unlock(&share->mutex);
-      /* ndb_share reference binlog free */
-      DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share);
-      s_ndb->dropEventOperation(op);
-    }
+    remove_event_operations(s_ndb);
     delete s_ndb;
     s_ndb= 0;
   }
   if (i_ndb)
   {
-    NdbEventOperation *op;
-    DBUG_PRINT("info",("removing all event operations"));
-    while ((op= i_ndb->getEventOperation()))
-    {
-      DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(op->getEvent()->getTable()->getName()));
-      DBUG_PRINT("info",("removing event operation on %s",
-                         op->getEvent()->getName()));
-      Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
-      NDB_SHARE *share= (event_data)?event_data->share:NULL;
-      if (event_data)
-      {
-        delete event_data;
-        op->setCustomData(NULL);
-      }
-      DBUG_ASSERT(share != 0);
-      (void) pthread_mutex_lock(&share->mutex);
-      DBUG_ASSERT(share->op == op || share->new_op == op);
-      share->op= 0;
-      share->new_op= 0;
-      (void) pthread_mutex_unlock(&share->mutex);
-      /* ndb_share reference binlog free */
-      DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share);
-      i_ndb->dropEventOperation(op);
-    }
+    remove_event_operations(i_ndb);
     delete i_ndb;
     i_ndb= 0;
   }
