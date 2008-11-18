@@ -5467,7 +5467,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
+#ifdef NOT_YET
 restart_cluster_failure:
+#endif
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       s_ndb->init())
   {
