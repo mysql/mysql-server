@@ -2264,7 +2264,8 @@ private:
   void writeFileHeaderOpen(Signal* signal, Uint32 type);
   void writeInitMbyte(Signal* signal);
   void writeSinglePage(Signal* signal, Uint32 pageNo,
-                       Uint32 wordWritten, Uint32 place);
+                       Uint32 wordWritten, Uint32 place,
+                       bool sync = true);
   void buildLinkedLogPageList(Signal* signal);
   void changeMbyte(Signal* signal);
   Uint32 checkIfExecLog(Signal* signal);
