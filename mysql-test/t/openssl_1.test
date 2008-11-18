@@ -145,12 +145,12 @@ DELIMITER ;$$
 let $wait_condition=select count(*) = 0 from information_schema.events where event_name='event_status';
 --source include/wait_condition.inc
 
+# The actual value doesn't matter and can vary based on test ordering and on ssl library.
+--replace_column 2 #
 SELECT variable_name, variable_value FROM thread_status;
 
 DROP TABLE thread_status;
 SET GLOBAL event_scheduler=0;
---echo End of 5.1 tests
-
 
 #
 # Test to connect using a list of ciphers
@@ -190,3 +190,42 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-create --skip-comments --ssl --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem test 2>&1
 
 DROP TABLE t1;
+
+#
+# Bug#39172: Asking for DH+non-RSA key with server set to use other key caused
+# 				YaSSL to crash the server.
+#
+
+# Common ciphers to openssl and yassl
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=DHE-RSA-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC3-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=RC4-SHA
+--disable_output
+
+# Below here caused crashes.  ################
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=NOT----EXIST
+# These probably exist but the server's keys can't be used to accept these kinds of connections.
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES128-RMD
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES128-SHA
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES256-RMD
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES256-SHA
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-DES-CBC3-RMD
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=EDH-DSS-DES-CBC3-SHA
+--error 1,0
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=EDH-DSS-DES-CBC-SHA
+# End of crashers.  ##########################
+
+# If this gives a result, then the bug is fixed.
+--enable_output
+select 'is still running; no cipher request crashed the server' as result from dual;
+
+##
+--echo End of 5.1 tests
