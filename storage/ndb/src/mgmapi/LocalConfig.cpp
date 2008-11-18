@@ -22,6 +22,7 @@
 LocalConfig::LocalConfig(){
   error_line = 0; error_msg[0] = 0;
   _ownNodeId= 0;
+  bind_address_port= 0;
 }
 
 bool
@@ -153,6 +154,11 @@ const char *hostNameTokens[] = {
   0
 };
 
+const char *bindAddressTokens[] = {
+  "bind-address=%[^:]:%i",
+  0
+};
+
 const char *fileNameTokens[] = {
   "file://%s",
   "file=%s",
@@ -179,6 +185,10 @@ LocalConfig::parseHostName(const char * buf){
 	mgmtSrvrId.type = MgmId_TCP;
 	mgmtSrvrId.name.assign(tempString);
 	mgmtSrvrId.port = port;
+        /* assign default bind_address if available */
+        if (bind_address.length())
+          mgmtSrvrId.bind_address.assign(bind_address);
+	mgmtSrvrId.bind_address_port = bind_address_port;
 	ids.push_back(mgmtSrvrId);
 	return true;
       }
@@ -187,6 +197,41 @@ LocalConfig::parseHostName(const char * buf){
       break;
     // try to add default port to see if it works
     BaseString::snprintf(tempString2, sizeof(tempString2),"%s:%s", buf, NDB_PORT);
+    buf= tempString2;
+  } while(1);
+  return false;
+}
+
+bool
+LocalConfig::parseBindAddress(const char * buf)
+{
+  char tempString[1024];
+  char tempString2[1024];
+  int port;
+  do
+  {
+    for(int i = 0; bindAddressTokens[i] != 0; i++)
+    {
+      if (sscanf(buf, bindAddressTokens[i], tempString, &port) == 2)
+      {
+        if (ids.size() == 0)
+        {
+          /* assign default bind_address */
+          bind_address.assign(tempString);
+          bind_address_port = port;
+          return true;
+        }
+        /* override bind_address on latest mgmd */
+        MgmtSrvrId &mgmtSrvrId= ids[ids.size()-1];
+	mgmtSrvrId.bind_address.assign(tempString);
+	mgmtSrvrId.bind_address_port = port;
+	return true;
+      }
+    }
+    if (buf == tempString2)
+      break;
+    // try to add port 0 to see if it works
+    snprintf(tempString2, sizeof(tempString2),"%s:0", buf);
     buf= tempString2;
   } while(1);
   return false;
@@ -221,6 +266,8 @@ LocalConfig::parseString(const char * connectString, BaseString &err){
       if (parseNodeId(tok))
 	continue;
     if (parseHostName(tok))
+      continue;
+    if (parseBindAddress(tok))
       continue;
     if (parseFileName(tok))
       continue;

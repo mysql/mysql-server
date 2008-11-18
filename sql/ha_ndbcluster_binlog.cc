@@ -5794,7 +5794,7 @@ restart:
                                                 &post_epoch_log_list,
                                                 &post_epoch_unlock_list,
                                                 &mem_root);
-
+#ifdef NOT_YET
           if (unlikely(pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE))
           {
             sql_print_information("NDB Binlog: cluster failure detected");
@@ -5819,7 +5819,7 @@ restart:
             sql_print_information("NDB Binlog: restarting");
             goto restart_cluster_failure;
           }
-
+#endif
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));

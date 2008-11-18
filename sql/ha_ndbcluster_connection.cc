@@ -136,7 +136,8 @@ int ndbcluster_connect(int (*connect_callback)(void))
     connect_callback();
     for (unsigned i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
     {
-      if (g_ndb_cluster_connection_pool[i]->node_id() == 0)
+      int node_id= g_ndb_cluster_connection_pool[i]->node_id();
+      if (node_id == 0)
       {
         // not connected to mgmd yet, try again
         g_ndb_cluster_connection_pool[i]->connect(0,0,0);
@@ -146,6 +147,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
           g_ndb_cluster_connection_pool[i]->start_connect_thread();
           continue;
         }
+        node_id= g_ndb_cluster_connection_pool[i]->node_id();
       }
       DBUG_PRINT("info",
                  ("NDBCLUSTER storage engine (%u) at %s on port %d", i,
@@ -159,18 +161,21 @@ int ndbcluster_connect(int (*connect_callback)(void))
         now_time= NdbTick_CurrentMillisecond();
       } while (res != 0 && now_time < end_time);
 
+      const char *msg;
       if (res == 0)
       {
-        sql_print_information("NDB[%u]: all storage nodes connected", i);
+        msg= "all storage nodes connected";
       }
       else if (res > 0)
       {
-        sql_print_information("NDB[%u]: some storage nodes connected", i);
+        msg= "some storage nodes connected";
       }
       else if (res < 0)
       {
-        sql_print_information("NDB[%u]: no storage nodes connected (timed out)", i);
+        msg= "no storage nodes connected (timed out)";
       }
+      sql_print_information("NDB[%u]: NodeID: %d, %s",
+                            i, node_id, msg);
     }
   }
   else if (res == 1)
