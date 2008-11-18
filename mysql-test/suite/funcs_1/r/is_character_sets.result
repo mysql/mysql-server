@@ -28,22 +28,22 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.CHARACTER_SETS;
 Field	Type	Null	Key	Default	Extra
-CHARACTER_SET_NAME	varchar(64)	NO			
-DEFAULT_COLLATE_NAME	varchar(64)	NO			
+CHARACTER_SET_NAME	varchar(32)	NO			
+DEFAULT_COLLATE_NAME	varchar(32)	NO			
 DESCRIPTION	varchar(60)	NO			
 MAXLEN	bigint(3)	NO		0	
 SHOW CREATE TABLE information_schema.CHARACTER_SETS;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
   `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.CHARACTER_SETS;
 Field	Type	Null	Key	Default	Extra
-CHARACTER_SET_NAME	varchar(64)	NO			
-DEFAULT_COLLATE_NAME	varchar(64)	NO			
+CHARACTER_SET_NAME	varchar(32)	NO			
+DEFAULT_COLLATE_NAME	varchar(32)	NO			
 DESCRIPTION	varchar(60)	NO			
 MAXLEN	bigint(3)	NO		0	
 # Testcases 3.2.2.2 and 3.2.2.3 are checked in suite/funcs_1/t/charset_collation*.test

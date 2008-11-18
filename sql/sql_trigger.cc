@@ -682,7 +682,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   trigname.trigger_table.length= tables->table_name_length;
 
   if (sql_create_definition_file(NULL, &trigname_file, &trigname_file_type,
-                                 (uchar*)&trigname, trigname_file_parameters, 0))
+                                 (uchar*)&trigname, trigname_file_parameters))
     return 1;
 
   /*
@@ -800,7 +800,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   /* Create trigger definition file. */
 
   if (!sql_create_definition_file(NULL, &file, &triggers_file_type,
-                                  (uchar*)this, triggers_file_parameters, 0))
+                                  (uchar*)this, triggers_file_parameters))
     return 0;
 
 err_with_cleanup:
@@ -876,8 +876,7 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
                                     TRG_EXT, 0);
   file.str= file_buff;
   return sql_create_definition_file(NULL, &file, &triggers_file_type,
-                                    (uchar*)triggers, triggers_file_parameters,
-                                    0);
+                                    (uchar*)triggers, triggers_file_parameters);
 }
 
 
@@ -1806,8 +1805,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
     trigname.trigger_table= *new_table_name;
 
     if (sql_create_definition_file(NULL, &trigname_file, &trigname_file_type,
-                                   (uchar*)&trigname, trigname_file_parameters,
-                                   0))
+                                   (uchar*)&trigname, trigname_file_parameters))
       return trigger;
   }
 

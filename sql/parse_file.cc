@@ -90,7 +90,6 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
   @param file          pointer to IO_CACHE structure for writing
   @param base          pointer to data structure
   @param parameter     pointer to parameter descriptor
-  @param old_version   for returning back old version number value
 
   @retval
     FALSE   OK
@@ -100,8 +99,7 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
 
 
 static my_bool
-write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
-		ulonglong *old_version)
+write_parameter(IO_CACHE *file, uchar* base, File_option *parameter)
 {
   char num_buf[20];			// buffer for numeric operations
   // string for numeric operations
@@ -125,15 +123,6 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
   case FILE_OPTIONS_ULONGLONG:
   {
     num.set(*((ulonglong *)(base + parameter->offset)), &my_charset_bin);
-    if (my_b_append(file, (const uchar *)num.ptr(), num.length()))
-      DBUG_RETURN(TRUE);
-    break;
-  }
-  case FILE_OPTIONS_REV:
-  {
-    ulonglong *val_i= (ulonglong *)(base + parameter->offset);
-    *old_version= (*val_i)++;
-    num.set(*val_i, &my_charset_bin);
     if (my_b_append(file, (const uchar *)num.ptr(), num.length()))
       DBUG_RETURN(TRUE);
     break;
@@ -207,7 +196,6 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
   @param base          base address for parameter reading (structure like
                        TABLE)
   @param parameters    parameters description
-  @param max_versions  number of versions to save
 
   @retval
     FALSE   OK
@@ -219,13 +207,11 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
 my_bool
 sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
 			   const LEX_STRING *type,
-			   uchar* base, File_option *parameters,
-			   uint max_versions)
+			   uchar* base, File_option *parameters)
 {
   File handler;
   IO_CACHE file;
   char path[FN_REFLEN+1];	// +1 to put temporary file name for sure
-  ulonglong old_version= ULONGLONG_MAX;
   int path_end;
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
@@ -272,7 +258,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
     if (my_b_append(&file, (const uchar *)param->name.str,
                     param->name.length) ||
 	my_b_append(&file, (const uchar *)STRING_WITH_LEN("=")) ||
-	write_parameter(&file, base, param, &old_version) ||
+	write_parameter(&file, base, param) ||
 	my_b_append(&file, (const uchar *)STRING_WITH_LEN("\n")))
       goto err_w_cache;
   }
@@ -286,55 +272,6 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   }
 
   path[path_end]='\0';
-#ifdef FRM_ARCHIVE
-  // archive copies management: disabled unused feature (see bug #17823).
-  if (!access(path, F_OK))
-  {
-    if (old_version != ULONGLONG_MAX && max_versions != 0)
-    {
-      // save backup
-      char path_arc[FN_REFLEN];
-      // backup old version
-      char path_to[FN_REFLEN];
-
-      // check archive directory existence
-      fn_format(path_arc, "arc", dir->str, "", MY_UNPACK_FILENAME);
-      if (access(path_arc, F_OK))
-      {
-	if (my_mkdir(path_arc, 0777, MYF(MY_WME)))
-	{
-	  DBUG_RETURN(TRUE);
-	}
-      }
-
-      my_snprintf(path_to, FN_REFLEN, "%s/%s-%04lu",
-		  path_arc, file_name->str, (ulong) old_version);
-      if (my_rename(path, path_to, MYF(MY_WME)))
-      {
-	DBUG_RETURN(TRUE);
-      }
-
-      // remove very old version
-      if (old_version > max_versions)
-      {
-	my_snprintf(path_to, FN_REFLEN, "%s/%s-%04lu",
-		    path_arc, file_name->str,
-		    (ulong)(old_version - max_versions));
-	if (!access(path_arc, F_OK) && my_delete(path_to, MYF(MY_WME)))
-	{
-	  DBUG_RETURN(TRUE);
-	}
-      }
-    }
-    else
-    {
-      if (my_delete(path, MYF(MY_WME)))	// no backups
-      {
-	DBUG_RETURN(TRUE);
-      }
-    }
-  }
-#endif//FRM_ARCHIVE
 
   {
     // rename temporary file
@@ -361,8 +298,6 @@ err_w_file:
   @param schema            name of given schema
   @param old_name          original file name
   @param new_name          new file name
-  @param revision          revision number
-  @param num_view_backups  number of backups
 
   @retval
     0   OK
@@ -371,8 +306,7 @@ err_w_file:
 */
 my_bool rename_in_schema_file(THD *thd,
                               const char *schema, const char *old_name, 
-                              const char *new_name, ulonglong revision, 
-                              uint num_view_backups)
+                              const char *new_name)
 {
   char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
 
@@ -387,28 +321,6 @@ my_bool rename_in_schema_file(THD *thd,
   /* check if arc_dir exists: disabled unused feature (see bug #17823). */
   build_table_filename(arc_path, sizeof(arc_path) - 1, schema, "arc", "", 0);
   
-#ifdef FRM_ARCHIVE
-  if (revision > 0 && !access(arc_path, F_OK))
-  {
-    char old_name_buf[FN_REFLEN], new_name_buf[FN_REFLEN];
-    ulonglong limit= ((revision > num_view_backups) ?
-                      revision - num_view_backups : 0);
-
-    VOID(tablename_to_filename(old_name, old_name_buf, sizeof(old_name_buf)));
-    VOID(tablename_to_filename(new_name, new_name_buf, sizeof(new_name_buf)));
-
-    for (; revision > limit ; revision--)
-    {
-      my_snprintf(old_path, FN_REFLEN, "%s/%s%s-%04lu",
-		  arc_path, old_name_buf, reg_ext, (ulong) revision);
-      (void) unpack_filename(old_path, old_path);
-      my_snprintf(new_path, FN_REFLEN, "%s/%s%s-%04lu",
-		  arc_path, new_name_buf, reg_ext, (ulong) revision);
-      (void) unpack_filename(new_path, new_path);
-      my_rename(old_path, new_path, MYF(0));
-    }
-  }
-#else//FRM_ARCHIVE
   { // remove obsolete 'arc' directory and files if any
     MY_DIR *new_dirp;
     if ((new_dirp = my_dir(arc_path, MYF(MY_DONT_SORT))))
@@ -417,7 +329,6 @@ my_bool rename_in_schema_file(THD *thd,
       (void) mysql_rm_arc_files(thd, new_dirp, arc_path);
     }
   }
-#endif//FRM_ARCHIVE
   return 0;
 }
 
@@ -846,7 +757,6 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  break;
 	}
 	case FILE_OPTIONS_ULONGLONG:
-	case FILE_OPTIONS_REV:
 	  if (!(eol= strchr(ptr, '\n')))
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
