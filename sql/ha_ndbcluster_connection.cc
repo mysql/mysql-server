@@ -161,7 +161,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
         now_time= NdbTick_CurrentMillisecond();
       } while (res != 0 && now_time < end_time);
 
-      const char *msg;
+      const char *msg= 0;
       if (res == 0)
       {
         msg= "all storage nodes connected";
