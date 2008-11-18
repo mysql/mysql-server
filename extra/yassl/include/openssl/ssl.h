@@ -170,8 +170,9 @@ enum { /* X509 Constants */
     X509_V_ERR_CRL_SIGNATURE_FAILURE          = 10,
     X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD = 11,
     X509_V_ERR_CRL_HAS_EXPIRED                = 12,
-    X509_V_ERR_CERT_REVOKED                   = 13
-
+    X509_V_ERR_CERT_REVOKED                   = 13,
+    X509_V_FLAG_CRL_CHECK                     = 14,
+    X509_V_FLAG_CRL_CHECK_ALL                 = 15
 };
 
 
@@ -202,7 +203,8 @@ SSL_CTX* SSL_CTX_new(SSL_METHOD*);
 SSL* SSL_new(SSL_CTX*);
 int  SSL_set_fd (SSL*, YASSL_SOCKET_T);
 YASSL_SOCKET_T SSL_get_fd(const SSL*);
-int  SSL_connect(SSL*);
+int  SSL_connect(SSL*);                    // if you get an error from connect
+                                           // see note at top of REAMDE
 int  SSL_write(SSL*, const void*, int);
 int  SSL_read(SSL*, void*, int);
 int  SSL_accept(SSL*);
@@ -227,6 +229,7 @@ void SSL_load_error_strings(void);
 
 int          SSL_set_session(SSL *ssl, SSL_SESSION *session);
 SSL_SESSION* SSL_get_session(SSL* ssl);
+void         SSL_flush_sessions(SSL_CTX *ctx, long tm);
 long         SSL_SESSION_set_timeout(SSL_SESSION*, long);
 long         SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode);
 X509*        SSL_get_peer_certificate(SSL*);
