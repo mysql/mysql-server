@@ -611,6 +611,7 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 Thd_ndb::Thd_ndb()
 {
   connection= ndb_get_cluster_connection();
+  m_connect_count= connection->get_connect_count();
   ndb= new Ndb(connection, "");
   lock_count= 0;
   start_stmt_count= 0;
@@ -8042,6 +8043,52 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 }
 
 
+bool Thd_ndb::recycle_ndb(THD* thd)
+{
+  DBUG_ENTER("recycle_ndb");
+  DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
+
+  DBUG_ASSERT(global_schema_lock_trans == NULL);
+
+  delete ndb;
+  if ((ndb= new Ndb(connection, "")) == NULL)
+  {
+    DBUG_PRINT("error",("failed to allocate Ndb object"));
+    DBUG_RETURN(false);
+  }
+
+  if (ndb->init(max_transactions) != 0)
+  {
+    delete ndb;
+    ndb= NULL;
+    DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
+                         ndb->getNdbError().code,
+                         ndb->getNdbError().message));
+    DBUG_RETURN(false);
+  }
+
+  changed_tables.empty();
+  trans= NULL;
+
+  DBUG_RETURN(true);
+}
+
+
+bool
+Thd_ndb::valid_ndb(void)
+{
+  // The ndb object should be valid as long as a
+  // global schema lock transaction is ongoing
+  if (global_schema_lock_trans)
+    return true;
+
+  if (unlikely(m_connect_count != connection->get_connect_count()))
+    return false;
+  return true;
+}
+
+
+
 /**
   If this thread already has a Thd_ndb object allocated
   in current THD, reuse it. Otherwise
@@ -8049,7 +8096,7 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
  
 */
 
-Ndb* check_ndb_in_thd(THD* thd)
+Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
@@ -8057,6 +8104,11 @@ Ndb* check_ndb_in_thd(THD* thd)
     if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
       return NULL;
     set_thd_ndb(thd, thd_ndb);
+  }
+  else if (validate_ndb && !thd_ndb->valid_ndb())
+  {
+    if (!thd_ndb->recycle_ndb(thd))
+      return NULL;
   }
   return thd_ndb->ndb;
 }
@@ -8068,7 +8120,7 @@ int ha_ndbcluster::check_ndb_connection(THD* thd)
   Ndb *ndb;
   DBUG_ENTER("check_ndb_connection");
   
-  if (!(ndb= check_ndb_in_thd(thd)))
+  if (!(ndb= check_ndb_in_thd(thd, true)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   if (ndb->setDatabaseName(m_dbname))
   {
@@ -10971,6 +11023,11 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       have been created.
       If not try to create it
     */
+		if (!check_ndb_in_thd(thd, false))
+    {
+      set_timespec(abstime, 1);
+      continue;
+    }
     if (!ndb_binlog_tables_inited)
       ndbcluster_setup_binlog_table_shares(thd);
 
