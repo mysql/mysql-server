@@ -8266,11 +8266,13 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
       return NULL;
     set_thd_ndb(thd, thd_ndb);
   }
+#ifdef NOT_YET
   else if (validate_ndb && !thd_ndb->valid_ndb())
   {
     if (!thd_ndb->recycle_ndb(thd))
       return NULL;
   }
+#endif
   return thd_ndb->ndb;
 }
 
