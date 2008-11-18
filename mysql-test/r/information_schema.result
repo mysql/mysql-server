@@ -517,8 +517,8 @@ drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
   `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
@@ -526,8 +526,8 @@ set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
   `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
@@ -541,8 +541,8 @@ alter table t1 default character set utf8;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
   `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
@@ -716,8 +716,8 @@ select column_type from information_schema.columns
 where table_schema="information_schema" and table_name="COLUMNS" and
 (column_name="character_set_name" or column_name="collation_name");
 column_type
-varchar(64)
-varchar(64)
+varchar(32)
+varchar(32)
 select TABLE_ROWS from information_schema.tables where 
 table_schema="information_schema" and table_name="COLUMNS";
 TABLE_ROWS
@@ -764,7 +764,6 @@ information_schema	PARTITIONS	PARTITION_DESCRIPTION
 information_schema	PLUGINS	PLUGIN_DESCRIPTION
 information_schema	PROCESSLIST	INFO
 information_schema	ROUTINES	ROUTINE_DEFINITION
-information_schema	ROUTINES	SQL_MODE
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
@@ -1652,4 +1651,60 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select count(*) from information_schema.views;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	views	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases
+set global init_connect="drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;\
+drop table if exists t1;drop table if exists t1;";
+select * from information_schema.global_variables where variable_name='init_connect';
+VARIABLE_NAME	VARIABLE_VALUE
+INIT_CONNECT	drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists t1;
+drop table if exists t1;drop table if exists
+Warnings:
+Warning	1265	Data truncated for column 'VARIABLE_VALUE' at row 1
+set global init_connect="";
+create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
+SELECT 1;
+1
+1
+select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
+where a.VARIABLE_NAME = b.VARIABLE_NAME;
+a.VARIABLE_VALUE - b.VARIABLE_VALUE
+2
+drop table t0;
 End of 5.1 tests.
