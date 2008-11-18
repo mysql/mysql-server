@@ -494,3 +494,31 @@ SELECT a FROM t1 WHERE MATCH a AGAINST ('+city* of*' IN BOOLEAN MODE);
 a
 City Of God
 DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b));
+INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
+('test', 1),('test', 2),('test', 3),('test', 4);
+EXPLAIN SELECT * FROM t1
+WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	fulltext	b,a	a	0		1	Using where
+EXPLAIN SELECT * FROM t1 USE INDEX(a)
+WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	fulltext	a	a	0		1	Using where
+EXPLAIN SELECT * FROM t1 FORCE INDEX(a)
+WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	fulltext	a	a	0		1	Using where
+EXPLAIN SELECT * FROM t1 IGNORE INDEX(a)
+WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b	b	5	const	4	Using where
+EXPLAIN SELECT * FROM t1 USE INDEX(b)
+WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b	b	5	const	4	Using where
+EXPLAIN SELECT * FROM t1 FORCE INDEX(b)
+WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b	b	5	const	4	Using where
+DROP TABLE t1;
