@@ -5738,17 +5738,6 @@ restart:
       res= i_ndb->pollEvents(tot_poll_wait, &gci);
       tot_poll_wait= 0;
     }
-    else
-    {
-      /*
-        Just consume any events, not used if no binlogging
-        e.g. node failure events
-      */
-      Uint64 tmp_gci;
-      if (i_ndb->pollEvents(0, &tmp_gci))
-        while (i_ndb->nextEvent())
-          ;
-    }
     int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_gci);
     ndb_latest_received_binlog_epoch= gci;
 
@@ -5854,7 +5843,35 @@ restart:
       }
     }
 
-    if (res > 0)
+    if (!ndb_binlog_running)
+    {
+      /*
+        Just consume any events, not used if no binlogging
+        e.g. node failure events
+      */
+      Uint64 tmp_gci;
+      if (i_ndb->pollEvents(0, &tmp_gci))
+      {
+        NdbEventOperation *pOp;
+        while ((pOp= i_ndb->nextEvent()))
+        {
+          if ((unsigned) pOp->getEventType() >=
+              (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
+          {
+            ndb_binlog_index_row row;
+            ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);
+          }
+        }
+        if (i_ndb->getEventOperation() == NULL &&
+            s_ndb->getEventOperation() == NULL &&
+            do_ndbcluster_binlog_close_connection == BCCC_running)
+        {
+          DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
+          do_ndbcluster_binlog_close_connection= BCCC_restart;
+        }
+      }
+    }
+    else if (res > 0)
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
