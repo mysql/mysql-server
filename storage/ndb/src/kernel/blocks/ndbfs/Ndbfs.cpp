@@ -190,8 +190,11 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   
   if(fsOpenReq->fileFlags & FsOpenReq::OM_INIT)
   {
+    jam();
+    Uint32 cnt = 16; // 512k
     Ptr<GlobalPage> page_ptr;
-    if(m_global_page_pool.seize(page_ptr) == false)
+    m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, 1);
+    if(cnt == 0)
     {
       FsRef * const fsRef = (FsRef *)&signal->theData[0];
       fsRef->userPointer  = userPointer; 
@@ -200,12 +203,15 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       sendSignal(userRef, GSN_FSOPENREF, signal, 3, JBB);
       return;
     }
+    m_shared_page_pool.getPtr(page_ptr);
     file->m_page_ptr = page_ptr;
+    file->m_page_cnt = cnt;
   } 
   else
   {
     ndbassert(file->m_page_ptr.isNull());
     file->m_page_ptr.setNull();
+    file->m_page_cnt = 0;
   }
   
   if(signal->getNoOfSections() == 0){
@@ -700,8 +706,12 @@ Ndbfs::report(Request * request, Signal* signal)
 
   if(!request->file->m_page_ptr.isNull())
   {
-    m_global_page_pool.release(request->file->m_page_ptr);
+    assert(request->file->m_page_cnt > 0);
+    m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, 
+                             request->file->m_page_ptr.i,
+                             request->file->m_page_cnt);
     request->file->m_page_ptr.setNull();
+    request->file->m_page_cnt = 0;
   }
   
   if (request->error) {
