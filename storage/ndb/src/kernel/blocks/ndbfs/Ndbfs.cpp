@@ -196,6 +196,9 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, 1);
     if(cnt == 0)
     {
+      file->m_page_ptr.setNull();
+      file->m_page_cnt = 0;
+      
       FsRef * const fsRef = (FsRef *)&signal->theData[0];
       fsRef->userPointer  = userPointer; 
       fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrOutOfMemory);
