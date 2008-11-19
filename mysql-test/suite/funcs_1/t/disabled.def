@@ -10,3 +10,5 @@
 #
 ##############################################################################
 
+ndb_storedproc:		Something's not right in the test... also this test does not exist in 5.1
+ndb_views:		Bug #40860 funcs_1.ndb_views fail
