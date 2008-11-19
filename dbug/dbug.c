@@ -2407,4 +2407,13 @@ int i_am_a_dummy_function() {
        return 0;
 }
 
+#ifdef __WIN__
+char _db_doprnt_;
+char _db_enter_;
+char _db_pargs_;
+char _db_process_;
+char _db_push_;
+char _db_return_;
+#endif /*__WIN__*/
+
 #endif
