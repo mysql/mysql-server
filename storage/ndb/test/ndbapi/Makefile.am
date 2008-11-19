@@ -59,7 +59,8 @@ ndbapi_50compat1 \
 testNDBT \
 testReconnect \
 NdbRepStress \
-msa
+msa \
+testMgmDisconnect
 
 EXTRA_PROGRAMS = \
  test_event \
