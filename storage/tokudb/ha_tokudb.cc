@@ -3441,7 +3441,11 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             DBUG_ASSERT(trx->stmt == 0);
             transaction = NULL;    // Safety
             /* First table lock, start transaction */
-            if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK)) && !trx->all) {
+            if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK)) && 
+                 !trx->all &&
+                 (thd_sql_command(thd) == SQLCOM_CREATE_TABLE) &&
+                 (thd_sql_command(thd) == SQLCOM_DROP_TABLE) &&
+                 (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)) {
                 /* QQQ We have to start a master transaction */
                 DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
                 //
