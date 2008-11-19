@@ -1,5 +1,10 @@
 #ifndef _STDINT_H
 #define _STDINT_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include <basetsd.h>
 #include <sys/types.h>
 
@@ -32,6 +37,10 @@ typedef SSIZE_T ssize_t;
 #define INT64_MIN  _I64_MIN
 #define INT64_MAX  _I64_MAX
 #define UINT64_MAX _UI64_MAX
+
+#if defined(__cplusplus)
+};
+#endif
 
 #endif
 

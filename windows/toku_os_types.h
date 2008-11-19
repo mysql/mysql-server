@@ -1,5 +1,9 @@
-#if !defined(TOKU_OS_TYPES_H)
-#define TOKUOS_TYPES_H
+#ifndef TOKU_OS_TYPES_H
+#define TOKU_OS_TYPES_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #include <stdlib.h>
 #include <direct.h>
@@ -28,6 +32,10 @@ struct dirent {
 
 struct __toku_windir;
 typedef struct __toku_windir DIR;
+
+#if defined(__cplusplus)
+};
+#endif
 
 #endif
 

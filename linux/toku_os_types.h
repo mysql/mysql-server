@@ -1,5 +1,10 @@
 #if !defined(TOKU_OS_TYPES_H)
 #define TOKU_OS_TYPES_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include <sys/types.h>
 
 typedef int toku_os_handle_t;
@@ -11,6 +16,10 @@ struct fileid {
 
 #if !defined(O_BINARY)
 #define O_BINARY 0
+#endif
+
+#if defined(__cplusplus)
+};
 #endif
 
 #endif

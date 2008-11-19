@@ -1,5 +1,10 @@
 #ifndef _TOKUWIN_UNISTD_H
 #define _TOKUWIN_UNISTD_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include <io.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -18,6 +23,10 @@ sleep(unsigned int);
 
 int
 usleep(unsigned int);
+
+#if defined(__cplusplus)
+};
+#endif
 
 #endif
 
