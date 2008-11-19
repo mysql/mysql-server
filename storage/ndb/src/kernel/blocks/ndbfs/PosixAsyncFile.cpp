@@ -314,7 +314,8 @@ no_odirect:
     FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
 
     Uint32 index = 0;
-    Uint32 block = refToBlock(request->theUserReference);
+    Uint32 block = refToMain(request->theUserReference);
+    Uint32 instance = refToInstance(request->theUserReference);
 
 #ifdef HAVE_XFS_XFS_H
     if(platform_test_xfs_fd(theFd))
@@ -354,7 +355,7 @@ no_odirect:
 
         m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
                             FsReadWriteReq::FixedLength + 1,
-                            0);
+                            instance);
         
         cnt++;
         size += request->par.open.page_size;
