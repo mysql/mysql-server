@@ -1049,6 +1049,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1G" },
 
   {
+    CFG_DB_INIT_REDO,
+    "InitFragmentLogFiles",
+    DB_TOKEN,
+    "Initialize fragment logfiles (sparse/full)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
     CFG_DB_MAX_OPEN_FILES,
     "MaxNoOfOpenFiles",
     DB_TOKEN,

@@ -2158,6 +2158,7 @@ private:
   void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
+  void execFSWRITEREQ(Signal*);
   void execSCAN_HBREP(Signal* signal);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
@@ -2904,6 +2905,7 @@ private:
   
   Uint32 c_diskless;
   Uint32 c_o_direct;
+  Uint32 m_use_om_init;
   Uint32 c_error_insert_table_id;
   
 public:

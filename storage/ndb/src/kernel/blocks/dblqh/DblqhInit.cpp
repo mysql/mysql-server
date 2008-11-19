@@ -309,6 +309,10 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
 	       &Dblqh::execPREPARE_COPY_FRAG_REQ);
   
+
+  addRecSignal(GSN_FSWRITEREQ,
+               &Dblqh::execFSWRITEREQ);
+
   initData();
 
 #ifdef VM_TRACE
