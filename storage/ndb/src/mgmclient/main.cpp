@@ -56,7 +56,9 @@ handler(int sig)
      * Will happen when connection to mgmsrv is broken
      * Reset connected flag
      */
-    com->disconnect();    
+    printf("Got SIGPIPE!\n");
+    if (com)
+      com->disconnect();
     break;
   }
   DBUG_VOID_RETURN;
@@ -152,7 +154,11 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
-#ifndef NDB_WIN32
+  // Install our own signal handler for SIGPIPE that calls
+  // 'Ndb_mgmclient' disconnect. In order to avoid that the
+  // mgmapi installs its own SIGPIPE handler, the Ndb_mgmclient will
+  // use 'ndb_mgm_set_ignore_sigpipe(handle, 0)'
+#if defined SIGPIPE && !defined _WIN32
   signal(SIGPIPE, handler);
 #endif
   com = new Ndb_mgmclient(opt_connect_str,1);
