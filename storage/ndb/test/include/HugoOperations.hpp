@@ -51,9 +51,14 @@ public:
 			   int numRecords = 1);
   
   int pkReadRecord(Ndb*,
-		   int recordNo,
-		   int numRecords = 1,
-		   NdbOperation::LockMode lm = NdbOperation::LM_Read);
+                   int record,
+                   int numRecords = 1,
+                   NdbOperation::LockMode lm = NdbOperation::LM_Read);
+  
+  int pkReadRandRecord(Ndb*,
+                       int records,
+                       int numRecords = 1,
+                       NdbOperation::LockMode lm = NdbOperation::LM_Read);
   
   int pkUpdateRecord(Ndb*,
 		     int recordNo,
