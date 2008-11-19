@@ -93,7 +93,6 @@ public:
     NodeBitmask m_reserved_nodes;
     NDB_TICKS m_alloc_timeout;
   };
-  NdbMutex *m_node_id_mutex;
 
   /**
    * Enable/disable eventlog log levels/severities.
@@ -478,6 +477,8 @@ private:
 
   NdbMutex* m_local_config_mutex;
   const Config* m_local_config;
+
+  NdbMutex *m_node_id_mutex;
 
   BlockReference _ownReference;
 
