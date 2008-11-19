@@ -45,6 +45,7 @@ class FsReadWriteReq {
   friend class Tsman;
   friend class Pgman;
   friend class Restore;
+  friend class Dblqh;
 
   /**
    * For printing

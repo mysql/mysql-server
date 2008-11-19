@@ -83,6 +83,7 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 #ifdef VM_TRACE
   m_global_variables = new Ptr<void> * [1];
   m_global_variables[0] = 0;
+  m_global_variables_save = 0;
 #endif
 }
 
@@ -2166,6 +2167,23 @@ SimulatedBlock::execFSAPPENDREF(Signal* signal)
 }
 
 #ifdef VM_TRACE
+static Ptr<void> * m_empty_global_variables[] = { 0 };
+void
+SimulatedBlock::disable_global_variables()
+{
+  m_global_variables_save = m_global_variables;
+  m_global_variables = m_empty_global_variables;
+}
+
+void
+SimulatedBlock::enable_global_variables()
+{
+  if (m_global_variables == m_empty_global_variables)
+  {
+    m_global_variables = m_global_variables_save;
+  }
+}
+
 void
 SimulatedBlock::clear_global_variables(){
   Ptr<void> ** tmp = m_global_variables;
