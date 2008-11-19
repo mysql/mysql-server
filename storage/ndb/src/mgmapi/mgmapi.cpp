@@ -106,6 +106,7 @@ struct ndb_mgm_handle {
   int mgmd_version_minor;
   int mgmd_version_build;
   char * m_bindaddress;
+  bool ignore_sigpipe;
 };
 
 #define SET_ERROR(h, e, s) setError(h, e, __LINE__, s)
@@ -189,6 +190,7 @@ ndb_mgm_create_handle()
   h->errstream       = stdout;
   h->m_name          = 0;
   h->m_bindaddress   = 0;
+  h->ignore_sigpipe  = true;
 
   strncpy(h->last_error_desc, "No error", NDB_MGM_MAX_ERR_DESC_SIZE);
 
@@ -250,6 +252,19 @@ ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
     handle->m_bindaddress = 0;
 
   DBUG_RETURN(0);
+}
+
+extern "C"
+int
+ndb_mgm_set_ignore_sigpipe(NdbMgmHandle handle, int val)
+{
+  CHECK_HANDLE(handle, -1);
+  if (handle->connected){
+    SET_ERROR(handle, EINVAL, "Can't change 'ignore_sigpipe' while connected");
+    return -1;
+  }
+  handle->ignore_sigpipe = (val != 0);
+  return 0;
 }
 
 /**
@@ -515,6 +530,11 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   handle->logfile = fopen(logname, "w");
 #endif
   char buf[1024];
+
+#if defined SIGPIPE && !defined _WIN32
+  if (handle->ignore_sigpipe)
+    (void)signal(SIGPIPE, SIG_IGN);
+#endif
 
   /**
    * Do connect

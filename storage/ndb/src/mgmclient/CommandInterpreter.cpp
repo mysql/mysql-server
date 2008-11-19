@@ -941,13 +941,25 @@ CommandInterpreter::connect(bool interactive)
 
   m_mgmsrv = ndb_mgm_create_handle();
   if(m_mgmsrv == NULL) {
-    ndbout_c("Cannot create handle to management server.");
+    ndbout_c("Can't create handle to management server.");
+    exit(-1);
+  }
+  if (ndb_mgm_set_ignore_sigpipe(m_mgmsrv, 0)) {
+    ndbout_c("Can't set 'ignore_sigpipe', error: %d - %s",
+             ndb_mgm_get_latest_error(m_mgmsrv),
+             ndb_mgm_get_latest_error_desc(m_mgmsrv));
     exit(-1);
   }
   if (interactive) {
     m_mgmsrv2 = ndb_mgm_create_handle();
     if(m_mgmsrv2 == NULL) {
-      ndbout_c("Cannot create 2:nd handle to management server.");
+      ndbout_c("Can't create 2:nd handle to management server.");
+      exit(-1);
+    }
+    if (ndb_mgm_set_ignore_sigpipe(m_mgmsrv2, 0)) {
+      ndbout_c("Can't set 'ignore_sigpipe', error: %d - %s",
+               ndb_mgm_get_latest_error(m_mgmsrv2),
+               ndb_mgm_get_latest_error_desc(m_mgmsrv2));
       exit(-1);
     }
   }
@@ -2278,7 +2290,7 @@ CommandInterpreter::executeStatus(int processId,
   cl = ndb_mgm_get_status2(m_mgmsrv, all ? types : 0);
   if(cl == NULL) 
   {
-    ndbout_c("Cannot get status of node %d.", processId);
+    ndbout_c("Can't get status of node %d.", processId);
     printError();
     return -1;
   }
@@ -2396,7 +2408,7 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
     struct ndb_mgm_cluster_state *cl = ndb_mgm_get_status(m_mgmsrv);
     if (cl == NULL)
     {
-      ndbout_c("Cannot get status of node %d.", processId);
+      ndbout_c("Can't get status of node %d.", processId);
       printError();
       return -1;
     }
