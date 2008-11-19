@@ -46,23 +46,9 @@ select * from t1;
 connection default;
 --disable_result_log
 --disable_query_log
---disable_abort_on_error
-let $counter= 500;
-let $mysql_errno=37;
-while ($mysql_errno)
-{
-  select * from t1;
-
-  dec $counter;
-  if (!$counter)
-  {
-    --die Server failed to reconnect to cluster
-  }
-  --sleep 0.1
-}
---enable_abort_on_error
---enable_query_log
+--source include/ndb_not_readonly.inc
 --enable_result_log
+--enable_query_log
 
 # Run selects to show that the cluster are back
 
