@@ -1131,6 +1131,8 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
   }
 
   Uint32 mb = 96;
+  Uint32 files = 13;
+
   {
     char buf[256];
     if (NdbEnv_GetEnv("UNDOSIZE", buf, sizeof(buf)))
@@ -1140,7 +1142,19 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
     }
   }
   
+  {
+    char buf[256];
+    if (NdbEnv_GetEnv("UNDOFILES", buf, sizeof(buf)))
+    {
+      files = atoi(buf);
+      ndbout_c("Using max %u dd-undo files", files);
+    }
+  }
+  
   Uint32 sz = 32;
+  while (mb > files * sz)
+    sz += 32;
+
   for (Uint32 i = 0; i * sz < mb; i++)
   {
     char tmp[256];
@@ -1149,7 +1163,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
     if (strcmp(uf.getPath(), tmp) != 0)
     {
       uf.setPath(tmp);
-      uf.setSize(sz*1024*1024);
+      uf.setSize(Uint64(sz)*1024*1024);
       uf.setLogfileGroup("DEFAULT-LG");
       
       res = pDict->createUndofile(uf, true);
@@ -1175,30 +1189,39 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       return NDBT_FAILED;
     }
   }
-  
-  {
-    NdbDictionary::Datafile df = pDict->getDatafile(0, "datafile01.dat");
-    if (strcmp(df.getPath(), "datafile01.dat") != 0)
-    {
-      df.setPath("datafile01.dat");
-      df.setSize(64*1024*1024);
-      df.setTablespace("DEFAULT-TS");
-      
-      res = pDict->createDatafile(df, true);
-      if(res != 0){
-	g_err << "Failed to create datafile:"
-	      << endl << pDict->getNdbError() << endl;
-	return NDBT_FAILED;
-      }
-    }
-  }
 
+  mb = 128;
   {
-    NdbDictionary::Datafile df = pDict->getDatafile(0, "datafile02.dat");
-    if (strcmp(df.getPath(), "datafile02.dat") != 0)
+    char buf[256];
+    if (NdbEnv_GetEnv("DATASIZE", buf, sizeof(buf)))
     {
-      df.setPath("datafile02.dat");
-      df.setSize(64*1024*1024);
+      mb = atoi(buf);
+      ndbout_c("Using %umb dd-data", mb);
+    }
+  }
+  
+  sz = 64;
+  files = 13;
+  {
+    char buf[256];
+    if (NdbEnv_GetEnv("DATAFILES", buf, sizeof(buf)))
+    {
+      files = atoi(buf);
+      ndbout_c("Using max %u dd-data files", files);
+    }
+  }
+  
+  while (mb > files * sz)
+    sz += 32;
+  for (Uint32 i = 0; i * sz < mb; i++)
+  {
+    char tmp[256];
+    BaseString::snprintf(tmp, sizeof(tmp), "datafile%u.dat", i);
+    NdbDictionary::Datafile df = pDict->getDatafile(0, tmp);
+    if (strcmp(df.getPath(), tmp) != 0)
+    {
+      df.setPath(tmp);
+      df.setSize(Uint64(sz)*1024*1024);
       df.setTablespace("DEFAULT-TS");
       
       res = pDict->createDatafile(df, true);
@@ -1209,7 +1232,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       }
     }
   }
-  
+    
   return NDBT_OK;
 }
 
