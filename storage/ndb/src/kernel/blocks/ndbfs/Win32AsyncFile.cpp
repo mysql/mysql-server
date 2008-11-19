@@ -207,22 +207,30 @@ int
 Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
   req->par.readWrite.pages[0].size = 0;
 
-  DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
-  if(dwSFP != offset) {
-    return GetLastError();
-  }
-
   while (size > 0) {
     size_t bytes_read = 0;
 
+    OVERLAPPED ov;
+    bzero(&ov, sizeof(ov));
+
+    LARGE_INTEGER li;
+    li.QuadPart = offset;
+    ov.Offset = li.LowPart;
+    ov.OffsetHigh = li.HighPart;
+    
     DWORD dwBytesRead;
     BOOL bRead = ReadFile(hFile,
                           buf,
                           size,
                           &dwBytesRead,
-                          0);
+                          &ov);
     if(!bRead){
-      return GetLastError();
+      int err = GetLastError();
+      if (err == ERROR_HANDLE_EOF && req->action == Request::readPartial)
+      {
+        return 0;
+      }
+      return err;
     }
     bytes_read = dwBytesRead;
 
@@ -257,12 +265,15 @@ Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
 
   m_write_wo_sync += size;
 
-  DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
-  if(dwSFP != offset) {
-    return GetLastError();
-  }
-
   while (size > 0) {
+    OVERLAPPED ov;
+    bzero(&ov, sizeof(ov));
+
+    LARGE_INTEGER li;
+    li.QuadPart = offset;
+    ov.Offset = li.LowPart;
+    ov.OffsetHigh = li.HighPart;
+    
     if (size < bytes_to_write){
       // We are at the last chunk
       bytes_to_write = size;
@@ -270,7 +281,7 @@ Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
     size_t bytes_written = 0;
 
     DWORD dwWritten;
-    BOOL bWrite = WriteFile(hFile, buf, bytes_to_write, &dwWritten, 0);
+    BOOL bWrite = WriteFile(hFile, buf, bytes_to_write, &dwWritten, &ov);
     if(!bWrite) {
       return GetLastError();
     }
