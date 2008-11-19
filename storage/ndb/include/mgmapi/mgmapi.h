@@ -554,6 +554,15 @@ extern "C" {
    */
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
 
+  /**
+   * Gets connection bind address
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 hostname
+   */
+  const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**

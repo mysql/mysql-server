@@ -258,6 +258,8 @@ protected:
 
 public:
   SimulatedBlock& m_fs;
+
+  Uint32 m_page_cnt;
   Ptr<GlobalPage> m_page_ptr;
 };
 

@@ -697,11 +697,10 @@ Lgman::execFSWRITEREQ(Signal* signal)
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   
   m_file_pool.getPtr(ptr, req->userPointer);
-  m_global_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
 
   if (req->varIndex == 0)
   {
-    jam();
     File_formats::Undofile::Zero_page* page = 
       (File_formats::Undofile::Zero_page*)page_ptr.p;
     page->m_page_header.init(File_formats::FT_Undofile, 
@@ -715,7 +714,6 @@ Lgman::execFSWRITEREQ(Signal* signal)
   }
   else
   {
-    jam();
     File_formats::Undofile::Undo_page* page = 
       (File_formats::Undofile::Undo_page*)page_ptr.p;
     page->m_page_header.m_page_lsn_hi = 0;

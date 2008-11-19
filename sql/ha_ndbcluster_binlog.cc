@@ -5481,7 +5481,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
+#ifdef NOT_YET
 restart_cluster_failure:
+#endif
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       s_ndb->init())
   {
@@ -5736,17 +5738,6 @@ restart:
       res= i_ndb->pollEvents(tot_poll_wait, &gci);
       tot_poll_wait= 0;
     }
-    else
-    {
-      /*
-        Just consume any events, not used if no binlogging
-        e.g. node failure events
-      */
-      Uint64 tmp_gci;
-      if (i_ndb->pollEvents(0, &tmp_gci))
-        while (i_ndb->nextEvent())
-          ;
-    }
     int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_gci);
     ndb_latest_received_binlog_epoch= gci;
 
@@ -5794,7 +5785,7 @@ restart:
                                                 &post_epoch_log_list,
                                                 &post_epoch_unlock_list,
                                                 &mem_root);
-
+#ifdef NOT_YET
           if (unlikely(pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE))
           {
             sql_print_information("NDB Binlog: cluster failure detected");
@@ -5819,7 +5810,7 @@ restart:
             sql_print_information("NDB Binlog: restarting");
             goto restart_cluster_failure;
           }
-
+#endif
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));
@@ -5852,7 +5843,35 @@ restart:
       }
     }
 
-    if (res > 0)
+    if (!ndb_binlog_running)
+    {
+      /*
+        Just consume any events, not used if no binlogging
+        e.g. node failure events
+      */
+      Uint64 tmp_gci;
+      if (i_ndb->pollEvents(0, &tmp_gci))
+      {
+        NdbEventOperation *pOp;
+        while ((pOp= i_ndb->nextEvent()))
+        {
+          if ((unsigned) pOp->getEventType() >=
+              (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
+          {
+            ndb_binlog_index_row row;
+            ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);
+          }
+        }
+        if (i_ndb->getEventOperation() == NULL &&
+            s_ndb->getEventOperation() == NULL &&
+            do_ndbcluster_binlog_close_connection == BCCC_running)
+        {
+          DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
+          do_ndbcluster_binlog_close_connection= BCCC_restart;
+        }
+      }
+    }
+    else if (res > 0)
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";

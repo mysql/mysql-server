@@ -829,7 +829,7 @@ Tsman::execFSWRITEREQ(Signal* signal)
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   
   m_file_pool.getPtr(ptr, req->userPointer);
-  m_global_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
   memset(page_ptr.p, 0, File_formats::NDB_PAGE_SIZE);
   
   Uint32 page_no = req->varIndex;

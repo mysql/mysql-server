@@ -8266,11 +8266,13 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
       return NULL;
     set_thd_ndb(thd, thd_ndb);
   }
+#ifdef NOT_YET
   else if (validate_ndb && !thd_ndb->valid_ndb())
   {
     if (!thd_ndb->recycle_ndb(thd))
       return NULL;
   }
+#endif
   return thd_ndb->ndb;
 }
 
@@ -11196,7 +11198,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       have been created.
       If not try to create it
     */
-		if (!check_ndb_in_thd(thd, false))
+    if (!check_ndb_in_thd(thd, false))
     {
       set_timespec(abstime, 1);
       continue;
