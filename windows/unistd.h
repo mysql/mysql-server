@@ -24,6 +24,11 @@ sleep(unsigned int);
 int
 usleep(unsigned int);
 
+int
+getopt(int argc, char *const argv[], const char *optstring);
+
+extern char *optarg;
+
 #if defined(__cplusplus)
 };
 #endif
