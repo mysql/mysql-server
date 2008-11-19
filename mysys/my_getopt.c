@@ -397,9 +397,10 @@ invalid value '%s'",
 				       my_progname, optp->name, optend);
 	      continue;
 	    }
-	    get_one_option(optp->id, optp,
-			   *((my_bool*) value) ?
-			   (char*) "1" : disabled_my_option);
+	    if (get_one_option(optp->id, optp,
+                               *((my_bool*) value) ?
+                               (char*) "1" : disabled_my_option))
+              return EXIT_ARGUMENT_INVALID;
 	    continue;
 	  }
 	  argument= optend;
@@ -457,7 +458,8 @@ invalid value '%s'",
 		  optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
-		get_one_option(optp->id, optp, argument);
+		if (get_one_option(optp->id, optp, argument))
+                  return EXIT_UNSPECIFIED_ERROR;
 		continue;
 	      }
 	      else if (optp->arg_type == REQUIRED_ARG ||
@@ -476,7 +478,8 @@ invalid value '%s'",
                   {
                     if (optp->var_type == GET_BOOL)
                       *((my_bool*) optp->value)= (my_bool) 1;
-                    get_one_option(optp->id, optp, argument);
+                    if (get_one_option(optp->id, optp, argument))
+                      return EXIT_UNSPECIFIED_ERROR;
                     continue;
                   }
 		  /* Check if there are more arguments after this one */
@@ -501,7 +504,8 @@ invalid value '%s'",
                                          my_progname, argument, optp->name);
 		return error;
 	      }
-	      get_one_option(optp->id, optp, argument);
+	      if (get_one_option(optp->id, optp, argument))
+                return EXIT_UNSPECIFIED_ERROR;
 	      break;
 	    }
 	  }
@@ -524,7 +528,8 @@ invalid value '%s'",
                                  my_progname, argument, optp->name);
 	return error;
       }
-      get_one_option(optp->id, optp, argument);
+      if (get_one_option(optp->id, optp, argument))
+        return EXIT_UNSPECIFIED_ERROR;
 
       (*argc)--; /* option handled (short or long), decrease argument count */
     }
