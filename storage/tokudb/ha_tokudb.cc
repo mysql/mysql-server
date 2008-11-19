@@ -3968,6 +3968,15 @@ double ha_tokudb::read_time(
     double ret_val; 
 
     //
+    // in case for hidden primary key, this is called
+    //
+    if (index >= table_share->keys) {
+        ret_val = handler::read_time(index, ranges, rows);
+        goto cleanup;
+    }
+
+
+    //
     // if it is not the primary key, and it is not a clustering key, then return handler::read_time
     //
     if (index != primary_key && !(table->key_info[index].flags & HA_CLUSTERING)) {
