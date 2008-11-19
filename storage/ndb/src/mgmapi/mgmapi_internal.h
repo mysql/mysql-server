@@ -80,6 +80,8 @@ extern "C" {
                                 struct ndb_mgm_configuration* config);
 
 
+  NDB_SOCKET_TYPE _ndb_mgm_get_socket(NdbMgmHandle handle);
+
 #ifdef __cplusplus
 }
 #endif
