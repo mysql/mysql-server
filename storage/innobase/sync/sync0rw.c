@@ -256,7 +256,6 @@ rw_lock_free(
 {
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
-	ut_a(rw_lock_get_waiters(lock) == 0);
 
 	lock->magic_n = 0;
 
