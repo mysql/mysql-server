@@ -7,18 +7,40 @@ select_id BIGINT,
 PRIMARY KEY(id)
 ) ENGINE = <engine_to_be_tested>;
 ALTER TABLE t1_values ADD my_char_30        CHAR(30);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_varchar_1000   VARCHAR(1000);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_binary_30      BINARY(30);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_varbinary_1000 VARBINARY(1000);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_datetime       DATETIME;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_date           DATE;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD ts_dummy          TIMESTAMP;
 ALTER TABLE t1_values ADD my_timestamp      TIMESTAMP;
 ALTER TABLE t1_values ADD my_time           TIME;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_year           YEAR;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_bigint         BIGINT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_double         DOUBLE;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ALTER TABLE t1_values ADD my_decimal        DECIMAL(64,30);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SET sql_mode = 'traditional';
 INSERT INTO t1_values SET id = 0;
 INSERT INTO t1_values SET

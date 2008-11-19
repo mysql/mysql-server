@@ -10,7 +10,6 @@
 #
 ##############################################################################
 
-ndb_reconnect		 : disabled until reconnect patch is fixed
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
