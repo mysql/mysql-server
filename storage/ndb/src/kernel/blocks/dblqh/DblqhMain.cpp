@@ -63,6 +63,7 @@
 #include <KeyDescriptor.hpp>
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/FsRef.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
 
 #include "../suma/Suma.hpp"
 
@@ -840,7 +841,8 @@ void Dblqh::startphase3Lab(Signal* signal)
       initLogfile(signal, fileNo);
       if ((cstartType == NodeState::ST_INITIAL_START) ||
 	  (cstartType == NodeState::ST_INITIAL_NODE_RESTART)) {
-        if (logFilePtr.i == zeroLogFilePtr.i) {
+        if (logFilePtr.i == zeroLogFilePtr.i)
+        {
           jam();
 /* ------------------------------------------------------------------------- */
 /*IN AN INITIAL START WE START BY CREATING ALL LOG FILES AND SETTING THEIR   */
@@ -848,7 +850,26 @@ void Dblqh::startphase3Lab(Signal* signal)
 /*WE START BY CREATING FILE ZERO IN EACH LOG PART AND THEN PROCEED           */
 /*SEQUENTIALLY THROUGH ALL LOG FILES IN THE LOG PART.                        */
 /* ------------------------------------------------------------------------- */
-          openLogfileInit(signal);
+          if (m_use_om_init == 0 || logPartPtr.i == 0)
+          {
+            /**
+             * initialize one file at a time if using OM_INIT
+             */
+            jam();
+#ifdef VM_TRACE
+            if (m_use_om_init)
+            {
+              jam();
+              /**
+               * FSWRITEREQ does cross-thread execute-direct
+               *   which makes the clear_global_variables "unsafe"
+               *   disable it until we're finished with init log-files
+               */
+              disable_global_variables();
+            }
+#endif
+            openLogfileInit(signal);
+          }
         }//if
       }//if
     }//for
@@ -1046,6 +1067,25 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   c_o_direct = true;
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
   
+  m_use_om_init = 0;
+  {
+    const char * conf = 0;
+    if (!ndb_mgm_get_string_parameter(p, CFG_DB_INIT_REDO, &conf) && conf)
+    {
+      jam();
+      if (strcmp(conf, "sparse") == 0)
+      {
+        jam();
+        m_use_om_init = 0;
+      }
+      else if (strcmp(conf, "full") == 0)
+      {
+        jam();
+        m_use_om_init = 1;
+      }
+    }
+  }
+
   Uint32 tmp= 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &tmp));
   c_fragment_pool.setSize(tmp);
@@ -13417,9 +13457,20 @@ void Dblqh::openFileInitLab(Signal* signal)
 {
   logFilePtr.p->logFileStatus = LogFileRecord::OPEN_INIT;
   seizeLogpage(signal);
-  writeSinglePage(signal, (clogFileSize * ZPAGES_IN_MBYTE) - 1,
-                  ZPAGE_SIZE - 1, __LINE__, false);
-  lfoPtr.p->lfoState = LogFileOperationRecord::INIT_WRITE_AT_END;
+  if (m_use_om_init == 0)
+  {
+    jam();
+    initLogpage(signal);
+    writeSinglePage(signal, (clogFileSize * ZPAGES_IN_MBYTE) - 1,
+                    ZPAGE_SIZE - 1, __LINE__, false);
+    lfoPtr.p->lfoState = LogFileOperationRecord::INIT_WRITE_AT_END;
+  }
+  else
+  {
+    jam();
+    seizeLfo(signal);
+    initWriteEndLab(signal);
+  }
   return;
 }//Dblqh::openFileInitLab()
 
@@ -13518,6 +13569,18 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
 /* MEANS THIS PART OF THE LOG IS NOT WRITTEN YET.                            */
 /*---------------------------------------------------------------------------*/
   logPartPtr.p->logLap = 1;
+
+  if (m_use_om_init && logPartPtr.i != 3)
+  {
+    jam();
+    logPartPtr.i++;
+    ptrAss(logPartPtr, logPartRecord);
+    logFilePtr.i = logPartPtr.p->firstLogfile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+    openLogfileInit(signal);
+    return;
+  }
+
   logPartPtr.i = 0;
 CHECK_LOG_PARTS_LOOP:
   ptrAss(logPartPtr, logPartRecord);
@@ -13536,6 +13599,9 @@ CHECK_LOG_PARTS_LOOP:
 /* NEED TO INITIALISE ALL NEEDED DATA AND TO OPEN FILE ZERO AND THE NEXT AND */
 /* TO SET THE CURRENT LOG PAGE TO BE PAGE 1 IN FILE ZERO.                    */
 /*---------------------------------------------------------------------------*/
+#ifdef VM_TRACE
+    enable_global_variables();
+#endif
     for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
       ptrAss(logPartPtr, logPartRecord);
       signal->theData[0] = ZINIT_FOURTH;
@@ -13680,9 +13746,75 @@ void Dblqh::openLogfileInit(Signal* signal)
   signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC;
   if (c_o_direct)
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
+
+  Uint64 sz = Uint64(clogFileSize) * 1024 * 1024;
+  req->file_size_hi = Uint32(sz >> 32);
+  req->file_size_lo = Uint32(sz);
+  req->page_size = File_formats::NDB_PAGE_SIZE;
+  if (m_use_om_init)
+  {
+    jam();
+    signal->theData[6] |= FsOpenReq::OM_INIT;
+  }
+
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openLogfileInit()
+
+void
+Dblqh::execFSWRITEREQ(Signal* signal)
+{
+  /**
+   * This is currently run in other thread -> no jam
+   *   and no global variables
+   */
+  Ptr<GlobalPage> page_ptr;
+  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
+  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+
+  LogFileRecordPtr currLogFilePtr;
+  currLogFilePtr.i = req->userPointer;
+  ptrCheckGuard(currLogFilePtr, clogFileFileSize, logFileRecord);
+
+  LogPartRecordPtr currLogPartPtr;
+  currLogPartPtr.i = currLogFilePtr.p->logPartRec;
+  ptrCheckGuard(currLogPartPtr, clogPartFileSize, logPartRecord);
+
+  Uint32 page_no = req->varIndex;
+  LogPageRecordPtr currLogPagePtr;
+  currLogPagePtr.p = (LogPageRecord*)page_ptr.p;
+
+  bzero(page_ptr.p, sizeof(LogPageRecord));
+  if (page_no == 0)
+  {
+    // keep writing these afterwards
+  }
+  else if (((page_no % ZPAGES_IN_MBYTE) == 0) ||
+           (page_no == ((clogFileSize * ZPAGES_IN_MBYTE) - 1)))
+  {
+    currLogPagePtr.p->logPageWord[ZPOS_LOG_LAP] = currLogPartPtr.p->logLap;
+    currLogPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] =
+      currLogPartPtr.p->logPartNewestCompletedGCI;
+    currLogPagePtr.p->logPageWord[ZPOS_MAX_GCI_STARTED] = cnewestGci;
+    currLogPagePtr.p->logPageWord[ZPOS_VERSION] = NDB_VERSION;
+    currLogPagePtr.p->logPageWord[ZPOS_NO_LOG_FILES] =
+      currLogPartPtr.p->noLogFiles;
+    currLogPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
+    currLogPagePtr.p->logPageWord[ZLAST_LOG_PREP_REF] =
+      (currLogFilePtr.p->fileNo << 16) +
+      (currLogFilePtr.p->currentFilepage >> ZTWOLOG_NO_PAGES_IN_MBYTE);
+
+    currLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
+    currLogPagePtr.p->logPageWord[ZPOS_CHECKSUM] =
+      calcPageCheckSum(currLogPagePtr);
+  }
+  else if (0)
+  {
+    currLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
+    currLogPagePtr.p->logPageWord[ZPOS_CHECKSUM] =
+      calcPageCheckSum(currLogPagePtr);
+  }
+}
 
 /* OPEN FOR READ/WRITE, DO CREATE AND DO TRUNCATE FILE */
 /* ------------------------------------------------------------------------- */
@@ -13832,6 +13964,9 @@ void Dblqh::seizeLogpage(Signal* signal)
 /*IF LIST IS EMPTY THEN A SYSTEM CRASH IS INVOKED SINCE LOG_PAGE_PTR = RNIL  */
 /* ------------------------------------------------------------------------- */
   cfirstfreeLogPage = logPagePtr.p->logPageWord[ZNEXT_PAGE];
+#ifdef VM_TRACE
+  bzero(logPagePtr.p, sizeof(LogPageRecord));
+#endif
   logPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
   logPagePtr.p->logPageWord[ZPOS_IN_FREE_LIST] = 0;
 }//Dblqh::seizeLogpage()
@@ -13964,10 +14099,21 @@ void Dblqh::writeFileHeaderOpen(Signal* signal, Uint32 wmoType)
 /* ------------------------------------------------------------------------- */
 void Dblqh::writeInitMbyte(Signal* signal) 
 {
-  initLogpage(signal);
-  writeSinglePage(signal, logFilePtr.p->currentMbyte * ZPAGES_IN_MBYTE,
-                  ZPAGE_SIZE - 1, __LINE__, false);
-  lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_INIT_MBYTE;
+  if (m_use_om_init == 0)
+  {
+    jam();
+    initLogpage(signal);
+    writeSinglePage(signal, logFilePtr.p->currentMbyte * ZPAGES_IN_MBYTE,
+                    ZPAGE_SIZE - 1, __LINE__, false);
+    lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_INIT_MBYTE;
+  }
+  else
+  {
+    jam();
+    seizeLfo(signal);
+    logFilePtr.p->currentMbyte = clogFileSize - 1;
+    writeInitMbyteLab(signal);
+  }
 }//Dblqh::writeInitMbyte()
 
 /* ------------------------------------------------------------------------- */
