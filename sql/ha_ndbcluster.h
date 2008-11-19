@@ -303,7 +303,7 @@ class Thd_ndb
   bool m_error;
   bool m_slow_path;
   bool m_force_send;
-  bool m_transaction_on;
+
   int m_error_code;
   uint32 m_query_id; /* query id whn m_error_code was set */
   uint32 options;

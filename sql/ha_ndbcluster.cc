@@ -8049,6 +8049,7 @@ bool Thd_ndb::recycle_ndb(THD* thd)
   DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
 
   DBUG_ASSERT(global_schema_lock_trans == NULL);
+  DBUG_ASSERT(trans == NULL);
 
   delete ndb;
   if ((ndb= new Ndb(connection, "")) == NULL)
@@ -8067,9 +8068,6 @@ bool Thd_ndb::recycle_ndb(THD* thd)
     DBUG_RETURN(false);
   }
 
-  changed_tables.empty();
-  trans= NULL;
-
   DBUG_RETURN(true);
 }
 
@@ -8082,8 +8080,14 @@ Thd_ndb::valid_ndb(void)
   if (global_schema_lock_trans)
     return true;
 
+  // The ndb object should be valid as long as a
+  // transaction is ongoing
+  if (trans)
+    return true;
+
   if (unlikely(m_connect_count != connection->get_connect_count()))
     return false;
+
   return true;
 }
 
@@ -8105,13 +8109,13 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
       return NULL;
     set_thd_ndb(thd, thd_ndb);
   }
-#ifdef NOT_YET
+
   else if (validate_ndb && !thd_ndb->valid_ndb())
   {
     if (!thd_ndb->recycle_ndb(thd))
       return NULL;
   }
-#endif
+
   return thd_ndb->ndb;
 }
 

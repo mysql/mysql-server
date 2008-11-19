@@ -3175,15 +3175,6 @@ add_ndb_binlog_index_err:
   Functions for start, stop, wait for ndbcluster binlog thread
 *********************************************************************/
 
-enum Binlog_thread_state
-{
-  BCCC_running= 0,
-  BCCC_exit= 1,
-  BCCC_restart= 2
-};
-
-static enum Binlog_thread_state do_ndbcluster_binlog_close_connection= BCCC_restart;
-
 int ndbcluster_binlog_start()
 {
   DBUG_ENTER("ndbcluster_binlog_start");
@@ -5399,6 +5390,12 @@ remove_event_operations(Ndb* ndb)
   DBUG_VOID_RETURN;
 }
 
+enum Binlog_thread_state
+{
+  BCCC_running= 0,
+  BCCC_exit= 1,
+  BCCC_restart= 2
+};
 
 pthread_handler_t ndb_binlog_thread_func(void *arg)
 {
@@ -5409,6 +5406,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   int ndb_update_ndb_binlog_index= 1;
   injector *inj= injector::instance();
   uint incident_id= 0;
+  Binlog_thread_state do_ndbcluster_binlog_close_connection;
 
 #ifdef RUN_NDB_BINLOG_TIMER
   Timer main_timer;
@@ -5467,9 +5465,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
-#ifdef NOT_YET
+
 restart_cluster_failure:
-#endif
+  do_ndbcluster_binlog_close_connection= BCCC_exit;
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       s_ndb->init())
   {
@@ -5534,7 +5532,7 @@ restart_cluster_failure:
     }
   }
   pthread_mutex_unlock(&LOCK_server_started);
-restart:
+
   /*
     Main NDB Injector loop
   */
@@ -5771,32 +5769,6 @@ restart:
                                                 &post_epoch_log_list,
                                                 &post_epoch_unlock_list,
                                                 &mem_root);
-#ifdef NOT_YET
-          if (unlikely(pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE))
-          {
-            sql_print_information("NDB Binlog: cluster failure detected");
-            pthread_mutex_lock(&LOCK_open);
-
-            pthread_mutex_lock(&injector_mutex);
-
-            remove_event_operations(s_ndb);
-            delete s_ndb;
-            s_ndb= 0;
-            schema_ndb= 0;
-
-            remove_event_operations(i_ndb);
-            delete i_ndb;
-            i_ndb= 0;
-            injector_ndb= 0;
-
-            hash_free(&ndb_schema_objects);
-
-            pthread_mutex_unlock(&LOCK_open);
-
-            sql_print_information("NDB Binlog: restarting");
-            goto restart_cluster_failure;
-          }
-#endif
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));
@@ -6170,15 +6142,19 @@ restart:
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
-  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+ err:
+  if (do_ndbcluster_binlog_close_connection != BCCC_restart)
   {
-    ndb_binlog_tables_inited= FALSE;
-    goto restart;
+    sql_print_information("Stopping Cluster Binlog");
+    DBUG_PRINT("info",("Shutting down cluster binlog thread"));
+    thd->proc_info= "Shutting down";
   }
-err:
-  sql_print_information("Stopping Cluster Binlog");
-  DBUG_PRINT("info",("Shutting down cluster binlog thread"));
-  thd->proc_info= "Shutting down";
+  else
+  { 
+    sql_print_information("Restarting Cluster Binlog");
+    DBUG_PRINT("info",("Restarting cluster binlog thread"));
+    thd->proc_info= "Restarting";
+  }
   pthread_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;
@@ -6232,7 +6208,16 @@ err:
   {
     ha_ndbcluster::release_thd_ndb(thd_ndb);
     set_thd_ndb(thd, NULL);
+    thd_ndb= NULL;
   }
+
+  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+  {
+    ndb_binlog_tables_inited= FALSE;
+    pthread_mutex_lock(&injector_mutex);
+    goto restart_cluster_failure;
+  }
+
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
