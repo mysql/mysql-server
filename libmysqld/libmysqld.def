@@ -2,6 +2,66 @@ LIBRARY		LIBMYSQLD
 DESCRIPTION	'MySQL 5.1 Embedded Server Library'
 VERSION		5.1
 EXPORTS
+	_db_process_
+	_db_enter_
+	_db_return_
+	_db_push_
+	_db_doprnt_
+	_db_pargs_
+	strnmov
+	get_charset
+	my_memmem
+	my_snprintf
+	pthread_exit
+	pthread_cond_signal
+	dynstr_append_mem
+	init_dynamic_string
+	dynstr_free
+	hash_free
+	my_vsnprintf
+	dynstr_append
+	my_close
+	my_open
+	dynstr_set
+	dynstr_append_os_quoted
+	my_delete
+	my_seek
+	my_write
+	create_temp_file
+	fn_format
+	dirname_part
+	my_hash_insert
+	hash_search
+	test_if_hard_path
+	my_copy
+	my_mkdir
+	my_sleep
+	my_strtod
+	pthread_cond_wait
+	my_strnncoll_simple
+	get_dynamic
+	my_regerror
+	init_dynamic_array2
+	pthread_create
+	pthread_cond_init
+	my_regcomp
+	my_regexec
+	my_regex_end
+	my_regfree
+	longlong2str
+	my_set_exception_pointers
+	my_print_stacktrace
+	my_thread_stack_size
+	my_safe_print_str
+	my_stat
+	_hash_init
+	pthread_attr_setstacksize
+	pthread_attr_init
+	my_dirend
+	wild_compare
+	my_dir
+	my_micro_time
+	find_type_or_exit
 	_dig_vec_upper
 	_dig_vec_lower
 	bmove_upp
