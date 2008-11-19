@@ -90,7 +90,10 @@ testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
 testLimits_SOURCES = testLimits.cpp
-testMgm_SOURCES = testMgm.cpp
+testMgm_SOURCES = testMgm.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
 testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
