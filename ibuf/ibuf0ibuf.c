@@ -3235,7 +3235,7 @@ ibuf_insert_low(
 					    ? &min_n_recs
 					    : NULL, &mtr);
 
-	if (op == IBUF_OP_DELETE && min_n_recs == 0) {
+	if (op == IBUF_OP_DELETE && min_n_recs < 2) {
 		/* The page could become empty after the record is
 		deleted.  Refuse to buffer the operation. */
 		err = DB_STRONG_FAIL;
