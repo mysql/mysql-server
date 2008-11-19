@@ -773,9 +773,11 @@ public:
 #endif
 
 #ifdef VM_TRACE
-  Ptr<void> **m_global_variables;
+  Ptr<void> **m_global_variables, **m_global_variables_save;
   void clear_global_variables();
   void init_globals_list(void ** tmp, size_t cnt);
+  void disable_global_variables();
+  void enable_global_variables();
 #endif
 
 #ifdef VM_TRACE
