@@ -3342,4 +3342,9 @@ int ndb_mgm_ndbinfo_getrow(NdbMgmHandle h, char* row, int len)
   return 0;
 }
 
+NDB_SOCKET_TYPE _ndb_mgm_get_socket(NdbMgmHandle h)
+{
+  return h->socket;
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;
