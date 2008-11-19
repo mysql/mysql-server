@@ -163,7 +163,7 @@ int runRestartCluster(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
-NDBT_TESTSUITE(testSQL);
+NDBT_TESTSUITE(testReconnect);
 TESTCASE("InsertAndRestart",
 	 "Run INSERTs while cluster restart"){
   INITIALIZER(runDropTable);
@@ -195,10 +195,10 @@ TESTCASE("AllAndRestart",
   STEP(runRestartCluster);
 }
 
-NDBT_TESTSUITE_END(testSQL);
+NDBT_TESTSUITE_END(testReconnect);
 
 int main(int argc, const char** argv){
   ndb_init();
-  return testSQL.execute(argc, argv);
+  return testReconnect.execute(argc, argv);
 }
 
