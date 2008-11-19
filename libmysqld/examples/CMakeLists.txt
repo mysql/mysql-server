@@ -29,13 +29,13 @@ ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
 ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc
                ../../client/sql_string.cc)
-TARGET_LINK_LIBRARIES(mysql_embedded mysys yassl taocrypt zlib debug dbug regex strings wsock32)
+TARGET_LINK_LIBRARIES(mysql_embedded debug wsock32)
 ADD_DEPENDENCIES(mysql_embedded libmysqld)
 
 ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.c)
-TARGET_LINK_LIBRARIES(mysqltest_embedded mysys yassl taocrypt zlib debug dbug regex strings wsock32)
+TARGET_LINK_LIBRARIES(mysqltest_embedded debug wsock32)
 ADD_DEPENDENCIES(mysqltest_embedded libmysqld)
 
 ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
-TARGET_LINK_LIBRARIES(mysql_client_test_embedded debug dbug mysys yassl taocrypt zlib strings wsock32)
+TARGET_LINK_LIBRARIES(mysql_client_test_embedded debug wsock32)
 ADD_DEPENDENCIES(mysql_client_test_embedded libmysqld)
