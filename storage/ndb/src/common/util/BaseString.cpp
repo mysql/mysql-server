@@ -563,7 +563,7 @@ TAPTEST(BaseString)
     assert(s4.assign((const char*)NULL).c_str() == NULL);
     assert(s4.assign(s4).c_str() == NULL);
 
-    return 0;
+    return 1; // OK
 }
 
 #endif
