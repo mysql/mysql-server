@@ -9184,16 +9184,6 @@ void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
   uint name_len= end - ptr;
   memcpy(tmp_name, ptr + 1, name_len);
   tmp_name[name_len]= '\0';
-#ifdef __WIN__
-  /* Put to lower case */
-  
-  ptr= tmp_name;
-  
-  while (*ptr != '\0') {
-    *ptr= tolower(*ptr);
-    ptr++;
-  }
-#endif
   filename_to_tablename(tmp_name, dbname, FN_REFLEN);
 }
 
@@ -9226,15 +9216,6 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
   uint name_len= end - ptr;
   memcpy(tmp_name, ptr + 1, end - ptr);
   tmp_name[name_len]= '\0';
-#ifdef __WIN__
-  /* Put to lower case */
-  ptr= tmp_name;
-  
-  while (*ptr != '\0') {
-    *ptr= tolower(*ptr);
-    ptr++;
-  }
-#endif
   filename_to_tablename(tmp_name, tabname, FN_REFLEN);
 }
 
