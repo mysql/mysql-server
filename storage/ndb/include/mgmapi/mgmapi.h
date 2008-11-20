@@ -642,6 +642,24 @@ extern "C" {
   struct ndb_mgm_cluster_state * 
   ndb_mgm_get_status2(NdbMgmHandle handle,
                       const enum ndb_mgm_node_type types[]);
+                      
+
+
+  /**
+   * Dump state
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId the node id.
+   * @param args integer array
+   * @param number of args in int array
+   * @param reply the reply message.
+   * @return 0 if successful or an error code.
+   */
+  int ndb_mgm_dump_state(NdbMgmHandle handle,
+			 int nodeId,
+			 const int * args,
+			 int num_args,
+			 struct ndb_mgm_reply* reply);
 
   /** @} *********************************************************************/
   /**
