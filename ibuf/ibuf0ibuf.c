@@ -2563,11 +2563,15 @@ ibuf_get_volume_buffered_hash(
 }
 
 /*************************************************************************
-Update the estimate of the number of records on a page. */
+Update the estimate of the number of records on a page, and
+get the space taken by merging the buffered record to the index page. */
 static
-void
+ulint
 ibuf_get_volume_buffered_count(
 /*===========================*/
+				/* out: size of index record in bytes
+				+ an upper limit of the space taken in the
+				page directory */
 	const rec_t*	rec,	/* in: insert buffer record */
 	byte*		hash,	/* in/out: hash array */
 	ulint		size,	/* in: size of hash array, in bytes */
@@ -2575,43 +2579,48 @@ ibuf_get_volume_buffered_count(
 				on the page that rec points to */
 {
 	ulint		len;
-	const byte*	field;
 	ibuf_op_t	ibuf_op;
+	const byte*	types;
+	ulint		n_fields	= rec_get_n_fields_old(rec);
 
 	ut_ad(ibuf_inside());
-	ut_ad(rec_get_n_fields_old(rec) > 2);
+	ut_ad(n_fields > 4);
+	n_fields -= 4;
 
-	if (!n_recs) {
-		/* The records only need to be counted when
-		IBUF_OP_DELETE is being buffered. */
-		return;
-	}
+	rec_get_nth_field_offs_old(rec, 1, &len);
+	/* This function is only invoked when buffering new
+	operations.  All pre-4.1 records should have been merged
+	when the database was started up. */
+	ut_a(len == 1);
+	ut_ad(trx_sys_multiple_tablespace_format);
 
-	field = rec_get_nth_field_old(rec, 1, &len);
-
-	if (UNIV_UNLIKELY(len > 1)) {
-		/* This is a < 4.1.x format record.  Ignore it in the
-		count, because deletes cannot be buffered if there are
-		old-style records for the page. */
-
-		return;
-	}
-
-	field = rec_get_nth_field_old(rec, 3, &len);
+	types = rec_get_nth_field_old(rec, 3, &len);
 
 	switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
 			    IBUF_REC_INFO_SIZE)) {
 	default:
 		ut_error;
 	case 0:
+		/* This ROW_TYPE=REDUNDANT record does not include an
+		operation counter.  Exclude it from the *n_recs,
+		because deletes cannot be buffered if there are
+		old-style inserts buffered for the page. */
+
+		len = ibuf_rec_get_size(rec, types, n_fields, FALSE);
+
+		return(len
+		       + rec_get_converted_extra_size(len, n_fields, 0)
+		       + page_dir_calc_reserved_space(1));
 	case 1:
-		/* This record does not include an operation counter.
-		Ignore it in the count, because deletes cannot be
-		buffered if there are old-style records for the page. */
-		return;
+		/* This ROW_TYPE=COMPACT record does not include an
+		operation counter.  Exclude it from the *n_recs,
+		because deletes cannot be buffered if there are
+		old-style inserts buffered for the page. */
+		goto get_volume_comp;
 
 	case IBUF_REC_INFO_SIZE:
-		ibuf_op = (ibuf_op_t) field[IBUF_REC_OFFSET_TYPE];
+		ibuf_op = (ibuf_op_t) types[IBUF_REC_OFFSET_TYPE];
+		types += IBUF_REC_INFO_SIZE;
 		break;
 	}
 
@@ -2624,21 +2633,49 @@ ibuf_get_volume_buffered_count(
 	case IBUF_OP_DELETE_MARK:
 		/* There must be a record to delete-mark.
 		See if this record has been already buffered. */
-		if (ibuf_get_volume_buffered_hash(rec,
-						  field + IBUF_REC_INFO_SIZE,
-						  field + len,
-						  hash, size)) {
+		if (n_recs && ibuf_get_volume_buffered_hash(
+			    rec, types + IBUF_REC_INFO_SIZE,
+			    types + len, hash, size)) {
 			(*n_recs)++;
+		}
+
+		if (ibuf_op == IBUF_OP_DELETE_MARK) {
+			/* Setting the delete-mark flag does not
+			affect the available space on the page. */
+			return(0);
 		}
 		break;
 	case IBUF_OP_DELETE:
 		/* A record will be removed from the page. */
-		if (*n_recs > 0) {
+		if (n_recs && *n_recs > 0) {
 			(*n_recs)--;
 		}
-		break;
+		/* While deleting a record actually frees up space,
+		we have to play it safe and pretend that it takes no
+		additional space (the record might not exist, etc.). */
+		return(0);
 	default:
 		ut_error;
+	}
+
+	ut_ad(ibuf_op == IBUF_OP_INSERT);
+
+get_volume_comp:
+	{
+		dtuple_t*	entry;
+		ulint		volume;
+		dict_index_t*	dummy_index;
+		mem_heap_t*	heap = mem_heap_create(500);
+
+		entry = ibuf_build_entry_from_ibuf_rec(
+			rec, heap, &dummy_index);
+
+		volume = rec_get_converted_size(dummy_index, entry, 0);
+
+		ibuf_dummy_index_free(dummy_index);
+		mem_heap_free(heap);
+
+		return(volume + page_dir_calc_reserved_space(1));
 	}
 }
 
@@ -2708,9 +2745,7 @@ ibuf_get_volume_buffered(
 			goto count_later;
 		}
 
-		volume += ibuf_rec_get_volume(rec);
-
-		ibuf_get_volume_buffered_count(
+		volume += ibuf_get_volume_buffered_count(
 			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_prev(rec);
@@ -2761,9 +2796,7 @@ ibuf_get_volume_buffered(
 			goto count_later;
 		}
 
-		volume += ibuf_rec_get_volume(rec);
-
-		ibuf_get_volume_buffered_count(
+		volume += ibuf_get_volume_buffered_count(
 			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_prev(rec);
@@ -2788,9 +2821,7 @@ count_later:
 			return(volume);
 		}
 
-		volume += ibuf_rec_get_volume(rec);
-
-		ibuf_get_volume_buffered_count(
+		volume += ibuf_get_volume_buffered_count(
 			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
@@ -2838,9 +2869,7 @@ count_later:
 			return(volume);
 		}
 
-		volume += ibuf_rec_get_volume(rec);
-
-		ibuf_get_volume_buffered_count(
+		volume += ibuf_get_volume_buffered_count(
 			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
