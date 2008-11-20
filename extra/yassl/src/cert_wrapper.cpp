@@ -265,7 +265,7 @@ int CertManager::Validate()
         TaoCrypt::CertDecoder cert(source, true, &signers_, verifyNone_);
 
         int err = cert.GetError().What();
-        if ( err && err != TaoCrypt::SIG_OTHER_E)
+        if ( err )
             return err;
 
         uint sz = cert.GetPublicKey().size();
