@@ -26,8 +26,10 @@ Created 5/30/1994 Heikki Tuuri
 for error checking */
 UNIV_INTERN byte	data_error;
 
+# ifndef UNIV_DEBUG_VALGRIND
 /* this is used to fool the compiler in dtuple_validate */
 UNIV_INTERN ulint	data_dummy;
+# endif /* !UNIV_DEBUG_VALGRIND */
 #endif /* UNIV_DEBUG */
 
 /*************************************************************************
@@ -232,11 +234,9 @@ dtuple_validate(
 	const dtuple_t*	tuple)	/* in: tuple */
 {
 	const dfield_t*	field;
-	const byte*	data;
 	ulint		n_fields;
 	ulint		len;
 	ulint		i;
-	ulint		j;
 
 	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
@@ -252,8 +252,9 @@ dtuple_validate(
 
 		if (!dfield_is_null(field)) {
 
-			data = dfield_get_data(field);
-			UNIV_MEM_ASSERT_RW(data, len);
+			const byte*	data = dfield_get_data(field);
+#ifndef UNIV_DEBUG_VALGRIND
+			ulint		j;
 
 			for (j = 0; j < len; j++) {
 
@@ -262,6 +263,9 @@ dtuple_validate(
 						      code */
 				data++;
 			}
+#endif /* !UNIV_DEBUG_VALGRIND */
+
+			UNIV_MEM_ASSERT_RW(data, len);
 		}
 	}
 
