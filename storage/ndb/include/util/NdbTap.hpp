@@ -23,8 +23,7 @@
 int name##_test();                              \
 int main(int argc, const char** argv){          \
   plan(1);                                      \
-  name##_test();                                \
-  ok(true, #name);                              \
+  ok(name##_test(), #name);                     \
   return exit_status();                         \
 }                                               \
 int name##_test()
