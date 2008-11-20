@@ -622,18 +622,6 @@ thd_supports_xa(
 }
 
 /**********************************************************************
-Returns true if the thread is executing in innodb_strict_mode. */
-extern "C" UNIV_INTERN
-ibool
-thd_is_strict(
-/*==========*/
-			/* out: true if thd is in strict mode */
-	void*	thd)	/* in: thread handle (THD*) */
-{
-	return(THDVAR((THD*) thd, strict_mode));
-}
-
-/**********************************************************************
 Returns the lock wait timeout for the current connection. */
 extern "C" UNIV_INTERN
 ulong
