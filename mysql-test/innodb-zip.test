@@ -84,7 +84,8 @@ SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
 drop table t1,t2;
 
-SET SESSION innodb_strict_mode = on;
+# The following should fail even in non-strict mode.
+SET SESSION innodb_strict_mode = off;
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(
 	c TEXT NOT NULL, d TEXT NOT NULL,

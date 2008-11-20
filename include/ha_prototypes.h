@@ -207,13 +207,15 @@ innobase_get_charset(
 	void*	mysql_thd);	/* in: MySQL thread handle */
 
 /**********************************************************************
-Returns true if the thread is executing in innodb_strict_mode. */
+Returns true if the thread supports XA,
+global value of innodb_supports_xa if thd is NULL. */
 
 ibool
-thd_is_strict(
-/*==========*/
-			/* out: true if thd is in strict mode */
-	void*	thd);	/* in: thread handle (THD*) */
+thd_supports_xa(
+/*============*/
+			/* out: true if thd supports XA */
+	void*	thd);	/* in: thread handle (THD*), or NULL to query
+			the global innodb_supports_xa */
 
 /**********************************************************************
 Returns the lock wait timeout for the current connection. */
