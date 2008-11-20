@@ -53,13 +53,19 @@ static inline int my_socket_nfds(my_socket s, int nfds)
 
 static inline size_t my_recv(my_socket s, char* buf, size_t len, int flags)
 {
-  return recv(s.s, buf, len, flags);
+  int ret= recv(s.s, buf, len, flags);
+  if (ret == SOCKET_ERROR)
+    return -1;
+  return ret;
 }
 
 static inline
 size_t my_send(my_socket s, const char* buf, size_t len, int flags)
 {
-  return send(s.s, buf, len, flags);
+  int ret= send(s.s, buf, len, flags);
+  if (ret == SOCKET_ERROR)
+    return -1;
+  return ret;
 }
 
 static inline int my_socket_reuseaddr(my_socket s, int enable)
@@ -180,7 +186,8 @@ static inline ssize_t my_socket_readv(my_socket s, const struct iovec *iov,
                                       int iovcnt)
 {
   DWORD rv=0;
-  WSARecv(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0);
+  if (WSARecv(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)
+    return -1;
   return rv;
 }
 
@@ -188,7 +195,8 @@ static inline ssize_t my_socket_writev(my_socket s, const struct iovec *iov,
                                        int iovcnt)
 {
   DWORD rv=0;
-  WSASend(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0);
+  if (WSASend(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)
+    return -1;
   return rv;
 }
 
