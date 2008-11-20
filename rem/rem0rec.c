@@ -1599,10 +1599,10 @@ rec_print_old(
 			fprintf(file, " SQL NULL, size %lu ",
 				rec_get_nth_field_size(rec, i));
 		}
-		putc(';', file);
-	}
 
-	putc('\n', file);
+		putc(';', file);
+		putc('\n', file);
+	}
 
 	rec_validate_old(rec);
 }
@@ -1642,9 +1642,8 @@ rec_print_comp(
 			fputs(" SQL NULL", file);
 		}
 		putc(';', file);
+		putc('\n', file);
 	}
-
-	putc('\n', file);
 }
 
 /*******************************************************************
