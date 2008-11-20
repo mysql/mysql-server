@@ -95,7 +95,7 @@ static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY
 	xilib /out:$@ $^
 
 ipo_libtokudb.obj: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-	$(CC) -Qipo-c *.obj lock_tree/*.obj range_tree/*.obj ../newbrt/*.obj ../windows/*.obj
+	$(CC) -Qipo-c *.obj lock_tree/*.obj range_tree/*.obj ../newbrt/*.obj
 	mv ipo_out.obj $@
 
 ipo_libtokudb.lib: ipo_libtokudb.obj
