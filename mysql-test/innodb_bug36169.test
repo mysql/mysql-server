@@ -22,6 +22,7 @@ SET GLOBAL innodb_file_per_table=ON;
 # Generating 10 tables
 # Creating a table with 94 columns and 24 indexes
 DROP TABLE IF EXISTS `table0`;
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table0`
 (`col0` BOOL,
 `col1` BOOL,
@@ -145,6 +146,7 @@ KEY `idx23` (`col7`(163),`col31`,`col71`,`col14`)
 
 # Creating a table with 10 columns and 32 indexes
 DROP TABLE IF EXISTS `table1`;
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table1`
 (`col0` CHAR (113),
 `col1` FLOAT,
@@ -192,6 +194,7 @@ KEY `idx31` (`col4`(1),`col0`)
 
 # Creating a table with 141 columns and 18 indexes
 DROP TABLE IF EXISTS `table2`;
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table2`
 (`col0` BOOL,
 `col1` MEDIUMINT,
@@ -356,6 +359,7 @@ KEY `idx17` (`col24`(250),`col7`,`col92`,`col45`)
 
 # Creating a table with 199 columns and 1 indexes
 DROP TABLE IF EXISTS `table3`;
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table3`
 (`col0` SMALLINT,
 `col1` SET ('test1','test2','test3'),
@@ -561,6 +565,7 @@ KEY `idx0` (`col39`,`col23`)
 
 # Creating a table with 133 columns and 16 indexes
 DROP TABLE IF EXISTS `table4`;
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table4`
 (`col0` VARCHAR (60),
 `col1` NUMERIC,
@@ -715,6 +720,7 @@ KEY `idx15` (`col4`(246),`col130`,`col115`,`col3`(141))
 
 # Creating a table with 176 columns and 13 indexes
 DROP TABLE IF EXISTS `table5`;
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table5`
 (`col0` MEDIUMTEXT,
 `col1` VARCHAR (90),
@@ -910,6 +916,7 @@ KEY `idx12` (`col24`)
 # Creating a table with 179 columns and 46 indexes
 DROP TABLE IF EXISTS `table6`;
 -- error ER_TOO_BIG_ROWSIZE
+--error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table6`
 (`col0` ENUM ('test1','test2','test3'),
 `col1` MEDIUMBLOB,
