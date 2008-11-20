@@ -15,9 +15,6 @@
 
 #include "SafeMutex.hpp"
 
-//wl4391_todo
-#define HAVE_PTHREAD_MUTEX_RECURSIVE 1
-
 NdbOut&
 operator<<(NdbOut& out, const SafeMutex& dm)
 {

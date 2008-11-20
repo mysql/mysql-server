@@ -56,7 +56,11 @@ Lgman::Lgman(Block_context & ctx) :
   m_tup(0),
   m_logfile_group_list(m_logfile_group_pool),
   m_logfile_group_hash(m_logfile_group_pool),
+#ifdef __sun // temp
+  m_client_mutex(1, false)
+#else
   m_client_mutex(2, true)
+#endif
 {
   BLOCK_CONSTRUCTOR(Lgman);
   

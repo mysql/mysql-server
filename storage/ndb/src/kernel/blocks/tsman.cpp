@@ -45,7 +45,11 @@ Tsman::Tsman(Block_context& ctx) :
   m_pgman(0),
   m_lgman(0),
   m_tup(0),
+#ifdef __sun // temp
+  m_client_mutex(1, false)
+#else
   m_client_mutex(2, true)
+#endif
 {
   BLOCK_CONSTRUCTOR(Tsman);
 
