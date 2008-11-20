@@ -26,6 +26,11 @@
 #include <ndb_types.h>
 #include <NdbOut.hpp>
 
+#undef HAVE_PTHREAD_MUTEX_RECURSIVE
+#ifdef __linux
+#define HAVE_PTHREAD_MUTEX_RECURSIVE
+#endif
+
 /*
  * Recursive mutex with a recursion limit >= 1.  Can be useful for
  * debugging.  If a recursive mutex is not wanted, one must rewrite
