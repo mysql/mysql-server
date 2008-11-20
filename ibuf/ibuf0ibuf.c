@@ -2684,7 +2684,10 @@ ibuf_get_volume_buffered(
 	pcur */
 
 	volume = 0;
-	memset(hash_bitmap, 0, sizeof hash_bitmap);
+
+	if (n_recs) {
+		memset(hash_bitmap, 0, sizeof hash_bitmap);
+	}
 
 	rec = btr_pcur_get_rec(pcur);
 	page = page_align(rec);
@@ -2767,8 +2770,6 @@ ibuf_get_volume_buffered(
 	}
 
 count_later:
-	memset(hash_bitmap, 0, sizeof hash_bitmap);
-
 	rec = btr_pcur_get_rec(pcur);
 
 	if (!page_rec_is_supremum(rec)) {
