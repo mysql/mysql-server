@@ -218,15 +218,6 @@ thd_supports_xa(
 			the global innodb_supports_xa */
 
 /**********************************************************************
-Returns true if the thread is executing in innodb_strict_mode. */
-
-ibool
-thd_is_strict(
-/*==========*/
-			/* out: true if thd is in strict mode */
-	void*	thd);	/* in: thread handle (THD*) */
-
-/**********************************************************************
 Returns the lock wait timeout for the current connection. */
 
 ulong

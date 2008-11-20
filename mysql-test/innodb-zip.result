@@ -122,7 +122,7 @@ table_schema	table_name	row_format
 test	t1	Compressed
 test	t2	Compact
 drop table t1,t2;
-SET SESSION innodb_strict_mode = on;
+SET SESSION innodb_strict_mode = off;
 CREATE TABLE t1(
 c TEXT NOT NULL, d TEXT NOT NULL,
 PRIMARY KEY (c(767),d(767)))
