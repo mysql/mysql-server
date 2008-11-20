@@ -681,13 +681,13 @@ rec_get_nth_field_offs_old(
 	ut_ad(rec && len);
 	ut_ad(n < rec_get_n_fields_old(rec));
 
-	if (n > REC_MAX_N_FIELDS) {
+	if (UNIV_UNLIKELY(n > REC_MAX_N_FIELDS)) {
 		fprintf(stderr, "Error: trying to access field %lu in rec\n",
 			(ulong) n);
 		ut_error;
 	}
 
-	if (rec == NULL) {
+	if (UNIV_UNLIKELY(rec == NULL)) {
 		fputs("Error: rec is NULL pointer\n", stderr);
 		ut_error;
 	}
