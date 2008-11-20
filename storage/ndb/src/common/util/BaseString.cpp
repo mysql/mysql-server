@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,13 +473,9 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
 
 #ifdef TEST_BASE_STRING
 
-/*
-g++ -g -Wall -o tbs -DTEST_BASE_STRING -I$NDB_TOP/include/util \
-        -I$NDB_TOP/include/portlib BaseString.cpp
-valgrind ./tbs
-*/
+#include <NdbTap.hpp>
 
-int main()
+TAPTEST(BaseString)
 {
     BaseString s("abc");
     BaseString t(s);
