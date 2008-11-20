@@ -1079,7 +1079,7 @@ dict_create_index_step(
 		dulint	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(node->table, node->index,
-					      FIL_NULL, trx_is_strict(trx));
+					      FIL_NULL, TRUE);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));
