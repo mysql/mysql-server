@@ -634,7 +634,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_VER:
       new_line=1;
       print_version();
-      puts("Copyright (C) 2000-2006 MySQL AB");
+      puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
       puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
       printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
       printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
@@ -1023,7 +1023,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2000-2006 MySQL AB");
+  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
