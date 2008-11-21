@@ -2489,6 +2489,11 @@ buf_page_try_get_func(
 
 	buf_pool->n_page_gets++;
 
+#ifdef UNIV_IBUF_COUNT_DEBUG
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
+#endif
+
 	return(block);
 }
 

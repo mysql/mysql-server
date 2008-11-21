@@ -26,6 +26,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "buf0rea.h"
 #include "btr0sea.h"
+#include "ibuf0ibuf.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "log0recv.h"
@@ -1320,6 +1321,10 @@ buf_LRU_free_block(
 	ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
+
+#ifdef UNIV_IBUF_COUNT_DEBUG
+	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+#endif /* UNIV_IBUF_COUNT_DEBUG */
 
 	if (!buf_page_can_relocate(bpage)) {
 
