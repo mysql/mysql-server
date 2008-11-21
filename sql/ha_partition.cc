@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -4084,7 +4084,7 @@ int ha_partition::read_range_next()
 {
   DBUG_ENTER("ha_partition::read_range_next");
 
-  if (m_ordered)
+  if (m_ordered_scan_ongoing)
   {
     DBUG_RETURN(handle_ordered_next(table->record[0], eq_range));
   }

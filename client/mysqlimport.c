@@ -193,7 +193,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2000-2006 MySQL AB");
+  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   printf("\
 Loads tables from text files in various formats.  The base name of the\n\

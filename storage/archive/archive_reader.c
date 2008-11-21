@@ -374,7 +374,7 @@ static struct my_option my_long_options[] =
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2007 MySQL AB");
+  puts("Copyright 2007-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\
        \nand you are welcome to modify and redistribute it under the GPL \
        license\n");
