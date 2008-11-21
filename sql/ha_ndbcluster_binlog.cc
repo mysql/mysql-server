@@ -2714,34 +2714,9 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         if (ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE %s.%s", schema->db, schema->name);
         log_query= 1;
-        {
-          injector_ndb->setDatabaseName(schema->db);
-          Ndb_table_guard ndbtab_g(injector_ndb->getDictionary(),
-                                   schema->name);
-          ndbtab_g.invalidate();
-        }
-        {
-          TABLE_LIST table_list;
-          bzero((char*) &table_list,sizeof(table_list));
-          table_list.db= schema->db;
-          table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
-        }
-        {
-          if (ndb_extra_logging > 9)
-            sql_print_information("NDB Binlog: renaming files start");
-          pthread_mutex_lock(&LOCK_open);
-          char from[FN_REFLEN];
-          char to[FN_REFLEN];
-          strxnmov(from, FN_REFLEN-1, share->key, NullS);
-          ndbcluster_rename_share(thd, share);
-          strxnmov(to, FN_REFLEN-1, share->key, NullS);
-          rename_file_ext(from, to, ".ndb");
-          rename_file_ext(from, to, ".frm");
-          pthread_mutex_unlock(&LOCK_open);
-          if (ndb_extra_logging > 9)
-            sql_print_information("NDB Binlog: renaming files done");
-        }
+        pthread_mutex_lock(&LOCK_open);
+        ndbcluster_rename_share(thd, share);
+        pthread_mutex_unlock(&LOCK_open);
         break;
       case SOT_RENAME_TABLE_PREPARE:
         if (ndb_extra_logging > 9)
