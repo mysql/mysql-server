@@ -1024,6 +1024,29 @@ public:
 };
 
 
+/**
+ * @brief This is a specialization of sys_var_thd_ulong that implements a 
+   read-only session variable. The class overrides check() and check_default() 
+   to achieve the read-only property for the session part of the variable.
+ */
+class sys_var_thd_ulong_session_readonly : public sys_var_thd_ulong
+{
+public:
+  sys_var_thd_ulong_session_readonly(sys_var_chain *chain_arg, 
+                                     const char *name_arg, ulong SV::*offset_arg, 
+				     sys_check_func c_func= NULL,
+                                     sys_after_update_func au_func= NULL, 
+                                     Binlog_status_enum bl_status_arg= NOT_IN_BINLOG):
+    sys_var_thd_ulong(chain_arg, name_arg, offset_arg, c_func, au_func, bl_status_arg)
+  { }
+  bool check(THD *thd, set_var *var);
+  bool check_default(enum_var_type type)
+  {
+    return type != OPT_GLOBAL || !option_limits;
+  }
+};
+
+
 class sys_var_microseconds :public sys_var_thd
 {
   ulonglong SV::*offset;
