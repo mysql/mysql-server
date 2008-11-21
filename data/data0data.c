@@ -534,9 +534,9 @@ dtuple_print(
 		dfield_print_raw(f, dtuple_get_nth_field(tuple, i));
 
 		putc(';', f);
+		putc('\n', f);
 	}
 
-	putc('\n', f);
 	ut_ad(dtuple_validate(tuple));
 }
 
