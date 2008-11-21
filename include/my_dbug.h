@@ -108,6 +108,22 @@ extern FILE *_db_fp_(void);
 #define DBUG_EXPLAIN(buf,len)
 #define DBUG_EXPLAIN_INITIAL(buf,len)
 #define IF_DBUG(A)
+
+#ifdef __WIN__
+/*
+   On windows all the dll export has to be declared in the *.def file
+   so as we export these symbols in DEBUG mode we have to export
+   these in the RELEASE mode also. So below are the dummy symbols
+   for the RELEASE export
+*/
+extern  char _db_doprnt_;
+extern  char _db_enter_;
+extern  char _db_pargs_;
+extern  char _db_process_;
+extern  char _db_push_;
+extern  char _db_return_;
+#endif /*__WIN__*/
+
 #endif
 #ifdef	__cplusplus
 }
