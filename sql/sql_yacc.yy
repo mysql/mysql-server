@@ -234,9 +234,7 @@ int case_stmt_action_expr(LEX *lex, Item* expr)
                                 parsing_ctx, case_expr_id, expr, lex);
 
   sp->add_cont_backpatch(i);
-  sp->add_instr(i);
-
-  return 0;
+  return sp->add_instr(i);
 }
 
 /**
@@ -247,7 +245,7 @@ int case_stmt_action_expr(LEX *lex, Item* expr)
   @param simple true for simple cases, false for searched cases
 */
 
-void case_stmt_action_when(LEX *lex, Item *when, bool simple)
+int case_stmt_action_when(LEX *lex, Item *when, bool simple)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *ctx= lex->spcont;
@@ -279,9 +277,10 @@ void case_stmt_action_when(LEX *lex, Item *when, bool simple)
     (jump_if_not from instruction 2 to 5, 5 to 8 ... in the example)
   */
 
-  sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-  sp->add_cont_backpatch(i);
-  sp->add_instr(i);
+  return !test(i) ||
+         sp->push_backpatch(i, ctx->push_label((char *)"", 0)) ||
+         sp->add_cont_backpatch(i) ||
+         sp->add_instr(i);
 }
 
 /**
@@ -290,13 +289,14 @@ void case_stmt_action_when(LEX *lex, Item *when, bool simple)
   @param lex the parser lex context
 */
 
-void case_stmt_action_then(LEX *lex)
+int case_stmt_action_then(LEX *lex)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *ctx= lex->spcont;
   uint ip= sp->instructions();
   sp_instr_jump *i = new sp_instr_jump(ip, ctx);
-  sp->add_instr(i);
+  if (!test(i) || sp->add_instr(i))
+    return 1;
 
   /*
     BACKPATCH: Resolving forward jump from
@@ -312,7 +312,7 @@ void case_stmt_action_then(LEX *lex)
     (jump from instruction 4 to 12, 7 to 12 ... in the example)
   */
 
-  sp->push_backpatch(i, ctx->last_label());
+  return sp->push_backpatch(i, ctx->last_label());
 }
 
 /**
@@ -1905,10 +1905,9 @@ sp_decl:
                                                  var_type,
                                                  lex,
                                                  (i == num_vars - 1));
-              if (is == NULL)
+              if (is == NULL ||
+                  lex->sphead->add_instr(is))
                 MYSQL_YYABORT;
-
-              lex->sphead->add_instr(is);
             }
 
             pctx->declare_var_boundary(0);
@@ -1927,7 +1926,8 @@ sp_decl:
 	      my_error(ER_SP_DUP_COND, MYF(0), $2.str);
 	      MYSQL_YYABORT;
 	    }
-	    YYTHD->lex->spcont->push_cond(&$2, $5);
+	    if(YYTHD->lex->spcont->push_cond(&$2, $5))
+              MYSQL_YYABORT;
 	    $$.vars= $$.hndlrs= $$.curs= 0;
 	    $$.conds= 1;
 	  }
@@ -1942,10 +1942,10 @@ sp_decl:
 	    sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
 	                              ctx->current_var_count());
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
 
-	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
 	  }
 	  sp_hcond_list sp_proc_stmt
@@ -1960,17 +1960,17 @@ sp_decl:
 	    {
 	      i= new sp_instr_hreturn(sp->instructions(), ctx,
 	                              ctx->current_var_count());
-              if (i == NULL )
+              if (i == NULL ||
+	          sp->add_instr(i))
                 MYSQL_YYABORT;
-	      sp->add_instr(i);
 	    }
 	    else
 	    {  /* EXIT or UNDO handler, just jump to the end of the block */
 	      i= new sp_instr_hreturn(sp->instructions(), ctx, 0);
-              if (i == NULL)
+              if (i == NULL ||
+	          sp->add_instr(i) ||
+	          sp->push_backpatch(i, lex->spcont->last_label())) /* Block end */
                 MYSQL_YYABORT;
-	      sp->add_instr(i);
-	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
 
@@ -1996,10 +1996,10 @@ sp_decl:
 	    }
             i= new sp_instr_cpush(sp->instructions(), ctx, $5,
                                   ctx->current_cursor_count());
-	    if (i == NULL)
+	    if (i == NULL ||
+                sp->add_instr(i) ||
+	        ctx->push_cursor(&$2))
               MYSQL_YYABORT;
-            sp->add_instr(i);
-	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
 	    $$.curs= 1;
 	  }
@@ -2223,10 +2223,11 @@ sp_proc_stmt:
                 i->m_query.length= lip->ptr - sp->m_tmp_query;
               else
                 i->m_query.length= lip->tok_end - sp->m_tmp_query;
-              i->m_query.str= strmake_root(thd->mem_root,
-                                           sp->m_tmp_query,
-                                           i->m_query.length);
-              sp->add_instr(i);
+              if (!(i->m_query.str= strmake_root(thd->mem_root,
+                                                 sp->m_tmp_query,
+                                                 i->m_query.length)) ||
+                    sp->add_instr(i))
+                MYSQL_YYABORT;
             }
 	    sp->restore_lex(thd);
           }
@@ -2251,9 +2252,9 @@ sp_proc_stmt:
 
 	      i= new sp_instr_freturn(sp->instructions(), lex->spcont, $3,
                                       sp->m_return_field_def.sql_type, lex);
-              if (i == NULL)
+              if (i == NULL ||
+	          sp->add_instr(i))
                 MYSQL_YYABORT;
-	      sp->add_instr(i);
 	      sp->m_flags|= sp_head::HAS_RETURN;
 	    }
 	    sp->restore_lex(YYTHD);
@@ -2311,23 +2312,23 @@ sp_proc_stmt:
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
-                if (hpop == NULL)
+                if (hpop == NULL ||
+	            sp->add_instr(hpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(hpop);
               }
 	      n= ctx->diff_cursors(lab->ctx, exclusive);
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
-                if (cpop == NULL)
+                if (cpop == NULL ||
+	            sp->add_instr(cpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx);
-              if (i == NULL)
+              if (i == NULL ||
+	          sp->push_backpatch(i, lab) ||  /* Jumping forward */
+                  sp->add_instr(i))
                 MYSQL_YYABORT;
-	      sp->push_backpatch(i, lab);  /* Jumping forward */
-              sp->add_instr(i);
 	    }
 	  }
 	| ITERATE_SYM label_ident
@@ -2352,22 +2353,22 @@ sp_proc_stmt:
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
-                if (hpop == NULL)
+                if (hpop == NULL ||
+	            sp->add_instr(hpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(hpop);
               }
 	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
-                if (cpop == NULL)
+                if (cpop == NULL ||
+	            sp->add_instr(cpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
-              if (i == NULL)
+              if (i == NULL ||
+                  sp->add_instr(i))
                 MYSQL_YYABORT;
-              sp->add_instr(i);
 	    }
 	  }
 	| OPEN_SYM ident
@@ -2383,9 +2384,9 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	  }
 	| FETCH_SYM sp_opt_fetch_noise ident INTO
 	  {
@@ -2400,9 +2401,9 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	  }
 	  sp_fetch_list
 	  { }
@@ -2419,9 +2420,9 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	  }
 	;
 
@@ -2488,11 +2489,11 @@ sp_if:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
                                                                $2, lex);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->push_backpatch(i, ctx->push_label((char *)"", 0)) ||
+                sp->add_cont_backpatch(i) ||
+                sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-            sp->add_cont_backpatch(i);
-            sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1
@@ -2501,9 +2502,9 @@ sp_if:
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
 	    sp_instr_jump *i = new sp_instr_jump(ip, ctx);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	    sp->backpatch(ctx->pop_label());
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
 	  }
@@ -2589,14 +2590,16 @@ simple_when_clause:
             /* Simple case: <caseval> = <whenval> */
 
             LEX *lex= Lex;
-            case_stmt_action_when(lex, $3, true);
+            if (case_stmt_action_when(lex, $3, true))
+              MYSQL_YYABORT;
             lex->sphead->restore_lex(YYTHD); /* For expr $3 */
           }
           THEN_SYM
           sp_proc_stmts1
           {
             LEX *lex= Lex;
-            case_stmt_action_then(lex);
+            if (case_stmt_action_then(lex))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2609,14 +2612,16 @@ searched_when_clause:
           expr
           {
             LEX *lex= Lex;
-            case_stmt_action_when(lex, $3, false);
+            if (case_stmt_action_when(lex, $3, false))
+              MYSQL_YYABORT;
             lex->sphead->restore_lex(YYTHD); /* For expr $3 */
           }
           THEN_SYM
           sp_proc_stmts1
           {
             LEX *lex= Lex;
-            case_stmt_action_then(lex);
+            if (case_stmt_action_then(lex))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2628,9 +2633,9 @@ else_clause_opt:
             uint ip= sp->instructions();
             sp_instr_error *i= new sp_instr_error(ip, lex->spcont,
                                                   ER_SP_CASE_NOT_FOUND);
-            if (i == NULL)
+            if (i == NULL ||
+                sp->add_instr(i))
               MYSQL_YYABORT;
-            sp->add_instr(i);
           }
         | ELSE sp_proc_stmts1
         ;
@@ -2744,17 +2749,17 @@ sp_block_content:
             {
               sp_instr_hpop *hpop= new sp_instr_hpop(sp->instructions(), ctx,
                                                      $3.hndlrs);
-              if (hpop == NULL)
+              if (hpop == NULL ||
+	          sp->add_instr(hpop))
                 MYSQL_YYABORT;
-	      sp->add_instr(hpop);
             }
 	    if ($3.curs)
             {
               sp_instr_cpop *cpop= new sp_instr_cpop(sp->instructions(), ctx,
                                                      $3.curs);
-              if (cpop == NULL)
+              if (cpop == NULL ||
+	          sp->add_instr(cpop))
                 MYSQL_YYABORT;
-	      sp->add_instr(cpop);
             }
 	    lex->spcont= ctx->pop_context();
 	  }
@@ -2768,9 +2773,9 @@ sp_unlabeled_control:
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
-            if (i == NULL)
+            if (i == NULL ||
+	        lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-	    lex->sphead->add_instr(i);
 	  }
         | WHILE_SYM 
           {
@@ -2784,12 +2789,12 @@ sp_unlabeled_control:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
 							       $3, lex);
-            if (i == NULL)
-              MYSQL_YYABORT;
+            if (i == NULL ||
 	    /* Jumping forward */
-	    sp->push_backpatch(i, lex->spcont->last_label());
-            sp->new_cont_backpatch(i);
-            sp->add_instr(i);
+                sp->push_backpatch(i, lex->spcont->last_label()) ||
+                sp->new_cont_backpatch(i) ||
+                sp->add_instr(i))
+              MYSQL_YYABORT;
             sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1 END WHILE_SYM
@@ -2798,9 +2803,9 @@ sp_unlabeled_control:
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
-            if (i == NULL)
+            if (i == NULL ||
+	        lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-	    lex->sphead->add_instr(i);
             lex->sphead->do_cont_backpatch();
 	  }
         | REPEAT_SYM sp_proc_stmts1 UNTIL_SYM 
@@ -2816,9 +2821,9 @@ sp_unlabeled_control:
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
                                                                $5, lab->ip,
                                                                lex);
-            if (i == NULL)
+            if (i == NULL ||
+                lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-            lex->sphead->add_instr(i);
             lex->sphead->restore_lex(YYTHD);
             /* We can shortcut the cont_backpatch here */
             i->m_cont_dest= ip+1;
@@ -9643,7 +9648,8 @@ option_type_value:
                       qbuff.length);
               qbuff.length+= 4;
               i->m_query= qbuff;
-              sp->add_instr(i);
+              if (sp->add_instr(i))
+                MYSQL_YYABORT;
             }
             lex->sphead->restore_lex(thd);
           }
@@ -9725,7 +9731,8 @@ sys_option_value:
             lex->trg_table_fields.link_in_list((byte *)trg_fld,
                                     (byte **)&trg_fld->next_trg_field);
 
-            lex->sphead->add_instr(sp_fld);
+            if (lex->sphead->add_instr(sp_fld))
+              MYSQL_YYABORT;
           }
           else if ($2.var)
           { /* System variable */
@@ -9755,11 +9762,12 @@ sys_option_value:
               it= spv->dflt;
             else
               it= new Item_null();
-            if (it == NULL)
+            if (it == NULL ||
+                (sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
+                                          spv->offset, it, spv->type, lex,
+                                          TRUE)) == NULL ||
+                lex->sphead->add_instr(sp_set))
               MYSQL_YYABORT;
-            sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
-                                     spv->offset, it, spv->type, lex, TRUE);
-            lex->sphead->add_instr(sp_set);
           }
         }
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types

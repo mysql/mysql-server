@@ -3342,10 +3342,6 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   }
 }
 
-/*
-  Add all keys with uses 'field' for some keypart
-  If field->and_level != and_level then only mark key_part as const_part
-*/
 
 static uint
 max_part_bit(key_part_map bits)
@@ -3355,7 +3351,16 @@ max_part_bit(key_part_map bits)
   return found;
 }
 
-static void
+/*
+  Add all keys with uses 'field' for some keypart
+  If field->and_level != and_level then only mark key_part as const_part
+
+  RETURN 
+   0 - OK
+   1 - Out of memory.
+*/
+
+static bool
 add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
@@ -3385,24 +3390,26 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
-	  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
+	  if (insert_dynamic(keyuse_array,(gptr) &keyuse))
+            return TRUE;
 	}
       }
     }
   }
+  return FALSE;
 }
 
 
 #define FT_KEYPART   (MAX_REF_PARTS+10)
 
-static void
+static bool
 add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
             JOIN_TAB *stat,COND *cond,table_map usable_tables)
 {
   Item_func_match *cond_func=NULL;
 
   if (!cond)
-    return;
+    return FALSE;
 
   if (cond->type() == Item::FUNC_ITEM)
   {
@@ -3436,13 +3443,16 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     {
       Item *item;
       while ((item=li++))
-        add_ft_keys(keyuse_array,stat,item,usable_tables);
+      {
+        if (add_ft_keys(keyuse_array,stat,item,usable_tables))
+          return TRUE;
+      }
     }
   }
 
   if (!cond_func || cond_func->key == NO_SUCH_KEY ||
       !(usable_tables & cond_func->table->map))
-    return;
+    return FALSE;
 
   KEYUSE keyuse;
   keyuse.table= cond_func->table;
@@ -3452,7 +3462,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
-  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
+  return insert_dynamic(keyuse_array,(gptr) &keyuse);
 }
 
 
@@ -3602,7 +3612,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
                    sargables);
     for (; field != end ; field++)
     {
-      add_key_part(keyuse,field);
+      if (add_key_part(keyuse,field))
+        return TRUE;
       /* Mark that we can optimize LEFT JOIN */
       if (field->val->type() == Item::NULL_ITEM &&
 	  !field->field->real_maybe_null())
@@ -3640,11 +3651,15 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
-    add_key_part(keyuse,field);
+  {
+    if (add_key_part(keyuse,field))
+      return TRUE;
+  }
 
   if (select_lex->ftfunc_list->elements)
   {
-    add_ft_keys(keyuse,join_tab,cond,normal_tables);
+    if (add_ft_keys(keyuse,join_tab,cond,normal_tables))
+      return TRUE;
   }
 
   /*
@@ -3665,7 +3680,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  (qsort_cmp) sort_keyuse);
 
     bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
-    VOID(insert_dynamic(keyuse,(gptr) &key_end));
+    if (insert_dynamic(keyuse,(gptr) &key_end))
+      return TRUE;
 
     use=save_pos=dynamic_element(keyuse,0,KEYUSE*);
     prev= &key_end;
