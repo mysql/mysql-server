@@ -312,7 +312,7 @@ sub mtr_report_stats ($) {
 		/Slave: According to the master's version/ or
 		/Slave: Column [0-9]* type mismatch/ or
 		/Slave: Error .* doesn't exist/ or
-		/Slave: Error .*Deadlock found/ or
+		/Slave: Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or

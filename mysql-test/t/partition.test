@@ -15,6 +15,35 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# Bug#40494: Crash MYSQL server crashes on range access with partitioning
+#            and order by
+#
+CREATE TABLE t1 (a INT NOT NULL, KEY(a))
+PARTITION BY RANGE(a)
+(PARTITION p1 VALUES LESS THAN (200), PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (2), (40), (40), (70), (60), (90), (199);
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 95 ORDER BY a ASC;
+--sorted_result
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 95;
+INSERT INTO t1 VALUES (200), (250), (210);
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 220 ORDER BY a ASC;
+SELECT a FROM t1 WHERE a BETWEEN 200 AND 220 ORDER BY a ASC;
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 95 ORDER BY a DESC;
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 220 ORDER BY a DESC;
+SELECT a FROM t1 WHERE a BETWEEN 200 AND 220 ORDER BY a DESC;
+--sorted_result
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 220;
+--sorted_result
+SELECT a FROM t1 WHERE a BETWEEN 200 AND 220;
+--sorted_result
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 95;
+--sorted_result
+SELECT a FROM t1 WHERE a BETWEEN 60 AND 220;
+--sorted_result
+SELECT a FROM t1 WHERE a BETWEEN 200 AND 220;
+DROP TABLE t1;
+
+#
 # Bug35931: Index search may return duplicates
 #
 CREATE TABLE t1 (
@@ -120,7 +149,10 @@ CREATE TABLE `t1` (
 CREATE TABLE `t2` (
   `c1` int(11) DEFAULT NULL,
   KEY `c1` (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (c1) (PARTITION a VALUES LESS THAN (100) ENGINE = MyISAM, PARTITION b VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (c1)
+(PARTITION a VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION b VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */;
 
 INSERT INTO `t1` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
@@ -1589,13 +1621,15 @@ drop table t;
 #
 
 USE mysql;
+TRUNCATE TABLE general_log;
+SET @old_general_log_state = @@global.general_log;
 SET GLOBAL general_log = 0;
 ALTER TABLE general_log ENGINE = MyISAM;
 --error ER_WRONG_USAGE
 ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
   (PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
 ALTER TABLE general_log ENGINE = CSV;
-SET GLOBAL general_log = default;
+SET GLOBAL general_log = @old_general_log_state;
 use test;
 
 #
@@ -1790,5 +1824,77 @@ UPDATE t1 SET number=6;
 select count(*) from t1, t2 where t1.createdDate = t2.createdDate;
 
 drop table t1, t2;
+
+#
+# Bug #38083 Error-causing row inserted into partitioned table despite error
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO';
+CREATE TABLE t1 (c1 INT)
+       PARTITION BY LIST(1 DIV c1) (
+       PARTITION p0 VALUES IN (NULL),
+       PARTITION p1 VALUES IN (1)
+     );
+ 
+-- error ER_DIVISION_BY_ZERO
+INSERT INTO t1 VALUES (0);
+SELECT * FROM t1;
+TRUNCATE t1;
+-- error ER_DIVISION_BY_ZERO
+INSERT INTO t1 VALUES (NULL), (0), (1), (2);
+SELECT * FROM t1;
+DROP TABLE t1;
+SET SQL_MODE= @orig_sql_mode;
+
+
+
+#
+# Bug #38005 Partitions: error with insert select
+#
+
+create table t1 (s1 int) partition by hash(s1) partitions 2;
+create index i on t1 (s1);
+insert into t1 values (1);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+select * from t1;
+drop table t1;
+
+create table t1 (s1 int) partition by range(s1) 
+        (partition pa1 values less than (10),
+         partition pa2 values less than MAXVALUE);
+create index i on t1 (s1);
+insert into t1 values (1);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+select * from t1;
+drop table t1;
+
+create table t1 (s1 int) partition by range(s1) 
+        (partition pa1 values less than (10),
+         partition pa2 values less than MAXVALUE);
+create index i on t1 (s1);
+insert into t1 values (20);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+select * from t1;
+drop table t1;
+
+create table t1 (s1 int) partition by range(s1) 
+        (partition pa1 values less than (10),
+         partition pa2 values less than MAXVALUE);
+create index i on t1 (s1);
+insert into t1 values (1), (2), (3), (4), (5), (6), (7), (8);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+insert into t1 select s1 from t1 where s1=3;
+select count(*) from t1;
+drop table t1;
 
 --echo End of 5.1 tests

@@ -13,30 +13,46 @@ path=`dirname $0`
 
 # Default to gcc for CC and CXX
 if test -z "$CXX" ; then
-  export CXX=gcc
+  CXX=gcc
   # Set some required compile options
   if test -z "$CXXFLAGS" ; then
-    export CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti"
+    CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti"
   fi
 fi
 
 if test -z "$CC" ; then
-  export CC=gcc
+  CC=gcc
 fi
 
 
 # Use ccache, if available
 if ccache -V > /dev/null 2>&1
 then
-  if ! (echo "$CC" | grep "ccache" > /dev/null)
+  if echo "$CC" | grep "ccache" > /dev/null
   then
-    export CC="ccache $CC"
+    :
+  else
+    CC="ccache $CC"
   fi
-  if ! (echo "$CXX" | grep "ccache" > /dev/null)
+  if echo "$CXX" | grep "ccache" > /dev/null
   then
-    export CXX="ccache $CXX"
+    :
+  else
+    CXX="ccache $CXX"
   fi
 fi
+
+if test -z "$MAKE"
+then
+  if gmake -v > /dev/null 2>&1
+  then
+    MAKE="gmake"
+  else
+    MAKE="make"
+  fi
+fi
+
+export CC CXX MAKE
 
 # Make sure to enable all features that affect "make dist"
 # Remember that configure restricts the man pages to the configured features !
@@ -44,4 +60,5 @@ fi
   --with-maria-storage-engine \
   --with-embedded-server \
   --with-ndbcluster
-make
+$MAKE
+

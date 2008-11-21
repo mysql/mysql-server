@@ -284,6 +284,8 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #define my_pthread_setprio(A,B) pthread_setprio_np((A),(B))
 #elif defined(HAVE_PTHREAD_SETPRIO)
 #define my_pthread_setprio(A,B) pthread_setprio((A),(B))
+#elif defined(HAVE_PTHREAD_SETSCHEDPRIO)
+#define my_pthread_setprio(A,B) pthread_setschedprio((A),(B))
 #else
 extern void my_pthread_setprio(pthread_t thread_id,int prior);
 #endif
@@ -525,6 +527,7 @@ typedef struct st_my_pthread_fastmutex_t
 {
   pthread_mutex_t mutex;
   uint spins;
+  uint rng_state;
 } my_pthread_fastmutex_t;
 void fastmutex_global_init(void);
 

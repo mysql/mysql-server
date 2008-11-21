@@ -1835,8 +1835,9 @@ bool quick_rm_table(handlerton *base,const char *db,
   if (my_delete(path,MYF(0)))
     error= 1; /* purecov: inspected */
   path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
-  DBUG_RETURN(ha_delete_table(current_thd, base, path, db, table_name, 0) ||
-              error);
+  if (!(flags & FRM_ONLY))
+    error|= ha_delete_table(current_thd, base, path, db, table_name, 0);
+  DBUG_RETURN(error);
 }
 
 /*
@@ -3547,11 +3548,13 @@ bool mysql_create_table_no_lock(THD *thd,
 #endif /* HAVE_READLINK */
   {
     if (create_info->data_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "DATA DIRECTORY option ignored");
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
     if (create_info->index_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "INDEX DIRECTORY option ignored");
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
   }
   create_info->table_options=db_options;
@@ -4204,7 +4207,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if (table->table && table->table->part_info)
+      if (table->table)
       {
         /*
           Set up which partitions that should be processed
@@ -4212,11 +4215,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         Alter_info *alter_info= &lex->alter_info;
 
-        if (alter_info->flags & ALTER_ANALYZE_PARTITION ||
-            alter_info->flags & ALTER_CHECK_PARTITION ||
-            alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
-            alter_info->flags & ALTER_REPAIR_PARTITION)
+        if (alter_info->flags & ALTER_ADMIN_PARTITION)
         {
+          if (!table->table->part_info)
+          {
+            my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
           uint no_parts_found;
           uint no_parts_opt= alter_info->partition_names.elements;
           no_parts_found= set_part_state(alter_info, table->table->part_info,
@@ -5018,8 +5023,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=) store_create_info(thd, table, &query,
-                                               create_info);
+        IF_DBUG(int result=)
+          store_create_info(thd, table, &query,
+                            create_info, FALSE /* show_database */);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -5172,6 +5178,7 @@ err:
       index_drop_count    OUT   The number of elements in the array.
       index_add_buffer    OUT   An array of offsets into key_info_buffer.
       index_add_count     OUT   The number of elements in the array.
+      candidate_key_count OUT   The number of candidate keys in original table.
 
   DESCRIPTION
     'table' (first argument) contains information of the original
@@ -5202,7 +5209,8 @@ compare_tables(TABLE *table,
                enum_alter_table_change_level *need_copy_table,
                KEY **key_info_buffer,
                uint **index_drop_buffer, uint *index_drop_count,
-               uint **index_add_buffer, uint *index_add_count)
+               uint **index_add_buffer, uint *index_add_count,
+               uint *candidate_key_count)
 {
   Field **f_ptr, *field;
   uint changes= 0, tmp;
@@ -5217,6 +5225,9 @@ compare_tables(TABLE *table,
     create_info->varchar will be reset in mysql_prepare_create_table.
   */
   bool varchar= create_info->varchar;
+  bool not_nullable= true;
+  DBUG_ENTER("compare_tables");
+
   /*
     Create a copy of alter_info.
     To compare the new and old table definitions, we need to "prepare"
@@ -5234,24 +5245,21 @@ compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
-
-  DBUG_ENTER("compare_tables");
-
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
-                                  &tmp_alter_info,
-                                  (table->s->tmp_table != NO_TMP_TABLE),
-                                  &db_options,
-                                  table->file, key_info_buffer,
-                                  &key_count, 0))
+                                 &tmp_alter_info,
+                                 (table->s->tmp_table != NO_TMP_TABLE),
+                                 &db_options,
+                                 table->file, key_info_buffer,
+                                 &key_count, 0))
     DBUG_RETURN(1);
   /* Allocate result buffers. */
   if (! (*index_drop_buffer=
-          (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
+         (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
       ! (*index_add_buffer=
-          (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
+         (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
     DBUG_RETURN(1);
-
+  
   /*
     Some very basic checks. If number of fields changes, or the
     handler, we need to run full ALTER TABLE. In the future
@@ -5287,6 +5295,8 @@ compare_tables(TABLE *table,
       create_info->used_fields & HA_CREATE_USED_ROW_FORMAT ||
       create_info->used_fields & HA_CREATE_USED_PAGE_CHECKSUM ||
       create_info->used_fields & HA_CREATE_USED_TRANSACTIONAL ||
+      create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
+      create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
       !table->s->mysql_version ||
@@ -5365,11 +5375,28 @@ compare_tables(TABLE *table,
   */
   *index_drop_count= 0;
   *index_add_count= 0;
+  *candidate_key_count= 0;
   for (table_key= table->key_info; table_key < table_key_end; table_key++)
   {
     KEY_PART_INFO *table_part;
     KEY_PART_INFO *table_part_end= table_key->key_part + table_key->key_parts;
     KEY_PART_INFO *new_part;
+
+   /*
+      Check if key is a candidate key, i.e. a unique index with no index
+      fields nullable, then key is either already primary key or could
+      be promoted to primary key if the original primary key is dropped.
+      Count all candidate keys.
+    */
+    not_nullable= true;
+    for (table_part= table_key->key_part;
+         table_part < table_part_end;
+         table_part++)
+    {
+      not_nullable= not_nullable && (! table_part->field->maybe_null());
+    }
+    if ((table_key->flags & HA_NOSAME) && not_nullable)
+      (*candidate_key_count)++;
 
     /* Search a new key with the same name. */
     for (new_key= *key_info_buffer; new_key < new_key_end; new_key++)
@@ -6000,12 +6027,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_drop_buffer;
   uint index_add_count;
   uint *index_add_buffer;
+  uint candidate_key_count;
+  bool committed= 0;
+  bool no_pk;
   DBUG_ENTER("mysql_alter_table");
 
   LINT_INIT(index_add_count);
   LINT_INIT(index_drop_count);
   LINT_INIT(index_add_buffer);
   LINT_INIT(index_drop_buffer);
+  LINT_INIT(candidate_key_count);
 
   /*
     Check if we attempt to alter mysql.slow_log or
@@ -6416,7 +6447,8 @@ view_err:
                        &need_copy_table_res,
                        &key_info_buffer,
                        &index_drop_buffer, &index_drop_count,
-                       &index_add_buffer, &index_add_count))
+                       &index_add_buffer, &index_add_count,
+                       &candidate_key_count))
       goto err;
    
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
@@ -6438,8 +6470,7 @@ view_err:
     uint  *idx_p;
     uint  *idx_end_p;
 
-    if (table->s->db_type()->alter_table_flags)
-      alter_flags= table->s->db_type()->alter_table_flags(alter_info->flags);
+    alter_flags= table->file->alter_table_flags(alter_info->flags);
     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
     /* Check dropped indexes. */
     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
@@ -6450,20 +6481,40 @@ view_err:
       DBUG_PRINT("info", ("index dropped: '%s'", key->name));
       if (key->flags & HA_NOSAME)
       {
-        /* Unique key. Check for "PRIMARY". */
-        if (! my_strcasecmp(system_charset_info,
-                            key->name, primary_key_name))
+        /* 
+           Unique key. Check for "PRIMARY". 
+           or if dropping last unique key
+        */
+        if ((uint) (key - table->key_info) == table->s->primary_key)
         {
+          DBUG_PRINT("info", ("Dropping primary key"));
           /* Primary key. */
           needed_online_flags|=  HA_ONLINE_DROP_PK_INDEX;
           needed_fast_flags|= HA_ONLINE_DROP_PK_INDEX_NO_WRITES;
           pk_changed++;
+          candidate_key_count--;
         }
         else
         {
+          KEY_PART_INFO *part_end= key->key_part + key->key_parts;
+          bool is_candidate_key= true;
+
           /* Non-primary unique key. */
           needed_online_flags|=  HA_ONLINE_DROP_UNIQUE_INDEX;
           needed_fast_flags|= HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES;
+
+          /*
+            Check if all fields in key are declared
+            NOT NULL and adjust candidate_key_count
+          */
+          for (KEY_PART_INFO *key_part= key->key_part;
+               key_part < part_end;
+               key_part++)
+            is_candidate_key=
+              (is_candidate_key && 
+               (! table->field[key_part->fieldnr-1]->maybe_null()));
+          if (is_candidate_key)
+            candidate_key_count--;
         }
       }
       else
@@ -6473,7 +6524,8 @@ view_err:
         needed_fast_flags|= HA_ONLINE_DROP_INDEX_NO_WRITES;
       }
     }
-
+    no_pk= ((table->s->primary_key == MAX_KEY) ||
+            (needed_online_flags & HA_ONLINE_DROP_PK_INDEX));
     /* Check added indexes. */
     for (idx_p= index_add_buffer, idx_end_p= idx_p + index_add_count;
          idx_p < idx_end_p;
@@ -6483,14 +6535,38 @@ view_err:
       DBUG_PRINT("info", ("index added: '%s'", key->name));
       if (key->flags & HA_NOSAME)
       {
-        /* Unique key. Check for "PRIMARY". */
-        if (! my_strcasecmp(system_charset_info,
-                            key->name, primary_key_name))
+        /* Unique key */
+
+        KEY_PART_INFO *part_end= key->key_part + key->key_parts;    
+        bool is_candidate_key= true;
+
+        /*
+          Check if all fields in key are declared
+          NOT NULL
+         */
+        for (KEY_PART_INFO *key_part= key->key_part;
+             key_part < part_end;
+             key_part++)
+          is_candidate_key=
+            (is_candidate_key && 
+             (! table->field[key_part->fieldnr]->maybe_null()));
+
+        /*
+           Check for "PRIMARY"
+           or if adding first unique key
+           defined on non-nullable fields
+        */
+
+        if ((!my_strcasecmp(system_charset_info,
+                            key->name, primary_key_name)) ||
+            (no_pk && candidate_key_count == 0 && is_candidate_key))
         {
+          DBUG_PRINT("info", ("Adding primary key"));
           /* Primary key. */
           needed_online_flags|=  HA_ONLINE_ADD_PK_INDEX;
           needed_fast_flags|= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
           pk_changed++;
+          no_pk= false;
         }
         else
         {
@@ -6507,6 +6583,20 @@ view_err:
       }
     }
 
+    if ((candidate_key_count > 0) && 
+        (needed_online_flags & HA_ONLINE_DROP_PK_INDEX))
+    {
+      /*
+        Dropped primary key when there is some other unique 
+        not null key that should be converted to primary key
+      */
+      needed_online_flags|=  HA_ONLINE_ADD_PK_INDEX;
+      needed_fast_flags|= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
+      pk_changed= 2;
+    }
+
+    DBUG_PRINT("info", ("needed_online_flags: 0x%lx, needed_fast_flags: 0x%lx",
+                        needed_online_flags, needed_fast_flags));
     /*
       Online or fast add/drop index is possible only if
       the primary key is not added and dropped in the same statement.
@@ -6650,7 +6740,6 @@ view_err:
   /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
-  thd_proc_info(thd, "copy to tmp table");
   copied=deleted=0;
   /*
     We do not copy data for MERGE tables. Only the children have data.
@@ -6661,6 +6750,7 @@ view_err:
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
+    thd_proc_info(thd, "copy to tmp table");
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
@@ -6672,6 +6762,7 @@ view_err:
     VOID(pthread_mutex_lock(&LOCK_open));
     wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
     VOID(pthread_mutex_unlock(&LOCK_open));
+    thd_proc_info(thd, "manage keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
     error= ha_autocommit_or_rollback(thd, 0);
@@ -7004,7 +7095,10 @@ err1:
     close_temporary_table(thd, new_table, 1, 1);
   }
   else
-    VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
+    VOID(quick_rm_table(new_db_type, new_db, tmp_name, 
+                        create_info->frm_only
+                        ? FN_IS_TMP | FRM_ONLY
+                        : FN_IS_TMP));
 
 err:
   /*

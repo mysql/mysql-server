@@ -619,7 +619,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if ((table_list->view ?
        view_store_create_info(thd, table_list, &buffer) :
-       store_create_info(thd, table_list, &buffer, NULL)))
+       store_create_info(thd, table_list, &buffer, NULL,
+                         FALSE /* show_database */)))
     DBUG_RETURN(TRUE);
 
   List<Item> field_list;
@@ -810,7 +811,8 @@ mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
   DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name.str));
 
   protocol->prepare_for_resend();
-  if (store_create_info(thd, table_list, packet, NULL))
+  if (store_create_info(thd, table_list, packet, NULL,
+                        FALSE /* show_database */))
     DBUG_RETURN(-1);
 
   if (fd < 0)
@@ -1062,7 +1064,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
  */
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                      HA_CREATE_INFO *create_info_arg)
+                      HA_CREATE_INFO *create_info_arg, bool show_database)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], def_value_buf[MAX_FIELD_WIDTH];
@@ -1110,6 +1112,25 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       alias= share->table_name.str;
     }
   }
+
+  /*
+    Print the database before the table name if told to do that. The
+    database name is only printed in the event that it is different
+    from the current database.  The main reason for doing this is to
+    avoid having to update gazillions of tests and result files, but
+    it also saves a few bytes of the binary log.
+   */
+  if (show_database)
+  {
+    const LEX_STRING *const db=
+      table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
+    if (strcmp(db->str, thd->db) != 0)
+    {
+      append_identifier(thd, packet, db->str, db->length);
+      packet->append(STRING_WITH_LEN("."));
+    }
+  }
+
   append_identifier(thd, packet, alias, strlen(alias));
   packet->append(STRING_WITH_LEN(" (\n"));
   /*
@@ -1434,7 +1455,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   FALSE,
                                                   show_table_options))))
     {
-       packet->append(STRING_WITH_LEN(" /*!50100"));
+       packet->append(STRING_WITH_LEN("\n/*!50100"));
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
        my_free(part_syntax, MYF(0));
@@ -2964,7 +2985,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
-static uint get_table_open_method(TABLE_LIST *tables,
+uint get_table_open_method(TABLE_LIST *tables,
                                   ST_SCHEMA_TABLE *schema_table,
                                   enum enum_schema_tables schema_table_idx)
 {
@@ -2975,12 +2996,22 @@ static uint get_table_open_method(TABLE_LIST *tables,
   {
     Field **ptr, *field;
     int table_open_method= 0, field_indx= 0;
+    uint star_table_open_method= OPEN_FULL_TABLE;
+    bool used_star= true;                  // true if '*' is used in select
     for (ptr=tables->table->field; (field= *ptr) ; ptr++)
     {
+      star_table_open_method=
+        min(star_table_open_method,
+            schema_table->fields_info[field_indx].open_method);
       if (bitmap_is_set(tables->table->read_set, field->field_index))
+      {
+        used_star= false;
         table_open_method|= schema_table->fields_info[field_indx].open_method;
+      }
       field_indx++;
     }
+    if (used_star)
+      return star_table_open_method;
     return table_open_method;
   }
   /* I_S tables which use get_all_tables but can not be optimized */
@@ -4232,6 +4263,27 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
           !my_strcasecmp(system_charset_info, tables->definer.host.str,
                          sctx->priv_host))
         tables->allowed_show= TRUE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      else
+      {
+        if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+            (SHOW_VIEW_ACL|SELECT_ACL))
+          tables->allowed_show= TRUE;
+        else
+        {
+          TABLE_LIST table_list;
+          uint view_access;
+          memset(&table_list, 0, sizeof(table_list));
+          table_list.db= tables->view_db.str;
+          table_list.table_name= tables->view_name.str;
+          table_list.grant.privilege= thd->col_access;
+          view_access= get_table_grant(thd, &table_list);
+          if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+              (SHOW_VIEW_ACL|SELECT_ACL))
+            tables->allowed_show= TRUE;
+        }
+      }
+#endif
     }
     restore_record(table, s->default_values);
     tmp_db_name= &tables->view_db;
@@ -6091,7 +6143,7 @@ ST_FIELD_INFO events_fields_info[]=
    SKIP_OPEN_TABLE},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field",
    SKIP_OPEN_TABLE},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"STARTS", 0, MYSQL_TYPE_DATETIME, 0, 1, "Starts", SKIP_OPEN_TABLE},
   {"ENDS", 0, MYSQL_TYPE_DATETIME, 0, 1, "Ends", SKIP_OPEN_TABLE},
   {"STATUS", 18, MYSQL_TYPE_STRING, 0, 0, "Status", SKIP_OPEN_TABLE},
@@ -6334,8 +6386,8 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"CREATED", 0, MYSQL_TYPE_DATETIME, 0, 1, "Created", OPEN_FULL_TABLE},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FULL_TABLE},
-  {"DEFINER", 65535, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FULL_TABLE},
+  {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FULL_TABLE},
+  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FULL_TABLE},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
    "character_set_client", OPEN_FULL_TABLE},
   {"COLLATION_CONNECTION", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,

@@ -1338,4 +1338,12 @@ where state='User sleep' and
 info='select * from information_schema.columns where 1=sleep(100000)';
 --source include/wait_condition.inc
 
+
+#
+# Bug#38918 selecting from information_schema.columns is disproportionately slow
+#
+explain select count(*) from information_schema.tables;
+explain select count(*) from information_schema.columns;
+explain select count(*) from information_schema.views;
+
 --echo End of 5.1 tests.

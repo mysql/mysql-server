@@ -458,7 +458,31 @@ int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
     mp->spins= MY_PTHREAD_FASTMUTEX_SPINS; 
   else
     mp->spins= 0;
+  mp->rng_state= 1;
   return pthread_mutex_init(&mp->mutex, attr); 
+}
+
+/**
+  Park-Miller random number generator. A simple linear congruential
+  generator that operates in multiplicative group of integers modulo n.
+
+  x_{k+1} = (x_k g) mod n
+
+  Popular pair of parameters: n = 2^32 − 5 = 4294967291 and g = 279470273.
+  The period of the generator is about 2^31.
+  Largest value that can be returned: 2147483646 (RAND_MAX)
+
+  Reference:
+
+  S. K. Park and K. W. Miller
+  "Random number generators: good ones are hard to find"
+  Commun. ACM, October 1988, Volume 31, No 10, pages 1192-1201.
+*/
+
+static double park_rng(my_pthread_fastmutex_t *mp)
+{
+  mp->rng_state= ((my_ulonglong)mp->rng_state * 279470273U) % 4294967291U;
+  return (mp->rng_state / 2147483647.0);
 }
 
 int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
@@ -478,8 +502,7 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
       return res;
 
     mutex_delay(maxdelay);
-    maxdelay += ((double) random() / (double) RAND_MAX) * 
-	        MY_PTHREAD_FASTMUTEX_DELAY + 1;
+    maxdelay += park_rng(mp) * MY_PTHREAD_FASTMUTEX_DELAY + 1;
   }
   return pthread_mutex_lock(&mp->mutex);
 }
