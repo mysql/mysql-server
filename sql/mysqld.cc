@@ -7351,6 +7351,7 @@ SHOW_VAR status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+#ifndef EMBEDDED_LIBRARY
 static void print_version(void)
 {
   set_server_version();
@@ -7362,7 +7363,6 @@ static void print_version(void)
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
-#ifndef EMBEDDED_LIBRARY
 static void usage(void)
 {
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
