@@ -1322,15 +1322,15 @@ buf_LRU_free_block(
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
 
-#ifdef UNIV_IBUF_COUNT_DEBUG
-	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
-#endif /* UNIV_IBUF_COUNT_DEBUG */
-
 	if (!buf_page_can_relocate(bpage)) {
 
 		/* Do not free buffer-fixed or I/O-fixed blocks. */
 		return(BUF_LRU_NOT_FREED);
 	}
+
+#ifdef UNIV_IBUF_COUNT_DEBUG
+	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+#endif /* UNIV_IBUF_COUNT_DEBUG */
 
 	if (zip || !bpage->zip.data) {
 		/* This would completely free the block. */
