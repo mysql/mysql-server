@@ -14938,6 +14938,7 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
+        c_Trans.release(trans_ptr);
         break;
       }
       
@@ -15051,6 +15052,7 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
+        c_Trans.release(trans_ptr);
         break;
       }
       
