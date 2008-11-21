@@ -15,6 +15,17 @@ struct timezone {
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
+typedef enum {
+    CLOCK_REALTIME = 0
+} clockid_t;
+
+struct timespec {
+    long tv_sec;
+    long tv_nsec;
+};
+
+int clock_gettime(clockid_t clock_id, struct timespec *ts);
+
 #ifdef __cplusplus
 };
 #endif
