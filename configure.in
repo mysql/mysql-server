@@ -10,13 +10,13 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.29-ndb-6.3.19)
+AM_INIT_AUTOMAKE(mysql, 5.1.30-ndb-6.3.20)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=6
 NDB_VERSION_MINOR=3
-NDB_VERSION_BUILD=19
-NDB_VERSION_STATUS="-RC"
+NDB_VERSION_BUILD=20
+NDB_VERSION_STATUS="-GA"
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
@@ -383,7 +383,7 @@ fi
 MYSQL_PROG_AR
 
 # libmysqlclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
+if $LD --version 2>/dev/null| grep GNU >/dev/null 2>&1; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
@@ -455,11 +455,11 @@ AC_SUBST(PERL5)
 
 # Enable the abi_check rule only if gcc is available
 
-if expr "$CC" : ".*gcc.*"
+if test "$GCC" != "yes" || expr "$CC" : ".*icc.*"
 then
-  ABI_CHECK="abi_check"
-else
   ABI_CHECK=""
+else
+  ABI_CHECK="abi_check"
 fi
 
 AC_SUBST(ABI_CHECK)
