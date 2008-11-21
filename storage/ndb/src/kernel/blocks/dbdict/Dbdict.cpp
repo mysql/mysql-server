@@ -14947,17 +14947,6 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
       break;
     }
 
-    DictLockReq lockReq;
-    lockReq.userPtr = trans_ptr.i;
-    lockReq.userRef = reference();
-    lockReq.lockType = DictLockReq::CreateFileLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
-    {
-      jam();
-      ref->errorLine = __LINE__;      
-      break;
-    }
-
     jam(); 
     const Uint32 trans_key = ++c_opRecordSequence;
     trans_ptr.p->key = trans_key;
@@ -14969,6 +14958,18 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
 //    trans_ptr.p->m_nodes.set(getOwnNodeId());
     c_Trans.add(trans_ptr);
     
+    DictLockReq lockReq;
+    lockReq.userPtr = trans_ptr.i;
+    lockReq.userRef = reference();
+    lockReq.lockType = DictLockReq::CreateFileLock;
+    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    {
+      jam();
+      ref->errorLine = __LINE__;      
+      c_Trans.release(trans_ptr);
+      break;
+    }
+
     const Uint32 op_key = ++c_opRecordSequence;
     trans_ptr.p->m_op.m_key = op_key;
     trans_ptr.p->m_op.m_vt_index = 1;
@@ -14992,8 +14993,8 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
-
         dict_lock_unlock(0, &lockReq);
+        c_Trans.release(trans_ptr);
         break;
       }
       
@@ -15071,6 +15072,14 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
       break;
     }
 
+    const Uint32 trans_key = ++c_opRecordSequence;
+    trans_ptr.p->key = trans_key;
+    trans_ptr.p->m_senderRef = senderRef;
+    trans_ptr.p->m_senderData = senderData;
+    trans_ptr.p->m_nodes = c_aliveNodes;
+    trans_ptr.p->m_errorCode = 0;
+    c_Trans.add(trans_ptr);
+
     DictLockReq lockReq;
     lockReq.userPtr = trans_ptr.i;
     lockReq.userRef = reference();
@@ -15079,18 +15088,10 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
     {
       jam();
       ref->errorLine = __LINE__;      
+      c_Trans.release(trans_ptr);
       break;
     }
 
-    jam(); 
-    const Uint32 trans_key = ++c_opRecordSequence;
-    trans_ptr.p->key = trans_key;
-    trans_ptr.p->m_senderRef = senderRef;
-    trans_ptr.p->m_senderData = senderData;
-    trans_ptr.p->m_nodes = c_aliveNodes;
-    trans_ptr.p->m_errorCode = 0;
-    c_Trans.add(trans_ptr);
-    
     const Uint32 op_key = ++c_opRecordSequence;
     trans_ptr.p->m_op.m_key = op_key;
     trans_ptr.p->m_op.m_vt_index = 0;
@@ -15113,8 +15114,8 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
-
         dict_lock_unlock(0, &lockReq);
+        c_Trans.release(trans_ptr);
         break;
       }
       
@@ -15206,6 +15207,14 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
       break;
     }
 
+    const Uint32 trans_key = ++c_opRecordSequence;
+    trans_ptr.p->key = trans_key;
+    trans_ptr.p->m_senderRef = senderRef;
+    trans_ptr.p->m_senderData = senderData;
+    trans_ptr.p->m_nodes = c_aliveNodes;
+    trans_ptr.p->m_errorCode = 0;
+    c_Trans.add(trans_ptr);
+
     DictLockReq lockReq;
     lockReq.userPtr = trans_ptr.i;
     lockReq.userRef = reference();
@@ -15214,19 +15223,10 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     {
       jam();
       ref->errorLine = __LINE__;      
+      c_Trans.release(trans_ptr);
       break;
     }
 
-    jam();
-    
-    const Uint32 trans_key = ++c_opRecordSequence;
-    trans_ptr.p->key = trans_key;
-    trans_ptr.p->m_senderRef = senderRef;
-    trans_ptr.p->m_senderData = senderData;
-    trans_ptr.p->m_nodes = c_aliveNodes;
-    trans_ptr.p->m_errorCode = 0;
-    c_Trans.add(trans_ptr);
-    
     const Uint32 op_key = ++c_opRecordSequence;
     trans_ptr.p->m_op.m_key = op_key;
     trans_ptr.p->m_op.m_vt_index = 2;
@@ -15323,19 +15323,6 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
       break;
     }
 
-    DictLockReq lockReq;
-    lockReq.userPtr = trans_ptr.i;
-    lockReq.userRef = reference();
-    lockReq.lockType = DictLockReq::DropFilegroupLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
-    {
-      jam();
-      ref->errorLine = __LINE__;      
-      break;
-    }
-
-    jam();
-    
     const Uint32 trans_key = ++c_opRecordSequence;
     trans_ptr.p->key = trans_key;
     trans_ptr.p->m_senderRef = senderRef;
@@ -15344,6 +15331,18 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     trans_ptr.p->m_errorCode = 0;
     c_Trans.add(trans_ptr);
     
+    DictLockReq lockReq;
+    lockReq.userPtr = trans_ptr.i;
+    lockReq.userRef = reference();
+    lockReq.lockType = DictLockReq::DropFilegroupLock;
+    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    {
+      jam();
+      ref->errorLine = __LINE__;      
+      c_Trans.release(trans_ptr);
+      break;
+    }
+
     const Uint32 op_key = ++c_opRecordSequence;
     trans_ptr.p->m_op.m_key = op_key;
     trans_ptr.p->m_op.m_vt_index = 3;
