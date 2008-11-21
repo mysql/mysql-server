@@ -5546,7 +5546,7 @@ restart_cluster_failure:
     }
   }
   pthread_mutex_unlock(&LOCK_server_started);
-
+ restart:
   /*
     Main NDB Injector loop
   */
@@ -6155,6 +6155,11 @@ restart_cluster_failure:
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
+  }
+  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+  {
+    ndb_binlog_tables_inited= FALSE;
+    goto restart;
   }
  err:
   if (do_ndbcluster_binlog_close_connection != BCCC_restart)
