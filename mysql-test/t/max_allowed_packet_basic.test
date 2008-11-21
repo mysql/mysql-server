@@ -36,8 +36,13 @@
 
 SET @start_global_value = @@global.max_allowed_packet;
 SELECT @start_global_value;
-SET @start_session_value = @@session.max_allowed_packet;
-SELECT @start_session_value;
+
+# give a known value to @@session.max_allowed_packet by assigning to
+# @@global and setting up a new connection (for deterministic result
+# file diffing)
+SET @@global.max_allowed_packet = DEFAULT;
+connect (conn1, localhost, root,,);
+
 
 
 --echo '#--------------------FN_DYNVARS_070_01-------------------------#'
@@ -49,7 +54,9 @@ SET @@global.max_allowed_packet = 1000;
 SET @@global.max_allowed_packet = DEFAULT;
 SELECT @@global.max_allowed_packet;
 
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 20000;
+--Error ER_NO_DEFAULT
 SET @@session.max_allowed_packet = DEFAULT;
 SELECT @@session.max_allowed_packet;
 
@@ -61,9 +68,6 @@ SELECT @@session.max_allowed_packet;
 
 SET @@global.max_allowed_packet = DEFAULT;
 SELECT @@global.max_allowed_packet = 1048576;
-
-SET @@session.max_allowed_packet = DEFAULT;
-SELECT @@session.max_allowed_packet = 1048576;
 
 
 --echo '#--------------------FN_DYNVARS_070_03-------------------------#'
@@ -86,14 +90,19 @@ SELECT @@global.max_allowed_packet;
 # Change the value of max_allowed_packet to a valid value for SESSION Scope #
 #############################################################################
  
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 1024;
 SELECT @@session.max_allowed_packet;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 1025;
 SELECT @@session.max_allowed_packet;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 65535;
 SELECT @@session.max_allowed_packet;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 1073741824;
 SELECT @@session.max_allowed_packet;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 1073741823;
 SELECT @@session.max_allowed_packet;
 
@@ -118,14 +127,18 @@ SELECT @@global.max_allowed_packet;
 SET @@global.max_allowed_packet = test;
 SELECT @@global.max_allowed_packet;
 
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 0;
 SELECT @@session.max_allowed_packet;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 1023;
 SELECT @@session.max_allowed_packet;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = -2;
 SELECT @@session.max_allowed_packet;
 --Error ER_PARSE_ERROR
 SET @@session.max_allowed_packet = 65530.34.;
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 10737418241;
 SELECT @@session.max_allowed_packet;
 --echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
@@ -180,6 +193,7 @@ SELECT @@max_allowed_packet = @@global.max_allowed_packet;
 #    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
 ########################################################################################################
 
+--Error ER_VARIABLE_IS_READONLY
 SET @@max_allowed_packet = 100000;
 SELECT @@max_allowed_packet = @@local.max_allowed_packet;
 SELECT @@local.max_allowed_packet = @@session.max_allowed_packet;
@@ -190,6 +204,7 @@ SELECT @@local.max_allowed_packet = @@session.max_allowed_packet;
 #   Check if max_allowed_packet can be accessed with and without @@ sign    #
 #############################################################################
 
+--Error ER_VARIABLE_IS_READONLY
 SET max_allowed_packet = 1024;
 SELECT @@max_allowed_packet;
 --Error ER_UNKNOWN_TABLE
@@ -204,9 +219,9 @@ SELECT max_allowed_packet = @@session.max_allowed_packet;
 #     Restore initial value        #
 ####################################
 
+connection default;
 SET @@global.max_allowed_packet = @start_global_value;
 SELECT @@global.max_allowed_packet;
-SET @@session.max_allowed_packet = @start_session_value;
 SELECT @@session.max_allowed_packet;
 
 
