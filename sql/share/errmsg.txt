@@ -6151,3 +6151,6 @@ WARN_PLUGIN_DELETE_BUILTIN
 
 WARN_PLUGIN_BUSY
   eng "Plugin is busy and will be uninstalled on shutdown"
+
+ER_VARIABLE_IS_READONLY
+  eng "%s variable '%s' is read-only. Use SET %s to assign the value"
