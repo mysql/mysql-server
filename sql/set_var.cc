@@ -77,7 +77,6 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 extern CHARSET_INFO *character_set_filesystem;
 
 
-static DYNAMIC_ARRAY fixed_show_vars;
 static HASH system_variable_hash;
 
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -174,6 +173,9 @@ sys_auto_increment_offset(&vars, "auto_increment_offset",
 static sys_var_bool_ptr	sys_automatic_sp_privileges(&vars, "automatic_sp_privileges",
 					      &sp_automatic_privileges);
 
+static sys_var_const            sys_back_log(&vars, "back_log",
+                                             OPT_GLOBAL, SHOW_LONG,
+                                             (uchar*) &back_log);
 static sys_var_const_str       sys_basedir(&vars, "basedir", mysql_home);
 static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
@@ -181,6 +183,11 @@ static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
+static sys_var_const            sys_character_sets_dir(&vars,
+                                                       "character_sets_dir",
+                                                       OPT_GLOBAL, SHOW_CHAR,
+                                                       (uchar*)
+                                                       mysql_charsets_dir);
 static sys_var_character_set_sv
 sys_character_set_server(&vars, "character_set_server",
                          &SV::collation_server, &default_charset_info, 0,
@@ -249,14 +256,31 @@ static sys_var_long_ptr	sys_expire_logs_days(&vars, "expire_logs_days",
 					     &expire_logs_days);
 static sys_var_bool_ptr	sys_flush(&vars, "flush", &myisam_flush);
 static sys_var_long_ptr	sys_flush_time(&vars, "flush_time", &flush_time);
-static sys_var_str             sys_ft_boolean_syntax(&vars, "ft_boolean_syntax",
-                                         sys_check_ftb_syntax,
-                                         sys_update_ftb_syntax,
-                                         sys_default_ftb_syntax,
-                                         ft_boolean_syntax);
+static sys_var_str      sys_ft_boolean_syntax(&vars, "ft_boolean_syntax",
+                                              sys_check_ftb_syntax,
+                                              sys_update_ftb_syntax,
+                                              sys_default_ftb_syntax,
+                                              ft_boolean_syntax);
+static sys_var_const    sys_ft_max_word_len(&vars, "ft_max_word_len",
+                                            OPT_GLOBAL, SHOW_LONG,
+                                            (uchar*) &ft_max_word_len);
+static sys_var_const    sys_ft_min_word_len(&vars, "ft_min_word_len",
+                                            OPT_GLOBAL, SHOW_LONG,
+                                            (uchar*) &ft_min_word_len);
+static sys_var_const    sys_ft_query_expansion_limit(&vars,
+                                                     "ft_query_expansion_limit",
+                                                     OPT_GLOBAL, SHOW_LONG,
+                                                     (uchar*)
+                                                     &ft_query_expansion_limit);
+static sys_var_const    sys_ft_stopword_file(&vars, "ft_stopword_file",
+                                             OPT_GLOBAL, SHOW_CHAR_PTR,
+                                             (uchar*) &ft_stopword_file);
 sys_var_str             sys_init_connect(&vars, "init_connect", 0,
                                          sys_update_init_connect,
                                          sys_default_init_connect,0);
+static sys_var_const    sys_init_file(&vars, "init_file",
+                                      OPT_GLOBAL, SHOW_CHAR_PTR,
+                                      (uchar*) &opt_init_file);
 sys_var_str             sys_init_slave(&vars, "init_slave", 0,
                                        sys_update_init_slave,
                                        sys_default_init_slave,0);
@@ -274,14 +298,37 @@ static sys_var_key_cache_long	sys_key_cache_division_limit(&vars, "key_cache_div
 static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars, "key_cache_age_threshold",
 						     offsetof(KEY_CACHE,
 							      param_age_threshold));
+static sys_var_const    sys_language(&vars, "language",
+                                     OPT_GLOBAL, SHOW_CHAR,
+                                     (uchar*) language);
+static sys_var_const    sys_large_files_support(&vars, "large_files_support",
+                                                OPT_GLOBAL, SHOW_BOOL,
+                                                (uchar*) &opt_large_files);
+static sys_var_const    sys_large_page_size(&vars, "large_page_size",
+                                            OPT_GLOBAL, SHOW_INT,
+                                            (uchar*) &opt_large_page_size);
+static sys_var_const    sys_large_pages(&vars, "large_pages",
+                                        OPT_GLOBAL, SHOW_MY_BOOL,
+                                        (uchar*) &opt_large_pages);
 static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 					 &opt_local_infile);
+#ifdef HAVE_MLOCKALL
+static sys_var_const    sys_locked_in_memory(&vars, "locked_in_memory",
+                                             OPT_GLOBAL, SHOW_MY_BOOL,
+                                             (uchar*) &locked_in_memory);
+#endif
+static sys_var_const    sys_log_bin(&vars, "log_bin",
+                                    OPT_GLOBAL, SHOW_BOOL,
+                                    (uchar*) &opt_bin_log);
 static sys_var_trust_routine_creators
 sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
                            &trust_function_creators);
 static sys_var_bool_ptr       
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
+static sys_var_const    sys_log_error(&vars, "log_error",
+                                      OPT_GLOBAL, SHOW_CHAR,
+                                      (uchar*) log_error_file);
 static sys_var_bool_ptr
   sys_log_queries_not_using_indexes(&vars, "log_queries_not_using_indexes",
                                     &opt_log_queries_not_using_indexes);
@@ -296,6 +343,16 @@ static sys_var_thd_bool	sys_sql_low_priority_updates(&vars, "sql_low_priority_up
 						     &SV::low_priority_updates,
 						     fix_low_priority_updates);
 #endif
+static sys_var_const    sys_lower_case_file_system(&vars,
+                                                   "lower_case_file_system",
+                                                   OPT_GLOBAL, SHOW_MY_BOOL,
+                                                   (uchar*)
+                                                   &lower_case_file_system);
+static sys_var_const    sys_lower_case_table_names(&vars,
+                                                   "lower_case_table_names",
+                                                   OPT_GLOBAL, SHOW_INT,
+                                                   (uchar*)
+                                                   &lower_case_table_names);
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
 					       &SV::max_allowed_packet);
 static sys_var_long_ptr	sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
@@ -359,6 +416,10 @@ static sys_var_thd_ulong       sys_multi_range_count(&vars, "multi_range_count",
 static sys_var_long_ptr	sys_myisam_data_pointer_size(&vars, "myisam_data_pointer_size",
                                                     &myisam_data_pointer_size);
 static sys_var_thd_ulonglong	sys_myisam_max_sort_file_size(&vars, "myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
+static sys_var_const sys_myisam_recover_options(&vars, "myisam_recover_options",
+                                                OPT_GLOBAL, SHOW_CHAR_PTR,
+                                                (uchar*)
+                                                &myisam_recover_options_str);
 static sys_var_thd_ulong       sys_myisam_repair_threads(&vars, "myisam_repair_threads", &SV::myisam_repair_threads);
 static sys_var_thd_ulong	sys_myisam_sort_buffer_size(&vars, "myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap",
@@ -369,6 +430,13 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
+#ifdef __NT__
+/* purecov: begin inspected */
+static sys_var_const            sys_named_pipe(&vars, "named_pipe",
+                                               OPT_GLOBAL, SHOW_MY_BOOL,
+                                               (uchar*) &opt_enable_named_pipe);
+/* purecov: end */
+#endif
 static sys_var_thd_ulong_session_readonly sys_net_buffer_length(&vars, "net_buffer_length",
 					      &SV::net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
@@ -387,12 +455,29 @@ static sys_var_bool_ptr_readonly sys_old_mode(&vars, "old",
 sys_var_thd_bool                sys_old_alter_table(&vars, "old_alter_table",
                                             &SV::old_alter_table);
 sys_var_thd_bool                sys_old_passwords(&vars, "old_passwords", &SV::old_passwords);
+static sys_var_const            sys_open_files_limit(&vars, "open_files_limit",
+                                                     OPT_GLOBAL, SHOW_LONG,
+                                                     (uchar*)
+                                                     &open_files_limit);
 static sys_var_thd_ulong        sys_optimizer_prune_level(&vars, "optimizer_prune_level",
                                                   &SV::optimizer_prune_level);
 static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_search_depth",
                                                    &SV::optimizer_search_depth);
+static sys_var_const            sys_pid_file(&vars, "pid_file",
+                                             OPT_GLOBAL, SHOW_CHAR,
+                                             (uchar*) pidfile_name);
+static sys_var_const            sys_plugin_dir(&vars, "plugin_dir",
+                                               OPT_GLOBAL, SHOW_CHAR,
+                                               (uchar*) opt_plugin_dir);
+static sys_var_const            sys_port(&vars, "port",
+                                         OPT_GLOBAL, SHOW_INT,
+                                         (uchar*) &mysqld_port);
 static sys_var_thd_ulong        sys_preload_buff_size(&vars, "preload_buffer_size",
                                               &SV::preload_buff_size);
+static sys_var_const            sys_protocol_version(&vars, "protocol_version",
+                                                     OPT_GLOBAL, SHOW_INT,
+                                                     (uchar*)
+                                                     &protocol_version);
 static sys_var_thd_ulong	sys_read_buff_size(&vars, "read_buffer_size",
 					   &SV::read_buff_size);
 static sys_var_opt_readonly	sys_readonly(&vars, "read_only", &opt_readonly);
@@ -414,6 +499,45 @@ static sys_var_thd_ulong	sys_query_alloc_block_size(&vars, "query_alloc_block_si
 static sys_var_thd_ulong	sys_query_prealloc_size(&vars, "query_prealloc_size",
 						&SV::query_prealloc_size,
 						0, fix_thd_mem_root);
+#ifdef HAVE_SMEM
+/* purecov: begin tested */
+static sys_var_const    sys_shared_memory(&vars, "shared_memory",
+                                          OPT_GLOBAL, SHOW_MY_BOOL,
+                                          (uchar*)
+                                          &opt_enable_shared_memory);
+static sys_var_const    sys_shared_memory_base_name(&vars,
+                                                    "shared_memory_base_name",
+                                                    OPT_GLOBAL, SHOW_CHAR_PTR,
+                                                    (uchar*)
+                                                    &shared_memory_base_name);
+/* purecov: end */
+#endif
+static sys_var_const    sys_skip_external_locking(&vars,
+                                                  "skip_external_locking",
+                                                  OPT_GLOBAL, SHOW_MY_BOOL,
+                                                  (uchar*)
+                                                  &my_disable_locking);
+static sys_var_const    sys_skip_networking(&vars, "skip_networking",
+                                            OPT_GLOBAL, SHOW_BOOL,
+                                            (uchar*) &opt_disable_networking);
+static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
+                                            OPT_GLOBAL, SHOW_BOOL,
+                                            (uchar*) &opt_skip_show_db);
+#ifdef HAVE_SYS_UN_H
+static sys_var_const    sys_socket(&vars, "socket",
+                                   OPT_GLOBAL, SHOW_CHAR_PTR,
+                                   (uchar*) &mysqld_unix_port);
+#endif
+#ifdef HAVE_THR_SETCONCURRENCY
+/* purecov: begin tested */
+static sys_var_const    sys_thread_concurrency(&vars, "thread_concurrency",
+                                               OPT_GLOBAL, SHOW_LONG,
+                                               (uchar*) &concurrency);
+/* purecov: end */
+#endif
+static sys_var_const    sys_thread_stack(&vars, "thread_stack",
+                                         OPT_GLOBAL, SHOW_LONG,
+                                         (uchar*) &my_thread_stack_size);
 static sys_var_readonly        sys_tmpdir(&vars, "tmpdir", OPT_GLOBAL, SHOW_CHAR, get_tmpdir);
 static sys_var_thd_ulong	sys_trans_alloc_block_size(&vars, "transaction_alloc_block_size",
 						   &SV::trans_alloc_block_size,
@@ -762,59 +886,6 @@ sys_var_str sys_var_slow_log_path(&vars, "slow_query_log_file", sys_check_log_pa
 				  opt_slow_logname);
 static sys_var_log_output sys_var_log_output_state(&vars, "log_output", &log_output_options,
 					    &log_output_typelib, 0);
-
-
-/*
-  Additional variables (not derived from sys_var class, not accessible as
-  @@varname in SELECT or SET). Sorted in alphabetical order to facilitate
-  maintenance - SHOW VARIABLES will sort its output.
-  TODO: remove this list completely
-*/
-
-#define FIXED_VARS_SIZE (sizeof(fixed_vars) / sizeof(SHOW_VAR))
-static SHOW_VAR fixed_vars[]= {
-  {"back_log",                (char*) &back_log,                    SHOW_LONG},
-  {"character_sets_dir",      mysql_charsets_dir,                   SHOW_CHAR},
-  {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
-  {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
-  {"ft_query_expansion_limit",(char*) &ft_query_expansion_limit,    SHOW_LONG},
-  {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
-  {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
-  {"language",                language,                             SHOW_CHAR},
-  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
-  {"large_page_size",         (char*) &opt_large_page_size,         SHOW_INT},
-  {"large_pages",             (char*) &opt_large_pages,             SHOW_MY_BOOL},
-#ifdef HAVE_MLOCKALL
-  {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_MY_BOOL},
-#endif
-  {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
-  {"log_error",               (char*) log_error_file,               SHOW_CHAR},
-  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
-  {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
-  {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
-#ifdef __NT__
-  {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
-#endif
-  {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
-  {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
-  {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
-  {"port",                    (char*) &mysqld_port,                 SHOW_INT},
-  {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
-#ifdef HAVE_SMEM
-  {"shared_memory",           (char*) &opt_enable_shared_memory,    SHOW_MY_BOOL},
-  {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},
-#endif
-  {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},
-  {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
-  {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
-#ifdef HAVE_SYS_UN_H
-  {"socket",                  (char*) &mysqld_unix_port,            SHOW_CHAR_PTR},
-#endif
-#ifdef HAVE_THR_SETCONCURRENCY
-  {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
-#endif
-  {"thread_stack",            (char*) &my_thread_stack_size,        SHOW_LONG},
-};
 
 
 bool sys_var::check(THD *thd, set_var *var)
@@ -3135,14 +3206,12 @@ static int show_cmp(SHOW_VAR *a, SHOW_VAR *b)
 SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 {
   int count= system_variable_hash.records, i;
-  int fixed_count= fixed_show_vars.elements;
-  int size= sizeof(SHOW_VAR) * (count + fixed_count + 1);
+  int size= sizeof(SHOW_VAR) * (count + 1);
   SHOW_VAR *result= (SHOW_VAR*) thd->alloc(size);
 
   if (result)
   {
-    SHOW_VAR *show= result + fixed_count;
-    memcpy(result, fixed_show_vars.buffer, fixed_count * sizeof(SHOW_VAR));
+    SHOW_VAR *show= result;
 
     for (i= 0; i < count; i++)
     {
@@ -3155,7 +3224,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     /* sort into order */
     if (sorted)
-      my_qsort(result, count + fixed_count, sizeof(SHOW_VAR),
+      my_qsort(result, count, sizeof(SHOW_VAR),
                (qsort_cmp) show_cmp);
     
     /* make last element empty */
@@ -3182,13 +3251,6 @@ int set_var_init()
   DBUG_ENTER("set_var_init");
   
   for (sys_var *var=vars.first; var; var= var->next, count++);
-
-  if (my_init_dynamic_array(&fixed_show_vars, sizeof(SHOW_VAR),
-                            FIXED_VARS_SIZE + 64, 64))
-    goto error;
-
-  fixed_show_vars.elements= FIXED_VARS_SIZE;
-  memcpy(fixed_show_vars.buffer, fixed_vars, sizeof(fixed_vars));
 
   if (hash_init(&system_variable_hash, system_charset_info, count, 0,
                 0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
@@ -3217,28 +3279,6 @@ error:
 void set_var_free()
 {
   hash_free(&system_variable_hash);
-  delete_dynamic(&fixed_show_vars);
-}
-
-
-/*
-  Add elements to the dynamic list of read-only system variables.
-  
-  SYNOPSIS
-    mysql_append_static_vars()
-    show_vars	Pointer to start of array
-    count       Number of elements
-  
-  RETURN VALUES
-    0           SUCCESS
-    otherwise   FAILURE
-*/
-int mysql_append_static_vars(const SHOW_VAR *show_vars, uint count)
-{
-  for (; count > 0; count--, show_vars++)
-    if (insert_dynamic(&fixed_show_vars, (uchar*) show_vars))
-      return 1;
-  return 0;
 }
 
 
