@@ -655,7 +655,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
-  if (view->revision != 1)
+  if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   start_waiting_global_read_lock(thd);
   if (res)
@@ -673,12 +673,8 @@ err:
 }
 
 
-/* index of revision number in following table */
-static const int revision_number_position= 8;
 /* number of required parameters for making view */
-static const int required_view_parameters= 16;
-/* number of backups */
-static const int num_view_backups= 3;
+static const int required_view_parameters= 14;
 
 /*
   table of VIEW .frm field descriptors
@@ -711,9 +707,6 @@ static File_option view_parameters[]=
  {{ C_STRING_WITH_LEN("with_check_option")},
   my_offsetof(TABLE_LIST, with_check),
   FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("revision")},
-  my_offsetof(TABLE_LIST, revision),
-  FILE_OPTIONS_REV},
  {{ C_STRING_WITH_LEN("timestamp")},
   my_offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
@@ -921,18 +914,9 @@ loop_out:
       }
 
       /*
-        read revision number
-
         TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
-      if (parser->parse((uchar*)view, thd->mem_root,
-                        view_parameters + revision_number_position, 1,
-                        &file_parser_dummy_hook))
-      {
-        error= thd->is_error() ? -1 : 0;
-        goto err;
-      }
     }
     else
    {
@@ -997,7 +981,7 @@ loop_out:
   }
 
   if (sql_create_definition_file(&dir, &file, view_file_type,
-				 (uchar*)view, view_parameters, num_view_backups))
+				 (uchar*)view, view_parameters))
   {
     error= thd->is_error() ? -1 : 1;
     goto err;
@@ -1963,8 +1947,7 @@ mysql_rename_view(THD *thd,
       goto err;
 
     /* rename view and it's backups */
-    if (rename_in_schema_file(thd, view->db, view->table_name, new_name, 
-                              view_def.revision - 1, num_view_backups))
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_name))
       goto err;
 
     dir.str= dir_buff;
@@ -1979,12 +1962,10 @@ mysql_rename_view(THD *thd,
     file.length= pathstr.length - dir.length;
 
     if (sql_create_definition_file(&dir, &file, view_file_type,
-                                   (uchar*)&view_def, view_parameters,
-                                   num_view_backups)) 
+                                   (uchar*)&view_def, view_parameters))
     {
       /* restore renamed view in case of error */
-      rename_in_schema_file(thd, view->db, new_name, view->table_name, 
-                            view_def.revision - 1, num_view_backups);
+      rename_in_schema_file(thd, view->db, new_name, view->table_name);
       goto err;
     }
   } else

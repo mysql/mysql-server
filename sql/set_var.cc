@@ -296,7 +296,7 @@ static sys_var_thd_bool	sys_sql_low_priority_updates(&vars, "sql_low_priority_up
 						     &SV::low_priority_updates,
 						     fix_low_priority_updates);
 #endif
-static sys_var_thd_ulong	sys_max_allowed_packet(&vars, "max_allowed_packet",
+static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
 					       &SV::max_allowed_packet);
 static sys_var_long_ptr	sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
 						  &max_binlog_cache_size);
@@ -369,7 +369,7 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
-static sys_var_thd_ulong	sys_net_buffer_length(&vars, "net_buffer_length",
+static sys_var_thd_ulong_session_readonly sys_net_buffer_length(&vars, "net_buffer_length",
 					      &SV::net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
 					     &SV::net_read_timeout,
@@ -2731,6 +2731,18 @@ uchar *sys_var_max_user_conn::value_ptr(THD *thd, enum_var_type type,
       thd->user_connect && thd->user_connect->user_resources.user_conn)
     return (uchar*) &(thd->user_connect->user_resources.user_conn);
   return (uchar*) &(max_user_connections);
+}
+
+
+bool sys_var_thd_ulong_session_readonly::check(THD *thd, set_var *var)
+{
+  if (var->type != OPT_GLOBAL)
+  {
+    my_error(ER_VARIABLE_IS_READONLY, MYF(0), "SESSION", name, "GLOBAL");
+    return TRUE;
+  }
+
+  return sys_var_thd_ulong::check(thd, var);
 }
 
 
