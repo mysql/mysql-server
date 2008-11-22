@@ -6028,7 +6028,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint index_add_count;
   uint *index_add_buffer;
   uint candidate_key_count;
-  bool committed= 0;
   bool no_pk;
   DBUG_ENTER("mysql_alter_table");
 
