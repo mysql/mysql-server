@@ -34,6 +34,7 @@
 #include "yassl_types.hpp"  // SignatureAlgorithm
 #include "buffer.hpp"       // input_buffer
 #include "asn.hpp"          // SignerList
+#include "openssl/ssl.h"    // internal and external use
 #include STL_LIST_FILE
 #include STL_ALGORITHM_FILE
 
@@ -87,6 +88,7 @@ class CertManager {
     bool verifyNone_;                   // no error if verify fails
     bool failNoCert_;
     bool sendVerify_;
+    VerifyCallback verifyCallback_;     // user verify callback
 public:
     CertManager();
     ~CertManager();
@@ -118,6 +120,7 @@ public:
     void setFailNoCert();
     void setSendVerify();
     void setPeerX509(X509*);
+    void setVerifyCallback(VerifyCallback);
 private:
     CertManager(const CertManager&);            // hide copy
     CertManager& operator=(const CertManager&); // and assign

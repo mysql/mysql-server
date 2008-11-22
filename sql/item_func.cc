@@ -1301,8 +1301,10 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint arg_prec= args[0]->decimal_precision() + prec_increment;
-  uint precision=min(arg_prec, DECIMAL_MAX_PRECISION);
+  uint precision=min(args[0]->decimal_precision() + 
+                     args[1]->decimals + prec_increment,
+                     DECIMAL_MAX_PRECISION);
+
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
@@ -3808,11 +3810,14 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
-  if (thd == entry_thd && entry)
+  if (entry && thd->thread_id == entry_thread_id)
     goto end; // update entry->update_query_id for PS
-  entry_thd= thd;
   if (!(entry= get_variable(&thd->user_vars, name, create_if_not_exists)))
+  {
+    entry_thread_id= 0;
     return TRUE;
+  }
+  entry_thread_id= thd->thread_id;
   /* 
      Remember the last query which updated it, this way a query can later know
      if this variable is a constant item in the query (it is if update_query_id
@@ -5381,7 +5386,9 @@ bool Item_func_match::fix_index()
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
-        (table->s->keys_in_use.is_set(keynr)))
+        (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
+                           table->s->keys_in_use.is_set(keynr)))
+
     {
       ft_to_key[fts]=keynr;
       ft_cnt[fts]=0;

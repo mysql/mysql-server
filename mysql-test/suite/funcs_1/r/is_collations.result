@@ -28,8 +28,8 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.COLLATIONS;
 Field	Type	Null	Key	Default	Extra
-COLLATION_NAME	varchar(64)	NO			
-CHARACTER_SET_NAME	varchar(64)	NO			
+COLLATION_NAME	varchar(32)	NO			
+CHARACTER_SET_NAME	varchar(32)	NO			
 ID	bigint(11)	NO		0	
 IS_DEFAULT	varchar(3)	NO			
 IS_COMPILED	varchar(3)	NO			
@@ -37,8 +37,8 @@ SORTLEN	bigint(3)	NO		0
 SHOW CREATE TABLE information_schema.COLLATIONS;
 Table	Create Table
 COLLATIONS	CREATE TEMPORARY TABLE `COLLATIONS` (
-  `COLLATION_NAME` varchar(64) NOT NULL DEFAULT '',
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `COLLATION_NAME` varchar(32) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
   `ID` bigint(11) NOT NULL DEFAULT '0',
   `IS_DEFAULT` varchar(3) NOT NULL DEFAULT '',
   `IS_COMPILED` varchar(3) NOT NULL DEFAULT '',
@@ -46,8 +46,8 @@ COLLATIONS	CREATE TEMPORARY TABLE `COLLATIONS` (
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.COLLATIONS;
 Field	Type	Null	Key	Default	Extra
-COLLATION_NAME	varchar(64)	NO			
-CHARACTER_SET_NAME	varchar(64)	NO			
+COLLATION_NAME	varchar(32)	NO			
+CHARACTER_SET_NAME	varchar(32)	NO			
 ID	bigint(11)	NO		0	
 IS_DEFAULT	varchar(3)	NO			
 IS_COMPILED	varchar(3)	NO			
