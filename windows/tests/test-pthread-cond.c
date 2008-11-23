@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
-#include <windows.h>
-#include "toku_pthread.h"
+#include <toku_pthread.h>
 
 struct q {
     toku_pthread_mutex_t m;

@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <fcntl.h>
-#include "toku_portability.h"
-#include "toku_os.h"
+#include <string.h>
+#include <unistd.h>
 
 int verbose;
 

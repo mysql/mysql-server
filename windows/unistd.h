@@ -9,6 +9,8 @@ extern "C" {
 #include <stdio.h>
 #include <stdint.h>
 
+int fsync(int fildes);
+
 int
 ftruncate(int fildes, int64_t offset);
 
