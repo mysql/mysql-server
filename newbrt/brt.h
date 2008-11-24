@@ -113,4 +113,8 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
 
 void extend_block_translation (BLOCKNUM blocknum, struct brt_header *h);
 
+void toku_brt_init(void);
+void toku_brt_destroy(void);
+void toku_pwrite_lock_init(void);
+void toku_pwrite_lock_destroy(void);
 #endif

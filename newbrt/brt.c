@@ -4282,3 +4282,20 @@ int toku_brt_truncate (BRT brt) {
 
     return r;
 }
+
+static void toku_brt_lock_init(void) {
+    toku_pwrite_lock_init();
+}
+
+static void toku_brt_lock_destroy(void) {
+    toku_pwrite_lock_destroy();
+}
+
+void toku_brt_init(void) {
+    toku_brt_lock_init();
+}
+
+void toku_brt_destroy(void) {
+    toku_brt_lock_destroy();
+}
+
