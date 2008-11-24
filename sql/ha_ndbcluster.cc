@@ -354,6 +354,7 @@ Thd_ndb::Thd_ndb()
   ndb= new Ndb(connection, "");
   lock_count= 0;
   start_stmt_count= 0;
+  save_point_count= 0;
   count= 0;
   trans= NULL;
   m_error= FALSE;
@@ -4807,8 +4808,12 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   PRINT_OPTION_FLAGS(thd);
   DBUG_PRINT("enter", ("Commit %s", (all ? "all" : "stmt")));
   thd_ndb->start_stmt_count= 0;
-  if (trans == NULL || (!all &&
-      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (trans == NULL)
+  {
+    DBUG_PRINT("info", ("trans == NULL"));
+    DBUG_RETURN(0);
+  }
+  if (!all && (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -4820,9 +4825,11 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
       the MySQL Server could handle the query without contacting the
       NDB kernel.
     */
+    thd_ndb->save_point_count++;
     DBUG_PRINT("info", ("Commit before start or end-of-statement only"));
     DBUG_RETURN(0);
   }
+  thd_ndb->save_point_count= 0;
 
 #ifdef HAVE_NDB_BINLOG
   if (unlikely(thd_ndb->m_slow_path))
@@ -4898,7 +4905,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   NdbTransaction *trans= thd_ndb->trans;
 
   DBUG_ENTER("ndbcluster_rollback");
-  DBUG_PRINT("enter", ("all: %d", all));
+  DBUG_PRINT("enter", ("all: %d  thd_ndb->save_point_count: %d",
+                       all, thd_ndb->save_point_count));
   PRINT_OPTION_FLAGS(thd);
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
@@ -4908,7 +4916,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-  if (!all && thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (!all && (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+      (thd_ndb->save_point_count > 0))
   {
     /*
       Ignore end-of-statement until real rollback or commit is called
@@ -4918,16 +4927,10 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
     mark_transaction_to_rollback(thd, 1);
-    /*
-      This warning is not useful in the slave sql thread.
-      The slave sql thread code will handle the full rollback.
-    */
-    if (!thd->slave_thread)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_WARN_ENGINE_TRANSACTION_ROLLBACK,
-                          ER(ER_WARN_ENGINE_TRANSACTION_ROLLBACK), "NDB");
+    my_error(ER_WARN_ENGINE_TRANSACTION_ROLLBACK, MYF(0), "NDB");
     DBUG_RETURN(0);
   }
+  thd_ndb->save_point_count= 0;
   if (trans->execute(NdbTransaction::Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
