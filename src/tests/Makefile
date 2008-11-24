@@ -18,6 +18,7 @@ TLIBTDB=../libtokudbtrace.$(SOEXT)
 ifeq ($(CC),icc)
 SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.
 endif
+BDBVGRIND=
 
 $(LIBTDB) $(TLIBTDB):
 	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
@@ -40,6 +41,8 @@ BDB_DONTRUN_TESTS = \
 	keyrange-dupsort-unflat \
 	manyfiles \
 	test938c \
+	helgrind1 \
+	helgrind 2\
 #\ ends prev line
 
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
@@ -55,6 +58,9 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_truncate_subdb \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
+	helgrind1 \
+	helgrind2 \
+	helgrind3 \
 #\ ends prev line
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
@@ -119,10 +125,11 @@ $(SHOULD_FAIL): MAYBEINVERTER=$(INVERTER)
 $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
 
 # Use -s on the command line to make things quiet.
+# Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)          ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	$(MAYBEATSIGN)$(BDBVGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
-	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(MAYBEATSIGN)$(VGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recover: %.tdb$(BINSUF)
 	$(MAYBEATSIGN)$(VGRIND) ./$< && \
@@ -154,9 +161,9 @@ endif
 	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
 
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
-%.tdb$(BINSUF):  RPATH_DIRS+=$(dir LIBTDB)
+%.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
-%.tdbt$(BINSUF): RPATH_DIRS+=$(dir TLIBTDB)
+%.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
@@ -265,6 +272,14 @@ tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+# helgrind1 is supposed to fail.
+helgrind1.tdbrun: VGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
+helgrind1.tdbrun: MAYBEINVERTER=$(INVERTER)
+helgrind2.tdbrun: VGRIND=$(HGRIND)
+helgrind2.bdbrun: BDBVGRIND=$(HGRIND)
+helgrind3.tdbrun: VGRIND=$(HGRIND)
+helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r

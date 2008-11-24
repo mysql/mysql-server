@@ -2186,11 +2186,12 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 	    node->u.n.childkeys[childnuma] = splitk_kvpair;
 	    node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
 	    verify_local_fingerprint_nonleaf(node);
+	    node->dirty = 1;
 	}
     }
+    assert(node->dirty);
  return_r:
     // Unpin both, and return the first nonzero error code that is found
-    assert(node->dirty);
     {
 	int rrb1 = 0;
 	int rra = toku_unpin_brtnode(t, childa);

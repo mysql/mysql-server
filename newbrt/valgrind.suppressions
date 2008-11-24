@@ -40,3 +40,11 @@
    fun:deflate
    fun:compress2
 }
+{
+   compress_is_not_valgrind_clean_ubuntu804
+   Memcheck:Cond
+   obj:/usr/lib/libz.so.1.2.3.3
+   fun:deflate
+   fun:compress2
+}  
+
