@@ -99,7 +99,7 @@
   DBUG_PRINT("info", \
              ("block: 0x%lx  fd: %lu  page: %lu  s: %0x  hshL: " \
               " 0x%lx  req: %u/%u wrlocks: %u  rdlocks %u  " \
-              "rdlocks_q: %u  pins: %u  status: %u", \
+              "rdlocks_q: %u  pins: %u  status: %u  type: %s", \
               (ulong)(B), \
               (ulong)((B)->hash_link ? \
                       (B)->hash_link->file.file : \
@@ -114,7 +114,8 @@
                      (B)->hash_link->requests : \
                        0), \
               block->wlocks, block->rlocks, block->rlocks_queue, \
-              (uint)(B)->pins, (uint)(B)->status))
+              (uint)(B)->pins, (uint)(B)->status, \
+              page_cache_page_type_str[(B)->type]))
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;

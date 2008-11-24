@@ -3243,6 +3243,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
    */
   share->state.common= *info->state;
   info->state= &share->state.common;
+  info->switched_transactional= TRUE;
 
   /*
     Some code in ma_blockrec.c assumes a trn even if !now_transactional but in
@@ -3273,8 +3274,10 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_reenable_logging_for_table");
 
-  if (share->now_transactional == share->base.born_transactional)
+  if (share->now_transactional == share->base.born_transactional ||
+      !info->switched_transactional)
     DBUG_RETURN(0);
+  info->switched_transactional= FALSE;
 
   if ((share->now_transactional= share->base.born_transactional))
   {
