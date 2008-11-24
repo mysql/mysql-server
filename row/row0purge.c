@@ -225,7 +225,15 @@ row_purge_remove_sec_if_poss_low(
 	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
 
 	if (!found) {
-		/* Not found */
+		/* Not found.  This is a legitimate condition.  In a
+		rollback, InnoDB will remove secondary recs that would
+		be purged anyway.  Then the actual purge will not find
+		the secondary index record.  Also, the purge itself is
+		eager: if it comes to consider a secondary index
+		record, and notices it does not need to exist in the
+		index, it will remove it.  Then if/when the purge
+		comes to consider the secondary index record a second
+		time, it will not exist any more in the index. */
 
 		/* fputs("PURGE:........sec entry not found\n", stderr); */
 		/* dtuple_print(stderr, entry); */
