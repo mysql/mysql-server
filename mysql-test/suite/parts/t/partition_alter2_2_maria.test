@@ -43,6 +43,9 @@ let $more_pk_ui_tests= 0;
 # The server must support partitioning.
 --source include/have_partition.inc
 
+# Lots of ALTER TABLE, slow in Maria (disk syncs), takes ~15 minutes
+--source include/big_test.inc
+
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
