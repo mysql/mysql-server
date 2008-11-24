@@ -548,6 +548,8 @@ struct st_maria_handler
   /* If info->keyread_buff has to be re-read for rnext */
   my_bool keyread_buff_used;
   my_bool once_flags;			/* For MARIA_MRG */
+  /* For bulk insert enable/disable transactions control */
+  my_bool switched_transactional;
 #ifdef __WIN__
   my_bool owned_by_merge;               /* This Maria table is part of a merge union */
 #endif
