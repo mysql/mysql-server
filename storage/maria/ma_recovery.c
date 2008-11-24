@@ -171,7 +171,8 @@ int maria_recover_error_handler_hook(uint error, const char *str,
   return (*save_error_handler_hook)(error, str, flags);
 }
 
-#define ALERT_USER() DBUG_ASSERT(0)
+/* Define this if you want gdb to break in some interesting situations */
+#define ALERT_USER()
 
 static void print_preamble()
 {
