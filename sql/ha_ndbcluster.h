@@ -299,6 +299,7 @@ class Thd_ndb
   ulong count;
   uint lock_count;
   uint start_stmt_count;
+  uint save_point_count;
   NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
