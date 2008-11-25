@@ -2823,7 +2823,8 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   if (error == 0)
   {
     /* At least, prevent new abuse ... */
-    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0);
+    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0 ||
+                strncmp(str, "MARIA table", 11) == 0);
     error= ER_UNKNOWN_ERROR;
   }
 
