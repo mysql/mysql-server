@@ -3041,7 +3041,20 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     return;
   }
   
-  if(ERROR_INSERTED(8050) && signal->theData[3] != getOwnNodeId())
+  if((ERROR_INSERTED(8071) || ERROR_INSERTED(8072)) &&
+     (regTcPtr->m_special_op_flags & TcConnectRecord::SOF_INDEX_TABLE_READ) &&
+     signal->theData[3] != getOwnNodeId())
+  {
+    ndbassert(false);
+    signal->theData[1] = 626;
+    execDIGETNODESREF(signal);
+    return;
+  }
+
+  if((ERROR_INSERTED(8050) || ERROR_INSERTED(8072)) &&
+     refToBlock(regApiPtr->ndbapiBlockref) != DBUTIL &&
+     regTcPtr->m_special_op_flags == 0 &&
+     signal->theData[3] != getOwnNodeId())
   {
     ndbassert(false);
     signal->theData[1] = 626;
@@ -7710,6 +7723,9 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     nfRep->nodeId       = cownNodeid;
     nfRep->failedNodeId = hostptr.i;
     sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
+	       NFCompleteRep::SignalLength, JBB);
+
+    sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal, 
 	       NFCompleteRep::SignalLength, JBB);
   }
 

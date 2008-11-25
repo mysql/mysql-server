@@ -218,7 +218,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
                                        const char *info)
 {
 #ifdef DEBUG_TRANSPORTER
-  ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "")
+  ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "");
 #endif
 
   DBUG_ENTER("reportError");

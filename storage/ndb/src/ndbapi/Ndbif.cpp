@@ -915,6 +915,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_API_REGCONF:{
     return; // Ignore
   }
+  case GSN_TAKE_OVERTCCONF:
+    abortTransactionsAfterNodeFailure(tFirstData); // theData[0]
+    break;
   default:
     tFirstDataPtr = NULL;
     goto InvalidSignal;

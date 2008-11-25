@@ -49,6 +49,8 @@ public:
    */
   virtual ~SHM_Transporter();
   
+  virtual bool configure_derived(const TransporterConfiguration* conf);
+
   /**
    * Do initialization
    */

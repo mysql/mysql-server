@@ -6875,7 +6875,7 @@ static void set_default_node_groups(Signal *signal, Uint32 noFrags)
   Uint32 i;
   node_group_array[0] = 0;
   for (i = 1; i < noFrags; i++)
-    node_group_array[i] = UNDEF_NODEGROUP;
+    node_group_array[i] = NDB_UNDEF_NODEGROUP;
 }
 
 static Uint32 find_min_index(const Uint32* array, Uint32 cnt)
@@ -6998,7 +6998,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       {
         jam();
         NGPtr.i = node_group_id[fragNo];
-        if (NGPtr.i == UNDEF_NODEGROUP)
+        if (NGPtr.i == NDB_UNDEF_NODEGROUP)
         {
           jam();
 	  NGPtr.i = c_node_groups[default_node_group];
@@ -12254,9 +12254,8 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   replicaPtr.i = info.replicaPtr;
   ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
   
-  // address LQH/instance directly
-  Uint32 instanceKey = dihGetInstanceKey(info.tableId, info.fragId);
-  BlockReference ref = numberToRef(DBLQH, instanceKey, replicaPtr.p->procNode);
+  // MT LQH goes via proxy for DD reasons
+  BlockReference ref = calcLqhBlockRef(replicaPtr.p->procNode);
   
   if (ERROR_INSERTED(7193) && replicaPtr.p->procNode == getOwnNodeId())
   {

@@ -193,7 +193,7 @@ if [ ! -f "$config_ini" ]; then
 fi
 
 exec_mgmtclient="$exec_mgmtclient --no-defaults $opt_core $NDB_MGM_EXTRA_OPTS"
-exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $opt_core $NDB_MGMD_EXTRA_OPTS"
+exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults --datadir=$fs_ndb $opt_core $NDB_MGMD_EXTRA_OPTS"
 exec_ndb="$exec_ndb --no-defaults $opt_core $NDBD_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR"
 exec_waiter="$exec_waiter --no-defaults $opt_core"
 

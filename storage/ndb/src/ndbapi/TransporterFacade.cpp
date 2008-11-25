@@ -372,6 +372,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        }
        break;
      }
+     case GSN_TAKE_OVERTCCONF:
+     {
+       /**
+	* Report
+	*/
+       NdbApiSignal tSignal(* header);
+       tSignal.setDataPtr(theData);
+       for_each(&tSignal, ptr);
+       return;
+     }
      default:
        break;
        
@@ -420,13 +430,43 @@ copy(Uint32 * & insertPtr,
  */
 
 int
-TransporterFacade::start_instance(int nodeId, 
-				  const ndb_mgm_configuration* props)
+TransporterFacade::start_instance(NodeId nodeId,
+                                  const ndb_mgm_configuration* conf)
 {
-  if (! init(nodeId, props)) {
+  assert(theOwnId == 0);
+  theOwnId = nodeId;
+
+  theTransporterRegistry = new TransporterRegistry(this);
+  if (theTransporterRegistry == NULL)
     return -1;
-  }
-  
+
+  if (!theTransporterRegistry->init(nodeId))
+    return -1;
+
+  theClusterMgr = new ClusterMgr(*this);
+  if (theClusterMgr == NULL)
+    return -1;
+
+  if (!configure(nodeId, conf))
+    return -1;
+
+  if (!theTransporterRegistry->start_service(m_socket_server))
+    return -1;
+
+  theReceiveThread = NdbThread_Create(runReceiveResponse_C,
+                                      (void**)this,
+                                      32768,
+                                      "ndb_receive",
+                                      NDB_THREAD_PRIO_LOW);
+
+  theSendThread = NdbThread_Create(runSendRequest_C,
+                                   (void**)this,
+                                   32768,
+                                   "ndb_send",
+                                   NDB_THREAD_PRIO_LOW);
+
+  theClusterMgr->startThread();
+
   /**
    * Install signal handler for SIGPIPE
    *
@@ -679,33 +719,30 @@ void TransporterFacade::init_cond_wait_queue()
 
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theTransporterRegistry(0),
+  theOwnId(0),
+  theStartNodeId(1),
+  theClusterMgr(NULL),
+  theArbitMgr(NULL),
+  checkCounter(4),
+  currentSendLimit(1),
+  m_scan_batch_size(MAX_SCAN_BATCH_SIZE),
+  m_batch_byte_size(SCAN_BATCH_SIZE),
+  m_batch_size(DEF_BATCH_SIZE),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
+  m_max_trans_id(0),
   m_fragmented_signal_id(0),
   m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   init_cond_wait_queue();
   poll_owner = NULL;
-  theOwnId = 0;
   theMutexPtr = NdbMutex_Create();
   sendPerformedLastInterval = 0;
 
-  checkCounter = 4;
-  currentSendLimit = 1;
-  theClusterMgr = NULL;
-  theArbitMgr = NULL;
-  theStartNodeId = 1;
-  m_scan_batch_size= MAX_SCAN_BATCH_SIZE;
-  m_batch_byte_size= SCAN_BATCH_SIZE;
-  m_batch_size= DEF_BATCH_SIZE;
-  m_max_trans_id = 0;
-
   for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
     m_fixed2dynamic[i]= RNIL;
-
-  theClusterMgr = new ClusterMgr(* this);
 
 #ifdef API_TRACE
   apiSignalLog = 0;
@@ -713,48 +750,58 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   DBUG_VOID_RETURN;
 }
 
+
 bool
-TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
+TransporterFacade::configure(NodeId nodeId,
+                             const ndb_mgm_configuration* conf)
 {
-  DBUG_ENTER("TransporterFacade::init");
+  DBUG_ENTER("TransporterFacade::configure");
 
-  theOwnId = nodeId;
-  theTransporterRegistry = new TransporterRegistry(this);
+  assert(theOwnId == nodeId);
+  assert(theTransporterRegistry);
+  assert(theClusterMgr);
 
-  const int res = IPCConfig::configureTransporters(nodeId, 
-						   * props, 
-						   * theTransporterRegistry);
-  if(res <= 0){
-    TRP_DEBUG( "configureTransporters returned 0 or less" );
+  // Configure transporters
+  if (!IPCConfig::configureTransporters(nodeId,
+                                        * conf,
+                                        * theTransporterRegistry))
     DBUG_RETURN(false);
-  }
-  
-  ndb_mgm_configuration_iterator iter(* props, CFG_SECTION_NODE);
-  iter.first();
-  theClusterMgr->init(iter);
-  
-  iter.first();
-  if(iter.find(CFG_NODE_ID, nodeId)){
-    TRP_DEBUG( "Node info missing from config." );
+
+  // Configure cluster manager
+  theClusterMgr->configure(conf);
+
+  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
+  if(iter.find(CFG_NODE_ID, nodeId))
     DBUG_RETURN(false);
-  }
-  
+
+  // Configure send buffers
   Uint32 total_send_buffer = 0;
-  if(iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer) ||
-     total_send_buffer == 0)
-  {
-    total_send_buffer = theTransporterRegistry->get_total_max_send_buffer();
-  }
+  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
   theTransporterRegistry->allocate_send_buffers(total_send_buffer);
 
+  // Configure arbitrator
   Uint32 rank = 0;
-  if(!iter.get(CFG_NODE_ARBIT_RANK, &rank) && rank>0){
-    theArbitMgr = new ArbitMgr(* this);
+  iter.get(CFG_NODE_ARBIT_RANK, &rank);
+  if (rank > 0)
+  {
+    // The arbitrator should be active
+    if (!theArbitMgr)
+      theArbitMgr = new ArbitMgr(* this);
     theArbitMgr->setRank(rank);
+
     Uint32 delay = 0;
     iter.get(CFG_NODE_ARBIT_DELAY, &delay);
     theArbitMgr->setDelay(delay);
   }
+  else if (theArbitMgr)
+  {
+    // No arbitrator should be started
+    theArbitMgr->doStop(NULL);
+    delete theArbitMgr;
+    theArbitMgr= NULL;
+  }
+
+  // Configure scan settings
   Uint32 scan_batch_size= 0;
   if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
     m_scan_batch_size= scan_batch_size;
@@ -767,9 +814,9 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
     m_batch_size= batch_size;
   }
-  
+
+  // Configure timeouts
   Uint32 timeout = 120000;
-  iter.first();
   for (iter.first(); iter.valid(); iter.next())
   {
     Uint32 tmp1 = 0, tmp2 = 0;
@@ -780,24 +827,6 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
       timeout = tmp1;
   }
   m_waitfor_timeout = timeout;
-  
-  if (!theTransporterRegistry->start_service(m_socket_server)){
-    ndbout_c("Unable to start theTransporterRegistry->start_service");
-    DBUG_RETURN(false);
-  }
-
-  theReceiveThread = NdbThread_Create(runReceiveResponse_C,
-                                      (void**)this,
-                                      32768,
-                                      "ndb_receive",
-                                      NDB_THREAD_PRIO_LOW);
-
-  theSendThread = NdbThread_Create(runSendRequest_C,
-                                   (void**)this,
-                                   32768,
-                                   "ndb_send",
-                                   NDB_THREAD_PRIO_LOW);
-  theClusterMgr->startThread();
   
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);

@@ -29,6 +29,7 @@
 
 #include <WOPool.hpp>
 #include <SLFifoList.hpp>
+#include <SafeMutex.hpp>
 
 class Lgman : public SimulatedBlock
 {
@@ -79,7 +80,7 @@ protected:
 public:
   struct Log_waiter
   {
-    Callback m_callback;
+    CallbackPtr m_callback;
     union {
       Uint32 m_size;
       Uint64 m_sync_lsn;
@@ -235,9 +236,18 @@ public:
   typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
   typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
+
+  enum CallbackIndex {
+    // lgman
+    ENDLCP_CALLBACK = 1,
+    COUNT_CALLBACKS = 2
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
   
 private:
   friend class Logfile_client;
+  SimulatedBlock* m_tup;
 
   /**
    * Alloc/free space in log
@@ -258,6 +268,11 @@ private:
   Uint32 m_latest_lcp;
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
+  Uint32 m_end_lcp_senderdata;
+
+  SafeMutex m_client_mutex;
+  void client_lock(BlockNumber block, int line);
+  void client_unlock(BlockNumber block, int line);
 
   bool alloc_logbuffer_memory(Ptr<Logfile_group>, Uint32 pages);
   void init_logbuffer_pointers(Ptr<Logfile_group>);
@@ -308,16 +323,18 @@ private:
 class Logfile_client {
   Uint32 m_block; // includes instance
   Lgman * m_lgman;
+  bool m_lock;
   DEBUG_OUT_DEFINES(LGMAN);
 public:
   Uint32 m_logfile_group_id;
 
-  Logfile_client() {}
-  Logfile_client(SimulatedBlock* block, Lgman*, Uint32 logfile_group_id);
+  Logfile_client(SimulatedBlock* block, Lgman*, Uint32 logfile_group_id,
+                 bool lock = true);
+  ~Logfile_client();
 
   struct Request
   {
-    SimulatedBlock::Callback m_callback;
+    SimulatedBlock::CallbackPtr m_callback;
   };
   
   /**
@@ -357,7 +374,7 @@ public:
    *           0 on time slice
    *          -1 on error
    */
-  int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::Callback* m_callback);
+  int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::CallbackPtr*);
 
   int alloc_log_space(Uint32 words) {
     return m_lgman->alloc_log_space(m_logfile_group_id, words);
