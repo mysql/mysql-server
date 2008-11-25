@@ -34,6 +34,7 @@ struct ThrInput {
   int records;
   int batch;
   int stats;
+  int rand;
 };
 
 struct ThrOutput {
@@ -51,7 +52,8 @@ int main(int argc, const char** argv){
   int _batch = 1;
   const char* _tabname = NULL;
   int _help = 0;
-  
+  int _rand = 0;
+
   struct getargs args[] = {
     { "aborts", 'a', arg_integer, &_abort, "percent of transactions that are aborted", "abort%" },
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
@@ -59,6 +61,7 @@ int main(int argc, const char** argv){
     { "stats", 's', arg_flag, &_stats, "report latency per batch", "stats" },
     { "batch", 'b', arg_integer, &_batch, "batch value(not 0)", "batch" },
     { "records", 'r', arg_integer, &_records, "Number of records", "records" },
+    { "rand", 0, arg_flag, &_rand, "Read random records within range","rand"},
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -116,6 +119,7 @@ int main(int argc, const char** argv){
   input.records = _records;
   input.batch = _batch;
   input.stats = _stats;
+  input.rand = _rand;
 
   // output is stats
   ThrOutput output;
@@ -171,7 +175,9 @@ static void hugoPkRead(NDBT_Thread& thr)
   int ret;
   ret = hugoTrans.pkReadRecords(thr.get_ndb(),
                                 input->records,
-                                input->batch);
+                                input->batch,
+                                NdbOperation::LM_Read,
+                                input->rand);
   if (ret != 0)
     thr.set_err(ret);
 }

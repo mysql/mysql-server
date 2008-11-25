@@ -40,6 +40,12 @@ enum SendStatus {
   SEND_UNKNOWN_NODE = 5
 };
 
+enum TransporterType {
+  tt_TCP_TRANSPORTER = 1,
+  tt_SCI_TRANSPORTER = 2,
+  tt_SHM_TRANSPORTER = 3
+};
+
 /**
  * Maximum message sizes
  * ---------------------
@@ -75,6 +81,7 @@ struct TransporterConfiguration {
   bool checksum;
   bool signalId;
   bool isMgmConnection; // is a mgm connection, requires transforming
+  TransporterType type;
 
   union { // Transporter specific configuration information
 
@@ -92,11 +99,6 @@ struct TransporterConfiguration {
       Uint32 shmSize;
       int    signum;
     } shm;
-    
-    struct {
-      Uint32 prioASignalSize;
-      Uint32 prioBSignalSize;
-    } ose;
 
     struct {
       Uint32 sendLimit;        // Packet size
