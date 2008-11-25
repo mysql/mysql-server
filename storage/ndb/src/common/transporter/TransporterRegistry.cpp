@@ -1978,17 +1978,17 @@ TransporterRegistry::bytes_sent(NodeId node, Uint32 bytes)
     release_page(tmp);
   }
 
-  if (bytes)
+  if (used_bytes == 0)
+  {
+    b->m_first_page = 0;
+    b->m_last_page = 0;
+  }
+  else
   {
     page->m_start += bytes;
     page->m_bytes -= bytes;
     assert(page->m_start + page->m_bytes <= page->max_data_bytes());
     b->m_first_page = page;
-  }
-  else
-  {
-    b->m_first_page = 0;
-    b->m_last_page = 0;
   }
 
   return used_bytes;
