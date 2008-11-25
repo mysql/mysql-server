@@ -5861,12 +5861,6 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     if (res != -1) 
       ndbcluster_print_error(res, error_op);
   }
-  if (!all &&
-      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-  {
-    DBUG_PRINT("info", ("Rollback transaction at statement error"));
-    DBUG_RETURN(res);
-  }
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
   thd_ndb->m_handler= NULL;
