@@ -1316,8 +1316,10 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint arg_prec= args[0]->decimal_precision() + prec_increment;
-  uint precision=min(arg_prec, DECIMAL_MAX_PRECISION);
+  uint precision=min(args[0]->decimal_precision() + 
+                     args[1]->decimals + prec_increment,
+                     DECIMAL_MAX_PRECISION);
+
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
@@ -5022,7 +5024,9 @@ bool Item_func_match::fix_index()
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
-        (table->s->keys_in_use.is_set(keynr)))
+        (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
+                           table->s->keys_in_use.is_set(keynr)))
+
     {
       ft_to_key[fts]=keynr;
       ft_cnt[fts]=0;
