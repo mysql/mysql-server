@@ -41,7 +41,9 @@
 # To make warnings be warnngs instead of errors do
 #   make WERROR=
 
-DEBUG = 0
+ifeq ($(DEBUG),)
+    DEBUG = 0
+endif
 
 .DELETE_ON_ERROR:
 
