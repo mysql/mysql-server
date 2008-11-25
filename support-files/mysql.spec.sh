@@ -41,6 +41,7 @@
 %else
 %define release 0.glibc23
 %endif
+%define license GPL
 %define mysqld_user	mysql
 %define mysqld_group	mysql
 %define server_suffix -standard
@@ -74,7 +75,7 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under GPL license as shown in the Description field.
+License:	Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under %{license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	Sun Microsystems, Inc. Product Engineering Team <build@mysql.com>
@@ -361,7 +362,7 @@ CFLAGS="$CFLAGS" \
 CXXFLAGS="$CXXFLAGS" \
 BuildMySQL "\
 		--with-debug \
-		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
+		--with-comment=\"MySQL Community Server - Debug (%{license})\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_DEBUGCONFLOG_DEST"
@@ -382,7 +383,7 @@ CFLAGS="$CFLAGS" \
 CXXFLAGS="$CXXFLAGS" \
 BuildMySQL "\
 		--with-embedded-server \
-		--with-comment=\"MySQL Community Server (GPL)\"")
+		--with-comment=\"MySQL Community Server (%{license})\"")
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
 then
