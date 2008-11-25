@@ -26,7 +26,7 @@
 #include "ha_ndbcluster_connection.h"
 
 /* options from from mysqld.cc */
-extern const char *opt_ndbcluster_connectstring;
+extern "C" const char *opt_ndb_connectstring;
 extern ulong opt_ndb_wait_connected;
 
 Ndb* g_ndb= NULL;
@@ -48,15 +48,15 @@ int ndbcluster_connect(int (*connect_callback)(void))
   int res;
   DBUG_ENTER("ndbcluster_connect");
   // Set connectstring if specified
-  if (opt_ndbcluster_connectstring != 0)
-    DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));
+  if (opt_ndb_connectstring != 0)
+    DBUG_PRINT("connectstring", ("%s", opt_ndb_connectstring));
   if ((g_ndb_cluster_connection=
-       new Ndb_cluster_connection(opt_ndbcluster_connectstring)) == 0)
+       new Ndb_cluster_connection(opt_ndb_connectstring)) == 0)
   {
     sql_print_error("NDB: failed to allocate global "
                     "ndb cluster connection object");
     DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
-                        opt_ndbcluster_connectstring));
+                        opt_ndb_connectstring));
     my_errno= HA_ERR_OUT_OF_MEM;
     goto ndbcluster_connect_error;
   }
@@ -111,13 +111,13 @@ int ndbcluster_connect(int (*connect_callback)(void))
     for (unsigned i= 1; i < g_ndb_cluster_connection_pool_alloc; i++)
     {
       if ((g_ndb_cluster_connection_pool[i]=
-           new Ndb_cluster_connection(opt_ndbcluster_connectstring,
+           new Ndb_cluster_connection(opt_ndb_connectstring,
                                       g_ndb_cluster_connection)) == 0)
       {
         sql_print_error("NDB[%u]: failed to allocate cluster connect object",
                         i);
         DBUG_PRINT("error",("Ndb_cluster_connection[%u](%s)",
-                            i, opt_ndbcluster_connectstring));
+                            i, opt_ndb_connectstring));
         goto ndbcluster_connect_error;
       }
       {
