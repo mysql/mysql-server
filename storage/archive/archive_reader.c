@@ -375,9 +375,7 @@ static void usage(void)
 {
   print_version();
   puts("Copyright 2007-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\
-       \nand you are welcome to modify and redistribute it under the GPL \
-       license\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Read and modify Archive files directly\n");
   printf("Usage: %s [OPTIONS] file_to_be_looked_at [file_for_backup]\n", my_progname);
   print_defaults("my", load_default_groups);
