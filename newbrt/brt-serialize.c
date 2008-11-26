@@ -359,7 +359,9 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     u_int32_t uncompressed_size;
     {
 	// get the compressed size
+    lock_for_pwrite();
 	r = pread(fd, uncompressed_header, sizeof(uncompressed_header), offset);
+    unlock_for_pwrite();
 	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, toku_ntohl(datasize_n));
 	if (r!=(int)sizeof(uncompressed_header)) {
 	    if (r==-1) r=errno;
@@ -379,7 +381,9 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     assert(compressed_data);
 
     {
+    lock_for_pwrite();
 	ssize_t rlen=pread(fd, compressed_data, compressed_size, offset+uncompressed_magic_len + compression_header_len);
+    unlock_for_pwrite();
 	//printf("%s:%d pread->%d offset=%ld datasize=%d\n", __FILE__, __LINE__, r, offset, compressed_size + uncompressed_magic_len + compression_header_len);
 	assert((size_t)rlen==compressed_size);
 	//printf("Got %d %d %d %d\n", rc.buf[0], rc.buf[1], rc.buf[2], rc.buf[3]);
@@ -743,7 +747,9 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
     if (rc.size<=0) { ret = EINVAL; goto died1; }
     rc.ndone = 0;
     {
+    lock_for_pwrite();
 	ssize_t r = pread(fd, rc.buf, size-12, off+12);
+    unlock_for_pwrite();
 	if (r!=(ssize_t)size-12) { ret = EINVAL; goto died1; }
     }
     h->dirty=0;
@@ -840,7 +846,9 @@ int toku_deserialize_brtheader_from (int fd, BLOCKNUM blocknum, struct brt_heade
     //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
 
     char     magic[12];
+    lock_for_pwrite();
     ssize_t r = pread(fd, magic,  12, offset);
+    unlock_for_pwrite();
     if (r==0) return -1;
     if (r<0)  return errno;
     if (r!=12) return EINVAL;
@@ -912,7 +920,9 @@ int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
 static int
 read_int (int fd, toku_off_t *at, u_int32_t *result) {
     int v;
+    lock_for_pwrite();
     ssize_t r = pread(fd, &v, 4, *at);
+    unlock_for_pwrite();
     if (r<0) return errno;
     assert(r==4);
     *result = toku_ntohl(v);
@@ -922,7 +932,9 @@ read_int (int fd, toku_off_t *at, u_int32_t *result) {
 
 static int
 read_char (int fd, toku_off_t *at, char *result) {
+    lock_for_pwrite();
     ssize_t r = pread(fd, result, 1, *at);
+    unlock_for_pwrite();
     if (r<0) return errno;
     assert(r==1);
     (*at)++;
@@ -943,7 +955,9 @@ static int
 read_nbytes (int fd, toku_off_t *at, char **data, u_int32_t len) {
     char *result = toku_malloc(len);
     if (result==0) return errno;
+    lock_for_pwrite();
     ssize_t r = pread(fd, result, len, *at);
+    unlock_for_pwrite();
     //printf("%s:%d read %d bytes at %" PRId64 ", which are %s\n", __FILE__, __LINE__, len, *at, result);
     if (r<0) return errno;
     assert(r==(ssize_t)len);
