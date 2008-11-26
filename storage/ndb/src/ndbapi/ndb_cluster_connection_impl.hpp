@@ -90,6 +90,9 @@ private:
   Ndb* m_first_ndb_object;
   void link_ndb_object(Ndb*);
   void unlink_ndb_object(Ndb*);
+
+  BaseString m_latest_error_msg;
+  unsigned m_latest_error;
 };
 
 #endif
