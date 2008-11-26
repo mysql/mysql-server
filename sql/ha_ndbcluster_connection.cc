@@ -207,6 +207,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
   {
     DBUG_ASSERT(res == -1);
     DBUG_PRINT("error", ("permanent error"));
+    sql_print_error("NDB: error (%u) %s",
+                    g_ndb_cluster_connection->get_latest_error(),
+                    g_ndb_cluster_connection->get_latest_error_msg());
     goto ndbcluster_connect_error;
   }
   DBUG_RETURN(0);
