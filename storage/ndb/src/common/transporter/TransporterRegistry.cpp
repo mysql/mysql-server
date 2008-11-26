@@ -1065,9 +1065,9 @@ TransporterRegistry::get_tcp_data(TCP_Transporter *t)
 {
   const NodeId node_id = t->getRemoteNodeId();
   bool hasdata = false;
-  callbackObj->checkJobBuffer();
   if (is_connected(node_id) && t->isConnected())
   {
+    callbackObj->checkJobBuffer();
     t->doReceive();
     
     Uint32 *ptr;
@@ -1115,7 +1115,6 @@ TransporterRegistry::performReceive()
   {
     for (int i=0; i<nTCPTransporters; i++) 
     {
-      callbackObj->checkJobBuffer();
       TCP_Transporter *t = theTCPTransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
       const NDB_SOCKET_TYPE socket    = t->getSocket();
@@ -1129,6 +1128,7 @@ TransporterRegistry::performReceive()
           
           if (t->hasReceiveData())
           {
+            callbackObj->checkJobBuffer();
             Uint32 * ptr;
             Uint32 sz = t->getReceiveData(&ptr);
             callbackObj->transporter_recv_from(nodeId);
@@ -1146,18 +1146,18 @@ TransporterRegistry::performReceive()
   //do prepareReceive on the SCI transporters  (prepareReceive(t,,,,))
   for (int i=0; i<nSCITransporters; i++) 
   {
-    callbackObj->checkJobBuffer();
     SCI_Transporter  *t = theSCITransporters[i];
     const NodeId nodeId = t->getRemoteNodeId();
     if(is_connected(nodeId))
     {
       if(t->isConnected() && t->checkConnected())
       {
-	Uint32 * readPtr, * eodPtr;
-	t->getReceivePtr(&readPtr, &eodPtr);
-	callbackObj->transporter_recv_from(nodeId);
-	Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
-	t->updateReceivePtr(newPtr);
+        callbackObj->checkJobBuffer();
+        Uint32 * readPtr, * eodPtr;
+        t->getReceivePtr(&readPtr, &eodPtr);
+        callbackObj->transporter_recv_from(nodeId);
+        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+        t->updateReceivePtr(newPtr);
       }
     } 
   }
@@ -1165,17 +1165,17 @@ TransporterRegistry::performReceive()
 #ifdef NDB_SHM_TRANSPORTER
   for (int i=0; i<nSHMTransporters; i++) 
   {
-    callbackObj->checkJobBuffer();
     SHM_Transporter *t = theSHMTransporters[i];
     const NodeId nodeId = t->getRemoteNodeId();
     if(is_connected(nodeId)){
       if(t->isConnected() && t->checkConnected())
       {
-	Uint32 * readPtr, * eodPtr;
-	t->getReceivePtr(&readPtr, &eodPtr);
-	callbackObj->transporter_recv_from(nodeId);
-	Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
-	t->updateReceivePtr(newPtr);
+        callbackObj->checkJobBuffer();
+        Uint32 * readPtr, * eodPtr;
+        t->getReceivePtr(&readPtr, &eodPtr);
+        callbackObj->transporter_recv_from(nodeId);
+        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+        t->updateReceivePtr(newPtr);
       }
     } 
   }
