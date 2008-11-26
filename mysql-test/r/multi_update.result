@@ -378,29 +378,6 @@ where 0=1;
 delete t1, t2 from t2,t1 
 where t1.id1=t2.id2 and 0=1;
 drop table t1,t2;
-create table t1 ( a int not null, b int not null) ;
-alter table t1 add index i1(a);
-delete from t1 where a > 2000000;
-create table t2 like t1;
-insert into t2 select * from t1;
-select 't2 rows before small delete', count(*) from t1;
-t2 rows before small delete	count(*)
-t2 rows before small delete	2000000
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 2;
-select 't2 rows after small delete', count(*) from t2;
-t2 rows after small delete	count(*)
-t2 rows after small delete	1999999
-select 't1 rows after small delete', count(*) from t1;
-t1 rows after small delete	count(*)
-t1 rows after small delete	1999999
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 100*1000;
-select 't2 rows after big delete', count(*) from t2;
-t2 rows after big delete	count(*)
-t2 rows after big delete	1900001
-select 't1 rows after big delete', count(*) from t1;
-t1 rows after big delete	count(*)
-t1 rows after big delete	1900001
-drop table t1,t2;
 CREATE TABLE t1 ( a int );
 CREATE TABLE t2 ( a int );
 DELETE t1 FROM t1, t2 AS t3;
