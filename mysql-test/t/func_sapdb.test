@@ -135,3 +135,20 @@ select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f");
 --enable_ps_protocol
 
 # End of 4.1 tests
+
+
+
+#
+# Bug#37553: MySql Error Compare TimeDiff & Time
+#
+
+# calculations involving negative time values ignored sign
+select timediff('2008-09-29 20:10:10','2008-09-30 20:10:10'),time('00:00:00');
+select timediff('2008-09-29 20:10:10','2008-09-30 20:10:10')>time('00:00:00');
+select timediff('2008-09-29 20:10:10','2008-09-30 20:10:10')<time('00:00:00');
+
+# show that conversion to DECIMAL no longer drops sign
+SELECT CAST(time('-73:42:12') AS DECIMAL);
+
+
+# End of 5.0 tests
