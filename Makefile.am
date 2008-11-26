@@ -180,7 +180,7 @@ test-bt:
 test-bt-fast:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
-	        --skip-ndbcluster --ps-protocol
+	        --skip-ndbcluster --ps-protocol --report-features
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
