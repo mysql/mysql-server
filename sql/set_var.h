@@ -929,6 +929,34 @@ public:
 };
 
 
+/**
+  Global-only, read-only variable. E.g. command line option.
+*/
+
+class sys_var_const: public sys_var
+{
+public:
+  enum_var_type var_type;
+  SHOW_TYPE show_type_value;
+  uchar *ptr;
+  sys_var_const(sys_var_chain *chain, const char *name_arg, enum_var_type type,
+                SHOW_TYPE show_type_arg, uchar *ptr_arg)
+    :sys_var(name_arg), var_type(type),
+    show_type_value(show_type_arg), ptr(ptr_arg)
+  { chain_sys_var(chain); }
+  bool update(THD *thd, set_var *var) { return 1; }
+  bool check_default(enum_var_type type) { return 1; }
+  bool check_type(enum_var_type type) { return type != var_type; }
+  bool check_update_type(Item_result type) { return 1; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  {
+    return ptr;
+  }
+  SHOW_TYPE show_type() { return show_type_value; }
+  bool is_readonly() const { return 1; }
+};
+
+
 class sys_var_have_option: public sys_var
 {
 protected:
@@ -1317,7 +1345,6 @@ struct sys_var_with_base
 
 int set_var_init();
 void set_var_free();
-int mysql_append_static_vars(const SHOW_VAR *show_vars, uint count);
 SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted);
 int mysql_add_sys_var_chain(sys_var *chain, struct my_option *long_options);
 int mysql_del_sys_var_chain(sys_var *chain);
