@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -4456,7 +4456,8 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
         This can only read record to table->record[0], as it was set when
         the table was being opened. We have to memcpy data ourselves.
       */
-      error= file->read_range_first(&m_start_key, end_range, eq_range, TRUE);
+      error= file->read_range_first(m_start_key.key? &m_start_key: NULL,
+                                    end_range, eq_range, TRUE);
       memcpy(rec_buf_ptr, table->record[0], m_rec_length);
       reverse_order= FALSE;
       break;
