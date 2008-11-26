@@ -1,28 +1,25 @@
-############# mysql-test\t\timestamp_func.test #############################
+############################################################################
 #                                                                          #
-# Variable Name: timestamp                                                 #
+# Variable Name: timestamp with sysdate-is-now                             #
 # Scope: GLOBAL                                                            #
 # Access Type: Dynamic                                                     #
 # Data Type: INTEGER                                                       #
 #                                                                          #
 #                                                                          #
-# Creation Date: 2008-02-25                                                #
-# Author:  Sharique Abdullah                                               #
-#                                                                          #
-# Modified: HHunger 2008-08-28 Reimplemented the test completely.          #
+# Creation Date: 2008-11-25                                                #
+# Author:  Horst Hunger                                                    #
 #                                                                          #
 # Description: Test Cases of Dynamic System Variable "timestamp"           #
 #              that checks behavior of this variable in the following ways #
-#              * Functionality based on different values                   #
+#              * Like timstamp_func, but with set "sysdate-is-now".        #
 #                                                                          #
 # Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html        #
 #                                                                          #
 ############################################################################
 
-# Change timestamp which must have an effect on now(), but not on sysdate().
 # Use Unix epoch timestamp
-# All comparisons must deliver true(1)
-# Exception: --sysdate-is-now switches off this behaviour and must not be set.
+# Due to "--sysdate-is-now" timestamp must have an effect on both.
+# See also timestamp_func.test.
 
 --echo ** Connecting con1 using root **
 connect (con1,localhost,root,,);
