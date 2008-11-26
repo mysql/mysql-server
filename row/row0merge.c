@@ -1821,7 +1821,7 @@ row_merge_drop_temp_indexes(void)
 		"WHERE SUBSTR(NAME,0,1)='\377' FOR UPDATE;\n"
 		"BEGIN\n"
 		"\tOPEN c;\n"
-		"\tWHILE 1 LOOP\n"
+		"\tWHILE 1=1 LOOP\n"
 		"\t\tFETCH c INTO indexid;\n"
 		"\t\tIF (SQL % NOTFOUND) THEN\n"
 		"\t\t\tEXIT;\n"
