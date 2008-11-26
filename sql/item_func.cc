@@ -2283,7 +2283,7 @@ uint Item_func_min_max::cmp_datetimes(ulonglong *value)
   {
     Item **arg= args + i;
     bool is_null;
-    ulonglong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
     if ((null_value= args[i]->null_value))
       return 0;
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
