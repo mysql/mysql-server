@@ -929,6 +929,34 @@ public:
 };
 
 
+/**
+  Global-only, read-only variable. E.g. command line option.
+*/
+
+class sys_var_const: public sys_var
+{
+public:
+  enum_var_type var_type;
+  SHOW_TYPE show_type_value;
+  uchar *ptr;
+  sys_var_const(sys_var_chain *chain, const char *name_arg, enum_var_type type,
+                SHOW_TYPE show_type_arg, uchar *ptr_arg)
+    :sys_var(name_arg), var_type(type),
+    show_type_value(show_type_arg), ptr(ptr_arg)
+  { chain_sys_var(chain); }
+  bool update(THD *thd, set_var *var) { return 1; }
+  bool check_default(enum_var_type type) { return 1; }
+  bool check_type(enum_var_type type) { return type != var_type; }
+  bool check_update_type(Item_result type) { return 1; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  {
+    return ptr;
+  }
+  SHOW_TYPE show_type() { return show_type_value; }
+  bool is_readonly() const { return 1; }
+};
+
+
 class sys_var_have_option: public sys_var
 {
 protected:
@@ -1021,6 +1049,29 @@ public:
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE show_type() { return SHOW_INT; }
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+
+/**
+ * @brief This is a specialization of sys_var_thd_ulong that implements a 
+   read-only session variable. The class overrides check() and check_default() 
+   to achieve the read-only property for the session part of the variable.
+ */
+class sys_var_thd_ulong_session_readonly : public sys_var_thd_ulong
+{
+public:
+  sys_var_thd_ulong_session_readonly(sys_var_chain *chain_arg, 
+                                     const char *name_arg, ulong SV::*offset_arg, 
+				     sys_check_func c_func= NULL,
+                                     sys_after_update_func au_func= NULL, 
+                                     Binlog_status_enum bl_status_arg= NOT_IN_BINLOG):
+    sys_var_thd_ulong(chain_arg, name_arg, offset_arg, c_func, au_func, bl_status_arg)
+  { }
+  bool check(THD *thd, set_var *var);
+  bool check_default(enum_var_type type)
+  {
+    return type != OPT_GLOBAL || !option_limits;
+  }
 };
 
 
@@ -1294,7 +1345,6 @@ struct sys_var_with_base
 
 int set_var_init();
 void set_var_free();
-int mysql_append_static_vars(const SHOW_VAR *show_vars, uint count);
 SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted);
 int mysql_add_sys_var_chain(sys_var *chain, struct my_option *long_options);
 int mysql_del_sys_var_chain(sys_var *chain);
