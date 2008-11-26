@@ -1,3 +1,6 @@
+SELECT @@GLOBAL.binlog_format;
+@@GLOBAL.binlog_format
+MIXED
 '#---------------------BS_STVARS_002_01----------------------#'
 SELECT COUNT(@@GLOBAL.binlog_format);
 COUNT(@@GLOBAL.binlog_format)
