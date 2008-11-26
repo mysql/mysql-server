@@ -1698,4 +1698,13 @@ drop table if exists t1;drop table if exists
 Warnings:
 Warning	1265	Data truncated for column 'VARIABLE_VALUE' at row 1
 set global init_connect="";
+create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
+SELECT 1;
+1
+1
+select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
+where a.VARIABLE_NAME = b.VARIABLE_NAME;
+a.VARIABLE_VALUE - b.VARIABLE_VALUE
+2
+drop table t0;
 End of 5.1 tests.
