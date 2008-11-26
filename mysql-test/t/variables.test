@@ -146,25 +146,23 @@ show global variables like 'myisam_max_sort_file_size';
 --replace_result 9223372036853727232 FILE_SIZE 2146435072 FILE_SIZE
 select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 
+# bug#22891: modified to take read-only SESSION net_buffer_length into account
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
-set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
 show global variables like 'net_%';
 select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
 show session variables like 'net_%';
 select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
-set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
+set global net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
 show global variables like 'net_%';
 select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
-show session variables like 'net_%';
-select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
-set net_buffer_length=1;
-show variables like 'net_buffer_length';
-select * from information_schema.session_variables where variable_name like 'net_buffer_length';
+set global net_buffer_length=1;
+show global variables like 'net_buffer_length';
+select * from information_schema.global_variables where variable_name like 'net_buffer_length';
 #warning 1292
-set net_buffer_length=2000000000;
-show variables like 'net_buffer_length';
-select * from information_schema.session_variables where variable_name like 'net_buffer_length';
+set global net_buffer_length=2000000000;
+show global variables like 'net_buffer_length';
+select * from information_schema.global_variables where variable_name like 'net_buffer_length';
 
 set character set cp1251_koi8;
 show variables like "character_set_client";
@@ -274,7 +272,7 @@ select @@long_query_time;
 set long_query_time=100.000001;
 select @@long_query_time;
 set low_priority_updates=1;
-set max_allowed_packet=100;
+set global max_allowed_packet=100;
 set global max_binlog_cache_size=100;
 set global max_binlog_size=100;
 set global max_connect_errors=100;
@@ -288,7 +286,7 @@ set global max_user_connections=100;
 select @@max_user_connections;
 set global max_write_lock_count=100;
 set myisam_sort_buffer_size=100;
-set net_buffer_length=100;
+set global net_buffer_length=100;
 set net_read_timeout=100;
 set net_write_timeout=100;
 set global query_cache_limit=100;
@@ -795,3 +793,299 @@ SET GLOBAL log_output = 0;
 --echo
 --echo # -- End of Bug#34820.
 
+#
+# Bug#28234 - global/session scope - documentation vs implementation
+#
+--echo
+--echo #
+SHOW VARIABLES like 'ft_max_word_len';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.ft_max_word_len;
+SELECT @@global.ft_max_word_len;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.ft_max_word_len= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.ft_max_word_len= 7;
+#
+--echo #
+SHOW VARIABLES like 'ft_min_word_len';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.ft_min_word_len;
+SELECT @@global.ft_min_word_len;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.ft_min_word_len= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.ft_min_word_len= 7;
+#
+--echo #
+SHOW VARIABLES like 'ft_query_expansion_limit';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.ft_query_expansion_limit;
+SELECT @@global.ft_query_expansion_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.ft_query_expansion_limit= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.ft_query_expansion_limit= 7;
+#
+--echo #
+SHOW VARIABLES like 'ft_stopword_file';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.ft_stopword_file;
+SELECT @@global.ft_stopword_file;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.ft_stopword_file= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.ft_stopword_file= 'x';
+#
+# Additional variables fixed.
+#
+--echo #
+SHOW VARIABLES like 'back_log';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.back_log;
+SELECT @@global.back_log;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.back_log= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.back_log= 7;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'large_files_support';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.large_files_support;
+--replace_column 1 #
+SELECT @@global.large_files_support;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.large_files_support= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.large_files_support= true;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'character_sets_dir';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.character_sets_dir;
+--replace_column 1 #
+SELECT @@global.character_sets_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.character_sets_dir= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.character_sets_dir= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'init_file';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.init_file;
+--replace_column 1 #
+SELECT @@global.init_file;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.init_file= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.init_file= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'language';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.language;
+--replace_column 1 #
+SELECT @@global.language;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.language= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.language= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'large_page_size';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.large_page_size;
+--replace_column 1 #
+SELECT @@global.large_page_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.large_page_size= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.large_page_size= 7;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'large_pages';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.large_pages;
+--replace_column 1 #
+SELECT @@global.large_pages;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.large_pages= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.large_pages= true;
+#
+--echo #
+SHOW VARIABLES like 'log_bin';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_bin;
+SELECT @@global.log_bin;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.log_bin= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.log_bin= true;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'log_error';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_error;
+--replace_column 1 #
+SELECT @@global.log_error;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.log_error= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.log_error= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'lower_case_file_system';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.lower_case_file_system;
+--replace_column 1 #
+SELECT @@global.lower_case_file_system;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.lower_case_file_system= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.lower_case_file_system= true;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'lower_case_table_names';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.lower_case_table_names;
+--replace_column 1 #
+SELECT @@global.lower_case_table_names;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.lower_case_table_names= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.lower_case_table_names= 7;
+#
+--echo #
+SHOW VARIABLES like 'myisam_recover_options';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.myisam_recover_options;
+SELECT @@global.myisam_recover_options;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.myisam_recover_options= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.myisam_recover_options= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'open_files_limit';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.open_files_limit;
+--replace_column 1 #
+SELECT @@global.open_files_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.open_files_limit= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.open_files_limit= 7;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'pid_file';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.pid_file;
+--replace_column 1 #
+SELECT @@global.pid_file;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.pid_file= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.pid_file= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'plugin_dir';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.plugin_dir;
+--replace_column 1 #
+SELECT @@global.plugin_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.plugin_dir= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.plugin_dir= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'port';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.port;
+--replace_column 1 #
+SELECT @@global.port;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.port= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.port= 7;
+#
+--echo #
+SHOW VARIABLES like 'protocol_version';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.protocol_version;
+SELECT @@global.protocol_version;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.protocol_version= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.protocol_version= 7;
+#
+--echo #
+SHOW VARIABLES like 'skip_external_locking';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.skip_external_locking;
+SELECT @@global.skip_external_locking;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.skip_external_locking= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.skip_external_locking= true;
+#
+--echo #
+SHOW VARIABLES like 'skip_networking';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.skip_networking;
+SELECT @@global.skip_networking;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.skip_networking= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.skip_networking= true;
+#
+--echo #
+SHOW VARIABLES like 'skip_show_database';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.skip_show_database;
+SELECT @@global.skip_show_database;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.skip_show_database= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.skip_show_database= true;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'socket';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.socket;
+--replace_column 1 #
+SELECT @@global.socket;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.socket= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.socket= 'x';
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'thread_stack';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.thread_stack;
+--replace_column 1 #
+SELECT @@global.thread_stack;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.thread_stack= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.thread_stack= 7;
+#
