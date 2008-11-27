@@ -227,6 +227,8 @@ void
 ConfigRetriever::setError(ErrorType et, const char * s){
   errorString.assign(s ? s : "");
   latestErrorType = et;
+  DBUG_PRINT("info", ("latestErrorType: %u, '%s'",
+                      latestErrorType, errorString.c_str()));
 }
 
 void

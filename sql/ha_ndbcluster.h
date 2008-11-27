@@ -300,6 +300,7 @@ class Thd_ndb
   ulong count;
   uint lock_count;
   uint start_stmt_count;
+  uint save_point_count;
   NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
@@ -720,7 +721,8 @@ private:
     return start_transaction(error);
   }
 
-  NdbTransaction *start_transaction_row(const uchar *record,
+  NdbTransaction *start_transaction_row(const NdbRecord *ndb_record,
+                                        const uchar *record,
                                         int &error);
   NdbTransaction *start_transaction_key(uint index,
                                         const uchar *key_data,
