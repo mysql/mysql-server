@@ -4855,6 +4855,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       max_length= MAX_BLOB_WIDTH;
       decimals=NOT_FIXED_DEC;
       break;
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
       unsigned_flag= FALSE;
       max_length= 1;
@@ -4882,6 +4883,7 @@ enum Item_result Item_func_get_system_var::result_type() const
 {
   switch (var->show_type())
   {
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
@@ -4904,6 +4906,7 @@ enum_field_types Item_func_get_system_var::field_type() const
 {
   switch (var->show_type())
   {
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
@@ -4922,6 +4925,10 @@ enum_field_types Item_func_get_system_var::field_type() const
 }
 
 
+/*
+  Uses var, var_type, component, cache_present, used_query_id, thd,
+  cached_llval, null_value, cached_null_value
+*/
 #define get_sys_var_safe(type) \
 do { \
   type value; \
@@ -4975,6 +4982,7 @@ longlong Item_func_get_system_var::val_int()
     case SHOW_LONG:     get_sys_var_safe (ulong);
     case SHOW_LONGLONG: get_sys_var_safe (longlong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
+    case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
     case SHOW_DOUBLE:
       {
@@ -5072,6 +5080,7 @@ String* Item_func_get_system_var::val_str(String* str)
     case SHOW_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
       str->set (val_int(), collation.collation);
       break;
@@ -5164,6 +5173,7 @@ double Item_func_get_system_var::val_real()
     case SHOW_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
         cached_dval= (double) val_int();
         cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
