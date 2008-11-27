@@ -3225,6 +3225,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   bool uses_blobs= uses_blob_value(table->write_set);
 
   Uint64 auto_value;
+  const NdbRecord *key_rec;
+  const uchar *key_row;
   if (table_share->primary_key == MAX_KEY)
   {
     /* Table has hidden primary key. */
@@ -3249,7 +3251,14 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     sets[num_sets].column= get_hidden_key_column();
     sets[num_sets].value= &auto_value;
     num_sets++;
-  } 
+    key_rec= m_ndb_hidden_key_record;
+    key_row= (const uchar *)&auto_value;
+  }
+  else
+  {
+    key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
+    key_row= record;
+  }
 
   trans= thd_ndb->trans;
   if (m_user_defined_partitioning)
@@ -3282,7 +3291,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   else if (!trans)
   {
-    if (unlikely(!(trans= start_transaction_row(record, error))))
+    if (unlikely(!(trans= start_transaction_row(key_rec, key_row, error))))
       DBUG_RETURN(error);
   }
   DBUG_ASSERT(trans);
@@ -3313,19 +3322,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   if (options.optionsPresent != 0)
     poptions=&options;
-
-  const NdbRecord *key_rec;
-  const uchar *key_row;
-  if (table_share->primary_key == MAX_KEY)
-  {
-    key_rec= m_ndb_hidden_key_record;
-    key_row= (const uchar *)&auto_value;
-  }
-  else
-  {
-    key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
-    key_row= record;
-  }
 
   const MY_BITMAP *user_cols_written_bitmap;
   
@@ -5624,7 +5620,8 @@ error:
 }
 
 NdbTransaction *
-ha_ndbcluster::start_transaction_row(const uchar *record,
+ha_ndbcluster::start_transaction_row(const NdbRecord *ndb_record,
+                                     const uchar *record,
                                      int &error)
 {
   NdbTransaction *trans;
@@ -5636,7 +5633,7 @@ ha_ndbcluster::start_transaction_row(const uchar *record,
 
   Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   char *buf= (char*)&tmp[0];
-  trans= ndb->startTransaction(m_ndb_record,
+  trans= ndb->startTransaction(ndb_record,
                                (const char*)record,
                                buf, sizeof(tmp));
 
