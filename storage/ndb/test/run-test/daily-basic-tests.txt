@@ -321,7 +321,7 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488Timeout -l 10 T6 D1 D2
 
-max-time: 600
+max-time: 1200
 cmd: testScan
 args: -n ScanRead40 -l 100 T6 D1 D2 
 
@@ -336,10 +336,6 @@ args: -n ScanRead40 -l 100 T1 D1 D2
 max-time: 1800
 cmd: testScan
 args: -n ScanRead40RandomTable -l 100 T1 
-
-max-time: 3600
-cmd: testScan
-args: -n ScanRead40RandomTable -l 1000 T6 
 
 max-time: 500
 cmd: testScan
