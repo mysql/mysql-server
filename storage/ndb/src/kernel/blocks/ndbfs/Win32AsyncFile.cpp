@@ -152,7 +152,8 @@ void Win32AsyncFile::openReq(Request* request)
     bzero(signal, sizeof(tmp));
     FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
     Uint32 index = 0;
-    Uint32 block = refToBlock(request->theUserReference);
+    Uint32 block = refToMain(request->theUserReference);
+    Uint32 instance = refToInstance(request->theUserReference);
 
     off.QuadPart= 0;
     sz.QuadPart= request->par.open.file_size;
@@ -166,7 +167,7 @@ void Win32AsyncFile::openReq(Request* request)
 
       m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
 			  FsReadWriteReq::FixedLength + 1,
-                          0 // wl4391_todo This EXECUTE_DIRECT is thread safe
+                          instance // wl4391_todo This EXECUTE_DIRECT is thread safe
                           );
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;

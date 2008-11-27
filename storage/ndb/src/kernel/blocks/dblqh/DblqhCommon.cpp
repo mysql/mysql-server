@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <GlobalData.hpp>
+#include <SimulatedBlock.hpp>
 #include "DblqhCommon.hpp"
 
 NdbLogPartInfo::NdbLogPartInfo(Uint32 instanceNo)
@@ -45,6 +46,16 @@ NdbLogPartInfo::partNoOwner(Uint32 lpno) const
 {
   assert(lpno < LogParts);
   return partMask.get(lpno);
+}
+
+bool
+NdbLogPartInfo::partNoOwner(Uint32 tabId, Uint32 fragId)
+{
+  Uint32 instanceKey = SimulatedBlock::getInstanceKey(tabId, fragId);
+  assert(instanceKey != 0);
+  Uint32 lpid = instanceKey - 1;
+  Uint32 lpno = partNoFromId(lpid);
+  return partNoOwner(lpno);
 }
 
 Uint32

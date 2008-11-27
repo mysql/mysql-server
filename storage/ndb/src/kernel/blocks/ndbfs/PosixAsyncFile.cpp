@@ -32,6 +32,8 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 
+#include <NdbTick.h>
+
 // use this to test broken pread code
 //#define HAVE_BROKEN_PREAD
 
@@ -312,7 +314,8 @@ no_odirect:
     FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
 
     Uint32 index = 0;
-    Uint32 block = refToBlock(request->theUserReference);
+    Uint32 block = refToMain(request->theUserReference);
+    Uint32 instance = refToInstance(request->theUserReference);
 
 #ifdef HAVE_XFS_XFS_H
     if(platform_test_xfs_fd(theFd))
@@ -330,22 +333,40 @@ no_odirect:
     posix_fallocate(theFd, 0, sz);
 #endif
 
+#ifdef VM_TRACE
+#define TRACE_INIT
+#endif
+
+#ifdef TRACE_INIT
+    Uint32 write_cnt = 0;
+    Uint64 start = NdbTick_CurrentMillisecond();
+#endif
     while(off < sz)
     {
-      req->filePointer = 0;          // DATA 0
-      req->userPointer = request->theUserPointer;          // DATA 2
-      req->numberOfPages = 1;        // DATA 5
-      req->varIndex = index++;
-      req->data.pageData[0] = m_page_ptr.i;
+      off_t size = 0;
+      Uint32 cnt = 0;
+      while (cnt < m_page_cnt && (off + size) < sz)
+      {
+        req->filePointer = 0;          // DATA 0
+        req->userPointer = request->theUserPointer;          // DATA 2
+        req->numberOfPages = 1;        // DATA 5
+        req->varIndex = index++;
+        req->data.pageData[0] = m_page_ptr.i + cnt;
 
-      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-			  FsReadWriteReq::FixedLength + 1,
-                          0 // wl4391_todo This EXECUTE_DIRECT is thread safe
-                          );
+        m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
+                            FsReadWriteReq::FixedLength + 1,
+                            instance);
+        
+        cnt++;
+        size += request->par.open.page_size;
+      }
   retry:
-      Uint32 size = request->par.open.page_size;
+      off_t save_size = size;
       char* buf = (char*)m_page_ptr.p;
       while(size > 0){
+#ifdef TRACE_INIT
+        write_cnt++;
+#endif
         int n;
 	if(use_gz)
           n= azwrite(&azf,buf,size);
@@ -382,8 +403,22 @@ no_odirect:
 	request->error = err;
 	return;
       }
-      off += request->par.open.page_size;
+      off += save_size;
     }
+    ::fsync(theFd);
+#ifdef TRACE_INIT
+    Uint64 stop = NdbTick_CurrentMillisecond();
+    Uint64 diff = stop - start;
+    if (diff == 0)
+      diff = 1;
+    ndbout_c("wrote %umb in %u writes %us -> %ukb/write %umb/s",
+             Uint32(sz /1024/1024),
+             write_cnt,
+             Uint32(diff / 1000),
+             Uint32(sz / 1024 / write_cnt),
+             Uint32(sz / diff));
+#endif
+
     if(lseek(theFd, 0, SEEK_SET) != 0)
       request->error = errno;
   }
@@ -401,12 +436,6 @@ no_odirect:
 
     if (request->error)
       return;
-#elif defined HAVE_DIRECTIO && defined(DIRECTIO_ON)
-    if (directio(theFd, DIRECTIO_ON) == -1)
-    {
-      ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
-               theFileName.c_str(), errno);
-    }
 #endif
   }
 
@@ -423,6 +452,7 @@ no_odirect:
 #endif
   }
 #endif
+  
   if ((flags & FsOpenReq::OM_SYNC) && (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
@@ -439,6 +469,24 @@ no_odirect:
     }
 #endif
   }
+
+#if ! defined(O_DIRECT) && defined HAVE_DIRECTIO && defined(DIRECTIO_ON)
+  if (flags & FsOpenReq::OM_DIRECT)
+  {
+    if (directio(theFd, DIRECTIO_ON) == -1)
+    {
+      ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
+               theFileName.c_str(), errno);
+    }
+#ifdef VM_TRACE
+    else
+    {
+      ndbout_c("%s DIRECTIO_ON", theFileName.c_str());
+    }
+#endif
+  }
+#endif
+  
   if(use_gz)
   {
     int err;

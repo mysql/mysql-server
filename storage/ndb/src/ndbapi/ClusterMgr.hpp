@@ -38,7 +38,7 @@ class ClusterMgr {
 public:
   ClusterMgr(class TransporterFacade &);
   ~ClusterMgr();
-  void init(struct ndb_mgm_configuration_iterator & config);
+  void configure(const ndb_mgm_configuration* config);
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);

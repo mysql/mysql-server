@@ -69,6 +69,7 @@
 #include <signaldata/FsRef.hpp>
 #include <SectionReader.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
 
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
@@ -856,7 +857,8 @@ void Dblqh::startphase3Lab(Signal* signal)
       initLogfile(signal, fileNo);
       if ((cstartType == NodeState::ST_INITIAL_START) ||
 	  (cstartType == NodeState::ST_INITIAL_NODE_RESTART)) {
-        if (logFilePtr.i == zeroLogFilePtr.i) {
+        if (logFilePtr.i == zeroLogFilePtr.i)
+        {
           jam();
 /* ------------------------------------------------------------------------- */
 /*IN AN INITIAL START WE START BY CREATING ALL LOG FILES AND SETTING THEIR   */
@@ -864,7 +866,26 @@ void Dblqh::startphase3Lab(Signal* signal)
 /*WE START BY CREATING FILE ZERO IN EACH LOG PART AND THEN PROCEED           */
 /*SEQUENTIALLY THROUGH ALL LOG FILES IN THE LOG PART.                        */
 /* ------------------------------------------------------------------------- */
-          openLogfileInit(signal);
+          if (m_use_om_init == 0 || logPartPtr.i == 0)
+          {
+            /**
+             * initialize one file at a time if using OM_INIT
+             */
+            jam();
+#ifdef VM_TRACE
+            if (m_use_om_init)
+            {
+              jam();
+              /**
+               * FSWRITEREQ does cross-thread execute-direct
+               *   which makes the clear_global_variables "unsafe"
+               *   disable it until we're finished with init log-files
+               */
+              disable_global_variables();
+            }
+#endif
+            openLogfileInit(signal);
+          }
         }//if
       }//if
     }//for
@@ -1064,6 +1085,25 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   c_o_direct = true;
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
   
+  m_use_om_init = 0;
+  {
+    const char * conf = 0;
+    if (!ndb_mgm_get_string_parameter(p, CFG_DB_INIT_REDO, &conf) && conf)
+    {
+      jam();
+      if (strcmp(conf, "sparse") == 0)
+      {
+        jam();
+        m_use_om_init = 0;
+      }
+      else if (strcmp(conf, "full") == 0)
+      {
+        jam();
+        m_use_om_init = 1;
+      }
+    }
+  }
+
   Uint32 tmp= 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &tmp));
   c_fragment_pool.setSize(tmp);
@@ -11869,6 +11909,10 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
       if (cnoOfFragsCheckpointed > 0) {
         jam();
         completeLcpRoundLab(signal, lcpId);
+      } else if (isNdbMtLqh()) {
+        jam();
+        // makes proxy code simpler
+        completeLcpRoundLab(signal, lcpId);
       } else {
         jam();
         sendLCP_COMPLETE_REP(signal, lcpId);
@@ -11962,15 +12006,22 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
       jam();
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       lcpPtr.p->firstFragmentFlag= false;
-      *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
-      jamEntry();
+
+      if (!isNdbMtLqh()) {
+        *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+        EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+        jamEntry();
+      }
       
       /**
        * First fragment mean that last LCP is complete :-)
        */
-      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
-      jamEntry();
+      if (!isNdbMtLqh()) {
+        *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+        EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
+                       signal, signal->length(), 0);
+        jamEntry();
+      }
     }
     
     lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
@@ -11996,6 +12047,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
   fragptr.i = lcpPtr.p->currentFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
 
+  // wl4391_todo obsolete
   if (refToBlock(signal->getSendersBlockRef()) != PGMAN)
   {
     ndbrequire(conf->tableId == fragptr.p->tabRef);
@@ -12013,19 +12065,23 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       jam();
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       lcpPtr.p->firstFragmentFlag= false;
-      *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      // wl4391_todo DD
-      if (!isNdbMtLqh())
-      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
-      jamEntry();
+
+      // proxy is used in MT LQH to handle also the extra pgman worker
+      if (!isNdbMtLqh()) {
+        *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+        EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+        jamEntry();
+      }
       
       /**
        * First fragment mean that last LCP is complete :-)
        */
-      // wl4391_todo DD
-      if (!isNdbMtLqh())
-      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
-      jamEntry();
+      if (!isNdbMtLqh()) {
+        *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+        EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
+                       signal, signal->length(), 0);
+        jamEntry();
+      }
     }
     
     if (lcpPtr.p->m_error)
@@ -12051,9 +12107,8 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     {
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      // wl4391_todo DD
-      if (!isNdbMtLqh())
-      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
+      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD,
+                     signal, signal->length(), 0);
       jamEntry();
       
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
@@ -12153,16 +12208,22 @@ Dblqh::sendLCP_FRAG_REP(Signal * signal,
   lcpReport->maxGciCompleted = fragPtrP->maxGciCompletedInLcp;
   lcpReport->maxGciStarted = fragPtrP->maxGciInLcp;
   
-  for (Uint32 i = 0; i < cnoOfNodes; i++) {
-    jam();
-    Uint32 nodeId = cnodeData[i];
-    if(cnodeStatus[i] == ZNODE_UP){
+  if (!isNdbMtLqh()) {
+    for (Uint32 i = 0; i < cnoOfNodes; i++) {
       jam();
-      BlockReference Tblockref = calcDihBlockRef(nodeId);
-      sendSignal(Tblockref, GSN_LCP_FRAG_REP, signal, 
-                 LcpFragRep::SignalLength, JBB);
-    }//if
-  }//for
+      Uint32 nodeId = cnodeData[i];
+      if(cnodeStatus[i] == ZNODE_UP){
+        jam();
+        BlockReference Tblockref = calcDihBlockRef(nodeId);
+        sendSignal(Tblockref, GSN_LCP_FRAG_REP, signal, 
+                   LcpFragRep::SignalLength, JBB);
+      }//if
+    }//for
+  } else {
+    jam();
+    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal,
+               LcpFragRep::SignalLength, JBB);
+  }
 }
 
 void Dblqh::contChkpNextFragLab(Signal* signal) 
@@ -12318,28 +12379,41 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   sendSignal(backupRef, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
-  // wl4391_todo DD
-  if (!isNdbMtLqh())
-  sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
-	     EndLcpReq::SignalLength, JBB);
 
-  // wl4391_todo DD
-  if (!isNdbMtLqh())
-  sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
-	     EndLcpReq::SignalLength, JBB);
+  if (!isNdbMtLqh()) {
+    sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
+               EndLcpReq::SignalLength, JBB);
+  } else {
+    jam();
+    req->proxyBlockNo = PGMAN;
+    sendSignal(DBLQH_REF, GSN_END_LCP_REQ, signal, 
+               EndLcpReq::SignalLength + 1, JBB);
+  }
 
-  // wl4391_todo DD
-  if (!isNdbMtLqh())
-  EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, 0);
-  jamEntry();
+  if (!isNdbMtLqh()) {
+    sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
+               EndLcpReq::SignalLength, JBB);
+  } else {
+    jam();
+    req->proxyBlockNo = LGMAN;
+    sendSignal(DBLQH_REF, GSN_END_LCP_REQ,
+               signal, EndLcpReq::SignalLength + 1, JBB);
+  }
+
+  if (!isNdbMtLqh()) {
+    EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ,
+                   signal, EndLcpReq::SignalLength, 0);
+    jamEntry();
+  } else {
+    jam();
+    req->proxyBlockNo = TSMAN;
+    sendSignal(DBLQH_REF, GSN_END_LCP_REQ,
+               signal, EndLcpReq::SignalLength + 1, JBB);
+  }
 
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
-  // wl4391_todo DD
-  if (!isNdbMtLqh())
   lcpPtr.p->m_outstanding = 3;
-  else
-  lcpPtr.p->m_outstanding = 1;
   return;
 }//Dblqh::completeLcpRoundLab()
 
@@ -13806,9 +13880,20 @@ void Dblqh::openFileInitLab(Signal* signal)
 {
   logFilePtr.p->logFileStatus = LogFileRecord::OPEN_INIT;
   seizeLogpage(signal);
-  writeSinglePage(signal, (clogFileSize * ZPAGES_IN_MBYTE) - 1,
-                  ZPAGE_SIZE - 1, __LINE__);
-  lfoPtr.p->lfoState = LogFileOperationRecord::INIT_WRITE_AT_END;
+  if (m_use_om_init == 0)
+  {
+    jam();
+    initLogpage(signal);
+    writeSinglePage(signal, (clogFileSize * ZPAGES_IN_MBYTE) - 1,
+                    ZPAGE_SIZE - 1, __LINE__, false);
+    lfoPtr.p->lfoState = LogFileOperationRecord::INIT_WRITE_AT_END;
+  }
+  else
+  {
+    jam();
+    seizeLfo(signal);
+    initWriteEndLab(signal);
+  }
   return;
 }//Dblqh::openFileInitLab()
 
@@ -13848,7 +13933,7 @@ void Dblqh::initFirstPageLab(Signal* signal)
     logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 1;
     logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE] = ZCOMPLETED_GCI_TYPE;
     logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + 1] = 1;
-    writeSinglePage(signal, 1, ZPAGE_SIZE - 1, __LINE__);
+    writeSinglePage(signal, 1, ZPAGE_SIZE - 1, __LINE__, false);
     lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_GCI_ZERO;
     return;
   }//if
@@ -13907,6 +13992,18 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
 /* MEANS THIS PART OF THE LOG IS NOT WRITTEN YET.                            */
 /*---------------------------------------------------------------------------*/
   logPartPtr.p->logLap = 1;
+
+  if (m_use_om_init && logPartPtr.i  != clogPartFileSize - 1)
+  {
+    jam();
+    logPartPtr.i++;
+    ptrAss(logPartPtr, logPartRecord);
+    logFilePtr.i = logPartPtr.p->firstLogfile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+    openLogfileInit(signal);
+    return;
+  }
+
   logPartPtr.i = 0;
 CHECK_LOG_PARTS_LOOP:
   ptrAss(logPartPtr, logPartRecord);
@@ -13926,6 +14023,9 @@ CHECK_LOG_PARTS_LOOP:
 /* TO SET THE CURRENT LOG PAGE TO BE PAGE 1 IN FILE ZERO.                    */
 /*---------------------------------------------------------------------------*/
     for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
+#ifdef VM_TRACE
+      enable_global_variables();
+#endif
       ptrAss(logPartPtr, logPartRecord);
       signal->theData[0] = ZINIT_FOURTH;
       signal->theData[1] = logPartPtr.i;
@@ -14070,9 +14170,75 @@ void Dblqh::openLogfileInit(Signal* signal)
   signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC;
   if (c_o_direct)
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
+
+  Uint64 sz = Uint64(clogFileSize) * 1024 * 1024;
+  req->file_size_hi = Uint32(sz >> 32);
+  req->file_size_lo = Uint32(sz);
+  req->page_size = File_formats::NDB_PAGE_SIZE;
+  if (m_use_om_init)
+  {
+    jam();
+    signal->theData[6] |= FsOpenReq::OM_INIT;
+  }
+
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openLogfileInit()
+
+void
+Dblqh::execFSWRITEREQ(Signal* signal)
+{
+  /**
+   * This is currently run in other thread -> no jam
+   *   and no global variables
+   */
+  Ptr<GlobalPage> page_ptr;
+  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
+  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+
+  LogFileRecordPtr currLogFilePtr;
+  currLogFilePtr.i = req->userPointer;
+  ptrCheckGuard(currLogFilePtr, clogFileFileSize, logFileRecord);
+
+  LogPartRecordPtr currLogPartPtr;
+  currLogPartPtr.i = currLogFilePtr.p->logPartRec;
+  ptrCheckGuard(currLogPartPtr, clogPartFileSize, logPartRecord);
+
+  Uint32 page_no = req->varIndex;
+  LogPageRecordPtr currLogPagePtr;
+  currLogPagePtr.p = (LogPageRecord*)page_ptr.p;
+
+  bzero(page_ptr.p, sizeof(LogPageRecord));
+  if (page_no == 0)
+  {
+    // keep writing these afterwards
+  }
+  else if (((page_no % ZPAGES_IN_MBYTE) == 0) ||
+           (page_no == ((clogFileSize * ZPAGES_IN_MBYTE) - 1)))
+  {
+    currLogPagePtr.p->logPageWord[ZPOS_LOG_LAP] = currLogPartPtr.p->logLap;
+    currLogPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] =
+      currLogPartPtr.p->logPartNewestCompletedGCI;
+    currLogPagePtr.p->logPageWord[ZPOS_MAX_GCI_STARTED] = cnewestGci;
+    currLogPagePtr.p->logPageWord[ZPOS_VERSION] = NDB_VERSION;
+    currLogPagePtr.p->logPageWord[ZPOS_NO_LOG_FILES] =
+      currLogPartPtr.p->noLogFiles;
+    currLogPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
+    currLogPagePtr.p->logPageWord[ZLAST_LOG_PREP_REF] =
+      (currLogFilePtr.p->fileNo << 16) +
+      (currLogFilePtr.p->currentFilepage >> ZTWOLOG_NO_PAGES_IN_MBYTE);
+
+    currLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
+    currLogPagePtr.p->logPageWord[ZPOS_CHECKSUM] =
+      calcPageCheckSum(currLogPagePtr);
+  }
+  else if (0)
+  {
+    currLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
+    currLogPagePtr.p->logPageWord[ZPOS_CHECKSUM] =
+      calcPageCheckSum(currLogPagePtr);
+  }
+}
 
 /* OPEN FOR READ/WRITE, DO CREATE AND DO TRUNCATE FILE */
 /* ------------------------------------------------------------------------- */
@@ -14222,6 +14388,9 @@ void Dblqh::seizeLogpage(Signal* signal)
 /*IF LIST IS EMPTY THEN A SYSTEM CRASH IS INVOKED SINCE LOG_PAGE_PTR = RNIL  */
 /* ------------------------------------------------------------------------- */
   cfirstfreeLogPage = logPagePtr.p->logPageWord[ZNEXT_PAGE];
+#ifdef VM_TRACE
+  bzero(logPagePtr.p, sizeof(LogPageRecord));
+#endif
   logPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
   logPagePtr.p->logPageWord[ZPOS_IN_FREE_LIST] = 0;
 }//Dblqh::seizeLogpage()
@@ -14320,12 +14489,13 @@ void Dblqh::writeFileHeaderOpen(Signal* signal, Uint32 wmoType)
 /*       LOG FILE. THIS HAS SPECIAL SIGNIFANCE TO FIND     */
 /*       THE END OF THE LOG AT SYSTEM RESTART.             */
 /* ------------------------------------------------------- */
-  writeSinglePage(signal, 0, ZPAGE_SIZE - 1, __LINE__);
   if (wmoType == ZINIT) {
     jam();
+    writeSinglePage(signal, 0, ZPAGE_SIZE - 1, __LINE__, false);
     lfoPtr.p->lfoState = LogFileOperationRecord::INIT_FIRST_PAGE;
   } else {
     jam();
+    writeSinglePage(signal, 0, ZPAGE_SIZE - 1, __LINE__, true);
     lfoPtr.p->lfoState = LogFileOperationRecord::FIRST_PAGE_WRITE_IN_LOGFILE;
   }//if
   logFilePtr.p->filePosition = 1;
@@ -14353,11 +14523,22 @@ void Dblqh::writeFileHeaderOpen(Signal* signal, Uint32 wmoType)
 /* ------------------------------------------------------------------------- */
 void Dblqh::writeInitMbyte(Signal* signal) 
 {
-  initLogpage(signal);
-  writeSinglePage(signal, logFilePtr.p->currentMbyte * ZPAGES_IN_MBYTE,
-                  ZPAGE_SIZE - 1, __LINE__);
-  lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_INIT_MBYTE;
-  checkReportStatus(signal);
+  if (m_use_om_init == 0)
+  {
+    jam();
+    initLogpage(signal);
+    writeSinglePage(signal, logFilePtr.p->currentMbyte * ZPAGES_IN_MBYTE,
+                    ZPAGE_SIZE - 1, __LINE__, false);
+    lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_INIT_MBYTE;
+    checkReportStatus(signal);
+  }
+  else
+  {
+    jam();
+    seizeLfo(signal);
+    logFilePtr.p->currentMbyte = clogFileSize - 1;
+    writeInitMbyteLab(signal);
+  }
 }//Dblqh::writeInitMbyte()
 
 /* ------------------------------------------------------------------------- */
@@ -14367,7 +14548,8 @@ void Dblqh::writeInitMbyte(Signal* signal)
 /*       SUBROUTINE SHORT NAME:  WSP                                         */
 /* ------------------------------------------------------------------------- */
 void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
-                            Uint32 wordWritten, Uint32 place) 
+                            Uint32 wordWritten, Uint32 place,
+                            bool sync) 
 {
   seizeLfo(signal);
   initLfo(signal);
@@ -14389,7 +14571,7 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   signal->theData[0] = logFilePtr.p->fileRef;
   signal->theData[1] = cownref;
   signal->theData[2] = lfoPtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
+  signal->theData[3] = sync ? ZLIST_OF_PAIRS_SYNCH : ZLIST_OF_PAIRS;
   signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
   signal->theData[5] = 1;                     /* ONE PAGE WRITTEN */
   signal->theData[6] = logPagePtr.i;
@@ -14858,12 +15040,13 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
     
-    signal->theData[0] = c_lcpId;
-    if (!isNdbMtLqh()) // wl4391_todo DD
-    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    else {
-    signal->theData[0] = LGMAN_REF;
-    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      signal->theData[0] = c_lcpId;
+      sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    } else {
+      signal->theData[0] = c_lcpId;
+      signal->theData[1] = LGMAN;
+      sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
     }
     return;
   }
@@ -14932,12 +15115,13 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
     
-    signal->theData[0] = c_lcpId;
-    if (!isNdbMtLqh()) // wl4391_todo DD
-    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    else {
-    signal->theData[0] = LGMAN_REF;
-    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      signal->theData[0] = c_lcpId;
+      sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    } else {
+      signal->theData[0] = c_lcpId;
+      signal->theData[1] = LGMAN;
+      sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
     }
   }//if
 }//Dblqh::execSTART_RECREQ()
@@ -14969,12 +15153,13 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   case LGMAN:
     jam();
     lcpPtr.p->m_outstanding++;
-    signal->theData[0] = c_lcpId;
-    if (!isNdbMtLqh()) // wl4391_todo DD
-    sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    else {
-    signal->theData[0] = TSMAN_REF;
-    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      signal->theData[0] = c_lcpId;
+      sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    } else {
+      signal->theData[0] = c_lcpId;
+      signal->theData[1] = TSMAN;
+      sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
     }
     return;
     break;

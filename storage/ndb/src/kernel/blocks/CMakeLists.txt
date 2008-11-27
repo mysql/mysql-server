@@ -41,6 +41,7 @@ ADD_LIBRARY(ndbblocks  STATIC
             restore.cpp
             tsman.cpp
 	    LocalProxy.cpp
+	    PgmanProxy.cpp
            )
 
 ADD_EXECUTABLE(ndb_print_file

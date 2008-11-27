@@ -275,8 +275,10 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
   if (hostname && hostname[0] != 0 &&
       !SocketServer::tryBind(0,hostname)) {
     BaseString::snprintf(buf, 255,
-                         "Config hostname: %s don't match a local "
-                         "interface, tried to bind, error: %d '%s'",
+                         "The hostname this node should have according "
+                         "to the configuration does not match a local "
+                         "interface. Attempt to bind '%s' "
+                         "failed with error: %d '%s'",
                          hostname, errno, strerror(errno));
     setError(CR_ERROR, buf);
     return false;
