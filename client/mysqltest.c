@@ -2491,12 +2491,25 @@ void do_exec(struct st_command *command)
 
 #ifdef __WIN__
 #ifndef USE_CYGWIN
-  /* Replace /dev/null with NUL */
-  while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
-    ;
-  /* Replace "closed stdout" with non existing output fd */
-  while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
-    ;
+  {
+    char *replaces[][2]= {
+      /* Replace /dev/null with NUL */
+      {"/dev/null", "NUL"},
+      /* Replace "closed stdout" with non existing output fd */
+      {">&-", ">&4"},
+      /* cmd.exe doesn't need to escape the backslash */
+      {"\\\\", "\\"},
+      0
+    };
+    int i= 0;
+    for(;replaces[i][0];i++)
+    {
+      char *from= replaces[i][0],
+           *to=   replaces[i][1];
+      while(replace(&ds_cmd, from, strlen(from), to, strlen(to)) == 0)
+        ;
+    }
+  }
 #endif
 #endif
 
