@@ -1325,19 +1325,6 @@ ERROR HY000: Variable 'skip_show_database' is a read only variable
 SET @@global.skip_show_database= true;
 ERROR HY000: Variable 'skip_show_database' is a read only variable
 #
-SHOW VARIABLES like 'socket';
-Variable_name	Value
-socket	#
-SELECT @@session.socket;
-ERROR HY000: Variable 'socket' is a GLOBAL variable
-SELECT @@global.socket;
-@@global.socket
-#
-SET @@session.socket= 'x';
-ERROR HY000: Variable 'socket' is a read only variable
-SET @@global.socket= 'x';
-ERROR HY000: Variable 'socket' is a read only variable
-#
 SHOW VARIABLES like 'thread_stack';
 Variable_name	Value
 thread_stack	#
