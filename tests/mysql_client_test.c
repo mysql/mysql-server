@@ -16220,7 +16220,7 @@ static void test_bug38486(void)
 
 static void test_bug40365(void)
 {
-  uint         rc, i, count= 1;
+  uint         rc, i;
   MYSQL_STMT   *stmt= 0;
   MYSQL_BIND   my_bind[2];
   my_bool      is_null[2]= {0};
