@@ -7018,7 +7018,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
         const Uint32 max = NGPtr.p->nodeCount;
 	
-	fragments[count++] = NGPtr.p->m_next_log_part++; // Store logpart first
+	fragments[count++] = (NGPtr.p->m_next_log_part++ / cnoReplicas); // Store logpart first
 	Uint32 tmp= next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {

@@ -556,6 +556,9 @@ replace_record(THD *thd, TABLE *table,
       error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
+        DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
@@ -582,6 +585,9 @@ replace_record(THD *thd, TABLE *table,
                                              HA_READ_KEY_EXACT);
       if (error)
       {
+        DBUG_PRINT("info", ("index_read_idx() returns error %d", error));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
@@ -787,11 +793,14 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      if ((error= table->file->index_next(table->record[1])))
+      while ((error= table->file->index_next(table->record[1])))
       {
-  table->file->print_error(error, MYF(0));
+        /* We just skip records that has already been deleted */
+        if (error == HA_ERR_RECORD_DELETED)
+          continue;
+        table->file->print_error(error, MYF(0));
         table->file->ha_index_end();
-  DBUG_RETURN(error);
+        DBUG_RETURN(error);
       }
     }
 
@@ -812,6 +821,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+  restart_rnd_next:
       error= table->file->rnd_next(table->record[1]);
 
       DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -819,8 +829,14 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
 
       switch (error) {
       case 0:
+        break;
+
+      /*
+        If the record was deleted, we pick the next one without doing
+        any comparisons.
+      */
       case HA_ERR_RECORD_DELETED:
-  break;
+        goto restart_rnd_next;
 
       case HA_ERR_END_OF_FILE:
   if (++restart_count < 2)
@@ -1680,6 +1696,9 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
+      DBUG_PRINT("info", ("error: %d", error));
+      DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
+
       table->in_use = old_thd;
       switch (error)
       {
@@ -2100,6 +2119,8 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
@@ -2132,7 +2153,9 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
                                              HA_READ_KEY_EXACT);
       if (error)
       {
-        DBUG_PRINT("info",("index_read_idx() returns error %d",error)); 
+        DBUG_PRINT("info",("index_read_idx() returns error %d", error));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
@@ -2288,6 +2311,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
+      if (error == HA_ERR_RECORD_DELETED)
+        error= HA_ERR_KEY_NOT_FOUND;
       table->file->print_error(error, MYF(0));
     }
     DBUG_RETURN(error);
@@ -2347,6 +2372,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
                                             HA_READ_KEY_EXACT)))
     {
       DBUG_PRINT("info",("no record matching the key found in the table"));
+      if (error == HA_ERR_RECORD_DELETED)
+        error= HA_ERR_KEY_NOT_FOUND;
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
       DBUG_RETURN(error);
@@ -2404,8 +2431,11 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      if ((error= table->file->index_next(table->record[0])))
+      while ((error= table->file->index_next(table->record[0])))
       {
+        /* We just skip records that has already been deleted */
+        if (error == HA_ERR_RECORD_DELETED)
+          continue;
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
         table->file->ha_index_end();
@@ -2436,13 +2466,16 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+  restart_rnd_next:
       error= table->file->rnd_next(table->record[0]);
 
       switch (error) {
 
       case 0:
-      case HA_ERR_RECORD_DELETED:
         break;
+
+      case HA_ERR_RECORD_DELETED:
+        goto restart_rnd_next;
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
