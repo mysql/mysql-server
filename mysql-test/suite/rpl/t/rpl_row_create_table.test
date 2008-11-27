@@ -266,6 +266,9 @@ sync_slave_with_master;
 source include/master-slave-reset.inc;
 
 connection master;
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
 CREATE DATABASE mysqltest1;
 
 CREATE TABLE mysqltest1.without_select (f1 BIGINT);
