@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern ulong ndb_cache_check_time;
-extern char opt_ndb_constrbuf[];
+extern "C" char opt_ndb_constrbuf[];
 extern ulong ndb_extra_logging;
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;

@@ -471,3 +471,7 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 sync_slave_with_master;
+
+# Test case moved to separate file as there is problem for ndb.
+# file extra/rpl_tests/rpl_row_basic_no_pk.test as not to have 
+# to disable the whole testcase

@@ -100,7 +100,7 @@ ndb_std_get_one_option(int optid,
     opt_ndb_constrbuf_len+= len;
   }
   /* fall through to add the connectstring to the end
-   * and set opt_ndbcluster_connectstring
+   * and set opt_ndb_connectstring
    */
   case OPT_NDB_CONNECTSTRING:
     if (opt_ndb_connectstring && opt_ndb_connectstring[0])

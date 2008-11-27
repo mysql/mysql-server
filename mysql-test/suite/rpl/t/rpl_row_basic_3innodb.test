@@ -5,4 +5,4 @@
 let $type= 'INNODB' ;
 let $extra_index= ;
 -- source extra/rpl_tests/rpl_row_basic.test
-
+-- source extra/rpl_tests/rpl_row_basic_no_pk.test

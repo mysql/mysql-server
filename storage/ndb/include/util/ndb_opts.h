@@ -38,10 +38,10 @@ OPT_EXTERN(my_bool,opt_ndb_endinfo,=0);
 OPT_EXTERN(my_bool,opt_ndb_shm,NONE);
 OPT_EXTERN(my_bool,opt_core,NONE);
 OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
-OPT_EXTERN(char *,opt_ndb_connectstring,=0);
+OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 OPT_EXTERN(const char *,opt_connect_str,=0);
 OPT_EXTERN(const char *,opt_ndb_mgmd,=0);
-OPT_EXTERN(char,opt_ndb_constrbuf[1024],NONE);
+OPT_EXTERN(char,opt_ndb_constrbuf[1024],={0});
 OPT_EXTERN(unsigned,opt_ndb_constrbuf_len,=0);
 
 #ifndef DBUG_OFF
