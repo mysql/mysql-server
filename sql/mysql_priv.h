@@ -435,6 +435,7 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     32
+#define UNCACHEABLE_CHECKOPTION   64
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
