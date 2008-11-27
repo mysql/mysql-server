@@ -45,6 +45,7 @@ struct NdbLogPartInfo {
   Bitmask<(LogParts+31)/32> partMask;
   Uint32 partNoFromId(Uint32 lpid) const;
   bool partNoOwner(Uint32 lpno) const;
+  bool partNoOwner(Uint32 tabId, Uint32 fragId);
   Uint32 partNoIndex(Uint32 lpno) const;
 };
 

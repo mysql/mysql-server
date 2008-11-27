@@ -556,7 +556,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     NDB_TICKS tick= 0;
     /* only report error on second attempt as not to clog the cluster log */
     while (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-                                   (struct sockaddr*)&addr, &addrlen,
+                                   (struct sockaddr*)&addr,
                                    error_code, error_string,
                                    tick == 0 ? 0 : log_event))
     {

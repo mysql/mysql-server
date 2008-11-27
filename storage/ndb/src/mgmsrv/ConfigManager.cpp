@@ -529,7 +529,7 @@ ConfigManager::prepareConfigChange(const Config* config)
 #endif
   fclose(f);
 
-  m_prepared_config = new Config(config->m_configValues);
+  m_prepared_config = new Config(config); // Copy
   g_eventLogger->debug("Configuration prepared");
 
   return true;
@@ -699,13 +699,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
       return;
     }
 
-    Config* new_config = new Config(cf.getConfigValues());
-    Uint32 new_generation = new_config->getGeneration();
+    Config new_config(cf.getConfigValues());
+    Uint32 new_generation = new_config.getGeneration();
     Uint32 curr_generation = m_config->getGeneration();
-    const char* new_name = new_config->getName();
+    const char* new_name = new_config.getName();
     const char* curr_name = m_config->getName();
 
-    if (m_config->illegal_change(new_config))
+    if (m_config->illegal_change(&new_config))
     {
       sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::IllegalConfigChange);
       return;
@@ -738,7 +738,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
 
       // Check config is equal to our initial config
       {
-        Config new_config_copy(new_config);
+        Config new_config_copy(&new_config);
         require(new_config_copy.setName(new_name));
         unsigned exclude[]= {CFG_SECTION_SYSTEM, 0};
         if (!new_config_copy.equal(m_new_config, exclude))
@@ -774,7 +774,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
                                "generation: %d. Our generation: %d\n" \
                                "This is the actual diff:\n%s",
                                new_generation, curr_generation,
-                               new_config->diff2str(m_config, buf));
+                               new_config.diff2str(m_config, buf));
         sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::InvalidGeneration);
         return;
       }
@@ -789,14 +789,14 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
                                "name: '%s'. Our name: '%s'\n"           \
                                "This is the actual diff:\n%s",
                                new_name, curr_name,
-                               new_config->diff2str(m_config, buf));
+                               new_config.diff2str(m_config, buf));
         sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::InvalidConfigName);
         return;
       }
     }
 
     // Set new generation
-    if(!new_config->setGeneration(new_generation))
+    if(!new_config.setGeneration(new_generation))
     {
       g_eventLogger->error("Failed to set new generation to %d",
                            new_generation);
@@ -804,7 +804,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
       return;
     }
 
-    if (!prepareConfigChange(new_config))
+    if (!prepareConfigChange(&new_config))
     {
       sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::PrepareFailed);
       return;
@@ -1528,6 +1528,9 @@ ConfigManager::run()
 
     case GSN_CONFIG_CHECK_CONF:
       execCONFIG_CHECK_CONF(ss, sig);
+      break;
+
+    case GSN_TAKE_OVERTCCONF:
       break;
 
     default:

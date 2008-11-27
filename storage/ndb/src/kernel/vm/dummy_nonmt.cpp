@@ -18,3 +18,9 @@ add_lqh_worker_thr_map(Uint32, Uint32)
 {
   assert(false);
 }
+
+void
+add_extra_worker_thr_map(Uint32, Uint32)
+{
+  assert(false);
+}

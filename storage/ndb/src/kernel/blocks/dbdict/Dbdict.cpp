@@ -7380,7 +7380,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       for (Uint32 i = cnt; i<newTablePtr.p->fragmentCount; i++)
       {
         jam();
-        c_fragData[i] = UNDEF_NODEGROUP;
+        c_fragData[i] = NDB_UNDEF_NODEGROUP;
       }
       c_fragDataLen = 2 * newTablePtr.p->fragmentCount;
       Uint32 save1 = newTablePtr.p->primaryTableId;
