@@ -4130,7 +4130,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     /*
       Poor approx. let delete ~ tabsize / 4
     */
-    uint delete_size= 12 + m_bytes_per_write >> 2;
+    uint delete_size= 12 + (m_bytes_per_write >> 2);
     bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
     if ( allow_batch &&
 	 table_share->primary_key != MAX_KEY &&
