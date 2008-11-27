@@ -59,19 +59,10 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    // Don't drop test table
-    if (strcmp(tab->getName(), ctx->getTab()->getName()) == 0){
-      continue;
-    }
-	
-    int res = GETNDB(step)->getDictionary()->dropTable(tab->getName());
-    if(res == -1){
-      return NDBT_FAILED;
-    }
+    GETNDB(step)->getDictionary()->dropTable(tab->getName());
   }
   return NDBT_OK;
 }
-
 
 int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
   
