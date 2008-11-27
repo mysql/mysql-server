@@ -3840,6 +3840,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  Service.SetRunning();
+#endif
 
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
