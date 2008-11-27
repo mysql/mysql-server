@@ -240,7 +240,7 @@ static bool default_nodegroups(NdbDictionary::Table *table)
     return false; 
   for (i = 1; i < no_parts; i++) 
   {
-    if (node_groups[i] != UNDEF_NODEGROUP)
+    if (node_groups[i] != NDB_UNDEF_NODEGROUP)
       return false;
   }
   return true;
@@ -276,7 +276,7 @@ static void set_default_nodegroups(NdbDictionary::Table *table)
   node_group[0] = 0;
   for (i = 1; i < no_parts; i++)
   {
-    node_group[i] = UNDEF_NODEGROUP;
+    node_group[i] = NDB_UNDEF_NODEGROUP;
   }
   table->setFragmentData(node_group, no_parts);
 }
@@ -285,8 +285,8 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
 {
   NODE_GROUP_MAP *ng_map = m_nodegroup_map;
 
-  if (ng == UNDEF_NODEGROUP ||
-      ng_map[ng].map_array[0] == UNDEF_NODEGROUP)
+  if (ng == NDB_UNDEF_NODEGROUP ||
+      ng_map[ng].map_array[0] == NDB_UNDEF_NODEGROUP)
   {
     return ng;
   }
@@ -302,7 +302,7 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
 
     if (new_curr_inx >= MAX_MAPS_PER_NODE_GROUP)
       new_curr_inx = 0;
-    else if (ng_map[ng].map_array[new_curr_inx] == UNDEF_NODEGROUP)
+    else if (ng_map[ng].map_array[new_curr_inx] == NDB_UNDEF_NODEGROUP)
       new_curr_inx = 0;
     new_ng = ng_map[ng].map_array[curr_inx];
     ng_map[ng].curr_index = new_curr_inx;

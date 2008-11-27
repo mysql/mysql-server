@@ -192,6 +192,8 @@ struct st_ndb_status {
   long number_of_ready_data_nodes;
   long connect_count;
   long execute_count;
+  long transaction_no_hint_count[MAX_NDB_NODES];
+  long transaction_hint_count[MAX_NDB_NODES];
 };
 
 static struct st_ndb_status g_ndb_status;
@@ -219,6 +221,11 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   if (thd_ndb)
   {
     ns->execute_count= thd_ndb->m_execute_count;
+    for (int i= 0; i < MAX_NDB_NODES; i++)
+    {
+      ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
+      ns->transaction_hint_count[i]= thd_ndb->m_transaction_hint_count[i];
+    }
   }
   return 0;
 }
@@ -611,6 +618,7 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 Thd_ndb::Thd_ndb()
 {
   connection= ndb_get_cluster_connection();
+  m_connect_count= connection->get_connect_count();
   ndb= new Ndb(connection, "");
   lock_count= 0;
   start_stmt_count= 0;
@@ -628,6 +636,8 @@ Thd_ndb::Thd_ndb()
   m_max_violation_count= 0;
   m_old_violation_count= 0;
   m_conflict_fn_usage_count= 0;
+  bzero(m_transaction_no_hint_count, sizeof(m_transaction_no_hint_count));
+  bzero(m_transaction_hint_count, sizeof(m_transaction_hint_count));
   global_schema_lock_trans= NULL;
   global_schema_lock_count= 0;
   global_schema_lock_error= 0;
@@ -2416,7 +2426,7 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   uint i;
   int res, error;
   DBUG_ENTER("peek_indexed_rows");
-  if (!(trans= get_transaction(error)))
+  if (unlikely(!(trans= get_transaction(error))))
   {
     DBUG_RETURN(error);
   }
@@ -2704,7 +2714,9 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent= 0;
   NdbOperation::GetValueSpec gets[2];
-  
+
+  DBUG_ASSERT(m_thd_ndb->trans);
+
   if (idx != MAX_KEY)
     key_rec= m_index[idx].ndb_unique_record_key;
   else
@@ -2830,7 +2842,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   // Check that sorted seems to be initialised
   DBUG_ASSERT(sorted == 0 || sorted == 1);
 
-  if (!(trans= get_transaction(error)))
+  if (unlikely(!(trans= get_transaction(error))))
   {
     DBUG_RETURN(error);
   }
@@ -2946,7 +2958,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 {
   int error;
   NdbScanOperation *op;
-  NdbTransaction *trans;
+  NdbTransaction *trans= m_thd_ndb->trans;
   part_id_range part_spec;
   bool use_set_part_id= FALSE;
   NdbOperation::GetValueSpec gets[2];
@@ -2978,22 +2990,15 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
        * index is always sorted.
        */
       use_set_part_id= TRUE;
-      if (!(trans= get_transaction_part_id(part_spec.start_part, error)))
-      {
-        DBUG_RETURN(error);
-      }
-    }
-    else
-    {
-      if (!(trans= get_transaction(error)))
-      {
-        DBUG_RETURN(error);
-      }
+      if (!trans)
+        if (unlikely(!(trans= get_transaction_part_id(part_spec.start_part,
+                                                      error))))
+          DBUG_RETURN(error);
     }
   }
-  else
-    trans= m_thd_ndb->trans;
-  DBUG_ASSERT(trans);
+  if (!trans)
+    if (unlikely(!(trans= start_transaction(error))))
+      DBUG_RETURN(error);
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
@@ -3246,7 +3251,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   } 
 
   trans= thd_ndb->trans;
-  if (m_user_defined_partitioning || !trans)
+  if (m_user_defined_partitioning)
   {
     DBUG_ASSERT(m_use_partition_pruning);
     longlong func_value= 0;
@@ -3258,7 +3263,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       m_part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
-    if (m_user_defined_partitioning)
     {
       /*
         We need to set the value of the partition function value in
@@ -3272,12 +3276,13 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       num_sets++;
     }
     if (!trans)
-    {
-      if (!(trans= start_transaction_part_id(part_id, error)))
-      {
+      if (unlikely(!(trans= start_transaction_part_id(part_id, error))))
         DBUG_RETURN(error);
-      }
-    }
+  }
+  else if (!trans)
+  {
+    if (unlikely(!(trans= start_transaction_row(record, error))))
+      DBUG_RETURN(error);
   }
   DBUG_ASSERT(trans);
 
@@ -3758,7 +3763,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   NdbOperation::SetValueSpec sets[1];
 
   DBUG_ENTER("ndb_update_row");
-  DBUG_ASSERT(trans); 
+  DBUG_ASSERT(trans);
   /*
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
@@ -4467,14 +4472,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         index is always sorted.
       */
       sorted= FALSE;
-      if (unlikely(get_transaction_part_id(part_spec.start_part, error) == NULL))
-      {
-        DBUG_RETURN(error);
-      }
-    }
-    else
-    {
-      if (unlikely(get_transaction(error) == NULL))
+      if (unlikely(!get_transaction_part_id(part_spec.start_part, error)))
       {
         DBUG_RETURN(error);
       }
@@ -4490,6 +4488,10 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     {
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
+      if (!m_thd_ndb->trans)
+        if (unlikely(!start_transaction_key(active_index,
+                                            start_key->key, error)))
+          DBUG_RETURN(error);
       error= pk_read(start_key->key, start_key->length, buf,
 		  (m_use_partition_pruning)? &(part_spec.start_part) : NULL);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
@@ -4504,6 +4506,10 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
 
+      if (!m_thd_ndb->trans)
+        if (unlikely(!start_transaction_key(active_index,
+                                            start_key->key, error)))
+          DBUG_RETURN(error);
       error= unique_index_read(start_key->key, start_key->length, buf);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
@@ -4515,6 +4521,13 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     break;
   default:
     break;
+  }
+  if (!m_use_partition_pruning && !m_thd_ndb->trans)
+  {
+    get_partition_set(table, buf, active_index, start_key, &part_spec);
+    if (part_spec.start_part == part_spec.end_part)
+      if (unlikely(!start_transaction_part_id(part_spec.start_part, error)))
+        DBUG_RETURN(error);
   }
   // Start the ordered index scan and fetch the first row
   DBUG_RETURN(ordered_index_scan(start_key, end_key, sorted, desc, buf,
@@ -5262,7 +5275,12 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
   if (!thd->slave_thread)
     thd_ndb->m_batch_size= thd->variables.ndb_batch_size;
   else
+  {
     thd_ndb->m_batch_size= global_system_variables.ndb_batch_size;
+    /* Do not use hinted TC selection in slave thread */
+    thd->variables.ndb_optimized_node_selection=
+      global_system_variables.ndb_optimized_node_selection & 1;
+  }
 }
 
 int ha_ndbcluster::start_statement(THD *thd,
@@ -5304,42 +5322,18 @@ int ha_ndbcluster::start_statement(THD *thd,
     */
     thd_ndb->m_handler= NULL;
   }
-  if (!trans)
+  if (!trans && table_count == 0)
   {
     DBUG_ASSERT(thd_ndb->changed_tables.is_empty() == TRUE);
     thd_ndb->trans_options= 0;
 
     DBUG_PRINT("trans",("Possibly starting transaction"));
-    DBUG_ASSERT(!table_count || table_count == 1);
-    /*
-      table_count == 0 indicates first table
-      table_count == 1 indicates join in which case we do not defer start transaction
-      m_use_partition_pruning == false will not defer start transaction
-    */
-    DBUG_PRINT("enter", ("optimized_node_selection: %lu"
-                         "  table_count: %d"
-                         "  m_use_partition_pruning: %d"
-                         "  thd->slave_thread: %d"
-                         "  thd->lex->sql_command: %d",
-                         thd->variables.ndb_optimized_node_selection,
-                         table_count, m_use_partition_pruning,
-                         thd->slave_thread,
-                         thd->lex->sql_command));
-    if (table_count ||
-        !m_use_partition_pruning ||
-        thd->slave_thread ||
-        !(thd->variables.ndb_optimized_node_selection & 2) ||
-        !(thd->lex->sql_command == SQLCOM_SELECT ||
-          thd->lex->sql_command == SQLCOM_UPDATE ||
-          thd->lex->sql_command == SQLCOM_INSERT ||
-          thd->lex->sql_command == SQLCOM_DELETE ||
-          thd->lex->sql_command == SQLCOM_REPLACE))
-    {
-      if (unlikely(start_transaction(error) == NULL))
-      {
+    DBUG_PRINT("enter", ("optimized_node_selection: %lu",
+                         thd->variables.ndb_optimized_node_selection));
+    if (!(thd->variables.ndb_optimized_node_selection & 2) ||
+        thd->lex->sql_command == SQLCOM_LOAD)
+      if (unlikely(!start_transaction(error)))
         DBUG_RETURN(error);
-      }
-    }
 
     thd_ndb->init_open_tables();
     thd_ndb->query_state&= NDB_QUERY_NORMAL;
@@ -5629,6 +5623,64 @@ error:
 }
 
 NdbTransaction *
+ha_ndbcluster::start_transaction_row(const uchar *record,
+                                     int &error)
+{
+  NdbTransaction *trans;
+  DBUG_ENTER("ha_ndbcluster::start_transaction_row");
+  DBUG_ASSERT(m_thd_ndb);
+  DBUG_ASSERT(m_thd_ndb->trans == NULL);
+
+  Ndb *ndb= m_thd_ndb->ndb;
+
+  Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
+  char *buf= (char*)&tmp[0];
+  trans= ndb->startTransaction(m_ndb_record,
+                               (const char*)record,
+                               buf, sizeof(tmp));
+
+  if (trans)
+  {
+    m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
+    DBUG_PRINT("info", ("Delayed allocation of TC"));
+    DBUG_RETURN(m_thd_ndb->trans= trans);
+  }
+
+  ERR_SET(m_thd_ndb->ndb->getNdbError(), error);
+  DBUG_RETURN(NULL);
+}
+
+NdbTransaction *
+ha_ndbcluster::start_transaction_key(uint inx_no,
+                                     const uchar *key_data,
+                                     int &error)
+{
+  NdbTransaction *trans;
+  DBUG_ENTER("ha_ndbcluster::start_transaction_key");
+  DBUG_ASSERT(m_thd_ndb);
+  DBUG_ASSERT(m_thd_ndb->trans == NULL);
+
+  Ndb *ndb= m_thd_ndb->ndb;
+  const NdbRecord *key_rec= m_index[inx_no].ndb_unique_record_key;
+
+  Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
+  char *buf= (char*)&tmp[0];
+  trans= ndb->startTransaction(key_rec,
+                               (const char*)key_data,
+                               buf, sizeof(tmp));
+
+  if (trans)
+  {
+    m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
+    DBUG_PRINT("info", ("Delayed allocation of TC"));
+    DBUG_RETURN(m_thd_ndb->trans= trans);
+  }
+
+  ERR_SET(m_thd_ndb->ndb->getNdbError(), error);
+  DBUG_RETURN(NULL);
+}
+
+NdbTransaction *
 ha_ndbcluster::start_transaction(int &error)
 {
   NdbTransaction *trans;
@@ -5642,6 +5694,7 @@ ha_ndbcluster::start_transaction(int &error)
     (table->in_use->variables.ndb_optimized_node_selection & 1);
   if ((trans= m_thd_ndb->ndb->startTransaction()))
   {
+    m_thd_ndb->m_transaction_no_hint_count[trans->getConnectedNodeId()]++;
     DBUG_PRINT("info", ("Delayed allocation of TC"));
     DBUG_RETURN(m_thd_ndb->trans= trans);
   }
@@ -5662,6 +5715,7 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
   transaction_checks(table->in_use, m_thd_ndb);
   if ((trans= m_thd_ndb->ndb->startTransaction(m_table, part_id)))
   {
+    m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
     DBUG_PRINT("info", ("Delayed allocation of TC"));
     DBUG_RETURN(m_thd_ndb->trans= trans);
   }
@@ -8150,6 +8204,56 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 }
 
 
+bool Thd_ndb::recycle_ndb(THD* thd)
+{
+  DBUG_ENTER("recycle_ndb");
+  DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
+
+  DBUG_ASSERT(global_schema_lock_trans == NULL);
+  DBUG_ASSERT(trans == NULL);
+
+  delete ndb;
+  if ((ndb= new Ndb(connection, "")) == NULL)
+  {
+    DBUG_PRINT("error",("failed to allocate Ndb object"));
+    DBUG_RETURN(false);
+  }
+
+  if (ndb->init(max_transactions) != 0)
+  {
+    delete ndb;
+    ndb= NULL;
+    DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
+                         ndb->getNdbError().code,
+                         ndb->getNdbError().message));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+}
+
+
+bool
+Thd_ndb::valid_ndb(void)
+{
+  // The ndb object should be valid as long as a
+  // global schema lock transaction is ongoing
+  if (global_schema_lock_trans)
+    return true;
+
+  // The ndb object should be valid as long as a
+  // transaction is ongoing
+  if (trans)
+    return true;
+
+  if (unlikely(m_connect_count != connection->get_connect_count()))
+    return false;
+
+  return true;
+}
+
+
+
 /**
   If this thread already has a Thd_ndb object allocated
   in current THD, reuse it. Otherwise
@@ -8157,7 +8261,7 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
  
 */
 
-Ndb* check_ndb_in_thd(THD* thd)
+Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
@@ -8166,6 +8270,13 @@ Ndb* check_ndb_in_thd(THD* thd)
       return NULL;
     set_thd_ndb(thd, thd_ndb);
   }
+
+  else if (validate_ndb && !thd_ndb->valid_ndb())
+  {
+    if (!thd_ndb->recycle_ndb(thd))
+      return NULL;
+  }
+
   return thd_ndb->ndb;
 }
 
@@ -8176,7 +8287,7 @@ int ha_ndbcluster::check_ndb_connection(THD* thd)
   Ndb *ndb;
   DBUG_ENTER("check_ndb_connection");
   
-  if (!(ndb= check_ndb_in_thd(thd)))
+  if (!(ndb= check_ndb_in_thd(thd, true)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   if (ndb->setDatabaseName(m_dbname))
   {
@@ -9073,16 +9184,6 @@ void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
   uint name_len= end - ptr;
   memcpy(tmp_name, ptr + 1, name_len);
   tmp_name[name_len]= '\0';
-#ifdef __WIN__
-  /* Put to lower case */
-  
-  ptr= tmp_name;
-  
-  while (*ptr != '\0') {
-    *ptr= tolower(*ptr);
-    ptr++;
-  }
-#endif
   filename_to_tablename(tmp_name, dbname, FN_REFLEN);
 }
 
@@ -9115,15 +9216,6 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
   uint name_len= end - ptr;
   memcpy(tmp_name, ptr + 1, end - ptr);
   tmp_name[name_len]= '\0';
-#ifdef __WIN__
-  /* Put to lower case */
-  ptr= tmp_name;
-  
-  while (*ptr != '\0') {
-    *ptr= tolower(*ptr);
-    ptr++;
-  }
-#endif
   filename_to_tablename(tmp_name, tabname, FN_REFLEN);
 }
 
@@ -10509,32 +10601,36 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         row_buf += reclength;
         continue;
       }
-      if (!trans)
-      {
-        if (part_spec.start_part == part_spec.end_part)
-        {
-          if (unlikely((trans= start_transaction_part_id(part_spec.start_part, error)) == NULL))
-          {
-            DBUG_RETURN(error);
-          }
-        }
-        else if (unlikely((trans= start_transaction(error)) == NULL))
-        {
+      if (!trans &&
+          (part_spec.start_part == part_spec.end_part))
+        if (unlikely(!(trans= start_transaction_part_id(part_spec.start_part,
+                                                        error))))
           DBUG_RETURN(error);
-        }
-      }
-    }
-    else if (!trans)
-    {
-      if (unlikely((trans= start_transaction(error)) == NULL))
-      {
-        DBUG_RETURN(error);
-      }
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
     if (read_multi_needs_scan(cur_index_type, key_info, r))
     {
+      if (!trans)
+      {
+        // ToDo see if we can use start_transaction_key here instead
+        if (!m_use_partition_pruning)
+        {
+          get_partition_set(table, table->record[0], active_index, &r->start_key,
+                            &part_spec);
+          if (part_spec.start_part == part_spec.end_part)
+          {
+            if (unlikely(!(trans= start_transaction_part_id(part_spec.start_part,
+                                                            error))))
+              DBUG_RETURN(error);
+          }
+          else if (unlikely(!(trans= start_transaction(error))))
+            DBUG_RETURN(error);
+        }
+        else if (unlikely(!(trans= start_transaction(error))))
+          DBUG_RETURN(error);
+      }
+
       any_real_read= TRUE;
       /*
         If we reach the limit of ranges allowed in a single scan: stop
@@ -10615,6 +10711,14 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     else
     {
+      if (!trans)
+      {
+        DBUG_ASSERT(active_index != MAX_KEY);
+        if (unlikely(!(trans= start_transaction_key(active_index,
+                                                    r->start_key.key,
+                                                    error))))
+          DBUG_RETURN(error);
+      }
       /*
         Convert to primary/unique key operation.
 
@@ -11079,6 +11183,11 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       have been created.
       If not try to create it
     */
+    if (!check_ndb_in_thd(thd, false))
+    {
+      set_timespec(abstime, 1);
+      continue;
+    }
     if (!ndb_binlog_tables_inited)
       ndbcluster_setup_binlog_table_shares(thd);
 
@@ -11284,6 +11393,7 @@ bool
 ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
                        enum ha_stat_type stat_type)
 {
+  char name[16];
   char buf[IO_SIZE];
   uint buflen;
   DBUG_ENTER("ndbcluster_show_status");
@@ -11318,6 +11428,22 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
   if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                  STRING_WITH_LEN("connection"), buf, buflen))
     DBUG_RETURN(TRUE);
+
+  for (int i= 0; i < MAX_NDB_NODES; i++)
+  {
+    if (ns.transaction_hint_count[i] > 0 ||
+        ns.transaction_no_hint_count[i] > 0)
+    {
+      uint namelen= my_snprintf(name, sizeof(name), "node[%d]", i);
+      buflen= my_snprintf(buf, sizeof(buf),
+                          "transaction_hint=%ld, transaction_no_hint=%ld",
+                          ns.transaction_hint_count[i],
+                          ns.transaction_no_hint_count[i]);
+      if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
+                     name, namelen, buf, buflen))
+        DBUG_RETURN(TRUE);
+    }
+  }
 
   if (ndb)
   {
@@ -11420,7 +11546,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
   struct Ndb::Key_part_ptr *key_data_ptr= &key_data[0];
   Uint32 i= 0;
   int ret_val;
-  Uint64 tmp[4096];
+  Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   void *buf= (void*)&tmp[0];
   Ndb *ndb= m_thd_ndb->ndb;
   DBUG_ENTER("ha_ndbcluster::calculate_key_hash_value");

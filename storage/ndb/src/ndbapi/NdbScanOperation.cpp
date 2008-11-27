@@ -95,7 +95,10 @@ int
 NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
 {
   m_transConnection = myConnection;
-  //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
+
+  if(NdbOperation::init(tab, NULL, false) != 0)
+    return -1;
+
   theNdb->theRemainingStartTransactions++; // will be checked in hupp...
   NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
   if (!aScanConnection){
@@ -105,11 +108,8 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   }
 
   // NOTE! The hupped trans becomes the owner of the operation
-  if(NdbOperation::init(tab, aScanConnection, false) != 0){
-    theNdb->theRemainingStartTransactions--;
-    return -1;
-  }
-  
+  theNdbCon= aScanConnection;
+
   initInterpreter();
   
   theStatus = GetValue;

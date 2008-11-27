@@ -2154,6 +2154,7 @@ private:
   void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
+  void execFSWRITEREQ(Signal*);
   void execSCAN_HBREP(Signal* signal);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
@@ -2260,7 +2261,8 @@ private:
   void writeFileHeaderOpen(Signal* signal, Uint32 type);
   void writeInitMbyte(Signal* signal);
   void writeSinglePage(Signal* signal, Uint32 pageNo,
-                       Uint32 wordWritten, Uint32 place);
+                       Uint32 wordWritten, Uint32 place,
+                       bool sync = true);
   void buildLinkedLogPageList(Signal* signal);
   void changeMbyte(Signal* signal);
   Uint32 checkIfExecLog(Signal* signal);
@@ -2904,6 +2906,7 @@ private:
   
   Uint32 c_diskless;
   Uint32 c_o_direct;
+  Uint32 m_use_om_init;
   Uint32 c_error_insert_table_id;
   
 public:

@@ -15,7 +15,7 @@
 
 #include "Config.hpp"
 
-#include <mgmapi_config_parameters.h>
+#include <mgmapi.h>
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 
@@ -50,9 +50,7 @@ Config::Config(const Config* conf)
 
 
 Config::~Config() {
-  if(m_configValues != 0){
-    free(m_configValues);
-  }
+  ndb_mgm_destroy_configuration(m_configValues);
 }
 
 unsigned sections[]=

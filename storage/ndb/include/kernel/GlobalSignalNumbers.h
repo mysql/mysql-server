@@ -911,9 +911,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_CONF              678
 #define GSN_TUX_MAINT_REF               679
 
-/* not used                             680 */
-/* not used                             681 */
-
 /**
  * from mgmtsrvr to  NDBCNTR
  */
@@ -942,12 +939,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* used 694 */
 /* used 695 */
 /* used 696 */
-
-#define GSN_706
-#define GSN_707
-#define GSN_708
-#define GSN_709
-
 
 /*
  * EVENT Signals
@@ -1067,5 +1058,14 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_NODEGROUP_IMPL_REQ     454
 #define GSN_DROP_NODEGROUP_IMPL_REF     457
 #define GSN_DROP_NODEGROUP_IMPL_CONF    448
+
+#define GSN_DATA_FILE_ORD               706
+
+#define GSN_CALLBACK_REQ                707 /*reserved*/
+#define GSN_CALLBACK_CONF               708
+#define GSN_CALLBACK_ACK                709
+
+#define GSN_RELEASE_PAGES_REQ           680
+#define GSN_RELEASE_PAGES_CONF          681
 
 #endif

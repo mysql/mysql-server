@@ -76,6 +76,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 					 unsigned _maxTransporters,
 					 unsigned sizeOfLongSignalMemory) :
   m_mgm_handle(0),
+  localNodeId(0),
   m_transp_count(0),
   m_use_default_send_buffer(use_default_send_buffer),
   m_send_buffers(0), m_page_freelist(0), m_send_buffer_memory(0),
@@ -83,7 +84,6 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 {
   DBUG_ENTER("TransporterRegistry::TransporterRegistry");
 
-  nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
   
@@ -153,6 +153,19 @@ TransporterRegistry::allocate_send_buffers(Uint32 total_send_buffer)
 {
   if (!m_use_default_send_buffer)
     return;
+
+  if (total_send_buffer == 0)
+    total_send_buffer = get_total_max_send_buffer();
+
+  if (m_send_buffers)
+  {
+    /* Send buffers already allocated -> resize the buffer pages */
+    assert(m_send_buffer_memory);
+
+    // TODO resize send buffer pages
+
+    return;
+  }
 
   /* Initialize transporter send buffers (initially empty). */
   m_send_buffers = new SendBuffer[maxTransporters];
@@ -264,11 +277,13 @@ TransporterRegistry::disconnectAll(){
 bool
 TransporterRegistry::init(NodeId nodeId) {
   DBUG_ENTER("TransporterRegistry::init");
-  nodeIdSpecified = true;
+  assert(localNodeId == 0 ||
+         localNodeId == nodeId);
+
   localNodeId = nodeId;
-  
+
   DEBUG("TransporterRegistry started node: " << localNodeId);
-  
+
   DBUG_RETURN(true);
 }
 
@@ -361,20 +376,47 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
   DBUG_RETURN(res);
 }
 
+
+bool
+TransporterRegistry::configureTransporter(TransporterConfiguration *config)
+{
+  NodeId remoteNodeId = config->remoteNodeId;
+
+  assert(localNodeId);
+  assert(config->localNodeId == localNodeId);
+
+  if (remoteNodeId >= maxTransporters)
+    return false;
+
+  Transporter* t = theTransporters[remoteNodeId];
+  if(t != NULL)
+  {
+    // Transporter already exist, try to reconfigure it
+    return t->configure(config);
+  }
+
+  DEBUG("Configuring transporter from " << localNodeId
+	<< " to " << remoteNodeId);
+
+  switch (config->type){
+  case tt_TCP_TRANSPORTER:
+    return createTCPTransporter(config);
+  case tt_SHM_TRANSPORTER:
+    return createSHMTransporter(config);
+  case tt_SCI_TRANSPORTER:
+    return createSCITransporter(config);
+  default:
+    abort();
+    break;
+  }
+  return false;
+}
+
+
 bool
 TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 #ifdef NDB_TCP_TRANSPORTER
 
-  if(!nodeIdSpecified){
-    init(config->localNodeId);
-  }
-  
-  if(config->localNodeId != localNodeId) 
-    return false;
-  
-  if(theTransporters[config->remoteNodeId] != NULL)
-    return false;
-   
   TCP_Transporter * t = new TCP_Transporter(*this, config);
 
   if (t == NULL) 
@@ -405,17 +447,7 @@ TransporterRegistry::createSCITransporter(TransporterConfiguration *config) {
 
   if(!SCI_Transporter::initSCI())
     abort();
-  
-  if(!nodeIdSpecified){
-    init(config->localNodeId);
-  }
-  
-  if(config->localNodeId != localNodeId)
-    return false;
- 
-  if(theTransporters[config->remoteNodeId] != NULL)
-    return false;
- 
+
   SCI_Transporter * t = new SCI_Transporter(*this,
                                             config->localHostName,
                                             config->remoteHostName,
@@ -457,13 +489,7 @@ bool
 TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 #ifdef NDB_SHM_TRANSPORTER
-  if(!nodeIdSpecified){
-    init(config->localNodeId);
-  }
-  
-  if(config->localNodeId != localNodeId)
-    return false;
-  
+
   if (!g_ndb_shm_signum) {
     g_ndb_shm_signum= config->shm.signum;
     DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
@@ -475,9 +501,6 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
   }
 
   if(config->shm.signum != g_ndb_shm_signum)
-    return false;
-  
-  if(theTransporters[config->remoteNodeId] != NULL)
     return false;
 
   SHM_Transporter * t = new SHM_Transporter(*this,
@@ -1270,8 +1293,12 @@ TransporterRegistry::ioState(NodeId nodeId) {
 
 void
 TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
+  if (ioStates[nodeId] == state)
+    return;
+
   DEBUG("TransporterRegistry::setIOState("
-	<< nodeId << ", " << state << ")");
+        << nodeId << ", " << state << ")");
+
   ioStates[nodeId] = state;
 }
 
@@ -1609,9 +1636,10 @@ bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
   DBUG_ENTER("TransporterRegistry::start_service");
-  if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
+  if (m_transporter_interface.size() > 0 &&
+      localNodeId == 0)
   {
-    g_eventLogger->error("TransporterRegistry::startReceiving: localNodeId not specified");
+    g_eventLogger->error("INTERNAL ERROR: not initialized");
     DBUG_RETURN(false);
   }
 
@@ -1723,6 +1751,7 @@ NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
 
 Transporter*
 TransporterRegistry::get_transporter(NodeId nodeId) {
+  assert(nodeId < maxTransporters);
   return theTransporters[nodeId];
 }
 
@@ -1772,7 +1801,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   for(unsigned int i=0;i < m_transporter_interface.size();i++)
     if (m_transporter_interface[i].m_s_service_port < 0
 	&& ndb_mgm_set_connection_int_parameter(*h,
-				   get_localNodeId(),
+				   localNodeId,
 				   m_transporter_interface[i].m_remote_nodeId,
 				   CFG_CONNECTION_SERVER_PORT,
 				   m_transporter_interface[i].m_s_service_port,
@@ -1949,17 +1978,17 @@ TransporterRegistry::bytes_sent(NodeId node, Uint32 bytes)
     release_page(tmp);
   }
 
-  if (bytes)
+  if (used_bytes == 0)
+  {
+    b->m_first_page = 0;
+    b->m_last_page = 0;
+  }
+  else
   {
     page->m_start += bytes;
     page->m_bytes -= bytes;
     assert(page->m_start + page->m_bytes <= page->max_data_bytes());
     b->m_first_page = page;
-  }
-  else
-  {
-    b->m_first_page = 0;
-    b->m_last_page = 0;
   }
 
   return used_bytes;
@@ -2077,5 +2106,36 @@ TransporterRegistry::forceSend(NodeId node)
   else
     return false;
 }
+
+
+void
+TransporterRegistry::print_transporters(const char* where, NdbOut& out)
+{
+  out << where << " >>" << endl;
+
+  for(unsigned i = 0; i < maxTransporters; i++){
+    if(theTransporters[i] == NULL)
+      continue;
+
+    const NodeId remoteNodeId = theTransporters[i]->getRemoteNodeId();
+
+    out << i << " "
+        << getPerformStateString(remoteNodeId) << " to node: "
+        << remoteNodeId << " at "
+        << inet_ntoa(get_connect_address(remoteNodeId)) << endl;
+  }
+
+  out << "<<" << endl;
+
+  for (size_t i= 0; i < m_transporter_interface.size(); i++){
+    Transporter_interface tf= m_transporter_interface[i];
+
+    out << i
+        << " remote node: " << tf.m_remote_nodeId
+        << " port: " << tf.m_s_service_port
+        << " interface: " << tf.m_interface << endl;
+  }
+}
+
 
 template class Vector<TransporterRegistry::Transporter_interface>;

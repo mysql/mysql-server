@@ -409,14 +409,20 @@ Configuration::setupConfiguration(){
   /**
    * Configure transporters
    */
-  {  
-    int res = IPCConfig::configureTransporters(globalData.ownId,
-					       * p, 
-					       globalTransporterRegistry);
-    if(res <= 0){
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-		"No transporters configured");
-    }
+  if (!globalTransporterRegistry.init(globalData.ownId))
+  {
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+              "Invalid configuration fetched",
+              "Could not init transporter registry");
+  }
+
+  if (!IPCConfig::configureTransporters(globalData.ownId,
+                                        * p,
+                                        globalTransporterRegistry))
+  {
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+              "Invalid configuration fetched",
+              "Could not configure transporters");
   }
 
   /**
@@ -434,11 +440,7 @@ Configuration::setupConfiguration(){
   }
 
   Uint32 total_send_buffer = 0;
-  if(iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer) ||
-     total_send_buffer == 0)
-  {
-    total_send_buffer = globalTransporterRegistry.get_total_max_send_buffer();
-  }
+  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
   globalTransporterRegistry.allocate_send_buffers(total_send_buffer);
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
@@ -843,8 +845,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
   Uint32 noOfMetaTablesDict= noOfMetaTables;
-  if (noOfMetaTablesDict > MAX_TABLES)
-    noOfMetaTablesDict= MAX_TABLES;
+  if (noOfMetaTablesDict > NDB_MAX_TABLES)
+    noOfMetaTablesDict= NDB_MAX_TABLES;
 
   {
     /**

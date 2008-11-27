@@ -93,7 +93,6 @@ public:
     NodeBitmask m_reserved_nodes;
     NDB_TICKS m_alloc_timeout;
   };
-  NdbMutex *m_node_id_mutex;
 
   /**
    * Enable/disable eventlog log levels/severities.
@@ -358,7 +357,6 @@ public:
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
 		     struct sockaddr *client_addr,
-                     SOCKET_SIZE_TYPE *client_addr_len,
 		     int &error_code, BaseString &error_string,
                      int log_event = 1);
 
@@ -480,9 +478,13 @@ private:
   NdbMutex* m_local_config_mutex;
   const Config* m_local_config;
 
+  NdbMutex *m_node_id_mutex;
+
   BlockReference _ownReference;
 
   class ConfigManager* m_config_manager;
+
+  bool m_need_restart;
 
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
