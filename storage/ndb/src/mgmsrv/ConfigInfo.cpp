@@ -520,7 +520,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "128",
     "8",
-    STR_VALUE(MAX_TABLES) },
+    STR_VALUE(NDB_MAX_TABLES) },
   
   {
     CFG_DB_NO_ORDERED_INDEXES,
@@ -1061,6 +1061,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "16M",
     "4M",
     "1G" },
+
+  {
+    CFG_DB_INIT_REDO,
+    "InitFragmentLogFiles",
+    DB_TOKEN,
+    "Initialize fragment logfiles (sparse/full)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
 
   {
     CFG_DB_MAX_OPEN_FILES,

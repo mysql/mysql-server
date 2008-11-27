@@ -3687,7 +3687,10 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   idx->m_temporary = tab->m_temporary;
 
   const Uint32 distKeys = prim->m_noOfDistributionKeys;
-  Uint32 keyCount = (distKeys ? distKeys : prim->m_noOfKeys);
+  Uint32 keyCount =
+    (type == NdbDictionary::Object::UniqueHashIndex) ?
+    tab->m_noOfKeys : (distKeys ? distKeys : prim->m_noOfKeys);
+  const Uint32 fullKeyCount = keyCount;
 
   unsigned i;
   // skip last attribute (NDB$PK or NDB$TNODE)
@@ -3727,11 +3730,16 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
       keyCount--;
       org->m_distributionKey = 1;
     }
+    else if (type == NdbDictionary::Object::UniqueHashIndex)
+    {
+      keyCount--;
+      org->m_distributionKey = 1;
+    }
   }
 
   if(keyCount == 0)
   {
-    tab->m_noOfDistributionKeys = (distKeys ? distKeys : prim->m_noOfKeys);
+    tab->m_noOfDistributionKeys = fullKeyCount;
   }
   else 
   {
@@ -6145,6 +6153,19 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                              i,
                              rec) != 0)
       goto err;
+
+    /*
+      Distibution key flag for unique index needs to be corrected
+      to reflect the keys in the index base table
+    */
+    if (table->m_indexType == NdbDictionary::Object::UniqueHashIndex)
+    {
+      NdbRecord::Attr *recCol= &rec->columns[i];
+      if (table->m_columns[i]->m_distributionKey)
+        recCol->flags|= NdbRecord::IsDistributionKey;
+      else
+        recCol->flags&= ~NdbRecord::IsDistributionKey;
+    }
   }
 
   /* Now we sort the array in attrId order. */
@@ -6209,6 +6230,11 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       {
         key_indexes[numKeys]= i;
         numKeys++;
+      }
+      if (recCol->flags & NdbRecord::IsDistributionKey)
+      {
+        if (numIndexDistrKeys < tableNumDistKeys)
+          distkey_indexes[numIndexDistrKeys++]= i;
       }
     }
   }

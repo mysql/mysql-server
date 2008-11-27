@@ -675,6 +675,17 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runSetConfigUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runSetConfig(ctx, step)) == NDBT_OK)
+    ;
+  ctx->stopTest();
+  return result;
+}
+
+
 int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
@@ -695,11 +706,20 @@ int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runGetConfigUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runGetConfig(ctx, step)) == NDBT_OK)
+    ;
+  ctx->stopTest();
+  return result;
+}
+
+
+
 int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
 {
-  NdbMgmd mgmd;
-
-  const char *mgm= mgmd.getConnectString();
   int r, ncol;
   char rowbuf[1024];
   char **cols;
@@ -749,8 +769,8 @@ int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
 
   }
 
-  ndbout_c("CURRENT SIZE = %llu",*current_size);
-  ndbout_c("MAX SIZE = %llu",*max_size);
+  ndbout_c("CURRENT SIZE = %lu",*current_size);
+  ndbout_c("MAX SIZE = %lu",*max_size);
 
   free(cols);
 
@@ -762,7 +782,6 @@ int runTestMgmLogRotation(NDBT_Context* ctx, NDBT_Step* step)
   NdbMgmd mgmd;
   const char *mgm= mgmd.getConnectString();
   int result= NDBT_FAILED;
-  const char *logdest= NULL;
   int mgmid= 0;
   off_t current_size= 0, max_size= 0;
   int i,j;
@@ -848,8 +867,6 @@ done:
 
 int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbMgmHandle h;
-
   ndb_mgm_node_type types[2] = {
     NDB_MGM_NODE_TYPE_NDB,
     NDB_MGM_NODE_TYPE_UNKNOWN
@@ -857,35 +874,16 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbMgmd mgmd;
   struct ndb_mgm_cluster_state *state;
-  const char *connectstring= mgmd.getConnectString();
   int iterations = ctx->getNumLoops();
   int delay = 2;
 
-  h= ndb_mgm_create_handle();
-  if ( h == 0)
-  {
-    ndbout_c("Unable to create handle");
+  if (!mgmd.connect())
     return NDBT_FAILED;
-  }
-  if (ndb_mgm_set_connectstring(h, connectstring) == -1)
-  {
-    ndbout_c("Unable to set connectstring");
-    ndb_mgm_destroy_handle(&h);
-    return NDBT_FAILED;
-  }
-  if (ndb_mgm_connect(h,0,0,0))
-  {
-    ndbout_c("connect failed, %d: %s",
-             ndb_mgm_get_latest_error(h),
-             ndb_mgm_get_latest_error_msg(h));
-    ndb_mgm_destroy_handle(&h);
-    return NDBT_FAILED;
-  }
 
   int result= NDBT_OK;
   while (iterations-- != 0 && result == NDBT_OK)
   {
-    state = ndb_mgm_get_status(h);
+    state = ndb_mgm_get_status(mgmd.handle());
     if(state == NULL) {
       ndbout_c("Could not get status!");
       result= NDBT_FAILED;
@@ -893,7 +891,7 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
     }
     free(state);
 
-    state = ndb_mgm_get_status2(h, types);
+    state = ndb_mgm_get_status2(mgmd.handle(), types);
     if(state == NULL){
       ndbout_c("Could not get status2!");
       result= NDBT_FAILED;
@@ -901,21 +899,362 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
     }
     free(state);
 
-    state = ndb_mgm_get_status2(h, 0);
+    state = ndb_mgm_get_status2(mgmd.handle(), 0);
     if(state == NULL){
       ndbout_c("Could not get status2 second time!");
       result= NDBT_FAILED;
       continue;
     }
     free(state);
-
-    NdbSleep_MilliSleep(delay);
   }
-  // No disconnect, destroy should take care of that
-  // ndb_mgm_disconnect(h);
-  ndb_mgm_destroy_handle(&h);
   return result;
 }
+
+
+int runTestStatusUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runTestStatus(ctx, step)) == NDBT_OK)
+    ;
+  ctx->stopTest();
+  return result;
+}
+
+
+static bool
+get_nodeid(NdbMgmd& mgmd,
+           const Properties& args,
+           Properties& reply)
+{
+  // Fill in default values of other args
+  Properties call_args(args);
+  if (!call_args.contains("version"))
+    call_args.put("version", 1);
+  if (!call_args.contains("nodetype"))
+    call_args.put("nodetype", 1);
+  if (!call_args.contains("nodeid"))
+    call_args.put("nodeid", 1);
+  if (!call_args.contains("user"))
+    call_args.put("user", "mysqld");
+  if (!call_args.contains("password"))
+    call_args.put("password", "mysqld");
+  if (!call_args.contains("public key"))
+  call_args.put("public key", "a public key");
+  if (!call_args.contains("name"))
+    call_args.put("name", "testMgm");
+  if (!call_args.contains("log_event"))
+    call_args.put("log_event", 1);
+  if (!call_args.contains("timeout"))
+    call_args.put("timeout", 100);
+
+  if (!call_args.contains("endian"))
+  {
+    union { long l; char c[sizeof(long)]; } endian_check;
+    endian_check.l = 1;
+    call_args.put("endian", (endian_check.c[sizeof(long)-1])?"big":"little");
+  }
+
+  if (!mgmd.call("get nodeid", call_args,
+                 "get nodeid reply", reply))
+  {
+    g_err << "get_nodeid: mgmd.call failed" << endl;
+    return false;
+  }
+
+  // reply.print();
+  return true;
+}
+
+
+static const char*
+get_result(const Properties& reply)
+{
+  const char* result;
+  if (!reply.get("result", &result)){
+    ndbout_c("result: no 'result' found in reply");
+    return NULL;
+  }
+  return result;
+}
+
+
+static bool result_contains(const Properties& reply,
+                            const char* expected_result)
+{
+  BaseString result(get_result(reply));
+  if (strstr(result.c_str(), expected_result) == NULL){
+    ndbout_c("result_contains: result string '%s' "
+             "didn't contain expected result '%s'",
+             result.c_str(), expected_result);
+    return false;
+  }
+  g_info << " result: " << result << endl;
+  return true;
+}
+
+
+static bool ok(const Properties& reply)
+{
+  BaseString result(get_result(reply));
+  if (result == "Ok")
+    return true;
+  return false;
+}
+
+
+static bool get_nodeid_result_contains(NdbMgmd& mgmd,
+                                       const Properties& args,
+                                       const char* expected_result)
+{
+  Properties reply;
+  if (!get_nodeid(mgmd, args, reply))
+    return false;
+  return result_contains(reply, expected_result);
+}
+
+
+
+static bool
+check_get_nodeid_invalid_endian1(NdbMgmd& mgmd)
+{
+  union { long l; char c[sizeof(long)]; } endian_check;
+  endian_check.l = 1;
+  Properties args;
+  /* Set endian to opposite value */
+  args.put("endian", (endian_check.c[sizeof(long)-1])?"little":"big");
+  return get_nodeid_result_contains(mgmd, args,
+                                    "Node does not have the same endian");
+}
+
+
+static bool
+check_get_nodeid_invalid_endian2(NdbMgmd& mgmd)
+{
+  Properties args;
+  /* Set endian to weird value */
+  args.put("endian", "hepp");
+  return get_nodeid_result_contains(mgmd, args,
+                                    "Node does not have the same endian");
+}
+
+
+static bool
+check_get_nodeid_invalid_nodetype1(NdbMgmd& mgmd)
+{
+  Properties args;
+  args.put("nodetype", 37);
+  return get_nodeid_result_contains(mgmd, args,
+                                    "unknown nodetype 37");
+}
+
+
+static bool
+check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
+{
+  for (int nodeId = MAX_NODES; nodeId < MAX_NODES+2; nodeId++){
+    g_info << "Testing invalid node " << nodeId << endl;;
+
+    Properties args;
+    args.put("nodeid", nodeId);
+    BaseString expected;
+    expected.assfmt("No node defined with id=%d", nodeId);
+    if (!get_nodeid_result_contains(mgmd, args, expected.c_str()))
+      return false;
+  }
+  return true;
+}
+
+
+static bool
+check_get_nodeid_dynamic_nodeid(NdbMgmd& mgmd)
+{
+  bool result = true;
+  Uint32 nodeId= 0; // Get dynamic node id
+  for (int nodeType = NDB_MGM_NODE_TYPE_MIN;
+       nodeType < NDB_MGM_NODE_TYPE_MAX; nodeType++){
+    while(true)
+    {
+      g_info << "Testing dynamic nodeid " << nodeId
+             << ", nodeType: " << nodeType << endl;
+
+      Properties args;
+      args.put("nodeid", nodeId);
+      args.put("nodetype", nodeType);
+      Properties reply;
+      if (!get_nodeid(mgmd, args, reply))
+        return false;
+
+      /*
+        Continue to get dynamic id's until
+        an error "there is no more nodeid" occur
+      */
+      if (!ok(reply)){
+        BaseString expected;
+        expected.assfmt("No free node id found for %s",
+                        NdbMgmd::NodeType(nodeType).c_str());
+        if (!result_contains(reply, expected.c_str()))
+          result= false; // Got wrong error message
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+
+static bool
+check_get_nodeid_nonode(NdbMgmd& mgmd)
+{
+  // Find a node that does not exist
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  Uint32 nodeId = 0;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) != 0){
+      nodeId = i;
+      break;
+    }
+  }
+  if (nodeId == 0)
+    return true; // All nodes probably defined
+
+  g_info << "Testing nonexisting node " << nodeId << endl;;
+
+  Properties args;
+  args.put("nodeid", nodeId);
+  BaseString expected;
+  expected.assfmt("No node defined with id=%d", nodeId);
+  return get_nodeid_result_contains(mgmd, args, expected.c_str());
+}
+
+
+static bool
+check_get_nodeid_nodeid1(NdbMgmd& mgmd)
+{
+
+  // Find a node that does exist
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  Uint32 nodeId = 0;
+  Uint32 nodeType = NDB_MGM_NODE_TYPE_UNKNOWN;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) == 0){
+      nodeId = i;
+      iter.get(CFG_TYPE_OF_SECTION, &nodeType);
+      break;
+    }
+  }
+  assert(nodeId);
+  assert(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
+
+  Properties args, reply;
+  args.put("nodeid",nodeId);
+  args.put("nodetype",nodeType);
+  if (!get_nodeid(mgmd, args, reply))
+  {
+    g_err << "check_get_nodeid_nodeid1: failed for "
+          << "nodeid: " << nodeId << ", nodetype: " << nodeType << endl;
+    return false;
+  }
+  reply.print();
+  return ok(reply);
+}
+
+
+static bool
+check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)
+{
+  // Find a node that does exist
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  Uint32 nodeId = 0;
+  Uint32 nodeType = NDB_MGM_NODE_TYPE_UNKNOWN;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) == 0){
+      nodeId = i;
+      iter.get(CFG_TYPE_OF_SECTION, &nodeType);
+      break;
+    }
+  }
+  assert(nodeId && nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
+
+  nodeType = (nodeType + 1) / NDB_MGM_NODE_TYPE_MAX;
+  assert(nodeType > NDB_MGM_NODE_TYPE_MIN && nodeType < NDB_MGM_NODE_TYPE_MAX);
+
+  Properties args, reply;
+  args.put("nodeid",nodeId);
+  args.put("nodeid",nodeType);
+  if (!get_nodeid(mgmd, args, reply))
+  {
+    g_err << "check_get_nodeid_nodeid1: failed for "
+          << "nodeid: " << nodeId << ", nodetype: " << nodeType << endl;
+    return false;
+  }
+  BaseString expected;
+  expected.assfmt("Id %d configured as", nodeId);
+  return result_contains(reply, expected.c_str());
+}
+
+
+
+int runTestGetNodeId(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result= NDBT_FAILED;
+  if (
+      check_get_nodeid_invalid_endian1(mgmd) &&
+      check_get_nodeid_invalid_endian2(mgmd) &&
+      check_get_nodeid_invalid_nodetype1(mgmd) &&
+//      check_get_nodeid_invalid_nodeid(mgmd) &&
+      check_get_nodeid_dynamic_nodeid(mgmd) &&
+      check_get_nodeid_nonode(mgmd) &&
+//      check_get_nodeid_nodeid1(mgmd) &&
+      check_get_nodeid_wrong_nodetype(mgmd) &&
+      true)
+    result= NDBT_OK;
+
+  if (!mgmd.end_session())
+    result= NDBT_FAILED;
+
+  return result;
+}
+
+
+int runTestGetNodeIdUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runTestGetNodeId(ctx, step)) == NDBT_OK)
+    ;
+  ctx->stopTest();
+  return result;
+}
+
+
+int runSleepAndStop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int counter= 10*ctx->getNumLoops();
+
+  while(!ctx->isTestStopped() && counter--)
+    NdbSleep_SecSleep(1);;
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 
 
 NDBT_TESTSUITE(testMgm);
@@ -963,11 +1302,13 @@ TESTCASE("SetConfig",
 TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
   STEPS(runGetConfig, 100);
 }
+#if 0
 TESTCASE("MgmLogRotation",
 	 "Test log rotation"){
   INITIALIZER(runTestMgmLogRotation);
 
 }
+#endif
 TESTCASE("TestStatus",
 	 "Test status and status2"){
   INITIALIZER(runTestStatus);
@@ -977,6 +1318,19 @@ TESTCASE("TestStatus200",
 	 "Test status and status2 with 200 threads"){
   STEPS(runTestStatus, 200);
 
+}
+TESTCASE("TestGetNodeId",
+	 "Test 'get nodeid'"){
+  INITIALIZER(runTestGetNodeId);
+
+}
+TESTCASE("Stress",
+	 "Run everything while changing config"){
+  STEP(runTestGetNodeIdUntilStopped);
+  STEP(runSetConfigUntilStopped);
+  STEPS(runGetConfigUntilStopped, 10);
+  STEPS(runTestStatusUntilStopped, 10);
+  STEP(runSleepAndStop);
 }
 NDBT_TESTSUITE_END(testMgm);
 

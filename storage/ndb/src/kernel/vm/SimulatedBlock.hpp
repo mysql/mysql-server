@@ -110,6 +110,8 @@ class SimulatedBlock {
   friend class Page_cache_client;
   friend class Lgman;
   friend class Logfile_client;
+  friend class Tablespace_client;
+  friend class Dbtup_client;
   friend struct Pool_context;
   friend struct SectionHandle;
   friend class LockQueue;
@@ -145,19 +147,13 @@ public:
   Uint32 instance() const {
     return theInstance;
   }
-  Uint32 getWorkerCount() const {
-    ndbrequire(theInstance == 0); // valid only on main instance
-    ndbrequire(theInstanceCount >= 1);
-    return theInstanceCount - 1;
-  }
   SimulatedBlock* getInstance(Uint32 instanceNumber) {
-    ndbrequire(theInstance == 0);
+    ndbrequire(theInstance == 0); // valid only on main instance
     if (instanceNumber == 0)
       return this;
-    if (instanceNumber < theInstanceCount) {
-      ndbrequire(theInstanceList != 0);
+    ndbrequire(instanceNumber < MaxInstances);
+    if (theInstanceList != 0)
       return theInstanceList[instanceNumber];
-    }
     return 0;
   }
   virtual void loadWorkers() {}
@@ -188,6 +184,7 @@ public:
    * via DI*GET*NODES*REQ signals.
    */
   static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
+  static Uint32 getInstanceFromKey(Uint32 instanceKey); // local use only
 
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
@@ -501,8 +498,7 @@ private:
    * In MT LQH main instance is the LQH proxy and the others ("workers")
    * are real LQHs run by multiple threads.
    */
-  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS };
-  Uint32 theInstanceCount;          // set in main
+  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS + 1 }; // main+lqh+extra
   SimulatedBlock** theInstanceList; // set in main, indexed by instance
   SimulatedBlock* theMainInstance;  // set in all
   /*
@@ -726,6 +722,40 @@ protected:
   void execFSSYNCREF(Signal* signal);
   void execFSAPPENDREF(Signal* signal);
 
+  // MT LQH callback CONF via signal
+public:
+  struct CallbackPtr {
+    Uint32 m_callbackIndex;
+    Uint32 m_callbackData;
+  };
+protected:
+  enum CallbackFlags {
+    CALLBACK_DIRECT = 0x0001, // use EXECUTE_DIRECT (assumed thread safe)
+    CALLBACK_ACK    = 0x0002  // send ack at the end of callback timeslice
+  };
+
+  struct CallbackEntry {
+    CallbackFunction m_function;
+    Uint32 m_flags;
+  };
+
+  struct CallbackTable {
+    Uint32 m_count;
+    CallbackEntry* m_entry; // array
+  };
+
+  CallbackTable* m_callbackTableAddr; // set by block if used
+
+  enum {
+    THE_NULL_CALLBACK = 0 // must assign TheNULLCallbackFunction
+  };
+
+  void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
+  const CallbackEntry& getCallbackEntry(Uint32 ci);
+  void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
+                        CallbackPtr& cptr, Uint32 returnCode);
+  void execCALLBACK_CONF(Signal* signal);
+
   // Variable for storing inserted errors, see pc.H
   ERROR_INSERT_VARIABLE;
 
@@ -743,9 +773,11 @@ public:
 #endif
 
 #ifdef VM_TRACE
-  Ptr<void> **m_global_variables;
+  Ptr<void> **m_global_variables, **m_global_variables_save;
   void clear_global_variables();
   void init_globals_list(void ** tmp, size_t cnt);
+  void disable_global_variables();
+  void enable_global_variables();
 #endif
 
 #ifdef VM_TRACE
@@ -823,6 +855,17 @@ SimulatedBlock::execute(Signal* signal, Callback & c, Uint32 returnCode){
   (this->*fun)(signal, c.m_callbackData, returnCode);
 }
 
+inline
+void
+SimulatedBlock::execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode){
+  const CallbackEntry& ce = getCallbackEntry(cptr.m_callbackIndex);
+  cptr.m_callbackIndex = ZNIL;
+  Callback c;
+  c.m_callbackFunction = ce.m_function;
+  c.m_callbackData = cptr.m_callbackData;
+  execute(signal, c, returnCode);
+}
+                        
 inline 
 BlockNumber
 SimulatedBlock::number() const {

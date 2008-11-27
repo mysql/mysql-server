@@ -48,6 +48,7 @@
 #include <NdbSqlUtil.hpp>
 
 #include "../blocks/dbdih/Dbdih.hpp"
+#include <signaldata/CallbackSignal.hpp>
 #include "LongSignalImpl.hpp"
 
 #include <EventLogger.hpp>
@@ -66,7 +67,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theNumber(blockNumber),
     theInstance(instanceNumber),
     theReference(numberToRef(blockNumber, instanceNumber, globalData.ownId)),
-    theInstanceCount(0),
     theInstanceList(0),
     theMainInstance(0),
     m_ctx(ctx),
@@ -89,31 +89,26 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_jamBuffer = (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
   NewVarRef = 0;
   
-  SimulatedBlock* main = globalData.getBlock(blockNumber);
+  SimulatedBlock* mainBlock = globalData.getBlock(blockNumber);
 
   if (theInstance == 0) {
-    ndbrequire(main == 0);
-    main = this;
-    globalData.setBlock(blockNumber, main);
-    main->theInstanceCount = 1;
+    ndbrequire(mainBlock == 0);
+    mainBlock = this;
+    globalData.setBlock(blockNumber, mainBlock);
   } else {
-    ndbrequire(main != 0);
-    ndbrequire(theInstance == main->theInstanceCount);
-    ndbrequire(theInstance < MaxInstances);
-    if (theInstance == 1) {
-      ndbrequire(main->theInstanceList == 0);
-      main->theInstanceList = new SimulatedBlock* [MaxInstances];
+    ndbrequire(mainBlock != 0);
+    if (mainBlock->theInstanceList == 0) {
+      mainBlock->theInstanceList = new SimulatedBlock* [MaxInstances];
+      ndbrequire(mainBlock->theInstanceList != 0);
       Uint32 i;
       for (i = 0; i < MaxInstances; i++)
-        main->theInstanceList[i] = 0;
-    } else {
-      ndbrequire(main->theInstanceList != 0);
+        mainBlock->theInstanceList[i] = 0;
     }
-    ndbrequire(main->theInstanceList[theInstance] == 0);
-    main->theInstanceList[theInstance] = this;
-    main->theInstanceCount = theInstance + 1;
+    ndbrequire(theInstance < MaxInstances);
+    ndbrequire(mainBlock->theInstanceList[theInstance] == 0);
+    mainBlock->theInstanceList[theInstance] = this;
   }
-  theMainInstance = main;
+  theMainInstance = mainBlock;
 
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
@@ -127,11 +122,14 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 
   installSimulatedBlockFunctions();
 
+  m_callbackTableAddr = 0;
+
   CLEAR_ERROR_INSERT_VALUE;
 
 #ifdef VM_TRACE
   m_global_variables = new Ptr<void> * [1];
   m_global_variables[0] = 0;
+  m_global_variables_save = 0;
 #endif
 }
 
@@ -172,7 +170,7 @@ SimulatedBlock::~SimulatedBlock()
 
   if (theInstanceList != 0) {
     Uint32 i;
-    for (i = 0; i < theInstanceCount; i++)
+    for (i = 0; i < MaxInstances; i++)
       delete theInstanceList[i];
     delete [] theInstanceList;
   }
@@ -206,6 +204,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
   a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
   a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
+  a[GSN_CALLBACK_CONF] = &SimulatedBlock::execCALLBACK_CONF;
 }
 
 void
@@ -235,6 +234,20 @@ SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
   Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
   Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
   return instanceKey;
+}
+
+Uint32
+SimulatedBlock::getInstanceFromKey(Uint32 instanceKey)
+{
+  Uint32 lqhWorkers = globalData.ndbMtLqhWorkers;
+  Uint32 instanceNo;
+  if (lqhWorkers == 0) {
+    instanceNo = 0;
+  } else {
+    assert(instanceKey != 0);
+    instanceNo = 1 + (instanceKey - 1) % lqhWorkers;
+  }
+  return instanceNo;
 }
 
 void
@@ -1830,6 +1843,93 @@ SimulatedBlock::execSEND_PACKED(Signal* signal)
 {
 }
 
+// MT LQH callback CONF via signal
+
+const SimulatedBlock::CallbackEntry&
+SimulatedBlock::getCallbackEntry(Uint32 ci)
+{
+  ndbrequire(m_callbackTableAddr != 0);
+  const CallbackTable& ct = *m_callbackTableAddr;
+  ndbrequire(ci < ct.m_count);
+  return ct.m_entry[ci];
+}
+
+void
+SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
+                                 CallbackPtr& cptr, Uint32 returnCode)
+{
+  Uint32 blockNo = blockToMain(fullBlockNo);
+  Uint32 instanceNo = blockToInstance(fullBlockNo);
+  SimulatedBlock* b = globalData.getBlock(blockNo, instanceNo);
+  ndbrequire(b != 0);
+
+  const CallbackEntry& ce = b->getCallbackEntry(cptr.m_callbackIndex);
+
+  // wl4391_todo add as arg if this is not enough
+  Uint32 senderData = returnCode;
+
+  if (!isNdbMtLqh()) {
+    Callback c;
+    c.m_callbackFunction = ce.m_function;
+    c.m_callbackData = cptr.m_callbackData;
+    b->execute(signal, c, returnCode);
+
+    if (ce.m_flags & CALLBACK_ACK) {
+      jam();
+      CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
+      ack->senderData = senderData;
+      EXECUTE_DIRECT(number(), GSN_CALLBACK_ACK,
+                     signal, CallbackAck::SignalLength);
+    }
+  } else {
+    CallbackConf* conf = (CallbackConf*)signal->getDataPtrSend();
+    conf->senderData = senderData;
+    conf->senderRef = reference();
+    conf->callbackIndex = cptr.m_callbackIndex;
+    conf->callbackData = cptr.m_callbackData;
+    conf->returnCode = returnCode;
+
+    if (ce.m_flags & CALLBACK_DIRECT) {
+      jam();
+      EXECUTE_DIRECT(blockNo, GSN_CALLBACK_CONF,
+                     signal, CallbackConf::SignalLength, instanceNo);
+    } else {
+      jam();
+      BlockReference ref = numberToRef(fullBlockNo, getOwnNodeId());
+      sendSignal(ref, GSN_CALLBACK_CONF,
+                 signal, CallbackConf::SignalLength, JBB);
+    }
+  }
+  cptr.m_callbackIndex = ZNIL;
+}
+
+void
+SimulatedBlock::execCALLBACK_CONF(Signal* signal)
+{
+  const CallbackConf* conf = (const CallbackConf*)signal->getDataPtr();
+
+  Uint32 senderData = conf->senderData;
+  Uint32 senderRef = conf->senderRef;
+
+  ndbrequire(m_callbackTableAddr != 0);
+  const CallbackTable& ct = *m_callbackTableAddr;
+  const CallbackEntry& ce = getCallbackEntry(conf->callbackIndex);
+  CallbackFunction function = ce.m_function;
+
+  Callback callback;
+  callback.m_callbackFunction = function;
+  callback.m_callbackData = conf->callbackData;
+  execute(signal, callback, conf->returnCode);
+
+  if (ce.m_flags & CALLBACK_ACK) {
+    jam();
+    CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
+    ack->senderData = senderData;
+    sendSignal(senderRef, GSN_CALLBACK_ACK,
+               signal, CallbackAck::SignalLength, JBB);
+  }
+}
+
 #ifdef VM_TRACE_TIME
 void
 SimulatedBlock::clearTimes() {
@@ -2820,6 +2920,23 @@ SimulatedBlock::execFSAPPENDREF(Signal* signal)
 }
 
 #ifdef VM_TRACE
+static Ptr<void> * m_empty_global_variables[] = { 0 };
+void
+SimulatedBlock::disable_global_variables()
+{
+  m_global_variables_save = m_global_variables;
+  m_global_variables = m_empty_global_variables;
+}
+
+void
+SimulatedBlock::enable_global_variables()
+{
+  if (m_global_variables == m_empty_global_variables)
+  {
+    m_global_variables = m_global_variables_save;
+  }
+}
+
 void
 SimulatedBlock::clear_global_variables(){
   Ptr<void> ** tmp = m_global_variables;
@@ -3016,7 +3133,9 @@ bool
 SimulatedBlock::debugOutOn()
 {
   SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
-  return globalSignalLoggers.logMatch(number(), mask);
+  return
+    globalData.testOn &&
+    globalSignalLoggers.logMatch(number(), mask);
 }
 
 const char*
