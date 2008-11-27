@@ -138,7 +138,7 @@ diff -Nur sql/mysqld.def.orig sql/mysqld.def
 +	localtime_r
 +	my_strdup
 
-diff -Nur ../old/sql/mysqld_x64.def.orig ./sql/mysqld_x64.def
+diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
 --- sql/mysqld_x64.def.orig	1969-12-31 18:00:00 -06:00
 +++ sql/mysqld_x64.def		2008-10-31 02:22:04 -05:00
 @@ -0,0 +1,99 @@
