@@ -750,7 +750,7 @@ void NDBT_TestCaseImpl1::printTestResult(){
 
   for (unsigned i = 0; i < testResults.size(); i++){
     NDBT_TestCaseResult* tcr = testResults[i];
-    const char* res;
+    const char* res = "<unknown>";
     if (tcr->getResult() == NDBT_OK)
       res = "OK";
     else if (tcr->getResult() == NDBT_FAILED)
@@ -760,7 +760,9 @@ void NDBT_TestCaseImpl1::printTestResult(){
     else if (tcr->getResult() == FAILED_TO_DISCOVER)
       res = "FAILED TO DISCOVER TABLE";
     BaseString::snprintf(buf, 255," %-10s %-5s %-20s",
-                         tcr->getName(), res, tcr->getTimeStr());
+                         tcr->getName(), 
+                         res, 
+                         tcr->getTimeStr());
     ndbout << buf<<endl;
   }
 }
@@ -1151,22 +1153,8 @@ runDropTables(NDBT_Context* ctx, NDBT_Step* step)
 static int
 runDropTable(NDBT_Context* ctx, NDBT_Step* step)
 {
-  Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
-  ndb.init(1);
-
-  NdbDictionary::Dictionary* pDict = ndb.getDictionary();
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  const char *tab_name=  pTab->getName();
-
-  if (pDict->dropTable(tab_name) != 0)
-  {
-    g_err << "runDropTables: Failed to drop table " << tab_name
-          << pDict->getNdbError() << endl;
-    return NDBT_FAILED;
-  }
-  return NDBT_OK;
+  return runDropTables(ctx, step);
 }
-
 
 int 
 NDBT_TestSuite::report(const char* _tcname){

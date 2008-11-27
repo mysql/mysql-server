@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -411,9 +411,6 @@ handlerton *myisam_hton;
 handlerton *partition_hton;
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-const char *opt_ndbcluster_connectstring= 0;
-char opt_ndb_constrbuf[1024]= {0};
-my_bool	opt_ndb_shm;
 ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
 ulong opt_ndb_cluster_connection_pool;
 ulong ndb_extra_logging;
@@ -423,6 +420,8 @@ my_bool opt_ndb_log_update_as_write= FALSE;
 my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
 
+extern "C" char opt_ndb_constrbuf[1024];
+extern "C" my_bool opt_ndb_shm;
 extern "C" const char *opt_ndb_connectstring;
 extern "C" unsigned opt_ndb_constrbuf_len;
 extern "C" const char *opt_ndb_mgmd;
@@ -8099,7 +8098,7 @@ mysqld_get_one_option(int optid,
     opt_ndb_constrbuf_len+= len;
   }
   /* fall through to add the connectstring to the end
-   * and set opt_ndbcluster_connectstring
+   * and set opt_ndb_connectstring
    */
   case OPT_NDB_CONNECTSTRING:
     if (opt_ndb_connectstring && opt_ndb_connectstring[0])
@@ -8109,7 +8108,7 @@ mysqld_get_one_option(int optid,
 		  opt_ndb_connectstring);
     else
       opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
-    opt_ndbcluster_connectstring= opt_ndb_constrbuf;
+    opt_ndb_connectstring= opt_ndb_constrbuf;
     break;
   case OPT_NDB_DISTRIBUTION:
     int id;

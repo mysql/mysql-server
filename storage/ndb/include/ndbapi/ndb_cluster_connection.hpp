@@ -143,6 +143,9 @@ public:
    */
   const Ndb* get_next_ndb_object(const Ndb* p);
   
+  int get_latest_error() const;
+  const char *get_latest_error_msg() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
   const char *get_connectstring(char *buf, int buf_sz) const;
