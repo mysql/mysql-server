@@ -275,7 +275,8 @@ LocalConfig::parseString(const char * connectString, BaseString &err){
     err.assfmt("Unexpected entry: \"%s\"", tok);
     return false;
   }
-
+  bind_address_port= 0;
+  bind_address.assign("");
   return true;
 }
 
@@ -343,6 +344,15 @@ char *
 LocalConfig::makeConnectString(char *buf, int sz)
 {
   int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
+  if (p < sz && bind_address.length())
+  {
+    int new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
+                                      bind_address.c_str(), bind_address_port);
+    if (new_p < sz)
+      p= new_p;
+    else 
+      buf[p]= 0;
+  }
   if (p < sz)
     for (unsigned i = 0; i < ids.size(); i++)
     {
@@ -356,6 +366,18 @@ LocalConfig::makeConnectString(char *buf, int sz)
       {
 	buf[p]= 0;
 	break;
+      }
+      if (!bind_address.length() && ids[i].bind_address.length())
+      {
+        new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
+                                      ids[i].bind_address.c_str(), ids[i].bind_address_port);
+        if (new_p < sz)
+          p= new_p;
+        else 
+        {
+            buf[p]= 0;
+            break;
+        }
       }
     }
   buf[sz-1]=0;
