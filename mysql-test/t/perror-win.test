@@ -6,6 +6,9 @@ eval select LENGTH("$MY_PERROR") > 0 as "have_perror";
 enable_query_log;
 
 
---exec $MY_PERROR 150
---exec $MY_PERROR 23
---exec $MY_PERROR 15000
+--exec $MY_PERROR 150 2>&1
+--exec $MY_PERROR 23 2>&1
+--exec $MY_PERROR 500 2>&1
+--error 1
+--exec $MY_PERROR 30000 2>&1
+
