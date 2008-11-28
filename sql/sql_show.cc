@@ -1441,6 +1441,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char name_buffer[80];
   int len;
   LEX_STRING null_lex_str;
+  CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   null_lex_str.str= 0;				// For sys_var->value_ptr()
@@ -1469,9 +1470,10 @@ static bool show_status_array(THD *thd, const char *wild,
         long nr;
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->show_type();
-          value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
-                                                           &null_lex_str);
+          sys_var *var= ((sys_var *) value);
+          show_type= var->show_type();
+          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+          charset= var->charset(thd);
         }
 
         pos= end= buff;
@@ -1794,7 +1796,7 @@ static bool show_status_array(THD *thd, const char *wild,
         restore_record(table, s->default_values);
         table->field[0]->store(name_buffer, strlen(name_buffer),
                                system_charset_info);
-        table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        table->field[1]->store(pos, (uint32) (end - pos), charset);
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(TRUE);
       }
