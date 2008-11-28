@@ -288,7 +288,7 @@ static void print_slave_skip_errors(void)
     10 characters must be sufficient for a number plus {',' | '...'}
     plus a NUL terminator. That is a max 6 digit number.
   */
-  const int MIN_ROOM= 10;
+  const uint MIN_ROOM= 10;
   DBUG_ENTER("print_slave_skip_errors");
   DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
   DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
