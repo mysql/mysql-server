@@ -186,6 +186,10 @@ my $opt_suite_timeout   =   300; # minutes
 my $opt_shutdown_timeout=    10; # seconds
 my $opt_start_timeout   =   180; # seconds
 
+sub testcase_timeout { return $opt_testcase_timeout * 60; };
+sub suite_timeout { return $opt_suite_timeout * 60; };
+sub check_timeout { return $opt_testcase_timeout * 6; };
+
 my $opt_start;
 my $opt_start_dirty;
 my $opt_repeat= 1;
@@ -409,7 +413,7 @@ sub run_test_server ($$$) {
   my %running;
   my $result;
 
-  my $suite_timeout_proc= My::SafeProcess->timer($opt_suite_timeout * 60);
+  my $suite_timeout_proc= My::SafeProcess->timer(suite_timeout());
 
   my $s= IO::Select->new();
   $s->add($server);
@@ -1166,7 +1170,18 @@ sub command_line_setup {
     }
   }
 
-  #
+  # --------------------------------------------------------------------------
+  # Check timeout arguments
+  # --------------------------------------------------------------------------
+
+  mtr_error("Invalid value '$opt_testcase_timeout' supplied ".
+	    "for option --testcase-timeout")
+    if ($opt_testcase_timeout <= 0);
+  mtr_error("Invalid value '$opt_suite_timeout' supplied ".
+	    "for option --testsuite-timeout")
+    if ($opt_suite_timeout <= 0);
+
+  # --------------------------------------------------------------------------
   # Check valgrind arguments
   # --------------------------------------------------------------------------
   if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
@@ -2752,6 +2767,8 @@ sub check_testcase($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
+  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+
   while (1){
     my $result;
     my $proc= My::SafeProcess->wait_any();
@@ -2778,6 +2795,9 @@ sub check_testcase($$)
 
 	if ( keys(%started) == 0){
 	  # All checks completed
+
+	  $timeout_proc->kill();
+
 	  return 0;
 	}
 	# Wait for next process to exit
@@ -2790,8 +2810,12 @@ sub check_testcase($$)
 	  # Test failed, grab the report mysqltest has created
 	  my $report= mtr_grab_file($err_file);
 	  $tinfo->{check}.=
-	    "\nThe check of testcase '$tname' failed, this is the\n".
-	      "diff between before and after:\n";
+	    "\nMTR's internal check of the test case '$tname' failed.
+This means that the test case does not preserve the state that existed
+before the test case was executed.  Most likely the test case did not
+do a proper clean-up.
+This is the diff of the states of the servers before and after the
+test case was executed:\n";
 	  $tinfo->{check}.= $report;
 
 	  # Check failed, mark the test case with that info
@@ -2817,6 +2841,12 @@ sub check_testcase($$)
 
       }
     }
+    elsif ( $proc eq $timeout_proc ) {
+      $tinfo->{comment}.= "Timeout $timeout_proc for ".
+	"'check-testcase' expired after ".check_timeout().
+	  " seconds";
+      $result= 4;
+    }
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
@@ -2828,8 +2858,12 @@ sub check_testcase($$)
     # Kill any check processes still running
     map($_->kill(), values(%started));
 
+    $timeout_proc->kill();
+
     return $result;
   }
+
+  mtr_error("INTERNAL_ERROR: check_testcase");
 }
 
 
@@ -2896,7 +2930,7 @@ sub run_on_all($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(60); # Seconds
+  my $timeout_proc= My::SafeProcess->timer(check_timeout());
 
   while (1){
     my $result;
@@ -2927,7 +2961,9 @@ sub run_on_all($$)
       next;
     }
     elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc expired for running '$run'";
+      $tinfo->{comment}.= "Timeout $timeout_proc for '$run' ".
+	"expired after ". check_timeout().
+	  " seconds";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -2942,6 +2978,7 @@ sub run_on_all($$)
 
     return 1;
   }
+  mtr_error("INTERNAL_ERROR: run_on_all");
 }
 
 
@@ -3125,7 +3162,7 @@ sub run_testcase ($) {
     exit(1);
   }
 
-  my $test_timeout_proc= My::SafeProcess->timer($opt_testcase_timeout * 60);
+  my $test_timeout_proc= My::SafeProcess->timer(testcase_timeout());
 
   do_before_run_mysqltest($tinfo);
 
@@ -3270,14 +3307,16 @@ sub run_testcase ($) {
     {
       my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
-        "Test case timeout after $opt_testcase_timeout minute(s)\n\n";
+        "Test case timeout after ".testcase_timeout().
+	  " seconds\n\n";
       # Add 20 last executed commands from test case log file
       if  (-e $log_file_name)
       {
         $tinfo->{comment}.=
-	   "== $log_file_name == \n" . mtr_lastlinesfromfile($log_file_name, 20)."\n";
+	   "== $log_file_name == \n".
+	     mtr_lastlinesfromfile($log_file_name, 20)."\n";
       }
-      $tinfo->{'timeout'}= $opt_testcase_timeout; # Mark as timeout
+      $tinfo->{'timeout'}= testcase_timeout(); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
       report_failure_and_restart($tinfo);
       return 1;
@@ -3371,6 +3410,8 @@ sub check_warnings ($) {
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
+  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+
   while (1){
     my $result= 0;
     my $proc= My::SafeProcess->wait_any();
@@ -3403,6 +3444,9 @@ sub check_warnings ($) {
 
 	if ( keys(%started) == 0){
 	  # All checks completed
+
+	  $timeout_proc->kill();
+
 	  return $result;
 	}
 	# Wait for next process to exit
@@ -3421,6 +3465,12 @@ sub check_warnings ($) {
       # Remove the .err file the check generated
       unlink($err_file);
     }
+    elsif ( $proc eq $timeout_proc ) {
+      $tinfo->{comment}.= "Timeout $timeout_proc for ".
+	"'check warnings' expired after ".check_timeout().
+	  " seconds";
+      $result= 4;
+    }
     else {
       # Unknown process returned, most likley a crash, abort everything
       $tinfo->{comment}=
@@ -3431,10 +3481,12 @@ sub check_warnings ($) {
     # Kill any check processes still running
     map($_->kill(), values(%started));
 
+    $timeout_proc->kill();
+
     return $result;
   }
 
-  return $res;
+  mtr_error("INTERNAL_ERROR: check_warnings");
 }
 
 
