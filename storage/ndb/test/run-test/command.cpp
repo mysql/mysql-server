@@ -66,6 +66,9 @@ static
 bool
 do_change_version(atrt_config& config, SqlResultSet& command,
                   AtrtClient& atrtdb){
+  /**
+   * TODO make option to restart "not" initial
+   */
   uint process_id= command.columnAsInt("process_id");
   const char* process_args= command.column("process_args");
 
