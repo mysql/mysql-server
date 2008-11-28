@@ -1049,8 +1049,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   if (table->index_hints && table->index_hints->elements)
   {
-      my_error(ER_WRONG_USAGE, MYF(0), "index hints", "VIEW");
-      DBUG_RETURN(TRUE);
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
+             table->index_hints->head()->key_name.str, table->table_name);
+    DBUG_RETURN(TRUE);
   }
 
   /* check loop via view definition */
