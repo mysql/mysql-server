@@ -263,6 +263,11 @@ wdl_load_mapfile(
 	char*		func_addr;
 	ulint		load_addr = 0;
 	ibool		valid_load_addr = FALSE;
+#ifdef _WIN64
+	const char*	tmp_string = " Preferred load address is %16llx";
+#else
+	const char*	tmp_string = " Preferred load address is %08x";
+#endif
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -285,8 +290,7 @@ wdl_load_mapfile(
 	/* Search start of symbol list and get the preferred load address */
 	while (fgets(tmp_buf, sizeof(tmp_buf), fp)) {
 
-		if (sscanf(tmp_buf, " Preferred load address is %16X",
-			   &load_addr) == 1) {
+		if (sscanf(tmp_buf, tmp_string, &load_addr) == 1) {
 
 			valid_load_addr = TRUE;
 		}
@@ -338,7 +342,7 @@ wdl_load_mapfile(
 			chain_header = map_cell;
 
 			map_cell->symbol = strdup(func_name);
-			map_cell->value = strtoul(tmp_buf, NULL, 0)
+			map_cell->value = (ulint) strtoull(tmp_buf, NULL, 0)
 					  - load_addr;
 			map_fold = ut_fold_string(map_cell->symbol);
 
