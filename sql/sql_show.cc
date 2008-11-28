@@ -2087,6 +2087,7 @@ static bool show_status_array(THD *thd, const char *wild,
   COND *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool res= FALSE;
+  CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
@@ -2135,9 +2136,10 @@ static bool show_status_array(THD *thd, const char *wild,
 
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->show_type();
-          value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
-                                                           &null_lex_str);
+          sys_var *var= ((sys_var *) value);
+          show_type= var->show_type();
+          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+          charset= var->charset(thd);
         }
 
         pos= end= buff;
@@ -2213,7 +2215,7 @@ static bool show_status_array(THD *thd, const char *wild,
           DBUG_ASSERT(0);
           break;
         }
-        table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        table->field[1]->store(pos, (uint32) (end - pos), charset);
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
 
