@@ -71,6 +71,14 @@ public:
 
   sys_after_update_func after_update;
   bool no_support_one_shot;
+  /*
+    true if the value is in character_set_filesystem, 
+    false otherwise.
+    Note that we can't use a pointer to the charset as the system var is 
+    instantiated in global scope and the charset pointers are initialized
+    later.
+  */  
+  bool is_os_charset;
   sys_var(const char *name_arg, sys_after_update_func func= NULL,
           Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
     :name(name_arg), after_update(func), no_support_one_shot(1),
@@ -107,6 +115,7 @@ public:
   { return option_limits == 0; }
   virtual bool is_struct() { return 0; }
   virtual bool is_readonly() const { return 0; }
+  CHARSET_INFO *charset(THD *thd);
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
 
 protected:
@@ -291,6 +300,18 @@ public:
 };
 
 
+class sys_var_const_os_str: public sys_var_const_str
+{
+public:
+  sys_var_const_os_str(sys_var_chain *chain, const char *name_arg, 
+                       const char *value_arg)
+    :sys_var_const_str(chain, name_arg, value_arg)
+  { 
+    is_os_charset= TRUE; 
+  }
+};
+
+
 class sys_var_const_str_ptr :public sys_var
 {
 public:
@@ -317,6 +338,18 @@ public:
   }
   bool check_default(enum_var_type type) { return 1; }
   bool is_readonly() const { return 1; }
+};
+
+
+class sys_var_const_os_str_ptr :public sys_var_const_str_ptr
+{
+public:
+  sys_var_const_os_str_ptr(sys_var_chain *chain, const char *name_arg, 
+                           char **value_arg)
+    :sys_var_const_str_ptr(chain, name_arg, value_arg)
+  {
+    is_os_charset= TRUE; 
+  }
 };
 
 
@@ -929,6 +962,19 @@ public:
 };
 
 
+class sys_var_readonly_os: public sys_var_readonly
+{
+public:
+  sys_var_readonly_os(sys_var_chain *chain, const char *name_arg, enum_var_type type,
+		   SHOW_TYPE show_type_arg,
+		   sys_value_ptr_func value_ptr_func_arg)
+    :sys_var_readonly(chain, name_arg, type, show_type_arg, value_ptr_func_arg)
+  {
+    is_os_charset= TRUE;
+  }
+};
+
+
 /**
   Global-only, read-only variable. E.g. command line option.
 */
@@ -954,6 +1000,22 @@ public:
   }
   SHOW_TYPE show_type() { return show_type_value; }
   bool is_readonly() const { return 1; }
+};
+
+
+class sys_var_const_os: public sys_var_const
+{
+public:
+  enum_var_type var_type;
+  SHOW_TYPE show_type_value;
+  uchar *ptr;
+  sys_var_const_os(sys_var_chain *chain, const char *name_arg, 
+                   enum_var_type type,
+                SHOW_TYPE show_type_arg, uchar *ptr_arg)
+    :sys_var_const(chain, name_arg, type, show_type_arg, ptr_arg)
+  {
+    is_os_charset= TRUE;
+  }
 };
 
 
