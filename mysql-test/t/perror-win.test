@@ -8,7 +8,7 @@ enable_query_log;
 
 --exec $MY_PERROR 150 2>&1
 --exec $MY_PERROR 23 2>&1
---exec $MY_PERROR 500 2>&1
+--exec $MY_PERROR 1062 2>&1
 --error 1
 --exec $MY_PERROR 30000 2>&1
 
