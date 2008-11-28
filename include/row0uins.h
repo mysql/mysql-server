@@ -20,7 +20,9 @@ Created 2/25/1997 Heikki Tuuri
 /***************************************************************
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
-marked, at the time of the insert. */
+marked, at the time of the insert.  InnoDB is eager in a rollback:
+if it figures out that an index record will be removed in the purge
+anyway, it will remove it in the rollback. */
 UNIV_INTERN
 ulint
 row_undo_ins(
