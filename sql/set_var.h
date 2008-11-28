@@ -46,9 +46,17 @@ public:
   
   sys_after_update_func after_update;
   bool no_support_one_shot;
+  /*
+    true if the value is in character_set_filesystem, 
+    false otherwise.
+    Note that we can't use a pointer to the charset as the system var is 
+    instantiated in global scope and the charset pointers are initialized
+    later.
+  */  
+  bool is_os_charset;
   sys_var(const char *name_arg, sys_after_update_func func= NULL)
     :name(name_arg), after_update(func)
-    , no_support_one_shot(1)
+    , no_support_one_shot(1), is_os_charset(FALSE)
   {}
   virtual ~sys_var() {}
   virtual bool check(THD *thd, set_var *var);
@@ -68,6 +76,7 @@ public:
   Item *item(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual bool is_struct() { return 0; }
   virtual bool is_readonly() const { return 0; }
+  CHARSET_INFO *charset(THD *thd);
 };
 
 
@@ -247,6 +256,17 @@ public:
 };
 
 
+class sys_var_const_os_str: public sys_var_const_str
+{
+public:
+  sys_var_const_os_str(const char *name_arg, const char *value_arg)
+    :sys_var_const_str(name_arg, value_arg)
+  { 
+    is_os_charset= TRUE; 
+  }
+};
+
+
 class sys_var_const_str_ptr :public sys_var
 {
 public:
@@ -273,6 +293,17 @@ public:
   }
   bool check_default(enum_var_type type) { return 1; }
   bool is_readonly() const { return 1; }
+};
+
+
+class sys_var_const_os_str_ptr :public sys_var_const_str_ptr
+{
+public:
+  sys_var_const_os_str_ptr(const char *name_arg, char **value_arg)
+    :sys_var_const_str_ptr(name_arg, value_arg)
+  {
+    is_os_charset= TRUE; 
+  }
 };
 
 
@@ -790,6 +821,20 @@ public:
   SHOW_TYPE show_type() { return show_type_value; }
   bool is_readonly() const { return 1; }
 };
+
+
+class sys_var_readonly_os: public sys_var_readonly
+{
+public:
+  sys_var_readonly_os(const char *name_arg, enum_var_type type,
+		   SHOW_TYPE show_type_arg,
+		   sys_value_ptr_func value_ptr_func_arg)
+    :sys_var_readonly(name_arg, type, show_type_arg, value_ptr_func_arg)
+  {
+    is_os_charset= TRUE;
+  }
+};
+
 
 class sys_var_thd_time_zone :public sys_var_thd
 {
