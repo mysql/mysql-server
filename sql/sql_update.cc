@@ -715,6 +715,11 @@ int mysql_update(THD *thd,
     else
       table->file->unlock_row();
     thd->row_count++;
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
   }
   dup_key_found= 0;
   /*
