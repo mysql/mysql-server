@@ -2259,7 +2259,7 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(ulonglong *value)
 {
-  ulonglong min_max;
+  longlong min_max;
   uint min_max_idx= 0;
   LINT_INIT(min_max);
 
