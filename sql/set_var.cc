@@ -176,14 +176,14 @@ static sys_var_bool_ptr	sys_automatic_sp_privileges(&vars, "automatic_sp_privile
 static sys_var_const            sys_back_log(&vars, "back_log",
                                              OPT_GLOBAL, SHOW_LONG,
                                              (uchar*) &back_log);
-static sys_var_const_str       sys_basedir(&vars, "basedir", mysql_home);
+static sys_var_const_os_str       sys_basedir(&vars, "basedir", mysql_home);
 static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
-static sys_var_const            sys_character_sets_dir(&vars,
+static sys_var_const_os         sys_character_sets_dir(&vars,
                                                        "character_sets_dir",
                                                        OPT_GLOBAL, SHOW_CHAR,
                                                        (uchar*)
@@ -233,7 +233,7 @@ static sys_var_long_ptr	sys_concurrent_insert(&vars, "concurrent_insert",
                                               &myisam_concurrent_insert);
 static sys_var_long_ptr	sys_connect_timeout(&vars, "connect_timeout",
 					    &connect_timeout);
-static sys_var_const_str       sys_datadir(&vars, "datadir", mysql_real_data_home);
+static sys_var_const_os_str       sys_datadir(&vars, "datadir", mysql_real_data_home);
 #ifndef DBUG_OFF
 static sys_var_thd_dbug        sys_dbug(&vars, "debug");
 #endif
@@ -466,7 +466,7 @@ static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_sea
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
                                              (uchar*) pidfile_name);
-static sys_var_const            sys_plugin_dir(&vars, "plugin_dir",
+static sys_var_const_os         sys_plugin_dir(&vars, "plugin_dir",
                                                OPT_GLOBAL, SHOW_CHAR,
                                                (uchar*) opt_plugin_dir);
 static sys_var_const            sys_port(&vars, "port",
@@ -538,7 +538,7 @@ static sys_var_const    sys_thread_concurrency(&vars, "thread_concurrency",
 static sys_var_const    sys_thread_stack(&vars, "thread_stack",
                                          OPT_GLOBAL, SHOW_LONG,
                                          (uchar*) &my_thread_stack_size);
-static sys_var_readonly        sys_tmpdir(&vars, "tmpdir", OPT_GLOBAL, SHOW_CHAR, get_tmpdir);
+static sys_var_readonly_os      sys_tmpdir(&vars, "tmpdir", OPT_GLOBAL, SHOW_CHAR, get_tmpdir);
 static sys_var_thd_ulong	sys_trans_alloc_block_size(&vars, "transaction_alloc_block_size",
 						   &SV::trans_alloc_block_size,
 						   0, fix_trans_mem_root);
@@ -589,17 +589,17 @@ static sys_var_thd_sql_mode    sys_sql_mode(&vars, "sql_mode",
 #ifdef HAVE_OPENSSL
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key;
-static sys_var_const_str_ptr	sys_ssl_ca(&vars, "ssl_ca", &opt_ssl_ca);
-static sys_var_const_str_ptr	sys_ssl_capath(&vars, "ssl_capath", &opt_ssl_capath);
-static sys_var_const_str_ptr	sys_ssl_cert(&vars, "ssl_cert", &opt_ssl_cert);
-static sys_var_const_str_ptr	sys_ssl_cipher(&vars, "ssl_cipher", &opt_ssl_cipher);
-static sys_var_const_str_ptr	sys_ssl_key(&vars, "ssl_key", &opt_ssl_key);
+static sys_var_const_os_str_ptr	sys_ssl_ca(&vars, "ssl_ca", &opt_ssl_ca);
+static sys_var_const_os_str_ptr	sys_ssl_capath(&vars, "ssl_capath", &opt_ssl_capath);
+static sys_var_const_os_str_ptr	sys_ssl_cert(&vars, "ssl_cert", &opt_ssl_cert);
+static sys_var_const_os_str_ptr	sys_ssl_cipher(&vars, "ssl_cipher", &opt_ssl_cipher);
+static sys_var_const_os_str_ptr	sys_ssl_key(&vars, "ssl_key", &opt_ssl_key);
 #else
-static sys_var_const_str	sys_ssl_ca(&vars, "ssl_ca", NULL);
-static sys_var_const_str	sys_ssl_capath(&vars, "ssl_capath", NULL);
-static sys_var_const_str	sys_ssl_cert(&vars, "ssl_cert", NULL);
-static sys_var_const_str	sys_ssl_cipher(&vars, "ssl_cipher", NULL);
-static sys_var_const_str	sys_ssl_key(&vars, "ssl_key", NULL);
+static sys_var_const_os_str	sys_ssl_ca(&vars, "ssl_ca", NULL);
+static sys_var_const_os_str	sys_ssl_capath(&vars, "ssl_capath", NULL);
+static sys_var_const_os_str	sys_ssl_cert(&vars, "ssl_cert", NULL);
+static sys_var_const_os_str	sys_ssl_cipher(&vars, "ssl_cipher", NULL);
+static sys_var_const_os_str	sys_ssl_key(&vars, "ssl_key", NULL);
 #endif
 static sys_var_thd_enum
 sys_updatable_views_with_limit(&vars, "updatable_views_with_limit",
@@ -936,6 +936,7 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   old_value= var_str->value;
   var_str->value= res;
   var_str->value_length= new_length;
+  var_str->is_os_charset= FALSE;
   rw_unlock(var_mutex);
   my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   return 0;
@@ -1802,6 +1803,13 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
   return 1;
+}
+
+
+CHARSET_INFO *sys_var::charset(THD *thd)
+{
+  return is_os_charset ? thd->variables.character_set_filesystem : 
+    system_charset_info;
 }
 
 
