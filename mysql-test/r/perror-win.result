@@ -2,4 +2,5 @@ MySQL error code 150: Foreign key constraint is incorrectly formed
 Win32 error code 150: System trace information was not specified in your CONFIG.SYS file, or tracing is disallowed.
 OS error code  23:  Too many open files in system
 Win32 error code 23: Data error (cyclic redundancy check).
-Win32 error code 15000: The specified channel path is invalid.
+Win32 error code 500: User profile cannot be loaded.
+Illegal error code: 30000
