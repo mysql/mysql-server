@@ -6675,17 +6675,24 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table altered = * org;
   altered.setFragmentCount(org->getFragmentCount() + 2);
 
-  NdbDictionary::HashMap hm;
-  pDic->initDefaultHashMap(hm, altered.getFragmentCount());
-  if (pDic->getHashMap(hm, hm.getName()) == -1)
+  if (pDic->beginSchemaTrans())
   {
-    if (pDic->createHashMap(hm) != 0)
-    {
-      ndbout << "Failed to create hashmap: " << pDic->getNdbError() << endl;
-      return NDBT_FAILED;
-    }
+    ndbout << "Failed to beginSchemaTrans()" << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
   }
 
+  if (pDic->prepareHashMap(*org, altered) == -1)
+  {
+    ndbout << "Failed to create hashmap: " << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->endSchemaTrans())
+  {
+    ndbout << "Failed to endSchemaTrans()" << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
   int dump1 = DumpStateOrd::SchemaResourceSnapshot;
   int dump2 = DumpStateOrd::SchemaResourceCheckLeak;
 
@@ -6702,9 +6709,16 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
              "failed to set error insert");
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
 
-      CHECK2(pDic->alterTable(*org, altered) != 0,
+      int res = pDic->alterTable(*org, altered);
+      if (res)
+      {
+        ndbout << pDic->getNdbError() << endl;
+      }
+      CHECK2(res != 0,
              "failed to fail after error insert " << errval);
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+      CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clear error insert");
 
       const NdbDictionary::Table* check = pDic->getTable(tab.getName());
 
