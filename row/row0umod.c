@@ -312,7 +312,30 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	if (!found) {
-		/* Not found */
+		/* In crash recovery, the secondary index record may
+		be missing if the UPDATE did not have time to insert
+		the secondary index records before the crash.  When we
+		are undoing that UPDATE in crash recovery, the record
+		may be missing.  In normal processing, the record
+		SHOULD exist. */
+		trx_t*	trx = thr_get_trx(thr);
+
+		if (!trx_is_recv(trx)) {
+			fputs("InnoDB: error in sec index entry del undo in\n"
+			      "InnoDB: ", stderr);
+			dict_index_name_print(stderr, trx, index);
+			fputs("\n"
+			      "InnoDB: tuple ", stderr);
+			dtuple_print(stderr, entry);
+			fputs("\n"
+			      "InnoDB: record ", stderr);
+			rec_print(stderr, btr_pcur_get_rec(&pcur), index);
+			putc('\n', stderr);
+			trx_print(stderr, trx, 0);
+			fputs("\n"
+			      "InnoDB: Submit a detailed bug report"
+			      " to http://bugs.mysql.com\n", stderr);
+		}
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
