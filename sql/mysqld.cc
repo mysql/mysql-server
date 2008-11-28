@@ -3377,12 +3377,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_connect.value_length= strlen(opt_init_connect);
   else
     sys_init_connect.value=my_strdup("",MYF(0));
+  sys_init_connect.is_os_charset= TRUE;
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
     sys_init_slave.value_length= strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
+  sys_init_slave.is_os_charset= TRUE;
 
   /* check log options and issue warnings if needed */
   if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
