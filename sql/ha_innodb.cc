@@ -5516,6 +5516,13 @@ ha_innobase::store_lock(
 						'lock' */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	trx_t*		trx;
+
+	/* Note that trx in this function is NOT necessarily prebuilt->trx
+	because we call update_thd() later, in ::external_lock()! Failure to
+	understand this caused a serious memory corruption bug in 5.1.11. */
+
+	trx = check_trx_exists(thd);
 
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
@@ -5537,7 +5544,7 @@ ha_innobase::store_lock(
 		case may get strengthened in ::external_lock() to LOCK_X. */
 
 		if (srv_locks_unsafe_for_binlog &&
-		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
+		    trx->isolation_level != TRX_ISO_SERIALIZABLE &&
 		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
 		    thd->lex->sql_command != SQLCOM_SELECT &&
 		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
