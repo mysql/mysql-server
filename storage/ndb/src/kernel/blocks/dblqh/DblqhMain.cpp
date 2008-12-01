@@ -720,7 +720,10 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
   for (Ti = 0; Ti < chostFileSize; Ti++) {
     ThostPtr.i = Ti;
     ptrCheckGuard(ThostPtr, chostFileSize, hostRecord);
-    // wl4391_todo using own instance() does not work with mixed versions
+    /*
+     * Valid only if receiver has same number of LQH workers.
+     * In general full instance key of fragment must be used.
+     */
     ThostPtr.p->hostLqhBlockRef = calcInstanceBlockRef(DBLQH, ThostPtr.i);
     ThostPtr.p->hostTcBlockRef  = calcTcBlockRef(ThostPtr.i);
     ThostPtr.p->inPackedList = false;
@@ -1594,6 +1597,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ndbrequire(ptr.p->logPartNo == logPartNo);
 
     fragptr.p->m_log_part_ptr_i = ptr.i;
+    fragptr.p->lqhInstanceKey = lpinfo.instanceKey(logPartNo);
   }
 
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
@@ -5781,8 +5785,10 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->variableData[nextPos + 0] = sig0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
 
-  // wl4391_todo for mixed versions must recompute full instance key here
-  BlockReference lqhRef = calcInstanceBlockRef(DBLQH, regTcPtr->nextReplica);
+  // pass full instance key for remote to map to real instance
+  BlockReference lqhRef = numberToRef(DBLQH,
+                                      fragptr.p->lqhInstanceKey,
+                                      regTcPtr->nextReplica);
   
   if (likely(sendLongReq))
   {
@@ -6112,7 +6118,17 @@ void Dblqh::writeAttrinfoLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dblqh::sendTupkey(Signal* signal) 
 {
-  BlockReference lqhRef = calcInstanceBlockRef(DBLQH, tcConnectptr.p->nextReplica);
+  BlockReference lqhRef = 0;
+  {
+    // wl4391_todo fragptr
+    FragrecordPtr Tfragptr;
+    Tfragptr.i = tcConnectptr.p->fragmentptr;
+    c_fragment_pool.getPtr(Tfragptr);
+    Uint32 Tnode = tcConnectptr.p->nextReplica;
+    Uint32 instanceKey = Tfragptr.p->lqhInstanceKey;
+    lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+  }
+
   signal->theData[0] = tcConnectptr.p->tcOprec;
   signal->theData[1] = tcConnectptr.p->transid[0];
   signal->theData[2] = tcConnectptr.p->transid[1];
@@ -7286,7 +7302,12 @@ void Dblqh::execABORT(Signal* signal)
 /* ------------------------------------------------------------------------- */
 // We will immediately send the ABORT message also to the next LQH node in line.
 /* ------------------------------------------------------------------------- */
-    BlockReference TLqhRef = calcInstanceBlockRef(DBLQH, regTcPtr->nextReplica);
+    FragrecordPtr Tfragptr;
+    Tfragptr.i = regTcPtr->fragmentptr;
+    c_fragment_pool.getPtr(Tfragptr);
+    Uint32 Tnode = regTcPtr->nextReplica;
+    Uint32 instanceKey = Tfragptr.p->lqhInstanceKey;
+    BlockReference TLqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     signal->theData[0] = regTcPtr->tcOprec;
     signal->theData[1] = regTcPtr->tcBlockref;
     signal->theData[2] = regTcPtr->transid[0];
@@ -19543,7 +19564,7 @@ Dblqh::validate_filter(Signal* signal)
     default:
       infoEvent("Invalid filter op: 0x%x pos: %ld",
 		* start,
-		start - (signal->theData + 1));
+		(long int)(start - (signal->theData + 1)));
       return false;
     }
   }
