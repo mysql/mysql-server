@@ -1,0 +1,5 @@
+* shut down mysqld, removed logs, restarted it
+show engine maria logs;
+Type	Name	Status
+MARIA	Size unknown ; maria_log.00000001	can't stat
+* shut down mysqld, removed logs, restarted it
