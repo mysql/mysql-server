@@ -1,0 +1,39 @@
+MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
+        [Transactional Tables using InnoDB], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
+MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
+MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
+MYSQL_PLUGIN_ACTIONS(innobase,  [
+  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
+  AC_SUBST(innodb_system_libs)
+  AC_CHECK_HEADERS(aio.h sched.h)
+  AC_CHECK_SIZEOF(int, 4)
+  AC_CHECK_SIZEOF(long, 4)
+  AC_CHECK_SIZEOF(void*, 4)
+  AC_CHECK_FUNCS(sched_yield)
+  AC_CHECK_FUNCS(fdatasync)
+  AC_CHECK_FUNCS(localtime_r)
+  AC_C_BIGENDIAN
+  case "$target_os" in
+         lin*)
+           CFLAGS="$CFLAGS -DUNIV_LINUX";;
+         hpux10*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
+         hp*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
+         aix*)
+           CFLAGS="$CFLAGS -DUNIV_AIX";;
+         irix*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         osf*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+	 *solaris*|*SunOS*)
+           CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
+         sysv5uw7*)
+           # Problem when linking on SCO
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         openbsd*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+  esac
+  ])
+

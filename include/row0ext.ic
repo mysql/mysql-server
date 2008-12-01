@@ -1,0 +1,71 @@
+/******************************************************
+Caching of externally stored column prefixes
+
+(c) 2006 Innobase Oy
+
+Created September 2006 Marko Makela
+*******************************************************/
+
+#include "rem0types.h"
+#include "btr0types.h"
+
+/************************************************************************
+Looks up a column prefix of an externally stored column. */
+UNIV_INLINE
+const byte*
+row_ext_lookup_ith(
+/*===============*/
+					/* out: column prefix, or NULL if
+					the column is not stored externally,
+					or pointer to field_ref_zero
+					if the BLOB pointer is unset */
+	const row_ext_t*	ext,	/* in/out: column prefix cache */
+	ulint			i,	/* in: index of ext->ext[] */
+	ulint*			len)	/* out: length of prefix, in bytes,
+					at most REC_MAX_INDEX_COL_LEN */
+{
+	ut_ad(ext);
+	ut_ad(len);
+	ut_ad(i < ext->n_ext);
+
+	*len = ext->len[i];
+
+	if (UNIV_UNLIKELY(*len == 0)) {
+		/* The BLOB could not be fetched to the cache. */
+		return(field_ref_zero);
+	} else {
+		return(ext->buf + i * REC_MAX_INDEX_COL_LEN);
+	}
+}
+
+/************************************************************************
+Looks up a column prefix of an externally stored column. */
+UNIV_INLINE
+const byte*
+row_ext_lookup(
+/*===========*/
+					/* out: column prefix, or NULL if
+					the column is not stored externally,
+					or pointer to field_ref_zero
+					if the BLOB pointer is unset */
+	const row_ext_t*	ext,	/* in: column prefix cache */
+	ulint			col,	/* in: column number in the InnoDB
+					table object, as reported by
+					dict_col_get_no(); NOT relative to the
+					records in the clustered index */
+	ulint*			len)	/* out: length of prefix, in bytes,
+					at most REC_MAX_INDEX_COL_LEN */
+{
+	ulint	i;
+
+	ut_ad(ext);
+	ut_ad(len);
+
+	for (i = 0; i < ext->n_ext; i++) {
+		if (col == ext->ext[i]) {
+			return(row_ext_lookup_ith(ext, i, len));
+		}
+	}
+
+	return(NULL);
+}
