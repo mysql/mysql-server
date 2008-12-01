@@ -1070,3 +1070,15 @@ mysql-test/r/blackhole.log
 mysql-test/lib/init_db.sql
 libmysql_r/client_settings.h
 libmysqld/ha_blackhole.cc
+config.guess
+config.sub
+depcomp
+install-sh
+ltmain.sh
+missing
+mkinstalldirs
+errmsg.sys
+autom4te.cache
+mysql-test/mysql-test-run-shell
+ylwrap
+mysql-test/var
