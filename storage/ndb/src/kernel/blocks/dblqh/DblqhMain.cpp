@@ -15302,10 +15302,15 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
      *    WE NEED TO SEND THOSE SIGNALS EVEN IF WE HAVE NOT REQUESTED 
      *    ANY FRAGMENTS PARTICIPATE IN THIS PHASE.
      * --------------------------------------------------------------------- */
-    BlockNumber lqhBlockNo = numberToBlock(DBLQH, instance());
-    NodeReceiverGroup rg(lqhBlockNo, m_sr_nodes);
     signal->theData[0] = cownNodeid;
-    sendSignal(rg, GSN_EXEC_SRREQ, signal, 1, JBB);
+    if (!isNdbMtLqh()) {
+      NodeReceiverGroup rg(DBLQH, m_sr_nodes);
+      sendSignal(rg, GSN_EXEC_SRREQ, signal, 1, JBB);
+    } else {
+      const Uint32 sz = NdbNodeBitmask::Size;
+      m_sr_nodes.copyto(sz, &signal->theData[1]);
+      sendSignal(DBLQH_REF, GSN_EXEC_SRREQ, signal, 1 + sz, JBB);
+    }
     return;
   } else {
     jam();
@@ -15319,7 +15324,9 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
       
       Uint32 index = csrPhasesCompleted;
       arrGuard(index, MAX_LOG_EXEC);
-      BlockReference ref = calcInstanceBlockRef(DBLQH, fragptr.p->srLqhLognode[index]);
+      Uint32 Tnode = fragptr.p->srLqhLognode[index];
+      Uint32 instanceKey = fragptr.p->lqhInstanceKey;
+      BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
       fragptr.p->srStatus = Fragrecord::SS_STARTED;
 
       /* --------------------------------------------------------------------
@@ -15336,7 +15343,6 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
       execFragReq->lastGci = fragptr.p->srLastGci[index];
       sendSignal(ref, GSN_EXEC_FRAGREQ, signal, 
 		 ExecFragReq::SignalLength, JBB);
-
     }
     signal->theData[0] = next;
     sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
@@ -15426,6 +15432,13 @@ void Dblqh::execEXEC_FRAGREF(Signal* signal)
 /* *************** */
 void Dblqh::execEXEC_SRCONF(Signal* signal) 
 {
+  // wl4391_todo workaround until timing fixed
+  if (cnoOutstandingExecFragReq != 0) {
+    ndbout << "delay:" << V(cnoOutstandingExecFragReq) << "\n";
+    sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
+                        signal, 10, signal->getLength());
+    return;
+  }
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   arrGuard(nodeId, MAX_NDB_NODES);
@@ -16791,9 +16804,14 @@ void Dblqh::srPhase3Comp(Signal* signal)
   jamEntry();
 
   signal->theData[0] = cownNodeid;
-  BlockNumber lqhBlockNo = numberToBlock(DBLQH, instance());
-  NodeReceiverGroup rg(lqhBlockNo, m_sr_nodes);
-  sendSignal(rg, GSN_EXEC_SRCONF, signal, 1, JBB);
+  if (!isNdbMtLqh()) {
+    NodeReceiverGroup rg(DBLQH, m_sr_nodes);
+    sendSignal(rg, GSN_EXEC_SRCONF, signal, 1, JBB);
+  } else {
+    const Uint32 sz = NdbNodeBitmask::Size;
+    m_sr_nodes.copyto(sz, &signal->theData[1]);
+    sendSignal(DBLQH_REF, GSN_EXEC_SRCONF, signal, 1 + sz, JBB);
+  }
   return;
 }//Dblqh::srPhase3Comp()
 
