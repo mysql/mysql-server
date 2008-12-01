@@ -55,6 +55,9 @@ public:
     allocated on MEM_ROOT and should not require destruction.
   */
   virtual ~Time_zone() {};
+
+protected:
+  static inline void adjust_leap_second(MYSQL_TIME *t);
 };
 
 extern Time_zone * my_tz_UTC;
