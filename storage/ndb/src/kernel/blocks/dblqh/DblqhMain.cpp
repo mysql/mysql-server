@@ -15434,7 +15434,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
 {
   // wl4391_todo workaround until timing fixed
   if (cnoOutstandingExecFragReq != 0) {
-    ndbout << "delay:" << V(cnoOutstandingExecFragReq) << "\n";
+    ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
     sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
                         signal, 10, signal->getLength());
     return;
