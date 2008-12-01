@@ -279,6 +279,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
     fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
