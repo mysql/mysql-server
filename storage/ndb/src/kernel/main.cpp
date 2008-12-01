@@ -293,8 +293,10 @@ get_multithreaded_config(EmulatorData& ed)
 {
   // multithreaded is compiled in ndbd/ndbmtd for now
   globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
-  if (!globalData.isNdbMt)
+  if (!globalData.isNdbMt) {
+    ndbout << "NDBMT: non-mt" << endl;
     return 0;
+  }
 
   const ndb_mgm_configuration_iterator * p =
     ed.theConfiguration->getOwnConfigIterator();
