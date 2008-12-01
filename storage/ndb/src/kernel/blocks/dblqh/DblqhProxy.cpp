@@ -84,6 +84,10 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
 
   // GSN_SUB_GCP_COMPLETE_REP
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &DblqhProxy::execSUB_GCP_COMPLETE_REP);
+
+  // GSN_EXEC_SRREQ
+  addRecSignal(GSN_EXEC_SRREQ, &DblqhProxy::execEXEC_SRREQ);
+  addRecSignal(GSN_EXEC_SRCONF, &DblqhProxy::execEXEC_SRCONF);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -1327,6 +1331,114 @@ DblqhProxy::sendEMPTY_LCP_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_EMPTY_LCP_REQ>(ssId);
+}
+
+// GSN_EXEC_SR_1 [fictional gsn ]
+
+void
+DblqhProxy::execEXEC_SRREQ(Signal* signal)
+{
+  const BlockReference senderRef = signal->getSendersBlockRef();
+
+  if (refToInstance(senderRef) != 0) {
+    jam();
+    execEXEC_SR_2(signal, GSN_EXEC_SRREQ);
+    return;
+  }
+
+  execEXEC_SR_1(signal, GSN_EXEC_SRREQ);
+}
+
+void
+DblqhProxy::execEXEC_SRCONF(Signal* signal)
+{
+  const BlockReference senderRef = signal->getSendersBlockRef();
+
+  if (refToInstance(senderRef) != 0) {
+    jam();
+    execEXEC_SR_2(signal, GSN_EXEC_SRCONF);
+    return;
+  }
+
+  execEXEC_SR_1(signal, GSN_EXEC_SRCONF);
+}
+
+void
+DblqhProxy::execEXEC_SR_1(Signal* signal, GlobalSignalNumber gsn)
+{
+  ndbrequire(signal->getLength() == Ss_EXEC_SR_1::Sig::SignalLength);
+
+  const Ss_EXEC_SR_1::Sig* sig =
+    (const Ss_EXEC_SR_1::Sig*)signal->getDataPtr();
+  Uint32 ssId = getSsId(sig);
+  Ss_EXEC_SR_1& ss = ssSeize<Ss_EXEC_SR_1>(ssId);
+  ss.m_gsn = gsn;
+  ss.m_sig = *sig;
+
+  sendREQ(signal, ss);
+  ssRelease<Ss_EXEC_SR_1>(ss);
+}
+
+void
+DblqhProxy::sendEXEC_SR_1(Signal* signal, Uint32 ssId)
+{
+  Ss_EXEC_SR_1& ss = ssFind<Ss_EXEC_SR_1>(ssId);
+  signal->theData[0] = ss.m_sig.nodeId;
+  sendSignal(workerRef(ss.m_worker), ss.m_gsn, signal, 1, JBB);
+}
+
+// GSN_EXEC_SRREQ_2 [ fictional gsn ]
+
+void
+DblqhProxy::execEXEC_SR_2(Signal* signal, GlobalSignalNumber gsn)
+{
+  ndbrequire(signal->getLength() == Ss_EXEC_SR_2::Sig::SignalLength);
+
+  const Ss_EXEC_SR_2::Sig* sig =
+    (const Ss_EXEC_SR_2::Sig*)signal->getDataPtr();
+  Uint32 ssId = getSsId(sig);
+
+  bool found = false;
+  Ss_EXEC_SR_2& ss = ssFindSeize<Ss_EXEC_SR_2>(ssId, &found);
+  if (!found) {
+    jam();
+    setMask(ss);
+  }
+
+  ndbrequire(sig->nodeId == getOwnNodeId());
+  if (ss.m_sigcount == 0) {
+    jam();
+    ss.m_gsn = gsn;
+    ss.m_sig = *sig;
+  } else {
+    jam();
+    ndbrequire(ss.m_gsn == gsn);
+    ndbrequire(memcmp(&ss.m_sig, sig, sizeof(*sig)) == 0);
+  }
+  ss.m_sigcount++;
+
+  // reversed roles
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::sendEXEC_SR_2(Signal* signal, Uint32 ssId)
+{
+  Ss_EXEC_SR_2& ss = ssFind<Ss_EXEC_SR_2>(ssId);
+
+  if (!lastReply(ss)) {
+    jam();
+    return;
+  }
+
+  NodeBitmask nodes;
+  nodes.assign(NdbNodeBitmask::Size, ss.m_sig.sr_nodes);
+  NodeReceiverGroup rg(DBLQH, nodes);
+
+  signal->theData[0] = ss.m_sig.nodeId;
+  sendSignal(rg, ss.m_gsn, signal, 1, JBB);
+
+  ssRelease<Ss_EXEC_SR_2>(ssId);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)
