@@ -401,7 +401,11 @@ row_purge_remove_sec_if_poss_low(
 
 	switch (search_result) {
 	case ROW_NOT_FOUND:
+		/* Index entry does not exist, nothing to do. */
+		return(TRUE);
 	case ROW_FOUND:
+		/* The index entry exists and is in the buffer pool;
+		no need to use the insert/delete buffer. */
 		break;
 
 	case ROW_BUFFERED:
