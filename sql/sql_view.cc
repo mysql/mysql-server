@@ -985,7 +985,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   if (index_list) 
   {
     DBUG_ASSERT(index_list->head()); // should never fail
-    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), index_list->head()->c_ptr_safe(),
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), index_list->head()->c_ptr(),
              table->table_name);
     DBUG_RETURN(TRUE);
   }
