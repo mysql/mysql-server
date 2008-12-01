@@ -859,6 +859,11 @@ public:
      * Log part
      */
     Uint32 m_log_part_ptr_i;
+
+    /**
+     * Instance key for fast access.
+     */
+    Uint16 lqhInstanceKey;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   
