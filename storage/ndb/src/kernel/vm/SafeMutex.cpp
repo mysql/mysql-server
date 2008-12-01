@@ -15,92 +15,149 @@
 
 #include "SafeMutex.hpp"
 
-NdbOut&
-operator<<(NdbOut& out, const SafeMutex& dm)
-{
-  out << "level=" << dm.m_level << "," << "usage=" << dm.m_usage;
-  return out;
-}
-
 int
 SafeMutex::create()
 {
-  if (m_init)
-    return ErrState;
-  int ret = -1;
-#ifdef HAVE_PTHREAD_MUTEX_RECURSIVE
-#ifndef __WIN__
-  if (m_limit > 1 || m_debug) {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    ret = pthread_mutex_init(&m_mutex, &attr);
-  } else {
-    // error-check mutex does not work right on my linux, skip it
-    ret = pthread_mutex_init(&m_mutex, 0);
-  }
-#else
+  int ret;
+  if (m_initdone)
+    return err(ErrState, __LINE__);
   ret = pthread_mutex_init(&m_mutex, 0);
-#endif
-#else
-  if (m_limit > 1 || m_debug)
-    return ErrUnsupp;
-  ret = pthread_mutex_init(&m_mutex, 0);
-#endif
   if (ret != 0)
-    return ret;
-  m_init = true;
+    return err(ret, __LINE__);
+  ret = pthread_cond_init(&m_cond, 0);
+  if (ret != 0)
+    return err(ret, __LINE__);
+  m_initdone = true;
   return 0;
 }
 
 int
 SafeMutex::destroy()
 {
-  if (!m_init)
-    return ErrState;
-  int ret = pthread_mutex_destroy(&m_mutex);
+  int ret;
+  if (!m_initdone)
+    return err(ErrState, __LINE__);
+  ret = pthread_cond_destroy(&m_cond);
   if (ret != 0)
-    return ret;
-  m_init = false;
+    return err(ret, __LINE__);
+  ret = pthread_mutex_destroy(&m_mutex);
+  if (ret != 0)
+    return err(ret, __LINE__);
+  m_initdone = false;
   return 0;
 }
 
 int
 SafeMutex::lock()
 {
-  pthread_t self = pthread_self();
-  int ret = pthread_mutex_lock(&m_mutex);
-  /* have mutex */
+  int ret;
+  if (m_simple) {
+    ret = pthread_mutex_lock(&m_mutex);
+    if (ret != 0)
+      return err(ret, __LINE__);
+    return 0;
+  }
+  ret = pthread_mutex_lock(&m_mutex);
   if (ret != 0)
-    return ret;
-  if (!(m_level < m_limit))
-    return ErrLevel;
-  m_level++;
-  if (m_level > m_usage)
-    m_usage = m_level;
-  if (m_level == 1 && m_owner != 0)
-    return ErrOwner1;
-  if (m_level >= 2 && m_owner != self)
-    return ErrOwner2;
-  m_owner = self;
+    return err(ret, __LINE__);
+  return lock_impl();
+}
+
+int
+SafeMutex::lock_impl()
+{
+  int ret;
+  pthread_t self = pthread_self();
+  assert(self != 0);
+  while (1) {
+    if (m_level == 0) {
+      assert(m_owner == 0);
+      m_owner = self;
+    } else if (m_owner != self) {
+      ret = pthread_cond_wait(&m_cond, &m_mutex);
+      if (ret != 0)
+        return err(ret, __LINE__);
+      continue;
+    }
+    if (!(m_level < m_limit))
+      return err(ErrLevel, __LINE__);
+    m_level++;
+    if (m_usage < m_level)
+      m_usage = m_level;
+    ret = pthread_cond_signal(&m_cond);
+    if (ret != 0)
+      return err(ret, __LINE__);
+    ret = pthread_mutex_unlock(&m_mutex);
+    if (ret != 0)
+      return err(ret, __LINE__);
+    break;
+  }
   return 0;
 }
 
 int
 SafeMutex::unlock()
 {
-  pthread_t self = pthread_self();
-  if (!(m_level > 0))
-    return ErrState;
-  if (m_owner != self)
-    return ErrOwner3;
-  if (m_level == 1)
-    m_owner = 0;
-  m_level--;
-  int ret = pthread_mutex_unlock(&m_mutex);
-  /* lose mutex */
+  int ret;
+  if (m_simple) {
+    ret = pthread_mutex_unlock(&m_mutex);
+    if (ret != 0)
+      return err(ret, __LINE__);
+    return 0;
+  }
+  ret = pthread_mutex_lock(&m_mutex);
   if (ret != 0)
-    return ret;
+    return err(ret, __LINE__);
+  return unlock_impl();
+}
+
+int
+SafeMutex::unlock_impl()
+{
+  int ret;
+  pthread_t self = pthread_self();
+  assert(self != 0);
+  if (m_owner != self)
+    return err(ErrOwner, __LINE__);
+  if (m_level == 0)
+    return err(ErrNolock, __LINE__);
+  m_level--;
+  if (m_level == 0) {
+    m_owner = 0;
+    ret = pthread_cond_signal(&m_cond);
+    if (ret != 0)
+      return err(ret, __LINE__);
+  }
+  ret = pthread_mutex_unlock(&m_mutex);
+  if (ret != 0)
+    return err(ret, __LINE__);
   return 0;
+}
+
+int
+SafeMutex::err(int errcode, int errline)
+{
+  assert(errcode != 0);
+  m_errcode = errcode;
+  m_errline = errline;
+  ndbout << *this << endl;
+#ifdef UNIT_TEST
+  abort();
+#endif
+  return errcode;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const SafeMutex& sm)
+{
+  out << sm.m_name << ":";
+  out << " level=" << sm.m_level;
+  out << " usage=" << sm.m_usage;
+  if (sm.m_errcode != 0) {
+    out << " errcode=" << sm.m_errcode;
+    out << " errline=" << sm.m_errline;
+  }
+  return out;
 }
 
 #ifdef UNIT_TEST
@@ -144,10 +201,12 @@ sm_run(void* arg)
     }
     if (op == +1) {
       assert(level < thr.limit);
+      //ndbout << thr.index << ": lock" << endl;
       int ret = sm.lock();
       assert(ret == 0);
       level++;
     } else if (op == -1) {
+      //ndbout << thr.index << ": unlock" << endl;
       int ret = sm.unlock();
       assert(ret == 0);
       assert(level != 0);
@@ -161,6 +220,7 @@ sm_run(void* arg)
     assert(ret == 0);
     level--;
   }
+  return 0;
 }
 
 int
@@ -169,18 +229,19 @@ main(int argc, char** argv)
   const uint max_thr = 128;
   struct sm_thr thr[max_thr];
 
-  // threads - loops - max level
+  // threads - loops - max level - debug
   uint num_thr = argc > 1 ? atoi(argv[1]) : 4;
   assert(num_thr != 0 && num_thr <= max_thr);
   uint loops = argc > 2 ? atoi(argv[2]) : 1000000;
   uint limit = argc > 3 ? atoi(argv[3]) : 10;
   assert(limit != 0);
+  bool debug = argc > 4 ? atoi(argv[4]) : true;
 
   ndbout << "threads=" << num_thr;
   ndbout << " loops=" << loops;
   ndbout << " max level=" << limit << endl;
 
-  SafeMutex sm(limit, true);
+  SafeMutex sm("test-mutex", limit, debug);
   int ret;
   ret = sm.create();
   assert(ret == 0);
