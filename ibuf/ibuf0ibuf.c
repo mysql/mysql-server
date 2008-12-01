@@ -2575,7 +2575,7 @@ ibuf_get_volume_buffered_count(
 	const rec_t*	rec,	/* in: insert buffer record */
 	byte*		hash,	/* in/out: hash array */
 	ulint		size,	/* in: size of hash array, in bytes */
-	ulint*		n_recs)	/* in/out: estimated number of records
+	lint*		n_recs)	/* in/out: estimated number of records
 				on the page that rec points to */
 {
 	ulint		len;
@@ -2647,7 +2647,7 @@ ibuf_get_volume_buffered_count(
 		break;
 	case IBUF_OP_DELETE:
 		/* A record will be removed from the page. */
-		if (n_recs && *n_recs > 0) {
+		if (n_recs) {
 			(*n_recs)--;
 		}
 		/* While deleting a record actually frees up space,
@@ -2698,7 +2698,7 @@ ibuf_get_volume_buffered(
 				or BTR_MODIFY_TREE */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: page number of an index page */
-	ulint*		n_recs,	/* in/out: minimum number of records on the
+	lint*		n_recs,	/* in/out: minimum number of records on the
 				page after the buffered changes have been
 				applied, or NULL to disable the counting */
 	mtr_t*		mtr)	/* in: mtr */
@@ -3154,7 +3154,7 @@ ibuf_insert_low(
 	dtuple_t*	ibuf_entry;
 	mem_heap_t*	heap;
 	ulint		buffered;
-	ulint		min_n_recs;
+	lint		min_n_recs;
 	rec_t*		ins_rec;
 	ibool		old_bit_value;
 	page_t*		bitmap_page;
