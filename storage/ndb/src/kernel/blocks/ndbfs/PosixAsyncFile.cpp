@@ -762,50 +762,61 @@ void PosixAsyncFile::removeReq(Request *request)
 }
 
 void
-PosixAsyncFile::rmrfReq(Request *request, const char *_path, bool removePath)
+PosixAsyncFile::rmrfReq(Request *request, const char * src, bool removePath)
 {
-  char path[PATH_MAX];
-  strcpy(path, _path);
-  Uint32 path_len = strlen(path);
-  Uint32 path_max_copy = PATH_MAX - path_len;
-  char* path_add = &path[path_len];
-
-  if(!request->par.rmrf.directory){
+  if(!request->par.rmrf.directory)
+  {
     // Remove file
-    if(unlink(path) != 0 && errno != ENOENT)
+    if(unlink(src) != 0 && errno != ENOENT)
       request->error = errno;
     return;
   }
-  // Remove directory
-  DIR* dirp = opendir(path);
-  if(dirp == 0){
+
+  char path[PATH_MAX];
+  strcpy(path, src);
+  strcat(path, "/");
+
+  DIR* dirp;
+  struct dirent * dp;
+loop:
+  dirp = opendir(path);
+  if(dirp == 0)
+  {
     if(errno != ENOENT)
       request->error = errno;
     return;
   }
-  struct dirent * dp;
-  while ((dp = readdir(dirp)) != NULL){
-    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
-      BaseString::snprintf(path_add, (size_t)path_max_copy, "%s%s",
-	       DIR_SEPARATOR, dp->d_name);
-      if(remove((const char*)path) == 0){
-        path[path_len] = 0;
-	continue;
-      }
 
-      rmrfReq(request, path, true);
-      path[path_len] = 0;
-      if(request->error != 0){
-	closedir(dirp);
-	return;
+  while ((dp = readdir(dirp)) != NULL)
+  {
+    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) 
+    {
+      int len = strlen(path);
+      strcat(path, dp->d_name);
+      if (remove(path) == 0)
+      {
+        path[len] = 0;
+        continue;
       }
+      
+      closedir(dirp);
+      strcat(path, "/");
+      goto loop;
     }
   }
   closedir(dirp);
-  if(removePath && rmdir((const char *)path) != 0){
+  path[strlen(path)-1] = 0; // remove /
+  if (strcmp(src, path) != 0)
+  {
+    char * t = strrchr(path, '/');
+    t[1] = 0;
+    goto loop;
+  }
+
+  if(removePath && rmdir(src) != 0)
+  {
     request->error = errno;
   }
-  return;
 }
 
 PosixAsyncFile::~PosixAsyncFile()
