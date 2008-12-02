@@ -44,6 +44,7 @@ ssize_t bread_backwards(BREAD br, void *vbuf, size_t nbytes) {
 	if (nbytes>0) { 
 	    assert(br->bufoff==0);
 	    size_t to_read = ((u_int64_t)br->current_offset >= (u_int64_t)br->bufsize) ? br->bufsize : (size_t)br->current_offset;
+	    assert(to_read>0 && to_read<=br->bufsize);
 	    ssize_t r = pread(br->fd, br->buf, to_read, br->current_offset-to_read);
 	    assert(r==(ssize_t)to_read);
 	    br->bufoff = to_read;

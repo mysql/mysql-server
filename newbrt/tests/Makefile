@@ -63,6 +63,7 @@ REGRESSION_TESTS_RAW = \
 	omt-cursor-test \
 	omt-test \
 	shortcut \
+	test1305 \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \
@@ -97,6 +98,10 @@ check_fail:
 	$(MAYBEATSIGN)test 0 = 1 $(SUMMARIZE_CMD)
 check_ok:
 	$(MAYBEATSIGN)test 0 = 0 $(SUMMARIZE_CMD)
+
+# Don't run 1305 under valgrind.  It takes way too long.
+check_test1305:
+	./test1305
 
 check_benchmarktest_256: benchmark-test$(BINSUF)
 	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
