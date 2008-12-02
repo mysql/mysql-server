@@ -1,3 +1,7 @@
+2008-12-01	The InnoDB Team
+
+	InnoDB Plugin 1.0.2 released
+
 2008-11-26	The InnoDB Team
 
 	* row/row0merge.c (row_merge_drop_temp_indexes):
