@@ -8408,18 +8408,8 @@ flush:
       ListTablesConf * const conf = (ListTablesConf*)signal->getDataPtrSend();
       conf->senderData = senderData;
       conf->noOfTables = count;
-      if (handle.m_cnt)
-      {
-        jam();
-        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
-                   sigLen, JBB, &handle);
-      }
-      else
-      {
-        jam();
-        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
-                   sigLen, JBB);
-      }
+      sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+                 sigLen, JBB, &handle);
 
       signal->header.m_noOfSections = 0;
       signal->header.m_fragmentInfo = 0;
