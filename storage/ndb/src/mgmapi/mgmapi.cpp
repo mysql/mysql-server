@@ -238,6 +238,8 @@ ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
     DBUG_RETURN(-1);
   }
   handle->cfg_i= -1;
+  handle->cfg.bind_address_port= handle->m_bindaddress_port;
+  handle->cfg.bind_address.assign(handle->m_bindaddress ? handle->m_bindaddress : "");
   DBUG_RETURN(0);
 }
 
@@ -265,6 +267,11 @@ ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
   {
     handle->m_bindaddress = 0;
     handle->m_bindaddress_port = 0;
+  }
+  if (handle->cfg.ids.size() != 0)
+  {
+    handle->cfg.bind_address_port= handle->m_bindaddress_port;
+    handle->cfg.bind_address.assign(handle->m_bindaddress ? handle->m_bindaddress : "");
   }
   DBUG_RETURN(0);
 }
