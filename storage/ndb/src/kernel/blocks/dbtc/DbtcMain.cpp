@@ -4685,7 +4685,15 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
         linkApiToGcp(localGcpPointer, regApiPtr);
         return;
       } else {
-        ndbrequire(regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId);
+        if (unlikely(! (regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId)))
+        {
+          ndbout_c("%u/%u %u/%u",
+                   Uint32(regApiPtr.p->globalcheckpointid >> 32),
+                   Uint32(regApiPtr.p->globalcheckpointid),
+                   Uint32(localGcpPointer.p->gcpId >> 32),
+                   Uint32(localGcpPointer.p->gcpId >> 32));
+          crash_gcp(__LINE__);
+        }
         localGcpPointer.i = localGcpPointer.p->nextGcp;
         jam();
         if (localGcpPointer.i != RNIL) {
@@ -4734,6 +4742,33 @@ void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
   regGcpPtr.p->lastApiConnect = regApiPtr.i;
 }//Dbtc::linkApiToGcp()
 
+void
+Dbtc::crash_gcp(Uint32 line)
+{
+  UintR Tfirstgcp = cfirstgcp;
+  UintR TgcpFilesize = cgcpFilesize;
+  GcpRecord *localGcpRecord = gcpRecord;
+  GcpRecordPtr localGcpPointer;
+
+  localGcpPointer.i = cfirstgcp;
+
+  while (localGcpPointer.i != RNIL)
+  {
+    ptrCheckGuard(localGcpPointer, cgcpFilesize, gcpRecord);
+    ndbout_c("%u : %u/%u nomoretrans: %u api %u %u next: %u",
+             localGcpPointer.i,
+             Uint32(localGcpPointer.p->gcpId >> 32),
+             Uint32(localGcpPointer.p->gcpId),             
+             localGcpPointer.p->gcpNomoretransRec,
+             localGcpPointer.p->firstApiConnect,
+             localGcpPointer.p->lastApiConnect,
+             localGcpPointer.p->nextGcp);
+    localGcpPointer.i = localGcpPointer.p->nextGcp;
+  }
+  progError(line, NDBD_EXIT_NDBREQUIRE);
+  ndbrequire(false);
+}
+
 void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
 {
   GcpRecordPtr tmpGcpPointer;
@@ -4744,6 +4779,11 @@ void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
   GcpRecord *localGcpRecord = gcpRecord;
 
   localGcpPointer.i = cfirstfreeGcp;
+  if (unlikely(localGcpPointer.i > TgcpFilesize))
+  {
+    ndbout_c("%u/%u", Uint32(Tgci >> 32), Uint32(Tgci));
+    crash_gcp(__LINE__);
+  }
   ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
   UintR TfirstfreeGcp = localGcpPointer.p->nextGcp;
   localGcpPointer.p->gcpId = Tgci;
