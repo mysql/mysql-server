@@ -2,13 +2,6 @@
 
 	InnoDB Plugin 1.0.2 released
 
-2008-11-26	The InnoDB Team
-
-	* row/row0merge.c (row_merge_drop_temp_indexes):
-	Replace the WHILE 1 with WHILE 1=1 in the SQL procedure, so that
-	the loop will actually be entered and temporary indexes be dropped
-	during crash recovery.
-
 2008-10-31	The InnoDB Team
 
 	* dict/dict0mem.c, include/dict0mem.h, include/lock0lock.h,
