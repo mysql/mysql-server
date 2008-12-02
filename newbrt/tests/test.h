@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "toku_portability.h"
+
 int verbose=0;
 
 static inline void

@@ -10,13 +10,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <zlib.h>
+#include "toku_portability.h"
 
 
 off_t fd_size (int fd) {
-    struct stat buf;
-    int r = fstat(fd, &buf);
+    int64_t file_size;
+    int r = toku_os_get_file_size(fd, &file_size);
     assert(r==0);
-    return buf.st_size;
+    return file_size;
 }
 
 #define NSIZE (1<<20)

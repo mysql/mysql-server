@@ -18,15 +18,15 @@ grep_for_in_logs (const char *str) {
 #endif
     int fd = open(lname, O_RDONLY);
     assert(fd>=0);
-    struct stat statbuf;
-    int r = fstat(fd, &statbuf);
+    int64_t file_size;
+    int r = toku_os_get_file_size(fd, &file_size);
     assert(r==0);
-    void *addr_v = mmap(0, statbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    void *addr_v = mmap(0, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
     assert(addr_v!=MAP_FAILED);
     char *fstr = addr_v;
     int   searchlen=strlen(str);
     int i;
-    for (i=0; i+searchlen<statbuf.st_size; i++) {
+    for (i=0; i+searchlen<file_size; i++) {
 	if (memcmp(str, fstr+i, searchlen)==0) {
 	    return i;
 	}

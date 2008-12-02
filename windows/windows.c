@@ -90,6 +90,7 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     id->st_creat  |= info.ftCreationTime.dwLowDateTime;
     r = 0;
 cleanup:
+    if (r!=0) errno = r;
     return r;
 }
 

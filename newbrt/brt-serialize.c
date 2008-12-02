@@ -24,18 +24,18 @@ static inline u_int64_t alignup (u_int64_t a, u_int64_t b) {
 }
 
 static void maybe_preallocate_in_file (int fd, u_int64_t size) {
-    struct stat sbuf;
+    int64_t file_size;
     {
-	int r = fstat(fd, &sbuf);
-	assert(r==0);
+        int r = toku_os_get_file_size(fd, &file_size);
+        assert(r==0);
     }
-    assert(sbuf.st_size >= 0);
-    if ((size_t)sbuf.st_size < size) {
+    assert(file_size >= 0);
+    if ((size_t)file_size < size) {
 	const int N = umin64(size, 16<<20); // Double the size of the file, or add 16MB, whichever is less.
 	char *MALLOC_N(N, wbuf);
 	memset(wbuf, 0, N);
-	toku_off_t start_write = alignup(sbuf.st_size, 4096);
-	assert(start_write >= sbuf.st_size);
+	toku_off_t start_write = alignup(file_size, 4096);
+	assert(start_write >= file_size);
 	ssize_t r = pwrite(fd, wbuf, N, start_write);
 	assert(r==N);
 	toku_free(wbuf);

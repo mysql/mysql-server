@@ -241,8 +241,8 @@ int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int f
 
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname) {
     int r;
-    struct stat statbuf;
-    r=fstat(fd, &statbuf);
+    struct fileid fileid;
+    r=toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
         r=errno; close(fd); return r; 
     }
@@ -259,10 +259,6 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname) {
         toku_free(cf->fname);
         cf->fname = 0;
     }
-    struct fileid fileid;
-    memset(&fileid, 0, sizeof fileid);
-    fileid.st_dev = statbuf.st_dev;
-    fileid.st_ino = statbuf.st_ino;
     cachefile_init_filenum(cf, fd, fname, fileid);
     return 0;
 }
