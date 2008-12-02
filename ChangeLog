@@ -1,3 +1,10 @@
+2008-12-02	The InnoDB Team
+
+	* row/row0merge.c:
+	Replace the WHILE 1 with WHILE 1=1 in the SQL procedure, so that
+	the loop will actually be entered and temporary indexes be dropped
+	during crash recovery.
+
 2008-12-01	The InnoDB Team
 
 	InnoDB Plugin 1.0.2 released
