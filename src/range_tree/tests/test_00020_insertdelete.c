@@ -6,7 +6,7 @@ int main(int argc, const char *argv[]) {
     int r;
     toku_range_tree *tree;
     toku_range range;
-    int nums[8] = {0,1,2,3,4,5,6,7};
+    toku_point nums[8] = {{0},{1},{2},{3},{4},{5},{6},{7}};
     char letters[2] = {'A','B'};
 
 

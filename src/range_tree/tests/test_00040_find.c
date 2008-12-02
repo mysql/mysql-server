@@ -8,7 +8,7 @@ int main(int argc, const char *argv[]) {
     toku_range range;
     toku_interval find_range;
     toku_interval find_all_range;
-    int nums[1000];
+    toku_point nums[1000];
     char letters[2] = {'A','B'};
     unsigned found;
     unsigned bufsize;
@@ -19,7 +19,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     for (j = 0; j < sizeof(nums)/sizeof(nums[0]); j++) {
-        nums[j] = j;
+        nums[j].n = j;
     }
 
     find_range.left  = (toku_point*)&nums[4];

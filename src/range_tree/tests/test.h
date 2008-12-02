@@ -55,6 +55,10 @@ TXNID_cmp (const TXNID a, const TXNID b) {
     return a < b ? -1 : (a != b); /* \marginpar{!?} */
 }
 
+struct __toku_point {
+    int n;
+};
+
 static inline int
 int_cmp (const toku_point* a, const toku_point*b) {
     int x = *(int*)a;
