@@ -18,5 +18,5 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndbndbfs STATIC
              AsyncFile.cpp Ndbfs.cpp VoidFs.cpp Filename.cpp CircularIndex.cpp
-             Win32AsyncFile.cpp
+             Win32AsyncFile.cpp AsyncIoThread.cpp
 )
