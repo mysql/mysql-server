@@ -32,6 +32,7 @@ public:
   Win32AsyncFile(SimulatedBlock& fs);
   virtual ~Win32AsyncFile();
 
+  virtual int init();
   virtual bool isOpen();
   virtual void openReq(Request *request);
   virtual void closeReq(Request *request);

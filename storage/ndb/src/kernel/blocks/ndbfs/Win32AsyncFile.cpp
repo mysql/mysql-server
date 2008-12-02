@@ -37,6 +37,12 @@ Win32AsyncFile::~Win32AsyncFile()
 
 }
 
+int
+Win32AsyncFile::init()
+{
+  return 0;
+}
+
 void Win32AsyncFile::openReq(Request* request)
 {
   m_auto_sync_freq = 0;
