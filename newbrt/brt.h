@@ -117,4 +117,8 @@ void toku_brt_init(void);
 void toku_brt_destroy(void);
 void toku_pwrite_lock_init(void);
 void toku_pwrite_lock_destroy(void);
+
+void maybe_preallocate_in_file (int fd, u_int64_t size);
+// Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
+
 #endif

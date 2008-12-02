@@ -23,7 +23,10 @@ static inline u_int64_t alignup (u_int64_t a, u_int64_t b) {
     return ((a+b-1)/b)*b;
 }
 
-static void maybe_preallocate_in_file (int fd, u_int64_t size) {
+void
+maybe_preallocate_in_file (int fd, u_int64_t size)
+// Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
+{
     int64_t file_size;
     {
         int r = toku_os_get_file_size(fd, &file_size);
