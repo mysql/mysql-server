@@ -725,7 +725,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	u_int32_t checksum = x1764_finish(&w.checksum);
 	wbuf_int(&w, checksum);
 	ssize_t nwrote = toku_pwrite(fd, w.buf, size, h->block_translation_address_on_disk);
-	assert(nwrote==(ssize_t)size);
+	assert((u_int64_t)nwrote==size);
 	toku_free(w.buf);
     };
     unlock_for_pwrite();
@@ -774,7 +774,8 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
 	unsigned char *XMALLOC_N(h->block_translation_size_on_disk, tbuf);
 	{
 	    ssize_t r = pread(fd, tbuf, h->block_translation_size_on_disk, h->block_translation_address_on_disk);
-	    assert(r==(ssize_t)h->block_translation_size_on_disk);
+	    // This cast is messed up in 32-bits if the block translation table is ever more than 4GB.  But in that case, the translation table itself won't fit in main memory.
+	    assert((u_int64_t)r==h->block_translation_size_on_disk);
 	}
 	{
 	    // check the checksum
