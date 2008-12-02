@@ -82,6 +82,7 @@ public:
   sys_var(const char *name_arg, sys_after_update_func func= NULL,
           Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
     :name(name_arg), after_update(func), no_support_one_shot(1),
+    is_os_charset (FALSE),
     binlog_status(binlog_status_arg),
     m_allow_empty_value(TRUE)
   {}
