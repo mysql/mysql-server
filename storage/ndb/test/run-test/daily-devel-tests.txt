@@ -182,10 +182,6 @@ max-time: 500
 cmd: testIndex
 args: -n MixedTransaction T1 
 
-max-time: 2500
-cmd: testDict
-args: -n NF1 T1 T6 T13 
-
 #
 max-time: 1500
 cmd: testSystemRestart
