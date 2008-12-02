@@ -5109,8 +5109,9 @@ sub gdb_arguments {
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n");
+    mtr_tofile($gdb_init_file, <<EOGDB );
+set args $str
+EOGDB
   }
 
   if ( $opt_manual_gdb )

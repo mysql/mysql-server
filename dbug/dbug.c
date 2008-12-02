@@ -177,7 +177,11 @@
 static void perror();          /* Fake system/library error print routine */
 #endif
 
+#ifdef SAFEMALLOC
 IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
+#else
+#define _sanity(X,Y) (1)
+#endif
 
 /*
  *      The user may specify a list of functions to trace or
@@ -287,7 +291,7 @@ static void PushState(CODE_STATE *cs);
 	/* Free memory associated with debug state. */
 static void FreeState (CODE_STATE *cs, struct settings *state, int free_state);
         /* Test for tracing enabled */
-static int DoTrace(CODE_STATE *cs, int tracing);
+static int DoTrace(CODE_STATE *cs);
 /*
   return values of DoTrace.
   Can also be used as bitmask: ret & DO_TRACE
@@ -726,7 +730,7 @@ void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
     It's ok, because cs->framep may only affect DO_TRACE/DONT_TRACE return
     values, but we ignore them here anyway
   */
-  switch(DoTrace(cs, 1)) {
+  switch(DoTrace(cs)) {
   case ENABLE_TRACE:
     framep->level|= TRACE_ON;
     break;
@@ -1153,18 +1157,23 @@ void _db_enter_(const char *_func_, const char *_file_,
     (void) fflush(cs->stack->prof_file);
   }
 #endif
-  switch (DoTrace(cs, TRACING)) {
+  switch (DoTrace(cs)) {
   case ENABLE_TRACE:
     cs->framep->level|= TRACE_ON;
     if (!TRACING) break;
     /* fall through */
   case DO_TRACE:
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
-    DoPrefix(cs, _line_);
-    Indent(cs, cs->level);
-    (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
-    DbugFlush(cs);                       /* This does a unlock */
+    if ((cs->stack->flags & SANITY_CHECK_ON) && _sanity(_file_,_line_))
+      cs->stack->flags &= ~SANITY_CHECK_ON;
+    if (TRACING)
+    {
+      if (!cs->locked)
+        pthread_mutex_lock(&THR_LOCK_dbug);
+      DoPrefix(cs, _line_);
+      Indent(cs, cs->level);
+      (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
+      DbugFlush(cs);                       /* This does a unlock */
+    }
     break;
   case DISABLE_TRACE:
     cs->framep->level&= ~TRACE_ON;
@@ -1172,11 +1181,6 @@ void _db_enter_(const char *_func_, const char *_file_,
   case DONT_TRACE:
     break;
   }
-#ifdef SAFEMALLOC
-  if (cs->stack->flags & SANITY_CHECK_ON)
-    if (_sanity(_file_,_line_))               /* Check of safemalloc */
-      cs->stack->flags &= ~SANITY_CHECK_ON;
-#endif
   errno=save_errno;
 }
 
@@ -1218,25 +1222,24 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
   }
   else
   {
-#ifdef SAFEMALLOC
-    if (cs->stack->flags & SANITY_CHECK_ON)
-    {
-      if (_sanity(_stack_frame_->file,_line_))
-        cs->stack->flags &= ~SANITY_CHECK_ON;
-    }
-#endif
 #ifndef THREAD
     if (DoProfile(cs))
       (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
 #endif
-    if (TRACING && DoTrace(cs, 1) & DO_TRACE)
+    if (DoTrace(cs) & DO_TRACE)
     {
-      if (!cs->locked)
-        pthread_mutex_lock(&THR_LOCK_dbug);
-      DoPrefix(cs, _line_);
-      Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
-      DbugFlush(cs);
+      if ((cs->stack->flags & SANITY_CHECK_ON) &&
+          _sanity(_stack_frame_->file,_line_))
+        cs->stack->flags &= ~SANITY_CHECK_ON;
+      if (TRACING)
+      {
+        if (!cs->locked)
+          pthread_mutex_lock(&THR_LOCK_dbug);
+        DoPrefix(cs, _line_);
+        Indent(cs, cs->level);
+        (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+        DbugFlush(cs);
+      }
     }
   }
   /*
@@ -1694,28 +1697,24 @@ void _db_end_()
  *
  *      DoTrace    check to see if tracing is current enabled
  *
- *       tracing    is the value of TRACING to check if the tracing is enabled
- *                  or 1 to check if the function is enabled (in _db_keyword_)
- *
  *  DESCRIPTION
  *
- *      Checks to see if tracing is enabled based on whether the
- *      user has specified tracing, the maximum trace depth has
- *      not yet been reached, the current function is selected,
- *      and the current process is selected.
+ *      Checks to see if dbug in this function is enabled based on
+ *      whether the maximum trace depth has been reached, the current
+ *      function is selected, and the current process is selected.
  *
  */
 
-static int DoTrace(CODE_STATE *cs, int tracing)
+static int DoTrace(CODE_STATE *cs)
 {
   if ((cs->stack->maxdepth == 0 || cs->level <= cs->stack->maxdepth) &&
       InList(cs->stack->processes, cs->process) & (MATCHED|INCLUDE))
     switch(InList(cs->stack->functions, cs->func)) {
     case INCLUDE|SUBDIR:  return ENABLE_TRACE;
-    case INCLUDE:         return tracing ? DO_TRACE : DONT_TRACE;
+    case INCLUDE:         return DO_TRACE;
     case MATCHED|SUBDIR:
     case NOT_MATCHED|SUBDIR:
-    case MATCHED:         return tracing && framep_trace_flag(cs, cs->framep) ?
+    case MATCHED:         return framep_trace_flag(cs, cs->framep) ?
                                            DO_TRACE : DONT_TRACE;
     case EXCLUDE:
     case NOT_MATCHED:     return DONT_TRACE;
@@ -1786,7 +1785,7 @@ BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
   get_code_state_if_not_set_or_return FALSE;
   strict=strict ? INCLUDE : INCLUDE|MATCHED;
 
-  return DEBUGGING && DoTrace(cs, 1) & DO_TRACE &&
+  return DEBUGGING && DoTrace(cs) & DO_TRACE &&
          InList(cs->stack->keywords, keyword) & strict;
 }
 

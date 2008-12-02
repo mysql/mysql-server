@@ -809,7 +809,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         if (!(share->state_history= (MARIA_STATE_HISTORY *)
               my_malloc(sizeof(*share->state_history), MYF(MY_WME))))
           goto err;
-        share->state_history->trid= 0;          /* Visibly by all */
+        share->state_history->trid= 0;          /* Visible by all */
         share->state_history->state= share->state.state;
         share->state_history->next= 0;
       }

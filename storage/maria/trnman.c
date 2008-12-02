@@ -455,6 +455,7 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
   trnman_active_transactions--;
 
   pthread_mutex_unlock(&LOCK_trn_list);
+  DBUG_ASSERT(trn->short_id);
 
   /* the rest is done outside of a critical section */
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
