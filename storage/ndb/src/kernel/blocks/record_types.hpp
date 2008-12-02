@@ -45,6 +45,11 @@
 #define RG_JOBBUFFER            4
 
 /**
+ * File-thread buffers
+ */
+#define RG_FILE_BUFFERS         5
+
+/**
  * 
  */
 #define RG_RESERVED             0
@@ -69,5 +74,7 @@
 #define RT_DBTUP_PAGE_MAP          MAKE_TID( 2, RG_DATAMEM)
 
 #define RT_JOB_BUFFER              MAKE_TID( 1, RG_JOBBUFFER)
+
+#define RT_FILE_BUFFER             MAKE_TID( 1, RG_FILE_BUFFERS)
 
 #endif
