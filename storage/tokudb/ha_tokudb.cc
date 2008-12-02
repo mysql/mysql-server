@@ -782,13 +782,16 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     if (!(rec_buff = (uchar *) my_malloc((alloced_rec_buff_length = table_share->rec_buff_length), MYF(MY_WME)))) {
         my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
         my_free(alloc_ptr, MYF(0));
+        alloc_ptr = NULL;
         TOKUDB_DBUG_RETURN(1);
     }
 
     /* Init shared structure */
     if (!(share = get_share(name, table))) {
         my_free((char *) rec_buff, MYF(0));
+        rec_buff = NULL;
         my_free(alloc_ptr, MYF(0));
+        alloc_ptr = NULL;
         my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
         TOKUDB_DBUG_RETURN(1);
     }
@@ -803,7 +806,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         if (!primary_key_offsets) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
+            rec_buff = NULL;
             my_free(alloc_ptr, MYF(0));
+            alloc_ptr = NULL;
             my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
             TOKUDB_DBUG_RETURN(1);
         }
@@ -835,8 +840,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         if ((error = db_create(&share->file, db_env, 0))) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
+            rec_buff = NULL;
             my_free(alloc_ptr, MYF(0));
-            if (primary_key_offsets) my_free(primary_key_offsets, MYF(0));
+            alloc_ptr = NULL;
+            if (primary_key_offsets) {
+                my_free(primary_key_offsets, MYF(0));
+                primary_key_offsets = NULL;
+            }
             my_errno = error;
             my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
             TOKUDB_DBUG_RETURN(1);
@@ -854,8 +864,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             if ((error = tokutrace_db_get_cmp_byte_stream(share->file, &cmp_byte_stream))) {
                 free_share(share, table, hidden_primary_key, 1);
                 my_free((char *) rec_buff, MYF(0));
+                rec_buff = NULL;
                 my_free(alloc_ptr, MYF(0));
-                if (primary_key_offsets) my_free(primary_key_offsets, MYF(0));
+                alloc_ptr = NULL;
+                if (primary_key_offsets) {
+                    my_free(primary_key_offsets, MYF(0));
+                    primary_key_offsets = NULL;
+                }
                 my_errno = error;
                 my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
                 TOKUDB_DBUG_RETURN(1);
@@ -871,8 +886,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         if ((error = share->file->open(share->file, 0, name_buff, NULL, DB_BTREE, open_flags, 0))) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
+            rec_buff = NULL;
             my_free(alloc_ptr, MYF(0));
-            if (primary_key_offsets) my_free(primary_key_offsets, MYF(0));
+            alloc_ptr = NULL;
+            if (primary_key_offsets) {
+                my_free(primary_key_offsets, MYF(0));
+                primary_key_offsets = NULL;
+            }
             my_errno = error;
             my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
             TOKUDB_DBUG_RETURN(1);
@@ -1135,6 +1155,9 @@ int ha_tokudb::__close(int mutex_is_locked) {
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     my_free(primary_key_offsets, MYF(MY_ALLOW_ZERO_PTR));
+    rec_buff = NULL;
+    alloc_ptr = NULL;
+    primary_key_offsets = NULL;
     ha_tokudb::reset();         // current_row buffer
     TOKUDB_DBUG_RETURN(free_share(share, table, hidden_primary_key, mutex_is_locked));
 }
