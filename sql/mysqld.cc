@@ -352,7 +352,7 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
-static ulong killed_threads, thread_created;
+static ulong thread_created;
 static ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
@@ -648,7 +648,6 @@ struct my_rnd_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
 static pthread_t select_thread;
-static uint thr_kill_signal;
 #endif
 
 /* OS specific variables */
@@ -1766,17 +1765,12 @@ void close_connection(THD *thd, uint errcode, bool lock)
 #endif /* EMBEDDED_LIBRARY */
 
 
-/** Called when a thread is aborted. */
+/** Called when mysqld is aborted with ^C */
 /* ARGSUSED */
-extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
+extern "C" sig_handler end_mysqld_signal(int sig __attribute__((unused)))
 {
-  THD *thd=current_thd;
-  DBUG_ENTER("end_thread_signal");
-  if (thd && ! thd->bootstrap)
-  {
-    statistic_increment(killed_threads, &LOCK_status);
-    thread_scheduler.end_thread(thd,0);		/* purecov: inspected */
-  }
+  DBUG_ENTER("end_mysqld_signal");
+  kill(0, SIGTERM);                             // Take down mysqld nicely 
   DBUG_VOID_RETURN;				/* purecov: deadcode */
 }
 
@@ -1884,6 +1878,8 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 {
   DBUG_ENTER("one_thread_per_connection_end");
   unlink_thd(thd);
+  /* Mark that current_thd is not valid anymore */
+  my_pthread_setspecific_ptr(THR_THD,  0);
   if (put_in_cache)
     put_in_cache= cache_thread();
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2594,11 +2590,9 @@ static void init_signals(void)
     sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
-    // May be SIGINT
-    sigdelset(&set, thr_kill_signal);
+    /* Allow SIGINT to break mysqld. This is for debugging with --gdb */
+    my_sigset(SIGINT, end_mysqld_signal);
     sigdelset(&set, SIGINT);
-    my_sigset(thr_kill_signal, end_thread_signal);
-    my_sigset(SIGINT, end_thread_signal);
   }
   else
     sigaddset(&set,SIGINT);
@@ -2664,10 +2658,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(thread_scheduler.max_threads +
 		 global_system_variables.max_insert_delayed_threads + 10);
-  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
+  if (test_flags & TEST_SIGINT)
   {
-    (void) sigemptyset(&set);			// Setup up SIGINT for debug
-    (void) sigaddset(&set,SIGINT);		// For debugging
+    /* Allow SIGINT to break mysqld. This is for debugging with --gdb */
+    (void) sigemptyset(&set);
+    (void) sigaddset(&set,SIGINT);
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
@@ -4181,13 +4176,6 @@ int main(int argc, char **argv)
 {
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* nothing should come before this line ^^^ */
-
-  /* Set signal used to kill MySQL */
-#if defined(SIGUSR2)
-  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
-#else
-  thr_kill_signal= SIGINT;
-#endif
 
   /*
     Perform basic logger initialization logger. Should be called after
