@@ -14228,7 +14228,7 @@ void Dblqh::openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr)
   signal->theData[3] = olfLogFilePtr.p->fileName[1];
   signal->theData[4] = olfLogFilePtr.p->fileName[2];
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE | FsOpenReq::OM_WRITE_BUFFER;
   if (c_o_direct)
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
@@ -14254,7 +14254,7 @@ void Dblqh::openLogfileInit(Signal* signal)
   signal->theData[3] = logFilePtr.p->fileName[1];
   signal->theData[4] = logFilePtr.p->fileName[2];
   signal->theData[5] = logFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_WRITE_BUFFER;
   if (c_o_direct)
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
 
@@ -14358,7 +14358,7 @@ void Dblqh::openNextLogfile(Signal* signal)
     signal->theData[3] = onlLogFilePtr.p->fileName[1];
     signal->theData[4] = onlLogFilePtr.p->fileName[2];
     signal->theData[5] = onlLogFilePtr.p->fileName[3];
-    signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+    signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE | FsOpenReq::OM_WRITE_BUFFER;
     if (c_o_direct)
       signal->theData[6] |= FsOpenReq::OM_DIRECT;
     req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);

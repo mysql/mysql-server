@@ -171,7 +171,7 @@ void Win32AsyncFile::openReq(Request* request)
                           );
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
-	  DWORD dwWritten;
+      DWORD dwWritten;
       while(size > 0){
 	BOOL bWrite= WriteFile(hFile, buf, size, &dwWritten, 0);
 	if(!bWrite || dwWritten!=size)
@@ -205,7 +205,8 @@ void Win32AsyncFile::openReq(Request* request)
 }
 
 int
-Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
+Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset)
+{
   req->par.readWrite.pages[0].size = 0;
 
   while (size > 0) {
@@ -259,9 +260,9 @@ Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
 }
 
 int
-Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
-		       size_t chunk_size)
+Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset)
 {
+  size_t chunk_size = 256 * 1024;
   size_t bytes_to_write = chunk_size;
 
   m_write_wo_sync += size;
@@ -365,7 +366,9 @@ Win32AsyncFile::removeReq(Request * request)
 }
 
 void
-Win32AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
+Win32AsyncFile::rmrfReq(Request * request, const char * _path, bool removePath){
+  char path[PATH_MAX];
+  strcpy(path, _path);
   Uint32 path_len = strlen(path);
   Uint32 path_max_copy = PATH_MAX - path_len;
   char* path_add = &path[path_len];
