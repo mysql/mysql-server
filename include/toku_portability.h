@@ -71,7 +71,11 @@ extern "C" {
 
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED_FSTAT)
+#   if defined(__ICL) //Windows Intel Compiler
+#       pragma deprecated (fstat)
+#   else
 int fstat() __attribute__((__deprecated__));
+#   endif
 #endif
 
 #if defined __cplusplus
