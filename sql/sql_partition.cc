@@ -4228,9 +4228,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           after the change as before. Thus we can reply ok immediately
           without any changes at all.
         */
-        DBUG_RETURN(fast_end_partition(thd, ULL(0), ULL(0),
-                                       table, NULL,
-                                       TRUE, NULL, FALSE));
+        *fast_alter_partition= TRUE;
+        DBUG_RETURN(FALSE);
       }
       else if (new_part_no > curr_part_no)
       {
