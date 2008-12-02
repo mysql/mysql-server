@@ -239,13 +239,13 @@ int my_sigwait(const sigset_t *set,int *sig);
 
 #ifdef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT
 #ifndef SAFE_MUTEX
-#define pthread_mutex_init(a,b) my_pthread_mutex_init((a),(b))
-extern int my_pthread_mutex_init(pthread_mutex_t *mp,
-				 const pthread_mutexattr_t *attr);
+#define pthread_mutex_init(a,b) my_pthread_mutex_noposix_init((a),(b))
+extern int my_pthread_mutex_noposix_init(pthread_mutex_t *mp,
+                                         const pthread_mutexattr_t *attr);
 #endif /* SAFE_MUTEX */
-#define pthread_cond_init(a,b) my_pthread_cond_init((a),(b))
-extern int my_pthread_cond_init(pthread_cond_t *mp,
-				const pthread_condattr_t *attr);
+#define pthread_cond_init(a,b) my_pthread_cond_noposix_init((a),(b))
+extern int my_pthread_cond_noposix_init(pthread_cond_t *mp,
+                                        const pthread_condattr_t *attr);
 #endif /* HAVE_NONPOSIX_PTHREAD_MUTEX_INIT */
 
 #if defined(HAVE_SIGTHREADMASK) && !defined(HAVE_PTHREAD_SIGMASK)
@@ -449,17 +449,32 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #if defined(__NETWARE__) && !defined(SAFE_MUTEX_DETECT_DESTROY)
 #define SAFE_MUTEX_DETECT_DESTROY
 #endif
+struct st_hash;
 
 typedef struct st_safe_mutex_t
 {
   pthread_mutex_t global,mutex;
   const char *file, *name;
   uint line,count;
+  myf create_flags, active_flags;
+  ulong id;
   pthread_t thread;
+  struct st_hash *locked_mutex, *used_mutex;
+  struct st_safe_mutex_t *prev, *next;
 #ifdef SAFE_MUTEX_DETECT_DESTROY
   struct st_safe_mutex_info_t *info;	/* to track destroying of mutexes */
 #endif
 } safe_mutex_t;
+
+typedef struct st_safe_mutex_deadlock_t
+{
+  const char *file, *name;
+  safe_mutex_t *mutex;
+  uint line;
+  ulong count;
+  ulong id;
+  my_bool warning_only;
+} safe_mutex_deadlock_t;
 
 #ifdef SAFE_MUTEX_DETECT_DESTROY
 /*
@@ -478,8 +493,10 @@ typedef struct st_safe_mutex_info_t
 #endif /* SAFE_MUTEX_DETECT_DESTROY */
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
-                    const char *file, uint line, const char *name);
-int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line);
+                    const char *name, myf my_flags,
+                    const char *file, uint line);
+int safe_mutex_lock(safe_mutex_t *mp, myf my_flags, const char *file,
+                    uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
 int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
@@ -488,8 +505,12 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 			struct timespec *abstime, const char *file, uint line);
 void safe_mutex_global_init(void);
 void safe_mutex_end(FILE *file);
+void safe_mutex_free_deadlock_data(safe_mutex_t *mp);
 
 	/* Wrappers if safe mutex is actually used */
+#define MYF_TRY_LOCK              1
+#define MYF_NO_DEADLOCK_DETECTION 2
+
 #ifdef SAFE_MUTEX
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
@@ -501,13 +522,15 @@ void safe_mutex_end(FILE *file);
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
-#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__,#A)
-#define pthread_mutex_lock(A) safe_mutex_lock((A), FALSE, __FILE__, __LINE__)
+#define my_pthread_mutex_init(A,B,C,D) safe_mutex_init((A),(B),(C),(D),__FILE__,__LINE__)
+#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),#A,0,__FILE__,__LINE__)
+#define pthread_mutex_lock(A) safe_mutex_lock((A), 0, __FILE__, __LINE__)
+#define my_pthread_mutex_lock(A,B) safe_mutex_lock((A), (B), __FILE__, __LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
 #define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
-#define pthread_mutex_trylock(A) safe_mutex_lock((A), TRUE, __FILE__, __LINE__)
+#define pthread_mutex_trylock(A) safe_mutex_lock((A), MYF_TRY_LOCK, __FILE__, __LINE__)
 #define pthread_mutex_t safe_mutex_t
 #define safe_mutex_assert_owner(mp) \
           DBUG_ASSERT((mp)->count > 0 && \
@@ -516,8 +539,11 @@ void safe_mutex_end(FILE *file);
           DBUG_ASSERT(! (mp)->count || \
                       ! pthread_equal(pthread_self(), (mp)->thread))
 #else
+#define my_pthread_mutex_init(A,B,C,D) pthread_mutex_init((A),(B))
+#define my_pthread_mutex_lock(A,B) pthread_mutex_lock(A)
 #define safe_mutex_assert_owner(mp)
 #define safe_mutex_assert_not_owner(mp)
+#define safe_mutex_free_deadlock_data(mp)
 #endif /* SAFE_MUTEX */
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
@@ -685,6 +711,7 @@ struct st_my_thread_var
   void *opt_info;
   uint  lock_type; /* used by conditional release the queue */
   void  *stack_ends_here;
+  safe_mutex_t *mutex_in_use;
 #ifndef DBUG_OFF
   void *dbug;
   char name[THREAD_NAME_SIZE+1];
@@ -693,7 +720,9 @@ struct st_my_thread_var
 
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 extern void **my_thread_var_dbug();
+extern safe_mutex_t **my_thread_var_mutex_in_use();
 extern uint my_thread_end_wait_time;
+extern my_bool safe_mutex_deadlock_detector;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
 /*

@@ -757,6 +757,7 @@ static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
                                    const char *option);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
+static void register_mutex_order();
 
 #ifndef EMBEDDED_LIBRARY
 static void usage(void);
@@ -902,9 +903,19 @@ static void close_connections(void)
       pthread_mutex_lock(&tmp->mysys_var->mutex);
       if (tmp->mysys_var->current_cond)
       {
-	pthread_mutex_lock(tmp->mysys_var->current_mutex);
-	pthread_cond_broadcast(tmp->mysys_var->current_cond);
-	pthread_mutex_unlock(tmp->mysys_var->current_mutex);
+        uint i;
+        for (i=0; i < 2; i++)
+        {
+          int ret= pthread_mutex_trylock(tmp->mysys_var->current_mutex);
+          pthread_cond_broadcast(tmp->mysys_var->current_cond);
+          if (!ret)
+          {
+            /* Thread has surely got the signal, unlock and abort */
+            pthread_mutex_unlock(tmp->mysys_var->current_mutex);
+            break;
+          }
+          sleep(1);
+        }
       }
       pthread_mutex_unlock(&tmp->mysys_var->mutex);
     }
@@ -1244,6 +1255,7 @@ void clean_up(bool print_message)
   wt_end();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
+  sp_cache_end();
   free_status_vars();
   end_thr_alarm(1);			/* Free allocated memory */
   my_free_open_file_info();
@@ -1336,6 +1348,7 @@ static void wait_for_signal_thread_to_end()
 
 static void clean_up_mutexes()
 {
+  DBUG_ENTER("clean_up_mutexes");
   (void) pthread_mutex_destroy(&LOCK_mysql_create_db);
   (void) pthread_mutex_destroy(&LOCK_lock_db);
   (void) pthread_mutex_destroy(&LOCK_Acl);
@@ -1367,6 +1380,8 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
   (void) pthread_cond_destroy(&COND_rpl_status);
 #endif
+  (void) pthread_mutex_destroy(&LOCK_server_started);
+  (void) pthread_cond_destroy(&COND_server_started);
   (void) pthread_mutex_destroy(&LOCK_active_mi);
   (void) rwlock_destroy(&LOCK_sys_init_connect);
   (void) rwlock_destroy(&LOCK_sys_init_slave);
@@ -1381,9 +1396,33 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
   (void) pthread_cond_destroy(&COND_manager);
+  DBUG_VOID_RETURN;
 }
 
 #endif /*EMBEDDED_LIBRARY*/
+
+
+/**
+   Register order of mutex for wrong mutex deadlock detector
+
+   By aquiring all mutex in order here, the mutex order detector in
+   mysys/thr_mutex.c, will give a warning on first wrong mutex usage!
+*/
+
+static void register_mutex_order()
+{
+#ifdef SAFE_MUTEX
+  /*
+    We must have LOCK_open before LOCK_global_system_variables because
+    LOCK_open is hold while sql_plugin.c::intern_sys_var_ptr() is called.
+  */
+  pthread_mutex_lock(&LOCK_open);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(&LOCK_open);
+#endif
+}
 
 
 /****************************************************************************
@@ -3549,6 +3588,7 @@ static int init_thread_environment()
     sql_print_error("Can't create thread-keys");
     return 1;
   }
+  register_mutex_order();
   return 0;
 }
 
@@ -5464,7 +5504,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
-  OPT_SKIP_SAFEMALLOC,
+  OPT_SKIP_SAFEMALLOC, OPT_MUTEX_DEADLOCK_DETECTOR,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -6002,6 +6042,13 @@ master-ssl",
 #endif /* HAVE_REPLICATION */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory.", (uchar**) &locked_in_memory,
    (uchar**) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef SAFE_MUTEX
+  {"mutex-deadlock-detector", OPT_MUTEX_DEADLOCK_DETECTOR,
+   "Enable checking of wrong mutex usage.",
+   (uchar**) &safe_mutex_deadlock_detector,
+   (uchar**) &safe_mutex_deadlock_detector,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (uchar**) &myisam_recover_options_str, (uchar**) &myisam_recover_options_str, 0,

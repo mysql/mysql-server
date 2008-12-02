@@ -32,6 +32,7 @@ extern "C" {
 
 typedef uchar *(*hash_get_key)(const uchar *,size_t*,my_bool);
 typedef void (*hash_free_key)(void *);
+typedef my_bool (*hash_walk_action)(void *,void *);
 
 typedef struct st_hash {
   size_t key_offset,key_length;		/* Length of key if const length */
@@ -66,6 +67,7 @@ my_bool hash_delete(HASH *hash,uchar *record);
 my_bool hash_update(HASH *hash,uchar *record,uchar *old_key,size_t old_key_length);
 void hash_replace(HASH *hash, HASH_SEARCH_STATE *state, uchar *new_row);
 my_bool hash_check(HASH *hash);			/* Only in debug library */
+my_bool hash_iterate(HASH *hash, hash_walk_action action, void *argument);
 
 #define hash_clear(H) bzero((char*) (H),sizeof(*(H)))
 #define hash_inited(H) ((H)->array.buffer != 0)

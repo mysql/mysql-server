@@ -94,7 +94,12 @@ Event_queue::Event_queue()
    mutex_queue_data_attempting_lock(FALSE),
    waiting_on_cond(FALSE)
 {
-  pthread_mutex_init(&LOCK_event_queue, MY_MUTEX_INIT_FAST);
+  /*
+    Inconsisent usage between LOCK_event_queue and LOCK_scheduler_state and
+    LOCK_open
+  */
+  my_pthread_mutex_init(&LOCK_event_queue, MY_MUTEX_INIT_FAST,
+                        "LOCK_event_queue", MYF_NO_DEADLOCK_DETECTION);
   pthread_cond_init(&COND_queue_state, NULL);
 }
 

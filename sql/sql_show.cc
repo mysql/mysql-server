@@ -2102,7 +2102,6 @@ static bool show_status_array(THD *thd, const char *wild,
         const char *pos, *end;                  // We assign a lot of const's
 
         pthread_mutex_lock(&LOCK_global_system_variables);
-
         if (show_type == SHOW_SYS)
         {
           show_type= ((sys_var*) value)->show_type();
@@ -2183,13 +2182,13 @@ static bool show_status_array(THD *thd, const char *wild,
           DBUG_ASSERT(0);
           break;
         }
+        pthread_mutex_unlock(&LOCK_global_system_variables);
+
         restore_record(table, s->default_values);
         table->field[0]->store(name_buffer, strlen(name_buffer),
                                system_charset_info);
         table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
         table->field[1]->set_notnull();
-
-        pthread_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(TRUE);

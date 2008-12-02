@@ -304,7 +304,13 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 }
 
 
-	/* Write a hash-key to the hash-index */
+/**
+   Write a hash-key to the hash-index
+
+   @return
+   @retval  0  ok
+   @retval  1  Duplicate key or out of memory
+*/
 
 my_bool my_hash_insert(HASH *info,const uchar *record)
 {
@@ -443,11 +449,21 @@ my_bool my_hash_insert(HASH *info,const uchar *record)
 }
 
 
-/******************************************************************************
-** Remove one record from hash-table. The record with the same record
-** ptr is removed.
-** if there is a free-function it's called for record if found
-******************************************************************************/
+/**
+   Remove one record from hash-table.
+
+   @fn    hash_delete()
+   @param hash		Hash tree
+   @param record	Row to be deleted
+
+   @notes
+   The record with the same record ptr is removed.
+   If there is a free-function it's called if record was found.
+
+   @return
+   @retval  0  ok
+   @retval  1 Record not found
+*/
 
 my_bool hash_delete(HASH *hash,uchar *record)
 {
@@ -653,6 +669,37 @@ void hash_replace(HASH *hash, HASH_SEARCH_STATE *current_record, uchar *new_row)
 {
   if (*current_record != NO_RECORD)            /* Safety */
     dynamic_element(&hash->array, *current_record, HASH_LINK*)->data= new_row;
+}
+
+
+/**
+   Iterate over all elements in hash and call function with the element
+
+   @param hash     hash array
+   @param action   function to call for each argument
+   @param argument second argument for call to action
+
+   @notes
+   If one of functions calls returns 1 then the iteration aborts
+
+   @retval 0  ok
+   @retval 1  iteration aborted becasue action returned 1
+*/
+
+my_bool hash_iterate(HASH *hash, hash_walk_action action, void *argument)
+{
+  uint records, i;
+  HASH_LINK *data;
+
+  records= hash->records;
+  data= dynamic_element(&hash->array,0,HASH_LINK*);
+
+  for (i= 0 ; i < records ; i++)
+  {
+    if ((*action)(data[i].data, argument))
+      return 1;
+  }
+  return 0;
 }
 
 
