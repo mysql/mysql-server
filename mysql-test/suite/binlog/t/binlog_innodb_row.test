@@ -1,0 +1,26 @@
+#
+# Tests of innodb/binlog with the row binlog format
+# 
+source include/have_innodb.inc;
+source include/have_log_bin.inc;
+source include/have_binlog_format_row.inc;
+
+#
+# Bug #40221 Replication failure on RBR + UPDATE the primary key
+#
+
+CREATE TABLE t1 (pk int auto_increment primary key) ENGINE=innodb;
+show create table t1;
+reset master;
+
+begin;
+insert into t1 values (1),(2);
+--echo *** the following UPDATE query wont generate any updates for the binlog ***
+--error ER_DUP_ENTRY
+update t1 set pk = 3 where pk < 3;
+commit;
+
+--echo *** Results of the test: the binlog must have only Write_rows events not any Update_rows ***
+source include/show_binlog_events.inc;
+
+drop table t1;
