@@ -264,7 +264,7 @@ int main (int argc, const char *argv[]) {
 #endif
 #if defined __linux__ && __linux__
     char fname[256];
-    sprintf(fname, "/proc/%d/status", getpid());
+    sprintf(fname, "/proc/%d/status", toku_os_getpid());
     FILE *f = fopen(fname, "r");
     if (f) {
         char line[256];
