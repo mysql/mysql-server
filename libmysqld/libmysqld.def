@@ -17,7 +17,7 @@ EXPORTS
 	dynstr_append_mem
 	init_dynamic_string
 	dynstr_free
-	hash_free
+	my_hash_free
 	my_vsnprintf
 	dynstr_append
 	my_close
@@ -31,7 +31,7 @@ EXPORTS
 	fn_format
 	dirname_part
 	my_hash_insert
-	hash_search
+	my_hash_search
 	test_if_hard_path
 	my_copy
 	my_mkdir
@@ -54,7 +54,7 @@ EXPORTS
 	my_thread_stack_size
 	my_safe_print_str
 	my_stat
-	_hash_init
+	_my_hash_init
 	pthread_attr_setstacksize
 	pthread_attr_init
 	my_dirend
