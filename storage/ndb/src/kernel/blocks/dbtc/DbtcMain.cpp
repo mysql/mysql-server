@@ -5140,7 +5140,6 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
   UintR TgcpPointer = regApiPtr.p->gcpPointer;
   UintR TgcpFilesize = cgcpFilesize;
-  UintR TcommitAckMarker = regApiPtr.p->commitAckMarker;
   NdbNodeBitmask Tnodes = regApiPtr.p->m_transaction_nodes;
   GcpRecord *localGcpRecord = gcpRecord;
 
@@ -5151,7 +5150,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   copyPtr.p->transid[0] = Ttransid1;
   copyPtr.p->transid[1] = Ttransid2;
   copyPtr.p->lqhkeyconfrec = Tlqhkeyconfrec;
-  copyPtr.p->commitAckMarker = TcommitAckMarker;
+  copyPtr.p->commitAckMarker = RNIL;
   copyPtr.p->m_transaction_nodes = Tnodes;
   copyPtr.p->singleUserMode = 0;
 
@@ -5514,6 +5513,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
   regApiPtr->nextApiConnect = TfirstfreeApiConnectCopyOld;
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   regApiPtr->apiConnectstate = CS_RESTART;
+  ndbrequire(regApiPtr->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConCopy()
 
 /* ========================================================================= */
@@ -7902,6 +7902,10 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   if (signal->getSendersBlockRef() != reference())
   {
     jam();
+
+    tcNodeFailptr.i = 0;
+    ptrAss(tcNodeFailptr, tcFailRecord);
+
     /**
      * Node should be in queue
      */
@@ -8341,7 +8345,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
 }//Dbtc::completeTransAtTakeOverDoOne()
 
 void 
-Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
+Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
@@ -8363,6 +8367,14 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
     {
       routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
     }
+  }
+
+  const Uint32 marker = regApiPtr->commitAckMarker;
+  if(marker != RNIL)
+  {
+    jam();
+    m_commitAckMarkerHash.release(marker);
+    regApiPtr->commitAckMarker = RNIL;
   }
 }
 
@@ -8592,12 +8604,6 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
         if (apiConnectptr.p->takeOverRec != (Uint8)Z8NIL) {
           jam();
 	  sendTCKEY_FAILREF(signal, apiConnectptr.p);
-	  const Uint32 marker = apiConnectptr.p->commitAckMarker;
-          if(marker != RNIL){
-	    jam();
-            m_commitAckMarkerHash.release(marker);
-            apiConnectptr.p->commitAckMarker = RNIL;
-          }
           
 	  /*------------------------------------------------------------*/
 	  /*       WE HAVE COMPLETED THIS TRANSACTION NOW AND CAN       */
@@ -11645,6 +11651,7 @@ void Dbtc::releaseApiConnectFail(Signal* signal)
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   apiConnectptr.p->nextApiConnect = cfirstfreeApiConnectFail;
   cfirstfreeApiConnectFail = apiConnectptr.i;
+  ndbrequire(apiConnectptr.p->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConnectFail()
 
 void Dbtc::releaseKeys() 
