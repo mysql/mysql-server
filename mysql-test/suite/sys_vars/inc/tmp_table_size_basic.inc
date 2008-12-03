@@ -18,8 +18,8 @@
 #              * Scope & Access method                                        #
 #              * Data Integrity                                               #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html#option_mysqld_tmp_table_size                  #
+# Reference:                                                                  #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
 #                                                                             #
 ###############################################################################
 
@@ -28,7 +28,6 @@
 ##############################################################
 #           START OF tmp_table_size TESTS                    #
 ##############################################################
-
 
 #############################################################
 #                 Save initial value                        #
@@ -39,8 +38,6 @@ SELECT @start_global_value;
 SET @start_session_value = @@session.tmp_table_size;
 SELECT @start_session_value;
 
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
-
 --echo '#--------------------FN_DYNVARS_005_01-------------------------#'
 ##############################################################
 #     Display the DEFAULT value of tmp_table_size            #
@@ -50,16 +47,13 @@ SET @@global.tmp_table_size = 100;
 SET @@global.tmp_table_size = DEFAULT;
 SELECT @@global.tmp_table_size;
 
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
 SET @@session.tmp_table_size = 200;
 SET @@session.tmp_table_size = DEFAULT;
 SELECT @@session.tmp_table_size;
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
-
 
 --echo '#--------------------FN_DYNVARS_005_02-------------------------#'
 ########################################################################
-#     Check the DEFAULT value of tmp_table_size              #
+#     Check the DEFAULT value of tmp_table_size                        #
 ########################################################################
 
 SET @@global.tmp_table_size = DEFAULT;
@@ -67,8 +61,6 @@ SELECT @@global.tmp_table_size = 33554432;
 
 SET @@session.tmp_table_size = DEFAULT;
 SELECT @@session.tmp_table_size = 33554432;
-
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
 
 --echo '#--------------------FN_DYNVARS_005_03-------------------------#'
 ########################################################################
@@ -111,24 +103,17 @@ SELECT @@global.tmp_table_size;
 SET @@global.tmp_table_size = 1000;
 SELECT @@global.tmp_table_size;
 
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
-
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.tmp_table_size = ON;
 
-
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.tmp_table_size = OFF;
-
 
 SET @@global.tmp_table_size = True;
 SELECT @@global.tmp_table_size;
 
 SET @@global.tmp_table_size = False;
 SELECT @@global.tmp_table_size;
---echo 'Bug:Error should be shown that variable is numeric and can not assigned boolean value';
-
 
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.tmp_table_size = 65530.34;
@@ -136,10 +121,8 @@ SET @@global.tmp_table_size = 65530.34;
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.tmp_table_size ="Test";
 
-
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.tmp_table_size = ON;
-
 
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.tmp_table_size = OFF;
@@ -156,12 +139,10 @@ SET @@session.tmp_table_size = "Test";
 SET @@session.tmp_table_size = 12345678901;
 SELECT @@session.tmp_table_size;
 
-
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
-
 
 SELECT @@global.tmp_table_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -175,9 +156,6 @@ WHERE VARIABLE_NAME='tmp_table_size';
 SELECT @@session.tmp_table_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='tmp_table_size';
-
-
-
 
 --echo '#---------------------FN_DYNVARS_001_09----------------------#'
 ########################################################################
@@ -216,7 +194,6 @@ SELECT global.tmp_table_size;
 --Error ER_BAD_FIELD_ERROR
 SELECT tmp_table_size = @@session.tmp_table_size;
 
-
 ####################################
 #     Restore initial value        #
 ####################################
@@ -225,7 +202,6 @@ SET @@global.tmp_table_size = @start_global_value;
 SELECT @@global.tmp_table_size;
 SET @@session.tmp_table_size = @start_session_value;
 SELECT @@session.tmp_table_size;
-
 
 ###################################################
 #                 END OF tmp_table_size TESTS     #
