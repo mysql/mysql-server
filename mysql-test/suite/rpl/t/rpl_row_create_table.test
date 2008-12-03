@@ -29,6 +29,8 @@ SET GLOBAL storage_engine=memory;
 START SLAVE;
 --enable_query_log
 
+--source include/reset_master_and_slave.inc
+
 connection master;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
@@ -36,7 +38,7 @@ CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---query_vertical SHOW BINLOG EVENTS FROM 216
+--query_vertical SHOW BINLOG EVENTS FROM 106
 --echo **** On Master ****
 --query_vertical SHOW CREATE TABLE t1
 --query_vertical SHOW CREATE TABLE t2
@@ -65,6 +67,8 @@ SELECT * FROM t5 ORDER BY a,b,c;
 --query_vertical SHOW CREATE TABLE t6
 SELECT * FROM t6 ORDER BY a,b,c;
 
+--source include/reset_master_and_slave.inc
+
 connection master;
 # Test for erroneous constructions
 --error ER_DUP_ENTRY
@@ -72,7 +76,7 @@ CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 # Shouldn't be written to the binary log
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1374;
+SHOW BINLOG EVENTS FROM 106;
 
 # Test that INSERT-SELECT works the same way as for SBR.
 CREATE TABLE t7 (a INT, b INT UNIQUE);
@@ -82,9 +86,11 @@ SELECT * FROM t7 ORDER BY a,b;
 # Should be written to the binary log
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1374;
+SHOW BINLOG EVENTS FROM 106;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
+
+--source include/reset_master_and_slave.inc
 
 connection master;
 CREATE TEMPORARY TABLE tt4 (a INT, b INT);
@@ -94,10 +100,12 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1711;
+SHOW BINLOG EVENTS FROM 106;
 SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
+
+--source include/reset_master_and_slave.inc
 
 connection master;
 CREATE TABLE t8 LIKE t4;
@@ -110,7 +118,7 @@ CREATE TEMPORARY TABLE tt7 SELECT 1;
 --query_vertical SHOW CREATE TABLE t9
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1946;
+SHOW BINLOG EVENTS FROM 106;
 sync_slave_with_master;
 --echo **** On Slave ****
 --query_vertical SHOW CREATE TABLE t8
@@ -162,7 +170,7 @@ SELECT * FROM t3 ORDER BY a;
 SELECT * FROM t4 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS FROM 106;
 sync_slave_with_master;
 SHOW TABLES;
 SELECT   TABLE_NAME,ENGINE
@@ -208,13 +216,17 @@ COMMIT;
 SELECT * FROM t2 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS FROM 106;
 sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
 connection master;
 TRUNCATE TABLE t2;
+sync_slave_with_master;
 
+--source include/reset_master_and_slave.inc
+
+connection master;
 BEGIN;
 INSERT INTO t2 SELECT a*a FROM t1;
 CREATE TEMPORARY TABLE tt2
@@ -227,7 +239,7 @@ ROLLBACK;
 SELECT * FROM t2 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 949;
+SHOW BINLOG EVENTS FROM 106;
 sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
