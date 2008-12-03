@@ -22,11 +22,13 @@
 
 
 int
-toku_os_get_file_size(int fildes, int64_t *size) {
-    struct _stat64 sbuf;
-    int r = _fstati64(fildes, &sbuf);
-    if (r==0) {
-        *size = sbuf.st_size;
+toku_os_get_file_size(int fildes, int64_t *sizep) {
+    int r;
+    int64_t size = _filelengthi64(fildes);
+    if (size<0) r = errno;
+    else {
+        r = 0;
+        *sizep = size;
     }
     return r;
 }
