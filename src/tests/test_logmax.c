@@ -23,7 +23,7 @@ check_logmax (int max) {
 	    int r = stat(full_fname, &sbuf);
 	    assert(r==0);
 	    if (verbose)
-		printf("%s is of size %ld\n", ent->d_name, sbuf.st_size);
+		printf("%s is of size %"PRId64"\n", ent->d_name, (int64_t)sbuf.st_size);
 	    if (sbuf.st_size > max) any_too_big=1;
 	}
     }
