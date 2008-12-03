@@ -447,6 +447,12 @@ DblqhProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId)
     return;
   }
 
+  if (!ss.m_active.get(ss.m_worker)) {
+    jam();
+    D("LCP: active" << V(ss.m_worker));
+    ss.m_active.set(ss.m_worker);
+  }
+
   sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
              signal, LcpFragOrd::SignalLength, JBB);
 }
@@ -492,6 +498,12 @@ DblqhProxy::execLCP_COMPLETE_ORD(Signal* signal)
   Ss_LCP_COMPLETE_ORD& ss = ssSeize<Ss_LCP_COMPLETE_ORD>(ssId);
   ss.m_req = *req;
 
+  Ss_LCP_FRAG_ORD& ssLcp = ssFind<Ss_LCP_FRAG_ORD>(ssId);
+  const Uint32 activeCount = ssLcp.m_active.count();
+  D("LCP: complete" << V(activeCount));
+  // database with no fragments is not handled
+  ndbrequire(activeCount != 0);
+
   // seize END_LCP_REQ records
   Uint32 i;
   for (i = 0; i < ss.BlockCnt; i++) {
@@ -501,9 +513,10 @@ DblqhProxy::execLCP_COMPLETE_ORD(Signal* signal)
     Uint32 ssIdEnd = getSsId(&tmp);
     Ss_END_LCP_REQ& ssEnd = ssSeize<Ss_END_LCP_REQ>(ssIdEnd);
     ss.m_endLcp[i].m_ssId = ssIdEnd;
+    ssEnd.m_ssIdLcp = ssId;
 
-    // set wait-for bitmask in SsParallel
-    setMask(ssEnd);
+    // set wait-for bitmask
+    setMask(ssEnd, ssLcp.m_active);
   }
 
   sendREQ(signal, ss);
@@ -659,6 +672,13 @@ void
 DblqhProxy::sendEND_LCP_CONF(Signal* signal, Uint32 ssId)
 {
   Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  Ss_LCP_FRAG_ORD& ssLcp = ssFind<Ss_LCP_FRAG_ORD>(ss.m_ssIdLcp);
+
+  // workers handling no fragments sent no REQ and get no CONF
+  if (!ssLcp.m_active.get(ss.m_worker)) {
+    jam();
+    return;
+  }
   
   EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = ss.m_req[ss.m_worker].senderData;
