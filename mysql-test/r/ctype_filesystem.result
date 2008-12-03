@@ -1,7 +1,7 @@
 SET CHARACTER SET utf8;
 SHOW VARIABLES like 'character_sets_dir';
 Variable_name	Value
-character_sets_dir	/ß/
+character_sets_dir	MYSQL_TEST_DIR/ß/
 SHOW VARIABLES like 'character_set_filesystem';
 Variable_name	Value
 character_set_filesystem	latin1
