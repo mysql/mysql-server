@@ -20,7 +20,7 @@ const u_int32_t __toku_rth_init_size = 521;
 
 static inline u_int32_t toku__rth_hash(toku_rth* rth, TXNID key) {
     u_int64_t tmp = (u_int64_t)key;
-    return tmp % rth->num_buckets;
+    return (u_int32_t)(tmp % rth->num_buckets);
 }
 
 static inline void toku__invalidate_scan(toku_rth* rth) {
