@@ -3249,6 +3249,14 @@ ibuf_insert_low(
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
 
+	/* Don't buffer deletes if the page has been read in to the buffer
+	pool. */
+	if (op == IBUF_OP_DELETE && buf_pool_watch_occurred(space, page_no)) {
+		err = DB_STRONG_FAIL;
+
+		goto function_exit;
+	}
+
 	/* Find out the volume of already buffered inserts for the same index
 	page */
 	min_n_recs = 0;
@@ -3326,25 +3334,13 @@ ibuf_insert_low(
 		bitmap_page, page_no, zip_size,
 		IBUF_BITMAP_BUFFERED, &bitmap_mtr);
 
-	/* Don't buffer deletes if the page has been read in to the buffer
-	pool. */
-	if (op == IBUF_OP_DELETE && buf_pool_watch_occurred(space, page_no)) {
-		err = DB_STRONG_FAIL;
-
-		mtr_commit(&bitmap_mtr);
-
-		goto function_exit;
-	}
-
 	if (!old_bit_value) {
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 					  IBUF_BITMAP_BUFFERED, TRUE,
 					  &bitmap_mtr);
 	}
 
-	if (op != IBUF_OP_DELETE) {
-		mtr_commit(&bitmap_mtr);
-	}
+	mtr_commit(&bitmap_mtr);
 
 	cursor = btr_pcur_get_btr_cur(&pcur);
 
@@ -3379,12 +3375,6 @@ ibuf_insert_low(
 		}
 
 		ibuf_size_update(root, &mtr);
-	}
-
-	if (op == IBUF_OP_DELETE) {
-		ut_a(!buf_pool_watch_occurred(space, page_no));
-
-		mtr_commit(&bitmap_mtr);
 	}
 
 function_exit:
