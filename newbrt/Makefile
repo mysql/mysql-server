@@ -102,7 +102,7 @@ check: bins
 %$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
 
 checko2:
-	if [[ "$(OPTFLAGS)" =~ "-O([2-3])" ]] ; then \
+	@if [[ "$(OPTFLAGS)" =~ "-O([2-3])" ]] ; then \
 		echo OPTFLAGS=$(OPTFLAGS) ok; \
 	else \
 		echo OPTFLAGS=$(OPTFLAGS) bad; exit 1; \
