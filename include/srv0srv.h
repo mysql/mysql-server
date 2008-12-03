@@ -107,8 +107,6 @@ extern ibool	srv_archive_recovery;
 extern dulint	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
-extern ulint	srv_lock_wait_timeout;
-
 extern char*	srv_file_flush_method_str;
 extern ulint	srv_unix_file_flush_method;
 extern ulint	srv_win_file_flush_method;
@@ -134,7 +132,7 @@ extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
 					 transactions). */
 extern ibool	srv_innodb_status;
 
-extern ibool	srv_stats_on_metadata;
+extern unsigned long long	srv_stats_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -145,7 +143,7 @@ extern int	srv_query_thread_priority;
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 
-extern ulint	srv_replication_delay;
+extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -517,7 +515,9 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_pages_dirty;
 	ulint innodb_buffer_pool_pages_misc;
 	ulint innodb_buffer_pool_pages_free;
+#ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;
+#endif /* UNIV_DEBUG */
 	ulint innodb_buffer_pool_read_requests;
 	ulint innodb_buffer_pool_reads;
 	ulint innodb_buffer_pool_wait_free;

@@ -29,12 +29,12 @@ btr_block_get(
 	buf_block_t*	block;
 
 	block = buf_page_get(space, zip_size, page_no, mode, mtr);
-#ifdef UNIV_SYNC_DEBUG
+
 	if (mode != RW_NO_LATCH) {
 
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 	}
-#endif
+
 	return(block);
 }
 

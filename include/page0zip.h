@@ -48,6 +48,8 @@ page_zip_rec_needs_ext(
 				can be stored locally on the page */
 	ulint	rec_size,	/* in: length of the record in bytes */
 	ulint	comp,		/* in: nonzero=compact format */
+	ulint	n_fields,	/* in: number of fields in the record;
+				ignored if zip_size == 0 */
 	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
 	__attribute__((const));
 
@@ -122,6 +124,18 @@ page_zip_simple_validate(
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_ZIP_DEBUG
+/**************************************************************************
+Check that the compressed and decompressed pages match. */
+UNIV_INTERN
+ibool
+page_zip_validate_low(
+/*==================*/
+					/* out: TRUE if valid, FALSE if not */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	ibool			sloppy)	/* in: FALSE=strict,
+					TRUE=ignore the MIN_REC_FLAG */
+	__attribute__((nonnull));
 /**************************************************************************
 Check that the compressed and decompressed pages match. */
 UNIV_INTERN
@@ -371,11 +385,14 @@ page_zip_reorganize(
 	mtr_t*		mtr)	/* in: mini-transaction */
 	__attribute__((nonnull));
 /**************************************************************************
-Copy a page byte for byte, except for the file page header and trailer. */
+Copy the records of a page byte for byte.  Do not copy the page header
+or trailer, except those B-tree header fields that are directly
+related to the storage of records.  Also copy PAGE_MAX_TRX_ID.
+NOTE: The caller must update the lock table and the adaptive hash index. */
 UNIV_INTERN
 void
-page_zip_copy(
-/*==========*/
+page_zip_copy_recs(
+/*===============*/
 	page_zip_des_t*		page_zip,	/* out: copy of src_zip
 						(n_blobs, m_start, m_end,
 						m_nonempty, data[0..size-1]) */

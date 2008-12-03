@@ -20,6 +20,26 @@ Created 7/19/1997 Heikki Tuuri
 
 extern ibuf_t*	ibuf;
 
+/* The purpose of the insert buffer is to reduce random disk access.
+When we wish to insert a record into a non-unique secondary index and
+the B-tree leaf page where the record belongs to is not in the buffer
+pool, we insert the record into the insert buffer B-tree, indexed by
+(space_id, page_no).  When the page is eventually read into the buffer
+pool, we look up the insert buffer B-tree for any modifications to the
+page, and apply these upon the completion of the read operation.  This
+is called the insert buffer merge. */
+
+/* The insert buffer merge must always succeed.  To guarantee this,
+the insert buffer subsystem keeps track of the free space in pages for
+which it can buffer operations.  Two bits per page in the insert
+buffer bitmap indicate the available space in coarse increments.  The
+free bits in the insert buffer bitmap must never exceed the free space
+on a page.  It is safe to decrement or reset the bits in the bitmap in
+a mini-transaction that is committed before the mini-transaction that
+affects the free space.  It is unsafe to increment the bits in a
+separately committed mini-transaction, because in crash recovery, the
+free bits could momentarily be set too high. */
+
 /**********************************************************************
 Creates the insert buffer data struct for a single tablespace. Reads the
 root page of the insert buffer tree in the tablespace. This function can
@@ -56,9 +76,13 @@ ibuf_bitmap_page_init(
 	mtr_t*		mtr);	/* in: mtr */
 /****************************************************************************
 Resets the free bits of the page in the ibuf bitmap. This is done in a
-separate mini-transaction, hence this operation does not restrict further
-work to only ibuf bitmap operations, which would result if the latch to the
-bitmap page were kept. */
+separate mini-transaction, hence this operation does not restrict
+further work to only ibuf bitmap operations, which would result if the
+latch to the bitmap page were kept.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to decrement or reset the bits in the bitmap in a mini-transaction
+that is committed before the mini-transaction that affects the free
+space. */
 UNIV_INTERN
 void
 ibuf_reset_free_bits(
@@ -68,10 +92,17 @@ ibuf_reset_free_bits(
 				non-unique, and page level is 0 */
 /****************************************************************************
 Updates the free bits of an uncompressed page in the ibuf bitmap if
-there is not enough free on the page any more. This is done in a
+there is not enough free on the page any more.  This is done in a
 separate mini-transaction, hence this operation does not restrict
 further work to only ibuf bitmap operations, which would result if the
-latch to the bitmap page were kept. */
+latch to the bitmap page were kept.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is
+unsafe to increment the bits in a separately committed
+mini-transaction, because in crash recovery, the free bits could
+momentarily be set too high.  It is only safe to use this function for
+decrementing the free bits.  Should more free space become available,
+we must not update the free bits here, because that would break crash
+recovery. */
 UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
@@ -88,9 +119,13 @@ ibuf_update_free_bits_if_full(
 				used in the latest operation, if known, or
 				ULINT_UNDEFINED */
 /**************************************************************************
-Updates the free bits for an uncompressed page to reflect the present state.
-Does this in the mtr given, which means that the latching order rules virtually
-prevent any further operations for this OS thread until mtr is committed. */
+Updates the free bits for an uncompressed page to reflect the present
+state.  Does this in the mtr given, which means that the latching
+order rules virtually prevent any further operations for this OS
+thread until mtr is committed.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to set the free bits in the same mini-transaction that updated the
+page. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_low(
@@ -103,9 +138,13 @@ ibuf_update_free_bits_low(
 						performed to the page */
 	mtr_t*			mtr);		/* in/out: mtr */
 /**************************************************************************
-Updates the free bits for a compressed page to reflect the present state.
-Does this in the mtr given, which means that the latching order rules virtually
-prevent any further operations for this OS thread until mtr is committed. */
+Updates the free bits for a compressed page to reflect the present
+state.  Does this in the mtr given, which means that the latching
+order rules virtually prevent any further operations for this OS
+thread until mtr is committed.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to set the free bits in the same mini-transaction that updated the
+page. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_zip(
@@ -113,9 +152,12 @@ ibuf_update_free_bits_zip(
 	buf_block_t*	block,	/* in/out: index page */
 	mtr_t*		mtr);	/* in/out: mtr */
 /**************************************************************************
-Updates the free bits for the two pages to reflect the present state. Does
-this in the mtr given, which means that the latching order rules virtually
-prevent any further operations until mtr is committed. */
+Updates the free bits for the two pages to reflect the present state.
+Does this in the mtr given, which means that the latching order rules
+virtually prevent any further operations until mtr is committed.
+NOTE: The free bits in the insert buffer bitmap must never exceed the
+free space on a page.  It is safe to set the free bits in the same
+mini-transaction that updated the pages. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_for_two_pages_low(

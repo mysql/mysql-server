@@ -34,6 +34,22 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 the kernel mutex */
 UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
 
+/**************************************************************************
+Determines if the currently running transaction is in innodb_strict_mode. */
+UNIV_INTERN
+ibool
+trx_is_strict(
+/*==========*/
+			/* out: TRUE if strict */
+	trx_t*	trx)	/* in: transaction */
+{
+#ifndef UNIV_HOTBACKUP
+	return(trx && trx->mysql_thd && thd_is_strict(trx->mysql_thd));
+#else /* UNIV_HOTBACKUP */
+	return(FALSE);
+#endif /* UNIV_HOTBACKUP */
+}
+
 /*****************************************************************
 Set detailed error message for the transaction. */
 UNIV_INTERN
@@ -153,8 +169,6 @@ trx_create(
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 
-	trx->auto_inc_lock = NULL;
-
 	trx->global_read_view_heap = mem_heap_create(256);
 	trx->global_read_view = NULL;
 	trx->read_view = NULL;
@@ -164,6 +178,10 @@ trx_create(
 	trx->xid.formatID = -1;
 
 	trx->n_autoinc_rows = 0;
+
+	/* Remember to free the vector explicitly. */
+	trx->autoinc_locks = ib_vector_create(
+		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
 
 	trx_reset_new_rec_lock_info(trx);
 
@@ -264,6 +282,7 @@ trx_free(
 		trx_print(stderr, trx, 600);
 
 		ut_print_buf(stderr, trx, sizeof(trx_t));
+		putc('\n', stderr);
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -288,7 +307,6 @@ trx_free(
 	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 
 	ut_a(!trx->has_search_latch);
-	ut_a(!trx->auto_inc_lock);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -305,6 +323,10 @@ trx_free(
 	trx->global_read_view = NULL;
 
 	ut_a(trx->read_view == NULL);
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->autoinc_locks);
 
 	mem_free(trx);
 }
@@ -804,6 +826,20 @@ trx_commit_off_kernel(
 	/*--------------------------------------*/
 	trx->conc_state = TRX_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
+
+	/* If we release kernel_mutex below and we are still doing
+	recovery i.e.: back ground rollback thread is still active
+	then there is a chance that the rollback thread may see
+	this trx as COMMITTED_IN_MEMORY and goes adhead to clean it
+	up calling trx_cleanup_at_db_startup(). This can happen 
+	in the case we are committing a trx here that is left in
+	PREPARED state during the crash. Note that commit of the
+	rollback of a PREPARED trx happens in the recovery thread
+	while the rollback of other transactions happen in the
+	background thread. To avoid this race we unconditionally
+	unset the is_recovered flag from the trx. */
+
+	trx->is_recovered = FALSE;
 
 	lock_release_off_kernel(trx);
 

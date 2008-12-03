@@ -178,6 +178,9 @@ trx_undo_rec_get_partial_row(
 				record! */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t**	row,	/* out, own: partial row */
+	ibool		ignore_prefix, /* in: flag to indicate if we
+				expect blob prefixes in undo. Used
+				only in the assertion. */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory
 				needed is allocated */
 /***************************************************************************

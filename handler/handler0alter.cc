@@ -18,6 +18,7 @@ extern "C" {
 }
 
 #include "ha_innodb.h"
+#include "handler0vars.h"
 
 /*****************************************************************
 Copies an InnoDB column to a MySQL field.  This function is
@@ -635,9 +636,6 @@ ha_innobase::add_index(
 	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
 
-	trans_register_ha(user_thd, FALSE, ht);
-	prebuilt->trx->active_trans = 1;
-
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
 
@@ -801,7 +799,9 @@ error_handling:
 		const char*	old_name;
 		char*		tmp_name;
 	case DB_SUCCESS:
-		ut_ad(!dict_locked);
+		ut_a(!dict_locked);
+		row_mysql_lock_data_dictionary(trx);
+		dict_locked = TRUE;
 
 		if (!new_primary) {
 			error = row_merge_rename_indexes(trx, indexed_table);
@@ -821,9 +821,6 @@ error_handling:
 		old_name = innodb_table->name;
 		tmp_name = innobase_create_temporary_tablename(heap, '2',
 							       old_name);
-
-		row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
 
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
@@ -868,6 +865,11 @@ error:
 		if (new_primary) {
 			row_merge_drop_table(trx, indexed_table);
 		} else {
+			if (!dict_locked) {
+				row_mysql_lock_data_dictionary(trx);
+				dict_locked = TRUE;
+			}
+
 			row_merge_drop_indexes(trx, indexed_table,
 					       index, num_created);
 		}
@@ -986,15 +988,16 @@ ha_innobase::prepare_drop_index(
 
 	if (trx->check_foreigns
 	    && thd_sql_command(user_thd) != SQLCOM_CREATE_INDEX) {
-		dict_index_t*	index
-			= dict_table_get_first_index(prebuilt->table);
+		dict_index_t*	index;
 
-		do {
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index;
+		     index = dict_table_get_next_index(index)) {
 			dict_foreign_t*	foreign;
 
 			if (!index->to_be_dropped) {
 
-				goto next_index;
+				continue;
 			}
 
 			/* Check if the index is referenced. */
@@ -1022,20 +1025,61 @@ index_needed:
 					ut_a(foreign->foreign_index == index);
 
 					/* Search for an equivalent index that
-					the foreign key contraint could use
+					the foreign key constraint could use
 					if this index were to be deleted. */
-					if (!dict_table_find_equivalent_index(
-						prebuilt->table,
-						foreign->foreign_index)) {
+					if (!dict_foreign_find_equiv_index(
+						foreign)) {
 
 						goto index_needed;
 					}
 				}
 			}
+		}
+	} else if (thd_sql_command(user_thd) == SQLCOM_CREATE_INDEX) {
+		/* This is a drop of a foreign key constraint index that
+		was created by MySQL when the constraint was added.  MySQL
+		does this when the user creates an index explicitly which
+		can be used in place of the automatically generated index. */
 
-next_index:
-			index = dict_table_get_next_index(index);
-		} while (index);
+		dict_index_t*	index;
+
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index;
+		     index = dict_table_get_next_index(index)) {
+			dict_foreign_t*	foreign;
+
+			if (!index->to_be_dropped) {
+
+				continue;
+			}
+
+			/* Check if this index references some other table */
+			foreign = dict_table_get_foreign_constraint(
+				prebuilt->table, index);
+
+			if (foreign == NULL) {
+
+				continue;
+			}
+
+			ut_a(foreign->foreign_index == index);
+
+			/* Search for an equivalent index that the
+			foreign key constraint could use if this index
+			were to be deleted. */
+
+			if (!dict_foreign_find_equiv_index(foreign)) {
+				trx_set_detailed_error(
+					trx,
+					"Index needed in foreign key "
+					"constraint");
+
+				trx->error_info = foreign->foreign_index;
+
+				err = HA_ERR_DROP_INDEX_FK;
+				break;
+			}
+		}
 	}
 
 func_exit:
@@ -1084,9 +1128,6 @@ ha_innobase::final_drop_index(
 	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
 
-	trans_register_ha(user_thd, FALSE, ht);
-	prebuilt->trx->active_trans = 1;
-
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
 
@@ -1100,24 +1141,21 @@ ha_innobase::final_drop_index(
 		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
 		prebuilt->table->flags, user_thd);
 
+	row_mysql_lock_data_dictionary(trx);
+
 	if (UNIV_UNLIKELY(err)) {
 
 		/* Unmark the indexes to be dropped. */
-		row_mysql_lock_data_dictionary(trx);
-
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index; index = dict_table_get_next_index(index)) {
 
 			index->to_be_dropped = FALSE;
 		}
 
-		row_mysql_unlock_data_dictionary(trx);
 		goto func_exit;
 	}
 
 	/* Drop indexes marked to be dropped */
-
-	row_mysql_lock_data_dictionary(trx);
 
 	index = dict_table_get_first_index(prebuilt->table);
 
@@ -1143,11 +1181,11 @@ ha_innobase::final_drop_index(
 #ifdef UNIV_DEBUG
 	dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
-	row_mysql_unlock_data_dictionary(trx);
 
 func_exit:
 	trx_commit_for_mysql(trx);
 	trx_commit_for_mysql(prebuilt->trx);
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs

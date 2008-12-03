@@ -90,7 +90,7 @@ do {\
 	if (cell3333->node == NULL) {\
 		cell3333->node = DATA;\
 	} else {\
-		struct3333 = cell3333->node;\
+		struct3333 = (TYPE*) cell3333->node;\
 \
 		while (struct3333->NAME != NULL) {\
 \

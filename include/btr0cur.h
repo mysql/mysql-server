@@ -312,8 +312,8 @@ btr_cur_del_mark_set_sec_rec(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr);	/* in: mtr */
 /***************************************************************
-Sets a secondary index record delete mark to FALSE. This function is
-only used by the insert buffer insert merge mechanism. */
+Clear a secondary index record's delete mark.  This function is only
+used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
 btr_cur_del_unmark_for_ibuf(
@@ -379,7 +379,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
-	ibool		in_rollback,/* in: TRUE if called in rollback */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mtr */
 /***************************************************************
 Parses a redo log record of updating a record in-place. */
@@ -521,9 +521,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/* in: field number of field_ref;
 					ignored if rec == NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-					rollback and we do not want to free
-					inherited fields */
+	enum trx_rb_ctx	rb_ctx,		/* in: rollback context */
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */
@@ -534,7 +532,9 @@ UNIV_INTERN
 ulint
 btr_copy_externally_stored_field_prefix(
 /*====================================*/
-				/* out: the length of the copied field */
+				/* out: the length of the copied field,
+				or 0 if the column is being or has been
+				deleted */
 	byte*		buf,	/* out: the field, or a prefix of it */
 	ulint		len,	/* in: length of buf, in bytes */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,

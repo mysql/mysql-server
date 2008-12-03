@@ -1,4 +1,4 @@
-This is the source of the InnoDB Plugin 1.0.1 for MySQL 5.1
+This is the source of the InnoDB Plugin 1.0.2 for MySQL 5.1
 ===========================================================
 
 Instructions for compiling the plugin:
@@ -22,5 +22,8 @@ http://www.innodb.com/doc/innodb_plugin-1.0/innodb-plugin-installation.html
 
 For more information about InnoDB visit
 http://www.innodb.com
+
+Please report any problems or issues with the plugin in the InnoDB Forums
+http://forums.innodb.com/ or in the MySQL Bugs database http://bugs.mysql.com
 
 Thank you for using the InnoDB plugin!

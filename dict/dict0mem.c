@@ -58,13 +58,15 @@ dict_mem_table_create(
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
 
-	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
+	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
-	/* The actual increment value will be set by MySQL, we simply
-	default to 1 here.*/
-	table->autoinc_increment = 1;
+	table->autoinc = 0;
+
+	/* The number of transactions that are either waiting on the
+	AUTOINC lock or have been granted the lock. */
+	table->n_waiting_or_granted_auto_inc_locks = 0;
 
 #ifdef UNIV_DEBUG
 	table->magic_n = DICT_TABLE_MAGIC_N;

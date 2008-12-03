@@ -18,6 +18,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "read0types.h"
 #include "hash0hash.h"
+#include "ut0vec.h"
 
 #ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
@@ -490,14 +491,6 @@ lock_table_unlock(
 /*==============*/
 	lock_t*	lock);	/* in: lock */
 /*************************************************************************
-Releases an auto-inc lock a transaction possibly has on a table.
-Releases possible other transactions waiting for this lock. */
-UNIV_INTERN
-void
-lock_table_unlock_auto_inc(
-/*=======================*/
-	trx_t*	trx);	/* in: transaction */
-/*************************************************************************
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 UNIV_INTERN
@@ -513,14 +506,21 @@ void
 lock_cancel_waiting_and_release(
 /*============================*/
 	lock_t*	lock);	/* in: waiting lock request */
+
 /*************************************************************************
-Resets all locks, both table and record locks, on a table to be dropped.
-No lock is allowed to be a wait lock. */
+Removes locks on a table to be dropped or truncated.
+If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+also removed in addition to other table-level and record-level locks.
+No lock, that is going to be removed, is allowed to be a wait lock. */
 UNIV_INTERN
 void
-lock_reset_all_on_table(
-/*====================*/
-	dict_table_t*	table);	/* in: table to be dropped */
+lock_remove_all_on_table(
+/*=====================*/
+	dict_table_t*	table,			/* in: table to be dropped
+						or truncated */
+	ibool		remove_also_table_sx_locks);/* in: also removes
+						table S and X locks */
+
 /*************************************************************************
 Calculates the fold value of a page file address: used in inserting or
 searching for a lock in the hash table. */
@@ -646,6 +646,13 @@ ulint
 lock_number_of_rows_locked(
 /*=======================*/
 	trx_t*	trx);	/* in: transaction */
+/***********************************************************************
+Release all the transaction's autoinc locks. */
+UNIV_INTERN
+void
+lock_release_autoinc_locks(
+/*=======================*/
+	trx_t*		trx);		/* in/out: transaction */
 
 /***********************************************************************
 Gets the type of a lock. Non-inline version for using outside of the

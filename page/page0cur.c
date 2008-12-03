@@ -848,6 +848,7 @@ page_cur_parse_insert_rec(
 
 		fputs("Dump of 300 bytes of log:\n", stderr);
 		ut_print_buf(stderr, ptr2, 300);
+		putc('\n', stderr);
 
 		buf_page_print(page, 0);
 
@@ -1765,8 +1766,15 @@ page_cur_delete_rec(
 
 	page = page_cur_get_page(cursor);
 	page_zip = page_cur_get_page_zip(cursor);
-	/* page_zip_validate() may fail here when
-	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark(). */
+
+	/* page_zip_validate() will fail here when
+	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark().
+	Then, both "page_zip" and "page" would have the min-rec-mark
+	set on the smallest user record, but "page" would additionally
+	have it set on the smallest-but-one record.  Because sloppy
+	page_zip_validate_low() only ignores min-rec-flag differences
+	in the smallest user record, it cannot be used here either. */
+
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));

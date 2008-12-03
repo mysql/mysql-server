@@ -150,11 +150,15 @@ ib_time_t
 ut_time(void);
 /*=========*/
 /**************************************************************
-Returns system time. */
+Returns system time.
+Upon successful completion, the value 0 is returned; otherwise the
+value -1 is returned and the global variable errno is set to indicate the
+error. */
 UNIV_INTERN
-void
+int
 ut_usectime(
 /*========*/
+			/* out: 0 on success, -1 otherwise */
 	ulint*	sec,	/* out: seconds since the Epoch */
 	ulint*	ms);	/* out: microseconds since the Epoch+*sec */
 

@@ -11,7 +11,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	1
+#define INNODB_VERSION_BUGFIX	2
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -137,6 +137,7 @@ command. Not tested on Windows. */
 #define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
 						(field file_page_was_freed
 						in buf_page_t) */
+#define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
@@ -157,6 +158,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						printing B-trees */
 #define UNIV_ZIP_DEBUG				/* extensive consistency checks
 						for compressed pages */
+#define UNIV_ZIP_COPY				/* call page_zip_copy_recs()
+						more often */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */

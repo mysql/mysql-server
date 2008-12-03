@@ -304,10 +304,7 @@ ibuf_header_page_get(
 
 	block = buf_page_get(space, 0, FSP_IBUF_HEADER_PAGE_NO,
 			     RW_X_LATCH, mtr);
-
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_HEADER);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -332,9 +329,7 @@ ibuf_tree_root_get(
 
 	block = buf_page_get(space, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 			     mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -497,9 +492,8 @@ ibuf_data_init_for_space(
 		buf_block_t*	block = buf_page_get(
 			space, 0, FSP_IBUF_TREE_ROOT_PAGE_NO,
 			RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		root = buf_block_get_frame(block);
 	}
 
@@ -549,7 +543,7 @@ ibuf_data_init_for_space(
 	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
 	error = dict_index_add_to_cache(table, index,
-					FSP_IBUF_TREE_ROOT_PAGE_NO);
+					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
 	ut_a(error == DB_SUCCESS);
 
 	data->index = dict_table_get_first_index(table);
@@ -777,9 +771,7 @@ ibuf_bitmap_get_map_page(
 	block = buf_page_get(space, zip_size,
 			     ibuf_bitmap_page_no_calc(zip_size, page_no),
 			     RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -899,9 +891,13 @@ ibuf_set_free_bits_func(
 
 /****************************************************************************
 Resets the free bits of the page in the ibuf bitmap. This is done in a
-separate mini-transaction, hence this operation does not restrict further
-work to only ibuf bitmap operations, which would result if the latch to the
-bitmap page were kept. */
+separate mini-transaction, hence this operation does not restrict
+further work to only ibuf bitmap operations, which would result if the
+latch to the bitmap page were kept.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to decrement or reset the bits in the bitmap in a mini-transaction
+that is committed before the mini-transaction that affects the free
+space. */
 UNIV_INTERN
 void
 ibuf_reset_free_bits(
@@ -914,9 +910,13 @@ ibuf_reset_free_bits(
 }
 
 /**************************************************************************
-Updates the free bits for an uncompressed page to reflect the present state.
-Does this in the mtr given, which means that the latching order rules virtually
-prevent any further operations for this OS thread until mtr is committed. */
+Updates the free bits for an uncompressed page to reflect the present
+state.  Does this in the mtr given, which means that the latching
+order rules virtually prevent any further operations for this OS
+thread until mtr is committed.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to set the free bits in the same mini-transaction that updated the
+page. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_low(
@@ -948,9 +948,13 @@ ibuf_update_free_bits_low(
 }
 
 /**************************************************************************
-Updates the free bits for a compressed page to reflect the present state.
-Does this in the mtr given, which means that the latching order rules virtually
-prevent any further operations for this OS thread until mtr is committed. */
+Updates the free bits for a compressed page to reflect the present
+state.  Does this in the mtr given, which means that the latching
+order rules virtually prevent any further operations for this OS
+thread until mtr is committed.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to set the free bits in the same mini-transaction that updated the
+page. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_zip(
@@ -989,9 +993,12 @@ ibuf_update_free_bits_zip(
 }
 
 /**************************************************************************
-Updates the free bits for the two pages to reflect the present state. Does
-this in the mtr given, which means that the latching order rules virtually
-prevent any further operations until mtr is committed. */
+Updates the free bits for the two pages to reflect the present state.
+Does this in the mtr given, which means that the latching order rules
+virtually prevent any further operations until mtr is committed.
+NOTE: The free bits in the insert buffer bitmap must never exceed the
+free space on a page.  It is safe to set the free bits in the same
+mini-transaction that updated the pages. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_for_two_pages_low(
@@ -1758,9 +1765,8 @@ ibuf_add_free_page(
 	{
 		buf_block_t*	block = buf_page_get(
 			space, 0, page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
+
 		page = buf_block_get_frame(block);
 	}
 
@@ -1888,9 +1894,8 @@ ibuf_remove_free_page(
 	{
 		buf_block_t*	block = buf_page_get(
 			space, 0, page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		page = buf_block_get_frame(block);
 	}
 
@@ -2375,7 +2380,7 @@ ibuf_contract_after_insert(
 /*************************************************************************
 Gets an upper limit for the combined size of entries buffered in the insert
 buffer for a given page. */
-UNIV_INTERN
+static
 ulint
 ibuf_get_volume_buffered(
 /*=====================*/
@@ -2447,9 +2452,8 @@ ibuf_get_volume_buffered(
 	{
 		buf_block_t*	block = buf_page_get(
 			0, 0, prev_page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		prev_page = buf_block_get_frame(block);
 	}
 #ifdef UNIV_BTR_DEBUG
@@ -2517,9 +2521,8 @@ count_later:
 	{
 		buf_block_t*	block = buf_page_get(
 			0, 0, next_page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		next_page = buf_block_get_frame(block);
 	}
 #ifdef UNIV_BTR_DEBUG
@@ -2840,17 +2843,17 @@ function_exit:
 
 	mem_heap_free(heap);
 
-	mutex_enter(&ibuf_mutex);
-
 	if (err == DB_SUCCESS) {
+		mutex_enter(&ibuf_mutex);
+
 		ibuf_data->empty = FALSE;
 		ibuf_data->n_inserts++;
-	}
 
-	mutex_exit(&ibuf_mutex);
+		mutex_exit(&ibuf_mutex);
 
-	if ((mode == BTR_MODIFY_TREE) && (err == DB_SUCCESS)) {
-		ibuf_contract_after_insert(entry_size);
+		if (mode == BTR_MODIFY_TREE) {
+			ibuf_contract_after_insert(entry_size);
+		}
 	}
 
 	if (do_merge) {
@@ -2978,11 +2981,9 @@ dump:
 				    PAGE_CUR_LE, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
-		buf_block_t*	block;
 		page_zip_des_t*	page_zip;
 
 		rec = page_cur_get_rec(&page_cur);
-		block = page_cur_get_block(&page_cur);
 		page_zip = buf_block_get_page_zip(block);
 
 		btr_cur_del_unmark_for_ibuf(rec, page_zip, mtr);
@@ -3072,6 +3073,9 @@ ibuf_delete_rec(
 	ulint		err;
 
 	ut_ad(ibuf_inside());
+	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
+	ut_ad(ibuf_rec_get_page_no(btr_pcur_get_rec(pcur)) == page_no);
+	ut_ad(ibuf_rec_get_space(btr_pcur_get_rec(pcur)) == space);
 
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
@@ -3086,6 +3090,10 @@ ibuf_delete_rec(
 #endif
 		return(FALSE);
 	}
+
+	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
+	ut_ad(ibuf_rec_get_page_no(btr_pcur_get_rec(pcur)) == page_no);
+	ut_ad(ibuf_rec_get_space(btr_pcur_get_rec(pcur)) == space);
 
 	/* We have to resort to a pessimistic delete from ibuf */
 	btr_pcur_store_position(pcur, mtr);
@@ -3104,6 +3112,13 @@ ibuf_delete_rec(
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr);
 
 	if (!success) {
+		if (fil_space_get_flags(space) == ULINT_UNDEFINED) {
+			/* The tablespace has been dropped.  It is possible
+			that another thread has deleted the insert buffer
+			entry.  Do not complain. */
+			goto func_exit;
+		}
+
 		fprintf(stderr,
 			"InnoDB: ERROR: Submit the output to"
 			" http://bugs.mysql.com\n"
@@ -3130,23 +3145,17 @@ ibuf_delete_rec(
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
 		fflush(stderr);
 
-		btr_pcur_close(pcur);
-
-		mutex_exit(&ibuf_mutex);
-
-		return(TRUE);
+		goto func_exit;
 	}
 
 	root = ibuf_tree_root_get(ibuf_data, 0, mtr);
 
 	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur),
-				   FALSE, mtr);
+				   RB_NONE, mtr);
 	ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ibuf_count_set(space, page_no, ibuf_count_get(space, page_no) - 1);
-#else
-	UT_NOT_USED(space);
 #endif
 	ibuf_data_sizes_update(ibuf_data, root, mtr);
 
@@ -3154,6 +3163,7 @@ ibuf_delete_rec(
 
 	btr_pcur_commit_specify_mtr(pcur, mtr);
 
+func_exit:
 	btr_pcur_close(pcur);
 
 	mutex_exit(&ibuf_mutex);
@@ -3296,7 +3306,8 @@ ibuf_merge_or_delete_for_page(
 		page_zip = buf_block_get_page_zip(block);
 
 		if (UNIV_UNLIKELY(fil_page_get_type(block->frame)
-				  != FIL_PAGE_INDEX)) {
+				  != FIL_PAGE_INDEX)
+		    || UNIV_UNLIKELY(!page_is_leaf(block->frame))) {
 
 			corruption_noticed = TRUE;
 
@@ -3323,7 +3334,7 @@ ibuf_merge_or_delete_for_page(
 				"InnoDB: buffer records to page n:o %lu"
 				" though the page\n"
 				"InnoDB: type is %lu, which is"
-				" not an index page!\n"
+				" not an index leaf page!\n"
 				"InnoDB: We try to resolve the problem"
 				" by skipping the insert buffer\n"
 				"InnoDB: merge for this page."
@@ -3351,9 +3362,8 @@ loop:
 							  __FILE__, __LINE__,
 							  &mtr);
 		ut_a(success);
-#ifdef UNIV_SYNC_DEBUG
+
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Position pcur in the insert buffer at the first entry for this

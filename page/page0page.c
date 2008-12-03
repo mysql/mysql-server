@@ -593,11 +593,23 @@ page_copy_rec_list_end(
 		page_get_infimum_rec(new_page));
 	ulint		log_mode	= 0; /* remove warning */
 
-	/* page_zip_validate() will fail here if btr_compress()
-	sets FIL_PAGE_PREV to FIL_NULL */
+#ifdef UNIV_ZIP_DEBUG
+	if (new_page_zip) {
+		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
+		ut_a(page_zip);
+
+		/* Strict page_zip_validate() may fail here.
+		Furthermore, btr_compress() may set FIL_PAGE_PREV to
+		FIL_NULL on new_page while leaving it intact on
+		new_page_zip.  So, we cannot validate new_page_zip. */
+		ut_a(page_zip_validate_low(page_zip, page, TRUE));
+	}
+#endif /* UNIV_ZIP_DEBUG */
 	ut_ad(buf_block_get_frame(block) == page);
 	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
+	/* Here, "ret" may be pointing to a user record or the
+	predefined supremum record. */
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -620,6 +632,12 @@ page_copy_rec_list_end(
 			store the number of preceding records on the page. */
 			ulint	ret_pos
 				= page_rec_get_n_recs_before(ret);
+			/* Before copying, "ret" was the successor of
+			the predefined infimum record.  It must still
+			have at least one predecessor (the predefined
+			infimum record, or a freshly copied record
+			that is smaller than "ret"). */
+			ut_a(ret_pos > 0);
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
@@ -685,6 +703,9 @@ page_copy_rec_list_start(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	/* Here, "ret" may be pointing to a user record or the
+	predefined infimum record. */
+
 	if (page_rec_is_infimum(rec)) {
 
 		return(ret);
@@ -725,6 +746,11 @@ page_copy_rec_list_start(
 			store the number of preceding records on the page. */
 			ulint	ret_pos
 				= page_rec_get_n_recs_before(ret);
+			/* Before copying, "ret" was the predecessor
+			of the predefined supremum record.  If it was
+			the predefined infimum record, then it would
+			still be the infimum.  Thus, the assertion
+			ut_a(ret_pos > 0) would fail here. */
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
@@ -1041,10 +1067,19 @@ page_delete_rec_list_start(
 
 	ut_ad((ibool) !!page_rec_is_comp(rec)
 	      == dict_table_is_comp(index->table));
-	/* page_zip_validate() would detect a min_rec_mark mismatch
-	in btr_page_split_and_insert()
-	between btr_attach_half_pages() and insert_page = ...
-	when btr_page_get_split_rec_to_left() holds (direction == FSP_DOWN). */
+#ifdef UNIV_ZIP_DEBUG
+	{
+		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+		page_t*		page	= buf_block_get_frame(block);
+
+		/* page_zip_validate() would detect a min_rec_mark mismatch
+		in btr_page_split_and_insert()
+		between btr_attach_half_pages() and insert_page = ...
+		when btr_page_get_split_rec_to_left() holds
+		(direction == FSP_DOWN). */
+		ut_a(!page_zip || page_zip_validate_low(page_zip, page, TRUE));
+	}
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 

@@ -163,6 +163,26 @@ row_vers_impl_x_locked_off_kernel(
 			clust_offsets = rec_get_offsets(
 				prev_version, clust_index, NULL,
 				ULINT_UNDEFINED, &heap);
+
+			vers_del = rec_get_deleted_flag(prev_version,
+							comp);
+			prev_trx_id = row_get_rec_trx_id(prev_version,
+							 clust_index,
+						 	 clust_offsets);
+
+			/* If the trx_id and prev_trx_id are
+			different and if the prev_version is marked
+			deleted then the prev_trx_id must have
+			already committed for the trx_id to be able to
+			modify the row. Therefore, prev_trx_id cannot
+			hold any implicit lock. */
+			if (0 != ut_dulint_cmp(trx_id, prev_trx_id)
+			    && vers_del) {
+	
+				mutex_enter(&kernel_mutex);
+				break;
+			}
+
 			/* The stack of versions is locked by mtr.
 			Thus, it is safe to fetch the prefixes for
 			externally stored columns. */
@@ -206,8 +226,6 @@ row_vers_impl_x_locked_off_kernel(
 		if prev_version would require rec to be in a different
 		state. */
 
-		vers_del = rec_get_deleted_flag(prev_version, comp);
-
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
 		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
@@ -242,9 +260,6 @@ row_vers_impl_x_locked_off_kernel(
 
 			break;
 		}
-
-		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index,
-						 clust_offsets);
 
 		if (0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
 			/* The versions modified by the trx_id transaction end

@@ -186,7 +186,9 @@ os_mem_free_large(
 	}
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
 #ifdef __WIN__
-	if (!VirtualFree(ptr, size, MEM_DECOMMIT | MEM_RELEASE)) {
+	/* When RELEASE memory, the size parameter must be 0.
+	Do not use MEM_RELEASE with MEM_DECOMMIT. */
+	if (!VirtualFree(ptr, 0, MEM_RELEASE)) {
 		fprintf(stderr, "InnoDB: VirtualFree(%p, %lu) failed;"
 			" Windows error %lu\n",
 			ptr, (ulong) size, (ulong) GetLastError());

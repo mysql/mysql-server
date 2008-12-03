@@ -726,7 +726,7 @@ os_fast_mutex_free(
 
 	ret = pthread_mutex_destroy(fast_mutex);
 
-	if (ret != 0) {
+	if (UNIV_UNLIKELY(ret != 0)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: error: return value %lu when calling\n"
@@ -735,7 +735,7 @@ os_fast_mutex_free(
 			"InnoDB: Byte contents of the pthread mutex at %p:\n",
 			(void*) fast_mutex);
 		ut_print_buf(stderr, fast_mutex, sizeof(os_fast_mutex_t));
-		fprintf(stderr, "\n");
+		putc('\n', stderr);
 	}
 #endif
 	if (UNIV_LIKELY(os_sync_mutex_inited)) {

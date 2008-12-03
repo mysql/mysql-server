@@ -32,6 +32,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
+#include "ha_prototypes.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -85,6 +86,16 @@ row_sel_sec_rec_is_for_blob(
 	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
 						      zip_size,
 						      clust_field, clust_len);
+
+	if (UNIV_UNLIKELY(len == 0)) {
+		/* The BLOB was being deleted as the server crashed.
+		There should not be any secondary index records
+		referring to this clustered index record, because
+		btr_free_externally_stored_field() is called after all
+		secondary index entries of the row have been purged. */
+		return(FALSE);
+	}
+
 	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
 					  sec_len, len, (const char*) buf);
 
@@ -2173,16 +2184,15 @@ row_fetch_print(
 		fprintf(stderr, " column %lu:\n", (ulong)i);
 
 		dtype_print(type);
-		fprintf(stderr, "\n");
+		putc('\n', stderr);
 
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
 			ut_print_buf(stderr, dfield_get_data(dfield),
 				     dfield_get_len(dfield));
+			putc('\n', stderr);
 		} else {
-			fprintf(stderr, " <NULL>;");
+			fputs(" <NULL>;\n", stderr);
 		}
-
-		fprintf(stderr, "\n");
 
 		exp = que_node_get_next(exp);
 		i++;
@@ -2466,7 +2476,7 @@ row_sel_convert_mysql_key_to_innobase(
 				(ulong) (key_ptr - key_end));
 			fflush(stderr);
 			ut_print_buf(stderr, original_key_ptr, key_len);
-			fprintf(stderr, "\n");
+			putc('\n', stderr);
 
 			if (!is_null) {
 				ulint	len = dfield_get_len(dfield);
@@ -3700,19 +3710,11 @@ shortcut_fails_too_big_rec:
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
 	    && trx->mysql_thd != NULL
-	    && trx->mysql_query_str != NULL
-	    && *trx->mysql_query_str != NULL) {
+	    && thd_is_select(trx->mysql_thd)) {
+		/* It is a plain locking SELECT and the isolation
+		level is low: do not lock gaps */
 
-		/* Scan the MySQL query string; check if SELECT is the first
-		word there */
-
-		if (dict_str_starts_with_keyword(
-			    trx->mysql_thd, *trx->mysql_query_str, "SELECT")) {
-			/* It is a plain locking SELECT and the isolation
-			level is low: do not lock gaps */
-
-			set_also_gap_locks = FALSE;
-		}
+		set_also_gap_locks = FALSE;
 	}
 
 	/* Note that if the search mode was GE or G, then the cursor

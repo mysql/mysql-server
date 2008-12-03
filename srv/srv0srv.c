@@ -154,8 +154,6 @@ UNIV_INTERN ibool		srv_archive_recovery	= 0;
 UNIV_INTERN ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
-UNIV_INTERN ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
-
 /* This parameter is used to throttle the number of insert buffers that are
 merged in a batch. By increasing this parameter on a faster disk you can
 possibly reduce the number of I/O operations performed to complete the
@@ -301,7 +299,9 @@ UNIV_INTERN ulint	srv_fast_shutdown	= 0;
 /* Generate a innodb_status.<pid> file */
 UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 
-UNIV_INTERN ibool	srv_stats_on_metadata	= TRUE;
+/* When estimating number of different key values in an index, sample
+this many index pages */
+UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -309,7 +309,7 @@ UNIV_INTERN ibool	srv_use_checksums = TRUE;
 UNIV_INTERN ibool	srv_set_thread_priorities = TRUE;
 UNIV_INTERN int	srv_query_thread_priority = 0;
 
-UNIV_INTERN ulint	srv_replication_delay		= 0;
+UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
@@ -1373,6 +1373,7 @@ srv_suspend_mysql_thread(
 	ulint		diff_time;
 	ulint		sec;
 	ulint		ms;
+	ulong		lock_wait_timeout;
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
@@ -1418,8 +1419,11 @@ srv_suspend_mysql_thread(
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
 
-		ut_usectime(&sec, &ms);
-		start_time = (ib_int64_t)sec * 1000000 + ms;
+		if (ut_usectime(&sec, &ms) == -1) {
+			start_time = -1;
+		} else {
+			start_time = (ib_int64_t) sec * 1000000 + ms;
+		}
 	}
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
@@ -1482,14 +1486,20 @@ srv_suspend_mysql_thread(
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
-		ut_usectime(&sec, &ms);
-		finish_time = (ib_int64_t)sec * 1000000 + ms;
+		if (ut_usectime(&sec, &ms) == -1) {
+			finish_time = -1;
+		} else {
+			finish_time = (ib_int64_t) sec * 1000000 + ms;
+		}
 
 		diff_time = (ulint) (finish_time - start_time);
 
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
-		if (diff_time > srv_n_lock_max_wait_time) {
+		if (diff_time > srv_n_lock_max_wait_time &&
+		    /* only update the variable if we successfully
+		    retrieved the start and finish times. See Bug#36819. */
+		    start_time != -1 && finish_time != -1) {
 			srv_n_lock_max_wait_time = diff_time;
 		}
 	}
@@ -1502,8 +1512,14 @@ srv_suspend_mysql_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	if (srv_lock_wait_timeout < 100000000
-	    && wait_time > (double)srv_lock_wait_timeout) {
+	/* InnoDB system transactions (such as the purge, and
+	incomplete transactions that are being rolled back after crash
+	recovery) will use the global value of
+	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
+	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+
+	if (lock_wait_timeout < 100000000
+	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 	}
@@ -1792,8 +1808,10 @@ srv_export_innodb_status(void)
 		= UT_LIST_GET_LEN(buf_pool->flush_list);
 	export_vars.innodb_buffer_pool_pages_free
 		= UT_LIST_GET_LEN(buf_pool->free);
+#ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched
 		= buf_get_latched_pages_number();
+#endif /* UNIV_DEBUG */
 	export_vars.innodb_buffer_pool_pages_total = buf_pool->curr_size;
 
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
@@ -1951,12 +1969,19 @@ loop:
 		slot = srv_mysql_table + i;
 
 		if (slot->in_use) {
+			trx_t*	trx;
+			ulong	lock_wait_timeout;
+
 			some_waits = TRUE;
 
 			wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
-			if (srv_lock_wait_timeout < 100000000
-			    && (wait_time > (double) srv_lock_wait_timeout
+			trx = thr_get_trx(slot->thr);
+			lock_wait_timeout = thd_lock_wait_timeout(
+				trx->mysql_thd);
+
+			if (lock_wait_timeout < 100000000
+			    && (wait_time > (double) lock_wait_timeout
 				|| wait_time < 0)) {
 
 				/* Timeout exceeded or a wrap-around in system
@@ -1966,10 +1991,9 @@ loop:
 				possible that the lock has already been
 				granted: in that case do nothing */
 
-				if (thr_get_trx(slot->thr)->wait_lock) {
+				if (trx->wait_lock) {
 					lock_cancel_waiting_and_release(
-						thr_get_trx(slot->thr)
-						->wait_lock);
+						trx->wait_lock);
 				}
 			}
 		}

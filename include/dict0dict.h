@@ -172,8 +172,7 @@ dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table);	/* in/out: table */
 /************************************************************************
-Initializes the autoinc counter. It is not an error to initialize an already
-initialized counter. */
+Unconditionally set the autoinc counter. */
 UNIV_INTERN
 void
 dict_table_autoinc_initialize(
@@ -190,12 +189,12 @@ dict_table_autoinc_read(
 					/* out: value for a new row, or 0 */
 	const dict_table_t*	table);	/* in: table */
 /************************************************************************
-Updates the autoinc counter if the value supplied is equal or bigger than the
-current value. If not inited, does nothing. */
+Updates the autoinc counter if the value supplied is greater than the
+current value. */
 UNIV_INTERN
 void
-dict_table_autoinc_update(
-/*======================*/
+dict_table_autoinc_update_if_greater(
+/*=================================*/
 
 	dict_table_t*	table,	/* in/out: table */
 	ib_uint64_t	value);	/* in: value which was assigned to a row */
@@ -300,17 +299,6 @@ dict_table_replace_index_in_foreign_list(
 /*=====================================*/
 	dict_table_t*	table,  /* in/out: table */
 	dict_index_t*	index);	/* in: index to be replaced */
-/**************************************************************************
-Determines whether a string starts with the specified keyword. */
-UNIV_INTERN
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-					/* out: TRUE if str starts
-					with keyword */
-	void*		mysql_thd,	/* in: MySQL thread handle */
-	const char*	str,		/* in: string to scan for keyword */
-	const char*	keyword);	/* in: keyword to look for */
 /*************************************************************************
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
@@ -419,6 +407,16 @@ dict_table_get_on_id_low(
 /*=====================*/
 				/* out: table, NULL if does not exist */
 	dulint	table_id);	/* in: table id */
+/**************************************************************************
+Find an index that is equivalent to the one passed in and is not marked
+for deletion. */
+UNIV_INTERN
+dict_index_t*
+dict_foreign_find_equiv_index(
+/*==========================*/
+				/* out: index equivalent to
+				foreign->foreign_index, or NULL */
+	dict_foreign_t*	foreign);/* in: foreign key */
 /**************************************************************************
 Returns an index object by matching on the name and column names and if
 more than index is found return the index with the higher id.*/
@@ -706,7 +704,10 @@ dict_index_add_to_cache(
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
-	ulint		page_no);/* in: root page number of the index */
+	ulint		page_no,/* in: root page number of the index */
+	ibool		strict);/* in: TRUE=refuse to create the index
+				if records could be too big to fit in
+				an B-tree page */
 /**************************************************************************
 Removes an index from the dictionary cache. */
 UNIV_INTERN
@@ -1068,17 +1069,6 @@ dict_tables_have_same_db(
 	const char*	name2);	/* in: table name in the form
 				dbname '/' tablename */
 /*************************************************************************
-Scans from pointer onwards. Stops if is at the start of a copy of
-'string' where characters are compared without case sensitivity. Stops
-also at '\0'. */
-
-const char*
-dict_scan_to(
-/*=========*/
-				/* out: scanned up to this */
-	const char*	ptr,	/* in: scan from */
-	const char*	string);/* in: look for this */
-/*************************************************************************
 Removes an index from the cache */
 UNIV_INTERN
 void
@@ -1095,15 +1085,6 @@ dict_table_get_index_on_name(
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: name of the index to find */
-/**************************************************************************
-Find and index that is equivalent to the one passed in and is not marked
-for deletion. */
-UNIV_INTERN
-dict_index_t*
-dict_table_find_equivalent_index(
-/*=============================*/
-	dict_table_t*	table,  /* in/out: table */
-	dict_index_t*	index);	/* in: index to match */
 /**************************************************************************
 In case there is more than one index with the same name return the index
 with the min(id). */

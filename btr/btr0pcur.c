@@ -208,6 +208,7 @@ btr_pcur_restore_position(
 	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
 			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
 		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
+		putc('\n', stderr);
 		if (cursor->trx_if_known) {
 			trx_print(stderr, cursor->trx_if_known, 0);
 		}
@@ -243,10 +244,10 @@ btr_pcur_restore_position(
 					cursor->block_when_stored,
 					cursor->modify_clock, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
-#ifdef UNIV_SYNC_DEBUG
+
 			buf_block_dbg_add_level(btr_pcur_get_block(cursor),
 						SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 			if (cursor->rel_pos == BTR_PCUR_ON) {
 #ifdef UNIV_DEBUG
 				const rec_t*	rec;

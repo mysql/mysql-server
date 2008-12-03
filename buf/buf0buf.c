@@ -406,7 +406,7 @@ buf_page_is_corrupted(
 		}
 
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
-		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
 
 		if (checksum_field != 0
 		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
@@ -443,7 +443,7 @@ buf_page_print(
 	fprintf(stderr, "  InnoDB: Page dump in ascii and hex (%lu bytes):\n",
 		(ulong) size);
 	ut_print_buf(stderr, read_buf, size);
-	fputs("InnoDB: End of page dump\n", stderr);
+	fputs("\nInnoDB: End of page dump\n", stderr);
 
 	if (zip_size) {
 		/* Print compressed page. */
@@ -1053,6 +1053,14 @@ buf_relocate(
 
 	if (UNIV_UNLIKELY(buf_pool->LRU_old == bpage)) {
 		buf_pool->LRU_old = dpage;
+#ifdef UNIV_LRU_DEBUG
+		/* buf_pool->LRU_old must be the first item in the LRU list
+		whose "old" flag is set. */
+		ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
+		     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
+		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
+		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+#endif /* UNIV_LRU_DEBUG */
 	}
 
 	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU));
@@ -2193,9 +2201,8 @@ buf_page_optimistic_get_func(
 	}
 
 	if (UNIV_UNLIKELY(modify_clock != block->modify_clock)) {
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 		if (rw_latch == RW_S_LATCH) {
 			rw_lock_s_unlock(&(block->lock));
 		} else {
@@ -2395,9 +2402,8 @@ buf_page_try_get_func(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 	buf_pool->n_page_gets++;
 
 	return(block);
@@ -3070,9 +3076,6 @@ corrupt:
 		ut_error;
 	}
 
-	mutex_exit(buf_page_get_mutex(bpage));
-	buf_pool_mutex_exit();
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Has %s page space %lu page no %lu\n",
@@ -3081,6 +3084,9 @@ corrupt:
 			(ulong) buf_page_get_page_no(bpage));
 	}
 #endif /* UNIV_DEBUG */
+
+	mutex_exit(buf_page_get_mutex(bpage));
+	buf_pool_mutex_exit();
 }
 
 /*************************************************************************
@@ -3446,6 +3452,7 @@ buf_print(void)
 }
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 UNIV_INTERN
@@ -3532,6 +3539,7 @@ buf_get_latched_pages_number(void)
 
 	return(fixed_pages_number);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of pending buf pool ios. */

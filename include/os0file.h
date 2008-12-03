@@ -663,24 +663,6 @@ os_aio_windows_handle(
 	ulint*	type);		/* out: OS_FILE_WRITE or ..._READ */
 #endif
 
-/* Currently we do not use Posix async i/o */
-#ifdef POSIX_ASYNC_IO
-/**************************************************************************
-This function is only used in Posix asynchronous i/o. Waits for an aio
-operation to complete. */
-UNIV_INTERN
-ibool
-os_aio_posix_handle(
-/*================*/
-				/* out: TRUE if the aio operation succeeded */
-	ulint	array_no,	/* in: array number 0 - 3 */
-	fil_node_t**message1,	/* out: the messages passed with the aio
-				request; note that also in the case where
-				the aio operation failed, these output
-				parameters are valid and can be used to
-				restart the operation, for example */
-	void**	message2);
-#endif
 /**************************************************************************
 Does simulated aio. This function should be called by an i/o-handler
 thread. */

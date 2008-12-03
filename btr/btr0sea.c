@@ -188,6 +188,7 @@ btr_search_info_create(
 	info->magic_n = BTR_SEARCH_MAGIC_N;
 #endif /* UNIV_DEBUG */
 
+	info->ref_count = 0;
 	info->root_guess = NULL;
 
 	info->hash_analysis = 0;
@@ -209,6 +210,32 @@ btr_search_info_create(
 	info->left_side = TRUE;
 
 	return(info);
+}
+
+/*********************************************************************
+Returns the value of ref_count. The value is protected by
+btr_search_latch. */
+UNIV_INTERN
+ulint
+btr_search_info_get_ref_count(
+/*==========================*/
+				/* out: ref_count value. */
+	btr_search_t*   info)	/* in: search info. */
+{
+	ulint ret;
+
+	ut_ad(info);
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	rw_lock_s_lock(&btr_search_latch);
+	ret = info->ref_count;
+	rw_lock_s_unlock(&btr_search_latch);
+
+	return(ret);
 }
 
 /*************************************************************************
@@ -818,9 +845,7 @@ btr_search_guess_on_hash(
 
 		rw_lock_s_unlock(&btr_search_latch);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	if (UNIV_UNLIKELY(buf_block_get_state(block)
@@ -944,21 +969,21 @@ btr_search_drop_page_hash_index(
 				for which we know that
 				block->buf_fix_count == 0 */
 {
-	hash_table_t*	table;
-	ulint		n_fields;
-	ulint		n_bytes;
-	page_t*		page;
-	rec_t*		rec;
-	ulint		fold;
-	ulint		prev_fold;
-	dulint		index_id;
-	ulint		n_cached;
-	ulint		n_recs;
-	ulint*		folds;
-	ulint		i;
-	mem_heap_t*	heap;
-	dict_index_t*	index;
-	ulint*		offsets;
+	hash_table_t*		table;
+	ulint			n_fields;
+	ulint			n_bytes;
+	const page_t*		page;
+	const rec_t*		rec;
+	ulint			fold;
+	ulint			prev_fold;
+	dulint			index_id;
+	ulint			n_cached;
+	ulint			n_recs;
+	ulint*			folds;
+	ulint			i;
+	mem_heap_t*		heap;
+	const dict_index_t*	index;
+	ulint*			offsets;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -1007,7 +1032,7 @@ retry:
 	n_cached = 0;
 
 	rec = page_get_infimum_rec(page);
-	rec = page_rec_get_next(rec);
+	rec = page_rec_get_next_low(rec, page_is_comp(page));
 
 	index_id = btr_page_get_index_id(page);
 
@@ -1035,7 +1060,7 @@ retry:
 		folds[n_cached] = fold;
 		n_cached++;
 next_rec:
-		rec = page_rec_get_next(rec);
+		rec = page_rec_get_next_low(rec, page_rec_is_comp(rec));
 		prev_fold = fold;
 	}
 
@@ -1070,8 +1095,12 @@ next_rec:
 		ha_remove_all_nodes_to_page(table, folds[i], page);
 	}
 
+	ut_a(index->search_info->ref_count > 0);
+	index->search_info->ref_count--;
+
 	block->is_hashed = FALSE;
 	block->index = NULL;
+	
 cleanup:
 #ifdef UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
@@ -1127,9 +1156,7 @@ btr_search_drop_page_hash_when_freed(
 				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
-#endif /* UNIV_SYNC_DEBUG */
 
 	btr_search_drop_page_hash_index(block);
 
@@ -1293,6 +1320,15 @@ btr_search_build_page_hash_index(
 				 || (block->curr_n_bytes != n_bytes)
 				 || (block->curr_left_side != left_side))) {
 		goto exit_func;
+	}
+
+	/* This counter is decremented every time we drop page
+	hash index entries and is incremented here. Since we can
+	rebuild hash index for a page that is already hashed, we
+	have to take care not to increment the counter in that
+	case. */
+	if (!block->is_hashed) {
+		index->search_info->ref_count++;
 	}
 
 	block->is_hashed = TRUE;

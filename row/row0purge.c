@@ -144,7 +144,8 @@ row_purge_remove_clust_if_poss_low(
 		success = btr_cur_optimistic_delete(btr_cur, &mtr);
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, FALSE, &mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   RB_NONE, &mtr);
 
 		if (err == DB_SUCCESS) {
 			success = TRUE;
@@ -205,7 +206,7 @@ row_purge_remove_sec_if_poss_low(
 				/* out: TRUE if success or if not found */
 	purge_node_t*	node,	/* in: row purge node */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry */
+	const dtuple_t*	entry,	/* in: index entry */
 	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
 {
@@ -265,7 +266,7 @@ row_purge_remove_sec_if_poss_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-						   FALSE, &mtr);
+						   RB_NONE, &mtr);
 			success = err == DB_SUCCESS;
 			ut_a(success || err == DB_OUT_OF_FILE_SPACE);
 		}
@@ -446,9 +447,8 @@ skip_secondaries:
 			that the space id of the undo log record is 0! */
 
 			block = buf_page_get(0, 0, page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 			data_field = buf_block_get_frame(block)
 				+ offset + internal_offset;
 
@@ -458,7 +458,7 @@ skip_secondaries:
 				index,
 				data_field + dfield_get_len(&ufield->new_val)
 				- BTR_EXTERN_FIELD_REF_SIZE,
-				NULL, NULL, NULL, 0, FALSE, &mtr);
+				NULL, NULL, NULL, 0, RB_NONE, &mtr);
 			mtr_commit(&mtr);
 		}
 	}
@@ -559,8 +559,10 @@ err_exit:
 	/* Read to the partial row the fields that occur in indexes */
 
 	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-		ptr = trx_undo_rec_get_partial_row(ptr, clust_index,
-						   &node->row, node->heap);
+		ptr = trx_undo_rec_get_partial_row(
+			ptr, clust_index, &node->row,
+			type == TRX_UNDO_UPD_DEL_REC,
+			node->heap);
 	}
 
 	return(TRUE);

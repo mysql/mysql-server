@@ -2166,24 +2166,25 @@ static
 void
 lock_grant(
 /*=======*/
-	lock_t*	lock)	/* in: waiting lock request */
+	lock_t*	lock)	/* in/out: waiting lock request */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
 	lock_reset_lock_and_trx_wait(lock);
 
 	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+		trx_t*		trx = lock->trx;
+		dict_table_t*	table = lock->un_member.tab_lock.table;
 
-		if (lock->trx->auto_inc_lock != NULL) {
+		if (table->autoinc_trx == trx) {
 			fprintf(stderr,
 				"InnoDB: Error: trx already had"
 				" an AUTO-INC lock!\n");
+		} else {
+			table->autoinc_trx = trx;
+
+			ib_vector_push(trx->autoinc_locks, lock);
 		}
-
-		/* Store pointer to lock to trx so that we know to
-		release it at the end of the SQL statement */
-
-		lock->trx->auto_inc_lock = lock;
 	}
 
 #ifdef UNIV_DEBUG
@@ -3531,15 +3532,16 @@ lock_table_create(
 		++table->n_waiting_or_granted_auto_inc_locks;
 	}
 
+	/* For AUTOINC locking we reuse the lock instance only if
+	there is no wait involved else we allocate the waiting lock
+	from the transaction lock heap. */
 	if (type_mode == LOCK_AUTO_INC) {
-		/* Only one trx can have the lock on the table
-		at a time: we may use the memory preallocated
-		to the table object */
 
-		lock = table->auto_inc_lock;
+		lock = table->autoinc_lock;
 
-		ut_a(trx->auto_inc_lock == NULL);
-		trx->auto_inc_lock = lock;
+		table->autoinc_trx = trx;
+
+		ib_vector_push(trx->autoinc_locks, lock);
 	} else {
 		lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t));
 	}
@@ -3571,16 +3573,39 @@ lock_table_remove_low(
 /*==================*/
 	lock_t*	lock)	/* in: table lock */
 {
-	dict_table_t*	table;
 	trx_t*		trx;
+	dict_table_t*	table;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
-	table = lock->un_member.tab_lock.table;
 	trx = lock->trx;
+	table = lock->un_member.tab_lock.table;
 
-	if (lock == trx->auto_inc_lock) {
-		trx->auto_inc_lock = NULL;
+	/* Remove the table from the transaction's AUTOINC vector, if
+	the lock that is being release is an AUTOINC lock. */
+	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+
+		/* The table's AUTOINC lock can get transferred to
+		another transaction before we get here. */
+		if (table->autoinc_trx == trx) {
+			table->autoinc_trx = NULL;
+		}
+
+		/* The locks must be freed in the reverse order from
+		the one in which they were acquired. This is to avoid
+		traversing the AUTOINC lock vector unnecessarily. 
+
+		We only store locks that were granted in the
+		trx->autoinc_locks vector (see lock_table_create()
+		and lock_grant()). Therefore it can be empty and we
+		need to check for that. */
+
+		if (!ib_vector_is_empty(trx->autoinc_locks)) {
+			lock_t*	autoinc_lock;
+
+			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
+			ut_a(autoinc_lock == lock);
+		}
 
 		ut_a(table->n_waiting_or_granted_auto_inc_locks > 0);
 		--table->n_waiting_or_granted_auto_inc_locks;
@@ -3956,24 +3981,6 @@ lock_table_unlock(
 }
 
 /*************************************************************************
-Releases an auto-inc lock a transaction possibly has on a table.
-Releases possible other transactions waiting for this lock. */
-UNIV_INTERN
-void
-lock_table_unlock_auto_inc(
-/*=======================*/
-	trx_t*	trx)	/* in: transaction */
-{
-	if (trx->auto_inc_lock) {
-		mutex_enter(&kernel_mutex);
-
-		lock_table_dequeue(trx->auto_inc_lock);
-
-		mutex_exit(&kernel_mutex);
-	}
-}
-
-/*************************************************************************
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 UNIV_INTERN
@@ -4032,9 +4039,9 @@ lock_release_off_kernel(
 		lock = UT_LIST_GET_LAST(trx->trx_locks);
 	}
 
-	mem_heap_empty(trx->lock_heap);
+	ut_a(ib_vector_size(trx->autoinc_locks) == 0);
 
-	ut_a(trx->auto_inc_lock == NULL);
+	mem_heap_empty(trx->lock_heap);
 }
 
 /*************************************************************************
@@ -4054,6 +4061,11 @@ lock_cancel_waiting_and_release(
 	} else {
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 
+		if (lock->trx->autoinc_locks != NULL) {
+			/* Release the transaction's AUTOINC locks/ */
+			lock_release_autoinc_locks(lock->trx);
+		}
+
 		lock_table_dequeue(lock);
 	}
 
@@ -4066,15 +4078,25 @@ lock_cancel_waiting_and_release(
 	trx_end_lock_wait(lock->trx);
 }
 
+/* True if a lock mode is S or X */
+#define IS_LOCK_S_OR_X(lock) \
+	(lock_get_mode(lock) == LOCK_S \
+	 || lock_get_mode(lock) == LOCK_X)
+
+
 /*************************************************************************
-Resets all record and table locks of a transaction on a table to be dropped.
-No lock is allowed to be a wait lock. */
+Removes locks of a transaction on a table to be dropped.
+If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+also removed in addition to other table-level and record-level locks.
+No lock, that is going to be removed, is allowed to be a wait lock. */
 static
 void
-lock_reset_all_on_table_for_trx(
-/*============================*/
-	dict_table_t*	table,	/* in: table to be dropped */
-	trx_t*		trx)	/* in: a transaction */
+lock_remove_all_on_table_for_trx(
+/*=============================*/
+	dict_table_t*	table,			/* in: table to be dropped */
+	trx_t*		trx,			/* in: a transaction */
+	ibool		remove_also_table_sx_locks)/* in: also removes
+						table S and X locks */
 {
 	lock_t*	lock;
 	lock_t*	prev_lock;
@@ -4092,7 +4114,9 @@ lock_reset_all_on_table_for_trx(
 
 			lock_rec_discard(lock);
 		} else if (lock_get_type_low(lock) & LOCK_TABLE
-			   && lock->un_member.tab_lock.table == table) {
+			   && lock->un_member.tab_lock.table == table
+			   && (remove_also_table_sx_locks
+			       || !IS_LOCK_S_OR_X(lock))) {
 
 			ut_a(!lock_get_wait(lock));
 
@@ -4104,26 +4128,65 @@ lock_reset_all_on_table_for_trx(
 }
 
 /*************************************************************************
-Resets all locks, both table and record locks, on a table to be dropped.
-No lock is allowed to be a wait lock. */
+Removes locks on a table to be dropped or truncated.
+If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+also removed in addition to other table-level and record-level locks.
+No lock, that is going to be removed, is allowed to be a wait lock. */
 UNIV_INTERN
 void
-lock_reset_all_on_table(
-/*====================*/
-	dict_table_t*	table)	/* in: table to be dropped */
+lock_remove_all_on_table(
+/*=====================*/
+	dict_table_t*	table,			/* in: table to be dropped
+						or truncated */
+	ibool		remove_also_table_sx_locks)/* in: also removes
+						table S and X locks */
 {
 	lock_t*	lock;
+	lock_t*	prev_lock;
 
 	mutex_enter(&kernel_mutex);
 
 	lock = UT_LIST_GET_FIRST(table->locks);
 
-	while (lock) {
-		ut_a(!lock_get_wait(lock));
+	while (lock != NULL) {
 
-		lock_reset_all_on_table_for_trx(table, lock->trx);
+		prev_lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
+					     lock);
 
-		lock = UT_LIST_GET_FIRST(table->locks);
+		/* If we should remove all locks (remove_also_table_sx_locks
+		is TRUE), or if the lock is not table-level S or X lock,
+		then check we are not going to remove a wait lock. */
+		if (remove_also_table_sx_locks
+		    || !(lock_get_type(lock) == LOCK_TABLE
+			 && IS_LOCK_S_OR_X(lock))) {
+
+			ut_a(!lock_get_wait(lock));
+		}
+
+		lock_remove_all_on_table_for_trx(table, lock->trx,
+						 remove_also_table_sx_locks);
+
+		if (prev_lock == NULL) {
+			if (lock == UT_LIST_GET_FIRST(table->locks)) {
+				/* lock was not removed, pick its successor */
+				lock = UT_LIST_GET_NEXT(
+					un_member.tab_lock.locks, lock);
+			} else {
+				/* lock was removed, pick the first one */
+				lock = UT_LIST_GET_FIRST(table->locks);
+			}
+		} else if (UT_LIST_GET_NEXT(un_member.tab_lock.locks,
+					    prev_lock) != lock) {
+			/* If lock was removed by
+			lock_remove_all_on_table_for_trx() then pick the
+			successor of prev_lock ... */
+			lock = UT_LIST_GET_NEXT(
+				un_member.tab_lock.locks, prev_lock);
+		} else {
+			/* ... otherwise pick the successor of lock. */
+			lock = UT_LIST_GET_NEXT(
+				un_member.tab_lock.locks, lock);
+		}
 	}
 
 	mutex_exit(&kernel_mutex);
@@ -4264,6 +4327,15 @@ lock_rec_print(
 }
 
 #ifndef UNIV_HOTBACKUP
+
+#ifdef UNIV_DEBUG
+/* Print the number of lock structs from lock_print_info_summary() only
+in non-production builds for performance reasons, see
+http://bugs.mysql.com/36942 */
+#define PRINT_NUM_OF_LOCK_STRUCTS
+#endif /* UNIV_DEBUG */
+
+#ifdef PRINT_NUM_OF_LOCK_STRUCTS
 /*************************************************************************
 Calculates the number of record lock structs in the record lock hash table. */
 static
@@ -4290,6 +4362,7 @@ lock_get_n_rec_locks(void)
 
 	return(n_locks);
 }
+#endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 
 /*************************************************************************
 Prints info of locks for all transactions. */
@@ -4331,9 +4404,11 @@ lock_print_info_summary(
 		"History list length %lu\n",
 		(ulong) trx_sys->rseg_history_len);
 
+#ifdef PRINT_NUM_OF_LOCK_STRUCTS
 	fprintf(file,
 		"Total number of lock structs in row lock hash table %lu\n",
 		(ulong) lock_get_n_rec_locks());
+#endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 }
 
 /*************************************************************************
@@ -4687,9 +4762,8 @@ lock_rec_validate_page(
 
 	block = buf_page_get(space, fil_space_get_zip_size(space),
 			     page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 	page = block->frame;
 
 	lock_mutex_enter_kernel();
@@ -5322,6 +5396,60 @@ lock_clust_rec_read_check_and_lock_alt(
 		mem_heap_free(tmp_heap);
 	}
 	return(ret);
+}
+
+/***********************************************************************
+Release the last lock from the transaction's autoinc locks. */
+UNIV_INLINE
+void
+lock_release_autoinc_last_lock(
+/*===========================*/
+	ib_vector_t*	autoinc_locks)	/* in/out: vector of AUTOINC locks */
+{
+	ulint		last;
+	lock_t*		lock;
+
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_a(!ib_vector_is_empty(autoinc_locks));
+
+	/* The lock to be release must be the last lock acquired. */
+	last = ib_vector_size(autoinc_locks) - 1;
+	lock = ib_vector_get(autoinc_locks, last);
+
+	/* Should have only AUTOINC locks in the vector. */
+	ut_a(lock_get_mode(lock) == LOCK_AUTO_INC);
+	ut_a(lock_get_type(lock) == LOCK_TABLE);
+
+	ut_a(lock->un_member.tab_lock.table != NULL);
+
+	/* This will remove the lock from the trx autoinc_locks too. */
+	lock_table_dequeue(lock);
+}
+
+/***********************************************************************
+Release all the transaction's autoinc locks. */
+UNIV_INTERN
+void
+lock_release_autoinc_locks(
+/*=======================*/
+	trx_t*		trx)		/* in/out: transaction */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+
+	ut_a(trx->autoinc_locks != NULL);
+
+	/* We release the locks in the reverse order. This is to
+	avoid searching the vector for the element to delete at
+	the lower level. See (lock_table_remove_low()) for details. */
+	while (!ib_vector_is_empty(trx->autoinc_locks)) {
+
+		/* lock_table_remove_low() will also remove the lock from
+		the transaction's autoinc_locks vector. */
+		lock_release_autoinc_last_lock(trx->autoinc_locks);
+	}
+
+	/* Should release all locks. */
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 }
 
 /***********************************************************************

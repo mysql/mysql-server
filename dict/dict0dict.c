@@ -22,6 +22,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
+#include "page0zip.h"
+#include "page0page.h"
 #include "pars0pars.h"
 #include "pars0sym.h"
 #include "que0que.h"
@@ -54,56 +56,6 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 
 /* Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
-
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************
-Converts an identifier to a table name.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_convert_from_table_id(
-/*===========================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes;
-				should be at least 5 * strlen(to) + 1 */
-/**********************************************************************
-Converts an identifier to UTF-8.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_convert_from_id(
-/*=====================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes;
-				should be at least 3 * strlen(to) + 1 */
-/**********************************************************************
-Makes all characters in a NUL-terminated UTF-8 string lower case.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_casedn_str(
-/*================*/
-	char*	a);	/* in/out: string to put in lower case */
-
-/**************************************************************************
-Determines the connection character set.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-struct charset_info_st*
-innobase_get_charset(
-/*=================*/
-				/* out: connection character set */
-	void*	mysql_thd);	/* in: MySQL thread handle */
-#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 Tries to find column names for the index and sets the col field of the
@@ -335,8 +287,7 @@ dict_table_autoinc_lock(
 }
 
 /************************************************************************
-Initializes the autoinc counter. It is not an error to initialize an already
-initialized counter. */
+Unconditionally set the autoinc counter. */
 UNIV_INTERN
 void
 dict_table_autoinc_initialize(
@@ -346,7 +297,6 @@ dict_table_autoinc_initialize(
 {
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
-	table->autoinc_inited = TRUE;
 	table->autoinc = value;
 }
 
@@ -360,32 +310,25 @@ dict_table_autoinc_read(
 					/* out: value for a new row, or 0 */
 	const dict_table_t*	table)	/* in: table */
 {
-	ib_int64_t	value;
-
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
-	if (!table->autoinc_inited) {
-
-		value = 0;
-	} else {
-		value = table->autoinc;
-	}
-
-	return(value);
+	return(table->autoinc);
 }
 
 /************************************************************************
 Updates the autoinc counter if the value supplied is greater than the
-current value. If not inited, does nothing. */
+current value. */
 UNIV_INTERN
 void
-dict_table_autoinc_update(
-/*======================*/
+dict_table_autoinc_update_if_greater(
+/*=================================*/
 
 	dict_table_t*	table,	/* in/out: table */
 	ib_uint64_t	value)	/* in: value which was assigned to a row */
 {
-	if (table->autoinc_inited && value > table->autoinc) {
+	ut_ad(mutex_own(&table->autoinc_mutex));
+
+	if (value > table->autoinc) {
 
 		table->autoinc = value;
 	}
@@ -1312,6 +1255,156 @@ is_ord_part:
 	return(undo_page_len >= UNIV_PAGE_SIZE);
 }
 
+/********************************************************************
+If a record of this index might not fit on a single B-tree page,
+return TRUE. */
+static
+ibool
+dict_index_too_big_for_tree(
+/*========================*/
+						/* out: TRUE if the index
+						record could become too big */
+	const dict_table_t*	table,		/* in: table */
+	const dict_index_t*	new_index)	/* in: index */
+{
+	ulint	zip_size;
+	ulint	comp;
+	ulint	i;
+	/* maximum possible storage size of a record */
+	ulint	rec_max_size;
+	/* maximum allowed size of a record on a leaf page */
+	ulint	page_rec_max;
+	/* maximum allowed size of a node pointer record */
+	ulint	page_ptr_max;
+
+	comp = dict_table_is_comp(table);
+	zip_size = dict_table_zip_size(table);
+
+	if (zip_size && zip_size < UNIV_PAGE_SIZE) {
+		/* On a compressed page, two records must fit in the
+		uncompressed page modification log.  On compressed
+		pages with zip_size == UNIV_PAGE_SIZE, this limit will
+		never be reached. */
+		ut_ad(comp);
+		/* The maximum allowed record size is the size of
+		an empty page, minus a byte for recoding the heap
+		number in the page modification log.  The maximum
+		allowed node pointer size is half that. */
+		page_rec_max = page_zip_empty_size(new_index->n_fields,
+						   zip_size) - 1;
+		page_ptr_max = page_rec_max / 2;
+		/* On a compressed page, there is a two-byte entry in
+		the dense page directory for every record.  But there
+		is no record header. */
+		rec_max_size = 2;
+	} else {
+		/* The maximum allowed record size is half a B-tree
+		page.  No additional sparse page directory entry will
+		be generated for the first few user records. */
+		page_rec_max = page_get_free_space_of_empty(comp) / 2;
+		page_ptr_max = page_rec_max;
+		/* Each record has a header. */
+		rec_max_size = comp
+			? REC_N_NEW_EXTRA_BYTES
+			: REC_N_OLD_EXTRA_BYTES;
+	}
+
+	if (comp) {
+		/* Include the "null" flags in the
+		maximum possible record size. */
+		rec_max_size += UT_BITS_IN_BYTES(new_index->n_nullable);
+	} else {
+		/* For each column, include a 2-byte offset and a
+		"null" flag.  The 1-byte format is only used in short
+		records that do not contain externally stored columns.
+		Such records could never exceed the page limit, even
+		when using the 2-byte format. */
+		rec_max_size += 2 * new_index->n_fields;
+	}
+
+	/* Compute the maximum possible record size. */
+	for (i = 0; i < new_index->n_fields; i++) {
+		const dict_field_t*	field
+			= dict_index_get_nth_field(new_index, i);
+		const dict_col_t*	col
+			= dict_field_get_col(field);
+		ulint			field_max_size;
+		ulint			field_ext_max_size;
+
+		/* In dtuple_convert_big_rec(), variable-length columns
+		that are longer than BTR_EXTERN_FIELD_REF_SIZE * 2
+		may be chosen for external storage.
+
+		Fixed-length columns, and all columns of secondary
+		index records are always stored inline. */
+
+		/* Determine the maximum length of the index field.
+		The field_ext_max_size should be computed as the worst
+		case in rec_get_converted_size_comp() for
+		REC_STATUS_ORDINARY records. */
+
+		field_max_size = dict_col_get_fixed_size(col);
+		if (field_max_size) {
+			/* dict_index_add_col() should guarantee this */
+			ut_ad(!field->prefix_len
+			      || field->fixed_len == field->prefix_len);
+			/* Fixed lengths are not encoded
+			in ROW_FORMAT=COMPACT. */
+			field_ext_max_size = 0;
+			goto add_field_size;
+		}
+
+		field_max_size = dict_col_get_max_size(col);
+		field_ext_max_size = field_max_size < 256 ? 1 : 2;
+
+		if (field->prefix_len) {
+			if (field->prefix_len < field_max_size) {
+				field_max_size = field->prefix_len;
+			}
+		} else if (field_max_size > BTR_EXTERN_FIELD_REF_SIZE * 2
+			   && dict_index_is_clust(new_index)) {
+
+			/* In the worst case, we have a locally stored
+			column of BTR_EXTERN_FIELD_REF_SIZE * 2 bytes.
+			The length can be stored in one byte.  If the
+			column were stored externally, the lengths in
+			the clustered index page would be
+			BTR_EXTERN_FIELD_REF_SIZE and 2. */
+			field_max_size = BTR_EXTERN_FIELD_REF_SIZE * 2;
+			field_ext_max_size = 1;
+		}
+
+		if (comp) {
+			/* Add the extra size for ROW_FORMAT=COMPACT.
+			For ROW_FORMAT=REDUNDANT, these bytes were
+			added to rec_max_size before this loop. */
+			rec_max_size += field_ext_max_size;
+		}
+add_field_size:
+		rec_max_size += field_max_size;
+
+		/* Check the size limit on leaf pages. */
+		if (UNIV_UNLIKELY(rec_max_size >= page_rec_max)) {
+
+			return(TRUE);
+		}
+
+		/* Check the size limit on non-leaf pages.  Records
+		stored in non-leaf B-tree pages consist of the unique
+		columns of the record (the key columns of the B-tree)
+		and a node pointer field.  When we have processed the
+		unique columns, rec_max_size equals the size of the
+		node pointer record minus the node pointer column. */
+		if (i + 1 == dict_index_get_n_unique_in_tree(new_index)
+		    && rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
 /**************************************************************************
 Adds an index to the dictionary cache. */
 UNIV_INTERN
@@ -1322,7 +1415,10 @@ dict_index_add_to_cache(
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
-	ulint		page_no)/* in: root page number of the index */
+	ulint		page_no,/* in: root page number of the index */
+	ibool		strict)	/* in: TRUE=refuse to create the index
+				if records could be too big to fit in
+				an B-tree page */
 {
 	dict_index_t*	new_index;
 	ulint		n_ord;
@@ -1353,10 +1449,40 @@ dict_index_add_to_cache(
 
 	new_index->n_fields = new_index->n_def;
 
+	if (strict && dict_index_too_big_for_tree(table, new_index)) {
+too_big:
+		dict_mem_index_free(new_index);
+		dict_mem_index_free(index);
+		return(DB_TOO_BIG_RECORD);
+	}
+
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		n_ord = new_index->n_fields;
 	} else {
 		n_ord = new_index->n_uniq;
+	}
+
+	switch (dict_table_get_format(table)) {
+	case DICT_TF_FORMAT_51:
+		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
+		prefixes of externally stored columns locally within
+		the record.  There are no special considerations for
+		the undo log record size. */
+		goto undo_size_ok;
+
+	case DICT_TF_FORMAT_ZIP:
+		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
+		column prefix indexes require that prefixes of
+		externally stored columns are written to the undo log.
+		This may make the undo log record bigger than the
+		record on the B-tree page.  The maximum size of an
+		undo log record is the page size.  That must be
+		checked for below. */
+		break;
+
+#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
+# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#endif
 	}
 
 	for (i = 0; i < n_ord; i++) {
@@ -1384,15 +1510,15 @@ dict_index_add_to_cache(
 			if (dict_index_too_big_for_undo(table, new_index)) {
 				/* An undo log record might not fit in
 				a single page.  Refuse to create this index. */
-				dict_mem_index_free(new_index);
-				dict_mem_index_free(index);
-				return(DB_TOO_BIG_RECORD);
+
+				goto too_big;
 			}
 
 			break;
 		}
 	}
 
+undo_size_ok:
 	/* Flag the ordering columns */
 
 	for (i = 0; i < n_ord; i++) {
@@ -1446,11 +1572,58 @@ dict_index_remove_from_cache(
 	dict_index_t*	index)	/* in, own: index */
 {
 	ulint		size;
+	ulint		retries = 0;
+	btr_search_t*	info;
 
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	/* We always create search info whether or not adaptive
+	hash index is enabled or not. */
+	info = index->search_info;
+	ut_ad(info);
+
+	/* We are not allowed to free the in-memory index struct
+ 	dict_index_t until all entries in the adaptive hash index
+	that point to any of the page belonging to his b-tree index
+	are dropped. This is so because dropping of these entries
+	require access to dict_index_t struct. To avoid such scenario
+	We keep a count of number of such pages in the search_info and
+	only free the dict_index_t struct when this count drops to
+	zero. */
+
+	for (;;) {
+		ulint ref_count = btr_search_info_get_ref_count(info);
+		if (ref_count == 0) {
+			break;
+		}
+
+		/* Sleep for 10ms before trying again. */
+		os_thread_sleep(10000);
+		++retries;
+
+		if (retries % 500 == 0) {
+			/* No luck after 5 seconds of wait. */
+			fprintf(stderr, "InnoDB: Error: Waited for"
+					" %lu secs for hash index"
+					" ref_count (%lu) to drop"
+					" to 0.\n"
+					"index: \"%s\""
+					" table: \"%s\"\n",
+					retries/100,
+					ref_count,
+					index->name,
+					table->name);
+		}
+
+		/* To avoid a hang here we commit suicide if the
+		ref_count doesn't drop to zero in 600 seconds. */
+		if (retries >= 60000) {
+			ut_error;
+		}
+	}
 
 	rw_lock_free(&index->lock);
 
@@ -1901,27 +2074,19 @@ dict_table_get_referenced_constraint(
 	dict_table_t*	table,	/* in: InnoDB table */
 	dict_index_t*	index)	/* in: InnoDB index */
 {
-	dict_foreign_t*	foreign  = NULL;
+	dict_foreign_t*	foreign;
 
-	ut_ad(index && table);
+	ut_ad(index != NULL);
+	ut_ad(table != NULL);
 
-	/* If the referenced list is empty, nothing to do */
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-	if (UT_LIST_GET_LEN(table->referenced_list) == 0) {
-
-		return(NULL);
-	}
-
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
-	while (foreign) {
-		if (foreign->referenced_index == index
-		    || foreign->referenced_index == index) {
+		if (foreign->referenced_index == index) {
 
 			return(foreign);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
 	return(NULL);
@@ -1940,29 +2105,20 @@ dict_table_get_foreign_constraint(
 	dict_table_t*	table,	/* in: InnoDB table */
 	dict_index_t*	index)	/* in: InnoDB index */
 {
-	dict_foreign_t*	foreign  = NULL;
+	dict_foreign_t*	foreign;
 
-	ut_ad(index && table);
+	ut_ad(index != NULL);
+	ut_ad(table != NULL);
 
-	/* If list empty then nothgin to do */
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
-
-		return(NULL);
-	}
-
-	/* Check whether this index is defined for a foreign key */
-
-	foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-	while (foreign) {
 		if (foreign->foreign_index == index
 		    || foreign->referenced_index == index) {
 
 			return(foreign);
 		}
-
-		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
 	return(NULL);
@@ -2130,6 +2286,30 @@ next_rec:
 	}
 
 	return(NULL);
+}
+
+/**************************************************************************
+Find an index that is equivalent to the one passed in and is not marked
+for deletion. */
+UNIV_INTERN
+dict_index_t*
+dict_foreign_find_equiv_index(
+/*==========================*/
+				/* out: index equivalent to
+				foreign->foreign_index, or NULL */
+	dict_foreign_t*	foreign)/* in: foreign key */
+{
+	ut_a(foreign != NULL);
+
+	/* Try to find an index which contains the columns as the
+	first fields and in the right order, and the types are the
+	same as in foreign->foreign_index */
+
+	return(dict_foreign_find_index(
+		       foreign->foreign_table,
+		       foreign->foreign_col_names, foreign->n_fields,
+		       foreign->foreign_index, TRUE, /* check types */
+		       FALSE/* allow columns to be NULL */));
 }
 
 /**************************************************************************
@@ -2362,7 +2542,7 @@ dict_foreign_add_to_cache(
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity, and
 only outside `` or "" quotes. Stops also at '\0'. */
-UNIV_INTERN
+static
 const char*
 dict_scan_to(
 /*=========*/
@@ -2537,7 +2717,7 @@ convert_id:
 		len = 3 * len + 1;
 		*id = dst = mem_heap_alloc(heap, len);
 
-		innobase_convert_from_id(dst, str, len);
+		innobase_convert_from_id(cs, dst, str, len);
 	} else if (!strncmp(str, srv_mysql50_table_name_prefix,
 			    sizeof srv_mysql50_table_name_prefix)) {
 		/* This is a pre-5.1 table name
@@ -2551,7 +2731,7 @@ convert_id:
 		len = 5 * len + 1;
 		*id = dst = mem_heap_alloc(heap, len);
 
-		innobase_convert_from_table_id(dst, str, len);
+		innobase_convert_from_table_id(cs, dst, str, len);
 	}
 
 	return(ptr);
@@ -3466,25 +3646,6 @@ try_find_index:
 	}
 
 	goto loop;
-}
-
-/**************************************************************************
-Determines whether a string starts with the specified keyword. */
-UNIV_INTERN
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-					/* out: TRUE if str starts
-					with keyword */
-	void*		mysql_thd,	/* in: MySQL thread handle */
-	const char*	str,		/* in: string to scan for keyword */
-	const char*	keyword)	/* in: keyword to look for */
-{
-	struct charset_info_st*	cs	= innobase_get_charset(mysql_thd);
-	ibool			success;
-
-	dict_accept(cs, str, keyword, &success);
-	return(success);
 }
 
 /*************************************************************************
@@ -4456,41 +4617,6 @@ dict_table_get_index_on_name(
 }
 
 /**************************************************************************
-Find and index that is equivalent to the one passed in. */
-UNIV_INTERN
-dict_index_t*
-dict_table_find_equivalent_index(
-/*=============================*/
-	dict_table_t*	table,  /* in/out: table */
-	dict_index_t*	index)	/* in: index to match */
-{
-	ulint		i;
-	const char**	column_names;
-	dict_index_t*	equiv_index;
-
-	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
-
-		return(NULL);
-	}
-
-	column_names = mem_alloc(index->n_fields * sizeof *column_names);
-
-	/* Convert the column names to the format & type accepted by the find
-	index function */
-	for (i = 0; i < index->n_fields; i++) {
-		column_names[i] = index->fields[i].name;
-	}
-
-	equiv_index = dict_foreign_find_index(
-		table, column_names, index->n_fields,
-		index, TRUE, FALSE);
-
-	mem_free((void*) column_names);
-
-	return(equiv_index);
-}
-
-/**************************************************************************
 Replace the index passed in with another equivalent index in the tables
 foreign key list. */
 UNIV_INTERN
@@ -4500,30 +4626,18 @@ dict_table_replace_index_in_foreign_list(
 	dict_table_t*	table,  /* in/out: table */
 	dict_index_t*	index)	/* in: index to be replaced */
 {
-	dict_index_t*	new_index;
+	dict_foreign_t*	foreign;
 
-	new_index = dict_table_find_equivalent_index(table, index);
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-	/* If match found */
-	if (new_index) {
-		dict_foreign_t*	foreign;
+		if (foreign->foreign_index == index) {
+			dict_index_t*	new_index
+				= dict_foreign_find_equiv_index(foreign);
+			ut_a(new_index);
 
-		ut_a(new_index != index);
-
-		foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-		/* If the list is not empty then this should hold */
-		ut_a(foreign);
-
-		/* Iterate over the foreign index list and replace the index
-		passed in with the new index */
-		while (foreign) {
-
-			if (foreign->foreign_index == index) {
-				foreign->foreign_index = new_index;
-			}
-
-			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+			foreign->foreign_index = new_index;
 		}
 	}
 }

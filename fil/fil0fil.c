@@ -4312,18 +4312,16 @@ fil_io(
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
 	      || ibuf_page(space_id, zip_size, block_offset));
 #endif
-#endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
-	} else if (type == OS_FILE_READ && !is_log
-		   && ibuf_page(space_id, zip_size, block_offset)) {
-		mode = OS_AIO_IBUF;
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
+	} else if (type == OS_FILE_READ
+		   && ibuf_page(space_id, zip_size, block_offset)) {
+		mode = OS_AIO_IBUF;
 	} else {
 		mode = OS_AIO_NORMAL;
 	}
@@ -4492,8 +4490,6 @@ fil_aio_wait(
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type);
-#elif defined(POSIX_ASYNC_IO)
-		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
 		ret = 0; /* Eliminate compiler warning */
 		ut_error;

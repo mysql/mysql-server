@@ -16,6 +16,17 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.h"
 
 /***********************************************************************
+Determines if this transaction is rolling back an incomplete transaction
+in crash recovery. */
+UNIV_INTERN
+ibool
+trx_is_recv(
+/*========*/
+				/* out: TRUE if trx is an incomplete
+				transaction that is being rolled back
+				in crash recovery */
+	const trx_t*	trx);	/* in: transaction */
+/***********************************************************************
 Returns a transaction savepoint taken at this point in time. */
 UNIV_INTERN
 trx_savept_t

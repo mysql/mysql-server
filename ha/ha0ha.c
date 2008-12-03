@@ -373,11 +373,20 @@ ha_print_info(
 	FILE*		file,	/* in: file where to print */
 	hash_table_t*	table)	/* in: hash table */
 {
+#ifdef UNIV_DEBUG
+/* Some of the code here is disabled for performance reasons in production
+builds, see http://bugs.mysql.com/36941 */
+#define PRINT_USED_CELLS
+#endif /* UNIV_DEBUG */
+
+#ifdef PRINT_USED_CELLS
 	hash_cell_t*	cell;
 	ulint		cells	= 0;
-	ulint		n_bufs;
 	ulint		i;
+#endif /* PRINT_USED_CELLS */
+	ulint		n_bufs;
 
+#ifdef PRINT_USED_CELLS
 	for (i = 0; i < hash_get_n_cells(table); i++) {
 
 		cell = hash_get_nth_cell(table, i);
@@ -387,10 +396,14 @@ ha_print_info(
 			cells++;
 		}
 	}
+#endif /* PRINT_USED_CELLS */
 
-	fprintf(file,
-		"Hash table size %lu, used cells %lu",
-		(ulong) hash_get_n_cells(table), (ulong) cells);
+	fprintf(file, "Hash table size %lu",
+		(ulong) hash_get_n_cells(table));
+
+#ifdef PRINT_USED_CELLS
+	fprintf(file, ", used cells %lu", (ulong) cells);
+#endif /* PRINT_USED_CELLS */
 
 	if (table->heaps == NULL && table->heap != NULL) {
 

@@ -32,6 +32,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0sea.h"
 #include "row0upd.h"
 #include "trx0rec.h"
+#include "trx0roll.h" /* trx_is_recv() */
 #include "que0que.h"
 #include "row0row.h"
 #include "srv0srv.h"
@@ -54,10 +55,6 @@ UNIV_INTERN ulint	btr_cur_n_sea_old	= 0;
 can be released by page reorganize, then it is reorganized */
 
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
-
-/* When estimating number of different key values in an index, sample
-this many index pages */
-#define BTR_KEY_VAL_ESTIMATE_N_PAGES	8
 
 /* The structure of a BLOB part header */
 /*--------------------------------------*/
@@ -112,6 +109,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/* in: update vector */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 /***************************************************************
@@ -126,9 +124,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -394,8 +390,8 @@ btr_cur_search_to_nth_level(
 
 		return;
 	}
-#endif
-#endif
+#endif /* BTR_CUR_HASH_ADAPT */
+#endif /* BTR_CUR_ADAPT */
 	btr_cur_n_non_sea++;
 
 	/* If the hash search did not succeed, do binary search down the
@@ -468,8 +464,7 @@ retry_page_get:
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 rw_latch, guess, buf_mode,
-					 __FILE__, __LINE__,
-					 mtr);
+					 __FILE__, __LINE__, mtr);
 		if (block == NULL) {
 			/* This must be a search to perform an insert;
 			try insert to the insert buffer */
@@ -508,11 +503,10 @@ retry_page_get:
 
 		block->check_index_page_at_flush = TRUE;
 
-#ifdef UNIV_SYNC_DEBUG
 		if (rw_latch != RW_NO_LATCH) {
 			buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 		}
-#endif
+
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
 
@@ -690,8 +684,7 @@ btr_cur_open_at_index_side(
 		page_t*		page;
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__,
-					 mtr);
+					 __FILE__, __LINE__, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
@@ -810,8 +803,7 @@ btr_cur_open_at_rnd_pos(
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__,
-					 mtr);
+					 __FILE__, __LINE__, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
@@ -854,7 +846,7 @@ btr_cur_open_at_rnd_pos(
 
 /*****************************************************************
 Inserts a record if there is enough space, or if enough space can
-be freed by reorganizing. Differs from _optimistic_insert because
+be freed by reorganizing. Differs from btr_cur_optimistic_insert because
 no heuristics is applied to whether it pays to use CPU time for
 reorganizing the page or not. */
 static
@@ -1058,7 +1050,8 @@ btr_cur_optimistic_insert(
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, n_ext);
 
-	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page), zip_size)) {
+	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
+				   dtuple_get_n_fields(entry), zip_size)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1070,6 +1063,45 @@ btr_cur_optimistic_insert(
 		}
 
 		rec_size = rec_get_converted_size(index, entry, n_ext);
+	}
+
+	if (UNIV_UNLIKELY(zip_size)) {
+		/* Estimate the free space of an empty compressed page.
+		Subtract one byte for the encoded heap_no in the
+		modification log. */
+		ulint	free_space_zip = page_zip_empty_size(
+			cursor->index->n_fields, zip_size) - 1;
+		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
+
+		ut_ad(dict_table_is_comp(index->table));
+
+		/* There should be enough room for two node pointer
+		records on an empty non-leaf page.  This prevents
+		infinite page splits. */
+
+		if (UNIV_LIKELY(entry->n_fields >= n_uniq)
+		    && UNIV_UNLIKELY(REC_NODE_PTR_SIZE
+				     + rec_get_converted_size_comp_prefix(
+					     index, entry->fields, n_uniq,
+					     NULL)
+				     /* On a compressed page, there is
+				     a two-byte entry in the dense
+				     page directory for every record.
+				     But there is no record header. */
+				     - (REC_N_NEW_EXTRA_BYTES - 2)
+				     > free_space_zip / 2)) {
+
+			if (big_rec_vec) {
+				dtuple_convert_back_big_rec(
+					index, entry, big_rec_vec);
+			}
+
+			if (heap) {
+				mem_heap_free(heap);
+			}
+
+			return(DB_TOO_BIG_RECORD);
+		}
 	}
 
 	/* If there have been many consecutive inserts, and we are on the leaf
@@ -1303,6 +1335,7 @@ btr_cur_pessimistic_insert(
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, n_ext),
 				   dict_table_is_comp(index->table),
+				   dict_index_get_n_fields(index),
 				   zip_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1323,45 +1356,6 @@ btr_cur_pessimistic_insert(
 							       n_reserved);
 			}
 			return(DB_TOO_BIG_RECORD);
-		}
-	}
-
-	if (UNIV_UNLIKELY(zip_size)) {
-		/* Estimate the free space of an empty compressed page. */
-		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, zip_size);
-
-		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry, n_ext)
-				  > free_space_zip)) {
-			/* Try to insert the record by itself on a new page.
-			If it fails, no amount of splitting will help. */
-			buf_block_t*	temp_block
-				= buf_block_alloc(zip_size);
-			page_t*		temp_page
-				= page_create_zip(temp_block, index, 0, NULL);
-			page_cur_t	temp_cursor;
-			rec_t*		temp_rec;
-
-			page_cur_position(temp_page + PAGE_NEW_INFIMUM,
-					  temp_block, &temp_cursor);
-
-			temp_rec = page_cur_tuple_insert(&temp_cursor,
-							 entry, index,
-							 n_ext, NULL);
-			buf_block_free(temp_block);
-
-			if (UNIV_UNLIKELY(!temp_rec)) {
-				if (big_rec_vec) {
-					dtuple_convert_back_big_rec(
-						index, entry, big_rec_vec);
-				}
-
-				if (heap) {
-					mem_heap_free(heap);
-				}
-
-				return(DB_TOO_BIG_RECORD);
-			}
 		}
 	}
 
@@ -2162,8 +2156,9 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 
-		btr_rec_free_updated_extern_fields(index, rec, page_zip,
-						   offsets, update, mtr);
+		btr_rec_free_updated_extern_fields(
+			index, rec, page_zip, offsets, update,
+			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
 	}
 
 	/* We have to set appropriate extern storage bits in the new
@@ -2173,10 +2168,20 @@ btr_cur_pessimistic_update(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
-	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
-							  n_ext),
-				   page_is_comp(page), page_zip
-				   ? page_zip_get_size(page_zip) : 0)) {
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_ad(page_is_comp(page));
+		if (page_zip_rec_needs_ext(
+			    rec_get_converted_size(index, new_entry, n_ext),
+			    TRUE,
+			    dict_index_get_n_fields(index),
+			    page_zip_get_size(page_zip))) {
+
+			goto make_external;
+		}
+	} else if (page_zip_rec_needs_ext(
+			   rec_get_converted_size(index, new_entry, n_ext),
+			   page_is_comp(page), 0, 0)) {
+make_external:
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry, &n_ext);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
@@ -2655,7 +2660,7 @@ btr_cur_del_mark_set_sec_rec(
 }
 
 /***************************************************************
-Sets a secondary index record delete mark to FALSE. This function is only
+Clear a secondary index record's delete mark.  This function is only
 used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
@@ -2811,7 +2816,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
-	ibool		in_rollback,/* in: TRUE if called in rollback */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	buf_block_t*	block;
@@ -2865,14 +2870,14 @@ btr_cur_pessimistic_delete(
 	if (rec_offs_any_extern(offsets)) {
 		btr_rec_free_externally_stored_fields(index,
 						      rec, offsets, page_zip,
-						      in_rollback, mtr);
+						      rb_ctx, mtr);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 	}
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
-	    && UNIV_UNLIKELY(dict_index_get_page(btr_cur_get_index(cursor))
+	    && UNIV_UNLIKELY(dict_index_get_page(index)
 			     != buf_block_get_page_no(block))) {
 
 		/* If there is only one record, drop the whole page in
@@ -3154,11 +3159,12 @@ btr_estimate_number_of_different_key_vals(
 	ulint		matched_fields;
 	ulint		matched_bytes;
 	ib_int64_t*	n_diff;
+	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
-	ulint		add_on;
+	ullint		add_on;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_rec_[REC_OFFS_NORMAL_SIZE];
@@ -3172,9 +3178,21 @@ btr_estimate_number_of_different_key_vals(
 
 	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
 
+	/* It makes no sense to test more pages than are contained
+	in the index, thus we lower the number if it is too high */
+	if (srv_stats_sample_pages > index->stat_index_size) {
+		if (index->stat_index_size > 0) {
+			n_sample_pages = index->stat_index_size;
+		} else {
+			n_sample_pages = 1;
+		}
+	} else {
+		n_sample_pages = srv_stats_sample_pages;
+	}
+
 	/* We sample some pages in the index to get an estimate */
 
-	for (i = 0; i < BTR_KEY_VAL_ESTIMATE_N_PAGES; i++) {
+	for (i = 0; i < n_sample_pages; i++) {
 		rec_t*	supremum;
 		mtr_start(&mtr);
 
@@ -3182,7 +3200,7 @@ btr_estimate_number_of_different_key_vals(
 
 		/* Count the number of different key values for each prefix of
 		the key on this index page. If the prefix does not determine
-		the index record uniquely in te B-tree, then we subtract one
+		the index record uniquely in the B-tree, then we subtract one
 		because otherwise our algorithm would give a wrong estimate
 		for an index where there is just one key value. */
 
@@ -3263,7 +3281,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	/* If we saw k borders between different key values on
-	BTR_KEY_VAL_ESTIMATE_N_PAGES leaf pages, we can estimate how many
+	n_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
 
 	/* We must take into account that our sample actually represents
@@ -3274,26 +3292,26 @@ btr_estimate_number_of_different_key_vals(
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
 			    * (ib_int64_t)index->stat_n_leaf_pages
-			    + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
+			    + n_sample_pages - 1
 			    + total_external_size
 			    + not_empty_flag)
-			   / (BTR_KEY_VAL_ESTIMATE_N_PAGES
+			   / (n_sample_pages
 			      + total_external_size));
 
 		/* If the tree is small, smaller than
-		10 * BTR_KEY_VAL_ESTIMATE_N_PAGES + total_external_size, then
+		10 * n_sample_pages + total_external_size, then
 		the above estimate is ok. For bigger trees it is common that we
 		do not see any borders between key values in the few pages
-		we pick. But still there may be BTR_KEY_VAL_ESTIMATE_N_PAGES
+		we pick. But still there may be n_sample_pages
 		different key values, or even more. Let us try to approximate
 		that: */
 
 		add_on = index->stat_n_leaf_pages
-			/ (10 * (BTR_KEY_VAL_ESTIMATE_N_PAGES
+			/ (10 * (n_sample_pages
 				 + total_external_size));
 
-		if (add_on > BTR_KEY_VAL_ESTIMATE_N_PAGES) {
-			add_on = BTR_KEY_VAL_ESTIMATE_N_PAGES;
+		if (add_on > n_sample_pages) {
+			add_on = n_sample_pages;
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
@@ -3832,10 +3850,8 @@ btr_store_big_rec_extern_fields(
 				prev_block = buf_page_get(space_id, zip_size,
 							  prev_page_no,
 							  RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(prev_block,
 							SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
 				prev_page = buf_block_get_frame(prev_block);
 
 				if (UNIV_LIKELY_NULL(page_zip)) {
@@ -3930,10 +3946,9 @@ btr_store_big_rec_extern_fields(
 				rec_block = buf_page_get(space_id, zip_size,
 							 rec_page_no,
 							 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(rec_block,
 							SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 				if (err == Z_STREAM_END) {
 					mach_write_to_4(field_ref
 							+ BTR_EXTERN_LEN, 0);
@@ -4009,10 +4024,8 @@ next_zip_page:
 				rec_block = buf_page_get(space_id, zip_size,
 							 rec_page_no,
 							 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(rec_block,
 							SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
 						 MLOG_4BYTES, &mtr);
@@ -4084,9 +4097,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/* in: field number of field_ref;
 					ignored if rec == NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-					rollback and we do not want to free
-					inherited fields */
+	enum trx_rb_ctx	rb_ctx,		/* in: rollback context */
 	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
@@ -4115,6 +4126,15 @@ btr_free_externally_stored_field(
 		ut_ad(f == field_ref);
 	}
 #endif /* UNIV_DEBUG */
+
+	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
+				  BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* In the rollback of uncommitted transactions, we may
+		encounter a clustered index record whose BLOBs have
+		not been written.  There is nothing to free then. */
+		ut_a(rb_ctx == RB_RECOVERY);
+		return;
+	}
 
 	space_id = mach_read_from_4(field_ref + BTR_EXTERN_SPACE_ID);
 
@@ -4149,9 +4169,7 @@ btr_free_externally_stored_field(
 					 page_get_page_no(
 						 page_align(field_ref)),
 					 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
 
 		if (/* There is no external storage data */
@@ -4160,7 +4178,7 @@ btr_free_externally_stored_field(
 		    || (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			& BTR_EXTERN_OWNER_FLAG)
 		    /* Rollback and inherited field */
-		    || (do_not_free_inherited
+		    || (rb_ctx != RB_NONE
 			&& (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			    & BTR_EXTERN_INHERITED_FLAG))) {
 
@@ -4172,9 +4190,7 @@ btr_free_externally_stored_field(
 
 		ext_block = buf_page_get(space_id, ext_zip_size, page_no,
 					 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(ext_block, SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
 		page = buf_block_get_frame(ext_block);
 
 		if (ext_zip_size) {
@@ -4208,14 +4224,8 @@ btr_free_externally_stored_field(
 						 MLOG_4BYTES, &mtr);
 			}
 		} else {
-			ulint	extern_len	= mach_read_from_4(
-				field_ref + BTR_EXTERN_LEN + 4);
-			ulint	part_len	= btr_blob_get_part_len(
-				page + FIL_PAGE_DATA);
-
 			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB);
 			ut_a(!page_zip);
-			ut_a(extern_len >= part_len);
 
 			next_page_no = mach_read_from_4(
 				page + FIL_PAGE_DATA
@@ -4233,16 +4243,14 @@ btr_free_externally_stored_field(
 			mlog_write_ulint(field_ref + BTR_EXTERN_PAGE_NO,
 					 next_page_no,
 					 MLOG_4BYTES, &mtr);
+			/* Zero out the BLOB length.  If the server
+			crashes during the execution of this function,
+			trx_rollback_or_clean_all_recovered() could
+			dereference the half-deleted BLOB, fetching a
+			wrong prefix for the BLOB. */
 			mlog_write_ulint(field_ref + BTR_EXTERN_LEN + 4,
-					 extern_len - part_len,
+					 0,
 					 MLOG_4BYTES, &mtr);
-			if (next_page_no == FIL_NULL) {
-				ut_a(extern_len - part_len == 0);
-			}
-
-			if (extern_len - part_len == 0) {
-				ut_a(next_page_no == FIL_NULL);
-			}
 		}
 
 		/* Commit mtr and release the BLOB block to save memory. */
@@ -4262,9 +4270,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -4288,8 +4294,7 @@ btr_rec_free_externally_stored_fields(
 
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
-				rec, offsets, page_zip, i,
-				do_not_free_inherited, mtr);
+				rec, offsets, page_zip, i, rb_ctx, mtr);
 		}
 	}
 }
@@ -4308,6 +4313,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/* in: update vector */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
@@ -4333,7 +4339,7 @@ btr_rec_free_updated_extern_fields(
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
 				rec, offsets, page_zip,
-				ufield->field_no, TRUE, mtr);
+				ufield->field_no, rb_ctx, mtr);
 		}
 	}
 }
@@ -4366,9 +4372,7 @@ btr_copy_blob_prefix(
 		mtr_start(&mtr);
 
 		block = buf_page_get(space_id, 0, page_no, RW_S_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
 		page = buf_block_get_frame(block);
 
 		/* Unfortunately, FIL_PAGE_TYPE was uninitialized for
@@ -4584,7 +4588,9 @@ UNIV_INTERN
 ulint
 btr_copy_externally_stored_field_prefix(
 /*====================================*/
-				/* out: the length of the copied field */
+				/* out: the length of the copied field,
+				or 0 if the column was being or has been
+				deleted */
 	byte*		buf,	/* out: the field, or a prefix of it */
 	ulint		len,	/* in: length of buf, in bytes */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
@@ -4612,6 +4618,14 @@ btr_copy_externally_stored_field_prefix(
 	data += local_len;
 
 	ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
+
+	if (!mach_read_from_4(data + BTR_EXTERN_LEN + 4)) {
+		/* The externally stored part of the column has been
+		(partially) deleted.  Signal the half-deleted BLOB
+		to the caller. */
+
+		return(0);
+	}
 
 	space_id = mach_read_from_4(data + BTR_EXTERN_SPACE_ID);
 

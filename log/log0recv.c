@@ -1253,9 +1253,7 @@ recv_recover_page(
 						    &mtr);
 		ut_a(success);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Read the newest modification lsn from the page */
@@ -1342,6 +1340,16 @@ recv_recover_page(
 
 		recv = UT_LIST_GET_NEXT(rec_list, recv);
 	}
+
+#ifdef UNIV_ZIP_DEBUG
+	if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
+		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
+
+		if (page_zip) {
+			ut_a(page_zip_validate_low(page_zip, page, FALSE));
+		}
+	}
+#endif /* UNIV_ZIP_DEBUG */
 
 	mutex_enter(&(recv_sys->mutex));
 
@@ -1491,10 +1499,9 @@ loop:
 					block = buf_page_get(
 						space, zip_size, page_no,
 						RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 					buf_block_dbg_add_level(
 						block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 					recv_recover_page(FALSE, FALSE, block);
 					mtr_commit(&mtr);
 				} else {

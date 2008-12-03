@@ -457,9 +457,8 @@ trx_undo_seg_create(
 		return(DB_OUT_OF_FILE_SPACE);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 	*undo_page = buf_block_get_frame(block);
 
 	page_hdr = *undo_page + TRX_UNDO_PAGE_HDR;
@@ -1708,7 +1707,7 @@ trx_undo_assign_undo(
 /*=================*/
 				/* out: DB_SUCCESS if undo log assign
 				successful, possible error codes are:
-				DD_TOO_MANY_CONCURRENT_TRXS
+				DB_TOO_MANY_CONCURRENT_TRXS
 				DB_OUT_OF_FILE_SPACE DB_OUT_OF_MEMORY*/
 	trx_t*		trx,	/* in: transaction */
 	ulint		type)	/* in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
