@@ -1,0 +1,27 @@
+-- source include/have_maria.inc
+# remove_file can't remove opened file under windows. So we can't reproduce
+# the problem there
+--source include/not_windows.inc
+#
+# BUG#41127 test suite
+#
+connect (admin, localhost, root,,test,,);
+--enable_reconnect
+
+connection default;
+--enable_reconnect
+
+# cleunup before this test
+-- source include/maria_empty_logs.inc
+
+connection default;
+
+remove_file $MYSQLTEST_VARDIR/master-data/$MARIA_LOG/maria_log.00000001;
+--replace_regex /Size unknown ; .*maria_log.00000001/Size unknown ; maria_log.00000001/
+show engine maria logs;
+
+# cleunup after this test
+-- source include/maria_empty_logs.inc
+
+disconnect admin;
+connection default;

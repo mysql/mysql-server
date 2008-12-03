@@ -281,8 +281,9 @@ static inline const uchar* hash_key(const LF_HASH *hash,
 }
 
 /*
-  compute the hash key value from the raw key.
-  note, that the hash value is limited to 2^31, because we need one
+  Compute the hash key value from the raw key.
+
+  @note, that the hash value is limited to 2^31, because we need one
   bit to distinguish between normal and dummy nodes.
 */
 static inline uint calc_hash(LF_HASH *hash, const uchar *key, uint keylen)
@@ -300,7 +301,7 @@ static int initialize_bucket(LF_HASH *, LF_SLIST * volatile*, uint, LF_PINS *);
 /*
   Initializes lf_hash, the arguments are compatible with hash_init
 
-  @@note element_size sets both the size of allocated memory block for
+  @note element_size sets both the size of allocated memory block for
   lf_alloc and a size of memcpy'ed block size in lf_hash_insert. Typically
   they are the same, indeed. But LF_HASH::element_size can be decreased
   after lf_hash_init, and then lf_alloc will allocate larger block that

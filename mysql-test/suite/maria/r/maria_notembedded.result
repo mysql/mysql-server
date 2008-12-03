@@ -23,3 +23,16 @@ select count(*) from t1;
 count(*)
 1
 drop table t1;
+create table t1 (a int unique) transactional=1;
+insert t1 values (1);
+lock table t1 write concurrent;
+insert t1 values (2);
+lock table t1 write concurrent;
+insert t1 values (3);
+insert t1 values (2);
+insert t1 values (3);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+unlock tables;
+ERROR 23000: Duplicate entry '2' for key 'a'
+unlock tables;
+drop table t1;

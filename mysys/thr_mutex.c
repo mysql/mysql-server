@@ -308,9 +308,9 @@ int safe_mutex_lock(safe_mutex_t *mp, myf my_flags, const char *file,
             are now locking (C) in B->C, then we would add C into
             B->locked_mutex and A->locked_mutex
           */
-          hash_iterate(mutex_root->used_mutex,
-                       (hash_walk_action) add_used_to_locked_mutex,
-                       deadlock);
+          my_hash_iterate(mutex_root->used_mutex,
+                          (my_hash_walk_action) add_used_to_locked_mutex,
+                          deadlock);
 
           /*
             Copy all current mutex and all mutex locked after current one
@@ -584,10 +584,12 @@ void safe_mutex_free_deadlock_data(safe_mutex_t *mp)
   if (!(mp->create_flags & MYF_NO_DEADLOCK_DETECTION))
   {
     pthread_mutex_lock(&THR_LOCK_mutex);
-    hash_iterate(mp->used_mutex, (hash_walk_action) remove_from_locked_mutex,
-                 mp);
-    hash_iterate(mp->locked_mutex, (hash_walk_action) remove_from_used_mutex,
-                 mp);
+    my_hash_iterate(mp->used_mutex,
+                    (my_hash_walk_action) remove_from_locked_mutex,
+                    mp);
+    my_hash_iterate(mp->locked_mutex,
+                    (my_hash_walk_action) remove_from_used_mutex,
+                    mp);
     pthread_mutex_unlock(&THR_LOCK_mutex);
 
     hash_free(mp->used_mutex);
@@ -644,9 +646,9 @@ static my_bool add_used_to_locked_mutex(safe_mutex_t *used_mutex,
   /* Add mutex to all parent of the current mutex */
   if (!locked_mutex->warning_only)
   {
-    (void) hash_iterate(locked_mutex->mutex->locked_mutex,
-                        (hash_walk_action) add_to_locked_mutex,
-                        used_mutex);
+    (void) my_hash_iterate(locked_mutex->mutex->locked_mutex,
+                           (my_hash_walk_action) add_to_locked_mutex,
+                           used_mutex);
     /* mark that locked_mutex is locked after used_mutex */
     (void) add_to_locked_mutex(locked_mutex, used_mutex);
   }
@@ -806,7 +808,31 @@ int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
     mp->spins= MY_PTHREAD_FASTMUTEX_SPINS; 
   else
     mp->spins= 0;
+  mp->rng_state= 1;
   return pthread_mutex_init(&mp->mutex, attr); 
+}
+
+/**
+  Park-Miller random number generator. A simple linear congruential
+  generator that operates in multiplicative group of integers modulo n.
+
+  x_{k+1} = (x_k g) mod n
+
+  Popular pair of parameters: n = 2^32 − 5 = 4294967291 and g = 279470273.
+  The period of the generator is about 2^31.
+  Largest value that can be returned: 2147483646 (RAND_MAX)
+
+  Reference:
+
+  S. K. Park and K. W. Miller
+  "Random number generators: good ones are hard to find"
+  Commun. ACM, October 1988, Volume 31, No 10, pages 1192-1201.
+*/
+
+static double park_rng(my_pthread_fastmutex_t *mp)
+{
+  mp->rng_state= ((my_ulonglong)mp->rng_state * 279470273U) % 4294967291U;
+  return (mp->rng_state / 2147483647.0);
 }
 
 int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
@@ -826,8 +852,7 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
       return res;
 
     mutex_delay(maxdelay);
-    maxdelay += ((double) random() / (double) RAND_MAX) * 
-	        MY_PTHREAD_FASTMUTEX_DELAY + 1;
+    maxdelay += park_rng(mp) * MY_PTHREAD_FASTMUTEX_DELAY + 1;
   }
   return pthread_mutex_lock(&mp->mutex);
 }

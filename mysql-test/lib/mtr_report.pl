@@ -312,7 +312,7 @@ sub mtr_report_stats ($) {
 		/Slave: According to the master's version/ or
 		/Slave: Column [0-9]* type mismatch/ or
 		/Slave: Error .* doesn't exist/ or
-		/Slave: Error .*Deadlock found/ or
+		/Slave: Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or
@@ -416,12 +416,12 @@ sub mtr_report_stats ($) {
                 # maria-recovery.test has warning about missing log file
                 /File '.*maria_log.000.*' not found \(Errcode: 2\)/ or
                 # and about marked-corrupted table
-                /Table '.\/mysqltest\/t_corrupted1' is crashed, skipping it. Please repair it with maria_chk -r/ or
+                /Table '..mysqltest.t_corrupted1' is crashed, skipping it. Please repair it with maria_chk -r/ or
                 # maria-recover.test corrupts tables on purpose
-                /Checking table:   '.\/mysqltest\/t_corrupted2'/ or
-                /Recovering table: '.\/mysqltest\/t_corrupted2'/ or
-                /Table '.\/mysqltest\/t_corrupted2' is marked as crashed and should be repaired/ or
-                /Incorrect key file for table '.\/mysqltest\/t_corrupted2.MAI'; try to repair it/
+                /Checking table:   '..mysqltest.t_corrupted2'/ or
+                /Recovering table: '..mysqltest.t_corrupted2'/ or
+                /Table '..mysqltest.t_corrupted2' is marked as crashed and should be repaired/ or
+                /Incorrect key file for table '..mysqltest.t_corrupted2.MAI'; try to repair it/
 	       )
             {
               next;                       # Skip these lines

@@ -667,6 +667,7 @@ public:
     case of an error during prepare the PS is not created.
   */
   bool first_execution;
+  bool first_natural_join_processing;
   bool first_cond_optimization;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
@@ -842,15 +843,12 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_COALESCE_PARTITION (1L << 15)
 #define ALTER_REORGANIZE_PARTITION (1L << 16) 
 #define ALTER_PARTITION          (1L << 17)
-#define ALTER_OPTIMIZE_PARTITION (1L << 18)
+#define ALTER_ADMIN_PARTITION    (1L << 18)
 #define ALTER_TABLE_REORG        (1L << 19)
 #define ALTER_REBUILD_PARTITION  (1L << 20)
 #define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_ANALYZE_PARTITION  (1L << 22)
-#define ALTER_CHECK_PARTITION    (1L << 23)
-#define ALTER_REPAIR_PARTITION   (1L << 24)
-#define ALTER_REMOVE_PARTITIONING (1L << 25)
-#define ALTER_FOREIGN_KEY         (1L << 26)
+#define ALTER_REMOVE_PARTITIONING (1L << 22)
+#define ALTER_FOREIGN_KEY        (1L << 23)
 
 enum enum_alter_table_change_level
 {
@@ -1549,6 +1547,7 @@ typedef struct st_lex : public Query_tables_list
   List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
+  List<Item_func_set_user_var> set_var_list; // in-query assignment list
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
   /*

@@ -682,7 +682,10 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
     */
     uint sid;
     LSN rec_lsn, undo_lsn, first_undo_lsn;
-    if ((sid= trn->short_id) == 0)
+    pthread_mutex_lock(&trn->state_lock);
+    sid= trn->short_id;
+    pthread_mutex_unlock(&trn->state_lock);
+    if (sid == 0)
     {
       /*
         Not even inited, has done nothing. Or it is the

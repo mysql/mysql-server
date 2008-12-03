@@ -26,6 +26,34 @@ select * from t1;
 select count(*) from t1;
 drop table t1;
 
+# This cannot be run in embedded server, see BUG#40661, because
+# mysqltest runs "send" commands in separate OS thread.
+#
+# an example of a deadlock
+#
+create table t1 (a int unique) transactional=1;
+insert t1 values (1);
+lock table t1 write concurrent;
+insert t1 values (2);
+connect(con_d,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (3);
+send insert t1 values (2);
+connection default;
+let $wait_condition=select count(*) = 1 from information_schema.processlist where state="waiting for a resource";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+insert t1 values (3);
+unlock tables;
+connection con_d;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_d;
+connection default;
+drop table t1;
+
+
 --disable_result_log
 --disable_query_log
 eval set session storage_engine=$default_engine;

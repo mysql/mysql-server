@@ -30,13 +30,11 @@ typedef struct st_wt_resource_type {
   const void *(*make_key)(WT_RESOURCE_ID *id, uint *len);
 } WT_RESOURCE_TYPE;
 
-/* we want to compare this struct with memcmp, make it packed */
-#pragma pack(1)
 struct st_wt_resource_id {
   ulonglong value;
   WT_RESOURCE_TYPE *type;
 };
-#pragma pack()
+#define sizeof_WT_RESOURCE_ID (sizeof(ulonglong)+sizeof(void*))
 
 #define WT_WAIT_STATS  24
 #define WT_CYCLE_STATS 32
@@ -82,7 +80,31 @@ typedef struct st_wt_resource {
 #ifdef WT_RWLOCKS_USE_MUTEXES
   /*
     we need a special rwlock-like 'lock' to allow readers bypass
-    waiting writers, otherwise readers can deadlock.
+    waiting writers, otherwise readers can deadlock. For example:
+
+      A waits on resource x, owned by B, B waits on resource y, owned
+      by A, we have a cycle (A->x->B->y->A)
+      Both A and B start deadlock detection:
+
+        A locks x                          B locks y
+        A goes deeper                      B goes deeper
+        A locks y                          B locks x
+
+      with mutexes it would deadlock. With rwlocks it won't, as long
+      as both A and B are taking read locks (and they do).
+      But other threads may take write locks. Assume there's
+      C who wants to start waiting on x, and D who wants to start
+      waiting on y.
+
+        A read-locks x                       B read-locks y
+        A goes deeper                        B goes deeper
+     => C write-locks x (to add a new edge)  D write-locks y
+     .. C is blocked                         D is blocked
+        A read-locks y                       B read-locks x
+
+      Now, if a read lock can bypass a pending wrote lock request, we're fine.
+      If it can not, we have a deadlock.
+
     writer starvation is technically possible, but unlikely, because
     the contention is expected to be low.
   */

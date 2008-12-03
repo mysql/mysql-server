@@ -2961,7 +2961,7 @@ bool maria_show_status(handlerton *hton,
       const char error[]= "can't stat";
       char object[SHOW_MSG_LEN];
       file= translog_filename_by_fileno(i, path);
-      if (!(stat= my_stat(file, &stat_buff, MYF(MY_WME))))
+      if (!(stat= my_stat(file, &stat_buff, MYF(0))))
       {
         status= error;
         status_len= sizeof(error) - 1;

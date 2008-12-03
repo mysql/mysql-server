@@ -1597,8 +1597,16 @@ private:
 
 class Field_blob :public Field_longstr {
 protected:
+  /**
+    The number of bytes used to represent the length of the blob.
+  */
   uint packlength;
-  String value;				// For temporaries
+  
+  /**
+    The 'value'-object is a cache fronting the storage engine.
+  */
+  String value;
+  
 public:
   Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
@@ -1845,6 +1853,8 @@ public:
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
 private:
   int do_save_field_metadata(uchar *first_byte);
+  bool compare_enum_values(TYPELIB *values);
+  uint is_equal(Create_field *new_field);
 };
 
 

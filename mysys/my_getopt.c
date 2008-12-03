@@ -39,8 +39,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *options,
                            init_func_p init_one_value);
-static void init_one_value(const struct my_option *option, uchar* *variable,
-			   longlong value);
+static void init_one_value(const struct my_option *opt, uchar* *, longlong);
 static void fini_one_value(const struct my_option *option, uchar* *variable,
 			   longlong value);
 static int setval(const struct my_option *opts, uchar **value, char *argument,
