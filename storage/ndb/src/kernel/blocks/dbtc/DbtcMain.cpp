@@ -4691,7 +4691,7 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
                    Uint32(regApiPtr.p->globalcheckpointid >> 32),
                    Uint32(regApiPtr.p->globalcheckpointid),
                    Uint32(localGcpPointer.p->gcpId >> 32),
-                   Uint32(localGcpPointer.p->gcpId >> 32));
+                   Uint32(localGcpPointer.p->gcpId));
           crash_gcp(__LINE__);
         }
         localGcpPointer.i = localGcpPointer.p->nextGcp;
