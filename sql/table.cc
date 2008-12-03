@@ -4372,13 +4372,19 @@ void st_table::clear_column_bitmaps()
 void st_table::prepare_for_position()
 {
   DBUG_ENTER("st_table::prepare_for_position");
-
-  if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-      s->primary_key < MAX_KEY)
+  
+  if (s->primary_key < MAX_KEY)
   {
-    mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-    /* signal change */
-    file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
+    if (file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX)
+    {
+      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+    }
+    if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) ||
+        (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
+    {
+      /* signal change */
+      file->column_bitmaps_signal(HA_COMPLETE_TABLE_READ_BITMAP);
+    }
   }
   DBUG_VOID_RETURN;
 }
