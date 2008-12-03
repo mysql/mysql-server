@@ -133,6 +133,10 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n FiftyPercentStopAndWait T6 T13 
 
+max-time: 2500
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
+
 #max-time: 500
 #cmd: testNodeRestart
 #args: -n StopOnError T1 

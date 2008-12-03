@@ -316,7 +316,8 @@ Dbtc::Dbtc(Block_context& ctx):
 		    &cachePtr,
 		    &hostptr,
 		    &timeOutptr,
-		    &scanFragptr }; 
+		    &scanFragptr, 
+                    &tcNodeFailptr }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif
