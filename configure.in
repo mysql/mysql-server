@@ -409,7 +409,7 @@ fi
 MYSQL_PROG_AR
 
 # libmysqlclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
+if $LD --version 2>/dev/null|grep GNU > /dev/null; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
@@ -437,11 +437,13 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-# If ln -f does not exists use -s (AFS systems)
-if test -n "$LN_CP_F"; then
-  LN_CP_F="$LN_CP_F -s"
-fi
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  :
+else
+  # If ln -f does not exists use -s (AFS systems)
+  if test -n "$LN_CP_F"; then
+    LN_CP_F="$LN_CP_F -s"
+  fi
 fi
 
 AC_PATH_PROG(MV, mv, mv)
@@ -1940,14 +1942,16 @@ MYSQL_CHECK_IN_ADDR_T
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-MYSQL_CHECK_LONGLONG_TO_FLOAT
-if test "$ac_cv_conv_longlong_to_float" != "yes"
-then
-  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  :
+else
+  MYSQL_CHECK_LONGLONG_TO_FLOAT
+  if test "$ac_cv_conv_longlong_to_float" != "yes"
+  then
+    AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again])
-fi
+  fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
