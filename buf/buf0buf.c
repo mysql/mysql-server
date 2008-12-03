@@ -2732,7 +2732,6 @@ err_exit2:
 		mutex_enter(&block->mutex);
 
 		buf_page_init(space, offset, block);
-		buf_pool_watch_notify(space, offset);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -2909,7 +2908,6 @@ buf_page_create(
 	mutex_enter(&block->mutex);
 
 	buf_page_init(space, offset, block);
-	buf_pool_watch_notify(space, offset);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(&block->page, FALSE);
