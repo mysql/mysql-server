@@ -45,7 +45,7 @@ BDB_DONTRUN_TESTS = \
 	helgrind 2\
 #\ ends prev line
 
-BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
+BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
