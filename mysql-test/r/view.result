@@ -625,7 +625,7 @@ drop table t1;
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
 select b from v1 use index (some_index) where b=1;
-ERROR HY000: Incorrect usage of USE INDEX and VIEW
+ERROR HY000: Key 'some_index' doesn't exist in table 'v1'
 drop view v1;
 drop table t1;
 create table t1 (col1 char(5),col2 char(5));
@@ -3567,11 +3567,11 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT * FROM v1 USE KEY(non_existant);
-ERROR HY000: Incorrect usage of USE INDEX and VIEW
+ERROR HY000: Key 'non_existant' doesn't exist in table 'v1'
 SELECT * FROM v1 FORCE KEY(non_existant);
-ERROR HY000: Incorrect usage of FORCE INDEX and VIEW
+ERROR HY000: Key 'non_existant' doesn't exist in table 'v1'
 SELECT * FROM v1 IGNORE KEY(non_existant);
-ERROR HY000: Incorrect usage of IGNORE INDEX and VIEW
+ERROR HY000: Key 'non_existant' doesn't exist in table 'v1'
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL DEFAULT 0,
@@ -3679,6 +3679,31 @@ DROP VIEW v1;
 
 CREATE VIEW v1 AS SELECT 1;
 DROP VIEW v1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX (c2));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+SELECT * FROM t1 USE INDEX (PRIMARY) WHERE c1=2;
+c1	c2
+2	2
+SELECT * FROM t1 USE INDEX (c2) WHERE c2=2;
+c1	c2
+2	2
+CREATE VIEW v1 AS SELECT c1, c2 FROM t1;
+SHOW INDEX FROM v1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+SELECT * FROM v1 USE INDEX (PRIMARY) WHERE c1=2;
+ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
+SELECT * FROM v1 FORCE INDEX (PRIMARY) WHERE c1=2;
+ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
+SELECT * FROM v1 IGNORE INDEX (PRIMARY) WHERE c1=2;
+ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
+SELECT * FROM v1 USE INDEX (c2) WHERE c2=2;
+ERROR HY000: Key 'c2' doesn't exist in table 'v1'
+SELECT * FROM v1 FORCE INDEX (c2) WHERE c2=2;
+ERROR HY000: Key 'c2' doesn't exist in table 'v1'
+SELECT * FROM v1 IGNORE INDEX (c2) WHERE c2=2;
+ERROR HY000: Key 'c2' doesn't exist in table 'v1'
+DROP VIEW v1;
+DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.0 tests.
 # -----------------------------------------------------------------

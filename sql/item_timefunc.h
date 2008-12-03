@@ -408,6 +408,7 @@ public:
   {
     return save_time_in_field(field);
   }
+  bool result_as_longlong() { return TRUE; }
 };
 
 
