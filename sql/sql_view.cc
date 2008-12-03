@@ -980,13 +980,14 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     DBUG_RETURN(0);
   }
 
-  if (table->use_index || table->ignore_index)
+  List<String> *index_list= table->use_index ? table->use_index 
+                                             : table->ignore_index;
+  if (index_list) 
   {
-      my_error(ER_WRONG_USAGE, MYF(0),
-               table->ignore_index ? "IGNORE INDEX" :
-                 (table->force_index ? "FORCE INDEX" : "USE INDEX"), 
-               "VIEW");
-      DBUG_RETURN(TRUE);
+    DBUG_ASSERT(index_list->head()); // should never fail
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), index_list->head()->c_ptr_safe(),
+             table->table_name);
+    DBUG_RETURN(TRUE);
   }
 
   /* check loop via view definition */

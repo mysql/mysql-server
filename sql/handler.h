@@ -787,6 +787,7 @@ protected:
   virtual int check_for_upgrade(HA_CHECK_OPT *check_opt)
   { return 0; }
 public:
+  int check_collation_compatibility();
   int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
   int check_old_types();
   /* to be actually called to get 'check()' functionality*/
