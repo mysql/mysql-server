@@ -60,7 +60,19 @@ class NTService
     BOOL IsService(LPCSTR ServiceName);
     BOOL got_service_option(char **argv, char *service_option);
     BOOL is_super_user();
-    void Stop(void); //to be called from app. to stop service
+
+    /* 
+      SetRunning() is to be called by the application 
+      when initialization completes and it can accept
+      stop request
+    */
+    void SetRunning(void);
+
+    /*
+      Stop() is to be called by the application to stop 
+      the service
+    */
+    void Stop(void); 
 
   protected:
     LPSTR		   ServiceName;
