@@ -297,14 +297,15 @@ Dbtc::Dbtc(Block_context& ctx):
 #ifdef VM_TRACE
   {
     void* tmp[] = { &apiConnectptr, 
-		    &tcConnectptr,
-		    &cachePtr,
-		    &attrbufptr,
-		    &hostptr,
-		    &timeOutptr,
-		    &scanFragptr,
-		    &databufptr,
-		    &tmpDatabufptr }; 
+                    &tcConnectptr,
+                    &cachePtr,
+                    &attrbufptr,
+                    &hostptr,
+                    &timeOutptr,
+                    &scanFragptr,
+                    &databufptr,
+                    &tmpDatabufptr, 
+                    &tcNodeFailptr }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif
