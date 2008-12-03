@@ -258,6 +258,7 @@ CREATE TABLE test.t (
 
  SELECT count(*) FROM test.t;
  LOAD DATA INFILE 't_backup' INTO TABLE test.t;
+ --remove_file $MYSQLTEST_VARDIR/master-data/test/t_backup
 
  SELECT * FROM test.t order by a;
 
