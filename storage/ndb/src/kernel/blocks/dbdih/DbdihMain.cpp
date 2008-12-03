@@ -1228,6 +1228,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   {
     jam();
     c_fragments_per_node = getLqhWorkers();
+    // try to get some LQH workers which initially handle no fragments
+    if (ERROR_INSERTED(7215)) {
+      c_fragments_per_node = 1;
+    }
   }
   ndbout_c("Using %u fragments per node", c_fragments_per_node);
 

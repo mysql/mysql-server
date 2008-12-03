@@ -5,7 +5,7 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5051
 Next DBDICT 6013
-Next DBDIH 7215
+Next DBDIH 7216
 Next DBTC 8073
 Next CMVMI 9000
 Next BACKUP 10041
@@ -184,7 +184,9 @@ And crash when all have "not" been sent
 
 7213: in GCP_COMMIT Kill specified node and self, stop processing
 7214: in GCP_TCFINISHED kill specified node
-     
+
+7215: set c_fragments_per_node = 1 (needs to be done at startup)
+
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
 

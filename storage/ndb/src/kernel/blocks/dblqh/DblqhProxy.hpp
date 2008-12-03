@@ -126,6 +126,7 @@ protected:
      * set and is treated as a fictional signal GSN_LCP_COMPLETE_ORD.
      */
     static const char* name() { return "LCP_FRAG_ORD"; }
+    WorkerMask m_active; // handled at least 1 fragment
     Ss_LCP_FRAG_ORD() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_FRAG_ORD;
       m_sendCONF = (SsFUNC)0;
@@ -187,6 +188,7 @@ protected:
      * Note TSMAN sends no END_LCP_CONF.
      */
     static const char* name() { return "END_LCP_REQ"; }
+    Uint32 m_ssIdLcp;
     Uint32 m_reqcount;
     Uint32 m_backupId;
     Uint32 m_proxyBlockNo;
@@ -195,6 +197,7 @@ protected:
     Ss_END_LCP_REQ() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendEND_LCP_CONF;
       m_sendCONF = (SsFUNC)&DblqhProxy::sendEND_LCP_REQ;
+      m_ssIdLcp = 0;
       m_reqcount = 0;
       m_backupId = 0;
       m_proxyBlockNo = 0;
