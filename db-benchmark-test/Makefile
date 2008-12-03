@@ -22,8 +22,8 @@ include $(TOKUROOT)include/Makefile.include
 BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
 
 ifdef BDBDIR
-BDB_CPPFLAGS = -I$(BDBDIR)/include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib -lpthread
+BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include -I../linux
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib $(LIBPORTABILITY) -lpthread
 else
 BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb
@@ -32,12 +32,14 @@ TOKUDB=libtokudb.$(SOEXT)
 TDB_DLINK_FILES = $(TOKUROOT)lib/$(TOKUDB)
 
 TARGET_BDB = db-benchmark-test-bdb$(BINSUF)
+SCANSCAN_BDB = scanscan-bdb$(BINSUF)
 TARGET_TDB = db-benchmark-test-tokudb$(BINSUF)
 SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
-TARGETS = $(TARGET_BDB) $(TARGET_TDB) $(SCANSCAN_TDB)
+TARGETS = $(TARGET_BDB) $(SCANSCAN_BDB) $(TARGET_TDB) $(SCANSCAN_TDB)
 
 default: build
 build: $(TARGETS) 
+build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
 check: check-default check-xfast check-x
@@ -97,7 +99,9 @@ $(SCANSCAN_TDB): scanscan.c
 endif
 
 $(TARGET_BDB): db-benchmark-test.c
-	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
+	$(MAYBEATSIGN)$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
+$(SCANSCAN_BDB): scanscan.c
+	$(MAYBEATSIGN)$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
 
 PARGS =
 

@@ -6,8 +6,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <sys/resource.h>
-//#include <sys/time.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -34,8 +32,10 @@ static void parse_args (int argc, const char *argv[]) {
 	    if (specified_run_mode && run_mode!=RUN_VERIFY) goto two_modes;
 	    run_mode = RUN_HWC;
 	} else if (strcmp(*argv, "--prelock")==0) prelock=1;
+#ifdef TOKUDB
         else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
+#endif
 	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
 	else if (strcmp(*argv, "--count")==0)            {
 	    char *end;
@@ -86,6 +86,7 @@ static void scanscan_setup (void) {
 	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     }
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);                           assert(r==0);
+#ifdef TOKUDB
     if (prelock) {
 	r = db->pre_acquire_read_lock(db,
 				      tid,
@@ -93,6 +94,7 @@ static void scanscan_setup (void) {
 				      db->dbt_pos_infty(), db->dbt_pos_infty());
 	assert(r==0);
     }
+#endif
 }
 
 static void scanscan_shutdown (void) {
@@ -145,6 +147,8 @@ static void scanscan_hwc (void) {
 	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
     }
 }
+
+#ifdef TOKUDB
 
 struct extra_count {
     long long totalbytes;
@@ -234,6 +238,7 @@ static void scanscan_verify (void) {
     }
 }
 
+#endif
 
 int main (int argc, const char *argv[]) {
 
@@ -241,12 +246,14 @@ int main (int argc, const char *argv[]) {
 
     scanscan_setup();
     switch (run_mode) {
-    case RUN_HWC:    scanscan_hwc();    goto ok;
-    case RUN_LWC:    scanscan_lwc();    goto ok;
-    case RUN_VERIFY: scanscan_verify(); goto ok;
+    case RUN_HWC:    scanscan_hwc();    break;
+#ifdef TOKUDB
+    case RUN_LWC:    scanscan_lwc();    break;
+    case RUN_VERIFY: scanscan_verify(); break;
+#else
+    default:         assert(0);         break;
+#endif
     }
-    assert(0);
- ok:
     scanscan_shutdown();
 
 #if 0 && defined TOKUDB
