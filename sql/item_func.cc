@@ -2259,7 +2259,7 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(ulonglong *value)
 {
-  ulonglong min_max;
+  longlong min_max;
   uint min_max_idx= 0;
   LINT_INIT(min_max);
 
@@ -2267,7 +2267,7 @@ uint Item_func_min_max::cmp_datetimes(ulonglong *value)
   {
     Item **arg= args + i;
     bool is_null;
-    ulonglong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
     if ((null_value= args[i]->null_value))
       return 0;
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
@@ -3810,11 +3810,14 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
-  if (thd == entry_thd && entry)
+  if (entry && thd->thread_id == entry_thread_id)
     goto end; // update entry->update_query_id for PS
-  entry_thd= thd;
   if (!(entry= get_variable(&thd->user_vars, name, create_if_not_exists)))
+  {
+    entry_thread_id= 0;
     return TRUE;
+  }
+  entry_thread_id= thd->thread_id;
   /* 
      Remember the last query which updated it, this way a query can later know
      if this variable is a constant item in the query (it is if update_query_id
@@ -4852,6 +4855,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       max_length= MAX_BLOB_WIDTH;
       decimals=NOT_FIXED_DEC;
       break;
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
       unsigned_flag= FALSE;
       max_length= 1;
@@ -4879,6 +4883,7 @@ enum Item_result Item_func_get_system_var::result_type() const
 {
   switch (var->show_type())
   {
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
@@ -4901,6 +4906,7 @@ enum_field_types Item_func_get_system_var::field_type() const
 {
   switch (var->show_type())
   {
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
@@ -4919,6 +4925,10 @@ enum_field_types Item_func_get_system_var::field_type() const
 }
 
 
+/*
+  Uses var, var_type, component, cache_present, used_query_id, thd,
+  cached_llval, null_value, cached_null_value
+*/
 #define get_sys_var_safe(type) \
 do { \
   type value; \
@@ -4972,6 +4982,7 @@ longlong Item_func_get_system_var::val_int()
     case SHOW_LONG:     get_sys_var_safe (ulong);
     case SHOW_LONGLONG: get_sys_var_safe (longlong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
+    case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
     case SHOW_DOUBLE:
       {
@@ -5069,6 +5080,7 @@ String* Item_func_get_system_var::val_str(String* str)
     case SHOW_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
       str->set (val_int(), collation.collation);
       break;
@@ -5161,6 +5173,7 @@ double Item_func_get_system_var::val_real()
     case SHOW_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
+    case SHOW_BOOL:
     case SHOW_MY_BOOL:
         cached_dval= (double) val_int();
         cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
