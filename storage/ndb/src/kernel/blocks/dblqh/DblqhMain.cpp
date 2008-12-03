@@ -11996,10 +11996,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
       if (cnoOfFragsCheckpointed > 0) {
         jam();
         completeLcpRoundLab(signal, lcpId);
-      } else if (isNdbMtLqh()) {
-        jam();
-        // makes proxy code simpler
-        completeLcpRoundLab(signal, lcpId);
       } else {
         jam();
         sendLCP_COMPLETE_REP(signal, lcpId);
