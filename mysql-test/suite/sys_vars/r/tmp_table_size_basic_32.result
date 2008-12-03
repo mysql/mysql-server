@@ -6,7 +6,6 @@ SET @start_session_value = @@session.tmp_table_size;
 SELECT @start_session_value;
 @start_session_value
 16777216
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#--------------------FN_DYNVARS_005_01-------------------------#'
 SET @@global.tmp_table_size = 100;
 Warnings:
@@ -15,7 +14,6 @@ SET @@global.tmp_table_size = DEFAULT;
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
 16777216
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 SET @@session.tmp_table_size = 200;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '200'
@@ -23,7 +21,6 @@ SET @@session.tmp_table_size = DEFAULT;
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
 16777216
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#--------------------FN_DYNVARS_005_02-------------------------#'
 SET @@global.tmp_table_size = DEFAULT;
 SELECT @@global.tmp_table_size = 33554432;
@@ -33,7 +30,6 @@ SET @@session.tmp_table_size = DEFAULT;
 SELECT @@session.tmp_table_size = 33554432;
 @@session.tmp_table_size = 33554432
 0
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#--------------------FN_DYNVARS_005_03-------------------------#'
 SET @@global.tmp_table_size = 1024;
 SELECT @@global.tmp_table_size;
@@ -79,7 +75,6 @@ Warning	1292	Truncated incorrect tmp_table_size value: '1000'
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
 1024
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.tmp_table_size = ON;
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SET @@global.tmp_table_size = OFF;
@@ -96,7 +91,6 @@ Warning	1292	Truncated incorrect tmp_table_size value: '0'
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
 1024
-'Bug:Error should be shown that variable is numeric and can not assigned boolean value';
 SET @@global.tmp_table_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SET @@global.tmp_table_size ="Test";
