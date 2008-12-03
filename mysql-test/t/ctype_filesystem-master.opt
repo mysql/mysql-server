@@ -1,2 +1,2 @@
---character-sets-dir=/ß
+--character-sets-dir=$MYSQL_TEST_DIR/ß
 --character-set-filesystem=latin1
