@@ -1320,6 +1320,14 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
   }
+  else
+  {
+    /* 
+      Free tmp_share.scheme allocated in the parse_url()
+      as we found share in the hash and tmp_share isn't needed anymore. 
+    */
+    my_free((gptr) tmp_share.scheme, MYF(MY_ALLOW_ZERO_PTR));
+  }
   share->use_count++;
   pthread_mutex_unlock(&federated_mutex);
 
