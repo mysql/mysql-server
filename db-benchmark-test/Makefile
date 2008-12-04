@@ -22,7 +22,7 @@ include $(TOKUROOT)include/Makefile.include
 BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
 
 ifdef BDBDIR
-BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include $(PORTABILITY_HEADERS)
+BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include -I$(PORTABILITY_HEADERS)
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib $(LIBPORTABILITY) -lpthread
 else
 BDB_CPPFLAGS = -I$(PORTABILITY_HEADERS) -I../include
