@@ -385,7 +385,6 @@ btr_cur_search_to_nth_level(
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
 
-	cursor->leaf_in_buf_pool = FALSE;
 	cursor->ibuf_cnt = ULINT_UNDEFINED;
 
 #ifndef BTR_CUR_ADAPT
@@ -532,18 +531,14 @@ retry_page_get:
 		space, zip_size, page_no, rw_latch, guess, buf_mode,
 		__FILE__, __LINE__, mtr);
 
-	if (watch_leaf && height == 0) {
-		cursor->leaf_in_buf_pool = !!block;
-
-		/* We didn't find a page but we set a watch on it. */
-		if (block == NULL) {
+	if (block == NULL) {
+		if (watch_leaf && height == 0) {
+			/* We didn't find a page but we set a watch on it. */
 			cursor->flag = BTR_CUR_ABORTED;
 
 			goto func_exit;
 		}
-	}
 
-	if (block == NULL) {
 		/* This must be a search to perform an insert/delete
 		mark/ delete; try using the insert/delete buffer */
 
@@ -626,11 +621,6 @@ retry_page_get:
 		root_height = height;
 		cursor->tree_height = root_height + 1;
 
-		/* 1-level trees must be handled here
-		for BTR_WATCH_LEAF. */
-		if (watch_leaf && height == 0) {
-			cursor->leaf_in_buf_pool = TRUE;
-		}
 #ifdef BTR_CUR_ADAPT
 		if (block != guess) {
 			info->root_guess = block;

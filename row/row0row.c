@@ -801,18 +801,17 @@ row_search_index_entry(
 
 	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
 
-	if (btr_pcur_was_buffered(pcur)) {
-
-		return(ROW_BUFFERED);
-	}
-
-	if ((mode & BTR_WATCH_LEAF)
-	    && !btr_pcur_get_btr_cur(pcur)->leaf_in_buf_pool) {
-
+	switch (btr_pcur_get_btr_cur(pcur)->flag) {
+	case BTR_CUR_ABORTED:
 		/* We did not read in the leaf page, thus we can't have
 		found anything. */
-
+		ut_a(mode & BTR_WATCH_LEAF);
 		return(ROW_NOT_IN_POOL);
+
+	case BTR_CUR_DEL_MARK_IBUF:
+	case BTR_CUR_DELETE_IBUF:
+	case BTR_CUR_INSERT_TO_IBUF:
+		return(ROW_BUFFERED);
 	}
 
 	low_match = btr_pcur_get_low_match(pcur);
