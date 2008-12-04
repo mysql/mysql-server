@@ -674,11 +674,6 @@ struct btr_cur_struct {
 					node pointer had the 'minimum
 					record' flag set), this is
 					ULINT_UNDEFINED. */
-	ibool		leaf_in_buf_pool;
-					/* TRUE if the leaf page is in
-					the buffer pool while searching
-					with BTR_WATCH_LEAF; FALSE
-					otherwise. */
 	/*------------------------------*/
 	btr_path_t*	path_arr;	/* in estimating the number of
 					rows in range, we store in this array
