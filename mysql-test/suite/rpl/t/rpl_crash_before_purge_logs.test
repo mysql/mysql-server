@@ -1,0 +1,57 @@
+--source include/master-slave.inc
+--source include/have_debug.inc
+--disable_reconnect
+
+# We have to sync with master, to ensure slave had time to start properly
+# # before we stop it. If not, we get errors about UNIX_TIMESTAMP() in the
+# log.
+sync_slave_with_master;
+stop slave;
+--source include/wait_for_slave_to_stop.inc
+
+# ON MASTER 
+
+connection master;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id INT);
+
+let $1=100;
+disable_query_log;
+begin;
+while ($1)
+{
+  eval INSERT INTO t1 VALUES( $1 );
+  dec $1;
+}
+DROP TABLE t1;
+save_master_pos;
+
+enable_query_log;
+
+## ON SLAVE
+
+connection slave;
+start slave;
+--source include/wait_for_slave_to_start.inc
+sync_with_master 0;
+connection master;
+save_master_pos;
+connection slave;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/slave0.expect
+SET GLOBAL debug= "+d,crash_before_purge_logs";
+
+--error 2013
+# try to rotate logs
+FLUSH LOGS;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+start slave;
+--source include/wait_for_slave_to_start.inc
+
+sync_with_master 0;

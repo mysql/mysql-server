@@ -6,7 +6,7 @@
 let $counter= 500;
 while ($mysql_errno)
 {
-  --error 0,2002,2006
+  --error 0,2002,2006,2003
   show status;
 
   dec $counter;
