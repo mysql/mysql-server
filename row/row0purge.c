@@ -314,9 +314,6 @@ row_purge_remove_sec_if_poss_low(
 {
 	mtr_t			mtr;
 	btr_pcur_t		pcur;
-#ifdef UNIV_DEBUG
-	ibool			leaf_in_buf_pool;
-#endif /* UNIV_DEBUG */
 	ibool			old_has	= FALSE;
 	enum row_search_result	search_result;
 
@@ -335,21 +332,17 @@ row_purge_remove_sec_if_poss_low(
 	search_result = row_search_index_entry(
 		index, entry, BTR_SEARCH_LEAF | BTR_WATCH_LEAF, &pcur, &mtr);
 
-	ut_d(leaf_in_buf_pool = btr_pcur_get_btr_cur(&pcur)->leaf_in_buf_pool);
-
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
 	switch (search_result) {
 	case ROW_NOT_FOUND:
 		/* Index entry does not exist, nothing to do. */
-		ut_ad(leaf_in_buf_pool);
 		return(TRUE);
 
 	case ROW_FOUND:
 		/* The index entry exists and is in the buffer pool;
 		no need to use the insert/delete buffer. */
-		ut_ad(leaf_in_buf_pool);
 		goto unbuffered;
 
 	case ROW_BUFFERED:
@@ -359,7 +352,6 @@ row_purge_remove_sec_if_poss_low(
 		ut_error;
 
 	case ROW_NOT_IN_POOL:
-		ut_ad(!leaf_in_buf_pool);
 		break;
 	}
 

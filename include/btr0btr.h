@@ -66,7 +66,7 @@ buffer. */
 #define BTR_DELETE		8192
 
 /* If the leaf page is not in the buffer pool: don't read it in, set
-cursor->leaf_in_buf_pool to FALSE, and set buf_pool_t::watch_* that
+cursor->flag = BTR_CUR_ABORTED, and set buf_pool_t::watch_* that
 watches for the page to get read in. */
 #define BTR_WATCH_LEAF		16384
 
