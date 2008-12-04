@@ -147,6 +147,8 @@ UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
+ulint	srv_n_read_io_threads	= 1;
+ulint	srv_n_write_io_threads	= 1;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
@@ -311,6 +313,15 @@ UNIV_INTERN int	srv_query_thread_priority = 0;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
+ulint	srv_io_capacity = 100;
+
+/* Returns the number of IO operations that is X percent of the capacity.
+PCT_IO(5) -> returns the number of IO operations that is 5% of the max
+where max is srv_io_capacity. */
+#define PCT_IO(pct) ((ulint) (srv_io_capacity * ((double) pct / 100.0)))
+
+ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+ulint	srv_adaptive_checkpoint = 0; /* 0:disable 1:enable */
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
@@ -2203,6 +2214,8 @@ srv_master_thread(
 	ibool		skip_sleep	= FALSE;
 	ulint		i;
 
+	dulint		oldest_lsn;
+	
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
@@ -2293,7 +2306,7 @@ loop:
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
 			ibuf_contract_for_n_pages(
-				TRUE, srv_insert_buffer_batch_size / 4);
+				TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
 
 			srv_main_thread_op_info = "flushing log";
 
@@ -2306,7 +2319,7 @@ loop:
 			/* Try to keep the number of modified pages in the
 			buffer pool under the limit wished by the user */
 
-			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+ 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 							  IB_ULONGLONG_MAX);
 
 			/* If we had to do the flush, it may have taken
@@ -2315,6 +2328,44 @@ loop:
 			iteration of this loop. */
 
 			skip_sleep = TRUE;
+		} else if (srv_adaptive_checkpoint) {
+
+			/* Try to keep modified age not to exceed
+			max_checkpoint_age * 7/8 line */
+
+			mutex_enter(&(log_sys->mutex));
+
+			oldest_lsn = buf_pool_get_oldest_modification();
+			if (ut_dulint_is_zero(oldest_lsn)) {
+
+				mutex_exit(&(log_sys->mutex));
+
+			} else {
+				if (ut_dulint_minus(log_sys->lsn, oldest_lsn)
+				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 4)) {
+
+					/* 2nd defence line (max_checkpoint_age * 3/4) */
+
+					mutex_exit(&(log_sys->mutex));
+
+					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
+									  ut_dulint_max);
+					skip_sleep = TRUE;
+				} else if (ut_dulint_minus(log_sys->lsn, oldest_lsn)
+					   > (log_sys->max_checkpoint_age)/2 ) {
+
+					/* 1st defence line (max_checkpoint_age * 1/2) */
+
+					mutex_exit(&(log_sys->mutex));
+
+					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(10),
+									  ut_dulint_max);
+					skip_sleep = TRUE;
+				} else {
+					mutex_exit(&(log_sys->mutex));
+				}
+			}
+
 		}
 
 		if (srv_activity_count == old_activity_count) {
@@ -2341,10 +2392,10 @@ loop:
 	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
 	n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 		+ buf_pool->n_pages_written;
-	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
-
-		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, 100, IB_ULONGLONG_MAX);
+ 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < PCT_IO(200))) {
+  
+  		srv_main_thread_op_info = "flushing buffer pool pages";
+ 		buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100), IB_ULONGLONG_MAX);
 
 		srv_main_thread_op_info = "flushing log";
 		log_buffer_flush_to_disk();
@@ -2354,7 +2405,7 @@ loop:
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(TRUE, srv_insert_buffer_batch_size / 4);
+	ibuf_contract_for_n_pages(TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
 
 	srv_main_thread_op_info = "flushing log";
 	log_buffer_flush_to_disk();
@@ -2394,14 +2445,14 @@ loop:
 		(> 70 %), we assume we can afford reserving the disk(s) for
 		the time it requires to flush 100 pages */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+ 	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 						  IB_ULONGLONG_MAX);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
 		other work */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10,
+ 	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(10),
 						  IB_ULONGLONG_MAX);
 	}
 
@@ -2489,7 +2540,7 @@ background_loop:
 		n_bytes_merged = 0;
 	} else {
 		n_bytes_merged = ibuf_contract_for_n_pages(
-			TRUE, srv_insert_buffer_batch_size);
+			TRUE, PCT_IO((srv_insert_buffer_batch_size * 5)));
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -2505,7 +2556,7 @@ flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	if (srv_fast_shutdown < 2) {
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+ 	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 						  IB_ULONGLONG_MAX);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool

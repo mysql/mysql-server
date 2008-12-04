@@ -137,6 +137,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_force_recovery, innobase_open_files,
 	innobase_autoinc_lock_mode;
 
+static unsigned long innobase_read_io_threads, innobase_write_io_threads;
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
 /* The default values for the following char* start-up parameters
@@ -2066,6 +2067,8 @@ innobase_init(
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
+	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
+	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -9558,6 +9561,31 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
   "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
 
+static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of IO operations per second the server can do. Tunes background IO rate.",
+  NULL, NULL, 100, 100, 999999999, 0);
+
+static MYSQL_SYSVAR_ULONG(read_ahead, srv_read_ahead,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Diasable read aheads bit0:random bit1:linear",
+  NULL, NULL, 3, 0, 3, 0);
+
+static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Diasable flushing along modified age 0:disable 1:enable",
+  NULL, NULL, 0, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of background read I/O threads in InnoDB.",
+  NULL, NULL, 1, 1, 64, 0);
+
+static MYSQL_SYSVAR_ULONG(write_io_threads, innobase_write_io_threads,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of background write I/O threads in InnoDB.",
+  NULL, NULL, 1, 1, 64, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -9604,6 +9632,11 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(read_ahead),
+  MYSQL_SYSVAR(adaptive_checkpoint),
+  MYSQL_SYSVAR(read_io_threads),
+  MYSQL_SYSVAR(write_io_threads),
   NULL
 };
 

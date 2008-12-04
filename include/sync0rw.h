@@ -328,17 +328,7 @@ rw_lock_get_x_lock_count(
 Accessor functions for rw lock. */
 UNIV_INLINE
 ulint
-rw_lock_get_s_waiters(
-/*==================*/
-	rw_lock_t*	lock);
-UNIV_INLINE
-ulint
-rw_lock_get_x_waiters(
-/*==================*/
-	rw_lock_t*	lock);
-UNIV_INLINE
-ulint
-rw_lock_get_wx_waiters(
+rw_lock_get_waiters(
 /*================*/
 	rw_lock_t*	lock);
 UNIV_INLINE
@@ -422,11 +412,6 @@ rw_lock_debug_print(
 	rw_lock_debug_t*	info);	/* in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
-/* This value means NOT_LOCKED */
-#define RW_LOCK_BIAS		0x00100000
-#endif
-
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
 implementation of a read-write lock. Several threads may have a shared lock
@@ -436,9 +421,9 @@ blocked by readers, a writer may queue for the lock by setting the writer
 field. Then no new readers are allowed in. */
 
 struct rw_lock_struct {
-			/* Used by sync0arr.c for thread queueing */
-	os_event_t	s_event;	/* Used for s_lock */
-	os_event_t	x_event;	/* Used for x_lock */
+	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
+
+#ifdef __WIN__
 	os_event_t	wait_ex_event;	/* This windows specific event is
 				used by the thread which has set the
 				lock state to RW_LOCK_WAIT_EX. The
@@ -446,34 +431,30 @@ struct rw_lock_struct {
 				thread will be the next one to proceed
 				once the current the event gets
 				signalled. See LEMMA 2 in sync0sync.c */
-
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
-	volatile lint	lock_word;	/* Used by using atomic builtin */
 #endif
 
-	volatile ulint	reader_count;	/* Number of readers who have locked this
+	ulint	reader_count;	/* Number of readers who have locked this
 				lock in the shared mode */
-	volatile ulint	writer;		/* This field is set to RW_LOCK_EX if there
+	ulint	writer;		/* This field is set to RW_LOCK_EX if there
 				is a writer owning the lock (in exclusive
 				mode), RW_LOCK_WAIT_EX if a writer is
 				queueing for the lock, and
 				RW_LOCK_NOT_LOCKED, otherwise. */
-	volatile os_thread_id_t	writer_thread;
+	os_thread_id_t	writer_thread;
 				/* Thread id of a possible writer thread */
-	volatile ulint	writer_count;	/* Number of times the same thread has
+	ulint	writer_count;	/* Number of times the same thread has
 				recursively locked the lock in the exclusive
 				mode */
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
 	mutex_t	mutex;		/* The mutex protecting rw_lock_struct */
-#endif
 	ulint	pass;		/* Default value 0. This is set to some
 				value != 0 given by the caller of an x-lock
 				operation, if the x-lock is to be passed to
 				another thread to unlock (which happens in
 				asynchronous i/o). */
-	volatile ulint	s_waiters;	/* 1: there are waiters (s_lock) */
-	volatile ulint	x_waiters;	/* 1: there are waiters (x_lock) */
-	volatile ulint	wait_ex_waiters;	/* 1: there are waiters (wait_ex) */
+	ulint	waiters;	/* This ulint is set to 1 if there are
+				waiters (readers or writers) in the global
+				wait array, waiting for this rw_lock.
+				Otherwise, == 0. */
 	UT_LIST_NODE_T(rw_lock_t) list;
 				/* All allocated rw locks are put into a
 				list */
@@ -486,7 +467,7 @@ struct rw_lock_struct {
 	const char*	cfile_name;/* File name where lock created */
 	const char*	last_s_file_name;/* File name where last s-locked */
 	const char*	last_x_file_name;/* File name where last x-locked */
-	volatile ibool		writer_is_wait_ex;
+	ibool		writer_is_wait_ex;
 				/* This is TRUE if the writer field is
 				RW_LOCK_WAIT_EX; this field is located far
 				from the memory update hotspot fields which

@@ -1204,24 +1204,28 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
+	/* over write innodb_file_io_threads */
+	srv_n_file_io_threads = 2 + srv_n_read_io_threads + srv_n_write_io_threads;
+
 	/* Restrict the maximum number of file i/o threads */
 	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
 
 		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
+		srv_n_read_io_threads = srv_n_write_io_threads = (SRV_MAX_N_IO_THREADS - 2) / 2;
 	}
 
 	if (!os_aio_use_native_aio) {
 		/* In simulated aio we currently have use only for 4 threads */
-		srv_n_file_io_threads = 4;
+		/*srv_n_file_io_threads = 4;*/
 
 		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
 			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+			    srv_n_read_io_threads, srv_n_write_io_threads,
+			    SRV_MAX_N_PENDING_SYNC_IOS * 8);
 	} else {
 		os_aio_init(SRV_N_PENDING_IOS_PER_THREAD
 			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
+			    srv_n_read_io_threads, srv_n_write_io_threads,
 			    SRV_MAX_N_PENDING_SYNC_IOS);
 	}
 

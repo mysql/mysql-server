@@ -561,8 +561,10 @@ os_aio_init(
 /*========*/
 	ulint	n,		/* in: maximum number of pending aio operations
 				allowed; n must be divisible by n_segments */
-	ulint	n_segments,	/* in: combined number of segments in the four
-				first aio arrays; must be >= 4 */
+//	ulint	n_segments,	/* in: combined number of segments in the four
+//				first aio arrays; must be >= 4 */
+	ulint	n_read_threads,  /* n_segments == 2 + n_read_threads + n_write_threads */
+	ulint	n_write_threads, /**/
 	ulint	n_slots_sync);	/* in: number of slots in the sync aio array */
 /***********************************************************************
 Requests an asynchronous i/o operation. */
