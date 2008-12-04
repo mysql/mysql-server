@@ -28,6 +28,16 @@ void
 buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage);	/* in: pointer to the block in question */
+/***********************************************************************
+Relocates a buffer control block on the flush_list.
+Note that it is assumed that the contents of bpage has already been
+copied to dpage. */
+UNIV_INTERN
+void
+buf_flush_relocate_on_flush_list(
+/*=============================*/
+	buf_page_t*	bpage,	/* in/out: control block being moved */
+	buf_page_t*	dpage);	/* in/out: destination block */
 /************************************************************************
 Updates the flush system data structures when a write is completed. */
 UNIV_INTERN
