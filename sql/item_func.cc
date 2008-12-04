@@ -1316,8 +1316,10 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint arg_prec= args[0]->decimal_precision() + prec_increment;
-  uint precision=min(arg_prec, DECIMAL_MAX_PRECISION);
+  uint precision=min(args[0]->decimal_precision() + 
+                     args[1]->decimals + prec_increment,
+                     DECIMAL_MAX_PRECISION);
+
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
@@ -2273,7 +2275,7 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(ulonglong *value)
 {
-  ulonglong min_max;
+  longlong min_max;
   uint min_max_idx= 0;
   LINT_INIT(min_max);
 
@@ -2281,7 +2283,7 @@ uint Item_func_min_max::cmp_datetimes(ulonglong *value)
   {
     Item **arg= args + i;
     bool is_null;
-    ulonglong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
     if ((null_value= args[i]->null_value))
       return 0;
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
@@ -5022,7 +5024,9 @@ bool Item_func_match::fix_index()
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
-        (table->s->keys_in_use.is_set(keynr)))
+        (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
+                           table->s->keys_in_use.is_set(keynr)))
+
     {
       ft_to_key[fts]=keynr;
       ft_cnt[fts]=0;

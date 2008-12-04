@@ -1225,4 +1225,14 @@ DROP TABLE t1;
 select (1.20396873 * 0.89550000 * 0.68000000 * 1.08721696 * 0.99500000 *
         1.01500000 * 1.01500000 * 0.99500000);
 
+#
+# Bug #31616 div_precision_increment description looks wrong 
+#
+
+create table t1 as select 5.05 / 0.014;
+show warnings;
+show create table t1;
+select * from t1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
