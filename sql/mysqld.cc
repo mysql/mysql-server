@@ -1809,7 +1809,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
 extern "C" sig_handler end_mysqld_signal(int sig __attribute__((unused)))
 {
   DBUG_ENTER("end_mysqld_signal");
-  kill(0, SIGTERM);                             // Take down mysqld nicely 
+  kill_mysql();                                 // Take down mysqld nicely 
   DBUG_VOID_RETURN;				/* purecov: deadcode */
 }
 

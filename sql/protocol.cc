@@ -477,9 +477,10 @@ void Protocol::init(THD *thd_arg)
   for the error.
 */
 
-void Protocol::end_partial_result_set(THD *thd)
+void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd, thd->server_status, 0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status,
+               0 /* no warnings, we're inside SP */);
 }
 
 

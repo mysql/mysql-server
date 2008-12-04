@@ -2339,7 +2339,7 @@ public:
      @return
      -1 if nest level is undefined, otherwise a positive integer.
    */
-  int get_nest_level() { return nest_level; }
+  int get_nest_level() { return (int) nest_level; }
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else

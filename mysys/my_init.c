@@ -199,7 +199,9 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 #endif
 #if defined(SAFEMALLOC)
     /* Wait for other threads to free mysys_var */
+#ifdef THREAD
     (void) my_wait_for_other_threads_to_die(1);
+#endif
     TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
 #elif defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
