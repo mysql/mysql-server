@@ -3249,14 +3249,6 @@ ibuf_insert_low(
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
 
-	/* Don't buffer deletes if the page has been read in to the buffer
-	pool. */
-	if (op == IBUF_OP_DELETE && buf_pool_watch_occurred(space, page_no)) {
-		err = DB_STRONG_FAIL;
-
-		goto function_exit;
-	}
-
 	/* Find out the volume of already buffered inserts for the same index
 	page */
 	min_n_recs = 0;
@@ -3265,12 +3257,30 @@ ibuf_insert_low(
 					    ? &min_n_recs
 					    : NULL, &mtr);
 
-	if (op == IBUF_OP_DELETE && min_n_recs < 2) {
-		/* The page could become empty after the record is
-		deleted.  Refuse to buffer the operation. */
-		err = DB_STRONG_FAIL;
+	if (op == IBUF_OP_DELETE) {
+		if (min_n_recs < 2
+		    || buf_pool_watch_occurred(space, page_no)) {
+			/* The page could become empty after the
+			record is deleted, or the page has been read
+			in to the buffer pool.  Refuse to buffer the
+			operation. */
+			err = DB_STRONG_FAIL;
 
-		goto function_exit;
+			goto function_exit;
+		}
+
+		/* The buffer pool watch is needed for IBUF_OP_DELETE
+		because of latching order considerations.  We can
+		check buf_pool_watch_occurred() only after latching
+		the insert buffer B-tree pages that contain buffered
+		changes for the page.  We never buffer IBUF_OP_DELETE,
+		unless some IBUF_OP_INSERT or IBUF_OP_DELETE_MARK have
+		been previously buffered for the page.  Because there
+		are buffered operations for the page, the insert
+		buffer B-tree page latches held by mtr will guarantee
+		that no changes for the user page will be merged
+		before mtr_commit(&mtr).  We must not mtr_commit(&mtr)
+		until after the IBUF_OP_DELETE has been buffered. */
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
