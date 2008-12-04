@@ -1284,7 +1284,10 @@ int ha_tokudb::pack_row(DBT * row, const uchar * record, bool strip_pk) {
         // if the primary key is hidden, primary_key_offsets will be NULL and
         // this clause will not execute
         //
-        if (primary_key_offsets && strip_pk) {
+        if (primary_key_offsets && 
+            strip_pk &&
+            curr_skip_index < table_share->key_info[table_share->primary_key].key_parts
+            ) {
             uint curr_skip_offset = primary_key_offsets[curr_skip_index].offset;
             if (curr_skip_offset == curr_field_offset) {
                 //
@@ -1382,7 +1385,10 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool 
         uint curr_skip_index = 0;
         for (Field ** field = table->field; *field; field++) {
             uint curr_field_offset = field_offset(*field, table);
-            if (primary_key_offsets && pk_stripped) {
+            if (primary_key_offsets && 
+                pk_stripped &&
+                curr_skip_index < table_share->key_info[table_share->primary_key].key_parts
+                ) {
                 uint curr_skip_offset = primary_key_offsets[curr_skip_index].offset;
                 if (curr_skip_offset == curr_field_offset) {
                     //
