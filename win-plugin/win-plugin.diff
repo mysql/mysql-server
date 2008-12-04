@@ -37,7 +37,7 @@ diff -Nur sql/CMakeLists.txt.orig sql/CMakeLists.txt
 diff -Nur sql/mysqld.def.orig sql/mysqld.def
 --- sql/mysqld.def.orig	1969-12-31 18:00:00 -06:00
 +++ sql/mysqld.def	2008-10-31 02:20:32 -05:00
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,100 @@
 +EXPORTS
 +	?use_hidden_primary_key@handler@@UAEXXZ
 +	?get_dynamic_partition_info@handler@@UAEXPAUPARTITION_INFO@@I@Z
@@ -87,6 +87,7 @@ diff -Nur sql/mysqld.def.orig sql/mysqld.def
 +	mysql_query_cache_invalidate4
 +	thd_query
 +	thd_sql_command
++	thd_get_thread_id
 +	thd_get_xid
 +	thd_slave_thread
 +	thd_non_transactional_update
@@ -191,6 +192,7 @@ diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
 +	mysql_query_cache_invalidate4
 +	thd_query
 +	thd_sql_command
++	thd_get_thread_id
 +	thd_get_xid
 +	thd_slave_thread
 +	thd_non_transactional_update

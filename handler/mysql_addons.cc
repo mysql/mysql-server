@@ -24,19 +24,6 @@ Created November 07, 2007 Vasil Dimov
 #include "mysql_addons.h"
 #include "univ.i"
 
-/***********************************************************************
-Retrieve THD::thread_id
-http://bugs.mysql.com/30930 */
-extern "C" UNIV_INTERN
-unsigned long
-ib_thd_get_thread_id(
-/*=================*/
-				/* out: THD::thread_id */
-	const void*	thd)	/* in: THD */
-{
-	return((unsigned long) ((THD*) thd)->thread_id);
-}
-
 /* http://bugs.mysql.com/40360 */
 /* http://lists.mysql.com/commits/57450 */
 /**
