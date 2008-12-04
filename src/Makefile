@@ -79,8 +79,8 @@ $(TLIBRARY): LINK_FILES=$(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
 
 #Skip all BDB tests for CYGWIN+ICC
 ifeq ($(CYGWIN),)
-$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+$(LIBRARY_S):  $(patsubst %.$(AEXT),%.bundle, $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY))
+$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT_BUNDLE) $(LIBPORTABILITY)
 else ifneq ($(CC),icc)
 $(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 $(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
@@ -102,7 +102,7 @@ ipo_libtokudb.lib: ipo_libtokudb.obj
 	xilib /out:$@ $^
 
 
-check_globals: $(LIBNAME).$(AEXT)
+check_globals: $(LIBNAME).$(SOEXT)
 	$(MAYBEATSIGN)python tokuglobals.py $<
 
 .PHONY: check_tests

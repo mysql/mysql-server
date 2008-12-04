@@ -22,12 +22,14 @@ include $(TOKUROOT)include/Makefile.include
 BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
 
 ifdef BDBDIR
-BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include -I../linux
+BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include $(PORTABILITY_HEADERS)
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib $(LIBPORTABILITY) -lpthread
 else
-BDB_CPPFLAGS =
-BDB_LDFLAGS = -ldb
+BDB_CPPFLAGS = -I$(PORTABILITY_HEADERS) -I../include
+BDB_LDFLAGS = -ldb $(LIBPORTABILITY)
 endif
+BDB_CPPFLAGS += -D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+
 TOKUDB=libtokudb.$(SOEXT)
 TDB_DLINK_FILES = $(TOKUROOT)lib/$(TOKUDB)
 
@@ -60,7 +62,7 @@ clean:
 	$(MAYBEATSIGN)rm -f $(TARGETS)
 	$(MAYBEATSIGN)rm -rf $(BENCHDBS)
 
-$(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS += -DDIRSUF=tokudb
+$(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS += -DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I../include
 
 ifneq ($(PROF),)
     USE_STATIC=1
