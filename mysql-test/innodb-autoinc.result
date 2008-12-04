@@ -566,8 +566,8 @@ c1
 18446744073709551610
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=1152921504606846976, @@SESSION.AUTO_INCREMENT_OFFSET=1152921504606846976;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '1152921504606846976'
-Warning	1292	Truncated incorrect auto-increment-offset value: '1152921504606846976'
+Warning	1292	Truncated incorrect auto_increment_increment value: '1152921504606846976'
+Warning	1292	Truncated incorrect auto_increment_offset value: '1152921504606846976'
 SHOW VARIABLES LIKE "%auto_inc%";
 Variable_name	Value
 auto_increment_increment	65535
