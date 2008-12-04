@@ -378,7 +378,6 @@ buf_flush_remove(
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_flush_list);
-	ut_d(bpage->in_flush_list = FALSE);
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
@@ -405,9 +404,74 @@ buf_flush_remove(
 		buf_flush_delete_from_flush_rbt(bpage);
 	}
 
+	/* Must be done after we have removed it from the flush_rbt
+	because we assert on in_flush_list in comparison function. */
+	ut_d(bpage->in_flush_list = FALSE);
+
 	bpage->oldest_modification = 0;
 
 	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list));
+}
+
+/***********************************************************************
+Relocates a buffer control block on the flush_list.
+Note that it is assumed that the contents of bpage has already been
+copied to dpage. */
+UNIV_INTERN
+void
+buf_flush_relocate_on_flush_list(
+/*=============================*/
+	buf_page_t*	bpage,	/* in/out: control block being moved */
+	buf_page_t*	dpage)	/* in/out: destination block */
+{
+	buf_page_t* prev;
+	buf_page_t* prev_b = NULL;
+
+	ut_ad(buf_pool_mutex_own());
+
+	ut_ad(buf_page_in_file(bpage));
+	ut_ad(buf_page_in_file(dpage));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	ut_ad(buf_page_get_state(dpage) != BUF_BLOCK_FILE_PAGE
+	      || mutex_own(buf_page_get_mutex(dpage)));
+
+	ut_ad(bpage->in_flush_list);
+	ut_ad(dpage->in_flush_list);
+
+	/* If recovery is active we must swap the control blocks in
+	the flush_rbt as well. */
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+		buf_flush_delete_from_flush_rbt(bpage);
+		prev_b = buf_flush_insert_in_flush_rbt(dpage);
+	}
+
+	/* Must be done after we have removed it from the flush_rbt
+	because we assert on in_flush_list in comparison function. */
+	ut_d(bpage->in_flush_list = FALSE);
+
+	prev = UT_LIST_GET_PREV(list, bpage);
+	UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+
+	if (prev) {
+		ut_ad(prev->in_flush_list);
+		UT_LIST_INSERT_AFTER(
+			list,
+			buf_pool->flush_list,
+			prev, dpage);
+	} else {
+		UT_LIST_ADD_FIRST(
+			list,
+			buf_pool->flush_list,
+			dpage);
+	}
+
+	/* Just an extra check. Previous in flush_list
+	should be the same control block as in flush_rbt. */
+	ut_a(!buf_pool->flush_rbt || prev_b == prev);
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(buf_flush_validate_low());
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 }
 
 /************************************************************************
@@ -1426,11 +1490,19 @@ buf_flush_validate_low(void)
 /*========================*/
 		/* out: TRUE if ok */
 {
-	buf_page_t*	bpage;
+	buf_page_t*		bpage;
+	const ib_rbt_node_t*	rnode = NULL;
 
 	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list);
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
+
+	/* If we are in recovery mode i.e.: flush_rbt != NULL
+	then each block in the flush_list must also be present
+	in the flush_rbt. */
+	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+		rnode = rbt_first(buf_pool->flush_rbt);
+	}
 
 	while (bpage != NULL) {
 		const ib_uint64_t om = bpage->oldest_modification;
@@ -1438,19 +1510,23 @@ buf_flush_validate_low(void)
 		ut_a(buf_page_in_file(bpage));
 		ut_a(om > 0);
 
-		/* If we are in recovery mode i.e.: flush_rbt != NULL
-		then each block in the flush_list must also be present
-		in the flush_rbt. */
 		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-			ut_a(*rbt_value(buf_page_t*,
-			     rbt_lookup(buf_pool->flush_rbt, &bpage))
-			     == bpage);
+			ut_a(rnode);
+			buf_page_t* rpage = *rbt_value(buf_page_t*,
+						       rnode);
+			ut_a(rpage);
+			ut_a(rpage == bpage);
+			rnode = rbt_next(buf_pool->flush_rbt, rnode);
 		}
 
 		bpage = UT_LIST_GET_NEXT(list, bpage);
 
 		ut_a(!bpage || om >= bpage->oldest_modification);
 	}
+
+	/* By this time we must have exhausted the traversal of
+	flush_rbt (if active) as well. */
+	ut_a(rnode == NULL);
 
 	return(TRUE);
 }
