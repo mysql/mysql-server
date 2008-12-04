@@ -3065,6 +3065,9 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
+
+  // Release latches in case bulk insert takes a long time
+  ha_release_temporary_latches(thd);
   
   error= write_record(thd, table, &info);
   table->auto_increment_field_not_null= FALSE;
