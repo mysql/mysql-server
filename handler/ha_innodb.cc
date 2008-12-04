@@ -70,7 +70,6 @@ extern "C" {
 #include "ha_innodb.h"
 #include "i_s.h"
 #include "handler0vars.h"
-#include "mysql_addons.h"
 
 #ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
@@ -7672,12 +7671,12 @@ ha_innobase::external_lock(
 	READ UNCOMMITTED and READ COMMITTED since the necessary
 	locks cannot be taken. In this case, we print an
 	informative error message and return with an error. */
-	if (lock_type == F_WRLCK && ib_bin_log_is_engaged(thd))
+	if (lock_type == F_WRLCK)
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
-		if (tx_isolation <= ISO_READ_COMMITTED
-		    && binlog_format == BINLOG_FORMAT_STMT)
+		if (tx_isolation <= ISO_READ_COMMITTED &&
+		    binlog_format == BINLOG_FORMAT_STMT)
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),
