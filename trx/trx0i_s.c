@@ -393,7 +393,7 @@ fill_trx_row(
 
 	if (trx->mysql_thd != NULL) {
 		row->trx_mysql_thread_id
-			= ib_thd_get_thread_id(trx->mysql_thd);
+			= thd_get_thread_id(trx->mysql_thd);
 	} else {
 		/* For internal transactions e.g., purge and transactions
 		being recovered at startup there is no associated MySQL
