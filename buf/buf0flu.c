@@ -429,11 +429,7 @@ buf_flush_relocate_on_flush_list(
 
 	ut_ad(buf_pool_mutex_own());
 
-	ut_ad(buf_page_in_file(bpage));
-	ut_ad(buf_page_in_file(dpage));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-	ut_ad(buf_page_get_state(dpage) != BUF_BLOCK_FILE_PAGE
-	      || mutex_own(buf_page_get_mutex(dpage)));
 
 	ut_ad(bpage->in_flush_list);
 	ut_ad(dpage->in_flush_list);
