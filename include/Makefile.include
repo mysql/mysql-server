@@ -357,8 +357,18 @@ O_FROM_C_FLAGS=  $(CFLAGS) $(CPPFLAGS) -c $(OOUTPUT)$@
 
 %.$(AEXT):
 	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
+ifeq ($(AEXT),a)
 %.bundle: %.$(AEXT)
-	mkdir -p $@; cd $@; $(AR) x ../$(<F)
+	$(MAYBEATSIGN)mkdir -p $@ && cd $@ && $(AR) x ../$(<F)
+	$(MAYBEATSIGN)touch $@
+else
+#Windows lib cannot extract everything.
+#Do a for loop and extract one at a time.
+%.bundle: %.$(AEXT)
+	$(MAYBEATSIGN)mkdir -p $@ && cd $@ && for ofile in `lib /list ../$(<F) |dos2unix |grep -F obj`; do lib /extract:$$ofile ../$(<F); done
+	$(MAYBEATSIGN)touch $@
+endif
+
 
 ifeq ($(SOEXT),so)
 EXPORTMAPFILE=export.map
