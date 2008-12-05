@@ -296,7 +296,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.append(" --nodaemon --mycnf");
     proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%d", dir.c_str(), proc.m_index);
-    proc.m_proc.m_args.appfmt(" --datadir=%s", proc.m_proc.m_cwd.c_str());
+    proc.m_proc.m_args.appfmt(" --configdir=%s", proc.m_proc.m_cwd.c_str());
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
     break;

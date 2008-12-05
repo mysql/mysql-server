@@ -129,7 +129,7 @@ public:
     const char* bind_address;
     int no_nodeid_checks;
     int print_full_config;
-    const char* datadir;
+    const char* configdir;
     int verbose;
   };
 
@@ -141,7 +141,7 @@ public:
 
 private:
   /* Function used from 'init' */
-  const char* check_datadir() const;
+  const char* check_configdir() const;
 
 public:
   /*
