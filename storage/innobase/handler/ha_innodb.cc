@@ -1405,7 +1405,9 @@ innobase_init(
 	int		err;
 	bool		ret;
 	char		*default_path;
+#ifdef SAFE_MUTEX
 	my_bool         old_safe_mutex_deadlock_detector;
+#endif
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
