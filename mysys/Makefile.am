@@ -79,6 +79,13 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 # I hope this always does the right thing. Otherwise this is only test programs
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 
+CLEANFILES =		test_bitmap$(EXEEXT) test_priority_queue$(EXEEXT) \
+			test_thr_alarm$(EXEEXT) test_thr_lock$(EXEEXT) \
+			test_vsnprintf$(EXEEXT) test_io_cache$(EXEEXT) \
+			test_dir$(EXEEXT) test_charset$(EXEEXT) \
+			testhash$(EXEEXT) test_gethwaddr$(EXEEXT) \
+			test_base64$(EXEEXT) test_thr_mutex$(EXEEXT)
+
 #
 # The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)
 # which automaticly removes the object files you use to compile a final program
@@ -128,6 +135,9 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(CP) $(srcdir)/base64.c ./test_base64.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_base64.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_base64.c
+
+test_thr_mutex$(EXEEXT): test_thr_mutex.c $(LIBRARIES)
+	$(LINK) $(FLAGS) $(srcdir)/test_thr_mutex.c $(LDADD) $(LIBS)
 
 
 # Don't update the files from bitkeeper

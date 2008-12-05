@@ -2403,7 +2403,12 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   DBUG_ASSERT(inited == 0);
   inited= 1;
   (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
+  /*
+    LOCK_index and LOCK_log are taken in wrong order
+    Can be seen with 'mysql-test-run ndb.ndb_binlog_basic'
+  */ 
+  (void) my_pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW, "LOCK_index",
+                               MYF_NO_DEADLOCK_DETECTION);
   (void) pthread_cond_init(&update_cond, 0);
 }
 

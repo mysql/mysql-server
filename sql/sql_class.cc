@@ -993,6 +993,14 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
     *(to++)+= *(from++) - *(dec++);
 }
 
+#define SECONDS_TO_WAIT_FOR_KILL 2
+#if !defined(__WIN__) && defined(HAVE_SELECT)
+/* my_sleep() can wait for sub second times */
+#define WAIT_FOR_KILL_TRY_TIMES 20
+#else
+#define WAIT_FOR_KILL_TRY_TIMES 2
+#endif
+
 
 void THD::awake(THD::killed_state state_to_set)
 {
@@ -1047,12 +1055,35 @@ void THD::awake(THD::killed_state state_to_set)
       we issue a second KILL or the status it's waiting for happens).
       It's true that we have set its thd->killed but it may not
       see it immediately and so may have time to reach the cond_wait().
+
+      We have to do the loop with trylock, because if we would use
+      pthread_mutex_lock(), we can cause a deadlock as we are here locking
+      the mysys_var->mutex and mysys_var->current_mutex in a different order
+      than in the thread we are trying to kill.
+      We only sleep for 2 seconds as we don't want to have LOCK_delete
+      locked too long time.
+
+      There is a small change we may not succeed in aborting a thread that
+      is not yet waiting for a mutex, but as this happens only for a
+      thread that was doing something else when the kill was issued and
+      which should detect the kill flag before it starts to wait, this
+      should be good enough.
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
-      pthread_mutex_lock(mysys_var->current_mutex);
-      pthread_cond_broadcast(mysys_var->current_cond);
-      pthread_mutex_unlock(mysys_var->current_mutex);
+      uint i;
+      for (i= 0; i < WAIT_FOR_KILL_TRY_TIMES * SECONDS_TO_WAIT_FOR_KILL; i++)
+      {
+        int ret= pthread_mutex_trylock(mysys_var->current_mutex);
+        pthread_cond_broadcast(mysys_var->current_cond);
+        if (!ret)
+        {
+          /* Signal is sure to get through */
+          pthread_mutex_unlock(mysys_var->current_mutex);
+          break;
+        }
+      }
+      my_sleep(1000000L / WAIT_FOR_KILL_TRY_TIMES);
     }
     pthread_mutex_unlock(&mysys_var->mutex);
   }
@@ -1088,6 +1119,15 @@ bool THD::store_globals()
     created in another thread
   */
   thr_lock_info_init(&lock_info);
+
+#ifdef SAFE_MUTEX
+  /* Register order of mutex for wrong mutex deadlock detector */
+  pthread_mutex_lock(&LOCK_delete);
+  pthread_mutex_lock(&mysys_var->mutex);
+
+  pthread_mutex_unlock(&mysys_var->mutex);
+  pthread_mutex_unlock(&LOCK_delete);
+#endif
   return 0;
 }
 
@@ -1472,7 +1512,7 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
-  nest_level= -1;
+  nest_level= (uint) -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)

@@ -67,14 +67,16 @@ static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,uchar *record);
   Prefix bytes 244 to 249 are reserved for negative transid, that can be used
   when we pack transid relative to each other on a key block.
 
-  We have to store transid in high-byte-first order to be able to do a
-  fast byte-per-byte comparision of them without packing them up.
+  We have to store transid in high-byte-first order so that we can compare
+  them unpacked byte per byte and as soon we find a difference we know
+  which is smaller.
 
   For example, assuming we the following data:
 
   key_data:               1                (4 byte integer)
   pointer_to_row:         2 << 8 + 3 = 515 (page 2, row 3)
-  table_create_transid    1000             Defined at create table time
+  table_create_transid    1000             Defined at create table time and
+                                           stored in table definition
   transid                 1010	           Transaction that created row
   delete_transid          2011             Transaction that deleted row
 
@@ -86,8 +88,9 @@ static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,uchar *record);
 
   00 00 00 01     Key data (1 stored high byte first)
   00 00 00 47	  (515 << 1) + 1         ;  The last 1 is marker that key cont.
-  15              ((1000-1010) << 1) + 1 ;  The last 1 is marker that key cont.
-  FB 07 E6        length byte and  ((2011 - 1000) << 1) = 07 E6
+  15              ((1010-1000) << 1) + 1 ;  The last 1 is marker that key cont.
+  FB 07 E6        Length byte (FE = 249 + 2 means 2 bytes) and 
+                  ((2011 - 1000) << 1) = 07 E6
 */
 
 uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid)

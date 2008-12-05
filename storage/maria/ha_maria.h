@@ -112,6 +112,7 @@ public:
   int restart_rnd_next(uchar * buf);
   void position(const uchar * record);
   int info(uint);
+  int info(uint, my_bool);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset(void);

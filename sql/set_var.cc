@@ -2290,13 +2290,11 @@ end:
 bool sys_var_log_state::update(THD *thd, set_var *var)
 {
   bool res;
-
   if (this == &sys_var_log)
     WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
   else if (this == &sys_var_log_slow)
     WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
   {
     logger.deactivate_log_handler(thd, log_type);
@@ -2304,7 +2302,6 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
   }
   else
     res= logger.activate_log_handler(thd, log_type);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
   return res;
 }
 
@@ -2315,9 +2312,7 @@ void sys_var_log_state::set_default(THD *thd, enum_var_type type)
   else if (this == &sys_var_log_slow)
     WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.deactivate_log_handler(thd, log_type);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
@@ -2413,23 +2408,18 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     goto err;
   }
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock_exclusive();
 
   if (file_log && log_state)
     file_log->close(0);
-  old_value= var_str->value;
-  var_str->value= res;
-  var_str->value_length= str_length;
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   if (file_log && log_state)
   {
     switch (log_type) {
     case QUERY_LOG_SLOW:
-      file_log->open_slow_log(sys_var_slow_log_path.value);
+      file_log->open_slow_log(res);
       break;
     case QUERY_LOG_GENERAL:
-      file_log->open_query_log(sys_var_general_log_path.value);
+      file_log->open_query_log(res);
       break;
     default:
       DBUG_ASSERT(0);
@@ -2437,6 +2427,13 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
   }
 
   logger.unlock();
+
+  /* update global variable */
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  old_value= var_str->value;
+  var_str->value= res;
+  var_str->value_length= str_length;
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
 err:
@@ -2476,26 +2473,22 @@ static void sys_default_slow_log_path(THD *thd, enum_var_type type)
 
 bool sys_var_log_output::update(THD *thd, set_var *var)
 {
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock_exclusive();
   logger.init_slow_log(var->save_result.ulong_value);
   logger.init_general_log(var->save_result.ulong_value);
   *value= var->save_result.ulong_value;
   logger.unlock();
-  pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
 
 
 void sys_var_log_output::set_default(THD *thd, enum_var_type type)
 {
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock_exclusive();
   logger.init_slow_log(LOG_FILE);
   logger.init_general_log(LOG_FILE);
   *value= LOG_FILE;
   logger.unlock();
-  pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 

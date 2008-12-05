@@ -1729,7 +1729,8 @@ public:
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
     bzero((char*) &info,sizeof(info));
-    pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
+    my_pthread_mutex_init(&mutex, MY_MUTEX_INIT_FAST, "Delayed_insert::mutex",
+                          0);
     pthread_cond_init(&cond,NULL);
     pthread_cond_init(&cond_client,NULL);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -2234,7 +2235,8 @@ void kill_delayed_threads(void)
 	  in handle_delayed_insert()
 	*/
 	if (&di->mutex != di->thd.mysys_var->current_mutex)
-	  pthread_mutex_lock(di->thd.mysys_var->current_mutex);
+	  my_pthread_mutex_lock(di->thd.mysys_var->current_mutex, 
+                                MYF_NO_DEADLOCK_DETECTION);
 	pthread_cond_broadcast(di->thd.mysys_var->current_cond);
 	if (&di->mutex != di->thd.mysys_var->current_mutex)
 	  pthread_mutex_unlock(di->thd.mysys_var->current_mutex);
@@ -2480,12 +2482,13 @@ end:
     clients
   */
 
-  close_thread_tables(thd);			// Free the table
   di->table=0;
   di->dead= 1;                                  // If error
   thd->killed= THD::KILL_CONNECTION;	        // If error
-  pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
+
+  close_thread_tables(thd);			// Free the table
+  pthread_cond_broadcast(&di->cond_client);	// Safety
 
   pthread_mutex_lock(&LOCK_delayed_create);	// Because of delayed_get_table
   pthread_mutex_lock(&LOCK_delayed_insert);	

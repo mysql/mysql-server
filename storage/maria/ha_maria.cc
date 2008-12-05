@@ -1460,7 +1460,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
                                      (local_testflag &
                                       T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-         HA_STATUS_CONST);
+         HA_STATUS_CONST, 0);
     if (rows != file->state->records && !(param->testflag & T_VERY_SILENT))
     {
       char llbuff[22], llbuff2[22];
@@ -2148,6 +2148,11 @@ void ha_maria::position(const uchar *record)
 
 int ha_maria::info(uint flag)
 {
+  return info(flag, table->s->tmp_table == NO_TMP_TABLE);
+}
+
+int ha_maria::info(uint flag, my_bool lock_table_share)
+{
   MARIA_INFO maria_info;
   char name_buff[FN_REFLEN];
 
@@ -2173,7 +2178,7 @@ int ha_maria::info(uint flag)
     stats.block_size= maria_block_size;
 
     /* Update share */
-    if (share->tmp_table == NO_TMP_TABLE)
+    if (lock_table_share)
       pthread_mutex_lock(&share->mutex);
     share->keys_in_use.set_prefix(share->keys);
     share->keys_in_use.intersect_extended(maria_info.key_map);
@@ -2186,7 +2191,7 @@ int ha_maria::info(uint flag)
       for (end= to+ share->key_parts ; to < end ; to++, from++)
         *to= (ulong) (*from + 0.5);
     }
-    if (share->tmp_table == NO_TMP_TABLE)
+    if (lock_table_share)
       pthread_mutex_unlock(&share->mutex);
 
     /*
@@ -2956,7 +2961,7 @@ bool maria_show_status(handlerton *hton,
       const char error[]= "can't stat";
       char object[SHOW_MSG_LEN];
       file= translog_filename_by_fileno(i, path);
-      if (!(stat= my_stat(file, &stat_buff, MYF(MY_WME))))
+      if (!(stat= my_stat(file, &stat_buff, MYF(0))))
       {
         status= error;
         status_len= sizeof(error) - 1;

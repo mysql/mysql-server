@@ -1431,7 +1431,9 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
   /* list of waiting buffer ready threads */
   buffer->waiting_flush= 0;
   /* lock for the buffer. Current buffer also lock the handler */
-  if (pthread_mutex_init(&buffer->mutex, MY_MUTEX_INIT_FAST) ||
+  if (my_pthread_mutex_init(&buffer->mutex, MY_MUTEX_INIT_FAST,
+                            "translog_buffer->mutex",
+                            MYF_NO_DEADLOCK_DETECTION) ||
       pthread_cond_init(&buffer->prev_sent_to_disk_cond, 0))
     DBUG_RETURN(1);
   buffer->is_closing_buffer= 0;

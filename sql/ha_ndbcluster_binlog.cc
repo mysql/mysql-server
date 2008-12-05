@@ -1550,7 +1550,9 @@ end:
       dict->forceGCPWait();
 
     int max_timeout= opt_ndb_sync_timeout;
-    (void) pthread_mutex_lock(&ndb_schema_object->mutex);
+    /* Inconsistent usage of ndb_schema_object->mutex and LOCK_open */
+    (void) my_pthread_mutex_lock(&ndb_schema_object->mutex,
+                                 MYF_NO_DEADLOCK_DETECTION);
     if (have_lock_open)
     {
       safe_mutex_assert_owner(&LOCK_open);

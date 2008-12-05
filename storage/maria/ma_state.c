@@ -366,6 +366,15 @@ my_bool _ma_check_status(void *param)
 
 /**
    @brief write hook at end of trans to store status for all used table
+
+   @Notes
+   This function must be called under trnman_lock in trnman_end_trn()
+   because of the following reasons:
+   - After trnman_end_trn() is called, the current transaction will be
+   regarded as committed and all used tables state_history will be
+   visible to other transactions.  To do this, we loop over all used
+   tables and create/update a history entries that contains the correct
+   state_history for them.
 */
 
 my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
@@ -390,6 +399,13 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
           trnman_exists_active_transactions(share->state_history->trid,
                                             trn->commit_trid, 1))
       {
+        /*
+          There exist transactions that are still using the current
+          share->state_history.  Create a new history item for this
+          commit and add it first in the state_history list. This
+          ensures that all history items are stored in the list in
+          decresing trid order.
+        */
         if (!(history= my_malloc(sizeof(*history), MYF(MY_WME))))
         {
           /* purecov: begin inspected */

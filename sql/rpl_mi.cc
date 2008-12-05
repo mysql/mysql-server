@@ -38,11 +38,26 @@ Master_info::Master_info()
   ssl_cipher[0]= 0; ssl_key[0]= 0;
 
   bzero((char*) &file, sizeof(file));
-  pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
+  /*
+    We have to use MYF_NO_DEADLOCK_DETECTION because mysqld doesn't
+    lock run_lock and data_lock consistently.
+    Should be fixed as this can easily lead to deadlocks
+  */
+  my_pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST, 
+                        "Master_info::run_lock", MYF_NO_DEADLOCK_DETECTION);
+  my_pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST,
+                        "Master_info::data_lock", MYF_NO_DEADLOCK_DETECTION);
   pthread_cond_init(&data_cond, NULL);
   pthread_cond_init(&start_cond, NULL);
   pthread_cond_init(&stop_cond, NULL);
+
+#ifdef SAFE_MUTEX
+  /* Define mutex order for locks to find wrong lock usage */
+  pthread_mutex_lock(&data_lock);
+  pthread_mutex_lock(&run_lock);
+  pthread_mutex_unlock(&run_lock);
+  pthread_mutex_unlock(&data_lock);
+#endif
 }
 
 Master_info::~Master_info()
