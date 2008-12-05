@@ -91,8 +91,17 @@ void memarena_close(MEMARENA *map) {
 }
 
 void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
-    REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, dest->other_bufs); assert(dest->other_bufs);
     int i;
+    char **other_bufs = dest->other_bufs;
+    REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
+    if (other_bufs == 0) {
+        printf("Z: dest:%p %p %d source:%p %p %d errno:%d\n", 
+               dest, dest->other_bufs, dest->n_other_bufs, 
+               source, source->other_bufs, source->n_other_bufs,
+               errno);
+        assert(other_bufs);
+    }
+    dest->other_bufs = other_bufs;
     for (i=0; i<source->n_other_bufs; i++) {
 	dest->other_bufs[dest->n_other_bufs++] = source->other_bufs[i];
     }
