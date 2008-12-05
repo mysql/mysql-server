@@ -33,6 +33,7 @@ int ma_commit(TRN *trn)
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS];
   DBUG_ENTER("ma_commit");
 
+  DBUG_ASSERT(trn->rec_lsn == LSN_IMPOSSIBLE);
   if (trn->undo_lsn == 0) /* no work done, rollback (cheaper than commit) */
     DBUG_RETURN(trnman_rollback_trn(trn));
   /*
@@ -61,8 +62,14 @@ int ma_commit(TRN *trn)
                              trn, NULL, 0,
                              sizeof(log_array)/sizeof(log_array[0]),
                              log_array, NULL, NULL) |
-        translog_flush(commit_lsn) |
-        trnman_commit_trn(trn));
+        translog_flush(commit_lsn));
+
+  DBUG_EXECUTE_IF("maria_sleep_in_commit",
+                  {
+                    DBUG_PRINT("info", ("maria_sleep_in_commit"));
+                    sleep(3);
+                  });
+  res|= trnman_commit_trn(trn);
 
 
   /*
