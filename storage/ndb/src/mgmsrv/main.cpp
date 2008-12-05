@@ -29,7 +29,6 @@
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
 #include <ndb_mgmclient.hpp>
-#include <my_dir.h>
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
@@ -115,10 +114,10 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "datadir", 256,
-    "Data directory for this node",
-    (uchar**) &opts.datadir, (uchar**) &opts.datadir, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "configdir", 256,
+    "Directory for the binary configuration files",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
+    GET_STR, REQUIRED_ARG, (longlong)MYSQLCLUSTERDIR, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Write more log messages",
     (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,

@@ -42,7 +42,7 @@ require(bool v)
 extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
-                             const char* datadir) :
+                             const char* configdir) :
   MgmtThread("ConfigManager"),
   m_opts(opts),
   m_facade(NULL),
@@ -59,7 +59,7 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
   m_client_ref(RNIL),
   m_prepared_config(NULL),
   m_node_id(0),
-  m_datadir(datadir)
+  m_configdir(configdir)
 {
 }
 
@@ -117,20 +117,20 @@ alone_on_host(Config* conf,
 
 
 /**
-   find_nodeid_from_datadir
+   find_nodeid_from_configdir
 
-   Check if datadir only contains config files
+   Check if configdir only contains config files
    with one nodeid -> read the latest and confirm
    there should only be one mgm node on this host
 */
 
 NodeId
-ConfigManager::find_nodeid_from_datadir(void)
+ConfigManager::find_nodeid_from_configdir(void)
 {
   BaseString config_name;
   DirIterator iter;
 
-  if (iter.open(m_datadir) != 0)
+  if (iter.open(m_configdir) != 0)
     return 0;
 
   const char* name;
@@ -144,7 +144,7 @@ ConfigManager::find_nodeid_from_datadir(void)
                "ndb_%u_config.bin.%u%c",
                &nodeid, &version, &extra) == 2)
     {
-      ndbout_c("match: %s", name);
+      // ndbout_c("match: %s", name);
 
       if (nodeid != found_nodeid)
       {
@@ -162,7 +162,7 @@ ConfigManager::find_nodeid_from_datadir(void)
     return 0;
 
   config_name.assfmt("%s%sndb_%u_config.bin.%u",
-                     m_datadir, DIR_SEPARATOR, found_nodeid, max_version);
+                     m_configdir, DIR_SEPARATOR, found_nodeid, max_version);
 
   Config* conf;
   if (!(conf = load_saved_config(config_name)))
@@ -261,11 +261,11 @@ ConfigManager::init_nodeid(void)
     DBUG_RETURN(true);
   }
 
-  nodeid = find_nodeid_from_datadir();
+  nodeid = find_nodeid_from_configdir();
   if (nodeid)
   {
-    // Found nodeid by searching in datadir
-    g_eventLogger->debug("Got nodeid: %d from searching in datadir",
+    // Found nodeid by searching in configdir
+    g_eventLogger->debug("Got nodeid: %d from searching in configdir",
                          nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
@@ -460,8 +460,8 @@ ConfigManager::prepareConfigChange(const Config* config)
   }
 
   assert(m_node_id);
-  m_config_name.assfmt("%s/ndb_%u_config.bin.%u",
-                       m_datadir, m_node_id, generation);
+  m_config_name.assfmt("%s%sndb_%u_config.bin.%u",
+                       m_configdir, DIR_SEPARATOR, m_node_id, generation);
   g_eventLogger->debug("Preparing configuration, generation: %d name: %s",
                        generation, m_config_name.c_str());
 
@@ -593,43 +593,21 @@ ConfigManager::config_ok(const Config* conf)
     return false;
   }
 
-  // Check if --datadir is same as DataDir from config
-  assert(m_datadir);
+  // Check DataDir exist
   ConfigIter iter(conf, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, m_node_id) == 0);
 
   const char *datadir;
   require(iter.get(CFG_NODE_DATADIR, &datadir) == 0);
 
-  if (strcmp(datadir, "") != 0 &&        // Not set -> empty string
-      strcmp(m_datadir, datadir) != 0)   // Different
+  if (strcmp(datadir, "") != 0 && // datadir != ""
+      access(datadir, F_OK))                 // dir exists
   {
-    // Not same --datadir and DataDir
-    if (strcmp(m_datadir, MYSQLCLUSTERDIR) == 0 ||
-        strcmp(datadir, MYSQLCLUSTERDIR) == 0)
-    {
-      // Using the builtin default --datadir
-      g_eventLogger->error("The builtin data directory '%s' does "      \
-                           "not match DataDir=%s specified in "         \
-                           "configuration. Either specify --datadir=%s " \
-                           "on command line or remove the DataDir=%s "  \
-                           "from configuration in order to use the "    \
-                           "builtin default.",
-                           m_datadir, datadir, m_datadir, datadir);
-      return false;
-    }
-    else
-    {
-      // Using --datadir specified on command line
-      g_eventLogger->error("The data directory specified on command line " \
-                           "with --datadir=%s does not match DataDir=%s " \
-                           "specified in configuration. You need to "    \
-                           "change one of them.",
-                           m_datadir, datadir);
-      return false;
-    }
+    g_eventLogger->error("Directory '%s' specified with DataDir "  \
+                         "in configuration does not exist.",       \
+                         datadir);
+    return false;
   }
-  NdbConfig_SetPath(m_datadir);
 
   return true;
 }
@@ -1631,7 +1609,7 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
 {
   DirIterator iter;
 
-  if (iter.open(m_datadir) != 0)
+  if (iter.open(m_configdir) != 0)
     return false;
 
   const char* name;
@@ -1658,7 +1636,7 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
     return false;
 
   config_name.assfmt("%s%sndb_%u_config.bin.%u", 
-                     m_datadir, DIR_SEPARATOR, m_node_id, max_version);
+                     m_configdir, DIR_SEPARATOR, m_node_id, max_version);
   return true;
 }
 
