@@ -330,32 +330,35 @@ create_directory(const char* dir)
 
 
 /*
-  check_datadir
+  check_configdir
 
-  Make sure datadir exist and try to create it if not
+  Make sure configdir exist and try to create it if not
 
 */
 
 const char*
-MgmtSrvr::check_datadir() const
+MgmtSrvr::check_configdir() const
 {
-  if (m_opts.datadir)
+  if (m_opts.configdir &&
+      strcmp(m_opts.configdir, MYSQLCLUSTERDIR) != 0)
   {
     // Specified on commmand line
-    if (access(m_opts.datadir, F_OK))
+    if (access(m_opts.configdir, F_OK))
     {
-      g_eventLogger->error("Directory '%s' specified with --datadir "   \
-                           "does not exist", m_opts.datadir);
+      g_eventLogger->error("Directory '%s' specified with --configdir " \
+                           "does not exist. Either create it or pass " \
+                           "the path to an already existing directory.",
+                           m_opts.configdir);
       return NULL;
     }
-    return m_opts.datadir;
+    return m_opts.configdir;
   }
   else
   {
     // Compiled in path MYSQLCLUSTERDIR
     if (access(MYSQLCLUSTERDIR, F_OK))
     {
-      g_eventLogger->info("The default data directory '%s' "            \
+      g_eventLogger->info("The default config directory '%s' "            \
                           "does not exist. Trying to create it...",
                           MYSQLCLUSTERDIR);
 
@@ -365,12 +368,12 @@ MgmtSrvr::check_datadir() const
         g_eventLogger->error("Could not create directory '%s'. "        \
                              "Either create it manually or "            \
                              "specify a different directory with "      \
-                             "--datadir=<path>",
+                             "--configdir=<path>",
                              MYSQLCLUSTERDIR);
         return NULL;
       }
 
-      g_eventLogger->info("Sucessfully created data directory");
+      g_eventLogger->info("Sucessfully created config directory");
     }
     return MYSQLCLUSTERDIR;
   }
@@ -382,11 +385,11 @@ MgmtSrvr::init()
 {
   DBUG_ENTER("MgmtSrvr::init");
 
-  const char* datadir;
-  if (!(datadir= check_datadir()))
+  const char* configdir;
+  if (!(configdir= check_configdir()))
     DBUG_RETURN(false);
 
-  if (!(m_config_manager= new ConfigManager(m_opts, datadir)))
+  if (!(m_config_manager= new ConfigManager(m_opts, configdir)))
   {
     g_eventLogger->error("Failed to create ConfigManager");
     DBUG_RETURN(false);
@@ -647,12 +650,17 @@ MgmtSrvr::setClusterLog(const Config* config)
 
   g_eventLogger->close();
 
-  // Get log destination from config
   DBUG_ASSERT(_ownNodeId);
 
   ConfigIter iter(config, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, _ownNodeId) == 0);
 
+  // Update DataDir from config
+  const char *datadir;
+  require(iter.get(CFG_NODE_DATADIR, &datadir) == 0);
+  NdbConfig_SetPath(datadir);
+
+  // Get log destination from config
   const char *value;
   if(iter.get(CFG_LOG_DESTINATION, &value) == 0){
     logdest.assign(value);
@@ -741,6 +749,7 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
   }
 
+  // Setup cluster log
   setClusterLog(m_local_config);
 
   if (theFacade)
