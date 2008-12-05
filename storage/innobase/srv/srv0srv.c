@@ -1666,11 +1666,16 @@ srv_release_mysql_thread_if_suspended(
 /**********************************************************************
 Refreshes the values used to calculate per-second averages. */
 static
-void
+ibool
 srv_refresh_innodb_monitor_stats(void)
 /*==================================*/
 {
-	mutex_enter(&srv_innodb_monitor_mutex);
+	/* Sometimes we will skip stats update to avoid deadlock, since
+	since this function is called by the background wake-up thread */
+	if (mutex_enter_nowait(&srv_innodb_monitor_mutex)) {
+		/* mutex_enter_nowait returns 1 on failure */
+		return FALSE;
+	}
 
 	srv_last_monitor_time = time(NULL);
 
@@ -1689,6 +1694,7 @@ srv_refresh_innodb_monitor_stats(void)
 	srv_n_rows_read_old = srv_n_rows_read;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
+	return TRUE;
 }
 
 /**********************************************************************
@@ -2126,7 +2132,10 @@ exit_func:
 
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs. */
+too long. These can be used to track bugs which cause hangs.
+NOTE: This thread should not wait for any innodb mutexes or rw_locks.
+A deadlock could arise where the thread holding that lock requires waking
+by this background thread while this thread is blocked on that lock. */
 
 os_thread_ret_t
 srv_error_monitor_thread(
@@ -2138,10 +2147,6 @@ srv_error_monitor_thread(
 {
 	/* number of successive fatal timeouts observed */
 	ulint	fatal_cnt	= 0;
-	dulint	old_lsn;
-	dulint	new_lsn;
-
-	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Error monitor thread starts, id %lu\n",
@@ -2150,29 +2155,8 @@ srv_error_monitor_thread(
 loop:
 	srv_error_monitor_active = TRUE;
 
-	/* Try to track a strange bug reported by Harald Fuchs and others,
-	where the lsn seems to decrease at times */
-
-	new_lsn = log_get_lsn();
-
-	if (ut_dulint_cmp(new_lsn, old_lsn) < 0) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: old log sequence number %lu %lu"
-			" was greater\n"
-			"InnoDB: than the new log sequence number %lu %lu!\n"
-			"InnoDB: Please submit a bug report"
-			" to http://bugs.mysql.com\n",
-			(ulong) ut_dulint_get_high(old_lsn),
-			(ulong) ut_dulint_get_low(old_lsn),
-			(ulong) ut_dulint_get_high(new_lsn),
-			(ulong) ut_dulint_get_low(new_lsn));
-	}
-
-	old_lsn = new_lsn;
-
 	if (difftime(time(NULL), srv_last_monitor_time) > 60) {
-		/* We referesh InnoDB Monitor values so that averages are
+		/* We refresh InnoDB Monitor values so that averages are
 		printed from at most 60 last seconds */
 
 		srv_refresh_innodb_monitor_stats();
