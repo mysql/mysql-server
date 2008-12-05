@@ -854,6 +854,8 @@ then
   AC_CHECK_DECLS(SHM_HUGETLB, 
       AC_DEFINE([HAVE_LARGE_PAGES], [1], 
                 [Define if you have large pages support])
+      AC_DEFINE([HAVE_LARGE_PAGE_OPTION], [1], 
+                [Define if you have large page option])
       AC_DEFINE([HUGETLB_USE_PROC_MEMINFO], [1],
                 [Define if /proc/meminfo shows the huge page size (Linux only)])
       , ,
@@ -861,6 +863,20 @@ then
 #include <sys/shm.h>
       ]
   )
+else
+# For large pages support on Solaris
+AC_CHECK_DECLS(MHA_MAPSIZE_VA,
+      AC_DEFINE([HAVE_SOLARIS_LARGE_PAGES], [1],
+                [Define to 1 if you have large pages support])
+      AC_DEFINE([HAVE_LARGE_PAGE_OPTION], [1], 
+                [Define if you have large page option])
+      , ,
+      [
+#include <sys/mman.h>
+      ]
+)
+
+
 fi
 
 #--------------------------------------------------------------------
