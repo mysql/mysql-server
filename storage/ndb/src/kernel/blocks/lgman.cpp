@@ -26,7 +26,6 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/LgmanContinueB.hpp>
 #include <signaldata/GetTabInfo.hpp>
-#include "ndbfs/Ndbfs.hpp"
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -56,11 +55,7 @@ Lgman::Lgman(Block_context & ctx) :
   m_tup(0),
   m_logfile_group_list(m_logfile_group_pool),
   m_logfile_group_hash(m_logfile_group_pool),
-#ifdef __sun // temp
-  m_client_mutex(1, false)
-#else
-  m_client_mutex(2, true)
-#endif
+  m_client_mutex("lgman-client", 2, true)
 {
   BLOCK_CONSTRUCTOR(Lgman);
   

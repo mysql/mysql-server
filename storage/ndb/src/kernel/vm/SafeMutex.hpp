@@ -26,61 +26,70 @@
 #include <ndb_types.h>
 #include <NdbOut.hpp>
 
-#undef HAVE_PTHREAD_MUTEX_RECURSIVE
-#ifdef __linux
-#define HAVE_PTHREAD_MUTEX_RECURSIVE
-#endif
-
 /*
- * Recursive mutex with a recursion limit >= 1.  Can be useful for
- * debugging.  If a recursive mutex is not wanted, one must rewrite
- * caller code until limit 1 works.
+ * Recursive mutex with recursion limit >= 1.  Intended for debugging.
+ * One should rewrite caller code until limit 1 works.
  *
- * Implementation for limit > 1 uses a real OS recursive mutex.  Should
- * work on linux and solaris 10.  There is a unit test testSafeMutex.
+ * The implementation uses a default mutex.  If limit is > 1 or debug
+ * is specified then a recursive mutex is simulated.  Operating system
+ * recursive mutex (if any) is not used.  The simulation is several
+ * times slower.  There is a unit test testSafeMutex.
  *
  * The caller currently is multi-threaded disk data.  Here it is easy
  * to verify that the mutex is released within a time-slice.
  */
 
 class SafeMutex {
+  const char* const m_name;
+  const Uint32 m_limit; // error if usage exceeds this
+  const bool m_debug;   // use recursive implementation even for limit 1
+  const bool m_simple;
   pthread_mutex_t m_mutex;
+  pthread_cond_t m_cond;
   pthread_t m_owner;
-  bool m_init;
+  bool m_initdone;
   Uint32 m_level;
   Uint32 m_usage;       // max level used so far
-  const Uint32 m_limit; // error if usage exceeds this
-  const bool m_debug;   // use recursive mutex even for limit 1
+  int m_errcode;
+  int m_errline;
+  int err(int errcode, int errline);
   friend class NdbOut& operator<<(NdbOut&, const SafeMutex&);
 
 public:
-  SafeMutex(Uint32 limit, bool debug) :
+  SafeMutex(const char* name, Uint32 limit, bool debug) :
+    m_name(name),
     m_limit(limit),
-    m_debug(debug)
+    m_debug(debug),
+    m_simple(!(limit > 1 || debug))
   {
     assert(m_limit >= 1),
     m_owner = 0;        // wl4391_todo assuming numeric non-zero
-    m_init = false;
+    m_initdone = false;
     m_level = 0;
     m_usage = 0;
+    m_errcode = 0;
+    m_errline = 0;
   };
   ~SafeMutex() {
-    (void)destroy();
+    if (m_initdone)
+      (void)destroy();
   }
 
   enum {
-    // caller must crash on any error
-    ErrUnsupp = -101,   // limit > 1 or debug, and not supported by OS
-    ErrState = -102,    // user error
-    ErrLevel = -103,    // level exceeded limit
-    ErrOwner1 = -104,   // owner not 0 at first lock (OS error)
-    ErrOwner2 = -105,   // owner not self at recursive lock (OS error)
-    ErrOwner3 = -106    // owner not self at unlock (OS error)
+    // caller must crash on any error - recovery is not possible
+    ErrState = -101,    // user error
+    ErrLevel = -102,    // level exceeded limit
+    ErrOwner = -103,    // unlock when not owner
+    ErrNolock = -104    // unlock when no lock
   };
   int create();
   int destroy();
   int lock();
   int unlock();
+
+private:
+  int lock_impl();
+  int unlock_impl();
 };
 
 #endif

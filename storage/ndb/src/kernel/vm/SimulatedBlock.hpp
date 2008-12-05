@@ -544,6 +544,7 @@ protected:
   BlockReference calcInstanceBlockRef(BlockNumber aBlock);
 
   // matching instance on another node e.g. LQH-LQH
+  // valid only if receiver has same number of workers
   BlockReference calcInstanceBlockRef(BlockNumber aBlock, NodeId aNode);
 
   /** 

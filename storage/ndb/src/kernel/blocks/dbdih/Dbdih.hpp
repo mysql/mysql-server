@@ -1246,7 +1246,8 @@ private:
 
   Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
-  
+  RSS_OP_SNAPSHOT(cnghash);
+
   NodeRecord *nodeRecord;
 
   PageRecord *pageRecord;

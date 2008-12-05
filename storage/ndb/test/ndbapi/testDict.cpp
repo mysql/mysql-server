@@ -1243,86 +1243,6 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-struct ErrorCodes { int error_id; bool crash;};
-ErrorCodes
-NF_codes[] = {
-  {6003, true}
-  ,{6004, true}
-  //,6005, true,
-  //{7173, false}
-};
-
-int
-runNF1(NDBT_Context* ctx, NDBT_Step* step){
-  NdbRestarter restarter;
-  if(restarter.getNumDbNodes() < 2)
-    return NDBT_OK;
-
-  myRandom48Init((long)NdbTick_CurrentMillisecond());
-  
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
-  dict->dropTable(pTab->getName());
-
-  int result = NDBT_OK;
-
-  const int loops = ctx->getNumLoops();
-  for (int l = 0; l < loops && result == NDBT_OK ; l++){
-    const int sz = sizeof(NF_codes)/sizeof(NF_codes[0]);
-    for(int i = 0; i<sz; i++){
-      int rand = myRandom48(restarter.getNumDbNodes());
-      int nodeId = restarter.getRandomNotMasterNodeId(rand);
-      struct ErrorCodes err_struct = NF_codes[i];
-      int error = err_struct.error_id;
-      bool crash = err_struct.crash;
-      
-      g_info << "NF1: node = " << nodeId << " error code = " << error << endl;
-      
-      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 3};
-      
-      CHECK2(restarter.dumpStateOneNode(nodeId, val2, 2) == 0,
-	     "failed to set RestartOnErrorInsert");
-
-      CHECK2(restarter.insertErrorInNode(nodeId, error) == 0,
-	     "failed to set error insert");
-      
-      CHECK2(dict->createTable(* pTab) == 0,
-	     "failed to create table");
-      
-      if (crash) {
-        CHECK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
-	    "waitNodesNoStart failed");
-
-        if(myRandom48(100) > 50){
-  	  CHECK2(restarter.startNodes(&nodeId, 1) == 0,
-	       "failed to start node");
-          
-	  CHECK2(restarter.waitClusterStarted() == 0,
-	       "waitClusterStarted failed");
-
-  	  CHECK2(dict->dropTable(pTab->getName()) == 0,
-	       "drop table failed");
-        } else {
-	  CHECK2(dict->dropTable(pTab->getName()) == 0,
-	       "drop table failed");
-	
-	  CHECK2(restarter.startNodes(&nodeId, 1) == 0,
-	       "failed to start node");
-          
-	  CHECK2(restarter.waitClusterStarted() == 0,
-	       "waitClusterStarted failed");
-        }
-      }
-    }
-  }
- end:  
-  dict->dropTable(pTab->getName());
-  
-  return result;
-}
-  
 #define APIERROR(error) \
   { g_err << "Error in " << __FILE__ << ", line:" << __LINE__ << ", code:" \
               << error.code << ", msg: " << error.message << "." << endl; \
@@ -1464,102 +1384,6 @@ runTableRename(NDBT_Context* ctx, NDBT_Step* step){
   }
  end:
 
-  return result;
-}
-
-int
-runTableRenameNF(NDBT_Context* ctx, NDBT_Step* step){
-  NdbRestarter restarter;
-  if(restarter.getNumDbNodes() < 2)
-    return NDBT_OK;
-
-  int result = NDBT_OK;
-
-  Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
-  int records = ctx->getNumRecords();
-  const int loops = ctx->getNumLoops();
-
-  ndbout << "|- " << ctx->getTab()->getName() << endl;  
-
-  for (int l = 0; l < loops && result == NDBT_OK ; l++){
-    const NdbDictionary::Table* pTab = ctx->getTab();
-
-    // Try to create table in db
-    if (pTab->createTableInDb(pNdb) != 0){
-      return NDBT_FAILED;
-    }
-    
-    // Verify that table is in db     
-    const NdbDictionary::Table* pTab2 = 
-      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
-    if (pTab2 == NULL){
-      ndbout << pTab->getName() << " was not found in DB"<< endl;
-      return NDBT_FAILED;
-    }
-    ctx->setTab(pTab2);
-
-    // Load table
-    HugoTransactions hugoTrans(*ctx->getTab());
-    if (hugoTrans.loadTable(pNdb, records) != 0){
-      return NDBT_FAILED;
-    }
-
-    BaseString pTabName(pTab->getName());
-    BaseString pTabNewName(pTabName);
-    pTabNewName.append("xx");
-    
-    const NdbDictionary::Table * oldTable = dict->getTable(pTabName.c_str());
-    if (oldTable) {
-      NdbDictionary::Table newTable = *oldTable;
-      newTable.setName(pTabNewName.c_str());
-      CHECK2(dict->alterTable(*oldTable, newTable) == 0,
-	     "TableRename failed");
-    }
-    else {
-      result = NDBT_FAILED;
-    }
-    
-    // Restart one node at a time
-    
-    /**
-     * Need to run LCP at high rate otherwise
-     * packed replicas become "to many"
-     */
-    int val = DumpStateOrd::DihMinTimeBetweenLCP;
-    if(restarter.dumpStateAllNodes(&val, 1) != 0){
-      do { CHECK(0); } while(0);
-      g_err << "Failed to set LCP to min value" << endl;
-      return NDBT_FAILED;
-    }
-    
-    const int numNodes = restarter.getNumDbNodes();
-    for(int i = 0; i<numNodes; i++){
-      int nodeId = restarter.getDbNodeId(i);
-      int error = NF_codes[i].error_id;
-
-      g_info << "NF1: node = " << nodeId << " error code = " << error << endl;
-
-      CHECK2(restarter.restartOneDbNode(nodeId) == 0,
-	     "failed to set restartOneDbNode");
-
-      CHECK2(restarter.waitClusterStarted() == 0,
-	     "waitClusterStarted failed");
-
-    }
-
-    // Verify table contents
-    NdbDictionary::Table pNewTab(pTabNewName.c_str());
-    
-    UtilTransactions utilTrans(pNewTab);
-    if (utilTrans.clearTable(pNdb,  records) != 0){
-      continue;
-    }    
-
-    // Drop table
-    dict->dropTable(pTabNewName.c_str());
-  }
- end:    
   return result;
 }
 
@@ -6675,17 +6499,24 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table altered = * org;
   altered.setFragmentCount(org->getFragmentCount() + 2);
 
-  NdbDictionary::HashMap hm;
-  pDic->initDefaultHashMap(hm, altered.getFragmentCount());
-  if (pDic->getHashMap(hm, hm.getName()) == -1)
+  if (pDic->beginSchemaTrans())
   {
-    if (pDic->createHashMap(hm) != 0)
-    {
-      ndbout << "Failed to create hashmap: " << pDic->getNdbError() << endl;
-      return NDBT_FAILED;
-    }
+    ndbout << "Failed to beginSchemaTrans()" << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
   }
 
+  if (pDic->prepareHashMap(*org, altered) == -1)
+  {
+    ndbout << "Failed to create hashmap: " << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->endSchemaTrans())
+  {
+    ndbout << "Failed to endSchemaTrans()" << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
   int dump1 = DumpStateOrd::SchemaResourceSnapshot;
   int dump2 = DumpStateOrd::SchemaResourceCheckLeak;
 
@@ -6702,9 +6533,16 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
              "failed to set error insert");
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
 
-      CHECK2(pDic->alterTable(*org, altered) != 0,
+      int res = pDic->alterTable(*org, altered);
+      if (res)
+      {
+        ndbout << pDic->getNdbError() << endl;
+      }
+      CHECK2(res != 0,
              "failed to fail after error insert " << errval);
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+      CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clear error insert");
 
       const NdbDictionary::Table* check = pDic->getTable(tab.getName());
 
@@ -6926,17 +6764,9 @@ TESTCASE("StoreFrmError",
 	 "Test that a frm file with too long length can't be stored."){
   INITIALIZER(runStoreFrmError);
 }
-TESTCASE("NF1", 
-	 "Test that create table can handle NF (not master)"){
-  INITIALIZER(runNF1);
-}
 TESTCASE("TableRename",
 	 "Test basic table rename"){
   INITIALIZER(runTableRename);
-}
-TESTCASE("TableRenameNF",
-	 "Test that table rename can handle node failure"){
-  INITIALIZER(runTableRenameNF);
 }
 TESTCASE("TableRenameSR",
 	 "Test that table rename can handle system restart"){
