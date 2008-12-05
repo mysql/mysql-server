@@ -261,6 +261,7 @@ TRN *trnman_new_trn(WT_THD *wt)
 {
   int res;
   TRN *trn;
+  union { TRN *trn; void *v; } tmp;
   DBUG_ENTER("trnman_new_trn");
 
   /*
@@ -276,19 +277,19 @@ TRN *trnman_new_trn(WT_THD *wt)
   pthread_mutex_lock(&LOCK_trn_list);
 
   /* Allocating a new TRN structure */
-  trn= pool;
+  tmp.trn= pool;
   /*
     Popping an unused TRN from the pool
     (ABA isn't possible, we're behind a mutex
   */
   my_atomic_rwlock_wrlock(&LOCK_pool);
-  while (trn && !my_atomic_casptr((void **)&pool, (void **)&trn,
-                                  (void *)trn->next))
+  while (tmp.trn && !my_atomic_casptr((void **)&pool, &tmp.v,
+                                  (void *)tmp.trn->next))
     /* no-op */;
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 
   /* Nothing in the pool ? Allocate a new one */
-  if (!trn)
+  if (!(trn= tmp.trn))
   {
     /*
       trn should be completely initalized at create time to allow
