@@ -437,7 +437,8 @@ char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
 my_bool lower_case_file_system= 0;
-my_bool opt_large_pages= 0;
+my_bool opt_large_pages= 1;
+my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint    opt_large_page_size= 0;
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
@@ -3226,6 +3227,56 @@ static int init_common_variables(const char *conf_file_name, int argc,
       my_large_page_size= opt_large_page_size;
   }
 #endif /* HAVE_LARGE_PAGES */
+#ifdef HAVE_SOLARIS_LARGE_PAGES
+#define LARGE_PAGESIZE (4*1024*1024)  /* 4MB */
+#define SUPER_LARGE_PAGESIZE (256*1024*1024)  /* 256MB */
+  if (opt_large_pages)
+  {
+  /*
+    tell the kernel that we want to use 4/256MB page for heap storage
+    and also for the stack. We use 4 MByte as default and if the
+    super-large-page is set we increase it to 256 MByte. 256 MByte
+    is for server installations with GBytes of RAM memory where
+    the MySQL Server will have page caches and other memory regions
+    measured in a number of GBytes.
+    We use as big pages as possible which isn't bigger than the above
+    desired page sizes.
+  */
+   int nelem;
+   int max_desired_page_size;
+   if (opt_super_large_pages)
+     max_page_size= SUPER_LARGE_PAGE_SIZE;
+   else
+     max_page_size= LARGE_PAGE_SIZE;
+   nelem = getpagesizes(NULL, 0);
+   if (nelem > 0)
+   {
+     size_t *pagesize = (size_t *) malloc(sizeof(size_t) * nelem);
+     if (pagesize != NULL && getpagesizes(pagesize, nelem) > 0)
+     {
+       size_t i, max_page_size= 0;
+       for (i= 0; i < nelem; i++)
+       {
+         if (pagesize[i] > max_page_size &&
+             pagesize[i] <= max_desired_page_size)
+            max_page_size= pagesize[i];
+       }
+       free(pagesize);
+       if (max_page_size > 0)
+       {
+         struct memcntl_mha mpss;
+
+         mpss.mha_cmd= MHA_MAPSIZE_BSSBRK;
+         mpss.mha_pagesize= max_page_size;
+         mpss.mha_flags= 0;
+         memcntl(NULL, 0, MC_HAT_ADVISE, (caddr_t)&mpss, 0, 0);
+         mpss.mha_cmd= MHA_MAPSIZE_STACK;
+         memcntl(NULL, 0, MC_HAT_ADVISE, (caddr_t)&mpss, 0, 0);
+       }
+     }
+   }
+  }
+#endif /* HAVE_SOLARIS_LARGE_PAGES */
 
   /* connections and databases needs lots of files */
   {
@@ -5531,6 +5582,7 @@ enum options_mysqld
   OPT_MAX_SP_RECURSION_DEPTH,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
   OPT_ENABLE_LARGE_PAGES,
+  OPT_ENABLE_SUPER_LARGE_PAGES,
   OPT_TIMED_MUTEXES,
   OPT_OLD_STYLE_USER_LIMITS,
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
@@ -5749,10 +5801,14 @@ struct my_option my_long_options[] =
   {"general-log", OPT_GENERAL_LOG,
    "Enable|disable general log", (uchar**) &opt_log,
    (uchar**) &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LARGE_PAGE_OPTION
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. \
 Disable with --skip-large-pages.",
    (uchar**) &opt_large_pages, (uchar**) &opt_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"super-large-pages", OPT_ENABLE_SUPER_LARGE_PAGES, "Enable support for super large pages. \
+Disable with --skip-super-large-pages.",
+   (uchar**) &opt_super_large_pages, (uchar**) &opt_super_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
 #endif
   {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
@@ -7457,7 +7513,8 @@ static void mysql_init_variables(void)
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((uchar*) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
-  opt_large_pages= 0;
+  opt_large_pages= 1;
+  opt_super_large_pages= 0;
   key_map_full.set_all();
 
   /* Character sets */
