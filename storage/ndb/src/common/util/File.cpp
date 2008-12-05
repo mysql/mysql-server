@@ -89,6 +89,7 @@ File_class::open()
 bool 
 File_class::open(const char* aFileName, const char* mode) 
 {
+  assert(m_file == NULL); // Not already open
   if(m_fileName != aFileName){
     /**
      * Only copy if it's not the same string
@@ -104,6 +105,13 @@ File_class::open(const char* aFileName, const char* mode)
   
   return rc;
 }
+
+bool
+File_class::is_open()
+{
+  return (m_file != NULL);
+}
+
 File_class::~File_class()
 {
   close();  

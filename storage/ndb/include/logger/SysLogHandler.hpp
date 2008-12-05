@@ -73,6 +73,8 @@ public:
   virtual bool open();
   virtual bool close();
 
+  virtual bool is_open();
+
   virtual bool setParam(const BaseString &param, const BaseString &value);
   bool setFacility(const BaseString &facility);
 
@@ -93,6 +95,7 @@ private:
   /** Syslog identity for all log entries. */
   const char* m_pIdentity;
   int m_facility;
+  bool m_open;
 };
 
 #endif
