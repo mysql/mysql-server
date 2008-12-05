@@ -69,7 +69,7 @@ class ConfigManager : public MgmtThread {
 
   NodeId m_node_id;
 
-  const char* m_datadir;
+  const char* m_configdir;
 
   /* Functions used from 'init' */
   Config* load_init_config(const char*) const;
@@ -80,7 +80,7 @@ class ConfigManager : public MgmtThread {
   bool save_config(void);
   bool saved_config_exists(BaseString& config_name) const;
   Config* load_saved_config(const BaseString& config_name);
-  NodeId find_nodeid_from_datadir(void);
+  NodeId find_nodeid_from_configdir(void);
   NodeId find_nodeid_from_config(void);
   bool init_nodeid(void);
 
@@ -133,7 +133,7 @@ class ConfigManager : public MgmtThread {
 
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
-                const char* datadir);
+                const char* configdir);
   virtual ~ConfigManager();
   bool init();
   void set_facade(TransporterFacade* facade) { m_facade= facade; };
