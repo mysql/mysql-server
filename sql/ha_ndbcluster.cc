@@ -647,6 +647,24 @@ Thd_ndb::Thd_ndb()
 
 Thd_ndb::~Thd_ndb()
 {
+  if (ndb_extra_logging > 1)
+  {
+    /*
+      print some stats about the connection at disconnect
+    */
+    for (int i= 0; i < MAX_NDB_NODES; i++)
+    {
+      if (m_transaction_hint_count[i] > 0 ||
+          m_transaction_no_hint_count[i] > 0)
+      {
+        sql_print_information("tid %u: node[%u] "
+                              "transaction_hint=%u, transaction_no_hint=%u",
+                              (unsigned)current_thd->thread_id, i,
+                              m_transaction_hint_count[i],
+                              m_transaction_no_hint_count[i]);
+      }
+    }
+  }
   if (ndb)
   {
     delete ndb;

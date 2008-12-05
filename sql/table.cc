@@ -4375,15 +4375,12 @@ void st_table::prepare_for_position()
   
   if (s->primary_key < MAX_KEY)
   {
-    if (file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX)
+    if (file->ha_table_flags() & (HA_PRIMARY_KEY_IN_READ_INDEX |
+                                  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
     {
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-    }
-    if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) ||
-        (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
-    {
       /* signal change */
-      file->column_bitmaps_signal(HA_COMPLETE_TABLE_READ_BITMAP);
+      file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
     }
   }
   DBUG_VOID_RETURN;
