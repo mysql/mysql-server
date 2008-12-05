@@ -241,6 +241,12 @@ LocalProxy::setMask(SsParallel& ss)
     ss.m_workerMask.set(i);
 }
 
+void
+LocalProxy::setMask(SsParallel& ss, const WorkerMask& mask)
+{
+  ss.m_workerMask.assign(mask);
+}
+
 // load workers (before first signal)
 
 void

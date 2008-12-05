@@ -1228,6 +1228,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   {
     jam();
     c_fragments_per_node = getLqhWorkers();
+    // try to get some LQH workers which initially handle no fragments
+    if (ERROR_INSERTED(7215)) {
+      c_fragments_per_node = 1;
+    }
   }
   ndbout_c("Using %u fragments per node", c_fragments_per_node);
 
@@ -7089,7 +7093,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
         }
       }
-
+      
       if (flags & CreateFragmentationReq::RI_GET_FRAGMENTATION)
       {
         jam();
@@ -7864,6 +7868,8 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if ((err = add_fragments_to_table(tabPtr, buf)))
     {
       jam();
+      ndbrequire(tabPtr.p->totalfragments == save);
+      ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
       send_alter_tab_ref(signal, connectPtr, err);
       return;
     }
@@ -8057,8 +8063,7 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
   getFragstore(tabPtr.p, fragId, fragPtr);
   dec_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 
-  Uint32 allocated = chunks << LOG_NO_OF_FRAGS_PER_CHUNK;
-  if (fragId < allocated)
+  if (fragId == ((chunks - 1) << LOG_NO_OF_FRAGS_PER_CHUNK))
   {
     jam();
 
@@ -8067,6 +8072,7 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
     fragPtr.p->nextFragmentChunk = cfirstfragstore;
     cfirstfragstore = fragPtr.i;
     cremainingfrags += NO_OF_FRAGS_PER_CHUNK;
+    tabPtr.p->noOfFragChunks = chunks - 1;
   }
 
   tabPtr.p->totalfragments--;
@@ -8111,12 +8117,16 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     Ptr<TabRecord> tabPtr;
     tabPtr.i = connectPtr.p->table;
     ptrAss(tabPtr, tabRecord);
-    for (Uint32 i = connectPtr.p->m_alter.m_totalfragments - 1;
-         i >= connectPtr.p->m_alter.m_org_totalfragments; i--)
+
+    Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
+    Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
+    tabPtr.p->totalfragments = new_frags;
+    for (Uint32 i = new_frags - 1; i >= org_frags; i--)
     {
       jam();
       release_fragment_from_table(tabPtr, i);
     }
+    connectPtr.p->m_alter.m_totalfragments = org_frags;
 
     switch(connectPtr.p->connectState){
     case ConnectRecord::ALTER_TABLE_ABORT:
@@ -16005,12 +16015,36 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
+
+    {
+      Uint32 cnghash = 0;
+      NodeGroupRecordPtr NGPtr;
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
+      }
+      RSS_OP_SNAPSHOT_SAVE(cnghash);
+    }
     return;
   }
 
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+
+    {
+      Uint32 cnghash = 0;
+      NodeGroupRecordPtr NGPtr;
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
+      }
+      RSS_OP_SNAPSHOT_CHECK(cnghash);
+    }
   }
 
   DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")

@@ -4685,7 +4685,15 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
         linkApiToGcp(localGcpPointer, regApiPtr);
         return;
       } else {
-        ndbrequire(regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId);
+        if (unlikely(! (regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId)))
+        {
+          ndbout_c("%u/%u %u/%u",
+                   Uint32(regApiPtr.p->globalcheckpointid >> 32),
+                   Uint32(regApiPtr.p->globalcheckpointid),
+                   Uint32(localGcpPointer.p->gcpId >> 32),
+                   Uint32(localGcpPointer.p->gcpId));
+          crash_gcp(__LINE__);
+        }
         localGcpPointer.i = localGcpPointer.p->nextGcp;
         jam();
         if (localGcpPointer.i != RNIL) {
@@ -4734,6 +4742,33 @@ void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
   regGcpPtr.p->lastApiConnect = regApiPtr.i;
 }//Dbtc::linkApiToGcp()
 
+void
+Dbtc::crash_gcp(Uint32 line)
+{
+  UintR Tfirstgcp = cfirstgcp;
+  UintR TgcpFilesize = cgcpFilesize;
+  GcpRecord *localGcpRecord = gcpRecord;
+  GcpRecordPtr localGcpPointer;
+
+  localGcpPointer.i = cfirstgcp;
+
+  while (localGcpPointer.i != RNIL)
+  {
+    ptrCheckGuard(localGcpPointer, cgcpFilesize, gcpRecord);
+    ndbout_c("%u : %u/%u nomoretrans: %u api %u %u next: %u",
+             localGcpPointer.i,
+             Uint32(localGcpPointer.p->gcpId >> 32),
+             Uint32(localGcpPointer.p->gcpId),             
+             localGcpPointer.p->gcpNomoretransRec,
+             localGcpPointer.p->firstApiConnect,
+             localGcpPointer.p->lastApiConnect,
+             localGcpPointer.p->nextGcp);
+    localGcpPointer.i = localGcpPointer.p->nextGcp;
+  }
+  progError(line, NDBD_EXIT_NDBREQUIRE);
+  ndbrequire(false);
+}
+
 void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
 {
   GcpRecordPtr tmpGcpPointer;
@@ -4744,6 +4779,11 @@ void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
   GcpRecord *localGcpRecord = gcpRecord;
 
   localGcpPointer.i = cfirstfreeGcp;
+  if (unlikely(localGcpPointer.i > TgcpFilesize))
+  {
+    ndbout_c("%u/%u", Uint32(Tgci >> 32), Uint32(Tgci));
+    crash_gcp(__LINE__);
+  }
   ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
   UintR TfirstfreeGcp = localGcpPointer.p->nextGcp;
   localGcpPointer.p->gcpId = Tgci;
@@ -4829,25 +4869,30 @@ void Dbtc::sendCommitLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
-  UintR Tdata1 = regTcPtr->lastLqhCon;
-  UintR Tdata2 = Uint32(regApiPtr->globalcheckpointid >> 32);
-  UintR Tdata3 = regApiPtr->transid[0];
-  UintR Tdata4 = regApiPtr->transid[1];
-  UintR Tdata5 = Uint32(regApiPtr->globalcheckpointid);
+  Uint32 Tdata[5];
+  Tdata[0] = regTcPtr->lastLqhCon;
+  Tdata[1] = Uint32(regApiPtr->globalcheckpointid >> 32);
+  Tdata[2] = regApiPtr->transid[0];
+  Tdata[3] = regApiPtr->transid[1];
+  Tdata[4] = Uint32(regApiPtr->globalcheckpointid);
+  Uint32 len = 5;
 
-  // wl4391_todo testing own config is wrong for mixed versions
-  bool send_unpacked = isNdbMtLqh();
+  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
+  {
+    jam();
+    ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_connected == false);
+    len = 4;
+  }
+
+  // currently packed signal cannot address specific instance
+  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
   if (send_unpacked) {
     Uint32* data = signal->getDataPtrSend();
-    data[0] = Tdata1;
-    data[1] = Tdata2;
-    data[2] = Tdata3;
-    data[3] = Tdata4;
-    data[4] = Tdata5;
+    memcpy(&signal->theData[0], &Tdata[0], len << 2);
     Uint32 Tnode = Thostptr.i;
     Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-    sendSignal(lqhRef, GSN_COMMIT, signal, 5, JBB);
+    sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
     return;
   }
 
@@ -4857,23 +4902,14 @@ void Dbtc::sendCommitLqh(Signal* signal,
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
-  }//if
+  }
+
+  Tdata[0] |= (ZCOMMIT << 28);
   UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
-  TDataPtr[0] = Tdata1 | (ZCOMMIT << 28);
-  TDataPtr[1] = Tdata2;
-  TDataPtr[2] = Tdata3;
-  TDataPtr[3] = Tdata4;
-  TDataPtr[4] = Tdata5;
-  Thostptr.p->noOfPackedWordsLqh = Tindex + 5;
-
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
-  {
-    jam();
-    ndbassert(Tdata5 == 0 || getNodeInfo(Thostptr.i).m_connected == false);
-    Thostptr.p->noOfPackedWordsLqh = Tindex + 4; // no gci_lo
-  }
-}//Dbtc::sendCommitLqh()
+  memcpy(TDataPtr, &Tdata[0], len << 2);
+  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
+}
 
 void
 Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci)
@@ -5104,7 +5140,6 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
   UintR TgcpPointer = regApiPtr.p->gcpPointer;
   UintR TgcpFilesize = cgcpFilesize;
-  UintR TcommitAckMarker = regApiPtr.p->commitAckMarker;
   NdbNodeBitmask Tnodes = regApiPtr.p->m_transaction_nodes;
   GcpRecord *localGcpRecord = gcpRecord;
 
@@ -5115,7 +5150,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   copyPtr.p->transid[0] = Ttransid1;
   copyPtr.p->transid[1] = Ttransid2;
   copyPtr.p->lqhkeyconfrec = Tlqhkeyconfrec;
-  copyPtr.p->commitAckMarker = TcommitAckMarker;
+  copyPtr.p->commitAckMarker = RNIL;
   copyPtr.p->m_transaction_nodes = Tnodes;
   copyPtr.p->singleUserMode = 0;
 
@@ -5222,16 +5257,16 @@ void Dbtc::sendCompleteLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId; //last???
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
-  UintR Tdata1 = regTcPtr->lastLqhCon;
-  UintR Tdata2 = regApiPtr->transid[0];
-  UintR Tdata3 = regApiPtr->transid[1];
+  Uint32 Tdata[3];
+  Tdata[0] = regTcPtr->lastLqhCon;
+  Tdata[1] = regApiPtr->transid[0];
+  Tdata[2] = regApiPtr->transid[1];
+  Uint32 len = 3;
 
-  bool send_unpacked = isNdbMtLqh();
+  // currently packed signal cannot address specific instance
+  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
   if (send_unpacked) {
-    Uint32* data = signal->getDataPtrSend();
-    data[0] = Tdata1;
-    data[1] = Tdata2;
-    data[2] = Tdata3;
+    memcpy(&signal->theData[0], &Tdata[0], len << 2);
     Uint32 Tnode = Thostptr.i;
     Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
@@ -5245,14 +5280,14 @@ void Dbtc::sendCompleteLqh(Signal* signal,
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
-  }//if
+  }
+
+  Tdata[0] |= (ZCOMPLETE << 28);
   UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
-  TDataPtr[0] = Tdata1 | (ZCOMPLETE << 28);
-  TDataPtr[1] = Tdata2;
-  TDataPtr[2] = Tdata3;
-  Thostptr.p->noOfPackedWordsLqh = Tindex + 3;
-}//Dbtc::sendCompleteLqh()
+  memcpy(TDataPtr, &Tdata[0], len << 2);
+  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
+}
 
 void
 Dbtc::execTC_COMMIT_ACK(Signal* signal){
@@ -5301,22 +5336,25 @@ Dbtc::sendRemoveMarker(Signal* signal,
   hostPtr.i = nodeId;
   ptrCheckGuard(hostPtr, ThostFilesize, hostRecord);
 
-  UintR Tdata1 = 0;
-  UintR Tdata2 = transid1;
-  UintR Tdata3 = transid2;
+  Uint32 Tdata[3];
+  Tdata[0] = 0;
+  Tdata[1] = transid1;
+  Tdata[2] = transid2;
+  Uint32 len = 3;
 
-  bool send_unpacked = isNdbMtLqh();
+  // currently packed signals can not address specific instance
+  bool send_unpacked = getNodeInfo(hostPtr.i).m_lqh_workers != 0;
   if (send_unpacked) {
-    Uint32* data = signal->getDataPtrSend();
-    data[0] = Tdata2;
-    data[1] = Tdata3;
+    jam();
+    // first word omitted
+    memcpy(&signal->theData[0], &Tdata[1], (len - 1) << 2);
     Uint32 Tnode = hostPtr.i;
     Uint32 i;
     for (i = 0; i < MAX_NDBMT_LQH_WORKERS; i++) {
       // wl4391_todo skip workers not part of tx
       Uint32 instanceKey = 1 + i;
       BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
-      sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, 2, JBB);
+      sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, len - 1, JBB);
     }
     return;
   }
@@ -5327,14 +5365,13 @@ Dbtc::sendRemoveMarker(Signal* signal,
   } else {
     jam();
     updatePackedList(signal, hostPtr.p, hostPtr.i);
-  }//if
+  }
   
   UintR  numWord = hostPtr.p->noOfPackedWordsLqh;
   UintR* dataPtr = &hostPtr.p->packedWordsLqh[numWord];
 
-  dataPtr[0] = Tdata1 | (ZREMOVE_MARKER << 28);
-  dataPtr[1] = Tdata2;
-  dataPtr[2] = Tdata3;
+  Tdata[0] |= (ZREMOVE_MARKER << 28);
+  memcpy(dataPtr, &Tdata[0], len << 2);
   hostPtr.p->noOfPackedWordsLqh = numWord + 3;
 }
 
@@ -5476,6 +5513,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
   regApiPtr->nextApiConnect = TfirstfreeApiConnectCopyOld;
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   regApiPtr->apiConnectstate = CS_RESTART;
+  ndbrequire(regApiPtr->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConCopy()
 
 /* ========================================================================= */
@@ -7864,6 +7902,10 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   if (signal->getSendersBlockRef() != reference())
   {
     jam();
+
+    tcNodeFailptr.i = 0;
+    ptrAss(tcNodeFailptr, tcFailRecord);
+
     /**
      * Node should be in queue
      */
@@ -8303,7 +8345,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
 }//Dbtc::completeTransAtTakeOverDoOne()
 
 void 
-Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
+Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
@@ -8325,6 +8367,14 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
     {
       routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
     }
+  }
+
+  const Uint32 marker = regApiPtr->commitAckMarker;
+  if(marker != RNIL)
+  {
+    jam();
+    m_commitAckMarkerHash.release(marker);
+    regApiPtr->commitAckMarker = RNIL;
   }
 }
 
@@ -8554,12 +8604,6 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
         if (apiConnectptr.p->takeOverRec != (Uint8)Z8NIL) {
           jam();
 	  sendTCKEY_FAILREF(signal, apiConnectptr.p);
-	  const Uint32 marker = apiConnectptr.p->commitAckMarker;
-          if(marker != RNIL){
-	    jam();
-            m_commitAckMarkerHash.release(marker);
-            apiConnectptr.p->commitAckMarker = RNIL;
-          }
           
 	  /*------------------------------------------------------------*/
 	  /*       WE HAVE COMPLETED THIS TRANSACTION NOW AND CAN       */
@@ -11607,6 +11651,7 @@ void Dbtc::releaseApiConnectFail(Signal* signal)
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   apiConnectptr.p->nextApiConnect = cfirstfreeApiConnectFail;
   cfirstfreeApiConnectFail = apiConnectptr.i;
+  ndbrequire(apiConnectptr.p->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConnectFail()
 
 void Dbtc::releaseKeys() 
@@ -12274,7 +12319,7 @@ Dbtc::validate_filter(Signal* signal)
     default:
       infoEvent("Invalid filter op: 0x%x pos: %ld",
 		* start,
-		start - (signal->theData + 1));
+		(long int)(start - (signal->theData + 1)));
       return false;
     }
   }

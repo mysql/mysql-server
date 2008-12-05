@@ -167,8 +167,9 @@ protected:
   bool firstReply(const SsParallel& ss);
   bool lastReply(const SsParallel& ss);
   bool lastExtra(Signal* signal, SsParallel& ss);
-  // set all bits in worker mask
+  // set all or given bits in worker mask
   void setMask(SsParallel& ss);
+  void setMask(SsParallel& ss, const WorkerMask& mask);
 
   /*
    * Ss instances are seized from a pool.  Each pool is simply an array
