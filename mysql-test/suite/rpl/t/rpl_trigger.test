@@ -480,7 +480,10 @@ sync_slave_with_master;
 # rollback on master
 #
 
+connection master;
 source include/master-slave-reset.inc;
+source include/have_innodb.inc;
+connection slave;
 source include/have_innodb.inc;
 
 connection master;
@@ -492,16 +495,15 @@ create trigger tr
 
 set autocommit = 0;
 insert into t1 values ( 1 );
-
-select * from t1;
-sync_slave_with_master;
-select * from t1;
-
-connection master;
 rollback;
-select * from t1;
-sync_slave_with_master;
-select * from t1;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+--source include/diff_tables.inc
+
+let $diff_table_1=master:test.log;
+let $diff_table_2=slave:test.log;
+--source include/diff_tables.inc
 
 connection master;
 drop table t1, log;

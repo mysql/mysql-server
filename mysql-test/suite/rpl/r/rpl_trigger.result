@@ -988,16 +988,9 @@ after insert on t1
 for each row insert into log values ( new.f );
 set autocommit = 0;
 insert into t1 values ( 1 );
-select * from t1;
-f
-1
-select * from t1;
-f
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-select * from t1;
-f
-select * from t1;
-f
+Comparing tables master:test.t1 and slave:test.t1
+Comparing tables master:test.log and slave:test.log
 drop table t1, log;
