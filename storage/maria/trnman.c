@@ -359,7 +359,7 @@ TRN *trnman_new_trn(WT_THD *wt)
     return 0;
   }
 
-  DBUG_PRINT("exit", ("trn: x%lx  trid: 0x%lu",
+  DBUG_PRINT("exit", ("trn: 0x%lx  trid: 0x%lu",
                       (ulong) trn, (ulong) trn->trid));
 
   DBUG_RETURN(trn);
@@ -385,9 +385,11 @@ TRN *trnman_new_trn(WT_THD *wt)
 my_bool trnman_end_trn(TRN *trn, my_bool commit)
 {
   int res= 1;
+  uint16 cached_short_id= trn->short_id; /* we have to cache it, see below */
   TRN *free_me= 0;
   LF_PINS *pins= trn->pins;
   DBUG_ENTER("trnman_end_trn");
+  DBUG_PRINT("enter", ("trn=0x%lx commit=%d", trn, commit));
 
   DBUG_ASSERT(trn->rec_lsn == 0);
   /* if a rollback, all UNDO records should have been executed */
@@ -454,12 +456,17 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     res= -1;
   trnman_active_transactions--;
 
+  DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
-  DBUG_ASSERT(trn->short_id);
 
-  /* the rest is done outside of a critical section */
+  /*
+    the rest is done outside of a critical section
+
+    note that we don't own trn anymore, it may be in a shared list now.
+    Thus, we cannot dereference it, and must use cached_short_id below.
+  */
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->short_id], 0);
+  my_atomic_storeptr((void **)&short_trid_to_active_trn[cached_short_id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
 
   /*
@@ -503,7 +510,6 @@ void trnman_free_trn(TRN *trn)
      modifies the value of tmp.
   */
   union { TRN *trn; void *v; } tmp;
-
 
   pthread_mutex_lock(&trn->state_lock);
   trn->short_id= 0;
