@@ -2832,8 +2832,8 @@ sub ndb_mgmd_start ($) {
   mtr_add_arg($args, "--core");
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "--config-file=%s", "$cluster->{'data_dir'}/config.ini");
-  mtr_add_arg($args, "--datadir=%s", "$cluster->{'data_dir'}");
-  mtr_add_arg($args, "--ndb-nodeid=%d", $cluster->{'nodes'} + 1);
+  mtr_add_arg($args, "--configdir=%s", "$cluster->{'data_dir'}");
+#  mtr_add_arg($args, "--ndb-nodeid=%d", $cluster->{'nodes'} + 1);
 
 
   my $path_ndb_mgmd_log= "$cluster->{'data_dir'}/\l$cluster->{'name'}_ndb_mgmd.log";
