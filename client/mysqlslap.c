@@ -1886,7 +1886,7 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          if (result= mysql_store_result(mysql))
+          if ((result= mysql_store_result(mysql)))
           {
             while ((row = mysql_fetch_row(result)))
               counter++;
