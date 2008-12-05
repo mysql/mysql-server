@@ -1,0 +1,29 @@
+set global maria_log_file_size=4294967295;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+* TEST of Checkpoint between writing the commit log record and committing in trnman
+create table t1(a int primary key) engine=maria;
+insert into t1 values(1);
+flush table t1;
+* copied t1 for comparison
+set session debug="+d,maria_sleep_in_commit";
+insert into t1 values(2);
+set global maria_checkpoint_interval=1000;
+delete from t1 where a=2;
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t1;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

@@ -389,7 +389,6 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
   LF_PINS *pins= trn->pins;
   DBUG_ENTER("trnman_end_trn");
 
-  DBUG_ASSERT(trn->rec_lsn == 0);
   /* if a rollback, all UNDO records should have been executed */
   DBUG_ASSERT(commit || trn->undo_lsn == 0);
   DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
