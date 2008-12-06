@@ -696,6 +696,16 @@ fil_page_get_type(
 				return value not defined */
 	const byte*	page);	/* in: file page */
 
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+fil_system_hash_cells(void);
+/*========================*/
+
+ulint
+fil_system_hash_nodes(void);
+/*========================*/
 
 typedef	struct fil_space_struct	fil_space_t;
 

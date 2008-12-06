@@ -9409,6 +9409,16 @@ static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binl
   "Force InnoDB to not use next-key locking, to use only row-level locking.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(show_verbose_locks, srv_show_verbose_locks,
+  PLUGIN_VAR_OPCMDARG,
+  "Whether to show records locked in SHOW INNODB STATUS.",
+  NULL, NULL, 0, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(show_locks_held, srv_show_locks_held,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of locks held to print for each InnoDB transaction in SHOW INNODB STATUS.",
+  NULL, NULL, 10, 0, 1000, 0);
+
 #ifdef UNIV_LOG_ARCHIVE
 static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -9559,7 +9569,7 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
 
 static MYSQL_SYSVAR_STR(version, innodb_version_str,
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
-  "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
+  "Percona-InnoDB-plugin version", NULL, NULL, INNODB_VERSION_STR);
 
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
@@ -9573,7 +9583,7 @@ static MYSQL_SYSVAR_ULONG(read_ahead, srv_read_ahead,
 
 static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Diasable flushing along modified age 0:disable 1:enable",
+  "Enable/Disable flushing along modified age 0:disable 1:enable",
   NULL, NULL, 0, 0, 1, 0);
 
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
@@ -9631,6 +9641,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
+  MYSQL_SYSVAR(show_verbose_locks),
+  MYSQL_SYSVAR(show_locks_held),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(read_ahead),
@@ -9823,7 +9835,8 @@ i_s_innodb_lock_waits,
 i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
-i_s_innodb_cmpmem_reset
+i_s_innodb_cmpmem_reset,
+i_s_innodb_patches
 mysql_declare_plugin_end;
 
 #ifdef UNIV_COMPILE_TEST_FUNCS

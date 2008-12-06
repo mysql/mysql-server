@@ -4816,3 +4816,30 @@ fil_page_get_type(
 
 	return(mach_read_from_2(page + FIL_PAGE_TYPE));
 }
+
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+fil_system_hash_cells(void)
+/*=======================*/
+{
+       if (fil_system) {
+               return (fil_system->spaces->n_cells
+                       + fil_system->name_hash->n_cells);
+       } else {
+               return 0;
+       }
+}
+
+ulint
+fil_system_hash_nodes(void)
+/*=======================*/
+{
+       if (fil_system) {
+               return (UT_LIST_GET_LEN(fil_system->space_list)
+                       * (sizeof(fil_space_t) + MEM_BLOCK_HEADER_SIZE));
+       } else {
+               return 0;
+       }
+}

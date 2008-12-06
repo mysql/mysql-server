@@ -60,6 +60,17 @@ thr_local_get_in_ibuf_field(void);
 /*=============================*/
 			/* out: pointer to the in_ibuf field */
 
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+thr_local_hash_cells(void);
+/*=======================*/
+
+ulint
+thr_local_hash_nodes(void);
+/*=======================*/
+
 #ifndef UNIV_NONINL
 #include "thr0loc.ic"
 #endif

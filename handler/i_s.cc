@@ -15,6 +15,7 @@ Created July 18, 2007 Vasil Dimov
 #include <mysys_err.h>
 #include <my_sys.h>
 #include "i_s.h"
+#include "innodb_patch_info.h"
 #include <mysql/plugin.h>
 
 extern "C" {
@@ -198,6 +199,188 @@ field_store_ulint(
 
 	return(ret);
 }
+
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_patches */
+static ST_FIELD_INFO	innodb_patches_fields_info[] =
+{
+#define IDX_PATCH_NAME		0
+	{STRUCT_FLD(field_name,		"name"),
+	 STRUCT_FLD(field_length,	255),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_PATCH_DESCR		1
+	{STRUCT_FLD(field_name,		"description"),
+	 STRUCT_FLD(field_length,	255),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_PATCH_VER		2
+	{STRUCT_FLD(field_name,		"version"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_PATCH_AUTHOR	3
+	{STRUCT_FLD(field_name,		"author"),
+	 STRUCT_FLD(field_length,	50),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_PATCH_LICENCE	4
+	{STRUCT_FLD(field_name,		"licence"),
+	 STRUCT_FLD(field_length,	50),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_PATCH_COMMENT		5
+	{STRUCT_FLD(field_name,		"comment"),
+	 STRUCT_FLD(field_length,	100),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static struct st_mysql_information_schema	i_s_info =
+{
+	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+};
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_patches */
+static
+int
+innodb_patches_fill(
+/*=============*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+	int	i;
+	Field**	fields;
+
+
+	DBUG_ENTER("innodb_patches_fill");
+	fields = table->field;
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+	
+	for (i = 0; innodb_patches[i].file; i++) {
+
+   	field_store_string(fields[0],innodb_patches[i].file);
+   	field_store_string(fields[1],innodb_patches[i].name);
+   	field_store_string(fields[2],innodb_patches[i].version);
+   	field_store_string(fields[3],innodb_patches[i].author);
+   	field_store_string(fields[4],innodb_patches[i].license);
+   	field_store_string(fields[5],innodb_patches[i].comment);
+
+	if (schema_table_store_record(thd, table)) {
+		status = 1;
+		break;
+	}
+
+	}
+
+
+	DBUG_RETURN(status);
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_patches. */
+static
+int
+innodb_patches_init(
+/*=========*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("innodb_patches_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_patches_fields_info;
+	schema->fill_table = innodb_patches_fill;
+
+	DBUG_RETURN(0);
+}
+
+
+UNIV_INTERN struct st_mysql_plugin      i_s_innodb_patches =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_PATCHES"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, "Percona"),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "Patches applied to InnoDB plugin"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, innodb_patches_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* reserved for dependency checking */
+        /* void* */
+        STRUCT_FLD(__reserved1, NULL)
+};
+
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_trx */
 static ST_FIELD_INFO	innodb_trx_fields_info[] =
@@ -383,10 +566,6 @@ innodb_trx_init(
 	DBUG_RETURN(0);
 }
 
-static struct st_mysql_information_schema	i_s_info =
-{
-	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
-};
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 {

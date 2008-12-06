@@ -3263,9 +3263,9 @@ log_print(
 		"Modified age        %lu\n"
 		"Checkpoint age      %lu\n",
 			(ulong) log_sys->max_checkpoint_age,
-			(ulong) ut_dulint_minus(log_sys->lsn,
+			(ulong) (log_sys->lsn -
 					log_buf_pool_get_oldest_modification()),
-			(ulong) ut_dulint_minus(log_sys->lsn, log_sys->last_checkpoint_lsn));
+			(ulong) (log_sys->lsn - log_sys->last_checkpoint_lsn));
 
 	current_time = time(NULL);
 
