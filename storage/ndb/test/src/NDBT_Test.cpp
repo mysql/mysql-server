@@ -1112,6 +1112,7 @@ runCreateTable(NDBT_Context* ctx, NDBT_Step* step)
   // Update ctx with a pointer to the created table
   const NdbDictionary::Table* pTab2 = pDict->getTable(tab_name);
   ctx->setTab(pTab2);
+  ctx->setProperty("$table", tab_name);
 
   return NDBT_OK;
 }
@@ -1128,15 +1129,7 @@ NDBT_TestSuite::dropTables(Ndb_cluster_connection& con) const
   for(unsigned i = 0; i<m_tables_in_test.size(); i++)
   {
     const char *tab_name=  m_tables_in_test[i].c_str();
-    if (pDict->dropTable(tab_name) != 0)
-    {
-      g_err << "runDropTables: Failed to drop table " << tab_name
-            << pDict->getNdbError() << endl;
-      res= NDBT_FAILED;
-      // Continue, try to drop all tables...
-    }
-
-    g_info << "dropped " << tab_name << endl;
+    pDict->dropTable(tab_name);
   }
   return NDBT_OK;
 }
@@ -1153,7 +1146,17 @@ runDropTables(NDBT_Context* ctx, NDBT_Step* step)
 static int
 runDropTable(NDBT_Context* ctx, NDBT_Step* step)
 {
-  return runDropTables(ctx, step);
+  const char * tab_name = ctx->getProperty("$table", (const char*)0);
+  if (tab_name)
+  {
+    Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+    ndb.init(1);
+    
+    int res= NDBT_OK;
+    NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+    pDict->dropTable(tab_name);
+  }
+  return NDBT_OK;
 }
 
 int 
@@ -1357,7 +1360,10 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   for(int i = 0; i<num_tables; i++)
   {
     if (argc == 0)
+    {
       m_tables_in_test.push_back(NDBT_Tables::getTable(i)->getName());
+      ndbout_c("pushback: %s", NDBT_Tables::getTable(i)->getName());
+    }
     else
       m_tables_in_test.push_back(_argv[i]);
   }
