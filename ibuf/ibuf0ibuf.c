@@ -3214,31 +3214,17 @@ ibuf_merge_or_delete_for_page(
 	ut_ad(!block || buf_block_get_space(block) == space);
 	ut_ad(!block || buf_block_get_page_no(block) == page_no);
 	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
+	ut_a(ut_is_2pow(zip_size));
 
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
+	    || trx_sys_hdr_page(space, page_no)
+	    || ibuf_fixed_addr_page(space, zip_size, page_no)
+	    || fsp_descr_page(zip_size, page_no)) {
 
-		return;
-	}
-
-	if (trx_sys_hdr_page(space, page_no)) {
-		return;
-	}
-
-	/* The following assumes that the uncompressed page size
-	is a power-of-2 multiple of zip_size. */
-	if (ibuf_fixed_addr_page(space, 0, page_no)
-	    || fsp_descr_page(0, page_no)) {
 		return;
 	}
 
 	if (UNIV_LIKELY(update_ibuf_bitmap)) {
-		ut_a(ut_is_2pow(zip_size));
-
-		if (ibuf_fixed_addr_page(space, zip_size, page_no)
-		    || fsp_descr_page(zip_size, page_no)) {
-			return;
-		}
-
 		/* If the following returns FALSE, we get the counter
 		incremented, and must decrement it when we leave this
 		function. When the counter is > 0, that prevents tablespace
@@ -3271,11 +3257,6 @@ ibuf_merge_or_delete_for_page(
 				return;
 			}
 			mtr_commit(&mtr);
-		}
-	} else if (block) {
-		if (ibuf_fixed_addr_page(space, zip_size, page_no)
-		    || fsp_descr_page(zip_size, page_no)) {
-			return;
 		}
 	}
 
