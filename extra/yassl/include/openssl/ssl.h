@@ -203,8 +203,8 @@ SSL_CTX* SSL_CTX_new(SSL_METHOD*);
 SSL* SSL_new(SSL_CTX*);
 int  SSL_set_fd (SSL*, YASSL_SOCKET_T);
 YASSL_SOCKET_T SSL_get_fd(const SSL*);
-int  SSL_connect(SSL*);                    // if you get an error from connect
-                                           // see note at top of REAMDE
+int  SSL_connect(SSL*);                    /* if you get an error from connect
+                                              see note at top of REAMDE */
 int  SSL_write(SSL*, const void*, int);
 int  SSL_read(SSL*, void*, int);
 int  SSL_accept(SSL*);
