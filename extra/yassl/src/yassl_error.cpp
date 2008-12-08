@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,11 @@
 #include "error.hpp"        // TaoCrypt error numbers
 #include "openssl/ssl.h"    // SSL_ERROR_WANT_READ
 #include <string.h>         // strncpy
+
+#ifdef _MSC_VER
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable: 4996)
+#endif
 
 namespace yaSSL {
 

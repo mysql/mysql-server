@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,28 +40,28 @@
 
     void* operator new(size_t sz, yaSSL::new_t)
     {
-    void* ptr = malloc(sz ? sz : 1);
-    if (!ptr) abort();
+        void* ptr = malloc(sz ? sz : 1);
+        if (!ptr) abort();
 
-    return ptr;
+        return ptr;
     }
 
 
     void operator delete(void* ptr, yaSSL::new_t)
     {
-    if (ptr) free(ptr);
+        if (ptr) free(ptr);
     }
 
 
     void* operator new[](size_t sz, yaSSL::new_t nt)
     {
-    return ::operator new(sz, nt);
+        return ::operator new(sz, nt);
     }
 
 
     void operator delete[](void* ptr, yaSSL::new_t nt)
     {
-    ::operator delete(ptr, nt);
+        ::operator delete(ptr, nt);
     }
 
     namespace yaSSL {
@@ -308,6 +308,20 @@ SSL::SSL(SSL_CTX* ctx)
             SetError(YasslError(err));
             return;
         }
+        else if (serverSide) {
+            // remove RSA or DSA suites depending on cert key type
+            ProtocolVersion pv = secure_.get_connection().version_;
+            
+            bool removeDH  = secure_.use_parms().removeDH_;
+            bool removeRSA = false;
+            bool removeDSA = false;
+            
+            if (cm.get_keyType() == rsa_sa_algo)
+                removeDSA = true;
+            else
+                removeRSA = true;
+            secure_.use_parms().SetSuites(pv, removeDH, removeRSA, removeDSA);
+        }
     }
     else if (serverSide) {
         SetError(no_key_file);
@@ -320,6 +334,7 @@ SSL::SSL(SSL_CTX* ctx)
         cm.setVerifyNone();
     if (ctx->getMethod()->failNoCert())
         cm.setFailNoCert();
+    cm.setVerifyCallback(ctx->getVerifyCallback());
 
     if (serverSide)
         crypto_.SetDH(ctx->GetDH_Parms());
@@ -1034,12 +1049,12 @@ void SSL::fillData(Data& data)
 {
     if (GetError()) return;
     uint dataSz   = data.get_length();        // input, data size to fill
-    uint elements = buffers_.getData().size();
+    size_t elements = buffers_.getData().size();
 
     data.set_length(0);                         // output, actual data filled
     dataSz = min(dataSz, bufferedData());
 
-    for (uint i = 0; i < elements; i++) {
+    for (size_t i = 0; i < elements; i++) {
         input_buffer* front = buffers_.getData().front();
         uint frontSz = front->get_remaining();
         uint readSz  = min(dataSz - data.get_length(), frontSz);
@@ -1063,8 +1078,8 @@ void SSL::fillData(Data& data)
 void SSL::PeekData(Data& data)
 {
     if (GetError()) return;
-    uint dataSz   = data.get_length();        // input, data size to fill
-    uint elements = buffers_.getData().size();
+    uint   dataSz   = data.get_length();        // input, data size to fill
+    size_t elements = buffers_.getData().size();
 
     data.set_length(0);                         // output, actual data filled
     dataSz = min(dataSz, bufferedData());
@@ -1098,9 +1113,9 @@ void SSL::flushBuffer()
                             buffers_.getHandShake().end(),
                             SumBuffer()).total_;
     output_buffer out(sz);
-    uint elements = buffers_.getHandShake().size();
+    size_t elements = buffers_.getHandShake().size();
 
-    for (uint i = 0; i < elements; i++) {
+    for (size_t i = 0; i < elements; i++) {
         output_buffer* front = buffers_.getHandShake().front();
         out.write(front->get_buffer(), front->get_size());
 
@@ -1276,6 +1291,7 @@ void SSL::matchSuite(const opaque* peer, uint length)
             if (secure_.use_parms().suites_[i] == peer[j]) {
                 secure_.use_parms().suite_[0] = 0x00;
                 secure_.use_parms().suite_[1] = peer[j];
+
                 return;
             }
 
@@ -1284,7 +1300,7 @@ void SSL::matchSuite(const opaque* peer, uint length)
 
 
 void SSL::set_session(SSL_SESSION* s) 
-{ 
+{
     if (getSecurity().GetContext()->GetSessionCacheOff())
         return;
 
@@ -1565,13 +1581,19 @@ Errors& GetErrors()
 
 typedef Mutex::Lock Lock;
 
+
  
 void Sessions::add(const SSL& ssl) 
 {
     if (ssl.getSecurity().get_connection().sessionID_Set_) {
-    Lock guard(mutex_);
-    list_.push_back(NEW_YS SSL_SESSION(ssl, random_));
+        Lock guard(mutex_);
+        list_.push_back(NEW_YS SSL_SESSION(ssl, random_));
+        count_++;
     }
+
+    if (count_ > SESSION_FLUSH_COUNT)
+        if (!ssl.getSecurity().GetContext()->GetSessionCacheFlushOff())
+            Flush();
 }
 
 
@@ -1657,6 +1679,25 @@ void Sessions::remove(const opaque* id)
         del_ptr_zero()(*find);
         list_.erase(find);
     }
+}
+
+
+// flush expired sessions from cache 
+void Sessions::Flush()
+{
+    Lock guard(mutex_);
+    sess_iterator next = list_.begin();
+    uint current = lowResTimer();
+
+    while (next != list_.end()) {
+        sess_iterator si = next;
+        ++next;
+        if ( ((*si)->GetBornOn() + (*si)->GetTimeOut()) < current) {
+            del_ptr_zero()(*si);
+            list_.erase(si);
+        }
+    }
+    count_ = 0;  // reset flush counter
 }
 
 
@@ -1764,7 +1805,8 @@ bool SSL_METHOD::multipleProtocol() const
 
 SSL_CTX::SSL_CTX(SSL_METHOD* meth) 
     : method_(meth), certificate_(0), privateKey_(0), passwordCb_(0),
-      userData_(0), sessionCacheOff_(false)
+      userData_(0), sessionCacheOff_(false), sessionCacheFlushOff_(false),
+      verifyCallback_(0)
 {}
 
 
@@ -1788,6 +1830,12 @@ const SSL_CTX::CertList&
 SSL_CTX::GetCA_List() const
 {
     return caList_;
+}
+
+
+const VerifyCallback SSL_CTX::getVerifyCallback() const
+{
+    return verifyCallback_;
 }
 
 
@@ -1851,6 +1899,12 @@ bool SSL_CTX::GetSessionCacheOff() const
 }
 
 
+bool SSL_CTX::GetSessionCacheFlushOff() const
+{
+    return sessionCacheFlushOff_;
+}
+
+
 void SSL_CTX::SetUserData(void* data)
 {
     userData_ = data;
@@ -1860,6 +1914,12 @@ void SSL_CTX::SetUserData(void* data)
 void SSL_CTX::SetSessionCacheOff()
 {
     sessionCacheOff_ = true;
+}
+
+
+void SSL_CTX::SetSessionCacheFlushOff()
+{
+    sessionCacheFlushOff_ = true;
 }
 
 
@@ -1878,6 +1938,12 @@ void SSL_CTX::setVerifyNone()
 void SSL_CTX::setFailNoCert()
 {
     method_->setFailNoCert();
+}
+
+
+void SSL_CTX::setVerifyCallback(VerifyCallback vc)
+{
+    verifyCallback_ = vc;
 }
 
 
@@ -1906,7 +1972,7 @@ bool SSL_CTX::SetCipherList(const char* list)
     int idx = 0;
 
     for(;;) {
-        int len;
+        size_t len;
         prev = haystack;
         haystack = strstr(haystack, needle);
 
@@ -2316,7 +2382,7 @@ X509::X509(const char* i, size_t iSz, const char* s, size_t sSz,
     : issuer_(i, iSz), subject_(s, sSz),
       beforeDate_(b, bSz), afterDate_(a, aSz)
 {}
-   
+
 
 X509_NAME* X509::GetIssuer()
 {
@@ -2354,10 +2420,10 @@ ASN1_STRING* X509_NAME::GetEntry(int i)
     memcpy(entry_.data, &name_[i], sz_ - i);
     if (entry_.data[sz_ -i - 1]) {
         entry_.data[sz_ - i] = 0;
-        entry_.length = sz_ - i;
+        entry_.length = int(sz_) - i;
     }
     else
-        entry_.length = sz_ - i - 1;
+        entry_.length = int(sz_) - i - 1;
     entry_.type = 0;
 
     return &entry_;

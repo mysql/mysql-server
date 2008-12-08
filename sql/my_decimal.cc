@@ -214,7 +214,7 @@ my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
   date = (ltime->year*100L + ltime->month)*100L + ltime->day;
   if (ltime->time_type > MYSQL_TIMESTAMP_DATE)
     date= ((date*100L + ltime->hour)*100L+ ltime->minute)*100L + ltime->second;
-  if (int2my_decimal(E_DEC_FATAL_ERROR, date, FALSE, dec))
+  if (int2my_decimal(E_DEC_FATAL_ERROR, ltime->neg ? -date : date, FALSE, dec))
     return dec;
   if (ltime->second_part)
   {
