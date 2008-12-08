@@ -155,6 +155,8 @@ MARIA_STATE_HISTORY
     if (!trnman_exists_active_transactions(history->trid, last_trid,
                                            trnman_is_locked))
     {
+      DBUG_PRINT("info", ("removing history->trid: %lu  next: %lu",
+                          (ulong) history->trid, (ulong) last_trid));
       my_free(history, MYF(0));
       continue;
     }
@@ -423,6 +425,8 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
       {
         /* Previous history can't be seen by anyone, reuse old memory */
         history= share->state_history;
+        DBUG_PRINT("info", ("removing history->trid: %lu  new: %lu",
+                            (ulong) history->trid, (ulong) trn->commit_trid));
       }
 
       history->state.records+= (tables->state_current.records -

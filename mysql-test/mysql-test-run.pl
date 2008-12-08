@@ -3325,9 +3325,11 @@ socket              = $instance->{path_sock}
 pid-file            = $instance->{path_pid}
 port                = $instance->{port}
 datadir             = $instance->{path_datadir}
-log                 = $instance->{path_datadir}/mysqld$server_id.log
+general-log-file    = $instance->{path_datadir}/mysqld$server_id.log
+general-log         = 1
 log-error           = $instance->{path_datadir}/mysqld$server_id.err.log
-log-slow-queries    = $instance->{path_datadir}/mysqld$server_id.slow.log
+slow-query-log-file = $instance->{path_datadir}/mysqld$server_id.slow.log
+slow-query-log      = 1
 language            = $path_language
 character-sets-dir  = $path_charsetsdir
 basedir             = $path_my_basedir
@@ -4004,9 +4006,11 @@ sub mysqld_arguments ($$$$) {
   }
 
   my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
-  mtr_add_arg($args, "%s--log=%s.log", $prefix, $log_base_path);
+  mtr_add_arg($args, "%s--general-log-file=%s.log --general-log",
+              $prefix, $log_base_path);
   mtr_add_arg($args,
-	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
+	      "%s--slow-query-log-file=%s-slow.log --slow-query-log",
+              $prefix, $log_base_path);
 
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);

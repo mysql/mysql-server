@@ -876,7 +876,12 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
     pthread_mutex_lock(&LOCK_trn_list);
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
-    if (trn->trid > min_id && trn->trid < max_id)
+    /*
+      We use >= for min_id as min_id is a commit_trid and trn->trid
+      is transaction id.  In the case they are the same, then the
+      trn started after the min_id was committed.
+    */
+    if (trn->trid >= min_id && trn->trid < max_id)
     {
       ret= 1;
       break;
