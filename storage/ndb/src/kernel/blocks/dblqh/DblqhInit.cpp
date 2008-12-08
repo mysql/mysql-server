@@ -63,6 +63,10 @@ void Dblqh::initData()
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
+
+  for (Uint32 i = 0; i < 1024; i++) {
+    ctransidHash[i] = RNIL;
+  }//for
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
