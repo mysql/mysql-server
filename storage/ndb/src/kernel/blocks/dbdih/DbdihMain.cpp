@@ -5188,16 +5188,32 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
                GCPPrepareConf::SignalLength, JBB);
   }//if
 
-  if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) {
+  if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) 
+  {
     jam();
-    GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
-    conf->nodeId = failedNodeId;
-    conf->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
-    conf->gci_lo = Uint32(m_micro_gcp.m_old_gci);
-    conf->failno = cfailurenr;
-    sendSignal(reference(), GSN_GCP_NODEFINISH, signal, 
-               GCPNodeFinished::SignalLength, JBB);
-  }//if
+    
+    /**
+     * Waiting for GSN_GCP_NODEFINISH
+     *   TC-take-over can generate new transactions
+     *   that will be in this epoch
+     *   re-run GCP_NOMORETRANS to master-TC (self) that will run
+     *   take-over
+     */
+    c_GCP_COMMIT_Counter.clearWaitingFor(failedNodeId);
+    if (!c_GCP_COMMIT_Counter.isWaitingFor(getOwnNodeId()))
+    {
+      jam();
+      c_GCP_COMMIT_Counter.setWaitingFor(getOwnNodeId());
+      m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
+    }
+     
+    GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
+    req->senderData = m_micro_gcp.m_master_ref;
+    req->gci_hi = m_micro_gcp.m_old_gci >> 32;
+    req->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+               GCPNoMoreTrans::SignalLength, JBB);
+  }
 
   if (c_GCP_SAVEREQ_Counter.isWaitingFor(failedNodeId)) {
     jam();
@@ -15589,7 +15605,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     SET_ERROR_INSERT_VALUE2(7214, signal->theData[1]);
     return;
   }
-
 }//Dbdih::execDUMP_STATE_ORD()
 
 void
