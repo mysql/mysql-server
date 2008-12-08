@@ -1851,13 +1851,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
       else
       {
         newfile= !EXISTS(name);
-        if (!(fp= fopen(name,
-#if defined(MSDOS) || defined(__WIN__)
-		append ? "a+c" : "wc"
-#else
-                append ? "a+" : "w"
-#endif
-		)))
+        if (!(fp= fopen(name, append ? "a+" : "w")))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);
           perror("");
@@ -2406,14 +2400,5 @@ va_list ap;
 int i_am_a_dummy_function() {
        return 0;
 }
-
-#ifdef __WIN__
-char _db_doprnt_;
-char _db_enter_;
-char _db_pargs_;
-char _db_process_;
-char _db_push_;
-char _db_return_;
-#endif /*__WIN__*/
 
 #endif
