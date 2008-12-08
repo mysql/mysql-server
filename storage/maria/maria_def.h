@@ -353,7 +353,7 @@ typedef struct st_maria_share
   PAGECACHE_FILE kfile;			/* Shared keyfile */
   File data_file;			/* Shared data file */
   int mode;				/* mode of file on open */
-  uint reopen;				/* How many times reopened */
+  uint reopen;				/* How many times opened */
   uint in_trans;                        /* Number of references by trn */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
   uint block_size;			/* block_size of keyfile & data file*/

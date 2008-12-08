@@ -166,7 +166,6 @@ MARIA_STATE_HISTORY
 
   if (all && parent == &org_history->next)
   {
-    DBUG_ASSERT(trnman_is_locked == 0);
     /* There is only one state left. Delete this if it's visible for all */
     if (last_trid < trnman_get_min_trid())
     {
@@ -181,6 +180,11 @@ MARIA_STATE_HISTORY
 /**
    @brief Remove not used state history
 
+   @param share          Maria table information
+   @param all            1 if we should delete the first state if it's
+                         visible for all.  For the moment this is only used
+                         on close() of table.
+
    @notes
    share and trnman are not locked.
 
@@ -189,14 +193,19 @@ MARIA_STATE_HISTORY
    takes share->intern_lock.
 */
 
-void _ma_remove_not_visible_states_with_lock(MARIA_SHARE *share)
+void _ma_remove_not_visible_states_with_lock(MARIA_SHARE *share,
+                                             my_bool all)
 {
-  trnman_lock();
+  my_bool is_lock_trman;
+  if ((is_lock_trman= trman_is_inited()))
+    trnman_lock();
+
   pthread_mutex_lock(&share->intern_lock);
-  share->state_history=  _ma_remove_not_visible_states(share->state_history, 0,
-                                                       1);
+  share->state_history=  _ma_remove_not_visible_states(share->state_history,
+                                                       all, 1);
   pthread_mutex_unlock(&share->intern_lock);
-  trnman_unlock();
+  if (is_lock_trman)
+    trnman_unlock();
 }
 
 
