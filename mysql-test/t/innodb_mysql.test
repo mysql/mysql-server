@@ -53,3 +53,42 @@ CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
 CREATE INDEX i1 on t1 (a(3));
 SELECT * FROM t1 WHERE a = 'abcde';
 DROP TABLE t1;
+
+#
+# Bug #37742: HA_EXTRA_KEYREAD flag is set when key contains only prefix of
+# requested column
+#
+
+CREATE TABLE foo (a int, b int, c char(10),
+                  PRIMARY KEY (c(3)),
+                  KEY b (b)
+) engine=innodb;
+
+CREATE TABLE foo2 (a int, b int, c char(10),
+                  PRIMARY KEY (c),
+                  KEY b (b)
+) engine=innodb;
+
+CREATE TABLE bar (a int, b int, c char(10),
+                  PRIMARY KEY (c(3)),
+                  KEY b (b)
+) engine=myisam;
+
+INSERT INTO foo VALUES
+   (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
+   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+
+INSERT INTO bar SELECT * FROM foo;
+INSERT INTO foo2 SELECT * FROM foo;
+
+--query_vertical EXPLAIN SELECT c FROM bar WHERE b>2;
+--query_vertical EXPLAIN SELECT c FROM foo WHERE b>2;
+--query_vertical EXPLAIN SELECT c FROM foo2 WHERE b>2;
+
+--query_vertical EXPLAIN SELECT c FROM bar WHERE c>2;
+--query_vertical EXPLAIN SELECT c FROM foo WHERE c>2;
+--query_vertical EXPLAIN SELECT c FROM foo2 WHERE c>2;
+
+DROP TABLE foo, bar, foo2;
+
+--echo End of 5.1 tests
