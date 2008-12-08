@@ -1480,60 +1480,11 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   }
 
   /*
-    Decision table for committing a transaction. The top part, the
-    *conditions* represent different cases that can occur, and hte
-    bottom part, the *actions*, represent what should be done in that
-    particular case.
+    We commit the transaction if:
 
-    Real transaction        'all' was true
+     - We are not in a transaction and committing a statement, or
 
-    Statement in cache      There were at least one statement in the
-                            transaction cache
-
-    In transaction          We are inside a transaction
-
-    Stmt modified non-trans The statement being committed modified a
-                            non-transactional table
-
-    All modified non-trans  Some statement before this one in the
-                            transaction modified a non-transactional
-                            table
-
-
-    =============================  = = = = = = = = = = = = = = = =
-    Real transaction               N N N N N N N N N N N N N N N N
-    Statement in cache             N N N N N N N N Y Y Y Y Y Y Y Y
-    In transaction                 N N N N Y Y Y Y N N N N Y Y Y Y
-    Stmt modified non-trans        N N Y Y N N Y Y N N Y Y N N Y Y
-    All modified non-trans         N Y N Y N Y N Y N Y N Y N Y N Y
-
-    Action: (C)ommit/(A)ccumulate  C C - C A C - C - - - - A A - A
-    =============================  = = = = = = = = = = = = = = = =
-
-
-    =============================  = = = = = = = = = = = = = = = =
-    Real transaction               Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y
-    Statement in cache             N N N N N N N N Y Y Y Y Y Y Y Y
-    In transaction                 N N N N Y Y Y Y N N N N Y Y Y Y
-    Stmt modified non-trans        N N Y Y N N Y Y N N Y Y N N Y Y
-    All modified non-trans         N Y N Y N Y N Y N Y N Y N Y N Y
-
-    (C)ommit/(A)ccumulate/(-)      - - - - C C - C - - - - C C - C
-    =============================  = = = = = = = = = = = = = = = =
-
-    In other words, we commit the transaction if and only if both of
-    the following are true:
-     - We are not in a transaction and committing a statement
-
-     - We are in a transaction and one (or more) of the following are
-       true:
-
-       - A full transaction is committed
-
-         OR
-
-       - A non-transactional statement is committed and there is
-         no statement cached
+     - We are in a transaction and a full transaction is committed
 
     Otherwise, we accumulate the statement
   */
@@ -1546,11 +1497,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(in_transaction),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (in_transaction &&
-      (all ||
-       (!trx_data->at_least_one_stmt &&
-        thd->transaction.stmt.modified_non_trans_table)) ||
-      !in_transaction && !all)
+  if (!in_transaction || all)
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
