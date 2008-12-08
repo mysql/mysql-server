@@ -6,14 +6,14 @@
 
 int64_t
 pread(int fildes, void *buf, size_t nbyte, int64_t offset) {
-    HANDLE     handle;
-    OVERLAPPED offset = {0}; 
+    long     handle;
+    OVERLAPPED win_offset = {0}; 
     handle =  _get_osfhandle(fildes);
-    offset.Offset     = offset % (1LL<<32LL);
-    offset.OffsetHigh = offset / (1LL<<32LL);
+    win_offset.Offset     = offset % (1LL<<32LL);
+    win_offset.OffsetHigh = offset / (1LL<<32LL);
 
-    size_t bytes_read;
-    int64_t r = ReadFile(handle, buf, nbyte, &bytes_read, &offset);
+    DWORD bytes_read;
+    int64_t r = ReadFile(&handle, buf, nbyte, &bytes_read, &win_offset);
     if (!r) r = GetLastError();
     else    r = bytes_read;
 
@@ -23,14 +23,14 @@ pread(int fildes, void *buf, size_t nbyte, int64_t offset) {
 
 int64_t
 pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset) {
-    HANDLE     handle;
-    OVERLAPPED offset = {0}; 
+    long     handle;
+    OVERLAPPED win_offset = {0}; 
     handle =  _get_osfhandle(fildes);
-    offset.Offset     = offset % (1LL<<32LL);
-    offset.OffsetHigh = offset / (1LL<<32LL);
+    win_offset.Offset     = offset % (1LL<<32LL);
+    win_offset.OffsetHigh = offset / (1LL<<32LL);
 
-    size_t bytes_written;
-    int64_t r = ReadFile(handle, buf, nbyte, &bytes_written, &offset);
+    DWORD bytes_written;
+    int64_t r = WriteFile(&handle, buf, nbyte, &bytes_written, &win_offset);
     if (!r) r = GetLastError();
     else    r = bytes_written;
 
