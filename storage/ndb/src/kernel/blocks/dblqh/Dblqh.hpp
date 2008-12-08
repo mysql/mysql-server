@@ -920,7 +920,9 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
-    bool inPackedList;
+    Uint8 inPackedList;
+    Uint8 nodestatus;
+    Uint8 _unused[2];
     UintR noOfPackedWordsLqh;
     UintR packedWordsLqh[30];
     UintR noOfPackedWordsTc;

@@ -71,6 +71,9 @@ void Dblqh::initData()
    m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
+  for (Uint32 i = 0; i < 1024; i++) {
+    ctransidHash[i] = RNIL;
+  }//for
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

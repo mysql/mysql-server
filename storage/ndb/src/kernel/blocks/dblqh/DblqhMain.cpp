@@ -146,7 +146,7 @@ operator<<(NdbOut& out, Operation_t op)
 #define DEBUG(x)
 #endif
 
-//#define MARKER_TRACE 1
+//#define MARKER_TRACE 0
 //#define TRACE_SCAN_TAKEOVER 1
 
 #ifndef DEBUG_REDO
@@ -507,6 +507,14 @@ void Dblqh::execINCL_NODEREQ(Signal* signal)
       cnodeStatus[i] = ZNODE_UP;
     }//if
   }//for
+
+  {
+    HostRecordPtr Thostptr;
+    Thostptr.i = nodeId;
+    ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+    Thostptr.p->nodestatus = ZNODE_UP;
+  }
+
   signal->theData[0] = nodeId;
   signal->theData[1] = cownref; 
   sendSignal(retRef, GSN_INCL_NODECONF, signal, 2, JBB);
@@ -729,6 +737,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
     ThostPtr.p->inPackedList = false;
     ThostPtr.p->noOfPackedWordsLqh = 0;
     ThostPtr.p->noOfPackedWordsTc  = 0;
+    ThostPtr.p->nodestatus = ZNODE_DOWN;
   }//for
   cpackedListIndex = 0;
   sendNdbSttorryLab(signal);
@@ -939,6 +948,14 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
       jam();
       cnodeData[ind]    = i;
       cnodeStatus[ind]  = NdbNodeBitmask::get(readNodes->inactiveNodes, i);
+
+      {
+        HostRecordPtr Thostptr;
+        Thostptr.i = i;
+        ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+        Thostptr.p->nodestatus = cnodeStatus[ind];
+      }
+
       //readNodes->getVersionId(i, readNodes->theVersionIds) not used
       if (!NodeBitmask::get(readNodes->inactiveNodes, i))
       {
@@ -2473,7 +2490,9 @@ void Dblqh::noFreeRecordLab(Signal* signal,
   const Uint32 reqInfo   = lqhKeyReq->requestInfo;
   
   if(errCode == ZNO_FREE_MARKER_RECORDS_ERROR ||
-     errCode == ZNODE_SHUTDOWN_IN_PROGESS){
+     errCode == ZNODE_SHUTDOWN_IN_PROGESS ||
+     errCode == ZNODE_FAILURE_ERROR){
+    jam();
     releaseTcrec(signal, tcConnectptr);
   }
 
@@ -3787,6 +3806,17 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     noFreeRecordLab(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
     return;
   }
+
+  {
+    HostRecordPtr Thostptr;
+    Thostptr.i = refToNode(sig5); // TC-ref
+    ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+    if (unlikely(Thostptr.p->nodestatus != ZNODE_UP))
+    {
+      noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+      return;
+    }
+  }
   
   Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
 
@@ -3830,6 +3860,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         commit ack marker prematurely.
       */
       markerPtr.p->reference_count++;
+#ifdef MARKER_TRACE
+      ndbout_c("Inc marker[%.8x %.8x] op: %u ref: %u", 
+               markerPtr.p->transid1, markerPtr.p->transid2, 
+               tcConnectptr.i, markerPtr.p->reference_count);
+#endif
     }
     else
     {
@@ -3848,11 +3883,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       markerPtr.p->tcNodeId = tcNodeId;
       markerPtr.p->reference_count = 1;
       m_commitAckMarkerHash.add(markerPtr);
-    }
-    
+
 #ifdef MARKER_TRACE
-    ndbout_c("%u Add marker[%.8x %.8x]", instance(), markerPtr.p->transid1, markerPtr.p->transid2);
+      ndbout_c("%u Add marker[%.8x %.8x] op: %u", instance(), markerPtr.p->transid1, markerPtr.p->transid2, tcConnectptr.i);
 #endif
+    }
     regTcPtr->commitAckMarker = markerPtr.i;
   } 
   
@@ -7282,22 +7317,24 @@ void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 void
 Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
 {
-  CommitAckMarker *tmp;
+  Ptr<CommitAckMarker> tmp;
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   regTcPtr->commitAckMarker = RNIL;
   if (commitAckMarker == RNIL)
     return;
   jam();
-  tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
+  m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
 #ifdef MARKER_TRACE
-  ndbout_c("%u Ab2 marker[%.8x %.8x]", instance(), tmp->transid1, tmp->transid2);
+  ndbout_c("%u remove marker[%.8x %.8x] op: %u ref: %u", 
+           instance(), tmp.p->transid1, tmp.p->transid2,
+           Uint32(regTcPtr - tcConnectionrec), tmp.p->reference_count);
 #endif
-  ndbrequire(tmp->reference_count > 0);
-  tmp->reference_count--;
-  if (tmp->reference_count == 0)
+  ndbrequire(tmp.p->reference_count > 0);
+  tmp.p->reference_count--;
+  if (tmp.p->reference_count == 0)
   {
     jam();
-    m_commitAckMarkerHash.release(commitAckMarker);
+    m_commitAckMarkerHash.release(tmp);
   }
 }
 
@@ -7912,6 +7949,9 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+  remove_commit_marker(regTcPtr);
+
   if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp)
   {
     jam();
@@ -8035,6 +8075,14 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
   ndbrequire(cnoOfNodes - 1 < MAX_NDB_NODES);
   for (i = 0; i < TnoOfNodes; i++) {
     const Uint32 nodeId = Tdata[i];
+
+    {
+      HostRecordPtr Thostptr;
+      Thostptr.i = nodeId;
+      ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+      Thostptr.p->nodestatus = ZNODE_DOWN;
+    }
+
     lcpPtr.p->m_EMPTY_LCP_REQ.clear(nodeId);
     
     for (Uint32 j = 0; j < cnoOfNodes; j++) {
@@ -17887,9 +17935,6 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     m_sr_nodes.clear();
     m_sr_exec_sr_req.clear();
     m_sr_exec_sr_conf.clear();
-    for (i = 0; i < 1024; i++) {
-      ctransidHash[i] = RNIL;
-    }//for
     for (i = 0; i < 4; i++) {
       cactiveCopy[i] = RNIL;
     }//for
@@ -19185,6 +19230,18 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
   signal->theData[0] = ZLQH_TRANS_NEXT;
   signal->theData[1] = tcNodeFailptr.i;
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+
+  if (0)
+  {
+    ndbout_c("sending LQH_TRANSCONF %u transid: H'%.8x, H'%.8x op: %u state: %u(%u) marker: %u",
+             tcConnectptr.i, 
+             tcConnectptr.p->transid[0],
+             tcConnectptr.p->transid[1],
+             tcConnectptr.p->operation,           
+             tcConnectptr.p->transactionState,
+             stat,
+             tcConnectptr.p->commitAckMarker);
+  }
 }//Dblqh::sendLqhTransconf()
 
 /* --------------------------------------------------------------------------
@@ -19627,7 +19684,10 @@ Dblqh::validate_filter(Signal* signal)
   if (start == end)
   {
     infoEvent("No filter specified, not listing...");
-    return false;
+    if (!ERROR_INSERTED(4002))
+      return false;
+    else
+      return true;
   }
 
   while(start < end)
@@ -19819,7 +19879,7 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
   char buf[100];
   BaseString::snprintf(buf, sizeof(buf),
 		       "OP[%u]: Tab: %d frag: %d TC: %u API: %d(0x%x)"
-		       "transid: 0x%x 0x%x op: %s state: %s",
+		       "transid: H'%.8x H'%.8x op: %s state: %s",
 		       tcRec.i,
 		       tcRec.p->tableref, 
 		       tcRec.p->fragmentid,
@@ -19830,7 +19890,10 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
 		       op,
 		       state);
   
-  infoEvent(buf);
+  if (!ERROR_INSERTED(4002))
+    infoEvent(buf);
+  else
+    ndbout_c(buf);
   
   memcpy(signal->theData, temp, 4*len);
   return true;
@@ -19855,8 +19918,8 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     CommitAckMarkerIterator iter;
     for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
 	m_commitAckMarkerHash.next(iter)){
-      infoEvent("CommitAckMarker: i = %d (0x%x, 0x%x)"
-		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d, ref_count: %d",
+      infoEvent("CommitAckMarker: i = %d (H'%.8x, H'%.8x)"
+		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d, ref_count: %u",
 		iter.curr.i,
 		iter.curr.p->transid1,
 		iter.curr.p->transid2,
@@ -20378,7 +20441,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       else
       {
 	jam();
-	infoEvent("End of operation dump");
+        infoEvent("End of operation dump");
+        if (ERROR_INSERTED(4002))
+          ndbrequire(false);
       }
 
       return;
@@ -20419,7 +20484,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       else
       {
 	jam();
-	infoEvent("End of operation dump");
+        infoEvent("End of operation dump");
+        if (ERROR_INSERTED(4002))
+          ndbrequire(false);
       }
       
       return;
@@ -20475,6 +20542,51 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   {
     RSS_AP_SNAPSHOT_CHECK(c_fragment_pool);
     return;
+  }
+
+  if (arg == 4002)
+  {
+    bool ops = false;
+    for (Uint32 i = 0; i<1024; i++)
+    {
+      if (ctransidHash[i] != RNIL)
+      {
+        jam();
+        ops = true;
+        break;
+      }
+    }
+
+    bool markers = m_commitAckMarkerPool.getNoOfFree() != 
+      m_commitAckMarkerPool.getSize();
+    if (unlikely(ops || markers))
+    {
+
+      if (markers)
+      {
+        ndbout_c("LQH: m_commitAckMarkerPool: %d free size: %d",
+                 m_commitAckMarkerPool.getNoOfFree(),
+                 m_commitAckMarkerPool.getSize());
+        
+        CommitAckMarkerIterator iter;
+        for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
+            m_commitAckMarkerHash.next(iter))
+        {
+          ndbout_c("CommitAckMarker: i = %d (H'%.8x, H'%.8x)"
+                   " ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d ref_count: %u",
+                   iter.curr.i,
+                   iter.curr.p->transid1,
+                   iter.curr.p->transid2,
+                   iter.curr.p->apiRef,
+                   iter.curr.p->apiOprec,
+                   iter.curr.p->tcNodeId,
+                   iter.curr.p->reference_count);
+        }
+      }
+      SET_ERROR_INSERT_VALUE(4002);
+      signal->theData[0] = 2350;
+      EXECUTE_DIRECT(DBLQH, GSN_DUMP_STATE_ORD, signal, 1);
+    }
   }
 }//Dblqh::execDUMP_STATE_ORD()
 
