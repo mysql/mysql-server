@@ -125,22 +125,30 @@ int maria_close(register MARIA_HA *info)
     }
 #endif
     DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
-    if (share->in_checkpoint == MARIA_CHECKPOINT_LOOKS_AT_ME)
+    /*
+      We assign -1 because checkpoint does not need to flush (in case we
+      have concurrent checkpoint if no then we do not need it here also)
+    */
+    share->kfile.file= -1;
+
+    /*
+      Remember share->history for future opens
+
+      We have to unlock share->intern_lock then lock it after
+      LOCK_trn_list (trnman_lock()) to avoid dead locks.
+    */
+    pthread_mutex_unlock(&share->intern_lock);
+    _ma_remove_not_visible_states_with_lock(share, TRUE);
+    pthread_mutex_lock(&share->intern_lock);
+
+    if (share->in_checkpoint & MARIA_CHECKPOINT_LOOKS_AT_ME)
     {
-      share->kfile.file= -1; /* because Checkpoint does not need to flush */
       /* we cannot my_free() the share, Checkpoint would see a bad pointer */
       share->in_checkpoint|= MARIA_CHECKPOINT_SHOULD_FREE_ME;
     }
     else
       share_can_be_freed= TRUE;
 
-    /*
-      Remember share->history for future opens
-      Here we take share->intern_lock followed by trans_lock but this is
-      safe as no other thread one can use 'share' here.
-    */
-    share->state_history= _ma_remove_not_visible_states(share->state_history,
-                                                        1, 0);
     if (share->state_history)
     {
       MARIA_STATE_HISTORY_CLOSED *history;

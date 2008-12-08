@@ -1059,7 +1059,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       since last call.
     */
     pthread_mutex_unlock(&share->intern_lock);
-    _ma_remove_not_visible_states_with_lock(share);
+    _ma_remove_not_visible_states_with_lock(share, FALSE);
     pthread_mutex_lock(&share->intern_lock);
 
     if (share->in_checkpoint & MARIA_CHECKPOINT_SHOULD_FREE_ME)
