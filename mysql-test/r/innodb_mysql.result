@@ -1677,3 +1677,94 @@ select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
+CREATE INDEX i1 on t1 (a(3));
+SELECT * FROM t1 WHERE a = 'abcde';
+a
+DROP TABLE t1;
+CREATE TABLE foo (a int, b int, c char(10),
+PRIMARY KEY (c(3)),
+KEY b (b)
+) engine=innodb;
+CREATE TABLE foo2 (a int, b int, c char(10),
+PRIMARY KEY (c),
+KEY b (b)
+) engine=innodb;
+CREATE TABLE bar (a int, b int, c char(10),
+PRIMARY KEY (c(3)),
+KEY b (b)
+) engine=myisam;
+INSERT INTO foo VALUES
+(1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
+(4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+INSERT INTO bar SELECT * FROM foo;
+INSERT INTO foo2 SELECT * FROM foo;
+EXPLAIN SELECT c FROM bar WHERE b>2;;
+id	1
+select_type	SIMPLE
+table	bar
+type	ALL
+possible_keys	b
+key	NULL
+key_len	NULL
+ref	NULL
+rows	6
+Extra	Using where
+EXPLAIN SELECT c FROM foo WHERE b>2;;
+id	1
+select_type	SIMPLE
+table	foo
+type	ALL
+possible_keys	b
+key	NULL
+key_len	NULL
+ref	NULL
+rows	6
+Extra	Using where
+EXPLAIN SELECT c FROM foo2 WHERE b>2;;
+id	1
+select_type	SIMPLE
+table	foo2
+type	range
+possible_keys	b
+key	b
+key_len	5
+ref	NULL
+rows	3
+Extra	Using where; Using index
+EXPLAIN SELECT c FROM bar WHERE c>2;;
+id	1
+select_type	SIMPLE
+table	bar
+type	ALL
+possible_keys	PRIMARY
+key	NULL
+key_len	NULL
+ref	NULL
+rows	6
+Extra	Using where
+EXPLAIN SELECT c FROM foo WHERE c>2;;
+id	1
+select_type	SIMPLE
+table	foo
+type	ALL
+possible_keys	PRIMARY
+key	NULL
+key_len	NULL
+ref	NULL
+rows	6
+Extra	Using where
+EXPLAIN SELECT c FROM foo2 WHERE c>2;;
+id	1
+select_type	SIMPLE
+table	foo2
+type	index
+possible_keys	PRIMARY
+key	b
+key_len	5
+ref	NULL
+rows	6
+Extra	Using where; Using index
+DROP TABLE foo, bar, foo2;
+End of 5.1 tests

@@ -162,4 +162,32 @@ a	b
 12	NULL
 drop table t1;
 drop table t2;
+CREATE TABLE t1 (a INT);
+PREPARE stmt FROM 'select 1 from `t1` where `a` = any (select (@@tmpdir))';
+EXECUTE stmt;
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (400000), (400001);
+SET @@sort_buffer_size=400000;
+CREATE FUNCTION p1(i INT) RETURNS INT
+BEGIN
+SET @@sort_buffer_size= i;
+RETURN i + 1;
+END|
+SELECT * FROM t2 WHERE a = @@sort_buffer_size AND p1(@@sort_buffer_size + 1) > a - 1;
+a
+400000
+DROP TABLE t2;
+DROP FUNCTION p1;
+SELECT CONCAT(@@sort_buffer_size);
+CONCAT(@@sort_buffer_size)
+400001
+SELECT LEFT("12345", @@ft_boolean_syntax);
+LEFT("12345", @@ft_boolean_syntax)
+
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '+ -><()~*:""&|'
+SET @@sort_buffer_size=DEFAULT;
 End of 5.0 tests.

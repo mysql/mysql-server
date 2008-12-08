@@ -1428,6 +1428,22 @@ set session max_sort_length= 2180;
 select * from t1 order by b;
 ERROR HY001: Out of sort memory; increase server sort buffer size
 drop table t1;
+#
+# Bug #39844: Query Crash Mysql Server 5.0.67
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT);
+CREATE TABLE t3 (c INT);
+INSERT INTO t1 (a) VALUES (1), (2);
+INSERT INTO t2 (a,b) VALUES (1,2), (2,3);
+INSERT INTO t3 (c) VALUES (1), (2);
+SELECT
+(SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a)
+FROM t3;
+(SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a)
+2
+NULL
+DROP TABLE t1, t2, t3;
 CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
 UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c));
 CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b));

@@ -489,12 +489,20 @@ static TABLE_SHARE
       "no such table" errors.
       @todo Rework the alternative ways to deal with ER_NO_SUCH TABLE.
     */
-    if (thd->is_error() && table_list->belong_to_view)
+    if (thd->is_error())
     {
-      TABLE_LIST *view= table_list->belong_to_view;
-      thd->clear_error();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               view->view_db.str, view->view_name.str);
+      if (table_list->parent_l)
+      {
+        thd->clear_error();
+        my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      }
+      else if (table_list->belong_to_view)
+      {
+        TABLE_LIST *view= table_list->belong_to_view;
+        thd->clear_error();
+        my_error(ER_VIEW_INVALID, MYF(0),
+                 view->view_db.str, view->view_name.str);
+      }
     }
     DBUG_RETURN(0);
   }
@@ -3087,7 +3095,10 @@ bool reopen_table(TABLE *table)
   for (key=0 ; key < table->s->keys ; key++)
   {
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
+    {
       table->key_info[key].key_part[part].field->table= table;
+      table->key_info[key].key_part[part].field->orig_table= table;
+    }
   }
   if (table->triggers)
     table->triggers->set_table(table);
@@ -7760,6 +7771,10 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
       if (!(item= field_iterator.create_item(thd)))
         DBUG_RETURN(TRUE);
+      DBUG_ASSERT(item->fixed);
+      /* cache the table for the Item_fields inserted by expanding stars */
+      if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)
+        ((Item_field *)item)->cached_table= tables;
 
       if (!found)
       {
