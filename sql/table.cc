@@ -1416,7 +1416,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
           {
-            field->part_of_key= share->keys_in_use;
+            if (field->key_length() == key_part->length &&
+                !(field->flags & BLOB_FLAG))
+              field->part_of_key= share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey= share->keys_in_use;
           }

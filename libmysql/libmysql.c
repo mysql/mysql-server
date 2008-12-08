@@ -207,9 +207,7 @@ void STDCALL mysql_server_end()
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
   {
-    my_end(MY_DONT_FREE_DBUG);
-    /* Remove TRACING, if enabled by mysql_debug() */
-    DBUG_POP();
+    my_end(0);
   }
   else
   {
