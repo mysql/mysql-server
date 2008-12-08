@@ -102,7 +102,6 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     move_counter++;
     REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
     if (other_bufs == 0) {
-        extern int toku_malloc_counter, toku_realloc_counter, toku_free_counter;
 #if defined(_WIN32)
         printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
 #endif

@@ -95,5 +95,8 @@ void toku_malloc_report (void); /* report on statistics about number of mallocs.
 // The array is terminated by a -1.
 extern int *toku_dead_mallocs;
 extern int toku_malloc_counter; // so you can reset it
+extern int toku_realloc_counter;
+extern int toku_calloc_counter;
+extern int toku_free_counter;
 
 #endif
