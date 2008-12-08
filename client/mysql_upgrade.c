@@ -616,6 +616,8 @@ static int run_mysqlcheck_upgrade(void)
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
+                  "--fix-db-names",
+                  "--fix-table-names",
                   NULL);
 }
 
