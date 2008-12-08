@@ -1188,3 +1188,7 @@ cmd: test_event
 args -r 5000 -n Bug30780 T1
 
 #EOF 2008-08-11
+max-time: 1200
+cmd: testNodeRestart
+args -n Bug41295 T1
+

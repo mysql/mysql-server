@@ -3260,7 +3260,6 @@ loop2:
 int 
 runHammer(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
   int records = ctx->getNumRecords();
   Ndb* pNdb = GETNDB(step);
   HugoOperations hugoOps(*ctx->getTab());
@@ -3268,7 +3267,7 @@ runHammer(NDBT_Context* ctx, NDBT_Step* step)
   {
     int r = rand() % records;
     if (hugoOps.startTransaction(pNdb) != 0)
-      goto err;
+      continue;
     
     if ((rand() % 100) < 50)
     {
@@ -3313,6 +3312,139 @@ runHammer(NDBT_Context* ctx, NDBT_Step* step)
     
     hugoOps.closeTransaction(pNdb);
   }
+  return NDBT_OK;
+}
+
+int 
+runMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
+{ 
+  int res = 0;
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  unsigned id = (unsigned)rand();
+  while (!ctx->isTestStopped())
+  {
+    if (ctx->getProperty("Pause", (Uint32)0))
+    {
+      ndbout_c("thread %u stopped", id);
+      ctx->sync_down("WaitThreads");
+      while (ctx->getProperty("Pause", (Uint32)0) && !ctx->isTestStopped())
+        NdbSleep_MilliSleep(15);
+      
+      if (ctx->isTestStopped())
+        break;
+      ndbout_c("thread %u continue", id);
+    }
+
+    if ((res = hugoOps.startTransaction(pNdb)) != 0)
+    {
+      if (res == 4009)
+        return NDBT_FAILED;
+      continue;
+    }
+    
+    for (int i = 0; i < 10; i++)
+    {
+      int r = rand() % records;
+      if ((rand() % 100) < 50)
+      {
+        if (hugoOps.pkUpdateRecord(pNdb, r, 1, rand()) != 0)
+          goto err;
+      }
+      else
+      {
+        if (hugoOps.pkWriteRecord(pNdb, r, 1, rand()) != 0)
+          goto err;
+      }
+    }      
+    
+    if ((rand() % 100) < 90)
+    {
+      res = hugoOps.execute_Commit(pNdb);
+    }
+    else
+    {
+  err:
+      res = hugoOps.execute_Rollback(pNdb);
+    }
+    
+    hugoOps.closeTransaction(pNdb);
+
+    if (res == 4009)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int
+runBug41295(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+
+  int leak = 4002;
+  const int cases = 1;
+  int loops = ctx->getNumLoops();
+  if (loops <= cases)
+    loops = cases + 1;
+
+  for (int i = 0; i<loops; i++)
+  {
+    int master = res.getMasterNodeId();
+    int next = res.getNextMasterNodeId(master);
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(next, val2, 2))
+      return NDBT_FAILED;
+    
+    ndbout_c("stopping %u, err 8073", next);
+    res.insertErrorInNode(next, 8073);
+    ndbout_c("waiting for %u", next);
+    res.waitNodesNoStart(&next, 1);
+    
+    ndbout_c("pausing all threads");
+    ctx->setProperty("Pause", 1);
+    ctx->sync_up_and_wait("WaitThreads", ctx->getProperty("Threads", 1));
+    ndbout_c("all threads paused");
+    NdbSleep_MilliSleep(5000);
+    res.dumpStateAllNodes(&leak, 1);
+    NdbSleep_MilliSleep(1000);
+    if (res.checkClusterAlive(&next, 1))
+    {
+      return NDBT_FAILED;
+    }
+    ndbout_c("restarting threads");
+    ctx->setProperty("Pause", (Uint32)0);
+    
+    ndbout_c("starting %u", next);
+    res.startNodes(&next, 1);
+    ndbout_c("waiting for cluster started");
+    if (res.waitClusterStarted())
+    {
+      return NDBT_FAILED;
+    }
+
+    ndbout_c("pausing all threads");
+    ctx->setProperty("Pause", 1);
+    ctx->sync_up_and_wait("WaitThreads", ctx->getProperty("Threads", 1));
+    ndbout_c("all threads paused");
+    NdbSleep_MilliSleep(5000);
+    res.dumpStateAllNodes(&leak, 1);
+    NdbSleep_MilliSleep(1000);
+    ndbout_c("restarting threads");
+    ctx->setProperty("Pause", (Uint32)0);
+  }
+  
+  ctx->stopTest();
   return NDBT_OK;
 }
 
@@ -3778,6 +3910,14 @@ TESTCASE("NF_Hammer", ""){
   STEPS(runHammer, 25);
   STEP(runRestarter);
   VERIFIER(runClearTable);
+}
+TESTCASE("Bug41295", "")
+{
+  TC_PROPERTY("Threads", 25);
+  INITIALIZER(runLoadTable);
+  STEPS(runMixedLoad, 25);
+  STEP(runBug41295);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
