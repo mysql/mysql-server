@@ -289,7 +289,7 @@ clean: clean-default
 clean-default:
 	$(MAYBEATSIGN)rm -f $(BINS) *.$(AEXT) *.$(SOEXT) *.$(OEXT)
 	$(MAYBEATSIGN)rm -f *.bb *.bbg *.da *.gcov *.gcno *.gcda
-	$(MAYBEATSIGN)rm -f *.exe *.obj *.pdb *.ilk TAGS cscope.out cscope.files
+	$(MAYBEATSIGN)rm -f *.exe *.obj *.pdb *.ilk
 	$(MAYBEATSIGN)rm -f *.exe.manifest *.dll.manifest
 
 #Prevent using the wrong extensions/target types (Otherwise prereqs get confused).
