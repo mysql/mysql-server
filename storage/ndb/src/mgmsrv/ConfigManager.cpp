@@ -256,7 +256,7 @@ ConfigManager::init_nodeid(void)
   {
     // Nodeid was specifed on command line or in NDB_CONNECTSTRING
     g_eventLogger->debug("Got nodeid: %d from command line "    \
-                         "or NDB_CONNECTSTRING", m_node_id);
+                         "or NDB_CONNECTSTRING", nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
   }
