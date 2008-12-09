@@ -3246,6 +3246,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     releaseAttrinfo();
     regApiPtr->lqhkeyreqrec--;
     unlinkReadyTcCon(signal);
+    clearCommitAckMarker(regApiPtr, regTcPtr);
     releaseTcCon();
 
     if (trigOp != RNIL)
