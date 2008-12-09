@@ -227,6 +227,12 @@ extern "C" int gethostname(char *name, int namelen);
 
 extern "C" sig_handler handle_segfault(int sig);
 
+#if defined(__linux__)
+#define ENABLE_TEMP_POOL 1
+#else
+#define ENABLE_TEMP_TOOL 0
+#endif
+
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
@@ -3398,8 +3404,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
   sys_var_slow_log_path.value= my_strdup(s, MYF(0));
   sys_var_slow_log_path.value_length= strlen(s);
 
+#if (ENABLE_TEMP_POOL)
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
+#else
+  use_temp_pool= 0;
+#endif
+
   if (my_database_names_init())
     return 1;
 
@@ -6297,9 +6308,14 @@ log and this option does nothing anymore.",
    (uchar**) &opt_tc_heuristic_recover, (uchar**) &opt_tc_heuristic_recover,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"temp-pool", OPT_TEMP_POOL,
+#if (ENABLE_TEMP_POOL)
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
+#else
+   "This option is ignored on this OS.",
+#endif
    (uchar**) &use_temp_pool, (uchar**) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
+
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
    (uchar**) &timed_mutexes, (uchar**) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
