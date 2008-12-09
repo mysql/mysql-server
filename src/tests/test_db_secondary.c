@@ -188,7 +188,9 @@ verify_gone (void) {
     r = sdbp->pget(sdbp, null_txn, &skey, &key, &data, 0);assert(r == DB_NOTFOUND);
 }
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     int r;
 
     system("rm -rf " ENVDIR);

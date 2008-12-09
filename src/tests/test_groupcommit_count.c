@@ -98,7 +98,8 @@ printtdiff (char *str) {
     prev_count=fcount;
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     progname=argv[0];
     parse_args(argc, argv);
 

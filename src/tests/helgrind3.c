@@ -83,7 +83,8 @@ void *startb(void* ignore __attribute__((__unused__))) {
     return 0;
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     pthread_t a,b;
     initialize();

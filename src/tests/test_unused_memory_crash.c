@@ -79,7 +79,8 @@ test_cursor_nonleaf_expand (int n, int reverse) {
     r = db->close(db, 0); assert(r == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     system("rm -rf " ENVDIR);

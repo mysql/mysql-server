@@ -79,7 +79,8 @@ test_cachesize (void) {
 }
 
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     test_cachesize();
 

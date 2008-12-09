@@ -239,7 +239,8 @@ setup_secondary (u_int32_t flags) {
     r = dbp->associate(dbp, NULL, sdbp, identity_callback, 0);                          CKERR(r);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
     
     parse_args(argc, argv);

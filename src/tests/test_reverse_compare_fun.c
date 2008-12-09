@@ -138,7 +138,8 @@ test_reverse_compare (int n, int dup_flags) {
     CKERR(r);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     int i;

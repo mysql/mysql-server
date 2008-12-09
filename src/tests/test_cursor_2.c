@@ -78,7 +78,8 @@ test_cursor (void) {
     r = env->close(env, 0); assert(r == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   

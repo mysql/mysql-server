@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 // make stdlib define unsetenv()
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -63,7 +65,9 @@ reinit_config (int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
 
 }
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     DB_ENV *env;
     DB_TXN * const null_txn = 0;
     DB *db;

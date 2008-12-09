@@ -124,7 +124,8 @@ do_abort_delete_first_or_last(int N,
 #endif
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     int f;
     for (f=0; f<2; f++) {

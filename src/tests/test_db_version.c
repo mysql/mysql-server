@@ -7,15 +7,11 @@
 
 #include "test.h"
 
-int main (int argc, char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     const char *v;
     int major, minor, patch;
-    int i;
-    for (i=1; i<argc; i++) {
-        char *arg = argv[i];
-        if (strcmp(arg, "-v") == 0)
-            verbose++;
-    }
+    parse_args(argc, argv);
     v = db_version(0, 0, 0);
     assert(v!=0);
     v = db_version(&major, &minor, &patch);

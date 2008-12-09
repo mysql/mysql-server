@@ -269,7 +269,8 @@ cursor_setup (DBC* dbc, u_int32_t flag) {
     
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
     int r;
     DBC* dbc;

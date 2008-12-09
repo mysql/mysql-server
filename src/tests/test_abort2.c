@@ -109,7 +109,8 @@ do_test_abort2 (void) {
 
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     do_test_abort2();
     return 0;

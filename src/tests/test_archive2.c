@@ -4,7 +4,8 @@
 #include <sys/stat.h>
 #include "test.h"
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     DB_ENV *env;
     DB *db, *db2;

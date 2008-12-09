@@ -717,7 +717,8 @@ test_i0i1ci0_search (int n, int dup_mode) {
     assert(r == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
 
     parse_args(argc, argv);

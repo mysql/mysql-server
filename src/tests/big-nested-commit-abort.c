@@ -101,7 +101,8 @@ test_shutdown (void) {
     r=env->close(env, 0); CKERR(r);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     setup();
     test_commit_abort();

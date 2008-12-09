@@ -57,7 +57,8 @@ close_dbs (void) {
     r = db->close(db, 0);       CKERR(r);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
     int r;
     

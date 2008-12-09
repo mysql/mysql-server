@@ -60,7 +60,8 @@ test_cursor_delete2 (void) {
     r = dbenv->close(dbenv, 0);                                                              CKERR(r);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   

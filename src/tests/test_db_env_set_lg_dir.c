@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 #include <stdio.h>
 #include <assert.h>
 #include <toku_portability.h>
@@ -10,11 +12,11 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
-
 // ENVDIR is defined in the Makefile
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     DB_ENV *dbenv;
     int r;
 

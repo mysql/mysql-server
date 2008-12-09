@@ -13,7 +13,8 @@ handle_error (const DB_ENV *UU(dbenv), const char *errpfx, const char *UU(msg)) 
     assert(errpfx==expect_errpfx);
     n_handle_error++;
 }
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
 
 #if defined(OSX)

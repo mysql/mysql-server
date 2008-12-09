@@ -43,11 +43,12 @@ seqinsert (int n, float p) {
     r = env->close(env, 0); assert(r == 0);
 }
 
-int main(int argc, char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     srandom(time(0));
     int i;
     for (i=1; i<argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0) {
             verbose++;
             continue;
