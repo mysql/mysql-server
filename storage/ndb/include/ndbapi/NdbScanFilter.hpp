@@ -80,14 +80,18 @@ public:
 
   enum BinaryCondition 
   {
-    COND_LE = 0,        ///< lower bound
-    COND_LT = 1,        ///< lower bound, strict
-    COND_GE = 2,        ///< upper bound
-    COND_GT = 3,        ///< upper bound, strict
-    COND_EQ = 4,        ///< equality
-    COND_NE = 5,        ///< not equal
-    COND_LIKE = 6,      ///< like
-    COND_NOT_LIKE = 7   ///< not like
+    COND_LE = 0,           ///< lower bound
+    COND_LT = 1,           ///< lower bound, strict
+    COND_GE = 2,           ///< upper bound
+    COND_GT = 3,           ///< upper bound, strict
+    COND_EQ = 4,           ///< equality
+    COND_NE = 5,           ///< not equal
+    COND_LIKE = 6,         ///< like
+    COND_NOT_LIKE = 7,     ///< not like
+    COND_AND_EQ_MASK = 8,  ///< (bit & mask) == mask
+    COND_AND_NE_MASK = 9,  ///< (bit & mask) != mask (incl. NULL)
+    COND_AND_EQ_ZERO = 10, ///< (bit & mask) == 0
+    COND_AND_NE_ZERO = 11, ///< (bit & mask) != 0 (incl. NULL)
   };
 
   /** 
@@ -130,6 +134,9 @@ public:
    * documentation for NdbOperation::equal().
    * For BinaryConditions LIKE and NOT_LIKE, the value pointed to by val
    * should NOT include initial length bytes.
+   * For LIKE and NOT_LIKE, the % and ? wildcards are supported.
+   * For bitmask operations, see the bitmask format information against
+   * the branch_col_and_mask_eq_mask instruction in NdbInterpretedCode.hpp
    *
    *  ®return  0 if successful, -1 otherwise
    */
