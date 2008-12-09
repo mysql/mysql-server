@@ -4285,10 +4285,12 @@ int toku_brt_truncate (BRT brt) {
 
 static void toku_brt_lock_init(void) {
     toku_pwrite_lock_init();
+    toku_logger_lock_init();
 }
 
 static void toku_brt_lock_destroy(void) {
     toku_pwrite_lock_destroy();
+    toku_logger_lock_destroy();
 }
 
 void toku_brt_init(void) {
