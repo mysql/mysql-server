@@ -40,3 +40,4 @@ count(*)
 65536
 DROP PROCEDURE  sp_addRec;
 DROP TABLE t1;
+SET @@global.myisam_data_pointer_size = default;

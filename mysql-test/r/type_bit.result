@@ -708,6 +708,21 @@ HEX(b1)	HEX(b2)	i2
 1	0	100
 1	0	200
 DROP TABLE t1, t2;
+CREATE TABLE IF NOT EXISTS t1 (
+f1 bit(2) NOT NULL default b'10',
+f2 bit(14) NOT NULL default b'11110000111100'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bit(2) NOT NULL DEFAULT b'10',
+  `f2` bit(14) NOT NULL DEFAULT b'11110000111100'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
+DROP TABLE t1;
+CREATE TABLE IF NOT EXISTS t1 (
+f1 bit(2) NOT NULL default b''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+ERROR 42000: Invalid default value for 'f1'
 End of 5.0 tests
 create table t1(a bit(7));
 insert into t1 values(0x40);
