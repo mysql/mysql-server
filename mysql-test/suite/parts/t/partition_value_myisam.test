@@ -8,9 +8,9 @@
 #------------------------------------------------------------------------------#
 # Original Author: mleich                                                      #
 # Original Date: 2006-04-11                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Change Author: mleich                                                        #
+# Change Date: 2008-12-08                                                      #
+# Change: Remove test from disabled.def + change test that it gets skipped     #
 ################################################################################
 
 #
@@ -21,6 +21,12 @@
 # Please read the README at the end of inc/partition.pre before changing
 # any of the variables.
 #
+
+#
+# CAST() within the partitioning function si no more supported, but we get
+# this functionality probably soon again. Therefor we do not delete this test.
+--skip # CAST() in partitioning function is currently not supported.
+
 
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements
