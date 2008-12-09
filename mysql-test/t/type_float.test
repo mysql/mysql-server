@@ -265,7 +265,7 @@ insert into t1(d) values (9.2233720368547777e+18),
                          (1.84e19);
 
 update t1 set u = d;
-select * from t1;
+select u from t1;
 
 drop table t1;
 
