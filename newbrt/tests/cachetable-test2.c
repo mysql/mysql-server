@@ -162,7 +162,6 @@ static void test_chaining (void) {
 	assert(r==0);
 	//print_ints();
     }
-    test_mutex_init();
     for (trial=0; trial<TRIALS; trial++) {
 	if (n_present>0) {
 	    // First touch some random ones
@@ -227,7 +226,6 @@ static void test_chaining (void) {
 	r = toku_cachefile_close(&f[i], 0); assert(r==0);
     }
     r = toku_cachetable_close(&ct); assert(r==0);
-    test_mutex_destroy();
 }
 
 static void __attribute__((__noreturn__))
@@ -238,7 +236,9 @@ usage (const char *progname) {
 
 int main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
+    test_mutex_init();
     test_chaining();
+    test_mutex_destroy();
     toku_malloc_cleanup();
     if (verbose) printf("ok\n");
     return 0;
