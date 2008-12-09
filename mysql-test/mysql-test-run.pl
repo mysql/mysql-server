@@ -4006,11 +4006,13 @@ sub mysqld_arguments ($$$$) {
   }
 
   my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
-  mtr_add_arg($args, "%s--general-log-file=%s.log --general-log",
+  mtr_add_arg($args, "%s--general-log-file=%s.log",
               $prefix, $log_base_path);
+  mtr_add_arg($args, "--general-log");
   mtr_add_arg($args,
-	      "%s--slow-query-log-file=%s-slow.log --slow-query-log",
+	      "%s--slow-query-log-file=%s-slow.log",
               $prefix, $log_base_path);
+  mtr_add_arg($args, "--slow-query-log");
 
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
@@ -5113,8 +5115,9 @@ sub gdb_arguments {
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n");
+    mtr_tofile($gdb_init_file, <<EOGDB );
+set args $str
+EOGDB
   }
 
   if ( $opt_manual_gdb )

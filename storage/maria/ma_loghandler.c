@@ -618,11 +618,11 @@ static LOG_DESC INIT_LOGREC_PREPARE_WITH_UNDO_PURGE=
 
 static LOG_DESC INIT_LOGREC_COMMIT=
 {LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL,
- NULL, NULL, 0, "commit", LOGREC_IS_GROUP_ITSELF, NULL,
+ write_hook_for_commit, NULL, 0, "commit", LOGREC_IS_GROUP_ITSELF, NULL,
  NULL};
 
 static LOG_DESC INIT_LOGREC_COMMIT_WITH_UNDO_PURGE=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1,
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, write_hook_for_commit, NULL, 1,
  "commit_with_undo_purge", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CHECKPOINT=
@@ -1404,18 +1404,21 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
   SYNOPSIS
     translog_buffer_init()
     buffer               The buffer to initialize
+    num                  Number of this buffer
 
   RETURN
     0  OK
     1  Error
 */
 
-static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
+static my_bool translog_buffer_init(struct st_translog_buffer *buffer, int num)
 {
   DBUG_ENTER("translog_buffer_init");
   buffer->prev_last_lsn= buffer->last_lsn= LSN_IMPOSSIBLE;
   DBUG_PRINT("info", ("last_lsn  and prev_last_lsn set to 0  buffer: 0x%lx",
                       (ulong) buffer));
+
+  buffer->buffer_no= (uint8) num;
   /* This Buffer File */
   buffer->file= NULL;
   buffer->overlay= 0;
@@ -1430,10 +1433,23 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
   buffer->copy_to_buffer_in_progress= 0;
   /* list of waiting buffer ready threads */
   buffer->waiting_flush= 0;
-  /* lock for the buffer. Current buffer also lock the handler */
+  /*
+    Buffers locked by fallowing mutex. As far as buffers create logical
+    circle (after last buffer goes first) it trigger false alarm of deadlock
+    detect system, so we remove check of deadlock for this buffers. In deed
+    all mutex locks concentrated around current buffer except flushing
+    thread (but it is only one thread). One thread can't take more then
+    2 buffer locks at once. So deadlock is impossible here.
+
+    To prevent false alarm of dead lock detection we switch dead lock
+    detection for one buffer in the middle of the buffers chain. Excluding
+    only one of eight buffers from deadlock detection hardly can hide other
+    possible problems which include this mutexes.
+  */
   if (my_pthread_mutex_init(&buffer->mutex, MY_MUTEX_INIT_FAST,
                             "translog_buffer->mutex",
-                            MYF_NO_DEADLOCK_DETECTION) ||
+                            (num == TRANSLOG_BUFFERS_NO - 2 ?
+                             MYF_NO_DEADLOCK_DETECTION : 0)) ||
       pthread_cond_init(&buffer->prev_sent_to_disk_cond, 0))
     DBUG_RETURN(1);
   buffer->is_closing_buffer= 0;
@@ -3555,9 +3571,8 @@ my_bool translog_init_with_table(const char *directory,
   /* Buffers for log writing */
   for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
   {
-    if (translog_buffer_init(log_descriptor.buffers + i))
+    if (translog_buffer_init(log_descriptor.buffers + i, i))
       goto err;
-    log_descriptor.buffers[i].buffer_no= (uint8) i;
     DBUG_PRINT("info", ("translog_buffer buffer #%u: 0x%lx",
                         i, (ulong) log_descriptor.buffers + i));
   }

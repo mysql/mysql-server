@@ -271,6 +271,9 @@ my_bool write_hook_for_undo_bulk_insert(enum translog_record_type type,
 my_bool write_hook_for_file_id(enum translog_record_type type,
                                TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                void *hook_arg);
+my_bool write_hook_for_commit(enum translog_record_type type,
+                              TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                              void *hook_arg);
 void _ma_block_get_status(void* param, my_bool concurrent_insert);
 void _ma_block_update_status(void *param);
 void _ma_block_restore_status(void *param);

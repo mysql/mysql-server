@@ -13,7 +13,7 @@ append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
 wait-maria_empty_logs.inc
 EOF
 
---exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= shutdown 2>&1;
+--source include/mysqladmin_shutdown.inc
 
 if (!$mel_keep_control_file)
 {

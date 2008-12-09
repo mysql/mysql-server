@@ -1405,6 +1405,9 @@ innobase_init(
 	int		err;
 	bool		ret;
 	char		*default_path;
+#ifdef SAFE_MUTEX
+	my_bool         old_safe_mutex_deadlock_detector;
+#endif
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
@@ -1660,13 +1663,13 @@ innobase_init(
 	srv_sizeof_trx_t_in_ha_innodb_cc = sizeof(trx_t);
 
 #ifdef SAFE_MUTEX
-        /* Disable deadlock detection as it's very slow for the buffer pool */
-        my_bool old_safe_mutex_deadlock_detector;
-        safe_mutex_deadlock_detector= 0;
+	/* Disable deadlock detection as it's very slow for the buffer pool */
+	old_safe_mutex_deadlock_detector= safe_mutex_deadlock_detector;
+	safe_mutex_deadlock_detector= 0;
 #endif
 	err = innobase_start_or_create_for_mysql();
 #ifdef SAFE_MUTEX
-        safe_mutex_deadlock_detector= old_safe_mutex_deadlock_detector;
+	safe_mutex_deadlock_detector= old_safe_mutex_deadlock_detector;
 #endif
 	if (err != DB_SUCCESS) {
 		my_free(internal_innobase_data_file_path,

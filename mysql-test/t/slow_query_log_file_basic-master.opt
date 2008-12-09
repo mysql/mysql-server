@@ -1,1 +1,1 @@
---log-slow-queries=slowtest.log
+--slow-query-log --slow-query-log-file=slowtest.log

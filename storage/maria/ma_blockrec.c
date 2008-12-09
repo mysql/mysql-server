@@ -5914,7 +5914,7 @@ my_bool write_hook_for_file_id(enum translog_record_type type
                                TRN *trn
                                __attribute__ ((unused)),
                                MARIA_HA *tbl_info,
-                               LSN *lsn __attribute__ ((unused)),
+                               LSN *lsn,
                                void *hook_arg
                                __attribute__ ((unused)))
 {
@@ -5922,6 +5922,44 @@ my_bool write_hook_for_file_id(enum translog_record_type type
   tbl_info->s->lsn_of_file_id= *lsn;
   return 0;
 }
+
+
+/**
+   Updates transaction's rec_lsn when committing.
+
+   A transaction writes its commit record before being committed in trnman, so
+   if Checkpoint happens just between the COMMIT record log write and the
+   commit in trnman, it will record that transaction is not committed. Assume
+   the transaction (trn1) did an INSERT; after the checkpoint, a second
+   transaction (trn2) does a DELETE of what trn1 has inserted. Then crash,
+   Checkpoint record says that trn1 was not committed, and REDO phase starts
+   from Checkpoint record's LSN. So it will not find the COMMIT record of
+   trn1, will want to roll back trn1, which will fail because the row/key
+   which it wants to delete does not exist anymore.
+   To avoid this, Checkpoint needs to know that the REDO phase must start
+   before this COMMIT record, so transaction sets its rec_lsn to the COMMIT's
+   record LSN, and as Checkpoint reads the transaction's rec_lsn, Checkpoint
+   will know.
+
+   @note so after commit trn->rec_lsn is a "commit LSN", which could be of
+   use later.
+
+   @return Operation status, always 0 (success)
+*/
+
+my_bool write_hook_for_commit(enum translog_record_type type
+                              __attribute__ ((unused)),
+                              TRN *trn,
+                              MARIA_HA *tbl_info
+                              __attribute__ ((unused)),
+                              LSN *lsn,
+                              void *hook_arg
+                              __attribute__ ((unused)))
+{
+  trn->rec_lsn= *lsn;
+  return 0;
+}
+
 
 /***************************************************************************
   Applying of REDO log records

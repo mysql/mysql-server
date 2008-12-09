@@ -3449,23 +3449,23 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_slave.value=my_strdup("",MYF(0));
 
   /* check log options and issue warnings if needed */
-  if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
-      !(log_output_options & LOG_NONE))
+  if (opt_log && opt_logname && *opt_logname &&
+      !(log_output_options & (LOG_FILE | LOG_NONE)))
     sql_print_warning("Although a path was specified for the "
                       "--log option, log tables are used. "
                       "To enable logging to files use the --log-output option.");
 
-  if (opt_slow_log && opt_slow_logname && !(log_output_options & LOG_FILE)
-      && !(log_output_options & LOG_NONE))
+  if (opt_slow_log && opt_slow_logname && *opt_slow_logname &&
+      !(log_output_options & (LOG_FILE | LOG_NONE)))
     sql_print_warning("Although a path was specified for the "
                       "--log_slow_queries option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
-  s= opt_logname ? opt_logname : make_default_log_name(buff, ".log");
+  s= opt_logname && *opt_logname ? opt_logname : make_default_log_name(buff, ".log");
   sys_var_general_log_path.value= my_strdup(s, MYF(0));
   sys_var_general_log_path.value_length= strlen(s);
 
-  s= opt_slow_logname ? opt_slow_logname : make_default_log_name(buff, "-slow.log");
+  s= opt_slow_logname && *opt_slow_logname ? opt_slow_logname : make_default_log_name(buff, "-slow.log");
   sys_var_slow_log_path.value= my_strdup(s, MYF(0));
   sys_var_slow_log_path.value_length= strlen(s);
 
