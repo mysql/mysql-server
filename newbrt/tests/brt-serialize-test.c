@@ -119,7 +119,7 @@ static void test_serialize(void) {
 
     block_allocator_free_block(brt_h->block_allocator, 4096);
     destroy_block_allocator(&brt_h->block_allocator);
-    toku_free(btps);
+    toku_free(brt_h->block_translation);
     toku_free(brt_h);
     toku_free(brt);
 }
