@@ -6,7 +6,7 @@
 int
 toku_pthread_mutex_init(toku_pthread_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     assert(attr == NULL);
-    assert(!mutex->initialized);
+    // assert(!mutex->initialized);
     InitializeCriticalSection(&mutex->section);
     mutex->initialized = TRUE;
     return 0;
