@@ -2386,6 +2386,9 @@ sub remove_stale_vardir () {
     mtr_verbose("Removing $opt_vardir/");
     mtr_rmtree("$opt_vardir/");
   }
+  # Remove the "tmp" dir
+  mtr_verbose("Removing $opt_tmpdir/");
+  mtr_rmtree("$opt_tmpdir/");
 }
 
 #
