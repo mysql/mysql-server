@@ -1,0 +1,31 @@
+CREATE TABLE t1 (i int unique) ENGINE=innodb;
+reset master;
+begin;
+insert into t1 values (1),(2);
+*** the following UPDATE query wont generate any updates for the binlog ***
+update t1 set i = 3 where i < 3;
+ERROR 23000: Duplicate entry '3' for key 'i'
+commit;
+*** Results of the test: the binlog must have only Write_rows events not any Update_rows ***
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+reset master;
+begin;
+insert into t1 values (1),(2);
+*** the following UPDATE query wont generate any updates for the binlog ***
+insert into t1 values (3),(4),(1),(2);
+ERROR 23000: Duplicate entry '1' for key 'i'
+commit;
+*** Results of the test: the binlog must have only one Write_rows event not two ***
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+drop table t1;

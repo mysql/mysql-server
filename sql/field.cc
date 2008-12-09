@@ -3835,7 +3835,7 @@ int Field_longlong::store(double nr)
       error= 1;
     }
     else
-      res=(longlong) (ulonglong) nr;
+      res=(longlong) double2ulonglong(nr);
   }
   else
   {

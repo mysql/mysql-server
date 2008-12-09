@@ -3111,10 +3111,12 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
   }
-    
+
   if ((sql_field->flags & BLOB_FLAG) && sql_field->length)
   {
-    if (sql_field->sql_type == MYSQL_TYPE_BLOB)
+    if (sql_field->sql_type == FIELD_TYPE_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB)
     {
       /* The user has given a length to the blob column */
       sql_field->sql_type= get_blob_type_from_length(sql_field->length);
@@ -4319,6 +4321,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
+      thd->main_da.reset_diagnostics_area();
       continue;
       /* purecov: end */
     }
