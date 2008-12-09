@@ -339,9 +339,9 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     logger->fd=-1;
 
     r = ml_unlock(&logger->output_lock);  if (r!=0) goto panic;
+ is_closed:
     r = ml_destroy(&logger->output_lock); if (r!=0) goto panic;
     r = ml_destroy(&logger->input_lock);  if (r!=0) goto panic;
- is_closed:
     logger->is_panicked=1; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
     toku_free(logger);
