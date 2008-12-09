@@ -1560,6 +1560,7 @@ void ClientHello::Process(input_buffer&, SSL& ssl)
         return;
     }
     ssl.matchSuite(cipher_suites_, suite_len_);
+    if (ssl.GetError()) return;
     ssl.set_pending(ssl.getSecurity().get_parms().suite_[1]);
 
     if (compression_methods_ == zlib)

@@ -1768,10 +1768,9 @@ int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */
-extern ulong volatile manager_status;
-extern bool volatile manager_thread_in_use, mqh_used;
-extern pthread_t manager_thread;
-pthread_handler_t handle_manager(void *arg);
+extern bool volatile  mqh_used;
+void start_handle_manager();
+void stop_handle_manager();
 bool mysql_manager_submit(void (*action)());
 
 
@@ -2175,8 +2174,8 @@ void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
 void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
-ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
-                             Item *warn_item, bool *is_null);
+longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                            Item *warn_item, bool *is_null);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
