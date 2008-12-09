@@ -4319,6 +4319,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
+      thd->main_da.reset_diagnostics_area();
       continue;
       /* purecov: end */
     }
