@@ -367,6 +367,36 @@ CREATE TABLE IF NOT EXISTS t1 (
 f1 bit(2) NOT NULL default b''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
 
+
+#
+# Bug#31399 Wrong query result when doing join buffering over BIT fields 
+#
+create table t1bit7 (a1 bit(7) not null) engine=MyISAM; 
+create table t2bit7 (b1 bit(7)) engine=MyISAM; 
+
+insert into t1bit7 values (b'1100000'); 
+insert into t1bit7 values (b'1100001'); 
+insert into t1bit7 values (b'1100010'); 
+insert into t2bit7 values (b'1100001'); 
+insert into t2bit7 values (b'1100010'); 
+insert into t2bit7 values (b'1100110'); 
+
+select bin(a1) from t1bit7, t2bit7 where t1bit7.a1=t2bit7.b1; 
+drop table t1bit7, t2bit7; 
+
+create table t1bit7 (a1 bit(15) not null) engine=MyISAM; 
+create table t2bit7 (b1 bit(15)) engine=MyISAM; 
+
+insert into t1bit7 values (b'110000011111111'); 
+insert into t1bit7 values (b'110000111111111'); 
+insert into t1bit7 values (b'110001011111111'); 
+insert into t2bit7 values (b'110000111111111'); 
+insert into t2bit7 values (b'110001011111111'); 
+insert into t2bit7 values (b'110011011111111'); 
+
+select bin(a1) from t1bit7, t2bit7 where t1bit7.a1=t2bit7.b1; 
+drop table t1bit7, t2bit7; 
+
 --echo End of 5.0 tests
 
 #
