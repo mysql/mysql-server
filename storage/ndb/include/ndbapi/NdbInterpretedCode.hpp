@@ -225,27 +225,30 @@ public:
    * Space required        Buffer          Request message
    *   branch_col_*_null   2 words         2 words
    *   branch_col_*        2 words +       2 words + 
-   *                       len bytes       len bytes
+   *                       type length     type length
    *                       rounded to      rounded to
    *                       nearest word    nearest word
    *
+   *                       Only significant words stored/
+   *                       sent for VAR* types
+   *
    * @param val       ptr to const value to compare against
-   * @param len       length in bytes of const value
+   * @param unused    unnecessary
    * @param attrId    column to compare
    * @param Label     Program label to jump to if condition is true
    * @return 0 if successful, -1 otherwise.
    */
-  int branch_col_eq(const void * val, Uint32 len, Uint32 attrId,
+  int branch_col_eq(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
-  int branch_col_ne(const void * val, Uint32 len, Uint32 attrId,
+  int branch_col_ne(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
-  int branch_col_lt(const void * val, Uint32 len, Uint32 attrId,
+  int branch_col_lt(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
-  int branch_col_le(const void * val, Uint32 len, Uint32 attrId,
+  int branch_col_le(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
-  int branch_col_gt(const void * val, Uint32 len, Uint32 attrId,
+  int branch_col_gt(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
-  int branch_col_ge(const void * val, Uint32 len, Uint32 attrId,
+  int branch_col_ge(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
   int branch_col_eq_null(Uint32 attrId, Uint32 Label);
   int branch_col_ne_null(Uint32 attrId, Uint32 Label);
@@ -280,12 +283,59 @@ public:
    * @param attrId    column to compare
    * @param Label     Program label to jump to if condition is true
    * @return 0 if successful, -1 otherwise.
-
+   *
    */
   int branch_col_like(const void * val, Uint32 len, Uint32 attrId,
                       Uint32 Label);
   int branch_col_notlike(const void * val, Uint32 len, Uint32 attrId,
                          Uint32 Label);
+
+  /* Table based bitwise logical conditional operations
+   * --------------------------------------------------
+   * These instructions are used to branch based on the 
+   * result of logical AND between Bit type column data 
+   * and a bitmask pattern.
+   *
+   * These instructions require that the table being operated
+   * upon was supplied when the NdbInterpretedCode object was
+   * constructed.
+   *
+   * The mask value should be the same size as the bit column
+   * being compared.
+   * Bitfields are passed in/out of NdbApi as 32-bit words
+   * with bits set from lsb to msb.
+   * The platform's endianness controls which byte contains
+   * the ls bits.  
+   *   x86= first(0th) byte.  Sparc/PPC= last(3rd byte)
+   *
+   * To set bit n of a bitmask to 1 from a Uint32* mask :
+   *   mask[n >> 5] |= (1 << (n & 31))
+   *
+   * if (BitWiseAnd(ValueOf(attrId), *mask) <EQ/NE> <*mask/0>)
+   *   goto Label;
+   *
+   * Space required        Buffer          Request message
+   *   branch_col_and_mask_eq_mask/
+   *   branch_col_and_mask_ne_mask/
+   *   branch_col_and_mask_eq_zero/
+   *   branch_col_and_mask_ne_zero
+   *                       2 words +       2 words + 
+   *                       column width    column width
+   *                       rounded to      rounded to
+   *                       nearest word    nearest word
+   *
+   * @param mask      ptr to const mask to use
+   * @param unused    unnecessary
+   * @param attrId    column to compare
+   * @param Label     Program label to jump to if condition is true
+   * @return 0 if successful, -1 otherwise.
+   *
+   */
+  int branch_col_and_mask_eq_mask(const void * mask, Uint32 unused, Uint32 attrId, Uint32 Label);
+  int branch_col_and_mask_ne_mask(const void * mask, Uint32 unused, Uint32 attrId, Uint32 Label);
+  int branch_col_and_mask_eq_zero(const void * mask, Uint32 unused, Uint32 attrId, Uint32 Label);
+  int branch_col_and_mask_ne_zero(const void * mask, Uint32 unused, Uint32 attrId, Uint32 Label);
+
 
   /* Program results 
    * ---------------

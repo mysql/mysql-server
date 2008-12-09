@@ -1175,7 +1175,7 @@ args -n bug37672 T1
 
 #EOF 2008-07-04
 max-time: 500
-cmd: testScanFilter
+cmd: testScanFilter T1
 args: 
 
 #EOF 2008-07-09

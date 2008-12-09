@@ -52,6 +52,15 @@ public:
    */
   typedef int Like(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2);
 
+  /**
+   * Prototype for mask comparisons.  Defined for bit type.
+   *
+   * If common portion of data AND Mask is equal to mask
+   * return 0, else return 1.
+   * If cmpZero, compare data AND Mask to zero.
+   */
+  typedef int AndMask(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero); 
+
   enum CmpResult {
     CmpLess = -1,
     CmpEqual = 0,
@@ -96,6 +105,7 @@ public:
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
     Like* m_like;       // "like" comparison method
+    AndMask* m_mask;    // Mask comparison method
   };
 
   /**
@@ -179,6 +189,8 @@ private:
   static Like likeVarbinary;
   static Like likeLongvarchar;
   static Like likeLongvarbinary;
+  //
+  static AndMask maskBit;
 };
 
 #endif

@@ -89,18 +89,17 @@ public:
   /**
    * Branch string
    *
-   * i = Instruction            -  5 Bits ( 0 - 5 ) max 63
-   * a = Attribute id
-   * l = Length of string
-   * b = Branch offset
-   * t = branch type
+   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
+   * a = Attribute id             -  16 bits
+   * l = Length of string (bytes) -  16 bits
+   * b = Branch offset (words)    -  16 bits
+   * t = branch type              -  4 bits
    * d = Array length diff
    * v = Varchar flag
-   * p = No-blank-padding flag for char compare
    *
    *           1111111111222222222233
    * 01234567890123456789012345678901
-   * iiiiii   ddvtttpbbbbbbbbbbbbbbbb
+   * iiiiii   ddvttttbbbbbbbbbbbbbbbb
    * aaaaaaaaaaaaaaaallllllllllllllll
    * -string....                    -
    */
@@ -117,17 +116,21 @@ public:
     GT = 4,
     GE = 5,
     LIKE = 6,
-    NOT_LIKE = 7
+    NOT_LIKE = 7,
+    AND_EQ_MASK = 8,
+    AND_NE_MASK = 9,
+    AND_EQ_ZERO = 10,
+    AND_NE_ZERO = 11
   };
+  // TODO : Remove other 2 unused parameters.
   static Uint32 BranchCol(BinaryCondition cond, 
-			  Uint32 arrayLengthDiff, Uint32 varchar, bool nopad);
+			  Uint32 arrayLengthDiff, Uint32 varchar);
   static Uint32 BranchCol_2(Uint32 AttrId);
   static Uint32 BranchCol_2(Uint32 AttrId, Uint32 Len);
 
   static Uint32 getBinaryCondition(Uint32 op1);
   static Uint32 getArrayLengthDiff(Uint32 op1);
   static Uint32 isVarchar(Uint32 op1);
-  static Uint32 isNopad(Uint32 op1);
   static Uint32 getBranchCol_AttrId(Uint32 op2);
   static Uint32 getBranchCol_Len(Uint32 op2);
   
@@ -216,15 +219,14 @@ inline
 Uint32
 Interpreter::BranchCol(BinaryCondition cond, 
 		       Uint32 arrayLengthDiff,
-		       Uint32 varchar, bool nopad){
-  //ndbout_c("BranchCol: cond=%d diff=%u varchar=%u nopad=%d",
-      //cond, arrayLengthDiff, varchar, nopad);
+		       Uint32 varchar){
+  //ndbout_c("BranchCol: cond=%d diff=%u varchar=%u",
+      //cond, arrayLengthDiff, varchar);
   return 
     BRANCH_ATTR_OP_ARG + 
     (arrayLengthDiff << 9) + 
     (varchar << 11) +
-    (cond << 12) +
-    (nopad << 15);
+    (cond << 12);
 }
 
 inline
@@ -242,7 +244,7 @@ Interpreter::BranchCol_2(Uint32 AttrId){
 inline
 Uint32
 Interpreter::getBinaryCondition(Uint32 op){
-  return (op >> 12) & 0x7;
+  return (op >> 12) & 0xf;
 }
 
 inline
@@ -255,12 +257,6 @@ inline
 Uint32
 Interpreter::isVarchar(Uint32 op){
   return (op >> 11) & 1;
-}
-
-inline
-Uint32
-Interpreter::isNopad(Uint32 op){
-  return (op >> 15) & 1;
 }
 
 inline
