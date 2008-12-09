@@ -217,7 +217,7 @@ row_purge_remove_sec_if_poss_low(
 	ibool		found;
 	ulint		err;
 	mtr_t		mtr;
-	mtr_t*		mtr_vers;
+	mtr_t		mtr_vers;
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -250,21 +250,17 @@ row_purge_remove_sec_if_poss_low(
 	which cannot be purged yet, requires its existence. If some requires,
 	we should do nothing. */
 
-	mtr_vers = mem_alloc(sizeof(mtr_t));
+	mtr_start(&mtr_vers);
 
-	mtr_start(mtr_vers);
-
-	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, mtr_vers);
+	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr_vers);
 
 	if (success) {
 		old_has = row_vers_old_has_index_entry(
 			TRUE, btr_pcur_get_rec(&(node->pcur)),
-			mtr_vers, index, entry);
+			&mtr_vers, index, entry);
 	}
 
-	btr_pcur_commit_specify_mtr(&(node->pcur), mtr_vers);
-
-	mem_free(mtr_vers);
+	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
 
 	if (!success || !old_has) {
 		/* Remove the index record */
