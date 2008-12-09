@@ -27,3 +27,25 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+drop table if exists t1;
+create table t1(f1 int, f2 varchar(255));
+insert into t1 values(1, 'foo'), (2, 'bar');
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+flush tables;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	error	Table 'test.t1' is read only
+Warnings:
+Error	1036	Table 't1' is read only
+drop table t1;
