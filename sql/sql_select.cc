@@ -13233,6 +13233,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
   length=0;
   for (i=0 ; i < table_count ; i++)
   {
+    bool have_bit_fields= FALSE;
     uint null_fields=0,used_fields;
 
     Field **f_ptr,*field;
@@ -13247,13 +13248,16 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 	length+=field->fill_cache_field(copy);
 	if (copy->blob_field)
 	  (*blob_ptr++)=copy;
-	if (field->maybe_null())
+	if (field->real_maybe_null())
 	  null_fields++;
+        if (field->type() == MYSQL_TYPE_BIT &&
+            ((Field_bit*)field)->bit_len)
+          have_bit_fields= TRUE;    
 	copy++;
       }
     }
     /* Copy null bits from table */
-    if (null_fields && tables[i].table->s->null_fields)
+    if (null_fields || have_bit_fields)
     {						/* must copy null bits */
       copy->str=(char*) tables[i].table->null_flags;
       copy->length= tables[i].table->s->null_bytes;
