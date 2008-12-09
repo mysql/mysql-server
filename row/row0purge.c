@@ -217,7 +217,7 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 	ibool			old_has = FALSE;
 	ulint			err;
 	mtr_t			mtr;
-	mtr_t*			mtr_vers;
+	mtr_t			mtr_vers;
 	enum row_search_result	search_result;
 
 	log_free_check();
@@ -262,21 +262,17 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 	which cannot be purged yet, requires its existence. If some requires,
 	we should do nothing. */
 
-	mtr_vers = mem_alloc(sizeof(mtr_t));
+	mtr_start(&mtr_vers);
 
-	mtr_start(mtr_vers);
-
-	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, mtr_vers);
+	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr_vers);
 
 	if (success) {
 		old_has = row_vers_old_has_index_entry(
 			TRUE, btr_pcur_get_rec(&(node->pcur)),
-			mtr_vers, index, entry);
+			&mtr_vers, index, entry);
 	}
 
-	btr_pcur_commit_specify_mtr(&(node->pcur), mtr_vers);
-
-	mem_free(mtr_vers);
+	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
 
 	if (!old_has) {
 		/* Remove the index record */
