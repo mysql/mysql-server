@@ -1,5 +1,7 @@
 // Test the first case for the bug in #1308 (brt-serialize.c:33 does the cast wrong)
 
+
+#include "test.h"
 #include <assert.h>
 #include <string.h>
 
@@ -11,7 +13,7 @@
 #define BUFSIZE (16<<20)
 
 int
-main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__)))
 {
     unlink(FNAME);
     

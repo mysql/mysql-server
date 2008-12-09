@@ -1,5 +1,6 @@
 /* The goal of this test:  Make sure that when we aggressively promote 
  * that we don't get a fencepost error on the size.  (#399, I think)
+
  * 
  * For various values of I do the following:
  *
@@ -26,6 +27,7 @@
  *  
  */
 
+#include "test.h"
 #include "includes.h"
 
 static TOKUTXN const null_txn = 0;
@@ -135,11 +137,13 @@ doit (int ksize __attribute__((__unused__))) {
 
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     int i;
     doit(53);
     toku_malloc_cleanup();
-    exit(0);
+    return 0;
+    //Skip remaining tests.
     for (i=1; i<NODESIZE/2; i++) {
 	printf("extrasize=%d\n", i);
 	doit(i);

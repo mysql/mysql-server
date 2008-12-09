@@ -1,5 +1,7 @@
 #include "list.h"
 #include "toku_assert.h"
+
+#include "test.h"
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -144,7 +146,9 @@ static void test_move (int n) {
     assert(i == n);
 }
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test_push_pop(0);
     test_push_pop(8);
     test_push_pop_head(0);

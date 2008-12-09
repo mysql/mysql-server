@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "toku_portability.h"
+#include "brt.h"
 
 int verbose=0;
 
@@ -22,3 +23,13 @@ default_parse_args (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 }
+
+int test_main(int argc, const char *argv[]);
+
+int
+main(int argc, const char *argv[]) {
+    toku_brt_init();
+    test_main(argc, argv);
+    toku_brt_destroy();
+}
+

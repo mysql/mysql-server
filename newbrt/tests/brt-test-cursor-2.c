@@ -84,7 +84,8 @@ static void test_brt_cursor(DB *db) {
 }
 
 
-int main (int argc , const char *argv[]) {
+int
+test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
     DB a_db;

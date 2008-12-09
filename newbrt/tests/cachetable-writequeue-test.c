@@ -1,5 +1,7 @@
 #include "includes.h"
 
+
+#include "test.h"
 int verbose;
 
 typedef struct ctpair *PAIR;
@@ -194,15 +196,9 @@ test_flow_control (int limit, int n) {
     rwfc_destroy(rwfc);
 }
 
-int main(int argc, char *argv[]) {
-    int i;
-    for (i=1; i<argc; i++) {
-        char *arg = argv[i];
-        if (strcmp(arg, "-v") == 0) {
-            verbose++;
-            continue;
-        }
-    }
+int
+test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test_create_destroy();
     test_simple_enq_deq(0);
     test_simple_enq_deq(42);

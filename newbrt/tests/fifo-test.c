@@ -1,5 +1,7 @@
 #include "includes.h"
 
+
+#include "test.h"
 int verbose;
 
 static void
@@ -70,14 +72,9 @@ test_fifo_enq (int n) {
     assert(f == 0);
 }
 
-int main(int argc, char *argv[]) {
-    int i;
-    for (i = 1; i < argc; i++) {
-        char *arg = argv[i];
-        if (0 == strcmp(arg, "-v") || 0 == strcmp(arg, "--verbose")) {
-            verbose = 1; continue;
-        }
-    }
+int
+test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
 
     test_fifo_create();
     test_fifo_enq(4);

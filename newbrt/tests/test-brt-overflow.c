@@ -1,5 +1,7 @@
 /* Test an overflow condition on the leaf.  See #632. */
 
+
+#include "test.h"
 #include "includes.h"
 
 int verbose;
@@ -32,7 +34,8 @@ test_overflow (void) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     int i;
     for (i = 1; i < argc; i++) {
         const char *arg = argv[i];

@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 #include "includes.h"
 
 static void test_serialize(void) {
@@ -124,7 +126,8 @@ static void test_serialize(void) {
     toku_free(brt);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     toku_memory_check = 1;
     test_serialize();
     toku_malloc_cleanup();

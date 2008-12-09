@@ -1,5 +1,7 @@
 #include "includes.h"
 
+
+#include "test.h"
 static void
 test0 (void) {
     u_int32_t c = x1764_memory("", 0);
@@ -68,7 +70,8 @@ test2 (void) {
 	}
     }
 }
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     test0();
     test1();
     test2();

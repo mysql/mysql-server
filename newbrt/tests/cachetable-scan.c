@@ -1,6 +1,8 @@
 /* How fast can we read a file usng the cachetable interface. */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 #include "includes.h"
 
 enum { KEYLIMIT = 4, BLOCKSIZE=1<<20, N=2048};
@@ -98,7 +100,8 @@ static void readit (void) {
 	   N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6), udiff, sdiff);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     open_file();
     writeit();
     readit();

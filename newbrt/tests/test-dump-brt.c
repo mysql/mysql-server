@@ -6,7 +6,8 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     const char *n = __FILE__ "dump.brt";
     int r;
     BRT t;

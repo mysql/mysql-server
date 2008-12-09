@@ -97,7 +97,8 @@ void cachetable_checkpoint_test(int n, int dirty) {
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
     for (i=1; i<argc; i++) {
         if (strcmp(argv[i], "-v") == 0) {

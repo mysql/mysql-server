@@ -42,7 +42,8 @@ static void test_named_db (void) {
     toku_memory_check_all_free();
 }
 
-int main (int argc , const char *argv[]) {
+int
+test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
     test_named_db();
     toku_malloc_cleanup();

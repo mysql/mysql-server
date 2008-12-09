@@ -1,5 +1,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+
+#include "test.h"
 #include "toku_portability.h"
 #include <errno.h>
 #include <stdio.h>
@@ -16,7 +18,6 @@ typedef void *OMTVALUE;
 typedef OMTVALUE TESTVALUE;
 
 /* Things that would go in a omt-tests.h if we split to multiple files later. */
-int verbose=0;
 
 #define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); } while (0)
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)
@@ -972,7 +973,8 @@ runtests_create_choice (enum create_type create_choice) {
     test_invalidate(  create_choice, TRUE,  TRUE);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     init_globals();
     test_create(      CLOSE_WHEN_DONE);

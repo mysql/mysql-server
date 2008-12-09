@@ -1,5 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
+
+#include "test.h"
 #include "includes.h"
 
 static void ba_alloc_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
@@ -101,7 +103,7 @@ test_ba1 (int n_initial) {
     
 
 int
-main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     test_ba0();
     test_ba1(0);
     test_ba1(10);

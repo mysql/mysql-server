@@ -1,5 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #include "includes.h"
+
+#include "test.h"
 #include <signal.h>
 
 
@@ -12,7 +14,8 @@ static BOOL foo (void) {
 }
     
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     signal (SIGABRT, catch_abort);
     if (argc!=2) { printf("argcount should be 2.\n");  exit(1); }
     const char *str=argv[1];

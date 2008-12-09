@@ -162,7 +162,8 @@ static void test_rename (void) {
     assert(n_keys == 0);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     // parse args
     default_parse_args(argc, argv);
     toku_os_initialize_settings(verbose);

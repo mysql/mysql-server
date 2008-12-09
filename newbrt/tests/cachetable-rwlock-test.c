@@ -1,6 +1,7 @@
 #include "includes.h"
 
-int verbose = 0;
+
+#include "test.h"
 
 // test create and destroy
 
@@ -176,15 +177,9 @@ test_single_writer (void) {
     rw_event_destroy(rwe);
 }
 
-int main(int argc, char *argv[]) {
-    int i;
-    for (i=1; i<argc; i++) {
-        char *arg = argv[i];
-        if (strcmp(arg, "-v") == 0) {
-            verbose++;
-            continue;
-        }
-    }
+int
+test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test_create_destroy();
     test_simple_read_lock(0);
     test_simple_read_lock(42);

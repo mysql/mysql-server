@@ -1,5 +1,7 @@
 #include "toku_portability.h"
 #include "toku_os.h"
+
+#include "test.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,8 +11,6 @@
 #include <malloc.h>
 #include <toku_pthread.h>
 #include "threadpool.h"
-
-int verbose = 0;
 
 struct my_threadpool {
     THREADPOOL threadpool;
@@ -92,7 +92,8 @@ usage (void) {
     return 1;
 }
 
-int main(int argc, char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int max_threads = 1;
 #if defined(__linux__)
     int do_malloc_fail = 0;
@@ -100,7 +101,7 @@ int main(int argc, char *argv[]) {
 
     int i;
     for (i=1; i<argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (strcmp(arg, "-h") == 0 || strcmp(arg, "-help") == 0) {
             return usage();
         } else if (strcmp(arg, "-v") == 0) {
