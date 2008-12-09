@@ -819,6 +819,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&share->key_del_lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&share->key_del_cond, 0);
+    pthread_mutex_init(&share->close_lock, MY_MUTEX_INIT_FAST);
     for (i=0; i<keys; i++)
       VOID(my_rwlock_init(&share->keyinfo[i].root_lock, NULL));
     VOID(my_rwlock_init(&share->mmap_lock, NULL));

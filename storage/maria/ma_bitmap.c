@@ -260,6 +260,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 my_bool _ma_bitmap_end(MARIA_SHARE *share)
 {
   my_bool res= _ma_bitmap_flush(share);
+  safe_mutex_assert_owner(&share->close_lock);
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
   pthread_cond_destroy(&share->bitmap.bitmap_cond);
   delete_dynamic(&share->bitmap.pinned_pages);

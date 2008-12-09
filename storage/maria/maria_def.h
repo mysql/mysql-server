@@ -362,7 +362,10 @@ typedef struct st_maria_share
   myf write_flag;
   enum data_file_type data_file_type;
   enum pagecache_page_type page_type;   /* value depending transactional */
-  uint8 in_checkpoint;               /**< if Checkpoint looking at table */
+  /**
+     if Checkpoint looking at table; protected by close_lock or THR_LOCK_maria
+  */
+  uint8 in_checkpoint;
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
@@ -386,9 +389,20 @@ typedef struct st_maria_share
 #ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);
-  pthread_mutex_t intern_lock;		/* Locking for use with _locking */
+  /**
+    Protects kfile, dfile, most members of the state, state disk writes,
+    versioning information (like in_trans, state_history).
+    @todo find the exhaustive list.
+  */
+  pthread_mutex_t intern_lock;	
   pthread_mutex_t key_del_lock;
   pthread_cond_t  key_del_cond;
+  /**
+    _Always_ held while closing table; prevents checkpoint from looking at
+    structures freed during closure (like bitmap). If you need close_lock and
+    intern_lock, lock them in this order.
+  */
+  pthread_mutex_t close_lock;
 #endif
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in

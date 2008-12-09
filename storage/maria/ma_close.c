@@ -47,6 +47,7 @@ int maria_close(register MARIA_HA *info)
     if (maria_lock_database(info,F_UNLCK))
       error=my_errno;
   }
+  pthread_mutex_lock(&share->close_lock);
   pthread_mutex_lock(&share->intern_lock);
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
@@ -169,10 +170,17 @@ int maria_close(register MARIA_HA *info)
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   pthread_mutex_unlock(&share->intern_lock);
+  pthread_mutex_unlock(&share->close_lock);
   if (share_can_be_freed)
   {
     (void) pthread_mutex_destroy(&share->intern_lock);
+    (void) pthread_mutex_destroy(&share->close_lock);
     my_free((uchar *)share, MYF(0));
+    /*
+      If share cannot be freed, it's because checkpoint has previously
+      recorded to include this share in the checkpoint and so is soon going to
+      look at some of its content (share->in_checkpoint/id/last_version).
+    */
   }
   my_free(info->ftparser_param, MYF(MY_ALLOW_ZERO_PTR));
   if (info->dfile.file >= 0)
