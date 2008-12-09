@@ -3661,6 +3661,12 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
    * long signal buffering to store its sections
    */
   jamEntry();
+
+  if (!assembleDroppedFragments(signal))
+  {
+    jam();
+    return;
+  }
   
   const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
   Uint32 originalGSN= rep->originalGsn;

@@ -1198,3 +1198,6 @@ max-time: 300
 cmd: testMgm
 args: 
 
+max-time: 500
+cmd: testLimits
+args: -n DropSignalFragments T1
