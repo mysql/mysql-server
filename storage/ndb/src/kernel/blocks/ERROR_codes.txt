@@ -3,10 +3,10 @@ Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5051
+Next DBLQH 5053
 Next DBDICT 6013
 Next DBDIH 7216
-Next DBTC 8074
+Next DBTC 8078
 Next CMVMI 9000
 Next BACKUP 10041
 Next DBUTIL 11002
@@ -354,6 +354,25 @@ ABORT OF TCKEYREQ
 
 8051 : Simulate failure of allocation for saveINDXKEYINFO
 
+DBTC LONG SIGNAL TESTING
+------------------------
+8065: Consume all but 10 long section segments on next TCKEYREQ
+8066: Consume all but 1 long section segments on next TCKEYREQ
+8067: Consume all long section segments on next TCKEYREQ
+8068: Free all segments hoarded by 8065, 8066, 8067
+
+8069: Always send 'short' LQHKEYREQ to LQH
+8070: Always send 'short' SCANFRAGREQ to LQH
+
+8074: Drop first fragment of fragmented SCANTABREQ
+8075: Drop middle fragments of fragmented SCANTABREQ
+8076: Drop last fragment of fragmented SCANTABREQ
+8077: Drop all fragments of fragmented SCANTABREQ
+
+DBLQH LONG SIGNAL TESTING
+-------------------------
+5051: Send short LQHKEYREQ to next replica
+5052: Fail to store KeyInfo from TUP in long section
 
 CMVMI
 -----
