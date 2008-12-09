@@ -2390,7 +2390,7 @@ loop:
 			+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 			+ buf_pool->n_pages_written;
-		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
+		if (n_pend_ios < 3 && (n_ios - n_ios_old < PCT_IO(5))) {
 			srv_main_thread_op_info = "doing insert buffer merge";
 			ibuf_contract_for_n_pages(
 				TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
