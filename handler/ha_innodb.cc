@@ -70,7 +70,6 @@ extern "C" {
 #include "ha_innodb.h"
 #include "i_s.h"
 #include "handler0vars.h"
-#include "mysql_addons.h"
 
 #ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
@@ -549,7 +548,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(!srv_thread_concurrency)) {
+	if (UNIV_LIKELY(!trx->declared_to_be_inside_innodb)) {
 
 		return;
 	}
@@ -6901,11 +6900,13 @@ ha_innobase::info(
 			n_rows++;
 		}
 
-		/* Fix bug#29507: TRUNCATE shows too many rows affected.
-		Do not show the estimates for TRUNCATE command. */
+		/* Fix bug#40386: Not flushing query cache after truncate.
+		n_rows can not be 0 unless the table is empty, set to 1
+		instead. The original problem of bug#29507 is actually
+		fixed in the server code. */
 		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
 
-			n_rows = 0;
+			n_rows = 1;
 
 			/* We need to reset the prebuilt value too, otherwise
 			checks for values greater than the last value written
@@ -7672,12 +7673,12 @@ ha_innobase::external_lock(
 	READ UNCOMMITTED and READ COMMITTED since the necessary
 	locks cannot be taken. In this case, we print an
 	informative error message and return with an error. */
-	if (lock_type == F_WRLCK && ib_bin_log_is_engaged(thd))
+	if (lock_type == F_WRLCK)
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
-		if (tx_isolation <= ISO_READ_COMMITTED
-		    && binlog_format == BINLOG_FORMAT_STMT)
+		if (tx_isolation <= ISO_READ_COMMITTED &&
+		    binlog_format == BINLOG_FORMAT_STMT)
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),

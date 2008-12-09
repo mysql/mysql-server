@@ -23,29 +23,3 @@ Created November 07, 2007 Vasil Dimov
 
 #include "mysql_addons.h"
 #include "univ.i"
-
-/***********************************************************************
-Retrieve THD::thread_id
-http://bugs.mysql.com/30930 */
-extern "C" UNIV_INTERN
-unsigned long
-ib_thd_get_thread_id(
-/*=================*/
-				/* out: THD::thread_id */
-	const void*	thd)	/* in: THD */
-{
-	return((unsigned long) ((THD*) thd)->thread_id);
-}
-
-/* http://bugs.mysql.com/40360 */
-/* http://lists.mysql.com/commits/57450 */
-/**
-  See if the binary log is engaged for a thread, i.e., open and
-  LOG_BIN is set.
-
-  @return @c true if the binlog is active, @c false otherwise.
-*/
-my_bool ib_bin_log_is_engaged(const MYSQL_THD thd)
-{
-  return mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
-}
