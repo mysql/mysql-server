@@ -101,18 +101,21 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     static int move_counter = 0;
     move_counter++;
     REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
-    if (other_bufs == 0) {
 #if defined(_WIN32)
+    if (other_bufs == 0) {
+	char **new_other_bufs;
         printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
-#endif
         printf("Z: move_counter:%d dest:%p %p %d source:%p %p %d errno:%d\n", 
                move_counter, 
                dest, dest->other_bufs, dest->n_other_bufs, 
                source, source->other_bufs, source->n_other_bufs,
                errno);
         printf("toku_memory_counters: %d %d %d\n", toku_malloc_counter, toku_realloc_counter, toku_free_counter);
-        assert(other_bufs);
+	new_other_bufs = toku_malloc((dest->n_other_bufs + source->n_other_bufs + 1)*sizeof (char **));
+ 	printf("new_other_bufs=%p errno=%d\n", new_other_bufs, errno);
     }
+#endif
+    assert(other_bufs);
     dest->other_bufs = other_bufs;
     for (i=0; i<source->n_other_bufs; i++) {
 	dest->other_bufs[dest->n_other_bufs++] = source->other_bufs[i];
