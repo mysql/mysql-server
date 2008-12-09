@@ -798,7 +798,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
 {
   bool has_default;
   bool has_now_default;
-
+  enum enum_field_types field_type= field->type();
   /* 
      We are using CURRENT_TIMESTAMP instead of NOW because it is
      more standard
@@ -806,7 +806,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
   has_now_default= table->timestamp_field == field && 
     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
     
-  has_default= (field->type() != FIELD_TYPE_BLOB &&
+  has_default= (field_type != FIELD_TYPE_BLOB &&
                 !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
                 field->unireg_check != Field::NEXT_NUMBER &&
                 !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
@@ -821,7 +821,19 @@ static bool get_field_default_value(THD *thd, TABLE *table,
     {                                             // Not null by default
       char tmp[MAX_FIELD_WIDTH];
       String type(tmp, sizeof(tmp), field->charset());
-      field->val_str(&type);
+      if (field_type == MYSQL_TYPE_BIT)
+      {
+        longlong dec= field->val_int();
+        char *ptr= longlong2str(dec, tmp + 2, 2);
+        uint32 length= (uint32) (ptr - tmp);
+        tmp[0]= 'b';
+        tmp[1]= '\'';        
+        tmp[length]= '\'';
+        type.length(length + 1);
+        quoted= 0;
+      }
+      else
+        field->val_str(&type);
       if (type.length())
       {
         String def_val;
