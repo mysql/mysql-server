@@ -586,6 +586,42 @@ static const tab3 table3[] = {
        &NdbInterpretedCode::branch_col_notlike, 
        &NdbInterpretedCode::branch_col_like, 
        &NdbInterpretedCode::branch_col_notlike } }
+  
+  /**
+   * AND EQ MASK
+   */
+  ,{ { 0,
+       &NdbInterpretedCode::branch_col_and_mask_ne_mask,
+       &NdbInterpretedCode::branch_col_and_mask_eq_mask,
+       &NdbInterpretedCode::branch_col_and_mask_ne_mask,
+       &NdbInterpretedCode::branch_col_and_mask_eq_mask } }
+  
+  /**
+   * AND NE MASK
+   */
+  ,{ { 0,
+       &NdbInterpretedCode::branch_col_and_mask_eq_mask,
+       &NdbInterpretedCode::branch_col_and_mask_ne_mask,
+       &NdbInterpretedCode::branch_col_and_mask_eq_mask,
+       &NdbInterpretedCode::branch_col_and_mask_ne_mask } } 
+
+  /**
+   * AND EQ ZERO
+   */
+  ,{ { 0,
+       &NdbInterpretedCode::branch_col_and_mask_ne_zero,
+       &NdbInterpretedCode::branch_col_and_mask_eq_zero,
+       &NdbInterpretedCode::branch_col_and_mask_ne_zero,
+       &NdbInterpretedCode::branch_col_and_mask_eq_zero } }
+  
+  /**
+   * AND NE ZERO
+   */
+  ,{ { 0,
+       &NdbInterpretedCode::branch_col_and_mask_eq_zero,
+       &NdbInterpretedCode::branch_col_and_mask_ne_zero,
+       &NdbInterpretedCode::branch_col_and_mask_eq_zero,
+       &NdbInterpretedCode::branch_col_and_mask_ne_zero } } 
 };
 
 const int tab3_sz = sizeof(table3)/sizeof(table3[0]);
@@ -664,6 +700,14 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId,
     return m_impl.cond_col_const(Interpreter::LIKE, ColId, val, len);
   case COND_NOT_LIKE:
     return m_impl.cond_col_const(Interpreter::NOT_LIKE, ColId, val, len);
+  case COND_AND_EQ_MASK:
+    return m_impl.cond_col_const(Interpreter::AND_EQ_MASK, ColId, val, len);
+  case COND_AND_NE_MASK:
+    return m_impl.cond_col_const(Interpreter::AND_NE_MASK, ColId, val, len);
+  case COND_AND_EQ_ZERO:
+    return m_impl.cond_col_const(Interpreter::AND_EQ_ZERO, ColId, val, len);
+  case COND_AND_NE_ZERO:
+    return m_impl.cond_col_const(Interpreter::AND_NE_ZERO, ColId, val, len);
   }
   return -1;
 }
