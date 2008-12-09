@@ -207,6 +207,7 @@ public:
       truncate(0);
     before_stmt_pos= MY_OFF_T_UNDEF;
     trans_log.end_of_file= max_binlog_cache_size;
+    DBUG_ASSERT(empty());
   }
 
   Rows_log_event *pending() const
@@ -1377,8 +1378,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                       FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->options, OPTION_BEGIN)));
 
-  thd->binlog_flush_pending_rows_event(TRUE);
-
   /*
     NULL denotes ROLLBACK with nothing to replicate: i.e., rollback of
     only transactional tables.  If the transaction contain changes to
@@ -1387,6 +1386,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
   */
   if (end_ev != NULL)
   {
+    thd->binlog_flush_pending_rows_event(TRUE);
     /*
       Doing a commit or a rollback including non-transactional tables,
       i.e., ending a transaction where we might write the transaction
@@ -1435,6 +1435,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     mysql_bin_log.update_table_map_version();
   }
 
+  DBUG_ASSERT(thd->binlog_get_pending_rows_event() == NULL);
   DBUG_RETURN(error);
 }
 
@@ -1466,6 +1467,7 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 */
 static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
+  int error= 0;
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
@@ -1478,60 +1480,11 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   }
 
   /*
-    Decision table for committing a transaction. The top part, the
-    *conditions* represent different cases that can occur, and hte
-    bottom part, the *actions*, represent what should be done in that
-    particular case.
+    We commit the transaction if:
 
-    Real transaction        'all' was true
+     - We are not in a transaction and committing a statement, or
 
-    Statement in cache      There were at least one statement in the
-                            transaction cache
-
-    In transaction          We are inside a transaction
-
-    Stmt modified non-trans The statement being committed modified a
-                            non-transactional table
-
-    All modified non-trans  Some statement before this one in the
-                            transaction modified a non-transactional
-                            table
-
-
-    =============================  = = = = = = = = = = = = = = = =
-    Real transaction               N N N N N N N N N N N N N N N N
-    Statement in cache             N N N N N N N N Y Y Y Y Y Y Y Y
-    In transaction                 N N N N Y Y Y Y N N N N Y Y Y Y
-    Stmt modified non-trans        N N Y Y N N Y Y N N Y Y N N Y Y
-    All modified non-trans         N Y N Y N Y N Y N Y N Y N Y N Y
-
-    Action: (C)ommit/(A)ccumulate  C C - C A C - C - - - - A A - A
-    =============================  = = = = = = = = = = = = = = = =
-
-
-    =============================  = = = = = = = = = = = = = = = =
-    Real transaction               Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y
-    Statement in cache             N N N N N N N N Y Y Y Y Y Y Y Y
-    In transaction                 N N N N Y Y Y Y N N N N Y Y Y Y
-    Stmt modified non-trans        N N Y Y N N Y Y N N Y Y N N Y Y
-    All modified non-trans         N Y N Y N Y N Y N Y N Y N Y N Y
-
-    (C)ommit/(A)ccumulate/(-)      - - - - C C - C - - - - C C - C
-    =============================  = = = = = = = = = = = = = = = =
-
-    In other words, we commit the transaction if and only if both of
-    the following are true:
-     - We are not in a transaction and committing a statement
-
-     - We are in a transaction and one (or more) of the following are
-       true:
-
-       - A full transaction is committed
-
-         OR
-
-       - A non-transactional statement is committed and there is
-         no statement cached
+     - We are in a transaction and a full transaction is committed
 
     Otherwise, we accumulate the statement
   */
@@ -1544,18 +1497,18 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(in_transaction),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (in_transaction &&
-      (all ||
-       (!trx_data->at_least_one_stmt &&
-        thd->transaction.stmt.modified_non_trans_table)) ||
-      !in_transaction && !all)
+  if (!in_transaction || all)
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
-    int error= binlog_end_trans(thd, trx_data, &qev, all);
-    DBUG_RETURN(error);
+    error= binlog_end_trans(thd, trx_data, &qev, all);
+    goto end;
   }
-  DBUG_RETURN(0);
+
+end:
+  if (!all)
+    trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt commit
+  DBUG_RETURN(error);
 }
 
 /**
@@ -1615,6 +1568,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
      */
     error= binlog_end_trans(thd, trx_data, 0, all);
   }
+  if (!all)
+    trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback
   DBUG_RETURN(error);
 }
 

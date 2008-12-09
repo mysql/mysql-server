@@ -1067,18 +1067,6 @@ SET @@global.skip_show_database= true;
 #
 --echo #
 --replace_column 2 #
-SHOW VARIABLES like 'socket';
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT @@session.socket;
---replace_column 1 #
-SELECT @@global.socket;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@session.socket= 'x';
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@global.socket= 'x';
-#
---echo #
---replace_column 2 #
 SHOW VARIABLES like 'thread_stack';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.thread_stack;

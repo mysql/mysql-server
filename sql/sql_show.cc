@@ -993,7 +993,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
 {
   bool has_default;
   bool has_now_default;
-
+  enum enum_field_types field_type= field->type();
   /* 
      We are using CURRENT_TIMESTAMP instead of NOW because it is
      more standard
@@ -1001,7 +1001,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
   has_now_default= table->timestamp_field == field && 
     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
     
-  has_default= (field->type() != FIELD_TYPE_BLOB &&
+  has_default= (field_type != FIELD_TYPE_BLOB &&
                 !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
                 field->unireg_check != Field::NEXT_NUMBER &&
                 !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
@@ -1016,7 +1016,19 @@ static bool get_field_default_value(THD *thd, TABLE *table,
     {                                             // Not null by default
       char tmp[MAX_FIELD_WIDTH];
       String type(tmp, sizeof(tmp), field->charset());
-      field->val_str(&type);
+      if (field_type == MYSQL_TYPE_BIT)
+      {
+        longlong dec= field->val_int();
+        char *ptr= longlong2str(dec, tmp + 2, 2);
+        uint32 length= (uint32) (ptr - tmp);
+        tmp[0]= 'b';
+        tmp[1]= '\'';        
+        tmp[length]= '\'';
+        type.length(length + 1);
+        quoted= 0;
+      }
+      else
+        field->val_str(&type);
       if (type.length())
       {
         String def_val;
@@ -2087,6 +2099,7 @@ static bool show_status_array(THD *thd, const char *wild,
   COND *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool res= FALSE;
+  CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
@@ -2135,9 +2148,10 @@ static bool show_status_array(THD *thd, const char *wild,
 
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->show_type();
-          value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
-                                                           &null_lex_str);
+          sys_var *var= ((sys_var *) value);
+          show_type= var->show_type();
+          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+          charset= var->charset(thd);
         }
 
         pos= end= buff;
@@ -2213,7 +2227,7 @@ static bool show_status_array(THD *thd, const char *wild,
           DBUG_ASSERT(0);
           break;
         }
-        table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        table->field[1]->store(pos, (uint32) (end - pos), charset);
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
 

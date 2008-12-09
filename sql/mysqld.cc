@@ -227,6 +227,12 @@ extern "C" int gethostname(char *name, int namelen);
 
 extern "C" sig_handler handle_segfault(int sig);
 
+#if defined(__linux__)
+#define ENABLE_TEMP_POOL 1
+#else
+#define ENABLE_TEMP_TOOL 0
+#endif
+
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
@@ -784,16 +790,6 @@ static void close_connections(void)
   kill_cached_threads++;
   flush_thread_cache();
 
-  /* kill flush thread */
-  (void) pthread_mutex_lock(&LOCK_manager);
-  if (manager_thread_in_use)
-  {
-    DBUG_PRINT("quit", ("killing manager thread: 0x%lx",
-                        (ulong)manager_thread));
-   (void) pthread_cond_signal(&COND_manager);
-  }
-  (void) pthread_mutex_unlock(&LOCK_manager);
-
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
@@ -1196,6 +1192,7 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
+  stop_handle_manager();
   release_ddl_log();
 
   /*
@@ -3377,12 +3374,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_connect.value_length= strlen(opt_init_connect);
   else
     sys_init_connect.value=my_strdup("",MYF(0));
+  sys_init_connect.is_os_charset= TRUE;
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
     sys_init_slave.value_length= strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
+  sys_init_slave.is_os_charset= TRUE;
 
   /* check log options and issue warnings if needed */
   if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
@@ -3405,8 +3404,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
   sys_var_slow_log_path.value= my_strdup(s, MYF(0));
   sys_var_slow_log_path.value_length= strlen(s);
 
+#if (ENABLE_TEMP_POOL)
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
+#else
+  use_temp_pool= 0;
+#endif
+
   if (my_database_names_init())
     return 1;
 
@@ -4036,17 +4040,6 @@ server.");
 
 #ifndef EMBEDDED_LIBRARY
 
-static void create_maintenance_thread()
-{
-  if (flush_time && flush_time != ~(ulong) 0L)
-  {
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
-      sql_print_warning("Can't create thread to manage maintenance");
-  }
-}
-
-
 static void create_shutdown_thread()
 {
 #ifdef __WIN__
@@ -4361,7 +4354,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   execute_ddl_log_recovery();
 
   create_shutdown_thread();
-  create_maintenance_thread();
+  start_handle_manager();
 
   if (Events::init(opt_noacl))
     unireg_abort(1);
@@ -6315,9 +6308,14 @@ log and this option does nothing anymore.",
    (uchar**) &opt_tc_heuristic_recover, (uchar**) &opt_tc_heuristic_recover,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"temp-pool", OPT_TEMP_POOL,
+#if (ENABLE_TEMP_POOL)
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
+#else
+   "This option is ignored on this OS.",
+#endif
    (uchar**) &use_temp_pool, (uchar**) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
+
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
    (uchar**) &timed_mutexes, (uchar**) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 

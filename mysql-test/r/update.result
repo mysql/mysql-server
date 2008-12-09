@@ -491,4 +491,15 @@ update t1 join t2 on (t1.a=t2.a) set t1.id=t2.id;
 affected rows: 127
 info: Rows matched: 128  Changed: 127  Warnings: 0
 drop table t1,t2;
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS INT RETURN f1();
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET i = 3 WHERE f1();
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+UPDATE t1 SET i = f1();
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+DROP TABLE t1;
+DROP FUNCTION f1;
 End of 5.0 tests
