@@ -881,6 +881,7 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
 
   if (!trnman_is_locked)
     pthread_mutex_lock(&LOCK_trn_list);
+  safe_mutex_assert_owner(&LOCK_trn_list);
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
     /*
@@ -909,6 +910,7 @@ void trnman_lock()
   pthread_mutex_lock(&LOCK_trn_list);
 }
 
+
 /**
    unlock transaction list
 */
@@ -916,4 +918,14 @@ void trnman_lock()
 void trnman_unlock()
 {
   pthread_mutex_unlock(&LOCK_trn_list);
+}
+
+
+/**
+  Is trman initialized
+*/
+
+my_bool trman_is_inited()
+{
+  return (short_trid_to_active_trn != NULL);
 }
