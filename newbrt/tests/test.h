@@ -29,7 +29,8 @@ int test_main(int argc, const char *argv[]);
 int
 main(int argc, const char *argv[]) {
     toku_brt_init();
-    test_main(argc, argv);
+    int r = test_main(argc, argv);
     toku_brt_destroy();
+    return r;
 }
 
