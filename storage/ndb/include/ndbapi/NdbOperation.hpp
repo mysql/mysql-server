@@ -734,7 +734,12 @@ public:
   int branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
   /**
-   * The argument is always plain char, even if the field is varchar
+   * LIKE/NOTLIKE wildcard comparisons
+   * These instructions support SQL-style % and _ wildcards for
+   * (VAR)CHAR/BINARY columns only
+   *
+   * The argument is always plain char format, even if the field 
+   * is varchar
    * (changed in 5.0.22).
    * 
    * @note For Scans and NdbRecord operations, use the 
@@ -744,7 +749,40 @@ public:
 		      bool nopad, Uint32 Label);
   int branch_col_notlike(Uint32 ColId, const void *, Uint32 len, 
 			 bool nopad, Uint32 Label);
-  
+
+  /**
+   * Bitwise logical comparisons
+   *
+   * These comparison types are only supported for the Bitfield
+   * type
+   * They can be used to test for bit patterns in bitfield columns
+   *   The value passed is a bitmask which is bitwise-ANDed with the
+   *   column data.
+   *   Bitfields are passed in/out of NdbApi as 32-bit words with
+   *   bits set from lsb to msb.
+   *   The platform's endianness controls which byte contains the ls
+   *   bits.
+   *     x86= first(0th) byte.  Sparc/PPC= last (3rd byte)
+   *
+   *   To set bit n of a bitmask to 1 from a Uint32* mask : 
+   *     mask[n >> 5] |= (1 << (n & 31))
+   *
+   *   The branch can be taken in 4 cases :
+   *     - Column data AND Mask == Mask (all masked bits are set in data)
+   *     - Column data AND Mask != Mask (not all masked bits are set in data)
+   *     - Column data AND Mask == 0    (No masked bits are set in data)
+   *     - Column data AND Mask != 0    (Some masked bits are set in data)
+   *   
+   */
+  int branch_col_and_mask_eq_mask(Uint32 ColId, const void *, Uint32 len, 
+                                  bool nopad, Uint32 Label);
+  int branch_col_and_mask_ne_mask(Uint32 ColId, const void *, Uint32 len, 
+                                  bool nopad, Uint32 Label);
+  int branch_col_and_mask_eq_zero(Uint32 ColId, const void *, Uint32 len, 
+                                  bool nopad, Uint32 Label);
+  int branch_col_and_mask_ne_zero(Uint32 ColId, const void *, Uint32 len, 
+                                  bool nopad, Uint32 Label);
+
   /**
    * Interpreted program instruction: Exit with Ok
    *
@@ -1238,7 +1276,7 @@ protected:
   int read_attr(const NdbColumnImpl* anAttrObject, Uint32 RegDest);
   int write_attr(const NdbColumnImpl* anAttrObject, Uint32 RegSource);
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
-  int branch_col(Uint32 type, Uint32, const void *, Uint32, bool, Uint32 Label);
+  int branch_col(Uint32 type, Uint32, const void *, Uint32, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   NdbBlob *linkInBlobHandle(NdbTransaction *aCon,
                             const NdbColumnImpl *column,
