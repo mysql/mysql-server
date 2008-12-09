@@ -4358,3 +4358,29 @@ a
 4
 5
 DROP TABLE t1;
+CREATE TABLE A (date_key date);
+CREATE TABLE C (
+pk int,
+int_nokey int,
+int_key int,
+date_key date NOT NULL,
+date_nokey date,
+varchar_key varchar(1)
+);
+INSERT INTO C VALUES 
+(1,1,1,'0000-00-00',NULL,NULL),
+(1,1,1,'0000-00-00',NULL,NULL);
+SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
+1
+SELECT COUNT(DISTINCT 1) FROM C 
+WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk;
+COUNT(DISTINCT 1)
+SELECT date_nokey FROM C 
+WHERE int_key IN (SELECT 1 FROM A) 
+HAVING date_nokey = '10:41:7' 
+ORDER BY date_key;
+date_nokey
+Warnings:
+Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
+DROP TABLE A,C;
+End of 5.1 tests

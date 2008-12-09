@@ -1692,5 +1692,35 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
 #endif
 }
 
+
+/* 
+  Variant of the above : handle both read and write sets.
+  Provide for the possiblity of the read set being the same as the write set
+*/
+static inline void dbug_tmp_use_all_columns(TABLE *table,
+                                            my_bitmap_map **save,
+                                            MY_BITMAP *read_set,
+                                            MY_BITMAP *write_set)
+{
+#ifndef DBUG_OFF
+  save[0]= read_set->bitmap;
+  save[1]= write_set->bitmap;
+  (void) tmp_use_all_columns(table, read_set);
+  (void) tmp_use_all_columns(table, write_set);
+#endif
+}
+
+
+static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
+                                                MY_BITMAP *write_set,
+                                                my_bitmap_map **old)
+{
+#ifndef DBUG_OFF
+  tmp_restore_column_map(read_set, old[0]);
+  tmp_restore_column_map(write_set, old[1]);
+#endif
+}
+
+
 size_t max_row_length(TABLE *table, const uchar *data);
 
