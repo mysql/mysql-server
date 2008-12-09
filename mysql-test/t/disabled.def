@@ -12,3 +12,4 @@
 federated_transactions   : Bug#29523 Transactions do not work
 log_tables.test                       : Bug #37798: main.log_tables fails randomly on powermacg5 and windows
 slow_query_log_func.test              : Bug #37962: *_func tests containing sleeps/race conditions
+wait_timeout_func    : Bug #41225 joro wait_timeout_func fails
