@@ -352,6 +352,21 @@ SELECT HEX(b1), HEX(b2), i2 FROM t2
 
 DROP TABLE t1, t2;
 
+#
+# Bug #35796 SHOW CREATE TABLE and default value for BIT field
+#
+CREATE TABLE IF NOT EXISTS t1 (
+f1 bit(2) NOT NULL default b'10',
+f2 bit(14) NOT NULL default b'11110000111100'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--error ER_INVALID_DEFAULT
+CREATE TABLE IF NOT EXISTS t1 (
+f1 bit(2) NOT NULL default b''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+
 --echo End of 5.0 tests
 
 #
