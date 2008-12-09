@@ -2668,7 +2668,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
-  my_bitmap_map *old_read_set, *old_write_set;
+  my_bitmap_map *old_sets[2];
 
   prune_param.part_info= part_info;
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -2682,8 +2682,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     DBUG_RETURN(FALSE);
   }
   
-  old_write_set= dbug_tmp_use_all_columns(table, table->write_set);
-  old_read_set=  dbug_tmp_use_all_columns(table, table->read_set);
+  dbug_tmp_use_all_columns(table, old_sets, 
+                           table->read_set, table->write_set);
   range_par->thd= thd;
   range_par->table= table;
   /* range_par->cond doesn't need initialization */
@@ -2773,8 +2773,7 @@ all_used:
   retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
-  dbug_tmp_restore_column_map(table->write_set, old_write_set);
-  dbug_tmp_restore_column_map(table->read_set,  old_read_set);
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
@@ -11145,9 +11144,9 @@ print_key(KEY_PART *key_part, const uchar *key, uint used_length)
   String tmp(buff,sizeof(buff),&my_charset_bin);
   uint store_length;
   TABLE *table= key_part->field->table;
-  my_bitmap_map *old_write_set, *old_read_set;
-  old_write_set= dbug_tmp_use_all_columns(table, table->write_set);
-  old_read_set=  dbug_tmp_use_all_columns(table, table->read_set);
+  my_bitmap_map *old_sets[2];
+
+  dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
 
   for (; key < key_end; key+=store_length, key_part++)
   {
@@ -11173,8 +11172,7 @@ print_key(KEY_PART *key_part, const uchar *key, uint used_length)
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);
   }
-  dbug_tmp_restore_column_map(table->write_set, old_write_set);
-  dbug_tmp_restore_column_map(table->read_set, old_read_set);
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 
 
@@ -11182,18 +11180,16 @@ static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
 {
   char buf[MAX_KEY/8+1];
   TABLE *table;
-  my_bitmap_map *old_read_map, *old_write_map;
+  my_bitmap_map *old_sets[2];
   DBUG_ENTER("print_quick");
   if (!quick)
     DBUG_VOID_RETURN;
   DBUG_LOCK_FILE;
 
   table= quick->head;
-  old_read_map=  dbug_tmp_use_all_columns(table, table->read_set);
-  old_write_map= dbug_tmp_use_all_columns(table, table->write_set);
+  dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   quick->dbug_dump(0, TRUE);
-  dbug_tmp_restore_column_map(table->read_set, old_read_map);
-  dbug_tmp_restore_column_map(table->write_set, old_write_map);
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 
   fprintf(DBUG_FILE,"other_keys: 0x%s:\n", needed_reg->print(buf));
 
