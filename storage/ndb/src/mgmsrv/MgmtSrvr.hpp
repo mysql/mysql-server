@@ -131,6 +131,8 @@ public:
     int print_full_config;
     const char* configdir;
     int verbose;
+
+    MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
   };
 
   MgmtSrvr(); // Not implemented
