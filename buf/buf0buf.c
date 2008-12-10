@@ -2506,13 +2506,13 @@ buf_page_init_low(
 }
 
 /************************************************************************
-Set watch happened flag. */
-UNIV_INLINE
+Set watch occurred flag. */
+UNIV_INTERN
 void
 buf_pool_watch_notify(
 /*==================*/
-	ulint		space,	/* in: space id of page read in */
-	ulint		offset)	/* in: offset of page read in */
+	ulint	space,	/* in: space id of page read in */
+	ulint	offset)	/* in: offset of page read in */
 {
 	ut_ad(buf_pool_mutex_own());
 
