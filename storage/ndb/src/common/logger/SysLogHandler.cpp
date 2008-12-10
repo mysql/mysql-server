@@ -24,14 +24,16 @@
 SysLogHandler::SysLogHandler() :
   m_severity(LOG_INFO),
   m_pIdentity("NDB"),
-  m_facility(LOG_USER)
+  m_facility(LOG_USER),
+  m_open(false)
 {
 }
 
 SysLogHandler::SysLogHandler(const char* pIdentity, int facility) : 
   m_severity(LOG_INFO), 
   m_pIdentity(pIdentity),
-  m_facility(facility)
+  m_facility(facility),
+  m_open(false)
 {
 
 }
@@ -45,7 +47,7 @@ SysLogHandler::open()
 {
   ::setlogmask(LOG_UPTO(LOG_DEBUG)); // Log from EMERGENCY down to DEBUG
   ::openlog(m_pIdentity, LOG_PID|LOG_CONS|LOG_ODELAY, m_facility); // PID, CONSOLE delay openlog
-
+  m_open= true;
   return true;
 }
 
@@ -53,8 +55,14 @@ bool
 SysLogHandler::close()
 {
   ::closelog();
-
+  m_open= false;
   return true;
+}
+
+bool
+SysLogHandler::is_open()
+{
+  return m_open;
 }
 
 void 
