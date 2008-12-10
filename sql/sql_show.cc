@@ -3589,6 +3589,11 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
                    (share->transactional == HA_CHOICE_YES ? "1" : "0"),
                    NullS);
     }
+    if (share->key_block_size)
+    {
+      ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
+      ptr= longlong10_to_str(share->key_block_size, ptr, 10);
+    }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (is_partitioned)
       ptr= strmov(ptr, " partitioned");
