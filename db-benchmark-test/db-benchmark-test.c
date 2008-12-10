@@ -43,6 +43,7 @@ int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 int singlex = 0;  // Do a single transaction
 int do_transactions = 0;
+int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no logging when transactions are used
 int do_abort = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
@@ -142,6 +143,7 @@ static void benchmark_shutdown (void) {
     int r;
     
     if (do_transactions && singlex) {
+	system("ls -l bench.tokudb");
 	r = (do_abort ? tid->abort(tid) : tid->commit(tid, 0));    assert(r==0);
     }
 
@@ -281,6 +283,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
+    fprintf(stderr, "    --nolog               If transactions are used, then don't write the recovery log\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
     fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
@@ -325,6 +328,8 @@ int main (int argc, const char *argv[]) {
 	    norandom=1;
 	} else if (strcmp(arg, "--compressibility") == 0) {
 	    compressibility = atof(argv[++i]);
+	} else if (strcmp(arg, "--nolog") == 0) {
+	    if_transactions_do_logging = 0;
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
@@ -364,7 +369,7 @@ int main (int argc, const char *argv[]) {
 	}
     }
     if (do_transactions) {
-	env_open_flags |= DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK;
+	env_open_flags |= DB_INIT_TXN | if_transactions_do_logging | DB_INIT_LOCK;
     }
     if (do_transactions && prelockflag) {
         put_flags |= DB_PRELOCKED_WRITE;

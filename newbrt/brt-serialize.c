@@ -291,7 +291,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 
     // The first part of the data is uncompressed
     uLongf uncompressed_len = calculated_size-uncompressed_magic_len;
-    uLongf compressed_len= compressBound(uncompressed_len);
+    uLongf compressed_len   = compressBound(uncompressed_len);
     char *MALLOC_N(compressed_len+uncompressed_magic_len+compression_header_len, compressed_buf);
 
     memcpy(compressed_buf, buf, uncompressed_magic_len);
