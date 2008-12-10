@@ -42,8 +42,13 @@ do
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
                 --version) echo $VERSION; exit;;
 	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
-	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
-                --clone=*) clone=`echo $1 | sed s/--clone=//`;;
+	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
+	        --install-dir=*) install_dir0=`echo $1 | sed s/--install-dir=//`;;
+	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
+	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
+	        --clone=*) clone0=`echo $1 | sed s/--clone=//`;;
+	        --clone0=*) clone0=`echo $1 | sed s/--clone0=//`;;
+	        --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
 	        --nolock) nolock=true;;
         esac
         shift
@@ -55,7 +60,7 @@ done
 # (.) load it			# 
 #################################
 
-install_dir_save=$install_dir
+install_dir_save=$install_dir0
 if [ -f $conf ]
 then
 	. $conf
@@ -63,13 +68,24 @@ else
 	echo "Can't find config file: $conf"
 	exit
 fi
-install_dir=$install_dir_save
+install_dir0=$install_dir_save
+
+if [ -z "$run_dir" ]
+then
+    if [ "$install_dir1" ]
+    then
+	echo "--run-dir not specified but install_dir1 specified"
+	echo "giving up"
+	exit
+    fi
+    run_dir=$install_dir0
+fi
 
 ###############################
 # Validate that all interesting
 #   variables where set in conf
 ###############################
-vars="target base_dir install_dir hosts"
+vars="target base_dir install_dir0 hosts"
 if [ "$report" ]
 then
 	vars="$vars result_host result_path"
@@ -123,7 +139,7 @@ fi
 # Check that all interesting files are present#
 ###############################################
 
-test_dir=$install_dir/mysql-test/ndb
+test_dir=$install_dir0/mysql-test/ndb
 atrt=$test_dir/atrt
 test_file=$test_dir/$RUN-tests.txt
 
@@ -216,13 +232,12 @@ fi
 # Make directories needed
 
 p=`pwd`
-run_dir=$install_dir/run-$RUN-$clone-$target
-res_dir=$base_dir/result-$RUN-$clone-$target/$DATE
+run_dir=$run_dir/run-$RUN-$clone0-$target
+res_dir=$base_dir/result-$RUN-$clone0-$target/$DATE
 tar_dir=$base_dir/saved-results
 
 mkdir -p $run_dir $res_dir $tar_dir
 rm -rf $res_dir/* $run_dir/*
-
 
 ###
 #
@@ -236,7 +251,15 @@ sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 $atrt Cdq my.cnf
 
 # Start...
-$atrt --report-file=report.txt --log-file=log.txt --testcase-file=$test_dir/$RUN-tests.txt my.cnf
+args=""
+args="--report-file=report.txt"
+args="$args --log-file=log.txt"
+args="$args --testcase-file=$test_dir/$RUN-tests.txt"
+if [ "$install_dir1" ]
+then
+    args="$args --prefix=$install_dir0 --prefix1=$install_dir1"
+fi
+$atrt $args my.cnf
 
 # Make tar-ball
 [ -f log.txt ] && mv log.txt $res_dir
@@ -246,14 +269,14 @@ cd $res_dir
 
 echo "date=$DATE" > info.txt
 echo "suite=$RUN" >> info.txt
-echo "clone=$clone" >> info.txt
+echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
 find . | xargs chmod ugo+r
 
 cd ..
 p2=`pwd`
 cd ..
-tarfile=res.$RUN.$clone.$target.$DATE.$HOST.$$.tgz
+tarfile=res.$RUN.$clone0.$target.$DATE.$HOST.$$.tgz
 tar cfz $tar_dir/$tarfile `basename $p2`/$DATE
 
 if [ "$report" ]
