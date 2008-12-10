@@ -137,11 +137,11 @@ collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
 /* requested size in kilobytes */
-UNIV_INTERN ulong	srv_buf_pool_size	= ULINT_MAX;
+UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* previously requested size */
-UNIV_INTERN ulong	srv_buf_pool_old_size;
+UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
-UNIV_INTERN ulong	srv_buf_pool_curr_size	= 0;
+UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 /* size in bytes */
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
