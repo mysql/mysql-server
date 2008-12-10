@@ -245,7 +245,8 @@ static void dbug_print_table(const char *info, TABLE *table)
   - creating the ndb_apply_status table
 */
 static void run_query(THD *thd, char *buf, char *end,
-                      const int *no_print_error, my_bool disable_binlog)
+                      const int *no_print_error, my_bool disable_binlog,
+                      my_bool reset_error)
 {
   ulong save_thd_query_length= thd->query_length;
   char *save_thd_query= thd->query;
@@ -273,7 +274,7 @@ static void run_query(THD *thd, char *buf, char *end,
 
   mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
-  if (no_print_error && thd->is_slave_error)
+  if (no_print_error && thd->main_da.is_error())
   {
     int i;
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -300,7 +301,7 @@ static void run_query(THD *thd, char *buf, char *end,
     is called from ndbcluster_reset_logs(), which is called from
     mysql_flush().
   */
-  if (!thd->main_da.is_error())
+  if (!thd->main_da.is_error() || reset_error)
   {
     thd->main_da.reset_diagnostics_area();
   }
@@ -575,7 +576,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
                                   NDB_REP_DB "." NDB_REP_TABLE
                                   " WHERE File='"), file), "'");
 
-  run_query(thd, buf, end, NULL, TRUE);
+  run_query(thd, buf, end, NULL, TRUE, FALSE);
   if (thd->main_da.is_error() &&
       thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
   {
@@ -701,7 +702,7 @@ static void ndbcluster_reset_slave(THD *thd)
   DBUG_ENTER("ndbcluster_reset_slave");
   char buf[1024];
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
-  run_query(thd, buf, end, NULL, TRUE);
+  run_query(thd, buf, end, NULL, TRUE, FALSE);
   if (thd->main_da.is_error() &&
       ((thd->main_da.sql_errno() == ER_NO_SUCH_TABLE) ||
        (thd->main_da.sql_errno() == ER_OPEN_AS_READONLY && ndbcluster_silent)))
@@ -1080,9 +1081,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
 
       end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_APPLY_TABLE);
       const int no_print_error[1]= {0};
-      run_query(thd, buf, end, no_print_error, TRUE);
-      /* always reset here */
-      thd->main_da.reset_diagnostics_area();
+      run_query(thd, buf, end, no_print_error, TRUE, TRUE);
     }
   }
 
@@ -1104,9 +1103,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                                 721, // Table already exist
                                 4009,
                                 0}; // do not print error 701 etc
-  run_query(thd, buf, end, no_print_error, TRUE);
-  /* always reset here */
-  thd->main_da.reset_diagnostics_area();
+  run_query(thd, buf, end, no_print_error, TRUE, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -1157,9 +1154,7 @@ static int ndbcluster_create_schema_table(THD *thd)
 
       end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_SCHEMA_TABLE);
       const int no_print_error[1]= {0};
-      run_query(thd, buf, end, no_print_error, TRUE);
-      /* always reset here */
-      thd->main_da.reset_diagnostics_area();
+      run_query(thd, buf, end, no_print_error, TRUE, TRUE);
     }
   }
 
@@ -1185,9 +1180,7 @@ static int ndbcluster_create_schema_table(THD *thd)
                                 721, // Table already exist
                                 4009,
                                 0}; // do not print error 701 etc
-  run_query(thd, buf, end, no_print_error, TRUE);
-  /* always reset here */
-  thd->main_da.reset_diagnostics_area();
+  run_query(thd, buf, end, no_print_error, TRUE, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -1304,9 +1297,8 @@ static int ndbcluster_find_all_databases(THD *thd)
             const int no_print_error[1]= {0};
             run_query(thd, query, query + query_length,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
           }
         }
         else if (strncasecmp("ALTER", query, 5) == 0)
@@ -1320,13 +1312,12 @@ static int ndbcluster_find_all_databases(THD *thd)
             name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
             run_query(thd, query, query + query_length,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
           }
         }
         else if (strncasecmp("DROP", query, 4) == 0)
@@ -2366,15 +2357,13 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-            const int no_print_error[1]=
-              {ER_BAD_TABLE_ERROR}; /* ignore missing table */
+            const int no_print_error[2]=
+              {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
                       no_print_error, //   /* don't print error */
-                      TRUE); //  /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
-
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
             /* binlog dropping table after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -2462,9 +2451,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
             /* binlog dropping database after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -2492,9 +2480,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           run_query(thd, schema->query,
                     schema->query + schema->query_length,
                     no_print_error,    /* print error */
-                    TRUE);   /* don't binlog the query */
-          /* always reset here */
-          thd->main_da.reset_diagnostics_area();
+                    TRUE,   /* don't binlog the query */
+                    TRUE);  /* reset error */
           log_query= 1;
           break;
         }
