@@ -62,7 +62,14 @@ public:
    * @return true if successful.
    */ 
   virtual bool close() = 0;
-  
+
+  /**
+   * Check if LogHandler is open
+   *
+   * @return true if open.
+   */
+  virtual bool is_open() = 0;
+
   /**
    * Append a log message to the output stream/file whatever.
    * append() will call writeHeader(), writeMessage() and writeFooter() for
