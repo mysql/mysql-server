@@ -1599,8 +1599,11 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(*columns_list,
-                          Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+      if (result->send_fields(*columns_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       /*
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
