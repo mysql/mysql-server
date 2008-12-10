@@ -1448,21 +1448,20 @@ row_upd_sec_index_entry(
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
-	if (search_result == ROW_BUFFERED) {
-		/* Entry was delete marked already. */
-
-		goto close_cur;
-	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	rec = btr_cur_get_rec(btr_cur);
 
 	switch (search_result) {
-	case ROW_BUFFERED:	/* already handled above */
-	case ROW_NOT_IN_POOL:	/* should only occur for BTR_WATCH_LEAF */
+	case ROW_NOT_IN_POOL:
+		/* This should only occur for BTR_WATCH_LEAF. */
 		ut_error;
 		break;
+	case ROW_BUFFERED:
+		/* Entry was delete marked already. */
+		break;
+
 	case ROW_NOT_FOUND:
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
@@ -1510,7 +1509,6 @@ row_upd_sec_index_entry(
 		break;
 	}
 
-close_cur:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
