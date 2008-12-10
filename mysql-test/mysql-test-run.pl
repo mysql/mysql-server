@@ -4008,11 +4008,11 @@ sub mysqld_arguments ($$$$) {
   my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
   mtr_add_arg($args, "%s--general-log-file=%s.log",
               $prefix, $log_base_path);
-  mtr_add_arg($args, "--general-log");
+  mtr_add_arg($args, "%s--general-log", $prefix);
   mtr_add_arg($args,
 	      "%s--slow-query-log-file=%s-slow.log",
               $prefix, $log_base_path);
-  mtr_add_arg($args, "--slow-query-log");
+  mtr_add_arg($args, "%s--slow-query-log", $prefix);
 
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
