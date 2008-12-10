@@ -41,7 +41,24 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
 
+static void
+toku_ydb_init_malloc(void) {
+#if defined(TOKU_WINDOWS)
+    //Set the heap (malloc/free/realloc) to use the low fragmentation mode.
+    ULONG  HeapFragValue = 2;
+
+    int r;
+    r = HeapSetInformation(GetProcessHeap(),
+                           HeapCompatibilityInformation,
+                           &HeapFragValue,
+                           sizeof(HeapFragValue));
+    //if (r!=0) //Do some error output if necessary.
+    assert(r==0);
+#endif
+}
+
 void toku_ydb_init(void) {
+    toku_ydb_init_malloc();
     toku_brt_init();
     toku_ydb_lock_init();
 }
