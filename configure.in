@@ -2342,6 +2342,17 @@ fi
 fi
 #---END:
 
+#Check for x86 PAUSE instruction
+AC_MSG_CHECKING("for x86 PAUSE instruction")
+AC_TRY_COMPILE(
+[],
+[{__asm__ __volatile__ ("pause");}],
+x86_pause_exists=yes, x86_pause_exists=no)
+if test "$x86_pause_exists" = "yes"
+then
+  AC_DEFINE([HAVE_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
+fi
+
 # Check if pthread_attr_setscope() exists
 AC_CACHE_CHECK("for pthread_attr_setscope", mysql_cv_pthread_attr_setscope,
 AC_TRY_LINK(

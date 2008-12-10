@@ -336,11 +336,13 @@ ut_delay(
 	ulint	delay)	/* in: delay in microseconds on 100 MHz Pentium */
 {
 	ulint	i, j;
+        volatile lint volatile_var;
 
 	j = 0;
 
 	for (i = 0; i < delay * 50; i++) {
 		j += i;
+                PAUSE_INSTRUCTION(&volatile_var);
 	}
 
 	if (ut_always_false) {
