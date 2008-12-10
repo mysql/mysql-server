@@ -275,7 +275,11 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
 
 	if (!old_has) {
-		/* Remove the index record */
+		/* Remove the index record, which should have been
+		marked for deletion. */
+		ut_ad(REC_INFO_DELETED_FLAG
+		      & rec_get_info_bits(btr_cur_get_rec(btr_cur),
+					  dict_table_is_comp(index->table)));
 
 		if (mode == BTR_MODIFY_LEAF) {
 			success = btr_cur_optimistic_delete(btr_cur, &mtr);

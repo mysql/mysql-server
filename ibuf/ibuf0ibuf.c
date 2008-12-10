@@ -3706,6 +3706,10 @@ ibuf_delete(
 		/* Refuse to delete the last record. */
 		ut_a(page_get_n_recs(page) > 1);
 
+		/* The record should have been marked for deletion. */
+		ut_ad(REC_INFO_DELETED_FLAG
+		      & rec_get_info_bits(rec, page_is_comp(page)));
+
 		lock_update_delete(block, rec);
 
 		if (!page_zip) {
