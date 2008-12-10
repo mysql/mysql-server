@@ -1,0 +1,14 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT);
+start slave;
+SET GLOBAL debug= "+d,crash_before_purge_logs";
+FLUSH LOGS;
+ERROR HY000: Lost connection to MySQL server during query
+start slave;
