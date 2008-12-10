@@ -3662,7 +3662,7 @@ ts_wait:
         ;
 
 size_number:
-          real_ulong_num { $$= $1;}
+          real_ulonglong_num { $$= $1;}
         | IDENT
           {
             ulonglong number;
