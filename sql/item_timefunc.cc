@@ -2504,6 +2504,8 @@ void Item_char_typecast::fix_length_and_dec()
        and thus avoid unnecessary character set conversion.
      - If the argument is not a number, then from_cs is set to
        the argument's charset.
+
+       Note (TODO): we could use repertoire technique here.
   */
   from_cs= (args[0]->result_type() == INT_RESULT || 
             args[0]->result_type() == DECIMAL_RESULT ||
@@ -2511,12 +2513,13 @@ void Item_char_typecast::fix_length_and_dec()
            (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
            args[0]->collation.collation;
   charset_conversion= (cast_cs->mbmaxlen > 1) ||
-                      !my_charset_same(from_cs, cast_cs) &&
-                      from_cs != &my_charset_bin &&
-                      cast_cs != &my_charset_bin;
+                      (!my_charset_same(from_cs, cast_cs) &&
+                       from_cs != &my_charset_bin &&
+                       cast_cs != &my_charset_bin);
   collation.set(cast_cs, DERIVATION_IMPLICIT);
-  char_length= (cast_length >= 0) ? cast_length : 
-	       args[0]->max_length/from_cs->mbmaxlen;
+  char_length= (cast_length >= 0) ?
+                 cast_length :
+                 args[0]->max_length / args[0]->collation.collation->mbmaxlen;
   max_length= char_length * cast_cs->mbmaxlen;
 }
 
