@@ -368,6 +368,11 @@ btr_cur_search_to_nth_level(
 		btr_op = BTR_DELMARK_OP;
 	}
 
+	/* Operations on the insert buffer tree cannot be buffered. */
+	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_ibuf(index));
+	/* Operations on the clustered index cannot be buffered. */
+	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_clust(index));
+
 	watch_leaf = latch_mode & BTR_WATCH_LEAF;
 
 	estimate = latch_mode & BTR_ESTIMATE;
