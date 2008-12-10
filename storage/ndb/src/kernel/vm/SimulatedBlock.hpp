@@ -319,6 +319,21 @@ protected:
    */
   bool assembleFragments(Signal * signal);
   
+  /**
+   * Assemble dropped fragments
+   *
+   * Should be called at the start of a Dropped Signal Report 
+   * (GSN_DROPPED_SIGNAL_REP) handler when it is expected that
+   * the block could receive fragmented signals.
+   * No dropped signal handling should be done until this method
+   * returns true.
+   * 
+   * @return true if all fragments has arrived and dropped signal
+   *              handling can proceed.
+   *         false otherwise
+   */
+  bool assembleDroppedFragments(Signal * signal);
+  
   /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
    * will be sent by the sendFragmentedSignal variants
    */
@@ -387,6 +402,13 @@ protected:
     
     inline Uint32 hashValue() const {
       return m_senderRef + m_fragmentId ;
+    }
+
+    inline bool isDropped() const {
+      /* IsDropped when entry in hash, but no segments stored */
+      return (( m_sectionPtrI[0] == RNIL ) &&
+              ( m_sectionPtrI[1] == RNIL ) &&
+              ( m_sectionPtrI[2] == RNIL ) );
     }
   }; // sizeof() = 32 bytes
   

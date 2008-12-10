@@ -22,6 +22,7 @@
 #include <random.h>
 #include <kernel/ndb_limits.h>
 #include <ndb_version.h>
+#include <NodeBitmask.hpp>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
@@ -541,7 +542,7 @@ NdbRestarter::getStatus(){
         }
       }
       const int err = ndb_mgm_get_latest_error(handle);
-      ndbout << "status==NULL, retries="<<retries<<endl;
+      ndbout << "status==NULL, retries="<<retries<< " err=" << err << endl;
       MGMERR(handle);
       retries++;
       continue;
@@ -802,5 +803,26 @@ NdbRestarter::setReconnect(bool val){
   m_reconnect= val;
 }
 
+int
+NdbRestarter::checkClusterAlive(const int * deadnodes, int num_nodes)
+{
+  if (getStatus() != 0)
+    return -1;
+  
+  NdbNodeBitmask mask;
+  for (int i = 0; i<num_nodes; i++)
+    mask.set(deadnodes[i]);
+  
+  for (size_t n = 0; n < ndbNodes.size(); n++)
+  {
+    if (mask.get(ndbNodes[n].node_id))
+      continue;
+
+    if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED)
+      return ndbNodes[n].node_id;
+  }
+  
+  return 0;
+}
 
 template class Vector<ndb_mgm_node_state>;

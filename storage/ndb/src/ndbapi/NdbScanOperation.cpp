@@ -2149,6 +2149,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     Uint32 left = len - i;
     while(tSignal && left > KeyInfo::DataLength){
       tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setLength(KeyInfo::MaxSignalLength);
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * KeyInfo::DataLength);
       src += 4 * KeyInfo::DataLength;
@@ -2156,10 +2157,13 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
       
       tSignal->next(theNdb->getSignal());
       tSignal = tSignal->next();
+      newOp->theLastKEYINFO = tSignal;
     }
     
     if(tSignal && left > 0){
       tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setLength(KeyInfo::HeaderLength + left);
+      newOp->theLastKEYINFO = tSignal;
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * left);
     }      
