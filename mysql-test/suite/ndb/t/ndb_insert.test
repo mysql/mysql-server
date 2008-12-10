@@ -438,8 +438,8 @@ INSERT INTO t1 VALUES (1,1,1);
 
 --error 1022
 INSERT INTO t1 VALUES 
-(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
-(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+(-1,-1,-1),(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),(9999,9999,9999);
 
 select count(*) from t1;
 
@@ -465,8 +465,7 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
---error 1296
-commit;
+rollback;
 
 select * from t1 where pk1=1;
 select * from t1 where pk1=10;
@@ -503,9 +502,13 @@ begin;
 INSERT INTO t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
---error 1296
+# check that we get a warning that transaction has rolled back
+SHOW WARNINGS;
+
+# transaction has rolled back, no error
 SELECT * FROM t1 WHERE pk1=10;
 
+# transaction has rolled back, no error
 rollback;
 
 select * from t1 where pk1=1;
@@ -525,13 +528,13 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
---error 1296
+# transaction has rolled back, no error
 SELECT * FROM t1 WHERE pk1=10;
 
---error 1296
+# transaction has rolled back, no error
 SELECT * FROM t1 WHERE pk1=10;
 
---error 1296
+# transaction has rolled back, no error
 commit;
 
 select * from t1 where pk1=1;
@@ -551,9 +554,10 @@ INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 
---error 1296
+# transaction has rolled back, no error
 INSERT INTO t1 values (4000, 40, 44);
 
+# transaction has rolled back, no error
 rollback;
 
 select * from t1 where pk1=1;

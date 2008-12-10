@@ -1,4 +1,5 @@
 --source include/have_ucs2.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£Τ£±`;
@@ -10,9 +11,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
-drop table if exists `£Τ£±£±`;
-drop table if exists `£Τ£±£²`;
 --enable_warnings
 
 #
@@ -29,12 +27,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = innodb;
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
@@ -45,9 +40,6 @@ INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
 INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ');
 
 #InnoDB
 SELECT INSERT(`£Γ£±`,1,1,'¶') FROM `£Τ£±`;
@@ -203,7 +195,7 @@ SELECT INSERT(`£Γ£±`,4,1,'°΅') FROM `£Τ£¶`;
 SELECT INSERT(`£Γ£±`,4,2,'°΅°΅' ) FROM `£Τ£¶`;
 SELECT INSERT(`£Γ£±`,5,1,'°΅') FROM `£Τ£¶`;
 
-#HEAP
+#MEMORY
 SELECT INSERT(`£Γ£±`,1,1,'¶') FROM `£Τ£·`;
 SELECT INSERT(`£Γ£±`,1,2,'¶¶') FROM `£Τ£·`;
 SELECT INSERT(`£Γ£±`,1,3,'¶¶¶') FROM `£Τ£·`;
@@ -280,68 +272,6 @@ SELECT INSERT(`£Γ£±`,4,1,'°΅') FROM `£Τ£Ή`;
 SELECT INSERT(`£Γ£±`,4,2,'°΅°΅' ) FROM `£Τ£Ή`;
 SELECT INSERT(`£Γ£±`,5,1,'°΅') FROM `£Τ£Ή`;
 
-#BDB
-SELECT INSERT(`£Γ£±`,1,1,'¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,1,2,'¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,1,3,'¶¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,1,4,'¶¶¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,1,5,'¶¶¶¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,2,1,'¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,2,2,'¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,2,3,'¶¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,2,4,'¶¶¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,3,1,'¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,3,2,'¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,3,3,'¶¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,4,1,'¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,4,2,'¶¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,5,1,'¶') FROM `£Τ£±£°`;
-SELECT INSERT(`£Γ£±`,1,1,'¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,2,'¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,3,'¤«¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,4,'¤«¤«¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,5,'¤«¤«¤«¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,1,'¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,2,'¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,3,'¤«¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,4,'¤«¤«¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,3,1,'¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,3,2,'¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,3,3,'¤«¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,4,1,'¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,4,2,'¤«¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,5,1,'¤«') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,1,'΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,2,'΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,3,'΅΅΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,5,'΅΅΅΅΅΅΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,1,'΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,2,'΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,3,'΅΅΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,2,4,'΅΅΅΅΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,3,1,'΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,3,2,'΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,3,3,'΅΅΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,4,1,'΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,4,2,'΅΅΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,5,1,'΅΅') FROM `£Τ£±£±`;
-SELECT INSERT(`£Γ£±`,1,1,'°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,1,2,'°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,1,3,'°΅°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,1,4,'°΅°΅°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,1,5,'°΅°΅°΅°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,2,1,'°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,2,2,'°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,2,3,'°΅°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,2,4,'°΅°΅°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,3,1,'°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,3,2,'°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,3,3,'°΅°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,4,1,'°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,4,2,'°΅°΅') FROM `£Τ£±£²`;
-SELECT INSERT(`£Γ£±`,5,1,'°΅') FROM `£Τ£±£²`;
-
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
 DROP TABLE `£Τ£³`;
@@ -351,6 +281,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;

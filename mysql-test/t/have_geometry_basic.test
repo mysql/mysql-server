@@ -1,0 +1,100 @@
+
+
+################## mysql-test\t\have_geometry_basic.test ######################
+#                                                                             #
+# Variable Name: have_geometry                                                #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: boolean                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                  #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable have_geometry             #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_010_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.have_geometry);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_010_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.have_geometry=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.have_geometry);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_010_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.have_geometry = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_geometry';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.have_geometry);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='have_geometry';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_010_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@have_geometry = @@GLOBAL.have_geometry;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_010_05----------------------#'
+################################################################################
+#   Check if have_geometry can be accessed with and without @@ sign            #
+################################################################################
+
+SELECT COUNT(@@have_geometry);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.have_geometry);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.have_geometry);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.have_geometry);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT have_geometry = @@SESSION.have_geometry;
+--echo Expected error 'Readonly variable'
+
+

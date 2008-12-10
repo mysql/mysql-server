@@ -878,7 +878,14 @@ SimulatedBlock::execCHANGE_NODE_STATE_REQ(Signal* signal){
 
 void
 SimulatedBlock::execNDB_TAMPER(Signal * signal){
-  SET_ERROR_INSERT_VALUE(signal->theData[0]);
+  if (signal->getLength() == 1)
+  {
+    SET_ERROR_INSERT_VALUE(signal->theData[0]);
+  }
+  else
+  {
+    SET_ERROR_INSERT_VALUE2(signal->theData[0], signal->theData[1]);
+  }
 }
 
 void

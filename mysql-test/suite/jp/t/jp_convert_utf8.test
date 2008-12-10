@@ -1,3 +1,8 @@
+--source include/have_sjis.inc
+--source include/have_ucs2.inc
+--source include/have_ujis.inc
+--source include/have_utf8.inc
+--source include/have_innodb.inc
 --disable_warnings
 drop table if exists `Ｔ１`;
 drop table if exists `Ｔ２`;
@@ -8,9 +13,6 @@ drop table if exists `Ｔ６`;
 drop table if exists `Ｔ７`;
 drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
-drop table if exists `Ｔ１０`;
-drop table if exists `Ｔ１１`;
-drop table if exists `Ｔ１２`;
 --enable_warnings
 
 #
@@ -26,12 +28,9 @@ CREATE TABLE `Ｔ３` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf
 CREATE TABLE `Ｔ４` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
 CREATE TABLE `Ｔ５` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
 CREATE TABLE `Ｔ６` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ７` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ８` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ９` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１０` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
-CREATE TABLE `Ｔ１１` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
-CREATE TABLE `Ｔ１２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
 
 #Load the following data in each table
 # jisx0201 hankaku-katakana data
@@ -47,9 +46,6 @@ CREATE TABLE `Ｔ１２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = 
  LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ７`;
  LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ８`;
  LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ９`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１０`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ１１`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ１２`;
 
 #InnoDB
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ujis) FROM `Ｔ１`;
@@ -75,7 +71,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ６`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ６`;
 
-#Heap
+#MEMORY
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ujis) FROM `Ｔ７`;
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ７`;
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ７`;
@@ -87,18 +83,6 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ９`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ９`;
 
-#BDB
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using ujis) FROM `Ｔ１０`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ１０`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ１０`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using ujis) FROM `Ｔ１１`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ１１`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ１１`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using ujis) FROM `Ｔ１２`;
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ１２`;
-# The result will get garbled because jisx0212 is not included in sjis
-SELECT `Ｃ１`, CONVERT(`Ｃ１` using sjis) FROM `Ｔ１２`;
-
 drop table `Ｔ１`;
 drop table `Ｔ２`;
 drop table `Ｔ３`;
@@ -108,6 +92,3 @@ drop table `Ｔ６`;
 drop table `Ｔ７`;
 drop table `Ｔ８`;
 drop table `Ｔ９`;
-drop table `Ｔ１０`;
-drop table `Ｔ１１`;
-drop table `Ｔ１２`;

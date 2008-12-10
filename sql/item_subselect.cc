@@ -254,6 +254,11 @@ bool Item_subselect::exec()
   if (thd->is_error())
   /* Do not execute subselect in case of a fatal error */
     return 1;
+  /*
+    Simulate a failure in sub-query execution. Used to test e.g.
+    out of memory or query being killed conditions.
+  */
+  DBUG_EXECUTE_IF("subselect_exec_fail", return 1;);
 
   res= engine->exec();
 
@@ -719,27 +724,48 @@ longlong Item_exists_subselect::val_int()
   return value;
 }
 
+
+/**
+  Return the result of EXISTS as a string value
+
+  Converts the true/false result into a string value.
+  Note that currently this cannot be NULL, so if the query exection fails
+  it will return 0.
+
+  @param decimal_value[out]    buffer to hold the resulting string value
+  @retval                      Pointer to the converted string.
+                               Can't be a NULL pointer, as currently
+                               EXISTS cannot return NULL.
+*/
+
 String *Item_exists_subselect::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   if (exec())
-  {
     reset();
-    return 0;
-  }
   str->set((ulonglong)value,&my_charset_bin);
   return str;
 }
 
 
+/**
+  Return the result of EXISTS as a decimal value
+
+  Converts the true/false result into a decimal value.
+  Note that currently this cannot be NULL, so if the query exection fails
+  it will return 0.
+
+  @param decimal_value[out]    Buffer to hold the resulting decimal value
+  @retval                      Pointer to the converted decimal.
+                               Can't be a NULL pointer, as currently
+                               EXISTS cannot return NULL.
+*/
+
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);
   if (exec())
-  {
     reset();
-    return 0;
-  }
   int2my_decimal(E_DEC_FATAL_ERROR, value, 0, decimal_value);
   return decimal_value;
 }

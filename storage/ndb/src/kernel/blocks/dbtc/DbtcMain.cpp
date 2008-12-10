@@ -3091,13 +3091,14 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   regTcPtr->tcNodedata[3] = Tdata6;
 
   Uint8 Toperation = regTcPtr->operation;
-  Uint8 Tdirty = regTcPtr->dirtyOp;
+  Uint8 TopSimple = regTcPtr->opSimple;
+  Uint8 TopDirty = regTcPtr->dirtyOp;
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
   regCachePtr->fragmentDistributionKey = (tnodeinfo >> 16) & 255;
   if (Toperation == ZREAD || Toperation == ZREAD_EX) {
-    if (Tdirty == 1) {
+    if (TopSimple == 1 && TopDirty == 0){
       jam();
       /*-------------------------------------------------------------*/
       /*       A SIMPLE READ CAN SELECT ANY OF THE PRIMARY AND       */
@@ -3301,6 +3302,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   const Uint32 noOfLqhs = regTcPtr->noOfNodes;
   if(commitAckMarker != RNIL){
     jam();
+    ndbassert(regApiPtr->commitAckMarker == commitAckMarker);
+
     LqhKeyReq::setMarkerFlag(Tdata10, 1);
 
     CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
@@ -3593,6 +3596,7 @@ void Dbtc::releaseTcCon()
   UintR TconcurrentOp = c_counters.cconcurrentOp;
   UintR TtcConnectptrIndex = tcConnectptr.i;
 
+  ndbrequire(regTcPtr->commitAckMarker == RNIL);
   regTcPtr->tcConnectstate = OS_CONNECTED;
   regTcPtr->nextTcConnect = TfirstfreeTcConnect;
   regTcPtr->apiConnect = RNIL;
@@ -3785,6 +3789,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhCon = tlastLqhConnect;
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
+  regTcPtr->commitAckMarker = RNIL;
 
   UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -4397,22 +4402,21 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
 
   UintR TgcpFilesize = cgcpFilesize;
   UintR Tfirstgcp = cfirstgcp;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  Ptr<ApiConnectRecord> regApiPtr = apiConnectptr;
   GcpRecord *localGcpRecord = gcpRecord;
 
-  regApiPtr->globalcheckpointid = Tgci;
+  regApiPtr.p->globalcheckpointid = Tgci;
   if (Tfirstgcp != RNIL) {
     /* IF THIS GLOBAL CHECKPOINT ALREADY EXISTS */
     localGcpPointer.i = Tfirstgcp;
     ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
     do {
-      if (regApiPtr->globalcheckpointid == localGcpPointer.p->gcpId) {
+      if (regApiPtr.p->globalcheckpointid == localGcpPointer.p->gcpId) {
         jam();
-        gcpPtr.i = localGcpPointer.i;
-        gcpPtr.p = localGcpPointer.p;
-        linkApiToGcp(signal);
+        linkApiToGcp(localGcpPointer, regApiPtr);
         return;
       } else {
+        ndbrequire(regApiPtr.p->globalcheckpointid > localGcpPointer.p->gcpId);
         localGcpPointer.i = localGcpPointer.p->nextGcp;
         jam();
         if (localGcpPointer.i != RNIL) {
@@ -4421,14 +4425,14 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
           continue;
         }//if
       }//if
-      seizeGcp(signal);
-      linkApiToGcp(signal);
+      seizeGcp(localGcpPointer, Tgci);
+      linkApiToGcp(localGcpPointer, regApiPtr);
       return;
     } while (1);
   } else {
     jam();
-    seizeGcp(signal);
-    linkApiToGcp(signal);
+    seizeGcp(localGcpPointer, Tgci);
+    linkApiToGcp(localGcpPointer, regApiPtr);
   }//if
 }//Dbtc::commitGciHandling()
 
@@ -4437,46 +4441,43 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
 /* CHECKPOINTS. WHEN THE TRANSACTION I COMPLETED THE API CONNECT RECORD IS   */
 /* LINKED OUT OF THE LIST.                                                   */
 /*---------------------------------------------------------------------------*/
-void Dbtc::linkApiToGcp(Signal* signal) 
+void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
+                        Ptr<ApiConnectRecord> regApiPtr)
 {
   ApiConnectRecordPtr localApiConnectptr;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  GcpRecord * const regGcpPtr = gcpPtr.p;
-  UintR TapiConnectptrIndex = apiConnectptr.i;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
-  regApiPtr->nextGcpConnect = RNIL;
-  if (regGcpPtr->firstApiConnect == RNIL) {
-    regGcpPtr->firstApiConnect = TapiConnectptrIndex;
+  regApiPtr.p->nextGcpConnect = RNIL;
+  if (regGcpPtr.p->firstApiConnect == RNIL) {
+    regGcpPtr.p->firstApiConnect = regApiPtr.i;
     jam();
   } else {
     UintR TapiConnectFilesize = capiConnectFilesize;
-    localApiConnectptr.i = regGcpPtr->lastApiConnect;
+    localApiConnectptr.i = regGcpPtr.p->lastApiConnect;
     jam();
     ptrCheckGuard(localApiConnectptr,
                   TapiConnectFilesize, localApiConnectRecord);
-    localApiConnectptr.p->nextGcpConnect = TapiConnectptrIndex;
+    localApiConnectptr.p->nextGcpConnect = regApiPtr.i;
   }//if
-  UintR TlastApiConnect = regGcpPtr->lastApiConnect;
-  regApiPtr->gcpPointer = gcpPtr.i;
-  regApiPtr->prevGcpConnect = TlastApiConnect;
-  regGcpPtr->lastApiConnect = TapiConnectptrIndex;
+  UintR TlastApiConnect = regGcpPtr.p->lastApiConnect;
+  regApiPtr.p->gcpPointer = regGcpPtr.i;
+  regApiPtr.p->prevGcpConnect = TlastApiConnect;
+  regGcpPtr.p->lastApiConnect = regApiPtr.i;
 }//Dbtc::linkApiToGcp()
 
-void Dbtc::seizeGcp(Signal* signal) 
+void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
 {
   GcpRecordPtr tmpGcpPointer;
   GcpRecordPtr localGcpPointer;
 
   UintR Tfirstgcp = cfirstgcp;
-  Uint64 Tglobalcheckpointid = apiConnectptr.p->globalcheckpointid;
   UintR TgcpFilesize = cgcpFilesize;
   GcpRecord *localGcpRecord = gcpRecord;
 
   localGcpPointer.i = cfirstfreeGcp;
   ptrCheckGuard(localGcpPointer, TgcpFilesize, localGcpRecord);
   UintR TfirstfreeGcp = localGcpPointer.p->nextGcp;
-  localGcpPointer.p->gcpId = Tglobalcheckpointid;
+  localGcpPointer.p->gcpId = Tgci;
   localGcpPointer.p->nextGcp = RNIL;
   localGcpPointer.p->firstApiConnect = RNIL;
   localGcpPointer.p->lastApiConnect = RNIL;
@@ -4493,7 +4494,7 @@ void Dbtc::seizeGcp(Signal* signal)
     tmpGcpPointer.p->nextGcp = localGcpPointer.i;
   }//if
   clastgcp = localGcpPointer.i;
-  gcpPtr = localGcpPointer;
+  dst = localGcpPointer;
 }//Dbtc::seizeGcp()
 
 /*---------------------------------------------------------------------------*/
@@ -4522,7 +4523,7 @@ void Dbtc::commit020Lab(Signal* signal)
 
     if (localTcConnectptr.i != RNIL) {
       Tcount = Tcount + 1;
-      if (Tcount < 16 && !ERROR_INSERTED(8057)) {
+      if (Tcount < 16 && !ERROR_INSERTED(8057) && !ERROR_INSERTED(8073)) {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
         jam();
@@ -4533,6 +4534,14 @@ void Dbtc::commit020Lab(Signal* signal)
           CLEAR_ERROR_INSERT_VALUE;
           return;
         }//if
+        
+        if (ERROR_INSERTED(8073))
+        {
+          execSEND_PACKED(signal);
+          signal->theData[0] = 9999;
+          sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
+          return;
+        }
         signal->theData[0] = TcContinueB::ZSEND_COMMIT_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
@@ -4621,6 +4630,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
 {
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr localApiConnectptr;
+  ApiConnectRecordPtr localCopyPtr;
 
   UintR TtcConnectFilesize = ctcConnectFilesize;
   UintR TapiConnectFilesize = capiConnectFilesize;
@@ -4696,14 +4706,14 @@ void Dbtc::execCOMMITTED(Signal* signal)
   /*-------------------------------------------------------*/
 
   apiConnectptr = localApiConnectptr;
-  sendApiCommit(signal);
+  localCopyPtr = sendApiCommit(signal);
 
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  localTcConnectptr.i = regApiPtr->firstTcConnect;
-  UintR Tlqhkeyconfrec = regApiPtr->lqhkeyconfrec;
+  localTcConnectptr.i = localCopyPtr.p->firstTcConnect;
+  UintR Tlqhkeyconfrec = localCopyPtr.p->lqhkeyconfrec;
   ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
-  regApiPtr->counter = Tlqhkeyconfrec;
+  localCopyPtr.p->counter = Tlqhkeyconfrec;
 
+  apiConnectptr = localCopyPtr;
   tcConnectptr = localTcConnectptr;
   complete010Lab(signal);
   return;
@@ -4714,9 +4724,10 @@ void Dbtc::execCOMMITTED(Signal* signal)
 /*                       SEND_API_COMMIT                 */
 /*       SEND COMMIT DECISION TO THE API.                */
 /*-------------------------------------------------------*/
-void Dbtc::sendApiCommit(Signal* signal) 
+Ptr<Dbtc::ApiConnectRecord>
+Dbtc::sendApiCommit(Signal* signal)
 {
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  ApiConnectRecordPtr regApiPtr = apiConnectptr;
 
   if (ERROR_INSERTED(8055))
   {
@@ -4728,58 +4739,58 @@ void Dbtc::sendApiCommit(Signal* signal)
     signal->theData[0] = 9999;
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
     
-    Uint32 node = refToNode(regApiPtr->ndbapiBlockref);
+    Uint32 node = refToNode(regApiPtr.p->ndbapiBlockref);
     signal->theData[0] = node;
     sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
 
     SET_ERROR_INSERT_VALUE(8056);
-    return;
+
+    goto err8055;
   }
   
-  if (regApiPtr->returnsignal == RS_TCKEYCONF) {
+  if (regApiPtr.p->returnsignal == RS_TCKEYCONF) {
     sendtckeyconf(signal, 1);
-  } else if (regApiPtr->returnsignal == RS_TC_COMMITCONF) {
+  } else if (regApiPtr.p->returnsignal == RS_TC_COMMITCONF) {
     jam();
     TcCommitConf * const commitConf = (TcCommitConf *)&signal->theData[0];
-    if(regApiPtr->commitAckMarker == RNIL){
+    if(regApiPtr.p->commitAckMarker == RNIL){
       jam();
-      commitConf->apiConnectPtr = regApiPtr->ndbapiConnect;
+      commitConf->apiConnectPtr = regApiPtr.p->ndbapiConnect;
     } else {
       jam();
-      commitConf->apiConnectPtr = regApiPtr->ndbapiConnect | 1;
+      commitConf->apiConnectPtr = regApiPtr.p->ndbapiConnect | 1;
     }
-    commitConf->transId1 = regApiPtr->transid[0];
-    commitConf->transId2 = regApiPtr->transid[1];
-    commitConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
-    commitConf->gci_lo = Uint32(regApiPtr->globalcheckpointid);
+    commitConf->transId1 = regApiPtr.p->transid[0];
+    commitConf->transId2 = regApiPtr.p->transid[1];
+    commitConf->gci_hi = Uint32(regApiPtr.p->globalcheckpointid >> 32);
+    commitConf->gci_lo = Uint32(regApiPtr.p->globalcheckpointid);
 
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
+    sendSignal(regApiPtr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
 	       TcCommitConf::SignalLength, JBB);
-  } else if (regApiPtr->returnsignal == RS_NO_RETURN) {
+  } else if (regApiPtr.p->returnsignal == RS_NO_RETURN) {
     jam();
   } else {
     TCKEY_abort(signal, 37);
-    return;
+    return regApiPtr;
   }//if
+
+err8055:
+  Ptr<ApiConnectRecord> copyPtr;
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR TcommitCount = c_counters.ccommitCount;
-  UintR TapiIndex = apiConnectptr.i;
-  UintR TnewApiIndex = regApiPtr->apiCopyRecord;
-  UintR TapiFailState = regApiPtr->apiFailState;
+  copyPtr.i = regApiPtr.p->apiCopyRecord;
+  UintR TapiFailState = regApiPtr.p->apiFailState;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
-  tmpApiConnectptr.p = apiConnectptr.p;
-  tmpApiConnectptr.i = TapiIndex;
   c_counters.ccommitCount = TcommitCount + 1;
-  apiConnectptr.i = TnewApiIndex;
-  ptrCheckGuard(apiConnectptr, TapiConnectFilesize, localApiConnectRecord);
-  copyApi(signal);
+  ptrCheckGuard(copyPtr, TapiConnectFilesize, localApiConnectRecord);
+  copyApi(copyPtr, regApiPtr);
   if (TapiFailState != ZTRUE) {
-    return;
+    return copyPtr;
   } else {
     jam();
-    handleApiFailState(signal, tmpApiConnectptr.i);
-    return;
+    handleApiFailState(signal, regApiPtr.i);
+    return copyPtr;
   }//if
 }//Dbtc::sendApiCommit()
 
@@ -4788,54 +4799,51 @@ void Dbtc::sendApiCommit(Signal* signal)
 /*   COPY API RECORD ALSO RESET THE OLD API RECORD SO THAT IT                */
 /*   IS PREPARED TO RECEIVE A NEW TRANSACTION.                               */
 /*===========================================================================*/
-void Dbtc::copyApi(Signal* signal) 
+void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
 {
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  ApiConnectRecord * const regTmpApiPtr = tmpApiConnectptr.p;
-
-  UintR TndbapiConnect = regTmpApiPtr->ndbapiConnect;
-  UintR TfirstTcConnect = regTmpApiPtr->firstTcConnect;
-  UintR Ttransid1 = regTmpApiPtr->transid[0];
-  UintR Ttransid2 = regTmpApiPtr->transid[1];
-  UintR Tlqhkeyconfrec = regTmpApiPtr->lqhkeyconfrec;
-  UintR TgcpPointer = regTmpApiPtr->gcpPointer;
+  UintR TndbapiConnect = regApiPtr.p->ndbapiConnect;
+  UintR TfirstTcConnect = regApiPtr.p->firstTcConnect;
+  UintR Ttransid1 = regApiPtr.p->transid[0];
+  UintR Ttransid2 = regApiPtr.p->transid[1];
+  UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
+  UintR TgcpPointer = regApiPtr.p->gcpPointer;
   UintR TgcpFilesize = cgcpFilesize;
-  UintR TcommitAckMarker = regTmpApiPtr->commitAckMarker;
-  NdbNodeBitmask Tnodes = regTmpApiPtr->m_transaction_nodes;
+  NdbNodeBitmask Tnodes = regApiPtr.p->m_transaction_nodes;
   GcpRecord *localGcpRecord = gcpRecord;
 
-  regApiPtr->ndbapiBlockref = regTmpApiPtr->ndbapiBlockref;
-  regApiPtr->ndbapiConnect = TndbapiConnect;
-  regApiPtr->firstTcConnect = TfirstTcConnect;
-  regApiPtr->apiConnectstate = CS_COMPLETING;
-  regApiPtr->transid[0] = Ttransid1;
-  regApiPtr->transid[1] = Ttransid2;
-  regApiPtr->lqhkeyconfrec = Tlqhkeyconfrec;
-  regApiPtr->commitAckMarker = TcommitAckMarker;
-  regApiPtr->m_transaction_nodes = Tnodes;
-  regApiPtr->singleUserMode = 0;
+  copyPtr.p->ndbapiBlockref = regApiPtr.p->ndbapiBlockref;
+  copyPtr.p->ndbapiConnect = TndbapiConnect;
+  copyPtr.p->firstTcConnect = TfirstTcConnect;
+  copyPtr.p->apiConnectstate = CS_COMPLETING;
+  copyPtr.p->transid[0] = Ttransid1;
+  copyPtr.p->transid[1] = Ttransid2;
+  copyPtr.p->lqhkeyconfrec = Tlqhkeyconfrec;
+  copyPtr.p->commitAckMarker = RNIL;
+  copyPtr.p->m_transaction_nodes = Tnodes;
+  copyPtr.p->singleUserMode = 0;
 
+  Ptr<GcpRecord> gcpPtr;
   gcpPtr.i = TgcpPointer;
   ptrCheckGuard(gcpPtr, TgcpFilesize, localGcpRecord);
-  unlinkApiConnect(signal);
-  linkApiToGcp(signal);
-  setApiConTimer(tmpApiConnectptr.i, 0, __LINE__);
-  regTmpApiPtr->apiConnectstate = CS_CONNECTED;
-  regTmpApiPtr->commitAckMarker = RNIL;
-  regTmpApiPtr->firstTcConnect = RNIL;
-  regTmpApiPtr->lastTcConnect = RNIL;
-  regTmpApiPtr->m_transaction_nodes.clear();
-  regTmpApiPtr->singleUserMode = 0;
-  releaseAllSeizedIndexOperations(regTmpApiPtr);
+  unlinkApiConnect(gcpPtr, regApiPtr);
+  linkApiToGcp(gcpPtr, copyPtr);
+  setApiConTimer(regApiPtr.i, 0, __LINE__);
+  regApiPtr.p->apiConnectstate = CS_CONNECTED;
+  regApiPtr.p->commitAckMarker = RNIL;
+  regApiPtr.p->firstTcConnect = RNIL;
+  regApiPtr.p->lastTcConnect = RNIL;
+  regApiPtr.p->m_transaction_nodes.clear();
+  regApiPtr.p->singleUserMode = 0;
+  releaseAllSeizedIndexOperations(regApiPtr.p);
 }//Dbtc::copyApi()
 
-void Dbtc::unlinkApiConnect(Signal* signal) 
+void Dbtc::unlinkApiConnect(Ptr<GcpRecord> gcpPtr,
+                            Ptr<ApiConnectRecord> regApiPtr)
 {
   ApiConnectRecordPtr localApiConnectptr;
-  ApiConnectRecord * const regTmpApiPtr = tmpApiConnectptr.p;
   UintR TapiConnectFilesize = capiConnectFilesize;
-  UintR TprevGcpConnect = regTmpApiPtr->prevGcpConnect;
-  UintR TnextGcpConnect = regTmpApiPtr->nextGcpConnect;
+  UintR TprevGcpConnect = regApiPtr.p->prevGcpConnect;
+  UintR TnextGcpConnect = regApiPtr.p->nextGcpConnect;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
   if (TprevGcpConnect == RNIL) {
@@ -5096,7 +5104,7 @@ void Dbtc::releaseTransResources(Signal* signal)
     localTcConnectptr.i = rtrTcConnectptrIndex;
     releaseTcCon();
   } while (localTcConnectptr.i != RNIL);
-  handleGcp(signal);
+  handleGcp(signal, apiConnectptr);
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
   releaseAllSeizedIndexOperations(apiConnectptr.p);
   releaseApiConCopy(signal);
@@ -5109,27 +5117,24 @@ void Dbtc::releaseTransResources(Signal* signal)
 /*       SENDS GCP_TCFINISHED WHEN ALL TRANSACTIONS BELONGING TO A CERTAIN */
 /*       GLOBAL CHECKPOINT HAVE COMPLETED.                                 */
 /* *********************************************************************>> */
-void Dbtc::handleGcp(Signal* signal) 
+void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 {
   GcpRecord *localGcpRecord = gcpRecord;
   GcpRecordPtr localGcpPtr;
-  UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TgcpFilesize = cgcpFilesize;
   localGcpPtr.i = apiConnectptr.p->gcpPointer;
-  tmpApiConnectptr.i = TapiConnectptrIndex;
-  tmpApiConnectptr.p = apiConnectptr.p;
   ptrCheckGuard(localGcpPtr, TgcpFilesize, localGcpRecord);
-  gcpPtr.i = localGcpPtr.i;
-  gcpPtr.p = localGcpPtr.p;
-  unlinkApiConnect(signal);
+  unlinkApiConnect(localGcpPtr, regApiPtr);
   if (localGcpPtr.p->firstApiConnect == RNIL) {
     if (localGcpPtr.p->gcpNomoretransRec == ZTRUE) {
-      jam();
-      tcheckGcpId = localGcpPtr.p->gcpId;
-      gcpTcfinished(signal);
-      unlinkGcp(signal);
+      if (c_ongoing_take_over_cnt == 0)
+      {
+        jam();
+        gcpTcfinished(signal, localGcpPtr.p->gcpId);
+        unlinkGcp(localGcpPtr);
+      }
     }//if
-  }//if
+  }
 }//Dbtc::handleGcp()
 
 void Dbtc::releaseApiConCopy(Signal* signal) 
@@ -5140,6 +5145,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
   regApiPtr->nextApiConnect = TfirstfreeApiConnectCopyOld;
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   regApiPtr->apiConnectstate = CS_RESTART;
+  ndbrequire(regApiPtr->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConCopy()
 
 /* ========================================================================= */
@@ -5378,8 +5384,10 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
   if (regApiPtr->commitAckMarker == RNIL)
     ndbassert(commitAckMarker == RNIL);
   if (commitAckMarker != RNIL)
-    ndbassert(regApiPtr->commitAckMarker != RNIL);
-  if(commitAckMarker != RNIL){
+    ndbassert(regApiPtr->commitAckMarker == commitAckMarker);
+  
+  if(commitAckMarker != RNIL)
+  {
     jam();
     m_commitAckMarkerHash.release(commitAckMarker);
     regTcPtr->commitAckMarker = RNIL;
@@ -7124,35 +7132,136 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
   Uint32 gci_lo = req->gci_lo;
   Uint32 gci_hi = req->gci_hi;
   tcheckGcpId = gci_lo | (Uint64(gci_hi) << 32);
+
+  Ptr<GcpRecord> gcpPtr;
   if (cfirstgcp != RNIL) {
     jam();
                                       /* A GLOBAL CHECKPOINT IS GOING ON */
     gcpPtr.i = cfirstgcp;             /* SET POINTER TO FIRST GCP IN QUEUE*/
     ptrCheckGuard(gcpPtr, cgcpFilesize, gcpRecord);
-    if (gcpPtr.p->gcpId == tcheckGcpId) {
+    if (gcpPtr.p->gcpId == tcheckGcpId)
+    {
       jam();
-      if (gcpPtr.p->firstApiConnect != RNIL) {
+      bool empty = gcpPtr.p->firstApiConnect == RNIL;
+      bool nfhandling = c_ongoing_take_over_cnt;
+
+      if (empty && nfhandling)
+      {
+        jam();
+        ndbout_c("NOT returning gcpTcfinished due to nfhandling %u/%u",
+                 gci_hi, gci_lo);
+      }
+
+      if (!empty || c_ongoing_take_over_cnt)
+      {
         jam();
         gcpPtr.p->gcpNomoretransRec = ZTRUE;
       } else {
         jam();
-        gcpTcfinished(signal);
-        unlinkGcp(signal);
+        gcpTcfinished(signal, tcheckGcpId);
+        unlinkGcp(gcpPtr);
       }//if
-    } else {
+    }
+    else if (c_ongoing_take_over_cnt == 0)
+    {
       jam();
       /*------------------------------------------------------------*/
       /*       IF IT IS NOT THE FIRST THEN THERE SHOULD BE NO       */
       /*       RECORD FOR THIS GLOBAL CHECKPOINT. WE ALWAYS REMOVE  */
       /*       THE GLOBAL CHECKPOINTS IN ORDER.                     */
       /*------------------------------------------------------------*/
-      gcpTcfinished(signal);
-    }//if
-  } else {
+      gcpTcfinished(signal, tcheckGcpId);
+    }
+    else
+    {
+      jam();
+      goto outoforder;
+    }
+  }
+  else if (c_ongoing_take_over_cnt == 0)
+  {
     jam();
-    gcpTcfinished(signal);
-  }//if
+    gcpTcfinished(signal, tcheckGcpId);
+  }
+  else
+  {
+seize:
+    jam();
+    ndbout_c("execGCP_NOMORETRANS(%u/%u) c_ongoing_take_over_cnt -> seize",
+             gci_hi, gci_lo);
+    seizeGcp(gcpPtr, tcheckGcpId);
+    gcpPtr.p->gcpNomoretransRec = ZTRUE;
+  }
   return;
+  
+outoforder:
+  printf("ooo: execGCP_NOMORETRANS tcheckGcpId: %u/%u cfirstgcp: %u/%u",
+         gci_hi, gci_lo,
+         Uint32(gcpPtr.p->gcpId >> 32), Uint32(gcpPtr.p->gcpId));
+
+  if (tcheckGcpId < gcpPtr.p->gcpId)
+  {
+    jam();
+
+    Ptr<GcpRecord> tmp;
+    tmp.i = cfirstfreeGcp;
+    ptrCheckGuard(tmp, cgcpFilesize, gcpRecord);
+    cfirstfreeGcp = tmp.p->nextGcp;
+
+    tmp.p->gcpId = tcheckGcpId;
+    tmp.p->nextGcp = cfirstgcp;
+    tmp.p->firstApiConnect = RNIL;
+    tmp.p->lastApiConnect = RNIL;
+    tmp.p->gcpNomoretransRec = ZTRUE;
+    cfirstgcp = tmp.i;
+    ndbout_c("LINK FIRST");
+    return;
+  }
+  else
+  {
+    Ptr<GcpRecord> prev = gcpPtr;
+    while (tcheckGcpId > gcpPtr.p->gcpId)
+    {
+      jam();
+      if (gcpPtr.p->nextGcp == RNIL)
+      {
+        printf("nextGcp == RNIL -> ");
+        goto seize;
+      }
+
+      prev = gcpPtr;
+      gcpPtr.i = gcpPtr.p->nextGcp;
+      ptrCheckGuard(gcpPtr, cgcpFilesize, gcpRecord);
+    }
+
+    if (tcheckGcpId == gcpPtr.p->gcpId)
+    {
+      jam();
+      gcpPtr.p->gcpNomoretransRec = ZTRUE;
+      ndbout_c("found");
+      return;
+    }
+    ndbrequire(prev.i != gcpPtr.i); // checked earlier with initial "<"
+    ndbrequire(prev.p->gcpId < tcheckGcpId);
+    ndbrequire(gcpPtr.p->gcpId > tcheckGcpId);
+
+    Ptr<GcpRecord> tmp;
+    tmp.i = cfirstfreeGcp;
+    ptrCheckGuard(tmp, cgcpFilesize, gcpRecord);
+    cfirstfreeGcp = tmp.p->nextGcp;
+
+    tmp.p->gcpId = tcheckGcpId;
+    tmp.p->nextGcp = gcpPtr.i;
+    tmp.p->firstApiConnect = RNIL;
+    tmp.p->lastApiConnect = RNIL;
+    tmp.p->gcpNomoretransRec = ZTRUE;
+    prev.p->nextGcp = tmp.i;
+    ndbout_c("link middle %u/%u < %u/%u < %u/%u",
+             Uint32(prev.p->gcpId >> 32), Uint32(prev.p->gcpId),
+             gci_hi, gci_lo,
+             Uint32(gcpPtr.p->gcpId >> 32), Uint32(gcpPtr.p->gcpId));
+    return;
+  }
 }//Dbtc::execGCP_NOMORETRANS()
 
 /*****************************************************************************/
@@ -7210,6 +7319,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     /*------------------------------------------------------------*/
     hostptr.p->hostStatus = HS_DEAD;
     hostptr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
+    c_ongoing_take_over_cnt++;
     c_alive_nodes.clear(hostptr.i);
 
     if (tcNodeFailptr.p->failStatus == FS_LISTENING) 
@@ -7257,6 +7367,9 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     nfRep->nodeId       = cownNodeid;
     nfRep->failedNodeId = hostptr.i;
     sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
+	       NFCompleteRep::SignalLength, JBB);
+
+    sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal, 
 	       NFCompleteRep::SignalLength, JBB);
   }
 
@@ -7395,6 +7508,10 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   if (signal->getSendersBlockRef() != reference())
   {
     jam();
+
+    tcNodeFailptr.i = 0;
+    ptrAss(tcNodeFailptr, tcFailRecord);
+
     /**
      * Node should be in queue
      */
@@ -7413,8 +7530,31 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
     tcNodeFailptr.p->queueList[i] = tcNodeFailptr.p->queueList[end-1];
     tcNodeFailptr.p->queueIndex = end - 1;
   }
-  
+
+  Uint32 cnt = c_ongoing_take_over_cnt;
+  ndbrequire(cnt);
+  c_ongoing_take_over_cnt = cnt - 1;
   checkNodeFailComplete(signal, hostptr.i, HostRecord::NF_TAKEOVER);
+
+  if (cnt == 1 && cfirstgcp != RNIL)
+  {
+    /**
+     * Check if there are any hanging GCP_NOMORETRANS
+     */
+    GcpRecordPtr tmpGcpPointer;
+    tmpGcpPointer.i = cfirstgcp;
+    ptrCheckGuard(tmpGcpPointer, cgcpFilesize, gcpRecord);
+    if (tmpGcpPointer.p->gcpNomoretransRec &&
+        tmpGcpPointer.p->firstApiConnect == RNIL)
+    {
+      jam();
+      ndbout_c("completing gcp %u/%u in execTAKE_OVERTCCONF",
+               Uint32(tmpGcpPointer.p->gcpId >> 32),
+               Uint32(tmpGcpPointer.p->gcpId));
+      gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
+      unlinkGcp(tmpGcpPointer);
+    }
+  }
 }//Dbtc::execTAKE_OVERTCCONF()
 
 void Dbtc::execTAKE_OVERTCREQ(Signal* signal) 
@@ -7466,7 +7606,16 @@ void Dbtc::startTakeOverLab(Signal* signal)
       signal->theData[0] = tcNodeFailptr.i;
       signal->theData[1] = cownref;
       signal->theData[2] = tfailedNodeId;
-      sendSignal(tblockref, GSN_LQH_TRANSREQ, signal, 3, JBB);
+      if (ERROR_INSERTED(8064) && hostptr.i == getOwnNodeId())
+      {
+        ndbout_c("sending delayed GSN_LQH_TRANSREQ to self");
+        sendSignalWithDelay(tblockref, GSN_LQH_TRANSREQ, signal, 100, 3);
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      else
+      {
+        sendSignal(tblockref, GSN_LQH_TRANSREQ, signal, 3, JBB);
+      }
     }//if
   }//for
 }//Dbtc::startTakeOverLab()
@@ -7720,6 +7869,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
+    commitGciHandling(signal, apiConnectptr.p->globalcheckpointid);
     toCompleteHandlingLab(signal);
     return;
   case CS_FAIL_COMMITTING:
@@ -7734,6 +7884,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
+    commitGciHandling(signal, apiConnectptr.p->globalcheckpointid);
     toCommitHandlingLab(signal);
     return;
   case CS_FAIL_ABORTING:
@@ -7785,7 +7936,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
 }//Dbtc::completeTransAtTakeOverDoOne()
 
 void 
-Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
+Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
@@ -7808,6 +7959,14 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
       routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
     }
   }
+
+  const Uint32 marker = regApiPtr->commitAckMarker;
+  if(marker != RNIL)
+  {
+    jam();
+    m_commitAckMarkerHash.release(marker);
+    regApiPtr->commitAckMarker = RNIL;
+  }
 }
 
 void 
@@ -7820,7 +7979,7 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   const Uint32 nodeId = refToNode(ref);
   if(ref != 0)
   {
-    jam()
+    jam();
     failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
     failConf->transId1 = regApiPtr->transid[0];
     failConf->transId2 = regApiPtr->transid[1];
@@ -8035,17 +8194,6 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
         if (apiConnectptr.p->takeOverRec != (Uint8)Z8NIL) {
           jam();
 	  sendTCKEY_FAILREF(signal, apiConnectptr.p);
-	  const Uint32 marker = apiConnectptr.p->commitAckMarker;
-          if(marker != RNIL){
-	    jam();
-
-            CommitAckMarkerPtr tmp;
-            tmp.i = marker;
-            tmp.p = m_commitAckMarkerHash.getPtr(tmp.i);
-            
-            m_commitAckMarkerHash.release(tmp);
-            apiConnectptr.p->commitAckMarker = RNIL;
-          }
           
 	  /*------------------------------------------------------------*/
 	  /*       WE HAVE COMPLETED THIS TRANSACTION NOW AND CAN       */
@@ -8199,7 +8347,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
 	  sendTCKEY_FAILCONF(signal, apiConnectptr.p);
 	} else {
           jam();
-          sendApiCommit(signal);
+          apiConnectptr = sendApiCommit(signal);
         }//if
         apiConnectptr.p->currentTcConnect = apiConnectptr.p->firstTcConnect;
         tcConnectptr.i = apiConnectptr.p->firstTcConnect;
@@ -8335,6 +8483,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
           signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
           signal->theData[2] = apiConnectptr.p->takeOverInd;
           sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+          handleGcp(signal, apiConnectptr);
           releaseTakeOver(signal);
         } else {
           jam();
@@ -8665,6 +8814,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.p->noOfLqhs      = 1;
       tmp.p->lqhNodeId[0]  = tnodeid;
       tmp.p->apiConnectPtr = apiConnectptr.i;
+
 #if defined VM_TRACE || defined ERROR_INSERT
       {
 	CommitAckMarkerPtr check;
@@ -8679,10 +8829,23 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.i = marker;
       tmp.p = m_commitAckMarkerHash.getPtr(marker);
 
+      ndbassert(tmp.p->transid1 == ttransid1);
+      ndbassert(tmp.p->transid2 == ttransid2);
+
       const Uint32 noOfLqhs = tmp.p->noOfLqhs;
+      for (Uint32 i = 0; i<noOfLqhs && i < MAX_REPLICAS; i++)
+      {
+        if (tmp.p->lqhNodeId[i] == tnodeid)
+        {
+          jam();
+          goto found;
+        }
+      }
       ndbrequire(noOfLqhs < MAX_REPLICAS);
       tmp.p->lqhNodeId[noOfLqhs] = tnodeid;
       tmp.p->noOfLqhs = (noOfLqhs + 1);
+  found:
+      (void)1;
     }
   }
 
@@ -9097,7 +9260,12 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   ndbrequire(transP->apiScanRec == RNIL);
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
-  initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag);
+  errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag);
+  if (unlikely(errCode))
+  {
+    jam();
+    goto SCAN_TAB_error;
+  }
 
   transP->apiScanRec = scanptr.i;
   transP->returncode = 0;
@@ -9187,10 +9355,11 @@ SCAN_TAB_error_no_state_change:
   return;
 }//Dbtc::execSCAN_TABREQ()
 
-void Dbtc::initScanrec(ScanRecordPtr scanptr,
-		       const ScanTabReq * scanTabReq,
-		       UintR scanParallel,
-		       UintR noOprecPerFrag) 
+Uint32
+Dbtc::initScanrec(ScanRecordPtr scanptr,
+		  const ScanTabReq * scanTabReq,
+		  UintR scanParallel,
+		  UintR noOprecPerFrag) 
 {
   const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
@@ -9225,7 +9394,11 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
     ScanFragRecPtr ptr;
-    ndbrequire(list.seize(ptr));
+    if (unlikely(list.seize(ptr) == false))
+    {
+      jam();
+      goto errout;
+    }
     ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
@@ -9235,6 +9408,10 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   (* (ScanTabReq::getRangeScanFlag(ri) ? 
       &c_counters.c_range_scan_count : 
       &c_counters.c_scan_count))++;
+  return 0;
+errout:
+  list.release();
+  return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
 void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode) 
@@ -10335,12 +10512,12 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 }//Dbtc::sendScanTabConf()
 
 
-void Dbtc::gcpTcfinished(Signal* signal) 
+void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 {
   GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
   conf->senderData = c_gcp_ref;
-  conf->gci_hi = Uint32(tcheckGcpId >> 32);
-  conf->gci_lo = Uint32(tcheckGcpId);
+  conf->gci_hi = Uint32(gci >> 32);
+  conf->gci_lo = Uint32(gci);
   sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
@@ -10486,6 +10663,7 @@ void Dbtc::initdatabuf(Signal* signal)
 
 void Dbtc::initgcp(Signal* signal) 
 {
+  Ptr<GcpRecord> gcpPtr;
   ndbrequire(cgcpFilesize > 0);
   for (gcpPtr.i = 0; gcpPtr.i < cgcpFilesize; gcpPtr.i++) {
     ptrAss(gcpPtr, gcpRecord);
@@ -10659,6 +10837,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
+    tcConnectptr.p->commitAckMarker = RNIL;
   }//for
   tcConnectptr.i = titcTmp - 1;
   ptrAss(tcConnectptr, tcConnectRecord);
@@ -10675,6 +10854,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
+    tcConnectptr.p->commitAckMarker = RNIL;
   }//for
   tcConnectptr.i = ctcConnectFilesize - 1;
   ptrAss(tcConnectptr, tcConnectRecord);
@@ -10687,7 +10867,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
 /* ----     LINK A GLOBAL CHECKPOINT RECORD INTO THE LIST WITH TRANSACTIONS  */
 /*          WAITING FOR COMPLETION.                                          */
 /* ------------------------------------------------------------------------- */
-void Dbtc::linkGciInGcilist(Signal* signal) 
+void Dbtc::linkGciInGcilist(Ptr<GcpRecord> gcpPtr)
 {
   GcpRecordPtr tmpGcpPointer;
   if (cfirstgcp == RNIL) {
@@ -10768,6 +10948,15 @@ void Dbtc::releaseAbortResources(Signal* signal)
     releaseTcCon();
     tcConnectptr.i = rarTcConnectptr.i;
   }//while
+
+  Uint32 marker = apiConnectptr.p->commitAckMarker;
+  if (marker != RNIL)
+  {
+    jam();
+    m_commitAckMarkerHash.release(marker);
+    apiConnectptr.p->commitAckMarker = RNIL;
+  }
+
   apiConnectptr.p->firstTcConnect = RNIL;
   apiConnectptr.p->lastTcConnect = RNIL;
   apiConnectptr.p->m_transaction_nodes.clear();
@@ -10858,14 +11047,8 @@ void Dbtc::releaseApiConnectFail(Signal* signal)
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   apiConnectptr.p->nextApiConnect = cfirstfreeApiConnectFail;
   cfirstfreeApiConnectFail = apiConnectptr.i;
+  ndbrequire(apiConnectptr.p->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConnectFail()
-
-void Dbtc::releaseGcp(Signal* signal) 
-{
-  ptrGuard(gcpPtr);
-  gcpPtr.p->nextGcp = cfirstfreeGcp;
-  cfirstfreeGcp = gcpPtr.i;
-}//Dbtc::releaseGcp()
 
 void Dbtc::releaseKeys() 
 {
@@ -11059,25 +11242,18 @@ void Dbtc::sendSystemError(Signal* signal, int line)
 /* ========================================================================= */
 /* -------             LINK ACTUAL GCP OUT OF LIST                   ------- */
 /* ------------------------------------------------------------------------- */
-void Dbtc::unlinkGcp(Signal* signal) 
+void Dbtc::unlinkGcp(Ptr<GcpRecord> tmpGcpPtr)
 {
-  if (cfirstgcp == gcpPtr.i) {
+  ndbrequire(cfirstgcp == tmpGcpPtr.i);
+
+  cfirstgcp = tmpGcpPtr.p->nextGcp;
+  if (tmpGcpPtr.i == clastgcp) {
     jam();
-    cfirstgcp = gcpPtr.p->nextGcp;
-    if (gcpPtr.i == clastgcp) {
-      jam();
-      clastgcp = RNIL;
-    }//if
-  } else {
-    jam();
-    /* -------------------------------------------------------------------- 
-     * WE ARE TRYING TO REMOVE A GLOBAL CHECKPOINT WHICH WAS NOT THE OLDEST. 
-     * THIS IS A SYSTEM ERROR.                                              
-     * ------------------------------------------------------------------- */
-    sendSystemError(signal, __LINE__);
+    clastgcp = RNIL;
   }//if
-  gcpPtr.p->nextGcp = cfirstfreeGcp;
-  cfirstfreeGcp = gcpPtr.i;
+
+  tmpGcpPtr.p->nextGcp = cfirstfreeGcp;
+  cfirstfreeGcp = tmpGcpPtr.i;
 }//Dbtc::unlinkGcp()
 
 void
@@ -11483,6 +11659,12 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
+
+  if (arg == 4002)
+  {
+    ndbrequire(m_commitAckMarkerPool.getNoOfFree() == 
+               m_commitAckMarkerPool.getSize());
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 bool
@@ -11507,7 +11689,7 @@ Dbtc::validate_filter(Signal* signal)
       start += 3;
       break;
     default:
-      infoEvent("Invalid filter op: 0x%x pos: %d",
+      infoEvent("Invalid filter op: 0x%x pos: %ld",
 		* start,
 		start - (signal->theData + 1));
       return false;

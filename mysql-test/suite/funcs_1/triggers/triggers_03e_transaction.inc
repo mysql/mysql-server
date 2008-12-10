@@ -40,7 +40,7 @@ let $message= #########      Testcase for transactions:   ########;
         select current_user;
 	use priv_db;
 	set autocommit=0;
-	create definer=current_user trigger trg1_1 
+	create definer=current_user trigger trg1_1
 		before INSERT on t1 for each row
 		set new.f1 = 'trig 1_1-yes';
 	rollback work;
@@ -56,7 +56,7 @@ let $message= #########      Testcase for transactions:   ########;
 	commit work;
 	drop trigger trg1_1;
 	rollback work;
-	--error 1360
+	--error ER_TRG_DOES_NOT_EXIST
 	drop trigger trg1_1;
 	drop trigger trg1_2;
 	commit work;
@@ -74,7 +74,7 @@ let $message= #########      Testcase for transactions:   ########;
 	--enable_warnings
 
 
-# general Cleanup 
+# general Cleanup
 	--disable_warnings
 	drop database if exists priv_db;
 	drop user test_yesprivs@localhost;

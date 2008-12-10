@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -437,8 +437,11 @@ uint Item::decimal_precision() const
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    return min(my_decimal_length_to_precision(max_length, decimals, unsigned_flag),
-               DECIMAL_MAX_PRECISION);
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
   return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
@@ -1245,10 +1248,12 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
-                      (((Item_func *) value_item)->functype() ==
-                                                 Item_func::NEG_FUNC) &&
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::COLLATE_FUNC) ||
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::NEG_FUNC) &&
                       (((Item_func *) value_item)->key_item()->type() !=
-                       FUNC_ITEM)))))
+                         FUNC_ITEM)))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
@@ -1333,6 +1338,7 @@ public:
     else
       Item_ident::print(str, query_type);
   }
+  virtual Ref_Type ref_type() { return AGGREGATE_REF; }
 };
 
 
@@ -1798,14 +1804,16 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     We need to copy db_name, table_name and field_name because they must
     be allocated in the statement memory, not in table memory (the table
     structure can go away and pop up again between subsequent executions
-    of a prepared statement).
+    of a prepared statement or after the close_tables_for_reopen() call
+    in mysql_multi_update_prepare()).
   */
-  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
   {
     if (db_name)
       orig_db_name= thd->strdup(db_name);
-    orig_table_name= thd->strdup(table_name);
-    orig_field_name= thd->strdup(field_name);
+    if (table_name)
+      orig_table_name= thd->strdup(table_name);
+    if (field_name)
+      orig_field_name= thd->strdup(field_name);
     /*
       We don't restore 'name' in cleanup because it's not changed
       during execution. Still we need it to point to persistent
@@ -3161,6 +3169,49 @@ void Item_param::print(String *str, enum_query_type query_type)
 }
 
 
+/**
+  Preserve the original parameter types and values
+  when re-preparing a prepared statement.
+
+  @details Copy parameter type information and conversion
+  function pointers from a parameter of the old statement
+  to the corresponding parameter of the new one.
+
+  Move parameter values from the old parameters to the new
+  one. We simply "exchange" the values, which allows
+  to save on allocation and character set conversion in
+  case a parameter is a string or a blob/clob.
+
+  The old parameter gets the value of this one, which
+  ensures that all memory of this parameter is freed
+  correctly.
+
+  @param[in]  src   parameter item of the original
+                    prepared statement
+*/
+
+void
+Item_param::set_param_type_and_swap_value(Item_param *src)
+{
+  unsigned_flag= src->unsigned_flag;
+  param_type= src->param_type;
+  set_param_func= src->set_param_func;
+  item_type= src->item_type;
+  item_result_type= src->item_result_type;
+
+  collation.set(src->collation);
+  maybe_null= src->maybe_null;
+  null_value= src->null_value;
+  max_length= src->max_length;
+  decimals= src->decimals;
+  state= src->state;
+  value= src->value;
+
+  decimal_value.swap(src->decimal_value);
+  str_value.swap(src->str_value);
+  str_value_ptr.swap(src->str_value_ptr);
+}
+
 /****************************************************************************
   Item_copy_string
 ****************************************************************************/
@@ -4074,16 +4125,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   if (any_privileges)
   {
     char *db, *tab;
-    if (cached_table->view)
-    {
-      db= cached_table->view_db.str;
-      tab= cached_table->view_name.str;
-    }
-    else
-    {
-      db= cached_table->db;
-      tab= cached_table->table_name;
-    }
+    db= cached_table->get_db_name();
+    tab= cached_table->get_table_name();
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
                                              db, tab, field_name) &
                             VIEW_ANY_ACL)))
@@ -4245,9 +4288,14 @@ static void convert_zerofill_number_to_string(Item **item, Field_num *field)
   String tmp(buff,sizeof(buff), field->charset()), *res;
 
   res= (*item)->val_str(&tmp);
-  field->prepend_zeros(res);
-  pos= (char *) sql_strmake (res->ptr(), res->length());
-  *item= new Item_string(pos, res->length(), field->charset());
+  if ((*item)->is_null())
+    *item= new Item_null();
+  else
+  {
+    field->prepend_zeros(res);
+    pos= (char *) sql_strmake (res->ptr(), res->length());
+    *item= new Item_string(pos, res->length(), field->charset());
+  }
 }
 
 
@@ -4299,7 +4347,12 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
-    if (item && cmp_context != INT_RESULT)
+    /*
+      We don't need to zero-fill timestamp columns here because they will be 
+      first converted to a string (in date/time format) and compared as such if
+      compared with another string.
+    */
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;
@@ -5124,21 +5177,28 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   if (!ptr)
     return;
   str_value.set(ptr, max_length, &my_charset_bin);
-  ptr+= max_length - 1;
-  ptr[1]= 0;                     // Set end null for string
-  for (; end >= str; end--)
+
+  if (max_length > 0)
   {
-    if (power == 256)
+    ptr+= max_length - 1;
+    ptr[1]= 0;                     // Set end null for string
+    for (; end >= str; end--)
     {
-      power= 1;
-      *ptr--= bits;
-      bits= 0;     
+      if (power == 256)
+      {
+        power= 1;
+        *ptr--= bits;
+        bits= 0;
+      }
+      if (*end == '1')
+        bits|= power;
+      power<<= 1;
     }
-    if (*end == '1')
-      bits|= power; 
-    power<<= 1;
+    *ptr= (char) bits;
   }
-  *ptr= (char) bits;
+  else
+    ptr[0]= 0;
+
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
 }
@@ -5872,6 +5932,10 @@ void Item_ref::make_field(Send_field *field)
     field->table_name= table_name;
   if (db_name)
     field->db_name= db_name;
+  if (orig_field_name)
+    field->org_col_name= orig_field_name;
+  if (orig_table_name)
+    field->org_table_name= orig_table_name;
 }
 
 
@@ -6147,6 +6211,13 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  /*
+    If the value of arg is NULL, then this object represents a constant,
+    so further transformation is unnecessary (and impossible).
+  */
+  if (!arg)
+    return 0;
 
   Item *new_item= arg->transform(transformer, args);
   if (!new_item)
@@ -6940,8 +7011,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
     decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
-    int precision= min(max(prev_decimal_int_part, item->decimal_int_part())
-                       + decimals, DECIMAL_MAX_PRECISION);
+    int item_int_part= item->decimal_int_part();
+    int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
+    int precision= min(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);

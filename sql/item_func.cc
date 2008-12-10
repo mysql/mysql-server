@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1139,9 +1139,10 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
 void Item_func_additive_op::result_precision()
 {
   decimals= max(args[0]->decimals, args[1]->decimals);
-  int max_int_part= max(args[0]->decimal_precision() - args[0]->decimals,
-                        args[1]->decimal_precision() - args[1]->decimals);
-  int precision= min(max_int_part + 1 + decimals, DECIMAL_MAX_PRECISION);
+  int arg1_int= args[0]->decimal_precision() - args[0]->decimals;
+  int arg2_int= args[1]->decimal_precision() - args[1]->decimals;
+  int est_prec= max(arg1_int, arg2_int) + 1 + decimals;
+  int precision= min(est_prec, DECIMAL_MAX_PRECISION);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
@@ -1252,8 +1253,8 @@ void Item_func_mul::result_precision()
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
-  int precision= min(args[0]->decimal_precision() + args[1]->decimal_precision(),
-                     DECIMAL_MAX_PRECISION);
+  uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
+  uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
   max_length= my_decimal_precision_to_length(precision, decimals,unsigned_flag);
 }
 
@@ -1300,8 +1301,8 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint precision=min(args[0]->decimal_precision() + prec_increment,
-                     DECIMAL_MAX_PRECISION);
+  uint arg_prec= args[0]->decimal_precision() + prec_increment;
+  uint precision=min(arg_prec, DECIMAL_MAX_PRECISION);
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
@@ -3804,6 +3805,25 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
   return entry;
 }
 
+
+bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
+{
+  if (thd == entry_thd && entry)
+    goto end; // update entry->update_query_id for PS
+  entry_thd= thd;
+  if (!(entry= get_variable(&thd->user_vars, name, create_if_not_exists)))
+    return TRUE;
+  /* 
+     Remember the last query which updated it, this way a query can later know
+     if this variable is a constant item in the query (it is if update_query_id
+     is different from query_id).
+  */
+end:
+  entry->update_query_id= thd->query_id;
+  return FALSE;
+}
+
+
 /*
   When a user variable is updated (in a SET command or a query like
   SELECT @a:= ).
@@ -3813,15 +3833,8 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
-  if (Item_func::fix_fields(thd, ref) ||
-      !(entry= get_variable(&thd->user_vars, name, 1)))
+  if (Item_func::fix_fields(thd, ref) || set_entry(thd, TRUE))
     return TRUE;
-  /* 
-     Remember the last query which updated it, this way a query can later know
-     if this variable is a constant item in the query (it is if update_query_id
-     is different from query_id).
-  */
-  entry->update_query_id= thd->query_id;
   /*
     As it is wrong and confusing to associate any 
     character set with NULL, @a should be latin2

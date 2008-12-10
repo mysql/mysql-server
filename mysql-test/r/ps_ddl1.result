@@ -1,0 +1,482 @@
+drop temporary table if exists t1;
+drop table if exists t1, t2;
+drop procedure if exists p_verify_reprepare_count;
+drop procedure if exists p1;
+drop function if exists f1;
+drop view if exists t1;
+drop schema if exists mysqltest;
+create procedure p_verify_reprepare_count(expected int)
+begin
+declare old_reprepare_count int default @reprepare_count;
+select variable_value from
+information_schema.session_status where
+variable_name='com_stmt_reprepare'
+  into @reprepare_count;
+if old_reprepare_count + expected <> @reprepare_count then
+select concat("Expected: ", expected,
+", actual: ", @reprepare_count - old_reprepare_count)
+as "ERROR";
+else
+select '' as "SUCCESS";
+end if;
+end|
+set @reprepare_count= 0;
+flush status;
+drop table if exists t1;
+# Column added or dropped is not within the list of selected columns
+# or table comment has changed.
+# A reprepare is probably not needed.
+create table t1 (a int, b int);
+prepare stmt from "select a from t1";
+execute stmt;
+a
+call p_verify_reprepare_count(0);
+SUCCESS
+
+alter table t1 add column c int;
+execute stmt;
+a
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a
+call p_verify_reprepare_count(0);
+SUCCESS
+
+alter table t1 drop column b;
+execute stmt;
+a
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a
+call p_verify_reprepare_count(0);
+SUCCESS
+
+alter table t1 comment "My best table";
+execute stmt;
+a
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+a
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t1;
+deallocate prepare stmt;
+# Selects using the table at various positions, inser,update ...
+# + the table disappears
+create table t1 (a int);
+prepare stmt1 from "truncate t1";
+prepare stmt2 from "select 1 as my_column from t1";
+prepare stmt3 from "select 1 as my_column from (select * from t1) as t2";
+prepare stmt4 from
+"select 1 as my_column from (select 1) as t2 where exists (select 1 from t1)";
+prepare stmt5 from "select * from (select 1 as b) as t2, t1";
+prepare stmt6 from "select * from t1 union all select 1.5";
+prepare stmt7 from "select 1 as my_column union all select 1 from t1";
+prepare stmt8 from "insert into t1 values(1),(2)";
+prepare stmt9 from "update t1 set a = 3 where a = 2";
+prepare stmt10 from "delete from t1 where a = 1";
+# Attention: Result logging is disabled.
+execute stmt10;
+execute stmt9;
+execute stmt8;
+execute stmt7;
+execute stmt6;
+execute stmt5;
+execute stmt4;
+execute stmt3;
+execute stmt2;
+execute stmt1;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t1;
+execute stmt10;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt9;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt8;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt7;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt6;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt5;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt4;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt3;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt2;
+ERROR 42S02: Table 'test.t1' doesn't exist
+execute stmt1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+deallocate prepare stmt10;
+deallocate prepare stmt9;
+deallocate prepare stmt8;
+deallocate prepare stmt7;
+deallocate prepare stmt6;
+deallocate prepare stmt5;
+deallocate prepare stmt4;
+deallocate prepare stmt3;
+deallocate prepare stmt2;
+deallocate prepare stmt1;
+# Selects using the table at various positions, inser,update ...
+# + layout change (drop column) which must cause a reprepare
+create table t1 (a int, b int);
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t1 values(2,2);
+prepare stmt1 from "select a,b from t1";
+prepare stmt2 from "select a,b from (select * from t1) as t1";
+prepare stmt3 from "select * from t1 where a = 2 and b = 2";
+prepare stmt4 from "select * from t2 where (a,b) in (select * from t1)";
+prepare stmt5 from "select * from t1 union select * from t2";
+prepare stmt6 from "select * from t1 union all select * from t2";
+prepare stmt7 from "insert into t1 set a = 4, b = 4";
+prepare stmt8 from "insert into t1 select * from t2";
+# Attention: Result logging is disabled.
+execute stmt8;
+execute stmt7;
+execute stmt6;
+execute stmt5;
+execute stmt4;
+execute stmt3;
+execute stmt2;
+execute stmt1;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+alter table t1 drop column b;
+execute stmt8;
+ERROR 21S01: Column count doesn't match value count at row 1
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt7;
+ERROR 42S22: Unknown column 'b' in 'field list'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt6;
+ERROR 21000: The used SELECT statements have a different number of columns
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt5;
+ERROR 21000: The used SELECT statements have a different number of columns
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt4;
+ERROR 21000: Operand should contain 2 column(s)
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt3;
+ERROR 42S22: Unknown column 'b' in 'where clause'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt2;
+ERROR 42S22: Unknown column 'b' in 'field list'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt8;
+ERROR 21S01: Column count doesn't match value count at row 1
+call p_verify_reprepare_count(1);
+ERROR
+Expected: 1, actual: 0
+execute stmt7;
+ERROR 42S22: Unknown column 'b' in 'field list'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt6;
+ERROR 21000: The used SELECT statements have a different number of columns
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt5;
+ERROR 21000: The used SELECT statements have a different number of columns
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt4;
+ERROR 21000: Operand should contain 2 column(s)
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt3;
+ERROR 42S22: Unknown column 'b' in 'where clause'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt2;
+ERROR 42S22: Unknown column 'b' in 'field list'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+call p_verify_reprepare_count(1);
+SUCCESS
+
+# Why does the INSERT ... SELECT does not get a reprepare or is
+# only the counter not incremented?
+execute stmt8;
+ERROR 21S01: Column count doesn't match value count at row 1
+call p_verify_reprepare_count(1);
+ERROR
+Expected: 1, actual: 0
+alter table t2 add column c int;
+execute stmt8;
+ERROR 21S01: Column count doesn't match value count at row 1
+call p_verify_reprepare_count(1);
+SUCCESS
+
+deallocate prepare stmt8;
+deallocate prepare stmt7;
+deallocate prepare stmt6;
+deallocate prepare stmt5;
+deallocate prepare stmt4;
+deallocate prepare stmt3;
+deallocate prepare stmt2;
+deallocate prepare stmt1;
+drop table t1;
+drop table t2;
+# select AVG(<col>) + optimizer uses index meets loss of the index
+create table t1 (a int, b int, primary key(b),unique index t1_unq_idx(a));
+insert into t1 set a = 0, b = 0;
+insert into t1 select a + 1, b + 1 from t1;
+insert into t1 select a + 2, b + 2 from t1;
+insert into t1 select a + 4, b + 4 from t1;
+insert into t1 select a + 8, b + 8 from t1;
+# Optimizer strategy: Possible keys = NULL , Extra = Using index
+prepare stmt from "select avg(a) from t1";
+execute stmt;
+avg(a)
+7.5000
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+avg(a)
+7.5000
+call p_verify_reprepare_count(0);
+SUCCESS
+
+alter table t1 drop index t1_unq_idx;
+# Optimizer strategy: Possible keys = NULL , Extra = 
+execute stmt;
+avg(a)
+7.5000
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+avg(a)
+7.5000
+call p_verify_reprepare_count(0);
+SUCCESS
+
+# select AVG(<col>) + optimizer uses table scan meets a new index
+alter table t1 add unique index t1_unq_idx(a);
+# Optimizer strategy: Possible keys = NULL , Extra = Using index
+execute stmt;
+avg(a)
+7.5000
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+avg(a)
+7.5000
+call p_verify_reprepare_count(0);
+SUCCESS
+
+deallocate prepare stmt;
+drop table t1;
+# table replaced by not updatable view - Insert
+create table t1 (a int);
+prepare stmt from "insert into t1 values(1)";
+execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t1;
+create view t1 as select 1;
+execute stmt;
+ERROR HY000: The target table t1 of the INSERT is not insertable-into
+call p_verify_reprepare_count(1);
+SUCCESS
+
+drop view t1;
+create table t2 (a int);
+create view t1 as select * from t2 with check option;
+execute stmt;
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+1
+deallocate prepare stmt;
+drop view t1;
+drop table t2;
+=====================================================================
+Some freestyle tests
+=====================================================================
+create temporary table t1 as select 1 as a;
+create procedure p1()
+begin
+drop temporary table t1;
+end|
+create function f1() returns int
+begin
+call p1();
+return 1;
+end|
+prepare stmt from "select f1() as my_column, a from t1";
+execute stmt;
+ERROR HY000: Can't reopen table: 't1'
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+prepare stmt from "select a, f1() as my_column from t1";
+execute stmt;
+ERROR HY000: Can't reopen table: 't1'
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+prepare stmt from "select f1() as my_column, count(*) from t1";
+execute stmt;
+ERROR HY000: Can't reopen table: 't1'
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+prepare stmt from "select count(*), f1() as my_column from t1";
+execute stmt;
+ERROR HY000: Can't reopen table: 't1'
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+# Execute fails, no drop of temporary table
+prepare stmt from "select 1 as my_column from (select 1) as t2
+                   where exists (select f1() from t1)";
+execute stmt;
+my_column
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+my_column
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+# Execute drops temporary table
+prepare stmt from "select f1()";
+execute stmt;
+f1()
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+ERROR 42S02: Unknown table 't1'
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop function f1;
+drop procedure p1;
+deallocate prepare stmt;
+# Execute fails, temporary table is not replaced by another
+create temporary table t1 as select 1 as a;
+create procedure p1()
+begin
+drop temporary table t1;
+create temporary table t1 as select 'abc' as a;
+end|
+create function f1() returns int
+begin
+call p1();
+return 1;
+end|
+prepare stmt from "select count(*), f1() as my_column from t1";
+execute stmt;
+ERROR HY000: Can't reopen table: 't1'
+call p_verify_reprepare_count(0);
+SUCCESS
+
+select * from t1;
+a
+1
+deallocate prepare stmt;
+prepare stmt from "call p1";
+execute stmt;
+drop procedure p1;
+create schema mysqltest;
+create procedure mysqltest.p1()
+begin
+drop schema mysqltest;
+create schema mysqltest;
+end|
+execute stmt;
+ERROR 42000: PROCEDURE test.p1 does not exist
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+ERROR 42000: PROCEDURE test.p1 does not exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+deallocate prepare stmt;
+drop schema mysqltest;
+drop temporary table t1;
+# Cleanup
+#
+drop temporary table if exists t1;
+drop table if exists t1, t2;
+drop procedure if exists p_verify_reprepare_count;
+drop procedure if exists p1;
+drop function if exists f1;
+drop view if exists t1;
+drop schema if exists mysqltest;

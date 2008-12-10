@@ -1,0 +1,150 @@
+############# mysql-test\t\automatic_sp_privileges_func.test ############################
+#                                                                                       #
+# Variable Name: automatic_sp_privileges                                                #
+# Scope: GLOBAL                                                                         #
+# Access Type: Dynamic                                                                  #
+# Data Type: BOOLEAN                                                                    #
+# Default Value: 1 TRUE                                                                 #
+# Values:       1 TRUE, 0 FALSE                                                         #
+#                                                                                       #
+#                                                                                       #
+# Creation Date: 2008-03-04                                                             #
+# Author:  Sharique Abdullah                                                            #
+#                                                                                       #
+# Description: Test Cases of Dynamic System Variable "automatic_sp_privileges"          #
+#              that checks behavior of this variable in the following ways              #
+#              * Functionality based on different values                                #
+#                                                                                       #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                                    #
+#               server-system-variables.html#option_mysqld_automatic_sp_privileges      #
+#                                                                                       #
+#########################################################################################
+
+#
+# Setup
+#
+
+--source include/not_embedded.inc
+
+--echo ** Setup **
+SET @global_automatic_sp_privileges = @@GLOBAL.automatic_sp_privileges;
+
+CREATE TABLE t1 (a varchar(200));
+
+INSERT INTO t1 VALUES('Procedure Executed.');
+
+#
+# Creating test user
+#
+
+CREATE USER 'userTest'@'localhost';
+CREATE USER 'userTest1'@'localhost';
+
+#
+# Value TRUE
+#
+--echo ** Connection default **
+connection default;
+SET GLOBAL automatic_sp_privileges = TRUE;
+
+--echo ** Connecting using userTest **
+connect (conUser,localhost,userTest,,);
+--echo ** Connection conUser **
+connection conUser;
+
+delimiter |;
+
+CREATE PROCEDURE testProc ()
+BEGIN
+SELECT * FROM t1;
+END;|
+
+delimiter ;|
+
+CALL testProc();
+--echo Expecting SELECT executed
+
+#
+# Value FALSE
+#
+--echo ** Connection default**
+connection default;
+SET GLOBAL automatic_sp_privileges = FALSE;
+
+--echo ** Connecting using userTest1 **
+connect (conUser1,localhost,userTest1,,);
+--echo ** Connection conUser1 **
+connection conUser1;
+
+delimiter |;
+
+CREATE PROCEDURE testProc1 ()
+BEGIN
+SELECT * FROM t1;
+END;|
+
+delimiter ;|
+
+--echo
+--echo Expected error access denied
+--error ER_PROCACCESS_DENIED_ERROR
+CALL testProc1();
+
+--echo
+--echo Expected error access denied
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER PROCEDURE testProc1 COMMENT 'My Comment';
+
+--echo
+--echo Expected error access denied
+--error ER_PROCACCESS_DENIED_ERROR
+DROP PROCEDURE testProc1;
+
+--echo ** Connection default **
+connection default;
+
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE testProc1 TO 'userTest1'@'localhost';
+
+--echo ** Connection conUser1 **
+connection conUser1;
+
+CALL testProc1();
+--echo Expecting seelect executed
+
+ALTER PROCEDURE testProc1 COMMENT 'My Comment';
+
+--echo
+#
+# Cleanup
+#
+--echo ** Cleanup **
+--echo ** Connection default **
+connection default;
+
+--echo disconnecting connections
+disconnect conUser;
+disconnect conUser1;
+
+SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
+
+# Disabled due to differences in results: Bug#35384
+#SHOW GRANTS FOR 'userTest'@'localhost';
+
+# on Linux (5.1.24) successful, on Windows (5.1.23) error
+--error 0,ER_NONEXISTING_PROC_GRANT
+REVOKE EXECUTE, ALTER ROUTINE ON PROCEDURE testProc FROM 'userTest'@'localhost';
+
+--error 0,ER_NONEXISTING_PROC_GRANT
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'userTest'@'localhost';
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'userTest1'@'localhost';
+
+--disable_warnings
+DROP PROCEDURE testProc;
+--enable_warnings
+DROP PROCEDURE testProc1;
+
+DROP USER 'userTest'@'localhost';
+DROP USER 'userTest1'@'localhost';
+
+DROP TABLE t1;

@@ -765,6 +765,14 @@ cmd: testNdbApi
 args: -n Bug28443
 
 max-time: 500
+cmd: testNdbApi
+args: -n BadColNameHandling T6
+
+max-time: 500
+cmd: testNdbApi
+args: -n SimpleReadAbortOnError T1 T6 T15
+
+max-time: 500
 cmd: testInterpreter
 args: T1 
 
@@ -1086,7 +1094,7 @@ max-time: 600
 cmd: test_event
 args: -l 1 -n SubscribeNR T1
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
@@ -1149,3 +1157,22 @@ cmd: testNdbApi
 args: -l 100 -n Bug37158
 
 # EOF 2008-06-03
+max-time: 500
+cmd: test_event
+args -n bug37672 T1
+
+#EOF 2008-07-04
+max-time: 500
+cmd: testScanFilter
+args: 
+
+#EOF 2008-07-09
+max-time: 600
+cmd: test_event
+args -r 5000 -n Bug30780 T1
+
+#EOF 2008-08-11
+max-time: 1200
+cmd: testNodeRestart
+args -n Bug41295 T1
+

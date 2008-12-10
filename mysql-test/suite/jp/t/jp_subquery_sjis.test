@@ -1,3 +1,5 @@
+--source include/have_sjis.inc
+--source include/have_innodb.inc
 --character_set sjis
 --disable_warnings
 drop table if exists `‚s‚P`;
@@ -9,9 +11,6 @@ drop table if exists `‚s‚U`;
 drop table if exists `‚s‚V`;
 drop table if exists `‚s‚W`;
 drop table if exists `‚s‚X`;
-drop table if exists `‚s‚P‚O`;
-drop table if exists `‚s‚P‚P`;
-drop table if exists `‚s‚P‚Q`;
 --enable_warnings
 
 #
@@ -33,18 +32,12 @@ CREATE TABLE `‚s‚Ta` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine 
 CREATE TABLE `‚s‚Tb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `‚s‚Ua` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `‚s‚Ub` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `‚s‚Va` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚Vb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚Wa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚Wb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚Xa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚Xb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚Oa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚Ob` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚Pa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚Pb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚Qa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚Qb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚Va` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Vb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Wa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Wb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Xa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚Xb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = MEMORY;
 
 #insert the following data in each table
 # jisx0201 hankaku-katakana data
@@ -69,12 +62,6 @@ INSERT INTO `‚s‚Wa` VALUES ('‚ '),('‚©'),('‚³');
 INSERT INTO `‚s‚Wb` VALUES ('‚ ');
 INSERT INTO `‚s‚Xa` VALUES ('ƒ\'),('\'),('•\');
 INSERT INTO `‚s‚Xb` VALUES ('ƒ\');
-INSERT INTO `‚s‚P‚Oa` VALUES ('±'),('¶'),('»');
-INSERT INTO `‚s‚P‚Ob` VALUES ('±');
-INSERT INTO `‚s‚P‚Pa` VALUES ('‚ '),('‚©'),('‚³');
-INSERT INTO `‚s‚P‚Pb` VALUES ('‚ ');
-INSERT INTO `‚s‚P‚Qa` VALUES ('ƒ\'),('\'),('•\');
-INSERT INTO `‚s‚P‚Qb` VALUES ('ƒ\');
 
 #Test for innodb
 SELECT `‚b‚P` FROM `‚s‚Pa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Pb`);
@@ -104,15 +91,6 @@ SELECT `‚b‚P` FROM `‚s‚Wa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Wb` WHERE `‚
 SELECT `‚b‚P` FROM `‚s‚Xa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚Xb`);
 SELECT `‚b‚P` FROM `‚s‚Xa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚Xb` WHERE `‚s‚Xa`.`‚b‚P` = `‚s‚Xb`.`‚b‚P`);
 SELECT `‚b‚P` FROM `‚s‚Xa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚Xb` WHERE `‚s‚Xa`.`‚b‚P` = `‚s‚Xb`.`‚b‚P`);
-SELECT `‚b‚P` FROM `‚s‚P‚Oa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚P‚Ob`);
-SELECT `‚b‚P` FROM `‚s‚P‚Oa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚P‚Ob` WHERE `‚s‚P‚Oa`.`‚b‚P` = `‚s‚P‚Ob`.`‚b‚P`);
-SELECT `‚b‚P` FROM `‚s‚P‚Oa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚P‚Ob` WHERE `‚s‚P‚Oa`.`‚b‚P` = `‚s‚P‚Ob`.`‚b‚P`);
-SELECT `‚b‚P` FROM `‚s‚P‚Pa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚P‚Pb`);
-SELECT `‚b‚P` FROM `‚s‚P‚Pa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚P‚Pb` WHERE `‚s‚P‚Pa`.`‚b‚P` = `‚s‚P‚Pb`.`‚b‚P`);
-SELECT `‚b‚P` FROM `‚s‚P‚Pa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚P‚Pb` WHERE `‚s‚P‚Pa`.`‚b‚P` = `‚s‚P‚Pb`.`‚b‚P`);
-SELECT `‚b‚P` FROM `‚s‚P‚Qa` WHERE `‚b‚P` IN (SELECT `‚b‚P` FROM `‚s‚P‚Qb`);
-SELECT `‚b‚P` FROM `‚s‚P‚Qa` WHERE EXISTS (SELECT `‚b‚P` FROM `‚s‚P‚Qb` WHERE `‚s‚P‚Qa`.`‚b‚P` = `‚s‚P‚Qb`.`‚b‚P`);
-SELECT `‚b‚P` FROM `‚s‚P‚Qa` WHERE NOT EXISTS (SELECT `‚b‚P` FROM `‚s‚P‚Qb` WHERE `‚s‚P‚Qa`.`‚b‚P` = `‚s‚P‚Qb`.`‚b‚P`);
 
 DROP TABLE `‚s‚Pa`;
 DROP TABLE `‚s‚Pb`;
@@ -132,9 +110,3 @@ DROP TABLE `‚s‚Wa`;
 DROP TABLE `‚s‚Wb`;
 DROP TABLE `‚s‚Xa`;
 DROP TABLE `‚s‚Xb`;
-DROP TABLE `‚s‚P‚Oa`;
-DROP TABLE `‚s‚P‚Ob`;
-DROP TABLE `‚s‚P‚Pa`;
-DROP TABLE `‚s‚P‚Pb`;
-DROP TABLE `‚s‚P‚Qa`;
-DROP TABLE `‚s‚P‚Qb`;

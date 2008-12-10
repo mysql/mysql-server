@@ -112,6 +112,7 @@ our $glob_basedir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
+our $path_client_libdir;
 our $path_share;
 our $path_language;
 our $path_timefile;
@@ -134,7 +135,7 @@ our $default_vardir;
 
 our $opt_usage;
 our $opt_suites;
-our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,ndb_binlog"; # Default suites to run
+our $opt_suites_default= "ndb,ndb_binlog,rpl_ndb,main,binlog,rpl"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
@@ -250,7 +251,7 @@ our $opt_sleep;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
-my  $default_suite_timeout=       180; # 3 hours max
+my  $default_suite_timeout=       300; # 5 hours max
 
 our $opt_start_and_exit;
 our $opt_start_dirty;
@@ -409,12 +410,13 @@ sub main () {
       # Check for any extra suites to enable based on the path name
       my %extra_suites=
 	(
-	 "mysql-5.1-new-ndb"              => "ndb_team",
-	 "mysql-5.1-new-ndb-merge"        => "ndb_team",
-	 "mysql-5.1-telco-6.2"            => "ndb_team",
-	 "mysql-5.1-telco-6.2-merge"      => "ndb_team",
-	 "mysql-5.1-telco-6.3"            => "ndb_team",
-	 "mysql-6.0-ndb"                  => "ndb_team",
+	 "bzr_mysql-5.1-ndb"                  => "ndb_team",
+	 "bzr_mysql-5.1-ndb-merge"            => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.2"            => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.2-merge"      => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.3"            => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.4"            => "ndb_team",
+	 "bzr_mysql-6.0-ndb"                  => "ndb_team,rpl_ndb_big",
 	);
 
       foreach my $dir ( reverse splitdir($glob_basedir) )
@@ -657,6 +659,8 @@ sub command_line_setup () {
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
              'mem'                      => \$opt_mem,
+             'client-bindir=s'          => \$path_client_bindir,
+             'client-libdir=s'          => \$path_client_libdir,
 
              # Misc
              'report-features'          => \$opt_report_features,
@@ -783,12 +787,20 @@ sub command_line_setup () {
   #
 
   # Look for the client binaries directory
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-				       "$glob_basedir/client_debug",
-				       vs_config_dirs('client', ''),
-				       "$glob_basedir/client",
-				       "$glob_basedir/bin");
-
+  if ($path_client_bindir)
+  {
+    # --client-bindir=path set on command line, check that the path exists
+    $path_client_bindir= mtr_path_exists($path_client_bindir);
+  }
+  else
+  {
+    $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
+					 "$glob_basedir/client_debug",
+					 vs_config_dirs('client', ''),
+					 "$glob_basedir/client",
+					 "$glob_basedir/bin");
+  }
+  
   # Look for language files and charsetsdir, use same share
   $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
                                     "$glob_basedir/sql/share",
@@ -1431,7 +1443,15 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
-  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  my $tmpdir;
+  if ( $opt_tmpdir ) {
+    # Use the requested tmpdir
+    mkpath($opt_tmpdir) if (! -d $opt_tmpdir);
+    $tmpdir= $opt_tmpdir;
+  }
+  else {
+    $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  }
 
   #
   # Execute "mysqld --help --verbose" to get a list
@@ -1497,7 +1517,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-  rmtree($tmpdir);
+  rmtree($tmpdir) if (!$opt_tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -1560,13 +1580,15 @@ sub executable_setup_ndb () {
 
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
+			 "$ndb_path/ndbd",
+			 "$glob_basedir/libexec/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
+			 "$ndb_path/ndb_mgmd",
+			 "$glob_basedir/libexec/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
@@ -1663,7 +1685,8 @@ sub executable_setup () {
     # Look for mysql_fix_privilege_tables.sql script
     $file_mysql_fix_privilege_tables=
       mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql",
+  		    "$glob_basedir/share/mysql/mysql_fix_privilege_tables.sql");
 
     if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
     {
@@ -1810,6 +1833,7 @@ sub mysql_upgrade_arguments()
   mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
   mtr_add_arg($args, "--datadir=$master->[0]->{'path_myddir'}");
   mtr_add_arg($args, "--basedir=$glob_basedir");
+  mtr_add_arg($args, "--tmpdir=$opt_tmpdir");
 
   if ( $opt_debug )
   {
@@ -1828,19 +1852,25 @@ sub environment_setup () {
 
   my @ld_library_paths;
 
-  # --------------------------------------------------------------------------
-  # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
-  # are used in favor of the system installed ones
-  # --------------------------------------------------------------------------
-  if ( $source_dist )
+  if ($path_client_libdir)
   {
-    push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
-                            "$glob_basedir/libmysql_r/.libs/",
-                            "$glob_basedir/zlib.libs/");
+    # Use the --client-libdir passed on commandline
+    push(@ld_library_paths, "$path_client_libdir");
   }
   else
   {
-    push(@ld_library_paths, "$glob_basedir/lib");
+    # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
+    # are used in favor of the system installed ones
+    if ( $source_dist )
+    {
+      push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
+	   "$glob_basedir/libmysql_r/.libs/",
+	   "$glob_basedir/zlib.libs/");
+    }
+    else
+    {
+      push(@ld_library_paths, "$glob_basedir/lib");
+    }
   }
 
  # --------------------------------------------------------------------------
@@ -2082,6 +2112,9 @@ sub environment_setup () {
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
   }
+  # Always use the given tmpdir for the LOAD files created
+  # by mysqlbinlog
+  $cmdline_mysqlbinlog .=" --local-load=$opt_tmpdir";
 
   if ( $opt_debug )
   {
@@ -2420,13 +2453,7 @@ sub setup_vardir() {
   {
     # on windows, copy all files from std_data into var/std_data_ln
     mkpath("$opt_vardir/std_data_ln");
-    opendir(DIR, "$glob_mysql_test_dir/std_data")
-      or mtr_error("Can't find the std_data directory: $!");
-    for(readdir(DIR)) {
-      next if -d "$glob_mysql_test_dir/std_data/$_";
-      copy("$glob_mysql_test_dir/std_data/$_", "$opt_vardir/std_data_ln/$_");
-    }
-    closedir(DIR);
+    mtr_copy_dir("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
   }
 
   # Remove old log files
@@ -2788,7 +2815,7 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "$extra_args");
 
   my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
-  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}.log";
+  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}_out.log";
   $pid= mtr_spawn($exe_ndbd, $args, "",
 		  $path_ndbd_log,
 		  $path_ndbd_log,
@@ -3575,7 +3602,16 @@ sub run_testcase ($) {
   {
     mtr_timer_stop_all($glob_timers);
     mtr_report("\nServers started, exiting");
-    exit(0);
+    if ($glob_win32_perl)
+    {
+      #ActiveState perl hangs  when using normal exit, use  POSIX::_exit instead
+      use POSIX qw[ _exit ]; 
+      POSIX::_exit(0);
+    }
+    else
+    {
+      exit(0);
+    }
   }
 
   {
@@ -3943,7 +3979,6 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
 	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
@@ -4020,7 +4055,6 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
 	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
@@ -4339,19 +4373,10 @@ sub run_testcase_need_master_restart($)
   elsif (! mtr_same_opts($master->[0]->{'start_opts'},
                          $tinfo->{'master_opt'}) )
   {
-    # Chech that diff is binlog format only
-    my $diff_opts= mtr_diff_opts($master->[0]->{'start_opts'},$tinfo->{'master_opt'});
-    if (scalar(@$diff_opts) eq 2) 
-    {
-      $do_restart= 1 unless ($diff_opts->[0] =~/^--binlog-format=/ and $diff_opts->[1] =~/^--binlog-format=/);
-    }
-    else
-    {
-      $do_restart= 1;
-      mtr_verbose("Restart master: running with different options '" .
-	         join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
+    $do_restart= 1;
+    mtr_verbose("Restart master: running with different options '" .
+		join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
 	  	join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
-    }
   }
   elsif( ! $master->[0]->{'pid'} )
   {
@@ -5346,6 +5371,8 @@ Misc options
   warnings | log-warnings Pass --log-warnings to mysqld
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  client-bindir=PATH    Path to the directory where client binaries are located
+  client-libdir=PATH    Path to the directory where client libraries are located
 
 Deprecated options
   with-openssl          Deprecated option for ssl

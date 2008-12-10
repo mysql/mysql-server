@@ -135,7 +135,25 @@ private:
   int m_invalidate;
 };
 
+class Thd_proc_info_guard
+{
+public:
+  Thd_proc_info_guard(THD *thd)
+   : m_thd(thd), m_proc_info(thd->proc_info) {}
+  ~Thd_proc_info_guard() { m_thd->proc_info= m_proc_info; }
+private:
+  THD *m_thd;
+  const char *m_proc_info;
+};
+
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
+#ifdef HAVE_NDB_BINLOG
+void ndbcluster_global_schema_lock_init();
+void ndbcluster_global_schema_lock_deinit();
+#else
+inline void ndbcluster_global_schema_lock_init() {}
+inline void ndbcluster_global_schema_lock_deinit() {}
+#endif
 
 #ifdef HAVE_NDB_BINLOG
 extern pthread_t ndb_binlog_thread;
@@ -159,10 +177,6 @@ void ndbcluster_binlog_init_handlerton();
   Initialize the binlog part of the NDB_SHARE
 */
 int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
-
-bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
@@ -269,3 +283,17 @@ set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
 { thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
 Ndb* check_ndb_in_thd(THD* thd);
+
+int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
+int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
+
+class Ndbcluster_global_schema_lock_guard
+{
+public:
+  Ndbcluster_global_schema_lock_guard(THD *thd);
+  ~Ndbcluster_global_schema_lock_guard();
+  int lock();
+private:
+  THD *m_thd;
+  int m_lock;
+};

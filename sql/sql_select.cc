@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -846,6 +846,7 @@ JOIN::optimize()
                             "Impossible HAVING" : "Impossible WHERE"));
       zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
+      tables= 0;
       error= 0;
       DBUG_RETURN(0);
     }
@@ -887,6 +888,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
+        tables= 0;
 	error=0;
 	DBUG_RETURN(0);
       }
@@ -900,6 +902,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
+        tables= 0;
         error=0;
         DBUG_RETURN(0);
       }
@@ -1791,7 +1794,8 @@ JOIN::exec()
     if (!items1)
     {
       items1= items0 + all_fields.elements;
-      if (sort_and_group || curr_tmp_table->group)
+      if (sort_and_group || curr_tmp_table->group ||
+          tmp_table_param.precomputed_group_by)
       {
 	if (change_to_use_tmp_fields(thd, items1,
 				     tmp_fields_list1, tmp_all_fields1,
@@ -2187,11 +2191,12 @@ JOIN::exec()
   /* 
     With EXPLAIN EXTENDED we have to restore original ref_array
     for a derived table which is always materialized.
-    Otherwise we would not be able to print the query  correctly.
+    We also need to do this when we have temp table(s).
+    Otherwise we would not be able to print the query correctly.
   */ 
-  if (items0 &&
-      (thd->lex->describe & DESCRIBE_EXTENDED) &&
-      select_lex->linkage == DERIVED_TABLE_TYPE)      
+  if (items0 && (thd->lex->describe & DESCRIBE_EXTENDED) &&
+      (select_lex->linkage == DERIVED_TABLE_TYPE ||
+       exec_tmp_table1 || exec_tmp_table2))
     set_items_ref_array(items0);
 
   DBUG_VOID_RETURN;
@@ -6505,13 +6510,16 @@ make_join_readinfo(JOIN *join, ulonglong options)
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    /*
-	      See bug #26447: "Using the clustered index for a table scan
-	      is always faster than using a secondary index".
-	    */
+            It has turned out that the below change, while speeding things
+            up for disk-bound loads, slows them down for cases when the data
+            is in disk cache (see BUG#35850):
+	    //  See bug #26447: "Using the clustered index for a table scan
+	    //  is always faster than using a secondary index".
             if (table->s->primary_key != MAX_KEY &&
                 table->file->primary_key_is_clustered())
               tab->index= table->s->primary_key;
             else
+	    */
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
@@ -6747,6 +6755,12 @@ void JOIN::cleanup(bool full)
     if (tmp_join)
       tmp_table_param.copy_field= 0;
     group_fields.delete_elements();
+    /* 
+      Ensure that the above delete_elements() would not be called
+      twice for the same list.
+    */
+    if (tmp_join && tmp_join != this)
+      tmp_join->group_fields= group_fields;
     /*
       We can't call delete_elements() on copy_funcs as this will cause
       problems in free_elements() as some of the elements are then deleted.
@@ -9615,6 +9629,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   MI_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
+  /* Treat sum functions as normal ones when loose index scan is used. */
+  save_sum_fields|= param->precomputed_group_by;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
@@ -11706,7 +11722,7 @@ join_init_read_record(JOIN_TAB *tab)
   if (tab->select && tab->select->quick && tab->select->quick->reset())
     return 1;
   init_read_record(&tab->read_record, tab->join->thd, tab->table,
-		   tab->select,1,1);
+		   tab->select,1,1, FALSE);
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -12501,6 +12517,9 @@ part_of_refkey(TABLE *table,Field *field)
   @note
     used_key_parts is set to correct key parts used if return value != 0
     (On other cases, used_key_part may be changed)
+    Note that the value may actually be greater than the number of index 
+    key parts. This can happen for storage engines that have the primary 
+    key parts as a suffix for every secondary key.
 
   @retval
     1   key is ok.
@@ -12573,11 +12592,27 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  *used_key_parts= on_primary_key ? table->key_info[idx].key_parts :
-    (uint) (key_part - table->key_info[idx].key_part);
-  if (reverse == -1 && !(table->file->index_flags(idx, *used_key_parts-1, 1) &
-                         HA_READ_PREV))
-    reverse= 0;                                 // Index can't be used
+  if (on_primary_key)
+  {
+    uint used_key_parts_secondary= table->key_info[idx].key_parts;
+    uint used_key_parts_pk=
+      (uint) (key_part - table->key_info[table->s->primary_key].key_part);
+    *used_key_parts= used_key_parts_pk + used_key_parts_secondary;
+
+    if (reverse == -1 &&
+        (!(table->file->index_flags(idx, used_key_parts_secondary - 1, 1) &
+           HA_READ_PREV) ||
+         !(table->file->index_flags(table->s->primary_key,
+                                    used_key_parts_pk - 1, 1) & HA_READ_PREV)))
+      reverse= 0;                               // Index can't be used
+  }
+  else
+  {
+    *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+    if (reverse == -1 && 
+        !(table->file->index_flags(idx, *used_key_parts-1, 1) & HA_READ_PREV))
+      reverse= 0;                               // Index can't be used
+  }
   DBUG_RETURN(reverse);
 }
 
@@ -12966,6 +13001,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint tablenr= tab - join->join_tab;
     ha_rows table_records= table->file->stats.records;
     bool group= join->group && order == join->group_list;
+    ha_rows ref_key_quick_rows= HA_POS_ERROR;
     LINT_INIT(best_key_parts);
     LINT_INIT(best_key_direction);
     LINT_INIT(best_records); 
@@ -12998,6 +13034,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     }
     else
       keys= usable_keys;
+
+    if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
+      ref_key_quick_rows= table->quick_rows[ref_key];
 
     read_time= join->best_positions[tablenr].read_time;
     for (uint i= tablenr+1; i < join->tables; i++)
@@ -13093,7 +13132,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;
-            if (is_best_covering && !is_covering)
+            if (is_best_covering && !is_covering ||
+                is_covering && ref_key_quick_rows < select_limit)
               continue;
             if (table->quick_keys.is_set(nr))
               quick_records= table->quick_rows[nr];
@@ -13145,6 +13185,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
           }
+          else if (table->key_read)
+          {
+            /*
+              Clear the covering key read flags that might have been
+              previously set for some key other than the current best_key.
+            */
+            table->key_read= 0;
+            table->file->extra(HA_EXTRA_NO_KEYREAD);
+          }
+
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
@@ -13167,6 +13217,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           tab->ref.key= -1;
           tab->ref.key_parts=0;		// Don't use ref key.
           tab->read_first_record= join_init_read_record;
+          if (tab->is_using_loose_index_scan())
+            join->tmp_table_param.precomputed_group_by= TRUE;
           /*
             TODO: update the number of records in join->best_positions[tablenr]
           */
@@ -14752,6 +14804,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
   Copy_field *copy= NULL;
+  IF_DBUG(Copy_field *copy_start);
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
@@ -14764,12 +14817,19 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     goto err2;
 
   param->copy_funcs.empty();
+  IF_DBUG(copy_start= copy);
   for (i= 0; (pos= li++); i++)
   {
     Field *field;
     uchar *tmp;
     Item *real_pos= pos->real_item();
-    if (real_pos->type() == Item::FIELD_ITEM)
+    /*
+      Aggregate functions can be substituted for fields (by e.g. temp tables).
+      We need to filter those substituted fields out.
+    */
+    if (real_pos->type() == Item::FIELD_ITEM &&
+        !(real_pos != pos &&
+          ((Item_ref *)pos)->ref_type() == Item_ref::AGGREGATE_REF))
     {
       Item_field *item;
       if (!(item= new Item_field(thd, ((Item_field*) real_pos))))
@@ -14816,6 +14876,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	  goto err;
         if (copy)
         {
+          DBUG_ASSERT (param->field_count > (uint) (copy - copy_start));
           copy->set(tmp, item->result_field);
           item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
 #ifdef HAVE_purify

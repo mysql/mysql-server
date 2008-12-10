@@ -176,7 +176,7 @@ check_cpu () {
   fi
 
   cc_ver=`$cc --version | sed 1q`
-  cc_verno=`echo $cc_ver | sed -e 's/^.*gcc/gcc/g; s/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
+  cc_verno=`echo $cc_ver | sed -e 's/^.*(GCC)//g; s/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
   set -- `echo $cc_verno | tr '.' ' '`
   cc_major=$1
   cc_minor=$2

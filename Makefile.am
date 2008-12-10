@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution @MAKE_BINARY_DISTRIBUTION_OPTIONS@
 
 # Remove BK's "SCCS" subdirectories from source distribution
-# Create initial database files for Windows installations.
+# Create initial database files for Windows installations and check them.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
@@ -57,6 +57,9 @@ dist-hook:
 		--builddir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
+	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
+
+all-local:		@ABI_CHECK@	
 
 tags:
 	support-files/build-tags
@@ -66,7 +69,7 @@ tags:
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
   test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
   test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp \
-  test-ext-stress test-ext test-embedded \
+  test-ext-stress test-ext test-embedded test-reprepare \
   test-fast test-fast-cursor test-fast-view test-fast-prepare \
   test-full-qa
 
@@ -111,6 +114,11 @@ test-embedded:
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
 
+test-reprepare:
+	cd mysql-test ; \
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol \
+		--mysqld=--debug=+d,reprepare_each_statement
+
 test:	test-unit test-ns test-pr
 
 test-full:	test test-nr test-ps
@@ -144,13 +152,15 @@ test-bt:
 	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
 	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1+ps --ps-protocol --suite=funcs_1
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist ; \
@@ -167,14 +177,27 @@ test-bt:
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
 
-# Re-enable the "jp" suite when bug#28563 is fixed
-#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-#	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
+test-bt-fast:
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
+	        --skip-ndbcluster --ps-protocol --report-features
+	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
+	  cd mysql-test ; \
+	    MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
+	          --with-ndbcluster-only ; \
+	else \
+	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
+	fi
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features
+
+test-bt-debug-fast:
 
 # Keep these for a while
 test-pl:	test
@@ -185,7 +208,7 @@ test-force-full-pl: test-force-full
 
 test-ext-funcs:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --force --suite=funcs_1 ; \
+	    @PERL@ ./mysql-test-run.pl --force --reorder --suite=funcs_1 ; \
 	    @PERL@ ./mysql-test-run.pl --force --suite=funcs_2
 
 test-ext-rpl:
@@ -225,6 +248,82 @@ test-full-qa:
 	$(MAKE) force=--force test-pr \
 	    test-binlog-statement test-ext test-fast-view \
 	        test-fast-cursor test-unit
+
+#
+# Headers which need to be checked for abi/api compatibility.
+# API_PREPROCESSOR_HEADER will be used until mysql_priv.h stablizes
+# after which TEST_PREPROCESSOR_HEADER will be used.
+#
+
+API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+                           $(top_srcdir)/include/mysql.h
+
+TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+                            $(top_srcdir)/sql/mysql_priv.h \
+                            $(top_srcdir)/include/mysql.h
+
+#
+# Rules for checking that the abi/api has not changed.
+#
+# The following steps are followed in the do_abi_check rule below
+#
+# 1) Generate preprocessor output for the files that need to
+#    be tested for abi/api changes. use -nostdinc to prevent
+#    generation of preprocessor output for system headers. This
+#    results in messages in stderr saying that these headers
+#    were not found. Redirect the stderr output to /dev/null
+#    to prevent seeing these messages.
+# 2) sed the output to 
+#    2.1) remove blank lines and lines that begin with "# "
+#    2.2) When gcc -E is run on the Mac OS  and solaris sparc platforms it
+#         introduces a line of output that shows up as a difference between
+#         the .pp and .out files. Remove these OS specific preprocessor text
+#         inserted by the preprocessor.
+# 3) diff the generated file and the canons (.pp files already in
+#    the repository).
+# 4) delete the .out file that is generated.
+#
+# If the diff fails, the generated file is not removed. This will
+# be useful for analysis of ABI differences (e.g. using a visual
+# diff tool).
+#
+# A ABI change that causes a build to fail will always be accompanied
+# by new canons (.out files). The .out files that are not removed will
+# be replaced as the new .pp files.
+#
+# e.g. If include/mysql/plugin.h has an ABI change then this rule would
+# leave a <build directory>/abi_check.out file.
+#
+# A developer with a justified API change will then do a
+# mv <build directory>/abi_check.out include/mysql/plugin.pp 
+# to replace the old canons with the new ones.
+#
+
+abi_check:	$(API_PREPROCESSOR_HEADER)
+	$(MAKE) abi_headers="$^" do_abi_check
+
+abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
+	$(MAKE) abi_headers="$^" do_abi_check
+
+do_abi_check:
+	set -ex; \
+	for file in $(abi_headers); do \
+	         @CC@ -E -nostdinc -dI \
+	                  -I$(top_srcdir)/include \
+	                  -I$(top_srcdir)/include/mysql \
+	                  -I$(top_srcdir)/sql \
+	                  -I$(top_builddir)/include \
+	                  -I$(top_builddir)/include/mysql \
+	                  -I$(top_builddir)/sql \
+	                                 $$file 2>/dev/null | \
+	                  @SED@ -e '/^# /d' \
+	                            -e '/^[ 	]*$$/d' \
+	                            -e '/^#pragma GCC set_debug_pwd/d' \
+	                            -e '/^#ident/d' > \
+	                                       $(top_builddir)/abi_check.out; \
+	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
+	                  @RM@ $(top_builddir)/abi_check.out; \
+	done
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

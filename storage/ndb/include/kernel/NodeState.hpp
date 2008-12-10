@@ -166,6 +166,13 @@ public:
   bool getSystemRestartInProgress() const;
 
   /**
+   * Are we started
+   */
+  bool getStarted() const {
+    return startLevel == SL_STARTED || startLevel == SL_SINGLEUSER;
+  }
+
+  /**
    * Is in single user mode?
    */
   bool getSingleUserMode() const;

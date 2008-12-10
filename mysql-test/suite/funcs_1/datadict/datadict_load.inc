@@ -12,14 +12,14 @@
 --disable_query_log
 
 # ------------------------------------------------------------------------------
-# Get the size of ONE known colum and check the size against some values to 
-# be able to use the correct --replace_result statement. Using this only the 
-# one pair of 'wrong' values is replaced and not all occurrencies of all 
+# Get the size of ONE known colum and check the size against some values to
+# be able to use the correct --replace_result statement. Using this only the
+# one pair of 'wrong' values is replaced and not all occurrencies of all
 # possible pairs of values. See bug #12777 for details.
-SELECT character_maximum_length INTO @CML 
-  FROM information_schema.columns 
- WHERE table_schema = 'information_schema' 
-   AND table_name   = 'columns' 
+SELECT character_maximum_length INTO @CML
+  FROM information_schema.columns
+ WHERE table_schema = 'information_schema'
+   AND table_name   = 'columns'
    AND column_name  = 'table_catalog';
 
 let $bug_12777_0512= `SELECT @CML =  512`;
@@ -53,7 +53,7 @@ let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host NOT In ("loca
 #  load tables
 #  -----------
 #
-#  this was part of the 4 files $<engine>_datadict.test, but it has been moved 
+#  this was part of the 4 files $<engine>_datadict.test, but it has been moved
 #  here to have only one place where all preparation for the test is done.
 #
 ################################################################################

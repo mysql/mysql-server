@@ -284,6 +284,74 @@ Field	Type	Null	Key	Default	Extra
 DROP TABLE table_25930_a;
 DROP TABLE table_25930_b;
 SET @@sql_mode=@save_sql_mode;
+DROP PROCEDURE IF EXISTS p26030;
+select "non terminated"$$
+non terminated
+non terminated
+select "terminated";$$
+terminated
+terminated
+select "non terminated, space"      $$
+non terminated, space
+non terminated, space
+select "terminated, space";      $$
+terminated, space
+terminated, space
+select "non terminated, comment" /* comment */$$
+non terminated, comment
+non terminated, comment
+select "terminated, comment"; /* comment */$$
+terminated, comment
+terminated, comment
+select "stmt 1";select "stmt 2 non terminated"$$
+stmt 1
+stmt 1
+stmt 2 non terminated
+stmt 2 non terminated
+select "stmt 1";select "stmt 2 terminated";$$
+stmt 1
+stmt 1
+stmt 2 terminated
+stmt 2 terminated
+select "stmt 1";select "stmt 2 non terminated, space"      $$
+stmt 1
+stmt 1
+stmt 2 non terminated, space
+stmt 2 non terminated, space
+select "stmt 1";select "stmt 2 terminated, space";      $$
+stmt 1
+stmt 1
+stmt 2 terminated, space
+stmt 2 terminated, space
+select "stmt 1";select "stmt 2 non terminated, comment" /* comment */$$
+stmt 1
+stmt 1
+stmt 2 non terminated, comment
+stmt 2 non terminated, comment
+select "stmt 1";select "stmt 2 terminated, comment"; /* comment */$$
+stmt 1
+stmt 1
+stmt 2 terminated, comment
+stmt 2 terminated, comment
+select "stmt 1";             select "space, stmt 2"$$
+stmt 1
+stmt 1
+space, stmt 2
+space, stmt 2
+select "stmt 1";/* comment */select "comment, stmt 2"$$
+stmt 1
+stmt 1
+comment, stmt 2
+comment, stmt 2
+DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() BEGIN SELECT 1; END; CALL p26030()
+$$
+1
+1
+DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() SELECT 1; CALL p26030()
+$$
+1
+1
+DROP PROCEDURE p26030;
 select pi(3.14);
 ERROR 42000: Incorrect parameter count in the call to native function 'pi'
 select tan();

@@ -270,7 +270,10 @@ AsyncFile::check_odirect_write(Uint32 flags, int& new_flags, int mode)
   }
   
   close(theFd);
-  theFd = ::open(theFileName.c_str(), new_flags, mode);
+  /**
+   * We need to (O_TRUNC) truncate the file since we've written a page to it...
+   */
+  theFd = ::open(theFileName.c_str(), new_flags | O_TRUNC, mode);
   if (theFd == -1)
     return errno;
 #endif
@@ -417,8 +420,8 @@ void AsyncFile::openReq(Request* request)
     new_flags |= O_APPEND;
   }
 
-  if (flags & FsOpenReq::OM_DIRECT) 
 #ifdef O_DIRECT
+  if (flags & FsOpenReq::OM_DIRECT) 
   {
     new_flags |= O_DIRECT;
   }
@@ -468,6 +471,7 @@ void AsyncFile::openReq(Request* request)
       return;
     }
     new_flags |= O_CREAT;
+    flags |= FsOpenReq::OM_CREATE;
   }
 
 no_odirect:
@@ -611,8 +615,15 @@ no_odirect:
     
     if (request->error)
       return;
+#elif defined HAVE_DIRECTIO && defined(DIRECTIO_ON)
+    if (directio(theFd, DIRECTIO_ON) == -1)
+    {
+      ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
+               theFileName.c_str(), errno);
+    }
 #endif
   }
+
 #ifdef VM_TRACE
   if (flags & FsOpenReq::OM_DIRECT)
   {

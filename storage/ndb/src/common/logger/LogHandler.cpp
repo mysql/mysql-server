@@ -45,7 +45,8 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
   time_t now;
   now= ::time((time_t*)NULL);
 
-  if (level != m_last_level ||
+  if (m_max_repeat_frequency == 0 ||
+      level != m_last_level ||
       strcmp(pCategory, m_last_category) ||
       strcmp(pMsg, m_last_message))
   {
@@ -200,6 +201,11 @@ LogHandler::parseParams(const BaseString &_params) {
 bool
 LogHandler::checkParams() {
   return true;
+}
+
+void LogHandler::setRepeatFrequency(unsigned val)
+{
+  m_max_repeat_frequency= val;
 }
 
 //

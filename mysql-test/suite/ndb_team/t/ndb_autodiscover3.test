@@ -39,8 +39,7 @@ insert into t1 values (1);
 --connection server1
 --error 1297
 insert into t1 values (2);
---error 1296
-commit;
+rollback;
 
 drop table t1;
 

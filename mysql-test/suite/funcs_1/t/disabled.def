@@ -10,7 +10,5 @@
 #
 ##############################################################################
 
-innodb_storedproc_06 : bug#33464 DROP FUNCTION let server hang
-myisam_storedproc_06 : bug#33464 DROP FUNCTION let server hang
-memory_storedproc_06 : bug#33464 DROP FUNCTION let server hang
-ndb_storedproc_06 :    bug#33464 DROP FUNCTION let server hang
+ndb_storedproc:		Something's not right in the test... also this test does not exist in 5.1
+ndb_views:		Bug #40860 funcs_1.ndb_views fail

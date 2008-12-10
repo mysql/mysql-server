@@ -277,3 +277,16 @@ drop table t3;
 drop table t4;
 drop table t5;
 drop table t6;
+SELECT @@global.storage_engine INTO @old_engine;
+SET GLOBAL storage_engine=InnoDB;
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES();
+SELECT COUNT(*) FROM v1;
+COUNT(*)
+1
+SELECT COUNT(*) FROM v1;
+COUNT(*)
+1
+DROP VIEW  v1;
+DROP TABLE t1;
+SET GLOBAL storage_engine=@old_engine;

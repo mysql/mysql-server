@@ -222,6 +222,7 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
       *err= handler->getErrorCode();
       if(handler->getErrorStr())
         strncpy(errStr, handler->getErrorStr(), len);
+      delete handler;
       DBUG_RETURN(false);
     }
     loghandlers.push_back(handler);
@@ -387,6 +388,15 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
     {
       pHandler->append(m_pCategory, logLevel, buf);
     }
+  }
+}
+
+void Logger::setRepeatFrequency(unsigned val)
+{
+  LogHandler* pHandler;
+  while ((pHandler = m_pHandlerList->next()) != NULL)
+  {
+    pHandler->setRepeatFrequency(val);
   }
 }
 

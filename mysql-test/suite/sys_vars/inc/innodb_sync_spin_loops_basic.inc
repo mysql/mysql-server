@@ -1,0 +1,142 @@
+################# mysql-test\t\innodb_sync_spin_loops_basic.test ##############
+#                                                                             #
+# Variable Name: innodb_sync_spin_loops                                       #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 20                                                           #
+# Range: 0-4294967295                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable innodb_sync_spin_loops     #
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF innodb_sync_spin_loops TESTS             #
+########################################################################
+
+
+############################################################################
+#   Saving initial value of innodb_sync_spin_loops in a temporary variable #
+############################################################################
+
+SET @global_start_value = @@global.innodb_sync_spin_loops;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################
+#           Display the DEFAULT value of innodb_sync_spin_loops        #
+########################################################################
+
+SET @@global.innodb_sync_spin_loops = 0;
+SET @@global.innodb_sync_spin_loops = DEFAULT;
+SELECT @@global.innodb_sync_spin_loops;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+##############################################################################
+#   Check if innodb_sync_spin_loops can be accessed with and without @@ sign #
+##############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_sync_spin_loops = 1;
+SELECT @@innodb_sync_spin_loops;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_sync_spin_loops;
+
+SET global innodb_sync_spin_loops = 0;
+SELECT @@global.innodb_sync_spin_loops;
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+##########################################################################
+#      change the value of innodb_sync_spin_loops to a valid value       #
+##########################################################################
+
+SET @@global.innodb_sync_spin_loops = 0;
+SELECT @@global.innodb_sync_spin_loops;
+
+SET @@global.innodb_sync_spin_loops = 1;
+SELECT @@global.innodb_sync_spin_loops;
+SET @@global.innodb_sync_spin_loops = 1000;
+SELECT @@global.innodb_sync_spin_loops;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+###########################################################################
+#       Change the value of innodb_sync_spin_loops to invalid value       #
+########################################################################### 
+
+SET @@global.innodb_sync_spin_loops = -1;
+SELECT @@global.innodb_sync_spin_loops;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_sync_spin_loops = "T";
+SELECT @@global.innodb_sync_spin_loops;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_sync_spin_loops = "Y";
+SELECT @@global.innodb_sync_spin_loops;
+
+SET @@global.innodb_sync_spin_loops = 1001;
+SELECT @@global.innodb_sync_spin_loops;
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+SELECT @@global.innodb_sync_spin_loops =
+ VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  WHERE VARIABLE_NAME='innodb_sync_spin_loops';
+SELECT @@global.innodb_sync_spin_loops;
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ WHERE VARIABLE_NAME='innodb_sync_spin_loops';
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_sync_spin_loops = OFF;
+SELECT @@global.innodb_sync_spin_loops;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_sync_spin_loops = ON;
+SELECT @@global.innodb_sync_spin_loops;
+
+--echo '#---------------------FN_DYNVARS_046_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+
+SET @@global.innodb_sync_spin_loops = TRUE;
+SELECT @@global.innodb_sync_spin_loops;
+SET @@global.innodb_sync_spin_loops = FALSE;
+SELECT @@global.innodb_sync_spin_loops;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_sync_spin_loops = @global_start_value;
+SELECT @@global.innodb_sync_spin_loops;
+
+###############################################################
+#                    END OF innodb_sync_spin_loops TESTS      #
+############################################################### 

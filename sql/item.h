@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -467,9 +467,9 @@ class Item {
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
@@ -1687,6 +1687,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
+  void set_param_type_and_swap_value(Item_param *from);
 };
 
 
@@ -2048,7 +2049,7 @@ class Item_empty_string :public Item_partition_func_safe_string
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
     Item_partition_func_safe_string("",0, cs ? cs : &my_charset_utf8_general_ci)
-    { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
+    { name=(char*) header; max_length= length * collation.collation->mbmaxlen; }
   void make_field(Send_field *field);
 };
 
@@ -2128,7 +2129,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
-  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF };
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,

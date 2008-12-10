@@ -25,14 +25,14 @@
  */
 class InputStream {
 public:
-  InputStream() { m_mutex= NULL; };
-  virtual ~InputStream() {};
+  InputStream() { m_mutex= NULL; }
+  virtual ~InputStream() {}
   virtual char* gets(char * buf, int bufLen) = 0;
   /**
    * Set the mutex to be UNLOCKED when blocking (e.g. select(2))
    */
-  void set_mutex(NdbMutex *m) { m_mutex= m; };
-  virtual void reset_timeout() {};
+  void set_mutex(NdbMutex *m) { m_mutex= m; }
+  virtual void reset_timeout() {}
 protected:
   NdbMutex *m_mutex;
 };
@@ -57,8 +57,8 @@ public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 60000);
   virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
-  bool timedout() { return m_timedout; };
-  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;};
+  bool timedout() { return m_timedout; }
+  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;}
 
 };
 

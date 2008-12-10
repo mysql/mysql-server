@@ -551,6 +551,7 @@ struct SumaStartMeRef {
   Uint32 errorCode;
   enum {
     Busy = 0x1
+    ,NotStarted = 0x2
   };
 };
 

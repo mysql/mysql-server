@@ -267,12 +267,9 @@ Qmgr::execSTART_ORD(Signal* signal)
     case NodeInfo::MGM:
       jam();
       /**
-       * Enable communication to MGM direcly
-       *   by setting ZFAIL_CLOSING (picked up in checkStartInterface)
+       * cmvmi allows ndb_mgmd to connect directly
        */
-      cnt = 3;
-      nodePtr.p->phase = ZFAIL_CLOSING;
-      nodePtr.p->failState = NORMAL;
+      nodePtr.p->phase = ZAPI_INACTIVE;
       break;
     default:
       jam();
@@ -2717,11 +2714,46 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
     if (nodePtr.p->phase == ZAPI_ACTIVE){
       jam();
       sendSignal(nodePtr.p->blockRef, GSN_NF_COMPLETEREP, signal, 
-                 NFCompleteRep::SignalLength, JBA);
+                 NFCompleteRep::SignalLength, JBB);
     }//if
   }//for
   return;
 }//Qmgr::execNDB_FAILCONF()
+
+void
+Qmgr::execNF_COMPLETEREP(Signal* signal)
+{
+  jamEntry();
+  NFCompleteRep rep = *(NFCompleteRep*)signal->getDataPtr();
+  if (rep.blockNo != DBTC)
+  {
+    jam();
+    ndbassert(false);
+    return;
+  }
+
+  /**
+   * This is a disgrace...but execNF_COMPLETEREP in ndbapi is a mess
+   *   actually equally messy as it is in ndbd...
+   *   this is therefore a simple way of having ndbapi to get
+   *   earlier information that transactions can be aborted
+   */
+  signal->theData[0] = rep.failedNodeId;
+  NodeRecPtr nodePtr;
+  for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
+  {
+    jam();
+    ptrAss(nodePtr, nodeRec);
+    if (nodePtr.p->phase == ZAPI_ACTIVE && 
+        ndb_takeovertc(getNodeInfo(nodePtr.i).m_version))
+    {
+      jam();
+      sendSignal(nodePtr.p->blockRef, GSN_TAKE_OVERTCCONF, signal, 
+                 NFCompleteRep::SignalLength, JBB);
+    }//if
+  }//for
+  return;
+}
 
 /*******************************/
 /* DISCONNECT_REP             */

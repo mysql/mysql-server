@@ -12608,7 +12608,7 @@ Dbdict::buildIndex_recvReply(Signal* signal, const BuildIndxConf* conf,
     if (ref == 0) {
       infoEvent("DICT: index %u rebuild done", (unsigned)key);
     } else {
-      warningEvent("DICT: index %u rebuild failed: code=%d line=%d node=%d",
+      warningEvent("DICT: index %u rebuild failed: code=%d",
 		   (unsigned)key, ref->getErrorCode());
     }
     rebuildIndexes(signal, key + 1);
@@ -14938,6 +14938,7 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
+        c_Trans.release(trans_ptr);
         break;
       }
       
@@ -15051,6 +15052,7 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
+        c_Trans.release(trans_ptr);
         break;
       }
       

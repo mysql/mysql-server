@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -399,7 +399,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
     else
     {
-      DBUG_ASSERT(!thd->stmt_arena->is_conventional());
       /*
         We're in execution of a prepared statement or stored procedure:
         reset field items to point at fields from the created temporary table.

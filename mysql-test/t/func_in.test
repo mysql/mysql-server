@@ -417,4 +417,13 @@ insert into t1 values (),(),(),(),(),(),(),(),(),();
 select a from t1 where a not in (a,a,a) group by a;
 drop table t1;
 
+#
+# Bug #37761: IN handles NULL differently for table-subquery and value-list
+#
+
+create table t1 (id int);
+select * from t1 where NOT id in (select null union all select 1);
+select * from t1 where NOT id in (null, 1);
+drop table t1;
+
 --echo End of 5.1 tests

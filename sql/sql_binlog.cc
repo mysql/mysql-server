@@ -208,6 +208,7 @@ void mysql_client_binlog_statement(THD* thd)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       if (apply_event_and_update_pos(ev, thd, thd->rli_fake, FALSE))
       {
+        delete ev;
         /*
           TODO: Maybe a better error message since the BINLOG statement
           now contains several events.

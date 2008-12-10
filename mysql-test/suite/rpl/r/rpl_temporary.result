@@ -24,6 +24,9 @@ drop table if exists t1,t2;
 create table t1(f int);
 create table t2(f int);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
 create temporary table t3(f int);
 insert into t3 select * from t1 where f<6;
 create temporary table t3(f int);
@@ -76,9 +79,9 @@ drop table t1,t2;
 create temporary table t3 (f int);
 create temporary table t4 (f int);
 create table t5 (f int);
-select id from information_schema.processlist where command='Binlog Dump' into @id;
-kill @id;
+stop slave;
 insert into t5 select * from t4;
+start slave;
 select * from t5 /* must be 1 after reconnection */;
 f
 drop temporary table t4;

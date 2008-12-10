@@ -493,7 +493,7 @@ static void DbugParse(CODE_STATE *cs, const char *control)
   }
 
   end= DbugStrTok(control);
-  while (1)
+  while (control < end)
   {
     int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
     if (sign) control++;

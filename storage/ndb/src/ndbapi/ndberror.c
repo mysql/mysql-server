@@ -191,6 +191,7 @@ ErrorBundle ErrorCodes[] = {
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
   {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
+  {  291, DMEC, TR, "Out of scanfrag records in TC (increase MaxNoOfLocalScans)" },
 
   /**
    * InsufficientSpace
@@ -408,8 +409,10 @@ ErrorBundle ErrorCodes[] = {
   { 906,  DMEC, SE, "Unsupported attribute type in index" },
   { 907,  DMEC, SE, "Unsupported character set in table or index" },
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
+  { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
   { 1226, DMEC, SE, "Table is being dropped" },
+  { 1227, HA_WRONG_CREATE_OPTION, SE, "Invalid schema version" },
   { 1228, DMEC, SE, "Cannot use drop table for drop index" },
   { 1229, DMEC, SE, "Too long frm data supplied" },
   { 1231, DMEC, SE, "Invalid table or index to scan" },

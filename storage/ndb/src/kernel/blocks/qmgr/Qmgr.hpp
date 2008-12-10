@@ -243,6 +243,7 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONNECT_REP(Signal* signal);
   void execNDB_FAILCONF(Signal* signal);
+  void execNF_COMPLETEREP(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCM_INFOCONF(Signal* signal);
@@ -455,10 +456,6 @@ private:
   
   StopReq c_stopReq;
   bool check_multi_node_shutdown(Signal* signal);
-
-#ifdef ERROR_INSERT
-  Uint32 c_error_insert_extra;
-#endif
 
   void recompute_version_info(Uint32 type);
   void recompute_version_info(Uint32 type, Uint32 version);

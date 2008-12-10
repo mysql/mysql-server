@@ -2236,10 +2236,10 @@ print_status(const ndb_mgm_node_state * state)
          << ": " << status_string(state->node_status);
   switch(state->node_status){
   case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << " (Phase " << state->start_phase << ")";
+    ndbout << " (Last completed phase " << state->start_phase << ")";
     break;
   case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
-    ndbout << " (Phase " << state->start_phase << ")";
+    ndbout << " (Last completed phase " << state->start_phase << ")";
     break;
   default:
     break;

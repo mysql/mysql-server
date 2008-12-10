@@ -45,7 +45,7 @@ RESET SLAVE;
 RESET MASTER;
 START SLAVE;
 [on slave]
-SET @@global.init_slave = 'ant';
+SET @@global.init_slave = 'SELECT 1';
 [on master]
 CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
 truth BOOLEAN,
@@ -66,9 +66,9 @@ SET @@global.sync_binlog = 2000000;
 INSERT INTO tstmt(num) VALUES (@@global.sync_binlog);
 SET @@global.sync_binlog = 3000000;
 INSERT INTO tstmt(num) VALUES (@@global.sync_binlog);
-SET @@global.init_slave = 'bison';
+SET @@global.init_slave = 'SELECT 2';
 INSERT INTO tstmt(text) VALUES (@@global.init_slave);
-SET @@global.init_slave = 'cat';
+SET @@global.init_slave = 'SELECT 3';
 INSERT INTO tstmt(text) VALUES (@@global.init_slave);
 SET @@global.slave_exec_mode = 'IDEMPOTENT';
 INSERT INTO tstmt(text) VALUES (@@global.slave_exec_mode);
@@ -140,9 +140,9 @@ INSERT INTO tproc(num) VALUES (@@global.sync_binlog);
 SET @@global.sync_binlog = 3000000;
 INSERT INTO tproc(num) VALUES (@@global.sync_binlog);
 # string
-SET @@global.init_slave = 'bison';
+SET @@global.init_slave = 'SELECT 2';
 INSERT INTO tproc(text) VALUES (@@global.init_slave);
-SET @@global.init_slave = 'cat';
+SET @@global.init_slave = 'SELECT 3';
 INSERT INTO tproc(text) VALUES (@@global.init_slave);
 # enumeration
 SET @@global.slave_exec_mode = 'IDEMPOTENT';
@@ -226,9 +226,9 @@ INSERT INTO tfunc(num) VALUES (@@global.sync_binlog);
 SET @@global.sync_binlog = 3000000;
 INSERT INTO tfunc(num) VALUES (@@global.sync_binlog);
 # string
-SET @@global.init_slave = 'bison';
+SET @@global.init_slave = 'SELECT 2';
 INSERT INTO tfunc(text) VALUES (@@global.init_slave);
-SET @@global.init_slave = 'cat';
+SET @@global.init_slave = 'SELECT 3';
 INSERT INTO tfunc(text) VALUES (@@global.init_slave);
 # enumeration
 SET @@global.slave_exec_mode = 'IDEMPOTENT';
@@ -316,9 +316,9 @@ INSERT INTO ttrig(num) VALUES (@@global.sync_binlog);
 SET @@global.sync_binlog = 3000000;
 INSERT INTO ttrig(num) VALUES (@@global.sync_binlog);
 # string
-SET @@global.init_slave = 'bison';
+SET @@global.init_slave = 'SELECT 2';
 INSERT INTO ttrig(text) VALUES (@@global.init_slave);
-SET @@global.init_slave = 'cat';
+SET @@global.init_slave = 'SELECT 3';
 INSERT INTO ttrig(text) VALUES (@@global.init_slave);
 # enumeration
 SET @@global.slave_exec_mode = 'IDEMPOTENT';
@@ -395,9 +395,9 @@ PREPARE p5 FROM 'SET @@global.sync_binlog = 2000000';
 PREPARE p6 FROM 'INSERT INTO tprep(num) VALUES (@@global.sync_binlog)';
 PREPARE p7 FROM 'SET @@global.sync_binlog = 3000000';
 PREPARE p8 FROM 'INSERT INTO tprep(num) VALUES (@@global.sync_binlog)';
-PREPARE p9 FROM 'SET @@global.init_slave = \'bison\'';
+PREPARE p9 FROM 'SET @@global.init_slave = \'SELECT 2\'';
 PREPARE p10 FROM 'INSERT INTO tprep(text) VALUES (@@global.init_slave)';
-PREPARE p11 FROM 'SET @@global.init_slave = \'cat\'';
+PREPARE p11 FROM 'SET @@global.init_slave = \'SELECT 3\'';
 PREPARE p12 FROM 'INSERT INTO tprep(text) VALUES (@@global.init_slave)';
 PREPARE p13 FROM 'SET @@global.slave_exec_mode = \'IDEMPOTENT\'';
 PREPARE p14 FROM 'INSERT INTO tprep(text) VALUES (@@global.slave_exec_mode)';
@@ -522,8 +522,8 @@ id	truth	num	text
 2	0	NULL	NULL
 3	NULL	2000000	NULL
 4	NULL	3000000	NULL
-5	NULL	NULL	bison
-6	NULL	NULL	cat
+5	NULL	NULL	SELECT 2
+6	NULL	NULL	SELECT 3
 7	NULL	NULL	IDEMPOTENT
 8	NULL	NULL	STRICT
 9	1	NULL	NULL

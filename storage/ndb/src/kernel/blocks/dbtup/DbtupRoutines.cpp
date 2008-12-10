@@ -308,7 +308,7 @@ pad32(Uint32 bytepos, Uint32 bitsused)
   {
     assert((bytepos & 3) == 0);
   }
-  Uint32 ret = 4 * ((bitsused + 31 >> 5)) +
+  Uint32 ret = 4 * ((bitsused + 31) >> 5) +
     ((bytepos + 3) & ~(Uint32)3);
   return ret;
 }

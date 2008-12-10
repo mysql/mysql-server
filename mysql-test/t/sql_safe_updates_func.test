@@ -1,0 +1,202 @@
+############# mysql-test\t\sql_safe_updates_func.test #####################
+#                                                                         #
+# Variable Name: sql_safe_updates                                         #
+# Scope: SESSION                                                          #
+# Access Type: Dynamic                                                    #
+# Data Type: BOOLEAN                                                      #
+# Default Value: 1 TRUE                                                   #
+# Values:       1 TRUE, 0 FALSE                                           #
+#                                                                         #
+#                                                                         #
+# Creation Date: 2008-02-25                                               #
+# Author:  Sharique Abdullah                                              #
+#                                                                         #
+# Description: Test Cases of Dynamic System Variable "sql_safe_updates"   #
+#              that checks behavior of this variable in the following ways#
+#              * Functionality based on different values                  #
+#                                                                         #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html       #
+#                                                                         #
+###########################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+SET @default_sql_safe_updates = @@sql_safe_updates;
+
+#
+# Creating tables
+#
+
+CREATE TEMPORARY TABLE t1(a int PRIMARY KEY, b varchar(20));
+
+INSERT INTO t1 VALUES(1, 'val1');
+INSERT INTO t1 VALUES(2, 'val2');
+INSERT INTO t1 VALUES(3, 'val3');
+INSERT INTO t1 VALUES(4, 'val4');
+INSERT INTO t1 VALUES(5, 'val5');
+INSERT INTO t1 VALUES(6, 'val6');
+INSERT INTO t1 VALUES(7, 'val7');
+INSERT INTO t1 VALUES(8, 'val8');
+INSERT INTO t1 VALUES(9, 'val9');
+
+
+
+--echo '#-----------------------------FN_DYNVARS_164_01------------------------------------#'
+--echo
+--echo Value ON
+--echo
+#
+# Value ON
+#
+
+SET SESSION sql_safe_updates = ON;
+
+--echo '#-----------------------------FN_DYNVARS_164_02------------------------------------#'
+#
+# Without WHERE Clause
+#
+--echo Expected error : Update without key in safe mode
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t1;
+SELECT * FROM t1;
+
+PREPARE stmt FROM 'DELETE FROM t1;';
+--echo Expected error : Update without key in safe mode
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+--echo '#-----------------------------FN_DYNVARS_164_03------------------------------------#'
+#
+# With a LIMIT Clause
+#
+--echo Expected error : Update without key in safe mode
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t1 LIMIT 2;
+SELECT * FROM t1;
+
+--echo '#-----------------------------FN_DYNVARS_164_04------------------------------------#'
+#
+# With a no key WHERE Clause
+#
+--echo Expected error : Update without key in safe mode
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t1 WHERE b='val1';
+SELECT * FROM t1;
+
+--echo '#-----------------------------FN_DYNVARS_164_05------------------------------------#'
+#
+# With a key WHERE Clause
+#
+--echo This one should work
+DELETE FROM t1 WHERE a=1;
+SELECT * FROM t1;
+
+--echo
+--echo Value OFF
+--echo
+#
+# Value OFF
+#
+
+SET SESSION sql_safe_updates = OFF;
+
+--echo '#-----------------------------FN_DYNVARS_164_06------------------------------------#'
+#
+# With a no key WHERE Clause
+#
+--echo This one should work
+DELETE FROM t1 WHERE b='val1';
+SELECT * FROM t1;
+
+--echo '#-----------------------------FN_DYNVARS_164_07------------------------------------#'
+#
+# With a key WHERE Clause
+#
+--echo This one should work
+DELETE FROM t1 WHERE a=1;
+SELECT * FROM t1;
+
+--echo '#-----------------------------FN_DYNVARS_164_08------------------------------------#'
+#
+# With a LIMIT Clause
+#
+--echo This one should work
+DELETE FROM t1 LIMIT 2;
+SELECT * FROM t1;
+
+--echo '#-----------------------------FN_DYNVARS_164_09------------------------------------#'
+#
+# Without WHERE Clause
+#
+--echo This one should work
+--echo DELETE FROM t1;
+--error ER_MIXING_NOT_ALLOWED
+#DELETE FROM t1;
+--echo Bug#35392 Unexpected error occurs in this statement Can't change size of the file
+--echo statement is remarked because the error is uncatchable by testing framework
+SELECT * FROM t1;
+
+PREPARE stmt FROM 'DELETE FROM t1;';
+--echo Expected error : Update without key in safe mode
+--error ER_MIXING_NOT_ALLOWED
+#EXECUTE stmt;
+--echo Bug#35392 Unexpected error occurs in this statement Can't change size of the file
+--echo statement is remarked because the error is uncatchable by testing framework
+DEALLOCATE PREPARE stmt;
+
+
+--echo '#----------------------------FN_DYNVARS_164_10--------------------------------------#'
+#
+# Session data integrity check
+#
+
+--echo ** Connecting con_int1 using root **
+connect (con_int1,localhost,root,,);
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_safe_updates;
+--echo 0 / FALSE Expected
+
+SET SESSION sql_safe_updates = FALSE;
+
+--echo ** Connecting con_int2 using root **
+connect (con_int2,localhost,root,,);
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_safe_updates;
+--echo 0 / FALSE Expected
+
+SET SESSION sql_safe_updates = TRUE;
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_safe_updates;
+--echo 1 / TRUE Expected
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_safe_updates;
+--echo 0 / FALSE Expected
+
+--echo ** Connection default **
+connection default;
+
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+
+#
+# Cleanup
+#
+
+SET SESSION sql_safe_updates = @default_sql_safe_updates;
+
+DROP TABLE t1;

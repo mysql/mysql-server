@@ -123,6 +123,7 @@
 #define ZUNKNOWN_TABLE_ERROR 285
 #define ZNODEFAIL_BEFORE_COMMIT 286
 #define ZINDEX_CORRUPT_ERROR 287
+#define ZSCAN_FRAGREC_ERROR 291
 
 // ----------------------------------------
 // Seize error
@@ -1393,7 +1394,7 @@ private:
                      TcConnectRecord * const regTcPtr);
   void sendCompleteLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
-  void sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord *);
+  void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
 			      Uint32 gsn, Uint32 len);
@@ -1418,7 +1419,7 @@ private:
                            UintR anApiConnectPtr);
   void handleScanStop(Signal* signal, UintR aFailedNode);
   void initScanTcrec(Signal* signal);
-  void initScanrec(ScanRecordPtr,  const class ScanTabReq*,
+  Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
@@ -1431,10 +1432,10 @@ private:
   
   void checkGcp(Signal* signal);
   void commitGciHandling(Signal* signal, Uint64 Tgci);
-  void copyApi(Signal* signal);
+  void copyApi(Ptr<ApiConnectRecord> dst, Ptr<ApiConnectRecord> src);
   void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci);
-  void gcpTcfinished(Signal* signal);
-  void handleGcp(Signal* signal);
+  void gcpTcfinished(Signal* signal, Uint64 gci);
+  void handleGcp(Signal* signal, Ptr<ApiConnectRecord>);
   void hash(Signal* signal);
   bool handle_special_hash(Uint32 dstHash[4], 
 			     Uint32* src, Uint32 srcLen, 
@@ -1453,8 +1454,8 @@ private:
   void initialiseScanOprec(Signal* signal);
   void initTable(Signal* signal);
   void initialiseTcConnect(Signal* signal);
-  void linkApiToGcp(Signal* signal);
-  void linkGciInGcilist(Signal* signal);
+  void linkApiToGcp(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
+  void linkGciInGcilist(Ptr<GcpRecord>);
   void linkKeybuf(Signal* signal);
   void linkTcInConnectionlist(Signal* signal);
   void releaseAbortResources(Signal* signal);
@@ -1462,7 +1463,6 @@ private:
   void releaseApiConCopy(Signal* signal);
   void releaseApiConnectFail(Signal* signal);
   void releaseAttrinfo();
-  void releaseGcp(Signal* signal);
   void releaseKeys();
   void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
@@ -1474,10 +1474,10 @@ private:
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
   void seizeDatabuf(Signal* signal);
-  void seizeGcp(Signal* signal);
+  void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
-  void sendApiCommit(Signal* signal);
+  Ptr<ApiConnectRecord> sendApiCommit(Signal* signal);
   void sendAttrinfo(Signal* signal,
                     UintR TattrinfoPtr,
                     AttrbufRecord * const regAttrPtr,
@@ -1488,8 +1488,8 @@ private:
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void sendTcIndxConf(Signal* signal, UintR TcommitFlag);
-  void unlinkApiConnect(Signal* signal);
-  void unlinkGcp(Signal* signal);
+  void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
+  void unlinkGcp(Ptr<GcpRecord>);
   void unlinkReadyTcCon(Signal* signal);
   void handleFailedOperation(Signal* signal,
 			     const LqhKeyRef * const lqhKeyRef, 
@@ -1661,8 +1661,8 @@ private:
   UintR chostFilesize;
   NdbNodeBitmask c_alive_nodes;
 
+  Uint32 c_ongoing_take_over_cnt;
   GcpRecord *gcpRecord;
-  GcpRecordPtr gcpPtr;
   UintR cgcpFilesize;
 
   TableRecord *tableRecord;
@@ -1677,7 +1677,6 @@ private:
   UintR ctcTimer;
   UintR cDbHbInterval;
 
-  ApiConnectRecordPtr tmpApiConnectptr;
   Uint64 tcheckGcpId;
 
   struct TransCounters {

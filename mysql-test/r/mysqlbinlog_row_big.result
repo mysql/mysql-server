@@ -1,0 +1,74 @@
+#
+# Preparatory cleanup.
+#
+DROP TABLE IF EXISTS t1;
+#
+# We need a fixed timestamp to avoid varying results.
+#
+SET timestamp=1000000000;
+#
+# We need big packets.
+#
+SET @@session.max_allowed_packet= 1024*1024*1024;
+#
+# Delete all existing binary logs.
+#
+RESET MASTER;
+#
+# Create a test table.
+#
+CREATE TABLE t1 (
+c1 LONGTEXT
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
+#
+# Show how much rows are affected by each statement.
+#
+#
+# Insert a big row.
+#
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 2097152));
+affected rows: 1
+#
+# Show what we have in the table.
+# Do not display the column value itself, just its length.
+#
+SELECT LENGTH(c1) FROM t1;
+LENGTH(c1)	33554432
+affected rows: 1
+#
+# Grow the row by updating.
+#
+UPDATE t1 SET c1 = CONCAT(c1, c1);
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+#
+# Show what we have in the table.
+# Do not display the column value itself, just its length.
+#
+SELECT LENGTH(c1) FROM t1;
+LENGTH(c1)	67108864
+affected rows: 1
+#
+# Delete the row.
+#
+DELETE FROM t1 WHERE c1 >= 'ManyMegaByteBlck';
+affected rows: 1
+#
+# Hide how much rows are affected by each statement.
+#
+#
+# Flush all log buffers to the log file.
+#
+FLUSH LOGS;
+#
+# Call mysqlbinlog to display the log file contents.
+# NOTE: The output of mysqlbinlog is redirected to
+#       $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out
+#       If you want to examine it, disable remove_file
+#       at the bottom of the test script.
+#
+#
+# Cleanup.
+#
+DROP TABLE t1;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out

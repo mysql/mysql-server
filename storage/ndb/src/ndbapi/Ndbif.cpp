@@ -44,7 +44,6 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -315,7 +314,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         localCon->theCompletionStatus = NdbTransaction::CompletedSuccess;
       } else {
 #ifdef VM_TRACE
-        printState("abortTransactionsAfterNodeFailure %x", this);
+        printState("abortTransactionsAfterNodeFailure %lx", (long)this);
         abort();
 #endif
       }
@@ -906,6 +905,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
     return;
   } 
+  case GSN_TAKE_OVERTCCONF:
+    abortTransactionsAfterNodeFailure(tFirstData); // theData[0]
+    break;
   default:
     goto InvalidSignal;
   }//swich

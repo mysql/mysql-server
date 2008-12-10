@@ -90,6 +90,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
 #define ME_COLOUR3	((3 << ME_HIGHBYTE))
+#define ME_FATALERROR   1024    /* Fatal statement error */
+#define ME_NO_WARNING_FOR_ERROR 2048 /* Don't push a warning for error */
+#define ME_NO_SP_HANDLER 4096 /* Don't call stored routine error handlers */
 
 	/* Bits in last argument to fn_format */
 #define MY_REPLACE_DIR		1	/* replace dir in name with 'dir' */
@@ -243,7 +246,7 @@ extern int NEAR my_umask,		/* Default creation mask  */
 	   NEAR my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
 	   NEAR my_dont_interrupt;	/* call remember_intr when set */
 extern my_bool NEAR mysys_uses_curses, my_use_symdir;
-extern ulong sf_malloc_cur_memory, sf_malloc_max_memory;
+extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
 
 extern ulong	my_default_record_cache_size;
 extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
@@ -574,6 +577,7 @@ extern int my_close(File Filedes,myf MyFlags);
 extern File my_dup(File file, myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
+extern int my_is_symlink(const char *filename);
 extern int my_realpath(char *to, const char *filename, myf MyFlags);
 extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   int createflags, int access_flags,
@@ -690,6 +694,7 @@ extern char * fn_format(char * to,const char *name,const char *dir,
 			   const char *form, uint flag);
 extern size_t strlength(const char *str);
 extern void pack_dirname(char * to,const char *from);
+extern size_t normalize_dirname(char * to, const char *from);
 extern size_t unpack_dirname(char * to,const char *from);
 extern size_t cleanup_dirname(char * to,const char *from);
 extern size_t system_filename(char * to,const char *from);

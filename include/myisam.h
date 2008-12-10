@@ -256,6 +256,10 @@ extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
 extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
 
+/* usually used to check if a symlink points into the mysql data home */
+/* which is normally forbidden                                        */
+extern int (*myisam_test_invalid_symlink)(const char *filename);
+
 	/* Prototypes for myisam-functions */
 
 extern int mi_close(struct st_myisam_info *file);

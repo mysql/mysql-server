@@ -1147,9 +1147,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     char old_db_buf[NAME_LEN+1];
     LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
     bool dbchanged;
-    Lex_input_stream lip(thd,
-                         table->select_stmt.str,
-                         table->select_stmt.length);
+    Parser_state parser_state(thd,
+                              table->select_stmt.str,
+                              table->select_stmt.length);
 
     /* 
       Use view db name as thread default database, in order to ensure
@@ -1193,7 +1193,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
     /* Parse the query. */
 
-    parse_status= parse_sql(thd, &lip, table->view_creation_ctx);
+    parse_status= parse_sql(thd, & parser_state, table->view_creation_ctx);
 
     /* Restore environment. */
 
@@ -1947,7 +1947,7 @@ mysql_rename_view(THD *thd,
       goto err;
 
     /* rename view and it's backups */
-    if (rename_in_schema_file(view->db, view->table_name, new_name, 
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_name, 
                               view_def.revision - 1, num_view_backups))
       goto err;
 
@@ -1967,7 +1967,7 @@ mysql_rename_view(THD *thd,
                                    num_view_backups)) 
     {
       /* restore renamed view in case of error */
-      rename_in_schema_file(view->db, new_name, view->table_name, 
+      rename_in_schema_file(thd, view->db, new_name, view->table_name, 
                             view_def.revision - 1, num_view_backups);
       goto err;
     }

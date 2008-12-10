@@ -131,6 +131,7 @@ private:
    * The pool of node records
    */
   ArrayPool<SubscriptionRecord> c_theSubscriptionRecPool;
+  RSS_AP_SNAPSHOT(c_theSubscriptionRecPool);
 
   /**
    * The list of other subscriptions

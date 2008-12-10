@@ -95,12 +95,12 @@ let $message= update only on column:;
 	use priv_db;
         update t1 set f1 = 'update2_no'
                 where f1 like '%insert%';
-	--error 1143
+	--error ER_COLUMNACCESS_DENIED_ERROR
         update t2 set f1 = 'update2_no'
                 where f1 like '%insert%';
         update t1 set f1 = 'update3_no'
                 where f1 like '%insert%';
-	--error 1143
+	--error ER_COLUMNACCESS_DENIED_ERROR
         update t2 set f1 = 'update3_no'
                 where f1 like '%insert%';
         select f1 from t1 order by f1;
@@ -148,12 +148,12 @@ let $message= check if access only on one of three columns;
 
         update t1 set f1 = 'update6_no'
                 where f1 like '%insert%';
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         update t2 set f1 = 'update6_no'
                 where f1 like '%insert%';
         update t1 set f1 = 'update7_no'
                 where f1 like '%insert%';
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         update t2 set f1 = 'update7_no'
                 where f1 like '%insert%';
         select f1 from t1 order by f1;
@@ -173,7 +173,7 @@ let $message= check if rejected without trigger privilege:;
 
         connection no_privs;
         select current_user;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         update t1 set   f1 = 'update8-no',
                         f2 = 'update8-no'
                 where f2 like '%yes';
@@ -188,7 +188,7 @@ let $message= check trigger, but not update privilege on column:;
         connection default;
         select current_user;
         revoke UPDATE(f1) on priv_db.t1 from test_yesprivs@localhost;
-	grant TRIGGER,UPDATE(f2),UPDATE(f3) on priv_db.t1 
+	grant TRIGGER,UPDATE(f2),UPDATE(f3) on priv_db.t1
 		to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
@@ -202,14 +202,14 @@ let $message= check trigger, but not update privilege on column:;
         connection no_privs;
         select current_user;
 	use priv_db;
-	--error 1143
+	--error ER_COLUMNACCESS_DENIED_ERROR
         update t1 set   f1 = 'update9-no',
                         f2 = 'update9-no'
                 where f2 like '%yes';
         select * from t1 order by f1,f2,f3;
 
 # trigger is involved (table privilege) ->fail
-	--error 1143
+	--error ER_COLUMNACCESS_DENIED_ERROR
 	update t1 set f3= f3+1;
 	select f3 from t1 order by f3;
 
@@ -224,13 +224,13 @@ let $message= check trigger, but not update privilege on column:;
         connection no_privs;
         select current_user;
         use priv_db;
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         update t1 set f3= f3+1;
         select f3 from t1 order by f3;
 
 let $message= ##### trigger privilege on column level? #######;
 --source include/show_msg.inc
-	--error 1064
+	--error ER_PARSE_ERROR
 	grant TRIGGER(f1) on priv_db.t1 to test_yesprivs@localhost;
 
 # Cleanup table level
@@ -242,7 +242,7 @@ let $message= ##### trigger privilege on column level? #######;
         select current_user;
 
 
-# general Cleanup 
+# general Cleanup
 	drop database if exists priv_db;
 	drop user test_yesprivs@localhost;
 	drop user test_noprivs@localhost;

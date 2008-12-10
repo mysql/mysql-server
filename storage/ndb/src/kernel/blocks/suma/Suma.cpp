@@ -474,7 +474,7 @@ Suma::execSUMA_START_ME_REF(Signal* signal)
   const SumaStartMeRef* ref= (SumaStartMeRef*)signal->getDataPtr();
 
   Uint32 error = ref->errorCode;
-  if (error != SumaStartMeRef::Busy)
+  if (error != SumaStartMeRef::Busy && error != SumaStartMeRef::NotStarted)
   {
     jam();
     // for some reason we did not manage to create a subscription
@@ -492,7 +492,6 @@ Suma::execSUMA_START_ME_REF(Signal* signal)
   infoEvent("Suma: node %d refused %d", 
 	    c_startup.m_restart_server_node_id, ref->errorCode);
 
-  c_startup.m_restart_server_node_id++;
   send_start_me_req(signal);
 }
 
@@ -1163,7 +1162,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     for(Uint32 i = 0; i<c_no_of_buckets; i++)
     {
       Bucket* ptr= c_buckets + i;
-      infoEvent("Bucket %d %d%d-%x switch gci: %d max_acked_gci: %d max_gci: %d tail: %d head: %d",
+      infoEvent("Bucket %d %d%d-%x switch gci: %llu max_acked_gci: %llu max_gci: %llu tail: %d head: %d",
 		i, 
 		m_active_buckets.get(i),
 		m_switchover_buckets.get(i),
@@ -3804,7 +3803,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   rep->flags = flags;
   rep->senderRef  = reference();
   rep->gcp_complete_rep_count = m_gcp_complete_rep_count;
-  
+
   if(m_gcp_complete_rep_count && !c_subscriber_nodes.isclear())
   {
     CRASH_INSERTION(13033);
@@ -3823,7 +3822,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     {
       char buf[100];
       c_subscriber_nodes.getText(buf);
-      g_eventLogger->error("c_gcp_list.seize() failed: gci: %d nodes: %s",
+      g_eventLogger->error("c_gcp_list.seize() failed: gci: %llu nodes: %s",
                            gci, buf);
     }
   }
@@ -4339,6 +4338,16 @@ Suma::execSUMA_START_ME_REQ(Signal* signal) {
     jam();
     SumaStartMeRef* ref= (SumaStartMeRef*)signal->getDataPtrSend();
     ref->errorCode = SumaStartMeRef::Busy;
+    sendSignal(retref, GSN_SUMA_START_ME_REF, signal,
+               SumaStartMeRef::SignalLength, JBB);
+    return;
+  }
+
+  if (getNodeState().getStarted() == false)
+  {
+    jam();
+    SumaStartMeRef* ref= (SumaStartMeRef*)signal->getDataPtrSend();
+    ref->errorCode = SumaStartMeRef::NotStarted;
     sendSignal(retref, GSN_SUMA_START_ME_REF, signal,
                SumaStartMeRef::SignalLength, JBB);
     return;
