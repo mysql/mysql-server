@@ -228,10 +228,8 @@ public:
     VARIANCE_FUNC, SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
   };
 
-  Item **args, *tmp_args[2];
   Item **ref_by; /* pointer to a ref to the object used to register it */
   Item_sum *next; /* next in the circular chain of registered objects  */
-  uint arg_count;
   Item_sum *in_sum_func;  /* embedding set function if any */ 
   st_select_lex * aggr_sel; /* select where the function is aggregated       */ 
   int8 nest_level;        /* number of the nesting level of the set function */
@@ -248,24 +246,32 @@ public:
   List<Item_field> outer_fields;
 
 protected:  
+  uint arg_count;
+  Item **args, *tmp_args[2];
+  /* 
+    Copy of the arguments list to hold the original set of arguments.
+    Used in EXPLAIN EXTENDED instead of the current argument list because 
+    the current argument list can be altered by usage of temporary tables.
+  */
+  Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
 
 public:  
 
   void mark_as_sum_func();
-  Item_sum() :arg_count(0), quick_group(1), forced_const(FALSE)
+  Item_sum() :quick_group(1), arg_count(0), forced_const(FALSE)
   {
     mark_as_sum_func();
   }
-  Item_sum(Item *a) :args(tmp_args), arg_count(1), quick_group(1), 
-    forced_const(FALSE)
+  Item_sum(Item *a) :quick_group(1), arg_count(1), args(tmp_args),
+    orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
   }
-  Item_sum( Item *a, Item *b ) :args(tmp_args), arg_count(2), quick_group(1),
-    forced_const(FALSE)
+  Item_sum( Item *a, Item *b ) :quick_group(1), arg_count(2), args(tmp_args),
+    orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
     mark_as_sum_func();
@@ -374,6 +380,10 @@ public:
   bool register_sum_func(THD *thd, Item **ref);
   st_select_lex *depended_from() 
     { return (nest_level == aggr_level ? 0 : aggr_sel); }
+
+  Item *get_arg(int i) { return args[i]; }
+  Item *set_arg(int i, THD *thd, Item *new_val);
+  uint get_arg_count() { return arg_count; }
 };
 
 
@@ -981,6 +991,7 @@ public:
     if (udf.fix_fields(thd, this, this->arg_count, this->args))
       return TRUE;
 
+    memcpy (orig_args, args, sizeof (Item *) * arg_count);
     return check_sum_func(thd, ref);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }

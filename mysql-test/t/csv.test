@@ -1460,4 +1460,47 @@ insert into t1 values();
 select * from t1;
 drop table t1;
 
+#
+# Bug #39616 Missing quotes from .CSV crashes server
+#
+# Editing the .CSV file and leaving out quotes from around an integer field 
+# crashes the server.
+#
+
+#
+# Test for the integers and strings enclosed in quotes, not enclosed in quotes,
+# \X  characters.
+#
+create table bug39616_1(id int NOT NULL, d varchar(50) NOT NULL) ENGINE=csv;
+
+--remove_file $MYSQLTEST_VARDIR/master-data/test/bug39616_1.CSV
+--write_file $MYSQLTEST_VARDIR/master-data/test/bug39616_1.CSV
+1,"integer sans quotes"
+1,string sans quotes
+1,string end quotes"
+1,quotes"in between" strings 
+"1",Integer with quote and string with no quote
+1,"escape sequence \n \" \\ \r \a within quotes"
+EOF
+
+select * from bug39616_1;
+
+drop table bug39616_1; 
+
+#
+# Test for he case when a field begins with a quote, but does not end in a
+# quote.
+# Note: This results in an empty set.
+#
+create table bug39616_1(id int NOT NULL, d varchar(50) NOT NULL) ENGINE=csv;
+
+--remove_file $MYSQLTEST_VARDIR/master-data/test/bug39616_1.CSV
+--write_file $MYSQLTEST_VARDIR/master-data/test/bug39616_1.CSV
+1,"string only at the beginning quotes
+EOF
+
+select * from bug39616_1;
+
+drop table bug39616_1; 
+
 --echo End of 5.0 tests
