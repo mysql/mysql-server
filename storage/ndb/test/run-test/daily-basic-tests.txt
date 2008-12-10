@@ -1175,7 +1175,7 @@ args -n bug37672 T1
 
 #EOF 2008-07-04
 max-time: 500
-cmd: testScanFilter
+cmd: testScanFilter T1
 args: 
 
 #EOF 2008-07-09
@@ -1190,7 +1190,14 @@ cmd: testLimits
 args: -n ExhaustSegmentedSectionScan WIDE_2COL
 
 #EOF 2008-08-20
+max-time: 1200
+cmd: testNodeRestart
+args -n Bug41295 T1
+
 max-time: 300 
 cmd: testMgm
 args: 
 
+max-time: 500
+cmd: testLimits
+args: -n DropSignalFragments T1

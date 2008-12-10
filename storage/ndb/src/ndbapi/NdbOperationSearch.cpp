@@ -392,6 +392,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
       setErrorCodeAbort(4001);
       return -1;
     }
+    tSignal->setLength(KeyInfo::MaxSignalLength);
     if (theTCREQ->next() != NULL)
        theLastKEYINFO->next(tSignal);
     else

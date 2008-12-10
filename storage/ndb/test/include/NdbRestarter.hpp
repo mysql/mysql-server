@@ -69,6 +69,7 @@ public:
   int waitNodesNoStart(const int * _nodes, int _num_nodes,
 		       unsigned int _timeout = 120); 
 
+  int checkClusterAlive(const int * deadnodes, int num_nodes);
 
   int getNumDbNodes();
   int insertErrorInNode(int _nodeId, int error);

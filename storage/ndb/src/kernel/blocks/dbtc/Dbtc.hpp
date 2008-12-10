@@ -1870,6 +1870,10 @@ private:
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
 
+#ifdef ERROR_INSERT
+  bool testFragmentDrop(Signal* signal);
+#endif
+
   // For Error inserts
   Uint32 errorInsertHoardedSegments;
 

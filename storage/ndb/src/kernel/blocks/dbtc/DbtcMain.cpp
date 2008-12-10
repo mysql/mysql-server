@@ -2606,7 +2606,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       ERROR_INSERTED(8066) ||
       ERROR_INSERTED(8067))
   {
-    /* Consume all but 10(8065) or all but 1 (8066) or all (8077) of 
+    /* Consume all but 10(8065) or all but 1 (8066) or all (8067) of 
      * the SegmentedSection buffers to allow testing of what happens 
      * when they're exhausted, either in this signal or one to follow
      * 8068 frees all 'hoarded' segments
@@ -3246,6 +3246,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     releaseAttrinfo();
     regApiPtr->lqhkeyreqrec--;
     unlinkReadyTcCon(signal);
+    clearCommitAckMarker(regApiPtr, regTcPtr);
     releaseTcCon();
 
     if (trigOp != RNIL)
@@ -3739,6 +3740,7 @@ void Dbtc::releaseTcCon()
   UintR TconcurrentOp = c_counters.cconcurrentOp;
   UintR TtcConnectptrIndex = tcConnectptr.i;
 
+  ndbrequire(regTcPtr->commitAckMarker == RNIL);
   regTcPtr->tcConnectstate = OS_CONNECTED;
   regTcPtr->nextTcConnect = TfirstfreeTcConnect;
   regTcPtr->apiConnect = RNIL;
@@ -3832,6 +3834,13 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
    * long signal buffering to store its sections
    */
   jamEntry();
+
+  if (!assembleDroppedFragments(signal))
+  {
+    jam();
+    return;
+  }
+
   const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
   Uint32 originalGSN= rep->originalGsn;
 
@@ -3931,6 +3940,8 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     jam();
     /* Don't expect dropped signals for other GSNs,
      * default handling
+     * TODO : Can TC get long TRANSID_AI as part of 
+     * Unique index operations?
      */
     SimulatedBlock::execSIGNAL_DROPPED_REP(signal);
   };
@@ -4063,6 +4074,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   }//if
 
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
+  regTcPtr->commitAckMarker = RNIL;
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
 
   if (commitAckMarker != RNIL)
@@ -4832,7 +4844,7 @@ void Dbtc::commit020Lab(Signal* signal)
 
     if (localTcConnectptr.i != RNIL) {
       Tcount = Tcount + 1;
-      if (Tcount < 16 && !ERROR_INSERTED(8057)) {
+      if (Tcount < 16 && !ERROR_INSERTED(8057) && !ERROR_INSERTED(8073)) {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
         jam();
@@ -4843,6 +4855,14 @@ void Dbtc::commit020Lab(Signal* signal)
           CLEAR_ERROR_INSERT_VALUE;
           return;
         }//if
+        
+        if (ERROR_INSERTED(8073))
+        {
+          execSEND_PACKED(signal);
+          signal->theData[0] = 9999;
+          sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
+          return;
+        }
         signal->theData[0] = TcContinueB::ZSEND_COMMIT_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
@@ -5773,9 +5793,11 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
   const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   if (regApiPtr->commitAckMarker == RNIL)
     ndbassert(commitAckMarker == RNIL);
-  if(commitAckMarker != RNIL){
+  
+  if(commitAckMarker != RNIL)
+  {
     jam();
-    ndbassert(regApiPtr->commitAckMarker != RNIL);
+    ndbassert(regApiPtr->commitAckMarker == commitAckMarker);
     ndbrequire(regApiPtr->no_commit_ack_markers > 0);
     regApiPtr->no_commit_ack_markers--;
     regTcPtr->commitAckMarker = RNIL;
@@ -9238,6 +9260,9 @@ void Dbtc::updateApiStateFail(Signal* signal)
       jam();
       tmp.i = marker;
       tmp.p = m_commitAckMarkerHash.getPtr(marker);
+
+      ndbassert(tmp.p->transid1 == ttransid1);
+      ndbassert(tmp.p->transid2 == ttransid2);
     }
     tmp.p->m_commit_ack_marker_nodes.set(tnodeid);
   }
@@ -9448,6 +9473,50 @@ void Dbtc::systemErrorLab(Signal* signal, int line)
 }//Dbtc::systemErrorLab()
 
 
+#ifdef ERROR_INSERT
+bool Dbtc::testFragmentDrop(Signal* signal)
+{
+  Uint32 fragIdToDrop= ~0;
+  /* Drop some fragments to test the dropped fragment handling code */
+  if (ERROR_INSERTED(8074))
+    fragIdToDrop= 1;
+  else if (ERROR_INSERTED(8075))
+    fragIdToDrop= 2;
+  else if (ERROR_INSERTED(8076))
+    fragIdToDrop= 3;
+  
+  if ((signal->header.m_fragmentInfo == fragIdToDrop) ||
+      ERROR_INSERTED(8077)) // Drop all fragments
+  {
+    /* This signal fragment should be dropped 
+     * Let's throw away the sections, and call the
+     * signal dropped report handler
+     * This code is replicating the effect of the code in
+     * TransporterCallback::deliver_signal()
+     */
+    SectionHandle handle(this, signal);
+    Uint32 secCount= handle.m_cnt;
+    releaseSections(handle);
+    SignalDroppedRep* rep = (SignalDroppedRep*)signal->theData;
+    Uint32 gsn = signal->header.theVerId_signalNumber;
+    Uint32 len = signal->header.theLength;
+    Uint32 newLen= (len > 22 ? 22 : len);
+    memmove(rep->originalData, signal->theData, (4 * newLen));
+    rep->originalGsn = gsn;
+    rep->originalLength = len;
+    rep->originalSectionCount = secCount;
+    signal->header.theVerId_signalNumber = GSN_SIGNAL_DROPPED_REP;
+    signal->header.theLength = newLen + 3;
+    signal->header.m_noOfSections = 0;
+
+    EXECUTE_DIRECT(DBTC, GSN_SIGNAL_DROPPED_REP, signal,
+                   newLen + 3);
+    return true;
+  }
+  return false;
+}
+#endif
+
 /* ######################################################################### *
  * #######                        SCAN MODULE                        ####### *
  * ######################################################################### *
@@ -9543,6 +9612,21 @@ void Dbtc::systemErrorLab(Signal* signal, int line)
 void Dbtc::execSCAN_TABREQ(Signal* signal) 
 {
   jamEntry();
+
+#ifdef ERROR_INSERT
+  /* Test fragmented + dropped signal handling */
+  if (ERROR_INSERTED(8074) ||
+      ERROR_INSERTED(8075) ||
+      ERROR_INSERTED(8076) ||
+      ERROR_INSERTED(8077))
+  {
+    jam();
+    if (testFragmentDrop(signal)) {
+      jam();
+      return;
+    }
+  } /* End of test fragmented + dropped signal handling */
+#endif  
 
   /* Reassemble if the request was fragmented */
   if (!assembleFragments(signal)){
@@ -11469,6 +11553,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
+    tcConnectptr.p->commitAckMarker = RNIL;
   }//for
   tcConnectptr.i = titcTmp - 1;
   ptrAss(tcConnectptr, tcConnectRecord);
@@ -11485,6 +11570,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
+    tcConnectptr.p->commitAckMarker = RNIL;
   }//for
   tcConnectptr.i = ctcConnectFilesize - 1;
   ptrAss(tcConnectptr, tcConnectRecord);
@@ -11560,6 +11646,15 @@ void Dbtc::releaseAbortResources(Signal* signal)
     releaseTcCon();
     tcConnectptr.i = rarTcConnectptr.i;
   }//while
+
+  Uint32 marker = apiConnectptr.p->commitAckMarker;
+  if (marker != RNIL)
+  {
+    jam();
+    m_commitAckMarkerHash.release(marker);
+    apiConnectptr.p->commitAckMarker = RNIL;
+  }
+
   apiConnectptr.p->firstTcConnect = RNIL;
   apiConnectptr.p->lastTcConnect = RNIL;
   apiConnectptr.p->m_transaction_nodes.clear();
@@ -12190,7 +12285,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 #ifdef ERROR_INSERT
-  if (arg == 2552)
+  if (arg == 2552 || arg == 4002)
   {
     ndbrequire(m_commitAckMarkerPool.getNoOfFree() == m_commitAckMarkerPool.getSize());
     return;

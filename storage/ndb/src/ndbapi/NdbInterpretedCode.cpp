@@ -508,12 +508,23 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
     DBUG_RETURN(error(BadAttributeId));
   }
 
+  Uint32 lastWordMask= ~0;
   if (val == NULL)
     len = 0;
   else {
     if (! col->getStringType())
     {
       /* Fixed size type */
+      if (col->getType() == NDB_TYPE_BIT)
+      {
+        /* We want to zero out insignificant bits in the
+         * last word of a bit type
+         */
+        Uint32 bitLen= col->getLength();
+        Uint32 lastWordBits= bitLen & 0x1F;
+        if (lastWordBits)
+          lastWordMask= (1 << lastWordBits) -1;
+      }
       len= col->m_attrSize * col->m_arraySize;
     }
     else
@@ -536,7 +547,7 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   if (col->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
-  if (add_branch(Interpreter::BranchCol(c, 0, 0, false), Label) != 0)
+  if (add_branch(Interpreter::BranchCol(c, 0, 0), Label) != 0)
     DBUG_RETURN(-1);
 
   if (add1(Interpreter::BranchCol_2(attrId, len)) != 0)
@@ -544,7 +555,8 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
 
   /* Get value byte length rounded up to nearest 32-bit word */
   Uint32 len2 = Interpreter::mod4(len);
-  if(len2 == len){
+  if((len2 == len)  &&
+     (lastWordMask == (Uint32)~0)){
     /* Whole number of 32-bit words */
     DBUG_RETURN(addN((Uint32*)val, len2 >> 2));
   } else {
@@ -559,7 +571,7 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
       char* p = (char*)&tmp;
       p[i] = ((char*)val)[len2+i];
     }
-    DBUG_RETURN(add1(tmp));
+    DBUG_RETURN(add1((tmp & lastWordMask)));
   }
 }
 
@@ -569,7 +581,7 @@ NdbInterpretedCode::branch_col_eq(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::EQ, attrId, val, len, Label);
+  return branch_col(Interpreter::EQ, attrId, val, 0, Label);
 }
 
 int 
@@ -578,7 +590,7 @@ NdbInterpretedCode::branch_col_ne(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::NE, attrId, val, len, Label);
+  return branch_col(Interpreter::NE, attrId, val, 0, Label);
 }
 
 int 
@@ -587,7 +599,7 @@ NdbInterpretedCode::branch_col_lt(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::LT, attrId, val, len, Label);
+  return branch_col(Interpreter::LT, attrId, val, 0, Label);
 }
 
 int 
@@ -596,7 +608,7 @@ NdbInterpretedCode::branch_col_le(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::LE, attrId, val, len, Label);
+  return branch_col(Interpreter::LE, attrId, val, 0, Label);
 }
 
 int 
@@ -605,7 +617,7 @@ NdbInterpretedCode::branch_col_gt(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::GT, attrId, val, len, Label);
+  return branch_col(Interpreter::GT, attrId, val, 0, Label);
 }
 
 int 
@@ -614,7 +626,7 @@ NdbInterpretedCode::branch_col_ge(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::GE, attrId, val, len, Label);
+  return branch_col(Interpreter::GE, attrId, val, 0, Label);
 }
 
 int 
@@ -633,6 +645,42 @@ NdbInterpretedCode::branch_col_notlike(const void * val,
                                        Uint32 Label)
 {
   return branch_col(Interpreter::NOT_LIKE, attrId, val, len, Label);
+}
+
+int
+NdbInterpretedCode::branch_col_and_mask_eq_mask(const void * mask,
+                                                Uint32 len,
+                                                Uint32 attrId,
+                                                Uint32 label)
+{
+  return branch_col(Interpreter::AND_EQ_MASK, attrId, mask, 0, Label);
+}
+
+int
+NdbInterpretedCode::branch_col_and_mask_ne_mask(const void * mask,
+                                                Uint32 len,
+                                                Uint32 attrId,
+                                                Uint32 label)
+{
+  return branch_col(Interpreter::AND_NE_MASK, attrId, mask, 0, Label);
+}
+
+int
+NdbInterpretedCode::branch_col_and_mask_eq_zero(const void * mask,
+                                                Uint32 len,
+                                                Uint32 attrId,
+                                                Uint32 label)
+{
+  return branch_col(Interpreter::AND_EQ_ZERO, attrId, mask, 0, Label);
+}
+
+int
+NdbInterpretedCode::branch_col_and_mask_ne_zero(const void * mask,
+                                                Uint32 len,
+                                                Uint32 attrId,
+                                                Uint32 label)
+{
+  return branch_col(Interpreter::AND_NE_ZERO, attrId, mask, 0, Label);
 }
 
 int
