@@ -6,7 +6,9 @@
 #include <db.h>
 #include <assert.h>
 #include <limits.h>
+#if defined(USE_TDB)
 #include "ydb.h"
+#endif
 #ifndef DB_YESOVERWRITE
 #define DB_YESOVERWRITE 0
 #endif
