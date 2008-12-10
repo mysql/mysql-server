@@ -352,10 +352,10 @@ ibool	srv_use_awe			= FALSE;
 ibool	srv_use_adaptive_hash_indexes	= TRUE;
 
 /*-------------------------------------------*/
-ulong	srv_n_spin_wait_rounds	= 20;
+ulong	srv_n_spin_wait_rounds	= 30;
 ulong	srv_n_free_tickets_to_enter = 500;
 ulong	srv_thread_sleep_delay = 10000;
-ulint	srv_spin_wait_delay	= 5;
+ulint	srv_spin_wait_delay	= 6;
 ibool	srv_priority_boost	= TRUE;
 
 ibool	srv_print_thread_releases	= FALSE;
