@@ -713,6 +713,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
 #endif
+#ifndef double2ulonglong
+#define double2ulonglong(A) ((ulonglong) (double) (A))
+#endif
 #endif
 
 #ifndef offsetof
