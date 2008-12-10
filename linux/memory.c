@@ -3,7 +3,7 @@
 
 #include "toku_portability.h"
 #include "memory.h"
-#include "toku_assert.h"
+#include <assert.h>
 
 #include <string.h>
 #include <malloc.h>
