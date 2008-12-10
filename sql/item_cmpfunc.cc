@@ -810,11 +810,11 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
     obtained value
 */
 
-ulonglong
+longlong
 get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
                Item *warn_item, bool *is_null)
 {
-  ulonglong value;
+  longlong value;
   Item *item= **item_arg;
   MYSQL_TIME ltime;
 
@@ -826,7 +826,7 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
   else
   {
     *is_null= item->get_time(&ltime);
-    value= !*is_null ? TIME_to_ulonglong_datetime(&ltime) : 0;
+    value= !*is_null ? (longlong) TIME_to_ulonglong_datetime(&ltime) : 0;
   }
   /*
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
@@ -950,11 +950,11 @@ void Arg_comparator::set_datetime_cmp_func(Item **a1, Item **b1)
     obtained value
 */
 
-ulonglong
+longlong
 get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                    Item *warn_item, bool *is_null)
 {
-  ulonglong value= 0;
+  longlong value= 0;
   String buf, *str= 0;
   Item *item= **item_arg;
 
@@ -992,7 +992,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     enum_field_types f_type= warn_item->field_type();
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
-    value= get_date_from_str(thd, str, t_type, warn_item->name, &error);
+    value= (longlong) get_date_from_str(thd, str, t_type, warn_item->name, &error);
     /*
       If str did not contain a valid date according to the current
       SQL_MODE, get_date_from_str() has already thrown a warning,
@@ -1046,7 +1046,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 int Arg_comparator::compare_datetime()
 {
   bool a_is_null, b_is_null;
-  ulonglong a_value, b_value;
+  longlong a_value, b_value;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
   a_value= (*get_value_func)(thd, &a, &a_cache, *b, &a_is_null);

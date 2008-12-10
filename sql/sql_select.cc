@@ -412,10 +412,20 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 {
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
+  /* 
+    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    additions coming from the WHERE
+  */
+  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
+
+  /* it's not wrong to have non-aggregated columns in a WHERE */
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    thd->lex->current_select->full_group_by_flag= saved_flag |
+      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,

@@ -163,6 +163,7 @@ SUFFIXES = .sh
 	  -e 's!@''CFLAGS''@!@CFLAGS@!'\
 	  -e 's!@''CXXFLAGS''@!@CXXFLAGS@!'\
 	  -e 's!@''LDFLAGS''@!@LDFLAGS@!'\
+	  -e 's!@''LIBDL''@!@LIBDL@!'\
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
 	  -e 's!@''ZLIB_LIBS''@!@ZLIB_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \

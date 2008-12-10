@@ -52,19 +52,19 @@ flush tables;
 flush status;
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	3
+MARIA_PAGECACHE_READS	2
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	11
+MARIA_PAGECACHE_READS	9
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	12
+MARIA_PAGECACHE_READS	9
 flush tables;
 flush status;
 select @@preload_buffer_size;
@@ -75,18 +75,18 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	84
+MARIA_PAGECACHE_READS	80
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	85
+MARIA_PAGECACHE_READS	80
 flush tables;
 flush status;
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	86
+MARIA_PAGECACHE_READS	80
 set session preload_buffer_size=256*1024;
 select @@preload_buffer_size;
 @@preload_buffer_size
@@ -96,18 +96,18 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	158
+MARIA_PAGECACHE_READS	151
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	165
+MARIA_PAGECACHE_READS	157
 flush tables;
 flush status;
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	166
+MARIA_PAGECACHE_READS	157
 set session preload_buffer_size=1*1024;
 select @@preload_buffer_size;
 @@preload_buffer_size
@@ -118,7 +118,7 @@ test.t1	preload_keys	status	OK
 test.t2	preload_keys	status	OK
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	281
+MARIA_PAGECACHE_READS	271
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
@@ -127,12 +127,12 @@ count(*)
 2584
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	285
+MARIA_PAGECACHE_READS	274
 flush tables;
 flush status;
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	286
+MARIA_PAGECACHE_READS	274
 load index into cache t3, t2 key (primary,b) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
@@ -140,12 +140,12 @@ test.t3	preload_keys	error	Corrupt
 test.t2	preload_keys	status	OK
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	330
+MARIA_PAGECACHE_READS	317
 flush tables;
 flush status;
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	331
+MARIA_PAGECACHE_READS	317
 load index into cache t3 key (b), t2 key (c) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
@@ -154,7 +154,7 @@ test.t2	preload_keys	Error	Key 'c' doesn't exist in table 't2'
 test.t2	preload_keys	status	Operation failed
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
-MARIA_PAGECACHE_READS	332
+MARIA_PAGECACHE_READS	317
 drop table t1, t2;
 drop temporary table initial;
 show status like "key_read%";

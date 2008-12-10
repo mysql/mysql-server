@@ -2452,6 +2452,12 @@ sub setup_vardir() {
   mkpath("$opt_vardir/tmp");
   mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
 
+  if ($master->[0]->{'path_sock'} !~ m/^$opt_tmpdir/)
+  {
+    mtr_report("Symlinking $master->[0]->{'path_sock'}");
+	symlink($master->[0]->{'path_sock'}, "$opt_tmpdir/master.sock");
+  }
+
   # Create new data dirs
   foreach my $data_dir (@data_dir_lst)
   {

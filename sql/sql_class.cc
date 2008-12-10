@@ -314,7 +314,7 @@ void thd_inc_row_count(THD *thd)
   Dumps a text description of a thread, its security context
   (user, host) and the current query.
 
-  @param thd current thread context
+  @param thd thread context
   @param buffer pointer to preferred result buffer
   @param length length of buffer
   @param max_query_len how many chars of query to copy (0 for all)
@@ -388,7 +388,17 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   }
   if (str.c_ptr_safe() == buffer)
     return buffer;
-  return thd->strmake(str.ptr(), str.length());
+
+  /*
+    We have to copy the new string to the destination buffer because the string
+    was reallocated to a larger buffer to be able to fit.
+  */
+  DBUG_ASSERT(buffer != NULL);
+  length= min(str.length(), length-1);
+  memcpy(buffer, str.c_ptr_quick(), length);
+  /* Make sure that the new string is null terminated */
+  buffer[length]= '\0';
+  return buffer;
 }
 
 /**

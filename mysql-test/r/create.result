@@ -1754,8 +1754,8 @@ create table t1 like information_schema.character_sets;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
   `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
