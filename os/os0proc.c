@@ -129,8 +129,10 @@ skip:
 
 	/* Align block size to system page size */
 	ut_ad(ut_is_2pow(system_info.dwPageSize));
+	/* system_info.dwPageSize is only 32-bit. Casting to ulint is required
+	on 64-bit Windows. */
 	size = *n = ut_2pow_round(*n + (system_info.dwPageSize - 1),
-				  system_info.dwPageSize);
+				  (ulint) system_info.dwPageSize);
 	ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
 			   PAGE_READWRITE);
 	if (!ptr) {
