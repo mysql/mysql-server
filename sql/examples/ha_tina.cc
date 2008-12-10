@@ -416,37 +416,96 @@ int ha_tina::find_current_row(byte *buf)
   if ((end_ptr=  find_eoln(share->mapped_file, current_position, share->file_stat.st_size)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
+  /*
+    Parse the line obtained using the following algorithm
+   
+    BEGIN
+      1) Store the EOL (end of line) for the current row
+      2) Until all the fields in the current query have not been 
+         filled
+         2.1) If the current character begins with a quote
+              2.1.1) Until EOL has not been reached
+                     a) If end of current field is reached, move
+                        to next field and jump to step 2.3
+                     b) If current character begins with \\ handle
+                        \\n, \\r, \\, \\"
+                     c) else append the current character into the buffer
+                        before checking that EOL has not been reached.
+          2.2) If the current character does not begin with a quote
+               2.2.1) Until EOL has not been reached
+                      a) If the end of field has been reached move to the
+                         next field and jump to step 2.3
+                      b) append the current character into the buffer
+          2.3) Store the current field value and jump to 2)
+    TERMINATE
+   */
+
   for (Field **field=table->field ; *field ; field++)
   {
     buffer.length(0);
-    mapped_ptr++; // Increment past the first quote
-    for(;mapped_ptr != end_ptr; mapped_ptr++)
+    /* Handle the case where the first character begins with a quote */
+    if (*mapped_ptr == '"')
     {
-      //Need to convert line feeds!
-      if (*mapped_ptr == '"' && 
-          (((mapped_ptr[1] == ',') && (mapped_ptr[2] == '"')) || (mapped_ptr == end_ptr -1 )))
+      /* Increment past the first quote */
+      mapped_ptr++;
+      /* Loop through the row to extract the values for the current field */
+      for(; mapped_ptr != end_ptr; mapped_ptr++)
       {
-        mapped_ptr += 2; // Move past the , and the "
-        break;
-      } 
-      if (*mapped_ptr == '\\' && mapped_ptr != (end_ptr - 1)) 
-      {
-        mapped_ptr++;
-        if (*mapped_ptr == 'r')
-          buffer.append('\r');
-        else if (*mapped_ptr == 'n' )
-          buffer.append('\n');
-        else if ((*mapped_ptr == '\\') || (*mapped_ptr == '"'))
-          buffer.append(*mapped_ptr);
-        else  /* This could only happed with an externally created file */
+        /* check for end of the current field */
+        if (*mapped_ptr == '"' && 
+            (mapped_ptr[1] == ',' || mapped_ptr == end_ptr -1 ))
         {
-          buffer.append('\\');
+          /* Move past the , and the " */
+          mapped_ptr += 2;
+          break;
+        } 
+        if (*mapped_ptr == '\\' && mapped_ptr != (end_ptr - 1)) 
+        {
+          mapped_ptr++;
+          if (*mapped_ptr == 'r')
+            buffer.append('\r');
+          else if (*mapped_ptr == 'n' )
+            buffer.append('\n');
+          else if ((*mapped_ptr == '\\') || (*mapped_ptr == '"'))
+            buffer.append(*mapped_ptr);
+          else  /* This could only happed with an externally created file */
+          {
+            buffer.append('\\');
+            buffer.append(*mapped_ptr);
+          }
+        } 
+        else
+        {
+          /*
+           If no last quote was found, but the end of row has been reached
+           it implies that there has been error.
+          */
+          if (mapped_ptr == end_ptr -1)
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          /* Store current character in the buffer for the field */
           buffer.append(*mapped_ptr);
         }
-      } 
-      else
-        buffer.append(*mapped_ptr);
+      }
     }
+    else
+    {
+      /* Handle the case where the current row does not start with quotes */
+        
+      /* Loop through the row to extract the values for the current field */
+      for (; mapped_ptr != end_ptr; mapped_ptr++)
+      {
+        /* check for end of current field */
+        if (*mapped_ptr == ',')
+        {
+          /* Increment past the current comma */
+          mapped_ptr++;
+          break;
+        }
+        /* store the current character in the buffer for the field */
+        buffer.append(*mapped_ptr);
+      }
+    }
+    /* Store the field value from the buffer */
     (*field)->store(buffer.ptr(), buffer.length(), buffer.charset());
   }
   next_position= (end_ptr - share->mapped_file)+1;
