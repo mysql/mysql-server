@@ -259,9 +259,7 @@ drop table t1;
 
 create table t1(d double, u bigint unsigned);
 
-insert into t1(d) values (9.2233720368547777e+18),
-                         (9.223372036854779e18),
-                         (9.22337203685479e18),
+insert into t1(d) values (9.22337203685479e18),
                          (1.84e19);
 
 update t1 set u = d;
