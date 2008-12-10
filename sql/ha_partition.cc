@@ -3431,7 +3431,7 @@ int ha_partition::rnd_next(uchar *buf)
   
   while (TRUE)
   {
-    int result= file->rnd_next(buf);
+    result= file->rnd_next(buf);
     if (!result)
     {
       m_last_part= part_id;
