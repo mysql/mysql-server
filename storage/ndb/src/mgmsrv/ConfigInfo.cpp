@@ -3882,8 +3882,8 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     if(!tmp->get("NodeId2", &nodeId2)) continue;
     p_connections.put("", nodeId2, nodeId2);
 
-    p_connections2.put("", nodeId1 + nodeId2<<16, nodeId1);
-    p_connections2.put("", nodeId2 + nodeId1<<16, nodeId2);
+    p_connections2.put("", nodeId1 + (nodeId2<<16), nodeId1);
+    p_connections2.put("", nodeId2 + (nodeId1<<16), nodeId2);
   }
 
   Uint32 nNodes;
@@ -3915,7 +3915,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   for (i= 0; p_db_nodes.get("", i, &nodeId1); i++){
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
-      if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) 
+      if(!p_connections2.get("", nodeId1+(nodeId2<<16), &dummy)) 
       {
 	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,opt_ndb_shm))
 	  goto err;

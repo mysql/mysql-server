@@ -117,6 +117,132 @@ drop table t1;
 
 show status like "Qcache_queries_in_cache";
 
+# End of 4.1 tests
+
+# Bug#39295 cluster table with TEXT column cannot be cached in query cache
+# Disk table scans and Ordered index scans with locks were resulting
+# in the table's commit_count being incremented, making the query cache
+# ineffective 
+
+reset query cache;
+flush status;
+
+create table t1 (a int primary key,
+                 b text,
+                 c int,
+                 key(c))
+                 engine=ndb;
+
+insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, ACC sourced scan #1, should insert in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, ACC sourced scan #2, should hit in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #1, should insert in cache
+select * from t1 force index(c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #2, should hit in cache
+select * from t1 force index(c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+drop table t1;
+
+
+# Now test with TUP-sourced scan with DD
+CREATE LOGFILE GROUP lfg
+ADD UNDOFILE 'myundo.log'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE tbsp
+ADD DATAFILE 'mydatafile.fil'
+USE LOGFILE GROUP lfg
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+create table t1 (a int primary key,
+                 b text,
+                 c int,
+                 key(c))
+                 storage disk tablespace tbsp engine ndb;
+
+insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
+
+reset query cache;
+flush status;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, TUP sourced scan #1, should insert in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Normal, TUP sourced scan #2, should hit in cache
+select * from t1 order by a;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #1 should insert in cache
+select * from t1 force index (c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# TUX sourced scan #2 should hit in cache
+select * from t1 force index (c) where c < 2 order by c;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+drop table t1;
+alter tablespace tbsp drop datafile 'mydatafile.fil' engine ndb;
+drop tablespace tbsp engine ndb;
+drop logfile group lfg engine ndb;
+
+# end of tests for bug#39395
+
 SET GLOBAL query_cache_size=0;
 
-# End of 4.1 tests
+

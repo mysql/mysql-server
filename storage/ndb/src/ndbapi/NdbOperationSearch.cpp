@@ -58,7 +58,9 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 {
   DBUG_ENTER("NdbOperation::equal_impl");
   DBUG_PRINT("enter", ("col: %s  op: %d  val: 0x%lx",
-                       tAttrInfo->m_name.c_str(), theOperationType,
+                       (tAttrInfo == NULL) ? "NULL" :
+                       tAttrInfo->m_name.c_str(), 
+                       theOperationType,
                        (long) aValuePassed));
   
   const char* aValue = aValuePassed;

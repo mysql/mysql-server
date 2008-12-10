@@ -1,3 +1,4 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 NOT YET IMPLEMENTED: bitdata tests
 --------------------------------------------------------------------------------

@@ -16,9 +16,10 @@
 #
 
 if (`SELECT @@version_comment NOT LIKE '%Community%'
-        AND @@version_comment NOT LIKE '%Cluster%'`)
+        AND @@version_comment NOT LIKE '%Cluster%'
+        AND @@version_comment NOT LIKE '%Advanced%'`)
 {
-   skip Test needs Community or Cluster build;
+   skip Test needs Community, Cluster or Advanced build;
 }
 
 --source suite/funcs_1/datadict/charset_collation.inc

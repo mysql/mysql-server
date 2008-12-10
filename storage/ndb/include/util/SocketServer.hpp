@@ -40,11 +40,14 @@ public:
   protected:
     friend class SocketServer;
     friend void* sessionThread_C(void*);
-    Session(NDB_SOCKET_TYPE sock): m_socket(sock)
+    Session(NDB_SOCKET_TYPE sock) :
+      m_stop(false),
+      m_stopped(false),
+      m_socket(sock),
+      m_refCount(0)
       {
 	DBUG_ENTER("SocketServer::Session");
 	DBUG_PRINT("enter",("NDB_SOCKET: %d", m_socket));
-	m_stop = m_stopped = false;
 	DBUG_VOID_RETURN;
       }
     
@@ -52,6 +55,7 @@ public:
     bool m_stopped; // Has the session stopped?
     
     NDB_SOCKET_TYPE m_socket;
+    unsigned m_refCount;
   };
   
   /**

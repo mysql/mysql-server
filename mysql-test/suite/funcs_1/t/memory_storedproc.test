@@ -1,8 +1,0 @@
-#### suite/funcs_1/t/memory_storedproc.test
-#
-
-let $engine_type= memory;
-
---source suite/funcs_1/storedproc/load_sp_tb.inc
-
---source suite/funcs_1/storedproc/storedproc_master.inc

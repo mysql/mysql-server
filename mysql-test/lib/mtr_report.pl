@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (C) 2004-2006 MySQL AB
+# Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -315,7 +315,7 @@ sub mtr_report_stats ($) {
                 /Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
                 /Slave: Key column 'c6' doesn't exist in table Error_code: 1072/ or
 		/Slave: Error .* doesn't exist/ or
-		/Slave: Error .*Deadlock found/ or
+		/Slave: Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or
@@ -330,7 +330,6 @@ sub mtr_report_stats ($) {
 		/Sort aborted/ or
 		/Time-out in NDB/ or
 		/One can only use the --user.*root/ or
-		/Setting lower_case_table_names=2/ or
 		/Table:.* on (delete|rename)/ or
 		/You have an error in your SQL syntax/ or
 		/deprecated/ or
@@ -374,7 +373,14 @@ sub mtr_report_stats ($) {
                 /setrlimit could not change the size of core files to 'infinity'/ or
 
                 # rpl_ndb_basic expects this error
-                /Slave: Got error 146 during COMMIT Error_code: 1180/ or
+                ($testname eq 'rpl_ndb.rpl_ndb_basic'
+                 and (/Slave: Got error 146 during COMMIT Error_code: 1180/)
+                ) or
+
+                # ndb_autodiscover3 expects this error
+                ($testname eq 'ndb_team.ndb_autodiscover3'
+                 and (/NDB_SHARE: \.\/test\/t1 already exists/)
+                ) or
 
 		# rpl_extrColmaster_*.test, the slave thread produces warnings
 		# when it get updates to a table that has more columns on the
@@ -408,7 +414,18 @@ sub mtr_report_stats ($) {
 		 )) or
 
                 # Test case for Bug#31590 produces the following error:
-                /Out of sort memory; increase server sort buffer size/
+                /Out of sort memory; increase server sort buffer size/ or
+
+                # Bug#35161, test of auto repair --myisam-recover
+                /able.*_will_crash/ or
+
+                # lowercase_table3 using case sensitive option on
+                # case insensitive filesystem (InnoDB error).
+                /Cannot find or open table test\/BUG29839 from/ or
+
+                # When trying to set lower_case_table_names = 2
+                # on a case sensitive file system. Bug#37402.
+                /lower_case_table_names was set to 2, even though your the file system '.*' is case sensitive.  Now setting lower_case_table_names to 0 to avoid future problems./
 		)
             {
               next;                       # Skip these lines

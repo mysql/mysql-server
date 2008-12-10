@@ -1,9 +1,12 @@
 #! /bin/sh
 
 rm -f TAGS
-filter='\.cc$\|\.c$\|\.h$\|\.yy\|\.[ch]pp$'
-files=`bk -r sfiles -gU | grep $filter `
-for f in $files ;
+filter='\.cc$\|\.c$\|\.h$\|\.yy$\|\.[ch]pp$'
+
+list="find . -type f"
+bzr root >/dev/null 2>/dev/null && list="bzr ls --kind=file --versioned"
+
+$list |grep $filter |while read f; 
 do
 	 etags -o TAGS --append $f
 done

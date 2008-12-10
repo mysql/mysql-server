@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_032_01----------------------#'
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+'#---------------------BS_STVARS_032_02----------------------#'
+SET @@GLOBAL.innodb_lock_wait_timeout=1;
+ERROR HY000: Variable 'innodb_lock_wait_timeout' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+'#---------------------BS_STVARS_032_03----------------------#'
+SELECT @@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
+@@GLOBAL.innodb_lock_wait_timeout = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_lock_wait_timeout';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_032_04----------------------#'
+SELECT @@innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+@@innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout
+1
+1 Expected
+'#---------------------BS_STVARS_032_05----------------------#'
+SELECT COUNT(@@innodb_lock_wait_timeout);
+COUNT(@@innodb_lock_wait_timeout)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_lock_wait_timeout);
+ERROR HY000: Variable 'innodb_lock_wait_timeout' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_lock_wait_timeout);
+ERROR HY000: Variable 'innodb_lock_wait_timeout' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
+COUNT(@@GLOBAL.innodb_lock_wait_timeout)
+1
+1 Expected
+SELECT innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
+ERROR 42S22: Unknown column 'innodb_lock_wait_timeout' in 'field list'
+Expected error 'Readonly variable'

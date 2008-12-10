@@ -4,29 +4,35 @@ USE test;
 USE test;
 USE test;
 DROP TABLE IF EXISTS t1, t2, t4, t10, t11;
-CREATE TABLE t1  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = ndb;
-CREATE TABLE t2  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = ndb;
-CREATE TABLE t4  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = ndb;
-CREATE TABLE t10 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = ndb;
-CREATE TABLE t11 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = ndb;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t1;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t2;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t4;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t10;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t11;
+CREATE TABLE t1  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = ndb;
+CREATE TABLE t2  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = ndb;
+CREATE TABLE t4  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = ndb;
+CREATE TABLE t10 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = ndb;
+CREATE TABLE t11 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = ndb;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t2;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t4;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t10;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t11;
 drop TABLE if exists t3;
 CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) ENGINE = ndb;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' INTO TABLE t3;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' INTO TABLE t3;
 drop database if exists test4;
 CREATE database test4;
 use test4;
-CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = ndb;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t6;
+CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int)
+ENGINE = ndb;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t6;
 use test;
 drop TABLE if exists t7, t8;
-CREATE TABLE t7 (f1 char(20), f2 char(25), f3 date, f4 int) ENGINE = ndb;
-CREATE TABLE t8 (f1 char(20), f2 char(25), f3 date, f4 int) ENGINE = ndb;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' INTO TABLE t7;
+CREATE TABLE t7 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = ndb;
+CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = ndb;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' INTO TABLE t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -38,7 +44,7 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' INTO TABLE t8;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' INTO TABLE t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -52,61 +58,61 @@ Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
 drop TABLE if exists t9;
 CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = ndb;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' INTO TABLE t9;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' INTO TABLE t9;
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 ORDER BY table_schema, table_name, column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	test	t1	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t1	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t1	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t1	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t1	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t10	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t10	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t10	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t10	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t10	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t10	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t11	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t11	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t11	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t11	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t11	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t11	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t2	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t2	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t2	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t2	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t2	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t3	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t3	f2	2	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t3	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t4	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t4	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t4	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t4	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t4	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t4	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t7	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t7	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t7	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t7	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t8	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test	t8	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t8	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test	t8	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test	t9	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references	
-NULL	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
-NULL	test4	t6	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	test4	t6	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references	
-NULL	test4	t6	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	STORAGE	FORMAT
+NULL	test	t1	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t1	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t1	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t1	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t1	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t10	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t10	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t10	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t10	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t10	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t10	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t11	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t11	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t11	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t11	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t11	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t11	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t2	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t2	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t2	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t2	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t2	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t3	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t3	f2	2	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t3	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t4	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t4	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t4	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t4	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t4	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t4	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t7	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t7	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t7	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t7	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t8	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test	t8	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t8	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test	t8	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test	t9	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		Default	Default
+NULL	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		Default	Default
+NULL	test4	t6	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
+NULL	test4	t6	f5	5	NULL	YES	char	25	25	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		Default	Default
+NULL	test4	t6	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references		Default	Default
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################

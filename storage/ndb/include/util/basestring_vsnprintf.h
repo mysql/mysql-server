@@ -15,12 +15,14 @@
 
 #ifndef BASESTRING_VSNPRINTF_H
 #define BASESTRING_VSNPRINTF_H
+#include <ndb_global.h>
 #include <stdarg.h>
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
-int basestring_snprintf(char*, size_t, const char*, ...);
+int basestring_snprintf(char*, size_t, const char*, ...)
+  ATTRIBUTE_FORMAT(printf, 3, 4);
 int basestring_vsnprintf(char*,size_t, const char*,va_list);
 #if defined(__cplusplus)
 }

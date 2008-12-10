@@ -1,0 +1,33 @@
+** Setup **
+
+** Connecting con0 using root **
+** Connecting con1 using root **
+'#-----------------------------FN_DYNVARS_179_01------------------#'
+** Connection con0 **
+SET @ts_old = @@SESSION.timestamp;
+waiting 1 sec
+SET @ts_new = @@SESSION.timestamp;
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
+Timestamp Difference
+1
+1 means >=1 expected is true
+** Connection con1 **
+SET @ts_old = @@SESSION.timestamp;
+waiting 4 sec
+SET @ts_new = @@SESSION.timestamp;
+SELECT @ts_new - @ts_old >= 4 AS 'Timestamp Difference';
+Timestamp Difference
+1
+1 means >=4 expected is true
+'#-----------------------------FN_DYNVARS_179_02---------------------#'
+SET @ts_old = @@SESSION.timestamp;
+Changing time zone
+SET time_zone = 'MET';
+SET @ts_new = @@SESSION.timestamp;
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
+Timestamp Difference
+1
+1 means >=1 expected is true
+** Cleanup **
+** Connection default **
+Disconnecting Connections con0, con1

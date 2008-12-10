@@ -29,6 +29,7 @@
 #include <NDBT_Error.hpp>
 
 #include <NdbTest.hpp>
+#include <NDBT_Stats.hpp>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -56,6 +57,13 @@ enum StartType {
   stStop 
 } ;
 
+struct ThreadNdb
+{
+  int NoOfOps;
+  int ThreadNo;
+  char * record;
+};
+
 extern "C" { static void* threadLoop(void*); }
 static void setAttrNames(void);
 static void setTableNames(void);
@@ -63,8 +71,10 @@ static int readArguments(int argc, const char** argv);
 static int createTables(Ndb*);
 static void defineOperation(NdbConnection* aTransObject, StartType aType, 
                             Uint32 base, Uint32 aIndex);
+static void defineNdbRecordOperation(ThreadNdb*, NdbConnection* aTransObject, StartType aType, 
+                            Uint32 base, Uint32 aIndex);
 static void execute(StartType aType);
-static bool executeThread(StartType aType, Ndb* aNdbObject, unsigned int);
+static bool executeThread(ThreadNdb*, StartType aType, Ndb* aNdbObject, unsigned int);
 static void executeCallback(int result, NdbConnection* NdbObject,
                             void* aObject);
 static bool error_handler(const NdbError & err);
@@ -77,12 +87,6 @@ static int                              failed = 0 ;
                 
 ErrorData * flexAsynchErrorData;                        
 
-struct ThreadNdb
-{
-  int NoOfOps;
-  int ThreadNo;
-};
-
 static NdbThread*               threadLife[NDB_MAXTHREADS];
 static int                              tNodeId;
 static int                              ThreadReady[NDB_MAXTHREADS];
@@ -91,6 +95,9 @@ static char                             tableName[MAXTABLES][MAXSTRLEN+1];
 static char                             attrName[MAXATTR][MAXSTRLEN+1];
 
 // Program Parameters
+static NdbRecord * g_record[MAXTABLES];
+static bool tNdbRecord = false;
+
 static bool                             tLocal = false;
 static int                              tLocalPart = 0;
 static int                              tSendForce = 0;
@@ -119,10 +126,24 @@ static int                              theTableCreateFlag = 0;
 #define STOP_TIMER timer.doStop();
 #define PRINT_TIMER(text, trans, opertrans) timer.printTransactionStatistics(text, trans, opertrans); }; 
 
+NDBT_Stats a_i, a_u, a_d, a_r;
+
+static
+void
+print(const char * name, NDBT_Stats& s)
+{
+  printf("%s average: %u/s min: %u/s max: %u/s stddev: %u%%\n",
+         name,
+         (unsigned)s.getMean(),
+         (unsigned)s.getMin(),
+         (unsigned)s.getMax(),
+         (unsigned)(100*s.getStddev() / s.getMean()));
+}
+
 static void 
 resetThreads(){
 
-  for (int i = 0; i < tNoOfThreads ; i++) {
+  for (unsigned i = 0; i < tNoOfThreads ; i++) {
     ThreadReady[i] = 0;
     ThreadStart[i] = stIdle;
   }//for
@@ -135,7 +156,7 @@ waitForThreads(void)
   do {
     cont = 0;
     NdbSleep_MilliSleep(20);
-    for (int i = 0; i < tNoOfThreads ; i++) {
+    for (unsigned i = 0; i < tNoOfThreads ; i++) {
       if (ThreadReady[i] == 0) {
         cont = 1;
       }//if
@@ -146,7 +167,7 @@ waitForThreads(void)
 static void 
 tellThreads(StartType what)
 {
-  for (int i = 0; i < tNoOfThreads ; i++) 
+  for (unsigned i = 0; i < tNoOfThreads ; i++) 
     ThreadStart[i] = what;
 }
 
@@ -156,8 +177,9 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
   ndb_init();
   ThreadNdb*            pThreadData;
-  int                   tLoops=0, i;
+  int                   tLoops=0;
   int                   returnValue = NDBT_OK;
+  unsigned i;
 
   flexAsynchErrorData = new ErrorData;
   flexAsynchErrorData->resetErrorCounters();
@@ -236,6 +258,17 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     }
   }
 
+  if (tNdbRecord)
+  {
+    Uint32 sz = NdbDictionary::getRecordRowLength(g_record[0]);
+    sz += 3;
+    for (Uint32 i = 0; i<tNoOfThreads; i++)
+    {
+      pThreadData[i].record = (char*)malloc(sz);
+      bzero(pThreadData[i].record, sz);
+    }
+  }
+
   if(returnValue == NDBT_OK){
     /****************************************************************
      *  Create NDB objects.                                   *
@@ -270,6 +303,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stInsert);
       STOP_TIMER;
+      a_i.addObservation((1000*noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("insert", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -307,6 +341,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stRead);
       STOP_TIMER;
+      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -344,6 +379,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stUpdate);
       STOP_TIMER;
+      a_u.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("update", noOfTransacts, tNoOfOpsPerTrans) ;
 
       if (0 < failed) {
@@ -380,6 +416,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stRead);
       STOP_TIMER;
+      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -417,6 +454,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stDelete);
       STOP_TIMER;
+      a_d.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("delete", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -466,6 +504,11 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   //printing errorCounters
   flexAsynchErrorData->printErrorCounters(ndbout);
 
+  print("insert", a_i);
+  print("update", a_u);
+  print("delete", a_d);
+  print("read  ", a_r);
+
   return NDBT_ProgramExit(returnValue);
 }//main()
 
@@ -501,7 +544,7 @@ threadLoop(void* ThreadData)
 
     tType = ThreadStart[threadNo];
     ThreadStart[threadNo] = stIdle;
-    if(!executeThread(tType, localNdb, threadBase)){
+    if(!executeThread(tabThread, tType, localNdb, threadBase)){
       break;
     }
     ThreadReady[threadNo] = 1;
@@ -515,66 +558,76 @@ threadLoop(void* ThreadData)
 
 static 
 bool
-executeThread(StartType aType, Ndb* aNdbObject, unsigned int threadBase) {
-  int i, j, k;
+executeThread(ThreadNdb* pThread, 
+	      StartType aType, Ndb* aNdbObject, unsigned int threadBase) {
+  unsigned i, j, k;
   NdbConnection* tConArray[1024];
   unsigned int tBase;
   unsigned int tBase2;
 
-  for (i = 0; i < tNoOfTransactions; i++) {
-    if (tLocal == false) {
-      tBase = i * tNoOfParallelTrans * tNoOfOpsPerTrans;
-    } else {
-      tBase = i * tNoOfParallelTrans * MAX_SEEK;
-    }//if
-    START_REAL_TIME;
-    for (j = 0; j < tNoOfParallelTrans; j++) {
+  unsigned int extraLoops= 0; // (aType == stRead) ? 100000 : 0;
+
+  for (unsigned int ex= 0; ex < (1 + extraLoops); ex++)
+  {
+    for (i = 0; i < tNoOfTransactions; i++) {
       if (tLocal == false) {
-        tBase2 = tBase + (j * tNoOfOpsPerTrans);
+        tBase = i * tNoOfParallelTrans * tNoOfOpsPerTrans;
       } else {
-        tBase2 = tBase + (j * MAX_SEEK);
-        tBase2 = getKey(threadBase, tBase2);
+        tBase = i * tNoOfParallelTrans * MAX_SEEK;
       }//if
-      if (startTransGuess == true) {
-        Uint64 Tkey64;
-        Uint32* Tkey32 = (Uint32*)&Tkey64;
-        Tkey32[0] = threadBase;
-        Tkey32[1] = tBase2;
-        tConArray[j] = aNdbObject->startTransaction((Uint32)0, //Priority
-                                         (const char*)&Tkey64, //Main PKey
-                                         (Uint32)4);           //Key Length
-      } else {
-        tConArray[j] = aNdbObject->startTransaction();
-      }//if
-      if (tConArray[j] == NULL && 
-          !error_handler(aNdbObject->getNdbError()) ){
-        ndbout << endl << "Unable to recover! Quiting now" << endl ;
-        return false;
-      }//if
-      
-      for (k = 0; k < tNoOfOpsPerTrans; k++) {
-        //-------------------------------------------------------
-        // Define the operation, but do not execute it yet.
-        //-------------------------------------------------------
-        defineOperation(tConArray[j], aType, threadBase, (tBase2 + k));
+      START_REAL_TIME;
+      for (j = 0; j < tNoOfParallelTrans; j++) {
+        if (tLocal == false) {
+          tBase2 = tBase + (j * tNoOfOpsPerTrans);
+        } else {
+          tBase2 = tBase + (j * MAX_SEEK);
+          tBase2 = getKey(threadBase, tBase2);
+        }//if
+        if (startTransGuess == true) {
+          Uint64 Tkey64;
+          Uint32* Tkey32 = (Uint32*)&Tkey64;
+          Tkey32[0] = threadBase;
+          Tkey32[1] = tBase2;
+          tConArray[j] = aNdbObject->startTransaction((Uint32)0, //Priority
+                                                      (const char*)&Tkey64, //Main PKey
+                                                      (Uint32)4);           //Key Length
+        } else {
+          tConArray[j] = aNdbObject->startTransaction();
+        }//if
+        if (tConArray[j] == NULL && 
+            !error_handler(aNdbObject->getNdbError()) ){
+          ndbout << endl << "Unable to recover! Quiting now" << endl ;
+          return false;
+        }//if
+        
+        for (k = 0; k < tNoOfOpsPerTrans; k++) {
+          //-------------------------------------------------------
+          // Define the operation, but do not execute it yet.
+          //-------------------------------------------------------
+          if (tNdbRecord)
+            defineNdbRecordOperation(pThread, 
+                                     tConArray[j], aType, threadBase,(tBase2+k));
+          else
+            defineOperation(tConArray[j], aType, threadBase, (tBase2 + k));
+        }//for
+        
+        tConArray[j]->executeAsynchPrepare(Commit, &executeCallback, NULL);
       }//for
-      
-      tConArray[j]->executeAsynchPrepare(Commit, &executeCallback, NULL);
+      STOP_REAL_TIME;
+      //-------------------------------------------------------
+      // Now we have defined a set of operations, it is now time
+      // to execute all of them.
+      //-------------------------------------------------------
+      int Tcomp = aNdbObject->sendPollNdb(3000, 0, 0);
+      while (unsigned(Tcomp) < tNoOfParallelTrans) {
+        int TlocalComp = aNdbObject->pollNdb(3000, 0);
+        Tcomp += TlocalComp;
+      }//while
+      for (j = 0 ; j < tNoOfParallelTrans ; j++) {
+        aNdbObject->closeTransaction(tConArray[j]);
+      }//for
     }//for
-    STOP_REAL_TIME;
-    //-------------------------------------------------------
-    // Now we have defined a set of operations, it is now time
-    // to execute all of them.
-    //-------------------------------------------------------
-    int Tcomp = aNdbObject->sendPollNdb(3000, 0, 0);
-    while (Tcomp < tNoOfParallelTrans) {
-      int TlocalComp = aNdbObject->pollNdb(3000, 0);
-      Tcomp += TlocalComp;
-    }//while
-    for (j = 0 ; j < tNoOfParallelTrans ; j++) {
-      aNdbObject->closeTransaction(tConArray[j]);
-    }//for
-  }//for
+  } // for
   return true;
 }//executeThread()
 
@@ -590,7 +643,7 @@ getKey(Uint32 aBase, Uint32 anIndex) {
     Tkey32[1] = (Uint32)i;
     hash = md5_hash((Uint64*)&Tkey64, (Uint32)2);
     hash = (hash >> 6) & (MAX_PARTS - 1);
-    if (hash == tLocalPart) {
+    if (hash == unsigned(tLocalPart)) {
       Tfound = i;
       break;
     }//if
@@ -641,7 +694,7 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
   //-------------------------------------------------------
   attrValue[0] = threadBase;
   attrValue[1] = aIndex;
-  for (int k = 2; k < loopCountAttributes; k++) {
+  for (unsigned k = 2; k < loopCountAttributes; k++) {
     attrValue[k] = aIndex;
   }//for
   localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);        
@@ -720,6 +773,68 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
   return;
 }//defineOperation()
 
+
+static void
+defineNdbRecordOperation(ThreadNdb* pThread, 
+			 NdbConnection* pTrans, StartType aType,
+			 Uint32 threadBase, Uint32 aIndex)
+{
+  char * record = pThread->record;
+  Uint32 offset;
+  NdbDictionary::getOffset(g_record[0], 0, offset);
+  * (Uint32*)(record + offset) = threadBase;
+  * (Uint32*)(record + offset + 4) = aIndex;
+  
+  //-------------------------------------------------------
+  // Set-up the attribute values for this operation.
+  //-------------------------------------------------------
+  if (aType != stRead && aType != stDelete)
+  {
+    for (unsigned k = 1; k < tNoOfAttributes; k++) {
+      NdbDictionary::getOffset(g_record[0], k, offset);
+      * (Uint32*)(record + offset) = aIndex;    
+    }//for
+  }
+  
+  const NdbOperation* op;
+  switch (aType) {
+  case stInsert: {   // Insert case
+    if (theWriteFlag == 1)
+    {
+      op = pTrans->writeTuple(g_record[0],record,g_record[0],record);
+    }
+    else
+    {
+      op = pTrans->insertTuple(g_record[0],record,g_record[0],record);
+    }
+    break;
+  }//case
+  case stRead: {     // Read Case
+    op = pTrans->readTuple(g_record[0],record,g_record[0],record);
+    break;
+  }//case
+  case stUpdate:{    // Update Case
+    op = pTrans->updateTuple(g_record[0],record,g_record[0],record);    
+    break;
+  }//case
+  case stDelete: {   // Delete Case
+    op = pTrans->deleteTuple(g_record[0],record, g_record[0]);
+    break;
+  }//case
+  default: {
+    abort();
+  }//default
+  }//switch
+
+  if (op == NULL)
+  {
+    ndbout << "Operation is null " << pTrans->getNdbError() << endl;
+    abort();
+  }
+    
+  assert(op != 0);
+}
+
 static void setAttrNames()
 {
   int i;
@@ -795,7 +910,7 @@ createTables(Ndb* pMyNdb){
       if (check == -1 &&
           (!error_handler(MySchemaTransaction->getNdbError())))
         return -1;
-      for (int j = 1; j < tNoOfAttributes ; j++){
+      for (unsigned j = 1; j < tNoOfAttributes ; j++){
         check = MySchemaOp->createAttribute( (char*)attrName[j],
                                              NoKey,
                                              32,
@@ -813,6 +928,28 @@ createTables(Ndb* pMyNdb){
         return -1;
       
       NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
+
+      if (tNdbRecord)
+      {
+	NdbDictionary::Dictionary* pDict = pMyNdb->getDictionary();
+	const NdbDictionary::Table * pTab = pDict->getTable(tableName[i]);
+	
+	int off = 0;
+	Vector<NdbDictionary::RecordSpecification> spec;
+	for (Uint32 j = 0; j<unsigned(pTab->getNoOfColumns()); j++)
+	{
+	  NdbDictionary::RecordSpecification r0;
+	  r0.column = pTab->getColumn(j);
+	  r0.offset = off;
+	  off += (r0.column->getSizeInBytes() + 3) & ~(Uint32)3;
+	  spec.push_back(r0);
+	}
+	g_record[i] = 
+	  pDict->createRecord(pTab, spec.getBase(), 
+			      spec.size(),
+			      sizeof(NdbDictionary::RecordSpecification));
+	assert(g_record[i]);
+      }
     }
   }
   
@@ -828,17 +965,8 @@ bool error_handler(const NdbError & err){
   case NdbError::SchemaError:
     ndbout << endl << "Attempting to recover and continue now..." << endl ;
     return true;
-  }
-  return false ; // return false to abort
-}
-static
-bool error_handler(const char* error_string, int error_int) {
-  ndbout << error_string << endl ;
-  if ((4008 == error_int) ||
-      (721 == error_int) ||
-      (266 == error_int)){
-    ndbout << endl << "Attempting to recover and continue now..." << endl ;
-    return true ; // return true to retry
+  default:
+    break;
   }
   return false ; // return false to abort
 }
@@ -949,6 +1077,10 @@ readArguments(int argc, const char** argv){
       startTransGuess = false;
       argc++;
       i--;
+    } else if (strcmp(argv[i], "-ndbrecord") == 0){
+      tNdbRecord = true;
+      argc++;
+      i--;
     } else {
       return -1;
     }
@@ -973,7 +1105,7 @@ input_error(){
   
   ndbout_c("FLEXASYNCH");
   ndbout_c("   Perform benchmark of insert, update and delete transactions");
-  ndbout_c("");
+  ndbout_c(" ");
   ndbout_c("Arguments:");
   ndbout_c("   -t Number of threads to start, default 1");
   ndbout_c("   -p Number of parallel transactions per thread, default 32");
@@ -995,7 +1127,7 @@ input_error(){
   ndbout_c("   -force Force send when communicating");
   ndbout_c("   -non_adaptive Send at a 10 millisecond interval");
   ndbout_c("   -local Number of part, only use keys in one part out of 16");
+  ndbout_c("   -ndbrecord");
 }
   
-
-
+template class Vector<NdbDictionary::RecordSpecification>;

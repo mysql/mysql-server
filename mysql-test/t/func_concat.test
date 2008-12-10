@@ -68,3 +68,13 @@ create table t1(f1 varchar(6)) charset=utf8;
 insert into t1 values ("123456");
 select concat(f1, 2) a from t1 union select 'x' a from t1;
 drop table t1;
+
+#
+# Bug #36488: regexp returns false matches, concatenating with previous rows
+#
+CREATE TABLE t1 (c1 varchar(100), c2 varchar(100));
+INSERT INTO t1 VALUES ('',''), ('','First'), ('Random','Random');
+SELECT * FROM t1 WHERE CONCAT(c1,' ',c2) REGEXP 'First.*';
+DROP TABLE t1;
+
+--echo # End of 5.0 tests

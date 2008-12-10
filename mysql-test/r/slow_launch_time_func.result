@@ -1,0 +1,17 @@
+SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
+** Connection default **
+'#--------------------FN_DYNVARS_124_01-------------------------#'
+SET @@GLOBAL.slow_launch_time=0;
+SELECT @@GLOBAL.slow_launch_time;
+@@GLOBAL.slow_launch_time
+0
+** Connecting conn1 using username 'root' **
+** Switch to connection default and disconnect conn1 **
+'#--------------------FN_DYNVARS_124_02-------------------------#'
+SET @@GLOBAL.slow_launch_time= 1000;
+SELECT @@GLOBAL.slow_launch_time;
+@@GLOBAL.slow_launch_time
+1000
+** Connecting conn2 using username 'root' **
+** Switch to connection default and disconnect conn2 **
+SET @@GLOBAL.slow_launch_time = @global_slow_launch_time;

@@ -160,6 +160,11 @@ public:
    */
   virtual bool checkParams();
 
+  /*
+   * Set repeat frequency, 0 means disable special repeated message handling
+   */
+  virtual void setRepeatFrequency(unsigned val);
+
 protected:
   /** Max length of the date and time header in the log. */
   STATIC_CONST( MAX_DATE_TIME_HEADER_LENGTH = 64 );

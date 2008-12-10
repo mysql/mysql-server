@@ -57,7 +57,8 @@ testIndexStat \
 ndbapi_50compat0 \
 ndbapi_50compat1 \
 testNDBT \
-NdbRepStress
+NdbRepStress \
+msa
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -115,6 +116,7 @@ testSRBank_SOURCES = testSRBank.cpp
 test_event_merge_SOURCES = test_event_merge.cpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testIndexStat_SOURCES = testIndexStat.cpp
+msa_SOURCES = msa.cpp
 
 ndbapi_50compat0_CPPFLAGS = -DNDBAPI_50_COMPAT
 ndbapi_50compat0_SOURCES = ndbapi_50compat0.cpp

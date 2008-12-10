@@ -1,0 +1,71 @@
+drop table if exists t1;
+'#--------------------FN_DYNVARS_063_01-------------------------#'
+## Creating new user tt ##
+CREATE user tt@localhost;
+## Setting value of variable to 0 ##
+SET @@global.log_bin_trust_function_creators = 0;
+## Creating new table t2 ##
+create table t2 (a INT);
+## Creating & connecting with new connection test_con1 ##
+SELECT @@log_bin_trust_function_creators;
+@@log_bin_trust_function_creators
+0
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+## Creating new function f1 ##
+CREATE FUNCTION f1(a INT) RETURNS INT
+BEGIN
+IF (a < 3) THEN 
+INSERT INTO t2 VALUES (a);
+END IF;
+RETURN 1;
+END|
+'Bug: Create Function should give error here because non-super user';
+'is creating function here';
+## Creating new table t1 ##
+CREATE TABLE t1 (a INT);
+## Inserting some records in t1 ##
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT f1(a) FROM t1;
+f1(a)
+1
+1
+1
+## Dropping function f1 & table t1 ##
+drop function f1;
+drop table t1;
+'#--------------------FN_DYNVARS_063_02-------------------------#'
+## Switching to default connection ##
+## Setting value of variable to 1 ##
+SET @@global.log_bin_trust_function_creators = 1;
+## Creating and connecting to new connection test_con2 ##
+## Verifying value of variable ##
+SELECT @@log_bin_trust_function_creators;
+@@log_bin_trust_function_creators
+1
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+## Creating new function f1 ##
+CREATE FUNCTION f1(a INT) RETURNS INT
+BEGIN
+IF (a < 3) THEN 
+INSERT INTO t2 VALUES (a);
+END IF;
+RETURN 1;
+END|
+## Creating new table t1 ##
+CREATE TABLE t1 (a INT);
+## Inserting values in table t1 ##
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT f1(a) FROM t1;
+f1(a)
+1
+1
+1
+## Dropping function f1 ##
+drop function f1;
+## Dropping table t1 & t2 ##
+drop table t1,t2;
+## Disconnecting both the connections ##

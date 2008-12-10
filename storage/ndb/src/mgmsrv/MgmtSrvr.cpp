@@ -855,6 +855,8 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	do_send = 1; // retry with other node
       continue;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -908,12 +910,14 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
     if(ndb_mgm_connect(h,1,0,0))
     {
       DBUG_PRINT("info",("failed ndb_mgm_connect"));
+      ndb_mgm_destroy_handle(&h);
       return SEND_OR_RECEIVE_FAILED;
     }
     if(!restart)
     {
       if(ndb_mgm_stop(h, 1, (const int*)&nodeId) < 0)
       {
+        ndb_mgm_destroy_handle(&h);
         return SEND_OR_RECEIVE_FAILED;
       }
     }
@@ -923,6 +927,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
       nodes[0]= (int)nodeId;
       if(ndb_mgm_restart2(h, 1, nodes, initialStart, nostart, abort) < 0)
       {
+        ndb_mgm_destroy_handle(&h);
         return SEND_OR_RECEIVE_FAILED;
       }
     }
@@ -1159,13 +1164,15 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       NdbNodeBitmask mask;
       mask.assign(NdbNodeBitmask::Size, rep->theNodes);
-      mask.bitAND(notstarted);
+      mask.bitANDC(notstarted);
       nodes.bitANDC(mask);
       
       if (singleUserNodeId == 0)
 	stoppedNodes.bitOR(mask);
       break;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
 #ifdef VM_TRACE
@@ -1726,6 +1733,8 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       nodes.clear(rep->failedNodeId);
       break;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -2011,6 +2020,9 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     ndbout << "TAMPER ORD" << endl;
     break;
 
+  case GSN_TAKE_OVERTCCONF:
+    break;
+
   default:
     g_eventLogger->error("Unknown signal received. SignalNumber: "
                          "%i from (%d, %x)",
@@ -2205,6 +2217,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       // ignore NF_COMPLETEREP will come
       continue;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -2336,6 +2350,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			  "or specifying unique host names in config file,\n"
 			  "or specifying just one mgmt server in config file.",
 			  tmp);
+      NdbMutex_Unlock(m_configMutex);
       error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
       DBUG_RETURN(false);
     }
@@ -2717,6 +2732,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       // master node will report aborted backup
       break;
     }
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;

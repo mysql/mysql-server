@@ -208,7 +208,7 @@ public:
   virtual void print() = 0;
   virtual void printHTML() = 0;
 
-  const char* getName(){return name;};
+  const char* getName() const { return _name.c_str(); };
   virtual bool tableExists(NdbDictionary::Table* aTable) = 0;
   virtual bool isVerify(const NdbDictionary::Table* aTable) = 0;
 
@@ -238,8 +238,6 @@ protected:
 
   BaseString _name;
   BaseString _comment;
-  const char* name;
-  const char* comment;
   NDBT_TestSuite* suite;
   Properties props;
   NdbTimer timer;

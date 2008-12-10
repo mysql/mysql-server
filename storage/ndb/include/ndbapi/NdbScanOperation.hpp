@@ -377,6 +377,11 @@ public:
                                          const NdbOperation::OperationOptions *opts = 0,
                                          Uint32 sizeOfOptions = 0);
 
+  /**
+   * Get NdbTransaction object for this scan operation
+   */
+  NdbTransaction* getNdbTransaction() const;
+
 protected:
   NdbScanOperation(Ndb* aNdb,
                    NdbOperation::Type aType = NdbOperation::TableScan);
@@ -539,6 +544,9 @@ protected:
   /* This flag indicates whether a scan operation is using the old API */
   bool  m_scanUsingOldApi;
 
+  /* Whether readTuples has been called - only valid for old Api scans */
+  bool m_readTuplesCalled;
+
   /* Scan definition information saved by RecAttr scan API */
   LockMode m_savedLockModeOldApi;
   Uint32 m_savedScanFlagsOldApi;
@@ -647,5 +655,15 @@ NdbScanOperation::deleteCurrentTuple(NdbTransaction *takeOverTrans,
                                  result_rec, result_row, result_mask,
                                  opts, sizeOfOptions);
 }
+
+inline
+NdbTransaction*
+NdbScanOperation::getNdbTransaction() const
+{
+  /* return the user visible transaction object ptr, not the
+   * scan's 'internal' / buddy transaction object
+   */
+  return m_transConnection;
+};
 
 #endif

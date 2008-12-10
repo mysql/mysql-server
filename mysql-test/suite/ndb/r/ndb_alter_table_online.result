@@ -681,7 +681,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
-Length of frm data: 256
+Length of frm data: 257
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -711,7 +711,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
-Length of frm data: 256
+Length of frm data: 257
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0

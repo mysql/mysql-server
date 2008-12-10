@@ -3070,3 +3070,8 @@ NdbBlob::blobsNextBlob()
   return theNext;
 }
 
+const NdbOperation*
+NdbBlob::getNdbOperation() const
+{
+  return theNdbOp;
+};

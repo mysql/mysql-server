@@ -212,6 +212,15 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   if (nodeId == 0)
   {
     nodeId= refToNode(signal->getSendersBlockRef());
+
+    if (nodeId == 0)
+    {
+      /* Event reporter supplied no node id,
+       * assume it was local
+       */
+      nodeId= getOwnNodeId();
+    }
+
     eventReport->setNodeId(nodeId);
   }
 
@@ -813,6 +822,16 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   if(globalData.theStartLevel == NodeState::SL_NOTHING)
   {
     jam();
+
+    for(unsigned int i = 1; i < MAX_NODES; i++ )
+    {
+      if (getNodeInfo(i).m_type == NodeInfo::MGM)
+      {
+        jam();
+        globalTransporterRegistry.do_connect(i);
+      }
+    }
+
     globalData.theStartLevel = NodeState::SL_CMVMI;
     EXECUTE_DIRECT(QMGR, GSN_START_ORD, signal, 1);
     return ;

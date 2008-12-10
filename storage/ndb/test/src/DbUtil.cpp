@@ -17,7 +17,7 @@
 
 #include "DbUtil.hpp"
 #include <NdbSleep.h>
-
+#include <NdbAutoPtr.hpp>
 
 /* Constructors */
 
@@ -355,7 +355,9 @@ DbUtil::runQuery(const char* sql,
   }
 
   uint params= mysql_stmt_param_count(stmt);
-  MYSQL_BIND bind_param[params];
+  MYSQL_BIND *bind_param = new MYSQL_BIND[params];
+  NdbAutoObjArrayPtr<MYSQL_BIND> _guard(bind_param);
+
   bzero(bind_param, sizeof(bind_param));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
@@ -425,7 +427,8 @@ DbUtil::runQuery(const char* sql,
   {
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
     uint num_fields= mysql_num_fields(res);
-    MYSQL_BIND bind_result[num_fields];
+    MYSQL_BIND *bind_result = new MYSQL_BIND[num_fields];
+    NdbAutoObjArrayPtr<MYSQL_BIND> _guard1(bind_result);
     bzero(bind_result, sizeof(bind_result));
 
     for (uint i= 0; i < num_fields; i++)

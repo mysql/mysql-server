@@ -152,6 +152,7 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
+  bool util_thread; // if opened by util thread
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
@@ -235,7 +236,12 @@ typedef enum ndb_query_state_bits {
 
 enum THD_NDB_OPTIONS
 {
-  TNO_NO_LOG_SCHEMA_OP= 1 << 0
+  TNO_NO_LOG_SCHEMA_OP=  1 << 0,
+  /*
+    In participating mysqld, do not try to acquire global schema
+    lock, as one other mysqld already has the lock.
+  */
+  TNO_NO_LOCK_SCHEMA_OP= 1 << 1
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -264,6 +270,7 @@ class Thd_ndb
   ulong count;
   uint lock_count;
   uint start_stmt_count;
+  uint save_point_count;
   NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
@@ -284,6 +291,9 @@ class Thd_ndb
     we execute() to flush the rows buffered in m_batch_mem_root.
   */
   uint m_unsent_bytes;
+  NdbTransaction *global_schema_lock_trans;
+  uint global_schema_lock_count;
+  uint global_schema_lock_error;
 };
 
 class ha_ndbcluster: public handler
@@ -445,7 +455,7 @@ static void set_tabname(const char *pathname, char *tabname);
   /*
    * Internal to ha_ndbcluster, used by C functions
    */
-  int ndb_err(NdbTransaction*);
+  int ndb_err(NdbTransaction*, bool have_lock= FALSE);
 
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
@@ -713,7 +723,7 @@ private:
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd);
 
-  int update_stats(THD *thd, bool do_read_stat);
+  int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE);
 };
 
 extern SHOW_VAR ndb_status_variables[];

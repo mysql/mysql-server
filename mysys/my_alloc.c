@@ -202,7 +202,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     {
       if (mem_root->error_handler)
 	(*mem_root->error_handler)();
-      return((void*) 0);                      /* purecov: inspected */
+      DBUG_RETURN((void*) 0);                      /* purecov: inspected */
     }
     mem_root->block_num++;
     next->next= *prev;

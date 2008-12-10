@@ -292,20 +292,20 @@ Dbtc::Dbtc(Block_context& ctx):
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
+  c_ongoing_take_over_cnt = 0;
 
 #ifdef VM_TRACE
   {
     void* tmp[] = { &apiConnectptr, 
-		    &tcConnectptr,
-		    &cachePtr,
-		    &attrbufptr,
-		    &hostptr,
-		    &gcpPtr,
-		    &tmpApiConnectptr,
-		    &timeOutptr,
-		    &scanFragptr,
-		    &databufptr,
-		    &tmpDatabufptr }; 
+                    &tcConnectptr,
+                    &cachePtr,
+                    &attrbufptr,
+                    &hostptr,
+                    &timeOutptr,
+                    &scanFragptr,
+                    &databufptr,
+                    &tmpDatabufptr, 
+                    &tcNodeFailptr }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif

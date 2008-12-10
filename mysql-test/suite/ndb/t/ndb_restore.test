@@ -395,13 +395,31 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --source include/ndb_backup.inc
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,1)' $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id 2>&1 | grep Translate || true
 
+CREATE TABLE t11_c (
+  c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t12_c (
+  c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
+INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
+--source include/ndb_backup.inc
+drop table t2_c,t11_c,t12_c;
+# Only part of tables is restored, it should work
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+#Should only t11_c is restored
+SELECT * FROM t11_c ORDER BY c1;
+
 #
 # Cleanup
 #
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t2_c;
+drop table if exists t2_c,t11_c,t12_c;
 --enable_warnings
 
 #

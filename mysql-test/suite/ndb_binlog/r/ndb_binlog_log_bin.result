@@ -53,8 +53,8 @@ use mysqltest;
 insert into t2 values (1,1);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin1.000001	#	Query	1	#	use `mysqltest`; drop table `t1`
-master-bin1.000001	#	Query	1	#	use `mysqltest`; drop table `t2`
+master-bin1.000001	#	Query	1	#	use `mysqltest`; drop table `mysqltest`.`t1`
+master-bin1.000001	#	Query	1	#	use `mysqltest`; drop table `mysqltest`.`t2`
 master-bin1.000001	#	Query	1	#	use `mysqltest`; create table t1 (d int key, e int) engine=ndb
 master-bin1.000001	#	Query	1	#	use `mysqltest`; create table t2 (d int key, e int) engine=ndb
 master-bin1.000001	#	Query	102	#	BEGIN

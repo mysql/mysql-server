@@ -277,22 +277,64 @@ void symdirget(char *dir)
 #endif /* USE_SYMDIR */
 
 
-/*
-  Fixes a directroy name so that can be used by open()
+/**
+  Convert a directory name to a format which can be compared as strings
 
-  SYNOPSIS
-    unpack_dirname()
-    to			result-buffer, FN_REFLEN characters. may be == from
-    from		'Packed' directory name (may contain ~)
+  @param to     result buffer, FN_REFLEN chars in length; may be == from
+  @param from   'packed' directory name, in whatever format
+  @returns      size of the normalized name
 
- IMPLEMENTATION
-  Make that last char of to is '/' if from not empty and
-  from doesn't end in FN_DEVCHAR
-  Uses cleanup_dirname and changes ~/.. to home_dir/..
+  @details
+  - Ensures that last char is FN_LIBCHAR, unless it is FN_DEVCHAR
+  - Uses cleanup_dirname
 
-  Changes a UNIX filename to system filename (replaces / with \ on windows)
+  It does *not* expand ~/ (although, see cleanup_dirname).  Nor does it do
+  any case folding.  All case-insensitive normalization should be done by
+  the caller.
+*/
 
-  RETURN
+size_t normalize_dirname(char *to, const char *from)
+{
+  size_t length;
+  char buff[FN_REFLEN];
+  DBUG_ENTER("normalize_dirname");
+
+  /*
+    Despite the name, this actually converts the name to the system's
+    format (TODO: rip out the non-working VMS stuff and name this
+    properly).
+  */
+  (void) intern_filename(buff, from);
+  length= strlen(buff);			/* Fix that '/' is last */
+  if (length &&
+#ifdef FN_DEVCHAR
+      buff[length - 1] != FN_DEVCHAR &&
+#endif
+      buff[length - 1] != FN_LIBCHAR && buff[length - 1] != '/')
+  {
+    buff[length]= FN_LIBCHAR;
+    buff[length + 1]= '\0';
+  }
+
+  length=cleanup_dirname(to, buff);
+
+  DBUG_RETURN(length);
+}
+
+
+/**
+  Fixes a directory name so that can be used by open()
+
+  @param to     Result buffer, FN_REFLEN characters. May be == from
+  @param from   'Packed' directory name (may contain ~)
+
+  @details
+  - Uses normalize_dirname()
+  - Expands ~/... to home_dir/...
+  - Resolves MySQL's fake "foo.sym" symbolic directory names (if USE_SYMDIR)
+  - Changes a UNIX filename to system filename (replaces / with \ on windows)
+
+  @returns
    Length of new directory name (= length of to)
 */
 
@@ -302,19 +344,8 @@ size_t unpack_dirname(char * to, const char *from)
   char buff[FN_REFLEN+1+4],*suffix,*tilde_expansion;
   DBUG_ENTER("unpack_dirname");
 
-  (void) intern_filename(buff,from);	    /* Change to intern name */
-  length= strlen(buff);                     /* Fix that '/' is last */
-  if (length &&
-#ifdef FN_DEVCHAR
-      buff[length-1] != FN_DEVCHAR &&
-#endif
-      buff[length-1] != FN_LIBCHAR && buff[length-1] != '/')
-  {
-    buff[length]=FN_LIBCHAR;
-    buff[length+1]= '\0';
-  }
+  length= normalize_dirname(buff, from);
 
-  length=cleanup_dirname(buff,buff);
   if (buff[0] == FN_HOMELIB)
   {
     suffix=buff+1; tilde_expansion=expand_tilde(&suffix);
@@ -323,7 +354,7 @@ size_t unpack_dirname(char * to, const char *from)
       length-= (size_t) (suffix-buff)-1;
       if (length+(h_length= strlen(tilde_expansion)) <= FN_REFLEN)
       {
-	if (tilde_expansion[h_length-1] == FN_LIBCHAR)
+	if ((h_length > 0) && (tilde_expansion[h_length-1] == FN_LIBCHAR))
 	  h_length--;
 	if (buff+h_length < suffix)
 	  bmove(buff+h_length,suffix,length);

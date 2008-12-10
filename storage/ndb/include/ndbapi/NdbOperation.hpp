@@ -837,6 +837,7 @@ public:
    * @return method number where the error occured.
    */
   int getNdbErrorLine();
+  int getNdbErrorLine() const;
 
   /**
    * Get table name of this operation.
@@ -885,6 +886,11 @@ public:
    */
   AbortOption getAbortOption() const;
   int setAbortOption(AbortOption);
+
+  /**
+   * Get NdbTransaction object pointer for this operation
+   */
+  virtual NdbTransaction* getNdbTransaction() const;
   
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   
@@ -1037,7 +1043,6 @@ protected:
 
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
 #endif
@@ -1447,6 +1452,9 @@ inline
 int
 NdbOperation::checkMagicNumber(bool b)
 {
+#ifndef NDB_NO_DROPPED_SIGNAL
+  (void)b;  // unused param in this context
+#endif
   if (theMagicNumber != 0xABCDEF01){
 #ifdef NDB_NO_DROPPED_SIGNAL
     if(b) abort();
@@ -1466,6 +1474,13 @@ NdbOperation::setStartIndicator()
 inline
 int
 NdbOperation::getNdbErrorLine()
+{
+  return theErrorLine;
+}
+
+inline
+int
+NdbOperation::getNdbErrorLine() const
 {
   return theErrorLine;
 }
@@ -1566,8 +1581,10 @@ NdbOperation::NdbCon(NdbTransaction* aNdbCon)
 
 inline
 int
-NdbOperation::equal(const char* anAttrName, const char* aValue, Uint32 len)
+NdbOperation::equal(const char* anAttrName, const char* aValue,
+                    Uint32 len)
 {
+  (void)len;   // unused
   return equal(anAttrName, aValue);
 }
 
@@ -1601,8 +1618,10 @@ NdbOperation::equal(const char* anAttrName, Uint64 aPar)
 
 inline
 int
-NdbOperation::equal(Uint32 anAttrId, const char* aValue, Uint32 len)
+NdbOperation::equal(Uint32 anAttrId, const char* aValue,
+                    Uint32 len)
 {
+  (void)len;   // unused
   return equal(anAttrId, aValue);
 }
 
@@ -1636,8 +1655,10 @@ NdbOperation::equal(Uint32 anAttrId, Uint64 aPar)
 
 inline
 int
-NdbOperation::setValue(const char* anAttrName, const char* aValue, Uint32 len)
+NdbOperation::setValue(const char* anAttrName, const char* aValue,
+                       Uint32 len)
 {
+  (void)len;   // unused
   return setValue(anAttrName, aValue);
 }
 
@@ -1685,8 +1706,10 @@ NdbOperation::setValue(const char* anAttrName, double aPar)
 
 inline
 int
-NdbOperation::setValue(Uint32 anAttrId, const char* aValue, Uint32 len)
+NdbOperation::setValue(Uint32 anAttrId, const char* aValue,
+                       Uint32 len)
 {
+  (void)len;   // unused
   return setValue(anAttrId, aValue);
 }
 

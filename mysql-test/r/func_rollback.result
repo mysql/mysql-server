@@ -1,0 +1,461 @@
+DROP TABLE IF EXISTS t1_select;
+DROP TABLE IF EXISTS t1_aux;
+DROP TABLE IF EXISTS t1_not_null;
+DROP VIEW IF EXISTS v1_not_null;
+DROP VIEW IF EXISTS v1_func;
+DROP TABLE IF EXISTS t1_fail;
+DROP FUNCTION IF EXISTS f1_simple_insert;
+DROP FUNCTION IF EXISTS f1_two_inserts;
+DROP FUNCTION IF EXISTS f1_insert_select;
+SET SESSION AUTOCOMMIT=0;
+SET SESSION sql_mode = '';
+CREATE TABLE t1_select (f1 BIGINT, f2 BIGINT) ENGINE = MEMORY;
+INSERT INTO t1_select(f1,f2) VALUES (1,-1),(2,NULL),(3,0),(4,1),(5,2);
+SELECT * FROM t1_select;
+f1	f2
+1	-1
+2	NULL
+3	0
+4	1
+5	2
+CREATE TABLE t1_not_null (f1 BIGINT, f2 BIGINT NOT NULL)
+ENGINE = <transactional_engine>;
+SELECT * FROM t1_not_null;
+f1	f2
+CREATE TABLE t1_aux (f1 BIGINT, f2 BIGINT)
+ENGINE = <transactional_engine>;
+SELECT * FROM t1_aux;
+f1	f2
+COMMIT;
+CREATE FUNCTION f1_simple_insert(my_f1 INTEGER) RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null SET f1 = 10, f2 = my_f1;
+RETURN 1;
+END//
+
+# One f1_simple_insert execution per row, no NOT NULL violation
+SELECT f1_simple_insert(1);
+f1_simple_insert(1)
+1
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+10	1
+ROLLBACK;
+SELECT * FROM t1_not_null;
+f1	f2
+SELECT f1_simple_insert(1) FROM t1_select;
+f1_simple_insert(1)
+1
+1
+1
+1
+1
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+10	1
+10	1
+10	1
+10	1
+10	1
+ROLLBACK;
+SELECT * FROM t1_not_null;
+f1	f2
+
+# One f1_simple_insert execution per row, NOT NULL violation when the
+# SELECT processes the first row.
+SELECT f1_simple_insert(NULL);
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT f1_simple_insert(NULL) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT 1 FROM (SELECT 1 AS f1,1 AS f2 UNION ALL SELECT 1,NULL) AS t1 WHERE f1_simple_insert(NULL) = 1;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# One f1_simple_insert execution per row, NOT NULL violation when the
+# SELECT processes the non first row
+SELECT f1_simple_insert(f2) FROM (SELECT 1 AS f1,1 AS f2 UNION ALL SELECT 1,NULL) AS t1;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT f1_simple_insert(f2) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# Two f1_simple_insert executions per row, NOT NULL violation when the
+# SELECT processes the first row.
+SELECT f1_simple_insert(1),f1_simple_insert(NULL);
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT f1_simple_insert(NULL),f1_simple_insert(1);
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# Two f1_simple_insert executions per row, NOT NULL violation when the
+# SELECT processes the non first row
+SELECT f1_simple_insert(f1),f1_simple_insert(f2) FROM (SELECT 1 AS f1,1 AS f2 UNION ALL SELECT 1,NULL) AS t1;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT f1_simple_insert(f2),f1_simple_insert(f1) FROM (SELECT 1 AS f1,1 AS f2 UNION ALL SELECT 1,NULL) AS t1;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT f1_simple_insert(f1),f1_simple_insert(f2) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT f1_simple_insert(f2),f1_simple_insert(f1) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT 1 FROM (SELECT 1 AS f1,1 AS f2 UNION ALL SELECT 1,NULL) AS t1
+WHERE 1 = f1_simple_insert(f2) AND 1 = f1_simple_insert(f1);
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# Nested functions, the inner fails
+SELECT f1_simple_insert(f1_simple_insert(NULL)) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# Nested functions, the outer fails
+SELECT f1_simple_insert(f1_simple_insert(1) + NULL) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_simple_insert;
+CREATE FUNCTION f1_insert_select(my_f1 INTEGER) RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null SELECT * FROM t1_select WHERE f1 = my_f1;
+RETURN 1;
+END;
+
+# f1_insert_select(2), tries to INSERT SELECT one row containing NULL
+# The fact that
+# - SELECT f1_insert_select(2);     gives any result set    and
+# - t1_not_null gets a row inserted
+# is covered by the manual.
+SELECT f1_insert_select(2);
+f1_insert_select(2)
+1
+Warnings:
+Warning	1048	Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+2	0
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_insert_select;
+SET SESSION sql_mode = 'traditional';
+CREATE FUNCTION f1_insert_select(my_f1 INTEGER) RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null SELECT * FROM t1_select WHERE f1 = my_f1;
+RETURN 1;
+END;
+SELECT f1_insert_select(2);
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_insert_select;
+SET SESSION sql_mode = '';
+
+# Function tries to
+#    1. INSERT statement: Insert one row with NULL -> NOT NULL violation
+#    2. INSERT statement: Insert one row without NULL
+CREATE FUNCTION f1_two_inserts() RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null SET f1 = 10, f2 = NULL;
+INSERT INTO t1_not_null SET f1 = 10, f2 = 10;
+RETURN 1;
+END//
+SELECT f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_two_inserts;
+
+# Function tries to
+#    1. INSERT statement: Insert one row without NULL
+#    2. INSERT statement: Insert one row with NULL -> NOT NULL violation
+CREATE FUNCTION f1_two_inserts() RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null SET f1 = 10, f2 = 10;
+INSERT INTO t1_not_null SET f1 = 10, f2 = NULL;
+RETURN 1;
+END//
+SELECT f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# Function tries to
+#    INSERT statement: Insert two rows
+#                      first row without NULL
+#                      second row with NULL -> NOT NULL violation
+#       -> NOT NULL violation
+CREATE FUNCTION f1_insert_with_two_rows() RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null(f1,f2) VALUES (10,10),(10,NULL);
+RETURN 1;
+END;
+# The fact that
+# - SELECT f1_insert_with_two_rows();     gives any result set    and
+# - t1_not_null gets a row inserted
+# is covered by the manual.
+SELECT f1_insert_with_two_rows();
+f1_insert_with_two_rows()
+1
+Warnings:
+Warning	1048	Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+10	0
+10	10
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_insert_with_two_rows;
+SET SESSION sql_mode = 'traditional';
+CREATE FUNCTION f1_insert_with_two_rows() RETURNS INTEGER
+BEGIN
+INSERT INTO t1_not_null(f1,f2) VALUES (10,10),(10,NULL);
+RETURN 1;
+END;
+SELECT f1_insert_with_two_rows();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SET SESSION sql_mode = '';
+
+# FUNCTION in Correlated Subquery
+SELECT 1 FROM t1_select t1
+WHERE 1 = (SELECT f1_insert_with_two_rows() FROM t1_select t2
+WHERE t2.f1 = t1.f1);
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# FUNCTION in JOIN
+SELECT 1 FROM t1_select t1, t1_select t2
+WHERE t1.f1 = t2.f1 AND t2.f1 = f1_insert_with_two_rows();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT STRAIGHT_JOIN * FROM t1_select t2 RIGHT JOIN t1_select t1
+ON t1.f1 = t1.f1 WHERE 1 = f1_insert_with_two_rows();
+ERROR 23000: Column 'f2' cannot be null
+DROP FUNCTION f1_insert_with_two_rows;
+
+# FUNCTION in UNION
+SELECT 1
+UNION ALL
+SELECT f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# FUNCTION in INSERT
+INSERT INTO t1_aux SET f1 = 1, f2 = f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+INSERT INTO t1_aux SELECT 1, f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT * FROM t1_aux ORDER BY f1,f2;
+f1	f2
+INSERT INTO t1_aux VALUES(1,f1_two_inserts());
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT * FROM t1_aux ORDER BY f1,f2;
+f1	f2
+
+# FUNCTION in DELETE
+INSERT INTO t1_aux VALUES (1,1);
+COMMIT;
+DELETE FROM t1_aux WHERE f1 = f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT * FROM t1_aux ORDER BY f1,f2;
+f1	f2
+1	1
+
+# FUNCTION in UPDATE SET
+UPDATE t1_aux SET f2 = f1_two_inserts() + 1;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+SELECT * FROM t1_aux ORDER BY f1,f2;
+f1	f2
+1	1
+
+# FUNCTION in VIEW definition
+CREATE VIEW v1_func AS SELECT f1_two_inserts() FROM t1_select;
+SELECT * FROM v1_func;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP VIEW v1_func;
+
+# FUNCTION in CREATE TABLE ... AS SELECT
+CREATE TABLE t1_fail AS SELECT f1_two_inserts() FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+CREATE TABLE t1_fail AS SELECT * FROM t1_select WHERE 1 = f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# FUNCTION in ORDER BY
+SELECT * FROM t1_select ORDER BY f1,f1_two_inserts();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# FUNCTION in aggregate function
+SELECT AVG(f1_two_inserts()) FROM t1_select;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+
+# FUNCTION in HAVING
+SELECT 1 FROM t1_select HAVING AVG(f1) = f1_two_inserts() + 2;
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_two_inserts;
+
+# FUNCTION modifies Updatable VIEW
+CREATE VIEW v1_not_null AS SELECT f1,f2 FROM t1_not_null WITH CHECK OPTION;
+CREATE FUNCTION f1_two_inserts_v1() RETURNS INTEGER
+BEGIN
+INSERT INTO v1_not_null SET f1 = 10, f2 = 10;
+INSERT INTO v1_not_null SET f1 = 10, f2 = NULL;
+RETURN 1;
+END//
+SELECT f1_two_inserts_v1();
+ERROR 23000: Column 'f2' cannot be null
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+ROLLBACK;
+SELECT * FROM t1_not_null ORDER BY f1,f2;
+f1	f2
+DROP FUNCTION f1_two_inserts_v1;
+DROP VIEW v1_not_null;
+
+# FUNCTION causes FOREIGN KEY constraint violation
+CREATE TABLE t1_parent (f1 BIGINT, f2 BIGINT, PRIMARY KEY(f1))
+ENGINE = InnoDB;
+INSERT INTO t1_parent VALUES (1,1);
+CREATE TABLE t1_child (f1 BIGINT, f2 BIGINT, PRIMARY KEY(f1),
+FOREIGN KEY (f1) REFERENCES t1_parent(f1))
+ENGINE = InnoDB;
+CREATE FUNCTION f1_two_inserts() RETURNS INTEGER
+BEGIN
+INSERT INTO t1_child SET f1 = 1, f2 = 1;
+INSERT INTO t1_child SET f1 = 2, f2 = 2;
+RETURN 1;
+END//
+SELECT f1_two_inserts();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1_child`, CONSTRAINT `t1_child_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1_parent` (`f1`))
+SELECT * FROM t1_child;
+f1	f2
+DROP TABLE t1_child;
+DROP TABLE t1_parent;
+DROP FUNCTION f1_two_inserts;
+DROP TABLE t1_select;
+DROP TABLE t1_aux;
+DROP TABLE t1_not_null;

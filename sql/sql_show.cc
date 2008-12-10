@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
+#ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
 #include "event_data_objects.h"
+#endif
 #include <my_dir.h>
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
@@ -287,7 +289,9 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+#ifdef HAVE_EVENT_SCHEDULER
   {"Event","Server Admin","To create, alter, drop and execute events"},
+#endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
@@ -621,7 +625,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if ((table_list->view ?
        view_store_create_info(thd, table_list, &buffer) :
-       store_create_info(thd, table_list, &buffer, NULL)))
+       store_create_info(thd, table_list, &buffer, NULL,
+                         FALSE /* show_database */)))
     DBUG_RETURN(TRUE);
 
   List<Item> field_list;
@@ -812,7 +817,8 @@ mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
   DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name.str));
 
   protocol->prepare_for_resend();
-  if (store_create_info(thd, table_list, packet, NULL))
+  if (store_create_info(thd, table_list, packet, NULL,
+                        FALSE /* show_database */))
     DBUG_RETURN(-1);
 
   if (fd < 0)
@@ -1064,7 +1070,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
  */
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                      HA_CREATE_INFO *create_info_arg)
+                      HA_CREATE_INFO *create_info_arg, bool show_database)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], def_value_buf[MAX_FIELD_WIDTH];
@@ -1112,6 +1118,25 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       alias= share->table_name.str;
     }
   }
+
+  /*
+    Print the database before the table name if told to do that. The
+    database name is only printed in the event that it is different
+    from the current database.  The main reason for doing this is to
+    avoid having to update gazillions of tests and result files, but
+    it also saves a few bytes of the binary log.
+   */
+  if (show_database)
+  {
+    const LEX_STRING *const db=
+      table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
+    if (strcmp(db->str, thd->db) != 0)
+    {
+      append_identifier(thd, packet, db->str, db->length);
+      packet->append(STRING_WITH_LEN("."));
+    }
+  }
+
   append_identifier(thd, packet, alias, strlen(alias));
   packet->append(STRING_WITH_LEN(" (\n"));
   /*
@@ -3601,8 +3626,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if(file)
     {
-      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO |
-                 HA_STATUS_NO_LOCK);
+      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO);
       enum row_type row_type = file->get_row_type();
       switch (row_type) {
       case ROW_TYPE_NOT_USED:
@@ -3965,7 +3989,6 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-
 int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   return plugin_foreach(thd, iter_schema_engines,
@@ -4305,6 +4328,27 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
           !my_strcasecmp(system_charset_info, tables->definer.host.str,
                          sctx->priv_host))
         tables->allowed_show= TRUE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      else
+      {
+        if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+            (SHOW_VIEW_ACL|SELECT_ACL))
+          tables->allowed_show= TRUE;
+        else
+        {
+          TABLE_LIST table_list;
+          uint view_access;
+          memset(&table_list, 0, sizeof(table_list));
+          table_list.db= tables->view_db.str;
+          table_list.table_name= tables->view_name.str;
+          table_list.grant.privilege= thd->col_access;
+          view_access= get_table_grant(thd, &table_list);
+          if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+              (SHOW_VIEW_ACL|SELECT_ACL))
+            tables->allowed_show= TRUE;
+        }
+      }
+#endif
     }
     restore_record(table, s->default_values);
     tmp_db_name= &tables->view_db;
@@ -5029,7 +5073,7 @@ static interval_type get_real_interval_type(interval_type i_type)
 
 #endif
 
-
+#ifdef HAVE_EVENT_SCHEDULER
 /*
   Loads an event from mysql.event and copies it's data to a row of
   I_S.EVENTS
@@ -5149,14 +5193,14 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   switch (et.status)
   {
-    case Event_timed::ENABLED:
+    case Event_parse_data::ENABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
       break;
-    case Event_timed::SLAVESIDE_DISABLED:
+    case Event_parse_data::SLAVESIDE_DISABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("SLAVESIDE_DISABLED"),
                                           scs);
       break;
-    case Event_timed::DISABLED:
+    case Event_parse_data::DISABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
       break;
     default:
@@ -5165,7 +5209,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[ISE_ORIGINATOR]->store(et.originator, TRUE);
 
   /* on_completion */
-  if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
+  if (et.on_completion == Event_parse_data::ON_COMPLETION_DROP)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("NOT PRESERVE"), scs);
   else
@@ -5215,7 +5259,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   DBUG_RETURN(0);
 }
-
+#endif
 
 int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
@@ -5936,6 +5980,9 @@ bool get_schema_tables_result(JOIN *join,
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);
 
+      /* A value of 0 indicates a dummy implementation */
+      if (table_list->schema_table->fill_table == 0)
+        continue;
 
       /* skip I_S optimizations specific to get_all_tables */
       if (thd->lex->describe &&
@@ -6613,8 +6660,13 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
+#ifdef HAVE_EVENT_SCHEDULER
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
+#else
+  {"EVENTS", events_fields_info, create_schema_table,
+   0, make_old_format, 0, -1, -1, 0, 0},
+#endif
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0, 0},
   {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
@@ -6705,17 +6757,15 @@ int initialize_schema_table(st_plugin_int *plugin)
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
-      goto err;
+      plugin->data= NULL;
+      my_free(schema_table, MYF(0));
+      DBUG_RETURN(1);
     }
     
     /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name= plugin->name.str;
   }
-
   DBUG_RETURN(0);
-err:
-  my_free(schema_table, MYF(0));
-  DBUG_RETURN(1);
 }
 
 int finalize_schema_table(st_plugin_int *plugin)

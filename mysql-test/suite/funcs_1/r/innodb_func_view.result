@@ -35,10 +35,10 @@ my_bigint = -9223372036854775808,
 my_decimal = -9999999999999999999999999999999999.999999999999999999999999999999 ,
 my_double = -1.7976931348623E+308;
 INSERT INTO t1_values SET
-my_char_30 = '<--------30 characters------->', 
+my_char_30 = '<--------30 characters------->',
 my_varchar_1000 = CONCAT('<---------1000 characters',
 RPAD('',965,'-'),'--------->'),
-my_binary_30 = '<--------30 characters------->', 
+my_binary_30 = '<--------30 characters------->',
 my_varbinary_1000 = CONCAT('<---------1000 characters',
 RPAD('',965,'-'),'--------->'),
 my_datetime = '9999-12-31 23:59:59',
@@ -50,23 +50,23 @@ my_bigint = 9223372036854775807,
 my_decimal = +9999999999999999999999999999999999.999999999999999999999999999999 ,
 my_double = 1.7976931348623E+308;
 INSERT INTO t1_values SET
-my_char_30 = ' ---äÖüß@µ*$-- ', 
-my_varchar_1000 = ' ---äÖüß@µ*$-- ', 
-my_binary_30 = ' ---äÖüß@µ*$-- ', 
-my_varbinary_1000 = ' ---äÖüß@µ*$-- ', 
+my_char_30 = ' ---äÖüß@µ*$-- ',
+my_varchar_1000 = ' ---äÖüß@µ*$-- ',
+my_binary_30 = ' ---äÖüß@µ*$-- ',
+my_varbinary_1000 = ' ---äÖüß@µ*$-- ',
 my_datetime = '2004-02-29 23:59:59',
 my_date = '2004-02-29',
 my_timestamp = '2004-02-29 23:59:59',
 my_time = '13:00:00',
 my_year = 2000,
-my_bigint = 0,  	 
+my_bigint = 0,  	
 my_decimal = 0.0,
 my_double = 0;
 INSERT INTO t1_values SET
-my_char_30 = '-1', 
-my_varchar_1000 = '-1', 
-my_binary_30 = '-1', 
-my_varbinary_1000 = '-1', 
+my_char_30 = '-1',
+my_varchar_1000 = '-1',
+my_binary_30 = '-1',
+my_varbinary_1000 = '-1',
 my_datetime = '2005-06-28 10:00:00',
 my_date = '2005-06-28',
 my_timestamp = '2005-06-28 10:00:00',
@@ -152,21 +152,21 @@ my_double = -0.33333333E+4;
 some statements disabled because of
 Bug#5913 Traditional mode: BIGINT range not correctly delimited
 --------------------------------------------------------------------------------
-SET @my_select = 'SELECT CONVERT(my_char_30 USING utf8), 
+SET @my_select = 'SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_varchar_1000 USING utf8), 
+SET @my_select = 'SELECT CONVERT(my_varchar_1000 USING utf8),
 my_varchar_1000, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_binary_30 USING utf8), 
+SET @my_select = 'SELECT CONVERT(my_binary_30 USING utf8),
 my_binary_30, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_varbinary_1000 USING utf8), 
+SET @my_select = 'SELECT CONVERT(my_varbinary_1000 USING utf8),
 my_varbinary_1000, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_char_30 USING koi8r), 
+SET @my_select = 'SELECT CONVERT(my_char_30 USING koi8r),
 my_char_30, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_varchar_1000 USING koi8r), 
+SET @my_select = 'SELECT CONVERT(my_varchar_1000 USING koi8r),
 my_varchar_1000, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_binary_30 USING koi8r), 
+SET @my_select = 'SELECT CONVERT(my_binary_30 USING koi8r),
 my_binary_30, id FROM t1_values';
-SET @my_select = 'SELECT CONVERT(my_varbinary_1000 USING koi8r), 
+SET @my_select = 'SELECT CONVERT(my_varbinary_1000 USING koi8r),
 my_varbinary_1000, id FROM t1_values';
 SET @my_select = 'SELECT BIT_LENGTH(my_char_30),
 my_char_30, id FROM t1_values';
@@ -180,15 +180,15 @@ SET @my_select = 'SELECT INSTR(my_char_30, ''char''),
 my_char_30, id FROM t1_values';
 SET @my_select = 'SELECT LCASE(my_varchar_1000),
 my_varchar_1000, id FROM t1_values';
-SET @my_select = 
+SET @my_select =
 'SELECT LEFT(my_char_30, 2), my_char_30, id FROM t1_values';
-SET @my_select = 
+SET @my_select =
 'SELECT LEFT(my_varchar_1000, 2), my_varchar_1000, id FROM t1_values';
-SET @my_select = 
+SET @my_select =
 'SELECT LEFT(my_binary_30, 2), my_binary_30, id FROM t1_values';
-SET @my_select = 
+SET @my_select =
 'SELECT LEFT(my_varbinary_1000, 2), my_varbinary_1000, id FROM t1_values';
-SET @my_select = 
+SET @my_select =
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', my_bigint), my_bigint, id FROM t1_values';
 SET @my_select =
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', my_decimal), my_decimal, id FROM t1_values';
@@ -202,9 +202,10 @@ SET @my_select = 'SELECT LENGTH(my_binary_30),
 my_binary_30, id FROM t1_values';
 SET @my_select = 'SELECT LENGTH(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values';
-SELECT 'äÄ@' INTO OUTFILE '../tmp/func_view.dat';
-SET @my_select = 
-'SELECT LOAD_FILE(''../tmp/func_view.dat''), id FROM t1_values';
+SET @my_select =
+'SELECT LOAD_FILE(''<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt'')
+           AS my_col,
+        id FROM t1_values';
 SET @my_select = 'SELECT LOCATE(''char'', my_char_30),
 my_char_30, id FROM t1_values';
 SET @my_select = 'SELECT LOCATE(''char'', my_varchar_1000),
@@ -810,36 +811,40 @@ WHERE select_id = 157 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT LOAD_FILE('../tmp/func_view.dat'), id FROM t1_values;
-SELECT LOAD_FILE('../tmp/func_view.dat'), id FROM t1_values
+CREATE VIEW v1 AS SELECT LOAD_FILE('<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt')
+           AS my_col,
+        id FROM t1_values;
+SELECT LOAD_FILE('<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt')
+           AS my_col,
+        id FROM t1_values
 WHERE select_id = 156 OR select_id IS NULL order by id;
-LOAD_FILE('../tmp/func_view.dat')	id
-äÄ@
+my_col	id
+Here is content from load_file
 	1
-äÄ@
+Here is content from load_file
 	2
-äÄ@
+Here is content from load_file
 	3
-äÄ@
+Here is content from load_file
 	4
-äÄ@
+Here is content from load_file
 	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select load_file('../tmp/func_view.dat') AS `LOAD_FILE('../tmp/func_view.dat')`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select load_file('<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt') AS `my_col`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 156 OR select_id IS NULL) order by id;
-LOAD_FILE('../tmp/func_view.dat')	id
-äÄ@
+my_col	id
+Here is content from load_file
 	1
-äÄ@
+Here is content from load_file
 	2
-äÄ@
+Here is content from load_file
 	3
-äÄ@
+Here is content from load_file
 	4
-äÄ@
+Here is content from load_file
 	5
 DROP VIEW v1;
 
@@ -1013,10 +1018,10 @@ SELECT LEFT(my_binary_30, 2), my_binary_30, id FROM t1_values
 WHERE select_id = 147 OR select_id IS NULL order by id;
 LEFT(my_binary_30, 2)	my_binary_30	id
 NULL	NULL	1
-  	                              	2
+		2
 <-	<--------30 characters------->	3
- -	 ---äÖüß@µ*$--           	4
--1	-1                            	5
+ -	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(`t1_values`.`my_binary_30`,2) AS `LEFT(my_binary_30, 2)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -1141,10 +1146,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 141 OR select_id IS NULL order by id;
 BIT_LENGTH(my_binary_30)	my_binary_30	id
 NULL	NULL	1
-240	                              	2
+240		2
 240	<--------30 characters------->	3
-240	 ---äÖüß@µ*$--           	4
-240	-1                            	5
+240	 ---äÖüß@µ*$-- 	4
+240	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select bit_length(`t1_values`.`my_binary_30`) AS `BIT_LENGTH(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -1453,10 +1458,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 129 OR select_id IS NULL order by id;
 IFNULL(my_binary_30,'IS_NULL')	my_binary_30	id
 IS_NULL	NULL	1
-                              	                              	2
+		2
 <--------30 characters------->	<--------30 characters------->	3
- ---äÖüß@µ*$--           	 ---äÖüß@µ*$--           	4
--1                            	-1                            	5
+ ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_binary_30`,'IS_NULL') AS `IFNULL(my_binary_30,'IS_NULL')`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -1793,10 +1798,10 @@ WHERE select_id = 117 OR select_id IS NULL order by id;
 IF(my_binary_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_binary_30	id
 IS     NULL	NULL	1
-IS NOT NULL	                              	2
+IS NOT NULL		2
 IS NOT NULL	<--------30 characters------->	3
-IS NOT NULL	 ---äÖüß@µ*$--           	4
-IS NOT NULL	-1                            	5
+IS NOT NULL	 ---äÖüß@µ*$-- 	4
+IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_binary_30`),'IS     NULL','IS NOT NULL') AS `IF(my_binary_30 IS NULL, 'IS     NULL',
@@ -2113,10 +2118,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 105 OR select_id IS NULL order by id;
 IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE')	my_binary_30	id
 IS NOT TRUE	NULL	1
-IS NOT TRUE	                              	2
+IS NOT TRUE		2
 IS NOT TRUE	<--------30 characters------->	3
-IS NOT TRUE	 ---äÖüß@µ*$--           	4
-IS     TRUE	-1                            	5
+IS NOT TRUE	 ---äÖüß@µ*$-- 	4
+IS     TRUE	-1	5
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: ''
 Warning	1292	Truncated incorrect DOUBLE value: '<--------30 characters------->'
@@ -2200,9 +2205,9 @@ Warning	1292	Truncated incorrect DOUBLE value: ' ---����@�*$--           '
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING koi8r), 
+CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING koi8r),
 my_varbinary_1000, id FROM t1_values;
-SELECT CONVERT(my_varbinary_1000 USING koi8r), 
+SELECT CONVERT(my_varbinary_1000 USING koi8r),
 my_varbinary_1000, id FROM t1_values
 WHERE select_id = 102 OR select_id IS NULL order by id;
 CONVERT(my_varbinary_1000 USING koi8r)	my_varbinary_1000	id
@@ -2226,17 +2231,17 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING koi8r), 
+CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING koi8r),
 my_binary_30, id FROM t1_values;
-SELECT CONVERT(my_binary_30 USING koi8r), 
+SELECT CONVERT(my_binary_30 USING koi8r),
 my_binary_30, id FROM t1_values
 WHERE select_id = 101 OR select_id IS NULL order by id;
 CONVERT(my_binary_30 USING koi8r)	my_binary_30	id
 NULL	NULL	1
-                              	                              	2
+		2
 <--------30 characters------->	<--------30 characters------->	3
- ---???????�@??*$--           	 ---äÖüß@µ*$--           	4
--1                            	-1                            	5
+ ---???????�@??*$-- 	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using koi8r) AS `CONVERT(my_binary_30 USING koi8r)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2252,9 +2257,9 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING koi8r), 
+CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING koi8r),
 my_varchar_1000, id FROM t1_values;
-SELECT CONVERT(my_varchar_1000 USING koi8r), 
+SELECT CONVERT(my_varchar_1000 USING koi8r),
 my_varchar_1000, id FROM t1_values
 WHERE select_id = 100 OR select_id IS NULL order by id;
 CONVERT(my_varchar_1000 USING koi8r)	my_varchar_1000	id
@@ -2278,9 +2283,9 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING koi8r), 
+CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING koi8r),
 my_char_30, id FROM t1_values;
-SELECT CONVERT(my_char_30 USING koi8r), 
+SELECT CONVERT(my_char_30 USING koi8r),
 my_char_30, id FROM t1_values
 WHERE select_id = 99 OR select_id IS NULL order by id;
 CONVERT(my_char_30 USING koi8r)	my_char_30	id
@@ -2304,9 +2309,9 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING utf8), 
+CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING utf8),
 my_varbinary_1000, id FROM t1_values;
-SELECT CONVERT(my_varbinary_1000 USING utf8), 
+SELECT CONVERT(my_varbinary_1000 USING utf8),
 my_varbinary_1000, id FROM t1_values
 WHERE select_id = 98 OR select_id IS NULL order by id;
 CONVERT(my_varbinary_1000 USING utf8)	my_varbinary_1000	id
@@ -2330,17 +2335,17 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING utf8), 
+CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING utf8),
 my_binary_30, id FROM t1_values;
-SELECT CONVERT(my_binary_30 USING utf8), 
+SELECT CONVERT(my_binary_30 USING utf8),
 my_binary_30, id FROM t1_values
 WHERE select_id = 97 OR select_id IS NULL order by id;
 CONVERT(my_binary_30 USING utf8)	my_binary_30	id
 NULL	NULL	1
-                              	                              	2
+		2
 <--------30 characters------->	<--------30 characters------->	3
- ---����@�*$--           	 ---äÖüß@µ*$--           	4
--1                            	-1                            	5
+ ---����@�*$-- 	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using utf8) AS `CONVERT(my_binary_30 USING utf8)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2356,9 +2361,9 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING utf8), 
+CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING utf8),
 my_varchar_1000, id FROM t1_values;
-SELECT CONVERT(my_varchar_1000 USING utf8), 
+SELECT CONVERT(my_varchar_1000 USING utf8),
 my_varchar_1000, id FROM t1_values
 WHERE select_id = 96 OR select_id IS NULL order by id;
 CONVERT(my_varchar_1000 USING utf8)	my_varchar_1000	id
@@ -2382,9 +2387,9 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING utf8), 
+CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values;
-SELECT CONVERT(my_char_30 USING utf8), 
+SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values
 WHERE select_id = 95 OR select_id IS NULL order by id;
 CONVERT(my_char_30 USING utf8)	my_char_30	id
@@ -2673,10 +2678,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 85 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS UNSIGNED INTEGER)	my_binary_30	id
 NULL	NULL	1
-0	                              	2
+0		2
 0	<--------30 characters------->	3
-0	 ---äÖüß@µ*$--           	4
-18446744073709551615	-1                            	5
+0	 ---äÖüß@µ*$-- 	4
+18446744073709551615	-1	5
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
@@ -3037,10 +3042,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 73 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS SIGNED INTEGER)	my_binary_30	id
 NULL	NULL	1
-0	                              	2
+0		2
 0	<--------30 characters------->	3
-0	 ---äÖüß@µ*$--           	4
--1	-1                            	5
+0	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
@@ -3397,11 +3402,11 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 61 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS DECIMAL(37,2))	my_binary_30	id
 NULL	NULL	1
-0.00	                              	2
+0.00		2
 0.00	<--------30 characters------->	3
-0.00	 ---äÖüß@µ*$--           	4
--1.00	-1                            	5
--3333.33	-3333.3333                    	28
+0.00	 ---äÖüß@µ*$-- 	4
+-1.00	-1	5
+-3333.33	-3333.3333	28
 Warnings:
 Error	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ''
@@ -3755,11 +3760,11 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 50 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS TIME)	my_binary_30	id
 NULL	NULL	1
-00:00:00	                              	2
+00:00:00		2
 00:00:00	<--------30 characters------->	3
--00:00:00	 ---äÖüß@µ*$--           	4
-NULL	-1                            	5
-41:58:00	1 17:58                       	22
+-00:00:00	 ---äÖüß@µ*$-- 	4
+NULL	-1	5
+41:58:00	1 17:58	22
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: '<--------30 characters------->'
@@ -4131,11 +4136,11 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 39 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS DATETIME)	my_binary_30	id
 NULL	NULL	1
-NULL	                              	2
+NULL		2
 NULL	<--------30 characters------->	3
-NULL	 ---äÖüß@µ*$--           	4
-NULL	-1                            	5
-2005-06-27 17:58:00	2005-06-27 17:58              	16
+NULL	 ---äÖüß@µ*$-- 	4
+NULL	-1	5
+2005-06-27 17:58:00	2005-06-27 17:58	16
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
@@ -4501,11 +4506,11 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 28 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS DATE)	my_binary_30	id
 NULL	NULL	1
-NULL	                              	2
+NULL		2
 NULL	<--------30 characters------->	3
-NULL	 ---äÖüß@µ*$--           	4
-NULL	-1                            	5
-2005-06-27	2005-06-27                    	10
+NULL	 ---äÖüß@µ*$-- 	4
+NULL	-1	5
+2005-06-27	2005-06-27	10
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 Warning	1292	Incorrect datetime value: '<--------30 characters------->'
@@ -4851,10 +4856,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 16 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS CHAR)	my_binary_30	id
 NULL	NULL	1
-                              	                              	2
+		2
 <--------30 characters------->	<--------30 characters------->	3
- ---äÖüß@µ*$--           	 ---äÖüß@µ*$--           	4
--1                            	-1                            	5
+ ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as char charset latin1) AS `CAST(my_binary_30 AS CHAR)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -5163,10 +5168,10 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 4 OR select_id IS NULL order by id;
 CAST(my_binary_30 AS BINARY)	my_binary_30	id
 NULL	NULL	1
-                              	                              	2
+		2
 <--------30 characters------->	<--------30 characters------->	3
- ---äÖüß@µ*$--           	 ---äÖüß@µ*$--           	4
--1                            	-1                            	5
+ ---äÖüß@µ*$-- 	 ---äÖüß@µ*$-- 	4
+-1	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as char charset binary) AS `CAST(my_binary_30 AS BINARY)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci

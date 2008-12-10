@@ -262,7 +262,7 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
     m_resource_limit[0].m_min = pages;
   }
   
-  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %dMb initial: %dMb",
+  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %ldMb initial: %ldMb",
                       alloc_less_memory,
                       (sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
                       (sizeof(Alloc_page)*pages)>>20);
