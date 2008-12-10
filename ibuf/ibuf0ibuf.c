@@ -3462,6 +3462,23 @@ ibuf_insert(
 
 	ut_a(!dict_index_is_clust(index));
 
+	if (UNIV_LIKELY(op != IBUF_OP_DELETE)) {
+		/* If another thread buffers an insert on a page while
+		the purge is in progress, the purge for the same page
+		must not be buffered, because it could remove a record
+		that was re-inserted later.
+
+		We do not call this in the IBUF_OP_DELETE case,
+		because that would always trigger the buffer pool
+		watch during purge and thus prevent the buffering of
+		delete operations.  We assume that IBUF_OP_DELETE
+		operations are only issued by the purge thread. */
+
+		buf_pool_mutex_enter();
+		buf_pool_watch_notify(space, page_no);
+		buf_pool_mutex_exit();
+	}
+
 	entry_size = rec_get_converted_size(index, entry, 0);
 
 	if (entry_size >= (page_get_free_space_of_empty(comp) / 2)) {
