@@ -139,17 +139,18 @@ doit (int ksize __attribute__((__unused__))) {
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    int i;
     doit(53);
-    toku_malloc_cleanup();
-    return 0;
-    //Skip remaining tests.
 #if 0
+    //Skip remaining tests. 
+{
+    int i;
+
     for (i=1; i<NODESIZE/2; i++) {
 	printf("extrasize=%d\n", i);
 	doit(i);
     }
+}
+#endif
     toku_malloc_cleanup();
     return 0;
-#endif
 }
