@@ -981,6 +981,14 @@ UNIV_INTERN
 void
 buf_pool_watch_clear(void);
 /*======================*/
+/************************************************************************
+Set watch occurred flag. */
+UNIV_INTERN
+void
+buf_pool_watch_notify(
+/*==================*/
+	ulint	space,	/* in: space id of page read in */
+	ulint	offset);/* in: offset of page read in */
 /********************************************************************
 Check if the given page is being watched and has been read to the buffer
 pool. */
