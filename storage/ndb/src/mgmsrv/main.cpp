@@ -117,7 +117,7 @@ static struct my_option my_long_options[] =
   { "configdir", 256,
     "Directory for the binary configuration files",
     (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
-    GET_STR, REQUIRED_ARG, (longlong)MYSQLCLUSTERDIR, 0, 0, 0, 0, 0 },
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Write more log messages",
     (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,
