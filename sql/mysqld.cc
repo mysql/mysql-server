@@ -733,7 +733,7 @@ uint connection_count= 0;
 /* Function declarations */
 
 pthread_handler_t signal_hand(void *arg);
-static void mysql_init_variables(void);
+static int mysql_init_variables(void);
 static void get_options(int *argc,char **argv);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
@@ -783,16 +783,6 @@ static void close_connections(void)
   /* Clear thread cache */
   kill_cached_threads++;
   flush_thread_cache();
-
-  /* kill flush thread */
-  (void) pthread_mutex_lock(&LOCK_manager);
-  if (manager_thread_in_use)
-  {
-    DBUG_PRINT("quit", ("killing manager thread: 0x%lx",
-                        (ulong)manager_thread));
-   (void) pthread_cond_signal(&COND_manager);
-  }
-  (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__NETWARE__)
@@ -1196,6 +1186,7 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
+  stop_handle_manager();
   release_ddl_log();
 
   /*
@@ -3141,12 +3132,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (!rpl_filter || !binlog_filter)
   {
     sql_perror("Could not allocate replication and binlog filters");
-    exit(1);
+    return 1;
   }
 
-  if (init_thread_environment())
+  if (init_thread_environment() ||
+      mysql_init_variables())
     return 1;
-  mysql_init_variables();
 
 #ifdef HAVE_TZNAME
   {
@@ -3377,12 +3368,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_connect.value_length= strlen(opt_init_connect);
   else
     sys_init_connect.value=my_strdup("",MYF(0));
+  sys_init_connect.is_os_charset= TRUE;
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
     sys_init_slave.value_length= strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
+  sys_init_slave.is_os_charset= TRUE;
 
   /* check log options and issue warnings if needed */
   if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
@@ -3745,7 +3738,10 @@ version 5.0 and above. It is replaced by the binary log.");
       {
         /* as opt_bin_log==0, no need to free opt_bin_logname */
         if (!(opt_bin_logname= my_strdup(opt_update_logname, MYF(MY_WME))))
-          exit(EXIT_OUT_OF_MEMORY);
+        {
+          sql_print_error("Out of memory");
+          return EXIT_OUT_OF_MEMORY;
+        }
         sql_print_error("The update log is no longer supported by MySQL in \
 version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
 with --log-bin='%s' instead.",opt_bin_logname);
@@ -4032,17 +4028,6 @@ server.");
 
 
 #ifndef EMBEDDED_LIBRARY
-
-static void create_maintenance_thread()
-{
-  if (flush_time && flush_time != ~(ulong) 0L)
-  {
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
-      sql_print_warning("Can't create thread to manage maintenance");
-  }
-}
-
 
 static void create_shutdown_thread()
 {
@@ -4358,7 +4343,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   execute_ddl_log_recovery();
 
   create_shutdown_thread();
-  create_maintenance_thread();
+  start_handle_manager();
 
   if (Events::init(opt_noacl))
     unireg_abort(1);
@@ -4368,6 +4353,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  Service.SetRunning();
+#endif
 
 
   /* Signal threads waiting for server to be started */
@@ -7348,6 +7336,7 @@ SHOW_VAR status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+#ifndef EMBEDDED_LIBRARY
 static void print_version(void)
 {
   set_server_version();
@@ -7359,7 +7348,6 @@ static void print_version(void)
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
-#ifndef EMBEDDED_LIBRARY
 static void usage(void)
 {
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
@@ -7424,7 +7412,7 @@ To see what values a running MySQL server is using, type\n\
     as these are initialized by my_getopt.
 */
 
-static void mysql_init_variables(void)
+static int mysql_init_variables(void)
 {
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
@@ -7505,7 +7493,10 @@ static void mysql_init_variables(void)
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
                                                 default_key_cache_base.length)))
-    exit(1);
+  {
+    sql_print_error("Cannot allocate the keycache");
+    return 1;
+  }
   /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
 
@@ -7648,6 +7639,7 @@ static void mysql_init_variables(void)
     tmpenv = DEFAULT_MYSQL_HOME;
   (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
+  return 0;
 }
 
 
@@ -7708,9 +7700,11 @@ mysqld_get_one_option(int optid,
 #endif
     break;
 #include <sslopt-case.h>
+#ifndef EMBEDDED_LIBRARY
   case 'V':
     print_version();
     exit(0);
+#endif /*EMBEDDED_LIBRARY*/
   case 'W':
     if (!argument)
       global_system_variables.log_warnings++;
@@ -7939,14 +7933,14 @@ mysqld_get_one_option(int optid,
 	if (gethostname(myhostname,sizeof(myhostname)) < 0)
 	{
 	  sql_perror("Can't start server: cannot get my own hostname!");
-	  exit(1);
+          return 1;
 	}
 	ent=gethostbyname(myhostname);
       }
       if (!ent)
       {
 	sql_perror("Can't start server: cannot resolve hostname!");
-	exit(1);
+        return 1;
       }
       my_bind_addr = (ulong) ((in_addr*)ent->h_addr_list[0])->s_addr;
     }
@@ -8143,8 +8137,8 @@ mysqld_get_one_option(int optid,
   case OPT_FT_BOOLEAN_SYNTAX:
     if (ft_boolean_check_syntax_string((uchar*) argument))
     {
-      fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
-      exit(1);
+      sql_print_error("Invalid ft-boolean-syntax string: %s\n", argument);
+      return 1;
     }
     strmake(ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;

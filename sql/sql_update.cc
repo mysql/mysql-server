@@ -715,6 +715,11 @@ int mysql_update(THD *thd,
     else
       table->file->unlock_row();
     thd->row_count++;
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
   }
   dup_key_found= 0;
   /*
@@ -1469,6 +1474,32 @@ multi_update::initialize_tables(JOIN *join)
       }
     }
     table->prepare_for_position();
+
+    /*
+      enable uncacheable flag if we update a view with check option
+      and check option has a subselect, otherwise, the check option
+      can be evaluated after the subselect was freed as independent
+      (See full_local in JOIN::join_free()).
+    */
+    if (table_ref->check_option && !join->select_lex->uncacheable)
+    {
+      SELECT_LEX_UNIT *tmp_unit;
+      SELECT_LEX *sl;
+      for (tmp_unit= join->select_lex->first_inner_unit();
+           tmp_unit;
+           tmp_unit= tmp_unit->next_unit())
+      {
+        for (sl= tmp_unit->first_select(); sl; sl= sl->next_select())
+        {
+          if (sl->master_unit()->item)
+          {
+            join->select_lex->uncacheable|= UNCACHEABLE_CHECKOPTION;
+            goto loop_end;
+          }
+        }
+      }
+    }
+loop_end:
 
     if (table == first_table_for_update && table_ref->check_option)
     {

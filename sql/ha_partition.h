@@ -325,6 +325,10 @@ public:
     Call to unlock rows not to be updated in transaction
   */
   virtual void unlock_row();
+  /*
+    Call to hint about semi consistent read
+  */
+  virtual void try_semi_consistent_read(bool);
 
   /*
     -------------------------------------------------------------------------
