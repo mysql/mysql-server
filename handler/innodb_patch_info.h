@@ -17,17 +17,18 @@
 #pragma interface                      /* gcc class implementation */
 #endif
 
-struct innodb_patch {
+struct innodb_enhancement {
        const char *file;
        const char *name;
        const char *version;
        const char *author;
        const char *license;
        const char *comment;
-}innodb_patches[] = {
-{"innodb_show_patches.patch","I_S.INNODB_PATCHES","1.0","Percona","GPLv2",""},
-{"innodb_show_status.patch","Fixes to SHOW INNODB STATUS","1.0","Percona","GPLv2","Memory information and lock info fixes"},
-{"innodb_io_patches.patch","Patches to InnoDB IO","1.0","Percona","GPLv2",""},
-{"innodb_rw_lock.patch","InnoDB RW-lock fixes","1.0","Percona","GPLv2","Useful for 8+ cores SMP systems"},
+       const char *link;
+}innodb_enhancements[] = {
+{"innodb_show_enhancements","I_S.PERCONA_INNODB_ENHANCEMENTS","1.0","Percona","GPLv2","","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_show_enhancements"},
+{"innodb_show_status","Improvements to SHOW INNODB STATUS","1.0","Percona","GPLv2","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_show_status"},
+{"innodb_io","Improvements to InnoDB IO","1.0","Percona","GPLv2","","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_io"},
+{"innodb_rw_lock","InnoDB RW-lock fixes","1.0","Percona","GPLv2","Useful for 8+ cores SMP systems","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_rw_lock"},
 {NULL, NULL, NULL, NULL, NULL, NULL}
 };

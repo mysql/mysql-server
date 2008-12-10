@@ -257,6 +257,15 @@ static ST_FIELD_INFO	innodb_patches_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define IDX_PATCH_LINK			5
+	{STRUCT_FLD(field_name,		"link"),
+	 STRUCT_FLD(field_length,	255),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -293,14 +302,15 @@ innodb_patches_fill(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 	
-	for (i = 0; innodb_patches[i].file; i++) {
+	for (i = 0; innodb_enhancements[i].file; i++) {
 
-   	field_store_string(fields[0],innodb_patches[i].file);
-   	field_store_string(fields[1],innodb_patches[i].name);
-   	field_store_string(fields[2],innodb_patches[i].version);
-   	field_store_string(fields[3],innodb_patches[i].author);
-   	field_store_string(fields[4],innodb_patches[i].license);
-   	field_store_string(fields[5],innodb_patches[i].comment);
+   	field_store_string(fields[0],innodb_enhancements[i].file);
+   	field_store_string(fields[1],innodb_enhancements[i].name);
+   	field_store_string(fields[2],innodb_enhancements[i].version);
+   	field_store_string(fields[3],innodb_enhancements[i].author);
+   	field_store_string(fields[4],innodb_enhancements[i].license);
+   	field_store_string(fields[5],innodb_enhancements[i].comment);
+   	field_store_string(fields[6],innodb_enhancements[i].link);
 
 	if (schema_table_store_record(thd, table)) {
 		status = 1;
@@ -344,7 +354,7 @@ UNIV_INTERN struct st_mysql_plugin      i_s_innodb_patches =
 
         /* plugin name */
         /* const char* */
-        STRUCT_FLD(name, "INNODB_PATCHES"),
+        STRUCT_FLD(name, "PERCONA_INNODB_ENHANCEMENTS"),
 
         /* plugin author (for SHOW PLUGINS) */
         /* const char* */
@@ -352,7 +362,7 @@ UNIV_INTERN struct st_mysql_plugin      i_s_innodb_patches =
 
         /* general descriptive text (for SHOW PLUGINS) */
         /* const char* */
-        STRUCT_FLD(descr, "Patches applied to InnoDB plugin"),
+        STRUCT_FLD(descr, "Enhancements applied to InnoDB plugin"),
 
         /* the plugin license (PLUGIN_LICENSE_XXX) */
         /* int */
