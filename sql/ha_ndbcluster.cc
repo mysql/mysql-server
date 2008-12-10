@@ -7564,18 +7564,20 @@ retry_temporary_error1:
 int ha_ndbcluster::delete_table(const char *name)
 {
   THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb;
   int error= 0;
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if (thd == injector_thd)
+  if ((thd == injector_thd) ||
+      (thd_ndb->options & TNO_NO_NDB_DROP_TABLE))
   {
     /*
       Table was dropped remotely is already
       dropped inside ndb.
       Just drop local files.
-     */
+    */
     DBUG_RETURN(handler::delete_table(name));
   }
 
@@ -7599,9 +7601,9 @@ int ha_ndbcluster::delete_table(const char *name)
     goto err;
   }
 
-  ndb= get_ndb(thd);
+  ndb= thd_ndb->ndb;
 
-  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+  if (!ndbcluster_has_global_schema_lock(thd_ndb))
     DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
                 (thd, "ha_ndbcluster::delete_table"));
 
@@ -8723,6 +8725,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   DBUG_PRINT("enter", ("db: %s", db));
   { // extra bracket to avoid gcc 2.95.3 warning
   uint i;
+  Thd_ndb *thd_ndb;
   Ndb* ndb;
   char name[FN_REFLEN];
   HASH ndb_tables, ok_tables;
@@ -8730,6 +8733,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  thd_ndb= get_thd_ndb(thd);
 
   if (dir)
     DBUG_RETURN(0); // Discover of databases not yet supported
@@ -8906,12 +8910,17 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char*) db;
       table_list.alias= table_list.table_name= (char*)file_name_str;
+      /*
+        set TNO_NO_NDB_DROP_TABLE flag to not drop ndb table.
+        it should not exist anyways
+      */
+      thd_ndb->options|= TNO_NO_NDB_DROP_TABLE;
       (void)mysql_rm_table_part2(thd, &table_list,
                                  FALSE,   /* if_exists */
                                  FALSE,   /* drop_temporary */ 
                                  FALSE,   /* drop_view */
                                  TRUE     /* dont_log_query*/);
-
+      thd_ndb->options&= ~TNO_NO_NDB_DROP_TABLE;
       /* Clear error message that is returned when table is deleted */
       thd->clear_error();
     }
