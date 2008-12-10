@@ -78,6 +78,10 @@ my_bool my_init(void)
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
   init_glob_errs();
+  my_progname_short= "unknown";
+  if (my_progname)
+    my_progname_short= my_progname + dirname_length(my_progname);
+
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
@@ -161,6 +165,9 @@ void my_end(int infoflag)
   free_charsets();
   my_error_unregister_all();
   my_once_free();
+#ifdef THREAD
+  my_thread_destroy_mutex();
+#endif
 
   if ((infoflag & MY_GIVE_INFO) || print_info)
   {
@@ -191,6 +198,10 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
 #if defined(SAFEMALLOC)
+    /* Wait for other threads to free mysys_var */
+#ifdef THREAD
+    (void) my_wait_for_other_threads_to_die(1);
+#endif
     TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
 #elif defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
@@ -232,6 +243,13 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   my_init_done=0;
 } /* my_end */
 
+#ifndef DBUG_OFF
+/* Dummy tag function for debugging */
+
+void my_debug_put_break_here(void)
+{
+}
+#endif
 
 #ifdef __WIN__
 

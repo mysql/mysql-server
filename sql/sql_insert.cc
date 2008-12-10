@@ -387,10 +387,9 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
   downgrade the lock in handler::store_lock() method.
 */
 
-static
-void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
-                       enum_duplicates duplic,
-                       bool is_multi_insert)
+void upgrade_lock_type_for_insert(THD *thd, thr_lock_type *lock_type,
+                                  enum_duplicates duplic,
+                                  bool is_multi_insert)
 {
   if (duplic == DUP_UPDATE ||
       duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT)
@@ -559,6 +558,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
+  bool using_bulk_insert= 0;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -586,8 +586,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     Upgrade lock type if the requested lock is incompatible with
     the current connection mode or table operation.
   */
-  upgrade_lock_type(thd, &table_list->lock_type, duplic,
-                    values_list.elements > 1);
+  upgrade_lock_type_for_insert(thd, &table_list->lock_type, duplic,
+                               values_list.elements > 1);
 
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
@@ -724,8 +724,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (duplic != DUP_ERROR || ignore)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    if (!thd->prelocked_mode)
+    if (!thd->prelocked_mode && values_list.elements > 1)
+    {
+      using_bulk_insert= 1;
       table->file->ha_start_bulk_insert(values_list.elements);
+    }
   }
 
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
@@ -839,7 +842,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       auto_inc values from the delayed_insert thread as they share TABLE.
     */
     table->file->ha_release_auto_increment();
-    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
+    if (using_bulk_insert && table->file->ha_end_bulk_insert(0) && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -1172,7 +1175,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   bool res= 0;
   table_map map= 0;
   DBUG_ENTER("mysql_prepare_insert");
-  DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
+  DBUG_PRINT("enter", ("table_list 0x%lx  table 0x%lx  view %d",
 		       (ulong)table_list, (ulong)table,
 		       (int)insert_into_view));
   /* INSERT should have a SELECT or VALUES clause */
@@ -1726,7 +1729,8 @@ public:
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
     bzero((char*) &info,sizeof(info));
-    pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
+    my_pthread_mutex_init(&mutex, MY_MUTEX_INIT_FAST, "Delayed_insert::mutex",
+                          0);
     pthread_cond_init(&cond,NULL);
     pthread_cond_init(&cond_client,NULL);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -2231,7 +2235,8 @@ void kill_delayed_threads(void)
 	  in handle_delayed_insert()
 	*/
 	if (&di->mutex != di->thd.mysys_var->current_mutex)
-	  pthread_mutex_lock(di->thd.mysys_var->current_mutex);
+	  my_pthread_mutex_lock(di->thd.mysys_var->current_mutex, 
+                                MYF_NO_DEADLOCK_DETECTION);
 	pthread_cond_broadcast(di->thd.mysys_var->current_cond);
 	if (&di->mutex != di->thd.mysys_var->current_mutex)
 	  pthread_mutex_unlock(di->thd.mysys_var->current_mutex);
@@ -2477,12 +2482,13 @@ end:
     clients
   */
 
-  close_thread_tables(thd);			// Free the table
   di->table=0;
   di->dead= 1;                                  // If error
   thd->killed= THD::KILL_CONNECTION;	        // If error
-  pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
+
+  close_thread_tables(thd);			// Free the table
+  pthread_cond_broadcast(&di->cond_client);	// Safety
 
   pthread_mutex_lock(&LOCK_delayed_create);	// Because of delayed_get_table
   pthread_mutex_lock(&LOCK_delayed_insert);	
@@ -3155,7 +3161,7 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
+  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert(0) : 0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3230,7 +3236,7 @@ void select_insert::abort() {
       before.
     */
     if (!thd->prelocked_mode)
-      table->file->ha_end_bulk_insert();
+      table->file->ha_end_bulk_insert(0);
 
     /*
       If at least one row has been inserted/modified and will stay in

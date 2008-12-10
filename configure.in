@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.31)
+AM_INIT_AUTOMAKE(mysql, 5.1.31-maria-alpha)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -250,8 +250,6 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 
 # Not critical since the generated file is distributed
 AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
-AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
-AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 
 #check the return type of sprintf
 AC_MSG_CHECKING("return type of sprintf")
@@ -817,7 +815,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  memory.h pwd.h select.h \
- stdlib.h stddef.h \
+ stdlib.h stddef.h sys/stat.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
@@ -1727,40 +1725,42 @@ fi
 AC_ARG_WITH([atomic-ops],
 	    AC_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
 	    [Implement atomic operations using pthread rwlocks or atomic CPU
-             instructions for multi-processor (default) or uniprocessor
-             configuration]), , [with_atomic_ops=smp])
+             instructions for multi-processor or uniprocessor
+             configuration. By default gcc built-in sync functions are used,
+             if available and 'smp' configuration otherwise.]))
 case "$with_atomic_ops" in
   "up") AC_DEFINE([MY_ATOMIC_MODE_DUMMY], [1],
                   [Assume single-CPU mode, no concurrency]) ;;
   "rwlocks") AC_DEFINE([MY_ATOMIC_MODE_RWLOCKS], [1],
                   [Use pthread rwlocks for atomic ops]) ;;
   "smp") ;;
+  "")
+    AC_CACHE_CHECK([whether the compiler provides atomic builtins],
+                   [mysql_cv_gcc_atomic_builtins], [AC_TRY_RUN([
+      int main()
+      {
+        int foo= -10; int bar= 10;
+        if (!__sync_fetch_and_add(&foo, bar) || foo)
+          return -1;
+        bar= __sync_lock_test_and_set(&foo, bar);
+        if (bar || foo != 10)
+          return -1;
+        bar= __sync_val_compare_and_swap(&bar, foo, 15);
+        if (bar)
+          return -1;
+        return 0;
+      }
+    ], [mysql_cv_gcc_atomic_builtins=yes_but_disabled],
+       [mysql_cv_gcc_atomic_builtins=no],
+       [mysql_cv_gcc_atomic_builtins=no])])
+
+    if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
+      AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
+                [Define to 1 if compiler provides atomic builtins.])
+    fi
+   ;;
    *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
 esac
-
-AC_CACHE_CHECK([whether the compiler provides atomic builtins],
-               [mysql_cv_gcc_atomic_builtins], [AC_TRY_RUN([
-  int main()
-  {
-    int foo= -10; int bar= 10;
-    if (!__sync_fetch_and_add(&foo, bar) || foo)
-      return -1;
-    bar= __sync_lock_test_and_set(&foo, bar);
-    if (bar || foo != 10)
-      return -1;
-    bar= __sync_val_compare_and_swap(&bar, foo, 15);
-    if (bar)
-      return -1;
-    return 0;
-  }
-], [mysql_cv_gcc_atomic_builtins=yes],
-   [mysql_cv_gcc_atomic_builtins=no],
-   [mysql_cv_gcc_atomic_builtins=no])])
-
-if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
-  AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
-            [Define to 1 if compiler provides atomic builtins.])
-fi
 
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
@@ -2052,7 +2052,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
-  sighold sigset sigthreadmask port_create sleep \
+  sighold sigset sigthreadmask port_create sleep thr_yield \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd)
@@ -2396,12 +2396,23 @@ MYSQL_CHECK_SSL
 # functions tested above
 #--------------------------------------------------------------------
 
+# MyISAM is declared here,not in storage/myisam/plug.in
+# because we want it to be the first in the list of plugins,
+# Maria needs it. When it'll be fixed the declaration below can
+# be removed and restored (uncommented) in storage/myisam/plug.in
+MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
+        [Traditional non-transactional MySQL tables])
+MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
+MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
+MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(myisam, [ha_myisam.cc])
+
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
 
 dnl -- ndbcluster requires partition to be enabled
 
-MYSQL_CONFIGURE_PLUGINS([none])
+MYSQL_CONFIGURE_PLUGINS([default])
 
 # Only build client code?
 AC_ARG_WITH(server,
@@ -2624,8 +2635,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-
-
 # Include man pages, if desired, adapted to the configured parts.
 if test X"$with_man" = Xyes
 then
@@ -2719,14 +2728,12 @@ if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
-  # Avoid _PROGRAMS names
-  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
-  AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
   sql_server="vio sql"
 fi
+AM_CONDITIONAL(THREAD, test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no")
 
 # "innochecksum" is not in the "innobase/" subdirectory, but should be switched
 AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$with_plugin_innobase" = Xyes])

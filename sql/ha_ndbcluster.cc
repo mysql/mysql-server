@@ -4230,11 +4230,11 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
 /**
   End of an insert.
 */
-int ha_ndbcluster::end_bulk_insert()
+int ha_ndbcluster::end_bulk_insert(bool abort)
 {
   int error= 0;
-
   DBUG_ENTER("end_bulk_insert");
+
   // Check if last inserts need to be flushed
   if (m_bulk_insert_not_flushed)
   {
@@ -4586,7 +4586,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
 
-  DBUG_PRINT("enter", ("this: 0x%lx  thd: 0x%lx  thd_ndb: %lx  "
+  DBUG_PRINT("enter", ("this: 0x%lx  thd: 0x%lx  thd_ndb: 0x%lx  "
                        "thd_ndb->lock_count: %d",
                        (long) this, (long) thd, (long) thd_ndb,
                        thd_ndb->lock_count));

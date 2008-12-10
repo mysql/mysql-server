@@ -459,7 +459,8 @@ public:
     group_optimized_away= 0;
 
     all_fields= fields_arg;
-    fields_list= fields_arg;
+    if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
+      fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
@@ -547,7 +548,7 @@ bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item **func_ptr);
-bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
+bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,

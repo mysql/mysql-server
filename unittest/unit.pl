@@ -14,8 +14,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-use Test::Harness qw(&runtests $verbose);
+use Test::Harness;
 use File::Find;
+use Getopt::Long;
 
 use strict;
 
@@ -31,9 +32,18 @@ unit - Run unit tests in directory
 
 =head1 SYNOPSIS
 
-  unit run
+  unit [--[no]big] [--[no]verbose] run [tests to run]
 
 =cut
+
+my $big= $ENV{'MYTAP_CONFIG'} eq 'big';
+
+my $result = GetOptions (
+  "big!"        => \$big,
+  "verbose!"    => \$Test::Harness::verbose,
+);
+
+$ENV{'MYTAP_CONFIG'} = $big ? 'big' : '';
 
 my $cmd = shift;
 
@@ -56,7 +66,7 @@ sub _find_test_files (@) {
     my @files;
     find sub { 
         $File::Find::prune = 1 if /^SCCS$/;
-        push(@files, $File::Find::name) if -x _ && /-t\z/;
+        push(@files, $File::Find::name) if -x _ && (/-t\z/ || /-t\.exe\z/);
     }, @dirs;
     return @files;
 }
@@ -92,7 +102,7 @@ sub run_cmd (@) {
     if (@files > 0) {
         # Removing the first './' from the file names
         foreach (@files) { s!^\./!! }
-        $ENV{'HARNESS_PERL_SWITCHES'} .= q" -e 'exec @ARGV'";
+        $ENV{'HARNESS_PERL_SWITCHES'} .= ' -e "exec @ARGV"';
         runtests @files;
     }
 }

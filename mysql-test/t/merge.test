@@ -2,6 +2,11 @@
 # Test of MERGE TABLES
 #
 
+# MERGE tables require MyISAM tables
+let $default=`select @@global.storage_engine`;
+set global storage_engine=myisam;
+set session storage_engine=myisam;
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
@@ -612,8 +617,8 @@ ALTER TABLE m1 UNION=(t1);
 ALTER TABLE m1 UNION=();
 SHOW CREATE TABLE m1;
 DROP TABLE t1, m1;
-
 --echo End of 5.0 tests
+
 
 #
 # Bug #8306: TRUNCATE leads to index corruption 
@@ -751,7 +756,7 @@ DROP TABLE t1, t2;
 # *after* the administration task. It was terminated by UNLOCK TABLES only.
 #
 # This is the same test case as for
-# Bug#26867 - LOCK TABLES + REPAIR + merge table result in memory/cpu hogging
+# Bug#26867 - LOCK TABLES REPAIR + merge table result in memory/cpu hogging
 #
 #
 CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
@@ -1423,3 +1428,9 @@ EXPLAIN SELECT COUNT(*) FROM t4;
 DROP TABLE t1, t2, t3, t4;
 
 --echo End of 5.1 tests
+
+--disable_result_log
+--disable_query_log
+eval set global storage_engine=$default;
+--enable_result_log
+--enable_query_log

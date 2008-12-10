@@ -1,0 +1,34 @@
+select @@global.maria_recover;
+@@global.maria_recover
+BACKUP
+set global maria_recover=off;
+select @@global.maria_recover;
+@@global.maria_recover
+OFF
+set global maria_recover=default;
+select @@global.maria_recover;
+@@global.maria_recover
+OFF
+set global maria_recover=normal;
+select @@global.maria_recover;
+@@global.maria_recover
+NORMAL
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t1 (a varchar(1000), index(a)) engine=maria;
+insert into t1 values("ThursdayMorningsMarket");
+flush table t1;
+insert into t1 select concat(a,'b') from t1 limit 1;
+select * from t_corrupted2;
+a
+ThursdayMorningsMarket
+Warnings:
+Error	145	t_corrupted2' is marked as crashed and should be repaired
+Error	1194	t_corrupted2' is marked as crashed and should be repaired
+Error	1034	1 client is using or hasn't closed the table properly
+Error	1034	Wrong base information on indexpage at page: 1
+select * from t_corrupted2;
+a
+ThursdayMorningsMarket
+drop database mysqltest;

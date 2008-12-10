@@ -134,9 +134,11 @@ static const char *ha_myisammrg_exts[] = {
 };
 extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                         MI_COLUMNDEF **recinfo_out, uint *records_out);
-extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+extern int check_definition(MI_KEYDEF *t1_keyinfo,
+                            MI_COLUMNDEF *t1_recinfo,
                             uint t1_keys, uint t1_recs,
-                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                            MI_KEYDEF *t2_keyinfo,
+                            MI_COLUMNDEF *t2_recinfo,
                             uint t2_keys, uint t2_recs, bool strict);
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name);
@@ -402,14 +404,14 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 */
 
 int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
-                       uint test_if_locked)
+                       uint test_if_locked_arg)
 {
   DBUG_ENTER("ha_myisammrg::open");
   DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
-  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked));
+  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked_arg));
 
   /* Save for later use. */
-  this->test_if_locked= test_if_locked;
+  test_if_locked= test_if_locked_arg;
 
   /* retrieve children table list. */
   my_errno= 0;
@@ -877,7 +879,8 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   /* As this is just a mapping, we don't have to force the underlying
      tables to be closed */
   if (operation == HA_EXTRA_FORCE_REOPEN ||
-      operation == HA_EXTRA_PREPARE_FOR_DROP)
+      operation == HA_EXTRA_PREPARE_FOR_DROP ||
+      operation == HA_EXTRA_PREPARE_FOR_RENAME)
     return 0;
   return myrg_extra(file,operation,0);
 }

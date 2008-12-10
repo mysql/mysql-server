@@ -383,6 +383,7 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
 
 void net_end_statement(THD *thd)
 {
+  DBUG_ENTER("net_end_statement");
   DBUG_ASSERT(! thd->main_da.is_sent);
 
   /* Can not be true, but do not take chances in production. */
@@ -419,6 +420,7 @@ void net_end_statement(THD *thd)
     break;
   }
   thd->main_da.is_sent= TRUE;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -475,9 +477,10 @@ void Protocol::init(THD *thd_arg)
   for the error.
 */
 
-void Protocol::end_partial_result_set(THD *thd)
+void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd, thd->server_status, 0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status,
+               0 /* no warnings, we're inside SP */);
 }
 
 
@@ -788,8 +791,8 @@ bool Protocol_text::store(const char *from, size_t length,
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
-  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %s", field_pos,
-                      field_count, from));
+  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %*s", field_pos,
+                      field_count, (int) length, from));
   DBUG_ASSERT(field_pos < field_count);
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||

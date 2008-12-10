@@ -1,5 +1,6 @@
 #
 # Bug#20023 mysql_change_user() resets the value of SQL_BIG_SELECTS
+# The replace's are here to fix things for 32 bit systems
 #
 
 --echo Bug#20023
@@ -26,6 +27,10 @@ SET @@session.max_join_size = default;
 --echo change_user
 --change_user
 SELECT @@session.sql_big_selects;
+--replace_result 4294967295 18446744073709551615
+SELECT @@global.max_join_size;
+--replace_result 4294967295 18446744073709551615
+SELECT @@session.max_join_size;
 
 #
 # Bug#31418 User locks misfunctioning after mysql_change_user()

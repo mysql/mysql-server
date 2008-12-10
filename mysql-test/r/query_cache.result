@@ -42,9 +42,9 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-create table t1 (a int not null);
+create table t1 (a int not null) ENGINE=MyISAM;
 insert into t1 values (1),(2),(3);
-create table t2 (a int not null);
+create table t2 (a int not null) ENGINE=MyISAM;
 insert into t2 values (4),(5),(6);
 create table t3 (a int not null) engine=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
 select * from t3;
@@ -460,7 +460,7 @@ Qcache_queries_in_cache	2
 drop table t1;
 flush query cache;
 reset query cache;
-create table t1 (a int not null);
+create table t1 (a int not null) ENGINE=MyISAM;
 insert into t1 values (1),(2),(3);
 select * from t1;
 a

@@ -28,6 +28,10 @@
 #include "events.h"
 #include "sql_trigger.h"
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include "../storage/maria/ha_maria.h"
+#endif
+
 /**
   @defgroup Runtime_Environment Runtime Environment
   @{
@@ -170,6 +174,9 @@ bool end_active_trans(THD *thd)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    ha_maria::implicit_commit(thd, TRUE);
+#endif
   }
   thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
@@ -356,7 +363,7 @@ void init_update_queries(void)
 
 bool is_update_query(enum enum_sql_command command)
 {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  DBUG_ASSERT(command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
 }
 
@@ -367,7 +374,7 @@ bool is_update_query(enum enum_sql_command command)
 */
 bool is_log_table_write_query(enum enum_sql_command command)
 {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  DBUG_ASSERT(command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
 
@@ -703,6 +710,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
              xa_state_names[thd->transaction.xid_state.xa_state]);
     DBUG_RETURN(1);
   }
+  thd->lex->start_transaction_opt= 0; /* for begin_trans() */
   switch (completion) {
   case COMMIT:
     /*
@@ -1203,6 +1211,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *beginning_of_next_stmt= (char*) end_of_stmt;
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+      ha_maria::implicit_commit(thd, FALSE);
+#endif
+
       net_end_statement(thd);
       query_cache_end_of_result(thd);
       /*
@@ -1438,7 +1450,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR current_global_status_var;
     ulong uptime;
+#if defined(SAFEMALLOC) || !defined(EMBEDDED_LIBRARY)
     uint length;
+#endif
     ulonglong queries_per_second1000;
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1451,22 +1465,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
       queries_per_second1000= thd->query_id * LL(1000) / uptime;
 
-    length= my_snprintf((char*) buff, buff_len - 1,
-                        "Uptime: %lu  Threads: %d  Questions: %lu  "
-                        "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %u.%u",
-                        uptime,
-                        (int) thread_count, (ulong) thd->query_id,
-                        current_global_status_var.long_query_count,
-                        current_global_status_var.opened_tables,
-                        refresh_version,
-                        cached_open_tables(),
-                        (uint) (queries_per_second1000 / 1000),
-                        (uint) (queries_per_second1000 % 1000));
-#ifdef EMBEDDED_LIBRARY
-    /* Store the buffer in permanent memory */
-    my_ok(thd, 0, 0, buff);
+#if defined(SAFEMALLOC) || !defined(EMBEDDED_LIBRARY)
+    length=
 #endif
+      my_snprintf((char*) buff, buff_len - 1,
+                  "Uptime: %lu  Threads: %d  Questions: %lu  "
+                  "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
+                  "Open tables: %u  Queries per second avg: %u.%u",
+                  uptime,
+                  (int) thread_count, (ulong) thd->query_id,
+                  current_global_status_var.long_query_count,
+                  current_global_status_var.opened_tables,
+                  refresh_version,
+                  cached_open_tables(),
+                  (uint) (queries_per_second1000 / 1000),
+                  (uint) (queries_per_second1000 % 1000));
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
     {
@@ -1477,7 +1490,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                            (sf_malloc_max_memory+1023L)/1024L);
     }
 #endif
-#ifndef EMBEDDED_LIBRARY
+#ifdef EMBEDDED_LIBRARY
+    /* Store the buffer in permanent memory */
+    my_ok(thd, 0, 0, buff);
+#else
     VOID(my_net_write(net, (uchar*) buff, length));
     VOID(net_flush(net));
     thd->main_da.disable_status();
@@ -1562,6 +1578,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->killed= THD::NOT_KILLED;
     thd->mysys_var->abort= 0;
   }
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  ha_maria::implicit_commit(thd, FALSE);
+#endif
 
   net_end_statement(thd);
   query_cache_end_of_result(thd);
@@ -2273,8 +2293,8 @@ mysql_execute_command(THD *thd)
     my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
     goto error;
 #endif
-    break;
   }
+  break;
   case SQLCOM_SHOW_NEW_MASTER:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -2721,10 +2741,12 @@ end_with_restore_list:
 #endif /* HAVE_REPLICATION */
 
   case SQLCOM_ALTER_TABLE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
     {
       ulong priv=0;
       ulong priv_needed= ALTER_ACL;
+
+      DBUG_ASSERT(first_table == all_tables && first_table != 0);
+
       /*
         Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
         so we have to use a copy of this structure to make execution
@@ -2734,7 +2756,7 @@ end_with_restore_list:
       HA_CREATE_INFO create_info(lex->create_info);
       Alter_info alter_info(lex->alter_info, thd->mem_root);
 
-      if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+      if (thd->is_fatal_error) /* OOM creating a copy of alter_info */
         goto error;
       /*
         We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
@@ -4822,11 +4844,6 @@ create_sp_error:
   if (!(sql_command_flags[lex->sql_command] & CF_HAS_ROW_COUNT))
     thd->row_count_func= -1;
 
-  goto finish;
-
-error:
-  res= TRUE;
-
 finish:
   if (need_start_waiting)
   {
@@ -4837,6 +4854,11 @@ finish:
     start_waiting_global_read_lock(thd);
   }
   DBUG_RETURN(res || thd->is_error());
+
+error:
+  thd_proc_info(thd, "query end");
+  res= TRUE;
+  goto finish;
 }
 
 
@@ -5025,8 +5047,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     (see SQLCOM_GRANT case, mysql_execute_command() function) and
     set db_is_pattern according to 'dont_check_global_grants' value.
   */
-  bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
-                        dont_check_global_grants);
+  bool  db_is_pattern= ((want_access & GRANT_ACL) && dont_check_global_grants);
   ulong dummy;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
@@ -5504,6 +5525,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
+  DBUG_ASSERT(thd->transaction.on);
   thd->free_list= 0;
   thd->select_number= 1;
   /*
@@ -7521,15 +7543,14 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
 
 /*
   Check if path does not contain mysql data home directory
+
   SYNOPSIS
     test_if_data_home_dir()
     dir                     directory
-    conv_home_dir           converted data home directory
-    home_dir_len            converted data home directory length
 
   RETURN VALUES
     0	ok
-    1	error  
+    1	error ;  Given path contains data directory
 */
 C_MODE_START
 
@@ -7557,11 +7578,17 @@ int test_if_data_home_dir(const char *dir)
                         mysql_unpacked_real_data_home_len,
                         (const uchar*) mysql_unpacked_real_data_home,
                         mysql_unpacked_real_data_home_len))
+      {
+        DBUG_PRINT("error", ("Path is part of mysql_real_data_home"));
         DBUG_RETURN(1);
+      }
     }
     else if (!memcmp(path, mysql_unpacked_real_data_home,
                      mysql_unpacked_real_data_home_len))
+    {
+      DBUG_PRINT("error", ("Path is part of mysql_real_data_home"));
       DBUG_RETURN(1);
+    }
   }
   DBUG_RETURN(0);
 }
@@ -7622,6 +7649,7 @@ bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx)
 {
+  bool mysql_parse_status;
   DBUG_ASSERT(thd->m_parser_state == NULL);
 
   /* Backup creation context. */
@@ -7637,7 +7665,7 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
-  bool mysql_parse_status= MYSQLparse(thd) != 0;
+  mysql_parse_status= MYSQLparse(thd) != 0;
 
   /* Check that if MYSQLparse() failed, thd->is_error() is set. */
 

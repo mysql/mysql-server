@@ -32,6 +32,11 @@
 %{?_with_cluster:%define CLUSTER_BUILD 1}
 %{!?_with_cluster:%define CLUSTER_BUILD 0}
 
+# use "rpmbuild --with maria" or "rpm --define '_with_maria 1'" (for RPM 3.x)
+# to build with maria support (off by default)
+%{?_with_maria:%define MARIA_BUILD 1}
+%{!?_with_maria:%define MARIA_BUILD 0}
+
 %if %{STATIC_BUILD}
 %define release 0
 %else
@@ -254,6 +259,26 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	LDFLAGS=\"$MYSQL_BUILD_LDFLAGS\" \
 	./configure \
  	    $* \
+	    --with-innodb \
+%if %{CLUSTER_BUILD}
+	    --with-ndbcluster \
+%else
+  	    --without-ndbcluster \
+%endif
+	    --with-archive-storage-engine \
+	    --with-csv-storage-engine \
+	    --with-blackhole-storage-engine \
+%if %{FEDERATED_BUILD}
+	    --with-federated-storage-engine \
+%else
+   	    --without-federated-storage-engine \
+%endif
+%if %{MARIA_BUILD}
+	    --with-plugin-maria \
+	    --with-maria-tmp-tables \
+%endif
+	    --with-partition \
+	    --with-big-tables \
 	    --with-mysqld-ldflags='-static' \
 	    --with-client-ldflags='-static' \
 	    --with-zlib-dir=bundled \
@@ -335,19 +360,12 @@ CFLAGS=\"$CFLAGS\" \
 CXXFLAGS=\"$CXXFLAGS\" \
 BuildMySQL "--enable-shared \
 		--with-debug \
-		--with-innodb \
-%if %{CLUSTER_BUILD}
-		--with-ndbcluster \
+%if %{MARIA_BUILD}
+		--with-comment=\"MySQL Community Server - Debug [Maria] (GPL)\" \
 %else
-		--without-ndbcluster \
+		--with-comment=\"MySQL Community Server - Debug (GPL)\" \
 %endif
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-blackhole-storage-engine \
-		--with-federated-storage-engine \
-	        --with-partition \
-	        --with-big-tables \
-		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
+")
 
 # We might want to save the config log file
 if test -n "$MYSQL_DEBUGCONFLOG_DEST"
@@ -367,20 +385,13 @@ fi
 CFLAGS=\"$CFLAGS\" \
 CXXFLAGS=\"$CXXFLAGS\" \
 BuildMySQL "--enable-shared \
-		--with-innodb \
-%if %{CLUSTER_BUILD}
-		--with-ndbcluster \
-%else
-		--without-ndbcluster \
-%endif
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-blackhole-storage-engine \
-		--with-federated-storage-engine \
-	        --with-partition \
 		--with-embedded-server \
-	        --with-big-tables \
-		--with-comment=\"MySQL Community Server (GPL)\"")
+%if %{MARIA_BUILD}
+		--with-comment=\"MySQL Community Server [Maria] (GPL)\" \
+%else
+		--with-comment=\"MySQL Community Server (GPL)\" \
+%endif
+")
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
 then

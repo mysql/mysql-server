@@ -15,7 +15,7 @@
 
 /* Test av locking */
 
-#ifndef __NETWARE__
+#if !(defined (__NETWARE_) || defined (_WIN32)) /*no fork() in Windows*/
 
 #include "myisam.h"
 #include <sys/types.h>
@@ -488,14 +488,14 @@ int test_update(MI_INFO *file,int id,int lock_type)
   return 0;
 }
 
-#else /* __NETWARE__ */
+#else /* __NETWARE__ || __WIN__*/
 
 #include <stdio.h>
 
-main()
+int main()
 {
-	fprintf(stderr,"this test has not been ported to NetWare\n");
+	fprintf(stderr,"this test has not been ported to NetWare or Windows\n");
 	return 0;
 }
 
-#endif /* __NETWARE__ */
+#endif /* __NETWARE__ || __WIN__ */

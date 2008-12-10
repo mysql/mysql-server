@@ -1,7 +1,7 @@
 SET @start_value = @@global.sync_frm;
 SELECT @start_value;
 @start_value
-1
+VAL
 '#--------------------FN_DYNVARS_169_01------------------------#'
 SET @@global.sync_frm = FALSE;
 SET @@global.sync_frm = DEFAULT;
@@ -94,4 +94,4 @@ ERROR 42S22: Unknown column 'sync_frm' in 'field list'
 SET @@global.sync_frm = @start_value;
 SELECT @@global.sync_frm;
 @@global.sync_frm
-1
+VAL

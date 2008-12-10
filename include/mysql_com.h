@@ -416,11 +416,7 @@ void my_net_set_read_timeout(NET *net, uint timeout);
 struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
 	       unsigned int timeout);
-
-struct rand_struct {
-  unsigned long seed1,seed2,max_value;
-  double max_value_dbl;
-};
+struct my_rnd_struct;
 
 #ifdef __cplusplus
 }
@@ -428,8 +424,13 @@ struct rand_struct {
 
   /* The following is for user defined functions */
 
-enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
+enum Item_result
+{
+  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
+#ifdef MYSQL_SERVER
+  ,IMPOSSIBLE_RESULT  /* Yes, we know this is ugly, don't tell us */
+#endif
+};
 
 typedef struct st_udf_args
 {
@@ -474,10 +475,8 @@ extern "C" {
   implemented in sql/password.c
 */
 
-void randominit(struct rand_struct *, unsigned long seed1,
-                unsigned long seed2);
-double my_rnd(struct rand_struct *);
-void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
+void create_random_string(char *to, unsigned int length,
+                          struct my_rnd_struct *rand_st);
 
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);

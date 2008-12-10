@@ -1686,7 +1686,7 @@ create:
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
                                   ER_WARN_USING_OTHER_HANDLER,
                                   ER(ER_WARN_USING_OTHER_HANDLER),
-                                  ha_resolve_storage_engine_name(lex->create_info.db_type),
+                                  hton_name(lex->create_info.db_type)->str,
                                   $5->table.str);
             }
           }
@@ -12182,6 +12182,16 @@ table_lock:
 lock_option:
           READ_SYM               { $$= TL_READ_NO_INSERT; }
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
+        | WRITE_SYM CONCURRENT
+          {
+#ifdef HAVE_QUERY_CACHE
+            if (Lex->sphead != 0)
+             $$= TL_WRITE_DEFAULT;
+           else
+#endif
+             $$= TL_WRITE_CONCURRENT_INSERT;
+          }
+
         | LOW_PRIORITY WRITE_SYM { $$= TL_WRITE_LOW_PRIORITY; }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;

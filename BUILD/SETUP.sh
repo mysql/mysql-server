@@ -147,6 +147,7 @@ base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
+base_configs="$base_configs --with-plugin-maria --with-maria-tmp-tables"
 
 if test -d "$path/../cmd-line-utils/readline"
 then

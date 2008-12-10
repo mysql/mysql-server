@@ -60,7 +60,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   int error,flag;
   uint nod_flag;
   uchar *keypos,*maxpos;
-  uchar lastkey[MI_MAX_KEY_BUFF],*buff;
+  uchar lastkey[HA_MAX_KEY_BUFF],*buff;
   DBUG_ENTER("_mi_search");
   DBUG_PRINT("enter",("pos: %lu  nextflag: %u  lastpos: %lu",
                       (ulong) pos, nextflag, (ulong) info->lastpos));
@@ -242,7 +242,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 {
   int flag;
   uint nod_flag,length,not_used[2];
-  uchar t_buff[MI_MAX_KEY_BUFF],*end;
+  uchar t_buff[HA_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_mi_seq_search");
 
   LINT_INIT(flag); LINT_INIT(length);
@@ -296,7 +296,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   int key_len_skip, seg_len_pack, key_len_left;
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
-  uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
+  uchar tt_buff[HA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
   uchar *saved_from, *saved_to, *saved_vseg;
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
@@ -409,7 +409,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
       }
       from+=keyseg->length;
       page=from+nod_flag;
-      length=from-vseg;
+      length= (uint) (from-vseg);
     }
 
     if (page > end)
@@ -816,7 +816,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 	    DBUG_PRINT("error",
                        ("Found too long null packed key: %u of %u at 0x%lx",
                         length, keyseg->length, (long) *page_pos));
-	    DBUG_DUMP("key",(char*) *page_pos,16);
+	    DBUG_DUMP("key",*page_pos,16);
             mi_print_error(keyinfo->share, HA_ERR_CRASHED);
 	    my_errno=HA_ERR_CRASHED;
 	    return 0;
@@ -873,7 +873,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       {
         DBUG_PRINT("error",("Found too long packed key: %u of %u at 0x%lx",
                             length, keyseg->length, (long) *page_pos));
-        DBUG_DUMP("key",(char*) *page_pos,16);
+        DBUG_DUMP("key",*page_pos,16);
         mi_print_error(keyinfo->share, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         return 0;                               /* Error */
@@ -920,7 +920,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
   DBUG_ENTER("_mi_get_binary_pack_key");
 
   page= *page_pos;
-  page_end=page+MI_MAX_KEY_BUFF+1;
+  page_end=page+HA_MAX_KEY_BUFF+1;
   start_key=key;
 
   /*
@@ -945,7 +945,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       DBUG_PRINT("error",
                  ("Found too long binary packed key: %u of %u at 0x%lx",
                   length, keyinfo->maxlength, (long) *page_pos));
-      DBUG_DUMP("key",(char*) *page_pos,16);
+      DBUG_DUMP("key",*page_pos,16);
       mi_print_error(keyinfo->share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);                                 /* Wrong key */
@@ -1238,7 +1238,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 {
   int error;
   uint nod_flag;
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_search_next");
   DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: %lu",
                       nextflag, (ulong) info->lastpos,
@@ -1802,13 +1802,13 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     }
     /* Check how many characters are identical to next key */
     key= s_temp->key+next_length;
+    s_temp->prev_length= 0;
     while (*key++ == *next_key++) ;
     if ((ref_length= (uint) (key - s_temp->key)-1) == next_length)
     {
       s_temp->next_key_pos=0;
       return length;                            /* can't pack next key */
     }
-    s_temp->prev_length=0;
     s_temp->n_ref_length=ref_length;
     return (int) (length-(ref_length - next_length) - next_length_pack +
                   get_pack_length(ref_length));

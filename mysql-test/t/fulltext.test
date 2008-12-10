@@ -445,3 +445,12 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(b)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
 DROP TABLE t1;
+
+#
+# bug#34374 - mysql generates incorrect warning
+#
+create table t1(a text,b date,fulltext index(a))engine=myisam;
+insert into t1 set a='water',b='2008-08-04';
+select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
+drop table t1;
+show warnings;

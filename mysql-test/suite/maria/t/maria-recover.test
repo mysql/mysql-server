@@ -1,0 +1,56 @@
+# Test of the --maria-recover option.
+
+--source include/have_maria.inc
+
+select @@global.maria_recover;
+set global maria_recover=off;
+select @@global.maria_recover;
+set global maria_recover=default;
+select @@global.maria_recover;
+set global maria_recover=normal;
+select @@global.maria_recover;
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+
+use mysqltest;
+
+create table t1 (a varchar(1000), index(a)) engine=maria;
+insert into t1 values("ThursdayMorningsMarket");
+
+flush table t1; # put index page on disk
+insert into t1 select concat(a,'b') from t1 limit 1;
+# now t1 has its open_count>0 and so will t2_corrupted.
+# It is not named t2 because the corruption messages which will be put
+# in the error log need to be detected in mtr_process.pl, and we want
+# a specific name to do specific detection (don't want to ignore
+# any corruption messages of other tests using "t2" as table).
+
+copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.frm $MYSQLTEST_VARDIR/master-data/mysqltest/t_corrupted2.frm;
+copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.MAD $MYSQLTEST_VARDIR/master-data/mysqltest/t_corrupted2.MAD;
+copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.MAI $MYSQLTEST_VARDIR/master-data/mysqltest/t_corrupted2.MAI;
+
+# Ruin the index file.
+# If maria-block-size is smaller than the default, the corruption
+# messages will differ.
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/master-data/mysqltest/t_corrupted2.MAI";
+    open(FILE, "+<", $fname) or die;
+    my $whatever= ("\xAB" x 100);
+    sysseek (FILE, 8192, 0) or die;
+    syswrite (FILE, $whatever) or die;
+    close FILE;
+EOF
+
+# line below will be removed
+disable_ps_protocol;
+replace_regex /Table.*t_corrupted2/t_corrupted2/ ;
+select * from t_corrupted2; # should show corruption and repair messages
+enable_ps_protocol;
+select * from t_corrupted2; # should show just rows
+
+drop database mysqltest;

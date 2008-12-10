@@ -24,6 +24,15 @@
 }
 
 {
+   pthread allocate_tls memory loss
+   Memcheck:Leak
+   fun:calloc
+   obj:/lib*/ld*.so
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
    pthead_exit memory loss 1
    Memcheck:Leak
    fun:malloc
@@ -268,18 +277,6 @@
 }
 
 #
-# Warning from my_thread_init becasue mysqld dies before kill thread exists
-#
-
-{
-   my_thread_init kill thread memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:my_thread_init
-   fun:kill_server_thread
-}
-
-#
 # Leaks reported in _dl_* internal functions on Linux amd64 / glibc2.3.2.
 #
 
@@ -370,6 +367,78 @@
    Memcheck:Addr4
    fun:__sigjmp_save
    fun:__libc_start_main
+}
+
+{
+   dlclose memory loss from udf_free
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z8udf_freev
+}
+
+{
+   dlclose memory loss from plugin
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:plugin_dl_del(st_mysql_lex_string const*)
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+#
+# Reading wrong addresses on SuSe Linux 10.3 32 bit
+#
+
+{
+   Reading wrong data in libc_dlopen
+   Memcheck:Addr4
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
 }
 
 #
@@ -478,6 +547,8 @@
    fun:_ZN19TransporterRegistry11performSendEv
    fun:_ZN19TransporterRegistry14forceSendCheckEi
 }
+
+#
 # Warning when printing stack trace (to suppress some not needed warnings)
 #
 

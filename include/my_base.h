@@ -195,7 +195,9 @@ enum ha_extra_function {
     begin and end of a statement.
   */
   HA_EXTRA_ATTACH_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN
+  HA_EXTRA_DETACH_CHILDREN,
+  /* Inform handler we will force a close as part of flush */
+  HA_EXTRA_PREPARE_FOR_FORCED_CLOSE
 };
 
 /* Compatible option, to be deleted in 6.0 */
@@ -238,7 +240,10 @@ enum ha_base_keytype {
 
 #define HA_MAX_KEYTYPE	31		/* Must be log2-1 */
 
-	/* These flags kan be OR:ed to key-flag */
+/*
+  These flags kan be OR:ed to key-flag
+  Note that these can only be up to 16 bits!
+*/
 
 #define HA_NOSAME		 1	/* Set if not dupplicated records */
 #define HA_PACK_KEY		 2	/* Pack string key to previous key */
@@ -249,11 +254,13 @@ enum ha_base_keytype {
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 #define HA_GENERATED_KEY	8192	/* Automaticly generated key */
+#define HA_RTREE_INDEX	        16384	/* For RTREE search */
 
         /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | \
                          HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
-                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
+                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY | \
+                         HA_RTREE_INDEX)
 
 #define HA_KEY_HAS_PART_KEY_SEG 65536   /* Key contains partial segments */
 
@@ -307,8 +314,10 @@ enum ha_base_keytype {
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
 #define HA_OPTION_NULL_FIELDS		1024
 #define HA_OPTION_PAGE_CHECKSUM		2048
-#define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
-#define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
+#define HA_OPTION_TEMP_COMPRESS_RECORD  (1L << 15)      /* set by isamchk */
+#define HA_OPTION_READ_ONLY_DATA        (1L << 16)      /* Set by isamchk */
+#define HA_OPTION_NO_CHECKSUM           (1L << 17)
+#define HA_OPTION_NO_DELAY_KEY_WRITE    (1L << 18)
 
 	/* Bits in flag to create() */
 
@@ -431,17 +440,17 @@ enum ha_base_keytype {
 /* row not actually updated: new values same as the old values */
 #define HA_ERR_RECORD_IS_THE_SAME 169
 /* It is not possible to log this statement */
-#define HA_ERR_LOGGING_IMPOSSIBLE 170    /* It is not possible to log this
-                                            statement */
-#define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to
-                                            illegal data being read */
+#define HA_ERR_LOGGING_IMPOSSIBLE 170
+/* The event was corrupt, leading to illegal data being read */
+#define HA_ERR_CORRUPT_EVENT      171
 #define HA_ERR_NEW_FILE	          172	 /* New file format */
-#define HA_ERR_ROWS_EVENT_APPLY   173    /* The event could not be processed
-                                            no other hanlder error happened */
+/* The event could not be processed no other handler error happened */
+#define HA_ERR_ROWS_EVENT_APPLY   173
 #define HA_ERR_INITIALIZATION     174    /* Error during initialization */
 #define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
 #define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
-#define HA_ERR_LAST               176    /* Copy of last error nr */
+#define HA_ERR_ROW_NOT_VISIBLE    177
+#define HA_ERR_LAST               177    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -474,6 +483,14 @@ typedef ulong key_part_map;
 #define MBR_DATA        16384
 #define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
 #define SEARCH_NULL_ARE_NOT_EQUAL 65536	/* NULL in keys are not equal */
+/* Use this when inserting a key in position order */
+#define SEARCH_INSERT   SEARCH_NULL_ARE_NOT_EQUAL*2
+/* Only part of the key is specified while reading */
+#define SEARCH_PART_KEY SEARCH_INSERT*2
+/* Used when user key (key 2) contains transaction id's */
+#define SEARCH_USER_KEY_HAS_TRANSID SEARCH_PART_KEY*2
+/* Used when page key (key 1) contains transaction id's */
+#define SEARCH_PAGE_KEY_HAS_TRANSID SEARCH_USER_KEY_HAS_TRANSID*2
 
 	/* bits in opt_flag */
 #define QUICK_USED	1

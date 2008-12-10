@@ -17,13 +17,12 @@
 #pragma implementation
 #endif
 
-#include "mysql_connection.h"
-
-#include <m_string.h>
-#include <m_string.h>
 #include <my_global.h>
 #include <mysql.h>
 #include <my_sys.h>
+#include "mysql_connection.h"
+
+#include <m_string.h>
 #include <violite.h>
 
 #include "command.h"
@@ -88,7 +87,7 @@ bool Mysql_connection::init()
   {
     ulong seed1= (ulong) &rand_st + rand();
     ulong seed2= (ulong) rand() + (ulong) time(0);
-    randominit(&rand_st, seed1, seed2);
+    my_rnd_init(&rand_st, seed1, seed2);
   }
 
   /* Fill scramble - server's random message used for handshake */

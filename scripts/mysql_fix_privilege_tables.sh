@@ -94,7 +94,7 @@ parse_arguments() {
 # [mysql_install_db], and then merge with the command line arguments
 
 print_defaults=my_print_defaults
-for dir in ./bin @bindir@ @bindir@ extra $print_defaults_bindir/../bin $print_defaults_bindir/../extra
+for dir in ./extra ./bin @bindir@ @bindir@ $print_defaults_bindir/../bin $print_defaults_bindir/../extra
 do
   if test -x $dir/my_print_defaults
   then
@@ -117,7 +117,7 @@ dirname=`dirname "$0"`
 
 if test -z "$bindir"
 then
-  for i in @bindir@ $basedir/bin "$dirname/../client"
+  for i in "$dirname/../client" $basedir/bin @bindir@
   do
     if test -f $i/mysql
     then
@@ -149,8 +149,8 @@ then
 fi
 
 # Find where first mysql_fix_privilege_tables.sql is located
-for i in $basedir/support-files $basedir/share $basedir/share/mysql \
-        $basedir/scripts $pkgdatadir . "$dirname"
+for i in  "$dirname" $basedir/support-files $basedir/share \
+          $basedir/share/mysql $basedir/scripts $pkgdatadir .
 do
   if test -f $i/$file
   then

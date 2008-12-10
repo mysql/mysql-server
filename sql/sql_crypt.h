@@ -20,7 +20,7 @@
 
 class SQL_CRYPT :public Sql_alloc
 {
-  struct rand_struct rand,org_rand;
+  struct my_rnd_struct rand,org_rand;
   char decode_buff[256],encode_buff[256];
   uint shift;
   void crypt_init(ulong *seed);

@@ -150,11 +150,9 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
 {
   uint32 geom_type;
   Geometry *result;
-  char byte_order;
 
   if (data_len < SRID_SIZE + WKB_HEADER_SIZE)   // < 4 + (1 + 4)
     return NULL;
-  byte_order= data[SRID_SIZE];
   geom_type= uint4korr(data + SRID_SIZE + 1);
   if (!(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;

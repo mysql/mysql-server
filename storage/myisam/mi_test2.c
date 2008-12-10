@@ -18,12 +18,6 @@
 #ifndef USE_MY_FUNC		/* We want to be able to dbug this !! */
 #define USE_MY_FUNC
 #endif
-#ifdef DBUG_OFF
-#undef DBUG_OFF
-#endif
-#ifndef SAFEMALLOC
-#define SAFEMALLOC
-#endif
 #include "myisamdef.h"
 #include <m_ctype.h>
 #include <my_bit.h>
@@ -43,7 +37,7 @@ static void copy_key(struct st_myisam_info *info,uint inx,
 		     uchar *record,uchar *key);
 
 static	int verbose=0,testflag=0,
-	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,locking=0,
+	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,do_locking=0,
             rec_pointer_size=0,pack_fields=1,use_log=0,silent=0,
             opt_quick_mode=0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
@@ -222,7 +216,7 @@ int main(int argc, char *argv[])
     printf("- Writing key:s\n");
   if (key_cacheing)
     init_key_cache(dflt_key_cache,key_cache_block_size,key_cache_size,0,0);
-  if (locking)
+  if (do_locking)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
     mi_extra(file,HA_EXTRA_WRITE_CACHE,0);
@@ -334,9 +328,9 @@ int main(int argc, char *argv[])
       if (use_blob)
       {
 	if (i & 1)
-	  put_blob_in_record(record+blob_pos,&blob_buffer);
+	  put_blob_in_record(record2+blob_pos,&blob_buffer);
 	else
-	  bmove(record+blob_pos,read_record+blob_pos,8);
+	  bmove(record2+blob_pos,read_record+blob_pos,8);
       }
       if (mi_update(file,read_record,record2))
       {
@@ -606,7 +600,7 @@ int main(int argc, char *argv[])
     if (mi_rsame(file,read_record2,(int) i)) goto err;
     if (bcmp(read_record,read_record2,reclength) != 0)
     {
-      printf("is_rsame didn't find same record\n");
+      printf("mi_rsame didn't find same record\n");
       goto end;
     }
   }
@@ -657,10 +651,10 @@ int main(int argc, char *argv[])
       sprintf((char*) key2,"%6d",k);
 
       min_key.key= key;
-      min_key.length= USE_WHOLE_KEY;
+      min_key.keypart_map= HA_WHOLE_KEY;
       min_key.flag= HA_READ_AFTER_KEY;
       max_key.key= key2;
-      max_key.length= USE_WHOLE_KEY;
+      max_key.keypart_map= HA_WHOLE_KEY;
       max_key.flag= HA_READ_BEFORE_KEY;
       range_records= mi_records_in_range(file, 0, &min_key, &max_key);
       records=0;
@@ -713,7 +707,7 @@ int main(int argc, char *argv[])
     printf("- mi_extra(CACHE) + mi_rrnd.... + mi_extra(NO_CACHE)\n");
   if (mi_reset(file) || mi_extra(file,HA_EXTRA_CACHE,0))
   {
-    if (locking || (!use_blob && !pack_fields))
+    if (do_locking || (!use_blob && !pack_fields))
     {
       puts("got error from mi_extra(HA_EXTRA_CACHE)");
       goto end;
@@ -780,9 +774,8 @@ int main(int argc, char *argv[])
       {
 	ulong blob_length,pos;
 	uchar *ptr;
-	longget(blob_length,read_record+blob_pos+4);
-	ptr=(uchar*) blob_length;
-	longget(blob_length,read_record+blob_pos);
+	memcpy_fixed(&ptr, read_record+blob_pos+4, sizeof(ptr));
+        blob_length= uint4korr(read_record+blob_pos);
 	for (pos=0 ; pos < blob_length ; pos++)
 	{
 	  if (ptr[pos] != (uchar) (blob_length+pos))
@@ -834,9 +827,9 @@ end:
       puts("Write cacheing used");
     if (write_cacheing)
       puts("quick mode");
-    if (async_io && locking)
+    if (async_io && do_locking)
       puts("Asyncron io with locking used");
-    else if (locking)
+    else if (do_locking)
       puts("Locking used");
     if (use_blob)
       puts("blobs used");
@@ -905,7 +898,7 @@ static void get_options(int argc, char **argv)
       use_log=1;
       break;
     case 'L':
-      locking=1;
+      do_locking=1;
       break;
     case 'A':				/* use asyncron io */
       async_io=1;

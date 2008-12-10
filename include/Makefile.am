@@ -29,8 +29,8 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
 			$(HEADERS_GEN_MAKE)
 
-noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
-			heap.h my_bitmap.h my_uctype.h \
+noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
+			heap.h maria.h myisamchk.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
@@ -38,9 +38,9 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			my_handler.h my_time.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
-			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
-			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h
-
+			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
+                        atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
+                        wqueue.h waiting_threads.h
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
 
 # Remove built files and the symlinked directories

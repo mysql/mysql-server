@@ -815,7 +815,7 @@ public:
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };
 
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+
 class Item_func_uuid: public Item_str_func
 {
 public:
@@ -827,7 +827,7 @@ public:
        charset when hex(), format(), md5(), etc, and implicit
        number-to-string conversion will use 'ascii'
     */
-    max_length= UUID_LENGTH * system_charset_info->mbmaxlen;
+    max_length= MY_UUID_STRING_LENGTH * system_charset_info->mbmaxlen;
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);

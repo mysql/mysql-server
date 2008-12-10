@@ -261,13 +261,16 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info, 
-                              const char *calling_function, 
-                              const char *calling_file, 
+const char *set_thd_proc_info(THD *thd, const char *info,
+                              const char *calling_function,
+                              const char *calling_file,
                               const unsigned int calling_line)
 {
+  if (!thd)
+    thd= current_thd;
+
   const char *old_info= thd->proc_info;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line,
                            (info != NULL) ? info : "(null)"));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
@@ -407,6 +410,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 void
 Diagnostics_area::reset_diagnostics_area()
 {
+  DBUG_ENTER("reset_diagnostics_area");
 #ifdef DBUG_OFF
   can_overwrite_status= FALSE;
   /** Don't take chances in production */
@@ -420,6 +424,7 @@ Diagnostics_area::reset_diagnostics_area()
   is_sent= FALSE;
   /** Tiny reset in debug mode to see garbage right away */
   m_status= DA_EMPTY;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -433,16 +438,14 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
                                 ulonglong last_insert_id_arg,
                                 const char *message_arg)
 {
+  DBUG_ENTER("set_ok_status");
   DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
   /*
     In production, refuse to overwrite an error or a custom response
     with an OK packet.
   */
   if (is_error() || is_disabled())
     return;
-#endif
-  /** Only allowed to report success if has not yet reported an error */
 
   m_server_status= thd->server_status;
   m_total_warn_count= thd->total_warn_count;
@@ -453,6 +456,7 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
   else
     m_message[0]= '\0';
   m_status= DA_OK;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -463,17 +467,15 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
 void
 Diagnostics_area::set_eof_status(THD *thd)
 {
-  /** Only allowed to report eof if has not yet reported an error */
-
+  DBUG_ENTER("set_eof_status");
+  /* Only allowed to report eof if has not yet reported an error */
   DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
   /*
     In production, refuse to overwrite an error or a custom response
     with an EOF packet.
   */
   if (is_error() || is_disabled())
     return;
-#endif
 
   m_server_status= thd->server_status;
   /*
@@ -484,6 +486,7 @@ Diagnostics_area::set_eof_status(THD *thd)
   m_total_warn_count= thd->spcont ? 0 : thd->total_warn_count;
 
   m_status= DA_EOF;
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -494,6 +497,7 @@ void
 Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
                                    const char *message_arg)
 {
+  DBUG_ENTER("set_error_status");
   /*
     Only allowed to report error if has not yet reported a success
     The only exception is when we flush the message to the client,
@@ -510,9 +514,10 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
 #endif
 
   m_sql_errno= sql_errno_arg;
-  strmake(m_message, message_arg, sizeof(m_message) - 1);
+  strmake(m_message, message_arg, sizeof(m_message)-1);
 
   m_status= DA_ERROR;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -620,6 +625,10 @@ THD::THD()
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
+  wt_thd_lazy_init(&transaction.wt, &variables.wt_deadlock_search_depth_short,
+                                    &variables.wt_timeout_short,
+                                    &variables.wt_deadlock_search_depth_long,
+                                    &variables.wt_timeout_long);
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -661,7 +670,7 @@ THD::THD()
 
   tablespace_op=FALSE;
   tmp= sql_rnd_with_mutex();
-  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+  my_rnd_init(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
@@ -866,6 +875,7 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+  wt_thd_destroy(&transaction.wt);
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
@@ -873,7 +883,7 @@ void THD::cleanup(void)
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
-  
+
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -911,6 +921,7 @@ THD::~THD()
 #endif
   stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
+
   if (!cleanup_done)
     cleanup();
 
@@ -992,6 +1003,14 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
     *(to++)+= *(from++) - *(dec++);
 }
 
+#define SECONDS_TO_WAIT_FOR_KILL 2
+#if !defined(__WIN__) && defined(HAVE_SELECT)
+/* my_sleep() can wait for sub second times */
+#define WAIT_FOR_KILL_TRY_TIMES 20
+#else
+#define WAIT_FOR_KILL_TRY_TIMES 2
+#endif
+
 
 void THD::awake(THD::killed_state state_to_set)
 {
@@ -1046,12 +1065,35 @@ void THD::awake(THD::killed_state state_to_set)
       we issue a second KILL or the status it's waiting for happens).
       It's true that we have set its thd->killed but it may not
       see it immediately and so may have time to reach the cond_wait().
+
+      We have to do the loop with trylock, because if we would use
+      pthread_mutex_lock(), we can cause a deadlock as we are here locking
+      the mysys_var->mutex and mysys_var->current_mutex in a different order
+      than in the thread we are trying to kill.
+      We only sleep for 2 seconds as we don't want to have LOCK_delete
+      locked too long time.
+
+      There is a small change we may not succeed in aborting a thread that
+      is not yet waiting for a mutex, but as this happens only for a
+      thread that was doing something else when the kill was issued and
+      which should detect the kill flag before it starts to wait, this
+      should be good enough.
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
-      pthread_mutex_lock(mysys_var->current_mutex);
-      pthread_cond_broadcast(mysys_var->current_cond);
-      pthread_mutex_unlock(mysys_var->current_mutex);
+      uint i;
+      for (i= 0; i < WAIT_FOR_KILL_TRY_TIMES * SECONDS_TO_WAIT_FOR_KILL; i++)
+      {
+        int ret= pthread_mutex_trylock(mysys_var->current_mutex);
+        pthread_cond_broadcast(mysys_var->current_cond);
+        if (!ret)
+        {
+          /* Signal is sure to get through */
+          pthread_mutex_unlock(mysys_var->current_mutex);
+          break;
+        }
+      }
+      my_sleep(1000000L / WAIT_FOR_KILL_TRY_TIMES);
     }
     pthread_mutex_unlock(&mysys_var->mutex);
   }
@@ -1087,6 +1129,15 @@ bool THD::store_globals()
     created in another thread
   */
   thr_lock_info_init(&lock_info);
+
+#ifdef SAFE_MUTEX
+  /* Register order of mutex for wrong mutex deadlock detector */
+  pthread_mutex_lock(&LOCK_delete);
+  pthread_mutex_lock(&mysys_var->mutex);
+
+  pthread_mutex_unlock(&mysys_var->mutex);
+  pthread_mutex_unlock(&LOCK_delete);
+#endif
   return 0;
 }
 
@@ -1471,7 +1522,7 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
-  nest_level= -1;
+  nest_level= (uint) -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -2132,8 +2183,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
     if (!cache)
     {
       cache= Item_cache::get_cache(val_item);
-      switch (val_item->result_type())
-      {
+      switch (val_item->result_type()) {
       case REAL_RESULT:
 	op= &select_max_min_finder_subselect::cmp_real;
 	break;
@@ -2147,6 +2197,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
         op= &select_max_min_finder_subselect::cmp_decimal;
         break;
       case ROW_RESULT:
+      case IMPOSSIBLE_RESULT:
         // This case should never be choosen
 	DBUG_ASSERT(0);
 	op= 0;
@@ -3247,70 +3298,6 @@ THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
 				       Update_rows_log_event *);
 #endif
 
-#ifdef NOT_USED
-static char const* 
-field_type_name(enum_field_types type) 
-{
-  switch (type) {
-  case MYSQL_TYPE_DECIMAL:
-    return "MYSQL_TYPE_DECIMAL";
-  case MYSQL_TYPE_TINY:
-    return "MYSQL_TYPE_TINY";
-  case MYSQL_TYPE_SHORT:
-    return "MYSQL_TYPE_SHORT";
-  case MYSQL_TYPE_LONG:
-    return "MYSQL_TYPE_LONG";
-  case MYSQL_TYPE_FLOAT:
-    return "MYSQL_TYPE_FLOAT";
-  case MYSQL_TYPE_DOUBLE:
-    return "MYSQL_TYPE_DOUBLE";
-  case MYSQL_TYPE_NULL:
-    return "MYSQL_TYPE_NULL";
-  case MYSQL_TYPE_TIMESTAMP:
-    return "MYSQL_TYPE_TIMESTAMP";
-  case MYSQL_TYPE_LONGLONG:
-    return "MYSQL_TYPE_LONGLONG";
-  case MYSQL_TYPE_INT24:
-    return "MYSQL_TYPE_INT24";
-  case MYSQL_TYPE_DATE:
-    return "MYSQL_TYPE_DATE";
-  case MYSQL_TYPE_TIME:
-    return "MYSQL_TYPE_TIME";
-  case MYSQL_TYPE_DATETIME:
-    return "MYSQL_TYPE_DATETIME";
-  case MYSQL_TYPE_YEAR:
-    return "MYSQL_TYPE_YEAR";
-  case MYSQL_TYPE_NEWDATE:
-    return "MYSQL_TYPE_NEWDATE";
-  case MYSQL_TYPE_VARCHAR:
-    return "MYSQL_TYPE_VARCHAR";
-  case MYSQL_TYPE_BIT:
-    return "MYSQL_TYPE_BIT";
-  case MYSQL_TYPE_NEWDECIMAL:
-    return "MYSQL_TYPE_NEWDECIMAL";
-  case MYSQL_TYPE_ENUM:
-    return "MYSQL_TYPE_ENUM";
-  case MYSQL_TYPE_SET:
-    return "MYSQL_TYPE_SET";
-  case MYSQL_TYPE_TINY_BLOB:
-    return "MYSQL_TYPE_TINY_BLOB";
-  case MYSQL_TYPE_MEDIUM_BLOB:
-    return "MYSQL_TYPE_MEDIUM_BLOB";
-  case MYSQL_TYPE_LONG_BLOB:
-    return "MYSQL_TYPE_LONG_BLOB";
-  case MYSQL_TYPE_BLOB:
-    return "MYSQL_TYPE_BLOB";
-  case MYSQL_TYPE_VAR_STRING:
-    return "MYSQL_TYPE_VAR_STRING";
-  case MYSQL_TYPE_STRING:
-    return "MYSQL_TYPE_STRING";
-  case MYSQL_TYPE_GEOMETRY:
-    return "MYSQL_TYPE_GEOMETRY";
-  }
-  return "Unknown";
-}
-#endif
-
 
 namespace {
   /**
@@ -3711,11 +3698,10 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
       binlog_table_maps= 0;
       DBUG_RETURN(error);
     }
-    break;
 
   case THD::QUERY_TYPE_COUNT:
   default:
-    DBUG_ASSERT(0 <= qtype && qtype < QUERY_TYPE_COUNT);
+    DBUG_ASSERT(qtype < QUERY_TYPE_COUNT);
   }
   DBUG_RETURN(0);
 }

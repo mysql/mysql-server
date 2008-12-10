@@ -102,7 +102,7 @@ basedir=.
 EXTRA_ARG="--windows"
 fi
 
-INSTALL_CMD="$scriptdir/mysql_install_db --no-defaults $EXTRA_ARG --basedir=$basedir --datadir=mysql-test/$ldata --srcdir=."
+INSTALL_CMD="$scriptdir/mysql_install_db --no-defaults $EXTRA_ARG --datadir=mysql-test/$ldata --srcdir=."
 echo "running $INSTALL_CMD"
 
 cd ..

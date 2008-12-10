@@ -98,12 +98,11 @@ unsigned long my_net_read(NET *net);
 struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
         unsigned int timeout);
-struct rand_struct {
-  unsigned long seed1,seed2,max_value;
-  double max_value_dbl;
+struct my_rnd_struct;
+enum Item_result
+{
+  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
 };
-enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
 typedef struct st_udf_args
 {
   unsigned int arg_count;
@@ -124,10 +123,8 @@ typedef struct st_udf_init
   my_bool const_item;
   void *extension;
 } UDF_INIT;
-void randominit(struct rand_struct *, unsigned long seed1,
-                unsigned long seed2);
-double my_rnd(struct rand_struct *);
-void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
+void create_random_string(char *to, unsigned int length,
+                          struct my_rnd_struct *rand_st);
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
@@ -205,8 +202,8 @@ typedef unsigned long long my_ulonglong;
 typedef struct st_used_mem
 {
   struct st_used_mem *next;
-  unsigned int left;
-  unsigned int size;
+  size_t left;
+  size_t size;
 } USED_MEM;
 typedef struct st_mem_root
 {

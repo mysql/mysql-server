@@ -1122,6 +1122,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   if (insert_precheck(thd, table_list))
     goto error;
 
+  upgrade_lock_type_for_insert(thd, &table_list->lock_type, duplic,
+                               values_list.elements > 1);
   /*
     open temporary memory pool for temporary data allocated by derived
     tables & preparation procedure
@@ -2462,7 +2464,6 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
 
   DBUG_VOID_RETURN;
-
 }
 
 

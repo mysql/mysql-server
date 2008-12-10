@@ -24,6 +24,12 @@ change_user
 SELECT @@session.sql_big_selects;
 @@session.sql_big_selects
 1
+SELECT @@global.max_join_size;
+@@global.max_join_size
+18446744073709551615
+SELECT @@session.max_join_size;
+@@session.max_join_size
+18446744073709551615
 Bug#31418
 SELECT IS_FREE_LOCK('bug31418');
 IS_FREE_LOCK('bug31418')

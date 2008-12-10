@@ -25,7 +25,15 @@
 #include <thr_alarm.h>
 #include <errno.h>
 
-	/* Lock a part of a file */
+/**
+   @breif Lock a part of a file
+
+   @note
+   This works like mysys/my_lock.c, with the exception that this function
+   uses the thr_alarm() to break long lock statements.
+   (mysys can't use thr_alarm() as by default the alarm handling doesn't
+   exists)
+*/
 
 int my_lock(File fd,int locktype,my_off_t start,my_off_t length,myf MyFlags)
 {
@@ -36,29 +44,34 @@ int my_lock(File fd,int locktype,my_off_t start,my_off_t length,myf MyFlags)
   DBUG_ENTER("my_lock");
   DBUG_PRINT("my",("Fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
 		   fd,locktype,(ulong) start,(ulong) length,MyFlags));
-  if (my_disable_locking)
+  if (my_disable_locking && ! (MyFlags & MY_FORCE_LOCK))
     DBUG_RETURN(0); /* purecov: inspected */
+
   m_lock.l_type=(short) locktype;
   m_lock.l_whence=0L;
   m_lock.l_start=(long) start;
   m_lock.l_len=(long) length;
-  wait_for_alarm=(MyFlags & MY_DONT_WAIT ? MY_HOW_OFTEN_TO_ALARM :
-		  (uint) 12*60*60);
   if (fcntl(fd,F_SETLK,&m_lock) != -1)	/* Check if we can lock */
     DBUG_RETURN(0);			/* Ok, file locked */
-  DBUG_PRINT("info",("Was locked, trying with alarm"));
-  if (!thr_alarm(&alarmed,wait_for_alarm,&alarm_buff))
+
+  if (!(MyFlags & MY_NO_WAIT))
   {
-    int value;
-    while ((value=fcntl(fd,F_SETLKW,&m_lock)) && !thr_got_alarm(&alarmed) &&
-	   errno == EINTR) ;
-    thr_end_alarm(&alarmed);
-    if (value != -1)
-      DBUG_RETURN(0);
-  }
-  else
-  {
-    errno=EINTR;
+    wait_for_alarm= (MyFlags & MY_SHORT_WAIT ? MY_HOW_OFTEN_TO_ALARM :
+                     (uint) 12*60*60);
+    DBUG_PRINT("info",("Was locked, trying with alarm"));
+    if (!thr_alarm(&alarmed,wait_for_alarm,&alarm_buff))
+    {
+      int value;
+      while ((value=fcntl(fd,F_SETLKW,&m_lock)) && !thr_got_alarm(&alarmed) &&
+             errno == EINTR) ;
+      thr_end_alarm(&alarmed);
+      if (value != -1)
+        DBUG_RETURN(0);
+    }
+    else
+    {
+      errno=EINTR;
+    }
   }
   if (errno == EINTR || errno == EACCES)
     my_errno=EAGAIN;			/* Easier to check for this */

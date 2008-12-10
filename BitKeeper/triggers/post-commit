@@ -8,10 +8,10 @@ else
   COMMITTER=$USER
 fi
 FROM=$COMMITTER@mysql.com
-COMMITS=commits@lists.mysql.com
+COMMITS=maria@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
-VERSION="5.1"
+VERSION="maria"
 BKROOT=`bk root`
 
 if [ -x /usr/sbin/sendmail ]; then
@@ -73,11 +73,11 @@ else
 fi
 
 #++
-# commits@ or dev-private@ mail
+# maria@ or dev-private@ mail
 #--
 
 LIST="commits"
-TO="commits@lists.mysql.com"
+TO="maria@lists.mysql.com"
 if [ -f .tree-is-private ]
 then
   LIST="dev-private"
@@ -103,7 +103,7 @@ see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
 EOF
   bk changes -v -r+
   bk rset -r+ -ah | bk gnupatch -h -dup -T
- ) | bk sed -e ${LIMIT}q > $BKROOT/BitKeeper/tmp/commits.txt
+ ) > $BKROOT/BitKeeper/tmp/commits.txt
 
 $SENDMAIL -t < $BKROOT/BitKeeper/tmp/commits.txt
 

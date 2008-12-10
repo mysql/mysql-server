@@ -2569,7 +2569,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     do
     {
       /* Cache could be disabled in a later iteration. */
-
+      
       if (!keycache->can_be_used)
 	goto no_key_cache;
       /* Start reading at the beginning of the cache block. */
@@ -3174,7 +3174,7 @@ int key_cache_write(KEY_CACHE *keycache,
 
       if (!dont_write)
       {
-	/* Not used in the server. buff has been written to disk at start. */
+        /* Not used in the server. buff has been written to disk at start. */
         if ((block->status & BLOCK_CHANGED) &&
             (!offset && read_length >= keycache->key_cache_block_size))
              link_to_file_list(keycache, block, block->hash_link->file, 1);
@@ -3558,10 +3558,11 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
               file, keycache->blocks_used, keycache->blocks_changed));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-    DBUG_EXECUTE("check_keycache",
-                 test_key_cache(keycache, "start of flush_key_blocks", 0););
+  DBUG_EXECUTE("check_keycache",
+               test_key_cache(keycache, "start of flush_key_blocks", 0););
 #endif
 
+  DBUG_ASSERT(type != FLUSH_KEEP_LAZY);
   cache= cache_buff;
   if (keycache->disk_blocks > 0 &&
       (!my_disable_flush_key_blocks || type != FLUSH_KEEP))

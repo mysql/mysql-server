@@ -1886,10 +1886,17 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(mysql);
-          while ((row = mysql_fetch_row(result)))
-            counter++;
-          mysql_free_result(result);
+          if ((result= mysql_store_result(mysql)))
+          {
+            while ((row = mysql_fetch_row(result)))
+              counter++;
+            mysql_free_result(result);
+          }
+          else
+          {
+            fprintf(stderr,"%s: Error in mysql_store_result(): %d %s\n",
+                my_progname, mysql_errno(mysql), mysql_error(mysql));
+          }
         }
       } while(mysql_next_result(mysql) == 0);
       queries++;

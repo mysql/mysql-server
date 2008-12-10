@@ -159,8 +159,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   reclength=uint2korr(forminfo+266);
 
   /* Calculate extra data segment length */
-  str_db_type.str= (char *) ha_resolve_storage_engine_name(create_info->db_type);
-  str_db_type.length= strlen(str_db_type.str);
+  str_db_type= *hton_name(create_info->db_type);
   /* str_db_type */
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);
@@ -515,7 +514,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     int2store(pos+6, key->block_size);
     pos+=8;
     key_parts+=key->key_parts;
-    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d at 0x%lx",
+    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d  key_part: 0x%lx",
                         key->flags, key->key_parts,
                         (long) key->key_part));
     for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;

@@ -5,7 +5,6 @@
 drop table if exists t1;
 --enable_warnings
 
-
 #
 # Check that --bootstrap reads from stdin
 #

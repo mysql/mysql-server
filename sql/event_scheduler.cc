@@ -337,6 +337,14 @@ Event_scheduler::Event_scheduler(Event_queue *queue_arg)
 {
   pthread_mutex_init(&LOCK_scheduler_state, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_state, NULL);
+
+#ifdef SAFE_MUTEX
+  /* Ensure right mutex order */
+  pthread_mutex_lock(&LOCK_scheduler_state);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(&LOCK_scheduler_state);
+#endif
 }
 
 

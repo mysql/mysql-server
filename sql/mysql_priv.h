@@ -617,7 +617,6 @@ enum enum_parsing_place
 
 struct st_table;
 
-#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 class THD;
 
 enum enum_check_fields
@@ -627,7 +626,6 @@ enum enum_check_fields
   CHECK_FIELD_ERROR_FOR_NULL
 };
 
-                                  
 /** Struct to handle simple linked lists. */
 typedef struct st_sql_list {
   uint elements;
@@ -929,7 +927,7 @@ inline bool check_and_unset_keyword(const char *dbug_str)
 {
   const char *extra_str= "-d,";
   char total_str[200];
-  if (_db_strict_keyword_ (dbug_str))
+  if (_db_keyword_ (0, dbug_str, 1))
   {
     strxmov(total_str, extra_str, dbug_str, NullS);
     DBUG_SET(total_str);
@@ -989,7 +987,7 @@ check_and_unset_inject_value(int value)
 #define SET_ERROR_INJECT_VALUE(x) \
   current_thd->error_inject_value= (x)
 #define ERROR_INJECT_CRASH(code) \
-  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
+  DBUG_EVALUATE_IF(code, (DBUG_ABORT(), 0), 0)
 #define ERROR_INJECT_ACTION(code, action) \
   (check_and_unset_keyword(code) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
@@ -999,7 +997,7 @@ check_and_unset_inject_value(int value)
 #define ERROR_INJECT_VALUE_ACTION(value,action) \
   (check_and_unset_inject_value(value) ? (action) : 0)
 #define ERROR_INJECT_VALUE_CRASH(value) \
-  ERROR_INJECT_VALUE_ACTION(value, (abort(), 0))
+  ERROR_INJECT_VALUE_ACTION(value, (DBUG_ABORT(), 0))
 
 #endif
 
@@ -1236,6 +1234,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
                   List<Item> &update_values, enum_duplicates flag,
                   bool ignore);
+void upgrade_lock_type_for_insert(THD *thd, thr_lock_type *lock_type,
+                                  enum_duplicates duplic,
+                                  bool is_multi_insert);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 void prepare_triggers_for_insert_stmt(TABLE *table);
@@ -1988,7 +1989,8 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count,
-       LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count;
+       LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count,
+       LOCK_uuid_short;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
 #endif
@@ -2013,7 +2015,10 @@ extern struct system_variables global_system_variables;
 #ifdef MYSQL_SERVER
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
-extern struct rand_struct sql_rand;
+extern struct my_rnd_struct sql_rand;
+
+extern handlerton *maria_hton; /* @todo remove, make it static in ha_maria.cc
+                                  currently it's needed for sql_delete.cc */
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
@@ -2031,10 +2036,11 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
+extern SHOW_COMP_OPTION have_maria_db;
 extern SHOW_COMP_OPTION have_community_features;
-
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
+extern handlerton *maria_hton;
 extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;

@@ -134,6 +134,12 @@ extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #define bzero_if_purify(A,B)
 #endif /* HAVE_purify */
 
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
+#define LINT_INIT_STRUCT(var) bzero(&var, sizeof(var)) /* No uninitialize-warning */
+#else
+#define LINT_INIT_STRUCT(var)
+#endif
+
 #ifndef bmove512
 extern	void bmove512(uchar *dst,const uchar *src,size_t len);
 #endif
@@ -265,5 +271,13 @@ typedef struct st_mysql_lex_string LEX_STRING;
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))
 #define C_STRING_WITH_LEN(X) ((char *) (X)), ((size_t) (sizeof(X) - 1))
+
+/* A variant with const and unsigned */
+struct st_mysql_const_unsigned_lex_string
+{
+  const uchar *str;
+  size_t length;
+};
+typedef struct st_mysql_const_unsigned_lex_string LEX_CUSTRING;
 
 #endif

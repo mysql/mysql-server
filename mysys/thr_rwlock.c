@@ -89,7 +89,7 @@ int my_rw_rdlock(rw_lock_t *rwp)
   pthread_mutex_lock(&rwp->lock);
 
   /* active or queued writers */
-  while (( rwp->state < 0 ) || rwp->waiters)
+  while ((rwp->state < 0 ) || rwp->waiters)
     pthread_cond_wait( &rwp->readers, &rwp->lock);
 
   rwp->state++;

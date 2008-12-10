@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
@@ -551,22 +551,22 @@ insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
 Table	Checksum
-test.t1	2948697075
+test.t1	3442722830
 test.t2	NULL
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
+test.t1	3442722830
+test.t2	3442722830
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3 extended;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
+test.t1	3442722830
+test.t2	3442722830
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
@@ -2226,4 +2226,29 @@ Key Start Len Index   Type
 1   2     30  multip. varchar              
 2   33    30  multip. char NULL            
 DROP TABLE t1;
+create table t1 (n int not null, c char(1)) transactional=1;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
+drop table t1;
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+Table	Checksum
+test.t1	326284887
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+Table	Checksum
+test.t2	326284887
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+Table	Checksum
+test.t3	326284887
+drop table t1,t2,t3;
 End of 5.1 tests

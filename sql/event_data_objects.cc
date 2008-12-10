@@ -727,7 +727,6 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
      would give an error then.
     */
     DBUG_RETURN(1);
-    break;
   case INTERVAL_LAST:
     DBUG_ASSERT(0);
   }

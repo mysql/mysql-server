@@ -305,7 +305,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
   puts("Pack a MyISAM-table to take much less space.");
-  puts("Keys are not updated, you must run myisamchk -rq on the datafile");
+  puts("Keys are not updated, you must run myisamchk -rq on the index (.MYI) file");
   puts("afterwards to update the keys.");
   puts("You should give the .MYI file as the filename argument.");
 

@@ -2110,6 +2110,7 @@ void unlink_open_table(THD *thd, TABLE *find, bool unlock)
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name)
 {
+  DBUG_ENTER("drop_open_table");
   if (table->s->tmp_table)
     close_temporary_table(thd, table, 1, 1);
   else
@@ -2120,10 +2121,12 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
       unlink_open_table() also tells threads waiting for refresh or close
       that something has happened.
     */
+    table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     unlink_open_table(thd, table, FALSE);
     quick_rm_table(table_type, db_name, table_name, 0);
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3435,6 +3438,11 @@ static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
           if (ulcktbl->lock_count)
           {
             /*
+              Inform handler that we will do a close even if the table may be
+              locked or part of a transaction
+            */
+            table->file->extra(HA_EXTRA_PREPARE_FOR_FORCED_CLOSE);
+            /*
               Wake up threads waiting for table-level lock on this table
               so they won't sneak in when we will temporarily remove our
               lock on it. This will also give them a chance to close their
@@ -3609,6 +3617,9 @@ TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
     if (!strcmp(table->s->table_name.str, table_name) &&
 	!strcmp(table->s->db.str, db))
     {
+      /* Inform handler that table will be dropped after close */
+      table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+
       /* If MERGE child, forward lock handling to parent. */
       mysql_lock_remove(thd, thd->locked_tables,
                         table->parent ? table->parent : table, TRUE);
@@ -4446,8 +4457,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   /* Also used for indicating that prelocking is need */
   TABLE_LIST **query_tables_last_own;
   bool safe_to_ignore_table;
-
   DBUG_ENTER("open_tables");
+
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
@@ -5527,7 +5538,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
   DBUG_ENTER("update_field_dependencies");
   if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
-    MY_BITMAP *current_bitmap, *other_bitmap;
+    MY_BITMAP *current_bitmap;
 
     /*
       We always want to register the used keys, as the column bitmap may have
@@ -5538,15 +5549,9 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     table->merge_keys.merge(field->part_of_key);
 
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
-    {
       current_bitmap= table->read_set;
-      other_bitmap=   table->write_set;
-    }
     else
-    {
       current_bitmap= table->write_set;
-      other_bitmap=   table->read_set;
-    }
 
     if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
     {

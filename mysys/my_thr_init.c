@@ -115,6 +115,15 @@ my_bool my_thread_global_init(void)
   }
 #endif /* TARGET_OS_LINUX */
 
+  /* Mutex used by my_thread_init() and after my_thread_destroy_mutex() */
+  my_pthread_mutex_init(&THR_LOCK_threads, MY_MUTEX_INIT_FAST, 
+                        "THR_LOCK_threads", MYF_NO_DEADLOCK_DETECTION);
+  my_pthread_mutex_init(&THR_LOCK_malloc, MY_MUTEX_INIT_FAST,
+                        "THR_LOCK_malloc", MYF_NO_DEADLOCK_DETECTION);
+
+  if (my_thread_init())
+    return 1;
+
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   /*
     Set mutex type to "fast" a.k.a "adaptive"
@@ -138,7 +147,7 @@ my_bool my_thread_global_init(void)
                             PTHREAD_MUTEX_ERRORCHECK);
 #endif
 
-  pthread_mutex_init(&THR_LOCK_malloc,MY_MUTEX_INIT_FAST);
+  /* Mutex uses by mysys */
   pthread_mutex_init(&THR_LOCK_open,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_lock,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_isam,MY_MUTEX_INIT_SLOW);
@@ -146,7 +155,6 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_heap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&THR_LOCK_threads,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_time,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&THR_COND_threads, NULL);
 #if defined( __WIN__) || defined(OS2)
@@ -158,44 +166,64 @@ my_bool my_thread_global_init(void)
 #ifndef HAVE_GETHOSTBYNAME_R
   pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
 #endif
-  if (my_thread_init())
-  {
-    my_thread_global_end();			/* Clean up */
-    return 1;
-  }
   return 0;
 }
 
 
-void my_thread_global_end(void)
+/**
+   Wait for all threads in system to die
+   @fn    my_wait_for_other_threads_to_die()
+   @param number_of_threads  Wait until this number of threads
+
+   @retval  0  Less or equal to number_of_threads left
+   @retval  1  Wait failed
+*/
+
+my_bool my_wait_for_other_threads_to_die(uint number_of_threads)
 {
   struct timespec abstime;
   my_bool all_threads_killed= 1;
 
   set_timespec(abstime, my_thread_end_wait_time);
   pthread_mutex_lock(&THR_LOCK_threads);
-  while (THR_thread_count > 0)
+  while (THR_thread_count > number_of_threads)
   {
     int error= pthread_cond_timedwait(&THR_COND_threads, &THR_LOCK_threads,
                                       &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
-#ifdef HAVE_PTHREAD_KILL
-      /*
-        We shouldn't give an error here, because if we don't have
-        pthread_kill(), programs like mysqld can't ensure that all threads
-        are killed when we enter here.
-      */
-      if (THR_thread_count)
-        fprintf(stderr,
-                "Error in my_thread_global_end(): %d threads didn't exit\n",
-                THR_thread_count);
-#endif
       all_threads_killed= 0;
       break;
     }
   }
   pthread_mutex_unlock(&THR_LOCK_threads);
+  return all_threads_killed;
+}
+
+
+/**
+   End the mysys thread system. Called when ending the last thread
+*/
+
+
+void my_thread_global_end(void)
+{
+  my_bool all_threads_killed;
+
+  if (!(all_threads_killed= my_wait_for_other_threads_to_die(0)))
+  {
+#ifdef HAVE_PTHREAD_KILL
+    /*
+      We shouldn't give an error here, because if we don't have
+      pthread_kill(), programs like mysqld can't ensure that all threads
+      are killed when we enter here.
+    */
+    if (THR_thread_count)
+      fprintf(stderr,
+              "Error in my_thread_global_end(): %d threads didn't exit\n",
+              THR_thread_count);
+#endif
+  }
 
   pthread_key_delete(THR_KEY_mysys);
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
@@ -204,7 +232,25 @@ void my_thread_global_end(void)
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_errorcheck_mutexattr);
 #endif
-  pthread_mutex_destroy(&THR_LOCK_malloc);
+  if (all_threads_killed)
+  {
+    pthread_mutex_destroy(&THR_LOCK_threads);
+    pthread_cond_destroy(&THR_COND_threads);
+    pthread_mutex_destroy(&THR_LOCK_malloc);
+  }
+}
+
+/* Free all mutex used by mysys */
+
+void my_thread_destroy_mutex(void)
+{
+  struct st_my_thread_var *tmp;
+  tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  if (tmp)
+  {
+    safe_mutex_free_deadlock_data(&tmp->mutex);
+  }  
+
   pthread_mutex_destroy(&THR_LOCK_open);
   pthread_mutex_destroy(&THR_LOCK_lock);
   pthread_mutex_destroy(&THR_LOCK_isam);
@@ -213,11 +259,6 @@ void my_thread_global_end(void)
   pthread_mutex_destroy(&THR_LOCK_net);
   pthread_mutex_destroy(&THR_LOCK_time);
   pthread_mutex_destroy(&THR_LOCK_charset);
-  if (all_threads_killed)
-  {
-    pthread_mutex_destroy(&THR_LOCK_threads);
-    pthread_cond_destroy(&THR_COND_threads);
-  }
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_destroy(&LOCK_localtime_r);
 #endif
@@ -256,7 +297,7 @@ my_bool my_thread_init(void)
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
           (ulong) pthread_self());
-#endif  
+#endif
 
 #if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
@@ -264,7 +305,7 @@ my_bool my_thread_init(void)
 #ifdef EXTRA_DEBUG_THREADS
     fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
             (long) pthread_self());
-#endif    
+#endif
     goto end;
   }
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
@@ -287,14 +328,17 @@ my_bool my_thread_init(void)
 #else
   tmp->pthread_self= pthread_self();
 #endif
-  pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
+  my_pthread_mutex_init(&tmp->mutex, MY_MUTEX_INIT_FAST, "mysys_var->mutex",
+                        0);
   pthread_cond_init(&tmp->suspend, NULL);
-  tmp->init= 1;
+
+  tmp->stack_ends_here= &tmp + STACK_DIRECTION * my_thread_stack_size;
 
   pthread_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
   ++THR_thread_count;
   pthread_mutex_unlock(&THR_LOCK_threads);
+  tmp->init= 1;
 #ifndef DBUG_OFF
   /* Generate unique name for thread */
   (void) my_thread_name();
@@ -325,9 +369,16 @@ void my_thread_end(void)
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
 	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
-#endif  
+#endif
   if (tmp && tmp->init)
   {
+
+#if !defined(__bsdi__) && !defined(__OpenBSD__)
+ /* bsdi and openbsd 3.5 dumps core here */
+    pthread_cond_destroy(&tmp->suspend);
+#endif
+    pthread_mutex_destroy(&tmp->mutex);
+
 #if !defined(DBUG_OFF)
     /* tmp->dbug is allocated inside DBUG library */
     if (tmp->dbug)
@@ -337,17 +388,19 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) && !defined(__OpenBSD__)
- /* bsdi and openbsd 3.5 dumps core here */
-    pthread_cond_destroy(&tmp->suspend);
-#endif
-    pthread_mutex_destroy(&tmp->mutex);
 #if !defined(__WIN__) || defined(USE_TLS)
+#ifndef DBUG_OFF
+    /* To find bugs when accessing unallocated data */
+    bfill(tmp, sizeof(tmp), 0x8F);
+#endif
     free(tmp);
 #else
     tmp->init= 0;
 #endif
 
+#if !defined(__WIN__) || defined(USE_TLS)
+    pthread_setspecific(THR_KEY_mysys,0);
+#endif
     /*
       Decrement counter for number of running threads. We are using this
       in my_thread_global_end() to wait until all threads have called
@@ -360,10 +413,12 @@ void my_thread_end(void)
       pthread_cond_signal(&THR_COND_threads);
    pthread_mutex_unlock(&THR_LOCK_threads);
   }
-  /* The following free has to be done, even if my_thread_var() is 0 */
+  else
+  {
 #if !defined(__WIN__) || defined(USE_TLS)
-  pthread_setspecific(THR_KEY_mysys,0);
+    pthread_setspecific(THR_KEY_mysys,0);
 #endif
+  }
 }
 
 struct st_my_thread_var *_my_thread_var(void)
@@ -371,6 +426,25 @@ struct st_my_thread_var *_my_thread_var(void)
   return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 }
 
+#ifndef DBUG_OFF
+/* Return pointer to DBUG for holding current state */
+
+extern void **my_thread_var_dbug()
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp && tmp->init ? &tmp->dbug : 0;
+}
+#endif
+
+/* Return pointer to mutex_in_use */
+
+safe_mutex_t **my_thread_var_mutex_in_use()
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp ? &tmp->mutex_in_use : 0;
+}
 
 /****************************************************************************
   Get name of current thread.

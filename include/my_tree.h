@@ -66,8 +66,8 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
 	       tree_element_free free_element, void *custom_arg);
 void delete_tree(TREE*);
 void reset_tree(TREE*);
-  /* similar to delete tree, except we do not my_free() blocks in mem_root
-   */
+
+  /* similar to delete tree, except we do not my_free() blocks in mem_root */
 #define is_tree_inited(tree) ((tree)->root != 0)
 
 	/* Functions on leafs */
@@ -86,6 +86,7 @@ void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs,
                        int r_offs);
 ha_rows tree_record_pos(TREE *tree, const void *key, 
                      enum ha_rkey_function search_flag, void *custom_arg);
+#define reset_free_element(tree) (tree)->free= 0
 
 #define TREE_ELEMENT_EXTRA_SIZE (sizeof(TREE_ELEMENT) + sizeof(void*))
 

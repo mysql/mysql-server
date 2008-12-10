@@ -416,7 +416,7 @@ a
 insert into t1 values (35);
 insert into t1 values (NULL);
 insert into t1 values (NULL);
-ERROR 23000: Duplicate entry '35' for key 'PRIMARY'
+Got one of the listed errors
 select * from t1 order by a;
 a
 1

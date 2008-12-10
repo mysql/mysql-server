@@ -450,7 +450,6 @@ Field *Item_func::tmp_table_field(TABLE *table)
     break;
   case STRING_RESULT:
     return make_string_field(table);
-    break;
   case DECIMAL_RESULT:
     field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
                                                                 decimals,
@@ -2120,7 +2119,7 @@ void Item_func_rand::seed_random(Item *arg)
     args[0] is a constant.
   */
   uint32 tmp= (uint32) arg->val_int();
-  randominit(rand, (uint32) (tmp*0x10001L+55555555L),
+  my_rnd_init(rand, (uint32) (tmp*0x10001L+55555555L),
              (uint32) (tmp*0x10000001L));
 }
 
@@ -2140,7 +2139,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
     */
-    if (!rand && !(rand= (struct rand_struct*)
+    if (!rand && !(rand= (struct my_rnd_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
 
@@ -2713,8 +2712,7 @@ longlong Item_func_find_in_set::val_int()
   }
   null_value=0;
 
-  int diff;
-  if ((diff=buffer->length() - find->length()) >= 0)
+  if ((int) (buffer->length() - find->length()) >= 0)
   {
     my_wc_t wc;
     CHARSET_INFO *cs= cmp_collation.collation;
@@ -4015,7 +4013,8 @@ double user_var_entry::val_real(my_bool *null_value)
   case STRING_RESULT:
     return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return 0.0;					// Impossible
@@ -4046,7 +4045,8 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     return my_strtoll10(value, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return LL(0);					// Impossible
@@ -4077,8 +4077,10 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
       str= 0;					// EOM error
+    break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return(str);
@@ -4105,7 +4107,8 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
     break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return(val);
@@ -6077,12 +6080,13 @@ void uuid_short_init()
                (((ulonglong) server_start_time) << 24));
 }
 
+pthread_mutex_t LOCK_uuid_short;
 
 longlong Item_func_uuid_short::val_int()
 {
   ulonglong val;
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  pthread_mutex_lock(&LOCK_uuid_short);
   val= uuid_value++;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  pthread_mutex_unlock(&LOCK_uuid_short);
   return (longlong) val;
 }

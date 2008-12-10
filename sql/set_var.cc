@@ -59,7 +59,7 @@
 #include <thr_alarm.h>
 #include <myisam.h>
 #include <my_dir.h>
-
+#include <waiting_threads.h>
 #include "events.h"
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
@@ -234,6 +234,19 @@ static sys_var_long_ptr	sys_concurrent_insert(&vars, "concurrent_insert",
 static sys_var_long_ptr	sys_connect_timeout(&vars, "connect_timeout",
 					    &connect_timeout);
 static sys_var_const_os_str       sys_datadir(&vars, "datadir", mysql_real_data_home);
+
+static sys_var_thd_ulong sys_deadlock_search_depth_short(&vars,
+                                "deadlock_search_depth_short",
+                                 &SV::wt_deadlock_search_depth_short);
+static sys_var_thd_ulong sys_deadlock_search_depth_long(&vars,
+                                "deadlock_search_depth_long",
+                                 &SV::wt_deadlock_search_depth_long);
+static sys_var_thd_ulong sys_deadlock_timeout_short(&vars,
+                                "deadlock_timeout_short",
+                                 &SV::wt_timeout_short);
+static sys_var_thd_ulong sys_deadlock_timeout_long(&vars,
+                                "deadlock_timeout_long",
+                                 &SV::wt_timeout_long);
 #ifndef DBUG_OFF
 static sys_var_thd_dbug        sys_dbug(&vars, "debug");
 #endif
@@ -323,7 +336,7 @@ static sys_var_const    sys_log_bin(&vars, "log_bin",
 static sys_var_trust_routine_creators
 sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
                            &trust_function_creators);
-static sys_var_bool_ptr       
+static sys_var_bool_ptr
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
 static sys_var_const    sys_log_error(&vars, "log_error",
@@ -545,10 +558,10 @@ static sys_var_thd_ulong	sys_trans_alloc_block_size(&vars, "transaction_alloc_bl
 static sys_var_thd_ulong	sys_trans_prealloc_size(&vars, "transaction_prealloc_size",
 						&SV::trans_prealloc_size,
 						0, fix_trans_mem_root);
-sys_var_enum_const      sys_thread_handling(&vars, "thread_handling",
-                                            &SV::thread_handling,
-                                            &thread_handling_typelib,
-                                            NULL);
+sys_var_enum_const        sys_thread_handling(&vars, "thread_handling",
+                                              &SV::thread_handling,
+                                              &thread_handling_typelib,
+                                              NULL);
 
 #ifdef HAVE_QUERY_CACHE
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
@@ -1232,6 +1245,7 @@ void fix_slave_exec_mode(enum_var_type type)
   }
   if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1278,7 +1292,7 @@ bool sys_var_thd_binlog_format::is_readonly() const
   if (thd->in_sub_stmt)
   {
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
-    return 1;    
+    return 1;
   }
   return sys_var_thd_enum::is_readonly();
 }
@@ -1509,7 +1523,6 @@ uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
   return (uchar*) enum_names->type_names[*value];
 }
 
-
 uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
                                      LEX_STRING *base)
 {
@@ -1589,7 +1602,7 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= (ha_rows) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
@@ -2198,9 +2211,8 @@ KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE*) find_named(&key_caches,
-                                      cache_name->str, cache_name->length, 0));
+                                  cache_name->str, cache_name->length, 0));
 }
-
 
 uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)
@@ -2357,13 +2369,11 @@ end:
 bool sys_var_log_state::update(THD *thd, set_var *var)
 {
   bool res;
-
   if (this == &sys_var_log)
     WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
   else if (this == &sys_var_log_slow)
     WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
   {
     logger.deactivate_log_handler(thd, log_type);
@@ -2371,7 +2381,6 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
   }
   else
     res= logger.activate_log_handler(thd, log_type);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
   return res;
 }
 
@@ -2382,9 +2391,7 @@ void sys_var_log_state::set_default(THD *thd, enum_var_type type)
   else if (this == &sys_var_log_slow)
     WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.deactivate_log_handler(thd, log_type);
-  pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
@@ -2480,23 +2487,18 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     goto err;
   }
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock_exclusive();
 
   if (file_log && log_state)
     file_log->close(0);
-  old_value= var_str->value;
-  var_str->value= res;
-  var_str->value_length= str_length;
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   if (file_log && log_state)
   {
     switch (log_type) {
     case QUERY_LOG_SLOW:
-      file_log->open_slow_log(sys_var_slow_log_path.value);
+      file_log->open_slow_log(res);
       break;
     case QUERY_LOG_GENERAL:
-      file_log->open_query_log(sys_var_general_log_path.value);
+      file_log->open_query_log(res);
       break;
     default:
       DBUG_ASSERT(0);
@@ -2504,6 +2506,13 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
   }
 
   logger.unlock();
+
+  /* update global variable */
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  old_value= var_str->value;
+  var_str->value= res;
+  var_str->value_length= str_length;
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
 err:
@@ -2543,26 +2552,22 @@ static void sys_default_slow_log_path(THD *thd, enum_var_type type)
 
 bool sys_var_log_output::update(THD *thd, set_var *var)
 {
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock_exclusive();
   logger.init_slow_log(var->save_result.ulong_value);
   logger.init_general_log(var->save_result.ulong_value);
   *value= var->save_result.ulong_value;
   logger.unlock();
-  pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
 
 
 void sys_var_log_output::set_default(THD *thd, enum_var_type type)
 {
-  pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock_exclusive();
   logger.init_slow_log(LOG_FILE);
   logger.init_general_log(LOG_FILE);
   *value= LOG_FILE;
   logger.unlock();
-  pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
@@ -3625,7 +3630,7 @@ uchar *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
   if (type == OPT_GLOBAL)
     plugin= my_plugin_lock(thd, &(global_system_variables.*offset));
   hton= plugin_data(plugin, handlerton*);
-  engine_name= &hton2plugin[hton->slot]->name;
+  engine_name= hton_name(hton);
   result= (uchar *) thd->strmake(engine_name->str, engine_name->length);
   if (type == OPT_GLOBAL)
     plugin_unlock(thd, plugin);

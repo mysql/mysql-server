@@ -26,7 +26,7 @@
 #include "mysql_priv.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
-#include <errno.h>
+#include "myisam.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1158,7 +1158,7 @@ int ha_commit_trans(THD *thd, bool all)
         }
         status_var_increment(thd->status_var.ha_prepare_count);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1166,13 +1166,13 @@ int ha_commit_trans(THD *thd, bool all)
         error= 1;
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
     }
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
     if (cookie)
       tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", abort(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
 end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
@@ -1482,7 +1482,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
     while ((got= hton->recover(hton, info->list, info->len)) > 0 )
     {
       sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, ha_resolve_storage_engine_name(hton));
+                            got, hton_name(hton)->str);
       for (int i=0; i < got; i ++)
       {
         my_xid x=info->list[i].get_my_xid();
@@ -2583,11 +2583,14 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_FOUND_DUPP_KEY:
   {
-    uint key_nr=get_dup_key(error);
-    if ((int) key_nr >= 0)
+    if (table)
     {
-      print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
-      DBUG_VOID_RETURN;
+      uint key_nr=get_dup_key(error);
+      if ((int) key_nr >= 0)
+      {
+        print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+        DBUG_VOID_RETURN;
+      }
     }
     textno=ER_DUP_KEY;
     break;
@@ -3482,7 +3485,7 @@ void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   stat_info->update_time=          stats.update_time;
   stat_info->check_time=           stats.check_time;
   stat_info->check_sum=            0;
-  if (table_flags() & (ulong) HA_HAS_CHECKSUM)
+  if (table_flags() & (HA_HAS_OLD_CHECKSUM | HA_HAS_OLD_CHECKSUM))
     stat_info->check_sum= checksum();
   return;
 }
@@ -3603,7 +3606,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
-  sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
 }
 
 
@@ -4355,7 +4357,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   {
     if (db_type->state != SHOW_OPTION_YES)
     {
-      const LEX_STRING *name=&hton2plugin[db_type->slot]->name;
+      const LEX_STRING *name= hton_name(db_type);
       result= stat_print(thd, name->str, name->length,
                          "", 0, "DISABLED", 8) ? 1 : 0;
     }

@@ -85,6 +85,8 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     {
       mi_print_error(info->s, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
+      if (share->concurrent_insert)
+        rw_unlock(&share->key_root_lock[inx]);
       goto err;
     }
     break;

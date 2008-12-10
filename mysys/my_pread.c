@@ -15,6 +15,8 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include "my_base.h"
+#include <m_string.h>
 #include <errno.h>
 #ifdef HAVE_PREAD
 #include <unistd.h>
@@ -46,27 +48,37 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
 {
   size_t readbytes;
   int error= 0;
+#ifndef HAVE_PREAD
+  int save_errno;
+#endif
+#ifndef DBUG_OFF
+  char llbuf[22];
   DBUG_ENTER("my_pread");
-  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   Filedes, (ulong) offset, (long) Buffer, (uint) Count,
-                   MyFlags));
+  DBUG_PRINT("my",("fd: %d  Seek: %s  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
+		   Filedes, ullstr(offset, llbuf), (long) Buffer,
+                   (ulong)Count, MyFlags));
+#endif
   for (;;)
   {
-#ifndef __WIN__
-    errno=0;					/* Linux doesn't reset this */
-#endif
+    errno= 0;    /* Linux, Windows don't reset this on EOF/success */
 #ifndef HAVE_PREAD
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     readbytes= (uint) -1;
     error= (lseek(Filedes, offset, MY_SEEK_SET) == (my_off_t) -1 ||
 	    (readbytes= read(Filedes, Buffer, Count)) != Count);
+    save_errno= errno;
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
+    if (error)
+    {
+      errno= save_errno;
 #else
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
-      my_errno= errno ? errno : -1;
-#endif
-    if (error || readbytes != Count)
     {
+#endif
+      my_errno= errno ? errno : -1;
+      if (errno == 0 || (readbytes != (size_t) -1 &&
+                         (MyFlags & (MY_NABP | MY_FNABP))))
+        my_errno= HA_ERR_FILE_TOO_SHORT;
       DBUG_PRINT("warning",("Read only %d bytes off %u from %d, errno: %d",
                             (int) readbytes, (uint) Count,Filedes,my_errno));
 #ifdef THREAD
@@ -122,10 +134,13 @@ size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
 {
   size_t writenbytes, written;
   uint errors;
+#ifndef DBUG_OFF
+  char llbuf[22];
   DBUG_ENTER("my_pwrite");
-  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   Filedes, (ulong) offset, (long) Buffer, (uint) Count,
-                   MyFlags));
+  DBUG_PRINT("my",("fd: %d  Seek: %s  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
+		   Filedes, ullstr(offset, llbuf), (long) Buffer,
+                   (ulong)Count, MyFlags));
+#endif
   errors= 0;
   written= 0;
 

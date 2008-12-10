@@ -11,6 +11,11 @@ enable_query_log;
 # Simple basic test that endspace is saved
 #
 
+#
+# Remember to check that one doesn't get a warning or a note
+# from a char field when end spaces get removed. SQL standard!
+#
+
 create table t1 (v varchar(10), c char(10), t text);
 insert into t1 values('+ ', '+ ', '+ ');
 set @a=repeat(' ',20);

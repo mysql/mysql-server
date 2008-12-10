@@ -19,27 +19,34 @@
 
 ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
 {
-  uint i;
   ha_checksum crc=0;
-  MI_COLUMNDEF *rec=info->s->rec;
+  const uchar *record= buf;
+  MI_COLUMNDEF *column= info->s->rec;
+  MI_COLUMNDEF *column_end= column+ info->s->base.fields;
+  my_bool skip_null_bits= test(info->s->options & HA_OPTION_NULL_FIELDS);
 
-  for (i=info->s->base.fields ; i-- ; buf+=(rec++)->length)
+  for ( ; column != column_end ; buf+= column++->length)
   {
     const uchar *pos;
     ulong length;
-    switch (rec->type) {
+
+    if ((record[column->null_pos] & column->null_bit) &&
+        skip_null_bits)
+      continue;                                 /* Null field */
+
+    switch (column->type) {
     case FIELD_BLOB:
     {
-      length=_mi_calc_blob_length(rec->length-
-					portable_sizeof_char_ptr,
-					buf);
-      memcpy((char*) &pos, buf+rec->length- portable_sizeof_char_ptr,
+      length=_mi_calc_blob_length(column->length-
+                                  portable_sizeof_char_ptr,
+                                  buf);
+      memcpy((char*) &pos, buf+column->length- portable_sizeof_char_ptr,
 	     sizeof(char*));
       break;
     }
     case FIELD_VARCHAR:
     {
-      uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length-1);
+      uint pack_length= HA_VARCHAR_PACKLENGTH(column->length-1);
       if (pack_length == 1)
         length= (ulong) *(uchar*) buf;
       else
@@ -48,7 +55,7 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
       break;
     }
     default:
-      length=rec->length;
+      length=column->length;
       pos=buf;
       break;
     }

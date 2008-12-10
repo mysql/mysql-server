@@ -19,10 +19,18 @@
   architectures support double-word (128-bit) cas.
 */
 
-#ifdef MY_ATOMIC_NO_XADD
-#define MY_ATOMIC_MODE "gcc-x86" LOCK "-no-xadd"
+#ifdef __x86_64__
+#  ifdef MY_ATOMIC_NO_XADD
+#    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix "-no-xadd"
+#  else
+#    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix
+#  endif
 #else
-#define MY_ATOMIC_MODE "gcc-x86" LOCK
+#  ifdef MY_ATOMIC_NO_XADD
+#    define MY_ATOMIC_MODE "gcc-x86" LOCK_prefix "-no-xadd"
+#  else
+#    define MY_ATOMIC_MODE "gcc-x86" LOCK_prefix
+#  endif
 #endif
 
 /* fix -ansi errors while maintaining readability */
@@ -32,12 +40,12 @@
 
 #ifndef MY_ATOMIC_NO_XADD
 #define make_atomic_add_body(S)					\
-  asm volatile (LOCK "; xadd %0, %1;" : "+r" (v) , "+m" (*a))
+  asm volatile (LOCK_prefix "; xadd %0, %1;" : "+r" (v) , "+m" (*a))
 #endif
-#define make_atomic_swap_body(S)				\
-  asm volatile ("; xchg %0, %1;" : "+r" (v) , "+m" (*a))
+#define make_atomic_fas_body(S)				\
+  asm volatile ("xchg %0, %1;" : "+r" (v) , "+m" (*a))
 #define make_atomic_cas_body(S)					\
-  asm volatile (LOCK "; cmpxchg %3, %0; setz %2;"		\
+  asm volatile (LOCK_prefix "; cmpxchg %3, %0; setz %2;"	\
                : "+m" (*a), "+a" (*cmp), "=q" (ret): "r" (set))
 
 #ifdef MY_ATOMIC_MODE_DUMMY
@@ -46,13 +54,16 @@
 #else
 /*
   Actually 32-bit reads/writes are always atomic on x86
-  But we add LOCK here anyway to force memory barriers
+  But we add LOCK_prefix here anyway to force memory barriers
 */
 #define make_atomic_load_body(S)				\
   ret=0;							\
-  asm volatile (LOCK "; cmpxchg %2, %0"				\
+  asm volatile (LOCK_prefix "; cmpxchg %2, %0"			\
                : "+m" (*a), "+a" (ret): "r" (ret))
 #define make_atomic_store_body(S)				\
-  asm volatile ("; xchg %0, %1;" : "+m" (*a) : "r" (v))
+  asm volatile ("; xchg %0, %1;" : "+m" (*a), "+r" (v))
 #endif
+
+/* TODO test on intel whether the below helps. on AMD it makes no difference */
+//#define LF_BACKOFF ({asm volatile ("rep; nop"); 1; })
 

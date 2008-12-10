@@ -508,10 +508,8 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
             if (*byte_ptr & (1 << k))
               return (i*32) + (j*8) + k;
           }
-          DBUG_ASSERT(0);
         }
       }
-      DBUG_ASSERT(0);
     }
   }
   return MY_BIT_NONE;
@@ -542,10 +540,8 @@ uint bitmap_get_first(const MY_BITMAP *map)
             if (!(*byte_ptr & (1 << k)))
               return (i*32) + (j*8) + k;
           }
-          DBUG_ASSERT(0);
         }
       }
-      DBUG_ASSERT(0);
     }
   }
   return MY_BIT_NONE;

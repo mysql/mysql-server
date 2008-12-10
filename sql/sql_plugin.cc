@@ -635,7 +635,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
     *plugin= pi;
 #endif
     pi->ref_count++;
-    DBUG_PRINT("info",("thd: 0x%lx, plugin: \"%s\", ref_count: %d",
+    DBUG_PRINT("info",("thd: 0x%lx  plugin: \"%s\"  ref_count: %d",
                        (long) current_thd, pi->name.str, pi->ref_count));
 
     if (lex)
@@ -2605,7 +2605,7 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
   default:
     return NULL;
   }
-  return NULL;
+  return NULL;	/* Keep compiler happy */
 }
 
 
