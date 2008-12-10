@@ -49,7 +49,6 @@ BRT_SOURCES = \
   leafentry \
   log \
   log_code \
-  memory \
   memarena \
   mempool \
   omt \

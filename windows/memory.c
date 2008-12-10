@@ -18,7 +18,7 @@ int toku_realloc_counter = 0;
 int toku_free_counter = 0;
 
 static inline size_t resize(size_t n) {
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64)
     if (64*1024 < n && n < 1024*1024)
 	n = 1024*1024;
     return n;
