@@ -73,7 +73,7 @@ fidle (void *arg) {
 }
 
 #if defined(__linux__)
-#define DO_MALLOC_HOOK 1
+#define DO_MALLOC_HOOK 0
 #else
 #define DO_MALLOC_HOOK 0
 #endif
