@@ -56,7 +56,7 @@ int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("d
 //
 // this int acts like a bool, returns 0 for false, 1 for true
 //
-int toku_os_is_absolute_name(const char* path);
+int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
 #if defined __cplusplus
 };
