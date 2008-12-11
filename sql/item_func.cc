@@ -5668,3 +5668,13 @@ void Item_func_sp::update_used_tables()
     const_item_cache= FALSE;
   }
 }
+
+
+void Item_func::agg_num_lengths(Item *arg)
+{
+  uint len= my_decimal_length_to_precision(arg->max_length, arg->decimals,
+                                           arg->unsigned_flag) - arg->decimals;
+  set_if_bigger(max_length, len); 
+  set_if_bigger(decimals, arg->decimals);
+  unsigned_flag= unsigned_flag && arg->unsigned_flag; 
+}
