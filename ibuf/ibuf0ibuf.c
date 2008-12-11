@@ -3214,17 +3214,35 @@ ibuf_merge_or_delete_for_page(
 	ut_ad(!block || buf_block_get_space(block) == space);
 	ut_ad(!block || buf_block_get_page_no(block) == page_no);
 	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
-	ut_a(ut_is_2pow(zip_size));
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
-	    || trx_sys_hdr_page(space, page_no)
-	    || ibuf_fixed_addr_page(space, zip_size, page_no)
-	    || fsp_descr_page(zip_size, page_no)) {
+	    || trx_sys_hdr_page(space, page_no)) {
+		return;
+	}
 
+	/* We cannot refer to zip_size in the following, because
+	zip_size is passed as ULINT_UNDEFINED (it is unknown) when
+	buf_read_ibuf_merge_pages() is merging (discarding) changes
+	for a dropped tablespace.  When block != NULL or
+	update_ibuf_bitmap is specified, the zip_size must be known.
+	That is why we will repeat the check below, with zip_size in
+	place of 0.  Passing zip_size as 0 assumes that the
+	uncompressed page size always is a power-of-2 multiple of the
+	compressed page size. */
+
+	if (ibuf_fixed_addr_page(space, 0, page_no)
+	    || fsp_descr_page(0, page_no)) {
 		return;
 	}
 
 	if (UNIV_LIKELY(update_ibuf_bitmap)) {
+		ut_a(ut_is_2pow(zip_size));
+
+		if (ibuf_fixed_addr_page(space, zip_size, page_no)
+		    || fsp_descr_page(zip_size, page_no)) {
+			return;
+		}
+
 		/* If the following returns FALSE, we get the counter
 		incremented, and must decrement it when we leave this
 		function. When the counter is > 0, that prevents tablespace
@@ -3257,6 +3275,11 @@ ibuf_merge_or_delete_for_page(
 				return;
 			}
 			mtr_commit(&mtr);
+		}
+	} else if (block) {
+		if (ibuf_fixed_addr_page(space, zip_size, page_no)
+		    || fsp_descr_page(zip_size, page_no)) {
+			return;
 		}
 	}
 
