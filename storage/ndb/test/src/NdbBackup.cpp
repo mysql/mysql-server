@@ -45,10 +45,16 @@ NdbBackup::start(unsigned int & _backup_id){
   ndb_mgm_reply reply;
   reply.return_code = 0;
 
+loop:
   if (ndb_mgm_start_backup(handle,
 			   2, // wait until completed
 			   &_backup_id,
 			   &reply) == -1) {
+
+    if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
+        strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists"))
+      goto loop;
+    
     g_err << "Error: " << ndb_mgm_get_latest_error(handle) << endl;
     g_err << "Error msg: " << ndb_mgm_get_latest_error_msg(handle) << endl;
     g_err << "Error desc: " << ndb_mgm_get_latest_error_desc(handle) << endl;
