@@ -132,6 +132,10 @@ UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 
+UNIV_INTERN ulint  srv_show_locks_held     = 10;
+UNIV_INTERN ulint  srv_show_verbose_locks  = 0;
+
+
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
@@ -147,6 +151,8 @@ UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
+ulint	srv_n_read_io_threads	= 1;
+ulint	srv_n_write_io_threads	= 1;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
@@ -311,6 +317,15 @@ UNIV_INTERN int	srv_query_thread_priority = 0;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
+ulint	srv_io_capacity = 100;
+
+/* Returns the number of IO operations that is X percent of the capacity.
+PCT_IO(5) -> returns the number of IO operations that is 5% of the max
+where max is srv_io_capacity. */
+#define PCT_IO(pct) ((ulint) (srv_io_capacity * ((double) pct / 100.0)))
+
+ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+ulint	srv_adaptive_checkpoint = 0; /* 0:disable 1:enable */
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
@@ -1614,6 +1629,14 @@ srv_printf_innodb_monitor(
 	time_t	current_time;
 	ulint	n_reserved;
 
+	ulint	btr_search_sys_subtotal;
+	ulint	lock_sys_subtotal;
+	ulint	recv_sys_subtotal;
+	ulint	io_counter_subtotal;
+
+	ulint	i;
+	trx_t*	trx;
+
 	mutex_enter(&srv_innodb_monitor_mutex);
 
 	current_time = time(NULL);
@@ -1657,24 +1680,6 @@ srv_printf_innodb_monitor(
 
 	mutex_exit(&dict_foreign_err_mutex);
 
-	lock_print_info_summary(file);
-	if (trx_start) {
-		long	t = ftell(file);
-		if (t < 0) {
-			*trx_start = ULINT_UNDEFINED;
-		} else {
-			*trx_start = (ulint) t;
-		}
-	}
-	lock_print_info_all_transactions(file);
-	if (trx_end) {
-		long	t = ftell(file);
-		if (t < 0) {
-			*trx_end = ULINT_UNDEFINED;
-		} else {
-			*trx_end = (ulint) t;
-		}
-	}
 	fputs("--------\n"
 	      "FILE I/O\n"
 	      "--------\n", file);
@@ -1705,10 +1710,84 @@ srv_printf_innodb_monitor(
 	      "BUFFER POOL AND MEMORY\n"
 	      "----------------------\n", file);
 	fprintf(file,
-		"Total memory allocated " ULINTPF
-		"; in additional pool allocated " ULINTPF "\n",
-		ut_total_allocated_memory,
-		mem_pool_get_reserved(mem_comm_pool));
+			"Total memory allocated " ULINTPF
+			"; in additional pool allocated " ULINTPF "\n",
+			ut_total_allocated_memory,
+			mem_pool_get_reserved(mem_comm_pool));
+	/* Calcurate reserved memories */
+	if (btr_search_sys && btr_search_sys->hash_index->heap) {
+		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index->heap);
+	} else {
+		btr_search_sys_subtotal = 0;
+		for (i=0; i < btr_search_sys->hash_index->n_mutexes; i++) {
+			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index->heaps[i]);
+		}
+	}
+
+	lock_sys_subtotal = 0;
+	if (trx_sys) {
+		mutex_enter(&kernel_mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			lock_sys_subtotal += ((trx->lock_heap) ? mem_heap_get_size(trx->lock_heap) : 0);
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&kernel_mutex);
+	}
+
+	recv_sys_subtotal = ((recv_sys && recv_sys->addr_hash)
+			? mem_heap_get_size(recv_sys->heap) : 0);
+
+	fprintf(file,
+			"Internal hash tables (constant factor + variable factor)\n"
+			"    Adaptive hash index %lu \t(%lu + %lu)\n"
+			"    Page hash           %lu\n"
+			"    Dictionary cache    %lu \t(%lu + %lu)\n"
+			"    File system         %lu \t(%lu + %lu)\n"
+			"    Lock system         %lu \t(%lu + %lu)\n"
+			"    Recovery system     %lu \t(%lu + %lu)\n"
+			"    Threads             %lu \t(%lu + %lu)\n",
+
+			(ulong) (btr_search_sys
+				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0)
+			+ btr_search_sys_subtotal,
+			(ulong) (btr_search_sys
+				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0),
+			(ulong) btr_search_sys_subtotal,
+
+			(ulong) (buf_pool->page_hash->n_cells * sizeof(hash_cell_t)),
+
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+						+ dict_sys->table_id_hash->n_cells
+						) * sizeof(hash_cell_t)
+					+ dict_sys->size) : 0),
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+							+ dict_sys->table_id_hash->n_cells
+							) * sizeof(hash_cell_t)) : 0),
+			(ulong) (dict_sys ? (dict_sys->size) : 0),
+
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)
+					+ fil_system_hash_nodes()),
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)),
+			(ulong) fil_system_hash_nodes(),
+
+			(ulong) ((lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ lock_sys_subtotal),
+			(ulong) (lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			(ulong) lock_sys_subtotal,
+
+			(ulong) (((recv_sys && recv_sys->addr_hash)
+						? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ recv_sys_subtotal),
+			(ulong) ((recv_sys && recv_sys->addr_hash)
+					? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			(ulong) recv_sys_subtotal,
+
+			(ulong) (thr_local_hash_cells() * sizeof(hash_cell_t)
+					+ thr_local_hash_nodes()),
+			(ulong) (thr_local_hash_cells() * sizeof(hash_cell_t)),
+			(ulong) thr_local_hash_nodes());
+
 	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
 		dict_sys->size);
 
@@ -1766,6 +1845,25 @@ srv_printf_innodb_monitor(
 	srv_n_rows_updated_old = srv_n_rows_updated;
 	srv_n_rows_deleted_old = srv_n_rows_deleted;
 	srv_n_rows_read_old = srv_n_rows_read;
+
+	lock_print_info_summary(file);
+	if (trx_start) {
+		long	t = ftell(file);
+		if (t < 0) {
+			*trx_start = ULINT_UNDEFINED;
+		} else {
+			*trx_start = (ulint) t;
+		}
+	}
+	lock_print_info_all_transactions(file);
+	if (trx_end) {
+		long	t = ftell(file);
+		if (t < 0) {
+			*trx_end = ULINT_UNDEFINED;
+		} else {
+			*trx_end = (ulint) t;
+		}
+	}
 
 	fputs("----------------------------\n"
 	      "END OF INNODB MONITOR OUTPUT\n"
@@ -2203,6 +2301,8 @@ srv_master_thread(
 	ibool		skip_sleep	= FALSE;
 	ulint		i;
 
+	ib_uint64_t	oldest_lsn;
+	
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
@@ -2290,10 +2390,10 @@ loop:
 			+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 			+ buf_pool->n_pages_written;
-		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
+		if (n_pend_ios < 3 && (n_ios - n_ios_old < PCT_IO(5))) {
 			srv_main_thread_op_info = "doing insert buffer merge";
 			ibuf_contract_for_n_pages(
-				TRUE, srv_insert_buffer_batch_size / 4);
+				TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
 
 			srv_main_thread_op_info = "flushing log";
 
@@ -2306,7 +2406,7 @@ loop:
 			/* Try to keep the number of modified pages in the
 			buffer pool under the limit wished by the user */
 
-			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+ 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 							  IB_ULONGLONG_MAX);
 
 			/* If we had to do the flush, it may have taken
@@ -2315,6 +2415,44 @@ loop:
 			iteration of this loop. */
 
 			skip_sleep = TRUE;
+		} else if (srv_adaptive_checkpoint) {
+
+			/* Try to keep modified age not to exceed
+			max_checkpoint_age * 7/8 line */
+
+			mutex_enter(&(log_sys->mutex));
+
+			oldest_lsn = buf_pool_get_oldest_modification();
+			if (oldest_lsn == 0) {
+
+				mutex_exit(&(log_sys->mutex));
+
+			} else {
+				if ((log_sys->lsn - oldest_lsn)
+				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 4)) {
+
+					/* 2nd defence line (max_checkpoint_age * 3/4) */
+
+					mutex_exit(&(log_sys->mutex));
+
+					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
+									  IB_ULONGLONG_MAX);
+					skip_sleep = TRUE;
+				} else if ((log_sys->lsn - oldest_lsn)
+					   > (log_sys->max_checkpoint_age)/2 ) {
+
+					/* 1st defence line (max_checkpoint_age * 1/2) */
+
+					mutex_exit(&(log_sys->mutex));
+
+					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(10),
+									  IB_ULONGLONG_MAX);
+					skip_sleep = TRUE;
+				} else {
+					mutex_exit(&(log_sys->mutex));
+				}
+			}
+
 		}
 
 		if (srv_activity_count == old_activity_count) {
@@ -2341,10 +2479,10 @@ loop:
 	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
 	n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 		+ buf_pool->n_pages_written;
-	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
-
-		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, 100, IB_ULONGLONG_MAX);
+ 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < PCT_IO(200))) {
+  
+  		srv_main_thread_op_info = "flushing buffer pool pages";
+ 		buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100), IB_ULONGLONG_MAX);
 
 		srv_main_thread_op_info = "flushing log";
 		log_buffer_flush_to_disk();
@@ -2354,7 +2492,7 @@ loop:
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(TRUE, srv_insert_buffer_batch_size / 4);
+	ibuf_contract_for_n_pages(TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
 
 	srv_main_thread_op_info = "flushing log";
 	log_buffer_flush_to_disk();
@@ -2394,14 +2532,14 @@ loop:
 		(> 70 %), we assume we can afford reserving the disk(s) for
 		the time it requires to flush 100 pages */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+ 	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 						  IB_ULONGLONG_MAX);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
 		other work */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10,
+ 	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(10),
 						  IB_ULONGLONG_MAX);
 	}
 
@@ -2489,7 +2627,7 @@ background_loop:
 		n_bytes_merged = 0;
 	} else {
 		n_bytes_merged = ibuf_contract_for_n_pages(
-			TRUE, srv_insert_buffer_batch_size);
+			TRUE, PCT_IO((srv_insert_buffer_batch_size * 5)));
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -2505,7 +2643,7 @@ flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	if (srv_fast_shutdown < 2) {
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+ 	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 						  IB_ULONGLONG_MAX);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
