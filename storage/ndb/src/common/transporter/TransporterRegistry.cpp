@@ -1085,6 +1085,7 @@ TransporterRegistry::get_tcp_data(TCP_Transporter *t)
 void
 TransporterRegistry::performReceive()
 {
+  bool hasReceived = false;
 #ifdef NDB_TCP_TRANSPORTER
 #if defined(HAVE_EPOLL_CREATE)
   if (likely(m_epoll_fd != -1))
@@ -1128,7 +1129,9 @@ TransporterRegistry::performReceive()
           
           if (t->hasReceiveData())
           {
-            callbackObj->checkJobBuffer();
+            if (hasReceived)
+              callbackObj->checkJobBuffer();
+            hasReceived = true;
             Uint32 * ptr;
             Uint32 sz = t->getReceiveData(&ptr);
             callbackObj->transporter_recv_from(nodeId);
@@ -1152,7 +1155,9 @@ TransporterRegistry::performReceive()
     {
       if(t->isConnected() && t->checkConnected())
       {
-        callbackObj->checkJobBuffer();
+        if (hasReceived)
+          callbackObj->checkJobBuffer();
+        hasReceived = true;
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
@@ -1170,7 +1175,9 @@ TransporterRegistry::performReceive()
     if(is_connected(nodeId)){
       if(t->isConnected() && t->checkConnected())
       {
-        callbackObj->checkJobBuffer();
+        if (hasReceived)
+          callbackObj->checkJobBuffer();
+        hasReceived = true;
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
