@@ -1,0 +1,12 @@
+cmd: testUpgrade
+args: -n Upgrade_NR1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_NR1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_NR1
+max-time: 600
+

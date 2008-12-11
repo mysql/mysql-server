@@ -1208,28 +1208,38 @@ setup_hosts(atrt_config& config){
   return true;
 }
 
+static
+bool
+do_rsync(const char *dir, const char *dst)
+{
+  BaseString tmp = g_setup_progname;
+  tmp.appfmt(" %s %s/ %s", dst, dir, dir);
+  
+  g_logger.info("rsyncing %s to %s", dir, dst);
+  g_logger.debug("system(%s)", tmp.c_str());
+  const int r1 = system(tmp.c_str());
+  if(r1 != 0)
+  {
+    g_logger.critical("Failed to rsync %s to %s", dir, dst);
+    return false;
+  }
+  
+  return true;
+}
+
 bool
 deploy(atrt_config & config)
 {
   for (size_t i = 0; i<config.m_hosts.size(); i++)
   {
-    BaseString tmp = g_setup_progname;
-    tmp.appfmt(" %s %s/ %s",
-	       config.m_hosts[i]->m_hostname.c_str(),
-	       g_prefix,
-	       g_prefix);
-  
-    g_logger.info("rsyncing %s to %s", g_prefix,
-		  config.m_hosts[i]->m_hostname.c_str());
-    g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = system(tmp.c_str());
-    if(r1 != 0)
-    {
-      g_logger.critical("Failed to rsync %s to %s", 
-			g_prefix,
-			config.m_hosts[i]->m_hostname.c_str());
+    if (!do_rsync(g_basedir, config.m_hosts[i]->m_hostname.c_str()))
       return false;
-    }
+
+    if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
+      return false;
+    
+    if (g_prefix1 && !do_rsync(g_prefix1, config.m_hosts[i]->m_hostname.c_str()))
+      return false;
   }
   
   return true;
