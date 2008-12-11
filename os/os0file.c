@@ -2920,10 +2920,8 @@ os_aio_init(
 /*========*/
 	ulint	n,		/* in: maximum number of pending aio operations
 				allowed; n must be divisible by n_segments */
-//	ulint	n_segments,	/* in: combined number of segments in the four
-//				first aio arrays; must be >= 4 */
-	ulint	n_read_threads,  /* n_segments == 2 + n_read_threads + n_write_threads*/
-	ulint	n_write_threads, /**/
+	ulint	n_segments,	/* in: combined number of segments in the four
+				first aio arrays; must be >= 4 */
 	ulint	n_slots_sync)	/* in: number of slots in the sync aio array */
 {
 	ulint	n_read_segs;
@@ -2931,8 +2929,6 @@ os_aio_init(
 	ulint	n_per_seg;
 	ulint	i;
 
- 	ulint	n_segments = 2 + n_read_threads + n_write_threads;
- 
 	ut_ad(n % n_segments == 0);
 	ut_ad(n_segments >= 4);
 
@@ -2943,8 +2939,8 @@ os_aio_init(
 	}
 
 	n_per_seg = n / n_segments;
-	n_write_segs = n_write_threads;
-	n_read_segs = n_read_threads;
+	n_write_segs = (n_segments - 2) / 2;
+	n_read_segs = n_segments - 2 - n_write_segs;
 
 	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
 
@@ -3144,13 +3140,6 @@ os_aio_array_reserve_slot(
 	OVERLAPPED*	control;
 #endif
 	ulint		i;
-	ulint		prim_segment;
-	ulint		n;
-
-	n = array->n_slots / array->n_segments;
-	/* 64 blocks' striping ( aligning max(BUF_READ_AHEAD_AREA) ) */
-	prim_segment = ( offset >> (UNIV_PAGE_SIZE_SHIFT + 6) ) % (array->n_segments);
-
 loop:
 	os_mutex_enter(array->mutex);
 
@@ -3169,23 +3158,12 @@ loop:
 		goto loop;
 	}
 
-	for (i = prim_segment * n; i < array->n_slots; i++) {
-		slot = os_aio_array_get_nth_slot(array, i);
-
-		if (slot->reserved == FALSE) {
-			break;
-		}
-	}
-
-	if (slot->reserved == TRUE){
-		/* Not found after the intended segment. So we should search before. */
 	for (i = 0;; i++) {
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		if (slot->reserved == FALSE) {
 			break;
 		}
-	}
 	}
 
 	array->n_reserved++;

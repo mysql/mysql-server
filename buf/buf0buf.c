@@ -3595,15 +3595,13 @@ buf_print_io(
 	buf_pool_mutex_enter();
 
 	fprintf(file,
-		"Buffer pool size        %lu\n"
-		"Buffer pool size, bytes %lu\n"
-		"Free buffers            %lu\n"
-		"Database pages          %lu\n"
-		"Modified db pages       %lu\n"
+		"Buffer pool size   %lu\n"
+		"Free buffers       %lu\n"
+		"Database pages     %lu\n"
+		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
 		(ulong) size,
-		(ulong) size * UNIV_PAGE_SIZE,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
 		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),

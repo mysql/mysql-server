@@ -187,10 +187,6 @@ buf_read_ahead_random(
 	ulint		i;
 	ulint		buf_read_ahead_random_area;
 
-	if (!(srv_read_ahead & 1)) {
-		return(0);
-	}
-
 	if (srv_startup_is_before_trx_rollback_phase) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);
@@ -416,10 +412,6 @@ buf_read_ahead_linear(
 	const ulint	buf_read_ahead_linear_area
 		= BUF_READ_AHEAD_LINEAR_AREA;
 
- 	if (!(srv_read_ahead & 2)) {
- 		return(0);
- 	}
- 
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);

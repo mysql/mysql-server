@@ -4294,32 +4294,32 @@ lock_rec_print(
 
 	putc('\n', file);
 
-	if ( srv_show_verbose_locks ) {
-		block = buf_page_try_get(space, page_no, &mtr);
-		if (block) {
-			for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
+	block = buf_page_try_get(space, page_no, &mtr);
 
-				if (lock_rec_get_nth_bit(lock, i)) {
+	if (block) {
+		for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
 
-					const rec_t*	rec
-						= page_find_rec_with_heap_no(
-								buf_block_get_frame(block), i);
-					offsets = rec_get_offsets(
-							rec, lock->index, offsets,
-							ULINT_UNDEFINED, &heap);
+			if (lock_rec_get_nth_bit(lock, i)) {
 
-					fprintf(file, "Record lock, heap no %lu ",
-							(ulong) i);
-					rec_print_new(file, rec, offsets);
-					putc('\n', file);
-				}
-			}
-		} else {
-			for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
-				fprintf(file, "Record lock, heap no %lu\n", (ulong) i);
+				const rec_t*	rec
+					= page_find_rec_with_heap_no(
+						buf_block_get_frame(block), i);
+				offsets = rec_get_offsets(
+					rec, lock->index, offsets,
+					ULINT_UNDEFINED, &heap);
+
+				fprintf(file, "Record lock, heap no %lu ",
+					(ulong) i);
+				rec_print_new(file, rec, offsets);
+				putc('\n', file);
 			}
 		}
+	} else {
+		for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
+			fprintf(file, "Record lock, heap no %lu\n", (ulong) i);
+		}
 	}
+
 	mtr_commit(&mtr);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -4498,7 +4498,7 @@ loop:
 		}
 	}
 
-        if (!srv_print_innodb_lock_monitor && !srv_show_locks_held) {
+	if (!srv_print_innodb_lock_monitor) {
 		nth_trx++;
 		goto loop;
 	}
@@ -4557,8 +4557,8 @@ loop:
 
 	nth_lock++;
 
-	if (nth_lock >= srv_show_locks_held) {
-		fputs("TOO LOCKS PRINTED FOR THIS TRX:"
+	if (nth_lock >= 10) {
+		fputs("10 LOCKS PRINTED FOR THIS TRX:"
 		      " SUPPRESSING FURTHER PRINTS\n",
 		      file);
 

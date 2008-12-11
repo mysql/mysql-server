@@ -7,3 +7,4 @@ INSTALL PLUGIN innodb_cmp SONAME 'ha_innodb.so';
 INSTALL PLUGIN innodb_cmp_reset SONAME 'ha_innodb.so';
 INSTALL PLUGIN innodb_cmpmem SONAME 'ha_innodb.so';
 INSTALL PLUGIN innodb_cmpmem_reset SONAME 'ha_innodb.so';
+INSTALL PLUGIN PERCONA_INNODB_ENHANCEMENTS SONAME 'ha_innodb.so';

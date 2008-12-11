@@ -90,9 +90,6 @@ extern ulint	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 
-extern ulint    srv_show_locks_held;
-extern ulint    srv_show_verbose_locks;
-
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;
@@ -103,8 +100,6 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
-extern ulint	srv_n_read_io_threads;
-extern ulint	srv_n_write_io_threads;
 
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
@@ -149,11 +144,6 @@ extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 
 extern ulong	srv_replication_delay;
-
-extern ulint	srv_io_capacity;
-extern ulint	srv_read_ahead;
-extern ulint	srv_adaptive_checkpoint;
-
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
