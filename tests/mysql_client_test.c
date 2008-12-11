@@ -15908,7 +15908,7 @@ static void test_bug37956(void)
 {
   const char *query="select point(?,?)";
   MYSQL_STMT *stmt=NULL;
-  unsigned int val=0;
+  ulong val=0;
   MYSQL_BIND bind_param[2];
   unsigned char buff[2]= { 134, 211 };
   DBUG_ENTER("test_bug37956");
