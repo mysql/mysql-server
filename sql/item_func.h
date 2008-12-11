@@ -200,6 +200,8 @@ public:
     null_value=1;
     return 0.0;
   }
+protected:
+  void agg_num_lengths(Item *arg);
 };
 
 
