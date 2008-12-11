@@ -180,4 +180,10 @@ ERROR at line 1: DELIMITER cannot contain a backslash character
 1
 This is a file starting with UTF8 BOM 0xEFBBBF
 This is a file starting with UTF8 BOM 0xEFBBBF
+delimiter
+1
+2
+2
+2
+2
 End of 5.0 tests
