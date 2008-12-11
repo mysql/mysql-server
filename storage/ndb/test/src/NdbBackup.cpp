@@ -45,10 +45,16 @@ NdbBackup::start(unsigned int & _backup_id){
   ndb_mgm_reply reply;
   reply.return_code = 0;
 
+loop:
   if (ndb_mgm_start_backup(handle,
 			   2, // wait until completed
 			   &_backup_id,
 			   &reply) == -1) {
+
+    if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
+        strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists"))
+      goto loop;
+    
     g_err << "Error: " << ndb_mgm_get_latest_error(handle) << endl;
     g_err << "Error msg: " << ndb_mgm_get_latest_error_msg(handle) << endl;
     g_err << "Error desc: " << ndb_mgm_get_latest_error_desc(handle) << endl;
@@ -118,9 +124,6 @@ NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
 		       int _node_id,
 		       unsigned _backup_id){
-  const int buf_len = 1000;
-  char buf[buf_len];
-
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
   const char* path = getBackupDataDirForNode(_node_id);
@@ -136,39 +139,58 @@ NdbBackup::execRestore(bool _restore_data,
   /* 
    * Copy  backup files to local dir
    */ 
-
-  BaseString::snprintf(buf, buf_len,
-	   "scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
-	   host, path,
-	   _backup_id,
-	   _backup_id,
-	   _node_id);
-
-  ndbout << "buf: "<< buf <<endl;
-  int res = system(buf);  
+  BaseString tmp;
+  tmp.assfmt("scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
+             host, path,
+             _backup_id,
+             _backup_id,
+             _node_id);
+  
+  ndbout << "buf: "<< tmp.c_str() <<endl;
+  int res = system(tmp.c_str());  
   
   ndbout << "scp res: " << res << endl;
   
-  BaseString::snprintf(buf, 255, "%sndb_restore -c \"%s:%d\" -n %d -b %d %s %s .", 
+  tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d %s %s .", 
 #if 1
-	   "",
+             "",
 #else
-	   "valgrind --leak-check=yes -v "
+             "valgrind --leak-check=yes -v "
 #endif
-	   ndb_mgm_get_connected_host(handle),
-	   ndb_mgm_get_connected_port(handle),
-	   _node_id, 
-	   _backup_id,
-	   _restore_data?"-r":"",
-	   _restore_meta?"-m":"");
+             ndb_mgm_get_connected_host(handle),
+             ndb_mgm_get_connected_port(handle),
+             _node_id, 
+             _backup_id,
+             _restore_data?"-r":"",
+             _restore_meta?"-m":"");
+  
+  ndbout << "buf: "<< tmp.c_str() <<endl;
+  res = system(tmp.c_str());
 
-  ndbout << "buf: "<< buf <<endl;
-  res = system(buf);
+  if (res && _restore_meta)
+  {
+    /** try once wo/ restoring DD objects */
 
+    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d -d %s %s .", 
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id, 
+               _backup_id,
+               _restore_data?"-r":"",
+               _restore_meta?"-m":"");
+    
+    ndbout << "buf: "<< tmp.c_str() <<endl;
+    res = system(tmp.c_str());
+  }
+  
   ndbout << "ndb_restore res: " << res << endl;
 
   return res;
-  
 }
 
 int 
