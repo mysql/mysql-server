@@ -296,8 +296,8 @@ diff_files $MYSQLTEST_VARDIR/tmp/master_apply_status.sql $MYSQLTEST_VARDIR/tmp/s
 
 ## Note: Ths files should only get removed, if the above diff succeeds.
 
---exec rm $MYSQLTEST_VARDIR/tmp/master_apply_status.sql
---exec rm $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/master_apply_status.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql
 
 
 # End of 5.1 Test

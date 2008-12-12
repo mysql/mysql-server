@@ -121,7 +121,7 @@ RESET MASTER;
 CREATE TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM mysql.backup_info;
 LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
---exec rm $MYSQLTEST_VARDIR/tmp.dat || true
+--remove_file $MYSQLTEST_VARDIR/tmp.dat
 --replace_column 1 <the_backup_id>
 SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
 let the_backup_id=`select @the_backup_id`;

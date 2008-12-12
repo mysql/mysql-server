@@ -707,7 +707,7 @@ CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)ROW_FORMAT=FIXED
 ENGINE=NDB;
 
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'AT='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'AT='
 
 DROP TABLE t1;
 
@@ -715,13 +715,13 @@ CREATE TABLE t1
 (pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
 b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
 
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'AT='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'AT='
 
 --echo ********************
 --echo * Cleanup Section
 --echo ********************
 
---exec rm $MYSQLTEST_VARDIR/master-data/test/tmp.dat || true
+--remove_file $MYSQLTEST_VARDIR/master-data/test/tmp.dat
 DROP TABLE t1;
 DROP TABLE ndb_show_tables_results;
 # End of 5.1 Test Case
