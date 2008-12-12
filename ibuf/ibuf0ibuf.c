@@ -3990,11 +3990,11 @@ ibuf_merge_or_delete_for_page(
 			}
 			mtr_commit(&mtr);
 		}
-	} else if (block) {
-		if (ibuf_fixed_addr_page(space, zip_size, page_no)
-		    || fsp_descr_page(zip_size, page_no)) {
-			return;
-		}
+	} else if (block
+		   && (ibuf_fixed_addr_page(space, zip_size, page_no)
+		      || fsp_descr_page(zip_size, page_no))) {
+
+		return;
 	}
 
 	ibuf_enter();
