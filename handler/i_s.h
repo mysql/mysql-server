@@ -9,6 +9,9 @@ Created July 18, 2007 Vasil Dimov
 #ifndef i_s_h
 #define i_s_h
 
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob;
 extern struct st_mysql_plugin	i_s_innodb_trx;
 extern struct st_mysql_plugin	i_s_innodb_locks;
 extern struct st_mysql_plugin	i_s_innodb_lock_waits;

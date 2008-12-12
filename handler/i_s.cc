@@ -25,6 +25,16 @@ extern "C" {
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h" /* for srv_was_started */
+#include "btr0btr.h" /* for btr_page_get_index_id */
+#include "dict0dict.h" /* for dict_index_get_if_in_cache */
+/* from buf0buf.c */
+struct buf_chunk_struct{
+	ulint		mem_size;	/* allocated size of the chunk */
+	ulint		size;		/* size of frames[] and blocks[] */
+	void*		mem;		/* pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/* array of buffer control blocks */
+};
 }
 #include "handler0vars.h"
 
@@ -359,6 +369,774 @@ UNIV_INTERN struct st_mysql_plugin      i_s_innodb_patches =
         /* reserved for dependency checking */
         /* void* */
         STRUCT_FLD(__reserved1, NULL)
+};
+
+
+static ST_FIELD_INFO	i_s_innodb_buffer_pool_pages_fields_info[] =
+{
+#define IDX_BUFFER_POOL_PAGES_PAGE_TYPE 0
+	{STRUCT_FLD(field_name,		"page_type"),
+	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_SPACE_ID		1
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_PAGE_NO		2
+	{STRUCT_FLD(field_name,		"page_no"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_LRU_POSITION		3
+	{STRUCT_FLD(field_name,		"lru_position"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_FIX_COUNT		4
+	{STRUCT_FLD(field_name,		"fix_count"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_FLUSH_TYPE		5
+	{STRUCT_FLD(field_name,		"flush_type"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static ST_FIELD_INFO	i_s_innodb_buffer_pool_pages_index_fields_info[] =
+{
+#define IDX_BUFFER_POOL_PAGES_INDEX_SCHEMA_NAME		0
+	{STRUCT_FLD(field_name,		"schema_name"),
+	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_TABLE_NAME		1
+	{STRUCT_FLD(field_name,		"table_name"),
+	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_INDEX_NAME		2
+	{STRUCT_FLD(field_name,		"index_name"),
+	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_SPACE_ID		3
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_PAGE_NO		4
+	{STRUCT_FLD(field_name,		"page_no"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_N_RECS		5
+	{STRUCT_FLD(field_name,		"n_recs"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_DATA_SIZE		6
+	{STRUCT_FLD(field_name,		"data_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_HASHED		7
+	{STRUCT_FLD(field_name,		"hashed"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_ACCESSED		8
+	{STRUCT_FLD(field_name,		"accessed"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_MODIFIED		9
+	{STRUCT_FLD(field_name,		"modified"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_DIRTY		10
+	{STRUCT_FLD(field_name,		"dirty"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_OLD		11
+	{STRUCT_FLD(field_name,		"old"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_LRU_POSITION		12
+	{STRUCT_FLD(field_name,		"lru_position"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_FIX_COUNT		13
+	{STRUCT_FLD(field_name,		"fix_count"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_INDEX_FLUSH_TYPE		14
+	{STRUCT_FLD(field_name,		"flush_type"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static ST_FIELD_INFO	i_s_innodb_buffer_pool_pages_blob_fields_info[] =
+{
+#define IDX_BUFFER_POOL_PAGES_BLOB_SPACE_ID		0
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_PAGE_NO		1
+	{STRUCT_FLD(field_name,		"page_no"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_COMPRESSED		2
+	{STRUCT_FLD(field_name,		"compressed"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_PART_LEN		3
+	{STRUCT_FLD(field_name,		"part_len"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_NEXT_PAGE_NO		4
+	{STRUCT_FLD(field_name,		"next_page_no"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_LRU_POSITION		5
+	{STRUCT_FLD(field_name,		"lru_position"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_FIX_COUNT		6
+	{STRUCT_FLD(field_name,		"fix_count"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_BUFFER_POOL_PAGES_BLOB_FLUSH_TYPE		7
+	{STRUCT_FLD(field_name,		"flush_type"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_buffer_pool_pages. */
+static
+int
+i_s_innodb_buffer_pool_pages_fill(
+/*================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+
+  ulint		n_chunks, n_blocks;
+
+	buf_chunk_t*	chunk;
+
+	DBUG_ENTER("i_s_innodb_buffer_pool_pages_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	buf_pool_mutex_enter();
+  mutex_enter(&(dict_sys->mutex));
+	
+	chunk = buf_pool->chunks;
+  
+	for (n_chunks = buf_pool->n_chunks; n_chunks--; chunk++) {
+		buf_block_t*	block		= chunk->blocks;
+
+    for (n_blocks	= chunk->size; n_blocks--; block++) {
+      const buf_frame_t* frame = block->frame;
+  
+      char page_type[64];
+
+      switch(fil_page_get_type(frame))
+      {
+      case FIL_PAGE_INDEX:
+        strcpy(page_type, "index");
+        break;
+      case FIL_PAGE_UNDO_LOG:
+        strcpy(page_type, "undo_log");
+        break;
+      case FIL_PAGE_INODE:
+        strcpy(page_type, "inode");
+        break;
+      case FIL_PAGE_IBUF_FREE_LIST:
+        strcpy(page_type, "ibuf_free_list");
+        break;
+      case FIL_PAGE_TYPE_ALLOCATED:
+        strcpy(page_type, "allocated");
+        break;
+      case FIL_PAGE_IBUF_BITMAP:
+        strcpy(page_type, "bitmap");
+        break;
+      case FIL_PAGE_TYPE_SYS:
+        strcpy(page_type, "sys");
+        break;
+      case FIL_PAGE_TYPE_TRX_SYS:
+        strcpy(page_type, "trx_sys");
+        break;
+      case FIL_PAGE_TYPE_FSP_HDR:
+        strcpy(page_type, "fsp_hdr");
+        break;
+      case FIL_PAGE_TYPE_XDES:
+        strcpy(page_type, "xdes");
+        break;
+      case FIL_PAGE_TYPE_BLOB:
+        strcpy(page_type, "blob");
+        break;
+      case FIL_PAGE_TYPE_ZBLOB:
+        strcpy(page_type, "zblob");
+        break;
+      case FIL_PAGE_TYPE_ZBLOB2:
+        strcpy(page_type, "zblob2");
+        break;
+      default:
+        sprintf(page_type, "unknown (type=%li)", fil_page_get_type(frame));
+      }
+      
+      field_store_string(table->field[0], page_type);
+      table->field[1]->store(block->page.space);
+      table->field[2]->store(block->page.offset);
+      table->field[3]->store(block->page.LRU_position);
+      table->field[4]->store(block->page.buf_fix_count);
+      table->field[5]->store(block->page.flush_type);
+
+      if (schema_table_store_record(thd, table)) {
+        status = 1;
+        break;
+      }
+      
+    }      
+	}
+
+  mutex_exit(&(dict_sys->mutex));
+	buf_pool_mutex_exit();
+
+	DBUG_RETURN(status);
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_buffer_pool_pages_index. */
+static
+int
+i_s_innodb_buffer_pool_pages_index_fill(
+/*================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+
+  ulint		n_chunks, n_blocks;
+  dict_index_t*	index;
+  dulint		index_id;
+
+  char *p;
+  char db_name_raw[NAME_LEN*5+1], db_name[NAME_LEN+1];
+  char table_name_raw[NAME_LEN*5+1], table_name[NAME_LEN+1];
+
+	buf_chunk_t*	chunk;
+
+	DBUG_ENTER("i_s_innodb_buffer_pool_pages_index_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	buf_pool_mutex_enter();
+  mutex_enter(&(dict_sys->mutex));
+	
+	chunk = buf_pool->chunks;
+  
+	for (n_chunks = buf_pool->n_chunks; n_chunks--; chunk++) {
+		buf_block_t*	block		= chunk->blocks;
+
+		for (n_blocks	= chunk->size; n_blocks--; block++) {
+			const buf_frame_t* frame = block->frame;
+  
+      if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
+        index_id = btr_page_get_index_id(frame);
+      	index = dict_index_get_if_in_cache_low(index_id);
+      	if(index)
+        {
+          if((p = strchr(index->table_name, '/')))
+          {
+            strncpy(db_name_raw, index->table_name, p-index->table_name);
+            db_name_raw[p-index->table_name] = 0;
+            filename_to_tablename(db_name_raw, db_name, sizeof(db_name));
+            field_store_string(table->field[0], db_name);
+            p++;            
+          } else {
+            field_store_string(table->field[0], NULL);
+            p = (char *)index->table_name;
+          }
+          strcpy(table_name_raw, p);
+          filename_to_tablename(table_name_raw, table_name, sizeof(table_name));
+          field_store_string(table->field[1], table_name);
+          field_store_string(table->field[2], index->name);
+          
+          table->field[3]->store(block->page.space);
+          table->field[4]->store(block->page.offset);
+          table->field[5]->store(page_get_n_recs(frame));
+          table->field[6]->store(page_get_data_size(frame));
+          table->field[7]->store(block->is_hashed);
+          table->field[8]->store(block->page.accessed);
+          table->field[9]->store(block->page.newest_modification != 0);
+          table->field[10]->store(block->page.oldest_modification != 0);
+          table->field[11]->store(block->page.old);
+          table->field[12]->store(block->page.LRU_position);
+          table->field[13]->store(block->page.buf_fix_count);
+          table->field[14]->store(block->page.flush_type);
+          
+          if (schema_table_store_record(thd, table)) {
+            status = 1;
+            break;
+          }
+        }
+      }      
+    }
+	}
+
+  mutex_exit(&(dict_sys->mutex));
+	buf_pool_mutex_exit();
+
+	DBUG_RETURN(status);
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_buffer_pool_pages_index. */
+static
+int
+i_s_innodb_buffer_pool_pages_blob_fill(
+/*================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+
+  ulint		n_chunks, n_blocks;
+	buf_chunk_t*	chunk;
+	page_zip_des_t*	block_page_zip;
+
+	ulint		part_len;
+	ulint		next_page_no;
+
+	DBUG_ENTER("i_s_innodb_buffer_pool_pages_blob_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	buf_pool_mutex_enter();
+  mutex_enter(&(dict_sys->mutex));
+	
+	chunk = buf_pool->chunks;
+    
+	for (n_chunks = buf_pool->n_chunks; n_chunks--; chunk++) {
+		buf_block_t*	block		= chunk->blocks;
+    block_page_zip = buf_block_get_page_zip(block);
+
+    for (n_blocks	= chunk->size; n_blocks--; block++) {
+      const buf_frame_t* frame = block->frame;
+
+      if (fil_page_get_type(frame) == FIL_PAGE_TYPE_BLOB) {
+
+        if (UNIV_LIKELY_NULL(block_page_zip)) {
+          part_len = 0; /* hmm, can't figure it out */
+  
+          next_page_no = mach_read_from_4(
+            buf_block_get_frame(block)
+            + FIL_PAGE_NEXT);        
+        } else {
+          part_len = mach_read_from_4(
+            buf_block_get_frame(block)
+            + FIL_PAGE_DATA
+            + 0 /*BTR_BLOB_HDR_PART_LEN*/);
+  
+          next_page_no = mach_read_from_4(
+            buf_block_get_frame(block)
+            + FIL_PAGE_DATA
+            + 4 /*BTR_BLOB_HDR_NEXT_PAGE_NO*/);
+        }
+
+        table->field[0]->store(block->page.space);
+        table->field[1]->store(block->page.offset);
+        table->field[2]->store(block_page_zip != NULL);
+        table->field[3]->store(part_len);
+
+        if(next_page_no == FIL_NULL)
+        {
+          table->field[4]->store(0);
+        } else {
+          table->field[4]->store(block->page.offset);
+        }
+
+        table->field[5]->store(block->page.LRU_position);
+        table->field[6]->store(block->page.buf_fix_count);
+        table->field[7]->store(block->page.flush_type);
+  
+        if (schema_table_store_record(thd, table)) {
+          status = 1;
+          break;
+        }
+
+      }
+    }      
+	}
+
+  mutex_exit(&(dict_sys->mutex));
+	buf_pool_mutex_exit();
+
+	DBUG_RETURN(status);
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_buffer_pool_pages. */
+static
+int
+i_s_innodb_buffer_pool_pages_init(
+/*=========*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_innodb_buffer_pool_pages_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_buffer_pool_pages_fields_info;
+	schema->fill_table = i_s_innodb_buffer_pool_pages_fill;
+
+	DBUG_RETURN(0);
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_buffer_pool_pages. */
+static
+int
+i_s_innodb_buffer_pool_pages_index_init(
+/*=========*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_innodb_buffer_pool_pages_index_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_buffer_pool_pages_index_fields_info;
+	schema->fill_table = i_s_innodb_buffer_pool_pages_index_fill;
+
+	DBUG_RETURN(0);
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_buffer_pool_pages. */
+static
+int
+i_s_innodb_buffer_pool_pages_blob_init(
+/*=========*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_innodb_buffer_pool_pages_blob_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_buffer_pool_pages_blob_fields_info;
+	schema->fill_table = i_s_innodb_buffer_pool_pages_blob_fill;
+
+	DBUG_RETURN(0);
+}
+
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_BUFFER_POOL_PAGES"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB buffer pool pages"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_buffer_pool_pages_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_BUFFER_POOL_PAGES_INDEX"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB buffer pool index pages"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_buffer_pool_pages_index_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_BUFFER_POOL_PAGES_BLOB"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB buffer pool blob pages"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_buffer_pool_pages_blob_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
 };
 
 

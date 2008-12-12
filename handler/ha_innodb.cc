@@ -9829,6 +9829,9 @@ mysql_declare_plugin(innobase)
   innobase_system_variables, /* system variables */
   NULL /* reserved */
 },
+i_s_innodb_buffer_pool_pages,
+i_s_innodb_buffer_pool_pages_index,
+i_s_innodb_buffer_pool_pages_blob,
 i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,
