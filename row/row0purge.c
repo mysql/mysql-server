@@ -198,34 +198,68 @@ retry:
 }
 
 /***************************************************************
-Removes a secondary index entry if possible, without trying to use the
-insert/delete buffer. */
+Determines if it is possible to remove a secondary index entry.
+Removal is possible if the secondary index entry does not refer to any
+not delete marked version of a clustered index record where DB_TRX_ID
+is newer than the purge view.
+
+NOTE: This function should only be called by the purge thread, only
+while holding a latch on the leaf page of the secondary index entry
+(or keeping the buffer pool watch on the page).  It is possible that
+this function first returns TRUE and then FALSE, if a user transaction
+inserts a record that the secondary index entry would refer to.
+However, in that case, the user transaction would also re-insert the
+secondary index entry after purge has removed it and released the leaf
+page latch. */
+UNIV_INTERN
+ibool
+row_purge_poss_sec(
+/*===============*/
+				/* out: TRUE if the secondary index
+				record can be purged */
+	purge_node_t*	node,	/* in/out: row purge node */
+	dict_index_t*	index,	/* in: secondary index */
+	const dtuple_t*	entry)	/* in: secondary index entry */
+{
+	ibool	can_delete;
+	mtr_t	mtr;
+
+	ut_ad(!dict_index_is_clust(index));
+	mtr_start(&mtr);
+
+	can_delete = !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr)
+		|| !row_vers_old_has_index_entry(TRUE,
+						 btr_pcur_get_rec(&node->pcur),
+						 &mtr, index, entry);
+
+	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+
+	return(can_delete);
+}
+
+/***************************************************************
+Removes a secondary index entry if possible, by modifying the
+index tree.  Does not try to buffer the delete. */
 static
 ibool
-row_purge_remove_sec_if_poss_low_nonbuffered(
-/*=========================================*/
+row_purge_remove_sec_if_poss_tree(
+/*==============================*/
 				/* out: TRUE if success or if not found */
 	purge_node_t*	node,	/* in: row purge node */
 	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	entry,	/* in: index entry */
-	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
-				BTR_MODIFY_TREE */
+	const dtuple_t*	entry)	/* in: index entry */
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
-	ibool			success;
-	ibool			old_has = FALSE;
+	ibool			success	= TRUE;
 	ulint			err;
 	mtr_t			mtr;
-	mtr_t			mtr_vers;
 	enum row_search_result	search_result;
 
 	log_free_check();
 	mtr_start(&mtr);
 
-	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
-
-	search_result = row_search_index_entry(index, entry, mode,
+	search_result = row_search_index_entry(index, entry, BTR_MODIFY_TREE,
 					       &pcur, &mtr);
 
 	switch (search_result) {
@@ -242,17 +276,15 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 
 		/* fputs("PURGE:........sec entry not found\n", stderr); */
 		/* dtuple_print(stderr, entry); */
-
-		success = TRUE;
 		goto func_exit;
 	case ROW_FOUND:
 		break;
 	case ROW_BUFFERED:
-	case ROW_NOT_IN_POOL:
+	case ROW_NOT_DELETED_REF:
+	case ROW_NOT_DELETED:
 		/* These are invalid outcomes, because the mode passed
 		to row_search_index_entry() did not include any of the
-		flags BTR_INSERT, BTR_DELETE, BTR_DELETE_MARK, or
-		BTR_WATCH_LEAF. */
+		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
 		ut_error;
 	}
 
@@ -262,33 +294,23 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 	which cannot be purged yet, requires its existence. If some requires,
 	we should do nothing. */
 
-	mtr_start(&mtr_vers);
-
-	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr_vers);
-
-	if (success) {
-		old_has = row_vers_old_has_index_entry(
-			TRUE, btr_pcur_get_rec(&(node->pcur)),
-			&mtr_vers, index, entry);
-	}
-
-	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
-
-	if (!old_has) {
+	if (row_purge_poss_sec(node, index, entry)) {
 		/* Remove the index record, which should have been
 		marked for deletion. */
 		ut_ad(REC_INFO_DELETED_FLAG
 		      & rec_get_info_bits(btr_cur_get_rec(btr_cur),
 					  dict_table_is_comp(index->table)));
 
-		if (mode == BTR_MODIFY_LEAF) {
-			success = btr_cur_optimistic_delete(btr_cur, &mtr);
-		} else {
-			ut_ad(mode == BTR_MODIFY_TREE);
-			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-						   RB_NONE, &mtr);
-			success = err == DB_SUCCESS;
-			ut_a(success || err == DB_OUT_OF_FILE_SPACE);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   RB_NONE, &mtr);
+		switch (UNIV_EXPECT(err, DB_SUCCESS)) {
+		case DB_SUCCESS:
+			break;
+		case DB_OUT_OF_FILE_SPACE:
+			success = FALSE;
+			break;
+		default:
+			ut_error;
 		}
 	}
 
@@ -300,88 +322,30 @@ func_exit:
 }
 
 /***************************************************************
-Removes a secondary index entry if possible. */
+Removes a secondary index entry without modifying the index tree,
+if possible. */
 static
 ibool
-row_purge_remove_sec_if_poss_low(
-/*=============================*/
+row_purge_remove_sec_if_poss_leaf(
+/*==============================*/
 				/* out: TRUE if success or if not found */
 	purge_node_t*	node,	/* in: row purge node */
 	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	entry,	/* in: index entry */
-	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
-				BTR_MODIFY_TREE */
+	const dtuple_t*	entry)	/* in: index entry */
 {
 	mtr_t			mtr;
 	btr_pcur_t		pcur;
-	ibool			old_has	= FALSE;
 	enum row_search_result	search_result;
-
-	if (mode == BTR_MODIFY_TREE) {
-		/* Can't use the insert/delete buffer if we potentially
-		need to split pages. */
-		goto unbuffered;
-	}
-
-	ut_ad(mode == BTR_MODIFY_LEAF);
 
 	log_free_check();
 
 	mtr_start(&mtr);
 
-	search_result = row_search_index_entry(
-		index, entry, BTR_SEARCH_LEAF | BTR_WATCH_LEAF, &pcur, &mtr);
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-
-	switch (search_result) {
-	case ROW_NOT_FOUND:
-		/* Index entry does not exist, nothing to do. */
-		return(TRUE);
-
-	case ROW_FOUND:
-		/* The index entry exists and is in the buffer pool;
-		no need to use the insert/delete buffer. */
-		goto unbuffered;
-
-	case ROW_BUFFERED:
-		/* We did not pass any BTR_INSERT, BTR_DELETE, or
-		BTR_DELETE_MARK flag.  Therefore, the operation must
-		not have been buffered yet. */
-		ut_error;
-
-	case ROW_NOT_IN_POOL:
-		break;
-	}
-
-	/* We should remove the index record if no later version of
-	the row, which cannot be purged yet, requires its existence.
-	If some requires, we should do nothing. */
-
-	mtr_start(&mtr);
-
-	if (row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr)) {
-		old_has = row_vers_old_has_index_entry(
-			TRUE, btr_pcur_get_rec(&node->pcur),
-			&mtr, index, entry);
-	}
-
-	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
-
-	if (old_has) {
-		/* Can't remove the index record yet. */
-
-		buf_pool_watch_clear();
-
-		return(TRUE);
-	}
-
-	mtr_start(&mtr);
-
+	/* Set the purge node for the call to row_purge_poss_sec(). */
+	pcur.btr_cur.purge_node = node;
 	/* Set the query thread, so that ibuf_insert_low() will be
 	able to invoke thd_get_trx(). */
-	btr_pcur_get_btr_cur(&pcur)->thr = que_node_get_parent(node);
+	pcur.btr_cur.thr = que_node_get_parent(node);
 
 	search_result = row_search_index_entry(
 		index, entry, BTR_MODIFY_LEAF | BTR_DELETE, &pcur, &mtr);
@@ -389,31 +353,25 @@ row_purge_remove_sec_if_poss_low(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	buf_pool_watch_clear();
-
 	switch (search_result) {
+	case ROW_NOT_DELETED:
+		/* The index entry could not be deleted. */
+		return(FALSE);
+
+	case ROW_NOT_DELETED_REF:
+		/* The index entry is still needed. */
 	case ROW_NOT_FOUND:
-		/* Index entry does not exist, nothing to do. */
-		return(TRUE);
+		/* The index entry does not exist, nothing to do. */
 	case ROW_FOUND:
-		/* The index entry exists and is in the buffer pool;
-		no need to use the insert/delete buffer. */
-		break;
-
+		/* The index entry existed in the buffer pool
+		and was deleted because of the BTR_DELETE. */
 	case ROW_BUFFERED:
+		/* The deletion was buffered. */
 		return(TRUE);
-
-	case ROW_NOT_IN_POOL:
-		/* BTR_WATCH_LEAF was not specified,
-		so this should not occur! */
-		ut_error;
 	}
 
-	/* Page read into buffer pool or delete-buffering failed. */
-
-unbuffered:
-	return(row_purge_remove_sec_if_poss_low_nonbuffered(node, index,
-							    entry, mode));
+	ut_error;
+	return(FALSE);
 }
 
 /***************************************************************
@@ -431,15 +389,12 @@ row_purge_remove_sec_if_poss(
 
 	/*	fputs("Purge: Removing secondary record\n", stderr); */
 
-	success = row_purge_remove_sec_if_poss_low(node, index, entry,
-						   BTR_MODIFY_LEAF);
-	if (success) {
+	if (row_purge_remove_sec_if_poss_leaf(node, index, entry)) {
 
 		return;
 	}
 retry:
-	success = row_purge_remove_sec_if_poss_low(node, index, entry,
-						   BTR_MODIFY_TREE);
+	success = row_purge_remove_sec_if_poss_tree(node, index, entry);
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
 	and restart with more file space */

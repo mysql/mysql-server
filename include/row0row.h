@@ -271,8 +271,10 @@ enum row_search_result {
 				secondary index leaf page was not in
 				the buffer pool, and the operation was
 				enqueued in the insert/delete buffer */
-	ROW_NOT_IN_POOL		/* BTR_WATCH_LEAF was specified and the
-				record was not in the buffer pool */
+	ROW_NOT_DELETED_REF,	/* BTR_DELETE was specified, and
+				row_purge_poss_sec() failed */
+	ROW_NOT_DELETED,	/* BTR_DELETE was specified, and the
+				optimistic delete failed */
 };
 
 /*******************************************************************

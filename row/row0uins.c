@@ -152,11 +152,11 @@ row_undo_ins_remove_sec_low(
 	case ROW_FOUND:
 		break;
 	case ROW_BUFFERED:
-	case ROW_NOT_IN_POOL:
+	case ROW_NOT_DELETED:
+	case ROW_NOT_DELETED_REF:
 		/* These are invalid outcomes, because the mode passed
 		to row_search_index_entry() did not include any of the
-		flags BTR_INSERT, BTR_DELETE, BTR_DELETE_MARK, or
-		BTR_WATCH_LEAF. */
+		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
 		ut_error;
 	}
 
