@@ -1849,7 +1849,7 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 #endif
       continue;
     }
-    wait_time= max_time - NdbTick_CurrentMillisecond();
+    wait_time= int(max_time - NdbTick_CurrentMillisecond());
     if (wait_time <= 0)
     {
 #ifdef VM_TRACE

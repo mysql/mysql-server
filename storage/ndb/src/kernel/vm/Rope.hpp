@@ -41,13 +41,13 @@ public:
   ~ConstRope(){
   }
 
-  size_t size() const;
+  Uint32 size() const;
   bool empty() const;
 
   void copy(char* buf) const;
   
   int compare(const char * s) const { return compare(s, strlen(s) + 1); }
-  int compare(const char *, size_t len) const; 
+  int compare(const char *, Uint32 len) const; 
   
 private:
   const RopeHandle & src;
@@ -67,17 +67,17 @@ public:
     src.m_hash = m_hash;
   }
 
-  size_t size() const;
+  Uint32 size() const;
   bool empty() const;
 
   void copy(char* buf) const;
   
-  int compare(const char * s) const { return compare(s, strlen(s) + 1); }
-  int compare(const char *, size_t len) const; 
+  int compare(const char * s) const { return compare(s, Uint32(strlen(s) + 1));}
+  int compare(const char *, Uint32 len) const; 
   
-  bool assign(const char * s) { return assign(s, strlen(s) + 1);}
-  bool assign(const char * s, size_t l) { return assign(s, l, hash(s, l));}
-  bool assign(const char *, size_t len, Uint32 hash);
+  bool assign(const char * s) { return assign(s, Uint32(strlen(s) + 1));}
+  bool assign(const char * s, Uint32 l) { return assign(s, l, hash(s, l));}
+  bool assign(const char *, Uint32 len, Uint32 hash);
 
   void erase();
   
@@ -89,7 +89,7 @@ private:
 };
 
 inline
-size_t
+Uint32
 Rope::size() const {
   return head.used;
 }
@@ -101,7 +101,7 @@ Rope::empty() const {
 }
 
 inline
-size_t
+Uint32
 ConstRope::size() const {
   return head.used;
 }

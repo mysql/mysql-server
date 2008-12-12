@@ -582,7 +582,7 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
   const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
   Uint64 tmp[ MaxKeySizeInLongWords ];
   char* tmpshrink = (char*)tmp;
-  size_t tmplen = sizeof(tmp);
+  Uint32 tmplen = (Uint32)sizeof(tmp);
   
   Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
   Uint32 i;

@@ -3097,7 +3097,7 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
 
   Properties args;
-  args.put("Content-Length", strlen(encoded.c_str()));
+  args.put("Content-Length", (Uint32)strlen(encoded.c_str()));
   args.put("Content-Type",  "ndbconfig/octet-stream");
   args.put("Content-Transfer-Encoding", "base64");
 

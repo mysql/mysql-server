@@ -154,10 +154,10 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
     TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
 
     TcKeyReq* tcKeyReq= (TcKeyReq*) theTCREQ->getDataPtrSend();
-    const Uint32 inlineKIOffset= tcKeyReq->keyInfo - (Uint32*) tcKeyReq;
+    const Uint32 inlineKIOffset= Uint32(tcKeyReq->keyInfo - (Uint32*)tcKeyReq);
     const Uint32 inlineKILength= MIN(TcKeyReq::MaxKeyInfo,
                                      theTupKeyLen);
-    const Uint32 inlineAIOffset = tcKeyReq->attrInfo - (Uint32*) tcKeyReq;
+    const Uint32 inlineAIOffset = Uint32(tcKeyReq->attrInfo -(Uint32*)tcKeyReq);
     const Uint32 inlineAILength= MIN(TcKeyReq::MaxAttrInfo, 
                                      theTotalCurrAI_Len);
     

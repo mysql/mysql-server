@@ -661,7 +661,7 @@ public:
   
   // 1
   DictObject * get_object(const char * name){
-    return get_object(name, strlen(name) + 1);
+    return get_object(name, Uint32(strlen(name) + 1));
   }
   
   DictObject * get_object(const char * name, Uint32 len){
@@ -672,7 +672,7 @@ public:
 
   //2
   bool get_object(DictObjectPtr& obj_ptr, const char * name){
-    return get_object(obj_ptr, name, strlen(name) + 1);
+    return get_object(obj_ptr, name, Uint32(strlen(name) + 1));
   }
 
   bool get_object(DictObjectPtr& obj_ptr, const char * name, Uint32 len){

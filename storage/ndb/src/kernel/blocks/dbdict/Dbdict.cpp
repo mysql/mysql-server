@@ -4380,7 +4380,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   // Verify that table name is an allowed table name.
   // TODO
   /* ---------------------------------------------------------------- */
-  const Uint32 tableNameLength = strlen(c_tableDesc.TableName) + 1;
+  const Uint32 tableNameLength = Uint32(strlen(c_tableDesc.TableName) + 1);
   const Uint32 name_hash = Rope::hash(c_tableDesc.TableName, tableNameLength);
 
   if(checkExist){
@@ -4642,7 +4642,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     /**
      * Check that attribute is not defined twice
      */
-    const size_t len = strlen(attrDesc.AttributeName)+1;
+    const Uint32 len = Uint32(strlen(attrDesc.AttributeName)+1);
     const Uint32 name_hash = Rope::hash(attrDesc.AttributeName, len);
     {
       AttributeRecord key;
@@ -14160,7 +14160,7 @@ void Dbdict::execCREATE_EVNT_CONF(Signal* signal)
   LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
   ptr[0].sz =
-    (strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4; // to make sure we have a null
+    Uint32(strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4; // to make sure we have a null
 
   createEvent_sendReply(signal, evntRecPtr, ptr, 1);
     
@@ -18494,7 +18494,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     return;
   }
 
-  Uint32 len = strlen(f.FileName) + 1;
+  Uint32 len = Uint32(strlen(f.FileName) + 1);
   Uint32 hash = Rope::hash(f.FileName, len);
   if(get_object(f.FileName, len, hash) != 0)
   {
@@ -18821,7 +18821,7 @@ Dbdict::createFile_fromWriteObjInfo(Signal* signal,
   tmp.copy(name);
   LinearSectionPtr ptr[3];
   ptr[0].p = (Uint32*)&name[0];
-  ptr[0].sz = (strlen(name)+1+3)/4;
+  ptr[0].sz = Uint32(strlen(name)+1+3)/4;
   sendSignal(ref, GSN_CREATE_FILE_IMPL_REQ, signal, len, JBB, ptr, 1);
 
   Callback c =  {
@@ -19127,7 +19127,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
     }
   }
 
-  Uint32 len = strlen(fg.FilegroupName) + 1;
+  Uint32 len = Uint32(strlen(fg.FilegroupName) + 1);
   Uint32 hash = Rope::hash(fg.FilegroupName, len);
   if(get_object(fg.FilegroupName, len, hash) != 0)
   {
@@ -25825,7 +25825,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     w.getPtr(objInfoPtr);
   }
 
-  Uint32 len = strlen(hm.HashMapName) + 1;
+  Uint32 len = Uint32(strlen(hm.HashMapName) + 1);
   Uint32 hash = Rope::hash(hm.HashMapName, len);
 
   if (ERROR_INSERTED(6205))
