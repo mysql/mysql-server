@@ -193,8 +193,6 @@ public:
                      void * arg, traverse_order order);
   bool is_expensive_processor(byte *arg);
   virtual bool is_expensive() { return 0; }
-protected:
-  void agg_num_lengths(Item *arg);
 };
 
 
