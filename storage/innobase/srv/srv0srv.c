@@ -171,6 +171,7 @@ ulint	srv_awe_window_size	= 0;		/* size in pages; MySQL inits
 ulint	srv_mem_pool_size	= ULINT_MAX;	/* size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
+
 ulint   srv_io_capacity         = ULINT_MAX;    /* Number of IO operations per
                                                    second the server can do */
 
@@ -288,19 +289,20 @@ Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. Value 0 will disable the
 concurrency check. */
 
+ibool   srv_thread_concurrency_timer_based = TRUE;
 ulong	srv_thread_concurrency	= 0;
 ulong	srv_commit_concurrency	= 0;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
-lint	srv_conc_n_threads	= 0;	/* number of OS threads currently
+lint	srv_conc_n_threads	= 0;    /* number of OS threads currently
 					inside InnoDB; it is not an error
 					if this drops temporarily below zero
 					because we do not demand that every
 					thread increments this, but a thread
 					waiting for a lock decrements this
 					temporarily */
-ulint	srv_conc_n_waiting_threads = 0;	/* number of OS threads waiting in the
+ulint	srv_conc_n_waiting_threads = 0; /* number of OS threads waiting in the
 					FIFO for a permission to enter InnoDB
 					*/
 
@@ -1061,6 +1063,91 @@ ulong	srv_max_purge_lag		= 0;
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
 
+static void
+inc_srv_conc_n_threads(lint *n_threads)
+{
+  *n_threads = os_atomic_increment(&srv_conc_n_threads, 1);
+}
+
+static void
+dec_srv_conc_n_threads()
+{
+  os_atomic_increment(&srv_conc_n_threads, -1);
+}
+
+static void
+print_already_in_error(trx_t* trx)
+{
+	ut_print_timestamp(stderr);
+	fputs("  InnoDB: Error: trying to declare trx"
+	      " to enter InnoDB, but\n"
+	      "InnoDB: it already is declared.\n", stderr);
+	trx_print(stderr, trx, 0);
+	putc('\n', stderr);
+        return;
+}
+
+static void
+enter_innodb_with_tickets(trx_t* trx)
+{
+	trx->declared_to_be_inside_innodb = TRUE;
+	trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
+        return;
+}
+
+static void
+srv_conc_enter_innodb_timer_based(trx_t* trx)
+{
+        lint               conc_n_threads;
+        ibool              has_yielded = FALSE;
+        ulint              has_slept = 0;
+
+	if (trx->declared_to_be_inside_innodb) {
+                print_already_in_error(trx);
+        }
+retry:
+	if (srv_conc_n_threads < (lint) srv_thread_concurrency) {
+                inc_srv_conc_n_threads(&conc_n_threads);
+	        if (conc_n_threads <= srv_thread_concurrency) {
+                       enter_innodb_with_tickets(trx);
+                       return;
+                }
+                dec_srv_conc_n_threads(&conc_n_threads);
+       }
+       if (!has_yielded)
+       {
+               has_yielded = TRUE;
+               os_thread_yield();
+               goto retry;
+       }
+       if (trx->has_search_latch
+           || NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+                inc_srv_conc_n_threads(&conc_n_threads);
+                enter_innodb_with_tickets(trx);
+                return;
+       }
+       if (has_slept < 2)
+       {
+               trx->op_info = "sleeping before entering InnoDB";
+               os_thread_sleep(10000);
+               trx->op_info = "";
+               has_slept++;
+       }
+       inc_srv_conc_n_threads(&conc_n_threads);
+       enter_innodb_with_tickets(trx);
+       return;
+}
+
+static void
+srv_conc_exit_innodb_timer_based(trx_t* trx)
+{
+        dec_srv_conc_n_threads();
+	trx->declared_to_be_inside_innodb = FALSE;
+	trx->n_tickets_to_enter_innodb = 0;
+        return;
+}
+
 void
 srv_conc_enter_innodb(
 /*==================*/
@@ -1091,15 +1178,17 @@ srv_conc_enter_innodb(
 		return;
 	}
 
+#ifdef UNIV_SYNC_ATOMIC
+        if (srv_thread_concurrency_timer_based) {
+          srv_conc_enter_innodb_timer_based(trx);
+          return;
+        }
+#endif
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
 	if (trx->declared_to_be_inside_innodb) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: trying to declare trx"
-		      " to enter InnoDB, but\n"
-		      "InnoDB: it already is declared.\n", stderr);
-		trx_print(stderr, trx, 0);
-		putc('\n', stderr);
+                print_already_in_error(trx);
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
@@ -1226,17 +1315,25 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
+        lint               conc_n_threads;
+
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
 
+#ifdef UNIV_SYNC_ATOMIC
+        if (srv_thread_concurrency_timer_based) {
+                inc_srv_conc_n_threads(&conc_n_threads);
+	        trx->declared_to_be_inside_innodb = TRUE;
+	        trx->n_tickets_to_enter_innodb = 1;
+                return;
+        }
+#endif
 	os_fast_mutex_lock(&srv_conc_mutex);
-
 	srv_conc_n_threads++;
 	trx->declared_to_be_inside_innodb = TRUE;
 	trx->n_tickets_to_enter_innodb = 1;
-
 	os_fast_mutex_unlock(&srv_conc_mutex);
 }
 
@@ -1267,6 +1364,14 @@ srv_conc_force_exit_innodb(
 
 		return;
 	}
+
+#ifdef UNIV_SYNC_ATOMIC
+        if (srv_thread_concurrency_timer_based)
+        {
+                srv_conc_exit_innodb_timer_based(trx);
+                return;
+        }
+#endif
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 

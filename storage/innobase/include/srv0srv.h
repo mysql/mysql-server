@@ -89,6 +89,8 @@ extern ulint	srv_awe_window_size;
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
+extern ibool    srv_thread_concurrency_timer_based;
+
 extern ulint	srv_n_file_io_threads;
 /* Number of background IO threads for read and write. Replaces
  * srv_n_file_io_threads. */
