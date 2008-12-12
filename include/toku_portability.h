@@ -77,7 +77,8 @@ extern "C" {
 int      fstat()                        __attribute__((__deprecated__));
 int      getpid(void)                   __attribute__((__deprecated__));
 long int syscall(long int __sysno, ...) __attribute__((__deprecated__));
-long int sysconf(int)                   __attribute__((__deprecated__));
+// Sadly, dlmalloc needs sysconf, and on linux this causes trouble with -combine.  So let the warnings show up under windows only.
+// long int sysconf(int)                   __attribute__((__deprecated__));
 int      mkdir()                        __attribute__((__deprecated__));
 // strdup is a macro in some libraries.
 #undef strdup
