@@ -12,7 +12,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "univ.i"
 #include "sync0rw.h"
 #include "dict0types.h"
-#include "ibuf0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
 
@@ -158,14 +157,6 @@ fil_space_get_type(
 			/* out: FIL_TABLESPACE or FIL_LOG */
 	ulint	id);	/* in: space id */
 /***********************************************************************
-Returns the ibuf data of a file space. */
-UNIV_INTERN
-ibuf_data_t*
-fil_space_get_ibuf_data(
-/*====================*/
-			/* out: ibuf data for this space */
-	ulint	id);	/* in: space id */
-/***********************************************************************
 Appends a new file to the chain of files of a space. File must be closed. */
 UNIV_INTERN
 void
@@ -282,14 +273,6 @@ void
 fil_set_max_space_id_if_bigger(
 /*===========================*/
 	ulint	max_id);/* in: maximum known id */
-/********************************************************************
-Initializes the ibuf data structure for space 0 == the system tablespace.
-This can be called after the file space headers have been created and the
-dictionary system has been initialized. */
-UNIV_INTERN
-void
-fil_ibuf_init_at_db_start(void);
-/*===========================*/
 /********************************************************************
 Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace. */
