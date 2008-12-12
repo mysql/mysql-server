@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (C) 2004-2006 MySQL AB
+# Copyright (C) 2004-2006 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,22 +110,26 @@ sub mtr_report_test ($) {
 
   if ($result eq 'MTR_RES_FAILED'){
 
+    my $timest = format_time();
+
     if ( $warnings )
     {
       mtr_report("[ fail ]  Found warnings in server log file!");
+      mtr_report("        Test ended at $timest");
       mtr_report($warnings);
       return;
     }
     my $timeout= $tinfo->{'timeout'};
     if ( $timeout )
     {
-      mtr_report("[ fail ]  timeout after $timeout minutes");
+      mtr_report("[ fail ]  timeout after $timeout seconds");
+      mtr_report("        Test ended at $timest");
       mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     else
     {
-      mtr_report("[ fail ]");
+      mtr_report("[ fail ]\n        Test ended at $timest");
     }
 
     if ( $logfile )
@@ -371,6 +375,13 @@ sub mtr_print_header () {
 use Time::localtime;
 
 use Time::HiRes qw(gettimeofday);
+
+sub format_time {
+  my $tm= localtime();
+  return sprintf("%4d-%02d-%02d %02d:%02d:%02d",
+		 $tm->year + 1900, $tm->mon+1, $tm->mday,
+		 $tm->hour, $tm->min, $tm->sec);
+}
 
 my $t0= gettimeofday();
 
