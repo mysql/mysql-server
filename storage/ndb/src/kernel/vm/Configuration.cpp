@@ -458,20 +458,14 @@ Configuration::setupConfiguration(){
 	      "TimeBetweenWatchDogCheck missing");
   }
 
-  if(iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "SchedulerExecutionTimer missing");
-  }
+  _schedulerExecutionTimer = 50;
+  iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer);
 
-  if(iter.get(CFG_DB_SCHED_SPIN_TIME, &_schedulerSpinTimer)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "SchedulerSpinTimer missing");
-  }
+  _schedulerSpinTimer = 0;
+  iter.get(CFG_DB_SCHED_SPIN_TIME, &_schedulerSpinTimer);
 
-  if(iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "RealtimeScheduler missing");
-  }
+  _realtimeScheduler = 0;
+  iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
   const char * mask;
   if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
@@ -485,11 +479,12 @@ Configuration::setupConfiguration(){
   _maintLockCPU = NO_LOCK_CPU;
   iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU);
 
-  if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, &_timeBetweenWatchDogCheckInitial)){
+  if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, 
+              &_timeBetweenWatchDogCheckInitial)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheckInitial missing");
   }
-
+  
   /**
    * Get paths
    */  
@@ -504,14 +499,14 @@ Configuration::setupConfiguration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
   }
-
+  
   /**
    * Create the watch dog thread
    */
   { 
     if (_timeBetweenWatchDogCheckInitial < _timeBetweenWatchDogCheck)
       _timeBetweenWatchDogCheckInitial = _timeBetweenWatchDogCheck;
-
+    
     Uint32 t = _timeBetweenWatchDogCheckInitial;
     t = globalEmulatorData.theWatchDog ->setCheckInterval(t);
     _timeBetweenWatchDogCheckInitial = t;
