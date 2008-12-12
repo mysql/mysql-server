@@ -1639,8 +1639,9 @@ master_def:
            if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
                Lex->mi.heartbeat_period < 0.0)
            {
-             char buf[sizeof(SLAVE_MAX_HEARTBEAT_PERIOD*4)];
-             my_sprintf(buf, (buf, "%d seconds", SLAVE_MAX_HEARTBEAT_PERIOD));
+             const char format[]= "%d seconds";
+             char buf[sizeof(SLAVE_MAX_HEARTBEAT_PERIOD)*4 + sizeof(format)];
+             my_sprintf(buf, (buf, format, SLAVE_MAX_HEARTBEAT_PERIOD));
              my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
                       MYF(0),
                       " is negative or exceeds the maximum ",
