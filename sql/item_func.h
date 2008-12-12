@@ -200,8 +200,6 @@ public:
     null_value=1;
     return 0.0;
   }
-protected:
-  void agg_num_lengths(Item *arg);
 };
 
 
@@ -364,7 +362,10 @@ public:
   Item_func_unsigned(Item *a) :Item_func_signed(a) {}
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
-  { max_length=args[0]->max_length; unsigned_flag=1; }
+  {
+    max_length= min(args[0]->max_length, DECIMAL_MAX_PRECISION + 2);
+    unsigned_flag=1;
+  }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
 };
