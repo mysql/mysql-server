@@ -623,17 +623,13 @@ retry_page_get:
 	block->check_index_page_at_flush = TRUE;
 	page = buf_block_get_frame(block);
 
-#ifdef UNIV_ZIP_DEBUG
 	if (rw_latch != RW_NO_LATCH) {
-		const page_zip_des_t*	page_zip;
-
-		page_zip = buf_block_get_page_zip(block);
-
+#ifdef UNIV_ZIP_DEBUG
+		const page_zip_des_t*	page_zip
+			= buf_block_get_page_zip(block);
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
-	}
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (rw_latch != RW_NO_LATCH) {
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 	}
 
