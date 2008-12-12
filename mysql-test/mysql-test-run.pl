@@ -2810,8 +2810,12 @@ sub check_testcase($$)
 	  # Test failed, grab the report mysqltest has created
 	  my $report= mtr_grab_file($err_file);
 	  $tinfo->{check}.=
-	    "\nThe check of testcase '$tname' failed, this is the\n".
-	      "diff between before and after:\n";
+	    "\nMTR's internal check of the test case '$tname' failed.
+This means that the test case does not preserve the state that existed
+before the test case was executed.  Most likely the test case did not
+do a proper clean-up.
+This is the diff of the states of the servers before and after the
+test case was executed:\n";
 	  $tinfo->{check}.= $report;
 
 	  # Check failed, mark the test case with that info

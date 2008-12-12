@@ -218,6 +218,8 @@ INSERT INTO global_suppressions VALUES
 --
 CREATE DEFINER=root@localhost PROCEDURE check_warnings(OUT result INT)
 BEGIN
+  DECLARE `text` text charset utf8;
+  DECLARE `pos` bigint unsigned;
 
   -- Don't write these queries to binlog
   SET SQL_LOG_BIN=0;
@@ -234,15 +236,17 @@ BEGIN
       WHERE variable_name='LOG_ERROR';
 
   SET @@session.max_allowed_packet= 1024*1024*1024;
-  SET @text= load_file(@log_error);
-  -- select @text;
+  SET text= load_file(@log_error);
+  -- select text;
 
-  WHILE LOCATE('\n', @text) DO
+  SET pos= LOCATE('\n', text);
+  WHILE pos DO
     INSERT error_log (line)
       VALUES (
-       SUBSTR(@text, 1, LOCATE('\n', @text)-1)
+       SUBSTR(text, 1, pos-1)
       );
-    SET @text= SUBSTR(@text FROM LOCATE('\n', @text)+1);
+    SET text= SUBSTR(text FROM pos+1);
+    SET pos= LOCATE('\n', text);
   END WHILE;
 
   -- select * from error_log;
@@ -287,6 +291,7 @@ BEGIN
 
   -- Cleanup for next test
   TRUNCATE test_suppressions;
+  DROP TABLE error_log, suspect_lines;
 
 END||
 

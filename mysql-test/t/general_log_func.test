@@ -81,8 +81,10 @@ INSERT into t1(name) values('Record_4');
 --echo ## There should be a difference ##
 SET @@session.max_allowed_packet= 1024*1024*1024;
 --replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
-eval select
-  STRCMP(load_file('$MYSQLD_LOGFILE.orig'), load_file('$MYSQLD_LOGFILE.copy'));
+eval SET @orig_file= load_file('$MYSQLD_LOGFILE.orig');
+--replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
+eval SET @copy_file= load_file('$MYSQLD_LOGFILE.copy');
+eval SELECT STRCMP(@orig_file, @copy_file);
 --remove_file $MYSQLD_LOGFILE.copy
 --remove_file $MYSQLD_LOGFILE.orig
 
