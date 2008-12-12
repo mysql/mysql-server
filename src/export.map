@@ -6,6 +6,8 @@
    db_version;
    log_compare;
    db_env_set_func_fsync;   
+   db_env_set_func_malloc;
+   db_env_set_func_free;
 
    toku_get_maxrss;
 
@@ -15,6 +17,7 @@
 
    toku_add_trace_mem;
    toku_print_trace_mem;
+
 
    toku_free;
    toku_malloc;

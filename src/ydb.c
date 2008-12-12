@@ -3655,3 +3655,12 @@ int db_env_set_func_fsync (int (*fsync_function)(int)) {
     return toku_set_func_fsync(fsync_function);
 }
 
+int db_env_set_func_malloc (void *(*f)(size_t)) {
+    return toku_set_func_malloc(f);
+}
+int db_env_set_func_realloc (void *(*f)(void*, size_t)) {
+    return toku_set_func_realloc(f);
+}
+int db_env_set_func_free (void *(*f)(void*)) {
+    return toku_set_func_free(f);
+}

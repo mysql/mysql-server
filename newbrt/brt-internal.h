@@ -249,8 +249,6 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM); // Return the size on disk.
 int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
 int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_cmd_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
 
-int toku_set_func_fsync (int (*fsync_function)(int));
-
 // These two go together to do lookups in a brtnode using the keys in a command.
 struct cmd_leafval_heaviside_extra {
     BRT t;

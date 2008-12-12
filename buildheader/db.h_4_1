@@ -284,6 +284,9 @@ int log_compare (const DB_LSN*, const DB_LSN *) __attribute__((__visibility__("d
 int db_env_set_func_fsync (int (*)(int)) __attribute__((__visibility__("default")));
 int toku_set_trace_file (char *fname) __attribute__((__visibility__("default")));
 int toku_close_trace_file (void) __attribute__((__visibility__("default")));
+int db_env_set_func_malloc (void *(*)(size_t)) __attribute__((__visibility__("default")));
+int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
+int db_env_set_func_free (void *(*)(void*)) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif
