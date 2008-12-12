@@ -3257,17 +3257,12 @@ ibuf_insert_low(
 					    ? &min_n_recs
 					    : NULL, &mtr);
 
-	if (op == IBUF_OP_DELETE) {
-		if (min_n_recs < 2
-		    || buf_pool_watch_occurred(space, page_no)) {
-			/* The page could become empty after the
-			record is deleted, or the page has been read
-			in to the buffer pool.  Refuse to buffer the
-			operation. */
-			err = DB_STRONG_FAIL;
-
-			goto function_exit;
-		}
+	if (op == IBUF_OP_DELETE
+	    && (min_n_recs < 2
+		|| buf_pool_watch_occurred(space, page_no))) {
+		/* The page could become empty after the record is
+		deleted, or the page has been read in to the buffer
+		pool.  Refuse to buffer the operation. */
 
 		/* The buffer pool watch is needed for IBUF_OP_DELETE
 		because of latching order considerations.  We can
@@ -3281,7 +3276,21 @@ ibuf_insert_low(
 		that no changes for the user page will be merged
 		before mtr_commit(&mtr).  We must not mtr_commit(&mtr)
 		until after the IBUF_OP_DELETE has been buffered. */
+
+		err = DB_STRONG_FAIL;
+
+		goto function_exit;
 	}
+
+	/* After this point, buf_pool_watch_occurred(space, page_no)
+	may still become true, but we do not have to care about it,
+	since we are holding a latch on the insert buffer leaf page
+	that contains buffered changes for (space, page_no).  If
+	buf_pool_watch_occurred(space, page_no) becomes true,
+	buf_page_io_complete() for (space, page_no) will have to
+	acquire a latch on the same insert buffer leaf page, which it
+	cannot do until we have buffered the IBUF_OP_DELETE and done
+	mtr_commit(&mtr) to release the latch. */
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));
