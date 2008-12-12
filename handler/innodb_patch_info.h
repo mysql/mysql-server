@@ -27,5 +27,6 @@ struct innodb_enhancement {
 {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_show_status"},
 {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_io"},
 {"innodb_rw_lock","InnoDB RW-lock fixes","Useful for 8+ cores SMP systems","http://www.percona.com/docs/wiki/percona-innodb-plugin:innodb_rw_lock"},
+{"optimistic_margine_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex","http://www.percona.com/docs/wiki/percona-innodb-plugin:optimistic_margine_count"},
 {NULL, NULL, NULL, NULL}
 };

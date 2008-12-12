@@ -151,7 +151,7 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage)	/* in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_LRU_list);
 
@@ -162,6 +162,8 @@ buf_flush_ready_for_replace(
 		       && bpage->buf_fix_count == 0);
 	}
 
+	/* permited not to own LRU_mutex..  */
+/*
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Error: buffer block state %lu"
@@ -169,6 +171,7 @@ buf_flush_ready_for_replace(
 		(ulong) buf_page_get_state(bpage));
 	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
 	putc('\n', stderr);
+*/
 
 	return(FALSE);
 }
@@ -1190,7 +1193,7 @@ buf_flush_LRU_recommendation(void)
 	ulint		n_replaceable;
 	ulint		distance	= 0;
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
 
 	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
 
@@ -1216,7 +1219,7 @@ buf_flush_LRU_recommendation(void)
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
 
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 
@@ -1235,8 +1238,9 @@ flush only pages such that the s-lock required for flushing can be acquired
 immediately, without waiting. */
 UNIV_INTERN
 void
-buf_flush_free_margin(void)
+buf_flush_free_margin(
 /*=======================*/
+	ibool	wait)
 {
 	ulint	n_to_flush;
 	ulint	n_flushed;
@@ -1245,7 +1249,7 @@ buf_flush_free_margin(void)
 
 	if (n_to_flush > 0) {
 		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);
-		if (n_flushed == ULINT_UNDEFINED) {
+		if (wait && n_flushed == ULINT_UNDEFINED) {
 			/* There was an LRU type flush batch already running;
 			let us wait for it to end */
 

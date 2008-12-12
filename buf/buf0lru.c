@@ -885,7 +885,7 @@ loop:
 
 	/* No free block was found: try to flush the LRU list */
 
-	buf_flush_free_margin();
+	buf_flush_free_margin(TRUE);
 	++srv_buf_pool_wait_free;
 
 	os_aio_simulated_wake_handler_threads();

@@ -2850,7 +2850,7 @@ buf_page_create(
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	buf_flush_free_margin(FALSE);
 
 	frame = block->frame;
 
