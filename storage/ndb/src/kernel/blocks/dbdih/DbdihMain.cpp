@@ -17140,10 +17140,16 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
       return;
     }
   }
-  
+
+  Uint32 len = DictUnlockOrd::SignalLength;
+  if (unlikely(getNodeInfo(cmasterNodeId).m_version < NDB_MAKE_VERSION(6,3,0)))
+  {
+    jam();
+    len = 2;
+  }
+
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
-  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,
-             DictUnlockOrd::SignalLength, JBB);
+  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal, len, JBB);
 }
 
 #ifdef ERROR_INSERT
