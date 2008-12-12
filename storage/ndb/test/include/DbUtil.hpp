@@ -104,7 +104,7 @@ public:
   bool doQuery(BaseString& str, const Properties& args, SqlResultSet& result);
   bool doQuery(BaseString& str, const Properties& args);
 
-  bool waitConnected(int timeout);
+  bool waitConnected(int timeout = 120);
 
   bool  databaseLogin(const char * host,
                       const char * user,
