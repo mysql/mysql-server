@@ -163,4 +163,5 @@ SELECT * FROM (SELECT MAX(IFNULL(CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 
 DROP TABLE t1;
 
+
 --echo End of 5.0 tests

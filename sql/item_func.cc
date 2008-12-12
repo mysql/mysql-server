@@ -6086,13 +6086,3 @@ longlong Item_func_uuid_short::val_int()
   pthread_mutex_unlock(&LOCK_uuid_generator);
   return (longlong) val;
 }
-
-
-void Item_func::agg_num_lengths(Item *arg)
-{
-  uint len= my_decimal_length_to_precision(arg->max_length, arg->decimals,
-                                           arg->unsigned_flag) - arg->decimals;
-  set_if_bigger(max_length, len); 
-  set_if_bigger(decimals, arg->decimals);
-  unsigned_flag= unsigned_flag && arg->unsigned_flag; 
-}
