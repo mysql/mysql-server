@@ -2231,8 +2231,33 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return -1;
   }
 
-  if (nostart)
-    ndbout_c("Shutting down nodes with \"-n, no start\" option, to subsequently start the nodes.");
+  struct ndb_mgm_cluster_state *cl = ndb_mgm_get_status(m_mgmsrv);
+  if(cl == NULL)
+  {
+    ndbout_c("Could not get status");
+    printError();
+    return -1;
+  }
+  NdbAutoPtr<char> ap1((char*)cl);
+
+  for (int i= 0; i < no_of_nodes; i++)
+  {
+    int j = 0;
+    while((j < cl->no_of_nodes) && cl->node_states[j].node_id != node_ids[i])
+      j++;
+
+    if(cl->node_states[j].node_id != node_ids[i])
+    {
+      ndbout << node_ids[i] << ": Node not found" << endl;
+      return -1;
+    }
+
+    if(cl->node_states[j].node_type == NDB_MGM_NODE_TYPE_MGM)
+    {
+      ndbout << "Shutting down MGM node"
+	     << " " << node_ids[i] << " for restart" << endl;
+    }
+  }
 
   result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
                            initialstart, nostart, abort, &need_disconnect);
