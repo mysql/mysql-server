@@ -144,6 +144,8 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step){
         return NDBT_FAILED;
     }
 
+    NdbSleep_SecSleep(5); // TODO, handle arbitration
+
     // Restart one ndbd in each node group
     SqlResultSet ndbds;
     if (!atrt.getNdbds(clusterId, ndbds))
@@ -256,6 +258,8 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
       if(restarter.waitConnected())
         return NDBT_FAILED;
     }
+
+    NdbSleep_SecSleep(5); // TODO, handle arbitration
 
     // Restart one ndbd in each node group
     SqlResultSet ndbds;
