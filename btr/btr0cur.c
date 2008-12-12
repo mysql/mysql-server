@@ -680,15 +680,6 @@ retry_page_get:
 
 	if (level == height) {
 
-		if (level > 0) {
-			/* x-latch the page */
-			page = btr_page_get(
-				space, zip_size, page_no, RW_X_LATCH, mtr);
-
-			ut_a((ibool)!!page_is_comp(page)
-				== dict_table_is_comp(index->table));
-		}
-
 		goto loop_end;
 	}
 
@@ -727,7 +718,14 @@ retry_page_get:
 	goto search_loop;
 
 loop_end:
-	if (level == 0) {
+	if (level != 0) {
+		/* x-latch the page */
+		page = btr_page_get(
+			space, zip_size, page_no, RW_X_LATCH, mtr);
+
+		ut_a((ibool)!!page_is_comp(page)
+		     == dict_table_is_comp(index->table));
+	} else {
 		cursor->low_match = low_match;
 		cursor->low_bytes = low_bytes;
 		cursor->up_match = up_match;
