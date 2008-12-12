@@ -91,7 +91,7 @@ ibuf_should_try(
 
 		ibuf_flush_count++;
 
-		if (ibuf_flush_count % 8 == 0) {
+		if (ibuf_flush_count % 4 == 0) {
 
 			buf_LRU_try_free_flushed_blocks();
 		}
