@@ -2132,23 +2132,21 @@ Item_func_ifnull::fix_length_and_dec()
 {
   agg_result_type(&hybrid_type, args, 2);
   maybe_null=args[1]->maybe_null;
+  decimals= max(args[0]->decimals, args[1]->decimals);
+  unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
 
   if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
   {
-    max_length= 0;
-    decimals= 0;
-    unsigned_flag= TRUE;
-    agg_num_lengths(args[0]);
-    agg_num_lengths(args[1]);
-    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
-                                               unsigned_flag);
+    int len0= args[0]->max_length - args[0]->decimals
+      - (args[0]->unsigned_flag ? 0 : 1);
+
+    int len1= args[1]->max_length - args[1]->decimals
+      - (args[1]->unsigned_flag ? 0 : 1);
+
+    max_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
   }
   else
-  {
     max_length= max(args[0]->max_length, args[1]->max_length);
-    decimals= max(args[0]->decimals, args[1]->decimals);
-    unsigned_flag=args[0]->unsigned_flag && args[1]->unsigned_flag;
-  }
 
   switch (hybrid_type) {
   case STRING_RESULT:
@@ -2302,6 +2300,8 @@ void
 Item_func_if::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null || args[2]->maybe_null;
+  decimals= max(args[1]->decimals, args[2]->decimals);
+  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
 
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
@@ -2338,20 +2338,16 @@ Item_func_if::fix_length_and_dec()
   if ((cached_result_type == DECIMAL_RESULT )
       || (cached_result_type == INT_RESULT))
   {
-    max_length= 0;
-    decimals= 0;
-    unsigned_flag= TRUE;
-    agg_num_lengths(args[1]);
-    agg_num_lengths(args[2]);
-    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
-                                               unsigned_flag);
+    int len1= args[1]->max_length - args[1]->decimals
+      - (args[1]->unsigned_flag ? 0 : 1);
+
+    int len2= args[2]->max_length - args[2]->decimals
+      - (args[2]->unsigned_flag ? 0 : 1);
+
+    max_length=max(len1, len2) + decimals + (unsigned_flag ? 0 : 1);
   }
   else
-  {
     max_length= max(args[1]->max_length, args[2]->max_length);
-    decimals= max(args[1]->decimals, args[2]->decimals);
-    unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
-  }
 }
 
 
@@ -2664,6 +2660,16 @@ void Item_func_case::agg_str_lengths(Item* arg)
   set_if_bigger(max_length, arg->max_length);
   set_if_bigger(decimals, arg->decimals);
   unsigned_flag= unsigned_flag && arg->unsigned_flag;
+}
+
+
+void Item_func_case::agg_num_lengths(Item *arg)
+{
+  uint len= my_decimal_length_to_precision(arg->max_length, arg->decimals,
+                                           arg->unsigned_flag) - arg->decimals;
+  set_if_bigger(max_length, len); 
+  set_if_bigger(decimals, arg->decimals);
+  unsigned_flag= unsigned_flag && arg->unsigned_flag; 
 }
 
 
