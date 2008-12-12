@@ -19,7 +19,7 @@ typedef time_t	ib_time_t;
 
 #ifdef HAVE_PAUSE_INSTRUCTION
 #define PAUSE_INSTRUCTION(volatile_var) {__asm__ __volatile__ ("pause");}
-#elif
+#else
 #ifdef UNIV_SYNC_ATOMIC
 #define PAUSE_INSTRUCTION(volatile_var) \
   { \
