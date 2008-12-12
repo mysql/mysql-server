@@ -1126,13 +1126,23 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     if(proc.m_type == atrt_process::AP_NDB_API || 
        proc.m_type == atrt_process::AP_CLIENT)
     {
-      proc.m_proc.m_path = "";
+      BaseString cmd;
       if (tc.m_command.c_str()[0] != '/')
       {
-	proc.m_proc.m_path.appfmt("%s/bin/", g_prefix);
+        cmd.appfmt("%s/bin/", g_prefix);
       }
-      proc.m_proc.m_path.append(tc.m_command.c_str());
-      proc.m_proc.m_args.assign(tc.m_args);
+      cmd.append(tc.m_command.c_str());
+
+      if (0) // valgrind
+      {
+        proc.m_proc.m_path = "/usr/bin/valgrind";
+        proc.m_proc.m_args.appfmt("%s %s", cmd.c_str(), tc.m_args.c_str());
+      }
+      else
+      {
+        proc.m_proc.m_path = cmd;
+        proc.m_proc.m_args.assign(tc.m_args);
+      }
       if(!tc.m_run_all)
         break;
     }

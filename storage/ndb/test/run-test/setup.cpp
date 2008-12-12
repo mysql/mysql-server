@@ -203,7 +203,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
 {
   atrt_host * host_ptr = find(hostname, config.m_hosts);
   atrt_process *proc_ptr = new atrt_process;
-  
+
   config.m_processes.push_back(proc_ptr);
   host_ptr->m_processes.push_back(proc_ptr);
   cluster.m_processes.push_back(proc_ptr);
@@ -214,6 +214,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_index = idx;
   proc.m_type = type;
   proc.m_host = host_ptr;
+  proc.m_save.m_saved = false;
   if (g_fix_nodeid)
     proc.m_nodeid= cluster.m_next_nodeid++;
   else
