@@ -1454,8 +1454,8 @@ row_upd_sec_index_entry(
 	rec = btr_cur_get_rec(btr_cur);
 
 	switch (search_result) {
-	case ROW_NOT_IN_POOL:
-		/* This should only occur for BTR_WATCH_LEAF. */
+	case ROW_NOT_DELETED:		/* should only occur for BTR_DELETE */
+	case ROW_NOT_DELETED_REF:	/* should only occur for BTR_DELETE */
 		ut_error;
 		break;
 	case ROW_BUFFERED:
