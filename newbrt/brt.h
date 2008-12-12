@@ -124,6 +124,6 @@ void maybe_preallocate_in_file (int fd, u_int64_t size);
 int toku_set_func_fsync (int (*fsync_function)(int));
 int toku_set_func_malloc  (void *(*)(size_t));
 int toku_set_func_realloc (void *(*)(void*,size_t));
-int toku_set_func_free    (void *(*)(void*));
+int toku_set_func_free    (void (*)(void*));
 
 #endif

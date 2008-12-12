@@ -7,6 +7,7 @@
    log_compare;
    db_env_set_func_fsync;   
    db_env_set_func_malloc;
+   db_env_set_func_realloc;
    db_env_set_func_free;
 
    toku_get_maxrss;
@@ -29,6 +30,10 @@
    toku_os_mkdir;
    toku_realloc;
    toku_strdup;
+
+   dlmalloc;
+   dlrealloc;
+   dlfree;
 
  local: *;
 };
