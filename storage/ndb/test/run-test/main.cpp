@@ -254,15 +254,18 @@ main(int argc, char ** argv)
   /**
    * Main loop
    */
-  while(!feof(g_test_case_file)){
+  while(!feof(g_test_case_file))
+  {
     /**
      * Do we need to restart ndb
      */
-    if(restart){
+    if(restart)
+    {
+      restart = false;
       g_logger.info("(Re)starting server processes");
       if(!stop_processes(g_config, ~0))
 	goto end;
-
+      
       if (!setup_directories(g_config, 2))
 	goto end;
       
@@ -276,7 +279,7 @@ main(int argc, char ** argv)
       {
         g_logger.info("Failed to start server processes");
         g_logger.info("Gathering logs and saving them as test %u", test_no);
-
+        
         int tmp;
         if(!gather_result(g_config, &tmp))
           goto end;
@@ -327,31 +330,37 @@ main(int argc, char ** argv)
     
     const time_t start = time(0);
     time_t now = start;
-    do {
+    do 
+    {
       if(!update_status(g_config, atrt_process::AP_ALL))
 	goto end;
-
-      if(is_running(g_config, p_ndb) != 2){
+      
+      if(is_running(g_config, p_ndb) != 2)
+      {
 	result = ERR_NDB_FAILED;
 	break;
       }
-
-      if(is_running(g_config, p_servers) != 2){
+      
+      if(is_running(g_config, p_servers) != 2)
+      {
 	result = ERR_SERVERS_FAILED;
 	break;
       }
 
-      if(is_running(g_config, p_clients) == 0){
+      if(is_running(g_config, p_clients) == 0)
+      {
 	break;
       }
 
-      if (!do_command(g_config)){
+      if (!do_command(g_config))
+      {
         result = ERR_COMMAND_FAILED;
 	break;
       }
 
       now = time(0);
-      if(now  > (start + test_case.m_max_time)){
+      if(now  > (start + test_case.m_max_time))
+      {
 	result = ERR_MAX_TIME_ELAPSED;
 	break;
       }
@@ -371,18 +380,20 @@ main(int argc, char ** argv)
 		  test_no, 
 		  (result == 0 ? "OK" : "FAILED"), result);
 
-    if(g_report_file != 0){
+    if(g_report_file != 0)
+    {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld\n",
 	      test_case.m_name.c_str(), test_no, result, elapsed);
       fflush(g_report_file);
     }    
 
-    if(g_mode == 0 && result){
+    if(g_mode == 0 && result)
+    {
       g_logger.info
 	("Encountered failed test in interactive mode - terminating");
       break;
     }
-
+    
     BaseString resdir;
     resdir.assfmt("result.%d", test_no);
     remove_dir(resdir.c_str(), true);
@@ -400,11 +411,15 @@ main(int argc, char ** argv)
     {
       remove_dir("result", true);
     }
-    
-    if(result != 0){
+   
+    if (reset_config(g_config))
+    {
       restart = true;
-    } else {
-      restart = false;
+    }
+    
+    if(result != 0)
+    {
+      restart = true;
     }
     test_no++;
   }
@@ -858,7 +873,8 @@ next:
 bool
 start_process(atrt_process & proc){
   if(proc.m_proc.m_id != -1){
-    g_logger.critical("starting already started process: %d", proc.m_index);
+    g_logger.critical("starting already started process: %u", 
+                      (unsigned)proc.m_index);
     return false;
   }
   
@@ -1346,6 +1362,27 @@ require(bool x)
 {
   if (!x)
     abort();
+}
+
+bool
+reset_config(atrt_config & config)
+{
+  bool changed = false;
+  for(size_t i = 0; i<config.m_processes.size(); i++)
+  {
+    atrt_process & proc = *config.m_processes[i]; 
+    if (proc.m_save.m_saved)
+    {
+      if (!stop_process(proc))
+        return false;
+      
+      changed = true;
+      proc.m_save.m_saved = false;
+      proc.m_proc = proc.m_save.m_proc;
+      proc.m_proc.m_id = -1;
+    }
+  }
+  return changed;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;
