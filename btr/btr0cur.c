@@ -30,6 +30,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "buf0lru.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
+#include "row0purge.h"
 #include "row0upd.h"
 #include "trx0rec.h"
 #include "trx0roll.h" /* trx_is_recv() */
@@ -331,7 +332,6 @@ btr_cur_search_to_nth_level(
 	ulint		buf_mode;
 	ulint		estimate;
 	ulint		zip_size;
-	ulint		watch_leaf;
 	page_cur_t*	page_cursor;
 	ulint		ignore_sec_unique;
 	btr_op_t	btr_op = BTR_NO_OP;
@@ -370,6 +370,7 @@ btr_cur_search_to_nth_level(
 		break;
 	case BTR_DELETE:
 		btr_op = BTR_DELETE_OP;
+		ut_a(cursor->purge_node);
 		break;
 	case BTR_DELETE_MARK:
 		btr_op = BTR_DELMARK_OP;
@@ -385,19 +386,15 @@ btr_cur_search_to_nth_level(
 	/* Operations on the clustered index cannot be buffered. */
 	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_clust(index));
 
-	watch_leaf = latch_mode & BTR_WATCH_LEAF;
-
 	estimate = latch_mode & BTR_ESTIMATE;
 	ignore_sec_unique = latch_mode & BTR_IGNORE_SEC_UNIQUE;
 
 	/* Turn the flags unrelated to the latch mode off. */
-	latch_mode &=  ~(
-		BTR_INSERT
-		| BTR_DELETE_MARK
-		| BTR_DELETE
-		| BTR_ESTIMATE
-		| BTR_IGNORE_SEC_UNIQUE
-		| BTR_WATCH_LEAF);
+	latch_mode &= ~(BTR_INSERT
+			| BTR_DELETE_MARK
+			| BTR_DELETE
+			| BTR_ESTIMATE
+			| BTR_IGNORE_SEC_UNIQUE);
 
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
@@ -417,16 +414,12 @@ btr_cur_search_to_nth_level(
 	info->n_searches++;
 #endif
 
-	/* TODO: investigate if there is any real reason for forbidding
-	adaptive hash usage when watch_leaf is true.*/
-
 	/* Ibuf does not use adaptive hash; this is prevented by the
 	latch_mode check below. */
 	if (btr_search_latch.writer == RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF
 	    && info->last_hash_succ
 	    && !estimate
-	    && !watch_leaf
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 	    && mode != PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
@@ -486,8 +479,6 @@ btr_cur_search_to_nth_level(
 	low_bytes = 0;
 
 	height = ULINT_UNDEFINED;
-	rw_latch = RW_NO_LATCH;
-	buf_mode = BUF_GET;
 
 	/* We use these modified search modes on non-leaf levels of the
 	B-tree. These let us end up in the right B-tree leaf. In that leaf
@@ -514,94 +505,111 @@ btr_cur_search_to_nth_level(
 	/* Loop and search until we arrive at the desired level */
 
 search_loop:
+	buf_mode = BUF_GET;
+	rw_latch = RW_NO_LATCH;
 
-	if (height == 0) {
+	if (height != 0) {
+		/* We are about to fetch the root or a non-leaf page. */
+	} else if (dict_index_is_ibuf(index)) {
+		/* We're doing a search on an ibuf tree and we're one
+		level above the leaf page. */
 
-		if (watch_leaf) {
-			buf_mode = BUF_GET_IF_IN_POOL;
+		ulint	is_min_rec;
 
-		} else if (latch_mode <= BTR_MODIFY_LEAF) {
-			rw_latch = latch_mode;
+		ut_ad(level == 0);
 
-			if (btr_op != BTR_NO_OP
-			    && ibuf_should_try(index, ignore_sec_unique)) {
+		is_min_rec = rec_get_info_bits(node_ptr, 0)
+			& REC_INFO_MIN_REC_FLAG;
 
-				/* Try insert/delete mark/delete to the
-				insert/delete buffer if the page is not in
-				the buffer pool */
+		if (!is_min_rec) {
+			cursor->ibuf_cnt = ibuf_rec_get_counter(node_ptr);
 
-				buf_mode = BUF_GET_IF_IN_POOL;
-			}
+			ut_a(cursor->ibuf_cnt <= 0xFFFF
+			     || cursor->ibuf_cnt == ULINT_UNDEFINED);
+		}
+	} else if (latch_mode <= BTR_MODIFY_LEAF) {
+		rw_latch = latch_mode;
+
+		if (btr_op != BTR_NO_OP
+		    && ibuf_should_try(index, ignore_sec_unique)) {
+
+			/* Try to buffer the operation if the leaf
+			page is not in the buffer pool. */
+
+			buf_mode = btr_op == BTR_DELETE_OP
+				? BUF_GET_IF_IN_POOL_OR_WATCH
+				: BUF_GET_IF_IN_POOL;
 		}
 	}
 
-retry_page_get:
 	zip_size = dict_table_zip_size(index->table);
 
-	if (watch_leaf && height == 0) {
-		ut_a(buf_mode == BUF_GET_IF_IN_POOL);
-
-		buf_mode = BUF_GET_IF_IN_POOL_OR_WATCH;
-	}
-
+retry_page_get:
 	block = buf_page_get_gen(
 		space, zip_size, page_no, rw_latch, guess, buf_mode,
 		__FILE__, __LINE__, mtr);
 
 	if (block == NULL) {
-		if (watch_leaf && height == 0) {
-			/* We didn't find a page but we set a watch on it. */
-			cursor->flag = BTR_CUR_ABORTED;
-
-			goto func_exit;
-		}
-
 		/* This must be a search to perform an insert/delete
 		mark/ delete; try using the insert/delete buffer */
 
-		ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
+		ut_ad(height == 0);
 		ut_ad(cursor->thr);
 
-		if (ibuf_should_try(index, ignore_sec_unique)) {
+		switch (btr_op) {
+		case BTR_INSERT_OP:
+			ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
 
-			switch (btr_op) {
-			case BTR_INSERT_OP:
-				if (ibuf_insert(IBUF_OP_INSERT, tuple, index,
-						space, zip_size, page_no,
-						cursor->thr)) {
+			if (ibuf_insert(IBUF_OP_INSERT, tuple, index,
+					space, zip_size, page_no,
+					cursor->thr)) {
 
-					cursor->flag = BTR_CUR_INSERT_TO_IBUF;
+				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
 
-					goto func_exit;
-				}
-				break;
-
-			case BTR_DELMARK_OP:
-				if (ibuf_insert(IBUF_OP_DELETE_MARK, tuple,
-						index, space, zip_size,
-						page_no, cursor->thr)) {
-
-					cursor->flag = BTR_CUR_DEL_MARK_IBUF;
-
-					goto func_exit;
-				}
-
-				break;
-
-			case BTR_DELETE_OP:
-				if (ibuf_insert(IBUF_OP_DELETE, tuple, index,
-						space, zip_size, page_no,
-						cursor->thr)) {
-
-					cursor->flag = BTR_CUR_DELETE_IBUF;
-
-					goto func_exit;
-				}
-
-				break;
-			default:
-				ut_error;
+				goto func_exit;
 			}
+			break;
+
+		case BTR_DELMARK_OP:
+			ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
+
+			if (ibuf_insert(IBUF_OP_DELETE_MARK, tuple,
+					index, space, zip_size,
+					page_no, cursor->thr)) {
+
+				cursor->flag = BTR_CUR_DEL_MARK_IBUF;
+
+				goto func_exit;
+			}
+
+			break;
+
+		case BTR_DELETE_OP:
+			ut_ad(buf_mode == BUF_GET_IF_IN_POOL_OR_WATCH);
+
+			if (!row_purge_poss_sec(cursor->purge_node,
+						index, tuple)) {
+
+				/* The record cannot be purged yet. */
+				cursor->flag = BTR_CUR_DELETE_REF;
+			} else if (ibuf_insert(IBUF_OP_DELETE, tuple,
+					       index, space, zip_size,
+					       page_no,
+					       cursor->thr)) {
+
+				/* The purge was buffered. */
+				cursor->flag = BTR_CUR_DELETE_IBUF;
+			} else {
+				/* The purge could not be buffered. */
+				buf_pool_watch_clear();
+				break;
+			}
+
+			buf_pool_watch_clear();
+			goto func_exit;
+
+		default:
+			ut_error;
 		}
 
 		/* Insert to the insert/delete buffer did not succeed, we
@@ -678,46 +686,24 @@ retry_page_get:
 	ut_ad(height == btr_page_get_level(page_cur_get_page(page_cursor),
 					   mtr));
 
-	if (level == height) {
+	if (level != height) {
 
-		goto loop_end;
+		ut_ad(height > 0);
+
+		height--;
+		guess = NULL;
+
+		node_ptr = page_cur_get_rec(page_cursor);
+
+		offsets = rec_get_offsets(
+			node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+
+		/* Go to the child node */
+		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+
+		goto search_loop;
 	}
 
-	ut_ad(height > 0);
-
-	height--;
-	guess = NULL;
-
-	node_ptr = page_cur_get_rec(page_cursor);
-
-	if (height == 0 && dict_index_is_ibuf(index)) {
-		/* We're doing a search on an ibuf tree and we're one level
-		above the leaf page. */
-
-		ulint	is_min_rec;
-
-		ut_ad(level == 0);
-
-		is_min_rec = rec_get_info_bits(node_ptr, 0)
-			& REC_INFO_MIN_REC_FLAG;
-
-		if (!is_min_rec) {
-			cursor->ibuf_cnt = ibuf_rec_get_counter(node_ptr);
-
-			ut_a(cursor->ibuf_cnt <= 0xFFFF
-			     || cursor->ibuf_cnt == ULINT_UNDEFINED);
-		}
-	}
-
-	offsets = rec_get_offsets(
-		node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
-
-	/* Go to the child node */
-	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
-
-	goto search_loop;
-
-loop_end:
 	if (level != 0) {
 		/* x-latch the page */
 		page = btr_page_get(
@@ -743,6 +729,35 @@ loop_end:
 		      || mode != PAGE_CUR_LE);
 		ut_ad(cursor->low_match != ULINT_UNDEFINED
 		      || mode != PAGE_CUR_LE);
+
+		/* If this was a delete operation, the leaf page was
+		in the buffer pool, and a matching record was found in
+		the leaf page, attempt to delete it.  If the deletion
+		fails, set the cursor flag accordingly. */
+		if (UNIV_UNLIKELY(btr_op == BTR_DELETE_OP)
+		    && low_match == dtuple_get_n_fields(tuple)
+		    && !page_cur_is_before_first(page_cursor)) {
+
+			/* Before attempting to purge a record, check
+			if it is safe to do so. */
+			if (!row_purge_poss_sec(cursor->purge_node,
+						index, tuple)) {
+
+				cursor->flag = BTR_CUR_DELETE_REF;
+			} else {
+				/* Only delete-marked records should
+				be purged. */
+				ut_ad(REC_INFO_DELETED_FLAG
+				      & rec_get_info_bits(
+					      btr_cur_get_rec(cursor),
+					      page_is_comp(page)));
+
+				if (!btr_cur_optimistic_delete(cursor, mtr)) {
+
+					cursor->flag = BTR_CUR_DELETE_FAILED;
+				}
+			}
+		}
 	}
 
 func_exit:

@@ -802,11 +802,13 @@ row_search_index_entry(
 	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
 
 	switch (btr_pcur_get_btr_cur(pcur)->flag) {
-	case BTR_CUR_ABORTED:
-		/* We did not read in the leaf page, thus we can't have
-		found anything. */
-		ut_a(mode & BTR_WATCH_LEAF);
-		return(ROW_NOT_IN_POOL);
+	case BTR_CUR_DELETE_REF:
+		ut_a(mode & BTR_DELETE);
+		return(ROW_NOT_DELETED_REF);
+
+	case BTR_CUR_DELETE_FAILED:
+		ut_a(mode & BTR_DELETE);
+		return(ROW_NOT_DELETED);
 
 	case BTR_CUR_DEL_MARK_IBUF:
 	case BTR_CUR_DELETE_IBUF:

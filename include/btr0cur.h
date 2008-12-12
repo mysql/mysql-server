@@ -601,6 +601,7 @@ to know struct size! */
 struct btr_cur_struct {
 	dict_index_t*	index;		/* index where positioned */
 	page_cur_t	page_cur;	/* page cursor */
+	purge_node_t*	purge_node;	/* purge node, for BTR_DELETE */
 	buf_block_t*	left_block;	/* this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
@@ -696,9 +697,9 @@ struct btr_cur_struct {
 					mark in the insert/delete buffer */
 #define BTR_CUR_DELETE_IBUF	6	/* performed the intended delete in
 					the insert/delete buffer */
-#define BTR_CUR_ABORTED		7	/* search with BTR_CHECK_LEAF
-					aborted due to leaf page not being
-					in buffer pool */
+#define BTR_CUR_DELETE_REF	7	/* row_purge_poss_sec() failed */
+#define BTR_CUR_DELETE_FAILED	8	/* an optimistic delete could not
+					be performed */
 
 /* If pessimistic delete fails because of lack of file space,
 there is still a good change of success a little later: try this many times,
