@@ -285,7 +285,7 @@ ClusterMgr::threadMain( ){
 	continue;
       }
       
-      theNode.hbCounter += timeSlept;
+      theNode.hbCounter += (Uint32)timeSlept;
       if (theNode.hbCounter >= m_max_api_reg_req_interval ||
           theNode.hbCounter >= theNode.hbFrequency) {
 	/**

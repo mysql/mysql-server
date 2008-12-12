@@ -274,8 +274,8 @@ compare_value(const char* name, const char* key,
         if (val != val2) {
           Properties info(true);
           info.put("Type", DT_DIFF);
-          info.put("New", val2);
-          info.put("Old", val);
+          info.put("New", Uint64(val2));
+          info.put("Old", Uint64(val));
           add_diff(name, key,
                    diff,
                    pinfo->_fname, &info);
@@ -285,7 +285,7 @@ compare_value(const char* name, const char* key,
       {
         Properties info(true);
         info.put("Type", DT_MISSING_VALUE);
-        info.put("Old", val);
+        info.put("Old", Uint64(val));
         add_diff(name, key,
                  diff,
                  pinfo->_fname, &info);
