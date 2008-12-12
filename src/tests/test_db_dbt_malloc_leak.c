@@ -38,7 +38,7 @@ my_malloc (size_t size) {
 static __attribute__((__unused__))
 void*
 my_realloc (void *p, size_t size) {
-    void* newp = realloc(p, size);
+    void* newp = toku_realloc(p, size);
 //    if (verbose) printf("realloc [%d] %p.\n", (int)size, newp);
     return newp;
 }

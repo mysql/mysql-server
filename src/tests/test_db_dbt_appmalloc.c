@@ -35,7 +35,7 @@ static void* my_malloc(size_t size) {
 static __attribute__((__unused__))
 void*
 my_realloc (void *p, size_t size) {
-    return realloc(p, size);
+    return toku_realloc(p, size);
 }
 
 static __attribute__((__unused__))
