@@ -318,10 +318,8 @@ btr_cur_search_to_nth_level(
 	ulint		low_bytes;
 	ulint		height;
 	ulint		savepoint;
-	ulint		rw_latch;
 	ulint		page_mode;
 	ulint		insert_planned;
-	ulint		buf_mode;
 	ulint		estimate;
 	ulint		ignore_sec_unique;
 	ulint		root_height = 0; /* remove warning */
@@ -429,8 +427,6 @@ btr_cur_search_to_nth_level(
 	low_bytes = 0;
 
 	height = ULINT_UNDEFINED;
-	rw_latch = RW_NO_LATCH;
-	buf_mode = BUF_GET;
 
 	/* We use these modified search modes on non-leaf levels of the
 	B-tree. These let us end up in the right B-tree leaf. In that leaf
@@ -459,9 +455,28 @@ btr_cur_search_to_nth_level(
 	for (;;) {
 		ulint		zip_size;
 		buf_block_t*	block;
-retry_page_get:
-		zip_size = dict_table_zip_size(index->table);
+		ulint		rw_latch;
+		ulint		buf_mode;
 
+		zip_size = dict_table_zip_size(index->table);
+		rw_latch = RW_NO_LATCH;
+		buf_mode = BUF_GET;
+
+		if (height == 0 && latch_mode <= BTR_MODIFY_LEAF) {
+
+			rw_latch = latch_mode;
+
+			if (insert_planned
+			    && ibuf_should_try(index, ignore_sec_unique)) {
+
+				/* Try insert to the insert buffer if the
+				page is not in the buffer pool */
+
+				buf_mode = BUF_GET_IF_IN_POOL;
+			}
+		}
+
+retry_page_get:
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 rw_latch, guess, buf_mode,
 					 __FILE__, __LINE__, mtr);
@@ -473,9 +488,8 @@ retry_page_get:
 			ut_ad(insert_planned);
 			ut_ad(cursor->thr);
 
-			if (ibuf_should_try(index, ignore_sec_unique)
-			    && ibuf_insert(tuple, index, space, zip_size,
-					   page_no, cursor->thr)) {
+			if (ibuf_insert(tuple, index, space, zip_size,
+					page_no, cursor->thr)) {
 				/* Insertion to the insert buffer succeeded */
 				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
 				if (UNIV_LIKELY_NULL(heap)) {
@@ -573,20 +587,6 @@ retry_page_get:
 		ut_ad(height > 0);
 
 		height--;
-
-		if ((height == 0) && (latch_mode <= BTR_MODIFY_LEAF)) {
-
-			rw_latch = latch_mode;
-
-			if (insert_planned
-			    && ibuf_should_try(index, ignore_sec_unique)) {
-
-				/* Try insert to the insert buffer if the
-				page is not in the buffer pool */
-
-				buf_mode = BUF_GET_IF_IN_POOL;
-			}
-		}
 
 		guess = NULL;
 
