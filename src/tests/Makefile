@@ -58,7 +58,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_truncate_subdb \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
-	helgrind1 \
 	helgrind2 \
 	helgrind3 \
 #\ ends prev line
@@ -158,7 +157,7 @@ endif
 %.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS) $(LIBPORTABILITY)
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
 
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
@@ -167,7 +166,7 @@ endif
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(MAYBEATSIGN)$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS))
 
 clean:
 	$(MAYBEATSIGN)rm -f $(ALL_TESTS)

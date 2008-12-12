@@ -16,6 +16,16 @@
    toku_add_trace_mem;
    toku_print_trace_mem;
 
+   toku_free;
+   toku_malloc;
+   toku_os_get_file_size;
+   toku_os_getpid;
+   toku_os_gettid;
+   toku_os_initialize_settings;
+   toku_os_is_absolute_name;
+   toku_os_mkdir;
+   toku_strdup;
+
  local: *;
 };
 

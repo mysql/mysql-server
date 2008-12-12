@@ -19,7 +19,7 @@ utils.dir: src.dir
 %.dir:
 	cd $(patsubst %.dir, %, $@) && $(MAKE) build
 
-build: $(patsubst %,%.dir, $(BUILDDIRS));
+build: $(patsubst %,%.dir, $(BUILDDIRS))
 
 CHECKS = $(patsubst %,%.checkdir,$(filter-out linux, $(SRCDIRS)))
 
