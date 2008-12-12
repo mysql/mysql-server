@@ -213,8 +213,9 @@ choose_conf(){
 #########################################
 
 count_hosts(){
-    cnt=`grep "CHOOSE_host" $1 | awk '{for(i=1; i<=NF;i++) \
-    if(index($i, "CHOOSE_host") > 0) print $i;}' | sort | uniq | wc -l`
+    ch="CHOOSE_host"
+    cnt=$(for i in `grep $ch $1 | sed 's!,! !g'` ; do echo $i; done\
+          | grep $ch | sort | uniq | wc -l)
     echo $cnt
 }
 
