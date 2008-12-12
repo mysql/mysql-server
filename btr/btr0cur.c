@@ -360,12 +360,24 @@ btr_cur_search_to_nth_level(
 	/* These flags are mutually exclusive, they are lumped together
 	with the latch mode for historical reasons. It's possible for
 	none of the flags to be set. */
-	if (latch_mode & BTR_INSERT) {
+	switch (UNIV_EXPECT(latch_mode
+			    & (BTR_INSERT | BTR_DELETE | BTR_DELETE_MARK),
+			    0)) {
+	case 0:
+		break;
+	case BTR_INSERT:
 		btr_op = BTR_INSERT_OP;
-	} else if (latch_mode & BTR_DELETE) {
+		break;
+	case BTR_DELETE:
 		btr_op = BTR_DELETE_OP;
-	} else if (latch_mode & BTR_DELETE_MARK) {
+		break;
+	case BTR_DELETE_MARK:
 		btr_op = BTR_DELMARK_OP;
+		break;
+	default:
+		/* only one of BTR_INSERT, BTR_DELETE, BTR_DELETE_MARK
+		should be specified at a time */
+		ut_error;
 	}
 
 	/* Operations on the insert buffer tree cannot be buffered. */
