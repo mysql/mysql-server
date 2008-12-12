@@ -218,10 +218,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_type = type;
   proc.m_host = host_ptr;
   proc.m_save.m_saved = false;
-  if (g_fix_nodeid)
-    proc.m_nodeid= cluster.m_next_nodeid++;
-  else
-    proc.m_nodeid= -1;
+  proc.m_nodeid= cluster.m_next_nodeid++;
   proc.m_cluster = &cluster;
   proc.m_options.m_features = 0;
   proc.m_rep_src = 0;
