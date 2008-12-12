@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <memory.h>
 
 #define DIR __FILE__ ".dir"
 int verbose;
@@ -48,8 +49,8 @@ void expect(Dbc *cursor, int k, int v) {
     assert(kk == k);
     assert(vv == v);
 
-    free(key.get_data());
-    free(val.get_data());
+    toku_free(key.get_data());
+    toku_free(val.get_data());
 }
 
 void test_reverse_compare(int n, int dup_flags) {

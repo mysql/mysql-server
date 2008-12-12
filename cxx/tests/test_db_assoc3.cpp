@@ -8,6 +8,7 @@
 #include <toku_os.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <memory.h>
 
 #include "../../src/tests/test.h"
 
@@ -41,8 +42,8 @@ struct primary_data {
 };
 
 void free_pd (struct primary_data *pd) {
-    free(pd->name.name);
-    free(pd);
+    toku_free(pd->name.name);
+    toku_free(pd);
 }
 
 void write_uchar_to_dbt (Dbt *dbt, const unsigned char c) {
@@ -109,7 +110,7 @@ void read_name_from_dbt (const Dbt *dbt, int *off, struct name_key *nk) {
 	read_uchar_from_dbt(dbt, off, &buf[i]);
 	if (buf[i]==0) break;
     }
-    nk->name=(unsigned char*)(strdup((char*)buf));
+    nk->name=(unsigned char*)(toku_strdup((char*)buf));
 }
 
 void read_pd_from_dbt (const Dbt *dbt, int *off, struct primary_data *pd) {
@@ -123,7 +124,7 @@ int name_offset_in_pd_dbt (void) {
 }
 
 int name_callback (Db *secondary, const Dbt *key, const Dbt *data, Dbt *result) {
-    struct primary_data *pd = (struct primary_data *) malloc(sizeof(*pd));
+    struct primary_data *pd = (struct primary_data *) toku_malloc(sizeof(*pd));
     int off=0;
     read_pd_from_dbt(data, &off, pd);
     static int buf[1000];
@@ -158,9 +159,9 @@ static void dbg_name_insert (unsigned char *name) {
     name = (unsigned char*)strdup((char*)name);
     n_names++;
     if (names==0) {
-	names=malloc(sizeof(*names));
+	names=toku_malloc(sizeof(*names));
     } else {
-	names = realloc(names, n_names*sizeof(*names));
+	names = toku_realloc(names, n_names*sizeof(*names));
     }
     names[n_names-1]=name;
 }
@@ -228,8 +229,8 @@ void close_databases (void) {
     if (name_cursor) {
 	r = name_cursor->close();     CKERR(r);
     }
-    if (nc_key.get_data())  free(nc_key.get_data());
-    if (nc_data.get_data()) free(nc_data.get_data());
+    if (nc_key.get_data())  toku_free(nc_key.get_data());
+    if (nc_data.get_data()) toku_free(nc_data.get_data());
     r = namedb->close(0);   CKERR(r); delete namedb;
     r = dbp->close(0);      CKERR(r); delete dbp;
     r = expiredb->close(0); CKERR(r); delete expiredb;
@@ -388,7 +389,7 @@ void delete_oldest_expired (void) {
 	count_all_items--;
     }
     savepkey = pkey;
-    savepkey.set_data(malloc(pkey.get_size()));
+    savepkey.set_data(toku_malloc(pkey.get_size()));
     memcpy(savepkey.get_data(), pkey.get_data(), pkey.get_size());
     switch (r3) {
     case 0:
@@ -409,7 +410,7 @@ void delete_oldest_expired (void) {
     assert(r==DB_KEYEMPTY);
     r = dbp->get(null_txn, &savepkey, &data, 0);
     assert(r==DB_NOTFOUND);
-    free(savepkey.get_data());
+    toku_free(savepkey.get_data());
 }
 
 // Use a cursor to step through the names.
@@ -430,7 +431,7 @@ void step_name (void) {
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->get(&nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
-	    nc_key.set_data(realloc(nc_key.get_data(), 1));
+	    nc_key.set_data(toku_realloc(nc_key.get_data(), 1));
 	    ((char*)nc_key.get_data())[0]=0;
 	    cursor_count_n_items=0;
 	} else {
@@ -490,10 +491,10 @@ int test_main (int argc, const char *argv[]) {
     }
 
     nc_key.set_flags(DB_DBT_REALLOC);
-    nc_key.set_data(malloc(1)); // Iniitalize it.
+    nc_key.set_data(toku_malloc(1)); // Iniitalize it.
     ((char*)nc_key.get_data())[0]=0;
     nc_data.set_flags(DB_DBT_REALLOC);
-    nc_data.set_data(malloc(1)); // Iniitalize it.
+    nc_data.set_data(toku_malloc(1)); // Iniitalize it.
 
 
     mode = MODE_DEFAULT;

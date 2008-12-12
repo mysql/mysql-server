@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <memory.h>
 
 #define FNAME __FILE__ ".tdb"
 #define FNAME2 __FILE__ "2.tdb"
@@ -162,8 +163,8 @@ static void test_dbc_exceptions () {
     Dbt key; key.set_flags(DB_DBT_MALLOC);
     Dbt val; val.set_flags(DB_DBT_MALLOC);
     TC(curs->get(&key, &val, DB_FIRST), 0);
-    free(key.get_data());
-    free(val.get_data());
+    toku_free(key.get_data());
+    toku_free(val.get_data());
     TC(curs->del(DB_DELETE_ANY), 0);
     TCRET(curs->get(&key, &val, DB_CURRENT), DB_KEYEMPTY);
     TCRET(curs->del(0), DB_KEYEMPTY);

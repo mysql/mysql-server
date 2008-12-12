@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <db_cxx.h>
+#include <memory.h>
 
 int verbose;
 
@@ -42,10 +43,10 @@ int my_cursor_count(Dbc *cursor, db_recno_t *count, Db *db) {
         if (!keyeq(&key, &nkey)) break;
     }
     r = 0;
-    if (nkey.get_data()) free(nkey.get_data());
-    if (nval.get_data()) free(nval.get_data());
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (nkey.get_data()) toku_free(nkey.get_data());
+    if (nval.get_data()) toku_free(nval.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
     int rr = count_cursor->close(); assert(rr == 0);
     return r;
 }
@@ -62,10 +63,10 @@ int my_next_nodup(Dbc *cursor, Dbt *key, Dbt *val) {
         if (r != 0) break;
         if (!keyeq(&currentkey, &nkey)) break;
     }
-    if (nkey.get_data()) free(nkey.get_data());
-    if (nval.get_data()) free(nval.get_data());
-    if (currentkey.get_data()) free(currentkey.get_data());
-    if (currentval.get_data()) free(currentval.get_data());
+    if (nkey.get_data()) toku_free(nkey.get_data());
+    if (nval.get_data()) toku_free(nval.get_data());
+    if (currentkey.get_data()) toku_free(currentkey.get_data());
+    if (currentval.get_data()) toku_free(currentval.get_data());
     if (r == 0) r = cursor->get(key, val, DB_CURRENT);
     return r;
 }
@@ -82,10 +83,10 @@ int my_prev_nodup(Dbc *cursor, Dbt *key, Dbt *val) {
         if (r != 0) break;
         if (!keyeq(&currentkey, &nkey)) break;
     }
-    if (nkey.get_data()) free(nkey.get_data());
-    if (nval.get_data()) free(nval.get_data());
-    if (currentkey.get_data()) free(currentkey.get_data());
-    if (currentval.get_data()) free(currentval.get_data());
+    if (nkey.get_data()) toku_free(nkey.get_data());
+    if (nval.get_data()) toku_free(nval.get_data());
+    if (currentkey.get_data()) toku_free(currentkey.get_data());
+    if (currentval.get_data()) toku_free(currentval.get_data());
     if (r == 0) r = cursor->get(key, val, DB_CURRENT);
     return r;
 }
@@ -99,10 +100,10 @@ int my_next_dup(Dbc *cursor, Dbt *key, Dbt *val) {
     Dbt nval; nval.set_flags(DB_DBT_REALLOC);
     r = cursor->get(&nkey, &nval, DB_NEXT);
     if (r == 0 && !keyeq(&currentkey, &nkey)) r = DB_NOTFOUND;
-    if (nkey.get_data()) free(nkey.get_data());
-    if (nval.get_data()) free(nval.get_data());
-    if (currentkey.get_data()) free(currentkey.get_data());
-    if (currentval.get_data()) free(currentval.get_data());
+    if (nkey.get_data()) toku_free(nkey.get_data());
+    if (nval.get_data()) toku_free(nval.get_data());
+    if (currentkey.get_data()) toku_free(currentkey.get_data());
+    if (currentval.get_data()) toku_free(currentval.get_data());
     if (r == 0) r = cursor->get(key, val, DB_CURRENT);
     return r;
 }
@@ -116,10 +117,10 @@ int my_prev_dup(Dbc *cursor, Dbt *key, Dbt *val) {
     Dbt nval; nval.set_flags(DB_DBT_REALLOC);
     r = cursor->get(&nkey, &nval, DB_PREV);
     if (r == 0 && !keyeq(&currentkey, &nkey)) r = DB_NOTFOUND;
-    if (nkey.get_data()) free(nkey.get_data());
-    if (nval.get_data()) free(nval.get_data());
-    if (currentkey.get_data()) free(currentkey.get_data());
-    if (currentval.get_data()) free(currentval.get_data());
+    if (nkey.get_data()) toku_free(nkey.get_data());
+    if (nval.get_data()) toku_free(nval.get_data());
+    if (currentkey.get_data()) toku_free(currentkey.get_data());
+    if (currentval.get_data()) toku_free(currentval.get_data());
     if (r == 0) r = cursor->get(key, val, DB_CURRENT);
     return r;
 }
@@ -153,8 +154,8 @@ void test_cursor_count_flags(Db *db) {
     Dbt key; key.set_flags(DB_DBT_MALLOC);
     Dbt val; val.set_flags(DB_DBT_MALLOC);
     r = cursor->get(&key, &val, DB_FIRST); assert(r == 0);
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
     db_recno_t n;
     r = cursor->count(&n, 1); assert(r == EINVAL);
     r = cursor->count(&n, 0); assert(r == 0);
@@ -191,8 +192,8 @@ void walk(Db *db, int n) {
         if (k == n/2) assert((int)count == n); else assert(count == 1);
     }
     assert(i == 2*n-1);
-    free(key.get_data());
-    free(val.get_data());
+    toku_free(key.get_data());
+    toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
 }
 
@@ -228,8 +229,8 @@ void test_zero_count(Db *db, int n) {
         if (r != 0) break;
     }
     assert(i == n);
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
 }
 
@@ -253,8 +254,8 @@ void test_next_nodup(Db *db, int n) {
         r = cursor->get(&key, &val, DB_NEXT_NODUP);
     }
     assert(i == n);
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
 }
 
@@ -278,8 +279,8 @@ void test_prev_nodup(Db *db, int n) {
         r = cursor->get(&key, &val, DB_PREV_NODUP);
     }
     assert(i == -1);
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
 }
 
@@ -319,8 +320,8 @@ void test_next_dup(Db *db, int n) {
     }
     assert(i == 0);
 #endif
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
     r = cursor->close(); assert(r == 0);
 }
 
