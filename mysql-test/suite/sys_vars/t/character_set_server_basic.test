@@ -123,7 +123,7 @@ SET @@character_set_server = utf8 + latin2;
 
 let charset_variable = @@session.character_set_server;
 
---source include/charset_basic.inc
+--source suite/sys_vars/inc/charset_basic.inc
 
 
 --echo '#--------------------FN_DYNVARS_009_07-------------------------#'
@@ -132,7 +132,7 @@ let charset_variable = @@session.character_set_server;
 ###############################################################################
 
 let charset_variable = @@global.character_set_server;
---source include/charset_basic.inc
+--source suite/sys_vars/inc/charset_basic.inc
 
 
 --echo '#--------------------FN_DYNVARS_009_08-------------------------#'
