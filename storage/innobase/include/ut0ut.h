@@ -25,7 +25,7 @@ typedef time_t	ib_time_t;
   { \
     os_compare_and_swap(volatile_var, 0, 1); \
   }
-#elif
+#else
 #define PAUSE_INSTRUCTION(volatile_var)
 #endif
 #endif
