@@ -148,6 +148,9 @@ long innobase_max_merged_io = 64;
 /* Number of background IO threads for read and write. */
 long innobase_read_io_threads, innobase_write_io_threads;
 
+/* Use timer based InnoDB concurrency throttling flag */
+static my_bool innobase_thread_concurrency_timer_based;
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -1601,6 +1604,9 @@ innobase_init(
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
 	srv_log_file_size = (ulint) innobase_log_file_size;
+
+        srv_thread_concurrency_timer_based =
+          (ibool) innobase_thread_concurrency_timer_based;
 
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
@@ -8236,6 +8242,12 @@ static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   "Count of spin-loop rounds in InnoDB mutexes",
   NULL, NULL, 20L, 0L, ~0L, 0);
 
+static MYSQL_SYSVAR_BOOL(thread_concurrency_timer_based,
+                         innobase_thread_concurrency_timer_based,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Use InnoDB timer based concurrency throttling. ",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
@@ -8278,6 +8290,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
   MYSQL_SYSVAR(max_merged_io),
+  MYSQL_SYSVAR(thread_concurrency_timer_based),
   MYSQL_SYSVAR(file_per_table),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
