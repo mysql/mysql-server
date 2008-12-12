@@ -1817,7 +1817,7 @@ buf_page_get_gen(
 	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset));
+	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
 #endif
 	buf_pool->n_page_gets++;
 loop:
@@ -2180,7 +2180,7 @@ buf_page_optimistic_get_func(
 	ut_ad(!ibuf_inside()
 	      || ibuf_page(buf_block_get_space(block),
 			   buf_block_get_zip_size(block),
-			   buf_block_get_page_no(block)));
+			   buf_block_get_page_no(block), NULL));
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
@@ -2574,7 +2574,8 @@ buf_page_init_for_read(
 
 		mtr_start(&mtr);
 
-		if (!ibuf_page_low(space, zip_size, offset, &mtr)) {
+		if (!recv_no_ibuf_operations
+		    && !ibuf_page(space, zip_size, offset, &mtr)) {
 
 			mtr_commit(&mtr);
 

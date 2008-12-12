@@ -191,8 +191,6 @@ struct fil_space_struct {
 				currently in the list above */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/* list of all spaces */
-	ibuf_data_t*	ibuf_data;
-				/* insert buffer data */
 	ulint		magic_n;
 };
 
@@ -473,33 +471,6 @@ fil_space_get_type(
 	mutex_exit(&(system->mutex));
 
 	return(space->purpose);
-}
-
-/***********************************************************************
-Returns the ibuf data of a file space. */
-UNIV_INTERN
-ibuf_data_t*
-fil_space_get_ibuf_data(
-/*====================*/
-			/* out: ibuf data for this space */
-	ulint	id)	/* in: space id */
-{
-	fil_system_t*	system		= fil_system;
-	fil_space_t*	space;
-
-	ut_ad(system);
-
-	ut_a(id == 0);
-
-	mutex_enter(&(system->mutex));
-
-	space = fil_space_get_by_id(id);
-
-	mutex_exit(&(system->mutex));
-
-	ut_a(space);
-
-	return(space->ibuf_data);
 }
 
 /**************************************************************************
@@ -1192,8 +1163,6 @@ try_again:
 	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
-	space->ibuf_data = NULL;
-
 	rw_lock_create(&space->latch, SYNC_FSP);
 
 	HASH_INSERT(fil_space_t, hash, system->spaces, id, space);
@@ -1678,25 +1647,6 @@ fil_set_max_space_id_if_bigger(
 	}
 
 	mutex_exit(&(system->mutex));
-}
-
-/********************************************************************
-Initializes the ibuf data structure for space 0 == the system tablespace.
-This can be called after the file space headers have been created and the
-dictionary system has been initialized. */
-UNIV_INTERN
-void
-fil_ibuf_init_at_db_start(void)
-/*===========================*/
-{
-	fil_space_t*	space;
-
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
-
-	ut_a(space);
-	ut_a(space->purpose == FIL_TABLESPACE);
-
-	space->ibuf_data = ibuf_data_init_for_space(space->id);
 }
 
 /********************************************************************
@@ -4313,14 +4263,15 @@ fil_io(
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-	      || ibuf_page(space_id, zip_size, block_offset));
+	      || ibuf_page(space_id, zip_size, block_offset, NULL));
 #endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
 	} else if (type == OS_FILE_READ
-		   && ibuf_page(space_id, zip_size, block_offset)) {
+		   && !recv_no_ibuf_operations
+		   && ibuf_page(space_id, zip_size, block_offset, NULL)) {
 		mode = OS_AIO_IBUF;
 	} else {
 		mode = OS_AIO_NORMAL;

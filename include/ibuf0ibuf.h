@@ -41,18 +41,6 @@ separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
 /**********************************************************************
-Creates the insert buffer data struct for a single tablespace. Reads the
-root page of the insert buffer tree in the tablespace. This function can
-be called only after the dictionary system has been initialized, as this
-creates also the insert buffer table and index for this tablespace. */
-UNIV_INTERN
-ibuf_data_t*
-ibuf_data_init_for_space(
-/*=====================*/
-			/* out, own: ibuf data struct, linked to the list
-			in ibuf control structure. */
-	ulint	space);	/* in: space id */
-/**********************************************************************
 Creates the insert buffer data structure at a database startup and
 initializes the data structures for the insert buffer of each tablespace. */
 UNIV_INTERN
@@ -199,7 +187,8 @@ ibuf_bitmap_page(
 			0 for uncompressed pages */
 	ulint	page_no);/* in: page number */
 /***************************************************************************
-Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */
+Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
+Must not be called when recv_no_ibuf_operations==TRUE. */
 UNIV_INTERN
 ibool
 ibuf_page(
@@ -207,29 +196,19 @@ ibuf_page(
 			/* out: TRUE if level 2 or level 3 page */
 	ulint	space,	/* in: space id */
 	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
-	ulint	page_no);/* in: page number */
-/***************************************************************************
-Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */
-UNIV_INTERN
-ibool
-ibuf_page_low(
-/*==========*/
-			/* out: TRUE if level 2 or level 3 page */
-	ulint	space,	/* in: space id */
-	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no,/* in: page number */
 	mtr_t*	mtr);	/* in: mtr which will contain an x-latch to the
 			bitmap page if the page is not one of the fixed
-			address ibuf pages */
+			address ibuf pages, or NULL, in which case a new
+			transaction is created. */
 /***************************************************************************
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
 file segment, and the thread did not own the fsp latch before this call. */
 UNIV_INTERN
 void
-ibuf_free_excess_pages(
-/*===================*/
-	ulint	space);		/* in: space id */
+ibuf_free_excess_pages(void);
+/*========================*/
 /*************************************************************************
 Makes an index insert to the insert buffer, instead of directly to the disk
 page, if this is possible. Does not do insert if the index is clustered
@@ -350,6 +329,9 @@ ibuf_print(
 for the file segment from which the pages for the ibuf tree are allocated */
 #define IBUF_HEADER		PAGE_DATA
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
+
+/* The insert buffer tree itself is always located in space 0. */
+#define IBUF_SPACE_ID		0
 
 #ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"
