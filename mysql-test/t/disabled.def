@@ -24,3 +24,4 @@ sql_low_priority_updates_func         : BUG#37962 2008-07-08 sven *_func tests c
 timestamp_func                        : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 log_output_func                       : BUG#37766 2008-07-10 sven main.log_output_func randomly fails in pushbuild
 slow_query_log_func.test              : Bug #37962: *_func tests containing sleeps/race conditions
+log_bin_trust_function_creators_func : Bug#41003 Dec-12-2008 andrei todo:re-enable after merging the bug fixes from the main trees.
