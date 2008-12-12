@@ -4,13 +4,10 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-create database if not exists mysqltest1;
-use mysqltest1;
 drop table if exists t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc
 VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT
 0, total BIGINT UNSIGNED, y YEAR, t TIMESTAMP,PRIMARY KEY(id));
-use mysqltest1;
 alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
@@ -55,7 +52,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -89,7 +86,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -123,7 +120,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -172,7 +169,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -206,7 +203,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -240,7 +237,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -289,7 +286,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -323,7 +320,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -357,10 +354,9 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 DROP TABLE t1;
-DROP DATABASE mysqltest1;
