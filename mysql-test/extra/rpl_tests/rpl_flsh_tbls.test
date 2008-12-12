@@ -4,8 +4,7 @@
 # Test of FLUSH NO_WRITE_TO_BINLOG by the way.
 #
 
-
--- source include/master-slave.inc
+source include/master-slave.inc;
 
 let $SERVER_VERSION=`select version()`;
 
@@ -34,26 +33,32 @@ flush tables;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
 eval SHOW BINLOG EVENTS FROM $rename_event_pos ;
-save_master_pos;
-connection slave;
-sync_with_master;
+
+sync_slave_with_master;
 # Check that the slave is not confused.
 select * from t3;
 # Note that all this confusion may cause warnings 'table xx is open on rename'
 # in the .err files; these are not fatal and are not reported by mysql-test-run.
-
 stop slave;
+source include/wait_for_slave_to_stop.inc;
+
 connection master;
 drop table t1;
+
 connection slave;
 flush tables with read lock;
 start slave;
-sleep 1;
+source include/wait_for_slave_to_start.inc;
 --error 1192
 stop slave;
 
+# Cleanup
+unlock tables;
+
 connection master;
 drop table t3, t4, t5;
+
+sync_slave_with_master;
 
 # End of 4.1 tests
 
