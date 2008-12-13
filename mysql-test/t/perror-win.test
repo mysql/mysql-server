@@ -1,0 +1,14 @@
+# Windows-specific tests
+--source include/windows.inc
+--require r/have_perror.require
+disable_query_log;
+eval select LENGTH("$MY_PERROR") > 0 as "have_perror";
+enable_query_log;
+
+
+--exec $MY_PERROR 150 2>&1
+--exec $MY_PERROR 23 2>&1
+--exec $MY_PERROR 1062 2>&1
+--error 1
+--exec $MY_PERROR 30000 2>&1
+

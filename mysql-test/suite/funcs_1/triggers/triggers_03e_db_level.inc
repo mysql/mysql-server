@@ -185,7 +185,7 @@ let $message= use db with trigger privilege on db level and without...:;
         select f1 from t1 order by f1;
 	--disable_warnings
 	disconnect no_privs;
-	--enable warnings
+	--enable_warnings
 
         connection yes_privs;
         select current_user;

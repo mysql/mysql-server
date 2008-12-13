@@ -79,7 +79,7 @@ INSERT into t1(name) values('Record_4');
 --chmod 0777 $MYSQLD_LOGFILE.orig
 
 --echo ## There should be a difference ##
-SET @@session.max_allowed_packet= 1024*1024*1024;
+SET @@global.max_allowed_packet= 1024*1024*1024;
 --replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
 eval SET @orig_file= load_file('$MYSQLD_LOGFILE.orig');
 --replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE

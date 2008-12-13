@@ -255,10 +255,6 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
   if (!pService->StartService())
     goto error;
 
-  // Check that the service is now running.
-  if (!pService->SetStatus(SERVICE_RUNNING,NO_ERROR, 0, 0, 0))
-    goto error;
-
   // wait for exit event
   WaitForSingleObject (pService->hExitEvent, INFINITE);
 
@@ -274,9 +270,18 @@ error:
   return;
 }
 
-/**
-  starts the appliaction thread.
-*/
+
+
+void NTService::SetRunning()
+{
+  if (pService)
+    pService->SetStatus(SERVICE_RUNNING,NO_ERROR, 0, 0, 0);
+}
+
+
+/* ------------------------------------------------------------------------
+   StartService() - starts the application thread
+ -------------------------------------------------------------------------- */
 
 BOOL NTService::StartService()
 {
