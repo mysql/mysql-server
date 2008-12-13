@@ -43,26 +43,19 @@ name BLOB
 
 --echo '#--------------------FN_DYNVARS_070_01-------------------------#'
 ###############################################################################
-#    Setting initial value of max_allowed_packet to 1024 at session level and #
-#    verifying its behavior after inserting data greater than 1024 bytes      #
+#    Setting initial value of max_allowed_packet to 1024 at session level 
+#    should result in an error (session variable is readonly)
 ###############################################################################
 
---echo ## Setting value of max_allowed packet and net_buffer_length to 1024 ##
+--echo ## Setting value of max_allowed packet and net_buffer_length to 1024 ## 
+--error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 1024;
-SET @@session.net_buffer_length = 1024;
 SELECT @@session.max_allowed_packet;
+
+--error ER_VARIABLE_IS_READONLY
+SET @@session.net_buffer_length = 1024;
 SELECT @@session.net_buffer_length;
 
---echo ## Inserting and fetching data of length greater than 1024 ##
-INSERT into t1(name) values("aaassssssssddddddddffffffgggggggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-
-SELECT length("aaaaaasssssssssssdddddddfffffgggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk") as len;
-
---echo ## Verifying record in table t1 ##
-SELECT * from t1;
-
---echo 'Bug#35381: Error is not coming on inserting and fetching data of length'
---echo 'greater than max_allowed_packet size at session level';
 
 --echo '#--------------------FN_DYNVARS_070_02-------------------------#'
 ###############################################################################

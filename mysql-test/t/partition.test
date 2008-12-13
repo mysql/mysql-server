@@ -17,6 +17,21 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# Bug#40954: Crash if range search and order by.
+#
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+)
+/*!50100 PARTITION BY HASH (pk)
+PARTITIONS 2 */;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1 WHERE pk < 0 ORDER BY pk;
+DROP TABLE t1;
+
+#
 # Bug#40494: Crash MYSQL server crashes on range access with partitioning
 #            and order by
 #

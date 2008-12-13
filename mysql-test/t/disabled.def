@@ -10,7 +10,6 @@
 #
 ##############################################################################
 federated_transactions   : Bug#29523 Transactions do not work
-csv_alter_table      : Bug#33696 2008-01-21 pcrews no .result file - bug allows NULL columns in CSV tables
 log_tables.test                       : Bug #37798: main.log_tables fails randomly on powermacg5 and windows
 wait_timeout_func                     : BUG#36873 2008-07-06 sven wait_timeout_func.test fails randomly
 delayed_insert_limit_func             : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
@@ -25,3 +24,4 @@ timestamp_func                        : BUG#37962 2008-07-08 sven *_func tests c
 log_output_func                       : BUG#37766 2008-07-10 sven main.log_output_func randomly fails in pushbuild
 slow_query_log_func.test              : Bug #37962: *_func tests containing sleeps/race conditions
 innodb_max_dirty_pages_pct_func       : BUG#41018 BUG#39382 2008-12-02 sven test fails often. some failures fill up the disk, causing subsequent failures in many other tests
+wait_timeout_func                     : Bug #41225 joro wait_timeout_func fails
