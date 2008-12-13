@@ -1098,7 +1098,6 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       /* .frm archive:
         Those archives are obsolete, but following code should
         exist to remove existent "arc" directories.
-        See #ifdef FRM_ARCHIVE directives for obsolete code.
       */
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
@@ -1267,7 +1266,6 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
   NOTE
     A support of "arc" directories is obsolete, however this
     function should exist to remove existent "arc" directories.
-    See #ifdef FRM_ARCHIVE directives for obsolete code.
 */
 long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
 {

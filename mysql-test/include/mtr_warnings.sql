@@ -235,8 +235,10 @@ BEGIN
     FROM information_schema.global_variables
       WHERE variable_name='LOG_ERROR';
 
-  SET @@session.max_allowed_packet= 1024*1024*1024;
+  SET @old_max_allowed_packet= @@global.max_allowed_packet;
+  SET @@global.max_allowed_packet= 1024*1024*1024;
   SET text= load_file(@log_error);
+  SET  @@global.max_allowed_packet= @old_max_allowed_packet;
   -- select text;
 
   SET pos= LOCATE('\n', text);

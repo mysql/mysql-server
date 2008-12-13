@@ -121,3 +121,13 @@ SHOW CREATE TABLE t1;
 SELECT PARTITION_DESCRIPTION FROM information_schema.partitions WHERE
 table_schema = "test" AND table_name = "t1";
 drop table t1;
+
+#
+# Bug#38909 CREATE_OPTIONS in information_schema produces wrong results
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (f1 int key) partition by key(f1) partitions 2;
+select create_options from information_schema.tables where table_schema="test";
+drop table t1;
