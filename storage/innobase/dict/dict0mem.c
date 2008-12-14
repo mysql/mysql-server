@@ -91,10 +91,6 @@ dict_mem_table_create(
 
 	table->autoinc_inited = FALSE;
 
-	/* The actual increment value will be set by MySQL, we simply
-	default to 1 here.*/
-	table->autoinc_increment = 1;
-
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
