@@ -3755,6 +3755,8 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	ha_statistic_increment(&SSV::ha_update_count);
+
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
@@ -3843,6 +3845,8 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx == trx);
+
+	ha_statistic_increment(&SSV::ha_delete_count);
 
 	/* Only if the table has an AUTOINC column */
 	if (table->found_next_number_field && record == table->record[0]) {
