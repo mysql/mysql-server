@@ -7554,7 +7554,7 @@ ha_innobase::innobase_get_auto_increment(
 		handler::get_auto_increment() doesn't allow a way
 		to return the specific error for why it failed. */
 		} else if (error == DB_DEADLOCK) {
-			THD*            thd = ha_thd();
+			THD*	thd = ha_thd();
 
 			push_warning(
 				thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -7562,7 +7562,7 @@ ha_innobase::innobase_get_auto_increment(
 				"InnoDB: Deadlock in "
 				"innobase_get_auto_increment()");
 		} else if (error == DB_LOCK_WAIT_TIMEOUT) {
-			THD*            thd = ha_thd();
+			THD*	thd = ha_thd();
 
 			push_warning(
 				thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
