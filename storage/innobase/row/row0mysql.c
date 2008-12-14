@@ -661,6 +661,7 @@ row_create_prebuilt(
 
 	prebuilt->old_vers_heap = NULL;
 
+	prebuilt->autoinc_error = 0;
 	prebuilt->autoinc_offset = 0;
 
 	/* Default to 1, we will set the actual value later in 

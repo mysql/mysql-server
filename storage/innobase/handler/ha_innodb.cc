@@ -3561,8 +3561,20 @@ no_commit:
 	/* This is the case where the table has an auto-increment column */
 	if (table->next_number_field && record == table->record[0]) {
 
+		/* Reset the error code before calling
+		innobase_get_auto_increment(). */
+		prebuilt->autoinc_error = DB_SUCCESS;
+
 		if ((error = update_auto_increment())) {
 
+			/* We don't want to mask autoinc overflow errors. */
+			if (prebuilt->autoinc_error != DB_SUCCESS) {
+				error = prebuilt->autoinc_error;
+
+				goto report_error;
+			}
+
+			/* MySQL errors are passed straight back. */
 			goto func_exit;
 		}
 
@@ -3658,6 +3670,7 @@ set_max_autoinc:
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
+report_error:
 	error = convert_error_code_to_mysql(error, user_thd);
 
 func_exit:
@@ -6056,25 +6069,12 @@ ha_innobase::info(
 
 	if (flag & HA_STATUS_AUTO && table->found_next_number_field) {
 		ulonglong	auto_inc;
-		int		ret;
 
-		/* The following function call can the first time fail in
-		a lock wait timeout error because it reserves the auto-inc
-		lock on the table. If it fails, then someone is already initing
-		the auto-inc counter, and the second call is guaranteed to
-		succeed. */
-
-		ret = innobase_read_and_init_auto_inc(&auto_inc);
-
-		if (ret != 0) {
-			ret = innobase_read_and_init_auto_inc(&auto_inc);
-
-			if (ret != 0) {
-				sql_print_error("Cannot get table %s auto-inc"
-						"counter value in ::info\n",
-						ib_table->name);
-				auto_inc = 0;
-			}
+		if (innobase_read_and_init_auto_inc(&auto_inc) != 0) {
+			sql_print_error("Cannot get table %s auto-inc"
+					"counter value in ::info\n",
+					ib_table->name);
+			auto_inc = 0;
 		}
 
 		stats.auto_increment_value = auto_inc;
@@ -7459,7 +7459,6 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	if (auto_inc == 0) {
 		dict_index_t* index;
-		ulint error;
 		const char* autoinc_col_name;
 
 		ut_a(!innodb_table->autoinc_inited);
@@ -7468,10 +7467,10 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 		autoinc_col_name = table->found_next_number_field->field_name;
 
-		error = row_search_max_autoinc(
+		prebuilt->autoinc_error = row_search_max_autoinc(
 			index, autoinc_col_name, &auto_inc);
 
-		if (error == DB_SUCCESS) {
+		if (prebuilt->autoinc_error == DB_SUCCESS) {
 			if (auto_inc < ~0x0ULL) {
 				++auto_inc;
 			}
@@ -7480,7 +7479,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
 				"the max AUTOINC value from the index (%s).\n",
-				error, index->name);
+				prebuilt->autoinc_error, index->name);
 
 			mysql_error = 1;
 		}
@@ -7511,22 +7510,23 @@ ha_innobase::innobase_read_and_init_auto_inc(
 Read the next autoinc value, initialize the table if it's not initialized.
 On return if there is no error then the tables AUTOINC lock is locked.*/
 
-ulong
+ulint
 ha_innobase::innobase_get_auto_increment(
 /*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
-	ulong		error;
-
 	*value = 0;
 
 	/* Note: If the table is not initialized when we attempt the
 	read below. We initialize the table's auto-inc counter  and
 	always do a reread of the AUTOINC value. */
 	do {
-		error = innobase_autoinc_lock();
+		/* We need to send the correct error code to the client
+		because handler::get_auto_increment() doesn't allow a way
+		to return the specific error for why it failed. */
+		prebuilt->autoinc_error = innobase_autoinc_lock();
 
-		if (error == DB_SUCCESS) {
+		if (prebuilt->autoinc_error == DB_SUCCESS) {
 			ulonglong	autoinc;
 
 			/* Determine the first value of the interval */
@@ -7548,46 +7548,17 @@ ha_innobase::innobase_get_auto_increment(
 				/* Just to make sure */
 				ut_a(!trx->auto_inc_lock);
 
-				int	mysql_error;
+				/* Will set prebuilt->autoinc_error if there
+				is a problem during init. */
+				innobase_read_and_init_auto_inc(&autoinc);
 
-				mysql_error = innobase_read_and_init_auto_inc(
-					&autoinc);
-
-				if (mysql_error) {
-					error = DB_ERROR;
-				}
 			} else {
 				*value = autoinc;
 			}
-		/* We need to send the messages to the client because
-		handler::get_auto_increment() doesn't allow a way
-		to return the specific error for why it failed. */
-		} else if (error == DB_DEADLOCK) {
-			THD*	thd = ha_thd();
-
-			push_warning(
-				thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-				ER_LOCK_DEADLOCK,
-				"InnoDB: Deadlock in "
-				"innobase_get_auto_increment()");
-		} else if (error == DB_LOCK_WAIT_TIMEOUT) {
-			THD*	thd = ha_thd();
-
-			push_warning(
-				thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-				ER_LOCK_WAIT_TIMEOUT,
-				"InnoDB: Lock wait timeout in "
-				"innobase_get_auto_increment()");
-		} else {
-
-			sql_print_error(
-				"InnoDB: Error: %lu in "
-				"innobase_get_auto_increment()",
-				error);
 		}
-	} while (*value == 0 && error == DB_SUCCESS);
+	} while (*value == 0 && prebuilt->autoinc_error == DB_SUCCESS);
 
-	return(error);
+	return(prebuilt->autoinc_error);
 }
 
 /*******************************************************************************
