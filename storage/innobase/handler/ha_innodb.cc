@@ -507,6 +507,18 @@ thd_has_edited_nontrans_tables(
 	return((ibool) thd_non_transactional_update((THD*) thd));
 }
 
+/**********************************************************************
+Returns true if the thread is executing a SELECT statement. */
+extern "C"
+ibool
+thd_is_select(
+/*==========*/
+				/* out: true if thd is executing SELECT */
+	const void*	thd)	/* in: thread handle (THD*) */
+{
+	return(thd_sql_command((const THD*) thd) == SQLCOM_SELECT);
+}
+
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
