@@ -178,8 +178,7 @@ dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table);	/* in: table */
 /************************************************************************
-Initializes the autoinc counter. It is not an error to initialize an already
-initialized counter. */
+Unconditionally set the autoinc counter. */
 
 void
 dict_table_autoinc_initialize(
@@ -196,12 +195,12 @@ dict_table_autoinc_read(
 				/* out: value for a new row, or 0 */
 	dict_table_t*	table);	/* in: table */
 /************************************************************************
-Updates the autoinc counter if the value supplied is equal or bigger than the
-current value. If not inited, does nothing. */
+Updates the autoinc counter if the value supplied is greater than the
+current value. */
 
 void
-dict_table_autoinc_update(
-/*======================*/
+dict_table_autoinc_update_if_greater(
+/*=================================*/
 
 	dict_table_t*	table,	/* in: table */
 	ib_ulonglong	value);	/* in: value which was assigned to a row */
