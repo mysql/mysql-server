@@ -5879,6 +5879,12 @@ ha_innobase::info(
 						ib_table->space) * 1024;
 			} else {
 
+				sql_print_warning(
+					"Trying to get the free space for "
+					"table %s but its tablespace has "
+					"been discarded or the .ibd file "
+					"is missing. Setting the free space "
+					"to zero.", ib_table->name);
 				stats.delete_length = 0;
 			}
 
