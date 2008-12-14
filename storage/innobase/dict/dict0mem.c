@@ -89,7 +89,7 @@ dict_mem_table_create(
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
-	table->autoinc_inited = FALSE;
+	table->autoinc = 0;
 
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
