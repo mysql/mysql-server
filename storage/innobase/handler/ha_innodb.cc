@@ -922,6 +922,74 @@ innobase_convert_string(
 }
 
 /*************************************************************************
+Compute the next autoinc value.
+
+For MySQL replication the autoincrement values can be partitioned among
+the nodes. The offset is the start or origin of the autoincrement value
+for a particular node. For n nodes the increment will be n and the offset
+will be in the interval [1, n]. The formula tries to allocate the next
+value for a particular node.
+
+Note: This function is also called with increment set to the number of
+values we want to reserve for multi-value inserts e.g.,
+
+	INSERT INTO T VALUES(), (), ();
+
+innobase_next_autoinc() will be called with increment set to
+n * 3 where autoinc_lock_mode != TRADITIONAL because we want
+to reserve 3 values for the multi-value INSERT above. */
+static
+ulonglong
+innobase_next_autoinc(
+/*==================*/
+					/* out: the next value */
+	ulonglong	current,	/* in: Current value */
+	ulonglong	increment,	/* in: increment current by */
+	ulonglong	offset)		/* in: AUTOINC offset */
+{
+	ulonglong	next_value;
+
+	/* Should never be 0. */
+	ut_a(increment > 0);
+
+	if (offset <= 1) {
+		/* Offset 0 and 1 are the same, because there must be at
+		least one node in the system. */
+		if (~0x0ULL - current <= increment) {
+			next_value = ~0x0ULL;
+		} else {
+			next_value = current + increment;
+		}
+	} else {
+		if (current > offset) {
+			next_value = ((current - offset) / increment) + 1;
+		} else {
+			next_value = ((offset - current) / increment) + 1;
+		}
+
+		ut_a(increment > 0);
+		ut_a(next_value > 0);
+
+		/* Check for multiplication overflow. */
+		if (increment > (~0x0ULL / next_value)) {
+
+			next_value = ~0x0ULL;
+		} else {
+			next_value *= increment;
+
+			/* Check for overflow. */
+			if (~0x0ULL - next_value <= offset) {
+				next_value = ~0x0ULL;
+			} else {
+				next_value += offset;
+			}
+		}
+	}
+
+	return(next_value);
+}
+
+/*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one. */
@@ -3565,22 +3633,18 @@ no_commit:
 			update the table upper limit. Note: last_value
 			will be 0 if get_auto_increment() was not called.*/
 
-			if (auto_inc > prebuilt->last_value) {
+			if (auto_inc > prebuilt->autoinc_last_value) {
 set_max_autoinc:
-				ut_a(prebuilt->table->autoinc_increment > 0);
+				ut_a(prebuilt->autoinc_increment > 0);
 
-				ulonglong	have;
 				ulonglong	need;
+				ulonglong	offset;
 
-				/* Check for overflow conditions. */
-				need = prebuilt->table->autoinc_increment;
-				have = ~0x0ULL - auto_inc;
+				offset = prebuilt->autoinc_offset;
+				need = prebuilt->autoinc_increment;
 
-				if (have < need) {
-					need = have;
-				}
-
-				auto_inc += need;
+				auto_inc = innobase_next_autoinc(
+					auto_inc, need, offset);
 
 				err = innobase_set_max_autoinc(auto_inc);
 
@@ -3822,7 +3886,15 @@ ha_innobase::update_row(
 		auto_inc = table->next_number_field->val_int();
 
 		if (auto_inc != 0) {
-			auto_inc += prebuilt->table->autoinc_increment;
+
+			ulonglong	need;
+			ulonglong	offset;
+
+			offset = prebuilt->autoinc_offset;
+			need = prebuilt->autoinc_increment;
+
+			auto_inc = innobase_next_autoinc(
+				auto_inc, need, offset);
 
 			error = innobase_set_max_autoinc(auto_inc);
 		}
@@ -5844,7 +5916,7 @@ ha_innobase::info(
 			not be updated. This will force write_row() into
 			attempting an update of the table's AUTOINC counter. */
 
-			prebuilt->last_value = 0;
+			prebuilt->autoinc_last_value = 0;
 		}
 
 		stats.records = (ha_rows)n_rows;
@@ -6474,7 +6546,7 @@ int ha_innobase::reset()
 	it's safer to do it explicitly here. */
 
 	/* This is a statement level counter. */
-	prebuilt->last_value = 0;
+	prebuilt->autoinc_last_value = 0;
 
 	return(0);
 }
@@ -7568,7 +7640,7 @@ ha_innobase::get_auto_increment(
 
 		set_if_bigger(*first_value, autoinc);
 	/* Not in the middle of a mult-row INSERT. */
-	} else if (prebuilt->last_value == 0) {
+	} else if (prebuilt->autoinc_last_value == 0) {
 		set_if_bigger(*first_value, autoinc);
 	}
 
@@ -7577,35 +7649,33 @@ ha_innobase::get_auto_increment(
 	/* With old style AUTOINC locking we only update the table's
 	AUTOINC counter after attempting to insert the row. */
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
-		ulonglong	have;
 		ulonglong	need;
+		ulonglong	next_value;
 
-		/* Check for overflow conditions. */
 		need = *nb_reserved_values * increment;
-		have = ~0x0ULL - *first_value;
-
-		if (have < need) {
-			need = have;
-		}
 
 		/* Compute the last value in the interval */
-		prebuilt->last_value = *first_value + need;
+		next_value = innobase_next_autoinc(*first_value, need, offset);
 
-		ut_a(prebuilt->last_value >= *first_value);
+		prebuilt->autoinc_last_value = next_value;
+
+		ut_a(prebuilt->autoinc_last_value >= *first_value);
 
 		/* Update the table autoinc variable */
 		dict_table_autoinc_update(
-			prebuilt->table, prebuilt->last_value);
+			prebuilt->table, prebuilt->autoinc_last_value);
 	} else {
 		/* This will force write_row() into attempting an update
 		of the table's AUTOINC counter. */
-		prebuilt->last_value = 0;
+		prebuilt->autoinc_last_value = 0;
 	}
 
 	/* The increment to be used to increase the AUTOINC value, we use
 	this in write_row() and update_row() to increase the autoinc counter
-	for columns that are filled by the user.*/
-	prebuilt->table->autoinc_increment = increment;
+	for columns that are filled by the user. We need the offset and
+	the increment. */
+	prebuilt->autoinc_offset = offset;
+	prebuilt->autoinc_increment = increment;
 
 	dict_table_autoinc_unlock(prebuilt->table);
 }
