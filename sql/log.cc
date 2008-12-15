@@ -1146,7 +1146,7 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included)
    * Need to update the log pos because purge logs has been called 
    * after fetching initially the log pos at the begining of the method.
    */
-  if(error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0))
+  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)))
   {
     char buff[22];
     sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
@@ -1234,8 +1234,8 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   */
   if (!my_b_inited(&purge_temp))
   {
-    if (error=open_cached_file(&purge_temp, mysql_tmpdir, TEMP_PREFIX,
-                               DISK_BUFFER_SIZE, MYF(MY_WME)))
+    if ((error=open_cached_file(&purge_temp, mysql_tmpdir, TEMP_PREFIX,
+                                DISK_BUFFER_SIZE, MYF(MY_WME))))
     {
       sql_print_error("MYSQL_LOG::purge_logs failed to open purge_temp");
       goto err;
@@ -1243,7 +1243,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   }
   else
   {
-    if (error=reinit_io_cache(&purge_temp, WRITE_CACHE, 0, 0, 1))
+    if ((error=reinit_io_cache(&purge_temp, WRITE_CACHE, 0, 0, 1)))
     {
       sql_print_error("MYSQL_LOG::purge_logs failed to reinit purge_temp "
                       "for write");
@@ -1274,7 +1274,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
  }
 
   /* We know how many files to delete. Update index file. */
-  if (error=update_log_index(&log_info, need_update_threads))
+  if ((error=update_log_index(&log_info, need_update_threads)))
   {
     sql_print_error("MSYQL_LOG::purge_logs failed to update the index file");
     goto err;
@@ -1283,7 +1283,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   DBUG_EXECUTE_IF("crash_after_update_index", abort(););
 
   /* Switch purge_temp for read. */
-  if (error=reinit_io_cache(&purge_temp, READ_CACHE, 0, 0, 0))
+  if ((error=reinit_io_cache(&purge_temp, READ_CACHE, 0, 0, 0)))
   {
     sql_print_error("MSYQL_LOG::purge_logs failed to reinit purge_temp "
                     "for read");
@@ -1409,6 +1409,7 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   }
 
 err:
+  close_cached_file(&purge_temp);
   if (need_mutex)
     pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);

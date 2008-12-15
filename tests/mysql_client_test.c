@@ -15899,6 +15899,7 @@ static void test_bug28934()
 }
 
 
+#ifdef HAVE_SPATIAL
 /**
   Bug#37956 memory leak and / or crash with geometry and prepared statements! 
 */
@@ -15907,7 +15908,7 @@ static void test_bug37956(void)
 {
   const char *query="select point(?,?)";
   MYSQL_STMT *stmt=NULL;
-  unsigned int val=0;
+  ulong val=0;
   MYSQL_BIND bind_param[2];
   unsigned char buff[2]= { 134, 211 };
   DBUG_ENTER("test_bug37956");
@@ -15951,6 +15952,7 @@ static void test_bug37956(void)
   DIE_UNLESS(0);
   DBUG_VOID_RETURN;
 }
+#endif
 
 /*
   Bug#27592 (stack overrun when storing datetime value using prepared statements)
@@ -16648,7 +16650,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug32265", test_bug32265 },
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
+#ifdef HAVE_SPATIAL
   { "test_bug37956", test_bug37956 },
+#endif
   { 0, 0 }
 };
 
