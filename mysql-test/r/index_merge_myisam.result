@@ -520,6 +520,16 @@ a	filler	b
 4	zz	4
 5	qq	4
 drop table t1, t2;
+CREATE TABLE t1 (a varchar(8), b set('a','b','c','d','e','f','g','h'),
+KEY b(b), KEY a(a));
+INSERT INTO t1 VALUES ('y',''), ('z','');
+SELECT b,a from t1 WHERE (b!='c' AND b!='f' && b!='h') OR 
+(a='pure-S') OR (a='DE80337a') OR (a='DE80799');
+b	a
+	y
+	z
+DROP TABLE t1;
+End of 5.0 tests
 #---------------- ROR-index_merge tests -----------------------
 SET SESSION STORAGE_ENGINE = MyISAM;
 drop table if exists  t0,t1,t2;

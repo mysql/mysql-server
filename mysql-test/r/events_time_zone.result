@@ -14,6 +14,7 @@ RETURN FLOOR((i % (step * n) + 0.1) / step);
 END//
 SET @step3= @step * 3;
 SET @step6= @step * 6;
+SET @unix_time= UNIX_TIMESTAMP() - 1;
 SET @unix_time= @unix_time - @unix_time % @step6;
 INSERT INTO mysql.time_zone VALUES (NULL, 'N');
 SET @tzid= LAST_INSERT_ID();
@@ -21,7 +22,7 @@ INSERT INTO mysql.time_zone_transition_type
 VALUES (@tzid, 0, 0, 0, 'b16420_0');
 INSERT INTO mysql.time_zone_transition_type
 VALUES (@tzid, 1, @step3 - @step, 1, 'b16420_1');
-INSERT INTO mysql.time_zone_name VALUES ('bug16420', @tzid);
+INSERT INTO mysql.time_zone_name VALUES ('<TZ_NAME_1>', @tzid);
 CREATE TABLE t1 (count INT, unix_time INT, local_time INT, comment CHAR(80));
 CREATE TABLE t2 (count INT);
 INSERT INTO t2 VALUES (1);
@@ -48,7 +49,7 @@ END//
 SET TIME_ZONE= '+00:00';
 CREATE EVENT e1 ON SCHEDULE EVERY @step SECOND
 STARTS FROM_UNIXTIME(@unix_time) DO SELECT f1("<e1>");
-SET TIME_ZONE= 'bug16420';
+SET TIME_ZONE= '<TZ_NAME_1>';
 CREATE EVENT e2 ON SCHEDULE EVERY @step SECOND
 STARTS FROM_UNIXTIME(@unix_time) DO SELECT f1("<e2>");
 SET GLOBAL EVENT_SCHEDULER= ON;
@@ -86,6 +87,7 @@ DELETE FROM mysql.time_zone_name            WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition_type WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition      WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone                 WHERE time_zone_id = @tzid;
+ALTER TABLE mysql.time_zone AUTO_INCREMENT = 6;
 SET TIME_ZONE= '+00:00';
 CREATE TABLE t1 (event CHAR(2), dt DATE, offset INT);
 INSERT INTO mysql.time_zone VALUES (NULL, 'N');
@@ -111,8 +113,8 @@ INSERT INTO mysql.time_zone_transition
 VALUES (@tzid, @now + 7 * @step, 2);
 INSERT INTO mysql.time_zone_transition
 VALUES (@tzid, @now + 12 * @step, 3);
-INSERT INTO mysql.time_zone_name VALUES ('bug16420_2', @tzid);
-SET TIME_ZONE= 'bug16420_2';
+INSERT INTO mysql.time_zone_name VALUES ('<TZ_NAME_2>', @tzid);
+SET TIME_ZONE= '<TZ_NAME_2>';
 SET GLOBAL EVENT_SCHEDULER= ON;
 SET GLOBAL EVENT_SCHEDULER= OFF;
 Below we should see the following:
@@ -143,6 +145,7 @@ DELETE FROM mysql.time_zone_name            WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition_type WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition      WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone                 WHERE time_zone_id = @tzid;
+ALTER TABLE mysql.time_zone AUTO_INCREMENT = 6;
 DROP FUNCTION round_to_step;
 DROP TABLE t_step;
 DROP DATABASE mysqltest_db1;

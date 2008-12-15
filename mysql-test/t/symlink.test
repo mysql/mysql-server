@@ -74,12 +74,12 @@ create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="/this-dir-does-not-exist";
 
 # temporarily disabled as it returns different result in the embedded server
-# --error 1210, 1210
+# --error ER_WRONG_ARGUMENTS, ER_WRONG_ARGUMENTS
 # create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 
 # Should fail becasue the file t9.MYI already exist in 'run'
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1,1,1105
+--error 1,1,ER_UNKNOWN_ERROR
 eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="$MYSQLTEST_VARDIR/run";
 
 # Should fail becasue the file t9.MYD already exist in 'tmp'
@@ -194,26 +194,49 @@ DROP TABLE t1;
 #
 # Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
 #
+# With Bug#41002 (symlink.test fails on symlinked datadir) it was
+# decided that the below statements may also succeed if the data
+# home directory is symlinked, e.g. mysql-test-run --mem.
+# This will be fixed in 6.0 only.
+#
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
---error 1210
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql';
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
---error 1210
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/test';
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
---error 1210
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/';
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
---error 1210
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data';
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
 --error 1
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data_var';
+
+#
 # BUG#25677 - With --skip-symbolic-links option on, DATA DIRECTORY clause is
 #             silently ignored
 #

@@ -83,8 +83,56 @@ const LEX_STRING command_name[]={
 };
 
 const char *xa_state_names[]={
-  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
+  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
+
+/**
+  Mark a XA transaction as rollback-only if the RM unilaterally
+  rolled back the transaction branch.
+
+  @note If a rollback was requested by the RM, this function sets
+        the appropriate rollback error code and transits the state
+        to XA_ROLLBACK_ONLY.
+
+  @return TRUE if transaction was rolled back or if the transaction
+          state is XA_ROLLBACK_ONLY. FALSE otherwise.
+*/
+static bool xa_trans_rolled_back(XID_STATE *xid_state)
+{
+  if (xid_state->rm_error)
+  {
+    switch (xid_state->rm_error) {
+    case ER_LOCK_WAIT_TIMEOUT:
+      my_error(ER_XA_RBTIMEOUT, MYF(0));
+      break;
+    case ER_LOCK_DEADLOCK:
+      my_error(ER_XA_RBDEADLOCK, MYF(0));
+      break;
+    default:
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+    }
+    xid_state->xa_state= XA_ROLLBACK_ONLY;
+  }
+
+  return (xid_state->xa_state == XA_ROLLBACK_ONLY);
+}
+
+/**
+  Rollback work done on behalf of at ransaction branch.
+*/
+static bool xa_trans_rollback(THD *thd)
+{
+  bool status= test(ha_rollback(thd));
+
+  thd->options&= ~(ulong) OPTION_BEGIN;
+  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  xid_cache_delete(&thd->transaction.xid_state);
+  thd->transaction.xid_state.xa_state= XA_NOTR;
+  thd->transaction.xid_state.rm_error= 0;
+
+  return status;
+}
 
 static void unlock_locked_tables(THD *thd)
 {
@@ -2324,8 +2372,8 @@ mysql_execute_command(THD *thd)
     }
     else
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "the master info structure does not exist");
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
       my_ok(thd);
     }
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -2722,11 +2770,13 @@ end_with_restore_list:
 
       /* Don't yet allow changing of symlinks with ALTER TABLE */
       if (create_info.data_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "DATA DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "DATA DIRECTORY");
       if (create_info.index_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "INDEX DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
@@ -4505,6 +4555,7 @@ create_sp_error:
     }
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
     thd->transaction.all.modified_non_trans_table= FALSE;
@@ -4530,6 +4581,8 @@ create_sp_error:
       my_error(ER_XAER_NOTA, MYF(0));
       break;
     }
+    if (xa_trans_rolled_back(&thd->transaction.xid_state))
+      break;
     thd->transaction.xid_state.xa_state=XA_IDLE;
     my_ok(thd);
     break;
@@ -4561,12 +4614,23 @@ create_sp_error:
       XID_STATE *xs=xid_cache_search(thd->lex->xid);
       if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
+      else if (xa_trans_rolled_back(xs))
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+        xid_cache_delete(xs);
+        break;
+      }
       else
       {
         ha_commit_or_rollback_by_xid(thd->lex->xid, 1);
         xid_cache_delete(xs);
         my_ok(thd);
       }
+      break;
+    }
+    if (xa_trans_rolled_back(&thd->transaction.xid_state))
+    {
+      xa_trans_rollback(thd);
       break;
     }
     if (thd->transaction.xid_state.xa_state == XA_IDLE &&
@@ -4615,28 +4679,26 @@ create_sp_error:
         my_error(ER_XAER_NOTA, MYF(0));
       else
       {
+        bool ok= !xa_trans_rolled_back(xs);
         ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
         xid_cache_delete(xs);
-        my_ok(thd);
+        if (ok)
+          my_ok(thd);
       }
       break;
     }
     if (thd->transaction.xid_state.xa_state != XA_IDLE &&
-        thd->transaction.xid_state.xa_state != XA_PREPARED)
+        thd->transaction.xid_state.xa_state != XA_PREPARED &&
+        thd->transaction.xid_state.xa_state != XA_ROLLBACK_ONLY)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (ha_rollback(thd))
+    if (xa_trans_rollback(thd))
       my_error(ER_XAER_RMERR, MYF(0));
     else
       my_ok(thd);
-    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->transaction.all.modified_non_trans_table= FALSE;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    xid_cache_delete(&thd->transaction.xid_state);
-    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
@@ -5488,6 +5550,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   */
   thd->reset_current_stmt_binlog_row_based();
 
+  DBUG_PRINT("debug",
+             ("current_stmt_binlog_row_based: %d",
+              thd->current_stmt_binlog_row_based));
+
   DBUG_VOID_RETURN;
 }
 
@@ -5628,7 +5694,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+  lex->lock_option= TL_READ_DEFAULT;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -7501,6 +7567,39 @@ int test_if_data_home_dir(const char *dir)
 }
 
 C_MODE_END
+
+
+/**
+  Check that host name string is valid.
+
+  @param[in] str string to be checked
+
+  @return             Operation status
+    @retval  FALSE    host name is ok
+    @retval  TRUE     host name string is longer than max_length or
+                      has invalid symbols
+*/
+
+bool check_host_name(LEX_STRING *str)
+{
+  const char *name= str->str;
+  const char *end= str->str + str->length;
+  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+    return TRUE;
+
+  while (name != end)
+  {
+    if (*name == '@')
+    {
+      my_printf_error(ER_UNKNOWN_ERROR, 
+                      "Malformed hostname (illegal symbol: '%c')", MYF(0),
+                      *name);
+      return TRUE;
+    }
+    name++;
+  }
+  return FALSE;
+}
 
 
 extern int MYSQLparse(void *thd); // from sql_yacc.cc

@@ -1377,6 +1377,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                       FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->options, OPTION_BEGIN)));
 
+  thd->binlog_flush_pending_rows_event(TRUE);
+
   /*
     NULL denotes ROLLBACK with nothing to replicate: i.e., rollback of
     only transactional tables.  If the transaction contain changes to
@@ -1395,8 +1397,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
-
     error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev);
     trx_data->reset();
 
@@ -3779,7 +3779,7 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 int
 MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd)
 {
-  DBUG_ENTER(__FUNCTION__);
+  DBUG_ENTER("MYSQL_BIN_LOG::remove_pending_rows_event");
 
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
@@ -4011,11 +4011,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           DBUG_PRINT("info",("number of auto_inc intervals: %u",
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              nb_elements()));
-          /*
-            If the auto_increment was second in a table's index (possible with
-            MyISAM or BDB) (table->next_number_keypart != 0), such event is
-            in fact not necessary. We could avoid logging it.
-          */
           Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              minimum());

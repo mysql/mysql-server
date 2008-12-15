@@ -84,6 +84,14 @@ ALTER TABLE t1 DROP PARTITION x1;
 ERROR HY000: Partition management on a not partitioned table is not possible
 ALTER TABLE t1 COALESCE PARTITION 1;
 ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 ANALYZE PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 CHECK PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 REPAIR PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
 DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY KEY (a)
@@ -136,7 +144,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 2  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 2 */
 DROP TABLE t1;
 CREATE TABLE t1 (a INT) PARTITION BY HASH(a);
 ALTER TABLE t1 ADD PARTITION PARTITIONS 4;
