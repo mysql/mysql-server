@@ -95,3 +95,11 @@ set @a=-14632475938453979136;
 execute s using @a, @a;
 
 --echo End of 5.0 tests
+
+#
+# Bug#37075: offset of limit clause might be truncated to 0 on 32-bits server w/o big tables
+#
+
+select 1 as a limit 4294967296,10;
+
+--echo End of 5.1 tests

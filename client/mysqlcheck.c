@@ -517,9 +517,14 @@ static int process_all_tables_in_db(char *database)
   LINT_INIT(res);
   if (use_db(database))
     return 1;
-  if (mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") ||
-	!((res= mysql_store_result(sock))))
+  if ((mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") &&
+       mysql_query(sock, "SHOW TABLES")) ||
+      !(res= mysql_store_result(sock)))
+  {
+    my_printf_error(0, "Error: Couldn't get table list for database %s: %s",
+		    MYF(0), database, mysql_error(sock));
     return 1;
+  }
 
   num_columns= mysql_num_fields(res);
 

@@ -1,3 +1,5 @@
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
 flush status;
 show status like 'Table_lock%';
 Variable_name	Value
@@ -7,22 +9,31 @@ select * from information_schema.session_status where variable_name like 'Table_
 VARIABLE_NAME	VARIABLE_VALUE
 TABLE_LOCKS_IMMEDIATE	2
 TABLE_LOCKS_WAITED	0
-SET SQL_LOG_BIN=0;
+# Switched to connection: con1
+set sql_log_bin=0;
 set @old_general_log = @@global.general_log;
 set global general_log = 'OFF';
 drop table if exists t1;
 create table t1(n int) engine=myisam;
 insert into t1 values(1);
+select 1;
+1
+1
+# Switched to connection: con2
 lock tables t1 read;
 unlock tables;
 lock tables t1 read;
+# Switched to connection: con1
 update t1 set n = 3;
+# Switched to connection: con2
 unlock tables;
+# Switched to connection: con1
 show status like 'Table_locks_waited';
 Variable_name	Value
 Table_locks_waited	1
 drop table t1;
 set global general_log = @old_general_log;
+# Switched to connection: default
 select 1;
 1
 1
@@ -198,3 +209,4 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 drop database db37908;
 drop procedure proc37908;
 drop function func37908;
+set @@global.concurrent_insert= @old_concurrent_insert;

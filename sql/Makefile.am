@@ -146,8 +146,10 @@ DEFS =			-DMYSQL_SERVER \
 BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
 BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
-			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
-			udf_example.c udf_example.def
+			nt_servc.cc nt_servc.h \
+			message.mc  message.h message.rc MSG00001.bin \
+			CMakeLists.txt
+
 CLEANFILES =        	lex_hash.h sql_yacc.output link_sources
 DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
