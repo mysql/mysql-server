@@ -24,7 +24,7 @@ typedef time_t	ib_time_t;
 #define PAUSE_INSTRUCTION() \
   { \
     volatile lint volatile_var; \
-    os_compare_and_swap(volatile_var, 0, 1); \
+    os_compare_and_swap(&volatile_var, 0, 1); \
   }
 #else
 #define PAUSE_INSTRUCTION()
