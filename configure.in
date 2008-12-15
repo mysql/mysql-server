@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.30)
+AM_INIT_AUTOMAKE(mysql, 5.1.31)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -405,12 +405,15 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-# If ln -f does not exists use -s (AFS systems)
-if test -n "$LN_CP_F"; then
-  LN_CP_F="$LN_CP_F -s"
-fi
-fi
+case $SYSTEM_TYPE in
+  *netware*) ;;
+  *)
+    # If ln -f does not exists use -s (AFS systems)
+    if test -n "$LN_CP_F"; then
+      LN_CP_F="$LN_CP_F -s"
+    fi
+    ;;
+esac
 
 AC_PATH_PROG(MV, mv, mv)
 AC_PATH_PROG(RM, rm, rm)
@@ -455,46 +458,50 @@ fi
 
 AC_SUBST(ABI_CHECK)
 
-# Lock for PS
+# Look for PS usage.  We use double dollar-signs in FIND_PROC because this
+# value is written to a makefile, which interprets away one level of
+# dollar-signs.  So, interpretation stages are  m4 and then shell in autoconf,
+# then Make, then shell.  The autoconf substitution uses single quotes, so 
+# no unprotected single quotes should appear in the expression.
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
 # Linux style
-if $PS p $$ 2> /dev/null | grep `echo $0 | sed s/\-//` > /dev/null
+if $PS wwwp $$ 2> /dev/null | grep -- "$0" > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS wwwp \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # Solaris
-elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # BSD style
-elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
+elif $PS -uaxww 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # SysV style
-elif $PS -ef 2> /dev/null | grep $0 > /dev/null
+elif $PS -ef 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
-elif $PS $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*|*dragonfly*)
-      FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
       ;;
     *)
-      AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
+      AC_MSG_ERROR([Could not find the right ps and/or grep switches. Which OS is this?  See the Installation chapter in the Reference Manual.])
   esac
 fi
 AC_SUBST(FIND_PROC)
@@ -1654,14 +1661,16 @@ else
   OPTIMIZE_CXXFLAGS="-O"
 fi
 
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
-  DEBUG_CFLAGS="-g -DDEBUG -sym internal,codeview4"
-  DEBUG_CXXFLAGS="-g -DDEBUG -sym internal,codeview4"
-  DEBUG_OPTIMIZE_CC="-DDEBUG"
-  DEBUG_OPTIMIZE_CXX="-DDEBUG"
-  OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
-  OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
-fi
+case $SYSTEM_TYPE in
+  *netware*)
+    DEBUG_CFLAGS="-g -DDEBUG -sym internal,codeview4"
+    DEBUG_CXXFLAGS="-g -DDEBUG -sym internal,codeview4"
+    DEBUG_OPTIMIZE_CC="-DDEBUG"
+    DEBUG_OPTIMIZE_CXX="-DDEBUG"
+    OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
+    OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
+    ;;
+esac
 
 # If the user specified CFLAGS, we won't add any optimizations
 if test -n "$SAVE_CFLAGS"
@@ -1953,15 +1962,18 @@ MYSQL_TZNAME
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-MYSQL_CHECK_LONGLONG_TO_FLOAT
-if test "$ac_cv_conv_longlong_to_float" != "yes"
-then
-  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
-If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-again])
-fi
-fi
+case $SYSTEM_TYPE in
+  *netware*) ;;
+  *)
+    MYSQL_CHECK_LONGLONG_TO_FLOAT
+    if test "$ac_cv_conv_longlong_to_float" != "yes"
+    then
+      AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+ If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
+    again])
+    fi
+    ;;
+esac
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
 AC_CHECK_TYPES([u_int32_t])
@@ -2598,11 +2610,12 @@ readline_h_ln_cmd=""
 readline_link=""
 want_to_use_readline="no"
 
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
-then
+case $SYSTEM_TYPE in
+  *netware*)
     # For NetWare, do not need readline
     echo "Skipping readline"
-else
+    ;;
+  *)
     if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
     then
 	readline_topdir="cmd-line-utils"
@@ -2655,7 +2668,8 @@ else
 	      be built with libreadline. Please use --with-libedit to use
 	      the bundled version of libedit instead.])
     fi
-fi
+    ;;
+esac
 
 AC_SUBST(readline_dir)
 AC_SUBST(readline_topdir)
@@ -2766,6 +2780,9 @@ then
 
   sql_server="vio sql"
 fi
+
+# "innochecksum" is not in the "innobase/" subdirectory, but should be switched
+AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$with_plugin_innobase" = Xyes])
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
 # I know to add the static NSS magic if we have static NSS libraries with

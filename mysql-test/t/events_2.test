@@ -411,6 +411,108 @@ create event
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
 on schedule every 2 year do select 1;
 
+#
+# Bug#35981: ALTER EVENT causes the server to change the PRESERVE option.
+#
+
+create event event_35981 on schedule every 6 month on completion preserve
+disable
+do
+  select 1;
+
+echo The following SELECTs should all give 1;
+
+# show current ON_COMPLETION
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+        on_completion = 'PRESERVE';
+
+# show ON_COMPLETION remains "PRESERVE" when not given in ALTER EVENT
+alter   event event_35981 enable;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+        on_completion = 'PRESERVE';
+
+# show we can change ON_COMPLETION
+alter   event event_35981 on completion not preserve;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+        on_completion = 'NOT PRESERVE';
+
+# show ON_COMPLETION remains "NOT PRESERVE" when not given in ALTER EVENT
+alter   event event_35981 disable;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+        on_completion = 'NOT PRESERVE';
+
+# show we can change ON_COMPLETION
+alter   event event_35981 on completion preserve;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+        on_completion = 'PRESERVE';
+
+
+drop event event_35981;
+
+create event event_35981 on schedule every 6 month disable
+do
+  select 1;
+
+# show that the defaults for CREATE EVENT are still correct (NOT PRESERVE)
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+        on_completion = 'NOT PRESERVE';
+
+drop event event_35981;
+
+
+# show that backdating doesn't break
+
+create event event_35981 on schedule every 1 hour starts current_timestamp
+  on completion not preserve
+do
+  select 1;
+
+# should fail thanks to above's NOT PRESERVE
+--error ER_EVENT_CANNOT_ALTER_IN_THE_PAST
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00';
+
+drop event event_35981;
+
+create event event_35981 on schedule every 1 hour starts current_timestamp
+  on completion not preserve
+do
+  select 1;
+
+# succeed with warning
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion preserve;
+
+drop event event_35981;
+
+
+
+create event event_35981 on schedule every 1 hour starts current_timestamp
+  on completion preserve
+do
+  select 1;
+
+# this should succeed thanks to above PRESERVE! give a warning though.
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00';
+
+# this should fail, as the event would have passed already
+--error ER_EVENT_CANNOT_ALTER_IN_THE_PAST
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion not preserve;
+
+# should succeed giving a warning
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion preserve;
+
+drop event event_35981;
+
 # 
 # End of tests
 #

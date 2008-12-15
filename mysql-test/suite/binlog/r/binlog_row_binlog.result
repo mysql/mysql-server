@@ -1090,6 +1090,53 @@ master-bin.000001	295	Table_map	1	337	table_id: # (test.t1)
 master-bin.000001	337	Write_rows	1	383	table_id: # flags: STMT_END_F
 master-bin.000001	383	Query	1	452	use `test`; COMMIT
 master-bin.000001	452	Query	1	528	use `test`; drop table t1
+reset master;
+CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+USE bug39182;
+CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE s1 VARCHAR(255);
+SET s1= "test";
+CREATE TEMPORARY TABLE tmp1
+SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
+SELECT 
+COLLATION(NAME_CONST('s1', _utf8'test')) c1,
+COLLATION(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) c2,
+COLLATION(s1) c3,
+COERCIBILITY(NAME_CONST('s1', _utf8'test')) d1,
+COERCIBILITY(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) d2,
+COERCIBILITY(s1) d3;
+DROP TEMPORARY TABLE tmp1;
+END//
+CALL p1();
+c1	c2	c3	d1	d2	d3
+utf8_general_ci	utf8_unicode_ci	utf8_unicode_ci	2	2	2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci
+master-bin.000001	#	Query	#	#	use `bug39182`; CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+master-bin.000001	#	Query	#	#	use `bug39182`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN
+DECLARE s1 VARCHAR(255);
+SET s1= "test";
+CREATE TEMPORARY TABLE tmp1
+SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
+SELECT 
+COLLATION(NAME_CONST('s1', _utf8'test')) c1,
+COLLATION(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) c2,
+COLLATION(s1) c3,
+COERCIBILITY(NAME_CONST('s1', _utf8'test')) d1,
+COERCIBILITY(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) d2,
+COERCIBILITY(s1) d3;
+DROP TEMPORARY TABLE tmp1;
+END
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP DATABASE bug39182;
+USE test;
 End of 5.0 tests
 reset master;
 create table t1 (id tinyint auto_increment primary key);
