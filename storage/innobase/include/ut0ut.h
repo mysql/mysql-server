@@ -18,15 +18,16 @@ Created 1/20/1994 Heikki Tuuri
 typedef time_t	ib_time_t;
 
 #ifdef HAVE_PAUSE_INSTRUCTION
-#define PAUSE_INSTRUCTION(volatile_var) {__asm__ __volatile__ ("pause");}
+#define PAUSE_INSTRUCTION() {__asm__ __volatile__ ("pause");}
 #else
 #ifdef UNIV_SYNC_ATOMIC
-#define PAUSE_INSTRUCTION(volatile_var) \
+#define PAUSE_INSTRUCTION() \
   { \
+    volatile lint volatile_var;
     os_compare_and_swap(volatile_var, 0, 1); \
   }
 #else
-#define PAUSE_INSTRUCTION(volatile_var)
+#define PAUSE_INSTRUCTION()
 #endif
 #endif
 

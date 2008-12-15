@@ -1063,6 +1063,7 @@ ulong	srv_max_purge_lag		= 0;
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
 
+#ifdef UNIV_SYNC_ATOMIC
 static void
 inc_srv_conc_n_threads(lint *n_threads)
 {
@@ -1074,6 +1075,7 @@ dec_srv_conc_n_threads()
 {
   os_atomic_increment(&srv_conc_n_threads, -1);
 }
+#endif
 
 static void
 print_already_in_error(trx_t* trx)
@@ -1087,6 +1089,7 @@ print_already_in_error(trx_t* trx)
         return;
 }
 
+#ifdef UNIV_SYNC_ATOMIC
 static void
 enter_innodb_with_tickets(trx_t* trx)
 {
@@ -1108,7 +1111,7 @@ srv_conc_enter_innodb_timer_based(trx_t* trx)
 retry:
 	if (srv_conc_n_threads < (lint) srv_thread_concurrency) {
                 inc_srv_conc_n_threads(&conc_n_threads);
-	        if (conc_n_threads <= srv_thread_concurrency) {
+	        if (conc_n_threads <= (lint) srv_thread_concurrency) {
                        enter_innodb_with_tickets(trx);
                        return;
                 }
@@ -1147,6 +1150,7 @@ srv_conc_exit_innodb_timer_based(trx_t* trx)
 	trx->n_tickets_to_enter_innodb = 0;
         return;
 }
+#endif
 
 void
 srv_conc_enter_innodb(
@@ -1315,7 +1319,6 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-        lint               conc_n_threads;
 
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
@@ -1324,6 +1327,8 @@ srv_conc_force_enter_innodb(
 
 #ifdef UNIV_SYNC_ATOMIC
         if (srv_thread_concurrency_timer_based) {
+                lint               conc_n_threads;
+
                 inc_srv_conc_n_threads(&conc_n_threads);
 	        trx->declared_to_be_inside_innodb = TRUE;
 	        trx->n_tickets_to_enter_innodb = 1;
