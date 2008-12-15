@@ -2128,10 +2128,11 @@ ndb_mgm_start(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
  *****************************************************************************/
 extern "C"
 int 
-ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
+ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
 		     struct ndb_mgm_reply*, /*reply*/
-		     unsigned int input_backupId) 
+		     unsigned int input_backupId,
+		     unsigned int backuppoint) 
 {
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_start_backup");
@@ -2147,6 +2148,7 @@ ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
   args.put("completed", wait_completed);
   if(input_backupId > 0)
     args.put("backupid", input_backupId);
+  args.put("backuppoint", backuppoint);
   const Properties *reply;
   { // start backup can take some time, set timeout high
     int old_timeout= handle->timeout;
@@ -2174,12 +2176,21 @@ ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
 
 extern "C"
 int 
+ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
+		     unsigned int* _backup_id,
+		     struct ndb_mgm_reply* reply,
+		     unsigned int input_backupId)
+{
+  return ndb_mgm_start_backup3(handle, wait_completed, _backup_id, reply, input_backupId, 0);
+}
+
+extern "C"
+int 
 ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
-		     struct ndb_mgm_reply* /*reply*/)
+		     struct ndb_mgm_reply* reply)
 {
-  struct ndb_mgm_reply reply;
-  return ndb_mgm_start_backup2(handle, wait_completed, _backup_id, &reply, 0);
+  return ndb_mgm_start_backup2(handle, wait_completed, _backup_id, reply, 0);
 }
 
 extern "C"
