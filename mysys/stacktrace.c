@@ -317,6 +317,7 @@ void my_write_core(int sig)
 #else /* __WIN__*/
 
 #include <dbghelp.h>
+#include <tlhelp32.h>
 
 /*
   Stack tracing on Windows is implemented using Debug Helper library(dbghelp.dll)
@@ -409,6 +410,68 @@ void my_set_exception_pointers(EXCEPTION_POINTERS *ep)
   exception_ptrs = ep;
 }
 
+
+/*
+  Get symbol path - semicolon-separated list of directories to search for debug
+  symbols. We expect PDB in the same directory as corresponding exe or dll,
+  so the path is build from directories of the loaded modules. If environment
+  variable _NT_SYMBOL_PATH is set, it's value appended to the symbol search path
+*/
+static void get_symbol_path(char *path, size_t size)
+{ 
+  HANDLE hSnap; 
+  char *envvar;
+
+  path[0]= '\0';
+  /*
+    Enumerate all modules, and add their directories to the path.
+    Avoid duplicate entries.
+  */
+  hSnap= CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, GetCurrentProcessId());
+  if (hSnap != INVALID_HANDLE_VALUE)
+  {
+    BOOL ret;
+    MODULEENTRY32 mod;
+    mod.dwSize= sizeof(MODULEENTRY32);
+    for (ret= Module32First(hSnap, &mod); ret; ret= Module32Next(hSnap, &mod))
+    {
+      char *module_dir= mod.szExePath;
+      char *p= strrchr(module_dir,'\\');
+      if (!p)
+      {
+        /*
+          Path separator was not found. Not known to happen, if ever happens,
+          will indicate current directory.
+        */
+        module_dir[0]= '.';
+        p= module_dir + 1;
+      }
+      *p++= ';';
+      *p= '\0';
+
+      if (!strstr(path, module_dir))
+      {
+        size_t dir_len = strlen(module_dir);
+        if (size > dir_len)
+        {
+          strncat(path, module_dir, size-1);
+          size -= dir_len;
+        }
+      }
+    }
+    CloseHandle(hSnap);
+  }
+
+  /* Add _NT_SYMBOL_PATH, if present. */
+  envvar= getenv("_NT_SYMBOL_PATH");
+  if(envvar && size)
+  {
+    strncat(path, envvar, size-1);
+  }
+}
+
+#define MAX_SYMBOL_PATH 32768
+
 /* Platform SDK in VS2003 does not have definition for SYMOPT_NO_PROMPTS*/
 #ifndef SYMOPT_NO_PROMPTS
 #define SYMOPT_NO_PROMPTS 0
@@ -425,6 +488,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
   int     i;
   CONTEXT context;
   STACKFRAME64 frame={0};
+  static char symbol_path[MAX_SYMBOL_PATH];
 
   if(!exception_ptrs || !init_dbghelp_functions())
     return;
@@ -433,7 +497,8 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
   context = *(exception_ptrs->ContextRecord);
   /*Initialize symbols.*/
   pSymSetOptions(SYMOPT_LOAD_LINES|SYMOPT_NO_PROMPTS|SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
-  pSymInitialize(hProcess,NULL,TRUE);
+  get_symbol_path(symbol_path, sizeof(symbol_path));
+  pSymInitialize(hProcess, symbol_path, TRUE);
 
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode= frame.AddrPC.Mode= frame.AddrStack.Mode= AddrModeFlat;

@@ -111,3 +111,6 @@ set @a=-14632475938453979136;
 execute s using @a, @a;
 ERROR HY000: Incorrect arguments to EXECUTE
 End of 5.0 tests
+select 1 as a limit 4294967296,10;
+a
+End of 5.1 tests
