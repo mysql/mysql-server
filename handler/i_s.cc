@@ -334,7 +334,7 @@ UNIV_INTERN struct st_mysql_plugin      i_s_innodb_patches =
 
         /* plugin name */
         /* const char* */
-        STRUCT_FLD(name, "PERCONA_INNODB_ENHANCEMENTS"),
+        STRUCT_FLD(name, "XTRADB_ENHANCEMENTS"),
 
         /* plugin author (for SHOW PLUGINS) */
         /* const char* */
