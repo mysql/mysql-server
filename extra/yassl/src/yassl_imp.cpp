@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,9 +136,19 @@ void DH_Server::build(SSL& ssl)
     const CertManager& cert = ssl.getCrypto().get_certManager();
     
     if (ssl.getSecurity().get_parms().sig_algo_ == rsa_sa_algo)
+    {
+        if (cert.get_keyType() != rsa_sa_algo) {
+            ssl.SetError(privateKey_error);
+            return;
+        }
         auth.reset(NEW_YS RSA(cert.get_privateKey(),
                    cert.get_privateKeyLength(), false));
+    }
     else {
+        if (cert.get_keyType() != dsa_sa_algo) {
+            ssl.SetError(privateKey_error);
+            return;
+        }
         auth.reset(NEW_YS DSS(cert.get_privateKey(),
                    cert.get_privateKeyLength(), false));
         sigSz += DSS_ENCODED_EXTRA;
@@ -436,18 +446,21 @@ Parameters::Parameters(ConnectionEnd ce, const Ciphers& ciphers,
     pending_ = true;	// suite not set yet
     strncpy(cipher_name_, "NONE", 5);
 
+    removeDH_ = !haveDH;   // only use on server side for set suites
+
     if (ciphers.setSuites_) {   // use user set list
         suites_size_ = ciphers.suiteSz_;
         memcpy(suites_, ciphers.suites_, ciphers.suiteSz_);
         SetCipherNames();
     }
     else 
-        SetSuites(pv, ce == server_end && !haveDH);  // defaults
+        SetSuites(pv, ce == server_end && removeDH_);  // defaults
 
 }
 
 
-void Parameters::SetSuites(ProtocolVersion pv, bool removeDH)
+void Parameters::SetSuites(ProtocolVersion pv, bool removeDH, bool removeRSA,
+                           bool removeDSA)
 {
     int i = 0;
     // available suites, best first
@@ -456,67 +469,87 @@ void Parameters::SetSuites(ProtocolVersion pv, bool removeDH)
 
     if (isTLS(pv)) {
         if (!removeDH) {
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_DSS_WITH_AES_256_CBC_SHA;
+            if (!removeRSA) {
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
+            }
+            if (!removeDSA) {
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_DSS_WITH_AES_256_CBC_SHA;
+            }
         }
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_RSA_WITH_AES_256_CBC_SHA;
-
-        if (!removeDH) {
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_DSS_WITH_AES_128_CBC_SHA;
+        if (!removeRSA) {
+            suites_[i++] = 0x00;
+            suites_[i++] = TLS_RSA_WITH_AES_256_CBC_SHA;
         }
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_RSA_WITH_AES_128_CBC_SHA;
-
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_RSA_WITH_AES_256_CBC_RMD160;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_RSA_WITH_AES_128_CBC_RMD160;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_RSA_WITH_3DES_EDE_CBC_RMD160;
-
         if (!removeDH) {
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_RSA_WITH_AES_256_CBC_RMD160;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_RSA_WITH_AES_128_CBC_RMD160;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_RSA_WITH_3DES_EDE_CBC_RMD160;
-
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_DSS_WITH_AES_256_CBC_RMD160;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_DSS_WITH_AES_128_CBC_RMD160;
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_DHE_DSS_WITH_3DES_EDE_CBC_RMD160;
+            if (!removeRSA) {
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
+            }
+            if (!removeDSA) {
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_DSS_WITH_AES_128_CBC_SHA;
+            }
+        }
+        if (!removeRSA) {
+            suites_[i++] = 0x00;
+            suites_[i++] = TLS_RSA_WITH_AES_128_CBC_SHA;
+            suites_[i++] = 0x00;
+            suites_[i++] = TLS_RSA_WITH_AES_256_CBC_RMD160;
+            suites_[i++] = 0x00;
+            suites_[i++] = TLS_RSA_WITH_AES_128_CBC_RMD160;
+            suites_[i++] = 0x00;
+            suites_[i++] = TLS_RSA_WITH_3DES_EDE_CBC_RMD160;
+        }
+        if (!removeDH) {
+            if (!removeRSA) {
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_RSA_WITH_AES_256_CBC_RMD160;
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_RSA_WITH_AES_128_CBC_RMD160;
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_RSA_WITH_3DES_EDE_CBC_RMD160;
+            }
+            if (!removeDSA) {
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_DSS_WITH_AES_256_CBC_RMD160;
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_DSS_WITH_AES_128_CBC_RMD160;
+                suites_[i++] = 0x00;
+                suites_[i++] = TLS_DHE_DSS_WITH_3DES_EDE_CBC_RMD160;
+            }
+        }
     }
+
+    if (!removeRSA) {
+        suites_[i++] = 0x00;
+        suites_[i++] = SSL_RSA_WITH_RC4_128_SHA;  
+        suites_[i++] = 0x00;
+        suites_[i++] = SSL_RSA_WITH_RC4_128_MD5;
+
+        suites_[i++] = 0x00;
+        suites_[i++] = SSL_RSA_WITH_3DES_EDE_CBC_SHA;
+        suites_[i++] = 0x00;
+        suites_[i++] = SSL_RSA_WITH_DES_CBC_SHA;
     }
-
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_RSA_WITH_RC4_128_SHA;  
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_RSA_WITH_RC4_128_MD5;
-
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_RSA_WITH_3DES_EDE_CBC_SHA;
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_RSA_WITH_DES_CBC_SHA;
-
     if (!removeDH) {
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA;  
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA; 
-
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_DHE_RSA_WITH_DES_CBC_SHA;  
-    suites_[i++] = 0x00;
-    suites_[i++] = SSL_DHE_DSS_WITH_DES_CBC_SHA;
+        if (!removeRSA) {
+            suites_[i++] = 0x00;
+            suites_[i++] = SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA;
+        }
+        if (!removeDSA) {
+            suites_[i++] = 0x00;
+            suites_[i++] = SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA;
+        }
+        if (!removeRSA) {
+            suites_[i++] = 0x00;
+            suites_[i++] = SSL_DHE_RSA_WITH_DES_CBC_SHA;
+        }
+        if (!removeDSA) {
+            suites_[i++] = 0x00;
+            suites_[i++] = SSL_DHE_DSS_WITH_DES_CBC_SHA;
+        }
     }
 
     suites_size_ = i;
@@ -532,7 +565,7 @@ void Parameters::SetCipherNames()
 
     for (int j = 0; j < suites; j++) {
         int index = suites_[j*2 + 1];  // every other suite is suite id
-        int len = strlen(cipher_names[index]) + 1;
+        size_t len = strlen(cipher_names[index]) + 1;
         strncpy(cipher_list_[pos++], cipher_names[index], len);
     }
     cipher_list_[pos][0] = 0;
@@ -1469,7 +1502,19 @@ void ClientHello::Process(input_buffer&, SSL& ssl)
             // downgrade to SSLv3
         ssl.useSecurity().use_connection().TurnOffTLS();
         ProtocolVersion pv = ssl.getSecurity().get_connection().version_;
-        ssl.useSecurity().use_parms().SetSuites(pv);  // reset w/ SSL suites
+            bool removeDH  = ssl.getSecurity().get_parms().removeDH_;
+            bool removeRSA = false;
+            bool removeDSA = false;
+            
+            const CertManager& cm = ssl.getCrypto().get_certManager();
+            if (cm.get_keyType() == rsa_sa_algo)
+                removeDSA = true;
+            else
+                removeRSA = true;
+            
+            // reset w/ SSL suites
+            ssl.useSecurity().use_parms().SetSuites(pv, removeDH, removeRSA,
+                                                    removeDSA);
     }
         else if (ssl.isTLSv1_1() && client_version_.minor_ == 1)
             // downgrade to TLSv1, but use same suites
@@ -1515,6 +1560,7 @@ void ClientHello::Process(input_buffer&, SSL& ssl)
         return;
     }
     ssl.matchSuite(cipher_suites_, suite_len_);
+    if (ssl.GetError()) return;
     ssl.set_pending(ssl.getSecurity().get_parms().suite_[1]);
 
     if (compression_methods_ == zlib)

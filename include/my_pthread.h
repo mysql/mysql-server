@@ -521,6 +521,7 @@ typedef struct st_my_pthread_fastmutex_t
 {
   pthread_mutex_t mutex;
   uint spins;
+  uint rng_state;
 } my_pthread_fastmutex_t;
 void fastmutex_global_init(void);
 

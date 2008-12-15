@@ -37,8 +37,24 @@ typedef struct st_partition_share
 } PARTITION_SHARE;
 #endif
 
+/**
+  Partition specific ha_data struct.
+  @todo: move all partition specific data from TABLE_SHARE here.
+*/
+typedef struct st_ha_data_partition
+{
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  bool auto_inc_initialized;
+} HA_DATA_PARTITION;
 
 #define PARTITION_BYTES_IN_POS 2
+#define PARTITION_ENABLED_TABLE_FLAGS (HA_FILE_BASED | HA_REC_NOT_IN_SEQ)
+#define PARTITION_DISABLED_TABLE_FLAGS (HA_CAN_GEOMETRY | \
+                                        HA_CAN_FULLTEXT | \
+                                        HA_DUPLICATE_POS | \
+                                        HA_CAN_SQL_HANDLER | \
+                                        HA_CAN_INSERT_DELAYED | \
+                                        HA_PRIMARY_KEY_REQUIRED_FOR_POSITION)
 class ha_partition :public handler
 {
 private:
@@ -49,7 +65,8 @@ private:
     partition_index_first_unordered= 2,
     partition_index_last= 3,
     partition_index_read_last= 4,
-    partition_no_index_scan= 5
+    partition_read_range = 5,
+    partition_no_index_scan= 6
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -63,12 +80,17 @@ private:
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
   partition_info *m_part_info;          // local reference to partition
-  uchar *m_start_key_ref;                // Reference of start key in current
-                                        // index scan info
   Field **m_part_field_array;           // Part field array locally to save acc
-  uchar *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
-  KEY *m_curr_key_info;                 // Current index
-  uchar *m_rec0;                         // table->record[0]
+  uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
+  /*
+    Current index.
+    When used in key_rec_cmp: If clustered pk, index compare
+    must compare pk if given index is same for two rows.
+    So normally m_curr_key_info[0]= current index and m_curr_key[1]= NULL,
+    and if clustered pk, [0]= current index, [1]= pk, [2]= NULL
+  */
+  KEY *m_curr_key_info[3];              // Current index
+  uchar *m_rec0;                        // table->record[0]
   QUEUE m_queue;                        // Prio queue used by sorted read
   /*
     Since the partition handler is a handler on top of other handlers, it
@@ -77,8 +99,15 @@ private:
     for this since the MySQL Server sometimes allocating the handler object
     without freeing them.
   */
-  longlong m_table_flags;
   ulong m_low_byte_first;
+  enum enum_handler_status
+  {
+    handler_not_initialized= 0,
+    handler_initialized,
+    handler_opened,
+    handler_closed
+  };
+  enum_handler_status m_handler_status;
 
   uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
@@ -141,6 +170,12 @@ private:
     "own" the m_part_info structure.
   */
   bool is_clone;
+  bool auto_increment_lock;             /**< lock reading/updating auto_inc */
+  /**
+    Flag to keep the auto_increment lock through out the statement.
+    This to ensure it will work with statement based replication.
+  */
+  bool auto_increment_safe_stmt_log_lock;
 public:
   handler *clone(MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
@@ -168,7 +203,7 @@ public:
     enable later calls of the methods to retrieve constants from the under-
     lying handlers. Returns false if not successful.
   */
-   bool initialise_partition(MEM_ROOT *mem_root);
+   bool initialize_partition(MEM_ROOT *mem_root);
 
   /*
     -------------------------------------------------------------------------
@@ -197,8 +232,8 @@ public:
   virtual char *update_table_comment(const char *comment);
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
-                                ulonglong *copied,
-                                ulonglong *deleted,
+                                ulonglong * const copied,
+                                ulonglong * const deleted,
                                 const uchar *pack_frm_data,
                                 size_t pack_frm_len);
   virtual int drop_partitions(const char *path);
@@ -210,9 +245,11 @@ public:
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
+  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
+                                          uint table_changes);
 private:
   int prepare_for_rename();
-  int copy_partitions(ulonglong *copied, ulonglong *deleted);
+  int copy_partitions(ulonglong * const copied, ulonglong * const deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
                             handler *file, const char *part_name,
@@ -288,6 +325,10 @@ public:
     Call to unlock rows not to be updated in transaction
   */
   virtual void unlock_row();
+  /*
+    Call to hint about semi consistent read
+  */
+  virtual void try_semi_consistent_read(bool);
 
   /*
     -------------------------------------------------------------------------
@@ -429,9 +470,7 @@ public:
   virtual int read_range_next();
 
 private:
-  int common_index_read(uchar * buf, const uchar * key,
-                        key_part_map keypart_map,
-                        enum ha_rkey_function find_flag);
+  int common_index_read(uchar * buf, bool have_start_key);
   int common_first_last(uchar * buf);
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
@@ -573,6 +612,8 @@ public:
     The partition handler will support whatever the underlying handlers
     support except when specifically mentioned below about exceptions
     to this rule.
+    NOTE: This cannot be cached since it can depend on TRANSACTION ISOLATION
+    LEVEL which is dynamic, see bug#39084.
 
     HA_READ_RND_SAME:
     Not currently used. (Means that the handler supports the rnd_same() call)
@@ -697,9 +738,33 @@ public:
     transfer those calls into index_read and other calls in the
     index scan module.
     (NDB)
+
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION:
+    Does the storage engine need a PK for position?
+    Used with hidden primary key in InnoDB.
+    Hidden primary keys cannot be supported by partitioning, since the
+    partitioning expressions columns must be a part of the primary key.
+    (InnoDB)
+
+    HA_FILE_BASED is always set for partition handler since we use a
+    special file for handling names of partitions, engine types.
+    HA_REC_NOT_IN_SEQ is always set for partition handler since we cannot
+    guarantee that the records will be returned in sequence.
+    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER, HA_DUPLICATE_POS,
+    HA_CAN_INSERT_DELAYED, HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is disabled
+    until further investigated.
   */
-  virtual ulonglong table_flags() const
-  { return m_table_flags; }
+  virtual Table_flags table_flags() const
+  {
+    DBUG_ENTER("ha_partition::table_flags");
+    if (m_handler_status < handler_initialized ||
+        m_handler_status >= handler_closed)
+      DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
+    else
+      DBUG_RETURN((m_file[0]->ha_table_flags() &
+                   ~(PARTITION_DISABLED_TABLE_FLAGS)) |
+                  (PARTITION_ENABLED_TABLE_FLAGS));
+  }
 
   /*
     This is a bitmap of flags that says how the storage engine
@@ -762,6 +827,11 @@ public:
     return m_file[0]->index_flags(inx, part, all_parts);
   }
 
+  /**
+    wrapper function for handlerton alter_table_flags, since
+    the ha_partition_hton cannot know all its capabilities
+  */
+  virtual uint alter_table_flags(uint flags);
   /*
      extensions of table handler files
   */
@@ -829,16 +899,55 @@ public:
     auto_increment_column_changed
      -------------------------------------------------------------------------
   */
-  virtual void restore_auto_increment(ulonglong prev_insert_id);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
   virtual void release_auto_increment();
+private:
+  virtual int reset_auto_increment(ulonglong value);
+  virtual void lock_auto_increment()
+  {
+    /* lock already taken */
+    if (auto_increment_safe_stmt_log_lock)
+      return;
+    DBUG_ASSERT(table_share->ha_data && !auto_increment_lock);
+    if(table_share->tmp_table == NO_TMP_TABLE)
+    {
+      auto_increment_lock= TRUE;
+      pthread_mutex_lock(&table_share->mutex);
+    }
+  }
+  virtual void unlock_auto_increment()
+  {
+    DBUG_ASSERT(table_share->ha_data);
+    /*
+      If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
+      It will be set to false and thus unlocked at the end of the statement by
+      ha_partition::release_auto_increment.
+    */
+    if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
+    {
+      pthread_mutex_unlock(&table_share->mutex);
+      auto_increment_lock= FALSE;
+    }
+  }
+  virtual void set_auto_increment_if_higher(const ulonglong nr)
+  {
+    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+    lock_auto_increment();
+    DBUG_ASSERT(ha_data->auto_inc_initialized == TRUE);
+    /* must check when the mutex is taken */
+    if (nr >= ha_data->next_auto_inc_val)
+      ha_data->next_auto_inc_val= nr + 1;
+    unlock_auto_increment();
+  }
+
+public:
 
   /*
      -------------------------------------------------------------------------
-     MODULE initialise handler for HANDLER call
+     MODULE initialize handler for HANDLER call
      -------------------------------------------------------------------------
      This method is a special InnoDB method called before a HANDLER query.
      -------------------------------------------------------------------------
@@ -898,13 +1007,14 @@ public:
     -------------------------------------------------------------------------
     MODULE on-line ALTER TABLE
     -------------------------------------------------------------------------
-    These methods are in the handler interface but never used (yet)
-    They are to be used by on-line alter table add/drop index:
+    These methods are in the handler interface. (used by innodb-plugin)
+    They are used for on-line/fast alter table add/drop index:
     -------------------------------------------------------------------------
-    virtual ulong index_ddl_flags(KEY *wanted_index) const
-    virtual int add_index(TABLE *table_arg,KEY *key_info,uint num_of_keys);
-    virtual int drop_index(TABLE *table_arg,uint *key_num,uint num_of_keys);
   */
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
+                                 uint num_of_keys);
+  virtual int final_drop_index(TABLE *table_arg);
 
   /*
     -------------------------------------------------------------------------
@@ -937,8 +1047,7 @@ public:
     virtual bool is_crashed() const;
 
     private:
-    int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
-                              uint flags, bool all_parts);
+    int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt, uint flags);
     public:
   /*
     -------------------------------------------------------------------------

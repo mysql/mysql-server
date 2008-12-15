@@ -23,7 +23,6 @@ enum file_opt_type {
   FILE_OPTIONS_STRING,		/**< String (LEX_STRING) */
   FILE_OPTIONS_ESTRING,		/**< Escaped string (LEX_STRING) */
   FILE_OPTIONS_ULONGLONG,	/**< ulonglong parameter (ulonglong) */
-  FILE_OPTIONS_REV,		/**< Revision version number (ulonglong) */
   FILE_OPTIONS_TIMESTAMP,	/**< timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */
   FILE_OPTIONS_STRLIST,         /**< list of escaped strings
@@ -81,10 +80,10 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 my_bool
 sql_create_definition_file(const LEX_STRING *dir, const  LEX_STRING *file_name,
 			   const LEX_STRING *type,
-			   uchar* base, File_option *parameters, uint versions);
-my_bool rename_in_schema_file(const char *schema, const char *old_name, 
-                              const char *new_name, ulonglong revision, 
-                              uint num_view_backups);
+			   uchar* base, File_option *parameters);
+my_bool rename_in_schema_file(THD *thd,
+                              const char *schema, const char *old_name,
+                              const char *new_name);
 
 class File_parser: public Sql_alloc
 {

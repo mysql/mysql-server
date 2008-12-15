@@ -170,19 +170,22 @@ DROP TABLE t1;
 #----------- PARTITION BY RANGE -- SUBPARTITION BY KEY
 if ($with_partitioning)
 {
-let $partitioning= PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-$data_directory
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN ($max_row_div4)
-$index_directory
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN ($max_row_div2)
-$data_directory
-$index_directory
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN $MAX_VALUE
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
+# use the new (from bug#14326) partitioning format (i.e. multi-line comments)
+let $partitioning= 
+/*!50100 PARTITION BY RANGE(f_int1)
+SUBPARTITION BY KEY(f_int1)
+(PARTITION part1 VALUES LESS THAN (0) $data_directory
+ (SUBPARTITION subpart11,
+  SUBPARTITION subpart12),
+ PARTITION part2 VALUES LESS THAN ($max_row_div4) $index_directory
+ (SUBPARTITION subpart21,
+  SUBPARTITION subpart22),
+ PARTITION part3 VALUES LESS THAN ($max_row_div2) $data_directory $index_directory
+ (SUBPARTITION subpart31,
+  SUBPARTITION subpart32),
+ PARTITION part4 VALUES LESS THAN $MAX_VALUE
+ (SUBPARTITION subpart41,
+  SUBPARTITION subpart42)) */;
 }
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
@@ -198,32 +201,8 @@ DROP TABLE t1;
 #----------- PARTITION BY LIST -- SUBPARTITION BY HASH
 if ($with_partitioning)
 {
-let $partitioning= 
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  $index_directory
-  (SUBPARTITION sp11 
-     $data_directory,
-   SUBPARTITION sp12
-     $index_directory),
- PARTITION part2 VALUES IN (1)
-  $data_directory
-  (SUBPARTITION sp21 
-     $data_directory,
-   SUBPARTITION sp22
-     $index_directory),
- PARTITION part3 VALUES IN (2)
-  $data_directory
-  $index_directory
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  (SUBPARTITION sp41 
-     $data_directory
-     $index_directory,
-   SUBPARTITION sp42
-     $data_directory
-     $index_directory));
+# use the old (pre bug#14326) format (i.e. one line comment)
+let $partitioning= /*!50100 PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1) (PARTITION part1 VALUES IN (0) $index_directory (SUBPARTITION sp11 $data_directory, SUBPARTITION sp12 $index_directory), PARTITION part2 VALUES IN (1) $data_directory (SUBPARTITION sp21 $data_directory, SUBPARTITION sp22 $index_directory), PARTITION part3 VALUES IN (2) $data_directory $index_directory (SUBPARTITION sp31, SUBPARTITION sp32), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 $data_directory $index_directory, SUBPARTITION sp42 $data_directory $index_directory)) */;
 }
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (

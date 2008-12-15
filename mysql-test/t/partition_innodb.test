@@ -1,6 +1,86 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug#40595: Non-matching rows not released with READ-COMMITTED on tables
+#            with partitions
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB 
+PARTITION BY RANGE(id) ( 
+ PARTITION p0 VALUES LESS THAN (5), 
+ PARTITION p1 VALUES LESS THAN (10), 
+ PARTITION p2 VALUES LESS THAN MAXVALUE 
+);
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
+                      (9,9), (10,10), (11,11);
+
+SET @old_tx_isolation := @@session.tx_isolation;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SET autocommit = 0;
+
+UPDATE t1 SET DATA = data*2 WHERE id = 3;
+
+# grouping/referencing in replace_regex is very slow on long strings,
+# removing all before/after the interesting row before grouping/referencing
+--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+SHOW ENGINE InnoDB STATUS;
+
+UPDATE t1 SET data = data*2 WHERE data = 2;
+
+# grouping/referencing in replace_regex is very slow on long strings,
+# removing all before/after the interesting row before grouping/referencing
+--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+SHOW ENGINE InnoDB STATUS;
+
+SET @@session.tx_isolation = @old_tx_isolation;
+
+DROP TABLE t1;
+
+#
+# Bug37721: ORDER BY when WHERE contains non-partitioned index column
+# wrong order since it did not use pk as second compare
+--echo # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY (a),
+  INDEX (b))
+ENGINE InnoDB
+PARTITION BY HASH(a)
+PARTITIONS 3;
+# This will give the middle partition the highest value
+INSERT INTO t1 VALUES (0,0),(4,0),(2,0);
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+ALTER TABLE t1 DROP INDEX b;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a VARCHAR(600),
+  b VARCHAR(600),
+  PRIMARY KEY (a),
+  INDEX (b))
+ENGINE InnoDB
+PARTITION BY KEY(a)
+PARTITIONS 3;
+# This will give the middle partition the highest value
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'1'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'3'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'2'),repeat('0',257));
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+ALTER TABLE t1 DROP INDEX b;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+DROP TABLE t1;
+
+#
 # Bug#32948 - FKs allowed to reference partitioned table
 #
 -- echo # Bug#32948
