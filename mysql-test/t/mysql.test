@@ -291,6 +291,25 @@ EOF
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29323.sql 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/bug29323.sql;
 
+#
+# Bug #33812: mysql client incorrectly parsing DELIMITER
+#
+# The space and ; after delimiter are important
+--exec $MYSQL -e "select 1 delimiter ;"
+
+#
+# Bug #38158: mysql client regression, can't read dump files
+#
+--write_file $MYSQLTEST_VARDIR/tmp/bug38158.sql
+-- Testing
+--
+delimiter ||
+select 2 ||
+EOF
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug38158.sql 2>&1
+--exec $MYSQL -c < $MYSQLTEST_VARDIR/tmp/bug38158.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug38158.sql;
+
 --echo End of 5.0 tests
 
 #
