@@ -2780,15 +2780,7 @@ NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t,
                                  NdbOptimizeTableHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl)");
-  /**
-   * make sure we get global table object here
-   */
-  NdbTableImpl *g_table = getTableGlobal(t.getName());
-  if (g_table == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_table));
+  DBUG_RETURN(h.init(&m_ndb, t));
 }
 
 int
@@ -2796,16 +2788,7 @@ NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index,
                                  NdbOptimizeIndexHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl)");
-  /**
-   * make sure we get global index object here
-   */
-  const NdbIndexImpl * g_index = getIndexGlobal(index.getName(),
-                                                index.getTable());
-  if (g_index == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_index));
+  DBUG_RETURN(h.init(&m_ndb, index));
 }
 
 int
