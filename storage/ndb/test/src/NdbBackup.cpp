@@ -36,7 +36,10 @@
 #include <mgmapi_configuration.hpp>
 
 int 
-NdbBackup::start(unsigned int & _backup_id){
+NdbBackup::start(unsigned int & _backup_id,
+		 int flags,
+		 unsigned int user_backup_id,
+		 unsigned int logtype){
 
   
   if (!isConnected())
@@ -45,10 +48,12 @@ NdbBackup::start(unsigned int & _backup_id){
   ndb_mgm_reply reply;
   reply.return_code = 0;
 
-  if (ndb_mgm_start_backup(handle,
-			   2, // wait until completed
+  if (ndb_mgm_start_backup3(handle,
+			   flags,
 			   &_backup_id,
-			   &reply) == -1) {
+			   &reply,
+			   user_backup_id,
+			   logtype) == -1) {
     g_err << "Error: " << ndb_mgm_get_latest_error(handle) << endl;
     g_err << "Error msg: " << ndb_mgm_get_latest_error_msg(handle) << endl;
     g_err << "Error desc: " << ndb_mgm_get_latest_error_desc(handle) << endl;
@@ -63,6 +68,50 @@ NdbBackup::start(unsigned int & _backup_id){
     return reply.return_code;
   }
   return 0;
+}
+
+int
+NdbBackup::startLogEvent(){
+
+  if (!isConnected())
+    return -1;
+  log_handle= NULL;
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0, 0 };
+  log_handle = ndb_mgm_create_logevent_handle(handle, filter);
+  if (!log_handle) {
+    g_err << "Can't create log event" << endl;
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbBackup::checkBackupStatus(){
+
+  struct ndb_logevent log_event;
+  int result = 0;
+  int res;
+  if(!log_handle) {
+    return -1;
+  }
+  if ((res= ndb_logevent_get_next(log_handle, &log_event, 3000)) > 0)
+  {
+    switch (log_event.type) {
+      case NDB_LE_BackupStarted:
+	result = 1;
+	break;
+      case NDB_LE_BackupCompleted:
+	result = 2;
+        break;
+      case NDB_LE_BackupAborted:
+	result = 3;
+        break;
+      default:
+        break;
+    }
+  }
+  ndb_mgm_destroy_logevent_handle(&log_handle);
+  return result;
 }
 
 

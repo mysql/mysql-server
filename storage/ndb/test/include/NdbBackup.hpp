@@ -26,7 +26,10 @@ public:
   NdbBackup(int _own_id, const char* _addr = 0) 
     : NdbConfig(_own_id, _addr) {};
 
-  int start(unsigned & _backup_id);
+  int start(unsigned & _backup_id,
+	    int flags = 2,
+	    unsigned int user_backup_id= 0,
+	    unsigned int logtype= 0);
   int restore(unsigned _backup_id);
 
   int NFMaster(NdbRestarter& _restarter);
@@ -38,6 +41,8 @@ public:
   int FailMasterAsSlave(NdbRestarter& _restarter);
   int FailSlave(NdbRestarter& _restarter);
   int Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool onMaster);
+  int startLogEvent();
+  int checkBackupStatus();
 
 private:
 
@@ -47,6 +52,7 @@ private:
 		  unsigned _backup_id);
 
   const char * getBackupDataDirForNode(int _node_id);
+  NdbLogEventHandle log_handle;
   
 };
 

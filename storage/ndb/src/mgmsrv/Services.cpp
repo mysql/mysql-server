@@ -190,6 +190,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("start backup", &MgmApiSession::startBackup, ""),
     MGM_ARG("completed", Int, Optional ,"Wait until completed"),
     MGM_ARG("backupid", Int, Optional ,"User input backup id"),
+    MGM_ARG("backuppoint", Int, Optional ,"backup snapshot at start time or complete time"),
 
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
@@ -750,19 +751,19 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
   DBUG_ENTER("MgmApiSession::startBackup");
   unsigned backupId;
-  unsigned input_backupId;
+  unsigned input_backupId= 0;
+  unsigned backuppoint= 0;
   Uint32 completed= 2;
   int result;
 
   args.get("completed", &completed);
 
   if(args.contains("backupid"))
-  {
     args.get("backupid", &input_backupId);
-    result = m_mgmsrv.startBackup(backupId, completed, input_backupId);
-  }
-  else
-    result = m_mgmsrv.startBackup(backupId, completed);
+  if(args.contains("backuppoint"))
+    args.get("backuppoint", &backuppoint);
+
+  result = m_mgmsrv.startBackup(backupId, completed, input_backupId, backuppoint);
 
   m_output->println("start backup reply");
   if(result != 0)

@@ -299,6 +299,8 @@ protected:
   Uint64 m_file_size;
   Uint64 m_file_pos;
 
+  bool  m_is_undolog;
+
   void (* free_data_callback)();
   virtual void reset_buffers() {}
 
