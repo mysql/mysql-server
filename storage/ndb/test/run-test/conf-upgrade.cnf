@@ -10,6 +10,10 @@ fix-nodeid=1
 [mysqld]
 skip-innodb
 loose-skip-bdb
+socket=mysql.sock
+
+[client]
+protocol=tcp
 
 [cluster_config.4node]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host1
