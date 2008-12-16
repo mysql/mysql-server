@@ -520,7 +520,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "128",
     "8",
-    STR_VALUE(MAX_TABLES) },
+    STR_VALUE(NDB_MAX_TABLES) },
   
   {
     CFG_DB_NO_ORDERED_INDEXES,
@@ -1061,6 +1061,29 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "16M",
     "4M",
     "1G" },
+
+  {
+    CFG_DB_INIT_REDO,
+    "InitFragmentLogFiles",
+    DB_TOKEN,
+    "Initialize fragment logfiles (sparse/full)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_THREAD_POOL,
+    "ThreadPool",
+    DB_TOKEN,
+    "No of unbound threads for file access (currently only for DD)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "8",
+    "0",  
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_MAX_OPEN_FILES,
@@ -2767,7 +2790,7 @@ ConfigInfo::ConfigInfo()
 	  case CI_INT64:
 	    {
 	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
-	      require(p->put(param._fname, default_uint64));
+	      require(p->put(param._fname, Uint64(default_uint64)));
 	      break;
 	    }
 	}
@@ -3624,7 +3647,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 	if(!(ctx.m_userDefaults &&
 	   ctx.m_userDefaults->get("PortNumber", &base)) &&
 	   !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	  base= strtoll(NDB_TCP_BASE_PORT,0,0);
+	  base= (Uint32)strtoll(NDB_TCP_BASE_PORT,0,0);
 	}
 	ctx.m_userProperties.put("ServerPortBase", base);
       }

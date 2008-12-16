@@ -152,7 +152,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       const bool tDistrKey = tAttrInfo->m_distributionKey;
       const int attributeSize = sizeInBytes;
       const int slack = sizeInBytes & 3;
-      const int align = UintPtr(aValue) & 7;
+      const int align = Uint32(UintPtr(aValue)) & 7;
 
       if (((align & 3) != 0) || (slack != 0) || (tDistrKey && (align != 0)))
       {
@@ -392,6 +392,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
       setErrorCodeAbort(4001);
       return -1;
     }
+    tSignal->setLength(KeyInfo::MaxSignalLength);
     if (theTCREQ->next() != NULL)
        theLastKEYINFO->next(tSignal);
     else

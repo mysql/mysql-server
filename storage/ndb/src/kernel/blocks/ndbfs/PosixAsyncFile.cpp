@@ -21,6 +21,7 @@
 #include <xfs/xfs.h>
 #endif
 
+#include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 #include "PosixAsyncFile.hpp"
 
@@ -32,17 +33,10 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 
-// use this to test broken pread code
-//#define HAVE_BROKEN_PREAD
-
-#ifdef HAVE_BROKEN_PREAD
-#undef HAVE_PWRITE
-#undef HAVE_PREAD
-#endif
+#include <NdbTick.h>
 
 // For readv and writev
 #include <sys/uio.h>
-
 #include <dirent.h>
 
 PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
@@ -51,18 +45,12 @@ PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
   use_gz(0)
 {
   memset(&azf,0,sizeof(azf));
+  init_mutex();
 }
 
 int PosixAsyncFile::init()
 {
   // Create write buffer for bigger writes
-  theWriteBufferSize = WRITEBUFFERSIZE;
-  theWriteBufferUnaligned = (char *) ndbd_malloc(theWriteBufferSize +
-                                                 NDB_O_DIRECT_WRITE_ALIGNMENT-1);
-  theWriteBuffer = (char *)
-    (((UintPtr)theWriteBufferUnaligned + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
-     ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
-
   azfBufferUnaligned= (Byte*)ndbd_malloc((AZ_BUFSIZE_READ+AZ_BUFSIZE_WRITE)
                                          +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
 
@@ -80,13 +68,8 @@ int PosixAsyncFile::init()
 
   azf.stream.opaque= &az_mempool;
 
-  if (!theWriteBuffer) {
-    DEBUG(ndbout_c("AsyncFile::writeReq, Failed allocating write buffer"));
-    return -1;
-  }//if
-
   return 0;
-}//AsyncFile::init()
+}
 
 #ifdef O_DIRECT
 static char g_odirect_readbuf[2*GLOBAL_PAGE_SIZE -1];
@@ -227,8 +210,14 @@ void PosixAsyncFile::openReq(Request *request)
     break;
     return;
   }
-  if(flags & FsOpenReq::OM_GZ)
-    use_gz= 1;
+  if (flags & FsOpenReq::OM_GZ)
+  {
+    use_gz = 1;
+  }
+  else
+  {
+    use_gz = 0;
+  }
 
   // allow for user to choose any permissionsa with umask
   const int mode = S_IRUSR | S_IWUSR |
@@ -312,7 +301,8 @@ no_odirect:
     FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
 
     Uint32 index = 0;
-    Uint32 block = refToBlock(request->theUserReference);
+    Uint32 block = refToMain(request->theUserReference);
+    Uint32 instance = refToInstance(request->theUserReference);
 
 #ifdef HAVE_XFS_XFS_H
     if(platform_test_xfs_fd(theFd))
@@ -330,22 +320,41 @@ no_odirect:
     posix_fallocate(theFd, 0, sz);
 #endif
 
+#ifdef VM_TRACE
+#define TRACE_INIT
+#endif
+
+#ifdef TRACE_INIT
+    Uint32 write_cnt = 0;
+    Uint64 start = NdbTick_CurrentMillisecond();
+#endif
     while(off < sz)
     {
-      req->filePointer = 0;          // DATA 0
-      req->userPointer = request->theUserPointer;          // DATA 2
-      req->numberOfPages = 1;        // DATA 5
-      req->varIndex = index++;
-      req->data.pageData[0] = m_page_ptr.i;
+      off_t size = 0;
+      Uint32 cnt = 0;
+      while (cnt < m_page_cnt && (off + size) < sz)
+      {
+        req->filePointer = 0;          // DATA 0
+        req->userPointer = request->theUserPointer;          // DATA 2
+        req->numberOfPages = 1;        // DATA 5
+        req->varIndex = index++;
+        req->data.pageData[0] = m_page_ptr.i + cnt;
 
-      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-			  FsReadWriteReq::FixedLength + 1,
-                          0 // wl4391_todo This EXECUTE_DIRECT is thread safe
-                          );
+        m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
+                            FsReadWriteReq::FixedLength + 1,
+                            instance);
+        
+        cnt++;
+        size += request->par.open.page_size;
+      }
   retry:
-      Uint32 size = request->par.open.page_size;
+      off_t save_size = size;
       char* buf = (char*)m_page_ptr.p;
-      while(size > 0){
+      while(size > 0)
+      {
+#ifdef TRACE_INIT
+        write_cnt++;
+#endif
         int n;
 	if(use_gz)
           n= azwrite(&azf,buf,size);
@@ -382,8 +391,22 @@ no_odirect:
 	request->error = err;
 	return;
       }
-      off += request->par.open.page_size;
+      off += save_size;
     }
+    ::fsync(theFd);
+#ifdef TRACE_INIT
+    Uint64 stop = NdbTick_CurrentMillisecond();
+    Uint64 diff = stop - start;
+    if (diff == 0)
+      diff = 1;
+    ndbout_c("wrote %umb in %u writes %us -> %ukb/write %umb/s",
+             Uint32(sz /1024/1024),
+             write_cnt,
+             Uint32(diff / 1000),
+             Uint32(sz / 1024 / write_cnt),
+             Uint32(sz / diff));
+#endif
+
     if(lseek(theFd, 0, SEEK_SET) != 0)
       request->error = errno;
   }
@@ -401,12 +424,6 @@ no_odirect:
 
     if (request->error)
       return;
-#elif defined HAVE_DIRECTIO && defined(DIRECTIO_ON)
-    if (directio(theFd, DIRECTIO_ON) == -1)
-    {
-      ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
-               theFileName.c_str(), errno);
-    }
 #endif
   }
 
@@ -423,6 +440,7 @@ no_odirect:
 #endif
   }
 #endif
+  
   if ((flags & FsOpenReq::OM_SYNC) && (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
@@ -439,6 +457,24 @@ no_odirect:
     }
 #endif
   }
+
+#if ! defined(O_DIRECT) && defined HAVE_DIRECTIO && defined(DIRECTIO_ON)
+  if (flags & FsOpenReq::OM_DIRECT)
+  {
+    if (directio(theFd, DIRECTIO_ON) == -1)
+    {
+      ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
+               theFileName.c_str(), errno);
+    }
+#ifdef VM_TRACE
+    else
+    {
+      ndbout_c("%s DIRECTIO_ON", theFileName.c_str());
+    }
+#endif
+  }
+#endif
+  
   if(use_gz)
   {
     int err;
@@ -456,8 +492,9 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
 {
   int return_value;
   req->par.readWrite.pages[0].size = 0;
-#if ! defined(HAVE_PREAD)
   off_t seek_val;
+#if ! defined(HAVE_PREAD)
+  FileGuard guard(this);
   if(!use_gz)
   {
     while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
@@ -468,7 +505,6 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     }
   }
 #endif
-  off_t seek_val;
   if(use_gz)
   {
     while((seek_val= azseek(&azf, offset, SEEK_SET)) == (off_t)-1
@@ -563,15 +599,16 @@ void PosixAsyncFile::readvReq(Request *request)
 #endif
 }
 
-int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset,
-                                size_t chunk_size)
+int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 {
+  size_t chunk_size = 256*1024;
   size_t bytes_to_write = chunk_size;
   int return_value;
 
   m_write_wo_sync += size;
 
 #if ! defined(HAVE_PWRITE)
+  FileGuard guard(this);
   off_t seek_val;
   while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
 	&& errno == EINTR);
@@ -724,56 +761,66 @@ void PosixAsyncFile::removeReq(Request *request)
   }
 }
 
-void PosixAsyncFile::rmrfReq(Request *request, char *path, bool removePath)
+void
+PosixAsyncFile::rmrfReq(Request *request, const char * src, bool removePath)
 {
-  Uint32 path_len = strlen(path);
-  Uint32 path_max_copy = PATH_MAX - path_len;
-  char* path_add = &path[path_len];
-
-  if(!request->par.rmrf.directory){
+  if(!request->par.rmrf.directory)
+  {
     // Remove file
-    if(unlink((const char *)path) != 0 && errno != ENOENT)
+    if(unlink(src) != 0 && errno != ENOENT)
       request->error = errno;
     return;
   }
-  // Remove directory
-  DIR* dirp = opendir((const char *)path);
-  if(dirp == 0){
+
+  char path[PATH_MAX];
+  strcpy(path, src);
+  strcat(path, "/");
+
+  DIR* dirp;
+  struct dirent * dp;
+loop:
+  dirp = opendir(path);
+  if(dirp == 0)
+  {
     if(errno != ENOENT)
       request->error = errno;
     return;
   }
-  struct dirent * dp;
-  while ((dp = readdir(dirp)) != NULL){
-    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
-      BaseString::snprintf(path_add, (size_t)path_max_copy, "%s%s",
-	       DIR_SEPARATOR, dp->d_name);
-      if(remove((const char*)path) == 0){
-        path[path_len] = 0;
-	continue;
-      }
 
-      rmrfReq(request, path, true);
-      path[path_len] = 0;
-      if(request->error != 0){
-	closedir(dirp);
-	return;
+  while ((dp = readdir(dirp)) != NULL)
+  {
+    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) 
+    {
+      int len = strlen(path);
+      strcat(path, dp->d_name);
+      if (remove(path) == 0)
+      {
+        path[len] = 0;
+        continue;
       }
+      
+      closedir(dirp);
+      strcat(path, "/");
+      goto loop;
     }
   }
   closedir(dirp);
-  if(removePath && rmdir((const char *)path) != 0){
+  path[strlen(path)-1] = 0; // remove /
+  if (strcmp(src, path) != 0)
+  {
+    char * t = strrchr(path, '/');
+    t[1] = 0;
+    goto loop;
+  }
+
+  if(removePath && rmdir(src) != 0)
+  {
     request->error = errno;
   }
-  return;
 }
 
-void PosixAsyncFile::endReq()
+PosixAsyncFile::~PosixAsyncFile()
 {
-  // Thread is ended with return
-  if (theWriteBufferUnaligned)
-    ndbd_free(theWriteBufferUnaligned, theWriteBufferSize);
-
   if (azfBufferUnaligned)
     ndbd_free(azfBufferUnaligned, (AZ_BUFSIZE_READ*AZ_BUFSIZE_WRITE)
               +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
@@ -782,10 +829,9 @@ void PosixAsyncFile::endReq()
     ndbd_free(az_mempool.mem,az_mempool.size);
 
   az_mempool.mem = NULL;
-  theWriteBufferUnaligned = NULL;
   azfBufferUnaligned = NULL;
+  destroy_mutex();
 }
-
 
 void PosixAsyncFile::createDirectories()
 {

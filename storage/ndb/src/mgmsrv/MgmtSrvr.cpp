@@ -265,6 +265,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
   m_local_config(NULL),
   _ownReference(0),
   m_config_manager(NULL),
+  m_need_restart(false),
   theFacade(NULL),
   _isStopThread(false),
   _logLevelThreadSleep(500),
@@ -329,32 +330,35 @@ create_directory(const char* dir)
 
 
 /*
-  check_datadir
+  check_configdir
 
-  Make sure datadir exist and try to create it if not
+  Make sure configdir exist and try to create it if not
 
 */
 
 const char*
-MgmtSrvr::check_datadir() const
+MgmtSrvr::check_configdir() const
 {
-  if (m_opts.datadir)
+  if (m_opts.configdir &&
+      strcmp(m_opts.configdir, MYSQLCLUSTERDIR) != 0)
   {
     // Specified on commmand line
-    if (access(m_opts.datadir, F_OK))
+    if (access(m_opts.configdir, F_OK))
     {
-      g_eventLogger->error("Directory '%s' specified with --datadir "   \
-                           "does not exist", m_opts.datadir);
+      g_eventLogger->error("Directory '%s' specified with --configdir " \
+                           "does not exist. Either create it or pass " \
+                           "the path to an already existing directory.",
+                           m_opts.configdir);
       return NULL;
     }
-    return m_opts.datadir;
+    return m_opts.configdir;
   }
   else
   {
     // Compiled in path MYSQLCLUSTERDIR
     if (access(MYSQLCLUSTERDIR, F_OK))
     {
-      g_eventLogger->info("The default data directory '%s' "            \
+      g_eventLogger->info("The default config directory '%s' "            \
                           "does not exist. Trying to create it...",
                           MYSQLCLUSTERDIR);
 
@@ -364,12 +368,12 @@ MgmtSrvr::check_datadir() const
         g_eventLogger->error("Could not create directory '%s'. "        \
                              "Either create it manually or "            \
                              "specify a different directory with "      \
-                             "--datadir=<path>",
+                             "--configdir=<path>",
                              MYSQLCLUSTERDIR);
         return NULL;
       }
 
-      g_eventLogger->info("Sucessfully created data directory");
+      g_eventLogger->info("Sucessfully created config directory");
     }
     return MYSQLCLUSTERDIR;
   }
@@ -381,11 +385,11 @@ MgmtSrvr::init()
 {
   DBUG_ENTER("MgmtSrvr::init");
 
-  const char* datadir;
-  if (!(datadir= check_datadir()))
+  const char* configdir;
+  if (!(configdir= check_configdir()))
     DBUG_RETURN(false);
 
-  if (!(m_config_manager= new ConfigManager(m_opts, datadir)))
+  if (!(m_config_manager= new ConfigManager(m_opts, configdir)))
   {
     g_eventLogger->error("Failed to create ConfigManager");
     DBUG_RETURN(false);
@@ -420,7 +424,6 @@ MgmtSrvr::init()
   BaseString error_string;
   if (!alloc_node_id(&nodeId, NDB_MGM_NODE_TYPE_MGM,
                      0, /* client_addr */
-                     0, /* client_addr_len */
                      error_code, error_string,
                      0 /* log_event */ ))
   {
@@ -647,12 +650,17 @@ MgmtSrvr::setClusterLog(const Config* config)
 
   g_eventLogger->close();
 
-  // Get log destination from config
   DBUG_ASSERT(_ownNodeId);
 
   ConfigIter iter(config, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, _ownNodeId) == 0);
 
+  // Update DataDir from config
+  const char *datadir;
+  require(iter.get(CFG_NODE_DATADIR, &datadir) == 0);
+  NdbConfig_SetPath(datadir);
+
+  // Get log destination from config
   const char *value;
   if(iter.get(CFG_LOG_DESTINATION, &value) == 0){
     logdest.assign(value);
@@ -741,9 +749,19 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
   }
 
+  // Setup cluster log
   setClusterLog(m_local_config);
 
-  // TODO Magnus, Reload ClusterMgr::theNodes
+  if (theFacade)
+  {
+    if (!theFacade->configure(_ownNodeId,
+                              m_local_config->m_configValues))
+    {
+      g_eventLogger->warning("Could not reconfigure everything online, "
+                             "this node need a restart");
+      m_need_restart= true;
+    }
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -973,11 +991,10 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	do_send = 1; // retry with other node
       continue;
     }
-
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       // Ignore
       continue;
-
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -1294,7 +1311,8 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       break;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
 #ifdef VM_TRACE
@@ -1857,7 +1875,8 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       break;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -1993,6 +2012,7 @@ retry:
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2051,6 +2071,7 @@ MgmtSrvr::endSchemaTrans(SignalSender& ss, NodeId nodeId,
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2144,6 +2165,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2218,6 +2240,7 @@ MgmtSrvr::dropNodegroup(int ng)
       break;
     }
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       break;
     default:
       report_unknown_signal(signal);
@@ -2515,6 +2538,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     ndbout << "TAMPER ORD" << endl;
     break;
   case GSN_API_REGCONF:
+  case GSN_TAKE_OVERTCCONF:
     break;
 
   case GSN_DBINFO_SCANREQ:
@@ -2711,7 +2735,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
       continue;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -2724,7 +2749,6 @@ bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			enum ndb_mgm_node_type type,
 			struct sockaddr *client_addr, 
-			SOCKET_SIZE_TYPE *client_addr_len,
 			int &error_code, BaseString &error_string,
                         int log_event)
 {
@@ -2740,6 +2764,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     }
     DBUG_RETURN(true);
   }
+
   Guard g(m_node_id_mutex);
   int no_mgm= 0;
   NodeBitmask connected_nodes(m_reserved_nodes);
@@ -2758,91 +2783,98 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   int r_config_addr= -1;
   unsigned type_c= 0;
 
-  NdbMutex_Lock(m_local_config_mutex);
-  ConfigIter iter(m_local_config, CFG_SECTION_NODE);
-  for(iter.first(); iter.valid(); iter.next()) {
-    unsigned tmp= 0;
-    if(iter.get(CFG_NODE_ID, &tmp)) require(false);
-    if (*nodeId && *nodeId != tmp)
-      continue;
-    found_matching_id= true;
-    if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) require(false);
-    if(type_c != (unsigned)type)
-      continue;
-    found_matching_type= true;
-    if (connected_nodes.get(tmp))
-      continue;
-    found_free_node= true;
-    if(iter.get(CFG_NODE_HOST, &config_hostname)) require(false);
-    if (config_hostname && config_hostname[0] == 0)
-      config_hostname= 0;
-    else if (client_addr) {
-      // check hostname compatability
-      const void *tmp_in= &(((sockaddr_in*)client_addr)->sin_addr);
-      if((r_config_addr= Ndb_getInAddr(&config_addr, config_hostname)) != 0
-	 || memcmp(&config_addr, tmp_in, sizeof(config_addr)) != 0) {
-	struct in_addr tmp_addr;
-	if(Ndb_getInAddr(&tmp_addr, "localhost") != 0
-	   || memcmp(&tmp_addr, tmp_in, sizeof(config_addr)) != 0) {
-	  // not localhost
-#if 0
-	  ndbout << "MgmtSrvr::getFreeNodeId compare failed for \""
-		 << config_hostname
-		 << "\" id=" << tmp << endl;
-#endif
-	  continue;
-	}
-	// connecting through localhost
-	// check if config_hostname is local
-	if (!SocketServer::tryBind(0,config_hostname)) {
-	  continue;
-	}
-      }
-    } else { // client_addr == 0
-      if (!SocketServer::tryBind(0,config_hostname)) {
-	continue;
-      }
-    }
-    if (*nodeId != 0 ||
-	type != NDB_MGM_NODE_TYPE_MGM ||
-	no_mgm == 1) { // any match is ok
+  {
+    Guard guard_config(m_local_config_mutex);
+    ConfigIter iter(m_local_config, CFG_SECTION_NODE);
+    for(iter.first(); iter.valid(); iter.next())
+    {
+      unsigned curr_nodeid = 0;
+      require(!iter.get(CFG_NODE_ID, &curr_nodeid));
+      if (*nodeId && *nodeId != curr_nodeid)
+        continue;
+      found_matching_id = true;
 
-      if (config_hostname == 0 &&
-	  *nodeId == 0 &&
-	  type != NDB_MGM_NODE_TYPE_MGM)
+      require(!iter.get(CFG_TYPE_OF_SECTION, &type_c));
+      if(type_c != (unsigned)type)
+        continue;
+      found_matching_type = true;
+
+      if (connected_nodes.get(curr_nodeid))
+        continue;
+      found_free_node = true;
+
+      require(!iter.get(CFG_NODE_HOST, &config_hostname));
+      if (config_hostname && config_hostname[0] == 0)
+        config_hostname = 0;
+      else if (client_addr)
       {
-	if (!id_found) // only set if not set earlier
-	  id_found= tmp;
-	continue; /* continue looking for a nodeid with specified
-		   * hostname
-		   */
+        // check hostname compatibility
+        const void *tmp_in = &(((sockaddr_in*)client_addr)->sin_addr);
+        if((r_config_addr= Ndb_getInAddr(&config_addr, config_hostname)) != 0 ||
+           memcmp(&config_addr, tmp_in, sizeof(config_addr)) != 0)
+        {
+          struct in_addr tmp_addr;
+          if(Ndb_getInAddr(&tmp_addr, "localhost") != 0 ||
+             memcmp(&tmp_addr, tmp_in, sizeof(config_addr)) != 0)
+          {
+            // not localhost
+            continue;
+          }
+
+          // connecting through localhost
+          // check if config_hostname is local
+          if (!SocketServer::tryBind(0,config_hostname))
+            continue;
+        }
       }
-      assert(id_found == 0);
-      id_found= tmp;
-      break;
+      else
+      {
+        // client_addr == 0
+        if (!SocketServer::tryBind(0,config_hostname))
+          continue;
+      }
+
+      if (*nodeId != 0 ||
+          type != NDB_MGM_NODE_TYPE_MGM ||
+          no_mgm == 1)  // any match is ok
+      {
+        if (config_hostname == 0 &&
+            *nodeId == 0 &&
+            type != NDB_MGM_NODE_TYPE_MGM)
+        {
+          if (!id_found) // only set if not set earlier
+            id_found = curr_nodeid;
+          continue; /* continue looking for a nodeid with specified hostname */
+        }
+        assert(id_found == 0);
+        id_found = curr_nodeid;
+        break;
+      }
+
+      if (id_found) // mgmt server may only have one match
+      {
+        error_string.appfmt("Ambiguous node id's %d and %d. "
+                            "Suggest specifying node id in connectstring, "
+                            "or specifying unique host names in config file.",
+                            id_found, curr_nodeid);
+        error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+        DBUG_RETURN(false);
+      }
+
+      if (config_hostname == 0)
+      {
+        error_string.appfmt("Ambiguity for node id %d. "
+                            "Suggest specifying node id in connectstring, "
+                            "or specifying unique host names in config file, "
+                            "or specifying just one mgmt server in "
+                            "config file.",
+                            curr_nodeid);
+        error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+        DBUG_RETURN(false);
+      }
+      id_found = curr_nodeid; // mgmt server matched, check for more matches
     }
-    if (id_found) { // mgmt server may only have one match
-      error_string.appfmt("Ambiguous node id's %d and %d.\n"
-			  "Suggest specifying node id in connectstring,\n"
-			  "or specifying unique host names in config file.",
-			  id_found, tmp);
-      NdbMutex_Unlock(m_local_config_mutex);
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      DBUG_RETURN(false);
-    }
-    if (config_hostname == 0) {
-      error_string.appfmt("Ambiguity for node id %d.\n"
-			  "Suggest specifying node id in connectstring,\n"
-			  "or specifying unique host names in config file,\n"
-			  "or specifying just one mgmt server in config file.",
-			  tmp);
-      NdbMutex_Unlock(m_local_config_mutex);
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      DBUG_RETURN(false);
-    }
-    id_found= tmp; // mgmt server matched, check for more matches
   }
-  NdbMutex_Unlock(m_local_config_mutex);
 
   if (id_found && client_addr != 0)
   {
@@ -3234,7 +3266,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
       break;
     }
     case GSN_API_REGCONF:
-      break;
+    case GSN_TAKE_OVERTCCONF:
+      continue;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
@@ -3785,6 +3818,7 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       }
       break;
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
     default:
@@ -3864,6 +3898,7 @@ MgmtSrvr::change_config(Config& new_config)
     }
 
     case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
 

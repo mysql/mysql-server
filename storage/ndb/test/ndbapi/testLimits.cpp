@@ -919,6 +919,95 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int testDropSignalFragments(NDBT_Context* ctx, NDBT_Step* step){
+  /* Segmented section exhaustion results in dropped signals
+   * Fragmented signals split one logical signal over multiple
+   * physical signals (to cope with the MAX_SIGNAL_LENGTH=32kB
+   * limitation).
+   * This testcase checks that when individual signals comprising
+   * a fragmented signal (in this case SCANTABREQ) are dropped, the
+   * system behaves correctly.
+   * Correct behaviour is to behave in the same way as if the signal
+   * was not fragmented, and for SCANTABREQ, to return a temporary
+   * resource error.
+   */
+  NdbRestarter restarter;
+  Ndb* pNdb= GETNDB(step);
+
+  /* SEND > ((2 * MAX_SEND_MESSAGE_BYTESIZE) + SOME EXTRA) 
+   * This way we get at least 3 fragments
+   * However, as this is generally > 64kB, it's too much AttrInfo for
+   * a ScanTabReq, so the 'success' case returns error 874
+   */
+  const Uint32 PROG_WORDS= 16500; 
+
+  struct SubCase
+  {
+    Uint32 errorInsertCode;
+    int expectedRc;
+  };
+  const Uint32 numSubCases= 5;
+  const SubCase cases[numSubCases]= 
+  /* Error insert   Scanrc */
+    {{          0,     874},  // Normal, success which gives too much AI error
+     {       8074,     217},  // Drop first fragment -> error 217
+     {       8075,     217},  // Drop middle fragment(s) -> error 217
+     {       8076,     217},  // Drop last fragment -> error 217
+     {       8077,     217}}; // Drop all fragments -> error 217
+  const Uint32 numIterations= 50;
+  
+  Uint32 buff[ PROG_WORDS + 10 ]; // 10 extra for final 'return' etc.
+
+  for (Uint32 iteration=0; iteration < (numIterations * numSubCases); iteration++)
+  {
+    /* Start a transaction */
+    NdbTransaction* trans= pNdb->startTransaction();
+    CHECKNOTNULL(trans);
+
+    SubCase subcase= cases[iteration % numSubCases];
+
+    Uint32 errorInsertVal= subcase.errorInsertCode;
+    // printf("Inserting error : %u\n", errorInsertVal);
+    CHECKEQUAL(0, restarter.insertErrorInAllNodes(errorInsertVal));
+
+    NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
+    
+    CHECKNOTNULL(scan);
+    
+    CHECKEQUAL(0, scan->readTuples());
+    
+    /* Create a large program, to give a large SCANTABREQ */
+    NdbInterpretedCode prog(ctx->getTab(), buff, PROG_WORDS + 10);
+    
+    for (Uint32 w=0; w < PROG_WORDS; w++)
+      CHECKEQUAL(0, prog.load_const_null(1));
+    
+    CHECKEQUAL(0, prog.interpret_exit_ok());
+    CHECKEQUAL(0, prog.finalise());
+    
+    CHECKEQUAL(0, scan->setInterpretedCode(&prog));
+    
+    /* Api doesn't seem to wait for result of scan request */
+    CHECKEQUAL(0, trans->execute(NdbTransaction::NoCommit));
+    
+    CHECKEQUAL(0, trans->getNdbError().code);
+
+    CHECKEQUAL(-1, scan->nextResult());
+    
+    int expectedResult= subcase.expectedRc;
+    CHECKEQUAL(expectedResult, scan->getNdbError().code);
+
+    scan->close();
+    
+    trans->close();
+  }
+
+  restarter.insertErrorInAllNodes(0);
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testLimits);
 
 TESTCASE("ExhaustSegmentedSectionPk",
@@ -933,6 +1022,11 @@ TESTCASE("ExhaustSegmentedSectionIX",
 TESTCASE("ExhaustSegmentedSectionScan",
          "Test behaviour at Segmented Section exhaustion for Scan"){
   INITIALIZER(testSegmentedSectionScan);
+}
+
+TESTCASE("DropSignalFragments",
+         "Test behaviour of Segmented Section exhaustion with fragmented signals"){
+  INITIALIZER(testDropSignalFragments);
 }
 
 NDBT_TESTSUITE_END(testLimits);

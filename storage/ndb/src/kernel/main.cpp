@@ -250,20 +250,34 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                         "config, exiting.");
     return -1;
   }
+
   if (tupmem)
   {
     Resource_limit rl;
     rl.m_min = tupmem;
     rl.m_max = tupmem;
-    rl.m_resource_id = 3;
+    rl.m_resource_id = RG_DATAMEM;
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (shared_mem+tupmem)
+  Uint32 maxopen = 4 * 4; // 4 redo parts, max 4 files per part
+  Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
+  Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
+
+  if (filepages)
+  {
+    Resource_limit rl;
+    rl.m_min = filepages;
+    rl.m_max = filepages;
+    rl.m_resource_id = RG_FILE_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (shared_mem + tupmem + filepages)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem + tupmem;
+    rl.m_max = shared_mem + tupmem + filepages;
     rl.m_resource_id = 0;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -280,7 +294,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
 
     g_eventLogger->alert("Malloc (%lld bytes) for %s and %s failed, exiting",
-                         Uint64(shared_mem + tupmem) * 32768,
+                         Uint64(shared_mem + tupmem) * GLOBAL_PAGE_SIZE,
                          dm.m_name, sga.m_name);
     return -1;
   }
@@ -293,8 +307,10 @@ get_multithreaded_config(EmulatorData& ed)
 {
   // multithreaded is compiled in ndbd/ndbmtd for now
   globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
-  if (!globalData.isNdbMt)
+  if (!globalData.isNdbMt) {
+    ndbout << "NDBMT: non-mt" << endl;
     return 0;
+  }
 
   const ndb_mgm_configuration_iterator * p =
     ed.theConfiguration->getOwnConfigIterator();

@@ -265,6 +265,16 @@ unsigned Ndb_cluster_connection::get_connect_count() const
   return m_impl.get_connect_count();
 }
 
+int Ndb_cluster_connection::get_latest_error() const
+{
+  return m_impl.m_latest_error;
+}
+
+const char *Ndb_cluster_connection::get_latest_error_msg() const
+{
+  return m_impl.m_latest_error_msg.c_str();
+}
+
 /*
  * Ndb_cluster_connection_impl
  */
@@ -280,7 +290,9 @@ Ndb_cluster_connection_impl(const char *
     m_run_connect_thread(0),
     m_event_add_drop_mutex(0),
     m_latest_trans_gci(0),
-    m_first_ndb_object(0)
+    m_first_ndb_object(0),
+    m_latest_error_msg(),
+    m_latest_error(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
@@ -344,8 +356,11 @@ Ndb_cluster_connection_impl(const char *
     new ConfigRetriever(connect_string, NDB_VERSION, NODE_TYPE_API);
   if (m_config_retriever->hasError())
   {
-    printf("Could not initialize handle to management server: %s\n",
-	   m_config_retriever->getErrorString());
+    m_latest_error= 1;
+    m_latest_error_msg.assfmt
+      ("Could not initialize handle to management server: %s",
+       m_config_retriever->getErrorString());
+    printf("%s\n", get_latest_error_msg());
     delete m_config_retriever;
     m_config_retriever= 0;
   }
@@ -697,11 +712,27 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
   DBUG_ENTER("Ndb_cluster_connection::connect");
   do {
     if (m_impl.m_config_retriever == 0)
+    {
+      if (!m_impl.m_latest_error)
+      {
+        m_impl.m_latest_error= 1;
+        m_impl.m_latest_error_msg.assign
+          ("Ndb_cluster_connection init error: m_impl.m_config_retriever==0");
+      }
+      DBUG_PRINT("exit", ("no m_impl.m_config_retriever, ret: -1"));
       DBUG_RETURN(-1);
+    }
     if (m_impl.m_config_retriever->do_connect(no_retries,
 					      retry_delay_in_seconds,
 					      verbose))
+    {
+      char buf[1024];
+      m_impl.m_latest_error= 1;
+      m_impl.m_latest_error_msg.assfmt
+        ("Connect using '%s' timed out", get_connectstring(buf, sizeof(buf)));
+      DBUG_PRINT("exit", ("mgmt server not up yet, ret: 1"));
       DBUG_RETURN(1); // mgmt server not up yet
+    }
 
     Uint32 nodeId = m_impl.m_config_retriever->allocNodeId(4/*retries*/,
 							   3/*delay*/);
@@ -711,10 +742,13 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
     if(props == 0)
       break;
 
-    m_impl.m_transporter_facade->start_instance(nodeId, props);
+    if (m_impl.m_transporter_facade->start_instance(nodeId, props) < 0)
+      DBUG_RETURN(-1);
+
     if (m_impl.init_nodes_vector(nodeId, *props))
     {
       ndbout_c("Ndb_cluster_connection::connect: malloc failure");
+      DBUG_PRINT("exit", ("malloc failure, ret: -1"));
       DBUG_RETURN(-1);
     }
 
@@ -734,15 +768,20 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
 
     ndb_mgm_destroy_configuration(props);
     m_impl.m_transporter_facade->connected();
+    m_impl.m_latest_error= 0;
+    m_impl.m_latest_error_msg.assign("");
+    DBUG_PRINT("exit", ("connect ok, ret: 0"));
     DBUG_RETURN(0);
   } while(0);
   
-  ndbout << "Configuration error: ";
   const char* erString = m_impl.m_config_retriever->getErrorString();
   if (erString == 0) {
     erString = "No error specified!";
   }
-  ndbout << erString << endl;
+  m_impl.m_latest_error= 1;
+  m_impl.m_latest_error_msg.assfmt("Configuration error: %s", erString);
+  ndbout << get_latest_error_msg() << endl;
+  DBUG_PRINT("exit", ("connect failed, '%s' ret: -1", erString));
   DBUG_RETURN(-1);
 }
 

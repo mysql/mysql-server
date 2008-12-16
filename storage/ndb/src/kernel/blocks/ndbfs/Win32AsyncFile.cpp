@@ -37,6 +37,12 @@ Win32AsyncFile::~Win32AsyncFile()
 
 }
 
+int
+Win32AsyncFile::init()
+{
+  return 0;
+}
+
 void Win32AsyncFile::openReq(Request* request)
 {
   m_auto_sync_freq = 0;
@@ -152,7 +158,8 @@ void Win32AsyncFile::openReq(Request* request)
     bzero(signal, sizeof(tmp));
     FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
     Uint32 index = 0;
-    Uint32 block = refToBlock(request->theUserReference);
+    Uint32 block = refToMain(request->theUserReference);
+    Uint32 instance = refToInstance(request->theUserReference);
 
     off.QuadPart= 0;
     sz.QuadPart= request->par.open.file_size;
@@ -166,11 +173,11 @@ void Win32AsyncFile::openReq(Request* request)
 
       m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
 			  FsReadWriteReq::FixedLength + 1,
-                          0 // wl4391_todo This EXECUTE_DIRECT is thread safe
+                          instance // wl4391_todo This EXECUTE_DIRECT is thread safe
                           );
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
-	  DWORD dwWritten;
+      DWORD dwWritten;
       while(size > 0){
 	BOOL bWrite= WriteFile(hFile, buf, size, &dwWritten, 0);
 	if(!bWrite || dwWritten!=size)
@@ -204,25 +211,34 @@ void Win32AsyncFile::openReq(Request* request)
 }
 
 int
-Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
+Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset)
+{
   req->par.readWrite.pages[0].size = 0;
-
-  DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
-  if(dwSFP != offset) {
-    return GetLastError();
-  }
 
   while (size > 0) {
     size_t bytes_read = 0;
 
+    OVERLAPPED ov;
+    bzero(&ov, sizeof(ov));
+
+    LARGE_INTEGER li;
+    li.QuadPart = offset;
+    ov.Offset = li.LowPart;
+    ov.OffsetHigh = li.HighPart;
+    
     DWORD dwBytesRead;
     BOOL bRead = ReadFile(hFile,
                           buf,
                           size,
                           &dwBytesRead,
-                          0);
+                          &ov);
     if(!bRead){
-      return GetLastError();
+      int err = GetLastError();
+      if (err == ERROR_HANDLE_EOF && req->action == Request::readPartial)
+      {
+        return 0;
+      }
+      return err;
     }
     bytes_read = dwBytesRead;
 
@@ -250,19 +266,22 @@ Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
 }
 
 int
-Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
-		       size_t chunk_size)
+Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset)
 {
+  size_t chunk_size = 256 * 1024;
   size_t bytes_to_write = chunk_size;
 
   m_write_wo_sync += size;
 
-  DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
-  if(dwSFP != offset) {
-    return GetLastError();
-  }
-
   while (size > 0) {
+    OVERLAPPED ov;
+    bzero(&ov, sizeof(ov));
+
+    LARGE_INTEGER li;
+    li.QuadPart = offset;
+    ov.Offset = li.LowPart;
+    ov.OffsetHigh = li.HighPart;
+    
     if (size < bytes_to_write){
       // We are at the last chunk
       bytes_to_write = size;
@@ -270,7 +289,7 @@ Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
     size_t bytes_written = 0;
 
     DWORD dwWritten;
-    BOOL bWrite = WriteFile(hFile, buf, bytes_to_write, &dwWritten, 0);
+    BOOL bWrite = WriteFile(hFile, buf, bytes_to_write, &dwWritten, &ov);
     if(!bWrite) {
       return GetLastError();
     }
@@ -353,55 +372,65 @@ Win32AsyncFile::removeReq(Request * request)
 }
 
 void
-Win32AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
-  Uint32 path_len = strlen(path);
-  Uint32 path_max_copy = PATH_MAX - path_len;
-  char* path_add = &path[path_len];
-
-  if(!request->par.rmrf.directory){
+Win32AsyncFile::rmrfReq(Request * request, const char * src, bool removePath){
+  if (!request->par.rmrf.directory)
+  {
     // Remove file
-    if(!DeleteFile(path)){
+    if (!DeleteFile(src))
+    {
       DWORD dwError = GetLastError();
-      if(dwError!=ERROR_FILE_NOT_FOUND)
+      if (dwError != ERROR_FILE_NOT_FOUND)
 	request->error = dwError;
     }
     return;
   }
 
+  char path[PATH_MAX];
+  strcpy(path, src);
   strcat(path, "\\*");
+
   WIN32_FIND_DATA ffd;
-  HANDLE hFindFile = FindFirstFile(path, &ffd);
-  path[path_len] = 0;
-  if(INVALID_HANDLE_VALUE==hFindFile){
+  HANDLE hFindFile;
+loop:
+  hFindFile = FindFirstFile(path, &ffd);
+  if (INVALID_HANDLE_VALUE == hFindFile)
+  {
     DWORD dwError = GetLastError();
-    if(dwError!=ERROR_PATH_NOT_FOUND)
+    if (dwError != ERROR_PATH_NOT_FOUND)
       request->error = dwError;
     return;
   }
+  path[strlen(path) - 1] = 0; // remove '*'
 
   do {
-    if(0!=strcmp(".", ffd.cFileName) && 0!=strcmp("..", ffd.cFileName)){
-      strcat(path, "\\");
+    if (0 != strcmp(".", ffd.cFileName) && 0 != strcmp("..", ffd.cFileName))
+    {
+      int len = strlen(path);
       strcat(path, ffd.cFileName);
-      if(DeleteFile(path)) {
-        path[path_len] = 0;
+      if(DeleteFile(path)) 
+      {
+        path[len] = 0;
 	continue;
       }//if
 
-      rmrfReq(request, path, true);
-      path[path_len] = 0;
-      if(request->error != 0){
-	FindClose(hFindFile);
-	return;
-      }
+      FindClose(hFindFile);
+      strcat(path, "\\*");
+      goto loop;
     }
   } while(FindNextFile(hFindFile, &ffd));
-
+  
   FindClose(hFindFile);
+  path[strlen(path)-1] = 0; // remove '\'
+  if (strcmp(src, path) != 0)
+  {
+    char * t = strrchr(path, '\\');
+    t[1] = '*';
+    t[2] = 0;
+    goto loop;
+  }
 
-  if(removePath && !RemoveDirectory(path))
+  if(removePath && !RemoveDirectory(src))
     request->error = GetLastError();
-
 }
 
 void Win32AsyncFile::createDirectories()

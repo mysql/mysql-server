@@ -79,7 +79,8 @@ ClusterMgr::~ClusterMgr()
 }
 
 void
-ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
+ClusterMgr::configure(const ndb_mgm_configuration* config){
+  ndb_mgm_configuration_iterator iter(* config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()){
     Uint32 nodeId = 0;
     if(iter.get(CFG_NODE_ID, &nodeId))
@@ -107,6 +108,15 @@ ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
       type = type;
       break;
     }
+  }
+
+  /* Mark all non existing nodes as not defined */
+  for(Uint32 i = 0; i<MAX_NODES; i++) {
+    if (iter.first())
+      continue;
+
+    if (iter.find(CFG_NODE_ID, i))
+      theNodes[i]= Node();
   }
 
   /* Init own node info */
@@ -275,7 +285,7 @@ ClusterMgr::threadMain( ){
 	continue;
       }
       
-      theNode.hbCounter += timeSlept;
+      theNode.hbCounter += (Uint32)timeSlept;
       if (theNode.hbCounter >= m_max_api_reg_req_interval ||
           theNode.hbCounter >= theNode.hbFrequency) {
 	/**

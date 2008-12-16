@@ -66,6 +66,9 @@ static
 bool
 do_change_version(atrt_config& config, SqlResultSet& command,
                   AtrtClient& atrtdb){
+  /**
+   * TODO make option to restart "not" initial
+   */
   uint process_id= command.columnAsInt("process_id");
   const char* process_args= command.column("process_args");
 
@@ -80,10 +83,12 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   atrt_process& proc= *config.m_processes[process_id];
 
   // Save current proc state
-  assert(proc.m_save.m_saved == false);
-  proc.m_save.m_proc= proc.m_proc;
-  proc.m_save.m_saved= true;
-
+  if (proc.m_save.m_saved == false)
+  {
+    proc.m_save.m_proc= proc.m_proc;
+    proc.m_save.m_saved= true;
+  }
+  
   g_logger.info("stopping process...");
   if (!stop_process(proc))
     return false;
@@ -142,7 +147,7 @@ do_reset_proc(atrt_config& config, SqlResultSet& command,
   {
     ndbout << "process has not changed" << endl;
   }
-
+  
   g_logger.info("starting process...");
   if (!start_process(proc))
     return false;

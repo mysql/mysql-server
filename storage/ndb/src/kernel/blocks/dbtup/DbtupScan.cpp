@@ -827,7 +827,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         // check if page is un-allocated or empty
 	if (likely(! (bits & ScanOp::SCAN_NR)))
 	{
-	  Tablespace_client tsman(signal, c_tsman,
+          D("Tablespace_client - scanNext");
+	  Tablespace_client tsman(signal, this, c_tsman,
 				  frag.fragTableId, 
 				  frag.fragmentId, 
 				  frag.m_tablespace_id);

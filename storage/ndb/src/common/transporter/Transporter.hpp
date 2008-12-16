@@ -116,6 +116,9 @@ protected:
 	      bool signalId,
               Uint32 max_send_buffer);
 
+  virtual bool configure(const TransporterConfiguration* conf);
+  virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
+
   /**
    * Blocking, for max timeOut milli seconds
    *   Returns true if connect succeded

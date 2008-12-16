@@ -3304,6 +3304,7 @@ Dbdict::restart_checkSchemaStatusComplete(Signal * signal,
     return;
   }
   
+  ndbrequire(c_restartRecord.m_op_cnt == 0);
   ndbrequire(c_nodeRestart || c_initialNodeRestart);
   activateIndexes(signal, 0);
   return;
@@ -3478,8 +3479,10 @@ void Dbdict::checkSchemaStatus(Signal* signal)
         continue;
 
       if (masterState != SchemaFile::SF_IN_USE)
+      {
+        ownEntry->init();
         continue;
-
+      }
       /**
        * handle table(index) special as DIH has already copied
        *   table (using COPY_TABREQ)
@@ -3511,6 +3514,9 @@ void Dbdict::checkSchemaStatus(Signal* signal)
   else
   {
     jam();
+
+    c_restartRecord.m_op_cnt = 0;
+    
     TxHandlePtr tx_ptr;
     c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
 
@@ -3640,6 +3646,7 @@ Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 
   releaseTxHandle(tx_ptr);
 
+  ndbrequire(c_restartRecord.m_op_cnt == 0);
   c_restartRecord.activeTable++;
 
   seizeTxHandle(tx_ptr);
@@ -3705,9 +3712,34 @@ Dbdict::restartNextPass(Signal* signal)
       return;
     }
   }
+  else if (c_restartRecord.m_tx_ptr_i != RNIL)
+  {
+    /**
+     * Complete last trans
+     */
+    jam();
+    
+    c_restartRecord.m_pass--;    
+    c_restartRecord.m_op_cnt = 0;
+
+    Ptr<TxHandle> tx_ptr;
+    c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+    
+    Callback c = { 
+      safe_cast(&Dbdict::restartEndPass_fromEndTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+    
+    Uint32 flags = 0;
+    endSchemaTrans(signal, tx_ptr, flags);
+    return;
+  }
   else
   {
     jam();
+
+    ndbrequire(c_restartRecord.m_op_cnt == 0);
 
     /**
      * Write schema file at-end of checkSchemaStatus
@@ -4084,11 +4116,12 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
 void Dbdict::execNODE_FAILREP(Signal* signal) 
 {
   jamEntry();
-  NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
+  NodeFailRep nodeFailRep = *(NodeFailRep *)&signal->theData[0];
+  NodeFailRep * nodeFail = &nodeFailRep;
   NodeRecordPtr ownNodePtr;
 
   c_nodes.getPtr(ownNodePtr, getOwnNodeId());
-  c_failureNr    = nodeFail->failNo;
+  c_failureNr  = nodeFail->failNo;
   const Uint32 numberOfFailedNodes  = nodeFail->noOfNodes;
   const bool masterFailed = (c_masterNodeId != nodeFail->masterNodeId);
   c_masterNodeId = nodeFail->masterNodeId;
@@ -4110,20 +4143,19 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
      */
     jam();
     ownNodePtr.p->nodeState = NodeRecord::NDB_MASTER_TAKEOVER;
-    ownNodePtr.p->nodeFailRep = *nodeFail;
+    ownNodePtr.p->nodeFailRep = nodeFailRep;
     infoEvent("Node %u taking over as DICT master", c_masterNodeId);
     handle_master_takeover(signal);
     return;
   }
 
-  send_nf_complete_rep(signal);
+  send_nf_complete_rep(signal, &nodeFailRep);
   return;
 }//execNODE_FAILREP()
 
-void Dbdict::send_nf_complete_rep(Signal* signal)
+void Dbdict::send_nf_complete_rep(Signal* signal, const NodeFailRep* nodeFail)
 {
   jam();
-  NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
   Uint32 theFailedNodes[NdbNodeBitmask::Size];
   memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
   NdbNodeBitmask tmp;
@@ -4348,7 +4380,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   // Verify that table name is an allowed table name.
   // TODO
   /* ---------------------------------------------------------------- */
-  const Uint32 tableNameLength = strlen(c_tableDesc.TableName) + 1;
+  const Uint32 tableNameLength = Uint32(strlen(c_tableDesc.TableName) + 1);
   const Uint32 name_hash = Rope::hash(c_tableDesc.TableName, tableNameLength);
 
   if(checkExist){
@@ -4610,7 +4642,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     /**
      * Check that attribute is not defined twice
      */
-    const size_t len = strlen(attrDesc.AttributeName)+1;
+    const Uint32 len = Uint32(strlen(attrDesc.AttributeName)+1);
     const Uint32 name_hash = Rope::hash(attrDesc.AttributeName, len);
     {
       AttributeRecord key;
@@ -7348,7 +7380,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       for (Uint32 i = cnt; i<newTablePtr.p->fragmentCount; i++)
       {
         jam();
-        c_fragData[i] = UNDEF_NODEGROUP;
+        c_fragData[i] = NDB_UNDEF_NODEGROUP;
       }
       c_fragDataLen = 2 * newTablePtr.p->fragmentCount;
       Uint32 save1 = newTablePtr.p->primaryTableId;
@@ -9093,8 +9125,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     jam();
     // see own trans always
   }
-  else  if (refToBlock(req->senderRef) != DBUTIL && /** XXX cheat */
-            refToBlock(req->senderRef) != SUMA)
+  else if (refToBlock(req->senderRef) != DBUTIL && /** XXX cheat */
+           refToBlock(req->senderRef) != SUMA)
   {
     Uint32 err;
     if ((err = check_read_obj(objEntry)))
@@ -9739,18 +9771,8 @@ flush:
       ListTablesConf * const conf = (ListTablesConf*)signal->getDataPtrSend();
       conf->senderData = senderData;
       conf->noOfTables = count;
-      if (handle.m_cnt)
-      {
-        jam();
-        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
-                   sigLen, JBB, &handle);
-      }
-      else
-      {
-        jam();
-        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
-                   sigLen, JBB);
-      }
+      sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+                 sigLen, JBB, &handle);
 
       signal->header.m_noOfSections = 0;
       signal->header.m_fragmentInfo = 0;
@@ -14138,7 +14160,7 @@ void Dbdict::execCREATE_EVNT_CONF(Signal* signal)
   LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
   ptr[0].sz =
-    (strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4; // to make sure we have a null
+    Uint32(strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4; // to make sure we have a null
 
   createEvent_sendReply(signal, evntRecPtr, ptr, 1);
     
@@ -17471,9 +17493,7 @@ void Dbdict::check_takeover_replies(Signal* signal)
       No slave found any pending transactions, we are done
      */
     jam();
-    memcpy(signal->theData, &masterNodePtr.p->nodeFailRep, 
-           sizeof(masterNodePtr.p->nodeFailRep));
-    send_nf_complete_rep(signal);
+    send_nf_complete_rep(signal, &masterNodePtr.p->nodeFailRep);
     return;
   }
   /*
@@ -18474,7 +18494,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     return;
   }
 
-  Uint32 len = strlen(f.FileName) + 1;
+  Uint32 len = Uint32(strlen(f.FileName) + 1);
   Uint32 hash = Rope::hash(f.FileName, len);
   if(get_object(f.FileName, len, hash) != 0)
   {
@@ -18801,7 +18821,7 @@ Dbdict::createFile_fromWriteObjInfo(Signal* signal,
   tmp.copy(name);
   LinearSectionPtr ptr[3];
   ptr[0].p = (Uint32*)&name[0];
-  ptr[0].sz = (strlen(name)+1+3)/4;
+  ptr[0].sz = Uint32(strlen(name)+1+3)/4;
   sendSignal(ref, GSN_CREATE_FILE_IMPL_REQ, signal, len, JBB, ptr, 1);
 
   Callback c =  {
@@ -19107,7 +19127,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
     }
   }
 
-  Uint32 len = strlen(fg.FilegroupName) + 1;
+  Uint32 len = Uint32(strlen(fg.FilegroupName) + 1);
   Uint32 hash = Rope::hash(fg.FilegroupName, len);
   if(get_object(fg.FilegroupName, len, hash) != 0)
   {
@@ -19212,6 +19232,17 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   obj_ptr.p->m_id = impl_req->filegroup_id;
   obj_ptr.p->m_type = fg.FilegroupType;
   obj_ptr.p->m_ref_count = 0;
+
+  if (master)
+  {
+    jam();
+    releaseSections(handle);
+    SimplePropertiesSectionWriter w(*this);
+    packFilegroupIntoPages(w, fg_ptr, 0, 0);
+    w.getPtr(objInfoPtr);
+    handle.m_ptr[0] = objInfoPtr;
+    handle.m_cnt = 1;
+  }
 
   {
     SchemaFile::TableEntry te; te.init();
@@ -25141,9 +25172,7 @@ send_node_fail_rep:
     /*
       Continue with NODE_FAILREP
     */
-    NodeFailRep * const nodeFailRep = (NodeFailRep *)&signal->theData[0];
-    *nodeFailRep = ownNodePtr.p->nodeFailRep;
-    send_nf_complete_rep(signal);
+    send_nf_complete_rep(signal, &ownNodePtr.p->nodeFailRep);
   }
 }
 
@@ -25796,7 +25825,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     w.getPtr(objInfoPtr);
   }
 
-  Uint32 len = strlen(hm.HashMapName) + 1;
+  Uint32 len = Uint32(strlen(hm.HashMapName) + 1);
   Uint32 hash = Rope::hash(hm.HashMapName, len);
 
   if (ERROR_INSERTED(6205))

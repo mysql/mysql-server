@@ -337,14 +337,14 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
 	 getNodeState().starting.startPhase <= 4))
     {
-      Callback cb;
+      CallbackPtr cb;
       jam();
 
       cb.m_callbackData= fragOperPtr.i;
-      cb.m_callbackFunction = 
-	safe_cast(&Dbtup::undo_createtable_callback);
+      cb.m_callbackIndex = UNDO_CREATETABLE_CALLBACK;
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
+      D("Logfile_client - execTUP_ADD_ATTRREQ");
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
       if((terrorCode = lgman.alloc_log_space(sz)))
       {
@@ -511,7 +511,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   bzero(&rep,sizeof(rep));
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
-    Tablespace_client tsman(0, c_tsman, 0, 0,
+    D("Tablespace_client - execTUPFRAGREQ");
+    Tablespace_client tsman(0, this, c_tsman, 0, 0,
                             regFragPtr.p->m_tablespace_id);
     ndbrequire(tsman.get_tablespace_info(&rep) == 0);
     regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
@@ -1306,6 +1307,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   getFragmentrec(regFragPtr, fragOperPtr.p->fragidFrag, regTabPtr.p);
   ndbrequire(regFragPtr.i != RNIL);
   
+  D("Logfile_client - undo_createtable_callback");
   Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
 
   Disk_undo::Create create;
@@ -1318,8 +1320,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= fragOperPtr.i;
-  req.m_callback.m_callbackFunction = 
-    safe_cast(&Dbtup::undo_createtable_logsync_callback);
+  req.m_callback.m_callbackIndex = UNDO_CREATETABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
   switch(ret){
@@ -1611,11 +1612,11 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
 
   if (logfile_group_id != RNIL)
   {
-    Callback cb;
+    CallbackPtr cb;
     cb.m_callbackData= tabPtr.i;
-    cb.m_callbackFunction = 
-      safe_cast(&Dbtup::drop_table_log_buffer_callback);
+    cb.m_callbackIndex = DROP_TABLE_LOG_BUFFER_CALLBACK;
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
+    D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
     int r0 = lgman.alloc_log_space(sz);
     if (r0)
@@ -1766,10 +1767,9 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
-	Callback cb;
+        CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
-	cb.m_callbackFunction = 
-	  safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
+	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
 #if NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
 	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
@@ -1824,6 +1824,7 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   drop.m_table = tabPtr.i;
   drop.m_type_length = 
     (Disk_undo::UNDO_DROP << 16) | (sizeof(drop) >> 2);
+  D("Logfile_client - drop_table_log_buffer_callback");
   Logfile_client lgman(this, c_lgman, logfile_group_id);
   
   Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
@@ -1831,8 +1832,7 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= tablePtrI;
-  req.m_callback.m_callbackFunction = 
-    safe_cast(&Dbtup::drop_table_logsync_callback);
+  req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
   switch(ret){
@@ -1909,7 +1909,8 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       Uint64 lsn = 0;
 #endif
       
-      Tablespace_client tsman(signal, c_tsman, tabPtr.i, 
+      D("Tablespace_client - drop_fragment_free_extent_log_buffer_callback");
+      Tablespace_client tsman(signal, this, c_tsman, tabPtr.i, 
 			      fragPtr.p->fragmentId,
 			      fragPtr.p->m_tablespace_id);
       

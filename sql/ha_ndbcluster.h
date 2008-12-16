@@ -29,6 +29,7 @@
 
 #include <NdbApi.hpp>
 #include <ndbapi_limits.h>
+#include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 #define NDB_DEFAULT_AUTO_PREFETCH 32
@@ -269,6 +270,13 @@ enum THD_NDB_OPTIONS
     lock, as one other mysqld already has the lock.
   */
   TNO_NO_LOCK_SCHEMA_OP= 1 << 1
+  /*
+    Skip drop of ndb table in delete_table.  Used when calling
+    mysql_rm_table_part2 in "show tables", as we do not want to
+    remove ndb tables "by mistake".  The table should not exist
+    in ndb in the first place.
+  */
+  ,TNO_NO_NDB_DROP_TABLE=    1 << 2
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -299,11 +307,12 @@ class Thd_ndb
   ulong count;
   uint lock_count;
   uint start_stmt_count;
+  uint save_point_count;
   NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
   bool m_force_send;
-  bool m_transaction_on;
+
   int m_error_code;
   query_id_t m_query_id; /* query id whn m_error_code was set */
   uint32 options;
@@ -328,9 +337,16 @@ class Thd_ndb
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
 
+  uint m_transaction_no_hint_count[MAX_NDB_NODES];
+  uint m_transaction_hint_count[MAX_NDB_NODES];
+
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;
+
+  unsigned m_connect_count;
+  bool valid_ndb(void);
+  bool recycle_ndb(THD* thd);
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
@@ -711,6 +727,13 @@ private:
       return m_thd_ndb->trans;
     return start_transaction(error);
   }
+
+  NdbTransaction *start_transaction_row(const NdbRecord *ndb_record,
+                                        const uchar *record,
+                                        int &error);
+  NdbTransaction *start_transaction_key(uint index,
+                                        const uchar *key_data,
+                                        int &error);
 
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,

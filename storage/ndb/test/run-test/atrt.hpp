@@ -149,10 +149,17 @@ bool setup_hosts(atrt_config&);
 
 bool do_command(atrt_config& config);
 
-bool
-start_process(atrt_process & proc);
-bool
-stop_process(atrt_process & proc);
+bool start_process(atrt_process & proc);
+bool stop_process(atrt_process & proc);
+
+/**
+ * check configuration if any changes has been 
+ *   done for the duration of the latest running test
+ *   if so, return true, and reset those changes
+ *   (true, indicates that a restart is needed to actually
+ *    reset the running processes)
+ */
+bool reset_config(atrt_config&);
 
 NdbOut&
 operator<<(NdbOut& out, const atrt_process& proc);

@@ -1057,7 +1057,7 @@ inline
 Uint32
 Hash( const char* str ){
   Uint32 h = 0;
-  Uint32 len = strlen(str);
+  size_t len = strlen(str);
   while(len >= 4){
     h = (h << 5) + h + str[0];
     h = (h << 5) + h + str[1];

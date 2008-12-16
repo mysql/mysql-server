@@ -131,8 +131,8 @@ template <class T> void MemoryChannel<T>::writeChannel( T *t)
   if(full(theWriteIndex, theReadIndex) || theChannel == NULL) abort();
   theChannel[theWriteIndex]= t;
   ++theWriteIndex;
-  NdbMutex_Unlock(theMutexPtr);
   NdbCondition_Signal(theConditionPtr);
+  NdbMutex_Unlock(theMutexPtr);
 }
 
 template <class T> void MemoryChannel<T>::writeChannelNoSignal( T *t)
