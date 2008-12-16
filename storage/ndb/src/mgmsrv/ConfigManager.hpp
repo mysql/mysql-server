@@ -80,6 +80,7 @@ class ConfigManager : public MgmtThread {
   bool save_config(void);
   bool saved_config_exists(BaseString& config_name) const;
   bool delete_saved_configs(void) const;
+  bool failed_config_change_exists(void) const;
   Config* load_saved_config(const BaseString& config_name);
   NodeId find_nodeid_from_configdir(void);
   NodeId find_nodeid_from_config(void);
