@@ -358,7 +358,7 @@ DbUtil::runQuery(const char* sql,
   MYSQL_BIND *bind_param = new MYSQL_BIND[params];
   NdbAutoObjArrayPtr<MYSQL_BIND> _guard(bind_param);
 
-  bzero(bind_param, sizeof(bind_param));
+  bzero(bind_param, params * sizeof(MYSQL_BIND));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
   {
@@ -429,7 +429,7 @@ DbUtil::runQuery(const char* sql,
     uint num_fields= mysql_num_fields(res);
     MYSQL_BIND *bind_result = new MYSQL_BIND[num_fields];
     NdbAutoObjArrayPtr<MYSQL_BIND> _guard1(bind_result);
-    bzero(bind_result, sizeof(bind_result));
+    bzero(bind_result, num_fields * sizeof(MYSQL_BIND));
 
     for (uint i= 0; i < num_fields; i++)
     {
@@ -437,6 +437,8 @@ DbUtil::runQuery(const char* sql,
 
       switch(fields[i].type){
       case MYSQL_TYPE_STRING:
+        buf_len = fields[i].length + 1;
+        break;
       case MYSQL_TYPE_VARCHAR:
       case MYSQL_TYPE_VAR_STRING:
         buf_len= fields[i].max_length + 1;
@@ -444,14 +446,18 @@ DbUtil::runQuery(const char* sql,
       case MYSQL_TYPE_LONGLONG:
         buf_len= sizeof(long long);
         break;
+      case MYSQL_TYPE_LONG:
+        buf_len = sizeof(long);
+        break;
       default:
         break;
       }
-
+      
       bind_result[i].buffer_type= fields[i].type;
       bind_result[i].buffer= malloc(buf_len);
       bind_result[i].buffer_length= buf_len;
-
+      bind_result[i].is_null = (my_bool*)malloc(sizeof(my_bool));
+      * bind_result[i].is_null = 0;
     }
 
     if (mysql_stmt_bind_result(stmt, bind_result)){
@@ -464,8 +470,11 @@ DbUtil::runQuery(const char* sql,
     {
       Properties curr(true);
       for (uint i= 0; i < num_fields; i++){
+        if (* bind_result[i].is_null)
+          continue;
         switch(fields[i].type){
         case MYSQL_TYPE_STRING:
+	  ((char*)bind_result[i].buffer)[fields[i].max_length] = 0;
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_VAR_STRING:
           curr.put(fields[i].name, (char*)bind_result[i].buffer);
@@ -479,7 +488,7 @@ DbUtil::runQuery(const char* sql,
         default:
           curr.put(fields[i].name, *(int*)bind_result[i].buffer);
           break;
-       }
+        }
       }
       rows.put("row", row++, &curr);
     }
@@ -487,8 +496,10 @@ DbUtil::runQuery(const char* sql,
     mysql_free_result(res);
 
     for (uint i= 0; i < num_fields; i++)
+    {
       free(bind_result[i].buffer);
-
+      free(bind_result[i].is_null);
+    }
   }
 
   // Save stats in result set

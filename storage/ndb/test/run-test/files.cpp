@@ -116,6 +116,11 @@ setup_files(atrt_config& config, int setup, int sshx)
   BaseString mycnf;
   mycnf.assfmt("%s/my.cnf", g_basedir);
   
+  if (!create_directory(g_basedir))
+  {
+    return false;
+  }
+
   if (mycnf != g_my_cnf)
   {
     struct stat sbuf;
