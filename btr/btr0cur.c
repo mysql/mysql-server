@@ -2863,7 +2863,10 @@ btr_cur_optimistic_delete(
 				delete; cursor stays valid: if deletion
 				succeeds, on function exit it points to the
 				successor of the deleted record */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/* in: mtr; if this function returns
+				TRUE on a leaf page of a secondary
+				index, the mtr must be committed
+				before latching any further pages */
 {
 	buf_block_t*	block;
 	rec_t*		rec;

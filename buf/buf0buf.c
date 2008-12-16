@@ -2694,15 +2694,8 @@ err_exit:
 			mutex_exit(&block->mutex);
 		}
 
-err_exit2:
-		buf_pool_mutex_exit();
-
-		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
-
-			mtr_commit(&mtr);
-		}
-
-		return(NULL);
+		bpage = NULL;
+		goto func_exit;
 	}
 
 	if (fil_tablespace_deleted_or_being_deleted_in_mem(
@@ -2783,7 +2776,9 @@ err_exit2:
 			/* The block was added by some other thread. */
 			buf_buddy_free(bpage, sizeof *bpage);
 			buf_buddy_free(data, zip_size);
-			goto err_exit2;
+
+			bpage = NULL;
+			goto func_exit;
 		}
 
 		page_zip_des_init(&bpage->zip);
@@ -2824,6 +2819,7 @@ err_exit2:
 	}
 
 	buf_pool->n_pend_reads++;
+func_exit:
 	buf_pool_mutex_exit();
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
@@ -2831,7 +2827,7 @@ err_exit2:
 		mtr_commit(&mtr);
 	}
 
-	ut_ad(buf_page_in_file(bpage));
+	ut_ad(!bpage || buf_page_in_file(bpage));
 	return(bpage);
 }
 
