@@ -2818,6 +2818,36 @@ void ha_partition::unlock_row()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Check if semi consistent read was used
+
+  SYNOPSIS
+    was_semi_consistent_read()
+
+  RETURN VALUE
+    TRUE   Previous read was a semi consistent read
+    FALSE  Previous read was not a semi consistent read
+
+  DESCRIPTION
+    See handler.h:
+    In an UPDATE or DELETE, if the row under the cursor was locked by another
+    transaction, and the engine used an optimistic read of the last
+    committed row value under the cursor, then the engine returns 1 from this
+    function. MySQL must NOT try to update this optimistic value. If the
+    optimistic value does not match the WHERE condition, MySQL can decide to
+    skip over this row. Currently only works for InnoDB. This can be used to
+    avoid unnecessary lock waits.
+
+    If this method returns nonzero, it will also signal the storage
+    engine that the next read will be a locking re-read of the row.
+*/
+bool ha_partition::was_semi_consistent_read()
+{
+  DBUG_ENTER("ha_partition::was_semi_consistent_read");
+  DBUG_ASSERT(m_last_part < m_tot_parts &&
+              bitmap_is_set(&(m_part_info->used_partitions), m_last_part));
+  DBUG_RETURN(m_file[m_last_part]->was_semi_consistent_read());
+}
 
 /**
   Use semi consistent read if possible
