@@ -73,6 +73,11 @@ public:
   Uint32 pack(UtilBuffer&) const;
 
   /*
+    Pack the config as base64
+  */
+  bool pack64(BaseString&) const;
+
+  /*
     Compare against another config and return a list of
     differences in a Properties object
   */
@@ -83,6 +88,15 @@ public:
     Print the difference against another config
    */
   void print_diff(const Config* other) const;
+
+
+  /*
+    Get the full connectstring for this configuration. ie
+    a list of all the mgmd servers and their port separated
+    by separator.
+   */
+  void getConnectString(BaseString&,
+                        const BaseString& separator = BaseString(";")) const;
 
   /*
     Print the difference to string buffer
@@ -100,6 +114,7 @@ public:
   bool equal(const Config*, const unsigned* exclude = NULL) const;
 
   struct ndb_mgm_configuration * m_configValues;
+  struct ndb_mgm_configuration * values(void) const { return m_configValues; };
 
 private:
   bool setValue(Uint32 section, Uint32 section_no,
