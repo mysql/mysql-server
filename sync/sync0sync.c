@@ -1079,6 +1079,9 @@ sync_thread_add_level(
 		}
 		break;
 	case SYNC_BUF_BLOCK:
+		/* Either the thread must own the buffer pool mutex
+		(buf_pool_mutex), or it is allowed to latch only ONE
+		buffer block (block->mutex or buf_pool_zip_mutex). */
 		ut_a((sync_thread_levels_contain(array, SYNC_BUF_POOL)
 		      && sync_thread_levels_g(array, SYNC_BUF_BLOCK - 1))
 		     || sync_thread_levels_g(array, SYNC_BUF_BLOCK));
