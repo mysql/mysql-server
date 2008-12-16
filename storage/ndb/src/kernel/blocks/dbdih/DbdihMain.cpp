@@ -5328,6 +5328,12 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
   signal->theData[0] = NDB_LE_GCP_TakeoverStarted;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
 
+  /**
+   * save own value...
+   *   to be able to check values returned in MASTER_GCPCONF
+   */
+  m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
+
   setLocalNodefailHandling(signal, oldMasterId, NF_GCP_TAKE_OVER);
 }//Dbdih::handleNewMaster()
 
@@ -5628,6 +5634,17 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   ndbassert(ok); // Unhandled case...
 
   ok = false;
+  /**
+   * GCI should differ with atmost one
+   */
+  ndbrequire(saveGCI == m_gcp_save.m_gci ||
+             saveGCI == m_gcp_save.m_gci + 1 ||
+             saveGCI + 1 == m_gcp_save.m_gci);
+  if (saveGCI > m_gcp_save.m_master.m_new_gci)
+  {
+    jam();
+    m_gcp_save.m_master.m_new_gci = saveGCI;
+  }
   switch(saveState){
   case MasterGCPConf::GCP_SAVE_IDLE:
     jam();
@@ -5742,7 +5759,6 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
   else
   {
     ok = false;
-    m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
     switch(m_gcp_save.m_master.m_state){
     case GcpSave::GCP_SAVE_IDLE:
       jam();
@@ -8508,6 +8524,21 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
                       signal, &c_GCP_SAVEREQ_Counter, &Dbdih::sendGCP_SAVEREQ);
     signal->theData[0] = 9999;
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    return;
+  }
+  else if (ERROR_INSERTED(7216))
+  {
+    infoEvent("GCP_SAVE all/%u", c_error_insert_extra);
+    NodeRecordPtr nodePtr;
+    nodePtr.i = c_error_insert_extra;
+    ptrAss(nodePtr, nodeRecord);
+
+    removeAlive(nodePtr);
+    sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ);
+    insertAlive(nodePtr);
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    c_GCP_SAVEREQ_Counter.setWaitingFor(c_error_insert_extra);
     return;
   }
 #endif
@@ -15603,6 +15634,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   DECLARE_DUMP0(DBDIH, 7214, "Set error 7214 with extra arg")
   {
     SET_ERROR_INSERT_VALUE2(7214, signal->theData[1]);
+    return;
+  }
+
+  DECLARE_DUMP0(DBDIH, 7216, "Set error 7216 with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(7216, signal->theData[1]);
     return;
   }
 }//Dbdih::execDUMP_STATE_ORD()

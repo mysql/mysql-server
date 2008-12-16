@@ -45,7 +45,7 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
     g_err << "Cluster '" << clusters.column("name")
           << "@" << tmp_result.column("connectstring") << "'" << endl;
 
-    if (restarter.waitClusterStarted(1))
+    if (restarter.waitClusterStarted())
       return NDBT_FAILED;
 
     // Restart ndb_mgmd(s)
@@ -65,7 +65,7 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
     }
 
     ndbout << "Waiting for started"<< endl;
-    if (restarter.waitClusterStarted(1))
+    if (restarter.waitClusterStarted())
       return NDBT_FAILED;
     ndbout << "Started"<< endl;
 
@@ -126,7 +126,7 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step){
     g_err << "Cluster '" << clusters.column("name")
           << "@" << tmp_result.column("connectstring") << "'" << endl;
 
-    if(restarter.waitClusterStarted(1))
+    if(restarter.waitClusterStarted())
       return NDBT_FAILED;
 
     // Restart ndb_mgmd(s)
@@ -143,6 +143,8 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step){
       if(restarter.waitConnected())
         return NDBT_FAILED;
     }
+
+    NdbSleep_SecSleep(5); // TODO, handle arbitration
 
     // Restart one ndbd in each node group
     SqlResultSet ndbds;
@@ -239,7 +241,7 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
     g_err << "Cluster '" << clusters.column("name")
           << "@" << tmp_result.column("connectstring") << "'" << endl;
 
-    if(restarter.waitClusterStarted(1))
+    if(restarter.waitClusterStarted())
       return NDBT_FAILED;
 
     // Restart ndb_mgmd(s)
@@ -256,6 +258,8 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
       if(restarter.waitConnected())
         return NDBT_FAILED;
     }
+
+    NdbSleep_SecSleep(5); // TODO, handle arbitration
 
     // Restart one ndbd in each node group
     SqlResultSet ndbds;
@@ -338,14 +342,14 @@ int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   // Check cluster is started
   NdbRestarter restarter;
-  if(restarter.waitClusterStarted(1) != 0){
+  if(restarter.waitClusterStarted() != 0){
     g_err << "All nodes was not started " << endl;
     return NDBT_FAILED;
   }
 
   // Check atrtclient is started
   AtrtClient atrt;
-  if(!atrt.waitConnected(60)){
+  if(!atrt.waitConnected()){
     g_err << "atrt server was not started " << endl;
     return NDBT_FAILED;
   }
@@ -357,7 +361,7 @@ int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   while (procs.next())
   {
-    if (procs.columnAsInt("node_id") == -1){
+    if (procs.columnAsInt("node_id") == (unsigned)-1){
       ndbout << "Found one process with node_id -1, "
              << "use --fix-nodeid=1 to atrt to fix this" << endl;
       return NDBT_FAILED;
@@ -367,118 +371,21 @@ int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-
-int runRestoreProcs(NDBT_Context* ctx, NDBT_Step* step){
-  AtrtClient atrt;
-  g_err << "Starting to reset..." << endl;
-
-  SqlResultSet clusters;
-  if (!atrt.getClusters(clusters))
-    return NDBT_FAILED;
-
-  while (clusters.next())
-  {
-    uint clusterId= clusters.columnAsInt("id");
-    SqlResultSet tmp_result;
-    if (!atrt.getConnectString(clusterId, tmp_result))
-      return NDBT_FAILED;
-
-    NdbRestarter restarter(tmp_result.column("connectstring"));
-    restarter.setReconnect(true); // Restarting mgmd
-    g_err << "Cluster '" << clusters.column("name")
-          << "@" << tmp_result.column("connectstring") << "'" << endl;
-
-    if(restarter.waitClusterStarted(1))
-      return NDBT_FAILED;
-
-    // Reset ndb_mgmd(s)
-    SqlResultSet mgmds;
-    if (!atrt.getMgmds(clusterId, mgmds))
-      return NDBT_FAILED;
-
-    while (mgmds.next())
-    {
-      ndbout << "Reset mgmd" << mgmds.columnAsInt("node_id") << endl;
-      if (!atrt.resetProc(mgmds.columnAsInt("id")))
-        return NDBT_FAILED;
-
-      if(restarter.waitConnected() != 0)
-        return NDBT_FAILED;
-    }
-
-    if(restarter.waitClusterStarted(1))
-      return NDBT_FAILED;
-
-    // Reset ndbd(s)
-    SqlResultSet ndbds;
-    if (!atrt.getNdbds(clusterId, ndbds))
-      return NDBT_FAILED;
-
-    while(ndbds.next())
-    {
-      int nodeId = ndbds.columnAsInt("node_id");
-      int processId = ndbds.columnAsInt("id");
-      ndbout << "Reset node " << nodeId << endl;
-
-      if (!atrt.resetProc(processId))
-        return NDBT_FAILED;
-
-    }
-
-    if (restarter.waitClusterNoStart())
-      return NDBT_FAILED;
-
-  }
-
-
-  // All nodes are in no start, start them up again
-  clusters.reset();
-  while (clusters.next())
-  {
-    uint clusterId= clusters.columnAsInt("id");
-    SqlResultSet tmp_result;
-    if (!atrt.getConnectString(clusterId, tmp_result))
-      return NDBT_FAILED;
-
-    NdbRestarter restarter(tmp_result.column("connectstring"));
-    g_err << "Cluster '" << clusters.column("name")
-          << "@" << tmp_result.column("connectstring") << "'" << endl;
-
-    if (restarter.waitClusterNoStart())
-      return NDBT_FAILED;
-
-    ndbout << "Starting and wait for started..." << endl;
-    if (restarter.startAll())
-      return NDBT_FAILED;
-
-    if (restarter.waitClusterStarted())
-      return NDBT_FAILED;
-  }
-
-  ctx->stopTest();
-  return NDBT_OK;
-}
-
-
-
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR1);
-  FINALIZER(runRestoreProcs);
 }
 TESTCASE("Upgrade_NR2",
 	 "Test that one node in each nodegroup can be upgradde simultaneously"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR2);
-  FINALIZER(runRestoreProcs);
 }
 TESTCASE("Upgrade_NR3",
 	 "Test that one node in each nodegroup can be upgrade simultaneously"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR3);
-  FINALIZER(runRestoreProcs);
 }
 NDBT_TESTSUITE_END(testUpgrade);
 
