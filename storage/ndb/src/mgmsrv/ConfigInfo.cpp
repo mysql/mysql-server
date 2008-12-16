@@ -2790,7 +2790,7 @@ ConfigInfo::ConfigInfo()
 	  case CI_INT64:
 	    {
 	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
-	      require(p->put(param._fname, default_uint64));
+	      require(p->put(param._fname, Uint64(default_uint64)));
 	      break;
 	    }
 	}
@@ -3647,7 +3647,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 	if(!(ctx.m_userDefaults &&
 	   ctx.m_userDefaults->get("PortNumber", &base)) &&
 	   !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	  base= strtoll(NDB_TCP_BASE_PORT,0,0);
+	  base= (Uint32)strtoll(NDB_TCP_BASE_PORT,0,0);
 	}
 	ctx.m_userProperties.put("ServerPortBase", base);
       }

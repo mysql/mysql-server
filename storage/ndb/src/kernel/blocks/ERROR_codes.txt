@@ -8,7 +8,7 @@ Next DBDICT 6013
 Next DBDIH 7216
 Next DBTC 8078
 Next CMVMI 9000
-Next BACKUP 10041
+Next BACKUP 10042
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13043
@@ -509,6 +509,7 @@ Backup Stuff:
 10039: Halt backup for table >= 2
 10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
+10041: delay backup after create trigger. for testing undo log file.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

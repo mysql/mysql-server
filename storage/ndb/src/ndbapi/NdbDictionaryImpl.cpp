@@ -2809,15 +2809,7 @@ NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t,
                                  NdbOptimizeTableHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl)");
-  /**
-   * make sure we get global table object here
-   */
-  NdbTableImpl *g_table = getTableGlobal(t.getName());
-  if (g_table == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_table));
+  DBUG_RETURN(h.init(&m_ndb, t));
 }
 
 int
@@ -2825,16 +2817,7 @@ NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index,
                                  NdbOptimizeIndexHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl)");
-  /**
-   * make sure we get global index object here
-   */
-  const NdbIndexImpl * g_index = getIndexGlobal(index.getName(),
-                                                index.getTable());
-  if (g_index == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_index));
+  DBUG_RETURN(h.init(&m_ndb, index));
 }
 
 int
@@ -4866,7 +4849,7 @@ static int scanEventTable(Ndb* pNdb,
         el.type = NdbDictionary::Object::TableEvent;
         el.state = NdbDictionary::Object::StateOnline;
         el.store = NdbDictionary::Object::StorePermanent;
-        Uint32 len = strlen(event_name->aRef());
+        Uint32 len = (Uint32)strlen(event_name->aRef());
         el.name = new char[len+1];
         memcpy(el.name, event_name->aRef(), len);
         el.name[len] = 0;
@@ -6919,7 +6902,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7079,7 +7062,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7228,7 +7211,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
