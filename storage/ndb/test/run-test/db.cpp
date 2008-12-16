@@ -132,15 +132,19 @@ connect_mysqld(atrt_process* proc)
 
   const char * port = find(proc, "--port=");
   const char * socket = find(proc, "--socket=");
-  assert(port);
+  if (port == 0 && socket == 0)
+  {
+    g_logger.error("Neither socket nor port specified...cant connect to mysql");
+    return false;
+  }
   
   for (size_t i = 0; i<20; i++)
   {
     if (mysql_real_connect(&proc->m_mysql,
 			   proc->m_host->m_hostname.c_str(),
 			   "root", "", "test",
-			   atoi(port),
-			   socket,
+			   port ? atoi(port) : 0,
+			   port ? 0 : socket,
 			   0))
     {
       return true;
@@ -152,8 +156,8 @@ connect_mysqld(atrt_process* proc)
   
   g_logger.error("Failed to connect to mysqld err: >%s< >%s:%u:%s<",
 		 mysql_error(&proc->m_mysql),
-		 proc->m_host->m_hostname.c_str(),atoi(port),
-		 socket);
+		 proc->m_host->m_hostname.c_str(), port ? atoi(port) : 0,
+		 socket ? socket : "<null>");
   return false;
 }
 
@@ -246,7 +250,7 @@ populate_options(MYSQL* mysql, MYSQL_STMT* stmt, int* option_id,
     
     if (mysql_stmt_execute(stmt))
     {
-      g_logger.error("Failed to execute: %s", mysql_error(mysql));
+      g_logger.error("0 Failed to execute: %s", mysql_error(mysql));
       return false;
     }
     kk++;
@@ -286,7 +290,7 @@ populate_db(atrt_config& config, atrt_process* mysqld)
       
       if (mysql_stmt_execute(stmt))
       {
-	g_logger.error("Failed to execute: %s", mysql_error(&mysqld->m_mysql));
+	g_logger.error("1 Failed to execute: %s", mysql_error(&mysqld->m_mysql));
 	return false;
       }
       mysql_stmt_close(stmt);
@@ -319,7 +323,7 @@ populate_db(atrt_config& config, atrt_process* mysqld)
       
       if (mysql_stmt_execute(stmt))
       {
-	g_logger.error("Failed to execute: %s", mysql_error(&mysqld->m_mysql));
+	g_logger.error("2 Failed to execute: %s", mysql_error(&mysqld->m_mysql));
 	return false;
       }
     }
@@ -386,7 +390,7 @@ populate_db(atrt_config& config, atrt_process* mysqld)
       
       if (mysql_stmt_execute(stmt))
       {
-	g_logger.error("Failed to execute: %s", mysql_error(&mysqld->m_mysql));
+	g_logger.error("3 Failed to execute: %s", mysql_error(&mysqld->m_mysql));
 	return false;
       }
 
