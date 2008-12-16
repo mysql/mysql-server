@@ -72,8 +72,8 @@ class ConfigManager : public MgmtThread {
   const char* m_configdir;
 
   /* Functions used from 'init' */
-  Config* load_init_config(const char*) const;
-  Config* load_init_mycnf(void) const;
+  static Config* load_init_config(const char*);
+  static Config* load_init_mycnf(void);
   Config* load_config(void) const;
   Config* fetch_config(void);
   bool save_config(const Config* conf);
@@ -150,6 +150,10 @@ public:
     Retrieve the current configuration in packed format
    */
   bool get_packed_config(UtilBuffer& pack_buf);
+
+  static Config* load_config(const char* config_filename, bool mycnf,
+                             BaseString& msg);
+
 };
 
 

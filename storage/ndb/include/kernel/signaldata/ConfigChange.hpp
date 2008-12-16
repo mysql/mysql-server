@@ -85,7 +85,8 @@ class ConfigChangeRef {
     IllegalState            = 17,
     IllegalInitialGeneration = 18,
     DifferentInitial        = 19,
-    NotAllStarted           = 20
+    NotAllStarted           = 20,
+    NotPrimaryMgmNode       = 21
   } ;
 
 public:

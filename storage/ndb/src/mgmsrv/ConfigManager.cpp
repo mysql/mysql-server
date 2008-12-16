@@ -256,7 +256,7 @@ ConfigManager::init_nodeid(void)
   {
     // Nodeid was specifed on command line or in NDB_CONNECTSTRING
     g_eventLogger->debug("Got nodeid: %d from command line "    \
-                         "or NDB_CONNECTSTRING", m_node_id);
+                         "or NDB_CONNECTSTRING", nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
   }
@@ -335,11 +335,13 @@ ConfigManager::init(void)
     set_config(conf);
     m_config_state = CS_CONFIRMED;
 
-    if (m_opts.mycnf || m_opts.config_filename)
+    if (m_opts.reload && // --reload
+        (m_opts.mycnf || m_opts.config_filename))
     {
       Config* new_conf = load_config();
       if (new_conf == NULL)
         DBUG_RETURN(false);
+
 
       /* Copy the necessary values from old to new config */
       if (!new_conf->setGeneration(m_config->getGeneration()))
@@ -351,6 +353,12 @@ ConfigManager::init(void)
       if (!new_conf->setName(m_config->getName()))
       {
         g_eventLogger->error("Failed to copy name from old config");
+        DBUG_RETURN(false);
+      }
+
+      if (!new_conf->setPrimaryMgmNode(m_config->getPrimaryMgmNode()))
+      {
+        g_eventLogger->error("Failed to copy primary mgm node from old config");
         DBUG_RETURN(false);
       }
 
@@ -384,6 +392,17 @@ ConfigManager::init(void)
 
       if (!config_ok(conf))
         DBUG_RETURN(false);
+
+      /*
+        Set this node as primary node for config.ini/my.cnf
+        in order to make it possible that make sure an old
+        config.ini is only loaded with --force
+      */
+      if (!conf->setPrimaryMgmNode(m_node_id))
+      {
+        g_eventLogger->error("Failed to set primary MGM node");
+        DBUG_RETURN(false);
+      }
 
       /* Use the initial config for now */
       set_config(conf);
@@ -743,6 +762,20 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     }
     else
     {
+
+      // Check that config change was started by primary mgm node
+      Uint32 primaryMgmNode = m_config->getPrimaryMgmNode();
+      if (nodeId != primaryMgmNode)
+      {
+        g_eventLogger->warning("Refusing to start configuration change " \
+                               "requested by node %d, it's not set as " \
+                               "the primary management node %d.",
+                               nodeId, primaryMgmNode);
+        sendConfigChangeImplRef(ss, nodeId,
+                                ConfigChangeRef::NotPrimaryMgmNode);
+        return;
+      }
+
       if (new_generation == 0 ||
           new_generation != curr_generation)
       {
@@ -1528,7 +1561,7 @@ ConfigManager::run()
 #include "InitConfigFileParser.hpp"
 
 Config*
-ConfigManager::load_init_config(const char* config_filename) const
+ConfigManager::load_init_config(const char* config_filename)
 {
    InitConfigFileParser parser;
    g_eventLogger->info("Reading cluster configuration from '%s'",
@@ -1538,7 +1571,7 @@ ConfigManager::load_init_config(const char* config_filename) const
 
 
 Config*
-ConfigManager::load_init_mycnf(void) const
+ConfigManager::load_init_mycnf(void)
 {
   InitConfigFileParser parser;
   g_eventLogger->info("Reading cluster configuration using my.cnf");
@@ -1547,19 +1580,36 @@ ConfigManager::load_init_mycnf(void) const
 
 
 Config*
-ConfigManager::load_config(void) const
+ConfigManager::load_config(const char* config_filename, bool mycnf,
+                           BaseString& msg)
 {
   Config* new_conf = NULL;
-  if (m_opts.mycnf && (new_conf = load_init_mycnf()) == NULL)
+  if (mycnf && (new_conf = load_init_mycnf()) == NULL)
   {
-    g_eventLogger->error("Could not load configuration from 'my.cnf'");
+    msg.assign("Could not load configuration from 'my.cnf'");
     return NULL;
   }
-  else if (m_opts.config_filename &&
-           (new_conf = load_init_config(m_opts.config_filename)) == NULL)
+  else if (config_filename &&
+           (new_conf = load_init_config(config_filename)) == NULL)
   {
-    g_eventLogger->error("Could not load configuration from '%s'",
-                         m_opts.config_filename);
+    msg.assfmt("Could not load configuration from '%s'",
+               config_filename);
+    return NULL;
+  }
+
+  return new_conf;
+}
+
+
+Config*
+ConfigManager::load_config(void) const
+{
+  BaseString msg;
+  Config* new_conf = NULL;
+  if ((new_conf = load_config(m_opts.config_filename,
+                              m_opts.mycnf, msg)) == NULL)
+  {
+    g_eventLogger->error(msg);
     return NULL;
   }
   return new_conf;

@@ -36,7 +36,9 @@ public:
   Config(const Config*);
   virtual ~Config();
 
-  void print() const;
+  void print(const char* section_filter = NULL, NodeId nodeid_filter = NULL,
+             const char* param_filter = NULL,
+             NdbOut& out = ndbout) const;
 
   /*
     Returns generation of the config
@@ -50,6 +52,20 @@ public:
   */
   const char* getName() const;
   bool setName(const char* new_name);
+
+  /*
+    Returns primary MGM node of the config, this is used to
+    protect the config being overwritten by an "old" config.ini
+    or my.cnf - i.e as soon as the config.ini has been updated
+    and reloaded from one node, the config.ini on other nodes
+    become obsolete and a reload from those would revert to an
+    old config.
+    0 => config updated from mgmapi, no node is primary anymore
+    1 - MAX_NODES => only node with specified nodeid can reload
+                     config without force
+   */
+  Uint32 getPrimaryMgmNode() const;
+  bool setPrimaryMgmNode(Uint32);
 
   /*
    Pack the config into a UtilBuffer and return it's size in bytes

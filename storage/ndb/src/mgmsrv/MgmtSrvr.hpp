@@ -131,8 +131,8 @@ public:
     int print_full_config;
     const char* configdir;
     int verbose;
-
     MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
+    int reload;
   };
 
   MgmtSrvr(); // Not implemented
@@ -554,6 +554,16 @@ public:
     Get packed copy of configuration in the supplied buffer
   */
   bool getPackedConfig(UtilBuffer& pack_buf);
+
+  void print_config(const char* section_filter = NULL,
+                    NodeId nodeid_filter = 0,
+                    const char* param_filter = NULL,
+                    NdbOut& out = ndbout);
+
+  bool reload_config(const char* config_filename,
+                     bool mycnf, BaseString& msg);
+
+  void show_variables(NdbOut& out = ndbout);
 
 };
 
