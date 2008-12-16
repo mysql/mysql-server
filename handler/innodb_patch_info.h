@@ -29,5 +29,5 @@ struct innodb_enhancement {
 {"innodb_rw_lock","InnoDB RW-lock fixes","Useful for 8+ cores SMP systems","http://www.percona.com/docs/wiki/percona-xtradb:innodb_rw_lock"},
 {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb:innodb_opt_lru_count"},
 {"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb:innodb_buffer_pool_pages"},
-{NULL, NULL, NULL, NULL, NULL, NULL}
+{NULL, NULL, NULL, NULL}
 };
