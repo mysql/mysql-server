@@ -1357,7 +1357,9 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (!dict_index_is_clust(index) && leaf) {
+	if (leaf
+	    && !dict_index_is_clust(index)
+	    && !dict_index_is_ibuf(index)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
@@ -1738,6 +1740,7 @@ btr_cur_update_alloc_zip(
 {
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
+	ut_ad(!dict_index_is_ibuf(index));
 
 	if (page_zip_available(page_zip, dict_index_is_clust(index),
 			       length, 0)) {
@@ -1814,6 +1817,9 @@ btr_cur_update_in_place(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+	/* The insert buffer tree should never be updated in place. */
+	ut_ad(!dict_index_is_ibuf(index));
+
 	trx = thr_get_trx(thr);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 #ifdef UNIV_DEBUG
@@ -1950,6 +1956,8 @@ btr_cur_optimistic_update(
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* The insert buffer tree should never be updated in place. */
+	ut_ad(!dict_index_is_ibuf(index));
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
@@ -2213,6 +2221,8 @@ btr_cur_pessimistic_update(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
+	/* The insert buffer tree should never be updated in place. */
+	ut_ad(!dict_index_is_ibuf(index));
 
 	optim_err = btr_cur_optimistic_update(flags, cursor, update,
 					      cmpl_info, thr, mtr);
@@ -2916,10 +2926,12 @@ btr_cur_optimistic_delete(
 #endif /* UNIV_ZIP_DEBUG */
 
 		if (dict_index_is_clust(cursor->index)
+		    || dict_index_is_ibuf(cursor->index)
 		    || !page_is_leaf(page)) {
 			/* The insert buffer does not handle
-			inserts to clustered indexes or to non-leaf
-			pages of secondary index B-trees. */
+			inserts to clustered indexes, to
+			non-leaf pages of secondary index B-trees,
+			or to the insert buffer. */
 		} else if (page_zip) {
 			ibuf_update_free_bits_zip(block, mtr);
 		} else {
