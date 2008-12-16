@@ -324,6 +324,9 @@ ConfigManager::init(void)
   if (m_opts.initial && !delete_saved_configs())
     DBUG_RETURN(false);
 
+  if (failed_config_change_exists())
+    DBUG_RETURN(false);
+
   BaseString config_bin_name;
   if (saved_config_exists(config_bin_name))
   {
@@ -1691,8 +1694,8 @@ ConfigManager::delete_saved_configs(void) const
   const char* name;
   unsigned nodeid;
   char extra; // Avoid matching ndb_2_config.bin.2.tmp
-  unsigned version, max_version= 0;
   BaseString full_name;
+  unsigned version;
   while ((name= iter.next_file()) != NULL)
   {
     if (sscanf(name,
@@ -1755,6 +1758,47 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
   config_name.assfmt("%s%sndb_%u_config.bin.%u", 
                      m_configdir, DIR_SEPARATOR, m_node_id, max_version);
   return true;
+}
+
+
+
+bool
+ConfigManager::failed_config_change_exists() const
+{
+  DirIterator iter;
+
+  if (iter.open(m_configdir) != 0)
+    return false;
+
+  const char* name;
+  char tmp;
+  unsigned nodeid;
+  unsigned version;
+  while ((name= iter.next_file()) != NULL)
+  {
+    // Check for a previously failed config
+    // change, ie. ndb_<nodeid>_config.bin.X.tmp exist
+    if (sscanf(name,
+               "ndb_%u_config.bin.%u.tm%c",
+               &nodeid, &version, &tmp) == 3 &&
+        tmp == 'p')
+    {
+      if (nodeid != m_node_id)
+        continue;
+
+      g_eventLogger->error("Found binary configuration file '%s%s%s' from "
+                           "previous failed attempt to change config. This "
+                           "error must be manually resolved by removing the "
+                           "file(ie. ROLLBACK) or renaming the file to it's "
+                           "name without the .tmp extension(ie COMMIT). Make "
+                           "sure to check the other nodes so that they all "
+                           "have the same configuration generation.",
+                           m_configdir, DIR_SEPARATOR, name);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 
