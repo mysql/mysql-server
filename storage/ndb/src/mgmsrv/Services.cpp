@@ -2029,10 +2029,8 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     }
     delete decoded;
 
-    int res;
     Config new_config(cvf.getConfigValues());
-    if ((res= m_mgmsrv.change_config(new_config)) != 0)
-      result.assfmt("error: %d", res);
+    (void)m_mgmsrv.change_config(new_config, result);
   }
 
 done:
