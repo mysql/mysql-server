@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <ctype.h>
 
 #include <uucode.h>
 #include <socket_io.h>
@@ -291,6 +290,18 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("ndbinfo", &MgmApiSession::getNdbInfo, ""),
     MGM_ARG("query", String, Mandatory, "SQL-Like Query"),
+
+  MGM_CMD("show config", &MgmApiSession::showConfig, ""),
+    MGM_ARG("Section", String, Optional, "Section name"),
+    MGM_ARG("NodeId", Int, Optional, "Nodeid"),
+    MGM_ARG("Name", String, Optional, "Parameter name"),
+
+  MGM_CMD("reload config", &MgmApiSession::reloadConfig, ""),
+    MGM_ARG("config_filename", String, Optional, "Reload from path"),
+    MGM_ARG("mycnf", Int, Optional, "Reload from my.cnf"),
+    MGM_ARG("force", Int, Optional, "Force reload"),
+
+  MGM_CMD("show variables", &MgmApiSession::show_variables, ""),
 
   MGM_END()
 };
@@ -2068,13 +2079,61 @@ void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
   return ;
 }
 
-#if 0
-  // TODO Magnus, "get variables"
-  ndbout_c("NdbConfig_get_path(0): %s", NdbConfig_get_path(0));
-  ndbout_c("opt_ndb_connectstring: %s", opt_ndb_connectstring);
-  ndbout_c("NDB_CONNECTSTRING: %s", getenv("NDB_CONNECTSTRING"));
-  ndbout_c("datadir: %s", opts.datadir);
-#endif
+
+void MgmApiSession::showConfig(Parser_t::Context &ctx, Properties const &args)
+{
+  const char* section = NULL;
+  const char* name = NULL;
+  Uint32 nodeid = 0;
+
+  args.get("Section", &section);
+  args.get("NodeId", &nodeid);
+  args.get("Name", &name);
+
+  NdbOut socket_out(*m_output, false /* turn off autoflush */);
+  m_output->println("show config reply");
+  m_mgmsrv.print_config(section, nodeid, name,
+                        socket_out);
+  m_output->println("");
+}
+
+
+void
+MgmApiSession::reloadConfig(Parser_t::Context &,
+                            const class Properties &args)
+{
+  const char* config_filename= NULL;
+  Uint32 mycnf = 0;
+
+  args.get("config_filename", &config_filename);
+  args.get("mycnf", &mycnf);
+
+  g_eventLogger->debug("config_filename: %s, mycnf: %s",
+                       str_null(config_filename),
+                       yes_no(mycnf));
+
+  m_output->println("reload config reply");
+
+  BaseString msg;
+  if (!m_mgmsrv.reload_config(config_filename, (mycnf != 0), msg))
+    m_output->println("result: %s", msg.c_str());
+  else
+    m_output->println("result: Ok");
+
+  m_output->println("");
+}
+
+
+void
+MgmApiSession::show_variables(Parser_t::Context &,
+                              const class Properties &args)
+{
+  m_output->println("show variables reply");
+  NdbOut socket_out(*m_output, false /* turn off autoflush */);
+  m_mgmsrv.show_variables(socket_out);
+  m_output->println("");
+
+}
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

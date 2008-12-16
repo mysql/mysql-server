@@ -411,8 +411,7 @@ MgmtSrvr::init()
 
   if (m_opts.print_full_config)
   {
-    Guard g(m_local_config_mutex);
-    m_local_config->print();
+    print_config();
     DBUG_RETURN(false);
   }
 
@@ -3913,6 +3912,125 @@ MgmtSrvr::change_config(Config& new_config)
 
   return 0;
 }
+
+
+void
+MgmtSrvr::print_config(const char* section_filter, NodeId nodeid_filter,
+                       const char* param_filter,
+                       NdbOut& out)
+{
+  Guard g(m_local_config_mutex);
+  m_local_config->print(section_filter, nodeid_filter,
+                        param_filter, out);
+}
+
+
+bool
+MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
+                        BaseString& msg)
+{
+  if (config_filename && mycnf)
+  {
+    msg = "ERROR: Both mycnf and config_filename is not supported";
+    return false;
+  }
+
+  if (config_filename)
+  {
+    if (m_opts.mycnf)
+    {
+      msg.assfmt("ERROR: Can't switch to use config.ini '%s' when "
+                 "node was started from my.cnf", config_filename);
+      return false;
+    }
+  }
+  else
+  {
+    if (mycnf)
+    {
+      // Reload from my.cnf
+      if (!m_opts.mycnf)
+      {
+        if (m_opts.config_filename)
+        {
+          msg.assfmt("ERROR: Can't switch to use my.cnf when "
+                     "node was started from '%s'", m_opts.config_filename);
+          return false;
+        }
+      }
+    }
+    else
+    {
+      /* No config file name supplied and not told to use mycnf */
+      if (m_opts.config_filename)
+      {
+        g_eventLogger->info("No config file name supplied, using '%s'",
+                            m_opts.config_filename);
+        config_filename = m_opts.config_filename;
+      }
+      else
+      {
+        msg = "ERROR: Neither config file name or mycnf available";
+        return false;
+      }
+    }
+  }
+
+  Config* new_conf_ptr;
+  if ((new_conf_ptr= ConfigManager::load_config(config_filename,
+                                                mycnf, msg)) == NULL)
+    return false;
+  Config new_conf(new_conf_ptr);
+
+  {
+    Guard g(m_local_config_mutex);
+
+    /* Copy the necessary values from old to new config */
+    if (!new_conf.setGeneration(m_local_config->getGeneration()) ||
+        !new_conf.setName(m_local_config->getName()) ||
+        !new_conf.setPrimaryMgmNode(m_local_config->getPrimaryMgmNode()))
+    {
+      msg = "Failed to initialize reloaded config";
+      return false;
+    }
+  }
+
+  int res;
+  if ((res= change_config(new_conf)) != 0)
+  {
+    msg.assfmt("error: %d", res);
+    return false;
+  }
+
+  return true;
+}
+
+
+void
+MgmtSrvr::show_variables(NdbOut& out)
+{
+  out << "daemon: " << yes_no(m_opts.daemon) << endl;
+  out << "non_interactive: " << yes_no(m_opts.non_interactive) << endl;
+  out << "interactive: " << yes_no(m_opts.interactive) << endl;
+  out << "config_filename: " << str_null(m_opts.config_filename) << endl;
+  out << "mycnf: " << yes_no(m_opts.mycnf) << endl;
+  out << "bind_address: " << str_null(m_opts.bind_address) << endl;
+  out << "no_nodeid_checks: " << yes_no(m_opts.no_nodeid_checks) << endl;
+  out << "print_full_config: " << yes_no(m_opts.print_full_config) << endl;
+  out << "configdir: " << str_null(m_opts.configdir) << endl;
+  out << "verbose: " << yes_no(m_opts.verbose) << endl;
+  out << "reload: " << yes_no(m_opts.reload) << endl;
+
+  out << "nodeid: " << _ownNodeId << endl;
+  out << "blocknumber: " << hex <<_blockNumber << endl;
+  out << "own_reference: " << hex << _ownReference << endl;
+  out << "port: " << m_port << endl;
+  out << "need_restart: " << m_need_restart << endl;
+  out << "is_stop_thread: " << _isStopThread << endl;
+  out << "log_level_thread_sleep: " << _logLevelThreadSleep << endl;
+  out << "master_node: " << m_master_node << endl;
+}
+
 
 
 template class MutexVector<NodeId>;

@@ -64,7 +64,9 @@ const size_t num_sections= sizeof(sections)/sizeof(unsigned);
 static const ConfigInfo g_info;
 
 void
-Config::print() const {
+Config::print(const char* section_filter, NodeId nodeid_filter,
+              const char* param_filter,
+              NdbOut& out) const {
 
   for(unsigned i= 0; i < num_sections; i++) {
     unsigned section= sections[i];
@@ -84,7 +86,19 @@ Config::print() const {
                                            section,
                                            section_type);
 
-      ndbout_c("[%s]", g_info.sectionName(section, section_type));
+      const char* section_name= g_info.sectionName(section, section_type);
+
+      // Section name filter
+      if (section_filter &&                     // Filter is on
+          strcmp(section_filter, section_name)) // Value is different
+        continue;
+
+      // NodeId filter
+      Uint32 nodeid = 0;
+      it.get(CFG_NODE_ID, &nodeid);
+      if (nodeid_filter &&                   // Filter is on
+          nodeid_filter != nodeid)           // Value is different
+        continue;
 
       /*  Loop through the section and print those values that exist */
       Uint32 val;
@@ -92,12 +106,23 @@ Config::print() const {
       const char* val_str;
       while((pinfo= param_iter.next())){
 
+        // Param name filter
+        if (param_filter &&                      // Filter is on
+            strcmp(param_filter, pinfo->_fname)) // Value is different
+          continue;
+
+        if (section_name) // Print section name only first time
+        {
+          out << "[" << section_name << "]" << endl;
+          section_name= NULL;
+        }
+
         if (!it.get(pinfo->_paramId, &val))
-          ndbout_c("%s=%u", pinfo->_fname, val);
+          out << pinfo->_fname << "=" << val << endl;
         else if (!it.get(pinfo->_paramId, &val64))
-          ndbout_c("%s=%llu", pinfo->_fname, val64);
+          out << pinfo->_fname << "=" << val64 << endl;
         else if (!it.get(pinfo->_paramId, &val_str))
-          ndbout_c("%s=%s", pinfo->_fname, val_str);
+          out << pinfo->_fname << "=" << val_str << endl;
       }
     }
   }
@@ -115,6 +140,19 @@ Config::getGeneration() const
     return 0;
 
   return generation;
+}
+
+
+Uint32
+Config::getPrimaryMgmNode() const
+{
+  Uint32 primaryMgmNode;
+  ConfigIter iter(this, CFG_SECTION_SYSTEM);
+
+  if (iter.get(CFG_SYS_PRIMARY_MGM_NODE, &primaryMgmNode))
+    return 0;
+
+  return primaryMgmNode;
 }
 
 
@@ -167,6 +205,15 @@ Config::setGeneration(Uint32 new_gen)
   return setValue(CFG_SECTION_SYSTEM, 0,
                   CFG_SYS_CONFIG_GENERATION,
                   new_gen);
+}
+
+
+bool
+Config::setPrimaryMgmNode(Uint32 new_primary)
+{
+  return setValue(CFG_SECTION_SYSTEM, 0,
+                  CFG_SYS_PRIMARY_MGM_NODE,
+                  new_primary);
 }
 
 
