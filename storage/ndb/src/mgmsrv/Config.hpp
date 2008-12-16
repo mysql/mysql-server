@@ -36,7 +36,9 @@ public:
   Config(const Config*);
   virtual ~Config();
 
-  void print() const;
+  void print(const char* section_filter = NULL, NodeId nodeid_filter = NULL,
+             const char* param_filter = NULL,
+             NdbOut& out = ndbout) const;
 
   /*
     Returns generation of the config

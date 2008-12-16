@@ -61,6 +61,7 @@ public:
 
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
   void setConfig(Parser_t::Context &ctx, const class Properties &args);
+  void showConfig(Parser_t::Context &ctx, const class Properties &args);
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);

@@ -553,6 +553,11 @@ public:
   */
   bool getPackedConfig(UtilBuffer& pack_buf);
 
+  void print_config(const char* section_filter = NULL,
+                    NodeId nodeid_filter = 0,
+                    const char* param_filter = NULL,
+                    NdbOut& out = ndbout);
+
 };
 
 

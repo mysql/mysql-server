@@ -291,6 +291,11 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("ndbinfo", &MgmApiSession::getNdbInfo, ""),
     MGM_ARG("query", String, Mandatory, "SQL-Like Query"),
 
+  MGM_CMD("show config", &MgmApiSession::showConfig, ""),
+    MGM_ARG("Section", String, Optional, "Section name"),
+    MGM_ARG("NodeId", Int, Optional, "Nodeid"),
+    MGM_ARG("Name", String, Optional, "Parameter name"),
+
   MGM_END()
 };
 
@@ -2066,6 +2071,25 @@ void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
 
   return ;
 }
+
+
+void MgmApiSession::showConfig(Parser_t::Context &ctx, Properties const &args)
+{
+  const char* section = NULL;
+  const char* name = NULL;
+  Uint32 nodeid = 0;
+
+  args.get("Section", &section);
+  args.get("NodeId", &nodeid);
+  args.get("Name", &name);
+
+  NdbOut socket_out(*m_output, false /* turn off autoflush */);
+  m_output->println("show config reply");
+  m_mgmsrv.print_config(section, nodeid, name,
+                        socket_out);
+  m_output->println("");
+}
+
 
 #if 0
   // TODO Magnus, "get variables"

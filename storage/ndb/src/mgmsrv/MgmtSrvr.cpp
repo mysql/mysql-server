@@ -411,8 +411,7 @@ MgmtSrvr::init()
 
   if (m_opts.print_full_config)
   {
-    Guard g(m_local_config_mutex);
-    m_local_config->print();
+    print_config();
     DBUG_RETURN(false);
   }
 
@@ -3912,6 +3911,16 @@ MgmtSrvr::change_config(Config& new_config)
   return 0;
 }
 
+
+void
+MgmtSrvr::print_config(const char* section_filter, NodeId nodeid_filter,
+                       const char* param_filter,
+                       NdbOut& out)
+{
+  Guard g(m_local_config_mutex);
+  m_local_config->print(section_filter, nodeid_filter,
+                        param_filter, out);
+}
 
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
