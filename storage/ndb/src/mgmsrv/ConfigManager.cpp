@@ -321,6 +321,9 @@ ConfigManager::init(void)
   if (!init_nodeid())
     DBUG_RETURN(false);
 
+  if (m_opts.initial && !delete_saved_configs())
+    DBUG_RETURN(false);
+
   BaseString config_bin_name;
   if (saved_config_exists(config_bin_name))
   {
@@ -1651,6 +1654,70 @@ ConfigManager::fetch_config(void)
   }
 
   DBUG_RETURN(new Config(tmp));
+}
+
+
+static bool
+delete_file(const char* file_name)
+{
+#ifdef _WIN32
+  if (DeleteFile(file_name) == 0)
+  {
+    g_eventLogger->error("Failed to delete file '%s', error: %d",
+                         file_name, GetLastError());
+    return false;
+  }
+#else
+  if (unlink(file_name) == -1)
+  {
+    g_eventLogger->error("Failed to delete file '%s', error: %d",
+                         file_name, errno);
+    return false;
+  }
+#endif
+  return true;
+}
+
+
+bool
+ConfigManager::delete_saved_configs(void) const
+{
+  DirIterator iter;
+
+  if (iter.open(m_configdir) != 0)
+    return false;
+
+  bool result = true;
+  const char* name;
+  unsigned nodeid;
+  char extra; // Avoid matching ndb_2_config.bin.2.tmp
+  unsigned version, max_version= 0;
+  BaseString full_name;
+  while ((name= iter.next_file()) != NULL)
+  {
+    if (sscanf(name,
+               "ndb_%u_config.bin.%u%c",
+               &nodeid, &version, &extra) == 2)
+    {
+      // ndbout_c("match: %s", name);
+
+      if (nodeid != m_node_id)
+        continue;
+
+      // Delete the file
+      full_name.assfmt("%s%s%s", m_configdir, DIR_SEPARATOR, name);
+      g_eventLogger->debug("Deleting binary config file '%s'",
+                           full_name.c_str());
+      if (!delete_file(full_name.c_str()))
+      {
+        // Make function return false3, but continue and try
+        // to delete other files
+        result = false;
+      }
+    }
+  }
+
+  return result;
 }
 
 
