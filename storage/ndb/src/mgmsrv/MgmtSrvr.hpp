@@ -562,6 +562,8 @@ public:
   bool reload_config(const char* config_filename,
                      bool mycnf, BaseString& msg);
 
+  void show_variables(NdbOut& out = ndbout);
+
 };
 
 
