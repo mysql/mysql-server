@@ -363,7 +363,7 @@ public:
 		     int &error_code, BaseString &error_string,
                      int log_event = 1);
 
-  int change_config(Config& new_config);
+  bool change_config(Config& new_config, BaseString& msg);
 
   /**
    *
