@@ -1188,7 +1188,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
        * m_buffer_ptr point the end of the left data. buffer_data_start point the start of left data
        * m_buffer_data_left is the length of left data.
        */
-      Uint32 file_left_entry_data = 0;
+      Uint64 file_left_entry_data = 0;
       Uint32 buffer_free_space = m_buffer_sz - m_buffer_data_left;
       void * buffer_end = (char *)m_buffer + m_buffer_sz;
       void * buffer_data_start = (char *)m_buffer_ptr - m_buffer_data_left;

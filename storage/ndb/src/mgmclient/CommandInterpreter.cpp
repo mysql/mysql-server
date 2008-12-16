@@ -3000,7 +3000,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
         invalid_command(parameters);
         return -1;
       }
-      b_nowait == true;
+      b_nowait = true;
       flags = 0;
       continue;
     }
@@ -3011,12 +3011,12 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
       }
       if (i+1 < sz) {
         if (args[i+1] == "COMPLETED") {
-          b_wait_completed == true;
+          b_wait_completed = true;
           flags = 2; 
           i++;
         }
         else if (args[i+1] == "STARTED") {
-          b_wait_started == true;
+          b_wait_started = true;
           flags = 1;
           i++;
         }
@@ -3036,9 +3036,9 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   }
 
   //print message
-  if (b_wait_completed)
+  if (flags == 2)
     ndbout_c("Waiting for completed, this may take several minutes");
-  if (b_wait_started)
+  if (flags == 1)
     ndbout_c("Waiting for started, this may take several minutes");
 
   NdbLogEventHandle log_handle= NULL;
