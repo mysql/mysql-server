@@ -76,7 +76,8 @@ buf_pool_get_oldest_modification(void)
 	buf_page_t*	bpage;
 	ib_uint64_t	lsn;
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&flush_list_mutex);
 
 	bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
@@ -87,7 +88,8 @@ buf_pool_get_oldest_modification(void)
 		lsn = bpage->oldest_modification;
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	mutex_exit(&flush_list_mutex);
 
 	return(lsn);
 }
@@ -101,7 +103,8 @@ buf_pool_clock_tic(void)
 /*====================*/
 			/* out: new clock value */
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
+	ut_ad(mutex_own(&LRU_list_mutex));
 
 	buf_pool->ulint_clock++;
 
@@ -382,7 +385,7 @@ buf_page_set_io_fix(
 	buf_page_t*	bpage,	/* in/out: control block */
 	enum buf_io_fix	io_fix)	/* in: io_fix state */
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	bpage->io_fix = io_fix;
@@ -410,7 +413,7 @@ buf_page_can_relocate(
 /*==================*/
 	const buf_page_t*	bpage)	/* control block being relocated */
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
@@ -443,7 +446,8 @@ buf_page_set_old(
 	ibool		old)	/* in: old */
 {
 	ut_a(buf_page_in_file(bpage));
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
+	ut_ad(mutex_own(&LRU_list_mutex));
 	ut_ad(bpage->in_LRU_list);
 
 #ifdef UNIV_LRU_DEBUG
@@ -659,9 +663,9 @@ buf_frame_get_page_zip(
 	const byte*	ptr)	/* in: pointer to the page */
 {
 	const page_zip_des_t*	page_zip;
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
 	page_zip = buf_block_get_page_zip(buf_block_align(ptr));
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
 	return(page_zip);
 }
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
@@ -726,7 +730,7 @@ buf_block_free(
 /*===========*/
 	buf_block_t*	block)	/* in, own: block to be freed */
 {
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
 
 	mutex_enter(&block->mutex);
 
@@ -736,7 +740,7 @@ buf_block_free(
 
 	mutex_exit(&block->mutex);
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
 }
 
 /*************************************************************************
@@ -781,14 +785,17 @@ buf_page_io_query(
 	buf_page_t*	bpage)	/* in: buf_pool block, must be bufferfixed */
 {
 	ibool	io_fixed;
+	mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(block_mutex);
 
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->buf_fix_count > 0);
 
 	io_fixed = buf_page_get_io_fix(bpage) != BUF_IO_NONE;
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	mutex_exit(block_mutex);
 
 	return(io_fixed);
 }
@@ -805,8 +812,10 @@ buf_page_get_newest_modification(
 					page frame */
 {
 	ib_uint64_t	lsn;
+	mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(block_mutex);
 
 	if (buf_page_in_file(bpage)) {
 		lsn = bpage->newest_modification;
@@ -814,7 +823,8 @@ buf_page_get_newest_modification(
 		lsn = 0;
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	mutex_exit(block_mutex);
 
 	return(lsn);
 }
@@ -914,7 +924,8 @@ buf_page_hash_get(
 	ulint		fold;
 
 	ut_ad(buf_pool);
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
+	ut_ad(mutex_own(&page_hash_mutex));
 
 	/* Look for the page in the hash table */
 
@@ -961,11 +972,13 @@ buf_page_peek(
 {
 	const buf_page_t*	bpage;
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&page_hash_mutex);
 
 	bpage = buf_page_hash_get(space, offset);
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	mutex_exit(&page_hash_mutex);
 
 	return(bpage != NULL);
 }
@@ -1028,9 +1041,11 @@ buf_page_release(
 	ut_a(block->page.buf_fix_count > 0);
 
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
-		buf_pool_mutex_enter();
+		//buf_pool_mutex_enter();
+		mutex_enter(&flush_list_mutex);
 		buf_flush_note_modification(block, mtr);
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&flush_list_mutex);
 	}
 
 	mutex_enter(&block->mutex);

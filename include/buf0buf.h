@@ -1055,10 +1055,10 @@ struct buf_page_struct{
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
-#ifdef UNIV_DEBUG
+//#ifdef UNIV_DEBUG
 	ibool		in_LRU_list;	/* TRUE if the page is in the LRU list;
 					used in debugging */
-#endif /* UNIV_DEBUG */
+//#endif /* UNIV_DEBUG */
 	unsigned	old:1;		/* TRUE if the block is in the old
 					blocks in the LRU list */
 	unsigned	LRU_position:31;/* value which monotonically decreases
@@ -1310,6 +1310,12 @@ struct buf_pool_struct{
 /* mutex protecting the buffer pool struct and control blocks, except the
 read-write lock in them */
 extern mutex_t	buf_pool_mutex;
+extern mutex_t	LRU_list_mutex;
+extern mutex_t	flush_list_mutex;
+extern mutex_t	page_hash_mutex;
+extern mutex_t	free_list_mutex;
+extern mutex_t	zip_free_mutex;
+extern mutex_t	zip_hash_mutex;
 /* mutex protecting the control blocks of compressed-only pages
 (of type buf_page_t, not buf_block_t) */
 extern mutex_t	buf_pool_zip_mutex;
