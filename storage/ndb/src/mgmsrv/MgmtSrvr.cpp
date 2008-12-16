@@ -3115,7 +3115,7 @@ MgmtSrvr::eventReport(const Uint32 * theData, Uint32 len)
  ***************************************************************************/
 
 int
-MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId)
+MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId, Uint32 backuppoint)
 {
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
@@ -3152,6 +3152,8 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
   req->backupDataLen = 0;
   assert(waitCompleted < 3);
   req->flags = waitCompleted & 0x3;
+  if(backuppoint == 1)
+    req->flags |= BackupReq::USE_UNDO_LOG;
 
   BackupEvent event;
   int do_send = 1;

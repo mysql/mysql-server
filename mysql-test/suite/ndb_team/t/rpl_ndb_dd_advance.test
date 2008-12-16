@@ -299,7 +299,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) E
 DELETE FROM mysql.backup_info;
 
 LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
---exec rm $MYSQLTEST_VARDIR/tmp.dat || true
+--remove_file $MYSQLTEST_VARDIR/tmp.dat
 --replace_column 1 <the_backup_id>
 
 SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
@@ -423,7 +423,7 @@ diff_files $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_A
 
 ## Note: Ths files should only get removed, if the above diff succeeds.
 
---exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
---exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
 
 # End 5.1 test case

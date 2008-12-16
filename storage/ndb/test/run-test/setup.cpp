@@ -52,14 +52,14 @@ bool
 setup_config(atrt_config& config, const char* atrt_mysqld)
 {
   BaseString tmp(g_clusters);
+  
+  if (atrt_mysqld)
+  {
+    tmp.appfmt(",.atrt");
+  }
   Vector<BaseString> clusters;
   tmp.split(clusters, ",");
 
-  if (atrt_mysqld)
-  {
-    clusters.push_back(BaseString(".atrt"));
-  }
-  
   bool fqpn = clusters.size() > 1 || g_fqpn;
   
   size_t j,k;
@@ -134,6 +134,7 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
       proc_args[1].value = 0;
       proc_args[2].value = 0;      
       proc_args[3].value = 0;      
+      proc_args[4].value = atrt_mysqld;
     }
 
     /**
@@ -157,10 +158,11 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
       /**
        * Load cluster options
        */
-      
-      argc = 1;
+      int argc = 1;
+      const char * argv[] = { "atrt", 0, 0 };
       argv[argc++] = buf.c_str();
       const char *groups[] = { "mysql_cluster", 0 };
+      char ** tmp = (char**)argv;
       ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
       
       if (ret)
@@ -204,7 +206,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
 {
   atrt_host * host_ptr = find(hostname, config.m_hosts);
   atrt_process *proc_ptr = new atrt_process;
-  
+
   config.m_processes.push_back(proc_ptr);
   host_ptr->m_processes.push_back(proc_ptr);
   cluster.m_processes.push_back(proc_ptr);
@@ -215,6 +217,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_index = idx;
   proc.m_type = type;
   proc.m_host = host_ptr;
+  proc.m_save.m_saved = false;
   proc.m_nodeid= cluster.m_next_nodeid++;
   proc.m_cluster = &cluster;
   proc.m_options.m_features = 0;

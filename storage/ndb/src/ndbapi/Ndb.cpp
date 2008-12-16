@@ -382,7 +382,7 @@ Ndb::computeHash(Uint32 *retval,
     UintPtr use = (org + 7) & ~(UintPtr)7;
 
     buf = (void*)use;
-    bufLen -= (use - org);
+    bufLen -= Uint32(use - org);
 
     if (unlikely(sumlen > bufLen))
       goto ebuftosmall;
@@ -440,7 +440,7 @@ Ndb::computeHash(Uint32 *retval,
       pos += len;
     }
   }
-  len = UintPtr(pos) - UintPtr(buf);
+  len = Uint32(UintPtr(pos) - UintPtr(buf));
   assert((len & 3) == 0);
 
   Uint32 values[4];
@@ -497,7 +497,7 @@ Ndb::computeHash(Uint32 *retval,
     UintPtr use = (org + 7) & ~(UintPtr)7;
 
     buf = (void*)use;
-    bufLen -= (use - org);
+    bufLen -= Uint32(use - org);
   }
 
   for (Uint32 i = 0; i < parts; i++)
@@ -575,7 +575,7 @@ Ndb::computeHash(Uint32 *retval,
     }
     pos += len;
   }
-  len = UintPtr(pos) - UintPtr(buf);
+  len = Uint32(UintPtr(pos) - UintPtr(buf));
   assert((len & 3) == 0);
 
   Uint32 values[4];
