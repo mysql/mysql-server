@@ -33,6 +33,8 @@ struct MgmtSrvrId {
   MgmtSrvrId_Type type;
   BaseString name;
   unsigned int port;
+  BaseString bind_address;
+  unsigned int bind_address_port;
 };
 
 struct LocalConfig {
@@ -42,6 +44,9 @@ struct LocalConfig {
   
   int error_line;
   char error_msg[256];
+
+  BaseString bind_address;
+  unsigned int bind_address_port;
 
   LocalConfig();
   ~LocalConfig();
@@ -58,6 +63,7 @@ struct LocalConfig {
   
   bool parseNodeId(const char *buf);
   bool parseHostName(const char *buf);
+  bool parseBindAddress(const char *buf);
   bool parseFileName(const char *buf);
   bool parseString(const char *buf, BaseString &err);
   char * makeConnectString(char *buf, int sz);

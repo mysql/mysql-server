@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4372,13 +4372,16 @@ void st_table::clear_column_bitmaps()
 void st_table::prepare_for_position()
 {
   DBUG_ENTER("st_table::prepare_for_position");
-
-  if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-      s->primary_key < MAX_KEY)
+  
+  if (s->primary_key < MAX_KEY)
   {
-    mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-    /* signal change */
-    file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
+    if (file->ha_table_flags() & (HA_PRIMARY_KEY_IN_READ_INDEX |
+                                  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
+    {
+      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+      /* signal change */
+      file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
+    }
   }
   DBUG_VOID_RETURN;
 }

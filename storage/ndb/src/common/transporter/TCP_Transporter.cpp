@@ -69,6 +69,16 @@ setIf(int& ref, Uint32 val, Uint32 def)
     ref = def;
 }
 
+
+static
+Uint32 overload_limit(const TransporterConfiguration* conf)
+{
+  return (conf->tcp.tcpOverloadLimit ?
+          conf->tcp.tcpOverloadLimit :
+          conf->tcp.sendBufferSize*4/5);
+}
+
+
 TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 				 const TransporterConfiguration* conf)
   :
@@ -99,9 +109,24 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 71540);
   setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
 
-  m_overload_limit = conf->tcp.tcpOverloadLimit ?
-    conf->tcp.tcpOverloadLimit : conf->tcp.sendBufferSize*4/5;
+  m_overload_limit = overload_limit(conf);
 }
+
+
+bool
+TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
+{
+  if (conf->tcp.sendBufferSize == m_max_send_buffer &&
+      conf->tcp.maxReceiveSize == maxReceiveSize &&
+      (int)conf->tcp.tcpSndBufSize == sockOptSndBufSize &&
+      (int)conf->tcp.tcpRcvBufSize == sockOptRcvBufSize &&
+      (int)conf->tcp.tcpMaxsegSize == sockOptTcpMaxSeg &&
+      overload_limit(conf) == m_overload_limit)
+    return true; // No change
+ndbout_c("configure_derived, can't reconfigure");
+  return false; // Can't reconfigure
+}
+
 
 TCP_Transporter::~TCP_Transporter() {
   

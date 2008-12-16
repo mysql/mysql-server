@@ -956,13 +956,25 @@ CommandInterpreter::connect(bool interactive)
 
   m_mgmsrv = ndb_mgm_create_handle();
   if(m_mgmsrv == NULL) {
-    ndbout_c("Cannot create handle to management server.");
+    ndbout_c("Can't create handle to management server.");
+    exit(-1);
+  }
+  if (ndb_mgm_set_ignore_sigpipe(m_mgmsrv, 0)) {
+    ndbout_c("Can't set 'ignore_sigpipe', error: %d - %s",
+             ndb_mgm_get_latest_error(m_mgmsrv),
+             ndb_mgm_get_latest_error_desc(m_mgmsrv));
     exit(-1);
   }
   if (interactive) {
     m_mgmsrv2 = ndb_mgm_create_handle();
     if(m_mgmsrv2 == NULL) {
-      ndbout_c("Cannot create 2:nd handle to management server.");
+      ndbout_c("Can't create 2:nd handle to management server.");
+      exit(-1);
+    }
+    if (ndb_mgm_set_ignore_sigpipe(m_mgmsrv2, 0)) {
+      ndbout_c("Can't set 'ignore_sigpipe', error: %d - %s",
+               ndb_mgm_get_latest_error(m_mgmsrv2),
+               ndb_mgm_get_latest_error_desc(m_mgmsrv2));
       exit(-1);
     }
   }
@@ -2224,8 +2236,33 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return -1;
   }
 
-  if (nostart)
-    ndbout_c("Shutting down nodes with \"-n, no start\" option, to subsequently start the nodes.");
+  struct ndb_mgm_cluster_state *cl = ndb_mgm_get_status(m_mgmsrv);
+  if(cl == NULL)
+  {
+    ndbout_c("Could not get status");
+    printError();
+    return -1;
+  }
+  NdbAutoPtr<char> ap1((char*)cl);
+
+  for (int i= 0; i < no_of_nodes; i++)
+  {
+    int j = 0;
+    while((j < cl->no_of_nodes) && cl->node_states[j].node_id != node_ids[i])
+      j++;
+
+    if(cl->node_states[j].node_id != node_ids[i])
+    {
+      ndbout << node_ids[i] << ": Node not found" << endl;
+      return -1;
+    }
+
+    if(cl->node_states[j].node_type == NDB_MGM_NODE_TYPE_MGM)
+    {
+      ndbout << "Shutting down MGM node"
+	     << " " << node_ids[i] << " for restart" << endl;
+    }
+  }
 
   result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
                            initialstart, nostart, abort, &need_disconnect);
@@ -2282,10 +2319,10 @@ print_status(const ndb_mgm_node_state * state)
          << ": " << status_string(state->node_status);
   switch(state->node_status){
   case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << " (Phase " << state->start_phase << ")";
+    ndbout << " (Last completed phase " << state->start_phase << ")";
     break;
   case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
-    ndbout << " (Phase " << state->start_phase << ")";
+    ndbout << " (Last completed phase " << state->start_phase << ")";
     break;
   default:
     break;
@@ -2321,7 +2358,7 @@ CommandInterpreter::executeStatus(int processId,
   cl = ndb_mgm_get_status2(m_mgmsrv, all ? types : 0);
   if(cl == NULL) 
   {
-    ndbout_c("Cannot get status of node %d.", processId);
+    ndbout_c("Can't get status of node %d.", processId);
     printError();
     return -1;
   }
@@ -2439,7 +2476,7 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
     struct ndb_mgm_cluster_state *cl = ndb_mgm_get_status(m_mgmsrv);
     if (cl == NULL)
     {
-      ndbout_c("Cannot get status of node %d.", processId);
+      ndbout_c("Can't get status of node %d.", processId);
       printError();
       return -1;
     }

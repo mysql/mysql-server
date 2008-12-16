@@ -109,6 +109,13 @@ public:
   bool open(const char* aFileName, const char* mode);
 
   /**
+   * Check if the file is open
+   *
+   * @return true if file is open, false if closed
+   */
+  bool is_open();
+
+  /**
    * Removes the file.
    *
    * @return true if successful.

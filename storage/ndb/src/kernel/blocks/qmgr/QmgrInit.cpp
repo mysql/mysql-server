@@ -100,6 +100,7 @@ Qmgr::Qmgr(Block_context& ctx)
   // Received signals
   addRecSignal(GSN_CONNECT_REP, &Qmgr::execCONNECT_REP);
   addRecSignal(GSN_NDB_FAILCONF, &Qmgr::execNDB_FAILCONF);
+  addRecSignal(GSN_NF_COMPLETEREP, &Qmgr::execNF_COMPLETEREP);
   addRecSignal(GSN_READ_CONFIG_REQ, &Qmgr::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Qmgr::execSTTOR);
   addRecSignal(GSN_CLOSE_COMCONF, &Qmgr::execCLOSE_COMCONF);

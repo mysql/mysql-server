@@ -51,14 +51,17 @@ void Dbtup::initData()
   cpackedListIndex = 0;
 }//Dbtup::initData()
 
-Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
+Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   : SimulatedBlock(DBTUP, ctx, instanceNumber),
     c_lqh(0),
-    c_pgman(pgman),
+    c_tsman(0),
+    c_lgman(0),
+    c_pgman(0),
     c_extent_hash(c_extent_pool),
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
-    c_undo_buffer(&ctx.m_mm)
+    c_undo_buffer(&ctx.m_mm),
+    f_undo_done(true)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
 
@@ -127,6 +130,53 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
   RSS_OP_COUNTER_INIT(cnoOfFreeFragoprec);
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
   RSS_OP_COUNTER_INIT(cnoOfFreeTabDescrRec);
+
+  {
+    CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
+    ce.m_function = TheNULLCallback.m_callbackFunction;
+    ce.m_flags = 0;
+  }
+  { // 1
+    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_LOGSYNC_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::undo_createtable_logsync_callback);
+    ce.m_flags = 0;
+  }
+  { // 2
+    CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOGSYNC_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::drop_table_logsync_callback);
+    ce.m_flags = 0;
+  }
+  { // 3
+    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::undo_createtable_callback);
+    ce.m_flags = 0;
+  }
+  { // 4
+    CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOG_BUFFER_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::drop_table_log_buffer_callback);
+    ce.m_flags = 0;
+  }
+  { // 5
+    CallbackEntry& ce = m_callbackEntry[DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
+    ce.m_flags = 0;
+  }
+  { // 6
+    CallbackEntry& ce = m_callbackEntry[NR_DELETE_LOG_BUFFER_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::nr_delete_log_buffer_callback);
+    ce.m_flags = 0;
+  }
+  { // 7
+    CallbackEntry& ce = m_callbackEntry[DISK_PAGE_LOG_BUFFER_CALLBACK];
+    ce.m_function = safe_cast(&Dbtup::disk_page_log_buffer_callback);
+    ce.m_flags = 0;
+  }
+  {
+    CallbackTable& ct = m_callbackTable;
+    ct.m_count = COUNT_CALLBACKS;
+    ct.m_entry = m_callbackEntry;
+    m_callbackTableAddr = &ct;
+  }
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
@@ -162,6 +212,19 @@ Dbtup::~Dbtup()
 		cnoOfTabDescrRec);
   
 }//Dbtup::~Dbtup()
+
+Dbtup::Apply_undo::Apply_undo()
+{
+  m_type = 0;
+  m_len = 0;
+  m_ptr = 0;
+  m_lsn = (Uint64)0;
+  m_table_ptr.setNull();
+  m_fragment_ptr.setNull();
+  m_page_ptr.setNull();
+  m_extent_ptr.setNull();
+  m_key.setNull();
+}
 
 BLOCK_FUNCTIONS(Dbtup)
 
@@ -271,6 +334,27 @@ void Dbtup::execCONTINUEB(Signal* signal)
     rebuild_page_free_list(signal);
     return;
   }
+  case ZDISK_RESTART_UNDO:
+  {
+    jam();
+    if (!assembleFragments(signal)) {
+      jam();
+      return;
+    }
+    Uint32 type = signal->theData[1];
+    Uint32 len = signal->theData[2];
+    Uint64 lsn_hi = signal->theData[3];
+    Uint64 lsn_lo = signal->theData[4];
+    Uint64 lsn = (lsn_hi << 32) | lsn_lo;
+    SectionHandle handle(this, signal);
+    ndbrequire(handle.m_cnt == 1);
+    SegmentedSectionPtr ssptr;
+    handle.getSection(ssptr, 0);
+    ::copy(c_proxy_undo_data, ssptr);
+    releaseSections(handle);
+    disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);
+    return;
+  }
 
   default:
     ndbrequire(false);
@@ -294,6 +378,7 @@ void Dbtup::execSTTOR(Signal* signal)
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
+    ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN, instance())) != 0);
     cownref = calcInstanceBlockRef(DBTUP);
     break;
   default:

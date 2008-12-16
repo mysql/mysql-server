@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ BaseString::BaseString(const char* s)
     {
       m_chr = NULL;
       m_len = 0;
+      return;
     }
     const size_t n = strlen(s);
     m_chr = new char[n + 1];
@@ -83,6 +84,8 @@ BaseString::assign(const char* s)
 {
     if (s == NULL)
     {
+      if (m_chr)
+        delete[] m_chr;
       m_chr = NULL;
       m_len = 0;
       return *this;
@@ -135,6 +138,9 @@ BaseString::assign(const BaseString& str, size_t n)
 BaseString&
 BaseString::append(const char* s)
 {
+    if (s == NULL)
+      return *this;
+
     size_t n = strlen(s);
     char* t = new char[m_len + n + 1];
     if (t)
@@ -438,11 +444,13 @@ BaseString::trim(const char * delim){
 char*
 BaseString::trim(char * str, const char * delim){
     int len = strlen(str) - 1;
-    for(; len > 0 && strchr(delim, str[len]); len--);
-    
+    for(; len > 0 && strchr(delim, str[len]); len--)
+      ;
+
     int pos = 0;
-    for(; pos <= len && strchr(delim, str[pos]); pos++);
-    
+    for(; pos <= len && strchr(delim, str[pos]); pos++)
+      ;
+
     if(pos > len){
 	str[0] = 0;
 	return 0;
@@ -473,13 +481,9 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
 
 #ifdef TEST_BASE_STRING
 
-/*
-g++ -g -Wall -o tbs -DTEST_BASE_STRING -I$NDB_TOP/include/util \
-        -I$NDB_TOP/include/portlib BaseString.cpp
-valgrind ./tbs
-*/
+#include <NdbTap.hpp>
 
-int main()
+TAPTEST(BaseString)
 {
     BaseString s("abc");
     BaseString t(s);
@@ -543,7 +547,23 @@ int main()
 	assert(BaseString("abc\t\n\r kalleabc\t\r\n").trim("abc\t\r\n ") == "kalle");
 	assert(BaseString(" ").trim(" ") == "");
     }
-    return 0;
+
+    // Tests for BUG#38662
+    BaseString s2(NULL);
+    BaseString s3;
+    BaseString s4("elf");
+
+    assert(s3.append((const char*)NULL) == "");
+    assert(s4.append((const char*)NULL) == "elf");
+    assert(s4.append(s3) == "elf");
+    assert(s4.append(s2) == "elf");
+    assert(s4.append(s4) == "elfelf");
+
+    assert(s3.assign((const char*)NULL).c_str() == NULL);
+    assert(s4.assign((const char*)NULL).c_str() == NULL);
+    assert(s4.assign(s4).c_str() == NULL);
+
+    return 1; // OK
 }
 
 #endif

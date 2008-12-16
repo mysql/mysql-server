@@ -405,6 +405,23 @@ extern "C" {
    */
   void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
 
+  /**
+   * Set 'ignore_sigpipe' behaviour
+   *
+   * The mgmapi will by default install a signal handler
+   * that ignores all SIGPIPE signals that might occur when
+   * writing to an already closed or reset socket. An application
+   * that wish to use its own handler for SIGPIPE should call this
+   * function after 'ndb_mgm_create_handle' and before
+   * 'ndb_mgm_connect'(where the signal handler is installed)
+   *
+   * @param   handle        Management handle
+   * @param   val           Value
+   *                        0 - Don't ignore SIGPIPE
+   *                        1 - Ignore SIGPIPE(default)
+   */
+  int ndb_mgm_set_ignore_sigpipe(NdbMgmHandle handle, int val);
+
   /** @} *********************************************************************/
   /**
    * @name Functions: Connect/Disconnect Management Server
@@ -554,6 +571,15 @@ extern "C" {
    */
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
 
+  /**
+   * Gets connection bind address
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 hostname
+   */
+  const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
@@ -642,6 +668,24 @@ extern "C" {
   struct ndb_mgm_cluster_state * 
   ndb_mgm_get_status2(NdbMgmHandle handle,
                       const enum ndb_mgm_node_type types[]);
+                      
+
+
+  /**
+   * Dump state
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId the node id.
+   * @param args integer array
+   * @param number of args in int array
+   * @param reply the reply message.
+   * @return 0 if successful or an error code.
+   */
+  int ndb_mgm_dump_state(NdbMgmHandle handle,
+			 int nodeId,
+			 const int * args,
+			 int num_args,
+			 struct ndb_mgm_reply* reply);
 
   /** @} *********************************************************************/
   /**

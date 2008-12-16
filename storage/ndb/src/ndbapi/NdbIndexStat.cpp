@@ -65,7 +65,7 @@ NdbIndexStat::alloc_cache(Uint32 entries)
   for (idir = 0; idir <= 1; idir++) {
     Area& a = m_area[idir];
     a.m_data = &m_cache[idir * areasize];
-    a.m_offset = a.m_data - &m_cache[0];
+    a.m_offset = Uint32(a.m_data - &m_cache[0]);
     a.m_free = areasize;
     a.m_entries = 0;
     a.m_idir = idir;
@@ -633,7 +633,8 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   }
 
   *count = rows;
-  DBUG_PRINT("value", ("rows=%llu flags=%o", rows, flags));
+  DBUG_PRINT("value", ("rows=%u/%u flags=%x",
+                       (unsigned)(rows>>32), (unsigned)(rows), flags));
   DBUG_RETURN(0);
 }
 

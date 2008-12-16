@@ -479,16 +479,26 @@ Dbtup::readFixedSizeTHTwoWordNotNULL(Uint8* outBuffer,
   }
 }
 
-static
-inline
+
+static inline
 void
-zero32(Uint8* dstPtr, Uint32 len)
+zero32(Uint8* dstPtr, const Uint32 len)
 {
-  while ((len & 3) != 0) 
+  Uint32 odd = len & 3;
+  if (odd != 0)
   {
-    dstPtr[len++] = 0;
+    Uint32 aligned = len & ~3;
+    Uint8* dst = dstPtr+aligned;
+    switch(odd){     /* odd is: {1..3} */
+    case 1:
+      dst[1] = 0;
+    case 2:
+      dst[2] = 0;
+    default:         /* Known to be odd==3 */
+      dst[3] = 0;
+    }
   }
-}
+} 
 
 bool
 Dbtup::readFixedSizeTHManyWordNotNULL(Uint8* outBuffer,

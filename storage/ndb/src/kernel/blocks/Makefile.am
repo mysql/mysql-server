@@ -41,6 +41,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbtup/DbtupDebug.cpp dbtup/DbtupScan.cpp \
   dbtup/DbtupDiskAlloc.cpp dbtup/DbtupVarAlloc.cpp \
   dbtup/tuppage.cpp dbtup/Undo_buffer.cpp \
+  ndbfs/AsyncIoThread.cpp \
   ndbfs/PosixAsyncFile.cpp ndbfs/AsyncFile.cpp \
   ndbfs/Ndbfs.cpp \
   ndbfs/VoidFs.cpp \
@@ -64,7 +65,9 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   RestoreProxy.cpp \
   dbinfo/Dbinfo.cpp \
   dbinfo/ndbinfo_helpers.cpp \
-  dblqh/DblqhCommon.cpp
+  dblqh/DblqhCommon.cpp \
+  PgmanProxy.cpp \
+  dbtup/DbtupClient.cpp
 
 EXTRA_PROGRAMS = ndb_print_file
 ndb_print_file_SOURCES = print_file.cpp diskpage.cpp dbtup/tuppage.cpp

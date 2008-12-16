@@ -24,7 +24,7 @@
  */
 #define MAX_NDB_NODES 49
 #define MAX_NODES     256
-#define UNDEF_NODEGROUP 0xFFFF
+#define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
 
 /**************************************************************************
@@ -68,7 +68,7 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-#define MAX_TABLES 20320                /* SchemaFile.hpp */
+#define NDB_MAX_TABLES 20320                /* SchemaFile.hpp */
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE NAME_LEN       /* From mysql_com.h */
 #define MAX_ATTR_DEFAULT_VALUE_SIZE 128
@@ -186,5 +186,7 @@
 
 #define MAX_NDBMT_LQH_WORKERS 4
 #define MAX_NDBMT_LQH_THREADS 4
+
+#define NDB_FILE_BUFFER_SIZE (256*1024)
 
 #endif

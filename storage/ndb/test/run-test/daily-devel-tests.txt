@@ -133,6 +133,10 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n FiftyPercentStopAndWait T6 T13 
 
+max-time: 2500
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
+
 #max-time: 500
 #cmd: testNodeRestart
 #args: -n StopOnError T1 
@@ -181,10 +185,6 @@ args: -l 2 -n SR1_O T6 T13
 max-time: 500
 cmd: testIndex
 args: -n MixedTransaction T1 
-
-max-time: 2500
-cmd: testDict
-args: -n NF1 T1 T6 T13 
 
 #
 max-time: 1500

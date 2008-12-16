@@ -1228,6 +1228,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   {
     jam();
     c_fragments_per_node = getLqhWorkers();
+    // try to get some LQH workers which initially handle no fragments
+    if (ERROR_INSERTED(7215)) {
+      c_fragments_per_node = 1;
+    }
   }
   ndbout_c("Using %u fragments per node", c_fragments_per_node);
 
@@ -5037,16 +5041,32 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
                GCPPrepareConf::SignalLength, JBB);
   }//if
 
-  if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) {
+  if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) 
+  {
     jam();
-    GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
-    conf->nodeId = failedNodeId;
-    conf->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
-    conf->gci_lo = Uint32(m_micro_gcp.m_old_gci);
-    conf->failno = cfailurenr;
-    sendSignal(reference(), GSN_GCP_NODEFINISH, signal, 
-               GCPNodeFinished::SignalLength, JBB);
-  }//if
+    
+    /**
+     * Waiting for GSN_GCP_NODEFINISH
+     *   TC-take-over can generate new transactions
+     *   that will be in this epoch
+     *   re-run GCP_NOMORETRANS to master-TC (self) that will run
+     *   take-over
+     */
+    c_GCP_COMMIT_Counter.clearWaitingFor(failedNodeId);
+    if (!c_GCP_COMMIT_Counter.isWaitingFor(getOwnNodeId()))
+    {
+      jam();
+      c_GCP_COMMIT_Counter.setWaitingFor(getOwnNodeId());
+      m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
+    }
+     
+    GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
+    req->senderData = m_micro_gcp.m_master_ref;
+    req->gci_hi = m_micro_gcp.m_old_gci >> 32;
+    req->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+               GCPNoMoreTrans::SignalLength, JBB);
+  }
 
   if (c_GCP_SAVEREQ_Counter.isWaitingFor(failedNodeId)) {
     jam();
@@ -6875,7 +6895,7 @@ static void set_default_node_groups(Signal *signal, Uint32 noFrags)
   Uint32 i;
   node_group_array[0] = 0;
   for (i = 1; i < noFrags; i++)
-    node_group_array[i] = UNDEF_NODEGROUP;
+    node_group_array[i] = NDB_UNDEF_NODEGROUP;
 }
 
 static Uint32 find_min_index(const Uint32* array, Uint32 cnt)
@@ -6998,7 +7018,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       {
         jam();
         NGPtr.i = node_group_id[fragNo];
-        if (NGPtr.i == UNDEF_NODEGROUP)
+        if (NGPtr.i == NDB_UNDEF_NODEGROUP)
         {
           jam();
 	  NGPtr.i = c_node_groups[default_node_group];
@@ -7018,7 +7038,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
         const Uint32 max = NGPtr.p->nodeCount;
 	
-	fragments[count++] = NGPtr.p->m_next_log_part++; // Store logpart first
+	fragments[count++] = (NGPtr.p->m_next_log_part++ / cnoReplicas); // Store logpart first
 	Uint32 tmp= next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
@@ -7089,7 +7109,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
         }
       }
-
+      
       if (flags & CreateFragmentationReq::RI_GET_FRAGMENTATION)
       {
         jam();
@@ -7864,6 +7884,8 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if ((err = add_fragments_to_table(tabPtr, buf)))
     {
       jam();
+      ndbrequire(tabPtr.p->totalfragments == save);
+      ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
       send_alter_tab_ref(signal, connectPtr, err);
       return;
     }
@@ -8057,8 +8079,7 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
   getFragstore(tabPtr.p, fragId, fragPtr);
   dec_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 
-  Uint32 allocated = chunks << LOG_NO_OF_FRAGS_PER_CHUNK;
-  if (fragId < allocated)
+  if (fragId == ((chunks - 1) << LOG_NO_OF_FRAGS_PER_CHUNK))
   {
     jam();
 
@@ -8067,6 +8088,7 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
     fragPtr.p->nextFragmentChunk = cfirstfragstore;
     cfirstfragstore = fragPtr.i;
     cremainingfrags += NO_OF_FRAGS_PER_CHUNK;
+    tabPtr.p->noOfFragChunks = chunks - 1;
   }
 
   tabPtr.p->totalfragments--;
@@ -8111,12 +8133,16 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     Ptr<TabRecord> tabPtr;
     tabPtr.i = connectPtr.p->table;
     ptrAss(tabPtr, tabRecord);
-    for (Uint32 i = connectPtr.p->m_alter.m_totalfragments - 1;
-         i >= connectPtr.p->m_alter.m_org_totalfragments; i--)
+
+    Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
+    Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
+    tabPtr.p->totalfragments = new_frags;
+    for (Uint32 i = new_frags - 1; i >= org_frags; i--)
     {
       jam();
       release_fragment_from_table(tabPtr, i);
     }
+    connectPtr.p->m_alter.m_totalfragments = org_frags;
 
     switch(connectPtr.p->connectState){
     case ConnectRecord::ALTER_TABLE_ABORT:
@@ -12254,9 +12280,8 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   replicaPtr.i = info.replicaPtr;
   ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
   
-  // address LQH/instance directly
-  Uint32 instanceKey = dihGetInstanceKey(info.tableId, info.fragId);
-  BlockReference ref = numberToRef(DBLQH, instanceKey, replicaPtr.p->procNode);
+  // MT LQH goes via proxy for DD reasons
+  BlockReference ref = calcLqhBlockRef(replicaPtr.p->procNode);
   
   if (ERROR_INSERTED(7193) && replicaPtr.p->procNode == getOwnNodeId())
   {
@@ -16006,12 +16031,36 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
+
+    {
+      Uint32 cnghash = 0;
+      NodeGroupRecordPtr NGPtr;
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
+      }
+      RSS_OP_SNAPSHOT_SAVE(cnghash);
+    }
     return;
   }
 
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+
+    {
+      Uint32 cnghash = 0;
+      NodeGroupRecordPtr NGPtr;
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
+      }
+      RSS_OP_SNAPSHOT_CHECK(cnghash);
+    }
   }
 
   DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")
@@ -17091,10 +17140,16 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
       return;
     }
   }
-  
+
+  Uint32 len = DictUnlockOrd::SignalLength;
+  if (unlikely(getNodeInfo(cmasterNodeId).m_version < NDB_MAKE_VERSION(6,3,0)))
+  {
+    jam();
+    len = 2;
+  }
+
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
-  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,
-             DictUnlockOrd::SignalLength, JBB);
+  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal, len, JBB);
 }
 
 #ifdef ERROR_INSERT

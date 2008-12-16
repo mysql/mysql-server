@@ -37,6 +37,88 @@
 #include <NdbOut.hpp>
 
 
+/**
+ * Old NdbApi KeyInfo Section Iterator
+ *
+ * This is an implementation of GenericSectionIterator
+ * that reads signal data from signal object chains
+ * prepared by old NdbApi code
+ * In those chains, some data is in the first 
+ * (TCKEYREQ/TCINDXREQ) signal, and the rest is in linked
+ * KEYINFO / ATTRINFO chains.
+ * Longer term, the 'old' code should be modified to split
+ * operation definition from execution.  The intermediate
+ * use of signal chains for KeyInfo and AttrInfo can be
+ * revisited.
+ */
+class OldNdbApiSectionIterator: public GenericSectionIterator
+{
+private :
+  STATIC_CONST(KeyAndAttrInfoHeaderLength = 3);
+
+  const Uint32 firstSigDataLen; // Num words in first signal
+  Uint32* firstDataPtr;         // Ptr to start of data in first signal
+  NdbApiSignal* secondSignal;   // Second signal
+  // Nasty void* for current iterator position
+  void* currentPos;  // start  == firstDataPtr
+                     // middle == NdbApiSignal* 
+                     // end    == NULL
+
+  void checkStaticAssertions()
+  {
+    STATIC_ASSERT(KeyInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
+    STATIC_ASSERT(AttrInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
+  };
+
+public :
+  OldNdbApiSectionIterator(NdbApiSignal* TCREQ,
+                           Uint32 dataOffset,
+                           Uint32 dataLen,
+                           NdbApiSignal* nextSignal) :
+    firstSigDataLen(dataLen),
+    firstDataPtr(TCREQ->getDataPtrSend()+dataOffset),
+    secondSignal(nextSignal),
+    currentPos(firstDataPtr)
+  {
+    assert((dataOffset + dataLen) <= NdbApiSignal::MaxSignalWords);
+  }
+  
+  ~OldNdbApiSectionIterator()
+  {};
+
+  void reset()
+  {
+    currentPos= firstDataPtr;
+  }
+
+  Uint32* getNextWords(Uint32& sz)
+  {
+    /* In first TCKEY/INDXREQ, data is at offset depending
+     * on whether it's KEYINFO or ATTRINFO
+     * In following signals, data starts at offset 3
+     * regardless
+     */
+    if (likely(currentPos != NULL))
+    {
+      if (currentPos == firstDataPtr)
+      {
+        currentPos= secondSignal;
+        sz= firstSigDataLen;
+        return firstDataPtr;
+      }
+      /* Second signal is KeyInfo or AttrInfo
+       * Ignore header words
+       */
+      NdbApiSignal* sig= (NdbApiSignal*)currentPos;
+      assert(sig->getLength() >= KeyAndAttrInfoHeaderLength);
+      sz= sig->getLength() - KeyAndAttrInfoHeaderLength;
+      currentPos= sig->next();
+      return sig->getDataPtrSend() + KeyAndAttrInfoHeaderLength;
+    }
+    sz = 0;
+    return NULL;
+  }
+};
 
 void
 NdbOperation::setLastFlag(NdbApiSignal* signal, Uint32 lastFlag)
@@ -57,49 +139,56 @@ Remark:         Sends the TCKEYREQ signal and optional KEYINFO and ATTRINFO
 int
 NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
 {
-  int tReturnCode;
-  int tSignalCount = 0;
   assert(theTCREQ != NULL);
   setLastFlag(theTCREQ, lastFlag);
 
   if (m_attribute_record != NULL)
   {
     /* NdbRecord send - single long signal */
-    tReturnCode= doSendNdbRecord(aNodeId);
-    if (tReturnCode == -1)
+    if (doSendNdbRecord(aNodeId) == -1 )
       return -1;
-
-    tSignalCount= 1;
   }
   else
   {
-    /* Old Api send - signal train */
+    /* Old Api send - transform signal train to long sections */
     TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
-    tReturnCode = tp->sendSignal(theTCREQ, aNodeId);
-    tSignalCount++;
-    if (tReturnCode == -1) {
-      return -1;
+
+    TcKeyReq* tcKeyReq= (TcKeyReq*) theTCREQ->getDataPtrSend();
+    const Uint32 inlineKIOffset= Uint32(tcKeyReq->keyInfo - (Uint32*)tcKeyReq);
+    const Uint32 inlineKILength= MIN(TcKeyReq::MaxKeyInfo,
+                                     theTupKeyLen);
+    const Uint32 inlineAIOffset = Uint32(tcKeyReq->attrInfo -(Uint32*)tcKeyReq);
+    const Uint32 inlineAILength= MIN(TcKeyReq::MaxAttrInfo, 
+                                     theTotalCurrAI_Len);
+    
+    Uint32 numSecs= 1;
+    GenericSectionPtr secs[2];
+    /* Create iterators which use the signal train to extract
+     * long sections from the short signal trains
+     */
+    OldNdbApiSectionIterator keyInfoIter(theTCREQ,
+                                         inlineKIOffset,
+                                         inlineKILength,
+                                         theTCREQ->next());
+    OldNdbApiSectionIterator attrInfoIter(theTCREQ,
+                                          inlineAIOffset,
+                                          inlineAILength,
+                                          theFirstATTRINFO);
+
+    /* KeyInfo - always present for TCKEY/INDXREQ */
+    secs[0].sz= theTupKeyLen;
+    secs[0].sectionIter= &keyInfoIter;
+
+    /* AttrInfo - not always needed (e.g. Delete) */
+    if (theTotalCurrAI_Len != 0)
+    {
+      secs[1].sz= theTotalCurrAI_Len;
+      secs[1].sectionIter= &attrInfoIter;
+      numSecs++;
     }
-    NdbApiSignal *tSignal = theTCREQ->next();
-    while (tSignal != NULL) {
-      NdbApiSignal* tnextSignal = tSignal->next();
-      tReturnCode = tp->sendSignal(tSignal, aNodeId);
-      tSignal = tnextSignal;
-      if (tReturnCode == -1) {
-        return -1;
-      }
-      tSignalCount++;
-    }//while
-    tSignal = theFirstATTRINFO;
-    while (tSignal != NULL) {
-      NdbApiSignal* tnextSignal = tSignal->next();
-      tReturnCode = tp->sendSignal(tSignal, aNodeId);
-      tSignal = tnextSignal;
-      if (tReturnCode == -1) {
-        return -1;
-      }
-      tSignalCount++;
-    }//while
+
+    if (tp->sendSignal(theTCREQ, aNodeId, &secs[0], numSecs) == -1)
+      return -1;
   }
 
   /* Todo : Consider calling NdbOperation::postExecuteRelease()
@@ -108,7 +197,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
    */
 
   theNdbCon->OpSent();
-  return tSignalCount;
+  return 1;
 }//NdbOperation::doSend()
 
 
@@ -219,7 +308,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
     return -1;
   }
   Uint32 TattrLen = 0;
-  tcKeyReq->setAttrinfoLen(TattrLen, tTotalCurrAI_Len);
+  tcKeyReq->setAttrinfoLen(TattrLen, 0); // Not required for long signals.
   tcKeyReq->setAPIVersion(TattrLen, NDB_VERSION);
   tcKeyReq->attrLen            = TattrLen;
 
@@ -244,12 +333,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->transId2           = tTransId2;
   
   tReqInfo = 0;
-  if (tTotalCurrAI_Len <= TcKeyReq::MaxAttrInfo) {
-    tcKeyReq->setAIInTcKeyReq(tReqInfo, tTotalCurrAI_Len);
-  } else {
-    tcKeyReq->setAIInTcKeyReq(tReqInfo, TcKeyReq::MaxAttrInfo);
-  }//if
-
+  tcKeyReq->setAIInTcKeyReq(tReqInfo, 0); // Not needed
   tcKeyReq->setSimpleFlag(tReqInfo, tSimpleIndicator);
   tcKeyReq->setCommitFlag(tReqInfo, tCommitIndicator);
   tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
@@ -257,12 +341,11 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setNoDiskFlag(tReqInfo, tNoDisk);
 
   OperationType tOperationType = theOperationType;
-  Uint32 tTupKeyLen = theTupKeyLen;
   Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
 
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
-  tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
+  tcKeyReq->setKeyLength(tReqInfo, 0); // Not needed
   
   // A dirty read is always ignore error
   abortOption = tDirtyState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
@@ -290,105 +373,37 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tOptionalDataPtr[0] = tScanInfo;
   tOptionalDataPtr[tDistrKeyIndex] = tDistrKey;
 
-//-------------------------------------------------------------
-// The next is step is to compress the key data part of the
-// TCKEYREQ signal.
-//-------------------------------------------------------------
-  Uint32 tKeyIndex = tDistrKeyIndex + tDistrKeyIndicator;
-  Uint32* tKeyDataPtr = &tOptionalDataPtr[tKeyIndex];
-  Uint32 Tdata1 = tcKeyReq->keyInfo[0];
-  Uint32 Tdata2 = tcKeyReq->keyInfo[1];
-  Uint32 Tdata3 = tcKeyReq->keyInfo[2];
-  Uint32 Tdata4 = tcKeyReq->keyInfo[3];
-  Uint32 Tdata5;
+  theTCREQ->setLength(TcKeyReq::StaticLength + 
+                      tDistrKeyIndex +         // 1 for scan info present
+                      theDistrKeyIndicator_);  // 1 for distr key present
 
-  tKeyDataPtr[0] = Tdata1;
-  tKeyDataPtr[1] = Tdata2;
-  tKeyDataPtr[2] = Tdata3;
-  tKeyDataPtr[3] = Tdata4;
-  if (tTupKeyLen > 4) {
-    Tdata1 = tcKeyReq->keyInfo[4];
-    Tdata2 = tcKeyReq->keyInfo[5];
-    Tdata3 = tcKeyReq->keyInfo[6];
-    Tdata4 = tcKeyReq->keyInfo[7];
-
-    tKeyDataPtr[4] = Tdata1;
-    tKeyDataPtr[5] = Tdata2;
-    tKeyDataPtr[6] = Tdata3;
-    tKeyDataPtr[7] = Tdata4;
-  }//if
-//-------------------------------------------------------------
-// Finally we also compress the ATTRINFO part of the signal.
-// We optimise by using the if-statement for sending KEYINFO
-// signals to calculating the new Attrinfo Index.
-//-------------------------------------------------------------
-  Uint32 tAttrInfoIndex;  
-
-  if (tTupKeyLen > TcKeyReq::MaxKeyInfo) {
+  /* Ensure the signal objects have the correct length
+   * information
+   */
+  if (theTupKeyLen > TcKeyReq::MaxKeyInfo) {
     /**
-     *	Set transid, TC connect ptr and length in the KEYINFO signals
+     *	Set correct length on last KeyInfo signal
      */
-    NdbApiSignal* tSignal = theTCREQ->next();
-    Uint32 remainingKey = tTupKeyLen - TcKeyReq::MaxKeyInfo;
-    do {
-      Uint32* tSigDataPtr = tSignal->getDataPtrSend();
-      NdbApiSignal* tnextSignal = tSignal->next();
-      tSigDataPtr[0] = aTC_ConnectPtr;
-      tSigDataPtr[1] = tTransId1;
-      tSigDataPtr[2] = tTransId2;
-      if (remainingKey > KeyInfo::DataLength) {
-	// The signal is full
-	tSignal->setLength(KeyInfo::MaxSignalLength);
-	remainingKey -= KeyInfo::DataLength;
-      }
-      else {
-	// Last signal
-	tSignal->setLength(KeyInfo::HeaderLength + remainingKey);
-	remainingKey = 0;
-      }
-      tSignal = tnextSignal;
-    } while (tSignal != NULL);
-    tAttrInfoIndex = tKeyIndex + TcKeyReq::MaxKeyInfo;
-  } else {
-    tAttrInfoIndex = tKeyIndex + tTupKeyLen;
-  }//if
+    if (theLastKEYINFO == NULL)
+      theLastKEYINFO= theTCREQ->next();
 
-//-------------------------------------------------------------
-// Perform the Attrinfo packing in the TCKEYREQ signal started
-// above.
-//-------------------------------------------------------------
-  Uint32* tAIDataPtr = &tOptionalDataPtr[tAttrInfoIndex];
-  Tdata1 = tcKeyReq->attrInfo[0];
-  Tdata2 = tcKeyReq->attrInfo[1];
-  Tdata3 = tcKeyReq->attrInfo[2];
-  Tdata4 = tcKeyReq->attrInfo[3];
-  Tdata5 = tcKeyReq->attrInfo[4];
+    assert(theLastKEYINFO != NULL);
 
-  theTCREQ->setLength(tcKeyReq->getAIInTcKeyReq(tReqInfo) +
-                      tAttrInfoIndex + TcKeyReq::StaticLength);
+    Uint32 lastKeyInfoLen= ((theTupKeyLen - TcKeyReq::MaxKeyInfo)
+                            % KeyInfo::DataLength);
+    
+    theLastKEYINFO->setLength(lastKeyInfoLen ? 
+                              KeyInfo::HeaderLength + lastKeyInfoLen : 
+                              KeyInfo::MaxSignalLength);
+  }
 
-  tAIDataPtr[0] = Tdata1;
-  tAIDataPtr[1] = Tdata2;
-  tAIDataPtr[2] = Tdata3;
-  tAIDataPtr[3] = Tdata4;
-  tAIDataPtr[4] = Tdata5;
-
-/***************************************************
-*  Send the ATTRINFO signals.
-***************************************************/
-  if (tTotalCurrAI_Len > 5) {
+  /* Set the length on the last AttrInfo signal */
+  if (tTotalCurrAI_Len > TcKeyReq::MaxAttrInfo) {
     // Set the last signal's length.
-    NdbApiSignal* tSignal = theFirstATTRINFO;
     theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
-    do {
-      Uint32* tSigDataPtr = tSignal->getDataPtrSend();
-      NdbApiSignal* tnextSignal = tSignal->next();
-      tSigDataPtr[0] = aTC_ConnectPtr;
-      tSigDataPtr[1] = tTransId1;
-      tSigDataPtr[2] = tTransId2;
-      tSignal = tnextSignal;
-    } while (tSignal != NULL);
   }//if
+  theTotalCurrAI_Len= tTotalCurrAI_Len;
+
   theStatus = WaitResponse;
   theReceiver.prepareSend();
   return 0;

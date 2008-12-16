@@ -321,7 +321,7 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488Timeout -l 10 T6 D1 D2
 
-max-time: 600
+max-time: 1200
 cmd: testScan
 args: -n ScanRead40 -l 100 T6 D1 D2 
 
@@ -336,10 +336,6 @@ args: -n ScanRead40 -l 100 T1 D1 D2
 max-time: 1800
 cmd: testScan
 args: -n ScanRead40RandomTable -l 100 T1 
-
-max-time: 3600
-cmd: testScan
-args: -n ScanRead40RandomTable -l 1000 T6 
 
 max-time: 500
 cmd: testScan
@@ -954,10 +950,6 @@ cmd: DbAsyncGenerator
 args: -time 60 -p 1 -proc 25
 type: bench
 
-max-time: 300 
-cmd: testMgm
-args: 
-
 max-time: 5000
 cmd: testNodeRestart
 args: -n GCP T1
@@ -1157,7 +1149,6 @@ cmd: testDict
 args: -n FailAddPartition T1 I3
 
 # EOF 2008-06-05
-
 # Test data buffering for TCKEYREQ
 max-time: 500
 cmd: testLimits
@@ -1178,28 +1169,35 @@ cmd: testBasic
 args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
 
 # EOF 2008-06-30
-
 max-time: 500
 cmd: test_event
 args -n bug37672 T1
 
 #EOF 2008-07-04
-
 max-time: 500
-cmd: testScanFilter
+cmd: testScanFilter T1
 args: 
 
 #EOF 2008-07-09
-
 max-time: 600
 cmd: test_event
 args -r 5000 -n Bug30780 T1
 
 #EOF 2008-08-11
-
 # Test data buffering for SCANTABREQ
 max-time: 500
 cmd: testLimits
 args: -n ExhaustSegmentedSectionScan WIDE_2COL
 
 #EOF 2008-08-20
+max-time: 1200
+cmd: testNodeRestart
+args -n Bug41295 T1
+
+max-time: 300 
+cmd: testMgm
+args: 
+
+max-time: 500
+cmd: testLimits
+args: -n DropSignalFragments T1
