@@ -3830,8 +3830,8 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
 }
 
 
-int
-MgmtSrvr::change_config(Config& new_config)
+bool
+MgmtSrvr::change_config(Config& new_config, BaseString& msg)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -3851,12 +3851,19 @@ MgmtSrvr::change_config(Config& new_config)
 
   NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
   if (nodeId == 0)
-    return -1; // Hrmpf?
+  {
+    msg = "INTERNAL ERROR Could not find any mgmd!";
+    return false;
+  }
 
   if (ss.sendSignal(nodeId, ssig,
                     MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
                     ConfigChangeReq::SignalLength) != SEND_OK)
-    return SEND_OR_RECEIVE_FAILED;
+  {
+    msg.assfmt("Could not start configuration change, send to "
+               "node %d failed", nodeId);
+    return false;
+  }
   mgm_nodes.clear(nodeId);
 
   bool done = false;
@@ -3879,18 +3886,26 @@ MgmtSrvr::change_config(Config& new_config)
         // Retry with next node if any
         NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
         if (nodeId == 0)
-          return -1; // Hrmpf?
+        {
+          msg = "INTERNAL ERROR Could not find any mgmd!";
+          return false;
+        }
 
         if (ss.sendSignal(nodeId, ssig,
                           MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
                           ConfigChangeReq::SignalLength) != SEND_OK)
-          return SEND_OR_RECEIVE_FAILED;
+        {
+          msg.assfmt("Could not start configuration change, send to "
+                     "node %d failed", nodeId);
+          return false;
+        }
         mgm_nodes.clear(nodeId);
         break;
       }
 
       default:
-        return ref->errorCode;
+        msg = ConfigChangeRef::errorMessage(ref->errorCode);
+        return false;
       }
 
       break;
@@ -3995,13 +4010,8 @@ MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
     }
   }
 
-  int res;
-  if ((res= change_config(new_conf)) != 0)
-  {
-    msg.assfmt("error: %d", res);
+  if (!change_config(new_conf, msg))
     return false;
-  }
-
   return true;
 }
 

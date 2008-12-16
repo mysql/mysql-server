@@ -75,8 +75,9 @@ class ConfigChangeRef {
     NotMaster               = 2,
     NoConfigData            = 3,
     ConfigChangeAborted     = 4,
-    FailedToStart           = 5,
-    SetGenerationFailed     = 10,
+    ConfigNotOk             = 5,
+
+    InternalError           = 10,
     PrepareFailed           = 11,
     IllegalConfigChange     = 13,
     FailedToUnpack          = 14,
@@ -98,14 +99,13 @@ public:
       return "No config data in signal";
     case ConfigChangeAborted:
       return "Config change was aborted";
-    case FailedToStart:
-      return "Failed to start config change";
-    case SetGenerationFailed:
-      return "setGeneration failed";
     case FailedToUnpack:
       return "Failed to unpack the configuration";
     case IllegalConfigChange:
       return "Illegal config change";
+
+    case InternalError:
+      return "ConfigChangeRef, internal error";
 
     default:
       return "ConfigChangeRef, unknown error";

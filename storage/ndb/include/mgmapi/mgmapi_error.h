@@ -72,6 +72,10 @@ extern "C" {
     /** Unable to exit single user mode */
     NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002,
 
+    /* Service errors - Configuration change */
+    /** Unable to start config change */
+    NDB_MGM_CONFIG_CHANGE_FAILED = 4011,
+
     /* Usage errors */
     /** Usage error */
     NDB_MGM_USAGE_ERROR = 5001
@@ -108,6 +112,10 @@ extern "C" {
       "Could not enter single user mode" },
     { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE,
       "Could not exit single user mode" },
+
+    /* Service errors - Configuration change */
+    { NDB_MGM_CONFIG_CHANGE_FAILED,
+      "Failed to complete configuration change" },
 
     /* Usage errors */
     { NDB_MGM_USAGE_ERROR,

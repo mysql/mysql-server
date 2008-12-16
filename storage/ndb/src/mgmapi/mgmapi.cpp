@@ -3094,6 +3094,10 @@ extern "C"
 int
 ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 {
+  CHECK_HANDLE(h, 0);
+  SET_ERROR(h, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_set_configuration");
+  CHECK_CONNECTED(h, 0);
+
   const ConfigValues * cfg = (ConfigValues*)c;
 
   UtilBuffer buf;
@@ -3130,6 +3134,7 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 
   if(strcmp(result.c_str(), "Ok") != 0) {
     fprintf(h->errstream, "ERROR Message: %s\n", result.c_str());
+    SET_ERROR(h, NDB_MGM_CONFIG_CHANGE_FAILED, result.c_str());
     return -1;
   }
 
