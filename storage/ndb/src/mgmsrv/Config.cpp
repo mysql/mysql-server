@@ -143,6 +143,19 @@ Config::getGeneration() const
 }
 
 
+Uint32
+Config::getPrimaryMgmNode() const
+{
+  Uint32 primaryMgmNode;
+  ConfigIter iter(this, CFG_SECTION_SYSTEM);
+
+  if (iter.get(CFG_SYS_PRIMARY_MGM_NODE, &primaryMgmNode))
+    return 0;
+
+  return primaryMgmNode;
+}
+
+
 const char*
 Config::getName() const
 {
@@ -192,6 +205,15 @@ Config::setGeneration(Uint32 new_gen)
   return setValue(CFG_SECTION_SYSTEM, 0,
                   CFG_SYS_CONFIG_GENERATION,
                   new_gen);
+}
+
+
+bool
+Config::setPrimaryMgmNode(Uint32 new_primary)
+{
+  return setValue(CFG_SECTION_SYSTEM, 0,
+                  CFG_SYS_PRIMARY_MGM_NODE,
+                  new_primary);
 }
 
 
