@@ -817,7 +817,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     {
       g_eventLogger->error("Failed to set new generation to %d",
                            new_generation);
-      sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::SetGenerationFailed);
+      sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::InternalError);
       return;
     }
 
@@ -1193,7 +1193,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
   {
     g_eventLogger->warning("Refusing to start config change, the config "\
                            "is not ok");
-    sendConfigChangeRef(ss, from, ConfigChangeRef::FailedToUnpack);
+    sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigNotOk);
     return;
   }
 
