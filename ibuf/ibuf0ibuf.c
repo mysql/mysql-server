@@ -3304,11 +3304,8 @@ ibuf_insert_low(
 
 	if (buf_page_peek(space, page_no)
 	    || lock_rec_expl_exist_on_page(space, page_no)) {
-		err = DB_STRONG_FAIL;
 
-		mtr_commit(&bitmap_mtr);
-
-		goto function_exit;
+		goto bitmap_fail;
 	}
 
 	if (op == IBUF_OP_INSERT) {
@@ -3318,17 +3315,18 @@ ibuf_insert_low(
 
 		if (buffered + entry_size + page_dir_calc_reserved_space(1)
 		    > ibuf_index_page_calc_free_from_bits(zip_size, bits)) {
+			/* Release the bitmap page latch early. */
 			mtr_commit(&bitmap_mtr);
 
 			/* It may not fit */
-			err = DB_STRONG_FAIL;
-
 			do_merge = TRUE;
 
 			ibuf_get_merge_page_nos(
 				FALSE, btr_pcur_get_rec(&pcur),
 				space_ids, space_versions,
 				page_nos, &n_stored);
+
+			err = DB_STRONG_FAIL;
 
 			goto function_exit;
 		}
@@ -3339,6 +3337,7 @@ ibuf_insert_low(
 	some cases. */
 	if (!ibuf_set_entry_counter(ibuf_entry, space, page_no, &pcur,
 				    mode == BTR_MODIFY_PREV, &mtr)) {
+bitmap_fail:
 		err = DB_STRONG_FAIL;
 
 		mtr_commit(&bitmap_mtr);
