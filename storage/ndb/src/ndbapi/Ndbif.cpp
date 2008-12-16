@@ -269,13 +269,7 @@ Ndb::report_node_failure_completed(Uint32 node_id)
   {
     // node failed
     // eventOperations in the ndb object should be notified
-    theEventBuffer->report_node_failure(node_id);
-    if(!theImpl->m_transporter_facade->theClusterMgr->isClusterAlive())
-    {
-      // cluster is unavailable, 
-      // eventOperations in the ndb object should be notified
-      theEventBuffer->completeClusterFailed();
-    }
+    theEventBuffer->report_node_failure_completed(node_id);
   }
   
   abortTransactionsAfterNodeFailure(node_id);
