@@ -1998,7 +1998,7 @@ row_ins_index_entry_low(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		ignore_sec_unique	= 0;
+	ulint		search_mode;
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
@@ -2018,18 +2018,22 @@ row_ins_index_entry_low(
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
-	if (!(thr_get_trx(thr)->check_unique_secondary)) {
-		ignore_sec_unique = BTR_IGNORE_SEC_UNIQUE;
+	if (dict_index_is_clust(index)) {
+		search_mode = mode;
+	} else if (!(thr_get_trx(thr)->check_unique_secondary)) {
+		search_mode = mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
+	} else {
+		search_mode = mode | BTR_INSERT;
 	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    mode | BTR_INSERT | ignore_sec_unique,
-				    &cursor, 0, &mtr);
+				    search_mode, &cursor, 0, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insertion was made to the insert buffer already during
 		the search: we are done */
 
+		ut_ad(search_mode & BTR_INSERT);
 		err = DB_SUCCESS;
 
 		goto function_exit;
