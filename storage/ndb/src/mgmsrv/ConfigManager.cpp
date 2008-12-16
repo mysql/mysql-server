@@ -354,6 +354,12 @@ ConfigManager::init(void)
         DBUG_RETURN(false);
       }
 
+      if (!new_conf->setPrimaryMgmNode(m_config->getPrimaryMgmNode()))
+      {
+        g_eventLogger->error("Failed to copy primary mgm node from old config");
+        DBUG_RETURN(false);
+      }
+
       /* Check if config has changed */
       if (!m_config->equal(new_conf))
       {
@@ -384,6 +390,17 @@ ConfigManager::init(void)
 
       if (!config_ok(conf))
         DBUG_RETURN(false);
+
+      /*
+        Set this node as primary node for config.ini/my.cnf
+        in order to make it possible that make sure an old
+        config.ini is only loaded with --force
+      */
+      if (!conf->setPrimaryMgmNode(m_node_id))
+      {
+        g_eventLogger->error("Failed to set primary MGM node");
+        DBUG_RETURN(false);
+      }
 
       /* Use the initial config for now */
       set_config(conf);
@@ -743,6 +760,20 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     }
     else
     {
+
+      // Check that config change was started by primary mgm node
+      Uint32 primaryMgmNode = m_config->getPrimaryMgmNode();
+      if (nodeId != primaryMgmNode)
+      {
+        g_eventLogger->warning("Refusing to start configuration change " \
+                               "requested by node %d, it's not set as " \
+                               "the primary management node %d.",
+                               nodeId, primaryMgmNode);
+        sendConfigChangeImplRef(ss, nodeId,
+                                ConfigChangeRef::NotPrimaryMgmNode);
+        return;
+      }
+
       if (new_generation == 0 ||
           new_generation != curr_generation)
       {
