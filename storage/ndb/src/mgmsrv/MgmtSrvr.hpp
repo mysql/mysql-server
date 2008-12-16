@@ -131,6 +131,7 @@ public:
     int print_full_config;
     const char* configdir;
     int verbose;
+    int reload;
   };
 
   MgmtSrvr(); // Not implemented
@@ -557,6 +558,9 @@ public:
                     NodeId nodeid_filter = 0,
                     const char* param_filter = NULL,
                     NdbOut& out = ndbout);
+
+  bool reload_config(const char* config_filename,
+                     bool mycnf, BaseString& msg);
 
 };
 

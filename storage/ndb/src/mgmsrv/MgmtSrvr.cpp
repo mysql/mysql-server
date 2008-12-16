@@ -3922,6 +3922,88 @@ MgmtSrvr::print_config(const char* section_filter, NodeId nodeid_filter,
                         param_filter, out);
 }
 
+
+bool
+MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
+                        BaseString& msg)
+{
+  if (config_filename && mycnf)
+  {
+    msg = "ERROR: Both mycnf and config_filename is not supported";
+    return false;
+  }
+
+  if (config_filename)
+  {
+    if (m_opts.mycnf)
+    {
+      msg.assfmt("ERROR: Can't switch to use config.ini '%s' when "
+                 "node was started from my.cnf", config_filename);
+      return false;
+    }
+  }
+  else
+  {
+    if (mycnf)
+    {
+      // Reload from my.cnf
+      if (!m_opts.mycnf)
+      {
+        if (m_opts.config_filename)
+        {
+          msg.assfmt("ERROR: Can't switch to use my.cnf when "
+                     "node was started from '%s'", m_opts.config_filename);
+          return false;
+        }
+      }
+    }
+    else
+    {
+      /* No config file name supplied and not told to use mycnf */
+      if (m_opts.config_filename)
+      {
+        g_eventLogger->info("No config file name supplied, using '%s'",
+                            m_opts.config_filename);
+        config_filename = m_opts.config_filename;
+      }
+      else
+      {
+        msg = "ERROR: Neither config file name or mycnf available";
+        return false;
+      }
+    }
+  }
+
+  Config* new_conf_ptr;
+  if ((new_conf_ptr= ConfigManager::load_config(config_filename,
+                                                mycnf, msg)) == NULL)
+    return false;
+  Config new_conf(new_conf_ptr);
+
+  {
+    Guard g(m_local_config_mutex);
+
+    /* Copy the necessary values from old to new config */
+    if (!new_conf.setGeneration(m_local_config->getGeneration()) ||
+        !new_conf.setName(m_local_config->getName()) ||
+        !new_conf.setPrimaryMgmNode(m_local_config->getPrimaryMgmNode()))
+    {
+      msg = "Failed to initialize reloaded config";
+      return false;
+    }
+  }
+
+  int res;
+  if ((res= change_config(new_conf)) != 0)
+  {
+    msg.assfmt("error: %d", res);
+    return false;
+  }
+
+  return true;
+}
+
+
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;

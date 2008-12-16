@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <ctype.h>
 
 #include <uucode.h>
 #include <socket_io.h>
@@ -295,6 +294,11 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("Section", String, Optional, "Section name"),
     MGM_ARG("NodeId", Int, Optional, "Nodeid"),
     MGM_ARG("Name", String, Optional, "Parameter name"),
+
+  MGM_CMD("reload config", &MgmApiSession::reloadConfig, ""),
+    MGM_ARG("config_filename", String, Optional, "Reload from path"),
+    MGM_ARG("mycnf", Int, Optional, "Reload from my.cnf"),
+    MGM_ARG("force", Int, Optional, "Force reload"),
 
   MGM_END()
 };
@@ -2087,6 +2091,32 @@ void MgmApiSession::showConfig(Parser_t::Context &ctx, Properties const &args)
   m_output->println("show config reply");
   m_mgmsrv.print_config(section, nodeid, name,
                         socket_out);
+  m_output->println("");
+}
+
+
+void
+MgmApiSession::reloadConfig(Parser_t::Context &,
+                            const class Properties &args)
+{
+  const char* config_filename= NULL;
+  Uint32 mycnf = 0;
+
+  args.get("config_filename", &config_filename);
+  args.get("mycnf", &mycnf);
+
+  g_eventLogger->debug("config_filename: %s, mycnf: %s",
+                       config_filename ? config_filename: "(null)",
+                       mycnf ? "yes" : "no");
+
+  m_output->println("reload config reply");
+
+  BaseString msg;
+  if (!m_mgmsrv.reload_config(config_filename, (mycnf != 0), msg))
+    m_output->println("result: %s", msg.c_str());
+  else
+    m_output->println("result: Ok");
+
   m_output->println("");
 }
 
