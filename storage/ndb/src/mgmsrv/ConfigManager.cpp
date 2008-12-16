@@ -335,11 +335,13 @@ ConfigManager::init(void)
     set_config(conf);
     m_config_state = CS_CONFIRMED;
 
-    if (m_opts.mycnf || m_opts.config_filename)
+    if (m_opts.reload && // --reload
+        (m_opts.mycnf || m_opts.config_filename))
     {
       Config* new_conf = load_config();
       if (new_conf == NULL)
         DBUG_RETURN(false);
+
 
       /* Copy the necessary values from old to new config */
       if (!new_conf->setGeneration(m_config->getGeneration()))
@@ -1559,7 +1561,7 @@ ConfigManager::run()
 #include "InitConfigFileParser.hpp"
 
 Config*
-ConfigManager::load_init_config(const char* config_filename) const
+ConfigManager::load_init_config(const char* config_filename)
 {
    InitConfigFileParser parser;
    g_eventLogger->info("Reading cluster configuration from '%s'",
@@ -1569,7 +1571,7 @@ ConfigManager::load_init_config(const char* config_filename) const
 
 
 Config*
-ConfigManager::load_init_mycnf(void) const
+ConfigManager::load_init_mycnf(void)
 {
   InitConfigFileParser parser;
   g_eventLogger->info("Reading cluster configuration using my.cnf");
@@ -1578,19 +1580,36 @@ ConfigManager::load_init_mycnf(void) const
 
 
 Config*
-ConfigManager::load_config(void) const
+ConfigManager::load_config(const char* config_filename, bool mycnf,
+                           BaseString& msg)
 {
   Config* new_conf = NULL;
-  if (m_opts.mycnf && (new_conf = load_init_mycnf()) == NULL)
+  if (mycnf && (new_conf = load_init_mycnf()) == NULL)
   {
-    g_eventLogger->error("Could not load configuration from 'my.cnf'");
+    msg.assign("Could not load configuration from 'my.cnf'");
     return NULL;
   }
-  else if (m_opts.config_filename &&
-           (new_conf = load_init_config(m_opts.config_filename)) == NULL)
+  else if (config_filename &&
+           (new_conf = load_init_config(config_filename)) == NULL)
   {
-    g_eventLogger->error("Could not load configuration from '%s'",
-                         m_opts.config_filename);
+    msg.assfmt("Could not load configuration from '%s'",
+               config_filename);
+    return NULL;
+  }
+
+  return new_conf;
+}
+
+
+Config*
+ConfigManager::load_config(void) const
+{
+  BaseString msg;
+  Config* new_conf = NULL;
+  if ((new_conf = load_config(m_opts.config_filename,
+                              m_opts.mycnf, msg)) == NULL)
+  {
+    g_eventLogger->error(msg);
     return NULL;
   }
   return new_conf;

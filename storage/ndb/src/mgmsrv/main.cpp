@@ -122,6 +122,10 @@ static struct my_option my_long_options[] =
     "Write more log messages",
     (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,
     GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "reload", 256,
+    "Reload config from config.ini or my.cnf if it has changed on startup",
+    (uchar**) &opts.reload, (uchar**) &opts.reload, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
