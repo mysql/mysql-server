@@ -133,6 +133,7 @@ public:
     int verbose;
     MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
     int reload;
+    int initial;
   };
 
   MgmtSrvr(); // Not implemented
