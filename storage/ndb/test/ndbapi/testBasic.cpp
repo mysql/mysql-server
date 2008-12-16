@@ -1796,9 +1796,7 @@ TESTCASE("InsertError2", "" ){
 }
 TESTCASE("Fill", 
 	 "Verify what happens when we fill the db" ){
-  INITIALIZER(runFillTable);
-  INITIALIZER(runPkRead);
-  FINALIZER(runClearTable2);
+  STEP(runFillTable);
 }
 TESTCASE("Bug25090", 
 	 "Verify what happens when we fill the db" ){
