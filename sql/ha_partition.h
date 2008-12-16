@@ -112,7 +112,7 @@ private:
   uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
   uint m_no_locks;                       // For engines like ha_blackhole, which needs no locks
-  uint m_last_part;                      // Last file that we update,write
+  uint m_last_part;                      // Last file that we update,write,read
   int m_lock_type;                       // Remembers type of last
                                          // external_lock
   part_id_range m_part_spec;             // Which parts to scan
@@ -325,6 +325,10 @@ public:
     Call to unlock rows not to be updated in transaction
   */
   virtual void unlock_row();
+  /*
+    Check if semi consistent read
+  */
+  virtual bool was_semi_consistent_read();
   /*
     Call to hint about semi consistent read
   */
