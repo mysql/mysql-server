@@ -300,6 +300,8 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("mycnf", Int, Optional, "Reload from my.cnf"),
     MGM_ARG("force", Int, Optional, "Force reload"),
 
+  MGM_CMD("show variables", &MgmApiSession::show_variables, ""),
+
   MGM_END()
 };
 
@@ -2106,8 +2108,8 @@ MgmApiSession::reloadConfig(Parser_t::Context &,
   args.get("mycnf", &mycnf);
 
   g_eventLogger->debug("config_filename: %s, mycnf: %s",
-                       config_filename ? config_filename: "(null)",
-                       mycnf ? "yes" : "no");
+                       str_null(config_filename),
+                       yes_no(mycnf));
 
   m_output->println("reload config reply");
 
@@ -2121,13 +2123,16 @@ MgmApiSession::reloadConfig(Parser_t::Context &,
 }
 
 
-#if 0
-  // TODO Magnus, "get variables"
-  ndbout_c("NdbConfig_get_path(0): %s", NdbConfig_get_path(0));
-  ndbout_c("opt_ndb_connectstring: %s", opt_ndb_connectstring);
-  ndbout_c("NDB_CONNECTSTRING: %s", getenv("NDB_CONNECTSTRING"));
-  ndbout_c("datadir: %s", opts.datadir);
-#endif
+void
+MgmApiSession::show_variables(Parser_t::Context &,
+                              const class Properties &args)
+{
+  m_output->println("show variables reply");
+  NdbOut socket_out(*m_output, false /* turn off autoflush */);
+  m_mgmsrv.show_variables(socket_out);
+  m_output->println("");
+
+}
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

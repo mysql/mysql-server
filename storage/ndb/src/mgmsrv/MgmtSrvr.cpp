@@ -4004,6 +4004,33 @@ MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
 }
 
 
+void
+MgmtSrvr::show_variables(NdbOut& out)
+{
+  out << "daemon: " << yes_no(m_opts.daemon) << endl;
+  out << "non_interactive: " << yes_no(m_opts.non_interactive) << endl;
+  out << "interactive: " << yes_no(m_opts.interactive) << endl;
+  out << "config_filename: " << str_null(m_opts.config_filename) << endl;
+  out << "mycnf: " << yes_no(m_opts.mycnf) << endl;
+  out << "bind_address: " << str_null(m_opts.bind_address) << endl;
+  out << "no_nodeid_checks: " << yes_no(m_opts.no_nodeid_checks) << endl;
+  out << "print_full_config: " << yes_no(m_opts.print_full_config) << endl;
+  out << "configdir: " << str_null(m_opts.configdir) << endl;
+  out << "verbose: " << yes_no(m_opts.verbose) << endl;
+  out << "reload: " << yes_no(m_opts.reload) << endl;
+
+  out << "nodeid: " << _ownNodeId << endl;
+  out << "blocknumber: " << hex <<_blockNumber << endl;
+  out << "own_reference: " << hex << _ownReference << endl;
+  out << "port: " << m_port << endl;
+  out << "need_restart: " << m_need_restart << endl;
+  out << "is_stop_thread: " << _isStopThread << endl;
+  out << "log_level_thread_sleep: " << _logLevelThreadSleep << endl;
+  out << "master_node: " << m_master_node << endl;
+}
+
+
+
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
