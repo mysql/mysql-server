@@ -1363,7 +1363,7 @@ struct TABLE_LIST
   void cleanup_items();
   bool placeholder()
   {
-    return derived || view || schema_table || create && !table->db_stat ||
+    return derived || view || schema_table || (create && !table->db_stat) ||
            !table;
   }
   void print(THD *thd, String *str, enum_query_type query_type);
