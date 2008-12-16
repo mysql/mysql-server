@@ -132,6 +132,7 @@ public:
     const char* configdir;
     int verbose;
     int reload;
+    int initial;
   };
 
   MgmtSrvr(); // Not implemented
