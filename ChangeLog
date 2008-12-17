@@ -1,3 +1,11 @@
+2008-12-17	The InnoDB Team
+
+	* include/univ.i, include/buf0buf.h, include/hash0hash.h,
+	include/ha0ha.h, include/ha0ha.ic, ha/ha0ha.c, ha/hash0hash.c,
+	btr/btr0sea.c, buf/buf0lru.c, buf/buf0buf.c:
+	Introduce the preprocessor symbol UNIV_AHI_DEBUG for enabling
+	adaptive hash index debugging independently of UNIV_DEBUG.
+
 2008-12-02	The InnoDB Team
 
 	* row/row0merge.c:

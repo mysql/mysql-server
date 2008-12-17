@@ -89,9 +89,9 @@ hash_create(
 
 	array = ut_malloc(sizeof(hash_cell_t) * prime);
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	table->adaptive = FALSE;
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	table->array = array;
 	table->n_cells = prime;
 	table->n_mutexes = 0;

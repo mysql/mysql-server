@@ -658,8 +658,10 @@ buf_block_init(
 	block->page.in_free_list = FALSE;
 	block->page.in_LRU_list = FALSE;
 	block->in_unzip_LRU_list = FALSE;
-	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	block->n_pointers = 0;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
 	mutex_create(&block->mutex, SYNC_BUF_BLOCK);

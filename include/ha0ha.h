@@ -36,18 +36,18 @@ ha_search_and_update_if_found_func(
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
 	void*		data,	/* in: pointer to the data */
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	new_block,/* in: block containing new_data */
-#endif
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	void*		new_data);/* in: new pointer to the data */
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_block,new_data)
-#else
+#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_data)
-#endif
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n. */
@@ -92,16 +92,16 @@ ha_insert_for_fold_func(
 				the same fold value already exists, it is
 				updated to point to the same data, and no new
 				node is created! */
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/* in: buffer block containing the data */
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	void*		data);	/* in: data, must not be NULL */
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,b,d)
-#else
+#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 # define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,d)
-#endif
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /*****************************************************************
 Deletes an entry from a hash table. */
@@ -158,9 +158,9 @@ ha_print_info(
 typedef struct ha_node_struct ha_node_t;
 struct ha_node_struct {
 	ha_node_t*	next;	/* next chain node or NULL if none */
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block;	/* buffer block containing the data, or NULL */
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	void*		data;	/* pointer to the data */
 	ulint		fold;	/* fold value for the data */
 };
