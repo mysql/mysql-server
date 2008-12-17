@@ -214,29 +214,6 @@ MgmtSrvr::logLevelThreadRun()
 }
 
 
-bool
-MgmtSrvr::setEventLogFilter(int severity, int enable)
-{
-  Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
-  if (enable > 0) {
-    g_eventLogger->enable(level);
-  } else if (enable == 0) {
-    g_eventLogger->disable(level);
-  } else if (g_eventLogger->isEnable(level)) {
-    g_eventLogger->disable(level);
-  } else {
-    g_eventLogger->enable(level);
-  }
-  return g_eventLogger->isEnable(level);
-}
-
-bool 
-MgmtSrvr::isEventLogFilterEnabled(int severity) 
-{
-  return g_eventLogger->isEnable((Logger::LoggerLevel)severity);
-}
-
-
 static int
 translateStopRef(Uint32 errCode)
 {
