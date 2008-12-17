@@ -6,6 +6,80 @@
 	Introduce the preprocessor symbol UNIV_AHI_DEBUG for enabling
 	adaptive hash index debugging independently of UNIV_DEBUG.
 
+2008-12-16	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Do not update the free bits in the insert buffer bitmap when
+	inserting or deleting from the insert buffer B-tree.  Assert that
+	records in the insert buffer B-tree are never updated.
+
+2008-12-12	The InnoDB Team
+
+	* include/fil0fil.h, include/ibuf0ibuf.h, include/ibuf0types.h,
+	include/ibuf0ibuf.ic, ibuf/ibuf0ibuf.c,
+	buf/buf0buf.c, fil/fil0fil.c, fsp/fsp0fsp.c:
+	Clean up the insert buffer subsystem so that only one insert
+	buffer B-tree exists.
+
+	Originally, there were provisions in InnoDB for multiple insert
+	buffer B-trees, apparently one for each tablespace.
+
+	When Heikki Tuuri implemented multiple InnoDB tablespaces in
+	MySQL/InnoDB 4.1, he made the insert buffer live only in the
+	system tablespace (space 0) but left the provisions in the code.
+
+2008-12-11	The InnoDB Team
+
+	* include/srv0srv.h, srv/srv0srv.c, os/os0proc.c:
+	Fix the issue that the InnoDB plugin fails if
+	innodb_buffer_pool_size is defined bigger than 4096M on 64-bit
+	Windows.  This bug should not have affected other 64-bit systems.
+
+2008-12-09	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#40386 Not flushing query cache after truncate.
+
+	ha_statistics.records cannot be 0 unless the table is empty, set
+	to 1 instead. The original problem of Bug#29507 has been fixed in
+	the server.
+
+2008-12-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, srv/srv0srv.c, trx/trx0trx.c:
+	Fix Bug#40760 Getting database deadlocks on simultaneous inserts.
+
+	The config param innodb_thread_concurrency is dynamically set and
+	is read when a thread enters/exits innodb.  If the value is
+	changed between the enter and exit time the behaviour becomes
+	erratic.  The fix is not to use srv_thread_concurrency when
+	exiting, instead use the flag trx->declared_to_be_inside_innodb.
+
+2008-12-09	The InnoDB Team
+
+	* trx/trx0undo.c:
+	Print 2 spaces between a timestamp and "InnoDB:" as usual.
+
+2008-12-09	The InnoDB Team
+
+	* row/row0purge.c:
+	Allocate mtr_vers from the stack, not with mem_alloc().
+
+2008-12-04	The InnoDB Team
+
+	* include/mysql_addons.h, handler/mysql_addons.cc,
+	handler/ha_innodb.cc, trx/trx0i_s.c, win-plugin/win-plugin.diff:
+	Remove dependencies to MySQL internals (defining MYSQL_SERVER).
+
+2008-12-02	The InnoDB Team
+
+	* page/page0cur.c:
+	When allocating space for a record from the free list of
+	previously purged records, zero out the DB_TRX_ID and DB_ROLL_PTR
+	of the purged record if the new record would not overwrite these
+	fields.  This fixes a harmless content mismatch reported by
+	page_zip_validate().
+
 2008-12-02	The InnoDB Team
 
 	* row/row0merge.c:
