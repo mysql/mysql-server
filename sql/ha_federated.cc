@@ -405,6 +405,9 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
 bool federated_db_init()
 {
   DBUG_ENTER("federated_db_init");
+  /* the federated engine can be disabled by a command line option */
+  if (have_federated_db == SHOW_OPTION_DISABLED)
+    DBUG_RETURN(TRUE);
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
@@ -728,7 +731,10 @@ uint ha_federated::convert_row_to_internal_format(byte *record,
     old_ptr= (my_ptrdiff_t) (record - table->record[0]);
     (*field)->move_field(old_ptr);
     if (!row[x])
+    {
       (*field)->set_null();
+      (*field)->reset();
+    }
     else
     {
       (*field)->set_notnull();
@@ -1313,6 +1319,14 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+  }
+  else
+  {
+    /* 
+      Free tmp_share.scheme allocated in the parse_url()
+      as we found share in the hash and tmp_share isn't needed anymore. 
+    */
+    my_free((gptr) tmp_share.scheme, MYF(MY_ALLOW_ZERO_PTR));
   }
   share->use_count++;
   pthread_mutex_unlock(&federated_mutex);

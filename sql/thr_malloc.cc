@@ -21,10 +21,35 @@
 extern "C" {
   void sql_alloc_error_handler(void)
   {
-    THD *thd=current_thd;
-    if (thd)					// QQ;  To be removed
-      thd->fatal_error();			/* purecov: inspected */
     sql_print_error(ER(ER_OUT_OF_RESOURCES));
+
+    THD *thd=current_thd;
+    if (thd)
+    {
+      /*
+        This thread is Out Of Memory.
+        An OOM condition is a fatal error.
+        It should not be caught by error handlers in stored procedures.
+        Also, recording that SQL condition in the condition area could
+        cause more memory allocations, which in turn could raise more
+        OOM conditions, causing recursion in the error handling code itself.
+        As a result, my_error() should not be invoked, and the
+        thread diagnostics area is set to an error status directly.
+        The visible result for a client application will be:
+        - a query fails with an ER_OUT_OF_RESOURCES error,
+        returned in the error packet.
+        - SHOW ERROR/SHOW WARNINGS may be empty.
+      */
+
+      NET *net= &thd->net;
+      thd->fatal_error();
+      if (!net->last_error[0])                  // Return only first message
+      {
+        strmake(net->last_error, ER(ER_OUT_OF_RESOURCES),
+                sizeof(net->last_error)-1);
+        net->last_errno= ER_OUT_OF_RESOURCES;
+      }
+    }
   }
 }
 

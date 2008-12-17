@@ -7,7 +7,7 @@ start slave;
 stop slave;
 reset master;
 reset slave;
-reset master;
+start slave;
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
@@ -25,8 +25,8 @@ master-bin.000001	219	Intvar	1	247	INSERT_ID=1
 master-bin.000001	247	Query	1	338	use `test`; insert into t1 values (NULL)
 master-bin.000001	338	Query	1	414	use `test`; drop table t1
 master-bin.000001	414	Query	1	517	use `test`; create table t1 (word char(20) not null)
-master-bin.000001	517	Begin_load_query	1	1121	;file_id=1;block_len=581
-master-bin.000001	1121	Execute_load_query	1	1269	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	517	Begin_load_query	1	1121	;file_id=#;block_len=#
+master-bin.000001	1121	Execute_load_query	1	1269	use `test`; load data infile 'words.dat' into table t1 ignore 1 lines ;file_id=#
 master-bin.000001	1269	Query	1	1345	use `test`; drop table t1
 show binlog events from 98 limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -41,7 +41,6 @@ master-bin.000001	247	Query	1	338	use `test`; insert into t1 values (NULL)
 flush logs;
 create table t5 (a int);
 drop table t5;
-start slave;
 flush logs;
 stop slave;
 create table t1 (n int);
@@ -55,8 +54,8 @@ master-bin.000001	219	Intvar	1	247	INSERT_ID=1
 master-bin.000001	247	Query	1	338	use `test`; insert into t1 values (NULL)
 master-bin.000001	338	Query	1	414	use `test`; drop table t1
 master-bin.000001	414	Query	1	517	use `test`; create table t1 (word char(20) not null)
-master-bin.000001	517	Begin_load_query	1	1121	;file_id=1;block_len=581
-master-bin.000001	1121	Execute_load_query	1	1269	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	517	Begin_load_query	1	1121	;file_id=#;block_len=#
+master-bin.000001	1121	Execute_load_query	1	1269	use `test`; load data infile 'words.dat' into table t1 ignore 1 lines ;file_id=#
 master-bin.000001	1269	Query	1	1345	use `test`; drop table t1
 master-bin.000001	1345	Rotate	1	1389	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
@@ -84,8 +83,8 @@ slave-bin.000001	219	Intvar	1	247	INSERT_ID=1
 slave-bin.000001	247	Query	1	338	use `test`; insert into t1 values (NULL)
 slave-bin.000001	338	Query	1	414	use `test`; drop table t1
 slave-bin.000001	414	Query	1	517	use `test`; create table t1 (word char(20) not null)
-slave-bin.000001	517	Begin_load_query	1	1121	;file_id=1;block_len=581
-slave-bin.000001	1121	Execute_load_query	1	1271	use `test`; load data INFILE '../tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
+slave-bin.000001	517	Begin_load_query	1	1121	;file_id=#;block_len=#
+slave-bin.000001	1121	Execute_load_query	1	1271	use `test`; load data INFILE 'words.dat' INTO table t1 ignore 1 lines ;file_id=#
 slave-bin.000001	1271	Query	1	1347	use `test`; drop table t1
 slave-bin.000001	1347	Query	1	1433	use `test`; create table t5 (a int)
 slave-bin.000001	1433	Query	1	1509	use `test`; drop table t5

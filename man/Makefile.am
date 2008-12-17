@@ -21,5 +21,11 @@ man1_MANS =   @man1_files@
 man8_MANS =   @man8_files@
 EXTRA_DIST =  $(man1_MANS) $(man8_MANS)
 
+# 1) not needed in Unix binary packages,
+# 2) programs not generated in 5.0:
+install-data-hook:
+	rm -f $(DESTDIR)$(manlibdir)/man1/make_win_*
+	rm -f $(DESTDIR)$(manlibdir)/man1/ndb_print_*
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

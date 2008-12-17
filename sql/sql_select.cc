@@ -390,10 +390,20 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 {
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
+  /* 
+    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    additions coming from the WHERE
+  */
+  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
+
+  /* it's not wrong to have non-aggregated columns in a WHERE */
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    thd->lex->current_select->full_group_by_flag= saved_flag |
+      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
@@ -1735,7 +1745,8 @@ JOIN::exec()
     if (!items1)
     {
       items1= items0 + all_fields.elements;
-      if (sort_and_group || curr_tmp_table->group)
+      if (sort_and_group || curr_tmp_table->group ||
+          tmp_table_param.precomputed_group_by)
       {
 	if (change_to_use_tmp_fields(thd, items1,
 				     tmp_fields_list1, tmp_all_fields1,
@@ -6481,6 +6492,12 @@ void JOIN::cleanup(bool full)
     if (tmp_join)
       tmp_table_param.copy_field= 0;
     group_fields.delete_elements();
+    /* 
+      Ensure that the above delete_elements() would not be called
+      twice for the same list.
+    */
+    if (tmp_join && tmp_join != this)
+      tmp_join->group_fields= group_fields;
     /*
       We can't call delete_elements() on copy_funcs as this will cause
       problems in free_elements() as some of the elements are then deleted.
@@ -6579,6 +6596,7 @@ only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
 {
   if (specialflag &  SPECIAL_SAFE_MODE)
     return 0;			// skip this optimize /* purecov: inspected */
+  tables&= ~PSEUDO_TABLE_BITS;
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {
     if (tables & 1 && !eq_ref_table(join, order, *tab))
@@ -8273,6 +8291,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   }
     
   /* Flatten nested joins that can be flattened. */
+  TABLE_LIST *right_neighbor= NULL;
+  bool fix_name_res= FALSE;
   li.rewind();
   while ((table= li++))
   {
@@ -8285,9 +8305,17 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       {
         tbl->embedding= table->embedding;
         tbl->join_list= table->join_list;
-      }      
+      }
       li.replace(nested_join->join_list);
+      /* Need to update the name resolution table chain when flattening joins */
+      fix_name_res= TRUE;
+      table= *li.ref();
     }
+    if (fix_name_res)
+      table->next_name_resolution_table= right_neighbor ?
+        right_neighbor->first_leaf_for_name_resolution() :
+        NULL;
+    right_neighbor= table;
   }
   DBUG_RETURN(conds); 
 }
@@ -8969,6 +8997,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
+        type == MYSQL_TYPE_NEWDATE ||
         type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table);
     /* 
@@ -9265,6 +9294,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   MI_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
+  /* Treat sum functions as normal ones when loose index scan is used. */
+  save_sum_fields|= param->precomputed_group_by;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -11321,7 +11352,7 @@ join_init_read_record(JOIN_TAB *tab)
   if (tab->select && tab->select->quick && tab->select->quick->reset())
     return 1;
   init_read_record(&tab->read_record, tab->join->thd, tab->table,
-		   tab->select,1,1);
+		   tab->select,1,1, FALSE);
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -12100,26 +12131,25 @@ part_of_refkey(TABLE *table,Field *field)
 }
 
 
-/*****************************************************************************
-  Test if one can use the key to resolve ORDER BY
+/**
+  Test if a key can be used to resolve ORDER BY
 
-  SYNOPSIS
-    test_if_order_by_key()
-    order		Sort order
-    table		Table to sort
-    idx			Index to check
-    used_key_parts	Return value for used key parts.
+  used_key_parts is set to correct key parts used if return value != 0
+  (On other cases, used_key_part may be changed).
+  Note that the value may actually be greater than the number of index 
+  key parts. This can happen for storage engines that have the primary 
+  key parts as a suffix for every secondary key.
 
+  @param      order		Sort order
+  @param      table		Table to sort
+  @param      idx		Index to check
+  @param[out] used_key_parts	Return value for used key parts.
 
-  NOTES
-    used_key_parts is set to correct key parts used if return value != 0
-    (On other cases, used_key_part may be changed)
-
-  RETURN
-    1   key is ok.
-    0   Key can't be used
-    -1  Reverse key can be used
-*****************************************************************************/
+  @return indication if the key can be used for sorting
+    @retval 1   key can be used for reading data in order.
+    @retval 0   Key can't be used
+    @retval -1  Reverse read on the key can be used
+*/
 
 static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 				uint *used_key_parts)
@@ -12184,11 +12214,27 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  *used_key_parts= on_primary_key ? table->key_info[idx].key_parts :
-    (uint) (key_part - table->key_info[idx].key_part);
-  if (reverse == -1 && !(table->file->index_flags(idx, *used_key_parts-1, 1) &
-                         HA_READ_PREV))
-    reverse= 0;                                 // Index can't be used
+  if (on_primary_key)
+  {
+    uint used_key_parts_secondary= table->key_info[idx].key_parts;
+    uint used_key_parts_pk=
+      (uint) (key_part - table->key_info[table->s->primary_key].key_part);
+    *used_key_parts= used_key_parts_pk + used_key_parts_secondary;
+
+    if (reverse == -1 &&
+        (!(table->file->index_flags(idx, used_key_parts_secondary - 1, 1) &
+           HA_READ_PREV) ||
+         !(table->file->index_flags(table->s->primary_key,
+                                    used_key_parts_pk - 1, 1) & HA_READ_PREV)))
+      reverse= 0;                               // Index can't be used
+  }
+  else
+  {
+    *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+    if (reverse == -1 && 
+        !(table->file->index_flags(idx, *used_key_parts-1, 1) & HA_READ_PREV))
+      reverse= 0;                               // Index can't be used
+  }
   DBUG_RETURN(reverse);
 }
 

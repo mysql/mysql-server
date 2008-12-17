@@ -28,10 +28,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/bdb/build_win32
                     ${CMAKE_SOURCE_DIR}/bdb/dbinc)
 
-SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc 
-							${CMAKE_SOURCE_DIR}/sql/message.h 
-							${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
-							${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
+                            ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
                             ${CMAKE_SOURCE_DIR}/include/mysql_version.h
                             ${CMAKE_SOURCE_DIR}/sql/lex_hash.h 
                             ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
@@ -121,13 +119,6 @@ ADD_CUSTOM_COMMAND(
 	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
 )
 
-# Windows message file
-ADD_CUSTOM_COMMAND(
-	SOURCE ${PROJECT_SOURCE_DIR}/sql/message.mc
-	OUTPUT message.rc message.h
-	COMMAND mc ARGS ${PROJECT_SOURCE_DIR}/sql/message.mc
-	DEPENDS ${PROJECT_SOURCE_DIR}/sql/message.mc)
-
 # Gen_lex_hash
 # About "mysqlclient_notls", see note in "client/CMakeLists.txt"
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
@@ -142,7 +133,7 @@ ADD_DEPENDENCIES(mysqld${MYSQLD_EXE_SUFFIX} gen_lex_hash)
 
 # Remove the auto-generated files as part of 'Clean Solution'
 SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
-                         "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
+                         "lex_hash.h;sql_yacc.h;sql_yacc.cc")
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings)

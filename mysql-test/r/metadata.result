@@ -108,11 +108,11 @@ id
 1
 select * from v1 group by id limit 0;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	id	id	3	10	0	Y	32768	0	63
+def	test	v1	v1	id	id	3	10	0	Y	32768	0	63
 id
 select * from v1 where id=1000 group by id;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	id	id	3	10	0	Y	32768	0	63
+def	test	v1	v1	id	id	3	10	0	Y	32768	0	63
 id
 select * from v1 where id=1 group by id;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -126,7 +126,7 @@ renamed
 1
 select * from v3 where renamed=1 group by renamed;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def			v3		renamed	8	12	0	Y	32896	0	63
+def		v3	v3	renamed	renamed	8	12	0	Y	32896	0	63
 renamed
 drop table t1;
 drop view v1,v2,v3;
@@ -156,8 +156,8 @@ c1
 3
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	c1	c1	254	1	1	Y	0	0	8
-def	test	t2	v2	c2	c2	254	1	1	Y	0	0	8
+def	test	v1	v1	c1	c1	254	1	1	Y	0	0	8
+def	test	v2	v2	c2	c2	254	1	1	Y	0	0	8
 c1	c2
 1	1
 2	2
@@ -181,4 +181,21 @@ c1	c2
 3	3
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
+CREATE TABLE t1 (i INT, d DATE);
+INSERT INTO t1 VALUES (1, '2008-01-01'), (2, '2008-01-02'), (3, '2008-01-03');
+SELECT COALESCE(d, d), IFNULL(d, d), IF(i, d, d),
+CASE i WHEN i THEN d ELSE d END, GREATEST(d, d), LEAST(d, d)
+FROM t1 ORDER BY RAND();
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+2008-01-01	2008-01-01	2008-01-01	2008-01-01	2008-01-01	2008-01-01
+2008-01-02	2008-01-02	2008-01-02	2008-01-02	2008-01-02	2008-01-02
+2008-01-03	2008-01-03	2008-01-03	2008-01-03	2008-01-03	2008-01-03
+COALESCE(d, d)	IFNULL(d, d)	IF(i, d, d)	CASE i WHEN i THEN d ELSE d END	GREATEST(d, d)	LEAST(d, d)
+def				CASE i WHEN i THEN d ELSE d END	CASE i WHEN i THEN d ELSE d END	10	10	10	Y	128	0	63
+def				COALESCE(d, d)	COALESCE(d, d)	10	10	10	Y	128	0	63
+def				GREATEST(d, d)	GREATEST(d, d)	10	10	10	Y	128	0	63
+def				IF(i, d, d)	IF(i, d, d)	10	10	10	Y	128	0	63
+def				IFNULL(d, d)	IFNULL(d, d)	10	10	10	Y	128	0	63
+def				LEAST(d, d)	LEAST(d, d)	10	10	10	Y	128	0	63
+DROP TABLE t1;
 End of 5.0 tests

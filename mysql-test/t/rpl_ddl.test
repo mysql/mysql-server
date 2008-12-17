@@ -55,6 +55,18 @@ DROP DATABASE IF EXISTS mysqltest3;
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
 CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE= "InnoDB";
+# Prevent Bug#26687 rpl_ddl test fails if run with --innodb option
+# The current testscripts + the expected result need that the slave uses MyISAM
+# for the table mysqltest.t1.
+sync_slave_with_master;
+connection slave;
+if (`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = 'mysqltest1' AND TABLE_NAME = 't1'
+           AND ENGINE <> 'MyISAM'`)
+{
+   skip This test needs on slave side: InnoDB disabled, default engine: MyISAM;
+}
+connection master;
 INSERT INTO mysqltest1.t1 SET f1= 0;
 CREATE TABLE mysqltest1.t2 (f1 BIGINT) ENGINE= "InnoDB";
 CREATE TABLE mysqltest1.t3 (f1 BIGINT) ENGINE= "InnoDB";

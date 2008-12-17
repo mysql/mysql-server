@@ -336,11 +336,11 @@ public:
   bool no_table_names_allowed; /* used for global order by */
   bool no_error; /* suppress error message (convert it to warnings) */
 
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw ()
   {
     return (void*) sql_alloc((uint) size);
   }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
@@ -591,6 +591,7 @@ public:
     case of an error during prepare the PS is not created.
   */
   bool first_execution;
+  bool first_natural_join_processing;
   bool first_cond_optimization;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
@@ -1009,7 +1010,6 @@ typedef struct st_lex : public Query_tables_list
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   XID *xid;
-  gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset, *underscore_charset;
   bool text_string_is_7bit;
@@ -1297,6 +1297,59 @@ typedef struct st_lex : public Query_tables_list
     return FALSE;
   }
 } LEX;
+
+
+/**
+  The internal state of the syntax parser.
+  This object is only available during parsing,
+  and is private to the syntax parser implementation (sql_yacc.yy).
+*/
+class Yacc_state
+{
+public:
+  Yacc_state()
+    : yacc_yyss(NULL), yacc_yyvs(NULL)
+  {}
+
+  ~Yacc_state();
+
+  /**
+    Bison internal state stack, yyss, when dynamically allocated using
+    my_yyoverflow().
+  */
+  gptr yacc_yyss;
+
+  /**
+    Bison internal semantic value stack, yyvs, when dynamically allocated using
+    my_yyoverflow().
+  */
+  gptr yacc_yyvs;
+
+  /*
+    TODO: move more attributes from the LEX structure here.
+  */
+};
+
+/**
+  Internal state of the parser.
+  The complete state consist of:
+  - state data used during lexical parsing,
+  - state data used during syntactic parsing.
+*/
+class Parser_state
+{
+public:
+  Parser_state(THD *thd, const char* buff, unsigned int length)
+    : m_lip(thd, buff, length), m_yacc()
+  {}
+
+  ~Parser_state()
+  {}
+
+  Lex_input_stream m_lip;
+  Yacc_state m_yacc;
+};
+
 
 struct st_lex_local: public st_lex
 {

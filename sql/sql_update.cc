@@ -358,7 +358,7 @@ int mysql_update(THD *thd,
                Full index scan must be started with init_read_record_idx
       */
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info,thd,table,select,0,1);
+        init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -422,7 +422,7 @@ int mysql_update(THD *thd,
   
   if (select && select->quick && select->quick->reset())
         goto err;
-  init_read_record(&info,thd,table,select,0,1);
+  init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   updated= found= 0;
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
@@ -852,10 +852,13 @@ reopen_tables:
   }
 
   /* now lock and fill tables */
-  if (lock_tables(thd, table_list, table_count, &need_reopen))
+  if (!thd->stmt_arena->is_stmt_prepare() &&
+      lock_tables(thd, table_list, table_count, &need_reopen))
   {
     if (!need_reopen)
       DBUG_RETURN(TRUE);
+
+    DBUG_PRINT("info", ("lock_tables failed, reopening"));
 
     /*
       We have to reopen tables since some of them were altered or dropped
@@ -871,6 +874,34 @@ reopen_tables:
     /* We have to cleanup translation tables of views. */
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
+
+    /*
+      To not to hog memory (as a result of the 
+      unit->reinit_exec_mechanism() call below):
+    */
+    lex->unit.cleanup();
+
+    for (SELECT_LEX *sl= lex->all_selects_list;
+        sl;
+        sl= sl->next_select_in_list())
+    {
+      SELECT_LEX_UNIT *unit= sl->master_unit();
+      unit->reinit_exec_mechanism(); // reset unit->prepared flags
+      /*
+        Reset 'clean' flag back to force normal execution of
+        unit->cleanup() in Prepared_statement::cleanup_stmt()
+        (call to lex->unit.cleanup() above sets this flag to TRUE).
+      */
+      unit->unclean();
+    }
+
+    /*
+      Also we need to cleanup Natural_join_column::table_field items.
+      To not to traverse a join tree we will cleanup whole
+      thd->free_list (in PS execution mode that list may not contain
+      items from 'fields' list, so the cleanup above is necessary to.
+    */
+    cleanup_items(thd->free_list);
 
     close_tables_for_reopen(thd, &table_list);
     goto reopen_tables;
@@ -1217,6 +1248,32 @@ multi_update::initialize_tables(JOIN *join)
 	continue;
       }
     }
+
+    /*
+      enable uncacheable flag if we update a view with check option
+      and check option has a subselect, otherwise, the check option
+      can be evaluated after the subselect was freed as independent
+      (See full_local in JOIN::join_free()).
+    */
+    if (table_ref->check_option && !join->select_lex->uncacheable)
+    {
+      SELECT_LEX_UNIT *tmp_unit;
+      SELECT_LEX *sl;
+      for (tmp_unit= join->select_lex->first_inner_unit();
+           tmp_unit;
+           tmp_unit= tmp_unit->next_unit())
+      {
+        for (sl= tmp_unit->first_select(); sl; sl= sl->next_select())
+        {
+          if (sl->master_unit()->item)
+          {
+            join->select_lex->uncacheable|= UNCACHEABLE_CHECKOPTION;
+            goto loop_end;
+          }
+        }
+      }
+    }
+loop_end:
 
     if (table == first_table_for_update && table_ref->check_option)
     {

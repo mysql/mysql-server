@@ -417,5 +417,24 @@ drop table t1;
 #
 SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
 
+#
+# Bug #35848: UUID() returns UUIDs with the wrong time
+#
+select @@session.time_zone into @save_tz;
+
+# make sure all times are UTC so the DayNr won't differ
+set @@session.time_zone='UTC';
+select uuid() into @my_uuid;
+# if version nibble isn't 1, the following calculations will be rubbish
+select mid(@my_uuid,15,1);
+select 24 * 60 * 60 * 1000 * 1000 * 10 into @my_uuid_one_day;
+select concat('0',mid(@my_uuid,16,3),mid(@my_uuid,10,4),left(@my_uuid,8)) into @my_uuidate;
+select floor(conv(@my_uuidate,16,10)/@my_uuid_one_day) into @my_uuid_date;
+select 141427 + datediff(curdate(),'1970-01-01') into @my_uuid_synthetic;
+# these should be identical; date part of UUID should be current date
+select @my_uuid_date - @my_uuid_synthetic;
+
+set @@session.time_zone=@save_tz;
+
 --echo End of 5.0 tests
 

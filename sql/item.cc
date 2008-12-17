@@ -429,8 +429,11 @@ uint Item::decimal_precision() const
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    return min(my_decimal_length_to_precision(max_length, decimals, unsigned_flag),
-               DECIMAL_MAX_PRECISION);
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
   return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
@@ -1214,10 +1217,12 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
-                      (((Item_func *) value_item)->functype() ==
-                                                 Item_func::NEG_FUNC) &&
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::COLLATE_FUNC) ||
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::NEG_FUNC) &&
                       (((Item_func *) value_item)->key_item()->type() !=
-                       FUNC_ITEM)))))
+                         FUNC_ITEM)))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
@@ -1753,14 +1758,17 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     We need to copy db_name, table_name and field_name because they must
     be allocated in the statement memory, not in table memory (the table
     structure can go away and pop up again between subsequent executions
-    of a prepared statement).
+    of a prepared statement or after the close_tables_for_reopen() call
+    in mysql_multi_update_prepare() or due to wildcard expansion in stored
+    procedures).
   */
-  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
   {
     if (db_name)
       orig_db_name= thd->strdup(db_name);
-    orig_table_name= thd->strdup(table_name);
-    orig_field_name= thd->strdup(field_name);
+    if (table_name)
+      orig_table_name= thd->strdup(table_name);
+    if (field_name)
+      orig_field_name= thd->strdup(field_name);
     /*
       We don't restore 'name' in cleanup because it's not changed
       during execution. Still we need it to point to persistent
@@ -4217,7 +4225,12 @@ Item *Item_field::equal_fields_propagator(byte *arg)
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
-    if (item && cmp_context != INT_RESULT)
+    /*
+      We don't need to zero-fill timestamp columns here because they will be 
+      first converted to a string (in date/time format) and compared as such if
+      compared with another string.
+    */
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;
@@ -5761,6 +5774,10 @@ void Item_ref::make_field(Send_field *field)
     field->table_name= table_name;
   if (db_name)
     field->db_name= db_name;
+  if (orig_field_name)
+    field->org_col_name= orig_field_name;
+  if (orig_table_name)
+    field->org_table_name= orig_table_name;
 }
 
 
@@ -6038,6 +6055,13 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 Item *Item_default_value::transform(Item_transformer transformer, byte *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  /*
+    If the value of arg is NULL, then this object represents a constant,
+    so further transformation is unnecessary (and impossible).
+  */
+  if (!arg)
+    return 0;
 
   Item *new_item= arg->transform(transformer, args);
   if (!new_item)
@@ -6838,8 +6862,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
     decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
-    int precision= min(max(prev_decimal_int_part, item->decimal_int_part())
-                       + decimals, DECIMAL_MAX_PRECISION);
+    int item_int_part= item->decimal_int_part();
+    int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
+    int precision= min(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);

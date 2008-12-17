@@ -1382,7 +1382,7 @@ restart:
       /* We don't need the page in the cache: we are going to write on disk */
       hash_link->requests--;
       unlink_hash(keycache, hash_link);
-      return 0;
+      DBUG_RETURN(0);
     }
     if (!(block->status & BLOCK_IN_FLUSH))
     {
@@ -1399,7 +1399,7 @@ restart:
         flag (see the code below that handles reading requests).
       */
       free_block(keycache, block);
-      return 0;
+      DBUG_RETURN(0);
     }
     /* Wait intil the page is flushed on disk */
     hash_link->requests--;
@@ -1429,7 +1429,7 @@ restart:
     /* Invalidate page in the block if it has not been done yet */
     if (block->status)
       free_block(keycache, block);
-    return 0;
+    DBUG_RETURN(0);
   }
 
   if (page_status == PAGE_READ &&

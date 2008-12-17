@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.69)
+AM_INIT_AUTOMAKE(mysql, 5.0.75)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=69
+NDB_VERSION_BUILD=75
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -409,7 +409,7 @@ fi
 MYSQL_PROG_AR
 
 # libmysqlclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
+if $LD --version 2>/dev/null|grep GNU > /dev/null; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
@@ -437,11 +437,13 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-# If ln -f does not exists use -s (AFS systems)
-if test -n "$LN_CP_F"; then
-  LN_CP_F="$LN_CP_F -s"
-fi
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  :
+else
+  # If ln -f does not exists use -s (AFS systems)
+  if test -n "$LN_CP_F"; then
+    LN_CP_F="$LN_CP_F -s"
+  fi
 fi
 
 AC_PATH_PROG(MV, mv, mv)
@@ -504,46 +506,50 @@ then
 fi
 AC_SUBST(ICHECK)
 
-# Lock for PS
+# Look for PS usage.  We use double dollar-signs in FIND_PROC because this
+# value is written to a makefile, which interprets away one level of
+# dollar-signs.  So, interpretation stages are  m4 and then shell in autoconf,
+# then Make, then shell.  The autoconf substitution uses single quotes, so 
+# no unprotected single quotes should appear in the expression.
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
 # Linux style
-if $PS p $$ 2> /dev/null | grep `echo $0 | sed s/\-//` > /dev/null
+if $PS wwwp $$ 2> /dev/null | grep -- "$0" > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS wwwp \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # Solaris
-elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # BSD style
-elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
+elif $PS -uaxww 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # SysV style
-elif $PS -ef 2> /dev/null | grep $0 > /dev/null
+elif $PS -ef 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
-elif $PS $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*|*dragonfly*)
-      FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
       ;;
     *)
-      AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
+      AC_MSG_ERROR([Could not find the right ps and/or grep switches. Which OS is this?  See the Installation chapter in the Reference Manual.])
   esac
 fi
 AC_SUBST(FIND_PROC)
@@ -1949,14 +1955,16 @@ MYSQL_CHECK_IN_ADDR_T
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-MYSQL_CHECK_LONGLONG_TO_FLOAT
-if test "$ac_cv_conv_longlong_to_float" != "yes"
-then
-  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  :
+else
+  MYSQL_CHECK_LONGLONG_TO_FLOAT
+  if test "$ac_cv_conv_longlong_to_float" != "yes"
+  then
+    AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again])
-fi
+  fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
@@ -2737,8 +2745,10 @@ then
   AC_SUBST(THREAD_LOBJECTS)
 fi
 
-if test "$with_server" != "no"
+if test "$with_server" = "no"
 then
+  AM_CONDITIONAL([BUILD_INNODB_TOOLS], [false])
+else
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
@@ -2823,11 +2833,20 @@ EOF
     AC_CONFIG_SUBDIRS(innobase)
   fi
 
+  # "innochecksum" is not in the "innobase/" subdirectory, but should be switched
+  AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$have_innodb" = Xyes])
+
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
   *solaris*-i?86-no-yes)
-  # ndb fail for whatever strange reason to link Sun Forte/x86
-  # unless using incremental linker
-  CXXFLAGS="$CXXFLAGS -xildon"
+  if $CC -xildon 2>&1 | grep "illegal option" >/dev/null
+  then
+    # This Solaris ld does not support -xildon
+    true
+  else
+    # ndb fail for whatever strange reason to link Sun Forte/x86
+    # unless using incremental linker
+    CXXFLAGS="$CXXFLAGS -xildon"
+  fi
   ;;
   *) ;;
 esac

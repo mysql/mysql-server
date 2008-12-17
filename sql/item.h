@@ -439,9 +439,9 @@ class Item {
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw ()
   { return (void*) sql_alloc((uint) size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
@@ -1817,7 +1817,7 @@ class Item_empty_string :public Item_string
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
     Item_string("",0, cs ? cs : &my_charset_utf8_general_ci)
-    { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
+    { name=(char*) header; max_length= length * collation.collation->mbmaxlen; }
   void make_field(Send_field *field);
 };
 
