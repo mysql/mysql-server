@@ -39,6 +39,8 @@
 #include <ndbinfo.h>
 #include <dbinfo/ndbinfo_tableids.h>
 
+#include <signaldata/WaitGCP.hpp>
+
 #define CONSTRAINT_VIOLATION 893
 
 #define DEBUG(x) { ndbout << "TRIX::" << x << endl; }
@@ -93,6 +95,9 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_SUB_SYNC_REF, &Trix::execSUB_SYNC_REF);
   addRecSignal(GSN_SUB_SYNC_CONTINUE_REQ, &Trix::execSUB_SYNC_CONTINUE_REQ);
   addRecSignal(GSN_SUB_TABLE_DATA, &Trix::execSUB_TABLE_DATA);
+
+  addRecSignal(GSN_WAIT_GCP_REF, &Trix::execWAIT_GCP_REF);
+  addRecSignal(GSN_WAIT_GCP_CONF, &Trix::execWAIT_GCP_CONF);
 }
 
 /**
@@ -566,7 +571,8 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   subRec->requestType = INDEX_BUILD;
   subRec->fragCount = 0;
   subRec->m_rows_processed = 0;
-
+  subRec->m_flags = SubscriptionRecord::RF_WAIT_GCP; // Todo make configurable
+  subRec->m_gci = 0;
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
   if (noOfSections > 0) {
@@ -649,6 +655,10 @@ void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
 
+  const Uint32 gci_hi = utilExecuteConf->gci_hi;
+  const Uint32 gci_lo = utilExecuteConf->gci_lo;
+  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+
   subRecPtr.i = utilExecuteConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
     printf("rix::execUTIL_EXECUTE_CONF: Failed to find subscription data %u\n", subRecPtr.i);
@@ -656,9 +666,24 @@ void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->expectedConf--;
+
+  if (gci > subRecPtr.p->m_gci)
+  {
+    jam();
+    subRecPtr.p->m_gci = gci;
+  }
+
   checkParallelism(signal, subRec);
   if (subRec->expectedConf == 0)
+  {
+    if (subRec->m_flags & SubscriptionRecord::RF_WAIT_GCP)
+    {
+      jam();
+      wait_gcp(signal, subRecPtr);
+      return;
+    }
     buildComplete(signal, subRecPtr);
+  }
 }
 
 void Trix::execUTIL_EXECUTE_REF(Signal* signal)
@@ -753,7 +778,15 @@ void Trix::execSUB_SYNC_CONF(Signal* signal)
   subRec->expectedConf--;
   checkParallelism(signal, subRec);
   if (subRec->expectedConf == 0)
+  {
+    if (subRec->m_flags & SubscriptionRecord::RF_WAIT_GCP)
+    {
+      jam();
+      wait_gcp(signal, subRecPtr);
+      return;
+    }
     buildComplete(signal, subRecPtr);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -835,7 +868,7 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
   subCreateReq->tableId = subRec->sourceTableId;
   subCreateReq->subscriptionType = SubCreateReq::SingleTableScan;
   subCreateReq->schemaTransId = subRec->schemaTransId;
-  
+
   DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
 		     subRecPtr.i, subCreateReq->subscriptionId,
 		     subCreateReq->subscriptionKey));
@@ -1047,6 +1080,62 @@ void Trix::executeReorgTransaction(Signal* signal,
 	     &handle);
 }
 
+void
+Trix::wait_gcp(Signal* signal, SubscriptionRecPtr subRecPtr, Uint32 delay)
+{
+  WaitGCPReq * req = (WaitGCPReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = subRecPtr.i;
+  req->requestType = WaitGCPReq::CurrentGCI;
+
+  if (delay == 0)
+  {
+    jam();
+    sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
+               WaitGCPReq::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    sendSignalWithDelay(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
+                        delay, WaitGCPReq::SignalLength);
+  }
+}
+
+void
+Trix::execWAIT_GCP_REF(Signal* signal)
+{
+  WaitGCPRef ref = *(WaitGCPRef*)signal->getDataPtr();
+
+  SubscriptionRecPtr subRecPtr;
+  c_theSubscriptions.getPtr(subRecPtr, ref.senderData);
+  wait_gcp(signal, subRecPtr, 100);
+}
+
+void
+Trix::execWAIT_GCP_CONF(Signal* signal)
+{
+  WaitGCPConf * conf = (WaitGCPConf*)signal->getDataPtr();
+  
+  SubscriptionRecPtr subRecPtr;
+  c_theSubscriptions.getPtr(subRecPtr, conf->senderData);
+
+  const Uint32 gci_hi = conf->gci_hi;
+  const Uint32 gci_lo = conf->gci_lo;
+  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+  
+  if (gci > subRecPtr.p->m_gci)
+  {
+    jam();
+    buildComplete(signal, subRecPtr);
+  }
+  else
+  {
+    jam();
+    wait_gcp(signal, subRecPtr, 100);
+  }
+}
+
 void Trix::buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr)
 {
   SubRemoveReq * const req = (SubRemoveReq*)signal->getDataPtrSend();
@@ -1251,6 +1340,8 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   subRec->prepareId = req->transId;
   subRec->fragCount = req->srcFragments;
   subRec->m_rows_processed = 0;
+  subRec->m_flags = SubscriptionRecord::RF_WAIT_GCP; // Todo make configurable
+  subRec->m_gci = 0;
   switch(req->requestType){
   case CopyDataImplReq::ReorgCopy:
     jam();
