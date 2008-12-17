@@ -3133,7 +3133,6 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   delete reply;
 
   if(strcmp(result.c_str(), "Ok") != 0) {
-    fprintf(h->errstream, "ERROR Message: %s\n", result.c_str());
     SET_ERROR(h, NDB_MGM_CONFIG_CHANGE_FAILED, result.c_str());
     return -1;
   }

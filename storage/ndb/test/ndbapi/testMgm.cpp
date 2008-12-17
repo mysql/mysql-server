@@ -681,7 +681,6 @@ int runSetConfigUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   while(!ctx->isTestStopped() &&
         (result= runSetConfig(ctx, step)) == NDBT_OK)
     ;
-  ctx->stopTest();
   return result;
 }
 
@@ -712,7 +711,6 @@ int runGetConfigUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   while(!ctx->isTestStopped() &&
         (result= runGetConfig(ctx, step)) == NDBT_OK)
     ;
-  ctx->stopTest();
   return result;
 }
 
@@ -917,7 +915,6 @@ int runTestStatusUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   while(!ctx->isTestStopped() &&
         (result= runTestStatus(ctx, step)) == NDBT_OK)
     ;
-  ctx->stopTest();
   return result;
 }
 
@@ -1240,7 +1237,6 @@ int runTestGetNodeIdUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   while(!ctx->isTestStopped() &&
         (result= runTestGetNodeId(ctx, step)) == NDBT_OK)
     ;
-  ctx->stopTest();
   return result;
 }
 
@@ -1255,6 +1251,598 @@ int runSleepAndStop(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+static bool
+get_version(NdbMgmd& mgmd,
+            Properties& reply)
+{
+  Properties args;
+  if (!mgmd.call("get version", args,
+                 "version", reply))
+  {
+    g_err << "get_version: mgmd.call failed" << endl;
+    return false;
+  }
+
+  //reply.print();
+  return true;
+}
+
+int runTestGetVersion(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  Properties reply;
+  if (!get_version(mgmd, reply))
+   return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
+int runTestGetVersionUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runTestGetVersion(ctx, step)) == NDBT_OK)
+    ;
+  return result;
+}
+
+static bool
+show_config(NdbMgmd& mgmd,
+            const Properties& args,
+            Properties& reply)
+{
+  if (!mgmd.call("show config", args,
+                 "show config reply", reply, NULL, false))
+  {
+    g_err << "show_config: mgmd.call failed" << endl;
+    return false;
+  }
+
+  // reply.print();
+  return true;
+}
+
+
+int runCheckConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  // Connect to any mgmd and get the config
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  Properties args1;
+  Properties config1;
+  if (!show_config(mgmd, args1, config1))
+    return NDBT_FAILED;
+
+  // Get the binary config
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return NDBT_FAILED;
+
+  // Extract list of connectstrings to each mgmd
+  BaseString connectstring;
+  conf.getConnectString(connectstring, ";");
+
+  Vector<BaseString> mgmds;
+  connectstring.split(mgmds, ";");
+
+  // Connect to each mgmd and check
+  // they all have the same config
+  for (size_t i = 0; i < mgmds.size(); i++)
+  {
+    NdbMgmd mgmd2;
+    g_info << "Connecting to " << mgmds[i].c_str() << endl;
+    if (!mgmd2.connect(mgmds[i].c_str()))
+      return NDBT_FAILED;
+
+    Properties args2;
+    Properties config2;
+    if (!show_config(mgmd, args2, config2))
+      return NDBT_FAILED;
+
+    // Compare config1 and config2 line by line
+    Uint32 line = 1;
+    const char* value1;
+    const char* value2;
+    while (true)
+    {
+      if (config1.get("line", line, &value1))
+      {
+        // config1 had line, so should config2
+        if (config2.get("line", line, &value2))
+        {
+          // both configs had line, check they are equal
+          if (strcmp(value1, value2) != 0)
+          {
+            g_err << "the value on line " << line << "didn't match!" << endl;
+            g_err << "config1, value: " << value1 << endl;
+            g_err << "config2, value: " << value2 << endl;
+            return NDBT_FAILED;
+          }
+          // g_info << line << ": " << value1 << " = " << value2 << endl;
+        }
+        else
+        {
+          g_err << "config2 didn't have line " << line << "!" << endl;
+          return NDBT_FAILED;
+        }
+      }
+      else
+      {
+        // Make sure config2 does not have this line either and end loop
+        if (config2.get("line", line, &value2))
+        {
+          g_err << "config2 had line " << line << " not in config1!" << endl;
+          return NDBT_FAILED;
+        }
+
+        // End of loop
+        g_info << "There was " << line << " lines in config" << endl;
+        break;
+      }
+      line++;
+    }
+    if (line == 0)
+    {
+      g_err << "FAIL: config should have lines!" << endl;
+      return NDBT_FAILED;
+    }
+
+    // Compare the binary config
+    Config conf2;
+    if (!mgmd.get_config(conf2))
+      return NDBT_FAILED;
+
+    if (!conf.equal(&conf2))
+    {
+      g_err << "The binary config was different! host: " << mgmds[i] << endl;
+      return NDBT_FAILED;
+    }
+
+  }
+
+  return NDBT_OK;
+}
+
+
+static bool
+reload_config(NdbMgmd& mgmd,
+              const Properties& args,
+              Properties& reply)
+{
+  if (!mgmd.call("reload config", args,
+                 "reload config reply", reply))
+  {
+    g_err << "reload config: mgmd.call failed" << endl;
+    return false;
+  }
+
+  //reply.print();
+  return true;
+}
+
+
+static bool reload_config_result_contains(NdbMgmd& mgmd,
+                                          const Properties& args,
+                                          const char* expected_result)
+{
+  Properties reply;
+  if (!reload_config(mgmd, args, reply))
+    return false;
+  return result_contains(reply, expected_result);
+}
+
+
+static bool
+check_reload_config_both_config_and_mycnf(NdbMgmd& mgmd)
+{
+  Properties args;
+  // Send reload command with both config_filename and mycnf set
+  args.put("config_filename", "some filename");
+  args.put("mycnf", 1);
+  return reload_config_result_contains(mgmd, args,
+                                       "ERROR: Both mycnf and config_filename");
+}
+
+static bool
+check_reload_config_invalid_config_filename(NdbMgmd& mgmd)
+{
+  Properties args;
+  // Send reload command with an invalid config_filename
+  args.put("config_filename", "nonexisting_file");
+  return reload_config_result_contains(mgmd, args,
+                                       "Could not load configuration "
+                                       "from 'nonexisting_file");
+}
+
+
+int runTestReloadConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result= NDBT_FAILED;
+  if (
+      check_reload_config_both_config_and_mycnf(mgmd) &&
+      check_reload_config_invalid_config_filename(mgmd) &&
+      true)
+    result= NDBT_OK;
+
+  if (!mgmd.end_session())
+    result= NDBT_FAILED;
+
+  return result;
+}
+
+
+static bool
+set_config(NdbMgmd& mgmd,
+           const Properties& args,
+           BaseString encoded_config,
+           Properties& reply)
+{
+
+  // Fill in default values of other args
+  Properties call_args(args);
+  if (!call_args.contains("Content-Type"))
+    call_args.put("Content-Type", "ndbconfig/octet-stream");
+  if (!call_args.contains("Content-Transfer-Encoding"))
+    call_args.put("Content-Transfer-Encoding", "base64");
+  if (!call_args.contains("Content-Length"))
+    call_args.put("Content-Length",
+                  encoded_config.length() ? encoded_config.length() - 1 : 1);
+
+  if (!mgmd.call("set config", call_args,
+                 "set config reply", reply,
+                 encoded_config.c_str()))
+  {
+    g_err << "set config: mgmd.call failed" << endl;
+    return false;
+  }
+
+  //reply.print();
+  return true;
+}
+
+
+static bool set_config_result_contains(NdbMgmd& mgmd,
+                                       const Properties& args,
+                                       const BaseString& encoded_config,
+                                       const char* expected_result)
+{
+  Properties reply;
+  if (!set_config(mgmd, args, encoded_config, reply))
+    return false;
+  return result_contains(reply, expected_result);
+}
+
+
+static bool set_config_result_contains(NdbMgmd& mgmd,
+                                       const Config& conf,
+                                       const char* expected_result)
+{
+  Properties reply;
+  Properties args;
+
+  BaseString encoded_config;
+  if (!conf.pack64(encoded_config))
+    return false;
+
+  if (!set_config(mgmd, args, encoded_config, reply))
+    return false;
+  return result_contains(reply, expected_result);
+}
+
+
+static bool
+check_set_config_invalid_content_type(NdbMgmd& mgmd)
+{
+  Properties args;
+  args.put("Content-Type", "illegal type");
+  return set_config_result_contains(mgmd, args, BaseString(""),
+                                    "Unhandled content type 'illegal type'");
+}
+
+static bool
+check_set_config_invalid_content_encoding(NdbMgmd& mgmd)
+{
+  Properties args;
+  args.put("Content-Transfer-Encoding", "illegal encoding");
+  return set_config_result_contains(mgmd, args, BaseString(""),
+                                    "Unhandled content encoding "
+                                    "'illegal encoding'");
+}
+
+static bool
+check_set_config_too_large_content_length(NdbMgmd& mgmd)
+{
+  Properties args;
+  args.put("Content-Length", 1024*1024 + 1);
+  return set_config_result_contains(mgmd, args, BaseString(""),
+                                    "Illegal config length size 1048577");
+}
+
+static bool
+check_set_config_too_small_content_length(NdbMgmd& mgmd)
+{
+  Properties args;
+  args.put("Content-Length", (Uint32)0);
+  return set_config_result_contains(mgmd, args, BaseString(""),
+                                    "Illegal config length size 0");
+}
+
+static bool
+check_set_config_wrong_config_length(NdbMgmd& mgmd)
+{
+
+  // Get the binary config
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  BaseString encoded_config;
+  if (!conf.pack64(encoded_config))
+    return false;
+
+  Properties args;
+  args.put("Content-Length", encoded_config.length() - 20);
+  bool res = set_config_result_contains(mgmd, args, encoded_config,
+                                        "Failed to unpack config");
+
+  if (res){
+    /*
+      There are now additional 20 bytes of junk that has been
+      sent to  mgmd, send a new line and read the result to get rid of it
+    */
+    Properties args, reply;
+    if (!mgmd.call("", args,
+                   NULL, reply))
+      return false;
+  }
+  return res;
+}
+
+static bool
+check_set_config_any_node(NDBT_Context* ctx, NDBT_Step* step, NdbMgmd& mgmd)
+{
+
+  // Get the binary config
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  // Extract list of connectstrings to each mgmd
+  BaseString connectstring;
+  conf.getConnectString(connectstring, ";");
+
+  Vector<BaseString> mgmds;
+  connectstring.split(mgmds, ";");
+
+  // Connect to each mgmd and check
+  // they all have the same config
+  for (size_t i = 0; i < mgmds.size(); i++)
+  {
+    NdbMgmd mgmd2;
+    g_info << "Connecting to " << mgmds[i].c_str() << endl;
+    if (!mgmd2.connect(mgmds[i].c_str()))
+      return false;
+
+    // Get the binary config
+    Config conf2;
+    if (!mgmd2.get_config(conf2))
+      return false;
+
+#if 0
+    // Change one value in the config
+    if (!conf2.setValue(CFG_SECTION_NODE, 0,
+                        CFG_NODE_ARBIT_DELAY,
+#endif
+
+    // Set the modified config
+    if (!mgmd2.set_config(conf2))
+      return false;
+
+    // Check that all mgmds now have the new config
+    if (runCheckConfig(ctx, step) != NDBT_OK)
+      return false;
+
+  }
+
+  return true;
+}
+
+static bool
+check_set_config_fail_wrong_generation(NdbMgmd& mgmd)
+{
+  // Get the binary config
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  // Change generation
+  if (!conf.setGeneration(conf.getGeneration() + 10))
+    return false;
+
+  // Set the modified config
+  return set_config_result_contains(mgmd, conf,
+                                    "Invalid generation in");
+}
+
+static bool
+check_set_config_fail_wrong_name(NdbMgmd& mgmd)
+{
+  // Get the binary config
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  // Change name
+  if (!conf.setName("NEWNAME"))
+    return false;
+
+  // Set the modified config
+  return set_config_result_contains(mgmd, conf,
+                                    "Invalid configuration name");
+}
+
+static bool
+check_set_config_fail_wrong_primary(NdbMgmd& mgmd)
+{
+  // Get the binary config
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  // Change primary and thus make this configuration invalid
+  if (!conf.setPrimaryMgmNode(conf.getPrimaryMgmNode()+10))
+    return false;
+
+  // Set the modified config
+  return set_config_result_contains(mgmd, conf,
+                                    "Not primary mgm node");
+}
+
+int runTestSetConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result= NDBT_FAILED;
+  if (
+      check_set_config_invalid_content_type(mgmd) &&
+      check_set_config_invalid_content_encoding(mgmd) &&
+      check_set_config_too_large_content_length(mgmd) &&
+      check_set_config_too_small_content_length(mgmd) &&
+      check_set_config_wrong_config_length(mgmd) &&
+      check_set_config_any_node(ctx, step, mgmd) &&
+      check_set_config_fail_wrong_generation(mgmd) &&
+      check_set_config_fail_wrong_name(mgmd) &&
+      check_set_config_fail_wrong_primary(mgmd) &&
+      true)
+    result= NDBT_OK;
+
+  if (!mgmd.end_session())
+    result= NDBT_FAILED;
+
+  return result;
+}
+
+int runTestSetConfigParallel(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int sucessful = 0;
+
+  int invalid_generation = 0, config_change_ongoing = 0;
+
+  /*
+    continue looping until "loops" number of successful
+    changes have been made from this thread
+  */
+  while (sucessful < loops &&
+         !ctx->isTestStopped() &&
+         result == NDBT_OK)
+  {
+    // Get the binary config
+    Config conf;
+    if (!mgmd.get_config(conf))
+      return NDBT_FAILED;
+
+    /* Set the config and check for valid errors */
+    mgmd.verbose(false);
+    if (mgmd.set_config(conf))
+    {
+      /* Config change suceeded */
+      sucessful++;
+    }
+    else
+    {
+      /* Config change failed */
+      if (mgmd.last_error() != NDB_MGM_CONFIG_CHANGE_FAILED)
+      {
+        g_err << "Config change failed with unexpected error: "
+              << mgmd.last_error() << endl;
+        result = NDBT_FAILED;
+        continue;
+      }
+
+      BaseString error(mgmd.last_error_message());
+      if (error == "Invalid generation in configuration")
+        invalid_generation++;
+      else
+      if (error == "Config change ongoing")
+        config_change_ongoing++;
+      else
+      {
+        g_err << "Config change failed with unexpected error: '"
+              << error << "'" << endl;
+        result = NDBT_FAILED;
+
+      }
+    }
+  }
+
+  ndbout << "Thread " << step->getStepNo()
+         << ", sucess: " << sucessful
+         << ", ongoing: " << config_change_ongoing
+         << ", invalid_generation: " << invalid_generation << endl;
+  return result;
+}
+
+int runTestSetConfigParallelUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runTestSetConfigParallel(ctx, step)) == NDBT_OK)
+    ;
+  return result;
+}
+
+
+#ifdef NOT_YET
+static bool
+check_restart_connected(NdbMgmd& mgmd)
+{
+  if (!mgmd.restart())
+    return false;
+  return true;
+ }
+
+int runTestRestartMgmd(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result= NDBT_FAILED;
+  if (
+      check_restart_connected(mgmd) &&
+      true)
+    result= NDBT_OK;
+
+  if (!mgmd.end_session())
+    result= NDBT_FAILED;
+
+  return result;
+}
+#endif
 
 
 NDBT_TESTSUITE(testMgm);
@@ -1297,7 +1885,22 @@ TESTCASE("ApiMgmStructEventTimeout",
 TESTCASE("SetConfig",
 	 "Tests the ndb_mgm_set_configuration function"){
   INITIALIZER(runSetConfig);
-
+}
+TESTCASE("CheckConfig",
+	 "Connect to each ndb_mgmd and check they have the same configuration"){
+  INITIALIZER(runCheckConfig);
+}
+TESTCASE("TestReloadConfig",
+	 "Test of 'reload config'"){
+  INITIALIZER(runTestReloadConfig);
+}
+TESTCASE("TestSetConfig",
+	 "Test of 'set config'"){
+  INITIALIZER(runTestSetConfig);
+}
+TESTCASE("TestSetConfigParallel",
+	 "Test of 'set config' from 5 threads"){
+  STEPS(runTestSetConfigParallel, 5);
 }
 TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
   STEPS(runGetConfig, 100);
@@ -1322,14 +1925,34 @@ TESTCASE("TestStatus200",
 TESTCASE("TestGetNodeId",
 	 "Test 'get nodeid'"){
   INITIALIZER(runTestGetNodeId);
-
 }
+
+TESTCASE("TestGetVersion",
+	 "Test 'get version'"){
+  INITIALIZER(runTestGetVersion);
+}
+#ifdef NOT_YET
+TESTCASE("TestRestartMgmd",
+        "Test restart of ndb_mgmd(s)"){
+  INITIALIZER(runTestRestartMgmd);
+}
+#endif
 TESTCASE("Stress",
 	 "Run everything while changing config"){
   STEP(runTestGetNodeIdUntilStopped);
   STEP(runSetConfigUntilStopped);
   STEPS(runGetConfigUntilStopped, 10);
   STEPS(runTestStatusUntilStopped, 10);
+//  STEPS(runTestGetVersionUntilStopped, 5);
+  STEP(runSleepAndStop);
+}
+TESTCASE("Stress2",
+	 "Run everything while changing config in parallel"){
+  STEP(runTestGetNodeIdUntilStopped);
+  STEPS(runTestSetConfigParallelUntilStopped, 5);
+  STEPS(runGetConfigUntilStopped, 10);
+  STEPS(runTestStatusUntilStopped, 10);
+//  STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
 }
 NDBT_TESTSUITE_END(testMgm);
