@@ -1162,11 +1162,11 @@ struct buf_block_struct{
 	An exception to this is when we init or create a page
 	in the buffer pool in buf0buf.c. */
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ulint		n_pointers;	/* used in debugging: the number of
 					pointers in the adaptive hash index
 					pointing to this frame */
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	unsigned	is_hashed:1;	/* TRUE if hash index has already been
 					built on this page; note that it does
 					not guarantee that the index is
