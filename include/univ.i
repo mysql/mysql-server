@@ -130,6 +130,8 @@ command. Not tested on Windows. */
 						Valgrind instrumentation */
 #define UNIV_DEBUG_PRINT			/* Enable the compilation of
 						some debug print functions */
+#define UNIV_AHI_DEBUG				/* Enable adaptive hash index
+						debugging without UNIV_DEBUG */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions

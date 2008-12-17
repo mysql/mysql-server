@@ -280,13 +280,6 @@ struct sel_node_struct{
 	ibool		set_x_locks;	/* TRUE if the cursor is for update or
 					delete, which means that a row x-lock
 					should be placed on the cursor row */
-	ibool		select_will_do_update;
-					/* TRUE if the select is for a searched
-					update which can be performed in-place:
-					in this case the select will take care
-					of the update */
-	ulint		latch_mode;	/* BTR_SEARCH_LEAF, or BTR_MODIFY_LEAF
-					if select_will_do_update is TRUE */
 	ulint		row_lock_mode;	/* LOCK_X or LOCK_S */
 	ulint		n_tables;	/* number of tables */
 	ulint		fetch_table;	/* number of the next table to access
