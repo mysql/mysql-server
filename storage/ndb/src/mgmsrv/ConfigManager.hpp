@@ -58,6 +58,9 @@ class ConfigManager : public MgmtThread {
   ConfigState m_config_state;
   ConfigState m_previous_state;
 
+  /* The original error that caused config change to be aborted */
+  ConfigChangeRef::ErrorCode m_config_change_error;
+
   BlockReference m_client_ref;
   BaseString m_config_name;
   Config* m_prepared_config;

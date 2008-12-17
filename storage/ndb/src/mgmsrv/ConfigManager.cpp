@@ -56,6 +56,7 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
   m_config_change_state(CCS_IDLE),
   m_config_state(CS_UNINITIALIZED),
   m_previous_state(CS_UNINITIALIZED),
+  m_config_change_error(ConfigChangeRef::OK),
   m_client_ref(RNIL),
   m_prepared_config(NULL),
   m_node_id(0),
@@ -722,7 +723,8 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
         g_eventLogger->warning("Refusing to start initial "             \
                                "configuration change since this node "  \
                                "is not in INITIAL state");
-        sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::IllegalState);
+        sendConfigChangeImplRef(ss, nodeId,
+                                ConfigChangeRef::IllegalInitialState);
         return;
       }
 
@@ -769,14 +771,16 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     else
     {
 
-      // Check that config change was started by primary mgm node
-      Uint32 primaryMgmNode = m_config->getPrimaryMgmNode();
-      if (nodeId != primaryMgmNode)
+      // Check that new config has same primary mgm node as current
+      Uint32 curr_primary = m_config->getPrimaryMgmNode();
+      Uint32 new_primary = new_config.getPrimaryMgmNode();
+      if (new_primary != curr_primary)
       {
         g_eventLogger->warning("Refusing to start configuration change " \
-                               "requested by node %d, it's not set as " \
-                               "the primary management node %d.",
-                               nodeId, primaryMgmNode);
+                               "requested by node %d, the new config uses " \
+                               "different primary mgm node %d. "      \
+                               "Current primary mmgm node is %d.",
+                               nodeId, new_primary, curr_primary);
         sendConfigChangeImplRef(ss, nodeId,
                                 ConfigChangeRef::NotPrimaryMgmNode);
         return;
@@ -873,6 +877,10 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
     CAST_CONSTPTR(ConfigChangeImplRef, sig->getDataPtr());
   g_eventLogger->warning("Node %d refused configuration change, error: %d",
                          nodeId, ref->errorCode);
+
+  /* Remember the original error code */
+  if (m_config_change_error == 0)
+    m_config_change_error = (ConfigChangeRef::ErrorCode)ref->errorCode;
 
   switch(m_config_change_state){
 
@@ -990,6 +998,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
       return;
 
     require(m_client_ref != RNIL);
+    require(m_config_change_error == 0);
     if (m_client_ref == ss.getOwnRef())
     {
       g_eventLogger->info("Config change completed! New generation: %d",
@@ -1035,6 +1044,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
       return;
 
     require(m_client_ref != RNIL);
+    require(m_config_change_error);
     if (m_client_ref == ss.getOwnRef())
     {
       g_eventLogger->error("Config change failed!");
@@ -1044,8 +1054,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     {
       /* Send ref to the requestor */
       sendConfigChangeRef(ss, m_client_ref,
-                          ConfigChangeRef::ConfigChangeAborted);
+                          m_config_change_error);
     }
+    m_config_change_error= ConfigChangeRef::OK;
     m_client_ref = RNIL;
     m_config_change_state = CCS_IDLE;
     break;
@@ -1174,6 +1185,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigChangeOnGoing);
     return;
   }
+  require(m_config_change_error == ConfigChangeRef::OK);
 
   if (sig->header.m_noOfSections != 1)
   {

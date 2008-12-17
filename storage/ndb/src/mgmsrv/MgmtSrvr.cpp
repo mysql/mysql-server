@@ -3932,7 +3932,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
 
     default:
       report_unknown_signal(signal);
-      return SEND_OR_RECEIVE_FAILED;
+      return false;
 
     }
   }

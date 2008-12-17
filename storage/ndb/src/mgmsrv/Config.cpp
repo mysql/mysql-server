@@ -233,6 +233,27 @@ Config::pack(UtilBuffer& buf) const
 }
 
 
+#include <base64.h>
+
+bool
+Config::pack64(BaseString& encoded) const
+{
+  UtilBuffer buf;
+  if (m_configValues->m_config.pack(buf) == 0)
+    return false;
+
+  // Expand the string to correct length by filling with Z
+  encoded.assfmt("%*s",
+                 base64_needed_encoded_length(buf.length()),
+                 "Z");
+
+  if (base64_encode(buf.get_data(),
+                    buf.length(),
+                    (char*)encoded.c_str()))
+    return false;
+  return true;
+}
+
 
 enum diff_types {
   DT_DIFF,            // Value differed
@@ -723,5 +744,36 @@ bool Config::illegal_change(const Config* other) const {
   Properties diff_list;
   diff(other, diff_list);
   return illegal_change(diff_list);
+}
+
+
+void Config::getConnectString(BaseString& connectstring,
+                              const BaseString& separator) const
+{
+  bool first= true;
+  ConfigIter it(this, CFG_SECTION_NODE);
+
+  for(;it.valid(); it.next())
+  {
+    /* Get type of Node */
+    Uint32 nodeType;
+    require(it.get(CFG_TYPE_OF_SECTION, &nodeType) == 0);
+
+    if (nodeType != NODE_TYPE_MGM)
+      continue;
+
+    Uint32 port;
+    const char* hostname;
+    require(it.get(CFG_NODE_HOST, &hostname) == 0);
+    require(it.get(CFG_MGM_PORT, &port) == 0);
+
+    if (!first)
+      connectstring.append(separator);
+    first= false;
+
+    connectstring.appfmt("%s:%d", hostname, port);
+
+  }
+  ndbout << connectstring << endl;
 }
 
