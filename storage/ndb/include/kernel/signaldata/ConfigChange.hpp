@@ -74,38 +74,55 @@ class ConfigChangeRef {
     ConfigChangeOnGoing     = 1,
     NotMaster               = 2,
     NoConfigData            = 3,
-    ConfigChangeAborted     = 4,
-    ConfigNotOk             = 5,
-
-    InternalError           = 10,
-    PrepareFailed           = 11,
-    IllegalConfigChange     = 13,
-    FailedToUnpack          = 14,
-    InvalidGeneration       = 15,
-    InvalidConfigName       = 16,
-    IllegalState            = 17,
-    IllegalInitialGeneration = 18,
-    DifferentInitial        = 19,
-    NotAllStarted           = 20,
-    NotPrimaryMgmNode       = 21
-  } ;
+    ConfigNotOk             = 4,
+    InternalError           = 5,
+    PrepareFailed           = 6,
+    IllegalConfigChange     = 7,
+    FailedToUnpack          = 8,
+    InvalidGeneration       = 9,
+    InvalidConfigName       = 10,
+    IllegalInitialState     = 11,
+    IllegalInitialGeneration = 12,
+    DifferentInitial        = 13,
+    NotAllStarted           = 14,
+    NotPrimaryMgmNode       = 15
+  };
 
 public:
   STATIC_CONST( SignalLength = 1 );
 
   static const char* errorMessage(Uint32 error) {
     switch (error){
+    case ConfigChangeOnGoing:
+      return "Config change ongoing";
+    case NotMaster:
+      return "Not the config change master";
     case NoConfigData:
       return "No config data in signal";
-    case ConfigChangeAborted:
-      return "Config change was aborted";
-    case FailedToUnpack:
-      return "Failed to unpack the configuration";
-    case IllegalConfigChange:
-      return "Illegal config change";
-
+    case ConfigNotOk:
+      return "Config is not ok";
     case InternalError:
       return "ConfigChangeRef, internal error";
+    case PrepareFailed:
+      return "Prepare of config change failed";
+    case IllegalConfigChange:
+      return "Illegal configuration change";
+    case FailedToUnpack:
+      return "Failed to unpack the configuration";
+    case InvalidGeneration:
+      return "Invalid generation in configuration";
+    case InvalidConfigName:
+      return "Invalid configuration name in configuration";
+    case IllegalInitialState:
+      return "Initial config change not allowed in this state";
+    case IllegalInitialGeneration:
+      return "Initial config change with generation not 0";
+    case DifferentInitial:
+      return "Different initial config files";
+    case NotAllStarted:
+      return " Not all mgm nodes are started";
+    case NotPrimaryMgmNode:
+      return "Not primary mgm node for configuration";
 
     default:
       return "ConfigChangeRef, unknown error";
@@ -138,6 +155,7 @@ private:
   Uint32 requestType;
   Uint32 initial; // Valid when requestType = Prepare
   Uint32 length; // Length of the config data in long signal
+
 };
 
 
