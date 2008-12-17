@@ -230,9 +230,6 @@ sel_node_create(
 	node->common.type = QUE_NODE_SELECT;
 	node->state = SEL_NODE_OPEN;
 
-	node->select_will_do_update = FALSE;
-	node->latch_mode = BTR_SEARCH_LEAF;
-
 	node->plans = NULL;
 
 	return(node);
@@ -793,7 +790,7 @@ row_sel_get_clust_rec(
 	index = dict_table_get_first_index(plan->table);
 
 	btr_pcur_open_with_no_init(index, plan->clust_ref, PAGE_CUR_LE,
-				   node->latch_mode, &(plan->clust_pcur),
+				   BTR_SEARCH_LEAF, &plan->clust_pcur,
 				   0, mtr);
 
 	clust_rec = btr_pcur_get_rec(&(plan->clust_pcur));
@@ -962,7 +959,6 @@ static
 void
 row_sel_open_pcur(
 /*==============*/
-	sel_node_t*	node,		/* in: select node */
 	plan_t*		plan,		/* in: table plan */
 	ibool		search_latch_locked,
 					/* in: TRUE if the thread currently
@@ -1015,13 +1011,13 @@ row_sel_open_pcur(
 		/* Open pcur to the index */
 
 		btr_pcur_open_with_no_init(index, plan->tuple, plan->mode,
-					   node->latch_mode, &(plan->pcur),
+					   BTR_SEARCH_LEAF, &plan->pcur,
 					   has_search_latch, mtr);
 	} else {
 		/* Open the cursor to the start or the end of the index
 		(FALSE: no init) */
 
-		btr_pcur_open_at_index_side(plan->asc, index, node->latch_mode,
+		btr_pcur_open_at_index_side(plan->asc, index, BTR_SEARCH_LEAF,
 					    &(plan->pcur), FALSE, mtr);
 	}
 
@@ -1043,7 +1039,6 @@ row_sel_restore_pcur_pos(
 				function (moved to the previous, in the case
 				of a descending cursor) without processing
 				again the current cursor record */
-	sel_node_t*	node,	/* in: select node */
 	plan_t*		plan,	/* in: table plan */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -1054,7 +1049,7 @@ row_sel_restore_pcur_pos(
 
 	relative_position = btr_pcur_get_rel_pos(&(plan->pcur));
 
-	equal_position = btr_pcur_restore_position(node->latch_mode,
+	equal_position = btr_pcur_restore_position(BTR_SEARCH_LEAF,
 						   &(plan->pcur), mtr);
 
 	/* If the cursor is traveling upwards, and relative_position is
@@ -1173,7 +1168,7 @@ row_sel_try_search_shortcut(
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
-	row_sel_open_pcur(node, plan, TRUE, mtr);
+	row_sel_open_pcur(plan, TRUE, mtr);
 
 	rec = btr_pcur_get_rec(&(plan->pcur));
 
@@ -1274,13 +1269,6 @@ row_sel(
 	ulint		cost_counter			= 0;
 	ibool		cursor_just_opened;
 	ibool		must_go_to_next;
-	ibool		leaf_contains_updates		= FALSE;
-	/* TRUE if select_will_do_update is
-	TRUE and the current clustered index
-	leaf page has been updated during
-	the current mtr: mtr must be committed
-	at the same time as the leaf x-latch
-	is released */
 	ibool		mtr_has_extra_clust_latch	= FALSE;
 	/* TRUE if the search was made using
 	a non-clustered index, and we had to
@@ -1319,7 +1307,6 @@ table_loop:
 	node->fetch_table changes, and after adding a row to aggregate totals
 	and, of course, when this function is called. */
 
-	ut_ad(leaf_contains_updates == FALSE);
 	ut_ad(mtr_has_extra_clust_latch == FALSE);
 
 	plan = sel_node_get_nth_plan(node, node->fetch_table);
@@ -1394,7 +1381,7 @@ table_loop:
 		/* Evaluate the expressions to build the search tuple and
 		open the cursor */
 
-		row_sel_open_pcur(node, plan, search_latch_locked, &mtr);
+		row_sel_open_pcur(plan, search_latch_locked, &mtr);
 
 		cursor_just_opened = TRUE;
 
@@ -1403,7 +1390,7 @@ table_loop:
 	} else {
 		/* Restore pcur position to the index */
 
-		must_go_to_next = row_sel_restore_pcur_pos(node, plan, &mtr);
+		must_go_to_next = row_sel_restore_pcur_pos(plan, &mtr);
 
 		cursor_just_opened = FALSE;
 
@@ -1744,28 +1731,6 @@ skip_lock:
 
 	ut_ad(plan->pcur.latch_mode == node->latch_mode);
 
-	if (node->select_will_do_update) {
-		/* This is a searched update and we can do the update in-place,
-		saving CPU time */
-
-		row_upd_in_place_in_select(node, thr, &mtr);
-
-		leaf_contains_updates = TRUE;
-
-		/* When the database is in the online backup mode, the number
-		of log records for a single mtr should be small: increment the
-		cost counter to ensure it */
-
-		cost_counter += 1 + (SEL_COST_LIMIT / 8);
-
-		if (plan->unique_search) {
-
-			goto table_exhausted;
-		}
-
-		goto next_rec;
-	}
-
 	if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT)
 	    || plan->unique_search || plan->no_prefetch
 	    || plan->table->big_rows) {
@@ -1795,19 +1760,6 @@ next_rec:
 		non-clustered index record, because we could break the
 		latching order if we would access a different clustered
 		index page right away without releasing the previous. */
-
-		goto commit_mtr_for_a_while;
-	}
-
-	if (leaf_contains_updates
-	    && btr_pcur_is_after_last_on_page(&plan->pcur)) {
-
-		/* We must commit &mtr if we are moving to a different page,
-		because we have done updates to the x-latched leaf page, and
-		the latch would be released in btr_pcur_move_to_next, without
-		&mtr getting committed there */
-
-		ut_ad(node->asc);
 
 		goto commit_mtr_for_a_while;
 	}
@@ -1848,7 +1800,6 @@ next_table:
 
 	mtr_commit(&mtr);
 
-	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
 next_table_no_mtr:
@@ -1889,7 +1840,6 @@ table_exhausted:
 
 	mtr_commit(&mtr);
 
-	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
 	if (plan->n_rows_prefetched > 0) {
@@ -1958,7 +1908,6 @@ commit_mtr_for_a_while:
 
 	mtr_commit(&mtr);
 
-	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG

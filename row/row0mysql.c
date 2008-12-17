@@ -1200,7 +1200,6 @@ row_create_update_node_for_mysql(
 	node->in_mysql_interface = TRUE;
 	node->is_delete = FALSE;
 	node->searched_update = FALSE;
-	node->select_will_do_update = FALSE;
 	node->select = NULL;
 	node->pcur = btr_pcur_create_for_mysql();
 	node->table = table;

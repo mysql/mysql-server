@@ -292,16 +292,6 @@ row_upd_step(
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
-Performs an in-place update for the current clustered index record in
-select. */
-UNIV_INTERN
-void
-row_upd_in_place_in_select(
-/*=======================*/
-	sel_node_t*	sel_node,	/* in: select node */
-	que_thr_t*	thr,		/* in: query thread */
-	mtr_t*		mtr);		/* in: mtr */
-/*************************************************************************
 Parses the log data of system field values. */
 UNIV_INTERN
 byte*
@@ -374,11 +364,6 @@ struct upd_node_struct{
 	ibool		searched_update;
 				/* TRUE if searched update, FALSE if
 				positioned */
-	ibool		select_will_do_update;
-				/* TRUE if a searched update where ordering
-				fields will not be updated, and the size of
-				the fields will not change: in this case the
-				select node will take care of the update */
 	ibool		in_mysql_interface;
 				/* TRUE if the update node was created
 				for the MySQL interface */
