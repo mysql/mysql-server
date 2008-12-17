@@ -343,7 +343,7 @@ uint unpack_dirname(my_string to, const char *from)
       length-=(uint) (suffix-buff)-1;
       if (length+(h_length= (uint) strlen(tilde_expansion)) <= FN_REFLEN)
       {
-	if (tilde_expansion[h_length-1] == FN_LIBCHAR)
+	if ((h_length > 0) && (tilde_expansion[h_length-1] == FN_LIBCHAR))
 	  h_length--;
 	if (buff+h_length < suffix)
 	  bmove(buff+h_length,suffix,length);

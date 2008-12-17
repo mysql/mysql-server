@@ -240,10 +240,8 @@ BuildMySQL() {
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	CC=\"${CC:-$MYSQL_BUILD_CC}\" \
 	CXX=\"${CXX:-$MYSQL_BUILD_CXX}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS \
-	          -felide-constructors -fno-exceptions -fno-rtti \
-		  }\" \
+	CFLAGS=\"$CFLAGS\" \
+	CXXFLAGS=\"$CXXFLAGS\" \
 	LDFLAGS=\"$MYSQL_BUILD_LDFLAGS\" \
 	./configure \
  	    $* \
@@ -307,6 +305,10 @@ then
 	export CXX="gcc"
 fi
 
+# Prepare compiler flags
+CFLAGS=${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}
+CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti }
+
 #
 # Only link statically on our i386 build host (which has a specially
 # patched static glibc installed) - ia64 and x86_64 run glibc-2.3 (unpatched)
@@ -314,6 +316,14 @@ fi
 #
 for servertype in '--with-debug=full' ' '
 do
+  (
+  # We are in a subshell, so we can modify variables just for one run.
+  if test "$servertype" != ' '
+  then
+	CFLAGS=`echo $CFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //'`
+  fi
+
   BuildMySQL "\
 %if %{STATIC_BUILD}
 		--enable-shared \
@@ -335,6 +345,7 @@ do
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 		--with-big-tables $servertype"
+
   if test "$servertype" != ' '
   then
     # if this is not the regular build, we save the server binary
@@ -344,6 +355,7 @@ do
     make test-bt-debug
     make clean
   fi
+  )
 done
 
 ./libtool --mode=execute nm --numeric-sort sql/mysqld > sql/mysqld.sym
@@ -602,6 +614,7 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
+%doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
@@ -621,6 +634,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/safe_mysqld.1*
@@ -628,6 +642,7 @@ fi
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
+%attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
@@ -672,6 +687,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_tableinfo
+%attr(755, root, root) %{_bindir}/mysql_upgrade_shell
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
 %attr(755, root, root) %{_bindir}/mysqladmin
@@ -683,6 +699,8 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_tableinfo.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
@@ -724,6 +742,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
@@ -735,13 +755,16 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_delete_all
 %attr(755, root, root) %{_bindir}/ndb_drop_index
 %attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_sbindir}/ndb_cpcd
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
 
 %files devel
 %defattr(-, root, root, 0755)
 %doc EXCEPTIONS-CLIENT
+%doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -795,6 +818,23 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Thu Nov 06 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.
+  This should cover both gcc and icc flags.  Fixes bug#40546.
+
+* Mon Aug 18 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Get rid of the "warning: Installed (but unpackaged) file(s) found:"
+  Some files were missing:
+  - Manual "mysqlbug" ("server" subpackage)
+  - Program "innochecksum" and its manual ("server" subpackage)
+  - Manuals "mysql_find_rows" + "mysql_tableinfo" ("client" subpackage)
+  - Script "mysql_upgrade_shell" ("client" subpackage)
+  - Manual "comp_err" ("devel" subpackage)
+  - Program "ndb_cpcd" and its manual ("ndb-extra" subpackage)
+  - Manuals "ndb_mgm" + "ndb_restore" ("ndb-tools" subpackage)
+
 * Wed Mar 19 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Add the man pages for "ndbd" and "ndb_mgmd".

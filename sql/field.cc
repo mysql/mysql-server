@@ -5372,6 +5372,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
     {
       char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
+      tmp= 0;
       make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                            str.ptr(), str.length(), MYSQL_TIMESTAMP_DATE, 1);
@@ -5608,6 +5609,7 @@ int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
     {
       char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
+      tmp= 0;
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                            str.ptr(), str.length(), MYSQL_TIMESTAMP_DATETIME,1);
@@ -6992,8 +6994,18 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     return 0;
   }
 
-  if (from == value.ptr())
+  /*
+    If the 'from' address is in the range of the temporary 'value'-
+    object we need to copy the content to a different location or it will be
+    invalidated when the 'value'-object is reallocated to make room for
+    the new character set.
+  */
+  if (from >= value.ptr() && from <= value.ptr()+value.length())
   {
+    /*
+      If content of the 'from'-address is cached in the 'value'-object
+      it is possible that the content needs a character conversion.
+    */
     uint32 dummy_offset;
     if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
     {

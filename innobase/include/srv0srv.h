@@ -531,7 +531,9 @@ struct export_var_struct{
         ulint innodb_buffer_pool_pages_dirty;
         ulint innodb_buffer_pool_pages_misc;
         ulint innodb_buffer_pool_pages_free;
+#ifdef UNIV_DEBUG
         ulint innodb_buffer_pool_pages_latched;
+#endif /* UNIV_DEBUG */
         ulint innodb_buffer_pool_read_requests;
         ulint innodb_buffer_pool_reads;
         ulint innodb_buffer_pool_wait_free;

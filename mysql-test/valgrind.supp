@@ -319,6 +319,14 @@
    fun:_dl_map_object
 }
 
+{
+   libc pthread_exit 8
+   Memcheck:Leak
+   fun:malloc
+   fun:local_strdup
+   fun:_dl_map_object
+   fun:dl_open_worker
+}
 
 
 #

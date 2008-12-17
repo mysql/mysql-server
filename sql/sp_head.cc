@@ -123,6 +123,9 @@ sp_get_item_value(THD *thd, Item *item, String *str)
         if (cs->escape_with_backslash_is_dangerous)
           buf.append(' ');
         append_query_string(cs, result, &buf);
+        buf.append(" COLLATE '");
+        buf.append(item->collation.collation->name);
+        buf.append('\'');
         str->copy(buf);
 
         return str;
@@ -446,7 +449,7 @@ sp_head::operator new(size_t size) throw()
   init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *) alloc_root(&own_root, size);
   if (sp == NULL)
-    return NULL;
+    DBUG_RETURN(NULL);
   sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
@@ -591,7 +594,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
   const char *endp;                  /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
-  Lex_input_stream *lip=thd->m_lip;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
 
   if (m_param_begin && m_param_end)
   {
@@ -1787,7 +1790,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
-      close_thread_tables(thd, 0, 0);
+    {
+      thd->lex->unit.cleanup();
+      close_thread_tables(thd);            
+      thd->rollback_item_tree_changes();
+    }
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
   }

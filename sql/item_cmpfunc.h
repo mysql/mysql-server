@@ -42,8 +42,8 @@ class Arg_comparator: public Sql_alloc
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
   enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
                             CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
-  ulonglong (*get_value_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                              Item *warn_item, bool *is_null);
+  longlong (*get_value_func)(THD *thd, Item ***item_arg, Item **cache_arg,
+                             Item *warn_item, bool *is_null);
 public:
   DTCollation cmp_collation;
 
@@ -1028,7 +1028,7 @@ public:
 */
 class cmp_item_datetime :public cmp_item
 {
-  ulonglong value;
+  longlong value;
 public:
   THD *thd;
   /* Item used for issuing warnings. */
@@ -1323,7 +1323,7 @@ class Item_func_regex :public Item_bool_func
   CHARSET_INFO *regex_lib_charset;
   int regex_lib_flags;
   String conv;
-  bool regcomp(bool send_error);
+  int regcomp(bool send_error);
 public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
     regex_compiled(0),regex_is_const(0) {}

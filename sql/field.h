@@ -48,7 +48,8 @@ class Field
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size) throw ()
+  { return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   char		*ptr;			// Position to field in record
@@ -137,7 +138,7 @@ public:
   virtual bool eq(Field *field)
   {
     return (ptr == field->ptr && null_ptr == field->null_ptr &&
-            null_bit == field->null_bit);
+            null_bit == field->null_bit && field->type() == type());
   }
   virtual bool eq_def(Field *field);
   
@@ -1212,8 +1213,16 @@ public:
 
 class Field_blob :public Field_longstr {
 protected:
+  /**
+    The number of bytes used to represent the length of the blob.
+  */
   uint packlength;
-  String value;				// For temporaries
+  
+  /**
+    The 'value'-object is a cache fronting the storage engine.
+  */
+  String value;
+  
 public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
@@ -1488,7 +1497,6 @@ public:
   bool eq(Field *field)
   {
     return (Field::eq(field) &&
-            field->type() == type() &&
             bit_ptr == ((Field_bit *)field)->bit_ptr &&
             bit_ofs == ((Field_bit *)field)->bit_ofs);
   }

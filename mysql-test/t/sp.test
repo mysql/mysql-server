@@ -7793,6 +7793,85 @@ select (select func30787(f1)) as ttt from t1;
 drop function func30787;
 drop table t1;
 
+#
+# Bug #33811: Call to stored procedure with SELECT * / RIGHT JOIN fails
+# after the first time
+#
+CREATE TABLE t1 (id INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+
+CREATE PROCEDURE test_sp()
+  SELECT t1.* FROM t1 RIGHT JOIN t1 t2 ON t1.id=t2.id;
+
+CALL test_sp();
+CALL test_sp();
+
+DROP PROCEDURE test_sp;
+DROP TABLE t1;
+
+#
+# Bug#38291 memory corruption and server crash with view/sp/function
+#
+
+create table t1(c1 INT);
+create function f1(p1 int) returns varchar(32)
+  return 'aaa';
+create view v1 as select f1(c1) as parent_control_name from t1;
+
+delimiter //;
+create procedure p1()
+begin
+    select parent_control_name as c1 from v1;
+end //
+delimiter ;//
+
+call p1();
+call p1();
+
+drop procedure p1;
+drop function f1;
+drop view v1;
+drop table t1;
+
+#
+# Bug#38469 invalid memory read and/or crash with utf8 text field, stored procedure, uservar 
+#
+delimiter $;
+--disable_warnings
+drop procedure if exists `p2` $
+--enable_warnings
+create procedure `p2`(in `a` text charset utf8)
+begin
+        declare `pos` int default 1;
+        declare `str` text charset utf8;
+        set `str` := `a`;
+        select substr(`str`, `pos`+ 1 ) into `str`;
+end $
+delimiter ;$
+call `p2`('s s s s s s');
+drop procedure `p2`;
+
+#
+# Bug#38823: Invalid memory access when a SP statement does wildcard expansion
+#
+
+--disable_warnings
+drop table if exists t1;
+drop procedure if exists p1;
+--enable_warnings
+
+delimiter $;
+create procedure p1() begin select * from t1; end$
+--error ER_NO_SUCH_TABLE
+call p1$
+create table t1 (a integer)$
+call p1$
+alter table t1 add b integer;
+call p1$
+delimiter ;$
+
+drop table t1;
+drop procedure p1;
 
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.0 tests

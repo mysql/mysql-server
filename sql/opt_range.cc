@@ -492,6 +492,7 @@ public:
     keys_map.clear_all();
     bzero((char*) keys,sizeof(keys));
   }
+  SEL_TREE(SEL_TREE *arg, struct st_qsel_param *param);
   SEL_ARG *keys[MAX_KEY];
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
@@ -648,6 +649,7 @@ public:
     trees_next(trees),
     trees_end(trees + PREALLOCED_TREES)
   {}
+  SEL_IMERGE (SEL_IMERGE *arg, PARAM *param);
   int or_sel_tree(PARAM *param, SEL_TREE *tree);
   int or_sel_tree_with_checks(PARAM *param, SEL_TREE *new_tree);
   int or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge);
@@ -764,6 +766,61 @@ int SEL_IMERGE::or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge)
 }
 
 
+SEL_TREE::SEL_TREE(SEL_TREE *arg, PARAM *param): Sql_alloc()
+{
+  keys_map= arg->keys_map;
+  type= arg->type;
+  for (int idx= 0; idx < MAX_KEY; idx++)
+  {
+    if ((keys[idx]= arg->keys[idx]))
+      keys[idx]->increment_use_count(1);
+  }
+
+  List_iterator<SEL_IMERGE> it(arg->merges);
+  for (SEL_IMERGE *el= it++; el; el= it++)
+  {
+    SEL_IMERGE *merge= new SEL_IMERGE(el, param);
+    if (!merge || merge->trees == merge->trees_next)
+    {
+      merges.empty();
+      return;
+    }
+    merges.push_back (merge);
+  }
+}
+
+
+SEL_IMERGE::SEL_IMERGE (SEL_IMERGE *arg, PARAM *param) : Sql_alloc()
+{
+  uint elements= (arg->trees_end - arg->trees);
+  if (elements > PREALLOCED_TREES)
+  {
+    uint size= elements * sizeof (SEL_TREE **);
+    if (!(trees= (SEL_TREE **)alloc_root(param->mem_root, size)))
+      goto mem_err;
+  }
+  else
+    trees= &trees_prealloced[0];
+
+  trees_next= trees;
+  trees_end= trees + elements;
+
+  for (SEL_TREE **tree = trees, **arg_tree= arg->trees; tree < trees_end; 
+       tree++, arg_tree++)
+  {
+    if (!(*tree= new SEL_TREE(*arg_tree, param)))
+      goto mem_err;
+  }
+
+  return;
+
+mem_err:
+  trees= &trees_prealloced[0];
+  trees_next= trees;
+  trees_end= trees;
+}
+
+
 /*
   Perform AND operation on two index_merge lists and store result in *im1.
 */
@@ -823,10 +880,23 @@ int imerge_list_or_tree(PARAM *param,
 {
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
+  bool tree_used= FALSE;
   while ((imerge= it++))
   {
-    if (imerge->or_sel_tree_with_checks(param, tree))
+    SEL_TREE *or_tree;
+    if (tree_used)
+    {
+      or_tree= new SEL_TREE (tree, param);
+      if (!or_tree ||
+          (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty()))
+        return FALSE;
+    }
+    else
+      or_tree= tree;
+
+    if (imerge->or_sel_tree_with_checks(param, or_tree))
       it.remove();
+    tree_used= TRUE;
   }
   return im1->is_empty();
 }
@@ -945,7 +1015,7 @@ int QUICK_RANGE_SELECT::init()
 
   if (file->inited != handler::NONE)
     file->ha_index_or_rnd_end();
-  DBUG_RETURN(error= file->ha_index_init(index));
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -4238,6 +4308,8 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
     }
   }
 
+  if (tree && tree->merges.is_empty() && tree->keys_map.is_clear_all())
+    tree= NULL;
   DBUG_RETURN(tree);
 }
 
@@ -6494,7 +6566,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   QUICK_RANGE_SELECT* cur_quick;
   int result;
   Unique *unique;
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::prepare_unique");
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
   /* We're going to just read rowids. */
   if (head->file->extra(HA_EXTRA_KEYREAD))
@@ -6565,13 +6637,17 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   }
 
-  /* ok, all row ids are in Unique */
+  /*
+    Ok all rowids are in the Unique now. The next call will initialize
+    head->sort structure so it can be used to iterate through the rowids
+    sequence.
+  */
   result= unique->get(head);
   delete unique;
   doing_pk_scan= FALSE;
-  /* start table scan */
-  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1);
-  /* index_merge currently doesn't support "using index" at all */
+
+  /* Start the rnd_pos() scan. */
+  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
   head->file->extra(HA_EXTRA_NO_KEYREAD);
 
   DBUG_RETURN(result);
@@ -6601,6 +6677,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
   {
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
+    free_io_cache(head);
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select)
     {
@@ -7094,9 +7171,17 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
                                      uint used_key_parts_arg)
- : QUICK_RANGE_SELECT(*q), rev_it(rev_ranges)
+ : QUICK_RANGE_SELECT(*q), rev_it(rev_ranges), 
+  used_key_parts (used_key_parts_arg)
 {
   QUICK_RANGE *r;
+  /* 
+    Use default MRR implementation for reverse scans. No table engine
+    currently can do an MRR scan with output in reverse index order.
+  */
+  multi_range_length= 0;
+  multi_range= NULL;
+  multi_range_buff= NULL;
 
   QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
   QUICK_RANGE **end_range= pr + ranges.elements;
@@ -7136,10 +7221,11 @@ int QUICK_SELECT_DESC::get_next()
     int result;
     if (last_range)
     {						// Already read through key
-      result = ((last_range->flag & EQ_RANGE)
-		? file->index_next_same(record, (byte*) last_range->min_key,
-					last_range->min_length) :
-		file->index_prev(record));
+      result = ((last_range->flag & EQ_RANGE && 
+                 used_key_parts <= head->key_info[index].key_parts) ? 
+                file->index_next_same(record, (byte*) last_range->min_key,
+                                      last_range->min_length) :
+                file->index_prev(record));
       if (!result)
       {
 	if (cmp_prev(*rev_it.ref()) == 0)
@@ -7163,7 +7249,9 @@ int QUICK_SELECT_DESC::get_next()
       continue;
     }
 
-    if (last_range->flag & EQ_RANGE)
+    if (last_range->flag & EQ_RANGE &&
+        used_key_parts <= head->key_info[index].key_parts)
+
     {
       result= file->index_read(record, (byte*) last_range->max_key,
                                last_range->max_length, HA_READ_KEY_EXACT);
@@ -7171,6 +7259,8 @@ int QUICK_SELECT_DESC::get_next()
     else
     {
       DBUG_ASSERT(last_range->flag & NEAR_MAX ||
+                  (last_range->flag & EQ_RANGE && 
+                   used_key_parts > head->key_info[index].key_parts) ||
                   range_reads_after_key(last_range));
       result=file->index_read(record, (byte*) last_range->max_key,
 			      last_range->max_length,
@@ -7266,54 +7356,6 @@ bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 	  !(range_arg->flag & EQ_RANGE) ||
 	  head->key_info[index].key_length != range_arg->max_length) ? 1 : 0;
 }
-
-
-/* TRUE if we are reading over a key that may have a NULL value */
-
-#ifdef NOT_USED
-bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
-					   uint used_key_parts)
-{
-  uint offset, end;
-  KEY_PART *key_part = key_parts,
-           *key_part_end= key_part+used_key_parts;
-
-  for (offset= 0,  end = min(range_arg->min_length, range_arg->max_length) ;
-       offset < end && key_part != key_part_end ;
-       offset+= key_part++->store_length)
-  {
-    if (!memcmp((char*) range_arg->min_key+offset,
-		(char*) range_arg->max_key+offset,
-		key_part->store_length))
-      continue;
-
-    if (key_part->null_bit && range_arg->min_key[offset])
-      return 1;				// min_key is null and max_key isn't
-    // Range doesn't cover NULL. This is ok if there is no more null parts
-    break;
-  }
-  /*
-    If the next min_range is > NULL, then we can use this, even if
-    it's a NULL key
-    Example:  SELECT * FROM t1 WHERE a = 2 AND b >0 ORDER BY a DESC,b DESC;
-
-  */
-  if (key_part != key_part_end && key_part->null_bit)
-  {
-    if (offset >= range_arg->min_length || range_arg->min_key[offset])
-      return 1;					// Could be null
-    key_part++;
-  }
-  /*
-    If any of the key parts used in the ORDER BY could be NULL, we can't
-    use the key to sort the data.
-  */
-  for (; key_part != key_part_end ; key_part++)
-    if (key_part->null_bit)
-      return 1;					// Covers null part
-  return 0;
-}
-#endif
 
 
 void QUICK_RANGE_SELECT::add_info_string(String *str)

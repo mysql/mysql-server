@@ -202,7 +202,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     {
       if (mem_root->error_handler)
 	(*mem_root->error_handler)();
-      return((gptr) 0);				/* purecov: inspected */
+      DBUG_RETURN((gptr) 0);			/* purecov: inspected */
     }
     mem_root->block_num++;
     next->next= *prev;

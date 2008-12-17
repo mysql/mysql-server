@@ -259,6 +259,10 @@ get_one_option(int optid, const struct my_option *opt,
 }
 
 
+/**
+  Run a command using the shell, storing its output in the supplied dynamic
+  string.
+*/
 static int run_command(char* cmd,
                        DYNAMIC_STRING *ds_res)
 {
@@ -331,36 +335,16 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 }
 
 
-/*
-  Try to get the full path to this exceutable
-
-  Return 0 if path found
-
+/**
+  Look for the filename of given tool, with the presumption that it is in the
+  same directory as mysql_upgrade and that the same executable-searching 
+  mechanism will be used when we run our sub-shells with popen() later.
 */
-
-static my_bool get_full_path_to_executable(char* path)
+static void find_tool(char *tool_executable_name, const char *tool_name, 
+                      const char *self_name)
 {
-  my_bool ret;
-  DBUG_ENTER("get_full_path_to_executable");
-#ifdef __WIN__
-  ret= (GetModuleFileName(NULL, path, FN_REFLEN) == 0);
-#else
-  /* my_readlink returns 0 if a symlink was read */
-  ret= (my_readlink(path, "/proc/self/exe", MYF(0)) != 0);
-  /* Might also want to try with /proc/$$/exe if the above fails */
-#endif
-  DBUG_PRINT("exit", ("path: %s", path));
-  DBUG_RETURN(ret);
-}
+  char *last_fn_libchar;
 
-
-/*
-  Look for the tool in the same directory as mysql_upgrade.
-*/
-
-static void find_tool(char *tool_path, const char *tool_name)
-{
-  char path[FN_REFLEN];
   DYNAMIC_STRING ds_tmp;
   DBUG_ENTER("find_tool");
   DBUG_PRINT("enter", ("progname: %s", my_progname));
@@ -368,77 +352,59 @@ static void find_tool(char *tool_path, const char *tool_name)
   if (init_dynamic_string(&ds_tmp, "", 32, 32))
     die("Out of memory");
 
-  /* Initialize path with the full path to this program */
-  if (get_full_path_to_executable(path))
+  last_fn_libchar= strrchr(self_name, FN_LIBCHAR);
+
+  if (last_fn_libchar == NULL)
   {
     /*
-      Easy way to get full executable path failed, try
-      other methods
+      mysql_upgrade was found by the shell searching the path.  A sibling
+      next to us should be found the same way.
     */
-    if (my_progname[0] == FN_LIBCHAR)
-    {
-      /* 1. my_progname contains full path */
-      strmake(path, my_progname, FN_REFLEN);
-    }
-    else if (my_progname[0] == '.')
-    {
-      /* 2. my_progname contains relative path, prepend wd */
-      char buf[FN_REFLEN];
-      my_getwd(buf, FN_REFLEN, MYF(0));
-      my_snprintf(path, FN_REFLEN, "%s%s", buf, my_progname);
-    }
-    else
-    {
-      /* 3. Just go for it and hope tool is in path */
-      path[0]= 0;
-    }
+    strncpy(tool_executable_name, tool_name, FN_REFLEN);
   }
-
-  DBUG_PRINT("info", ("path: '%s'", path));
-
-  /* Chop off binary name (i.e mysql-upgrade) from path */
-  dirname_part(path, path);
-
-  /*
-    When running in a not yet installed build and using libtool,
-    the program(mysql_upgrade) will be in .libs/ and executed
-    through a libtool wrapper in order to use the dynamic libraries
-    from this build. The same must be done for the tools(mysql and
-    mysqlcheck). Thus if path ends in .libs/, step up one directory
-    and execute the tools from there
-  */
-  path[max((strlen(path)-1), 0)]= 0;   /* Chop off last / */
-  if (strncmp(path + dirname_length(path), ".libs", 5) == 0)
+  else
   {
-    DBUG_PRINT("info", ("Chopping off .libs from '%s'", path));
+    int len;
 
-    /* Chop off .libs */
-    dirname_part(path, path);
+    /*
+      mysql_upgrade was run absolutely or relatively.  We can find a sibling
+      by replacing our name after the LIBCHAR with the new tool name.
+    */
+
+    /*
+      When running in a not yet installed build and using libtool,
+      the program(mysql_upgrade) will be in .libs/ and executed
+      through a libtool wrapper in order to use the dynamic libraries
+      from this build. The same must be done for the tools(mysql and
+      mysqlcheck). Thus if path ends in .libs/, step up one directory
+      and execute the tools from there
+    */
+    if (((last_fn_libchar - 6) >= self_name) &&
+        (strncmp(last_fn_libchar - 5, ".libs", 5) == 0) &&
+        (*(last_fn_libchar - 6) == FN_LIBCHAR))
+    {
+      DBUG_PRINT("info", ("Chopping off \".libs\" from end of path"));
+      last_fn_libchar -= 6;
+    }
+
+    len= last_fn_libchar - self_name;
+
+    my_snprintf(tool_executable_name, FN_REFLEN, "%.*s%c%s",
+                len, self_name, FN_LIBCHAR, tool_name);
   }
 
-
-  DBUG_PRINT("info", ("path: '%s'", path));
-
-  /* Format name of the tool to search for */
-  fn_format(tool_path, tool_name,
-            path, "", MYF(MY_REPLACE_DIR));
-
-  verbose("Looking for '%s' in: %s", tool_name, tool_path);
-
-  /* Make sure the tool exists */
-  if (my_access(tool_path, F_OK) != 0)
-    die("Can't find '%s'", tool_path);
+  verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);
 
   /*
     Make sure it can be executed
   */
-  if (run_tool(tool_path,
+  if (run_tool(tool_executable_name,
                &ds_tmp, /* Get output from command, discard*/
                "--help",
                "2>&1",
                IF_WIN("> NUL", "> /dev/null"),
                NULL))
-    die("Can't execute '%s'", tool_path);
+    die("Can't execute '%s'", tool_executable_name);
 
   dynstr_free(&ds_tmp);
 
@@ -748,10 +714,19 @@ static const char *load_default_groups[]=
 
 int main(int argc, char **argv)
 {
+  char self_name[FN_REFLEN];
+
   MY_INIT(argv[0]);
 #ifdef __NETWARE__
   setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
 #endif
+
+#if __WIN__
+  if (GetModuleFileName(NULL, self_name, FN_REFLEN) == 0)
+#endif
+  {
+    strncpy(self_name, argv[0], FN_REFLEN);
+  }
 
   if (init_dynamic_string(&ds_args, "", 512, 256))
     die("Out of memory");
@@ -774,10 +749,10 @@ int main(int argc, char **argv)
   dynstr_append(&ds_args, " ");
 
   /* Find mysql */
-  find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"));
+  find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);
 
   /* Find mysqlcheck */
-  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"));
+  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
