@@ -28,7 +28,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 drop table if exists t1;
-create table t1(f1 int, f2 varchar(255));
+create table t1(f1 int, f2 char(255));
 insert into t1 values(1, 'foo'), (2, 'bar');
 insert into t1 select * from t1;
 insert into t1 select * from t1;
