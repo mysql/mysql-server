@@ -574,8 +574,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
     theFacade.ReportNodeDead(nodeId);
   }
   
-  theNode.nfCompleteRep = false;
-  if(noOfAliveNodes == 0)
+  if (noOfConnectedNodes == 0)
   {
     if (!global_flag_skip_invalidate_cache &&
         theFacade.m_globalDictCache)
@@ -586,6 +585,10 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
       m_connect_count ++;
       m_cluster_state = CS_waiting_for_clean_cache;
     }
+  }
+  theNode.nfCompleteRep = false;
+  if(noOfAliveNodes == 0)
+  {
     NFCompleteRep rep;
     for(Uint32 i = 1; i < MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){

@@ -231,7 +231,7 @@ if [ "$build" ]
 then
     rm -rf $dst_place0
 
-    if [ "$dst_place1" ]
+    if [ "$clone1" ]
     then
 	rm -rf $dst_place1
     fi
