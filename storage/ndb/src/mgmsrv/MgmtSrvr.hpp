@@ -526,8 +526,6 @@ private:
  
   class TransporterFacade * theFacade;
 
-  int translateStopRef(Uint32 errCode);
-  
   bool _isStopThread;
   int _logLevelThreadSleep;
   MutexVector<NodeId> m_started_nodes;
