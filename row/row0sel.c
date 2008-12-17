@@ -1229,7 +1229,7 @@ row_sel_try_search_shortcut(
 		goto func_exit;
 	}
 
-	ut_ad(plan->pcur.latch_mode == node->latch_mode);
+	ut_ad(plan->pcur.latch_mode == BTR_SEARCH_LEAF);
 
 	plan->n_rows_fetched++;
 	ret = SEL_FOUND;
@@ -1729,7 +1729,7 @@ skip_lock:
 
 	plan->n_rows_fetched++;
 
-	ut_ad(plan->pcur.latch_mode == node->latch_mode);
+	ut_ad(plan->pcur.latch_mode == BTR_SEARCH_LEAF);
 
 	if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT)
 	    || plan->unique_search || plan->no_prefetch
