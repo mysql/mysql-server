@@ -1102,7 +1102,7 @@ next_rec:
 	block->index = NULL;
 	
 cleanup:
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
 		ut_print_timestamp(stderr);
@@ -1118,9 +1118,9 @@ cleanup:
 	} else {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
-#else /* UNIV_DEBUG */
+#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	rw_lock_x_unlock(&btr_search_latch);
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	mem_free(folds);
 }
