@@ -1032,19 +1032,6 @@ pars_update_statement(
 		node->pcur = &(plan->pcur);
 	}
 
-	if (!node->is_delete && node->searched_update
-	    && (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE)
-	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-
-		/* The select node can perform the update in-place */
-
-		ut_a(plan->asc);
-
-		node->select_will_do_update = TRUE;
-		sel_node->select_will_do_update = TRUE;
-		sel_node->latch_mode = BTR_MODIFY_LEAF;
-	}
-
 	return(node);
 }
 

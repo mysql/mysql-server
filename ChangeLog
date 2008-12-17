@@ -1,5 +1,14 @@
 2008-12-17	The InnoDB Team
 
+	* include/row0upd.h, include/row0sel.h, pars/pars0pars.c,
+	row/row0upd.c, row/row0sel.c, row/row0mysql.c:
+	Remove update-in-place select from the internal SQL interpreter.
+	It was only used for updating the InnoDB internal data dictionary
+	when renaming or dropping tables.  It could have caused deadlocks
+	when acquiring latches on insert buffer bitmap pages.
+
+2008-12-17	The InnoDB Team
+
 	* include/univ.i, include/buf0buf.h, include/hash0hash.h,
 	include/ha0ha.h, include/ha0ha.ic, ha/ha0ha.c, ha/hash0hash.c,
 	btr/btr0sea.c, buf/buf0lru.c, buf/buf0buf.c:
