@@ -3169,12 +3169,13 @@ CommandInterpreter::executeCreateNodeGroup(char* parameters)
   int result;
   int ng;
   struct ndb_mgm_reply reply;
-  if (emptyString(parameters))
+  char *id= strchr(parameters, ' ');
+  if (emptyString(id))
     goto err;
 
   {
     Vector<int> nodes;
-    BaseString args(strchr(parameters, ' '));
+    BaseString args(id);
     Vector<BaseString> nodelist;
     args.split(nodelist, ",");
 
