@@ -448,52 +448,6 @@ MgmApiSession::runSession()
   DBUG_VOID_RETURN;
 }
 
-static Properties *
-backward(const char * base, const Properties* reply){
-  Properties * ret = new Properties();
-  Properties::Iterator it(reply);
-  for(const char * name = it.first(); name != 0; name=it.next()){
-    PropertiesType type;
-    reply->getTypeOf(name, &type);
-    switch(type){
-    case PropertiesType_Uint32:{
-      Uint32 val;
-      reply->get(name, &val);
-      ret->put(name, val);
-    }
-      break;
-    case PropertiesType_char:
-      {
-	const char * val;
-	reply->get(name, &val);
-	ret->put(name, val);
-	if(!strcmp(name, "Type") && !strcmp(val, "DB")){
-	  ret->put("NoOfDiskBufferPages", (unsigned)0);
-	  ret->put("NoOfDiskFiles", (unsigned)0);
-	  ret->put("NoOfDiskClusters", (unsigned)0);
-	  ret->put("NoOfFreeDiskClusters", (unsigned)0);
-	  ret->put("NoOfDiskClustersPerDiskFile", (unsigned)0);
-	  ret->put("NoOfConcurrentCheckpointsDuringRestart", (unsigned)1);
-	  ret->put("NoOfConcurrentCheckpointsAfterRestart", (unsigned)1);
-	  ret->put("NoOfConcurrentProcessesHandleTakeover", (unsigned)1);
-	}
-      }
-      break;
-    case PropertiesType_Properties:
-      {
-	const Properties * recurse;
-	reply->get(name, &recurse);
-	Properties * val = backward(name, recurse);
-	ret->put(name, val);
-      }
-      break;
-    case PropertiesType_Uint64:
-      break;
-    }
-  }
-  return ret;
-}
-
 void
 MgmApiSession::get_nodeid(Parser_t::Context &,
 			  const class Properties &args)
