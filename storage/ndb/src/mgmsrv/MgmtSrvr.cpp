@@ -236,7 +236,9 @@ MgmtSrvr::isEventLogFilterEnabled(int severity)
   return g_eventLogger->isEnable((Logger::LoggerLevel)severity);
 }
 
-int MgmtSrvr::translateStopRef(Uint32 errCode)
+
+static int
+translateStopRef(Uint32 errCode)
 {
   switch(errCode){
   case StopRef::NodeShutdownInProgress:
