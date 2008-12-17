@@ -1551,7 +1551,9 @@ buf_LRU_block_free_non_file_page(
 		ut_error;
 	}
 
-	ut_ad(block->n_pointers == 0);
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	ut_a(block->n_pointers == 0);
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	ut_ad(!block->page.in_free_list);
 	ut_ad(!block->page.in_flush_list);
 	ut_ad(!block->page.in_LRU_list);
