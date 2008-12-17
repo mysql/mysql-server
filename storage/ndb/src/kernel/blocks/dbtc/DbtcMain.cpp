@@ -4345,13 +4345,13 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     tcKeyConf->apiConnectPtr = regApiPtr->ndbapiConnect;
     tcKeyConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
     Uint32* gci_lo = (Uint32*)&tcKeyConf->operations[TopWords >> 1];
-    * gci_lo = Uint32(regApiPtr->globalcheckpointid);
     tcKeyConf->confInfo = confInfo;
     tcKeyConf->transId1 = regApiPtr->transid[0];
     tcKeyConf->transId2 = regApiPtr->transid[1];
     copyFromToLen(&regApiPtr->tcSendArray[0],
 		  (UintR*)&tcKeyConf->operations,
 		  (UintR)ZTCOPCONF_SIZE);
+    * gci_lo = Uint32(regApiPtr->globalcheckpointid);
     sendSignal(regApiPtr->ndbapiBlockref,
 	       GSN_TCKEYCONF, signal, (TpacketLen - 1) + 1 /** gci_lo */, JBB);
     return;
