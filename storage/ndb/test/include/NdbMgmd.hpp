@@ -30,8 +30,13 @@
 class NdbMgmd {
   BaseString m_connect_str;
   NdbMgmHandle m_handle;
+  Uint32 m_nodeid;
+  bool m_verbose;
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
   {
+    if (!m_verbose)
+      return;
+
     va_list args;
     printf("NdbMgmd::");
     va_start(args, msg);
@@ -48,7 +53,7 @@ class NdbMgmd {
   }
 public:
   NdbMgmd() :
-    m_handle(NULL)
+    m_handle(NULL), m_nodeid(0), m_verbose(true)
     {
       const char* connect_string= getenv("NDB_CONNECTSTRING");
       if (connect_string)
@@ -69,14 +74,28 @@ public:
     return m_connect_str.c_str();
   }
 
-  bool connect(void) {
+  void verbose(bool yes = true){
+    m_verbose= yes;
+  }
+
+  int last_error(void) const {
+    return ndb_mgm_get_latest_error(m_handle);
+  }
+
+  const char* last_error_message(void) const {
+    return ndb_mgm_get_latest_error_desc(m_handle);
+  }
+
+  bool connect(const char* connect_string = NULL) {
     m_handle= ndb_mgm_create_handle();
     if (!m_handle){
       error("connect: ndb_mgm_create_handle failed");
       return false;
     }
 
-    if (ndb_mgm_set_connectstring(m_handle, getConnectString()) != 0){
+    if (ndb_mgm_set_connectstring(m_handle,
+                                  connect_string ?
+                                  connect_string : getConnectString()) != 0){
       error("connect: ndb_mgm_set_connectstring failed");
       return false;
     }
@@ -85,6 +104,12 @@ public:
       error("connect: ndb_mgm_connect failed");
       return false;
     }
+
+    if ((m_nodeid = ndb_mgm_get_mgmd_nodeid(m_handle)) == 0){
+      error("connect: could not get nodeid of connected mgmd");
+      return false;
+    }
+
     return true;
   }
 
@@ -100,8 +125,34 @@ public:
     return true;
   }
 
+  bool restart(bool abort = false) {
+    if (!is_connected()){
+      error("restart: not connected");
+      return false;
+    }
+
+    int disconnect= 0;
+    int node_list= m_nodeid;
+    int restarted= ndb_mgm_restart3(m_handle,
+                                    1,
+                                    &node_list,
+                                    false, /* initial */
+                                    false, /* nostart */
+                                    abort,
+                                    &disconnect);
+
+    if (restarted != 1){
+      error("restart: failed to restart node %d, restarted: %d",
+            m_nodeid, restarted);
+      return false;
+    }
+    return true;
+  }
+
   bool call(const char* cmd, const Properties& args,
-            const char* cmd_reply, Properties& reply){
+            const char* cmd_reply, Properties& reply,
+            const char* bulk = NULL,
+            bool name_value_pairs = true){
 
     if (!is_connected()){
       error("call: not connected");
@@ -153,46 +204,68 @@ public:
 	break;
       }
     }
+
+    // Emtpy line terminates argument list
     if (out.print("\n")){
       error("call: print('\n') failed at line %d", __LINE__);
       return false;
     }
 
+    // Send any bulk data
+    if (bulk && out.println(bulk)){
+      error("call: print('<bulk>') failed at line %d", __LINE__);
+      return false;
+    }
 
-    // Read the reply
     BaseString buf;
     SocketInputStream2 in(_ndb_mgm_get_socket(m_handle));
-    if (!in.gets(buf)){
-      error("call: could not read reply command");
-      return false;
+    if (cmd_reply)
+    {
+      // Read the reply header and compare against "cmd_reply"
+      if (!in.gets(buf)){
+        error("call: could not read reply command");
+        return false;
+      }
+
+      // 1. Check correct reply header
+      if (buf != cmd_reply){
+        error("call: unexpected reply command, expected: '%s', got '%s'",
+              cmd_reply, buf.c_str());
+        return false;
+      }
     }
 
-    // 1. Check correct reply header
-    if (buf != cmd_reply){
-      error("call: unexpected reply command, expected: '%s', got '%s'",
-            cmd_reply, buf.c_str());
-      return false;
-    }
-
-    // 2. Read colon separated name value pairs until empty line
+    // 2. Read lines until empty line
+    int line = 1;
     while(in.gets(buf)){
 
       // empty line -> end of reply
       if (buf == "")
         return true;
 
-      // Split the name value pair on first ':'
-      Vector<BaseString> name_value_pair;
-      if (buf.split(name_value_pair, ":", 2) != 2){
-        error("call: illegal name value pair '%s' received", buf.c_str());
-        return false;
-      }
+      if (name_value_pairs)
+      {
+        // 3a. Read colon separated name value pair, split
+        // the name value pair on first ':'
+        Vector<BaseString> name_value_pair;
+        if (buf.split(name_value_pair, ":", 2) != 2){
+          error("call: illegal name value pair '%s' received", buf.c_str());
+          return false;
+        }
 
-      reply.put(name_value_pair[0].trim(" ").c_str(),
-                name_value_pair[1].trim(" ").c_str());
+        reply.put(name_value_pair[0].trim(" ").c_str(),
+                  name_value_pair[1].trim(" ").c_str());
+      }
+      else
+      {
+        // 3b. Not name value pair, save the line into "reply"
+        // using unique key
+        reply.put("line", line++, buf.c_str());
+      }
     }
 
     error("call: should never come here");
+    reply.print();
     abort();
     return false;
   }
@@ -213,6 +286,22 @@ public:
     }
 
     config.m_configValues= conf;
+    return true;
+  }
+
+  bool set_config(Config& config){
+
+    if (!is_connected()){
+      error("set_config: not connected");
+      return false;
+    }
+
+    if (ndb_mgm_set_configuration(m_handle,
+                                  config.values()) != 0)
+    {
+      error("set_config: ndb_mgm_set_configuration failed");
+      return false;
+    }
     return true;
   }
 
