@@ -333,4 +333,23 @@ SELECT 1 FROM t1 GROUP BY a;
 
 DROP TABLE t1;
 
+#
+# Bug#37799 SELECT with a BIT column in WHERE clause returns unexpected result
+#
+
+CREATE TABLE t1 (b BIT NOT NULL, i2 INTEGER NOT NULL, s VARCHAR(255) NOT NULL);
+INSERT INTO t1 VALUES(0x01,100,''), (0x00,300,''), (0x01,200,''), (0x00,100,'');
+SELECT HEX(b), i2 FROM t1 WHERE (i2>=100 AND i2<201) AND b=TRUE;
+
+CREATE TABLE t2 (b1 BIT NOT NULL, b2 BIT NOT NULL, i2 INTEGER NOT NULL,
+                 s VARCHAR(255) NOT NULL);
+INSERT INTO t2 VALUES (0x01,0x00,100,''), (0x00,0x01,300,''),
+                      (0x01,0x00,200,''), (0x00,0x01,100,'');
+SELECT HEX(b1), i2 FROM t2 WHERE (i2>=100 AND i2<201) AND b1=TRUE;
+SELECT HEX(b2), i2 FROM t2 WHERE (i2>=100 AND i2<201) AND b2=FALSE;
+SELECT HEX(b1), HEX(b2), i2 FROM t2
+       WHERE (i2>=100 AND i2<201) AND b1=TRUE AND b2=FALSE;
+
+DROP TABLE t1, t2;
+
 --echo End of 5.0 tests

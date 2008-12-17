@@ -4737,7 +4737,7 @@ ER_SLAVE_IGNORED_TABLE
 	swe "Slav SQL tråden ignorerade frågan pga en replicate-*-table regel"
 ER_INCORRECT_GLOBAL_LOCAL_VAR  
 	eng "Variable '%-.64s' is a %s variable"
-	serbian "Incorrect foreign key definition for '%-.64s': %s"
+	serbian "Promenljiva '%-.64s' je %s promenljiva"
 	ger "Variable '%-.64s' ist eine %s-Variable"
 	spa "Variable '%-.64s' es una %s variable"
 	swe "Variabel '%-.64s' är av typ %s"
@@ -5645,3 +5645,7 @@ ER_LOAD_DATA_INVALID_COLUMN
   eng "Invalid column reference (%-.64s) in LOAD DATA"
 ER_LOG_PURGE_NO_FILE  
 	eng "Being purged log %s was not found"
+ER_XA_RBTIMEOUT XA106
+	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
+ER_XA_RBDEADLOCK XA102
+	eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"

@@ -324,9 +324,10 @@ void create_paths()
 ******************************************************************************/
 int mysql_install_db(int argc, char *argv[])
 {
-	arg_list_t al;
-	int i, j, err;
-	char skip;
+  arg_list_t al;
+  int i, j, err;
+  char skip;
+  struct stat info;
   
   // private options
   static char *private_options[] =
@@ -363,6 +364,15 @@ int mysql_install_db(int argc, char *argv[])
 	add_arg(&al, "--skip-innodb");
 	add_arg(&al, "--skip-bdb");
 
+  if ((err = stat(sql_file, &info)) != 0)
+  {
+    printf("ERROR - %s:\n", strerror(errno));
+    printf("\t%s\n\n", sql_file);
+    // free args
+    free_args(&al);
+    exit(-1);
+  }
+
   // spawn mysqld
   err = spawn(mysqld, &al, TRUE, sql_file, out_log, err_log);
 
@@ -395,9 +405,9 @@ int main(int argc, char **argv)
 	// install the database
   if (mysql_install_db(argc, argv))
   {
-    printf("ERROR - The database creation failed!\n");
+    printf("ERROR - Failed to create the database!\n");
     printf("        %s\n", strerror(errno));
-    printf("See the following log for more infomration:\n");
+    printf("See the following log for more information:\n");
     printf("\t%s\n\n", err_log);
     exit(-1);
   }

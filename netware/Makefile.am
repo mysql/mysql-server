@@ -103,8 +103,7 @@ init_db.sql: $(top_srcdir)/scripts/mysql_system_tables.sql \
 	@echo "CREATE DATABASE mysql;" > $@;
 	@echo "CREATE DATABASE test;" >> $@;
 	@echo "use mysql;" >> $@;
-	@cat $(top_srcdir)/scripts/mysql_system_tables.sql \
-	     $(top_srcdir)/scripts/mysql_system_tables_fix.sql >> $@;
+	@cat $(top_srcdir)/scripts/mysql_system_tables.sql >> $@;
 
 # Build test_db.sql from init_db.sql plus
 # some test data

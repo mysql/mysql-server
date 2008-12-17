@@ -237,6 +237,7 @@ trx_undo_set_state_at_finish(
 /*=========================*/
 				/* out: undo log segment header page,
 				x-latched */
+	trx_rseg_t*	rseg,	/* in: rollback segment memory object */
 	trx_t*		trx,	/* in: transaction */
 	trx_undo_t*	undo,	/* in: undo log memory copy */
 	mtr_t*		mtr);	/* in: mtr */

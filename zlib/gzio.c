@@ -7,9 +7,14 @@
 
 /* @(#) $Id$ */
 
-#include "zutil.h"
+/* Need to be included "early" to control other headers */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <stdio.h>
+
+#include "zutil.h"
 
 #ifdef NO_DEFLATE       /* for compatibility with old definition */
 #  define NO_GZCOMPRESS

@@ -1441,6 +1441,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char name_buffer[80];
   int len;
   LEX_STRING null_lex_str;
+  CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   null_lex_str.str= 0;				// For sys_var->value_ptr()
@@ -1469,9 +1470,10 @@ static bool show_status_array(THD *thd, const char *wild,
         long nr;
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->show_type();
-          value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
-                                                           &null_lex_str);
+          sys_var *var= ((sys_var *) value);
+          show_type= var->show_type();
+          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+          charset= var->charset(thd);
         }
 
         pos= end= buff;
@@ -1523,9 +1525,6 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_FLUSHTIME:
           nr= (long) (thd->query_start() - flush_status_time);
           end= int10_to_str(nr, buff, 10);
-          break;
-        case SHOW_QUESTION:
-          end= int10_to_str((long) thd->query_id, buff, 10);
           break;
 #ifdef HAVE_REPLICATION
         case SHOW_RPL_STATUS:
@@ -1801,7 +1800,7 @@ static bool show_status_array(THD *thd, const char *wild,
         restore_record(table, s->default_values);
         table->field[0]->store(name_buffer, strlen(name_buffer),
                                system_charset_info);
-        table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        table->field[1]->store(pos, (uint32) (end - pos), charset);
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(TRUE);
       }
@@ -3174,6 +3173,27 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
           !my_strcasecmp(system_charset_info, tables->definer.host.str,
                          sctx->priv_host))
         tables->allowed_show= TRUE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      else
+      {
+        if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+            (SHOW_VIEW_ACL|SELECT_ACL))
+          tables->allowed_show= TRUE;
+        else
+        {
+          TABLE_LIST table_list;
+          uint view_access;
+          memset(&table_list, 0, sizeof(table_list));
+          table_list.db= tables->view_db.str;
+          table_list.table_name= tables->view_name.str;
+          table_list.grant.privilege= thd->col_access;
+          view_access= get_table_grant(thd, &table_list);
+          if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+              (SHOW_VIEW_ACL|SELECT_ACL))
+            tables->allowed_show= TRUE;
+        }
+      }
+#endif
     }
     restore_record(table, s->default_values);
     table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
@@ -3694,16 +3714,10 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING ||
                   fields_info->field_type == MYSQL_TYPE_DECIMAL);
 
-      /** 
-        @todo  Change when Item_empty_string is fixed (in 4.1).  [Presumably, 
-        this means removing the first of two steps:  setting a useless, bogus
-        value; and then setting the attributes.]
-      */
-      if (!(item= new Item_empty_string("", 0, cs)))
+      if (!(item= new Item_empty_string("", fields_info->field_length, cs)))
       {
         DBUG_RETURN(0);
       }
-      item->max_length= fields_info->field_length * cs->mbmaxlen;
       item->set_name(fields_info->field_name,
                      strlen(fields_info->field_name), cs);
       break;

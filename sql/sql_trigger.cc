@@ -479,7 +479,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   trigname.trigger_table.length= tables->table_name_length;
 
   if (sql_create_definition_file(&dir, &trigname_file, &trigname_file_type,
-                                 (gptr)&trigname, trigname_file_parameters, 0))
+                                 (gptr)&trigname, trigname_file_parameters))
     return 1;
 
   /*
@@ -569,7 +569,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   /* Create trigger definition file. */
 
   if (!sql_create_definition_file(&dir, &file, &triggers_file_type,
-                                  (gptr)this, triggers_file_parameters, 0))
+                                  (gptr)this, triggers_file_parameters))
     return 0;
 
 err_with_cleanup:
@@ -656,7 +656,7 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
   file.str= file_buff;
 
   return sql_create_definition_file(&dir, &file, &triggers_file_type,
-                                    (gptr)triggers, triggers_file_parameters, 0);
+                                    (gptr)triggers, triggers_file_parameters);
 }
 
 
@@ -968,11 +968,13 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Lex_input_stream lip(thd, trg_create_str->str, trg_create_str->length);
-        thd->m_lip= &lip;
+        Parser_state parser_state(thd, trg_create_str->str,
+                                  trg_create_str->length);
+        thd->m_parser_state= &parser_state;
         lex_start(thd);
         thd->spcont= NULL;
         int err= MYSQLparse((void *)thd);
+        thd->m_parser_state= NULL;
 
         if (err || thd->is_fatal_error)
         {
@@ -1425,7 +1427,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
     trigname.trigger_table= *new_table_name;
 
     if (sql_create_definition_file(&dir, &trigname_file, &trigname_file_type,
-        (gptr)&trigname, trigname_file_parameters, 0))
+        (gptr)&trigname, trigname_file_parameters))
       return trigger;
   }
 

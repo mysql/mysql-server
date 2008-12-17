@@ -439,6 +439,7 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     32
+#define UNCACHEABLE_CHECKOPTION   64
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
@@ -632,6 +633,7 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
 bool check_string_length(LEX_STRING *str,
                          const char *err_msg, uint max_length);
+bool check_host_name(LEX_STRING *str);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -1284,6 +1286,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
 	    mysql_unpacked_real_data_home[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+extern int mysql_unpacked_real_data_home_len;
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
@@ -1574,14 +1577,14 @@ void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
 void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
-ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
-                             Item *warn_item, bool *is_null);
+longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                            Item *warn_item, bool *is_null);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select,
-		      int use_record_cache, bool print_errors);
+		      SQL_SELECT *select, int use_record_cache, 
+                      bool print_errors, bool disable_rr_cache);
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
                           bool print_error, uint idx);
 void end_read_record(READ_RECORD *info);
@@ -1786,6 +1789,8 @@ bool check_stack_overrun(THD *thd, long margin, char *dummy);
 inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
+
+extern "C" int test_if_data_home_dir(const char *dir);
 
 #endif /* MYSQL_CLIENT */
 

@@ -443,11 +443,12 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
 
   {
-    Lex_input_stream lip(thd, defstr.c_ptr(), defstr.length());
-    thd->m_lip= &lip;
+    Parser_state parser_state(thd, defstr.c_ptr(), defstr.length());
+    thd->m_parser_state= &parser_state;
     lex_start(thd);
     thd->spcont= NULL;
     ret= MYSQLparse(thd);
+    thd->m_parser_state= NULL;
 
     if (ret == 0)
     {

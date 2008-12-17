@@ -2589,6 +2589,11 @@ bool Delayed_insert::handle_inserts(void)
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
+    if (table->s->blob_fields)
+    {
+      memcpy(table->record[0],row->record,table->s->reclength);
+      free_delayed_insert_blobs(table);
+    }
     delete row;
     thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
@@ -2901,7 +2906,11 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
-  if (!(error= write_record(thd, table, &info)))
+  
+  error= write_record(thd, table, &info);
+  table->auto_increment_field_not_null= FALSE;
+  
+  if (!error)
   {
     if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {

@@ -111,7 +111,8 @@ class Select_materialize: public select_union
   select_result *result; /* the result object of the caller (PS or SP) */
 public:
   Materialized_cursor *materialized_cursor;
-  Select_materialize(select_result *result_arg) :result(result_arg) {}
+  Select_materialize(select_result *result_arg) :result(result_arg),
+    materialized_cursor(0) {}
   virtual bool send_fields(List<Item> &list, uint flags);
 };
 
@@ -155,6 +156,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
   if (! (sensitive_cursor= new (thd->mem_root) Sensitive_cursor(thd, result)))
   {
     delete result_materialize;
+    result_materialize= NULL;
     return 1;
   }
 
@@ -212,6 +214,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
     if ((rc= materialized_cursor->open(0)))
     {
       delete materialized_cursor;
+      materialized_cursor= NULL;
       goto err_open;
     }
 

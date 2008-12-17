@@ -12,18 +12,18 @@ user	host
 dummy	localhost
 dummy1	localhost
 dummy2	localhost
-SELECT COUNT(*) FROM mysql.user;
+SELECT COUNT(*) FROM mysql.user WHERE user != 'root' or (host != 'localhost' and host != @hostname);
 COUNT(*)
-6
+3
 **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user != 'root';
 user	host
 dummy	localhost
 dummy1	localhost
 dummy2	localhost
-SELECT COUNT(*) FROM mysql.user;
+SELECT COUNT(*) FROM mysql.user WHERE user != 'root' or (host != 'localhost' and host != @hostname);
 COUNT(*)
-6
+3
 **** On Master ****
 DROP USER nonexisting@localhost;
 ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
@@ -32,15 +32,15 @@ ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
 DROP USER dummy1@localhost, dummy2@localhost;
 SELECT user, host FROM mysql.user WHERE user != 'root';
 user	host
-SELECT COUNT(*) FROM mysql.user;
+SELECT COUNT(*) FROM mysql.user WHERE user != 'root' or (host != 'localhost' and host != @hostname);
 COUNT(*)
-3
+0
 **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user != 'root';
 user	host
-SELECT COUNT(*) FROM mysql.user;
+SELECT COUNT(*) FROM mysql.user WHERE user != 'root' or (host != 'localhost' and host != @hostname);
 COUNT(*)
-3
+0
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1

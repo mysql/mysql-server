@@ -24,7 +24,7 @@ create table t1(
 
 insert into t1 values(1, "Autodiscover");
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
 select * from t1;
 show status like 'handler_discover%';
 
@@ -33,13 +33,13 @@ show status like 'handler_discover%';
 #
 
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
 insert into t1 values (2, "Auto 2");
 show status like 'handler_discover%';
 insert into t1 values (3, "Discover 3");
 show status like 'handler_discover%';
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
 select * from t1 order by id;
 show status like 'handler_discover%';
 
@@ -48,7 +48,7 @@ show status like 'handler_discover%';
 #
 
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
 update t1 set name="Autodiscover" where id = 2;
 show status like 'handler_discover%';
 select * from t1 order by id;
@@ -59,7 +59,7 @@ show status like 'handler_discover%';
 #
 
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
 delete from  t1 where id = 3;
 select * from t1 order by id;
 show status like 'handler_discover%';
@@ -111,9 +111,9 @@ show status like 'handler_discover%';
 flush tables;
 
 # Remove the frm file from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t3.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm ;
 
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 create table t3(
   id int not null primary key,
   name char(20), a int, b float, c char(24)
@@ -168,14 +168,14 @@ show status like 'handler_discover%';
 
 # Remove the frm file from disk
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm ;
 
 show tables from test;
 show status like 'handler_discover%';
 
 # Remove the frm file from disk again
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm ;
 
 --replace_column 7 # 8 # 9 # 12 # 13 # 15 # 18 #
 show table status;
@@ -204,13 +204,13 @@ system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS
 
 #
 # Test that correct error is returned
---error 1146
+--error ER_NO_SUCH_TABLE 
 select * from t4;
---error 1146
+--error ER_NO_SUCH_TABLE 
 select * from t4;
 
 show status like 'handler_discover%';
---error 1051
+--error ER_BAD_TABLE_ERROR
 drop table t4;
 
 create table t4(
@@ -223,14 +223,14 @@ select * from t4;
 # Remove the table from NDB
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
 
---error 1146
+--error ER_NO_SUCH_TABLE 
 select * from t4;
 
 drop table if exists t4;
 
 # Test that dropping a table that does not exists
 # on  disk or in NDB gives same result as above
---error 1051
+--error ER_BAD_TABLE_ERROR
 drop table t5;
 drop table if exists t5;
 
@@ -257,7 +257,7 @@ system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS
 
 SHOW TABLES;
 
---error 1146
+--error ER_NO_SUCH_TABLE 
 select * from t4;
 
 #######################################################
@@ -290,8 +290,8 @@ insert into t9 values (9);
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t3 >> $NDB_TOOLS_OUTPUT ;
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t5 >> $NDB_TOOLS_OUTPUT ;
 # Remove t6, t7 from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t6.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm > /dev/null ; 
+remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm; 
+remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm; 
 
 SHOW TABLES;
 
@@ -332,8 +332,8 @@ insert into t9 values (9);
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t3 > /dev/null  ;
 system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t5 > /dev/null  ;
 # Remove t6, t7 from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t6.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t7.frm > /dev/null ; 
+remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm; 
+remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm; 
 
 
 SHOW TABLES LIKE 't6';
@@ -342,9 +342,9 @@ show status like 'handler_discover%';
 
 # Check that t3 or t5 can't be created
 # frm files for these tables is stilll on disk
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 create table t3(a int);
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 create table t5(a int);
 
 SHOW TABLES LIKE 't%';
@@ -375,9 +375,9 @@ insert into t3 values (3, "ndb table 3");
 insert into t4 values (4);
 
 # Remove t1, t2, t3 from disk
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t2.frm > /dev/null ; 
-system rm $MYSQLTEST_VARDIR/master-data/test/t3.frm > /dev/null ; 
+remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm; 
+remove_file $MYSQLTEST_VARDIR/master-data/test/t2.frm;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm; 
 flush tables;
 
 # Select from the table which only exists in NDB.
@@ -462,7 +462,7 @@ show tables;
 create database test2;
 use test2;
 show tables;
---error 1146
+--error ER_NO_SUCH_TABLE 
 select * from t1;
 create table t2 (b int,c longblob) engine=ndb;
 use test;
@@ -487,7 +487,7 @@ create table t1 (a int primary key) engine=ndb;
 select * from t1;
 --exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --not-started > /dev/null
---error 1015
+--error ER_CANT_LOCK
 select * from t1;
 --exec $NDB_MGM --no-defaults -e "all start" > /dev/null
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
@@ -503,17 +503,17 @@ drop database test_only_ndb_tables;
 # discovered( for example a table created via NDBAPI)
 
 # Test disabled since it doesn't work on case insensitive systems
-#--error 1050
+#--error ER_TABLE_EXISTS_ERROR
 #CREATE TABLE sys.SYSTAB_0 (a int);
-#--error 1105
+#--error ER_UNKNOWN_ERROR
 #select * from sys.SYSTAB_0;
 
 #CREATE TABLE IF NOT EXISTS sys.SYSTAB_0 (a int);
 #show warnings;
-#--error 1105
+#--error ER_UNKNOWN_ERROR
 #select * from sys.SYSTAB_0;
 
-#--error 1051
+#--error ER_BAD_TABLE_ERROR
 #drop table sys.SYSTAB_0;
 #drop table IF EXISTS sys.SYSTAB_0;
 
@@ -531,7 +531,7 @@ CREATE TABLE t9 (
 insert t9 values(1, 2), (2,3), (3, 4), (4, 5);
 
 #Don't drop the table, instead remove the frm file
-system rm $MYSQLTEST_VARDIR/master-data/test/t9.frm ;
+remove_file $MYSQLTEST_VARDIR/master-data/test/t9.frm ;
 
 # Now leave test case, when ndb_autodiscover2 will  run, this 
 # MySQL Server will have been restarted because it has a 

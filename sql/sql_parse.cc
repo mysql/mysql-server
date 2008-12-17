@@ -76,7 +76,6 @@ static void remove_escape(char *name);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
-static bool test_if_data_home_dir(const char *dir);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -91,8 +90,56 @@ const char *command_name[]={
 };
 
 const char *xa_state_names[]={
-  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
+  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
+
+/**
+  Mark a XA transaction as rollback-only if the RM unilaterally
+  rolled back the transaction branch.
+
+  @note If a rollback was requested by the RM, this function sets
+        the appropriate rollback error code and transits the state
+        to XA_ROLLBACK_ONLY.
+
+  @return TRUE if transaction was rolled back or if the transaction
+          state is XA_ROLLBACK_ONLY. FALSE otherwise.
+*/
+static bool xa_trans_rolled_back(XID_STATE *xid_state)
+{
+  if (xid_state->rm_error)
+  {
+    switch (xid_state->rm_error) {
+    case ER_LOCK_WAIT_TIMEOUT:
+      my_error(ER_XA_RBTIMEOUT, MYF(0));
+      break;
+    case ER_LOCK_DEADLOCK:
+      my_error(ER_XA_RBDEADLOCK, MYF(0));
+      break;
+    default:
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+    }
+    xid_state->xa_state= XA_ROLLBACK_ONLY;
+  }
+
+  return (xid_state->xa_state == XA_ROLLBACK_ONLY);
+}
+
+/**
+  Rollback work done on behalf of at ransaction branch.
+*/
+static bool xa_trans_rollback(THD *thd)
+{
+  bool status= test(ha_rollback(thd));
+
+  thd->options&= ~(ulong) OPTION_BEGIN;
+  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  xid_cache_delete(&thd->transaction.xid_state);
+  thd->transaction.xid_state.xa_state= XA_NOTR;
+  thd->transaction.xid_state.rm_error= 0;
+
+  return status;
+}
 
 #ifndef EMBEDDED_LIBRARY
 static bool do_command(THD *thd);
@@ -1711,8 +1758,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= global_query_id;
-  if (command != COM_STATISTICS && command != COM_PING)
+  
+  switch( command ) {
+  /* Ignore these statements. */
+  case COM_STATISTICS:
+  case COM_PING:
+    break;
+  /* Only increase id on these statements but don't count them. */
+  case COM_STMT_PREPARE: 
+  case COM_STMT_CLOSE:
+  case COM_STMT_RESET:
     next_query_id();
+    break;
+  /* Increase id and count all other statements. */
+  default:
+    statistic_increment(thd->status_var.questions, &LOCK_status);
+    next_query_id();
+  }
+  
   thread_running++;
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1927,6 +1990,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= next_packet;
+      /*
+        Count each statement from the client.
+      */
+      statistic_increment(thd->status_var.questions, &LOCK_status);
+
       thd->query_id= next_query_id();
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
@@ -3097,13 +3165,13 @@ mysql_execute_command(THD *thd)
 
     if (test_if_data_home_dir(lex->create_info.data_file_name))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
       res= -1;
       break;
     }
     if (test_if_data_home_dir(lex->create_info.index_file_name))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
       res= -1;
       break;
     }
@@ -5103,6 +5171,7 @@ create_sp_error:
     }
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
     thd->transaction.all.modified_non_trans_table= FALSE;
@@ -5128,6 +5197,8 @@ create_sp_error:
       my_error(ER_XAER_NOTA, MYF(0));
       break;
     }
+    if (xa_trans_rolled_back(&thd->transaction.xid_state))
+      break;
     thd->transaction.xid_state.xa_state=XA_IDLE;
     send_ok(thd);
     break;
@@ -5159,12 +5230,23 @@ create_sp_error:
       XID_STATE *xs=xid_cache_search(thd->lex->xid);
       if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
+      else if (xa_trans_rolled_back(xs))
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+        xid_cache_delete(xs);
+        break;
+      }
       else
       {
         ha_commit_or_rollback_by_xid(thd->lex->xid, 1);
         xid_cache_delete(xs);
         send_ok(thd);
       }
+      break;
+    }
+    if (xa_trans_rolled_back(&thd->transaction.xid_state))
+    {
+      xa_trans_rollback(thd);
       break;
     }
     if (thd->transaction.xid_state.xa_state == XA_IDLE &&
@@ -5213,28 +5295,26 @@ create_sp_error:
         my_error(ER_XAER_NOTA, MYF(0));
       else
       {
+        bool ok= !xa_trans_rolled_back(xs);
         ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
         xid_cache_delete(xs);
-        send_ok(thd);
+        if (ok)
+          send_ok(thd);
       }
       break;
     }
     if (thd->transaction.xid_state.xa_state != XA_IDLE &&
-        thd->transaction.xid_state.xa_state != XA_PREPARED)
+        thd->transaction.xid_state.xa_state != XA_PREPARED &&
+        thd->transaction.xid_state.xa_state != XA_ROLLBACK_ONLY)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (ha_rollback(thd))
+    if (xa_trans_rollback(thd))
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~OPTION_BEGIN;
-    thd->transaction.all.modified_non_trans_table= FALSE;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    xid_cache_delete(&thd->transaction.xid_state);
-    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
@@ -5930,29 +6010,35 @@ bool check_stack_overrun(THD *thd, long margin,
 
 bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
-  LEX	*lex= current_thd->lex;
+  Yacc_state *state= & current_thd->m_parser_state->m_yacc;
   ulong old_info=0;
+  DBUG_ASSERT(state);
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
-  if (!lex->yacc_yyvs)
+  if (!state->yacc_yyvs)
     old_info= *yystacksize;
   *yystacksize= set_zone((*yystacksize)*2,MY_YACC_INIT,MY_YACC_MAX);
-  if (!(lex->yacc_yyvs= (char*)
-	my_realloc((gptr) lex->yacc_yyvs,
+  if (!(state->yacc_yyvs= (char*)
+        my_realloc(state->yacc_yyvs,
 		   *yystacksize*sizeof(**yyvs),
 		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
-      !(lex->yacc_yyss= (char*)
-	my_realloc((gptr) lex->yacc_yyss,
+      !(state->yacc_yyss= (char*)
+        my_realloc(state->yacc_yyss,
 		   *yystacksize*sizeof(**yyss),
 		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
-  {						// Copy old info from stack
-    memcpy(lex->yacc_yyss, (gptr) *yyss, old_info*sizeof(**yyss));
-    memcpy(lex->yacc_yyvs, (gptr) *yyvs, old_info*sizeof(**yyvs));
+  {
+    /*
+      Only copy the old stack on the first call to my_yyoverflow(),
+      when replacing a static stack (YYINITDEPTH) by a dynamic stack.
+      For subsequent calls, my_realloc already did preserve the old stack.
+    */
+    memcpy(state->yacc_yyss, *yyss, old_info*sizeof(**yyss));
+    memcpy(state->yacc_yyvs, *yyvs, old_info*sizeof(**yyvs));
   }
-  *yyss=(short*) lex->yacc_yyss;
-  *yyvs=(YYSTYPE*) lex->yacc_yyvs;
+  *yyss= (short*) state->yacc_yyss;
+  *yyvs= (YYSTYPE*) state->yacc_yyvs;
   return 0;
 }
 
@@ -6191,11 +6277,12 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
 
-    Lex_input_stream lip(thd, inBuf, length);
-    thd->m_lip= &lip;
+    Parser_state parser_state(thd, inBuf, length);
+    thd->m_parser_state= &parser_state;
 
     int err= MYSQLparse(thd);
-    *found_semicolon= lip.found_semicolon;
+    *found_semicolon= parser_state.m_lip.found_semicolon;
+    thd->m_parser_state= NULL;
 
     if (!err && ! thd->is_fatal_error)
     {
@@ -6220,8 +6307,9 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (lip.found_semicolon &&
-              (thd->query_length= (ulong)(lip.found_semicolon - thd->query)))
+          if (parser_state.m_lip.found_semicolon &&
+              (thd->query_length= (ulong)(parser_state.m_lip.found_semicolon
+                                          - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
           if (*found_semicolon)
@@ -6280,11 +6368,13 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Lex_input_stream lip(thd, inBuf, length);
-  thd->m_lip= &lip;
+  Parser_state parser_state(thd, inBuf, length);
+  thd->m_parser_state= &parser_state;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   int err= MYSQLparse((void*) thd);
+  thd->m_parser_state= NULL;
 
   if (!err && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
@@ -7114,11 +7204,23 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
     }
+    
     if (thd)
     {
-      (void)acl_reload(thd);
-      (void)grant_reload(thd);
+      bool reload_acl_failed= acl_reload(thd);
+      bool reload_grants_failed= grant_reload(thd);
+
+      if (reload_acl_failed || reload_grants_failed)
+      {
+        result= 1;
+        /*
+          When an error is returned, my_message may have not been called and
+          the client will hang waiting for a response.
+        */
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+      }
     }
+
     if (tmp_thd)
     {
       delete tmp_thd;
@@ -7204,8 +7306,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
-      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
-                                 tables);
+      if (close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
+                                 tables))
+          result= 1;
+      
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
@@ -7214,7 +7318,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       }
     }
     else
-      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
+    {
+      if (close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables))
+        result= 1;
+    }
     my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
@@ -7238,8 +7345,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
-     if (des_key_file)
-       result=load_des_key_file(des_key_file);
+     if (des_key_file && load_des_key_file(des_key_file))
+         result= 1;
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -7350,7 +7457,7 @@ bool check_simple_select()
   if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    Lex_input_stream *lip= thd->m_lip;
+    Lex_input_stream *lip= & thd->m_parser_state->m_lip;
     strmake(command, lip->yylval->symbol.str,
 	    min(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
@@ -7974,10 +8081,12 @@ bool check_string_length(LEX_STRING *str, const char *err_msg,
     1	error  
 */
 
-static bool test_if_data_home_dir(const char *dir)
+C_MODE_START
+
+int test_if_data_home_dir(const char *dir)
 {
-  char path[FN_REFLEN], conv_path[FN_REFLEN];
-  uint dir_len, home_dir_len= strlen(mysql_unpacked_real_data_home);
+  char path[FN_REFLEN];
+  int dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
@@ -7985,21 +8094,59 @@ static bool test_if_data_home_dir(const char *dir)
 
   (void) fn_format(path, dir, "", "",
                    (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  dir_len= unpack_dirname(conv_path, dir);
-
-  if (home_dir_len <= dir_len)
+  dir_len= strlen(path);
+  if (mysql_unpacked_real_data_home_len<= dir_len)
   {
+    if (dir_len > mysql_unpacked_real_data_home_len &&
+        path[mysql_unpacked_real_data_home_len] != FN_LIBCHAR)
+      DBUG_RETURN(0);
+
     if (lower_case_file_system)
     {
-      if (!my_strnncoll(default_charset_info, (const uchar*) conv_path,
-                        home_dir_len,
+      if (!my_strnncoll(default_charset_info, (const uchar*) path,
+                        mysql_unpacked_real_data_home_len,
                         (const uchar*) mysql_unpacked_real_data_home,
-                        home_dir_len))
+                        mysql_unpacked_real_data_home_len))
         DBUG_RETURN(1);
     }
-    else if (!memcmp(conv_path, mysql_unpacked_real_data_home, home_dir_len))
+    else if (!memcmp(path, mysql_unpacked_real_data_home,
+                     mysql_unpacked_real_data_home_len))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
+C_MODE_END
+
+
+/**
+  Check that host name string is valid.
+
+  @param[in] str string to be checked
+
+  @return             Operation status
+    @retval  FALSE    host name is ok
+    @retval  TRUE     host name string is longer than max_length or
+                      has invalid symbols
+*/
+
+bool check_host_name(LEX_STRING *str)
+{
+  const char *name= str->str;
+  const char *end= str->str + str->length;
+  if (check_string_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+    return TRUE;
+
+  while (name != end)
+  {
+    if (*name == '@')
+    {
+      my_printf_error(ER_UNKNOWN_ERROR, 
+                      "Malformed hostname (illegal symbol: '%c')", MYF(0),
+                      *name);
+      return TRUE;
+    }
+    name++;
+  }
+  return FALSE;
+}
