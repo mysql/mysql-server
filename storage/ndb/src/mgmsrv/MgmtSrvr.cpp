@@ -1461,6 +1461,19 @@ int MgmtSrvr::check_nodes_starting()
   return 0;
 }
 
+int MgmtSrvr::check_nodes_single_user()
+{
+  NodeId nodeId = 0;
+  ClusterMgr::Node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
+      return 1;
+  }
+  return 0;
+}
+
 int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
                            bool initialStart, bool abort,
@@ -1469,8 +1482,9 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
   /*
     verify that no nodes are starting before stopping as this would cause
     the starting node to shutdown
+    check single user mode
   */
-  if (!abort && check_nodes_starting())
+  if ((!abort && check_nodes_starting()) || check_nodes_single_user())
     return OPERATION_NOT_ALLOWED_START_STOP;
 
   NdbNodeBitmask nodes;
