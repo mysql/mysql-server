@@ -64,16 +64,6 @@
 	erratic.  The fix is not to use srv_thread_concurrency when
 	exiting, instead use the flag trx->declared_to_be_inside_innodb.
 
-2008-12-09	The InnoDB Team
-
-	* trx/trx0undo.c:
-	Print 2 spaces between a timestamp and "InnoDB:" as usual.
-
-2008-12-09	The InnoDB Team
-
-	* row/row0purge.c:
-	Allocate mtr_vers from the stack, not with mem_alloc().
-
 2008-12-04	The InnoDB Team
 
 	* include/mysql_addons.h, handler/mysql_addons.cc,
