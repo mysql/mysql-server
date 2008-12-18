@@ -25,12 +25,15 @@
 
 #include <NDBT.hpp>
 
+#include <kernel/NodeBitmask.hpp>
+
 static int
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status);
 
 enum ndb_waiter_options {
   OPT_WAIT_STATUS_NOT_STARTED = NDB_STD_OPTIONS_LAST,
   OPT_WAIT_STATUS_SINGLE_USER
+  ,OPT_NOWAIT_NODES
 };
 NDB_STD_OPTS_VARS;
 
@@ -38,6 +41,8 @@ static int _no_contact = 0;
 static int _not_started = 0;
 static int _single_user = 0;
 static int _timeout = 120;
+static const char* _nowait_nodes = 0;
+static NdbNodeBitmask nowait_nodes_bitmask;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
@@ -57,6 +62,10 @@ static struct my_option my_long_options[] =
   { "timeout", 't', "Timeout to wait in seconds",
     (uchar**) &_timeout, (uchar**) &_timeout, 0,
     GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
+  { "nowait-nodes", OPT_NOWAIT_NODES, 
+    "Nodes that will not be waited for",
+    (uchar**) &_nowait_nodes, (uchar**) &_nowait_nodes, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -107,6 +116,23 @@ int main(int argc, char** argv){
     wait_status= NDB_MGM_NODE_STATUS_STARTED;
   }
 
+  if (_nowait_nodes)
+  {
+    int res = nowait_nodes_bitmask.parseMask(_nowait_nodes);
+    if(res == -2 || (res > 0 && nowait_nodes_bitmask.get(0)))
+    {
+      ndbout_c("Invalid nodeid specified in nowait-nodes: %s", 
+               _nowait_nodes);
+      exit(-1);
+    }
+    else if (res < 0)
+    {
+      ndbout_c("Unable to parse nowait-nodes argument: %s",
+               _nowait_nodes);
+      exit(-1);
+    }
+  }
+
   if (waitClusterStatus(_hostName, wait_status) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
@@ -148,7 +174,8 @@ getStatus(){
       node = &status->node_states[i];      
       switch(node->node_type){
       case NDB_MGM_NODE_TYPE_NDB:
-	ndbNodes.push_back(*node);
+        if (!nowait_nodes_bitmask.get(node->node_id))
+          ndbNodes.push_back(*node);
 	break;
       case NDB_MGM_NODE_TYPE_MGM:
         /* Don't care about MGM nodes */
