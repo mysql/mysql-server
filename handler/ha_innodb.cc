@@ -26,13 +26,10 @@
 #endif
 
 #include <mysql_priv.h>
-#include <mysqld_error.h>
 
 #include <m_ctype.h>
 #include <hash.h>
-#include <myisampack.h>
 #include <mysys_err.h>
-#include <my_sys.h>
 #include <mysql/plugin.h>
 
 /* Include necessary InnoDB headers */
