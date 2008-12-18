@@ -12,4 +12,5 @@
 federated_transactions   : Bug#29523 Transactions do not work
 slow_query_log_func      : Bug #37962: *_func tests containing sleeps/race conditions
 wait_timeout_func    : Bug #41225 joro wait_timeout_func fails
-kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enoiugh for pushbuild. 
+kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
+query_cache_28249        : Bug#41098 Query Cache returns wrong result with concurrent insert
