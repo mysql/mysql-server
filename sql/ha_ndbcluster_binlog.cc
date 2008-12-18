@@ -5809,6 +5809,44 @@ restart_cluster_failure:
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
+      uchar apply_status_buf[512];
+      TABLE *apply_status_table= NULL;
+      if (ndb_apply_status_share)
+      {
+        /*
+          We construct the buffer to write the apply status binlog
+          event here, as the table->record[0] buffer is referenced
+          by the apply status event operation, and will be filled
+          with data at the nextEvent call if the first event should
+          happen to be from the apply status table
+        */
+        Ndb_event_data *event_data= ndb_apply_status_share->event_data;
+        if (!event_data)
+        {
+          DBUG_ASSERT(ndb_apply_status_share->op);
+          event_data= 
+            (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
+          DBUG_ASSERT(event_data);
+        }
+        apply_status_table= event_data->table;
+
+        /* 
+           Intialize apply_status_table->record[0] 
+        */
+        empty_record(apply_status_table);
+
+        apply_status_table->field[0]->store((longlong)::server_id, true);
+        /*
+          gci is added later, just before writing to binlog as gci
+          is unknown here
+        */
+        apply_status_table->field[2]->store("", 0, &my_charset_bin);
+        apply_status_table->field[3]->store((longlong)0);
+        apply_status_table->field[4]->store((longlong)0);
+        DBUG_ASSERT(sizeof(apply_status_buf) >= apply_status_table->s->reclength);
+        memcpy(apply_status_buf, apply_status_table->record[0],
+               apply_status_table->s->reclength);
+      }
       NdbEventOperation *pOp= i_ndb->nextEvent();
       ndb_binlog_index_row _row;
       while (pOp != NULL)
@@ -5913,44 +5951,30 @@ restart_cluster_failure:
         }
         if (trans.good())
         {
-          if (ndb_apply_status_share)
+          if (apply_status_table)
           {
-            Ndb_event_data *event_data= 0;
-            if (ndb_apply_status_share->event_data)
-            {
-              event_data= ndb_apply_status_share->event_data;
-            }
-            else if (ndb_apply_status_share->op)
-            {
-              event_data= 
-                (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
-            }
-            DBUG_ASSERT(event_data);
-            TABLE *table= event_data->table;
-
 #ifndef DBUG_OFF
-            const LEX_STRING& name= table->s->table_name;
+            const LEX_STRING& name= apply_status_table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s",
                                 (int) name.length, name.str));
 #endif
-            injector::transaction::table tbl(table, TRUE);
+            injector::transaction::table tbl(apply_status_table, TRUE);
             IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
 
-	    /* 
-	       Intialize table->record[0] 
-	    */
-	    empty_record(table);
+            /* add the gci to the record */
+            Field *field= apply_status_table->field[1];
+            my_ptrdiff_t row_offset=
+              (my_ptrdiff_t) (apply_status_buf - apply_status_table->record[0]);
+            field->move_field_offset(row_offset);
+            field->store((longlong)gci, true);
+            field->move_field_offset(-row_offset);
 
-            table->field[0]->store((longlong)::server_id, true);
-            table->field[1]->store((longlong)gci, true);
-            table->field[2]->store("", 0, &my_charset_bin);
-            table->field[3]->store((longlong)0);
-            table->field[4]->store((longlong)0);
             trans.write_row(::server_id,
-                            injector::transaction::table(table, TRUE),
-                            &table->s->all_set, table->s->fields,
-                            table->record[0]);
+                            injector::transaction::table(apply_status_table, TRUE),
+                            &apply_status_table->s->all_set,
+                            apply_status_table->s->fields,
+                            apply_status_buf);
           }
           else
           {
