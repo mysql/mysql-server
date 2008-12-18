@@ -1301,23 +1301,23 @@ extern "C" {
      NDB_MGM_CLUSTERLOG_ALERT = 6,
      NDB_MGM_CLUSTERLOG_ALL = 7
   };
-  inline
+  static inline
   int ndb_mgm_filter_clusterlog(NdbMgmHandle h,
 				enum ndb_mgm_clusterlog_level s,
 				int e, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_severity_filter(h,(enum ndb_mgm_event_severity)s,
 						  e,r); }
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_logfilter(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_severity_filter_old(h); }
 
-  inline
+  static inline
   int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle h, int n,
 				      enum ndb_mgm_event_category c,
 				      int l, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
 
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_loglevel_clusterlog(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_loglevel_old(h); }
 
