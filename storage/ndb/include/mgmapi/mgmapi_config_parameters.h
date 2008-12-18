@@ -200,9 +200,9 @@
 #define CFG_SCI_SEND_LIMIT            554
 #define CFG_SCI_BUFFER_MEM            555
 
-#define CFG_602                       602 // Removed: was OSE
-#define CFG_603                       603 // Removed: was OSE
-#define CFG_604                       604 // Removed: was OSE
+#define CFG_602                       602 /* Removed: was OSE */
+#define CFG_603                       603 /* Removed: was OSE */
+#define CFG_604                       604 /* Removed: was OSE */
 
 /**
  * API Config variables
@@ -229,6 +229,6 @@
 #define CONNECTION_TYPE_TCP           0
 #define CONNECTION_TYPE_SHM           1
 #define CONNECTION_TYPE_SCI           2
-#define CONNECTION_TYPE_OSE           3 // Removed.
+#define CONNECTION_TYPE_OSE           3 /* Removed. */
 
 #endif
