@@ -92,9 +92,16 @@ sub mkpath {
 
 
 sub copytree {
-  my ($from_dir, $to_dir) = @_;
+  my ($from_dir, $to_dir, $use_umask) = @_;
 
-  die "Usage: copytree(<fromdir>, <todir>" unless @_ == 2;
+  die "Usage: copytree(<fromdir>, <todir>, [<umask>])"
+    unless @_ == 2 or @_ == 3;
+
+  my $orig_umask;
+  if ($use_umask){
+    # Set new umask and remember the original
+    $orig_umask= umask(oct($use_umask));
+  }
 
   mkpath("$to_dir");
   opendir(DIR, "$from_dir")
@@ -114,6 +121,11 @@ sub copytree {
     copy("$from_dir/$_", "$to_dir/$_");
   }
   closedir(DIR);
+
+  if ($orig_umask){
+    # Set the original umask
+    umask($orig_umask);
+  }
 }
 
 1;

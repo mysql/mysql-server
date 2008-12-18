@@ -1981,8 +1981,8 @@ sub setup_vardir() {
   }
 
   # copy all files from std_data into var/std_data
-  # and make them writable
-  copytree("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data");
+  # and make them world readable
+  copytree("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data", "0022");
 
   # Remove old log files
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
