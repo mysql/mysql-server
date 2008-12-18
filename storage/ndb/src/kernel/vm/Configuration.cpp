@@ -175,26 +175,18 @@ Configuration::init(int argc, char** argv)
 
   if (_nowait_nodes)
   {
-    BaseString str(_nowait_nodes);
-    Vector<BaseString> arr;
-    str.split(arr, ",");
-    for (Uint32 i = 0; i<arr.size(); i++)
+    int res = g_nowait_nodes.parseMask(_nowait_nodes);
+    if(res == -2 || (res > 0 && g_nowait_nodes.get(0)))
     {
-      char *endptr = 0;
-      long val = strtol(arr[i].c_str(), &endptr, 10);
-      if (*endptr)
-      {
-	ndbout_c("Unable to parse nowait-nodes argument: %s : %s", 
-		 arr[i].c_str(), _nowait_nodes);
-	exit(-1);
-      }
-      if (! (val > 0 && val < MAX_NDB_NODES))
-      {
-	ndbout_c("Invalid nodeid specified in nowait-nodes: %ld : %s", 
-		 val, _nowait_nodes);
-	exit(-1);
-      }
-      g_nowait_nodes.set(val);
+      ndbout_c("Invalid nodeid specified in nowait-nodes: %s", 
+               _nowait_nodes);
+      exit(-1);
+    }
+    else if (res < 0)
+    {
+      ndbout_c("Unable to parse nowait-nodes argument: %s",
+               _nowait_nodes);
+      exit(-1);
     }
   }
 
