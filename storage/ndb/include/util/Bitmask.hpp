@@ -159,9 +159,27 @@ public:
 		       unsigned pos, unsigned len, const Uint32 src[]);
   
   /**
+   * copyField - Copy bitfield from one position and length
+   * to another position and length.
+   * Undefined for overlapping bitfields
+   */
+  static void copyField(Uint32 dst[], unsigned destPos,
+                        const Uint32 src[], unsigned srcPos, unsigned len);
+  
+  /**
    * getText - Return as hex-digits (only for debug routines).
    */
   static char* getText(unsigned size, const Uint32 data[], char* buf);
+
+  /**
+   * Parse string with numbers format
+   *   1,2,3-5
+   * @return -1 if unparsable chars found, 
+   *         -2 str has number > bitmask size
+   *            else returns number of bits set 
+   */
+  static int parseMask(unsigned size, Uint32 data[], const char * str);
+
 private:
   static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
   static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
@@ -593,6 +611,9 @@ public:
    */
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
+
+  static int parseMask(Uint32 data[], const char * src);
+  int parseMask(const char * src);
 };
 
 template <unsigned size>
@@ -909,6 +930,21 @@ BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 }
 
 template <unsigned size>
+int
+BitmaskPOD<size>::parseMask(Uint32 data[], const char* buf)
+{
+  return BitmaskImpl::parseMask(size, data, buf);
+}
+
+template <unsigned size>
+inline
+int
+BitmaskPOD<size>::parseMask(const char* buf)
+{
+  return BitmaskPOD<size>::parseMask(rep.data, buf);
+}
+
+template <unsigned size>
 class Bitmask : public BitmaskPOD<size> {
 public:
   Bitmask() { this->clear();}
@@ -977,6 +1013,60 @@ BitmaskImpl::setField(unsigned size, Uint32 dst[],
   Uint32 used = (32 - offset);
   assert(len > used);
   setFieldImpl(dst+1, used & 31, len-used, src+(used >> 5));
+}
+
+/* Three way min utiltiy for copyField below */
+inline unsigned minLength(unsigned a, unsigned b, unsigned c)
+{
+  return (a < b ? 
+          (a < c ? a : c) : 
+          (b < c ? b : c ));
+}
+
+inline void
+BitmaskImpl::copyField(Uint32 _dst[], unsigned dstPos,
+                       const Uint32 _src[], unsigned srcPos, unsigned len)
+{
+  /* Algorithm
+   * While (len > 0)
+   *  - Find the longest bit length we can copy from one 32-bit word
+   *    to another (which is the miniumum of remaining length, 
+   *    space in current src word and space in current dest word)
+   *  - Extract that many bits from src, and shift them to the correct
+   *    position to insert into dest
+   *  - Mask out the to-be-written words from dest (and any irrelevant 
+   *    words in src) and or them together
+   *  - Move onto next chunk
+   */
+  while (len > 0)
+  {
+    const Uint32* src= _src + (srcPos >> 5);
+    Uint32* dst= _dst + (dstPos >> 5);
+    unsigned srcOffset= srcPos & 31;
+    unsigned dstOffset= dstPos & 31;
+    unsigned srcBitsInWord= 32 - srcOffset; 
+    unsigned dstBitsInWord= 32 - dstOffset;
+    
+    /* How many bits can we copy at once? */
+    unsigned bits= minLength(dstBitsInWord, srcBitsInWord, len);
+    
+    /* Create mask for affected bits in dest */
+    Uint32 destMask= (~(Uint32)0 >> (32-bits) << dstOffset);
+    
+    /* Grab source data and shift to dest offset */
+    Uint32 data= ((*src) >> srcOffset) << dstOffset;
+    
+    /* Mask out affected bits in dest and irrelevant bits in source
+     * and combine
+     */
+    *dst= (*dst  & ~destMask) | (data & destMask);
+    
+    srcPos+= bits;
+    dstPos+= bits;
+    len-= bits;
+  }
+  
+  return;
 }
 
 #endif
