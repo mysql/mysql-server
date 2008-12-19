@@ -398,6 +398,7 @@ extern "C" {
       } NDBStartCompleted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } STTORRYRecieved;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
@@ -442,6 +443,7 @@ extern "C" {
       } NDBStopForced;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } NDBStopAborted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
@@ -475,9 +477,11 @@ extern "C" {
       /* NODERESTART */
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } NR_CopyDict;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } NR_CopyDistr;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
@@ -523,12 +527,15 @@ extern "C" {
       } ArbitResult;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } GCP_TakeoverStarted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } GCP_TakeoverCompleted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+        unsigned _todo;
       } LCP_TakeoverStarted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
@@ -609,6 +616,7 @@ extern "C" {
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	/* TODO */
+        unsigned _todo;
       } WarningEvent;
 
       /* INFO */
@@ -623,6 +631,7 @@ extern "C" {
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	/* TODO */
+        unsigned _todo;
       } InfoEvent;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {

@@ -1700,6 +1700,8 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   ndbrequire(opPtr.p->rs.seize(prepOp->rsLen));
   ndbrequire(opPtr.p->keyInfo.seize(prepOp->keyLen));
 
+  transPtr.p->gci_hi = 0;
+  transPtr.p->gci_lo = 0;
   transPtr.p->gsn = GSN_UTIL_SEQUENCE_REQ;
   transPtr.p->clientRef = signal->senderBlockRef();
   transPtr.p->clientData = req->senderData;
@@ -1959,6 +1961,8 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
    * Seize Transaction record
    ************************************************************/
   ndbrequire(c_runningTransactions.seize(transPtr));
+  transPtr.p->gci_hi = 0;
+  transPtr.p->gci_lo = 0;
   transPtr.p->gsn        = GSN_UTIL_EXECUTE_REQ;
   transPtr.p->clientRef  = clientRef;
   transPtr.p->clientData = clientData;
@@ -2383,7 +2387,8 @@ DbUtil::execTCKEYCONF(Signal* signal){
   
   TcKeyConf * keyConf = (TcKeyConf*)signal->getDataPtr();
 
-  //const Uint32 gci      = keyConf->gci;
+  Uint32 gci_lo = 0;
+  const Uint32 gci_hi   = keyConf->gci_hi;
   const Uint32 transI   = keyConf->apiConnectPtr >> 1;
   const Uint32 confInfo = keyConf->confInfo;
   const Uint32 transId1 = keyConf->transId1;
@@ -2402,10 +2407,18 @@ DbUtil::execTCKEYCONF(Signal* signal){
     }
   }	
 
+  if (TcKeyConf::getCommitFlag(confInfo))
+  {
+    jam();
+    gci_lo = keyConf->operations[ops].apiOperationPtr;
+  }
+
   /**
    * Check commit ack marker flag
    */
-  if (TcKeyConf::getMarkerFlag(confInfo)){
+  if (TcKeyConf::getMarkerFlag(confInfo))
+  {
+    jam();
     signal->theData[0] = transId1;
     signal->theData[1] = transId2;
     sendSignal(DBTC_REF, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
@@ -2415,7 +2428,14 @@ DbUtil::execTCKEYCONF(Signal* signal){
   c_runningTransactions.getPtr(transPtr, transI);
   ndbrequire(transId1 == transPtr.p->transId[0] && 
 	     transId2 == transPtr.p->transId[1]);
-  
+
+  if (TcKeyConf::getCommitFlag(confInfo))
+  {
+    jam();
+    transPtr.p->gci_hi = gci_hi;
+    transPtr.p->gci_lo = gci_lo;
+  }
+
   transPtr.p->recv += recv;
   if(!transPtr.p->complete()){
     jam();
@@ -2533,6 +2553,8 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
       struct LinearSectionPtr sectionsPtr[UtilExecuteReq::NoOfSections];
       UtilExecuteConf * ret = (UtilExecuteConf *)signal->getDataPtrSend();
       ret->senderData = transPtr.p->clientData;
+      ret->gci_hi = transPtr.p->gci_hi;
+      ret->gci_lo = transPtr.p->gci_lo;
       if (getResultSet(signal, transPtr.p, sectionsPtr)) {
 #if 0 //def EVENT_DEBUG
 	for (int j = 0; j < 2; j++) {

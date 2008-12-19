@@ -32,8 +32,8 @@ bool
 printUTIL_EXECUTE_CONF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
 {
   UtilExecuteConf* sig = (UtilExecuteConf*)data;
-  fprintf(out, " senderData: H'%.8x\n",
-	  sig->senderData);
+  fprintf(out, " senderData: H'%.8x gci: %u/%u\n",
+	  sig->senderData, sig->gci_hi, sig->gci_lo);
   return true;
 }
 
