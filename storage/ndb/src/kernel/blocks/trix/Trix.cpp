@@ -1364,6 +1364,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
+
   if (noOfSections > 1) {
     jam();
     SegmentedSectionPtr ptr;
@@ -1397,10 +1398,16 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     w.add(UtilPrepareReq::ScanTakeOverInd, 1);
     w.add(UtilPrepareReq::ReorgInd, 1);
     w.add(UtilPrepareReq::TableId, subRec->targetTableId);
-    // Add index attributes in increasing order and one PK attribute
-    for(Uint32 i = 0; i < subRec->noOfIndexColumns; i++)
-      w.add(UtilPrepareReq::AttributeId, i);
 
+    AttrOrderBuffer::DataBufferIterator iter;
+    ndbrequire(subRec->attributeOrder.first(iter));
+    
+    for(Uint32 i = 0; i < subRec->noOfIndexColumns; i++)
+    {
+      w.add(UtilPrepareReq::AttributeId, * iter.data);
+      subRec->attributeOrder.next(iter);
+    }
+    
     struct LinearSectionPtr sectionsPtr[UtilPrepareReq::NoOfSections];
     sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].p = propPage;
     sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].sz = w.getWordsUsed();

@@ -12904,10 +12904,16 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
     AttributeRecordPtr attrPtr;
     for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
     {
-      tmp[cnt++] = attrPtr.p->attributeId;
+      if (AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
+        tmp[cnt++] = attrPtr.p->attributeId;
+    }
+    for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
+    {
+      if (!AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
+        tmp[cnt++] = attrPtr.p->attributeId;
     }
   }
-
+  
   LinearSectionPtr ls_ptr[3];
   ls_ptr[0].sz = cnt;
   ls_ptr[0].p = tmp;
