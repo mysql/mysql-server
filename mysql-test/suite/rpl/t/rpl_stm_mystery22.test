@@ -28,6 +28,7 @@ insert into t1 values(NULL,'new');
 save_master_pos;
 connection slave;
 # wait until the slave tries to run the query, fails and aborts slave thread
+let $slave_sql_errno= 1062;
 source include/wait_for_slave_sql_error.inc;
 select * from t1 order by n;
 delete from t1 where n = 2;

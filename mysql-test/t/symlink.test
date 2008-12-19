@@ -195,32 +195,50 @@ DROP TABLE t1;
 #
 # Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
 #
+# With Bug#41002 (symlink.test fails on symlinked datadir) it was
+# decided that the below statements may also succeed if the data
+# home directory is symlinked, e.g. mysql-test-run --mem.
+# This will be fixed in 6.0 only.
+#
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_ARGUMENTS
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLD_DATADIR/mysql';
-
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_ARGUMENTS
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLD_DATADIR/test';
-
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_ARGUMENTS
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLD_DATADIR/';
-
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_ARGUMENTS
+--error 0,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLD_DATADIR';
-
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
 --error 1
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data_var';
 
+#
 # BUG#25677 - With --skip-symbolic-links option on, DATA DIRECTORY clause is
 #             silently ignored
 #

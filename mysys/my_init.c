@@ -285,8 +285,6 @@ static void my_win_init(void)
 {
   DBUG_ENTER("my_win_init");
 
-  setlocale(LC_CTYPE, "");             /* To get right sortorder */
-
 #if defined(_MSC_VER)
 #if _MSC_VER < 1300
   /* 

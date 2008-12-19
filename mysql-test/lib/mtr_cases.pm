@@ -580,7 +580,6 @@ sub optimize_cases {
 sub process_opts_file {
   my ($tinfo, $opt_file, $opt_name)= @_;
 
-  $tinfo->{$opt_name}= [];
   if ( -f $opt_file )
   {
     my $opts= opts_from_file($opt_file);
@@ -756,17 +755,6 @@ sub collect_one_test_case {
   push(@{$tinfo->{'master_opt'}}, @$suite_opts);
   push(@{$tinfo->{'slave_opt'}}, @$suite_opts);
 
-  # ----------------------------------------------------------------------
-  # Add master opts, extra options only for master
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
-
-  # ----------------------------------------------------------------------
-  # Add slave opts, list of extra option only for slave
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
-  
-  
   #-----------------------------------------------------------------------
   # Check for test specific config file
   #-----------------------------------------------------------------------
@@ -986,6 +974,16 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
   push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
+
+  # ----------------------------------------------------------------------
+  # Add master opts, extra options only for master
+  # ----------------------------------------------------------------------
+  process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
+
+  # ----------------------------------------------------------------------
+  # Add slave opts, list of extra option only for slave
+  # ----------------------------------------------------------------------
+  process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
 
   return $tinfo;
 }

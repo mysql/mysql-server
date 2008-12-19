@@ -2813,8 +2813,42 @@ uint ha_partition::lock_count() const
 
 void ha_partition::unlock_row()
 {
+  DBUG_ENTER("ha_partition::unlock_row");
   m_file[m_last_part]->unlock_row();
-  return;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Use semi consistent read if possible
+
+  SYNOPSIS
+    try_semi_consistent_read()
+    yes   Turn on semi consistent read
+
+  RETURN VALUE
+    NONE
+
+  DESCRIPTION
+    See handler.h:
+    Tell the engine whether it should avoid unnecessary lock waits.
+    If yes, in an UPDATE or DELETE, if the row under the cursor was locked
+    by another transaction, the engine may try an optimistic read of
+    the last committed row value under the cursor.
+    Note: prune_partitions are already called before this call, so using
+    pruning is OK.
+*/
+void ha_partition::try_semi_consistent_read(bool yes)
+{
+  handler **file;
+  DBUG_ENTER("ha_partition::try_semi_consistent_read");
+  
+  for (file= m_file; *file; file++)
+  {
+    if (bitmap_is_set(&(m_part_info->used_partitions), (file - m_file)))
+      (*file)->try_semi_consistent_read(yes);
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -4456,7 +4490,8 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
         This can only read record to table->record[0], as it was set when
         the table was being opened. We have to memcpy data ourselves.
       */
-      error= file->read_range_first(&m_start_key, end_range, eq_range, TRUE);
+      error= file->read_range_first(m_start_key.key? &m_start_key: NULL,
+                                    end_range, eq_range, TRUE);
       memcpy(rec_buf_ptr, table->record[0], m_rec_length);
       reverse_order= FALSE;
       break;
