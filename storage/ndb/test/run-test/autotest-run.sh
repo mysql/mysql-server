@@ -218,8 +218,9 @@ choose_conf(){
 #########################################
 
 count_hosts(){
-    cnt=`grep "CHOOSE_host" $1 | awk '{for(i=1; i<=NF;i++) \
-    if(index($i, "CHOOSE_host") > 0) print $i;}' | sort | uniq | wc -l`
+    ch="CHOOSE_host"
+    cnt=$(for i in `grep $ch $1 | sed 's!,! !g'` ; do echo $i; done\
+          | grep $ch | sort | uniq | wc -l)
     echo $cnt
 }
 
@@ -252,18 +253,22 @@ cd $run_dir
 choose $conf $hosts > d.tmp.$$
 sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 
+prefix="--prefix=$install_dir0"
+if [ "$install_dir1" ]
+then
+    prefix="$prefix --prefix1=$install_dir1"
+fi
+
+
 # Setup configuration
-$atrt Cdq my.cnf
+$atrt Cdq $prefix my.cnf
 
 # Start...
 args=""
 args="--report-file=report.txt"
 args="$args --log-file=log.txt"
 args="$args --testcase-file=$test_dir/$RUN-tests.txt"
-if [ "$install_dir1" ]
-then
-    args="$args --prefix=$install_dir0 --prefix1=$install_dir1"
-fi
+args="$args $prefix"
 $atrt $args my.cnf
 
 # Make tar-ball

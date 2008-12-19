@@ -176,26 +176,18 @@ Configuration::init(int argc, char** argv)
 
   if (_nowait_nodes)
   {
-    BaseString str(_nowait_nodes);
-    Vector<BaseString> arr;
-    str.split(arr, ",");
-    for (Uint32 i = 0; i<arr.size(); i++)
+    int res = g_nowait_nodes.parseMask(_nowait_nodes);
+    if(res == -2 || (res > 0 && g_nowait_nodes.get(0)))
     {
-      char *endptr = 0;
-      long val = strtol(arr[i].c_str(), &endptr, 10);
-      if (*endptr)
-      {
-	ndbout_c("Unable to parse nowait-nodes argument: %s : %s", 
-		 arr[i].c_str(), _nowait_nodes);
-	exit(-1);
-      }
-      if (! (val > 0 && val < MAX_NDB_NODES))
-      {
-	ndbout_c("Invalid nodeid specified in nowait-nodes: %ld : %s", 
-		 val, _nowait_nodes);
-	exit(-1);
-      }
-      g_nowait_nodes.set(val);
+      ndbout_c("Invalid nodeid specified in nowait-nodes: %s", 
+               _nowait_nodes);
+      exit(-1);
+    }
+    else if (res < 0)
+    {
+      ndbout_c("Unable to parse nowait-nodes argument: %s",
+               _nowait_nodes);
+      exit(-1);
     }
   }
 
@@ -451,35 +443,27 @@ Configuration::setupConfiguration(){
 	      "TimeBetweenWatchDogCheck missing");
   }
 
-  if(iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "SchedulerExecutionTimer missing");
-  }
+  _schedulerExecutionTimer = 50;
+  iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer);
 
-  if(iter.get(CFG_DB_SCHED_SPIN_TIME, &_schedulerSpinTimer)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "SchedulerSpinTimer missing");
-  }
+  _schedulerSpinTimer = 0;
+  iter.get(CFG_DB_SCHED_SPIN_TIME, &_schedulerSpinTimer);
 
-  if(iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "RealtimeScheduler missing");
-  }
+  _realtimeScheduler = 0;
+  iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
-  if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &_executeLockCPU)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "LockExecuteThreadToCPU missing");
-  }
+  _executeLockCPU = 65535;
+  iter.get(CFG_DB_EXECUTE_LOCK_CPU, &_executeLockCPU);
 
-  if(iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "LockMaintThreadsToCPU missing");
-  }
-  if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, &_timeBetweenWatchDogCheckInitial)){
+  _maintLockCPU = 65535;
+  iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU);
+
+  if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, 
+              &_timeBetweenWatchDogCheckInitial)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheckInitial missing");
   }
-
+  
   /**
    * Get paths
    */  
@@ -494,14 +478,14 @@ Configuration::setupConfiguration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
   }
-
+  
   /**
    * Create the watch dog thread
    */
   { 
     if (_timeBetweenWatchDogCheckInitial < _timeBetweenWatchDogCheck)
       _timeBetweenWatchDogCheckInitial = _timeBetweenWatchDogCheck;
-
+    
     Uint32 t = _timeBetweenWatchDogCheckInitial;
     t = globalEmulatorData.theWatchDog ->setCheckInterval(t);
     _timeBetweenWatchDogCheckInitial = t;

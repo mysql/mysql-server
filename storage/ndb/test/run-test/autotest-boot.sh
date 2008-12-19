@@ -171,9 +171,9 @@ fi
 
 if [ -z "$tag1" ]
 then
-    dst_place1=${build_dir}/clone-$clone1-$DATE.$$
+    dst_place1=${build_dir}/clone1-$clone1-$DATE.$$
 else
-    dst_place1=${build_dir}/clone-$tag1-$DATE.$$
+    dst_place1=${build_dir}/clone1-$tag1-$DATE.$$
     extra_args="$extra_args --clone1=$tag1"
     extra_clone1="-r$tag1"
 fi
@@ -231,7 +231,7 @@ if [ "$build" ]
 then
     rm -rf $dst_place0
 
-    if [ "$dst_place1" ]
+    if [ "$clone1" ]
     then
 	rm -rf $dst_place1
     fi
