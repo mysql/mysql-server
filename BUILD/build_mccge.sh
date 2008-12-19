@@ -170,7 +170,7 @@ Usage: $0 [options]
   --error-inject          Enable error injection into MySQL Server and 
                           data nodes
   --valgrind              Build with valgrind
-  --fast                  Optimise for CPU architecture buildt on
+  --fast                  Optimise for CPU architecture built on
   --static-linking        Statically link system libraries into binaries
   --with-flags *          Pass extra --with-xxx options to configure
 EOF
@@ -314,10 +314,6 @@ extended_usage()
   In addition there are some configure options that are specific to
   Linux operating systems:
 
-  --with-fast-mutexes
-    Include an alternative implementation of mutexes that is faster on
-    Linux systems
-
   --enable-assembler
     Include assembler code optimisations for a number of mostly string
     methods. Used for x86 processors only.
@@ -376,6 +372,10 @@ extended_usage()
 
   Use of the --debug option adds -g to the C/C++ flags.
 
+  In all cases it is possible to override the definition of CC and CXX
+  by calling the script as follows:
+  CC="/usr/local/bin/gcc" CXX="/usr/local/bin/gcc" BUILD/build_mccge.sh
+
   FreeBSD/x86/gcc
   ---------------
     No flags are used. Instead, configure determines the proper flags to 
@@ -383,8 +383,7 @@ extended_usage()
 
   Linux/x86+Itanium/gcc
   -------------
-    No flags are used. Instead the configure script determines the
-    proper flags to use for both normal and debug builds. Discovery of a
+    For debug builds -O is used and otherwise -O3 is used.Discovery of a
     Nocona or Core 2 Duo CPU causes a 64-bit binary to be built;
     otherwise, the binary is 32-bit. To build a 64-bit binary, -m64 is
     added to the C/C++ flags. (To build a 32-bit binary on a 64-bit CPU,
@@ -393,11 +392,11 @@ extended_usage()
   Linux/x86+Itanium/icc
   -------------
     Flags used:
-    CC  = icc -static-libgcc -static-libcxa -i-static
-    C++ = icpc -static-libgcc -static-libcxa -i-static
+    CC  = icc -static-libgcc -static-intel
+    C++ = icpc -static-libgcc -static-intel
     C/C++ flags = -mp -restrict
 
-    On Itanium we also add -no-ftz and -no-prefetch to CC and C++ flags.
+    On Itanium we also add -no-ftz and to CC and C++ flags.
 
   The non-debug versions also add the following:
     C/C++ flags += -O3 unroll2 -ip
@@ -411,12 +410,18 @@ extended_usage()
 
   Solaris/x86/gcc
   ---------------
-    All builds on Solaris are 64-bit, so -m64 is always used in the
-    C/C++ flags. LDFLAGS is set to -m64 -static-libgcc -O/-O2.
+    All builds on Solaris are by default 64-bit, so -m64 is always used in
+    the C/C++ flags. LDFLAGS is set to -m64 -static-libgcc -O/-O2. If for
+    some reason a 32-bit Solaris is used it is necessary to add the flag
+    --32 to the script invocation. Due to bugs in compiling with -O3 on
+    Solaris only -O2 is used by default, when --fast flag is used -O3 will
+    be used instead.
 
   Solaris/Sparc/Forte
   -------------------
     Uses cc-5.0 as CC
+    Set -m64 (default) or -m32 (if specifically set) in ASFLAGS,
+    LDFLAGS and C/C++ flags.
     Sets ASFLAGS=LDFLAGS=xarch=v9, so that we compile Sparc v9 binaries
     C flags   = -Xa -strconst -xc99=none
     C++ flags = -noex
@@ -424,7 +429,7 @@ extended_usage()
 
     For non-debug builds, the following flags are also used:
 
-    C/C++ flags = -xO3
+    C/C++ flags = -xO2
 
   MacOSX/x86/gcc
   --------------
@@ -433,6 +438,10 @@ extended_usage()
   Non-debug versions also add -Os -felide-constructors, where "-Os"
   means the build is space-optimised as long as the space optimisations
   do not negatively affect performance. Debug versions use -O.
+  
+  Mac OS X builds will always be 32-bit by default, when --64 is added
+  the build will be 64 bit instead. Thus the flag --m64 is added only
+  when specifically given as an option.
 EOF
 }
 with_usage()
@@ -775,9 +784,17 @@ set_cpu_base()
     check_cpu_cflags=""
   fi
   if test "x$os" = "xMacOSX" ; then
-    m64="no"
+    if test "x$m64" = "xyes" ; then
+      m64="yes"
+    else
+      m64="no"
+    fi
   elif test "x$os" = "xSolaris" ; then
-    m64="yes"
+    if test "x$m32" = "x" ; then
+      m64="yes"
+    else
+      m64="no"
+    fi
   elif test "x$m32" = "x" ; then
     if test "x$cpu_arg" = "xnocona" || test "x$cpu_arg" = "xcore2" || \
        test "x$cpu_arg" = "xathlon64" || test "x$cpu_arg" = "xopteron" ; then
@@ -791,8 +808,10 @@ set_cpu_base()
   echo "Discovered CPU of type $cpu_base_type ($cpu_arg) on $os"
   if test "x$m64" = "xyes" ; then
     echo "Will compile 64-bit binaries"
-  else
+  elif test "x$m32" = "xyes" ; then
     echo "Will compile 32-bit binaries"
+  else
+    echo "Will compile default-sized (32 or 64 bit) binaries"
   fi
   return 0
 }
@@ -806,18 +825,15 @@ init_configure_commands()
   cxxflags="$cxx_warnings $base_cxxflags $compiler_flags"
   configure="./configure $base_configs $with_flags"
 
-  commands="$commands
-    CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\""
+  flags="CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\""
   if test "x$LDFLAGS" != "x" ; then
-    commands="$commands
-      LDFLAGS=\"$LDFLAGS\""
+    flags="$flags LDFLAGS=\"$LDFLAGS\""
   fi
   if test "x$ASFLAGS" != "x" ; then
-    commands="$commands
-      ASFLAGS=\"$ASFLAGS\""
+    flags="$flags ASFLAGS=\"$ASFLAGS\""
   fi
   commands="$commands
-    $configure"
+    $flags $configure"
 } 
 
 #
@@ -920,7 +936,7 @@ set_libtoolize_version()
 # We do not use ccache when gcov is used. Also only when
 # gcc is used.
 #
-set_up_ccache()
+set_ccache_usage()
 {
   if test "x$compiler" = "xgcc" ; then
     if ccache -V > /dev/null 2>&1 && test "$USING_GCOV" != "1"
@@ -1046,7 +1062,7 @@ set_base_configs()
   base_configs="$base_configs --enable-local-infile"
   base_configs="$base_configs --enable-thread-safe-client"
   base_configs="$base_configs --with-big-tables"
-  base_configs="$base_configs --with-extra-charsets=all"
+  base_configs="$base_configs --with-extra-charsets=complex"
   base_configs="$base_configs --with-ssl"
   base_configs="$base_configs --with-pic"
   base_configs="$base_configs --with-csv-storage-engine"
@@ -1059,17 +1075,27 @@ set_base_configs()
 #
 set_base_engines()
 {
-  engine_configs="$engine_configs --with-archive-storage-engine"
+  engine_configs="--with-archive-storage-engine"
   engine_configs="$engine_configs --with-blackhole-storage-engine"
-  engine_configs="$engine_configs --with-example-storage-engine"
+  engine_configs="$engine_configs --without-example-storage-engine"
   engine_configs="$engine_configs --with-federated-storage-engine"
   engine_configs="$engine_configs --with-partition"
+  base_configs="$base_configs $engine_configs"
+}
+
+set_innodb_engine()
+{
+  base_configs="$base_configs --with-innodb"
+}
+
+set_ndb_engine()
+{
+  base_configs="$base_configs --with-ndbcluster"
+  base_configs="$base_configs --without-ndb-debug"
 }
 
 set_pro_package()
 {
-  base_configs="$base_configs $engine_configs"
-  base_configs="$base_configs --with-innodb"
   base_configs="$base_configs --with-comment=\"MySQL Pro $version_text built from source\""
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-debug\""
@@ -1081,10 +1107,6 @@ set_cge_extended_package()
   if test "x$gpl" = "xno" ; then
     echo "Cannot build Extended Carrier Grade Edition as Commercial version"
   fi
-  base_configs="$base_configs --with-ndbcluster"
-  base_configs="$base_configs --without-ndb-debug"
-  base_configs="$base_configs $engine_configs"
-  base_configs="$base_configs --with-innodb"
   base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Extended Edition $version_text built from source\""
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-cge-extended-debug\""
@@ -1095,9 +1117,6 @@ set_cge_extended_package()
 
 set_cge_package()
 {
-  base_configs="$base_configs --with-ndbcluster"
-  base_configs="$base_configs --without-ndb-debug"
-  base_configs="$base_configs $engine_configs"
   base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Edition $version_text built from source\""
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-cge-debug\""
@@ -1139,6 +1158,36 @@ set_gcc_special_options()
   fi
 }
 
+set_cc_and_cxx_for_gcc()
+{
+  if test "x$CC" = "x" ; then
+    CC="gcc -static-libgcc"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="gcc -static-libgcc"
+  fi
+}
+
+set_cc_and_cxx_for_icc()
+{
+  if test "x$CC" = "x" ; then
+    CC="icc -static-intel -static-libgcc"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="icpc -static-intel -static-libgcc"
+  fi
+}
+
+set_cc_and_cxx_for_forte()
+{
+  if test "x$CC" = "x" ; then
+    CC="cc-5.0"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="cc-5.0"
+  fi
+}
+
 #
 # If we discover a Core 2 Duo architecture and we have enabled the fast
 # flag, we enable a compile especially optimised for Core 2 Duo. This
@@ -1166,8 +1215,12 @@ set_bsd_configs()
     exit 1
   fi
   base_configs="$base_configs --enable-assembler"
-  CC="gcc"
-  CXX="gcc"
+  if test "x$fast_flag" != "xno" ; then
+    compiler_flags="$compiler_flags -O3"
+  else
+    compiler_flags="$compiler_flags -O"
+  fi
+  set_cc_and_cxx_for_gcc
 }
 
 #
@@ -1177,24 +1230,28 @@ set_linux_configs()
 {
   if test "x$cpu_base_type" != "xx86" && \
      test "x$cpu_base_type" != "xitanium" ; then
-    usage "Only x86 and Itanium CPUs supported for 32-bit Linux"
+    usage "Only x86 and Itanium CPUs supported for Linux"
     exit 1
   fi
-  base_configs="$base_configs --with-fast-mutexes"
   if test "x$cpu_base_type" = "xx86" ; then
     base_configs="$base_configs --enable-assembler"
   fi
   if test "x$compiler" = "xgcc" ; then
-    CC="gcc"
-    CXX="gcc"
+    set_cc_and_cxx_for_gcc
     if test "x$m64" = "xyes" ; then
       compiler_flags="$compiler_flags -m64"
+    elif test "x$m32" = "xyes" ; then
+      compiler_flags="$compiler_flags -m32"
+    fi
+    if test "x$fast_flag" != "xno" ; then
+      compiler_flags="$compiler_flags -O2"
+    else
+      compiler_flags="$compiler_flags -O"
     fi
 # configure will set proper compiler flags for gcc on Linux
   elif test "x$compiler" = "xicc" ; then
     compiler_flags="$compiler_flags -mp -restrict"
-    CC="icc -static-intel"
-    CXX="icpc -static-intel"
+    set_cc_and_cxx_for_icc
     if test "x$cpu_base_type" = "xitanium" ; then
       compiler_flags="$compiler_flags -no-ftz"
     fi
@@ -1215,12 +1272,15 @@ set_linux_configs()
 #
 set_solaris_configs()
 {
+# Use mtmalloc as malloc, see Tim Cook blog
   base_configs="$base_configs --with-mysqld-libs=-lmtmalloc"
+  base_configs="$base_configs --with-named-curses=-lcurses"
   case "`uname -a`" in
-    *5.10*|*5.11*)
+    *5.8* | *5.9* | *5.10* | *5.11*)
+
       ;;
     *)
-      die "Only versions 10 and 11 supported for Solaris"
+      die "Only versions 8,9, 10 and 11 supported for Solaris"
   esac
   if test "x$cpu_base_type" != "xx86" && \
      test "x$cpu_base_type" != "xsparc" ; then
@@ -1228,13 +1288,17 @@ set_solaris_configs()
     exit 1
   fi
   if test "x$compiler" = "xgcc" ; then
-    CC="gcc"
-    CXX="gcc"
+    set_cc_and_cxx_for_gcc
     if test "x$cpu_base_type" != "xx86" ; then
       usage "Only gcc supported for Solaris 10/11 on SPARC"
     fi
-    compiler_flags="$compiler_flags -m64 -DMY_ATOMIC_MODE_RWLOCKS"
-    LDFLAGS="-m64 -static-libgcc"
+    if test "x$m64" = "xyes" ; then
+      compiler_flags="$compiler_flags -m64"
+      LDFLAGS="-m64"
+    elif test "x$m32" = "xyes" ; then
+      compiler_flags="$compiler_flags -m32"
+      LDFLAGS="-m32"
+    fi
     if test "x$fast_flag" != "xno" ; then
       LDFLAGS="$LDFLAGS -O2"
       compiler_flags="$compiler_flags -O2"
@@ -1243,21 +1307,40 @@ set_solaris_configs()
       compiler_flags="$compiler_flags -O"
     fi
   elif test "x$compiler" = "xforte" ; then
+    set_cc_and_cxx_for_forte
     if test "x$cpu_base_type" = "xx86" ; then
-      usage "Only gcc supported for Solaris/x86"
-    fi
-    if test "x$cpu_base_type" != "xsparc" ; then
-      usage "Forte compiler supported for Solaris 9/SPARC only"
-    fi
-    CC="cc-5.0"
-    CXX=CC
-    ASFLAGS="xarch=v9"
-    LDFLAGS="xarch=v9"
-    base_cflags="$base_cflags -Xa -xstrconst -xc99=none"
-    base_cxxflags="$base_cxxflags -noex"
-    compiler_flags="$compiler_flags -mt -D_FORTEC -xarch=v9"
-    if test "x$fast_flag" != "xno" ; then
-      compiler_flags="$compiler_flags -xO3"
+      if test "x$fast_flag" != "xno" ; then
+        compiler_flags="$compiler_flags -xO2"
+      fi
+      compiler_flags="$compiler_flags -mt"
+      compiler_flags="$compiler_flags -fsimple=1"
+      compiler_flags="$compiler_flags -ftrap=%none"
+      compiler_flags="$compiler_flags -nofstore"
+      compiler_flags="$compiler_flags -xbuiltin=%all"
+      compiler_flags="$compiler_flags -xlibmil"
+      compiler_flags="$compiler_flags -xlibmopt"
+      compiler_flags="$compiler_flags -xtarget=generic"
+      base_cxx_flags="$base_cxx_flags -features=no%except"
+    elif test "x$cpu_base_type" != "xsparc" ; then
+      usage "Forte compiler supported for Solaris on x86 and SPARC only"
+    else
+      ASFLAGS="$ASFLAGS xarch=v9"
+      LDFLAGS="$LDFLAGS xarch=v9"
+      if test "x$m64" = "xyes" ; then
+        compiler_flags="$compiler_flags -m64"
+        ASFLAGS="$ASFLAGS -m64"
+        LDFLAGS="$LDFLAGS -m64"
+      elif test "x$m32" = "xyes" ; then
+        compiler_flags="$compiler_flags -m32"
+        ASFLAGS="$ASFLAGS -m32"
+        LDFLAGS="$LDFLAGS -m32"
+      fi
+      base_cflags="$base_cflags -Xa -xstrconst -xc99=none"
+      base_cxxflags="$base_cxxflags -noex"
+      compiler_flags="$compiler_flags -mt -D_FORTEC -xarch=v9"
+      if test "x$fast_flag" != "xno" ; then
+        compiler_flags="$compiler_flags -xO2"
+      fi
     fi
   else
     usage "Only gcc and Forte compilers supported for Solaris"
@@ -1270,10 +1353,7 @@ set_solaris_configs()
 #
 set_macosx_configs()
 {
-  base_cxxflags="$base_cxxflags -fno-common"
-  if test "x$cpu_base_type" = "xx86" && test "x$compiler" = "xgcc" ; then
-    compiler_flags="$compiler_flags -arch i386"
-  else
+  if test "x$cpu_base_type" != "xx86" || test "x$compiler" != "xgcc" ; then
     usage "Only gcc/x86 supported for Mac OS X"
     exit 1
   fi
@@ -1281,14 +1361,23 @@ set_macosx_configs()
 # Optimize for space as long as it doesn't affect performance, use some
 # optimisations also when not in fast mode.
 #
+  base_cxxflags="$base_cxxflags -felide-constructors"
+  base_cxxflags="$base_cxxflags -fno-common"
+  if test "x$m64" = "xyes" ; then
+    compiler_flags="$compiler_flags -m64"
+    compiler_flags="$compiler_flags -arch x86_64"
+  elif test "x$m32" = "xyes" ; then
+    compiler_flags="$compiler_flags -m32"
+    compiler_flags="$compiler_flags -arch i386"
+  else
+    compiler_flags="$compiler_flags -arch i386"
+  fi
   if test "x$fast_flag" != "xno" ; then
     compiler_flags="$compiler_flags -Os"
-    base_cxxflags="$base_cxxflags -felide-constructors"
   else
     compiler_flags="$compiler_flags -O"
   fi
-  CC="gcc"
-  CXX="gcc"
+  set_cc_and_cxx_for_gcc
 }
 
 #
@@ -1402,6 +1491,9 @@ m64=
 datadir=
 commands=
 use_autotools=
+engine_configs=
+ASFLAGS=
+LDFLAGS=
 
 set_defaults_based_on_environment
 
@@ -1418,7 +1510,13 @@ set -e
 # This call sets the cpu_arg and check_cpu_args parameters
 #
 path=`dirname $0`
+if test "x$compiler" = "xgcc" ; then
+  compiler=
+fi
 . "$path/check-cpu"
+if test "x$compiler" = "x" ; then
+  compiler="gcc"
+fi
 set_cpu_base
 if test "x$?" = "x1" ; then
   exit 1
@@ -1446,17 +1544,23 @@ set_icc_special_options
 # including all storage engines except InnoDB, and to use GPL libraries.
 #
 set_base_configs
-set_base_engines
 if test "x$gpl" = "xyes" ; then
   version_text="GPL version"
 else
   version_text="Commercial version"
 fi
 if test "x$package" = "xpro" ; then
+  set_base_engines
+  set_innodb_engine
   set_pro_package
 elif test "x$package" = "xextended" ; then
+  set_base_engines
+  set_ndb_engine
+  set_innodb_engine
   set_cge_extended_package
 elif test "x$package" = "xcge" ; then
+  set_base_engines
+  set_ndb_engine
   set_cge_package
 elif test "x$package" = "xclassic" ; then
   set_classic_package
@@ -1490,7 +1594,7 @@ fi
 # proper libtoolize versions, and to determine whether to use ccache.
 #
 set_make_version
-set_up_ccache
+set_ccache_usage
 
 #
 # Set up commands variable from variables prepared for base 
