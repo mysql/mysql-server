@@ -1774,7 +1774,6 @@ MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
   
   res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng);
 
-end:
   m_output->println("create nodegroup reply");
   m_output->println("ng: %d", ng);
   if (res)
