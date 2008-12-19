@@ -495,6 +495,7 @@ private:
 
   int check_nodes_starting();
   int check_nodes_stopping();
+  int check_nodes_single_user();
 
   //**************************************************************************
   
