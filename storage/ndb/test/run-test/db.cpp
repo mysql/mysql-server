@@ -298,8 +298,8 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 	g_logger.error("1 Failed to execute: %s", mysql_error(&mysqld->m_mysql));
 	return false;
       }
-      mysql_stmt_close(stmt);
     }
+    mysql_stmt_close(stmt);
   }
 
   {
