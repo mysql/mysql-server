@@ -3939,7 +3939,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
 
   g_eventLogger->info("Config change completed");
 
-  return 0;
+  return true;
 }
 
 
