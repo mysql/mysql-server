@@ -207,7 +207,7 @@ SELECT @@character_set_client;
 
 let charset_variable = @@global.character_set_client;
 
---source include/charset_basic.inc
+--source suite/sys_vars/inc/charset_basic.inc
 
 --echo '#--------------------FN_DYNVARS_010_08-------------------------#'
 ################################################################################

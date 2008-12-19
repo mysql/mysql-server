@@ -3,3 +3,4 @@ DROP TABLE IF EXISTS t1;
 SET @@global.max_binlog_size = 4096;
 CREATE TABLE t1(a CHAR(5));
 'mylog.000002 exists'
+DROP TABLE t1;
