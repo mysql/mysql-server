@@ -94,7 +94,7 @@ do {\
 \
 		while (struct3333->NAME != NULL) {\
 \
-			struct3333 = struct3333->NAME;\
+			struct3333 = (TYPE*) struct3333->NAME;\
 		}\
 \
 		struct3333->NAME = DATA;\
@@ -125,11 +125,11 @@ do {\
 		HASH_ASSERT_VALID(DATA->NAME);\
 		cell3333->node = DATA->NAME;\
 	} else {\
-		struct3333 = cell3333->node;\
+		struct3333 = (TYPE*) cell3333->node;\
 \
 		while (struct3333->NAME != DATA) {\
 \
-			struct3333 = struct3333->NAME;\
+			struct3333 = (TYPE*) struct3333->NAME;\
 			ut_a(struct3333);\
 		}\
 \
