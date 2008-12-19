@@ -63,7 +63,8 @@ sysadmin_usage()
 cat <<EOF
 
   This script can be used to build MySQL Cluster Carrier Grade Edition
-  based on a source code release you received from MySQL.
+  based on a source code release you received from MySQL. It can also
+  be used to build many variants of MySQL.
 
   It is assumed that you are building on a computer which is of the 
   same type as that on which you intend to run MySQL Cluster.
@@ -75,13 +76,14 @@ cat <<EOF
 
   This performs the following operations:
     1) Detects the operating system. Currently, Linux, FreeBSD, Solaris 
-      10/11, and Mac OS X are supported by this script.
+      8/9/10/11, and Mac OS X are supported by this script.
     2) Detect the type of CPU being used. Currently supported processors 
       are: x86 for all supported operating systems, Itanium for Linux 
-      with GCC, and SPARC for Solaris using the Forte compiler.
+      with GCC, and x86 + SPARC for Solaris using the Forte compiler.
     3) Invokes the GCC compiler.
     4) Builds a set of MySQL Cluster Carrier Grade Edition binaries; for
       more information about these, see --extended-help.
+    5) Default compiler is always gcc.
   
   The default version assumes that you have a source code tarball from 
   which you are building, and thus autoconf and automake do not need to 
@@ -97,6 +99,9 @@ cat <<EOF
   If your building on a Solaris SPARC machine you must set 
   --compiler=forte; if you want to build using the Intel compiler on 
   Linux, you need to set --compiler=icc.
+
+  A synonym for forte is SunStudio, so one can also use
+  --compiler=SunStudio.
 
   If you want to make sure that a 64-bit version is built then you 
   should add the flag --64. This is always set on Solaris machines and 
@@ -133,6 +138,7 @@ Usage: $0 [options]
   --help                  Show this help message.
   --sysadmin-help         Show help for system administrators wishing 
                           to build MySQL Cluster Carrier Grade Edition
+                          or other MySQL versions.
   --developer-help        Show help for developers trying to build MySQL
   --with-help             Show extended help on --with-xxx options to 
                           configure
@@ -157,8 +163,8 @@ Usage: $0 [options]
   --gpl                   Use gpl libraries
   --compiler=[gcc|icc|forte]                  Select compiler
   --cpu=[x86|x86_64|sparc]                    Select CPU type
-                          x86 => 32-bit binary
-                          x86_64 => 64 bit binary unless Mac OS X
+                          x86 => x86 and 32-bit binary
+                          x86_64 => x86 and 64 bit binary
   --warning-mode=[extra|pedantic|normal|no]   Set warning mode level
   --warnings              Set warning mode to normal
   --32                    Build a 32-bit binary even if CPU is 64-bit
@@ -187,12 +193,12 @@ extended_usage()
   -----------------------------------
   This script is intended to make it easier for customers using MySQL
   Cluster Carrier Grade Edition to build the product from source on 
-  these platforms/compilers: Linux/x86 (32-bit and 64-bit),
-  Solaris 10 and 11/x86/gcc, Solaris 9/Sparc/Forte, and MacOSX/x86/gcc. 
-  The script automatically detects CPU type and operating system; in 
-  most cases this also determines which compiler to use, the exception 
-  being Linux/x86 where you can choose between gcc and icc (gcc is the
-  default).
+  these platforms/compilers: Linux/x86 (32-bit and 64-bit) (either using
+  gcc or icc), Linux Itanium, Solaris 8,9,10 and 11 x86 and SPARC using
+  gcc or SunStudio and MacOSX/x86/gcc.
+
+  The script automatically detects CPU type and operating system; The
+  default compiler is always gcc.
 
   To build on other platforms you can use the --print-only option on a
   supported platform and edit the output for a proper set of commands on
@@ -213,7 +219,7 @@ extended_usage()
 
   --package=cge
     storage engines:
-      ARCHIVE, BLACKHOLE, CSV, EXAMPLE, FEDERATED, MYISAM, NDB
+      ARCHIVE, BLACKHOLE, CSV, FEDERATED, MYISAM, NDB
       (All storage engines except InnoDB)
     comment: MySQL Cluster Carrier Grade Edition GPL/Commercial version 
              built from source
@@ -221,7 +227,7 @@ extended_usage()
 
   --package=extended
     storage engines:
-      ARCHIVE, BLACKHOLE, CSV, EXAMPLE, FEDERATED, MYISAM, INNODB, NDB
+      ARCHIVE, BLACKHOLE, CSV, FEDERATED, MYISAM, INNODB, NDB
       (All storage engines)
     comment: MySQL Cluster Carrier Grade Extended Edition GPL/Commercial 
              version built from source
@@ -229,7 +235,7 @@ extended_usage()
 
   --package=pro
     storage engines:
-      ARCHIVE, BLACKHOLE, CSV, EXAMPLE, FEDERATED, INNODB, MYISAM
+      ARCHIVE, BLACKHOLE, CSV, FEDERATED, INNODB, MYISAM
       (All storage engines except NDB)
     comment: MySQL Pro GPL/Commercial version built from 
              source
@@ -296,6 +302,9 @@ extended_usage()
   --with-pic: Build all binaries using position independent assembler
     to avoid problems with dynamic linkers (cannot be overridden).
 
+  --without-example-engine: Ensure that the example engine isn't built,
+    it cannot do any useful things, it's merely intended as documentation.
+
   --with-csv-storage-engine: Ensure that the CSV storage engine is
     included in all builds. Since CSV is required for log tables in
     MySQL 5.1, this option cannot be overridden.
@@ -360,6 +369,9 @@ extended_usage()
 
   --with-mysqld-libs=-lmtmalloc
     Used on Solaris to ensure that the proper malloc library is used.
+    Investigations have shown mtmalloc to be the best choice on Solaris,
+    also umem has good performance on Solaris but better debugging
+    capabilities.
 
   Compiler options:
   -----------------
@@ -419,7 +431,9 @@ extended_usage()
 
   Solaris/Sparc/Forte
   -------------------
-    Uses cc-5.0 as CC
+    Uses cc as CC and CC and CC as CXX
+    Note that SunStudio uses different binaries for C and C++ compilers.
+
     Set -m64 (default) or -m32 (if specifically set) in ASFLAGS,
     LDFLAGS and C/C++ flags.
     Sets ASFLAGS=LDFLAGS=xarch=v9, so that we compile Sparc v9 binaries
@@ -579,6 +593,9 @@ parse_compiler()
       compiler="icc"
       ;;
     forte )
+      compiler="forte"
+      ;;
+    SunStudio | sunstudio )
       compiler="forte"
       ;;
     *)
@@ -1320,7 +1337,7 @@ set_solaris_configs()
       compiler_flags="$compiler_flags -xlibmil"
       compiler_flags="$compiler_flags -xlibmopt"
       compiler_flags="$compiler_flags -xtarget=generic"
-      base_cxx_flags="$base_cxx_flags -features=no%except"
+      base_cxxflags="$base_cxxflags -features=no%except"
     elif test "x$cpu_base_type" != "xsparc" ; then
       usage "Forte compiler supported for Solaris on x86 and SPARC only"
     else
