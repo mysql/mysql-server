@@ -1,11 +1,12 @@
-# Can't test with embedded server that doesn't support grants
+# Can't test with embedded server that doesn't support events
 -- source include/not_embedded.inc
 
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
 
+SET @event_scheduler=@@global.event_scheduler;
 SET GLOBAL event_scheduler=OFF;
---echo Try agian to make sure it's allowed
+--echo Try again to make sure it's allowed
 SET GLOBAL event_scheduler=OFF;
 SHOW VARIABLES LIKE 'event_scheduler';
 SET GLOBAL event_scheduler=1;
@@ -57,34 +58,44 @@ ON COMPLETION PRESERVE
 DO
   INSERT INTO table_4 VALUES (1);
 
+# Wait for the events to fire and check the data afterwards
+
 # Let event_1 insert at least 4 records into the table
 let $wait_condition=select count(*) >= 4 from table_1;
 --source include/wait_condition.inc
+# Minimum of passed time is 6 seconds assuming
+# - event executions starts immediate after creation
+# - 4 times event_1 means an insert at ect, ect+2, ect+4, ect+6
+# ect = event creation time
 
-# Let event_2 reach the end of its execution interval 
+# Let event_2 reach the end of its execution interval
 let $wait_condition=select count(*) = 0 from information_schema.events
 where event_name='event_2' and status='enabled';
 --source include/wait_condition.inc
+# Minimum of passed time is 6 seconds.
+# See wait_condition for event_1 above and ENDS condition for event_2.
 
-# Let event_3, which is ON COMPLETION NOT PRESERVE execute and drop itself 
+# Let event_3, which is ON COMPLETION NOT PRESERVE execute and drop itself
 let $wait_condition=select count(*) = 0 from information_schema.events
 where event_name='event_3';
 --source include/wait_condition.inc
 
-# Let event_4 reach the end of its execution interval 
+# Let event_4 reach the end of its execution interval
 let $wait_condition=select count(*) = 0 from information_schema.events
 where event_name='event_4' and status='enabled';
 --source include/wait_condition.inc
-
-# Wait for the events to fire and check the data afterwards
 
 let $wait_condition=SELECT SUM(a) >= 4 FROM table_1;
 source include/wait_condition.inc;
 SELECT IF(SUM(a) >= 4, 'OK', 'ERROR') FROM table_1;
 
-let $wait_condition=SELECT SUM(a) >= 5 FROM table_2;
+# In case of a testing box under heavy load it cannot be guaranteed that
+# it is really often enough checked if event_2 has to be executed.
+# -> Bug#39854 events_scheduling fails sporadically on pushbuild
+# Therefore we lowered here the original expectation of 5 to 4.
+let $wait_condition=SELECT SUM(a) >= 4 FROM table_2;
 source include/wait_condition.inc;
-SELECT IF(SUM(a) >= 5, 'OK', 'ERROR') FROM table_2;
+SELECT IF(SUM(a) >= 4, 'OK', 'ERROR') FROM table_2;
 
 let $wait_condition=SELECT SUM(a) >= 1 FROM table_3;
 source include/wait_condition.inc;
@@ -112,9 +123,9 @@ DROP TABLE table_2;
 DROP TABLE table_3;
 DROP TABLE table_4;
 DROP DATABASE events_test;
-SET GLOBAL event_scheduler=OFF;
+SET GLOBAL event_scheduler=@event_scheduler;
 
-# 
+#
 # End of tests
 #
 

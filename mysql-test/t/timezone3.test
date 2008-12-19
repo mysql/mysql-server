@@ -45,6 +45,10 @@ insert into t1 values
   (unix_timestamp('1981-07-01 03:59:59'),'1981-07-01 03:59:59'),
   (unix_timestamp('1981-07-01 04:00:00'),'1981-07-01 04:00:00');
 
+insert into t1 values
+  (unix_timestamp('2009-01-01 02:59:59'),'2009-01-01 02:59:59'),
+  (unix_timestamp('2009-01-01 03:00:00'),'2009-01-01 03:00:00');
+
 select i, from_unixtime(i), c from t1;
 drop table t1;
 
@@ -57,5 +61,13 @@ create table t1 (ts timestamp);
 insert into t1 values (19730101235900), (20040101235900);
 select * from t1;
 drop table t1;
+
+#
+# Test Bug #39920: MySQL cannot deal with Leap Second expression in string
+# literal
+#
+
+# 2009-01-01 02:59:59, 2009-01-01 02:59:60 and 2009-01-01 03:00:00
+SELECT FROM_UNIXTIME(1230768022), FROM_UNIXTIME(1230768023), FROM_UNIXTIME(1230768024);
 
 # End of 4.1 tests

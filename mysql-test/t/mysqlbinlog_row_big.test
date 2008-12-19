@@ -38,7 +38,7 @@ SET timestamp=1000000000;
 --echo #
 --echo # We need big packets.
 --echo #
-SET @@session.max_allowed_packet= 1024*1024*1024;
+SET @@global.max_allowed_packet= 1024*1024*1024;
 
 --echo #
 --echo # Delete all existing binary logs.

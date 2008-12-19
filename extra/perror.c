@@ -185,11 +185,36 @@ static const char *get_ha_error_msg(int code)
 }
 
 
+#if defined(__WIN__)
+static my_bool print_win_error_msg(DWORD error, my_bool verbose)
+{
+  LPTSTR s;
+  if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                    FORMAT_MESSAGE_FROM_SYSTEM,
+                    NULL, error, 0, (LPTSTR)&s, 0,
+                    NULL))
+  {
+    if (verbose)
+      printf("Win32 error code %d: %s", error, s);
+    else
+      puts(s);
+    LocalFree(s);
+    return 0;
+  }
+  return 1;
+}
+#endif
+
+
+
 int main(int argc,char *argv[])
 {
   int error,code,found;
   const char *msg;
   char *unknown_error = 0;
+#if defined(__WIN__)
+  my_bool skip_win_message= 0;
+#endif
   MY_INIT(argv[0]);
 
   if (get_options(&argc,&argv))
@@ -293,9 +318,20 @@ int main(int argc,char *argv[])
       }
       if (!found)
       {
-        fprintf(stderr,"Illegal error code: %d\n", code);
-        error= 1;
+#if defined(__WIN__)
+        if (!(skip_win_message= !print_win_error_msg((DWORD)code, verbose)))
+        {
+#endif
+          fprintf(stderr,"Illegal error code: %d\n",code);
+          error=1;
+#if defined(__WIN__)
+        }
+#endif
       }
+#if defined(__WIN__)
+      if (!skip_win_message)
+        print_win_error_msg((DWORD)code, verbose);
+#endif
     }
   }
 
