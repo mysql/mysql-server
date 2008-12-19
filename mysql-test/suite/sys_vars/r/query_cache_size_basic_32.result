@@ -9,6 +9,7 @@ SELECT @@global.query_cache_size;
 SET @@global.query_cache_size = @start_value;
 SELECT @@global.query_cache_size = @start_value;
 @@global.query_cache_size = @start_value
+0
 1
 '#--------------------FN_DYNVARS_133_03------------------------#'
 SET @@global.query_cache_size = 0;
