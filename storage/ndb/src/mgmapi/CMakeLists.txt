@@ -22,6 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi,
 ADD_DEFINITIONS(-DNDB_MGMAPI)
 ADD_LIBRARY(ndbmgmapi STATIC
             mgmapi.cpp
+            mgmapi_error.c
             ndb_logevent.cpp
             mgmapi_configuration.cpp
             LocalConfig.cpp
