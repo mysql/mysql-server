@@ -319,6 +319,11 @@ ErrorBundle ErrorCodes[] = {
   { 892,  DMEC, AE, "Unsupported type in scan filter" },
   { 4256, DMEC, AE, "Must call Ndb::init() before this function" },
   { 4257, DMEC, AE, "Tried to read too much - too many getValue calls" },
+  { 320,  DMEC, AE, "Invalid no of nodes specified for new nodegroup" },
+  { 321,  DMEC, AE, "Invalid nodegroup id" },
+  { 322,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node already in nodegroup" },
+  { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
+  { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
 
   /** 
    * Scan application errors
