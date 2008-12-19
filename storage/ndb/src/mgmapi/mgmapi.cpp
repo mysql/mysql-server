@@ -3089,7 +3089,6 @@ err:
   DBUG_RETURN(retval);
 }
 
-
 extern "C"
 int
 ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)

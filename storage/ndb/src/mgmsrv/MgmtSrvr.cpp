@@ -2161,9 +2161,10 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
     case GSN_CREATE_NODEGROUP_REF:{
       const CreateNodegroupRef * ref =
         CAST_CONSTPTR(CreateNodegroupRef, signal->getDataPtr());
+      Uint32 err = ref->errorCode;
       endSchemaTrans(ss, nodeId, transId, transKey,
                      SchemaTransEndReq::SchemaTransAbort);
-      return ref->errorCode;
+      return err;
     }
     case GSN_NF_COMPLETEREP:
       // ignore

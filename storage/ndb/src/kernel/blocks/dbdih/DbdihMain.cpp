@@ -17356,6 +17356,33 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       goto error;
     }
 
+    if (rt == CreateNodegroupImplReq::RT_PARSE || rt == CreateNodegroupImplReq::RT_PREPARE)
+    {
+      /**
+       * Check that atleast one of the nodes are alive
+       */
+      bool alive = false;
+      for (Uint32 i = 0; i<cnoReplicas; i++)
+      {
+        jam();
+        Uint32 nodeId = req->nodes[i];
+        if (getNodeStatus(nodeId) == NodeRecord::ALIVE)
+        {
+          jam();
+          alive = true;
+          break;
+        }
+      }
+      
+      jam();
+      if (alive == false)
+      {
+        jam();
+        err = CreateNodegroupRef::NoNodeAlive;
+        goto error;
+      }
+    }
+    
     if (rt == CreateNodegroupImplReq::RT_PARSE)
     {
       jam();

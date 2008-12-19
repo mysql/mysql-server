@@ -36,6 +36,7 @@ class WaitGCPReq {
   friend class Ndbcntr;
   friend class Dbdict;
   friend class Backup;
+  friend class Trix;
 
 public:
   STATIC_CONST( SignalLength = 3 );
@@ -68,6 +69,7 @@ class WaitGCPConf {
   friend class Ndbcntr;
   friend class Dbdict;
   friend class Backup;
+  friend class Trix;
 
 public:
   STATIC_CONST( SignalLength = 4 );
@@ -92,6 +94,7 @@ class WaitGCPRef {
   friend class Ndbcntr;
   friend class Dbdict;
   friend class Backup;
+  friend class Trix;
 
 public:
   STATIC_CONST( SignalLength = 2 );

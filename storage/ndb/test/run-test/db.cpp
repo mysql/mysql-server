@@ -138,13 +138,18 @@ connect_mysqld(atrt_process* proc)
     return false;
   }
   
+  if (port)
+  {
+    mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
+    mysql_options(&proc->m_mysql, MYSQL_OPT_PROTOCOL, &val);
+  }
   for (size_t i = 0; i<20; i++)
   {
     if (mysql_real_connect(&proc->m_mysql,
 			   proc->m_host->m_hostname.c_str(),
 			   "root", "", "test",
 			   port ? atoi(port) : 0,
-			   port ? 0 : socket,
+			   socket,
 			   0))
     {
       return true;
@@ -293,8 +298,8 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 	g_logger.error("1 Failed to execute: %s", mysql_error(&mysqld->m_mysql));
 	return false;
       }
-      mysql_stmt_close(stmt);
     }
+    mysql_stmt_close(stmt);
   }
 
   {

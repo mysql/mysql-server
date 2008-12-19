@@ -11,7 +11,7 @@ ENGINE NDB;
 CREATE TABLE t1 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
-primary key(a,b),
+primary key(a,c),
 unique (b))
 ENGINE = NDB
 partition by key(a);

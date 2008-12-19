@@ -1749,6 +1749,7 @@ void
 MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
                                 Properties const &args)
 {
+  int res = 0;
   BaseString nodestr;
   BaseString retval;
   int ng = -1;
@@ -1764,28 +1765,27 @@ MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
     int node;
     if ((res = sscanf(list[i].c_str(), "%u", &node)) != 1)
     {
+      nodes.clear();
       result = "FAIL: Invalid format for nodes";
-      goto end;
+      break;
     }
     nodes.push_back(node);
   }
-
-  if(nodes.size() == 0)
-  {
-    result= "FAIL: Must have at least 1 node in the node group";
-    goto end;
-  }
-
-  int res;
-  if((res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng)) != 0)
-  {
-    result.assfmt("error: %d", res);
-  }
+  
+  res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng);
 
 end:
   m_output->println("create nodegroup reply");
   m_output->println("ng: %d", ng);
-  m_output->println("result: %s", result.c_str());
+  if (res)
+  {
+    m_output->println("error_code: %d", res);
+    m_output->println("result: %d-%s", res, get_error_text(res));
+  }
+  else
+  {
+    m_output->println("result: Ok");
+  }
   m_output->println("");
 }
 
