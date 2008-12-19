@@ -121,7 +121,7 @@ SET @@character_set_results = utf8 + latin2;
 ##############################################################################
 
 let charset_variable = @@session.character_set_results;
---source include/charset_basic.inc
+--source suite/sys_vars/inc/charset_basic.inc
 
 
 --echo '#--------------------FN_DYNVARS_013_07-------------------------#'
@@ -130,7 +130,7 @@ let charset_variable = @@session.character_set_results;
 ###############################################################################
 
 let charset_variable = @@global.character_set_results;
---source include/charset_basic.inc
+--source suite/sys_vars/inc/charset_basic.inc
 
 
 --echo '#--------------------FN_DYNVARS_013_08-------------------------#'
