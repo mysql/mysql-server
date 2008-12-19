@@ -129,6 +129,16 @@ extern "C" {					// Because of SCO 3.2V4.2
 #define SIGNAL_FMT "signal %d"
 #endif
 
+#ifdef HAVE_SOLARIS_LARGE_PAGES
+#include <sys/mman.h>
+#if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
+    && defined(_XOPEN_SOURCE)
+extern int getpagesizes(size_t *, int);
+extern int getpagesizes2(size_t *, int);
+extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
+#endif /* __sun__ ... */
+#endif /* HAVE_SOLARIS_LARGE_PAGES */
+
 #ifdef __NETWARE__
 #define zVOLSTATE_ACTIVE 6
 #define zVOLSTATE_DEACTIVE 2
@@ -3245,10 +3255,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
    int nelem;
    int max_desired_page_size;
+   int max_page_size;
    if (opt_super_large_pages)
-     max_page_size= SUPER_LARGE_PAGE_SIZE;
+     max_page_size= SUPER_LARGE_PAGESIZE;
    else
-     max_page_size= LARGE_PAGE_SIZE;
+     max_page_size= LARGE_PAGESIZE;
    nelem = getpagesizes(NULL, 0);
    if (nelem > 0)
    {
