@@ -1,3 +1,25 @@
+drop table if exists t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB 
+PARTITION BY RANGE(id) ( 
+PARTITION p0 VALUES LESS THAN (5), 
+PARTITION p1 VALUES LESS THAN (10), 
+PARTITION p2 VALUES LESS THAN MAXVALUE 
+);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
+(9,9), (10,10), (11,11);
+SET @old_tx_isolation := @@session.tx_isolation;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET autocommit = 0;
+UPDATE t1 SET DATA = data*2 WHERE id = 3;
+SHOW ENGINE InnoDB STATUS;
+Type	Name	Status
+InnoDB		2 lock struct(s) 1 row lock(s)
+UPDATE t1 SET data = data*2 WHERE data = 2;
+SHOW ENGINE InnoDB STATUS;
+Type	Name	Status
+InnoDB		6 lock struct(s) 2 row lock(s)
+SET @@session.tx_isolation = @old_tx_isolation;
+DROP TABLE t1;
 # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
 CREATE TABLE t1 (
 a INT,

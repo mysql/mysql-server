@@ -101,6 +101,19 @@ drop view v_bug25347;
 drop table t_bug25347;
 drop database d_bug25347;
 use test;
+create view v1 as select * from information_schema.routines;
+check table v1, information_schema.routines;
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+information_schema.routines	check	note	The storage engine for the table doesn't support check
+drop view v1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+test.t1
+Error    : Incorrect information in file: './test/t1.frm'
+error    : Corrupt
+test.t2                                            OK
+DROP TABLE t1, t2;
 End of 5.0 tests
 create table t1(a int);
 create view v1 as select * from t1;
@@ -120,3 +133,4 @@ v1
 v-1
 drop view v1, `v-1`;
 drop table t1;
+End of 5.1 tests
