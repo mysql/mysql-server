@@ -9,9 +9,6 @@ reset master;
 stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
---replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 18 # 35 # 36 #
-query_vertical show slave status;
 start slave;
 insert into t1 values (1);
 save_master_pos;
@@ -23,4 +20,43 @@ select * from t1; # check that indeed 2 were inserted
 stop slave;
 drop table t1;
 
-# End of 4.1 tests
+
+#
+# Bug#38934 slave slave until does not work with --replicate-same-server-id
+#
+# Verifying that slave performs all events until the master_log_pos
+# in presense of --replicate-same-server-id the slave is started with.
+
+connection master;
+reset master;
+
+# setting the until position to correspond to the first following create table
+# which will make the event executed and the slave sql thread stopped
+# right after that.
+let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+inc $until_pos;
+
+create table t1(n int);
+create table t2(n int);
+
+connection slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval change master to master_port=$MASTER_MYPORT;
+eval start slave until master_log_file='master-bin.000001', master_log_pos=$until_pos;
+--source include/wait_for_slave_io_to_start.inc
+--source include/wait_for_slave_sql_to_stop.inc
+
+--echo *** checking until postion execution: must be only t1 in the list ***
+show tables;
+
+# cleanup
+
+connection slave;
+start slave sql_thread;
+
+connection master;
+drop table t1;
+drop table t2;
+sync_slave_with_master;
+
+# End of tests
