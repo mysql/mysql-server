@@ -42,6 +42,7 @@ create table t2(n int);
 connection slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_port=$MASTER_MYPORT;
+--replace_result $until_pos UNTIL_POS
 eval start slave until master_log_file='master-bin.000001', master_log_pos=$until_pos;
 --source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc

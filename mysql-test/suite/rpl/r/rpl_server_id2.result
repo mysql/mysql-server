@@ -20,7 +20,7 @@ reset master;
 create table t1(n int);
 create table t2(n int);
 change master to master_port=MASTER_PORT;
-start slave until master_log_file='master-bin.000001', master_log_pos=107;
+start slave until master_log_file='master-bin.000001', master_log_pos=UNTIL_POS;
 *** checking until postion execution: must be only t1 in the list ***
 show tables;
 Tables_in_test
