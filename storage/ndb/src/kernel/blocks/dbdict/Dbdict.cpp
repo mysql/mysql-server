@@ -541,7 +541,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   ConstRope r(c_rope_pool, tablePtr.p->tableName);
   r.copy(tableName);
   w.add(DictTabInfo::TableName, tableName);
-  w.add(DictTabInfo::TableId, tablePtr.i);
+  w.add(DictTabInfo::TableId, tablePtr.p->tableId);
   w.add(DictTabInfo::TableVersion, tablePtr.p->tableVersion);
   w.add(DictTabInfo::NoOfKeyAttr, tablePtr.p->noOfPrimkey);
   w.add(DictTabInfo::NoOfAttributes, tablePtr.p->noOfAttributes);
@@ -5480,7 +5480,7 @@ Dbdict::createTab_writeTableConf(Signal* signal,
 void
 Dbdict::createTab_local(Signal* signal,
                         SchemaOpPtr op_ptr,
-                        OpSection fragSec,
+                        OpSection afragSec,
                         Callback * c)
 {
   jam();
@@ -7275,6 +7275,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
 
     // the new temporary table record seized from pool
     newTablePtr = parseRecord.tablePtr;
+    newTablePtr.p->tableId = impl_req->tableId; // set correct table id...(not the temporary)
   }
 
   // set the new version now
