@@ -2139,7 +2139,7 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 
   DBUG_PRINT("info", ("Cluster failure"));
 
-  Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
+  gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   bool found = find_max_known_gci(&gci);
 
   Uint64 * array = m_known_gci.getBase();
