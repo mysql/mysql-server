@@ -89,6 +89,7 @@ When one supplies long data for a placeholder:
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
+#include "probes_mysql.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -3565,7 +3566,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     if (query_cache_send_result_to_client(thd, thd->query,
                                           thd->query_length) <= 0)
     {
+      MYSQL_QUERY_EXEC_START(thd->query,
+                             thd->thread_id,
+                             (char *) (thd->db ? thd->db : ""),
+                             thd->security_ctx->priv_user,
+                             (char *) thd->security_ctx->host_or_ip,
+                             1);
       error= mysql_execute_command(thd);
+      MYSQL_QUERY_EXEC_DONE(error);
     }
   }
 

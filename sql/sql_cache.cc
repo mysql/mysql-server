@@ -333,6 +333,7 @@ TODO list:
 #include <hash.h>
 #include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
+#include "probes_mysql.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -1476,11 +1477,13 @@ def_week_frmt: %lu",
   thd->main_da.disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
+  MYSQL_QUERY_CACHE_HIT(thd->query, (ulong) thd->limit_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
   STRUCT_UNLOCK(&structure_guard_mutex);
 err:
+  MYSQL_QUERY_CACHE_MISS(thd->query);
   DBUG_RETURN(0);				// Query was not cached
 }
 

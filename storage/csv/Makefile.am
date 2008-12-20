@@ -41,5 +41,22 @@ libcsv_a_CXXFLAGS =	$(AM_CFLAGS)
 libcsv_a_SOURCES =	transparent_file.cc ha_tina.cc
 
 EXTRA_DIST =		CMakeLists.txt plug.in
+
+if HAVE_DTRACE_DASH_G
+abs_top_srcdir = @abs_top_srcdir@
+libcsv_a_LIBADD = probes_mysql.o
+libcsv_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
+CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
+DTRACEFILES = libcsv_a-ha_tina.o
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
+
+dtrace_files:
+	echo $(DTRACEFILES) > $@
+dtrace_providers:
+	echo $(DTRACEPROVIDER) > $@
+probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
+        $(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
+endif
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

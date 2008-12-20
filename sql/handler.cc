@@ -27,6 +27,7 @@
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
+#include "probes_mysql.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -4425,11 +4426,51 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   */
   DBUG_ASSERT(next_insert_id == 0);
 
+  if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
+      MYSQL_HANDLER_WRLOCK_START_ENABLED() ||
+      MYSQL_HANDLER_UNLOCK_START_ENABLED())
+  {
+    if (lock_type == F_RDLCK)
+    {
+      MYSQL_HANDLER_RDLOCK_START(table_share->db.str,
+                                 table_share->table_name.str);
+    }
+    else if (lock_type == F_WRLCK)
+    {
+      MYSQL_HANDLER_WRLOCK_START(table_share->db.str,
+                                 table_share->table_name.str);
+    }
+    else if (lock_type == F_UNLCK)
+    {
+      MYSQL_HANDLER_UNLOCK_START(table_share->db.str,
+                                 table_share->table_name.str);
+    }
+  }
+
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
   int error= external_lock(thd, lock_type);
+
+  if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
+      MYSQL_HANDLER_WRLOCK_DONE_ENABLED() ||
+      MYSQL_HANDLER_UNLOCK_DONE_ENABLED())
+  {
+    if (lock_type == F_RDLCK)
+    {
+      MYSQL_HANDLER_RDLOCK_DONE(error);
+    }
+    else if (lock_type == F_WRLCK)
+    {
+      MYSQL_HANDLER_WRLOCK_DONE(error);
+    }
+    else if (lock_type == F_UNLCK)
+    {
+      MYSQL_HANDLER_UNLOCK_DONE(error);
+    }
+  }
+
   if (error == 0)
     cached_table_flags= table_flags();
   DBUG_RETURN(error);
@@ -4464,10 +4505,14 @@ int handler::ha_write_row(uchar *buf)
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
 
+  MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  if (unlikely(error= write_row(buf)))
+  error= write_row(buf);
+  MYSQL_INSERT_ROW_DONE(error);
+  if (unlikely(error))
     DBUG_RETURN(error);
+
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
@@ -4485,9 +4530,12 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
    */
   DBUG_ASSERT(new_data == table->record[0]);
 
+  MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  if (unlikely(error= update_row(old_data, new_data)))
+  error= update_row(old_data, new_data);
+  MYSQL_UPDATE_ROW_DONE(error);
+  if (unlikely(error))
     return error;
   if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
@@ -4499,9 +4547,12 @@ int handler::ha_delete_row(const uchar *buf)
   int error;
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
 
+  MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  if (unlikely(error= delete_row(buf)))
+  error= delete_row(buf);
+  MYSQL_DELETE_ROW_DONE(error);
+  if (unlikely(error))
     return error;
   if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;

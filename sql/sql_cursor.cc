@@ -19,6 +19,7 @@
 #include "mysql_priv.h"
 #include "sql_cursor.h"
 #include "sql_select.h"
+#include "probes_mysql.h"
 
 /****************************************************************************
   Declarations.
@@ -167,8 +168,14 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
     thd->lock_id= sensitive_cursor->get_lock_id();
     thd->cursor= sensitive_cursor;
   }
-
+  MYSQL_QUERY_EXEC_START(thd->query,
+                         thd->thread_id,
+                         (char *) (thd->db ? thd->db : ""),
+                         thd->security_ctx->priv_user,
+                         (char *) thd->security_ctx->host_or_ip,
+                         2);
   rc= mysql_execute_command(thd);
+  MYSQL_QUERY_EXEC_DONE(rc);
 
   lex->result= save_result;
   thd->lock_id= &thd->main_lock_id;

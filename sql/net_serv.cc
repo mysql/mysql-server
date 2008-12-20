@@ -48,6 +48,7 @@
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
+#include "probes_mysql.h"
 #ifdef __NETWARE__
 #include <sys/select.h>
 #endif
@@ -368,8 +369,13 @@ my_bool
 my_net_write(NET *net,const uchar *packet,size_t len)
 {
   uchar buff[NET_HEADER_SIZE];
+  int rc;
+
   if (unlikely(!net->vio)) /* nowhere to write */
     return 0;
+
+  MYSQL_NET_WRITE_START(len);
+
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
     length. The last packet is always a packet that is < MAX_PACKET_LENGTH.
@@ -382,7 +388,10 @@ my_net_write(NET *net,const uchar *packet,size_t len)
     buff[3]= (uchar) net->pkt_nr++;
     if (net_write_buff(net, buff, NET_HEADER_SIZE) ||
 	net_write_buff(net, packet, z_size))
+    {
+      MYSQL_NET_WRITE_DONE(1);
       return 1;
+    }
     packet += z_size;
     len-=     z_size;
   }
@@ -390,11 +399,16 @@ my_net_write(NET *net,const uchar *packet,size_t len)
   int3store(buff,len);
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net, buff, NET_HEADER_SIZE))
+  {
+    MYSQL_NET_WRITE_DONE(1);
     return 1;
+  }
 #ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
-  return test(net_write_buff(net,packet,len));
+  rc= test(net_write_buff(net,packet,len));
+  MYSQL_NET_WRITE_DONE(rc);
+  return rc;
 }
 
 /**
@@ -432,8 +446,11 @@ net_write_command(NET *net,uchar command,
   ulong length=len+1+head_len;			/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
+  int rc;
   DBUG_ENTER("net_write_command");
   DBUG_PRINT("enter",("length: %lu", (ulong) len));
+
+  MYSQL_NET_WRITE_START(length);
 
   buff[4]=command;				/* For first packet */
 
@@ -448,7 +465,10 @@ net_write_command(NET *net,uchar command,
       if (net_write_buff(net, buff, header_size) ||
 	  net_write_buff(net, header, head_len) ||
 	  net_write_buff(net, packet, len))
+      {
+        MYSQL_NET_WRITE_DONE(1);
 	DBUG_RETURN(1);
+      }
       packet+= len;
       length-= MAX_PACKET_LENGTH;
       len= MAX_PACKET_LENGTH;
@@ -459,9 +479,11 @@ net_write_command(NET *net,uchar command,
   }
   int3store(buff,length);
   buff[3]= (uchar) net->pkt_nr++;
-  DBUG_RETURN(test(net_write_buff(net, buff, header_size) ||
-                   (head_len && net_write_buff(net, header, head_len)) ||
-                   net_write_buff(net, packet, len) || net_flush(net)));
+  rc= test(net_write_buff(net, buff, header_size) ||
+           (head_len && net_write_buff(net, header, head_len)) ||
+           net_write_buff(net, packet, len) || net_flush(net));
+  MYSQL_NET_WRITE_DONE(rc);
+  return rc;
 }
 
 /**
@@ -989,6 +1011,8 @@ my_net_read(NET *net)
 {
   size_t len, complen;
 
+  MYSQL_NET_READ_START();
+
 #ifdef HAVE_COMPRESS
   if (!net->compress)
   {
@@ -1012,6 +1036,7 @@ my_net_read(NET *net)
     net->read_pos = net->buff + net->where_b;
     if (len != packet_error)
       net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
+    MYSQL_NET_READ_DONE(0, len);
     return len;
 #ifdef HAVE_COMPRESS
   }
@@ -1095,7 +1120,10 @@ my_net_read(NET *net)
 
       net->where_b=buf_length;
       if ((packet_len = my_real_read(net,&complen)) == packet_error)
+      {
+        MYSQL_NET_READ_DONE(1, 0);
 	return packet_error;
+      }
       if (my_uncompress(net->buff + net->where_b, packet_len,
 			&complen))
       {
@@ -1104,6 +1132,7 @@ my_net_read(NET *net)
 #ifdef MYSQL_SERVER
 	my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
 #endif
+        MYSQL_NET_READ_DONE(1, 0);
 	return packet_error;
       }
       buf_length+= complen;
@@ -1118,6 +1147,7 @@ my_net_read(NET *net)
     net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
   }
 #endif /* HAVE_COMPRESS */
+  MYSQL_NET_READ_DONE(0, len);
   return len;
 }
 
