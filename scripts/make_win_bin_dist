@@ -146,9 +146,7 @@ mkdir $DESTDIR/bin
 cp client/$TARGET/*.exe                                  $DESTDIR/bin/
 cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
 cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
-cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
 if [ x"$TARGET" != x"release" ] ; then
-  cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
   cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/
   cp client/$TARGET/mysqladmin.pdb                       $DESTDIR/bin/
   cp client/$TARGET/mysqlbinlog.pdb                      $DESTDIR/bin/
