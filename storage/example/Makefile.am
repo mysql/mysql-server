@@ -62,7 +62,7 @@ dtrace_files:
 dtrace_providers:
 	echo $(DTRACEPROVIDER) > $@
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
-        $(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
+	$(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
 endif
 
 # Don't update the files from bitkeeper

@@ -2507,19 +2507,6 @@ then
             [Access checks in embedded library])
 fi
 
-tools_dirs=""
-
-AC_ARG_WITH([mysqlmanager],
-  AC_HELP_STRING([--with-mysqlmanager], [Build the mysqlmanager binary: yes/no (default: build if server is built.)]),,)
-
-if test "$with_mysqlmanager" = "yes" -o \
-        '(' "$with_mysqlmanager:$with_server" = ":yes" -a \
-            -d "$srcdir/server-tools" ')' ; then
-  tools_dirs="server-tools"
-fi
-
-AC_SUBST(tools_dirs)
-
 #MYSQL_CHECK_CPU
 
 libmysqld_dirs=
