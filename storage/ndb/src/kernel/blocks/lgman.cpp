@@ -1380,11 +1380,13 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 
       if (ptr.p->m_log_buffer_waiters.isEmpty() || ptr.p->m_outstanding_fs)
       {
+        jam();
 	force =  0;
       }
       
       if (force < 2)
       {
+        jam();
 	signal->theData[0] = LgmanContinueB::FLUSH_LOG;
 	signal->theData[1] = ptr.i;
 	signal->theData[2] = force + 1;
@@ -1394,6 +1396,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
       }
       else
       {
+        jam();
 	Buffer_idx pos= producer.m_current_pos;
 	GlobalPage *page = m_shared_page_pool.getPtr(pos.m_ptr_i);
 	
@@ -1417,7 +1420,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	ndbrequire(ptr.p->m_free_buffer_words > free);
 	ptr.p->m_free_file_words -= free;
 	ptr.p->m_free_buffer_words -= free;
-	
+         
 	validate_logfile_group(ptr, "force_log_flush");
 	
 	next_page(ptr.p, PRODUCER);
@@ -1438,17 +1441,25 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   Uint32 tot= 0;
   while(!(consumer.m_current_page == producer.m_current_page) && !full)
   {
+    jam();
     validate_logfile_group(ptr, "before flush log");
 
     Uint32 cnt; // pages written
     Uint32 page= consumer.m_current_pos.m_ptr_i;
     if(consumer.m_current_page.m_ptr_i == producer.m_current_page.m_ptr_i)
     {
-      if(consumer.m_current_page.m_idx > producer.m_current_page.m_idx)
+      /**
+       * In same range
+       */
+      jam();
+
+      if(producer.m_current_pos.m_ptr_i > page)
       {
+        /**
+         * producer ahead of consumer in same chunk
+         */
 	jam();
-	Uint32 tmp= 
-	  consumer.m_current_page.m_idx - producer.m_current_page.m_idx;
+	Uint32 tmp= producer.m_current_pos.m_ptr_i - page;
 	cnt= write_log_pages(signal, ptr, page, tmp);
 	assert(cnt <= tmp);
 	
@@ -1458,8 +1469,9 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
       }
       else
       {
-	// Only 1 chunk
-	ndbrequire(ptr.p->m_buffer_pages.getSize() == 2); 
+        /**
+         * consumer ahead of producer in same chunk
+         */
 	Uint32 tmp= consumer.m_current_page.m_idx + 1;
 	cnt= write_log_pages(signal, ptr, page, tmp);
 	assert(cnt <= tmp);
@@ -1552,8 +1564,9 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   bool removed= false;
   Ptr<Log_waiter> waiter;
   list.first(waiter);
+  Uint32 sz  = waiter.p->m_size;
   Uint32 logfile_group_id = ptr.p->m_logfile_group_id;
-  if(waiter.p->m_size + 2*File_formats::UNDO_PAGE_WORDS < free_buffer)
+  if(sz + 2*File_formats::UNDO_PAGE_WORDS < free_buffer)
   {
     removed= true;
     Uint32 block = waiter.p->m_block;
@@ -2058,7 +2071,6 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	}
 	* (dst - 1) |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
 	ptr.p->m_free_file_words += 2;
-	ptr.p->m_free_buffer_words += 2;
 	m_lgman->validate_logfile_group(ptr);
       }
       else
