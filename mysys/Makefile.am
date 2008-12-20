@@ -126,5 +126,21 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN  ./test_base64.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_base64.c
 
+if HAVE_DTRACE_DASH_G
+abs_top_srcdir = @abs_top_srcdir@
+libmysys_a_LIBADD += probes_mysql.o
+libmysys_a_DEPENDENCIES += probes_mysql.o dtrace_files dtrace_providers
+CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
+DTRACEFILES = mf_keycache.o
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
+
+dtrace_files:
+	echo $(DTRACEFILES) > $@
+dtrace_providers:
+	echo $(DTRACEPROVIDER) > $@
+probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
+	$(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
+endif
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

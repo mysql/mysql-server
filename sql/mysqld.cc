@@ -26,6 +26,7 @@
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
+#include "probes_mysql.h"
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -1759,6 +1760,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   }
   if (lock)
     (void) pthread_mutex_unlock(&LOCK_thread_count);
+  MYSQL_CONNECTION_DONE((int) errcode, thd->thread_id);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
