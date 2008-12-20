@@ -868,11 +868,21 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
 
   int res;
+  Uint32 mb = 8;
+  {
+    char buf[256];
+    if (NdbEnv_GetEnv("UNDOBUFFER", buf, sizeof(buf)))
+    {
+      mb = atoi(buf);
+      ndbout_c("Using %umb dd-undo-buffer", mb);
+    }
+  }
+
   NdbDictionary::LogfileGroup lg = pDict->getLogfileGroup("DEFAULT-LG");
   if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
   {
     lg.setName("DEFAULT-LG");
-    lg.setUndoBufferSize(8*1024*1024);
+    lg.setUndoBufferSize(mb*1024*1024);
     res = pDict->createLogfileGroup(lg);
     if(res != 0){
       g_err << "Failed to create logfilegroup:"
@@ -881,7 +891,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
     }
   }
 
-  Uint32 mb = 96;
+  mb = 96;
   Uint32 files = 13;
 
   {
