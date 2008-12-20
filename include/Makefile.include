@@ -41,10 +41,6 @@
 # To make warnings be warnngs instead of errors do
 #   make WERROR=
 
-ifeq ($(filter --no-print-directory,$(MAKE)),)
-    MAKE+= --no-print-directory #Do not print 'entering directory' infomration.
-endif
-
 ifeq ($(DEBUG),)
     DEBUG = 0
 endif
@@ -318,13 +314,13 @@ clean-default:
 ifeq ($(SKIP_LIBPORTABILITYRULE),)
 ifeq ($(CYGWIN),)
 $(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
-	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) -s install
+	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) install
 else ifneq ($(CC),icc)
 $(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
-	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) -s install
+	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) install
 else
 $(LIBPORTABILITY): $(TOKUROOT)windows/*.[ch]
-	$(MAYBEATSIGN)cd $(TOKUROOT)windows && $(MAKE) -s install
+	$(MAYBEATSIGN)cd $(TOKUROOT)windows && $(MAKE) install
 endif
 endif
 
@@ -334,7 +330,7 @@ LOCKTREE_LINEAR  = $(TOKUROOT)src/lock_tree/locktree_linear.$(AEXT)
 LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
 $(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG): $(@D)*.[ch]
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
 endif
 
 ifeq ($(SKIP_RANGETREERULE),)
@@ -343,19 +339,21 @@ RANGETREE_LINEAR = $(TOKUROOT)src/range_tree/rangetree_linear.$(AEXT)
 RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
 $(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG): $(@D)*.[ch]
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
 endif
 
 ifeq ($(SKIP_NEWBRTRULE),)
 NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
 NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
 $(NEWBRT): $(@D)*.[ch]
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
 endif
 
 BIN_FROM_C_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS)
 BIN_FROM_C_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS_NOLIB)
 %$(BINSUF):%.c       $(DEPEND_COMPILE) $(DEPEND_LINK)
+	echo LDFLAGS $(LDFLAGS)
+	echo bin_from_c $(BIN_FROM_C_FLAGS)
 	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
 
 BIN_FROM_O_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS)

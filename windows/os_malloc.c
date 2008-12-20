@@ -2,28 +2,11 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "toku_portability.h"
-#include "memory.h"
-#include "assert.h"
-
+#include <stdlib.h>
 
 #include <string.h>
 #include <malloc.h>
 #include <errno.h>
-
-int toku_memory_check=0;
-
-int toku_calloc_counter = 0;
-int toku_malloc_counter = 0;
-int toku_realloc_counter = 0;
-int toku_free_counter = 0;
-
-typedef void *(*malloc_fun_t)(size_t);
-typedef void  (*free_fun_t)(void*);
-typedef void *(*realloc_fun_t)(void*,size_t);
-
-static malloc_fun_t  t_malloc  = 0;
-static free_fun_t    t_free    = 0;
-static realloc_fun_t t_realloc = 0;
 
 static inline size_t resize(size_t n) {
     if (n >= 1*1024*1024) 
