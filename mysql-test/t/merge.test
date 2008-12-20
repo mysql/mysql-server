@@ -456,7 +456,7 @@ CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t2;
 DROP TABLE t2;
 
@@ -548,11 +548,11 @@ drop table t1;
 #             CREATE TABLE fails
 #
 CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t1(a INT);
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t2(a BLOB);
@@ -878,7 +878,7 @@ DROP TABLE t4;
 --echo # 2. Normal rename.
 SELECT * FROM t3 ORDER BY c1;
 RENAME TABLE t2 TO t5;
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t3 ORDER BY c1;
 RENAME TABLE t5 TO t2;
 SELECT * FROM t3 ORDER BY c1;
@@ -896,7 +896,7 @@ UNLOCK TABLES;
 --echo #
 --echo # 4. Alter table rename.
 ALTER TABLE t2 RENAME TO t5;
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t3 ORDER BY c1;
 ALTER TABLE t5 RENAME TO t2;
 SELECT * FROM t3 ORDER BY c1;
@@ -956,7 +956,7 @@ CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
 LOCK TABLES t1 WRITE, t2 WRITE;
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t2;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t1;
@@ -1393,6 +1393,19 @@ OPTIMIZE TABLE t1;
 FLUSH TABLES m1, t1;
 UNLOCK TABLES;
 DROP TABLE t1, m1;
+
+#
+# Bug#35068 - Assertion fails when reading from i_s.tables
+#             and there is incorrect merge table
+#
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
+--replace_column 8 # 9 # 10 # 11 # 12 # 13 # 14 # 15 # 16 # 17 # 19 # 20 #
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
+TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
+
+DROP TABLE tm1;
+
+--echo End of 5.1 tests
 
 #
 # Bug#36006 - Optimizer does table scan for select count(*)

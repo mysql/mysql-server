@@ -57,10 +57,25 @@ UNIV_INLINE
 void
 rw_lock_set_waiters(
 /*================*/
-	rw_lock_t*	lock,
-	ulint		flag)
+	rw_lock_t*	lock)
 {
-	lock->waiters = flag;
+#ifdef UNIV_SYNC_ATOMIC
+	os_compare_and_swap(&(lock->waiters), 0, 1);
+#else /* UNIV_SYNC_ATOMIC */
+	lock->waiters = 1;
+#endif /* UNIV_SYNC_ATOMIC */
+}
+UNIV_INLINE
+void
+rw_lock_reset_waiters(
+/*================*/
+	rw_lock_t*	lock)
+{
+#ifdef UNIV_SYNC_ATOMIC
+	os_compare_and_swap(&(lock->waiters), 1, 0);
+#else /* UNIV_SYNC_ATOMIC */
+	lock->waiters = 0;
+#endif /* UNIV_SYNC_ATOMIC */
 }
 
 /**********************************************************************
@@ -239,6 +254,7 @@ rw_lock_s_lock_low(
 	return(TRUE);	/* locking succeeded */
 }
 
+/* TODO: The "direct" functions are not used. Remove them? */
 /**********************************************************************
 Low-level function which locks an rw-lock in s-mode when we know that it
 is possible and none else is currently accessing the rw-lock structure.
@@ -264,6 +280,7 @@ rw_lock_s_lock_direct(
 #endif
 }
 
+/* TODO: The "direct" functions are not used. Remove them? */
 /**********************************************************************
 Low-level function which locks an rw-lock in x-mode when we know that it
 is not locked and none else is currently accessing the rw-lock structure.
@@ -436,6 +453,7 @@ rw_lock_s_unlock_func(
 #endif
 }
 
+/* TODO: The "direct" functions are not used. Remove them? */
 /**********************************************************************
 Releases a shared mode lock when we know there are no waiters and none
 else will access the lock during the time this function is executed. */
@@ -454,7 +472,7 @@ rw_lock_s_unlock_direct(
 	/* Decrease reader count by incrementing lock_word */
 	lock->lock_word++;
 
-	ut_ad(!lock->waiters);
+	ut_ad(!rw_lock_get_waiters(lock));
 	ut_ad(rw_lock_validate(lock));
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_s_exit_count++;
@@ -474,17 +492,16 @@ rw_lock_x_unlock_func(
 #endif
 	)
 {
-        os_thread_id_t local_writer_thread;
+        uint local_pass;
 	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
 
 	/*
-          Must reset writer_thread while we still have the lock.
+          Must reset pass while we still have the lock.
 	  If we are not the last unlocker, we correct it later in the function,
 	  which is harmless since we still hold the lock.
-	  TODO: are there any risks of a thread id == -1 on any platform?
         */
-        local_writer_thread = lock->writer_thread;
-	lock->writer_thread = -1;
+        local_pass = lock->pass;
+        lock->pass = 1;
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
@@ -494,15 +511,15 @@ rw_lock_x_unlock_func(
 		/* Lock is now free. May have to signal read/write waiters.
                 We do not need to signal wait_ex waiters, since they cannot
                 exist when there is a writer. */
-		if(lock->waiters) {
-			rw_lock_set_waiters(lock, 0);
+		if(rw_lock_get_waiters(lock)) {
+			rw_lock_reset_waiters(lock);
 			os_event_set(lock->event);
 			sync_array_object_signalled(sync_primary_wait_array);
 		}
 
 	} else {
-		/* We still hold x-lock, so we correct writer_thread. */
-		lock->writer_thread = local_writer_thread;
+		/* We still hold x-lock, so we correct pass. */
+		lock->pass = local_pass;
 	}
 
 	ut_ad(rw_lock_validate(lock));
@@ -512,6 +529,7 @@ rw_lock_x_unlock_func(
 #endif
 }
 
+/* TODO: The "direct" functions are not used. Remove them? */
 /**********************************************************************
 Releases an exclusive mode lock when we know there are no waiters, and
 none else will access the lock durint the time this function is executed. */
@@ -529,10 +547,10 @@ rw_lock_x_unlock_direct(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
 #endif
-
+	lock->pass = 1;
 	lock->lock_word += X_LOCK_DECR;
 
-	ut_ad(!lock->waiters);
+	ut_ad(!rw_lock_get_waiters(lock));
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT

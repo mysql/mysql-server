@@ -384,7 +384,9 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thread_count--;
   thd->store_globals();
+  thd->unlink();
   delete thd;
+  my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
 }
 
@@ -538,12 +540,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  if (flush_time && flush_time != ~(ulong) 0L)
-  {
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
-      sql_print_error("Warning: Can't create thread to manage maintenance");
-  }
+  start_handle_manager();
 
   // FIXME initialize binlog_filter and rpl_filter if not already done
   //       corresponding delete is in clean_up()
@@ -627,6 +624,7 @@ void *create_embedded_thd(int client_flag)
   bzero((char*) &thd->net, sizeof(thd->net));
 
   thread_count++;
+  threads.append(thd);
   return thd;
 err:
   delete(thd);

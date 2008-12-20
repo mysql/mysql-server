@@ -186,7 +186,14 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (1946) ENGINE = MyISAM, PARTITION p2 VALUES LESS THAN (1966) ENGINE = MyISAM, PARTITION p3 VALUES LESS THAN (1986) ENGINE = MyISAM, PARTITION p4 VALUES LESS THAN (2005) ENGINE = MyISAM, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (YEAR(t))
+(PARTITION p0 VALUES LESS THAN (1901) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (1946) ENGINE = MyISAM,
+ PARTITION p2 VALUES LESS THAN (1966) ENGINE = MyISAM,
+ PARTITION p3 VALUES LESS THAN (1986) ENGINE = MyISAM,
+ PARTITION p4 VALUES LESS THAN (2005) ENGINE = MyISAM,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 --- Show table on slave --
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -200,7 +207,14 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (YEAR(t))
+(PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
+ PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
+ PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
+ PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster,
+ PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -258,7 +272,14 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`t`,`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (1946) ENGINE = MyISAM, PARTITION p2 VALUES LESS THAN (1966) ENGINE = MyISAM, PARTITION p3 VALUES LESS THAN (1986) ENGINE = MyISAM, PARTITION p4 VALUES LESS THAN (2005) ENGINE = MyISAM, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (YEAR(t))
+(PARTITION p0 VALUES LESS THAN (1901) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (1946) ENGINE = MyISAM,
+ PARTITION p2 VALUES LESS THAN (1966) ENGINE = MyISAM,
+ PARTITION p3 VALUES LESS THAN (1986) ENGINE = MyISAM,
+ PARTITION p4 VALUES LESS THAN (2005) ENGINE = MyISAM,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -274,7 +295,14 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`t`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (YEAR(t))
+(PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
+ PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
+ PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
+ PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster,
+ PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster,
+ PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -342,7 +370,11 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = MyISAM, PARTITION p1 VALUES IN (42,142) ENGINE = MyISAM, PARTITION p2 VALUES IN (412) ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (id)
+(PARTITION p0 VALUES IN (2,4) ENGINE = MyISAM,
+ PARTITION p1 VALUES IN (42,142) ENGINE = MyISAM,
+ PARTITION p2 VALUES IN (412) ENGINE = MyISAM) */
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -356,7 +388,11 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (id)
+(PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
+ PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
+ PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -414,7 +450,11 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = MyISAM, PARTITION p1 VALUES IN (42,142) ENGINE = MyISAM, PARTITION p2 VALUES IN (412) ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (id)
+(PARTITION p0 VALUES IN (2,4) ENGINE = MyISAM,
+ PARTITION p1 VALUES IN (42,142) ENGINE = MyISAM,
+ PARTITION p2 VALUES IN (412) ENGINE = MyISAM) */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -430,7 +470,11 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (id)
+(PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
+ PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
+ PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -495,7 +539,9 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH ( YEAR(t))
+PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -508,7 +554,9 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH ( YEAR(t))
+PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -566,7 +614,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`t`,`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH ( YEAR(t))
+PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -582,7 +632,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL DEFAULT '0000-00-00',
   PRIMARY KEY (`t`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH ( YEAR(t))
+PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -648,7 +700,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
 --- Show that tables on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -663,7 +717,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -720,7 +776,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
 --- Make sure that our tables on slave are still right type ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -736,7 +794,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -793,7 +853,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -809,7 +871,9 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";

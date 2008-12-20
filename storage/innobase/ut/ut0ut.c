@@ -340,6 +340,7 @@ ut_delay(
 	j = 0;
 
 	for (i = 0; i < delay * 50; i++) {
+                PAUSE_INSTRUCTION();
 		j += i;
 	}
 

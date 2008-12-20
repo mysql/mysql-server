@@ -50,17 +50,16 @@ The other members of the lock obey the following rules to remain consistent:
 pass:		This is only set to 1 to prevent recursive x-locks. It must
  		be set as specified by x_lock caller after the lock_word
  		indicates that the thread holds the lock, but before that
- 		thread resumes execution. It must be reset to 0 during the
+ 		thread resumes execution. It must also be set to 1 during the
  		final x_unlock, but before the lock_word status is updated.
  		When an x_lock or move_ownership call wishes to change
  		pass, it must first update the writer_thread appropriately.
 writer_thread:	Must be set to the writers thread_id after the lock_word
  		indicates that the thread holds the lock, but before that
- 		thread resumes execution. It  must be reset to -1 during the
- 		final x_unlock, but before the lock_word status is updated.
- 		This ensures that when the lock_word indicates that an x_lock
- 		is held, the only legitimate values for writer_thread are -1
- 		(x_lock function hasn't completed) or the writer's thread_id.
+ 		thread resumes execution. writer_thread may be invalid and
+                should not be read when pass == 1. A thread trying to become
+                writer never reads its own stale writer_thread, since it sets
+                pass during its previous unlock call.
 waiters:	May be set to 1 anytime, but to avoid unnecessary wake-up
  		signals, it should only be set to 1 when there are threads
  		waiting on event. Must be 1 when a writer starts waiting to
@@ -209,9 +208,9 @@ rw_lock_create_func(
 #endif /* UNIV_SYNC_ATOMIC */
 
 	lock->lock_word = X_LOCK_DECR;
-	rw_lock_set_waiters(lock, 0);
-	lock->writer_thread = -1;
-	lock->pass = 0;
+	lock->waiters = 0;
+ 	lock->pass = 1;
+ 	/* We do not have to initialize writer_thread until pass == 0 */
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
@@ -256,7 +255,6 @@ rw_lock_free(
 {
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
-	ut_a(rw_lock_get_waiters(lock) == 0);
 
 	lock->magic_n = 0;
 
@@ -369,7 +367,7 @@ lock_loop:
 
 		/* Set waiters before checking lock_word to ensure wake-up
                 signal is sent. This may lead to some unnecessary signals. */
-		rw_lock_set_waiters(lock, 1);
+		rw_lock_set_waiters(lock);
 
 		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
 			sync_array_free_cell(sync_primary_wait_array, index);
@@ -414,19 +412,8 @@ rw_lock_x_lock_move_ownership(
 	ut_ad(rw_lock_is_locked(lock, RW_LOCK_EX));
 
 #ifdef UNIV_SYNC_ATOMIC
-        os_thread_id_t local_writer_thread = lock->writer_thread;
-        os_thread_id_t new_writer_thread = os_thread_get_curr_id();
-        while (TRUE) {
-                if ((int)local_writer_thread != -1) {
-                        if(os_compare_and_swap(
-                               (volatile lint*)&(lock->writer_thread),
-                               local_writer_thread,
-                               new_writer_thread)) {
-                                break;
-                        }
-                }
-                local_writer_thread = lock->writer_thread;
-        }
+        lock->writer_thread = os_thread_get_curr_id();
+        os_memory_barrier_store();
 	lock->pass = 0;
 #else /* UNIV_SYNC_ATOMIC */
 	mutex_enter(&(lock->mutex));
@@ -519,10 +506,9 @@ rw_lock_x_lock_low(
 	ulint		line)	/* in: line where requested */
 {
 	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
-	ut_ad(curr_thread != -1); /* We use -1 as the unlocked value. */
 
 	if(rw_lock_lock_word_decr(lock, X_LOCK_DECR)) {
-		ut_ad(lock->writer_thread == -1);
+		ut_ad(lock->pass);
 
 		/* Decrement occurred: we are writer or next-writer. */
 		lock->writer_thread = curr_thread;
@@ -634,7 +620,7 @@ lock_loop:
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
-	rw_lock_set_waiters(lock, 1);
+	rw_lock_set_waiters(lock);
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		sync_array_free_cell(sync_primary_wait_array, index);
