@@ -110,6 +110,10 @@ struct sync_array_struct {
 					since creation of the array */
 };
 
+/* Counts the number of times that sync_arr_wake_threads_if_sema_free has
+ * found a thread that can run because it may have missed a wakeup signal. */
+ulint sync_wake_ups = 0;
+
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 This function is called only in the debug version. Detects a deadlock
@@ -481,7 +485,11 @@ sync_array_cell_print(
 		   || type == RW_LOCK_WAIT_EX
 		   || type == RW_LOCK_SHARED) {
 
-		fputs(type == RW_LOCK_EX ? "X-lock on" : "S-lock on", file);
+		switch(type) {
+		case RW_LOCK_EX:      fputs("X-lock on", file);      break;
+		case RW_LOCK_WAIT_EX: fputs("wait-X-lock on", file); break;
+		default:              fputs("S-lock on", file);      break;
+		}
 
 		rwlock = cell->old_wait_rw_lock;
 
@@ -541,7 +549,8 @@ sync_array_find_thread(
 		cell = sync_array_get_nth_cell(arr, i);
 
 		if (cell->wait_object != NULL
-		    && os_thread_eq(cell->thread, thread)) {
+		    && os_thread_eq(cell->thread, thread)
+		    && cell->waiting)) {
 
 			return(cell);	/* Found */
 		}
@@ -879,11 +888,16 @@ sync_arr_wake_threads_if_sema_free(void)
 		}
 			count++;
 
+		if (!cell->waiting) {
+			continue;
+		}
+
 			if (sync_arr_cell_can_wake_up(cell)) {
 
 			event = sync_cell_get_event(cell);
 
 			os_event_set(event);
+			sync_wake_ups++;
 		}
 
 	}

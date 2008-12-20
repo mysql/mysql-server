@@ -38,7 +38,12 @@ public:
 
   enum enum_on_completion
   {
-    ON_COMPLETION_DROP = 1,
+    /*
+      On CREATE EVENT, DROP is the DEFAULT as per the docs.
+      On ALTER  EVENT, "no change" is the DEFAULT.
+    */
+    ON_COMPLETION_DEFAULT = 0,
+    ON_COMPLETION_DROP,
     ON_COMPLETION_PRESERVE
   };
 
@@ -79,6 +84,9 @@ public:
 
   bool
   check_parse_data(THD *thd);
+
+  bool
+  check_dates(THD *thd, int previous_on_completion);
 
 private:
 

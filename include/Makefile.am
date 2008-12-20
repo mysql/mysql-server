@@ -15,8 +15,9 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN) link_sources
-HEADERS_GEN =		mysql_version.h my_config.h
+BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
+HEADERS_GEN_CONFIGURE =		mysql_version.h
+HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h mysql/plugin.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
@@ -25,7 +26,9 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			m_ctype.h my_attribute.h $(HEADERS_GEN)
+			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
+			$(HEADERS_GEN_MAKE)
+
 noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -33,7 +36,7 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
-			mysql_version.h.in my_handler.h my_time.h \
+			my_handler.h my_time.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
@@ -46,7 +49,7 @@ CLEANFILES =            $(BUILT_SOURCES) readline openssl
 
 
 # Some include files that may be moved and patched by configure
-DISTCLEANFILES =	sched.h $(CLEANFILES)
+DISTCLEANFILES =	sched.h $(CLEANFILES) $(HEADERS_GEN_CONFIGURE)
 
 link_sources:
 	-$(RM) -f readline openssl

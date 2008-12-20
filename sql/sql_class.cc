@@ -306,20 +306,25 @@ void thd_inc_row_count(THD *thd)
   thd->row_count++;
 }
 
-/*
+
+/**
   Dumps a text description of a thread, its security context
   (user, host) and the current query.
 
-  SYNOPSIS
-    thd_security_context()
-    thd                 current thread context
-    buffer              pointer to preferred result buffer
-    length              length of buffer
-    max_query_len       how many chars of query to copy (0 for all)
+  @param thd thread context
+  @param buffer pointer to preferred result buffer
+  @param length length of buffer
+  @param max_query_len how many chars of query to copy (0 for all)
 
-  RETURN VALUES
-    pointer to string
+  @req LOCK_thread_count
+  
+  @note LOCK_thread_count mutex is not necessary when the function is invoked on
+   the currently running thread (current_thd) or if the caller in some other
+   way guarantees that access to thd->query is serialized.
+ 
+  @return Pointer to string
 */
+
 extern "C"
 char *thd_security_context(THD *thd, char *buffer, unsigned int length,
                            unsigned int max_query_len)
@@ -328,6 +333,16 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const Security_context *sctx= &thd->main_security_ctx;
   char header[64];
   int len;
+  /*
+    The pointers thd->query and thd->proc_info might change since they are
+    being modified concurrently. This is acceptable for proc_info since its
+    values doesn't have to very accurate and the memory it points to is static,
+    but we need to attempt a snapshot on the pointer values to avoid using NULL
+    values. The pointer to thd->query however, doesn't point to static memory
+    and has to be protected by LOCK_thread_count or risk pointing to
+    uninitialized memory.
+  */
+  const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
                    "MySQL thread id %lu, query id %lu",
@@ -353,10 +368,10 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(sctx->user);
   }
 
-  if (thd->proc_info)
+  if (proc_info)
   {
     str.append(' ');
-    str.append(thd->proc_info);
+    str.append(proc_info);
   }
 
   if (thd->query)
@@ -370,7 +385,17 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   }
   if (str.c_ptr_safe() == buffer)
     return buffer;
-  return thd->strmake(str.ptr(), str.length());
+
+  /*
+    We have to copy the new string to the destination buffer because the string
+    was reallocated to a larger buffer to be able to fit.
+  */
+  DBUG_ASSERT(buffer != NULL);
+  length= min(str.length(), length-1);
+  memcpy(buffer, str.c_ptr_quick(), length);
+  /* Make sure that the new string is null terminated */
+  buffer[length]= '\0';
+  return buffer;
 }
 
 /**
@@ -1481,6 +1506,12 @@ sql_exchange::sql_exchange(char *name,bool flag)
   cs= NULL;
 }
 
+bool sql_exchange::escaped_given(void)
+{
+  return escaped != &default_escaped;
+}
+
+
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
   bool res;
@@ -1766,8 +1797,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ?
                   (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
-  escape_char=	(exchange->escaped->length() ?
-                (int) (uchar) (*exchange->escaped)[0] : -1);
+  if (exchange->escaped->length() && (exchange->escaped_given() ||
+      !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
+    escape_char= (int) (uchar) (*exchange->escaped)[0];
+  else
+    escape_char= -1;
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
@@ -2843,7 +2877,10 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
-  return (int) thd->variables.binlog_format;
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+    return (int) thd->variables.binlog_format;
+  else
+    return BINLOG_FORMAT_UNSPEC;
 }
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
@@ -3504,7 +3541,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 
 int THD::binlog_remove_pending_rows_event(bool clear_maps)
 {
-  DBUG_ENTER(__FUNCTION__);
+  DBUG_ENTER("THD::binlog_remove_pending_rows_event");
 
   if (!mysql_bin_log.is_open())
     DBUG_RETURN(0);
@@ -3549,6 +3586,29 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
+#if !defined(DBUG_OFF) && !defined(_lint)
+static const char *
+show_query_type(THD::enum_binlog_query_type qtype)
+{
+  switch (qtype) {
+  case THD::ROW_QUERY_TYPE:
+    return "ROW";
+  case THD::STMT_QUERY_TYPE:
+    return "STMT";
+  case THD::MYSQL_QUERY_TYPE:
+    return "MYSQL";
+  case THD::QUERY_TYPE_COUNT:
+  default:
+    DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
+  }
+
+  static char buf[64];
+  sprintf(buf, "UNKNOWN#%d", qtype);
+  return buf;
+}
+#endif
+
+
 /*
   Member function that will log query, either row-based or
   statement-based depending on the value of the 'current_stmt_binlog_row_based'
@@ -3577,7 +3637,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype: %d  query: '%s'", qtype, query_arg));
+  DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
+                       show_query_type(qtype), query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
@@ -3616,6 +3677,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
   switch (qtype) {
   case THD::ROW_QUERY_TYPE:
+    DBUG_PRINT("debug",
+               ("current_stmt_binlog_row_based: %d",
+                current_stmt_binlog_row_based));
     if (current_stmt_binlog_row_based)
       DBUG_RETURN(0);
     /* Otherwise, we fall through */

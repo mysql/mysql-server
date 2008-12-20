@@ -847,6 +847,26 @@ set session max_sort_length= 2180;
 select * from t1 order by b;
 drop table t1;
 
+
+--echo #
+--echo # Bug #39844: Query Crash Mysql Server 5.0.67
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT);
+CREATE TABLE t3 (c INT);
+
+INSERT INTO t1 (a) VALUES (1), (2);
+INSERT INTO t2 (a,b) VALUES (1,2), (2,3);
+INSERT INTO t3 (c) VALUES (1), (2);
+
+SELECT
+  (SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a)
+  FROM t3;
+
+DROP TABLE t1, t2, t3;
+
+
 #
 # Bug #35206: select query result different if the key is indexed or not
 #

@@ -1,11 +1,40 @@
-# This test case is sensitive to execution timing.  You may control
-# this sensitivity by the parameter below.  Small values will result
-# in fast but more unstable execution, large values will improve
-# stability at the cost of speed.  Basically, N is a number of seconds
-# to wait for operation to complete.  Should be positive.  Test runs
-# about 25*N seconds (it sleeps most of the time, so CPU speed is not
-# relevant).
+# 1. This test case is sensitive to execution timing.  You may control
+#    this sensitivity by the parameter below.  Small values will result
+#    in fast but more unstable execution, large values will improve
+#    stability at the cost of speed.  Basically, N is a number of seconds
+#    to wait for operation to complete.  Should be positive.  Test runs
+#    about 25*N seconds (it sleeps most of the time, so CPU speed is not
+#    relevant).
 let $N = 5;
+#
+# 2. Some subtests
+#    - create a new time zone
+#    - run some statements
+#    - delete the new time zone.
+#    But the time zone name used gets somewhere cached and it cannot be
+#    "reused" later in the same or another session for a new time zone.
+#    Experiments (2008-11 MySQL 5.1) showed that none of the available
+#    RESET/FLUSH commands removes these entries.
+#    2008-11 MySQL 5.1 Bug#39979 main.events_time_zone does not clean up
+#                      second bad effect
+#    Therefore we compute unique and unusual timezone names to minimize
+#    the likelihood that a later test uses the same name.
+#
+# 3. The subtests mentioned in 2. cause that the AUTO_INCREMENT value
+#    within "SHOW CREATE TABLE mysql.timezone" differ from the initial one.
+#    (Bug#39979 main.events_time_zone does not clean up)
+#    Therefore we reset this value after each of these subtests.
+#
+# Note(mleich):
+#    There is a significant likelihood that future improvements of the server
+#    cause that the solutions for the issues mentioned in 2. and 3. will no
+#    more work.
+#    A mysql-test-run.pl feature which allows to enforce
+#    1. Server shutdown (-> Problem mentioned in 2. disappears)
+#    2. Reset all data to initial state (-> Problem mentioned in 3. disappears)
+#    3. Server start
+#    after a tests would be a perfect replacement.
+#
 
 --source include/big_test.inc
 
@@ -73,19 +102,15 @@ delimiter ;//
 SET @step3= @step * 3;
 SET @step6= @step * 6;
 
-# Disable query log to hide current time.
---disable_query_log
 SET @unix_time= UNIX_TIMESTAMP() - 1;
---enable_query_log
-
 SET @unix_time= @unix_time - @unix_time % @step6;
 
 INSERT INTO mysql.time_zone VALUES (NULL, 'N');
 SET @tzid= LAST_INSERT_ID();
 INSERT INTO mysql.time_zone_transition_type
-  VALUES (@tzid, 0, 0, 0, 'b16420_0'); 
+  VALUES (@tzid, 0, 0, 0, 'b16420_0');
 INSERT INTO mysql.time_zone_transition_type
-  VALUES (@tzid, 1, @step3 - @step, 1, 'b16420_1'); 
+  VALUES (@tzid, 1, @step3 - @step, 1, 'b16420_1');
 
 let $transition_unix_time= `SELECT @unix_time`;
 let $count= 30;
@@ -99,7 +124,9 @@ while ($count)
   dec $count;
 }
 --enable_query_log
-INSERT INTO mysql.time_zone_name VALUES ('bug16420', @tzid);
+let $tz_name = `SELECT CONCAT('b16420_a',UNIX_TIMESTAMP())`;
+--replace_result $tz_name <TZ_NAME_1>
+eval INSERT INTO mysql.time_zone_name VALUES ('$tz_name', @tzid);
 
 CREATE TABLE t1 (count INT, unix_time INT, local_time INT, comment CHAR(80));
 CREATE TABLE t2 (count INT);
@@ -135,7 +162,8 @@ SET TIME_ZONE= '+00:00';
 CREATE EVENT e1 ON SCHEDULE EVERY @step SECOND
   STARTS FROM_UNIXTIME(@unix_time) DO SELECT f1("<e1>");
 
-SET TIME_ZONE= 'bug16420';
+--replace_result $tz_name <TZ_NAME_1>
+eval SET TIME_ZONE= '$tz_name';
 CREATE EVENT e2 ON SCHEDULE EVERY @step SECOND
   STARTS FROM_UNIXTIME(@unix_time) DO SELECT f1("<e2>");
 
@@ -196,6 +224,8 @@ DELETE FROM mysql.time_zone_name            WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition_type WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition      WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone                 WHERE time_zone_id = @tzid;
+let $time_zone_auto_inc = `SELECT MAX(Time_zone_id) + 1 FROM mysql.time_zone`;
+eval ALTER TABLE mysql.time_zone AUTO_INCREMENT = $time_zone_auto_inc;
 
 #----------------------------------------------------------------------
 
@@ -216,13 +246,13 @@ SET @offset_month_03= UNIX_TIMESTAMP('2030-03-31 12:00:00') - @now - 5*@step;
 SET @offset_month_04= UNIX_TIMESTAMP('2030-04-30 12:00:00') - @now - 13*@step;
 
 INSERT INTO mysql.time_zone_transition_type
-  VALUES (@tzid, 0, @offset_month_01, 0, 'b16420_0'); 
+  VALUES (@tzid, 0, @offset_month_01, 0, 'b16420_0');
 INSERT INTO mysql.time_zone_transition_type
-  VALUES (@tzid, 1, @offset_month_02, 1, 'b16420_1'); 
+  VALUES (@tzid, 1, @offset_month_02, 1, 'b16420_1');
 INSERT INTO mysql.time_zone_transition_type
-  VALUES (@tzid, 2, @offset_month_03, 1, 'b16420_2'); 
+  VALUES (@tzid, 2, @offset_month_03, 1, 'b16420_2');
 INSERT INTO mysql.time_zone_transition_type
-  VALUES (@tzid, 3, @offset_month_04, 1, 'b16420_3'); 
+  VALUES (@tzid, 3, @offset_month_04, 1, 'b16420_3');
 INSERT INTO mysql.time_zone_transition
   VALUES (@tzid, @now, 0);
 INSERT INTO mysql.time_zone_transition
@@ -231,11 +261,12 @@ INSERT INTO mysql.time_zone_transition
   VALUES (@tzid, @now + 7 * @step, 2);
 INSERT INTO mysql.time_zone_transition
   VALUES (@tzid, @now + 12 * @step, 3);
-# We have to user a new time zone name, because 'bug16420' has been
-# cached already.
-INSERT INTO mysql.time_zone_name VALUES ('bug16420_2', @tzid);
+let $tz_name = `SELECT CONCAT('b16420_b',UNIX_TIMESTAMP())`;
+--replace_result $tz_name <TZ_NAME_2>
+eval INSERT INTO mysql.time_zone_name VALUES ('$tz_name', @tzid);
 
-SET TIME_ZONE= 'bug16420_2';
+--replace_result $tz_name <TZ_NAME_2>
+eval SET TIME_ZONE= '$tz_name';
 
 SET GLOBAL EVENT_SCHEDULER= ON;
 
@@ -280,6 +311,8 @@ DELETE FROM mysql.time_zone_name            WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition_type WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone_transition      WHERE time_zone_id = @tzid;
 DELETE FROM mysql.time_zone                 WHERE time_zone_id = @tzid;
+let $time_zone_auto_inc = `SELECT MAX(Time_zone_id) + 1 FROM mysql.time_zone`;
+eval ALTER TABLE mysql.time_zone AUTO_INCREMENT = $time_zone_auto_inc;
 
 DROP FUNCTION round_to_step;
 DROP TABLE t_step;
@@ -291,8 +324,8 @@ eval USE $old_db;
 
 --enable_query_log
 let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where db='mysqltest_db1' and command = 'Connect' and user=current_user();
+  SELECT COUNT(*) = 0 FROM information_schema.processlist
+  WHERE db='mysqltest_db1' AND command = 'Connect' AND user=current_user();
 --source include/wait_condition.inc
 
 --echo End of 5.1 tests.

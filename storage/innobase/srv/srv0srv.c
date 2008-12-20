@@ -171,6 +171,7 @@ ulint	srv_awe_window_size	= 0;		/* size in pages; MySQL inits
 ulint	srv_mem_pool_size	= ULINT_MAX;	/* size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
+
 ulint   srv_io_capacity         = ULINT_MAX;    /* Number of IO operations per
                                                    second the server can do */
 
@@ -288,19 +289,20 @@ Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. Value 0 will disable the
 concurrency check. */
 
+ibool   srv_thread_concurrency_timer_based = TRUE;
 ulong	srv_thread_concurrency	= 0;
 ulong	srv_commit_concurrency	= 0;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
-lint	srv_conc_n_threads	= 0;	/* number of OS threads currently
+lint	srv_conc_n_threads	= 0;    /* number of OS threads currently
 					inside InnoDB; it is not an error
 					if this drops temporarily below zero
 					because we do not demand that every
 					thread increments this, but a thread
 					waiting for a lock decrements this
 					temporarily */
-ulint	srv_conc_n_waiting_threads = 0;	/* number of OS threads waiting in the
+ulint	srv_conc_n_waiting_threads = 0; /* number of OS threads waiting in the
 					FIFO for a permission to enter InnoDB
 					*/
 
@@ -352,10 +354,10 @@ ibool	srv_use_awe			= FALSE;
 ibool	srv_use_adaptive_hash_indexes	= TRUE;
 
 /*-------------------------------------------*/
-ulong	srv_n_spin_wait_rounds	= 20;
+ulong	srv_n_spin_wait_rounds	= 30;
 ulong	srv_n_free_tickets_to_enter = 500;
 ulong	srv_thread_sleep_delay = 10000;
-ulint	srv_spin_wait_delay	= 5;
+ulint	srv_spin_wait_delay	= 6;
 ibool	srv_priority_boost	= TRUE;
 
 ibool	srv_print_thread_releases	= FALSE;
@@ -1061,6 +1063,95 @@ ulong	srv_max_purge_lag		= 0;
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
 
+#ifdef UNIV_SYNC_ATOMIC
+static void
+inc_srv_conc_n_threads(lint *n_threads)
+{
+  *n_threads = os_atomic_increment(&srv_conc_n_threads, 1);
+}
+
+static void
+dec_srv_conc_n_threads()
+{
+  os_atomic_increment(&srv_conc_n_threads, -1);
+}
+#endif
+
+static void
+print_already_in_error(trx_t* trx)
+{
+	ut_print_timestamp(stderr);
+	fputs("  InnoDB: Error: trying to declare trx"
+	      " to enter InnoDB, but\n"
+	      "InnoDB: it already is declared.\n", stderr);
+	trx_print(stderr, trx, 0);
+	putc('\n', stderr);
+        return;
+}
+
+#ifdef UNIV_SYNC_ATOMIC
+static void
+enter_innodb_with_tickets(trx_t* trx)
+{
+	trx->declared_to_be_inside_innodb = TRUE;
+	trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
+        return;
+}
+
+static void
+srv_conc_enter_innodb_timer_based(trx_t* trx)
+{
+        lint               conc_n_threads;
+        ibool              has_yielded = FALSE;
+        ulint              has_slept = 0;
+
+	if (trx->declared_to_be_inside_innodb) {
+                print_already_in_error(trx);
+        }
+retry:
+	if (srv_conc_n_threads < (lint) srv_thread_concurrency) {
+                inc_srv_conc_n_threads(&conc_n_threads);
+	        if (conc_n_threads <= (lint) srv_thread_concurrency) {
+                       enter_innodb_with_tickets(trx);
+                       return;
+                }
+                dec_srv_conc_n_threads(&conc_n_threads);
+       }
+       if (!has_yielded)
+       {
+               has_yielded = TRUE;
+               os_thread_yield();
+               goto retry;
+       }
+       if (trx->has_search_latch
+           || NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+                inc_srv_conc_n_threads(&conc_n_threads);
+                enter_innodb_with_tickets(trx);
+                return;
+       }
+       if (has_slept < 2)
+       {
+               trx->op_info = "sleeping before entering InnoDB";
+               os_thread_sleep(10000);
+               trx->op_info = "";
+               has_slept++;
+       }
+       inc_srv_conc_n_threads(&conc_n_threads);
+       enter_innodb_with_tickets(trx);
+       return;
+}
+
+static void
+srv_conc_exit_innodb_timer_based(trx_t* trx)
+{
+        dec_srv_conc_n_threads();
+	trx->declared_to_be_inside_innodb = FALSE;
+	trx->n_tickets_to_enter_innodb = 0;
+        return;
+}
+#endif
+
 void
 srv_conc_enter_innodb(
 /*==================*/
@@ -1091,15 +1182,17 @@ srv_conc_enter_innodb(
 		return;
 	}
 
+#ifdef UNIV_SYNC_ATOMIC
+        if (srv_thread_concurrency_timer_based) {
+          srv_conc_enter_innodb_timer_based(trx);
+          return;
+        }
+#endif
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
 	if (trx->declared_to_be_inside_innodb) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: trying to declare trx"
-		      " to enter InnoDB, but\n"
-		      "InnoDB: it already is declared.\n", stderr);
-		trx_print(stderr, trx, 0);
-		putc('\n', stderr);
+                print_already_in_error(trx);
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
@@ -1226,17 +1319,26 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
+
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
 
-	os_fast_mutex_lock(&srv_conc_mutex);
+#ifdef UNIV_SYNC_ATOMIC
+        if (srv_thread_concurrency_timer_based) {
+                lint               conc_n_threads;
 
+                inc_srv_conc_n_threads(&conc_n_threads);
+	        trx->declared_to_be_inside_innodb = TRUE;
+	        trx->n_tickets_to_enter_innodb = 1;
+                return;
+        }
+#endif
+	os_fast_mutex_lock(&srv_conc_mutex);
 	srv_conc_n_threads++;
 	trx->declared_to_be_inside_innodb = TRUE;
 	trx->n_tickets_to_enter_innodb = 1;
-
 	os_fast_mutex_unlock(&srv_conc_mutex);
 }
 
@@ -1267,6 +1369,14 @@ srv_conc_force_exit_innodb(
 
 		return;
 	}
+
+#ifdef UNIV_SYNC_ATOMIC
+        if (srv_thread_concurrency_timer_based)
+        {
+                srv_conc_exit_innodb_timer_based(trx);
+                return;
+        }
+#endif
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -1666,11 +1776,16 @@ srv_release_mysql_thread_if_suspended(
 /**********************************************************************
 Refreshes the values used to calculate per-second averages. */
 static
-void
+ibool
 srv_refresh_innodb_monitor_stats(void)
 /*==================================*/
 {
-	mutex_enter(&srv_innodb_monitor_mutex);
+	/* Sometimes we will skip stats update to avoid deadlock, since
+	since this function is called by the background wake-up thread */
+	if (mutex_enter_nowait(&srv_innodb_monitor_mutex)) {
+		/* mutex_enter_nowait returns 1 on failure */
+		return FALSE;
+	}
 
 	srv_last_monitor_time = time(NULL);
 
@@ -1689,6 +1804,7 @@ srv_refresh_innodb_monitor_stats(void)
 	srv_n_rows_read_old = srv_n_rows_read;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
+	return TRUE;
 }
 
 /**********************************************************************
@@ -1939,6 +2055,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_wake_ups = sync_wake_ups;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2125,7 +2242,10 @@ exit_func:
 
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs. */
+too long. These can be used to track bugs which cause hangs.
+NOTE: This thread should not wait for any innodb mutexes or rw_locks.
+A deadlock could arise where the thread holding that lock requires waking
+by this background thread while this thread is blocked on that lock. */
 
 os_thread_ret_t
 srv_error_monitor_thread(
@@ -2137,10 +2257,6 @@ srv_error_monitor_thread(
 {
 	/* number of successive fatal timeouts observed */
 	ulint	fatal_cnt	= 0;
-	dulint	old_lsn;
-	dulint	new_lsn;
-
-	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Error monitor thread starts, id %lu\n",
@@ -2149,29 +2265,8 @@ srv_error_monitor_thread(
 loop:
 	srv_error_monitor_active = TRUE;
 
-	/* Try to track a strange bug reported by Harald Fuchs and others,
-	where the lsn seems to decrease at times */
-
-	new_lsn = log_get_lsn();
-
-	if (ut_dulint_cmp(new_lsn, old_lsn) < 0) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: old log sequence number %lu %lu"
-			" was greater\n"
-			"InnoDB: than the new log sequence number %lu %lu!\n"
-			"InnoDB: Please submit a bug report"
-			" to http://bugs.mysql.com\n",
-			(ulong) ut_dulint_get_high(old_lsn),
-			(ulong) ut_dulint_get_low(old_lsn),
-			(ulong) ut_dulint_get_high(new_lsn),
-			(ulong) ut_dulint_get_low(new_lsn));
-	}
-
-	old_lsn = new_lsn;
-
 	if (difftime(time(NULL), srv_last_monitor_time) > 60) {
-		/* We referesh InnoDB Monitor values so that averages are
+		/* We refresh InnoDB Monitor values so that averages are
 		printed from at most 60 last seconds */
 
 		srv_refresh_innodb_monitor_stats();

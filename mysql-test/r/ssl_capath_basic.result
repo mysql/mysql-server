@@ -1,7 +1,7 @@
 '#---------------------BS_STVARS_046_01----------------------#'
 SELECT COUNT(@@GLOBAL.ssl_capath);
 COUNT(@@GLOBAL.ssl_capath)
-0
+1
 1 Expected
 '#---------------------BS_STVARS_046_02----------------------#'
 SET @@GLOBAL.ssl_capath=1;
@@ -9,7 +9,7 @@ ERROR HY000: Variable 'ssl_capath' is a read only variable
 Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.ssl_capath);
 COUNT(@@GLOBAL.ssl_capath)
-0
+1
 1 Expected
 '#---------------------BS_STVARS_046_03----------------------#'
 SELECT @@GLOBAL.ssl_capath = VARIABLE_VALUE
@@ -20,7 +20,7 @@ NULL
 1 Expected
 SELECT COUNT(@@GLOBAL.ssl_capath);
 COUNT(@@GLOBAL.ssl_capath)
-0
+1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -36,7 +36,7 @@ NULL
 '#---------------------BS_STVARS_046_05----------------------#'
 SELECT COUNT(@@ssl_capath);
 COUNT(@@ssl_capath)
-0
+1
 1 Expected
 SELECT COUNT(@@local.ssl_capath);
 ERROR HY000: Variable 'ssl_capath' is a GLOBAL variable
@@ -46,7 +46,7 @@ ERROR HY000: Variable 'ssl_capath' is a GLOBAL variable
 Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.ssl_capath);
 COUNT(@@GLOBAL.ssl_capath)
-0
+1
 1 Expected
 SELECT ssl_capath = @@SESSION.ssl_capath;
 ERROR 42S22: Unknown column 'ssl_capath' in 'field list'
