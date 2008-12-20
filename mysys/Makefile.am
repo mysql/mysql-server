@@ -127,7 +127,6 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(RM) -f ./test_base64.c
 
 if HAVE_DTRACE_DASH_G
-abs_top_srcdir = @abs_top_srcdir@
 libmysys_a_LIBADD += probes_mysql.o
 libmysys_a_DEPENDENCIES += probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
