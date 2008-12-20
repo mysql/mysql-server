@@ -178,6 +178,7 @@ Usage: $0 [options]
   --valgrind              Build with valgrind
   --fast                  Optimise for CPU architecture built on
   --static-linking        Statically link system libraries into binaries
+  --use-tcmalloc          Link with tcmalloc instead of standard malloc (Linux only)
   --with-flags *          Pass extra --with-xxx options to configure
 EOF
   if test "x$1" != "x" ; then
@@ -626,6 +627,9 @@ parse_options()
       if test "x$fast_flag" != "xyes" ; then
         fast_flag="generic"
       fi
+      ;;
+    --use-tcmalloc)
+      use_tcmalloc="yes"
       ;;
     --with-debug)
       with_debug_flag="yes"
@@ -1250,6 +1254,9 @@ set_linux_configs()
     usage "Only x86 and Itanium CPUs supported for Linux"
     exit 1
   fi
+  if test "x$use_tcmalloc" = "xyes" ; then
+    base_configs="$base_configs --with-mysqld-libs=-ltcmalloc_minimal"
+  fi
   if test "x$cpu_base_type" = "xx86" ; then
     base_configs="$base_configs --enable-assembler"
   fi
@@ -1511,6 +1518,7 @@ use_autotools=
 engine_configs=
 ASFLAGS=
 LDFLAGS=
+use_tcmalloc=
 
 set_defaults_based_on_environment
 
