@@ -2,13 +2,13 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: DTRACE_TEST
 dnl ---------------------------------------------------------------------------
 AC_ARG_ENABLE(dtrace,
-    AC_HELP_STRING([--enable-dtrace],[Build with support for the DTRACE.]),
-    [
-      ENABLE_DTRACE="$enable_dtrace"
-    ],
-    [
-      ENABLE_DTRACE="yes" 
-    ]
+        AC_HELP_STRING([--enable-dtrace],[Build with support for the DTRACE.]),
+        [
+                ENABLE_DTRACE="$enable_dtrace"
+        ],
+        [
+                ENABLE_DTRACE="yes" 
+        ]
 )
 DTRACEFLAGS=""
 HAVE_DTRACE=""
