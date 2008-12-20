@@ -16,6 +16,9 @@ check_cpu () {
     # on Linux (and others?) we can get detailed CPU information out of /proc
     cpuinfo="cat $CPUINFO"
 
+    # detect CPU architecture
+    cpu_arch=`$cpuinfo | grep 'arch' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+
     # detect CPU family
     cpu_family=`$cpuinfo | grep 'family' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
     if test -z "$cpu_family" ; then
@@ -60,7 +63,7 @@ check_cpu () {
   # detect CPU shortname as used by gcc options 
   # this list is not complete, feel free to add further entries
   cpu_arg=""
-  case "$cpu_family--$model_name" in
+  case "$cpu_family--$model_name--$spu_arch" in
     # DEC Alpha
     Alpha*EV6*)
       cpu_arg="ev6";
@@ -135,6 +138,9 @@ check_cpu () {
       ;;
     # Intel ia64
     *Itanium*)
+      cpu_arg="itanium"
+      ;;
+    *IA-64*)
       cpu_arg="itanium"
       ;;
     # Solaris Sparc
