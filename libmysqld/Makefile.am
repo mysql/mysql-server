@@ -28,7 +28,8 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\""
+			-DPLUGINDIR="\"$(pkgplugindir)\"" \
+			-DDISABLE_DTRACE
 INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/sql -I$(top_srcdir)/sql \
 			-I$(top_srcdir)/sql/examples \

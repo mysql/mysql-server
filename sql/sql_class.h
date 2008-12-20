@@ -2814,6 +2814,10 @@ public:
   void send_error(uint errcode,const char *err);
   int  do_deletes();
   bool send_eof();
+  inline ha_rows num_deleted()
+  {
+    return deleted;
+  }
   virtual void abort();
 };
 
@@ -2857,6 +2861,14 @@ public:
   void send_error(uint errcode,const char *err);
   int  do_updates();
   bool send_eof();
+  inline ha_rows num_found()
+  {
+    return found;
+  }
+  inline ha_rows num_updated()
+  {
+    return updated;
+  }
   virtual void abort();
 };
 

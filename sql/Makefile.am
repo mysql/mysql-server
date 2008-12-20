@@ -28,6 +28,23 @@ SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
+DTRACEFILES =           filesort.o \
+			ha_ndbcluster.o \
+                        handler.o \
+                        mysqld.o \
+                        net_serv.o \
+                        scheduler.o \
+                        sp_head.o \
+                        sql_cache.o \
+                        sql_connect.o \
+                        sql_cursor.o \
+                        sql_delete.o \
+                        sql_insert.o \
+                        sql_parse.o \
+                        sql_prepare.o \
+                        sql_select.o \
+                        sql_update.o
+
 
 noinst_LTLIBRARIES=	libndb.la \
 			udf_example.la
@@ -148,6 +165,7 @@ BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h \
 			message.mc  message.h message.rc MSG00001.bin \
+			probes_mysql.d \
 			CMakeLists.txt
 
 CLEANFILES =        	lex_hash.h sql_yacc.output link_sources
@@ -187,6 +205,28 @@ install-exec-hook:
 	test ! -x mysqld-debug$(EXEEXT) || $(INSTALL_PROGRAM) mysqld-debug$(EXEEXT) $(DESTDIR)$(libexecdir)
 	test ! -f mysqld-debug.sym.gz   || $(INSTALL_DATA)    mysqld-debug.sym.gz   $(DESTDIR)$(pkglibdir)
 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
+
+if HAVE_DTRACE_DASH_G
+abs_top_srcdir = @abs_top_srcdir@
+mysqld_LDADD += probes_all.o
+mysqld_DEPENDENCIES += probes_all.o dtrace_files dtrace_providers
+CLEANFILES += dtrace_files dtrace_providers probes_all.o
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
+
+dtrace_files:
+	echo $(DTRACEFILES) > $@
+dtrace_providers:
+	echo $(DTRACEPROVIDER) > $@
+
+DTRACEDIRS = . ../mysys $(patsubst %,$(top_builddir)/storage/%,@mysql_se_dirs@)
+
+probes_all.o: probes_mysql.d $(DTRACEFILES)
+	providers=`(for i in $(DTRACEDIRS); do cat $$i/dtrace_providers 2>/dev/null; done) |
+tr " " "\n" | sort | uniq | sed -e '/^$$/d' -e 's/^/-s /'`; \
+	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in
+$$f; do test -f $$i/$$j && echo -n "$$i/$$j "; done; done`; \
+	$(DTRACE) $(DTRACEFLAGS) -G $$providers $$objects -o $@
+endif
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

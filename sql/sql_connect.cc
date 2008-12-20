@@ -19,6 +19,7 @@
 */
 
 #include "mysql_priv.h"
+#include "probes_mysql.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -1106,6 +1107,9 @@ pthread_handler_t handle_one_connection(void *arg)
     lex_start(thd);
     if (login_connection(thd))
       goto end_thread;
+
+    MYSQL_CONNECTION_START(thd->thread_id, thd->security_ctx->priv_user,
+                           (char *) thd->security_ctx->host_or_ip);
 
     prepare_new_connection_state(thd);
 
