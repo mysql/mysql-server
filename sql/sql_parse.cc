@@ -27,6 +27,7 @@
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
+#include "probes_mysql.h"
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -913,6 +914,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
+  MYSQL_COMMAND_START(thd->thread_id, command,
+                      thd->security_ctx->priv_user,
+                      (char *) thd->security_ctx->host_or_ip);
+  
   thd->command=command;
   /*
     Commands which always take a long time are logged into
@@ -1136,6 +1141,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
+    MYSQL_QUERY_START(thd->query, thd->thread_id,
+                      (char *) (thd->db ? thd->db : ""),
+                      thd->security_ctx->priv_user,
+                      (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char* end_of_stmt= NULL;
@@ -1172,11 +1181,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         length--;
       }
 
+      if (MYSQL_QUERY_DONE_ENABLED())
+      {
+        MYSQL_QUERY_DONE(thd->is_error());
+      }
+
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
       thd->profiling.finish_current_query();
       thd->profiling.start_new_query("continuing");
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
 #endif
+
+      MYSQL_QUERY_START(thd->query, thd->thread_id,
+                        (char *) (thd->db ? thd->db : ""),
+                        thd->security_ctx->priv_user,
+                        (char *) thd->security_ctx->host_or_ip);
 
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
@@ -1534,6 +1553,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+
+  if (MYSQL_QUERY_DONE_ENABLED() || MYSQL_COMMAND_DONE_ENABLED())
+  {
+    int res;
+    res= (int) thd->is_error();
+    if (command == COM_QUERY)
+    {
+      MYSQL_QUERY_DONE(res);
+    }
+    MYSQL_COMMAND_DONE(res);
+  }
   DBUG_RETURN(error);
 }
 
@@ -2896,11 +2926,14 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_UPDATE:
+  {
+    ha_rows found= 0, updated= 0;
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
+    MYSQL_UPDATE_START(thd->query);
     res= (up_result= mysql_update(thd, all_tables,
                                   select_lex->item_list,
                                   lex->value_list,
@@ -2908,11 +2941,14 @@ end_with_restore_list:
                                   select_lex->order_list.elements,
                                   (ORDER *) select_lex->order_list.first,
                                   unit->select_limit_cnt,
-                                  lex->duplicates, lex->ignore));
+                                  lex->duplicates, lex->ignore,
+                                  &found, &updated));
+    MYSQL_UPDATE_DONE(res, found, updated);
     /* mysql_update return 2 if we need to switch to multi-update */
     if (up_result != 2)
       break;
     /* Fall through */
+  }
   case SQLCOM_UPDATE_MULTI:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -2960,7 +2996,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     }  /* unlikely */
 #endif
-
+    MYSQL_MULTI_UPDATE_START(thd->query);
     res= mysql_multi_update(thd, all_tables,
                             &select_lex->item_list,
                             &lex->value_list,
@@ -3012,11 +3048,11 @@ end_with_restore_list:
       res= 1;
       break;
     }
-
+    MYSQL_INSERT_START(thd->query);
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
-
+    MYSQL_INSERT_DONE(res, (ulong) thd->row_count_func);
     /*
       If we have inserted into a VIEW, and the base table has
       AUTO_INCREMENT column, but this column is not accessible through
@@ -3052,9 +3088,9 @@ end_with_restore_list:
       res= 1;
       break;
     }
-
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
+      MYSQL_INSERT_SELECT_START(thd->query);
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= (uchar*) second_table;
@@ -3088,9 +3124,9 @@ end_with_restore_list:
         delete sel_result;
       }
       /* revert changes for SP */
+      MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->row_count_func);
       select_lex->table_list.first= (uchar*) first_table;
     }
-
     /*
       If we have inserted into a VIEW, and the base table has
       AUTO_INCREMENT column, but this column is not accessible through
@@ -3139,11 +3175,12 @@ end_with_restore_list:
       res= 1;
       break;
     }
-
+    MYSQL_DELETE_START(thd->query);
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options,
                        FALSE);
+    MYSQL_DELETE_DONE(res, (ulong) thd->row_count_func);
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -3173,8 +3210,12 @@ end_with_restore_list:
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
+    MYSQL_MULTI_DELETE_START(thd->query);
     if ((res= mysql_multi_delete_prepare(thd)))
+    {
+      MYSQL_MULTI_DELETE_DONE(1, 0);
       goto error;
+    }
 
     if (!thd->is_fatal_error &&
         (del_result= new multi_delete(aux_tables, lex->table_count)))
@@ -3191,12 +3232,16 @@ end_with_restore_list:
                         OPTION_SETUP_TABLES_DONE,
 			del_result, unit, select_lex);
       res|= thd->is_error();
+      MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
       if (res)
         del_result->abort();
       delete del_result;
     }
     else
+    {
       res= TRUE;                                // Error
+      MYSQL_MULTI_DELETE_DONE(1, 0);
+    }
     break;
   }
   case SQLCOM_DROP_TABLE:
@@ -5652,6 +5697,7 @@ void mysql_init_multi_delete(LEX *lex)
 void mysql_parse(THD *thd, const char *inBuf, uint length,
                  const char ** found_semicolon)
 {
+  int error;
   DBUG_ENTER("mysql_parse");
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
@@ -5720,7 +5766,15 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          mysql_execute_command(thd);
+          MYSQL_QUERY_EXEC_START(thd->query,
+                                 thd->thread_id,
+                                 (char *) (thd->db ? thd->db : ""),
+                                 thd->security_ctx->priv_user,
+                                 (char *) thd->security_ctx->host_or_ip,
+                                 0);
+
+          error= mysql_execute_command(thd);
+          MYSQL_QUERY_EXEC_DONE(error);
 	}
       }
     }
@@ -7523,8 +7577,10 @@ bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx)
 {
+  bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
 
+  MYSQL_QUERY_PARSE_START(thd->query);
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
@@ -7556,7 +7612,9 @@ bool parse_sql(THD *thd,
 
   /* That's it. */
 
-  return mysql_parse_status || thd->is_fatal_error;
+  ret_value= mysql_parse_status || thd->is_fatal_error;
+  MYSQL_QUERY_PARSE_DONE(ret_value);
+  return ret_value;
 }
 
 /**

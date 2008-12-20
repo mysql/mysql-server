@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "probes_mysql.h"
 
 /* Return 0 if row hasn't changed */
 
@@ -180,7 +181,8 @@ int mysql_update(THD *thd,
                  COND *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates, bool ignore)
+		 enum enum_duplicates handle_duplicates, bool ignore,
+                 ha_rows *found_return, ha_rows *updated_return)
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->options & OPTION_SAFE_UPDATES);
@@ -820,6 +822,8 @@ int mysql_update(THD *thd,
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
+  *found_return= found;
+  *updated_return= updated;
   DBUG_RETURN((error >= 0 || thd->is_error()) ? 1 : 0);
 
 err:
@@ -1164,7 +1168,10 @@ bool mysql_multi_update(THD *thd,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
 				 handle_duplicates, ignore)))
+  {
+    MYSQL_MULTI_UPDATE_DONE(1, 0, 0);
     DBUG_RETURN(TRUE);
+  }
 
   thd->abort_on_warning= test(thd->variables.sql_mode &
                               (MODE_STRICT_TRANS_TABLES |
@@ -1188,6 +1195,7 @@ bool mysql_multi_update(THD *thd,
     result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
   }
+  MYSQL_MULTI_UPDATE_DONE(res, result->found(), result->updated());
   delete result;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);

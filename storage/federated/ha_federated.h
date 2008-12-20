@@ -232,6 +232,7 @@ public:
   int rnd_init(bool scan);                                      //required
   int rnd_end();
   int rnd_next(uchar *buf);                                      //required
+  int rnd_next_int(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);                            //required
   void position(const uchar *record);                            //required
   int info(uint);                                              //required

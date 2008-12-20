@@ -385,6 +385,7 @@ static void set_tabname(const char *pathname, char *tabname);
 				  uint table_changes);
 
 private:
+  int loc_read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,

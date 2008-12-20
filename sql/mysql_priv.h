@@ -1218,7 +1218,8 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
 		 uint order_num, ORDER *order, ha_rows limit,
-		 enum enum_duplicates handle_duplicates, bool ignore);
+		 enum enum_duplicates handle_duplicates, bool ignore,
+                 ha_rows *found_return, ha_rows *updated_return);
 bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
                         List<Item> *fields, List<Item> *values,
                         COND *conds, ulonglong options,

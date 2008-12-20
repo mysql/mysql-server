@@ -41,6 +41,7 @@
 #include "ha_ndbcluster_tables.h"
 
 #include <mysql/plugin.h>
+#include "probes_mysql.h"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -126,6 +127,13 @@ static uint ndbcluster_alter_table_flags(uint flags)
   const NdbError& tmp= err;              \
   set_ndb_err(current_thd, tmp);         \
   DBUG_RETURN(ndb_to_mysql_error(&tmp)); \
+}
+
+#define ERR_RETURN_PREPARE(rc, err)                  \
+{                                        \
+  const NdbError& tmp= err;              \
+  set_ndb_err(current_thd, tmp);         \
+  rc= ndb_to_mysql_error(&tmp); \
 }
 
 #define ERR_BREAK(err, code)             \
@@ -3601,9 +3609,11 @@ int ha_ndbcluster::index_read(uchar *buf,
 {
   key_range start_key;
   bool descending= FALSE;
+  int rc;
   DBUG_ENTER("ha_ndbcluster::index_read");
   DBUG_PRINT("enter", ("active_index: %u, key_len: %u, find_flag: %d", 
                        active_index, key_len, find_flag));
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
 
   start_key.key= key;
   start_key.length= key_len;
@@ -3619,43 +3629,61 @@ int ha_ndbcluster::index_read(uchar *buf,
   default:
     break;
   }
-  DBUG_RETURN(read_range_first_to_buf(&start_key, 0, descending,
-                                      m_sorted, buf));
+  rc= read_range_first_to_buf(&start_key, 0, descending,
+                              m_sorted, buf);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 
 int ha_ndbcluster::index_next(uchar *buf)
 {
+  int rc;
   DBUG_ENTER("ha_ndbcluster::index_next");
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str); 
   ha_statistic_increment(&SSV::ha_read_next_count);
-  DBUG_RETURN(next_result(buf));
+  rc= next_result(buf);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 
 int ha_ndbcluster::index_prev(uchar *buf)
 {
+  int rc;
   DBUG_ENTER("ha_ndbcluster::index_prev");
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str); 
   ha_statistic_increment(&SSV::ha_read_prev_count);
-  DBUG_RETURN(next_result(buf));
+  rc= next_result(buf);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 
 int ha_ndbcluster::index_first(uchar *buf)
 {
+  int rc;
   DBUG_ENTER("ha_ndbcluster::index_first");
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str); 
   ha_statistic_increment(&SSV::ha_read_first_count);
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
-  DBUG_RETURN(ordered_index_scan(0, 0, TRUE, FALSE, buf, NULL));
+  rc= ordered_index_scan(0, 0, TRUE, FALSE, buf, NULL);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 
 int ha_ndbcluster::index_last(uchar *buf)
 {
+  int rc;
   DBUG_ENTER("ha_ndbcluster::index_last");
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&SSV::ha_read_last_count);
-  DBUG_RETURN(ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL));
+  rc= ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
@@ -3747,16 +3775,24 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
                                     const key_range *end_key,
                                     bool eq_r, bool sorted)
 {
+  int rc;
   uchar* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
-  DBUG_RETURN(read_range_first_to_buf(start_key, end_key, FALSE,
-                                      sorted, buf));
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  rc= read_range_first_to_buf(start_key, end_key, FALSE,
+                              sorted, buf);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 int ha_ndbcluster::read_range_next()
 {
+  int rc;
   DBUG_ENTER("ha_ndbcluster::read_range_next");
-  DBUG_RETURN(next_result(table->record[0]));
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  rc= next_result(table->record[0]);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 
@@ -3839,12 +3875,18 @@ int ha_ndbcluster::rnd_end()
 
 int ha_ndbcluster::rnd_next(uchar *buf)
 {
+  int rc;
   DBUG_ENTER("rnd_next");
+  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
+                       TRUE);
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (!m_active_cursor)
-    DBUG_RETURN(full_table_scan(buf));
-  DBUG_RETURN(next_result(buf));
+    rc= full_table_scan(buf);
+  else
+    rc= next_result(buf);
+  MYSQL_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 
@@ -3856,7 +3898,10 @@ int ha_ndbcluster::rnd_next(uchar *buf)
 
 int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
 {
+  int rc;
   DBUG_ENTER("rnd_pos");
+  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
+                       FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
@@ -3889,7 +3934,9 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
       DBUG_PRINT("info", ("partition id %u", part_spec.start_part));
     }
     DBUG_DUMP("key", pos, key_length);
-    DBUG_RETURN(pk_read(pos, key_length, buf, part_spec.start_part));
+    rc= pk_read(pos, key_length, buf, part_spec.start_part);
+    MYSQL_READ_ROW_DONE(rc);
+    DBUG_RETURN(rc);
   }
 }
 
@@ -8721,6 +8768,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                                 sorted, 
                                                 buffer));
   }
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
@@ -8802,7 +8850,13 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
            (op->setPartitionId(part_spec.start_part), TRUE)))
         curr += reclength;
       else
-        ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
+      {
+        ERR_RETURN_PREPARE(res,
+                           op ? op->getNdbError() :
+                           m_active_trans->getNdbError())
+        MYSQL_INDEX_READ_ROW_DONE(res);
+        DBUG_RETURN(res);
+      }
       break;
     }
     break;
@@ -8822,7 +8876,13 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !define_read_attrs(curr, op))
         curr += reclength;
       else
-        ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
+      {
+        ERR_RETURN_PREPARE(res,
+                           op ? op->getNdbError() :
+                           m_active_trans->getNdbError());
+        MYSQL_INDEX_READ_ROW_DONE(res);
+        DBUG_RETURN(res);
+      }
       break;
     }
     case ORDERED_INDEX: {
@@ -8837,7 +8897,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           DBUG_ASSERT(scanOp->getLockMode() == 
                       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
           if (scanOp->reset_bounds(m_force_send))
-            DBUG_RETURN(ndb_err(m_active_trans));
+          {
+            res= ndb_err(m_active_trans);
+            MYSQL_INDEX_READ_ROW_DONE(res);
+            DBUG_RETURN(res);
+          }
           
           end_of_buffer -= reclength;
         }
@@ -8852,8 +8916,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         }
         else
         {
-          ERR_RETURN(scanOp ? scanOp->getNdbError() : 
-                     m_active_trans->getNdbError());
+          ERR_RETURN_PREPARE(res,
+                             scanOp ? scanOp->getNdbError() : 
+                             m_active_trans->getNdbError());
+          MYSQL_INDEX_READ_ROW_DONE(res);
+          DBUG_RETURN(res);
         }
       }
 
@@ -8861,11 +8928,15 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                   &multi_range_curr->end_key };
       if ((res= set_bounds(scanOp, active_index, FALSE, keys,
                            multi_range_curr-ranges)))
+      {
+        MYSQL_INDEX_READ_ROW_DONE(res);
         DBUG_RETURN(res);
+      }
       break;
     }
     case UNDEFINED_INDEX:
       DBUG_ASSERT(FALSE);
+      MYSQL_INDEX_READ_ROW_DONE(1);
       DBUG_RETURN(1);
       break;
     }
@@ -8896,9 +8967,13 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     m_multi_range_defined= multi_range_curr;
     multi_range_curr= ranges;
     m_multi_range_result_ptr= (uchar*)buffer->buffer;
-    DBUG_RETURN(read_multi_range_next(found_range_p));
+    res= loc_read_multi_range_next(found_range_p);
+    MYSQL_INDEX_READ_ROW_DONE(res);
+    DBUG_RETURN(res);
   }
-  ERR_RETURN(m_active_trans->getNdbError());
+  ERR_RETURN_PREPARE(res, m_active_trans->getNdbError());
+  MYSQL_INDEX_READ_ROW_DONE(res);
+  DBUG_RETURN(res);
 }
 
 #if 0
@@ -8910,17 +8985,28 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 int
 ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 {
+  int rc;
   DBUG_ENTER("ha_ndbcluster::read_multi_range_next");
   if (m_disable_multi_read)
   {
     DBUG_MULTI_RANGE(11);
     DBUG_RETURN(handler::read_multi_range_next(multi_range_found_p));
   }
-  
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  rc= loc_read_multi_range_next(multi_range_found_p);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
+}
+ 
+int ha_ndbcluster::loc_read_multi_range_next(
+         KEY_MULTI_RANGE **multi_range_found_p)
+{
   int res;
   int range_no;
   ulong reclength= table_share->reclength;
   const NdbOperation* op= m_current_multi_operation;
+  DBUG_ENTER("ha_ndbcluster::loc_read_multi_range_next");
+
   for (;multi_range_curr < m_multi_range_defined; multi_range_curr++)
   {
     DBUG_MULTI_RANGE(12);
@@ -9027,6 +9113,7 @@ close_scan:
   /*
    * Read remaining ranges
    */
+  MYSQL_INDEX_READ_ROW_DONE(1);
   DBUG_RETURN(read_multi_range_first(multi_range_found_p, 
                                      multi_range_curr,
                                      multi_range_end - multi_range_curr, 
