@@ -256,6 +256,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
   int rc;
   DBUG_ENTER("ha_blackhole::index_read_last");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  THD *thd= ha_thd();
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
     rc= 0;
   else
