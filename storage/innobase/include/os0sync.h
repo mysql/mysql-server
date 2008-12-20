@@ -287,6 +287,21 @@ os_atomic_increment(
 	volatile lint*		ptr,		/* in: pointer to target */
 	lint			amount);	/* in: amount of increment */
 
+/**************************************************************
+Memory barrier operations for InnoDB.
+Currently requires GCC atomic builtins. */
+UNIV_INLINE
+void
+os_memory_barrier_load();
+
+UNIV_INLINE
+void
+os_memory_barrier_store();
+
+UNIV_INLINE
+void
+os_memory_barrier();
+
 #endif /* UNIV_SYNC_ATOMIC */
 
 #ifndef UNIV_NONINL

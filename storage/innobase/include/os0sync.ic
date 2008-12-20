@@ -70,6 +70,46 @@ os_compare_and_swap(
 }
 
 /**************************************************************
+Memory barrier for load */
+UNIV_INLINE
+void
+os_memory_barrier_load()
+{
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+  __sync_synchronize();
+#elif HAVE_SOLARIS_ATOMIC
+  membar_consumer();
+#endif
+}
+
+/**************************************************************
+Memory barrier for store */
+UNIV_INLINE
+void
+os_memory_barrier_store()
+{
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+  __sync_synchronize();
+#elif HAVE_SOLARIS_ATOMIC
+  membar_producer();
+#endif
+}
+
+/**************************************************************
+Memory barrier */
+UNIV_INLINE
+void
+os_memory_barrier()
+{
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+  __sync_synchronize();
+#elif HAVE_SOLARIS_ATOMIC
+  membar_enter();
+#endif
+}
+
+
+/**************************************************************
 Atomic increment for InnoDB. Currently requires GCC atomic builtins. */
 UNIV_INLINE
 lint

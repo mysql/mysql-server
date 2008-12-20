@@ -73,11 +73,10 @@ variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
 END$$
 SELECT variable_name, variable_value FROM thread_status;
 variable_name	variable_value
-SSL_ACCEPTS	0
-SSL_CALLBACK_CACHE_HITS	0
+SSL_ACCEPTS	#
+SSL_CALLBACK_CACHE_HITS	#
 DROP TABLE thread_status;
 SET GLOBAL event_scheduler=0;
-End of 5.1 tests
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	AES128-SHA
@@ -192,3 +191,15 @@ UNLOCK TABLES;
 SSL error: Unable to get private key from 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 mysqldump: Got error: 2026: SSL connection error when trying to connect
 DROP TABLE t1;
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+Variable_name	Value
+Ssl_cipher	EDH-RSA-DES-CBC3-SHA
+Variable_name	Value
+Ssl_cipher	EDH-RSA-DES-CBC-SHA
+Variable_name	Value
+Ssl_cipher	RC4-SHA
+select 'is still running; no cipher request crashed the server' as result from dual;
+result
+is still running; no cipher request crashed the server
+End of 5.1 tests

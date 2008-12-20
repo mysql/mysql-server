@@ -16,7 +16,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "os0sync.h"
 #include "sync0arr.h"
+#ifndef WIN32
 #include "my_atomic.h"
+#endif
 
 #ifndef UNIV_HOTBACKUP
 extern my_bool	timed_mutexes;
