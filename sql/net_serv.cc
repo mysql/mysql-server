@@ -483,7 +483,7 @@ net_write_command(NET *net,uchar command,
            (head_len && net_write_buff(net, header, head_len)) ||
            net_write_buff(net, packet, len) || net_flush(net));
   MYSQL_NET_WRITE_DONE(rc);
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 /**

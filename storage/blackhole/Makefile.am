@@ -50,7 +50,6 @@ libblackhole_a_SOURCES=	ha_blackhole.cc
 EXTRA_DIST =		CMakeLists.txt plug.in
 
 if HAVE_DTRACE_DASH_G
-abs_top_srcdir = @abs_top_srcdir@
 libblackhole_a_LIBADD = probes_mysql.o
 libblackhole_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
@@ -62,7 +61,7 @@ dtrace_files:
 dtrace_providers:
 	echo $(DTRACEPROVIDER) > $@
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
-        $(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
+	$(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
 endif
 
 # Don't update the files from bitkeeper

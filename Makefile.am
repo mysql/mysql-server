@@ -27,7 +27,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@sql_union_dirs@ unittest storage plugin \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
-			mysql-test support-files sql-bench @tools_dirs@ \
+			mysql-test support-files sql-bench \
 			win
 
 DIST_SUBDIRS =		. include Docs zlib \
@@ -36,7 +36,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			netware libmysqld \
-			mysql-test support-files sql-bench server-tools \
+			mysql-test support-files sql-bench \
 			win \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
