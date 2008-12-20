@@ -48,5 +48,22 @@ libexample_a_SOURCES=	ha_example.cc
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in
+
+if HAVE_DTRACE_DASH_G
+libexample_a_LIBADD = probes_mysql.o
+libexample_a_DEPENDENCIES = probes_mysql.o
+CLEANFILES =
+BUILT_SOURCES =
+DTRACEFILES = libexample_a-ha_example.o
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
+
+dtrace_files:
+	echo $(DTRACEFILES) > $@
+dtrace_providers:
+	echo $(DTRACEPROVIDER) > $@
+probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
+        $(DTRACE) $(DTRACEFLAGS) -G -s $< $(DTRACEFILES) -o $@
+endif
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

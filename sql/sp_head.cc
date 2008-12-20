@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
+#include "probes_mysql.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
@@ -2889,7 +2890,14 @@ sp_instr_stmt::print(String *str)
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
+  MYSQL_QUERY_EXEC_START(thd->query,
+                         thd->thread_id,
+                         (char *) (thd->db ? thd->db : ""),
+                         thd->security_ctx->priv_user,
+                         thd->security_ctx->host_or_ip,
+                         3);
   int res= mysql_execute_command(thd);
+  MYSQL_QUERY_EXEC_DONE(res);
   *nextp= m_ip+1;
   return res;
 }

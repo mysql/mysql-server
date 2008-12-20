@@ -37,7 +37,8 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqld_multi
 
 noinst_SCRIPTS =	make_binary_distribution \
-			make_sharedlib_distribution
+			make_sharedlib_distribution \
+			dheadgen.pl
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
@@ -59,7 +60,8 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqlhotcopy.sh \
 			mysqldumpslow.sh \
 			mysqld_multi.sh \
-			mysqld_safe.sh
+			mysqld_safe.sh \
+			dheadgen.pl
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
@@ -110,7 +112,7 @@ mysqlbug: ${top_builddir}/config.status mysqlbug.sh
 mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 				mysql_system_tables_fix.sql
 	@echo "Building $@";
-	@cat mysql_system_tables.sql mysql_system_tables_fix.sql > $@
+	@cat $(srcdir)/mysql_system_tables.sql $(srcdir)/mysql_system_tables_fix.sql > $@
 
 #
 # Build mysql_fix_privilege_tables_sql.c from
@@ -123,7 +125,7 @@ mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
 	sleep 2
 	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
 	  mysql_fix_privilege_tables \
-	    $(top_srcdir)/scripts/mysql_fix_privilege_tables.sql $@
+	    $(top_builddir)/scripts/mysql_fix_privilege_tables.sql $@
 
 
 SUFFIXES = .sh

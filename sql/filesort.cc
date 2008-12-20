@@ -27,6 +27,7 @@
 #endif
 #include <m_ctype.h>
 #include "sql_sort.h"
+#include "probes_mysql.h"
 
 #ifndef THREAD
 #define SKIP_DBUG_IN_FILESORT
@@ -120,6 +121,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   FILESORT_INFO table_sort;
   TABLE_LIST *tab= table->pos_in_table_list;
   Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
+
+  MYSQL_FILESORT_START(table->s->db.str, table->s->tablename.str);
 
   /*
    Release InnoDB's adaptive hash index latch (if holding) before
@@ -331,6 +334,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #endif
   memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
   DBUG_PRINT("exit",("records: %ld", (long) records));
+  MYSQL_FILESORT_DONE(error, records);
   DBUG_RETURN(error ? HA_POS_ERROR : records);
 } /* filesort */
 

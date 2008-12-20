@@ -48,6 +48,7 @@ TODO:
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 #include "ha_tina.h"
+#include "probes_mysql.h"
 
 
 /*
@@ -1095,9 +1096,14 @@ int ha_tina::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_tina::rnd_next");
+  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
+                       TRUE);
 
   if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  {
+    rc= HA_ERR_CRASHED_ON_USAGE;
+    goto end;
+  }
 
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
@@ -1105,13 +1111,19 @@ int ha_tina::rnd_next(uchar *buf)
 
   /* don't scan an empty file */
   if (!local_saved_data_file_length)
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  {
+    rc= HA_ERR_END_OF_FILE;
+    goto end;
+  }
 
   if ((rc= find_current_row(buf)))
-    DBUG_RETURN(rc);
+    goto end;
 
   stats.records++;
-  DBUG_RETURN(0);
+  rc= 0;
+end:
+  MYSQL_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 /*
@@ -1138,10 +1150,15 @@ void ha_tina::position(const uchar *record)
 
 int ha_tina::rnd_pos(uchar * buf, uchar *pos)
 {
+  int rc;
   DBUG_ENTER("ha_tina::rnd_pos");
+  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
+                       FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
   current_position= (off_t)my_get_ptr(pos,ref_length);
-  DBUG_RETURN(find_current_row(buf));
+  rc= find_current_row(buf);
+  MYSQL_READ_ROW_DONE(rc);
+  DBUG_RETURN(rc);
 }
 
 /*
