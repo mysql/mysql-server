@@ -1,3 +1,18 @@
+# -*- Mode: Makefile -*-
+# standard build: make
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
+.DEFAULT_GOAL= default
+TOKUROOT=../
+INCLUDEDIRS=-I.
+DEPEND_COMPILE += \
+	./*.h \
+#end
+
+HERE = cxx
+include $(TOKUROOT)include/Makefile.include
+#
+#
 # OPTFLAGS = -O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../include
@@ -28,7 +43,7 @@ test1: test1.o dbt.o db.o dbenv.o ../lib/libdb.a
 $(LIBNAME).a: $(OBJS)
 	$(AR) cr $@ $(OBJS)
 clean:
-	rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so *.gcno *.gcda *.gcov
-	cd tests; $(MAKE) clean
+	$(MAYBEATSIGN)rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so *.gcno *.gcda *.gcov
+	$(MAYBEATSIGN)cd tests && $(MAKE) clean
 
 

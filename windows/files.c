@@ -22,6 +22,10 @@ pread(int fildes, void *buf, size_t nbyte, int64_t offset) {
     if (!r) {
         r = GetLastError();
         if (r==ERROR_HANDLE_EOF) r = bytes_read;
+        else {
+            errno = r;
+            r = -1;
+        }
     }
     else    r = bytes_read;
 
@@ -45,7 +49,10 @@ pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset) {
 
     DWORD bytes_written;
     r = WriteFile(filehandle, buf, nbyte, &bytes_written, &win_offset);
-    if (!r) r = GetLastError();
+    if (!r) {
+        errno = GetLastError();
+        r = -1;
+    }
     else    r = bytes_written;
 
     // printf("%s: %d %p %u %I64d %I64d\n", __FUNCTION__, fildes, buf, nbyte, offset, r); fflush(stdout);
