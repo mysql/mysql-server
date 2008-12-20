@@ -286,6 +286,9 @@ cscope.out: cscope.files $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/
 .PHONY: clean clean-default
 clean: clean-default
 
+%.dir.clean:
+	$(MAYBEATSIGN)cd $* && $(MAKE) -k clean
+
 clean-default:
 	$(MAYBEATSIGN)rm -f $(BINS) *.$(AEXT) *.$(SOEXT) *.$(OEXT)
 	$(MAYBEATSIGN)rm -f *.bb *.bbg *.da *.gcov *.gcno *.gcda

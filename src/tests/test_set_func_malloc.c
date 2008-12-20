@@ -10,7 +10,9 @@
 #include <toku_portability.h>
 #include <memory.h>
 #include <db.h>
+#ifdef USE_TDB
 #include <dlmalloc.h>
+#endif
 #include "test.h"
 
 static int malloc_counter=0;
@@ -78,6 +80,7 @@ test1 (void)
 	toku_free(x);	                        assert(malloc_counter==1 && free_counter==1 && realloc_counter==1);
     }
 
+#ifdef USE_TDB
     r = db_env_set_func_malloc(dlmalloc);   assert(r==0);
     r = db_env_set_func_realloc(dlrealloc); assert(r==0);
     r = db_env_set_func_free(dlfree);       assert(r==0);
@@ -87,7 +90,7 @@ test1 (void)
 	x = toku_realloc(x, 6);        assert(x);
 	toku_free(x);
     }
-
+#endif
 }
 
 int

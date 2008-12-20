@@ -42,7 +42,7 @@ BDB_DONTRUN_TESTS = \
 	manyfiles \
 	test938c \
 	helgrind1 \
-	helgrind 2\
+	helgrind2 \
 #\ ends prev line
 
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
