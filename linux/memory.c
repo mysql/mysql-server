@@ -44,6 +44,12 @@ void *toku_xmalloc(size_t size) {
     return r;
 }
 
+void *toku_xrealloc(void *v, size_t size) {
+    void *r = toku_realloc(v, size);
+    if (r==0) abort();
+    return r;
+}
+
 void *toku_tagmalloc(size_t size, enum typ_tag typtag) {
     //printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
     void *r = toku_malloc(size);

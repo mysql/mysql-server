@@ -167,6 +167,8 @@ table_prelock(char txn, BOOL success) {
     int r;
 #if defined USE_TDB && USE_TDB
     r = db->pre_acquire_table_lock(db,  txns[(int)txn]);
+    if (success) CKERR(r);
+    else         CKERR2s(r, DB_LOCK_NOTGRANTED, DB_LOCK_DEADLOCK);
 #else
     DBT key;
     DBT data;
@@ -182,9 +184,9 @@ table_prelock(char txn, BOOL success) {
                                      dbt_init(&data, 0, 0),
                                      DB_NEXT | DB_RMW);
     }
-#endif
-    if (success) CKERR(r);
+    if (success) CKERR2(r, DB_NOTFOUND);
     else         CKERR2s(r, DB_LOCK_NOTGRANTED, DB_LOCK_DEADLOCK);
+#endif
 }
 
 static void

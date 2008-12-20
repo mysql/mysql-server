@@ -163,4 +163,3 @@ test_main(int argc, const char *argv[]) {
     lastmalloced = NULL;
     return 0;
 }
-
