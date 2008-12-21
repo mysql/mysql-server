@@ -106,8 +106,8 @@ WRONGAEXT=lib
 SOEXT=so
 WRONGSOEXT=dll
 AR=ar
-DBG_ARFLAGS=r
-OPT_ARFLAGS=r
+DBG_ARFLAGS=cr
+OPT_ARFLAGS=cr
 LINK=-l
 DEPEND_COMPILE += \
 	$(TOKUROOT)include/db.h \
@@ -279,48 +279,48 @@ endif
 tags: cscope.out TAGS
 
 TAGS: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	$(MAYBEATSIGN)etags $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	etags $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
 
 cscope.files: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	$(MAYBEATSIGN)(echo $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch] | tr " " "\n") > $@ # Very long command line quieted.
+	(echo $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch] | tr " " "\n") > $@ # Very long command line quieted.
 
 cscope.out: cscope.files $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	$(MAYBEATSIGN)$(CSCOPE) -qb
+	$(CSCOPE) -qb
 
 .PHONY: clean clean-default %.dir.clean
 clean: clean-default
 
 %.dir.clean:
-	$(MAYBEATSIGN)cd $* && $(MAKE) -k clean
+	cd $* && $(MAKE) clean
 
 clean-default:
-	$(MAYBEATSIGN)rm -f $(BINS) *.$(AEXT) *.$(SOEXT) *.$(OEXT)
-	$(MAYBEATSIGN)rm -f *.bb *.bbg *.da *.gcov *.gcno *.gcda
-	$(MAYBEATSIGN)rm -f *.exe *.obj *.pdb *.ilk
-	$(MAYBEATSIGN)rm -f *.exe.manifest *.dll.manifest
+	rm -f $(BINS) *.$(AEXT) *.$(SOEXT) *.$(OEXT)
+	rm -f *.bb *.bbg *.da *.gcov *.gcno *.gcda
+	rm -f *.exe *.obj *.pdb *.ilk
+	rm -f *.exe.manifest *.dll.manifest
 
 #Prevent using the wrong extensions/target types (Otherwise prereqs get confused).
 %$(WRONGBINSUF): %.c
-	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*$(BINSUF)" && false
+	echo "Wrong target type: $@ should be $*$(BINSUF)" && false
 %$(WRONGBINSUF): %.$(WRONGOEXT)
-	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*$(BINSUF)" && false
+	echo "Wrong target type: $@ should be $*$(BINSUF)" && false
 %.$(WRONGOEXT): %.c
-	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*.$(OEXT)" && false
+	echo "Wrong target type: $@ should be $*.$(OEXT)" && false
 %.$(WRONGAEXT):
-	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*.$(AEXT)" && false
+	echo "Wrong target type: $@ should be $*.$(AEXT)" && false
 %.$(WRONGSOEXT):
-	$(MAYBEATSIGN)echo "Wrong target type: $@ should be $*.$(SOEXT)" && false
+	echo "Wrong target type: $@ should be $*.$(SOEXT)" && false
 
 ifeq ($(SKIP_LIBPORTABILITYRULE),)
 ifeq ($(CYGWIN),)
 $(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
-	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) install
+	cd $(TOKUROOT)linux &&   $(MAKE) install
 else ifneq ($(CC),icc)
 $(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
-	$(MAYBEATSIGN)cd $(TOKUROOT)linux &&   $(MAKE) install
+	cd $(TOKUROOT)linux &&   $(MAKE) install
 else
 $(LIBPORTABILITY): $(TOKUROOT)windows/*.[ch]
-	$(MAYBEATSIGN)cd $(TOKUROOT)windows && $(MAKE) install
+	cd $(TOKUROOT)windows && $(MAKE) install
 endif
 endif
 
@@ -330,7 +330,7 @@ LOCKTREE_LINEAR  = $(TOKUROOT)src/lock_tree/locktree_linear.$(AEXT)
 LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
 $(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG): $(@D)*.[ch]
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
+	cd $(@D) && $(MAKE) $(@F)
 endif
 
 ifeq ($(SKIP_RANGETREERULE),)
@@ -339,42 +339,42 @@ RANGETREE_LINEAR = $(TOKUROOT)src/range_tree/rangetree_linear.$(AEXT)
 RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
 $(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG): $(@D)*.[ch]
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
+	cd $(@D) && $(MAKE) $(@F)
 endif
 
 ifeq ($(SKIP_NEWBRTRULE),)
 NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
 NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
 $(NEWBRT): $(@D)*.[ch]
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
+	cd $(@D) && $(MAKE) $(@F)
 endif
 
 BIN_FROM_C_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS)
 BIN_FROM_C_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS_NOLIB)
 %$(BINSUF):%.c       $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS)
 
 BIN_FROM_O_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS)
 BIN_FROM_O_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS_NOLIB)
 %$(BINSUF):%.$(OEXT) $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_O_FLAGS)
+	$(CC) $< $(BIN_FROM_O_FLAGS)
 
 O_FROM_C_FLAGS=  $(CFLAGS) $(CPPFLAGS) -c $(OOUTPUT)$@
 %.$(OEXT):%.c        $(DEPEND_COMPILE)
-	$(MAYBEATSIGN)$(CC) $< $(O_FROM_C_FLAGS) 
+	$(CC) $< $(O_FROM_C_FLAGS) 
 
 %.$(AEXT):
-	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
+	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 ifeq ($(AEXT),a)
 %.bundle: %.$(AEXT)
-	$(MAYBEATSIGN)mkdir -p $@ && cd $@ && $(AR) x ../$(<F)
-	$(MAYBEATSIGN)touch $@
+	mkdir -p $@ && cd $@ && $(AR) x ../$(<F)
+	touch $@
 else
 #Windows lib cannot extract everything.
 #Do a for loop and extract one at a time.
 %.bundle: %.$(AEXT)
-	$(MAYBEATSIGN)mkdir -p $@ && cd $@ && for ofile in `lib /list ../$(<F) |dos2unix |grep -F obj`; do lib /extract:$$ofile ../$(<F); done
-	$(MAYBEATSIGN)touch $@
+	mkdir -p $@ && cd $@ && for ofile in `lib /list ../$(<F) |dos2unix |grep -F obj`; do lib /extract:$$ofile ../$(<F); done
+	touch $@
 endif
 
 
@@ -395,7 +395,7 @@ endif
 
 SO_FLAGS=$(SHARED) $(BIN_FROM_O_FLAGS) $(EXPORTMAP)
 %.$(SOEXT): $(EXPORTMAPFILE)
-	$(MAYBEATSIGN)$(CC) $(SO_FLAGS)
+	$(CC) $(SO_FLAGS)
 
 #Testing tools
 ifeq ($(SUMMARIZE),1)
@@ -416,9 +416,9 @@ APPVERIFIER_TESTS_NONDEFAULT=heaps.backward:TRUE heaps.protect:TRUE
 ENABLE_APPVERIFIER_FOR=appverif -enable $(APPVERIFIER_TESTS) -with $(APPVERIFIER_TESTS_NONDEFAULT) -for
 DISABLE_APPVERIFIER_FOR=appverif -disable \* -for
 %.appverifyenable:
-	$(MAYBEATSIGN)$(ENABLE_APPVERIFIER_FOR) $*.exe
+	$(ENABLE_APPVERIFIER_FOR) $*.exe
 %.appverifydisable:
-	$(MAYBEATSIGN)$(DISABLE_APPVERIFIER_FOR) $*.exe
+	$(DISABLE_APPVERIFIER_FOR) $*.exe
 
 .PHONY:%.appverifyenable %.appverifydisable %.appverifymaybeenable %.appverifymaybedisable
 

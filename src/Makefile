@@ -50,7 +50,7 @@ build: local build_tests ;
 local: buildlocktrees libs install_libs ;
 
 build_tests: | local
-	$(MAYBEATSIGN)cd tests && $(MAKE) build
+	cd tests && $(MAKE) build
 
 
 TOBJS= tdbtrace.$(OEXT) $(patsubst ydb.$(OEXT),ydbtrace.$(OEXT),$(OBJS))
@@ -58,7 +58,7 @@ TOBJS= tdbtrace.$(OEXT) $(patsubst ydb.$(OEXT),ydbtrace.$(OEXT),$(OBJS))
 
 install_libs: $(INSTALL_LIBRARIES)
 %.install: %
-	$(MAYBEATSIGN)if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
+	if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
 
 .PHONY: install
 install: libs install_libs ;
@@ -104,24 +104,24 @@ ipo_libtokudb.lib: ipo_libtokudb.obj
 
 
 check_globals: $(LIBNAME).$(SOEXT)
-	$(MAYBEATSIGN)python tokuglobals.py $<
+	python tokuglobals.py $<
 
 .PHONY: check_tests
 check_tests: build_tests
-	$(MAYBEATSIGN)cd tests && $(MAKE) check
+	cd tests && $(MAKE) check
 
 .PHONY: check
 check: local check_globals check_tests
 
 .PHONY: strip
 strip: $(LIBRARY)
-	$(MAYBEATSIGN)strip $<
+	strip $<
 
 clean:
-	$(MAYBEATSIGN)cd tests && $(MAKE) clean
-	$(MAYBEATSIGN)cd lock_tree && $(MAKE) clean
-	$(MAYBEATSIGN)cd range_tree && $(MAKE) clean
+	cd tests && $(MAKE) clean
+	cd lock_tree && $(MAKE) clean
+	cd range_tree && $(MAKE) clean
 
 ydbtrace.$(OEXT): ydb.c $(DEPEND_COMPILE)
-	$(MAYBEATSIGN)$(CC) $< $(O_FROM_C_FLAGS) -DTOKUTRACE
+	$(CC) $< $(O_FROM_C_FLAGS) -DTOKUTRACE
 

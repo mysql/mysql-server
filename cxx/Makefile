@@ -43,7 +43,7 @@ test1: test1.o dbt.o db.o dbenv.o ../lib/libdb.a
 $(LIBNAME).a: $(OBJS)
 	$(AR) cr $@ $(OBJS)
 clean:
-	$(MAYBEATSIGN)rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so *.gcno *.gcda *.gcov
-	$(MAYBEATSIGN)cd tests && $(MAKE) clean
+	rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so *.gcno *.gcda *.gcov
+	cd tests && $(MAKE) clean
 
 

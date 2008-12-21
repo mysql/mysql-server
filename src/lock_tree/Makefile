@@ -29,14 +29,14 @@ $(LOCKTREE_TLOG):                   $(OBJS) locktree_nooverlap.$(OEXT)
 $(LOCKTREE_LOG) $(LOCKTREE_LINEAR): $(OBJS) locktree.$(OEXT)
 
 $(LOCKTREE): $(LOCKTREE_TLOG)
-	$(MAYBEATSIGN)cp $< $@
+	cp $< $@
 
 .PHONY: build check
 build: $(LIBRARIES)
 
 locktree_nooverlap.$(OEXT): locktree.c $(DEPEND_COMPILE)
-	$(MAYBEATSIGN)$(CC) $< -DTOKU_RT_NOOVERLAPS $(O_FROM_C_FLAGS)
+	$(CC) $< -DTOKU_RT_NOOVERLAPS $(O_FROM_C_FLAGS)
 
 build check clean:
-	$(MAYBEATSIGN)cd tests;$(MAKE) $@
+	cd tests;$(MAKE) $@
 

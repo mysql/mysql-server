@@ -47,20 +47,20 @@ build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 check: check-default check-xfast check-x
 
 check-default: $(TARGET_TDB)
-	$(MAYBEATSIGN)$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(MAYBEATSIGN)$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
 
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
-	$(MAYBEATSIGN)./$(TARGET_TDB) $(QUIET) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
+	./$(TARGET_TDB) $(QUIET) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
 
 
 clean:
-	$(MAYBEATSIGN)rm -f $(TARGETS)
-	$(MAYBEATSIGN)rm -rf $(BENCHDBS)
+	rm -f $(TARGETS)
+	rm -rf $(BENCHDBS)
 
 $(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS += -DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I../include
 
@@ -81,29 +81,29 @@ OFILES = \
 #end
 
 $(TARGET_TDB): db-benchmark-test.c
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
 $(SCANSCAN_TDB): scanscan.c
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
 else
 $(TARGET_TDB) $(SCANSCAN_TDB): DLINK_FILES=$(TDB_DLINK_FILES)
 ifeq ($(SOEXT),dll) #Windows does not support rpath.
 $(TOKUDB): $(TOKUROOT)lib/$(TOKUDB)
-	$(MAYBEATSIGN)cp $< $@
+	cp $< $@
 $(TOKUROOT)lib/$(TOKUDB):
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F).install
+	cd $(@D) && $(MAKE) $(@F).install
 $(TARGET_TDB) $(SCANSCAN_TDB): $(TOKUDB)
 endif
 $(TARGET_TDB) $(SCANSCAN_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
 $(TARGET_TDB): db-benchmark-test.c
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS)
 $(SCANSCAN_TDB): scanscan.c
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS)
 endif
 
 $(TARGET_BDB): db-benchmark-test.c
-	$(MAYBEATSIGN)$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
+	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
 $(SCANSCAN_BDB): scanscan.c
-	$(MAYBEATSIGN)$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
+	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
 
 PARGS =
 

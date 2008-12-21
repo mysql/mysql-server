@@ -57,7 +57,7 @@ check-x: $(TARGET_TDB)
 	$(VALGRIND) ./$(TARGET_TDB) -x  $(QUIET) $(SUMMARIZE_CMD)
 
 clean:
-	$(MAYBEATSIGN)rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
+	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
 
 db-benchmark-test-tokudb: ../lib/libtokudb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp

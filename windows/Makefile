@@ -15,10 +15,10 @@ TARGET = libtokuportability.$(AEXT)
 install: $(LIBPORTABILITY)
 
 $(LIBPORTABILITY): $(TARGET)
-	$(MAYBEATSIGN)cp $< $@
+	cp $< $@
 
 $(TARGET): $(OBJS)
 
 clean:
-	$(MAYBEATSIGN)rm -rf $(TARGET) $(LIBPORTABILITY)
+	rm -rf $(TARGET) $(LIBPORTABILITY)
 

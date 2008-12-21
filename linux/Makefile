@@ -14,12 +14,12 @@ TARGET = libtokuportability.$(AEXT)
 $(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED
 
 install: $(TARGET)
-	$(MAYBEATSIGN)cp $(TARGET) $(LIBPORTABILITY)
+	cp $(TARGET) $(LIBPORTABILITY)
 
 $(TARGET): $(OBJS)
 
 clean:
-	$(MAYBEATSIGN)rm -rf $(TARGET) $(LIBPORTABILITY)
+	rm -rf $(TARGET) $(LIBPORTABILITY)
 
 # For build, do nothing
 build:

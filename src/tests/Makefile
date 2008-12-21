@@ -21,13 +21,13 @@ endif
 BDBVGRIND=
 
 $(LIBTDB) $(TLIBTDB):
-	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
+	cd $(@D) && $(MAKE) $(@F)
 
 $(notdir $(LIBTDB)): $(LIBTDB)
-	$(MAYBEATSIGN)cp $< $@
+	cp $< $@
 
 $(notdir $(TLIBTDB)): $(TLIBTDB)
-	$(MAYBEATSIGN)cp $< $@
+	cp $< $@
 
 SRCS = $(sort $(wildcard *.c))
 
@@ -106,8 +106,8 @@ tests.tdb: $(TDB_TESTS) ;
 check.tdb: $(RUN_TDB_TESTS) ;
 
 foo:
-	$(MAYBEATSIGN)echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
-	$(MAYBEATSIGN)echo ALL_TESTS: $(ALL_TESTS)
+	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
+	echo ALL_TESTS: $(ALL_TESTS)
 
 #TODO: What is this for? TODO: Port this if necessary.
 #traces: test_env_open_flags.tdbt$(BINSUF)
@@ -126,12 +126,12 @@ $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
 # Use -s on the command line to make things quiet.
 # Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(BDBVGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
-	$(MAYBEATSIGN)$(VGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(VGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recover: %.tdb$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND) ./$< && \
+	$(VGRIND) ./$< && \
 	rm -rf dir.$*.c.tdb.recover && \
 	mkdir dir.$*.c.tdb.recover && \
 	(cd dir.$*.c.tdb.recover && $(VGRIND) ../../../newbrt/tdb-recover ../dir.$*.c.tdb ) && \
@@ -139,7 +139,7 @@ $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recoverwc: %.tdb$(BINSUF)
-	$(MAYBEATSIGN) (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
+	 (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) ;
@@ -157,7 +157,7 @@ endif
 %.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS)
 
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
@@ -166,11 +166,11 @@ endif
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(MAYBEATSIGN)$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS))
+	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS))
 
 clean:
-	$(MAYBEATSIGN)rm -f $(ALL_TESTS)
-	$(MAYBEATSIGN)rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
+	rm -f $(ALL_TESTS)
+	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
@@ -201,7 +201,7 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 # Use helgrind on the group commit count test
 # helgrind is too flakey, so I'm removing it from the tests. -Bradley
 #test_groupcommit_count_helgrind.tdbrun: test_groupcommit_count_helgrind.tdb
-#	$(MAYBEATSIGN)$(HGRIND) ./$< $(VERBVERBOSE)
+#	$(HGRIND) ./$< $(VERBVERBOSE)
 
 
 
@@ -218,37 +218,37 @@ test_db_assoc3.tdb$(BINSUF) test_db_assoc3.bdb$(BINSUF): test.h
 
 # This one failed in both BDB and TokuDB, in the same way.  It was a program error.  Now it works
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb$(BINSUF)
-	$(MAYBEATSIGN)./$< --seed=1 --count=200
-	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
-	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
-	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
-	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
-	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
-	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
+	./$< --seed=1 --count=200
+	./$< --seed=1 --count=200 --more
+	./$< --seed=1 --count=200 --more
+	./$< --seed=1 --count=200 --more
+	./$< --seed=1 --count=200 --more
+	./$< --seed=1 --count=200 --more
+	./$< --seed=1 --count=200 --more
 # serialize these two tests since they use the same directory
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdbrun
 
 
 .phony: build_primary_db build_name_db  build_expire_db
 test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF):
-	$(MAYBEATSIGN)mkdir $@
+	mkdir $@
 build_primary_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
-	$(MAYBEATSIGN)gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/primary.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/primary.db
+	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/primary.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/primary.db
 build_name_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
-	$(MAYBEATSIGN)gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/name.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/name.db
+	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/name.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/name.db
 build_expire_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
-	$(MAYBEATSIGN)gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/expire.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/expire.db
+	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/expire.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/expire.db
 
 test_v6v7_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF) build_primary_db  build_name_db build_expire_db
-	$(MAYBEATSIGN)(cd test_v6_assoc3.dir; LD_LIBRARY_PATH=../.. $(VGRIND) ../test_db_assoc3.tdb$(BINSUF) --seed=3 --count=1000 --more)  $(SUMMARIZE_CMD)
+	(cd test_v6_assoc3.dir; LD_LIBRARY_PATH=../.. $(VGRIND) ../test_db_assoc3.tdb$(BINSUF) --seed=3 --count=1000 --more)  $(SUMMARIZE_CMD)
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND) ./$< --seed=2 --count=100000 $(VERBVERBOSE) && \
+	$(VGRIND) ./$< --seed=2 --count=100000 $(VERBVERBOSE) && \
 	              $(VGRIND) ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # Give up on VGRIND for bdbrun
 test_db_assoc3.bdbrun: test_db_assoc3.bdb$(BINSUF)
-	$(MAYBEATSIGN)./$< --seed=2 --count=100000        $(VERBVERBOSE) && \
+	./$< --seed=2 --count=100000        $(VERBVERBOSE) && \
 	              ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # a bunch of little tests designed to run in parallel
@@ -263,14 +263,14 @@ test_get_both_range.tdbrun: \
  tgbr_2_a.tdbrun   tgbr_2_b.tdbrun   tgbr_2_c.tdbrun \
  tgbr_1_a.tdbrun   tgbr_1_b.tdbrun   tgbr_1_c.tdbrun \
  # intentionally blank line
-	$(MAYBEATSIGN)true $(SUMMARIZE_CMD) #State that this has passed.
+	true $(SUMMARIZE_CMD) #State that this has passed.
 
 tgbr_%_a.tdbrun: test_get_both_range.tdb$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -a $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -a $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: VGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
@@ -285,6 +285,6 @@ dumpit:
 
 # test on small stacks
 test_thread_stack.%run: test_thread_stack.%$(BINSUF)
-	$(MAYBEATSIGN)./$< -a -thread_stack 16384         && \
-	$(MAYBEATSIGN)./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
+	./$< -a -thread_stack 16384         && \
+	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
