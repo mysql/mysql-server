@@ -53,6 +53,7 @@ static void lookup (int i, int expect, int expectj) {
 static void
 test_abort_abort (void) {
     int i, r;
+    assert(N%2==0); // this test won't work if N is too small
     r=env->txn_begin(env, 0, &xchild, 0); CKERR(r);
     for (i=0; i<N/2; i++) {
 	insert(i*2,i*4+1);
