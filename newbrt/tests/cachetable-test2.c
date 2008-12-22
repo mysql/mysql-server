@@ -48,8 +48,10 @@ static void print_ints(void) {
 }
 
 static void item_becomes_present(CACHEFILE cf, CACHEKEY key) {
-    while (n_present >= N_PRESENT_LIMIT) toku_pthread_yield();
     test_mutex_lock();
+    while (n_present >= N_PRESENT_LIMIT) {
+        test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+    }
     assert(n_present<N_PRESENT_LIMIT);
     present_items[n_present].cf     = cf;
     present_items[n_present].key    = key;
@@ -163,7 +165,10 @@ static void test_chaining (void) {
 	//print_ints();
     }
     for (trial=0; trial<TRIALS; trial++) {
-	if (n_present>0) {
+        test_mutex_lock(); 
+        int my_n_present = n_present;
+        test_mutex_unlock();
+	if (my_n_present>0) {
 	    // First touch some random ones
             test_mutex_lock();
 	    int whichone = random()%n_present;
