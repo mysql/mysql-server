@@ -1634,13 +1634,15 @@ Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
 UNIV_INTERN
 void
-row_mysql_freeze_data_dictionary(
-/*=============================*/
-	trx_t*	trx)	/* in: transaction */
+row_mysql_freeze_data_dictionary_func(
+/*==================================*/
+	trx_t*		trx,	/* in/out: transaction */
+	const char*	file,	/* in: file name */
+	ulint		line)	/* in: line number */
 {
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	rw_lock_s_lock(&dict_operation_lock);
+	rw_lock_s_lock_func(&dict_operation_lock, 0, file, line);
 
 	trx->dict_operation_lock_mode = RW_S_LATCH;
 }
@@ -1651,7 +1653,7 @@ UNIV_INTERN
 void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/* in/out: transaction */
 {
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
@@ -1665,9 +1667,11 @@ Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
 UNIV_INTERN
 void
-row_mysql_lock_data_dictionary(
-/*===========================*/
-	trx_t*	trx)	/* in: transaction */
+row_mysql_lock_data_dictionary_func(
+/*================================*/
+	trx_t*		trx,	/* in/out: transaction */
+	const char*	file,	/* in: file name */
+	ulint		line)	/* in: line number */
 {
 	ut_a(trx->dict_operation_lock_mode == 0
 	     || trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -1675,7 +1679,7 @@ row_mysql_lock_data_dictionary(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock_func(&dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
 	mutex_enter(&(dict_sys->mutex));
@@ -1687,7 +1691,7 @@ UNIV_INTERN
 void
 row_mysql_unlock_data_dictionary(
 /*=============================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/* in/out: transaction */
 {
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
