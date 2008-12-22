@@ -302,31 +302,39 @@ Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
 UNIV_INTERN
 void
-row_mysql_lock_data_dictionary(
-/*===========================*/
-	trx_t*	trx);	/* in: transaction */
+row_mysql_lock_data_dictionary_func(
+/*================================*/
+	trx_t*		trx,	/* in/out: transaction */
+	const char*	file,	/* in: file name */
+	ulint		line);	/* in: line number */
+#define row_mysql_lock_data_dictionary(trx)				\
+	row_mysql_lock_data_dictionary_func(trx, __FILE__, __LINE__)
 /*************************************************************************
 Unlocks the data dictionary exclusive lock. */
 UNIV_INTERN
 void
 row_mysql_unlock_data_dictionary(
 /*=============================*/
-	trx_t*	trx);	/* in: transaction */
+	trx_t*	trx);	/* in/out: transaction */
 /*************************************************************************
 Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
 UNIV_INTERN
 void
-row_mysql_freeze_data_dictionary(
-/*=============================*/
-	trx_t*	trx);	/* in: transaction */
+row_mysql_freeze_data_dictionary_func(
+/*==================================*/
+	trx_t*		trx,	/* in/out: transaction */
+	const char*	file,	/* in: file name */
+	ulint		line);	/* in: line number */
+#define row_mysql_freeze_data_dictionary(trx)				\
+	row_mysql_freeze_data_dictionary_func(trx, __FILE__, __LINE__)
 /*************************************************************************
 Unlocks the data dictionary shared lock. */
 UNIV_INTERN
 void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
-	trx_t*	trx);	/* in: transaction */
+	trx_t*	trx);	/* in/out: transaction */
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Creates a table for MySQL. If the name of the table ends in
