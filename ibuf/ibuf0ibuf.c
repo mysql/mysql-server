@@ -2996,7 +2996,7 @@ ibuf_delete_rec(
 			/* The tablespace has been dropped.  It is possible
 			that another thread has deleted the insert buffer
 			entry.  Do not complain. */
-			goto func_exit;
+			goto commit_and_exit;
 		}
 
 		fprintf(stderr,
@@ -3041,6 +3041,7 @@ ibuf_delete_rec(
 
 	ut_ad(ibuf_validate_low());
 
+commit_and_exit:
 	btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
