@@ -60,7 +60,7 @@ DROP TABLE IF EXISTS test.t2;
  CREATE TABLESPACE ts
  ADD DATAFILE './table_space/datafile.dat'
  USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
+ INITIAL_SIZE 24M
  ENGINE NDB;
 
 #### Try to ALTER from InnoDB to Cluster Disk Data
