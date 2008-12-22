@@ -1,7 +1,7 @@
 #include "includes.h"
 
 // use gcc builtin fetch_and_add 0->no 1->yes
-#define DO_ATOMIC_FETCH_AND_ADD 0
+#define DO_ATOMIC_FETCH_AND_ADD 1
 
 struct threadpool {
     int max_threads;

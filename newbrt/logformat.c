@@ -41,7 +41,6 @@ int logformat_version_number = 0;
 
 const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"TXNID", "xid", 0},
-			{"FILENUM", "filenum", 0},
 			{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
     // cmdinsert is used to insert a key-value pair into a NODUP DB.  For rollback we don't need the data.
@@ -96,7 +95,6 @@ const struct logtype logtypes[] = {
 		       NULLFIELD}},
 #endif
     {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
-			{"FILENUM",    "filenum", 0},
 			{"BYTESTRING", "fname", 0},
 			{"u_int32_t",  "mode",  "0%o"},
 			NULLFIELD}},

@@ -83,13 +83,15 @@ create_dir_from_file (const char *fname) {
 }
 
 static void
-toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM UU(filenum), BYTESTRING fname,u_int32_t mode) {
+toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname,u_int32_t mode) {
     char *fixed_fname = fixup_fname(&fname);
     create_dir_from_file(fixed_fname);
     int fd = open(fixed_fname, O_CREAT+O_TRUNC+O_WRONLY+O_BINARY, mode);
     assert(fd>=0);
     toku_free(fixed_fname);
     toku_free_BYTESTRING(fname);
+    int r = close(fd);
+    assert(r==0);
 }
 
 static int
@@ -130,6 +132,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     struct brt_header *MALLOC(h);
     assert(h);
     h->dirty=0;
+    XMALLOC(h->flags_array);
     h->flags_array[0] = header.flags;
     h->nodesize = header.nodesize;
     h->free_blocks   = header.free_blocks;
@@ -203,7 +206,7 @@ toku_recover_newbrtnode (LSN lsn, FILENUM filenum, BLOCKNUM blocknum,u_int32_t h
     // Now put it in the cachetable
     u_int32_t fullhash = toku_cachetable_hash(pair->cf, blocknum);
     n->fullhash = fullhash;
-    toku_cachetable_put(pair->cf, blocknum, fullhash, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
+    toku_cachetable_put(pair->cf, blocknum, fullhash, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt->h);
 
     VERIFY_COUNTS(n);
 

@@ -43,6 +43,7 @@ BDB_DONTRUN_TESTS = \
 	test938c \
 	helgrind1 \
 	helgrind2 \
+	helgrind3 \
 #\ ends prev line
 
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
@@ -58,8 +59,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_truncate_subdb \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
-	helgrind2 \
-	helgrind3 \
 #\ ends prev line
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
@@ -123,12 +122,14 @@ SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TEST
 $(SHOULD_FAIL): MAYBEINVERTER=$(INVERTER)
 $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
 
+TDBVGRIND=$(VGRIND)
+
 # Use -s on the command line to make things quiet.
 # Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
-	$(VGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recover: %.tdb$(BINSUF)
 	$(VGRIND) ./$< && \
@@ -273,11 +274,11 @@ tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # helgrind1 is supposed to fail.
-helgrind1.tdbrun: VGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
+helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
 helgrind1.tdbrun: MAYBEINVERTER=$(INVERTER)
-helgrind2.tdbrun: VGRIND=$(HGRIND)
+helgrind2.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind2.bdbrun: BDBVGRIND=$(HGRIND)
-helgrind3.tdbrun: VGRIND=$(HGRIND)
+helgrind3.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
 
 dumpit:
