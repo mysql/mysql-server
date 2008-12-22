@@ -3910,9 +3910,9 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     copy(f_buffer + sz, ptr);
     f_trigBufferSize = sz + ptr.sz;
 
-
     handle.getSection(ptr, 1); // Before values
     copy(b_buffer, ptr);
+    b_trigBufferSize = ptr.sz;
     releaseSections(handle);
   }
 
