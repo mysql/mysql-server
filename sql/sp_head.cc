@@ -2901,7 +2901,7 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          thd->security_ctx->priv_user,
-                         thd->security_ctx->host_or_ip,
+                         (char *)thd->security_ctx->host_or_ip,
                          3);
   int res= mysql_execute_command(thd);
   MYSQL_QUERY_EXEC_DONE(res);

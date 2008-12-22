@@ -122,7 +122,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   TABLE_LIST *tab= table->pos_in_table_list;
   Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
 
-  MYSQL_FILESORT_START(table->s->db.str, table->s->tablename.str);
+  MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
 
   /*
    Release InnoDB's adaptive hash index latch (if holding) before

@@ -2334,7 +2334,7 @@ int ha_federated::index_read(uchar *buf, const uchar *key,
   rc= index_read_idx_with_result_set(buf, active_index, key,
                                      key_len, find_flag,
                                      &stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
+  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
