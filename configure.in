@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.74)
+AM_INIT_AUTOMAKE(mysql, 5.0.76)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=74
+NDB_VERSION_BUILD=76
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -2728,8 +2728,10 @@ then
   AC_SUBST(THREAD_LOBJECTS)
 fi
 
-if test "$with_server" != "no"
+if test "$with_server" = "no"
 then
+  AM_CONDITIONAL([BUILD_INNODB_TOOLS], [false])
+else
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 

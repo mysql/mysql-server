@@ -390,10 +390,20 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 {
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
+  /* 
+    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    additions coming from the WHERE
+  */
+  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
+
+  /* it's not wrong to have non-aggregated columns in a WHERE */
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    thd->lex->current_select->full_group_by_flag= saved_flag |
+      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
@@ -1589,8 +1599,11 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(*columns_list,
-                          Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+      if (result->send_fields(*columns_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       /*
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
@@ -9434,11 +9447,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
-      ((Item_sum*) item)->result_field=0;
-      for (i=0 ; i < ((Item_sum*) item)->arg_count ; i++)
+      Item_sum *sum_item= (Item_sum *) item;
+      sum_item->result_field=0;
+      for (i=0 ; i < sum_item->get_arg_count() ; i++)
       {
-	Item **argp= ((Item_sum*) item)->args + i;
-	Item *arg= *argp;
+	Item *arg= sum_item->get_arg(i);
 	if (!arg->const_item())
 	{
           uint field_index= (uint) (reg_field - table->field);
@@ -9468,7 +9481,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
             string_total_length+= new_field->pack_length();
           }
           thd->mem_root= mem_root_save;
-          thd->change_item_tree(argp, new Item_field(new_field));
+          arg= sum_item->set_arg(i, thd, new Item_field(new_field));
           thd->mem_root= &table->mem_root;
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
@@ -9477,7 +9490,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               new_field->maybe_null() is still false, it will be
               changed below. But we have to setup Item_field correctly
             */
-            (*argp)->maybe_null=1;
+            arg->maybe_null=1;
           }
           new_field->query_id= thd->query_id;
 	}
@@ -13223,6 +13236,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
   length=0;
   for (i=0 ; i < table_count ; i++)
   {
+    bool have_bit_fields= FALSE;
     uint null_fields=0,used_fields;
 
     Field **f_ptr,*field;
@@ -13237,13 +13251,16 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 	length+=field->fill_cache_field(copy);
 	if (copy->blob_field)
 	  (*blob_ptr++)=copy;
-	if (field->maybe_null())
+	if (field->real_maybe_null())
 	  null_fields++;
+        if (field->type() == MYSQL_TYPE_BIT &&
+            ((Field_bit*)field)->bit_len)
+          have_bit_fields= TRUE;    
 	copy++;
       }
     }
     /* Copy null bits from table */
-    if (null_fields && tables[i].table->s->null_fields)
+    if (null_fields || have_bit_fields)
     {						/* must copy null bits */
       copy->str=(char*) tables[i].table->null_flags;
       copy->length= tables[i].table->s->null_bytes;
@@ -13908,9 +13925,9 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
             param->quick_group=0;			// UDF SUM function
           param->sum_func_count++;
 
-          for (uint i=0 ; i < sum_item->arg_count ; i++)
+          for (uint i=0 ; i < sum_item->get_arg_count() ; i++)
           {
-            if (sum_item->args[0]->real_item()->type() == Item::FIELD_ITEM)
+            if (sum_item->get_arg(i)->real_item()->type() == Item::FIELD_ITEM)
               param->field_count++;
             else
               param->func_count++;

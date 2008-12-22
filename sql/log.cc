@@ -417,6 +417,7 @@ MYSQL_LOG::MYSQL_LOG()
   index_file_name[0] = 0;
   bzero((char*) &log_file,sizeof(log_file));
   bzero((char*) &index_file, sizeof(index_file));
+  bzero((char*) &purge_temp, sizeof(purge_temp));
 }
 
 /* this is called only once */
@@ -1059,10 +1060,10 @@ err:
 
   IMPLEMENTATION
     - Protects index file with LOCK_index
+    - Read the next file name from the index file and store in rli->linfo
     - Delete relevant relay log files
     - Copy all file names after these ones to the front of the index file
     - If the OS has truncate, truncate the file, else fill it with \n'
-    - Read the next file name from the index file and store in rli->linfo
 
   RETURN VALUES
     0			ok
@@ -1076,6 +1077,7 @@ err:
 int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included) 
 {
   int error;
+  char *to_purge_if_included= NULL;
   DBUG_ENTER("purge_first_log");
 
   DBUG_ASSERT(is_open());
@@ -1083,36 +1085,20 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included)
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->event_relay_log_name));
 
   pthread_mutex_lock(&LOCK_index);
-  pthread_mutex_lock(&rli->log_space_lock);
-  rli->relay_log.purge_logs(rli->group_relay_log_name, included,
-                            0, 0, &rli->log_space_total);
-  // Tell the I/O thread to take the relay_log_space_limit into account
-  rli->ignore_log_space_limit= 0;
-  pthread_mutex_unlock(&rli->log_space_lock);
+  to_purge_if_included= my_strdup(rli->group_relay_log_name, MYF(0));
 
   /*
-    Ok to broadcast after the critical region as there is no risk of
-    the mutex being destroyed by this thread later - this helps save
-    context switches
-  */
-  pthread_cond_broadcast(&rli->log_space_cond);
-  
-  /*
     Read the next log file name from the index file and pass it back to
-    the caller
-    If included is true, we want the first relay log;
-    otherwise we want the one after event_relay_log_name.
+    the caller.
   */
-  if ((included && (error=find_log_pos(&rli->linfo, NullS, 0))) ||
-      (!included &&
-       ((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)) ||
-        (error=find_next_log(&rli->linfo, 0)))))
+  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)) || 
+     (error=find_next_log(&rli->linfo, 0)))
   {
     char buff[22];
     sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
                     error,
                     llstr(rli->linfo.index_file_offset,buff),
-                    rli->group_relay_log_name,
+                    rli->event_relay_log_name,
                     included);
     goto err;
   }
@@ -1140,7 +1126,42 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included)
   /* Store where we are in the new file for the execution thread */
   flush_relay_log_info(rli);
 
+  DBUG_EXECUTE_IF("crash_before_purge_logs", abort(););
+
+  pthread_mutex_lock(&rli->log_space_lock);
+  rli->relay_log.purge_logs(to_purge_if_included, included,
+                            0, 0, &rli->log_space_total);
+  // Tell the I/O thread to take the relay_log_space_limit into account
+  rli->ignore_log_space_limit= 0;
+  pthread_mutex_unlock(&rli->log_space_lock);
+
+  /*
+    Ok to broadcast after the critical region as there is no risk of
+    the mutex being destroyed by this thread later - this helps save
+    context switches
+  */
+  pthread_cond_broadcast(&rli->log_space_cond);
+
+  /*
+   * Need to update the log pos because purge logs has been called 
+   * after fetching initially the log pos at the begining of the method.
+   */
+  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)))
+  {
+    char buff[22];
+    sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
+                    error,
+                    llstr(rli->linfo.index_file_offset,buff),
+                    rli->group_relay_log_name,
+                    included);
+    goto err;
+  }
+
+  /* If included was passed, rli->linfo should be the first entry. */
+  DBUG_ASSERT(!included || rli->linfo.index_file_start_offset == 0);
+
 err:
+  my_free(to_purge_if_included, MYF(0));
   pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
@@ -1199,8 +1220,36 @@ int MYSQL_LOG::purge_logs(const char *to_log,
 
   if (need_mutex)
     pthread_mutex_lock(&LOCK_index);
-  if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/)))
+  if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/))) 
+  {
+    sql_print_error("MYSQL_LOG::purge_logs was called with file %s not "
+                    "listed in the index.", to_log);
     goto err;
+  }
+
+  /*
+    For crash recovery reasons the index needs to be updated before
+    any files are deleted. Move files to be deleted into a temp file
+    to be processed after the index is updated.
+  */
+  if (!my_b_inited(&purge_temp))
+  {
+    if ((error=open_cached_file(&purge_temp, mysql_tmpdir, TEMP_PREFIX,
+                                DISK_BUFFER_SIZE, MYF(MY_WME))))
+    {
+      sql_print_error("MYSQL_LOG::purge_logs failed to open purge_temp");
+      goto err;
+    }
+  }
+  else
+  {
+    if ((error=reinit_io_cache(&purge_temp, WRITE_CACHE, 0, 0, 1)))
+    {
+      sql_print_error("MYSQL_LOG::purge_logs failed to reinit purge_temp "
+                      "for write");
+      goto err;
+    }
+  }
 
   /*
     File name exists in index file; delete until we find this file
@@ -1211,6 +1260,59 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
          !log_in_use(log_info.log_file_name))
   {
+    if ((error=my_b_write(&purge_temp, (byte*)log_info.log_file_name,
+                          strlen(log_info.log_file_name))) ||
+        (error=my_b_write(&purge_temp, (byte*)"\n", 1)))
+    {
+      sql_print_error("MYSQL_LOG::purge_logs failed to copy %s to purge_temp",
+                      log_info.log_file_name);
+      goto err;
+    }
+
+    if (find_next_log(&log_info, 0) || exit_loop)
+      break;
+ }
+
+  /* We know how many files to delete. Update index file. */
+  if ((error=update_log_index(&log_info, need_update_threads)))
+  {
+    sql_print_error("MSYQL_LOG::purge_logs failed to update the index file");
+    goto err;
+  }
+
+  DBUG_EXECUTE_IF("crash_after_update_index", abort(););
+
+  /* Switch purge_temp for read. */
+  if ((error=reinit_io_cache(&purge_temp, READ_CACHE, 0, 0, 0)))
+  {
+    sql_print_error("MSYQL_LOG::purge_logs failed to reinit purge_temp "
+                    "for read");
+    goto err;
+  }
+
+  /* Read each entry from purge_temp and delete the file. */
+  for (;;)
+  {
+    uint length;
+
+    if ((length=my_b_gets(&purge_temp, log_info.log_file_name,
+                          FN_REFLEN)) <= 1)
+    {
+      if (purge_temp.error)
+      {
+        error= purge_temp.error;
+        sql_print_error("MSYQL_LOG::purge_logs error %d reading from "
+                        "purge_temp", error);
+        goto err;
+      }
+
+      /* Reached EOF */
+      break;
+    }
+
+    /* Get rid of the trailing '\n' */
+    log_info.log_file_name[length-1]= 0;
+
     MY_STAT s;
     if (!my_stat(log_info.log_file_name, &s, MYF(0)))
     {
@@ -1304,17 +1406,10 @@ int MYSQL_LOG::purge_logs(const char *to_log,
         }
       }
     }
-    if (find_next_log(&log_info, 0) || exit_loop)
-      break;
   }
-  
-  /*
-    If we get killed -9 here, the sysadmin would have to edit
-    the log index file after restart - otherwise, this should be safe
-  */
-  error= update_log_index(&log_info, need_update_threads);
 
 err:
+  close_cached_file(&purge_temp);
   if (need_mutex)
     pthread_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
@@ -1326,7 +1421,6 @@ err:
 
   SYNOPSIS
     purge_logs_before_date()
-    thd		Thread pointer
     before_date	Delete all log files before given date.
 
   NOTES
@@ -1343,6 +1437,7 @@ err:
 int MYSQL_LOG::purge_logs_before_date(time_t purge_time)
 {
   int error;
+  char to_log[FN_REFLEN];
   LOG_INFO log_info;
   MY_STAT stat_area;
   THD *thd= current_thd;
@@ -1350,12 +1445,8 @@ int MYSQL_LOG::purge_logs_before_date(time_t purge_time)
   DBUG_ENTER("purge_logs_before_date");
 
   pthread_mutex_lock(&LOCK_index);
+  to_log[0]= 0;
 
-  /*
-    Delete until we find curren file
-    or a file that is used or a file
-    that is older than purge_time.
-  */
   if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
     goto err;
 
@@ -1405,54 +1496,18 @@ int MYSQL_LOG::purge_logs_before_date(time_t purge_time)
     }
     else
     {
-      if (stat_area.st_mtime >= purge_time)
+      if (stat_area.st_mtime < purge_time) 
+        strmake(to_log, 
+                log_info.log_file_name, 
+                sizeof(log_info.log_file_name));
+      else
         break;
-      if (my_delete(log_info.log_file_name, MYF(0)))
-      {
-        if (my_errno == ENOENT) 
-        {
-          /* It's not fatal even if we can't delete a log file */
-          if (thd)
-          {
-              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
-                                  log_info.log_file_name);
-          }
-          sql_print_information("Failed to delete file '%s'",
-                                log_info.log_file_name);
-          my_errno= 0;
-        }
-        else
-        {
-          if (thd)
-          {
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                ER_BINLOG_PURGE_FATAL_ERR,
-                                "a problem with deleting %s; "
-                                "consider examining correspondence "
-                                "of your binlog index file "
-                                "to the actual binlog files",
-                                log_info.log_file_name);
-          }
-          else
-          {
-            sql_print_information("Failed to delete log file '%s'",
-                                  log_info.log_file_name); 
-          }
-          error= LOG_INFO_FATAL;
-          goto err;
-        }
-      }
     }
     if (find_next_log(&log_info, 0))
       break;
   }
 
-  /*
-    If we get killed -9 here, the sysadmin would have to edit
-    the log index file after restart - otherwise, this should be safe
-  */
-  error= update_log_index(&log_info, 1);
+  error= (to_log[0] ? purge_logs(to_log, 1, 0, 1, (ulonglong *) 0) : 0);
 
 err:
   pthread_mutex_unlock(&LOCK_index);
