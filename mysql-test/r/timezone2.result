@@ -110,7 +110,7 @@ i	ts
 362793610	1981-07-01 04:00:00
 select from_unixtime(362793609);
 from_unixtime(362793609)
-1981-07-01 03:59:60
+1981-07-01 03:59:59
 drop table t1;
 create table t1 (ts timestamp);
 set time_zone='UTC';
