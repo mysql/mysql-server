@@ -6,11 +6,6 @@
 
 int toku_memory_check=0;
 
-int toku_calloc_counter = 0;
-int toku_malloc_counter = 0;
-int toku_realloc_counter = 0;
-int toku_free_counter = 0;
-
 typedef void *(*malloc_fun_t)(size_t);
 typedef void  (*free_fun_t)(void*);
 typedef void *(*realloc_fun_t)(void*,size_t);
@@ -20,7 +15,6 @@ static free_fun_t    t_free    = 0;
 static realloc_fun_t t_realloc = 0;
 
 void *toku_malloc(size_t size) {
-    toku_malloc_counter++;
     if (t_malloc)
 	return t_malloc(size);
     else
@@ -31,7 +25,6 @@ void *
 toku_calloc(size_t nmemb, size_t size)
 {
     size_t newsize = nmemb * size;
-    toku_calloc_counter++;
     void *vp = toku_malloc(newsize);
     if (vp) memset(vp, 0, newsize);
     return vp;
@@ -66,7 +59,6 @@ toku_tagmalloc(size_t size, enum typ_tag typtag)
 void *
 toku_realloc(void *p, size_t size)
 {
-    toku_realloc_counter++;
     if (t_realloc)
 	return t_realloc(p, size);
     else
@@ -76,7 +68,6 @@ toku_realloc(void *p, size_t size)
 void
 toku_free(void* p)
 {
-    (void)__sync_fetch_and_add(&toku_free_counter, 1);
     if (t_free)
 	t_free(p);
     else
