@@ -29,7 +29,7 @@ libexec_PROGRAMS =	mysqld
 EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 DTRACEFILES =           filesort.o \
-			ha_ndbcluster.o \
+			libndb_la-ha_ndbcluster.o \
                         handler.o \
                         mysqld.o \
                         net_serv.o \
@@ -207,6 +207,8 @@ install-exec-hook:
 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
 
 if HAVE_DTRACE_DASH_G
+libndb_la_LIBADD = probes_all.o
+libndb_la_DEPENDENCIES = probes_all.o dtrace_files dtrace_providers
 mysqld_LDADD += probes_all.o
 mysqld_DEPENDENCIES += probes_all.o dtrace_files dtrace_providers
 CLEANFILES += dtrace_files dtrace_providers probes_all.o
