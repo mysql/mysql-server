@@ -205,6 +205,13 @@ class MYSQL_LOG: public TC_LOG
   time_t last_time,query_start;
   IO_CACHE log_file;
   IO_CACHE index_file;
+  /*
+    purge_temp is a temp file used in purge_logs so that the index file
+    can be updated before deleting files from disk, yielding better crash
+    recovery. It is created on demand the first time purge_logs is called
+    and then reused for subsequent calls. It is cleaned up in cleanup().
+  */
+  IO_CACHE purge_temp;
   char *name;
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];

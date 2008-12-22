@@ -2158,6 +2158,14 @@ ha_innobase::open(
 	UT_NOT_USED(test_if_locked);
 
 	thd = current_thd;
+
+	/* Under some cases MySQL seems to call this function while
+	holding btr_search_latch. This breaks the latching order as
+	we acquire dict_sys->mutex below and leads to a deadlock. */
+	if (thd != NULL) {
+		innobase_release_temporary_latches(thd);
+	}
+
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
