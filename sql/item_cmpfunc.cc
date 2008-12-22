@@ -5234,6 +5234,7 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
+  const_item_cache= 1;
   while ((item=li++))
   {
     item->update_used_tables();

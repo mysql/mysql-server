@@ -3489,23 +3489,26 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   for (block= blocks->block + 1, end= block + blocks->count - 1; block < end;
        block++)
   {
-    if (block->used & BLOCKUSED_TAIL)
+    if (block->used & BLOCKUSED_USED)
     {
-      /*
-        block->page_count is set to the tail directory entry number in
-        write_block_record()
-      */
-      if (delete_head_or_tail(info, block->page, block->page_count & ~TAIL_BIT,
-                              0, 0))
-        res= 1;
-    }
-    else if (block->used & BLOCKUSED_USED)
-    {
-      if (free_full_page_range(info, block->page, block->page_count))
-        res= 1;
+      if (block->used & BLOCKUSED_TAIL)
+      {
+        /*
+          block->page_count is set to the tail directory entry number in
+          write_block_record()
+        */
+        if (delete_head_or_tail(info, block->page,
+                                block->page_count & ~TAIL_BIT,
+                                0, 0))
+          res= 1;
+      }
+      else
+      {
+        if (free_full_page_range(info, block->page, block->page_count))
+          res= 1;
+      }
     }
   }
-
   if (share->now_transactional)
   {
     if (_ma_write_clr(info, info->cur_row.orig_undo_lsn,

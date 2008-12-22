@@ -2319,13 +2319,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         trnman_new_statement(trn);
       }
 
-      /* If handler uses versioning */
-      if (file->s->lock_key_trees)
-      {
-        if (_ma_setup_live_state(file))
-          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-      }
-      else
+      if (!file->s->lock_key_trees)             // If we don't use versioning
       {
         /*
           We come here in the following cases:

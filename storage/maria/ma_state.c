@@ -91,18 +91,26 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
     It's enough to compare trids here (instead of calling
     tranman_can_read_from) as history->trid is a commit_trid
   */
-  while (trn->trid < history->trid && history->trid != ~(TrID)0)
+  while (trn->trid <= history->trid)
     history= history->next;
   pthread_mutex_unlock(&share->intern_lock);
   /* The current item can't be deleted as it's the first one visible for us */
   tables->state_start=  tables->state_current= history->state;
-  tables->state_current.changed= 0;
+  tables->state_current.changed= tables->state_current.no_transid= 0;
 
   DBUG_PRINT("info", ("records: %ld", (ulong) tables->state_start.records));
 
 end:
   info->state_start= &tables->state_start;
   info->state= &tables->state_current;
+
+  /*
+    Mark in transaction state if we are not using transid (versioning)
+    on rows. If not, then we will in _ma_trnman_end_trans_hook()
+    ensure that the state is visible for all at end of transaction
+  */
+  tables->state_current.no_transid|= !(info->row_flag & ROW_FLAG_TRANSID);
+
   DBUG_RETURN(0);
 }
 
@@ -406,51 +414,70 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
       MARIA_STATE_HISTORY *history;
 
       pthread_mutex_lock(&share->intern_lock);
-      if (active_transactions && share->now_transactional &&
-          trnman_exists_active_transactions(share->state_history->trid,
-                                            trn->commit_trid, 1))
+
+      /* We only have to update history state if something changed */
+      if (tables->state_current.changed)
       {
-        /*
-          There exist transactions that are still using the current
-          share->state_history.  Create a new history item for this
-          commit and add it first in the state_history list. This
-          ensures that all history items are stored in the list in
-          decresing trid order.
-        */
-        if (!(history= my_malloc(sizeof(*history), MYF(MY_WME))))
+        if (tables->state_current.no_transid)
         {
-          /* purecov: begin inspected */
-          error= 1;
-          pthread_mutex_unlock(&share->intern_lock);
-          my_free(tables, MYF(0));
-          continue;
-          /* purecov: end */
+          /*
+            The change was done without using transid on rows (like in
+            bulk insert). In this case this thread is the only one
+            that is using the table and all rows will be visble
+            for all transactions.
+          */
+          _ma_reset_history(share);
         }
-        history->state= share->state_history->state;
-        history->next= share->state_history;
-        share->state_history= history;
-      }
-      else
-      {
-        /* Previous history can't be seen by anyone, reuse old memory */
-        history= share->state_history;
-        DBUG_PRINT("info", ("removing history->trid: %lu  new: %lu",
-                            (ulong) history->trid, (ulong) trn->commit_trid));
-      }
+        else
+        {
+          if (active_transactions && share->now_transactional &&
+              trnman_exists_active_transactions(share->state_history->trid,
+                                                trn->commit_trid, 1))
+          {
+            /*
+              There exist transactions that are still using the current
+              share->state_history.  Create a new history item for this
+              commit and add it first in the state_history list. This
+              ensures that all history items are stored in the list in
+              decresing trid order.
+            */
+            if (!(history= my_malloc(sizeof(*history), MYF(MY_WME))))
+            {
+              /* purecov: begin inspected */
+              error= 1;
+              pthread_mutex_unlock(&share->intern_lock);
+              my_free(tables, MYF(0));
+              continue;
+              /* purecov: end */
+            }
+            history->state= share->state_history->state;
+            history->next= share->state_history;
+            share->state_history= history;
+          }
+          else
+          {
+            /* Previous history can't be seen by anyone, reuse old memory */
+            history= share->state_history;
+            DBUG_PRINT("info", ("removing history->trid: %lu  new: %lu",
+                                (ulong) history->trid,
+                                (ulong) trn->commit_trid));
+          }
 
-      history->state.records+= (tables->state_current.records -
-                                tables->state_start.records);
-      history->state.checksum+= (tables->state_current.checksum -
-                                 tables->state_start.checksum);
-      history->trid= trn->commit_trid;
+          history->state.records+= (tables->state_current.records -
+                                    tables->state_start.records);
+          history->state.checksum+= (tables->state_current.checksum -
+                                     tables->state_start.checksum);
+          history->trid= trn->commit_trid;
 
-      if (history->next)
-      {
-        /* Remove not visible states */
-        share->state_history= _ma_remove_not_visible_states(history, 0, 1);
+          if (history->next)
+          {
+            /* Remove not visible states */
+            share->state_history= _ma_remove_not_visible_states(history, 0, 1);
+          }
+          DBUG_PRINT("info", ("share: 0x%lx  in_trans: %d",
+                              (ulong) share, share->in_trans));
+        }
       }
-      DBUG_PRINT("info", ("share: 0x%lx  in_trans: %d",
-                          (ulong) share, share->in_trans));
       share->in_trans--;
       pthread_mutex_unlock(&share->intern_lock);
     }
@@ -511,7 +538,6 @@ void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
 
 
 
-
 /****************************************************************************
   The following functions are called by thr_lock() in threaded applications
   for transactional tables.
@@ -536,8 +562,23 @@ void _ma_block_get_status(void* param, my_bool concurrent_insert)
   info->row_flag= info->s->base.default_row_flag;
   if (concurrent_insert)
   {
+    DBUG_ASSERT(info->lock.type == TL_WRITE_CONCURRENT_INSERT);
     info->row_flag|= ROW_FLAG_TRANSID;
     info->row_base_length+= TRANSID_SIZE;
+  }
+  else
+  {
+    DBUG_ASSERT(info->lock.type != TL_WRITE_CONCURRENT_INSERT);
+  }
+
+  if (info->s->lock_key_trees)
+  {
+    /*
+      Assume for now that this doesn't fail (It can only fail in
+      out of memory conditions)
+      TODO: Fix this by having one extra state pre-allocated
+    */
+    (void) _ma_setup_live_state(info);
   }
   DBUG_VOID_RETURN;
 }
@@ -574,7 +615,12 @@ void maria_versioning(MARIA_HA *info, my_bool versioning)
 {
   /* For now, this is a hack */
   if (info->s->have_versioning)
+  {
+    /* Assume is a non threaded application (for now) */
+    info->s->lock_key_trees= 0;
+    info->lock.type= versioning ? TL_WRITE_CONCURRENT_INSERT : TL_WRITE;
     _ma_block_get_status((void*) info, versioning);
+  }
 }
 
 
@@ -609,6 +655,7 @@ void _ma_copy_nontrans_state_information(MARIA_HA *info)
 void _ma_reset_history(MARIA_SHARE *share)
 {
   MARIA_STATE_HISTORY *history, *next;
+  DBUG_ENTER("_ma_reset_history");
 
   share->state_history->trid= 0;          /* Visibly by all */
   share->state_history->state= share->state.state;
@@ -620,6 +667,7 @@ void _ma_reset_history(MARIA_SHARE *share)
     next= history->next;
     my_free(history, MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 

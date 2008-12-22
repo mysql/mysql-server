@@ -2517,11 +2517,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     s->needed_reg.init();
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
-    error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-    if(error)
+    if ((error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK)))
     {
-        table->file->print_error(error, MYF(0));
-        DBUG_RETURN(1);
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(1);
     }
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
@@ -11609,6 +11608,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
+    /*
+      The optimizer trust the engine that when stats.records is 0, there
+      was no found rows
+    */
+    DBUG_ASSERT(table->file->stats.records > 0 || error);
   }
   else
   {
@@ -11638,6 +11642,17 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   if (*tab->on_expr_ref && !table->null_row)
   {
+#if !defined(DBUG_OFF) && defined(NOT_USING_ITEM_EQUAL)
+    /*
+      This test could be very usefull to find bugs in the optimizer
+      where we would call this function with an expression that can't be
+      evaluated yet. We can't have this enabled by default as long as
+      have items like Item_equal, that doesn't report they are const but
+      they can still be called even if they contain not const items.
+    */
+    (*tab->on_expr_ref)->update_used_tables();
+    DBUG_ASSERT((*tab->on_expr_ref)->const_item());
+#endif
     if ((table->null_row= test((*tab->on_expr_ref)->val_int() == 0)))
       mark_as_null_row(table);  
   }

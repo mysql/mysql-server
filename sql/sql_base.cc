@@ -2979,6 +2979,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
+#if !defined(DBUG_OFF) && !defined(HAVE_purify)
+  /*
+    Fill record with random values to find bugs where we access fields
+    without first reading them.
+  */
+  bfill(table->record[0], table->reclength, 254);
+#endif
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }

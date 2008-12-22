@@ -885,11 +885,22 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
     /*
-      We use >= for min_id as min_id is a commit_trid and trn->trid
-      is transaction id.  In the case they are the same, then the
-      trn started after the min_id was committed.
+      We use <= for max_id as max_id is a commit_trid and trn->trid
+      is transaction id.  When calculating commit_trid we use the
+      current value of global_trid_generator.  global_trid_generator is
+      incremented for each new transaction.
+
+      For example, assuming we have
+      min_id = 5
+      max_id = 10
+
+      A trid of value 5 can't see the history event between 5 & 10
+      at it vas started before min_id 5 was committed.
+      A trid of value 10 can't see the next history event (max_id = 10)
+      as it started before this was committed. In this case it must use
+      the this event.
     */
-    if (trn->trid >= min_id && trn->trid < max_id)
+    if (trn->trid > min_id && trn->trid <= max_id)
     {
       ret= 1;
       break;

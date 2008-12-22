@@ -1846,6 +1846,17 @@ flush tables with read lock;
 unlock tables;
 drop table t1, t2;
 
+#
+# Bug #40311
+# Crash when aborting inserting of row with 2 blobs where first is short
+#
+
+create table t1(a int primary key, b blob, c blob) engine=maria;
+insert into t1 values(1,repeat('a',100), repeat('b',657860));
+--error ER_DUP_ENTRY
+insert into t1 values(1,repeat('a',100), repeat('b',657860));
+drop table t1;
+
 # Set defaults back
 --disable_result_log
 --disable_query_log

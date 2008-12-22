@@ -230,9 +230,11 @@ int maria_write(MARIA_HA *info, uchar *record)
             /* running. now we wait */
             WT_RESOURCE_ID rc;
             int res;
+            const char *old_proc_info; 
 
             rc.type= &ma_rc_dup_unique;
-            rc.value= (intptr)blocker; /* TODO savepoint id when we'll have them */
+            /* TODO savepoint id when we'll have them */
+            rc.value= (intptr)blocker;
             res= wt_thd_will_wait_for(info->trn->wt, blocker->wt, & rc);
             if (res != WT_OK)
             {
@@ -240,14 +242,12 @@ int maria_write(MARIA_HA *info, uchar *record)
               my_errno= HA_ERR_LOCK_DEADLOCK;
               goto err;
             }
-            {
-              const char *old_proc_info= proc_info_hook(0,
-                    "waiting for a resource", __func__, __FILE__, __LINE__);
+            old_proc_info= proc_info_hook(0,
+                                          "waiting for a resource",
+                                          __func__, __FILE__, __LINE__);
+            res= wt_thd_cond_timedwait(info->trn->wt, & blocker->state_lock);
+            proc_info_hook(0, old_proc_info, __func__, __FILE__, __LINE__);
 
-              res= wt_thd_cond_timedwait(info->trn->wt, & blocker->state_lock);
-
-              proc_info_hook(0, old_proc_info, __func__, __FILE__, __LINE__);
-            }
             pthread_mutex_unlock(& blocker->state_lock);
             if (res != WT_OK)
             {

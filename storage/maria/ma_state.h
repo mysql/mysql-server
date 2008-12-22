@@ -17,14 +17,15 @@
 
 typedef struct st_maria_status_info
 {
-  ha_rows records;				/* Rows in table */
-  ha_rows del;					/* Removed rows */
-  my_off_t empty;				/* lost space in datafile */
-  my_off_t key_empty;				/* lost space in indexfile */
+  ha_rows records;                      /* Rows in table */
+  ha_rows del;                          /* Removed rows */
+  my_off_t empty;                       /* lost space in datafile */
+  my_off_t key_empty;                   /* lost space in indexfile */
   my_off_t key_file_length;
   my_off_t data_file_length;
   ha_checksum checksum;
-  my_bool     changed;
+  uint32 changed:1,                     /* Set if table was changed */
+         no_transid:1;                  /* Set if no transid was set on rows */
 } MARIA_STATUS_INFO;
 
 

@@ -69,11 +69,6 @@ int maria_delete_table(const char *name)
       MY_SYNC_DIR : 0;
     maria_close(info);
   }
-#ifdef USE_RAID
-#ifdef EXTRA_DEBUG
-  _ma_check_table_is_closed(name,"delete");
-#endif
-#endif /* USE_RAID */
 
   if (sync_dir)
   {

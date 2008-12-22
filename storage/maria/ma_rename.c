@@ -104,11 +104,6 @@ int maria_rename(const char *old_name, const char *new_name)
   }
 
   maria_close(info);
-#ifdef USE_RAID
-#ifdef EXTRA_DEBUG
-  _ma_check_table_is_closed(old_name,"rename raidcheck");
-#endif
-#endif /* USE_RAID */
 
   fn_format(from,old_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
