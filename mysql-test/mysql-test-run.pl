@@ -3186,6 +3186,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
+  mtr_add_arg($args, "--loose-skip-maria");
   mtr_add_arg($args, "--disable-sync-frm");
   mtr_add_arg($args, "--loose-disable-debug");
   mtr_add_arg($args, "--tmpdir=.");
