@@ -1982,11 +1982,11 @@ Dblqh::execDROP_FRAG_REQ(Signal* signal)
 
   deleteFragrec(req->fragId);
 
-  Uint32 ref = DBACC_REF;
+  Uint32 ref = calcInstanceBlockRef(DBACC);
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
   {
     jam();
-    ref = DBTUP_REF;
+    ref = calcInstanceBlockRef(DBTUP);
   }
 
   req->senderRef = reference();
@@ -2008,10 +2008,10 @@ Dblqh::execDROP_FRAG_CONF(Signal* signal)
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
 
   Uint32 ref = RNIL;
-  switch(refToBlock(conf->senderRef)){
+  switch(refToMain(conf->senderRef)){
   case DBACC:
     jam();
-    ref = DBTUP_REF;
+    ref = calcInstanceBlockRef(DBTUP);
     break;
   case DBTUP:
   {
@@ -2020,7 +2020,7 @@ Dblqh::execDROP_FRAG_CONF(Signal* signal)
     if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
     {
       jam();
-      ref = DBTUX_REF;
+      ref = calcInstanceBlockRef(DBTUX);
     }
     break;
   }
