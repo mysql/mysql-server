@@ -321,6 +321,7 @@ get_multithreaded_config(EmulatorData& ed)
 
   Uint32 mtthreads = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
+  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
   
   if (mtthreads > 3)
   {
