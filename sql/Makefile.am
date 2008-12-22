@@ -29,7 +29,6 @@ libexec_PROGRAMS =	mysqld
 EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 DTRACEFILES =           filesort.o \
-			libndb_la-ha_ndbcluster.o \
                         handler.o \
                         mysqld.o \
                         net_serv.o \
@@ -207,8 +206,6 @@ install-exec-hook:
 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
 
 if HAVE_DTRACE_DASH_G
-libndb_la_LIBADD = probes_all.o
-libndb_la_DEPENDENCIES = probes_all.o dtrace_files dtrace_providers
 mysqld_LDADD += probes_all.o
 mysqld_DEPENDENCIES += probes_all.o dtrace_files dtrace_providers
 CLEANFILES += dtrace_files dtrace_providers probes_all.o
@@ -223,7 +220,7 @@ DTRACEDIRS = . ../mysys $(patsubst %,$(top_builddir)/storage/%,@mysql_se_dirs@)
 
 probes_all.o: probes_mysql.d $(DTRACEFILES)
 	providers=`(for i in $(DTRACEDIRS); do cat $$i/dtrace_providers 2>/dev/null; done) | tr " " "\n" | sort | uniq | sed -e '/^$$/d' -e 's/^/-s /'`; \
-	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in $$f; do test -f $$i/$$j && echo -n "$$i/$$j "; done; done`; \
+	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in $$f; do test -f $$i/$$j && echo -n "$$i/$$j " | sed -e 's/echo -n//g'; done; done`; \
 	$(DTRACE) $(DTRACEFLAGS) -G $$providers $$objects -o $@
 endif
 
