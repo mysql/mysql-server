@@ -524,6 +524,34 @@ protected:
   };
   void execEXEC_SR_2(Signal*, GlobalSignalNumber gsn);
   void sendEXEC_SR_2(Signal*, Uint32 ssId);
+
+  // GSN_DROP_FRAG_REQ
+  struct Ss_DROP_FRAG_REQ : SsParallel {
+    DropFragReq m_req;
+    Ss_DROP_FRAG_REQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendDROP_FRAG_REQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendDROP_FRAG_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_FRAG_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_DROP_FRAG_REQ;
+    }
+  };
+  SsPool<Ss_DROP_FRAG_REQ> c_ss_DROP_FRAG_REQ;
+  Uint32 getSsId(const DropFragReq* req) {
+    return SsIdBase | (req->tableId ^ req->fragId);
+  }
+  Uint32 getSsId(const DropFragConf* conf) {
+    return SsIdBase | (conf->tableId ^ conf->fragId);
+  }
+  Uint32 getSsId(const DropFragRef* ref) {
+    return SsIdBase | (ref->tableId ^ ref->fragId);
+  }
+  void execDROP_FRAG_REQ(Signal*);
+  void sendDROP_FRAG_REQ(Signal*, Uint32 ssId);
+  void execDROP_FRAG_CONF(Signal*);
+  void execDROP_FRAG_REF(Signal*);
+  void sendDROP_FRAG_CONF(Signal*, Uint32 ssId);
 };
 
 #endif

@@ -88,6 +88,12 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_EXEC_SRREQ
   addRecSignal(GSN_EXEC_SRREQ, &DblqhProxy::execEXEC_SRREQ);
   addRecSignal(GSN_EXEC_SRCONF, &DblqhProxy::execEXEC_SRCONF);
+
+  // GSN_DROP_FRAG_REQ
+  addRecSignal(GSN_DROP_FRAG_REQ, &DblqhProxy::execDROP_FRAG_REQ);
+  addRecSignal(GSN_DROP_FRAG_CONF, &DblqhProxy::execDROP_FRAG_CONF);
+  addRecSignal(GSN_DROP_FRAG_REF, &DblqhProxy::execDROP_FRAG_REF);
+
 }
 
 DblqhProxy::~DblqhProxy()
@@ -1459,6 +1465,83 @@ DblqhProxy::sendEXEC_SR_2(Signal* signal, Uint32 ssId)
   sendSignal(rg, ss.m_gsn, signal, 1, JBB);
 
   ssRelease<Ss_EXEC_SR_2>(ssId);
+}
+
+// GSN_DROP_FRAG_REQ
+
+void
+DblqhProxy::execDROP_FRAG_REQ(Signal* signal)
+{
+  const DropFragReq* req = (const DropFragReq*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_DROP_FRAG_REQ& ss = ssSeize<Ss_DROP_FRAG_REQ>(ssId);
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == DropFragReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendDROP_FRAG_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_FRAG_REQ& ss = ssFind<Ss_DROP_FRAG_REQ>(ssId);
+
+  DropFragReq* req = (DropFragReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_DROP_FRAG_REQ,
+             signal, DropFragReq::SignalLength, JBB);
+}
+
+void
+DblqhProxy::execDROP_FRAG_CONF(Signal* signal)
+{
+  const DropFragConf* conf = (const DropFragConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_DROP_FRAG_REQ& ss = ssFind<Ss_DROP_FRAG_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::execDROP_FRAG_REF(Signal* signal)
+{
+  const DropFragRef* ref = (const DropFragRef*)signal->getDataPtr();
+  Uint32 ssId = getSsId(ref);
+  Ss_DROP_FRAG_REQ& ss = ssFind<Ss_DROP_FRAG_REQ>(ssId);
+  recvREF(signal, ss, ref->errCode);
+}
+
+void
+DblqhProxy::sendDROP_FRAG_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_FRAG_REQ& ss = ssFind<Ss_DROP_FRAG_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    DropFragConf* conf = (DropFragConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    conf->tableId = ss.m_req.tableId;
+    conf->fragId = ss.m_req.fragId;
+    sendSignal(dictRef, GSN_DROP_FRAG_CONF,
+               signal, DropFragConf::SignalLength, JBB);
+  } else {
+    jam();
+    DropFragRef* ref = (DropFragRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->tableId = ss.m_req.tableId;
+    ref->fragId = ss.m_req.fragId;
+    ref->errCode = ss.m_error;
+    sendSignal(dictRef, GSN_DROP_FRAG_REF,
+               signal, DropFragConf::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_DROP_FRAG_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)
