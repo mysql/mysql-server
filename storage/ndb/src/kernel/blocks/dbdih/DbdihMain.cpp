@@ -9880,8 +9880,8 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     if (m_micro_gcp.m_enabled == false)
     {
       jam();
-      sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
-                     SubGcpCompleteRep::SignalLength, JBB);
+      sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
+                 SubGcpCompleteRep::SignalLength, JBB);
       jamEntry();
       ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
       m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
