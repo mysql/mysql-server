@@ -288,6 +288,8 @@ our $opt_warnings;
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster= 0;
+our $opt_ndb_mt_threads= "8,8";
+our @opt_ndb_mt_threads= ();
 our $opt_with_ndbcluster_only= 0;
 our $glob_ndbcluster_supported= 0;
 our $opt_ndb_extra_test= 0;
@@ -358,6 +360,7 @@ sub run_testcase_check_skip_test($);
 sub report_failure_and_restart ($);
 sub do_before_start_master ($);
 sub do_before_start_slave ($);
+sub get_ndb_mt_threads($$);
 sub ndbd_start ($$$);
 sub ndb_mgmd_start ($);
 sub mysqld_start ($$$);
@@ -572,6 +575,7 @@ sub command_line_setup () {
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
              'with-ndbcluster|ndb'      => \$opt_with_ndbcluster,
+             'ndb-mt-threads=s'         => \$opt_ndb_mt_threads,
              'vs-config'            => \$opt_vs_config,
 
              # Control what test suites or cases to run
@@ -1378,6 +1382,16 @@ sub command_line_setup () {
 	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
     }
   }
+
+  # check ndb mt threads option and choose any random values
+  @opt_ndb_mt_threads = split(/,/, $opt_ndb_mt_threads);
+  for my $idx (0..7) # fill in 8 nodes
+  {
+    my $ret= get_ndb_mt_threads($idx, 1);
+    mtr_error("invalid ndb-mt-threads value: $opt_ndb_mt_threads[$idx]")
+      unless $ret;
+    $opt_ndb_mt_threads[$idx]= $ret->{ver};
+  }
 }
 
 #
@@ -1605,7 +1619,7 @@ sub executable_setup_ndb () {
 			 "$ndb_path/ndbmtd",
 			 "$glob_basedir/libexec/ndbmtd");
 
-  mtr_report("Found multi threaded ndbd, will be used \"round robin\"")
+  mtr_report("Found multi threaded ndbd (see option --ndb-mt-threads)")
     if ($exe_ndbmtd);
 
   $exe_ndb_mgm= mtr_native_path(
@@ -2742,6 +2756,20 @@ sub ndbcluster_start_install ($) {
     }
     s/CHOOSE_DiskPageBufferMemory/$ndb_pbmem/;
 
+    if (/CHOOSE_MAX_NO_OF_EXECUTION_THREADS_(\d+)/)
+    {
+      my $nodeid= $1;
+      my $idx= $nodeid - 1;
+      my $ret= get_ndb_mt_threads($idx, 1);
+      $ret or die "Bad template for nodeid=$nodeid";
+      s/CHOOSE_MAX_NO_OF_EXECUTION_THREADS_\d+/$ret->{ver}/;
+      if ($ret->{type} == 1 || $ret->{type} == 2)
+      {
+        s/^/#/;
+      }
+      mtr_report("ndb mt threads node $nodeid: $ret->{ver} [$ret->{name}]");
+    }
+
     print OUT "$_ \n";
   }
   close OUT;
@@ -2860,7 +2888,47 @@ sub ndb_mgmd_start ($) {
 }
 
 
-my $exe_ndbmtd_counter= 0;
+sub get_ndb_mt_threads ($$) {
+  my $idx= shift;
+  my $have_exe_ndbmtd = shift;
+  return undef unless $idx >= 0;
+  # based on current ndb main.cpp
+  my @list= (
+    { ver=> [qw(1)],     type=> 1, name=> "non-mt",     wt=> 3 },
+    { ver=> [qw(2 3)],   type=> 2, name=> "mt-classic", wt=> 2 },
+    { ver=> [qw(4 5 6)], type=> 3, name=> "mt-lqh-2",   wt=> 1 },
+    { ver=> [qw(7 8)],   type=> 3, name=> "mt-lqh-4",   wt=> 4 },
+  );
+  my $ver= $opt_ndb_mt_threads[$idx] || "r";
+  if ($ver eq "r")
+  {
+    my $i= int(rand(@list));
+    for (0..0) {
+      my $j= int(rand(@list));
+      if ($list[$i]->{wt} < $list[$j]->{wt})
+      {
+        $i= $j;
+      }
+    }
+    $ver= $list[$i]->{ver}[0];
+  }
+  if (!$have_exe_ndbmtd)
+  {
+    $ver= '1';
+  }
+  for my $x (@list)
+  {
+    for my $y (@{$x->{ver}})
+    {
+      if ($y eq $ver)
+      {
+        return { ver=> $ver, type=> $x->{type}, name=> $x->{name} }
+      }
+    }
+  }
+  return undef;
+}
+
 
 sub ndbd_start ($$$) {
   my $cluster= shift;
@@ -2884,12 +2952,8 @@ sub ndbd_start ($$$) {
   my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
   my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}_out.log";
 
-  my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
-  }
+  my $ret= get_ndb_mt_threads($idx, $exe_ndbmtd);
+  my $exe= $ret->{type} == 1 ? $exe_ndbd : $exe_ndbmtd;
 
   $pid= mtr_spawn($exe, $args, "",
 		  $path_ndbd_log,
@@ -5334,6 +5398,8 @@ Options to control what engine/variation to run
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
   ndb|with-ndbcluster   Use cluster as default table type
+  ndb-mt-threads=VER,.. MT threads of each DB node (comma-separated)
+                        VER: 1=non-mt 2-3=mt-classic 4-8=mt-lqh r=random
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 
