@@ -1758,9 +1758,9 @@ void close_connection(THD *thd, uint errcode, bool lock)
       net_send_error(thd, errcode, ER(errcode)); /* purecov: inspected */
     vio_close(vio);			/* vio is freed in delete thd */
   }
+  MYSQL_CONNECTION_DONE((int) errcode, thd->thread_id);
   if (lock)
     (void) pthread_mutex_unlock(&LOCK_thread_count);
-  MYSQL_CONNECTION_DONE((int) errcode, thd->thread_id);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */

@@ -41,7 +41,14 @@
 #include "ha_ndbcluster_tables.h"
 
 #include <mysql/plugin.h>
-#include "probes_mysql.h"
+/*
+  Temporarily disabling DTrace for ndb storage engine
+*/
+#define MYSQL_INDEX_READ_ROW_START(arg0, arg1)
+#define MYSQL_INDEX_READ_ROW_DONE(arg0)
+#define MYSQL_READ_ROW_START(arg0, arg1, arg2)
+#define MYSQL_READ_ROW_DONE(arg0)
+/* #include "probes_mysql.h" */
 
 #ifdef ndb_dynamite
 #undef assert
