@@ -1,9 +1,10 @@
 #ifndef _HATOKU_DEF
 #define _HATOKU_DEF
 
-#include <syscall.h>
 #include "db.h"
-
+extern "C" {
+#include "toku_os.h"
+}
 
 
 extern ulong tokudb_debug;
@@ -34,7 +35,7 @@ extern ulong tokudb_debug;
 
 
 inline unsigned int my_tid() {
-    return syscall(__NR_gettid);
+    return (unsigned int)toku_os_gettid();
 }
 
 

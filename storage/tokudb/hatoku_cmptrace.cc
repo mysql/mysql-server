@@ -1,6 +1,10 @@
 #include "mysql_priv.h"
 
+extern "C" {
+#include "stdint.h"
+}
 #include "hatoku_cmptrace.h"
+
 
 /*
     Things that are required for ALL data types:
