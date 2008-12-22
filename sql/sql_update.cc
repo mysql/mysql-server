@@ -1231,7 +1231,7 @@ bool mysql_multi_update(THD *thd,
     result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
   }
-  MYSQL_MULTI_UPDATE_DONE(res, result->found(), result->updated());
+  MYSQL_MULTI_UPDATE_DONE(res, result->num_found(), result->num_updated());
   delete result;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
