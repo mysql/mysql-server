@@ -1285,7 +1285,21 @@ too_small:
 				    rec_get_next_ptr(free_rec, TRUE),
 				    rec_size);
 
-		if (page_is_leaf(page) && dict_index_is_clust(index)) {
+		if (!page_is_leaf(page)) {
+			/* Zero out the node pointer of free_rec,
+			in case it will not be overwritten by
+			insert_rec. */
+
+			ut_ad(rec_size > REC_NODE_PTR_SIZE);
+
+			if (rec_offs_extra_size(foffsets)
+			    + rec_offs_data_size(foffsets) > rec_size) {
+
+				memset(rec_get_end(free_rec, foffsets)
+				       - REC_NODE_PTR_SIZE, 0,
+				       REC_NODE_PTR_SIZE);
+			}
+		} else if (dict_index_is_clust(index)) {
 			/* Zero out the DB_TRX_ID and DB_ROLL_PTR
 			columns of free_rec, in case it will not be
 			overwritten by insert_rec. */
