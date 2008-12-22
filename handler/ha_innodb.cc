@@ -4129,7 +4129,8 @@ ha_innobase::unlock_row(void)
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+		    && prebuilt->trx->isolation_level
+		    != TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
