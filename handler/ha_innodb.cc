@@ -26,13 +26,10 @@
 #endif
 
 #include <mysql_priv.h>
-#include <mysqld_error.h>
 
 #include <m_ctype.h>
 #include <hash.h>
-#include <myisampack.h>
 #include <mysys_err.h>
-#include <my_sys.h>
 #include <mysql/plugin.h>
 
 /* Include necessary InnoDB headers */
@@ -2987,6 +2984,8 @@ retry:
 	prebuilt = row_create_prebuilt(ib_table);
 
 	prebuilt->mysql_row_len = table->s->reclength;
+	prebuilt->default_rec = table->s->default_values;
+	ut_ad(prebuilt->default_rec);
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 
