@@ -1,6 +1,6 @@
 drop table if exists t1;
 set binlog_format=mixed;
-set session transaction isolation level read committed;
+set session transaction isolation level repeatable read;
 create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
 insert into t1 values (1),(2),(3),(4),(5),(6),(7);
 set autocommit=0;
@@ -8,11 +8,12 @@ select * from t1 where a=3 lock in share mode;
 a
 3
 set binlog_format=mixed;
-set session transaction isolation level read committed;
+set session transaction isolation level repeatable read;
 set autocommit=0;
 update t1 set a=10 where a=5;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
+set session transaction isolation level read committed;
 update t1 set a=10 where a=5;
 select * from t1 where a=2 for update;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
