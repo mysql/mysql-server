@@ -3819,6 +3819,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
     if (unlikely(Thostptr.p->nodestatus != ZNODE_UP))
     {
+      releaseSections(handle);
       noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
       return;
     }
@@ -3877,8 +3878,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       m_commitAckMarkerHash.seize(markerPtr);
       if (markerPtr.i == RNIL)
       {
-        noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
         releaseSections(handle);
+        noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
         return;
       }
       markerPtr.p->transid1 = sig1;
