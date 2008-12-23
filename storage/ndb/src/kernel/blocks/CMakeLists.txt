@@ -29,6 +29,7 @@ ADD_SUBDIRECTORY(backup)
 ADD_SUBDIRECTORY(dbutil)
 ADD_SUBDIRECTORY(suma)
 ADD_SUBDIRECTORY(dbtux)
+ADD_SUBDIRECTORY(dbinfo)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
@@ -36,9 +37,16 @@ ADD_LIBRARY(ndbblocks  STATIC
             diskpage.cpp
             lgman.cpp
             pgman.cpp
-            print_file.cpp
 	    RestoreProxy.cpp
             restore.cpp
             tsman.cpp
 	    LocalProxy.cpp
+	    PgmanProxy.cpp
            )
+
+ADD_EXECUTABLE(ndb_print_file
+	       print_file.cpp
+	       diskpage.cpp
+	       dbtup/tuppage.cpp
+	      )
+TARGET_LINK_LIBRARIES(ndb_print_file ndbclient dbug mysys strings)

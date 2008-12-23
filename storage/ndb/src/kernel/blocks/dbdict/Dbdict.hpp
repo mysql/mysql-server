@@ -58,6 +58,7 @@
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/DictLock.hpp>
+#include <signaldata/DictTakeover.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/CreateHashMap.hpp>
 #include <signaldata/HashMapImpl.hpp>
@@ -73,6 +74,7 @@
 #include <signaldata/SchemaTransImpl.hpp>
 #include <LockQueue.hpp>
 #include <signaldata/CopyData.hpp>
+#include <signaldata/NodeFailRep.hpp>
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/CreateNodegroupImpl.hpp>
@@ -87,6 +89,7 @@
 #define ZPACK_TABLE_INTO_PAGES 0
 #define ZSEND_GET_TAB_RESPONSE 3
 #define ZWAIT_SUBSTARTSTOP 4
+#define ZDICT_TAKEOVER_REQ 5
 
 
 /*--------------------------------------------------------------*/
@@ -488,10 +491,30 @@ public:
     enum NodeState {
       API_NODE = 0,
       NDB_NODE_ALIVE = 1,
-      NDB_NODE_DEAD = 2
+      NDB_NODE_DEAD = 2,
+      NDB_MASTER_TAKEOVER = 3
     };
     bool hotSpare;
     NodeState nodeState;
+
+    // Schema transaction data
+    enum RecoveryState {
+      RS_NORMAL = 0,             // Node is up to date with master
+      RS_PARTIAL_ROLLBACK = 1,   // Node has rolled back some operations
+      RS_PARTIAL_ROLLFORWARD = 2 // Node has committed some operations
+    };
+    RecoveryState recoveryState;
+    NodeFailRep nodeFailRep;
+    NdbNodeBitmask m_nodes;      // Nodes sent DICT_TAKEOVER_REQ during takeover
+    SafeCounterHandle m_counter; // Outstanding DICT_TAKEOVER_REQ's
+    //TODO Accumulate in buffer when DictTakeoverConf becomes long signal
+    DictTakeoverConf takeOverConf; // Accumulated replies
+
+    // TODO: these should be moved to SchemaTransPtr
+    // Starting operation for partial rollback/rollforward
+    Uint32 start_op;
+    // Starting state of operation for partial rollback/rollforward
+    Uint32 start_op_state;
   };
 
   typedef Ptr<NodeRecord> NodeRecordPtr;
@@ -638,7 +661,7 @@ public:
   
   // 1
   DictObject * get_object(const char * name){
-    return get_object(name, strlen(name) + 1);
+    return get_object(name, Uint32(strlen(name) + 1));
   }
   
   DictObject * get_object(const char * name, Uint32 len){
@@ -649,7 +672,7 @@ public:
 
   //2
   bool get_object(DictObjectPtr& obj_ptr, const char * name){
-    return get_object(obj_ptr, name, strlen(name) + 1);
+    return get_object(obj_ptr, name, Uint32(strlen(name) + 1));
   }
 
   bool get_object(DictObjectPtr& obj_ptr, const char * name, Uint32 len){
@@ -684,6 +707,7 @@ private:
   void execCONTINUEB(Signal* signal);
 
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execHOT_SPAREREP(Signal* signal);
   void execDIADDTABCONF(Signal* signal);
   void execDIADDTABREF(Signal* signal);
@@ -704,6 +728,9 @@ private:
   void execSTTOR(Signal* signal);
   void execTC_SCHVERCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
+
+  void send_nf_complete_rep(Signal* signal, const NodeFailRep*);
+
   void execINCL_NODEREQ(Signal* signal);
   void execAPI_FAILREQ(Signal* signal);
 
@@ -847,12 +874,17 @@ private:
   void execSCHEMA_TRANS_END_REQ(Signal* signal);
   void execSCHEMA_TRANS_END_CONF(Signal* signal);
   void execSCHEMA_TRANS_END_REF(Signal* signal);
+  void execSCHEMA_TRANS_END_REP(Signal* signal);
   void execSCHEMA_TRANS_IMPL_REQ(Signal* signal);
   void execSCHEMA_TRANS_IMPL_CONF(Signal* signal);
   void execSCHEMA_TRANS_IMPL_REF(Signal* signal);
 
   void execDICT_LOCK_REQ(Signal* signal);
   void execDICT_UNLOCK_ORD(Signal* signal);
+
+  void execDICT_TAKEOVER_REQ(Signal* signal);
+  void execDICT_TAKEOVER_REF(Signal* signal);
+  void execDICT_TAKEOVER_CONF(Signal* signal);
 
   /*
    *  2.4 COMMON STORED VARIABLES
@@ -1202,6 +1234,9 @@ private:
       errorLine = 0;
       errorNodeId = 0;
       errorCount = 0;
+      errorStatus = 0;
+      errorKey = 0;
+
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -1350,7 +1385,7 @@ private:
 
     enum OpState
     {
-      OS_INTIAL           = 0,
+      OS_INITIAL          = 0,
       OS_PARSE_MASTER     = 1,
       OS_PARSING          = 2,
       OS_PARSED           = 3,
@@ -1367,6 +1402,44 @@ private:
     };
 
     Uint32 m_state;
+    /*
+      Return the "weight" of an operation state, used to determine
+      the absolute order of operations.
+     */
+    static Uint32 weight(Uint32 state) {
+      switch ((OpState) state) {
+      case OS_INITIAL:
+        return 0;
+      case OS_PARSE_MASTER:
+        return 1;
+      case OS_PARSING:
+        return 2;
+      case OS_PARSED:
+        return 5;
+      case OS_PREPARING:
+        return 6;
+      case OS_PREPARED:
+        return 9;
+      case OS_ABORTING_PREPARE:
+        return 8;
+      case OS_ABORTED_PREPARE:
+        return 7;
+      case OS_ABORTING_PARSE:
+        return 4;
+      //case OS_ABORTED_PARSE    = 9,  // Not used, op released
+        //return 3: 
+      case OS_COMMITTING:
+        return 10;
+      case OS_COMMITTED:
+        return 11;
+      case OS_COMPLETING:
+        return 12;
+      case OS_COMPLETED:
+        return 13;
+      }
+      assert(false);
+      return -1;
+    }
     Uint32 m_restart;
     Uint32 op_key;
     Uint32 m_base_op_ptr_i;
@@ -1524,11 +1597,11 @@ private:
   inline bool
   seizeSchemaOp(SchemaOpPtr& op_ptr) {
     /*
-      Store node id in high 16 bits to make op_key globally unique
+      Store node id in high 8 bits to make op_key globally unique
      */
     Uint32 op_key = 
       (getOwnNodeId() << 24) +
-      (c_opRecordSequence + 1) & 0x00FFFFFF;
+      ((c_opRecordSequence + 1) & 0x00FFFFFF);
     if (seizeSchemaOp<T>(op_ptr, op_key)) {
       c_opRecordSequence++;
       return true;
@@ -1631,6 +1704,47 @@ private:
     };
 
     Uint32 m_state;
+    static Uint32 weight(Uint32 state) {
+    /*
+      Return the "weight" of a transaction state, used to determine
+      the absolute order of beleived transaction states at master
+      takeover.
+     */
+      switch ((TransState) state) {
+      case TS_INITIAL:
+        return 0;
+      case TS_STARTING:
+        return 1;
+      case TS_STARTED:
+        return 2;
+      case TS_PARSING:
+        return 3;
+      case TS_SUBOP:
+        return 6;
+      case TS_ROLLBACK_SP:
+        return 5;
+      case TS_FLUSH_PREPARE:
+        return 7;
+      case TS_PREPARING:
+        return 8;
+      case TS_ABORTING_PREPARE:
+        return 9;
+      case TS_ABORTING_PARSE:
+        return 4;
+      case TS_FLUSH_COMMIT:
+        return 10;
+      case TS_COMMITTING:
+        return 11;
+      case TS_FLUSH_COMPLETE:
+        return 12;
+      case TS_COMPLETING:
+        return 13;
+      case TS_ENDING:
+        return 14;
+      }
+      assert(false);
+      return -1;
+    }
     // DLHashTable
     Uint32 trans_key;
     Uint32 nextHash;
@@ -1665,6 +1779,27 @@ private:
 
     Uint32 m_curr_op_ptr_i;
     DLFifoList<SchemaOp>::Head m_op_list;
+
+    // Master takeover
+    enum TakeoverRecoveryState
+    {
+      TRS_INITIAL     = 0,
+      TRS_ROLLFORWARD = 1,
+      TRS_ROLLBACK    = 2
+    };
+    Uint32 m_master_recovery_state;
+    // These are common states all nodes must achieve
+    // to be able to be involved in total rollforward/rollbackward
+    Uint32 m_rollforward_op;
+    Uint32 m_rollforward_op_state;
+    Uint32 m_rollback_op;
+    Uint32 m_rollback_op_state;
+    Uint32 m_lowest_trans_state;
+    Uint32 m_highest_trans_state;
+    // Flag for signalling partial rollforward check during master takeover
+    bool check_partial_rollforward;
+    // Flag for signalling that already completed operation is recreated
+    bool ressurected_op;
 
     // request for lock/unlock
     DictLockReq m_lockReq;
@@ -1787,6 +1922,22 @@ private:
   void trans_log_schema_op_abort(SchemaOpPtr);
   void trans_log_schema_op_complete(SchemaOpPtr);
 
+  void handle_master_takeover(Signal*);
+  void check_takeover_replies(Signal*);
+  void trans_recover(Signal*, SchemaTransPtr);
+  void check_partial_trans_abort_prepare_next(SchemaTransPtr,
+                                              NdbNodeBitmask &,
+                                              SchemaOpPtr);
+  void check_partial_trans_abort_parse_next(SchemaTransPtr,
+                                            NdbNodeBitmask &,
+                                            SchemaOpPtr);
+  void check_partial_trans_complete_start(SchemaTransPtr, NdbNodeBitmask &);
+  void check_partial_trans_commit_start(SchemaTransPtr, NdbNodeBitmask &);
+  void check_partial_trans_commit_next(SchemaTransPtr,
+                                       NdbNodeBitmask &,
+                                       SchemaOpPtr);
+  void check_partial_trans_end_recv_reply(SchemaTransPtr);
+
   // participant
   void recvTransReq(Signal*);
   void recvTransParseReq(Signal*, SchemaTransPtr,
@@ -1796,6 +1947,7 @@ private:
   void update_op_state(SchemaOpPtr);
   void sendTransConf(Signal*, SchemaOpPtr);
   void sendTransConf(Signal*, SchemaTransPtr);
+  void sendTransConfRelease(Signal*, SchemaTransPtr);
   void sendTransRef(Signal*, SchemaOpPtr);
   void sendTransRef(Signal*, SchemaTransPtr);
 
@@ -1803,6 +1955,8 @@ private:
   void slave_run_parse(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
   void slave_run_flush(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
   void slave_writeSchema_conf(Signal*, Uint32, Uint32);
+  void slave_commit_mutex_locked(Signal*, Uint32, Uint32);
+  void slave_commit_mutex_unlocked(Signal*, Uint32, Uint32);
 
   // reply to trans client for begin/end trans
   void sendTransClientReply(Signal*, SchemaTransPtr);
@@ -3600,7 +3754,7 @@ public:
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
 
-  Uint32 get_default_fragments();
+  Uint32 get_default_fragments(Uint32 extra_nodegroups = 0);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

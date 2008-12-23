@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -745,7 +745,7 @@ struct st_savepoint {
   Ha_trx_info         *ha_list;
 };
 
-enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
+enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
 extern const char *xa_state_names[];
 
 typedef struct st_xid_state {
@@ -753,6 +753,8 @@ typedef struct st_xid_state {
   XID  xid;                           // transaction identifier
   enum xa_states xa_state;            // used by external XA only
   bool in_thd;
+  /* Error reported by the Resource Manager (RM) to the Transaction Manager. */
+  uint rm_error;
 } XID_STATE;
 
 extern pthread_mutex_t LOCK_xid_cache;
@@ -1002,6 +1004,22 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_WORKER= 32
 };
 
+inline char const *
+show_system_thread(enum_thread_type thread)
+{
+#define RETURN_NAME_AS_STRING(NAME) case (NAME): return #NAME
+  switch (thread) {
+    RETURN_NAME_AS_STRING(NON_SYSTEM_THREAD);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DELAYED_INSERT);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_IO);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_SQL);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
+  }
+#undef RETURN_NAME_AS_STRING
+  return "UNKNOWN"; /* keep gcc happy */
+}
 
 /**
   This class represents the interface for internal error handlers.
@@ -1080,6 +1098,9 @@ public:
                      const char *message);
   void set_eof_status(THD *thd);
   void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg);
+
+  /* Modify affected rows count and optionally message */
+  void modify_affected_rows(ha_rows new_affected_rows, const char *new_message= 0);
 
   void disable_status();
 
@@ -1366,9 +1387,14 @@ public:
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
   int binlog_flush_pending_rows_event(bool stmt_end);
+  int binlog_remove_pending_rows_event(bool clear_maps);
 
 private:
-  uint binlog_table_maps; // Number of table maps currently in the binlog
+  /*
+    Number of outstanding table maps, i.e., table maps in the
+    transaction cache.
+  */
+  uint binlog_table_maps;
 
   enum enum_binlog_flag {
     BINLOG_FLAG_UNSAFE_STMT_PRINTED,
@@ -1525,6 +1551,9 @@ public:
     then the latter INSERT will insert no rows
     (first_successful_insert_id_in_cur_stmt == 0), but storing "INSERT_ID=3"
     in the binlog is still needed; the list's minimum will contain 3.
+    This variable is cumulative: if several statements are written to binlog
+    as one (stored functions or triggers are used) this list is the
+    concatenation of all intervals reserved by all statements.
   */
   Discrete_intervals_list auto_inc_intervals_in_cur_stmt_for_binlog;
   /* Used by replication and SET INSERT_ID */
@@ -2090,6 +2119,10 @@ public:
 
       Don't reset binlog format for NDB binlog injector thread.
     */
+    DBUG_PRINT("debug",
+               ("temporary_tables: %p, in_sub_stmt: %d, system_thread: %s",
+                temporary_tables, in_sub_stmt,
+                show_system_thread(system_thread)));
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
         (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
     {
@@ -2251,6 +2284,7 @@ public:
   ulong skip_lines;
   CHARSET_INFO *cs;
   sql_exchange(char *name,bool dumpfile_flag);
+  bool escaped_given(void);
 };
 
 #include "log_event.h"

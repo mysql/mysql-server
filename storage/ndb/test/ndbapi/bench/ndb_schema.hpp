@@ -35,9 +35,11 @@
 #define SERVER_INSERTS           "NO_OF_INSERT"
 #define SERVER_DELETES           "NO_OF_DELETE"
 
+#undef GROUP_NAME /* Defined in Windows SDK (include\nb30.h), so we use NDB_GROUP_NAME */
+
 #define GROUP_TABLE              "GROUP_T"
 #define GROUP_ID                 "GROUP_ID"
-#define GROUP_NAME               "GROUP_NAME"
+#define NDB_GROUP_NAME           "GROUP_NAME"
 #define GROUP_ALLOW_READ         "ALLOW_READ"
 #define GROUP_ALLOW_INSERT       "ALLOW_INSERT"
 #define GROUP_ALLOW_DELETE       "ALLOW_DELETE"

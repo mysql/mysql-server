@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2007 MySQL AB
+# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
 # MA  02110-1301  USA.
 
 %define mysql_version		@VERSION@
-%define mysql_vendor    MySQL AB
+
+# NOTE: "vendor" is used in upgrade/downgrade check, so you can't
+# change these, has to be exactly as is.
+%define mysql_old_vendor	MySQL AB
+%define mysql_vendor		Sun Microsystems, Inc.
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
@@ -32,18 +36,13 @@
 %{?_with_cluster:%define CLUSTER_BUILD 1}
 %{!?_with_cluster:%define CLUSTER_BUILD 0}
 
-# use "rpmbuild --with federated" or "rpm --define '_with_federated 1'" (for RPM 3.x)
-# to build with federated support (off by default)
-%{?_with_federated:%define FEDERATED_BUILD 1}
-%{!?_with_federated:%define FEDERATED_BUILD 0}
-
 %if %{STATIC_BUILD}
 %define release 0
 %else
 %define release 0.glibc23
 %endif
 %define license GPL
-%define mysqld_user		mysql
+%define mysqld_user	mysql
 %define mysqld_group	mysql
 %define server_suffix -standard
 %define mysqldatadir /var/lib/mysql
@@ -76,10 +75,10 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-License:	%{license}
+License:	Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under %{license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
-Packager:	MySQL Production Engineering Team <build@mysql.com>
+Packager:	Sun Microsystems, Inc. Product Engineering Team <build@mysql.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -95,9 +94,11 @@ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
-MySQL AB.
+Sun Microsystems, Inc.
 
-Copyright (C) 2000-2007 MySQL AB
+Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
@@ -117,9 +118,11 @@ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
-MySQL AB.
+Sun Microsystems, Inc.
 
-Copyright (C) 2000-2007 MySQL AB
+Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
@@ -284,7 +287,20 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
 	    --with-readline \
-	    "
+		--with-innodb \
+%if %{CLUSTER_BUILD}
+		--with-ndbcluster \
+%else
+		--without-ndbcluster \
+%endif
+		--with-archive-storage-engine \
+		--with-csv-storage-engine \
+		--with-blackhole-storage-engine \
+		--with-federated-storage-engine \
+		--with-partition \
+		--with-big-tables \
+		--enable-shared \
+		"
  make
 }
 
@@ -321,35 +337,32 @@ then
 	export CXX="gcc"
 fi
 
+# Prepare compiler flags
+CFLAGS=${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}
+CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti }
+
 ##############################################################################
 #
 #  Build the debug version
 #
 ##############################################################################
 
-# Strip -Oxxx, add -g and --with-debug.
-(cd mysql-debug-%{mysql_version} &&
-CFLAGS=`echo "${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" | sed -e 's/-O[0-9]*//g'` \
-CXXFLAGS=`echo "${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" | sed -e 's/-O[0-9]*//g'` \
-BuildMySQL "--enable-shared \
+(
+# We are in a subshell, so we can modify variables just for one run.
+CFLAGS=`echo   " $CFLAGS "   | \
+    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
+        -e 's/^ //' -e 's/ $//'`
+CXXFLAGS=`echo " $CXXFLAGS " | \
+    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
+        -e 's/^ //' -e 's/ $//'`
+
+# Add -g and --with-debug.
+cd mysql-debug-%{mysql_version} &&
+CFLAGS="$CFLAGS" \
+CXXFLAGS="$CXXFLAGS" \
+BuildMySQL "\
 		--with-debug \
-		--with-innodb \
-%if %{CLUSTER_BUILD}
-		--with-ndbcluster \
-%else
-		--without-ndbcluster \
-%endif
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-blackhole-storage-engine \
-%if %{FEDERATED_BUILD}
-		--with-federated-storage-engine \
-%else
-		--without-federated-storage-engine \
-%endif
-	        --with-partition \
-	        --with-big-tables \
-		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
+		--with-comment=\"MySQL Community Server - Debug (%{license})\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_DEBUGCONFLOG_DEST"
@@ -366,27 +379,11 @@ fi
 ##############################################################################
 
 (cd mysql-release-%{mysql_version} &&
-CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
-CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
-BuildMySQL "--enable-shared \
-		--with-innodb \
-%if %{CLUSTER_BUILD}
-		--with-ndbcluster \
-%else
-		--without-ndbcluster \
-%endif
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-blackhole-storage-engine \
-%if %{FEDERATED_BUILD}
-		--with-federated-storage-engine \
-%else
-		--without-federated-storage-engine \
-%endif
-	        --with-partition \
+CFLAGS="$CFLAGS" \
+CXXFLAGS="$CXXFLAGS" \
+BuildMySQL "\
 		--with-embedded-server \
-	        --with-big-tables \
-		--with-comment=\"MySQL Community Server (GPL)\"")
+		--with-comment=\"MySQL Community Server (%{license})\"")
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
 then
@@ -445,6 +442,9 @@ install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 # Install embedded server library in the build root
 install -m 644 $MBD/libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
+# in RPMs, it is unlikely that anybody should use "sql-bench"
+rm -fr $RBR%{_datadir}/sql-bench
+
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
@@ -463,6 +463,7 @@ installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
 if [ $? -eq 0 -a -n "$installed" ]; then
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
+  myoldvendor='%{mysql_old_vendor}'
   myvendor='%{mysql_vendor}'
   myversion='%{mysql_version}'
 
@@ -474,12 +475,12 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
 
   error_text=
-  if [ "$vendor" != "$myvendor" ]; then
+  if [ "$vendor" != "$myoldvendor" -a "$vendor" != "$myvendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myvendor.  Some files may be installed
-to different locations, including log files and the service
-startup script in %{_sysconfdir}/init.d/.
+vendor ($vendor) than $myoldvendor or $myvendor.
+Some files may be installed to different locations, including log
+files and the service startup script in %{_sysconfdir}/init.d/.
 "
   fi
 
@@ -636,6 +637,7 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
+%doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
@@ -654,12 +656,14 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
+%attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
@@ -712,6 +716,7 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
@@ -757,6 +762,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
@@ -768,13 +775,14 @@ fi
 
 %files ndb-extra
 %defattr(-,root,root,0755)
-%attr(755, root, root) %{_sbindir}/ndb_cpcd
 %attr(755, root, root) %{_bindir}/ndb_delete_all
 %attr(755, root, root) %{_bindir}/ndb_drop_index
 %attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_sbindir}/ndb_cpcd
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
 %endif
 
 %files devel
@@ -785,6 +793,7 @@ fi
 %dir %attr(755, root, root) %{_includedir}/mysql
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
+%{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
 %if %{have_libgcc}
@@ -834,6 +843,39 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Correct yesterday's fix, so that it also works for the last flag,
+  and fix a wrong quoting: un-quoted quote marks must not be escaped.
+  
+* Thu Nov 06 2008 Kent Boortz <kent.boortz@sun.com>
+
+- Removed "mysql_upgrade_shell"
+- Removed some copy/paste between debug and normal build
+
+* Thu Nov 06 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.
+  This should cover both gcc and icc flags.  Fixes bug#40546.
+  
+* Fri Aug 29 2008 Kent Boortz <kent@mysql.com>
+
+- Removed the "Federated" storage engine option, and enabled in all
+
+* Tue Aug 26 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Get rid of the "warning: Installed (but unpackaged) file(s) found:"
+  Some generated files aren't needed in RPMs:
+  - the "sql-bench/" subdirectory
+  Some files were missing:
+  - /usr/share/aclocal/mysql.m4  ("devel" subpackage)
+  - Manual "mysqlbug" ("server" subpackage)
+  - Program "innochecksum" and its manual ("server" subpackage)
+  - Manual "mysql_find_rows" ("client" subpackage)
+  - Script "mysql_upgrade_shell" ("client" subpackage)
+  - Program "ndb_cpcd" and its manual ("ndb-extra" subpackage)
+  - Manuals "ndb_mgm" + "ndb_restore" ("ndb-tools" subpackage)
+
 * Mon Mar 31 2008 Kent Boortz <kent@mysql.com>
 
 - Made the "Federated" storage engine an option

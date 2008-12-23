@@ -260,6 +260,7 @@ public:
     Uint32 nextReplicaNode;
     Uint32 nodeCount;
     Uint32 activeTakeOver; // Which node...
+    Uint32 m_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
   };
@@ -1178,8 +1179,6 @@ private:
 //------------------------------------
   void changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver);
   void endTakeOver(Uint32 takeOverPtr);
-  void initStartTakeOver(const class StartToReq *, 
-			 TakeOverRecordPtr regTakeOverPtr);
   
   void systemRestartTakeOverLab(Signal *);
   void startTakeOver(Signal *,
@@ -1247,8 +1246,8 @@ private:
 
   Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
-  Uint32 c_nextLogPart;
-  
+  RSS_OP_SNAPSHOT(cnghash);
+
   NodeRecord *nodeRecord;
 
   PageRecord *pageRecord;
@@ -1793,7 +1792,7 @@ private:
   void startme_copygci_conf(Signal*);
 
   // MT LQH
-
+  Uint32 c_fragments_per_node;
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;

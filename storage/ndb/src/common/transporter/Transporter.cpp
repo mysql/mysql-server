@@ -42,7 +42,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
-    m_send_iovec_used(0),
     m_type(_type),
     m_transporter_registry(t_reg)
 {
@@ -89,13 +88,42 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 
     m_socket_client->set_connect_timeout((m_timeOutMillis+999)/1000);
   }
+
+  m_os_max_iovec = 16;
+#if defined (_SC_IOV_MAX) && defined (HAVE_SYSCONF)
+  long res = sysconf(_SC_IOV_MAX);
+  if (res != (long)-1)
+  {
+    m_os_max_iovec = (Uint32)res;
+  }
+#endif
+  
   DBUG_VOID_RETURN;
 }
 
 Transporter::~Transporter(){
-  if (m_socket_client)
-    delete m_socket_client;
+  delete m_socket_client;
 }
+
+
+bool
+Transporter::configure(const TransporterConfiguration* conf)
+{
+  if (configure_derived(conf) &&
+      conf->s_port == m_s_port &&
+      strcmp(conf->remoteHostName, remoteHostName) == 0 &&
+      strcmp(conf->localHostName, localHostName) == 0 &&
+      conf->remoteNodeId == remoteNodeId &&
+      conf->localNodeId == localNodeId &&
+      (conf->serverNodeId == conf->localNodeId) == isServer &&
+      conf->checksum == checksumUsed &&
+      conf->signalId == signalIdUsed &&
+      conf->isMgmConnection == isMgmConnection &&
+      conf->type == m_type)
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
@@ -234,7 +262,6 @@ Transporter::doDisconnect() {
 
   m_connected= false;
 
-  m_send_iovec_used= 0;
   get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
 }

@@ -55,3 +55,23 @@ select * from t1;
 a
 20
 drop table t1;
+drop table if exists t1;
+create table t1(a int, b int, c varchar(20), primary key(a)) engine = innodb;
+insert into t1 values(1, 1, 'a');
+insert into t1 values(2, 2, 'b');
+xa start 'a','b';
+update t1 set c = 'aa' where a = 1;
+xa start 'a','c';
+update t1 set c = 'bb' where a = 2;
+update t1 set c = 'bb' where a = 2;
+update t1 set c = 'aa' where a = 1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+select count(*) from t1;
+count(*)
+2
+xa end 'a','c';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+xa rollback 'a','c';
+xa start 'a','c';
+drop table t1;
+End of 5.0 tests

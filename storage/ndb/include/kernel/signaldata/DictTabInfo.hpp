@@ -183,8 +183,7 @@ public:
     DistrKeyHash = 4,
     DistrKeyLin = 5,
     UserDefined = 6,
-    DistrKeyUniqueHashIndex = 7,
-    DistrKeyOrderedIndex = 8,
+    DistrKeyOrderedIndex = 8, // alias
     HashMapPartition = 9
   };
   

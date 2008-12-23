@@ -108,7 +108,7 @@ main(int argc, char ** argv){
     size_t test_case = 0;
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Performing all ops wo/ inteference of LCP" << endl;
 	
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
@@ -116,7 +116,7 @@ main(int argc, char ** argv){
 	  " finished before SAVE_PAGES" << endl;
 	require(!load_table());
 	require(!pause_lcp(5900));
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5900));
@@ -129,13 +129,13 @@ main(int argc, char ** argv){
     
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
 	g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished after SAVE_PAGES"
 	       << endl;
 	require(!load_table());
 	require(!pause_lcp(5901));
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5901));
@@ -148,11 +148,11 @@ main(int argc, char ** argv){
 
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Testing pre LCP operations, undo-ed at commit" << endl;
 	require(!load_table());
 	require(!pause_lcp(5902));
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5902));
@@ -166,11 +166,11 @@ main(int argc, char ** argv){
     
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Testing prepared during LCP and committed after" << endl;
 	require(!load_table());
 	require(!pause_lcp(5904));    // Start LCP, but don't save pages
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5904)); // Start ACC save pages
@@ -330,7 +330,7 @@ static int load_table()
   size_t rows = 0;
   size_t uncommitted = 0;
   bool prepared = false;
-  for(size_t i = 0; i<g_rows; i++){
+  for(int i = 0; i<g_rows; i++){
     for(op %= OP_COUNT; !((1 << op) & g_use_ops); op = (op + 1) % OP_COUNT);
     g_ops[i] = g_op_types[op++];
     if(g_ops[i].start_row){
@@ -539,7 +539,7 @@ static int restart()
 static int validate()
 {
   HugoOperations ops(* g_table);
-  for(size_t i = 0; i<g_rows; i++){
+  for(int i = 0; i<g_rows; i++){
     require(g_ops[i].curr_row == g_ops[i].end_row);
     require(!ops.startTransaction(g_ndb));
     ops.pkReadRecord(g_ndb, i, 1);

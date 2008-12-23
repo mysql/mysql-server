@@ -305,7 +305,7 @@ handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
 
   /* Convert char* to aligned Uint32* and some byte offset */
   UintPtr uiPtr= UintPtr((Uint32*)_dst);
-  Uint32 dstByteOffset= uiPtr & 3;
+  Uint32 dstByteOffset= Uint32(uiPtr) & 3;
   Uint32* dst= (Uint32*) (uiPtr - dstByteOffset); 
 
   BitmaskImpl::copyField(dst, dstByteOffset << 3,
@@ -388,6 +388,7 @@ NdbReceiver::receive_packed_recattr(NdbRecAttr** recAttr,
 
 err:
   abort();
+  return 0;
 }
 
 

@@ -1,0 +1,28 @@
+show create database discover_db;
+Database	Create Database
+discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET latin1 */
+show create database discover_db_2;
+Database	Create Database
+discover_db_2	CREATE DATABASE `discover_db_2` /*!40100 DEFAULT CHARACTER SET binary */
+reset master;
+insert into discover_db.t1 values (1,1);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	102	#	BEGIN
+master-bin1.000001	#	Table_map	102	#	table_id: # (discover_db.t1)
+master-bin1.000001	#	Table_map	102	#	table_id: # (mysql.ndb_apply_status)
+master-bin1.000001	#	Write_rows	102	#	table_id: #
+master-bin1.000001	#	Write_rows	102	#	table_id: # flags: STMT_END_F
+master-bin1.000001	#	Query	102	#	COMMIT
+reset master;
+insert into discover_db_2.t1 values (1,1);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	102	#	BEGIN
+master-bin1.000001	#	Table_map	102	#	table_id: # (discover_db_2.t1)
+master-bin1.000001	#	Table_map	102	#	table_id: # (mysql.ndb_apply_status)
+master-bin1.000001	#	Write_rows	102	#	table_id: #
+master-bin1.000001	#	Write_rows	102	#	table_id: # flags: STMT_END_F
+master-bin1.000001	#	Query	102	#	COMMIT
+drop database discover_db;
+drop database discover_db_2;

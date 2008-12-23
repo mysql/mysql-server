@@ -520,8 +520,9 @@ public:
   NdbDictionary::Undofile * m_facade;
 };
 
-struct NdbHashMapImpl : public NdbDictionary::HashMap, public NdbDictObjectImpl
+class NdbHashMapImpl : public NdbDictionary::HashMap, public NdbDictObjectImpl
 {
+public:
   NdbHashMapImpl();
   NdbHashMapImpl(NdbDictionary::HashMap &);
   ~NdbHashMapImpl();
@@ -728,6 +729,7 @@ private:
   void execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSCHEMA_TRANS_END_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSCHEMA_TRANS_END_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_REP(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
   void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
@@ -1055,7 +1057,7 @@ inline
 Uint32
 Hash( const char* str ){
   Uint32 h = 0;
-  Uint32 len = strlen(str);
+  size_t len = strlen(str);
   while(len >= 4){
     h = (h << 5) + h + str[0];
     h = (h << 5) + h + str[1];

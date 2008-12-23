@@ -102,4 +102,9 @@
  */
 #define NDB_NO_NODEGROUP     65536
 
+/*
+ * SYSTAB_0 reserved keys
+ */
+#define NDB_BACKUP_SEQUENCE 0x1F000000
+
 #endif

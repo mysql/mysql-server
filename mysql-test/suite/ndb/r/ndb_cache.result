@@ -188,4 +188,183 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+reset query cache;
+flush status;
+create table t1 (a int primary key,
+b text,
+c int,
+key(c))
+engine=ndb;
+insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 order by a;
+a	b	c
+1	Alexandra	1
+2	Palace	2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 order by a;
+a	b	c
+1	Alexandra	1
+2	Palace	2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 force index(c) where c < 2 order by c;
+a	b	c
+1	Alexandra	1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 force index(c) where c < 2 order by c;
+a	b	c
+1	Alexandra	1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+drop table t1;
+CREATE LOGFILE GROUP lfg
+ADD UNDOFILE 'myundo.log'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE tbsp
+ADD DATAFILE 'mydatafile.fil'
+USE LOGFILE GROUP lfg
+INITIAL_SIZE 12M
+ENGINE=NDB;
+create table t1 (a int primary key,
+b text,
+c int,
+key(c))
+storage disk tablespace tbsp engine ndb;
+insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
+reset query cache;
+flush status;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 order by a;
+a	b	c
+1	Alexandra	1
+2	Palace	2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 order by a;
+a	b	c
+1	Alexandra	1
+2	Palace	2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 force index (c) where c < 2 order by c;
+a	b	c
+1	Alexandra	1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+select * from t1 force index (c) where c < 2 order by c;
+a	b	c
+1	Alexandra	1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
+drop table t1;
+alter tablespace tbsp drop datafile 'mydatafile.fil' engine ndb;
+drop tablespace tbsp engine ndb;
+drop logfile group lfg engine ndb;
 SET GLOBAL query_cache_size=0;

@@ -15,8 +15,6 @@
 
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
-#include <my_global.h>
-#include <mysql_com.h>
 
 #define RNIL    0xffffff00
 
@@ -26,7 +24,7 @@
  */
 #define MAX_NDB_NODES 49
 #define MAX_NODES     256
-#define UNDEF_NODEGROUP 0xFFFF
+#define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
 
 /**************************************************************************
@@ -70,7 +68,7 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-#define MAX_TABLES 20320                /* SchemaFile.hpp */
+#define NDB_MAX_TABLES 20320                /* SchemaFile.hpp */
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE NAME_LEN       /* From mysql_com.h */
 #define MAX_ATTR_DEFAULT_VALUE_SIZE 128
@@ -161,6 +159,12 @@
 #define GLOBAL_PAGE_SIZE_WORDS 8192
 
 /*
+ * Schema transactions
+ */
+#define MAX_SCHEMA_TRANSACTIONS 5
+#define MAX_SCHEMA_OPERATIONS 256
+
+/*
  * Long signals
  */
 #define NDB_SECTION_SEGMENT_SZ 60
@@ -177,11 +181,12 @@
  * Bits/mask used for coding/decoding blockno/blockinstance
  */
 #define NDBMT_BLOCK_BITS 9
-#define NDBMT_BLOCK_MASK 0x001FF
+#define NDBMT_BLOCK_MASK ((1 << NDBMT_BLOCK_BITS) - 1)
 #define NDBMT_BLOCK_INSTANCE_BITS 7
-#define NDBMT_BLOCK_INSTANCE_MASK 0xFE00
 
 #define MAX_NDBMT_LQH_WORKERS 4
 #define MAX_NDBMT_LQH_THREADS 4
+
+#define NDB_FILE_BUFFER_SIZE (256*1024)
 
 #endif

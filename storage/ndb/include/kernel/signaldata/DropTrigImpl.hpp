@@ -19,7 +19,7 @@
 #include "SignalData.hpp"
 
 struct DropTrigImplReq {
-  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( SignalLength = 11 );
   SECTION( TRIGGER_NAME_SECTION = 0 ); // optional
 
   Uint32 senderRef;
@@ -32,6 +32,7 @@ struct DropTrigImplReq {
   Uint32 triggerNo;
   Uint32 triggerId;
   Uint32 triggerInfo;
+  Uint32 receiverRef;
 };
 
 struct DropTrigImplConf {

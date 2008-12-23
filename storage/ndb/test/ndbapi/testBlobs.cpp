@@ -2773,7 +2773,7 @@ struct Tmr {    // stolen from testOIBasic
     return m_text;
   }
   NDB_TICKS m_on;
-  unsigned m_ms;
+  NDB_TICKS m_ms;
   unsigned m_cnt;
   char m_time[100];
   char m_text[100];

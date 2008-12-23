@@ -23,3 +23,9 @@ int ndb_has_node_id(uint id);
 
 /* options from from mysqld.cc */
 extern ulong opt_ndb_cluster_connection_pool;
+
+/* perform random sleep in the range milli_sleep to 2*milli_sleep */
+inline void do_retry_sleep(unsigned milli_sleep)
+{
+  my_sleep(1000*(milli_sleep + 5*(rand()%(milli_sleep/5))));
+}

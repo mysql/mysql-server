@@ -6128,11 +6128,20 @@ ER_LOAD_DATA_INVALID_COLUMN
 ER_LOG_PURGE_NO_FILE  
 	eng "Being purged log %s was not found"
 
+ER_XA_RBTIMEOUT XA106
+	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
+
+ER_XA_RBDEADLOCK XA102
+	eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"
+
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
 
 ER_DELAYED_NOT_SUPPORTED  
   eng "DELAYED option not supported for table '%-.192s'"
+
+ER_WARN_ENGINE_TRANSACTION_ROLLBACK
+  eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
 
 ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"

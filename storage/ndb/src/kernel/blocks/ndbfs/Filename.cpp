@@ -83,7 +83,7 @@ Filename::set(Filename::NameSpec& spec,
     }
     
     {
-      const char* blockName = getBlockName( refToBlock(blockReference) );
+      const char* blockName = getBlockName( refToMain(blockReference) );
       if (blockName == NULL){
 	ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"","No Block Name");
 	return;
@@ -183,8 +183,15 @@ Filename::set(Filename::NameSpec& spec,
     strncpy(theName, buf, PATH_MAX);
     m_base_name = theName;
   }
-  else 
+  else
   {
+#ifdef NDB_WIN32
+    char* b= buf;
+    while((b= strchr(b, '/')) && b)
+    {
+      *b= '\\';
+    }
+#endif
     BaseString::snprintf(theName, sizeof(theName), "%s%s",
                          spec.fs_path.c_str(), buf);
     m_base_name = theName + spec.fs_path.length();

@@ -26,7 +26,7 @@ myRand(Uint64 * seed)
   Uint64 loc_result = *seed * mul + add;
 
   * seed= loc_result;
-  return loc_result >> 1;
+  return (Uint32)(loc_result >> 1);
 }
 
 static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

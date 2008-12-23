@@ -20,7 +20,7 @@ create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine
 select column_name, storage, format from information_schema.columns
 where table_name = "t1";
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 drop table t1;
 
 create table t1 (a int column_format DYNAMIC,
@@ -46,32 +46,32 @@ select column_name, storage, format from information_schema.columns
 where table_name = "t1";
 alter table t1 change column a a int storage disk;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 alter table t1 change column a a int storage memory;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 alter table t1 change column b b int NOT NULL storage memory;
 alter table t1 add column a2 int column_format FIXED;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 alter table t1 add column c2 VARCHAR(100) column_format DYNAMIC;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 alter table t1 add column c3 VARCHAR(100) column_format FIXED;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 drop table t1;
 create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
 alter table t1 change column a a int storage memory column_format DYNAMIC;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 drop table t1;
 
 # Checking keywords
 create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 drop table t1;
 
 ALTER TABLESPACE ts1

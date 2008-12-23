@@ -1374,7 +1374,10 @@ public:
   NdbTransaction* startTransaction(const NdbDictionary::Table *table,
 				   const struct Key_part_ptr * keyData,
 				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbTransaction* startTransaction(const NdbRecord *keyRec, const char *keyData,
+				   void* xfrmbuf, Uint32 xfrmbuflen);
+#endif
   /**
    * Start a transaction, specifying table+partition as hint for
    *  TC-selection
@@ -1406,7 +1409,11 @@ public:
                          const NdbDictionary::Table*, 
                          const struct Key_part_ptr * keyData,
                          void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
-  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  static int computeHash(Uint32* hashvalueptr,
+                         const NdbRecord *keyRec, const char *keyData,
+                         void* xfrmbuf, Uint32 xfrmbuflen);
+#endif
   /**
    * Close a transaction.
    *
@@ -1818,6 +1825,9 @@ private:
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
 
+
+  Uint64 allocate_transaction_id();
+
 /******************************************************************************
  *	These are the private variables in this class.	
  *****************************************************************************/
@@ -1881,7 +1891,9 @@ private:
 			     struct LinearSectionPtr ptr[3]);
   static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
-  void printState(const char* fmt, ...);
+#include <my_attribute.h>
+  void printState(const char* fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
 #endif
 };
 

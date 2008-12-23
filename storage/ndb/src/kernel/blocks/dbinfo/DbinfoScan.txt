@@ -1,0 +1,24 @@
+
+
+API			MASTER DBINFO		SLAVE DBINFO	SLAVE other blk
+
+DBINFO_SCANREQ---------->DBINFO_SCANREQ--------->DBINFO_SCANREQ->
+(no cursor)		 (with cursor)		 (with cursor)
+
+							     <-- DBINFO_SCANCONF
+
+						 DBINFO_SCANREQ->
+
+							     <-- DBINFO_SCANCONF
+
+  				     	     <-- DBINFO_SCANCONF
+	     	     <-- DBINFO_SCANCONF
+DBINFO_SCANCONF
+
+
+SLAVE DBINFO block sends to all local. CONF back to master.
+MASTER sends CONF to API
+
+
+If maxRows or maxBytes exhausted, DBINFOSCAN_CONF sent back to API from SLAVE.
+API must then send DBINFO_SCANREQ back to API, preserving cursor.

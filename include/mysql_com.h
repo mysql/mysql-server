@@ -242,7 +242,11 @@ typedef struct st_net {
 #if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
   Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
-  my_socket fd;					/* For Perl DBI/dbd */
+#ifdef __WIN__
+  SOCKET fd;
+#else
+  int fd;					/* For Perl DBI/dbd */
+#endif
   /*
     The following variable is set if we are doing several queries in one
     command ( as in LOAD TABLE ... FROM MASTER ),
@@ -416,8 +420,13 @@ void my_net_set_read_timeout(NET *net, uint timeout);
   Currently it's used internally by manager.c
 */
 struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
+#ifdef __WIN__
+int my_connect(SOCKET s, const struct sockaddr *name, unsigned int namelen,
 	       unsigned int timeout);
+#else
+int my_connect(int s,    const struct sockaddr *name, unsigned int namelen,
+	       unsigned int timeout);
+#endif
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

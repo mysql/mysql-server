@@ -29,7 +29,12 @@
 #include <signaldata/DropTab.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
+
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
 
 // TO_DO_RONM is a label for comments on what needs to be improved in future versions
 // when more time is given.
@@ -757,7 +762,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   }
   else
   {
-    ndbrequire(refToBlock(tabPtr.p->tabUserRef) == DBLQH);
+    ndbrequire(refToMain(tabPtr.p->tabUserRef) == DBLQH);
 
     DropFragConf * conf = (DropFragConf *)signal->getDataPtrSend();
     conf->senderRef = reference();
@@ -765,7 +770,6 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
     conf->tableId = tabPtr.i;
     sendSignal(tabPtr.p->tabUserRef, GSN_DROP_FRAG_CONF,
                signal, DropFragConf::SignalLength, JBB);
-
   }
   
   tabPtr.p->tabUserPtr = RNIL;
@@ -2374,7 +2378,9 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
   ndbassert(operationRecPtr.i == tmp);
   ndbassert(operationRecPtr.p == ptr);
   operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-  if(Toperation != ZREAD){
+  if((Toperation != ZREAD) &&
+     (Toperation != ZSCAN_OP))
+  {
     fragrecptr.p->m_commit_count++;
     if (Toperation != ZINSERT) {
       if (Toperation != ZDELETE) {
@@ -8285,6 +8291,38 @@ Dbacc::reportMemoryUsage(Signal* signal, int gth){
   signal->theData[4] = cpagesize;
   signal->theData[5] = DBACC;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+}
+
+void Dbacc::execDBINFO_SCANREQ(Signal *signal)
+{
+  jamEntry();
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+
+  char buf[512];
+  struct dbinfo_ratelimit rl;
+  struct dbinfo_row r;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  if(req.tableId == NDBINFO_MEMUSAGE_TABLEID)
+  {
+    dbinfo_write_row_init(&r, buf, sizeof(buf));
+    const char *imstr= "IndexMemory";
+    dbinfo_write_row_column(&r, "IndexMemory", 11);
+    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+    Uint32 page_size_kb= sizeof(*rpPageptr.p);;
+    dbinfo_write_row_column(&r, (char*)&page_size_kb, 4); // 8kb
+    dbinfo_write_row_column_uint32(&r, cnoOfAllocatedPages); // alloced pages
+    dbinfo_write_row_column_uint32(&r, cpagesize); // number of pages
+    dbinfo_write_row_column(&r, "DBACC", strlen("DBACC"));
+    dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 void

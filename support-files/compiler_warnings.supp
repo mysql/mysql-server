@@ -1,4 +1,4 @@
-#
+'#
 # This file contains compiler warnings that can
 # be ignored for various reasons.
 #
@@ -63,10 +63,14 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .* : conversion from '.*size_t' to 'uint16'.*
 
 #
-# Unexplanable (?) stuff
+# Ignore a few specific warnings in ndb
 #
-listener.cc : .*conversion from 'SOCKET' to 'int'.*
-net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
+.*/storage/ndb/.* : .*may be used uninitialized in this function.*
+.*/storage/ndb/.* : .*is used uninitialized in this function.*
+.*/storage/ndb/.* : .*unused variable.*
+
+# Ignore warning produced by passing "" to a printf like function
+.*/ndb/.* : zero-length printf format string
 
 # allow a little moving space for the warning below
 mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600

@@ -345,6 +345,7 @@ Ndb::computeHash(Uint32 *retval,
       partcols[j++] = cols[i];
     }
   }
+  DBUG_ASSERT(j == parts);
 
   for (Uint32 i = 0; i<parts; i++)
   {
@@ -381,7 +382,7 @@ Ndb::computeHash(Uint32 *retval,
     UintPtr use = (org + 7) & ~(UintPtr)7;
 
     buf = (void*)use;
-    bufLen -= (use - org);
+    bufLen -= Uint32(use - org);
 
     if (unlikely(sumlen > bufLen))
       goto ebuftosmall;
@@ -439,7 +440,7 @@ Ndb::computeHash(Uint32 *retval,
       pos += len;
     }
   }
-  len = UintPtr(pos) - UintPtr(buf);
+  len = Uint32(UintPtr(pos) - UintPtr(buf));
   assert((len & 3) == 0);
 
   Uint32 values[4];
@@ -478,6 +479,134 @@ emalformedkey:
 
 enomem:
   return 4000;
+}
+
+int
+Ndb::computeHash(Uint32 *retval,
+                 const NdbRecord *keyRec,
+                 const char *keyData, 
+                 void* buf, Uint32 bufLen)
+{
+  Uint32 len;
+  char* pos = (char*)buf;
+
+  Uint32 parts = keyRec->distkey_index_length;
+
+  {
+    UintPtr org = UintPtr(buf);
+    UintPtr use = (org + 7) & ~(UintPtr)7;
+
+    buf = (void*)use;
+    bufLen -= Uint32(use - org);
+  }
+
+  for (Uint32 i = 0; i < parts; i++)
+  {
+    const struct NdbRecord::Attr &keyAttr =
+      keyRec->columns[keyRec->distkey_indexes[i]];
+
+    Uint32 len;
+    Uint32 maxlen = keyAttr.maxSize;
+    unsigned char *src= (unsigned char*)keyData + keyAttr.offset;
+
+    if (keyAttr.flags & NdbRecord::IsVar1ByteLen)
+    {
+      if (keyAttr.flags & NdbRecord::IsMysqldShrinkVarchar)
+      {
+        len = uint2korr(src);
+        src += 2;
+      }
+      else
+      {
+        len = *src;
+        src += 1;
+      }
+      maxlen -= 1;
+    }
+    else if (keyAttr.flags & NdbRecord::IsVar2ByteLen)
+    {
+      len = uint2korr(src);
+      src += 2;
+      maxlen -= 2;
+    }
+    else
+    {
+      len = maxlen;
+    }
+
+    const CHARSET_INFO* cs = keyAttr.charset_info;
+    if (cs)
+    {
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+        xmul = 1;
+      /*
+       * Varchar end-spaces are ignored in comparisons.  To get same hash
+       * we blank-pad to maximum length via strnxfrm.
+       */
+      Uint32 dstLen = xmul * maxlen;
+      int n = NdbSqlUtil::strnxfrm_bug7284((CHARSET_INFO*)cs,
+                                           (unsigned char*)pos,
+                                           dstLen, src,
+                                           len);
+      if (unlikely(n == -1))
+        goto emalformedstring;
+      len = n;
+    }
+    else
+    {
+      if (keyAttr.flags & NdbRecord::IsVar1ByteLen)
+      {
+        *pos= (unsigned char)len;
+        memcpy(pos+1, src, len);
+        len += 1;
+      }
+      else if (keyAttr.flags & NdbRecord::IsVar2ByteLen)
+      {
+        len += 2;
+        memcpy(pos, src-2, len);
+      }
+      else
+        memcpy(pos, src, len);
+    }
+    while (len & 3)
+    {
+      * (pos + len++) = 0;
+    }
+    pos += len;
+  }
+  len = Uint32(UintPtr(pos) - UintPtr(buf));
+  assert((len & 3) == 0);
+
+  Uint32 values[4];
+  md5_hash(values, (const Uint64*)buf, len >> 2);
+  
+  if (retval)
+  {
+    * retval = values[1];
+  }
+  
+  if (bufLen == 0)
+    free(buf);
+
+  return 0;
+  
+emalformedstring:  
+  return 4279;
+}
+
+NdbTransaction*
+Ndb::startTransaction(const NdbRecord *keyRec, const char *keyData,
+                      void* xfrmbuf, Uint32 xfrmbuflen)
+{
+  int ret;
+  Uint32 hash;
+  if ((ret = computeHash(&hash, keyRec, keyData, xfrmbuf, xfrmbuflen)) == 0)
+  {
+    return startTransaction(keyRec->table, keyRec->table->getPartitionId(hash));
+  }
+  theError.code = ret;
+  return 0;
 }
 
 NdbTransaction* 
@@ -687,7 +816,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   }//if
 #ifdef VM_TRACE
   if (tConnection->theListState != NdbTransaction::NotInList) {
-    printState("startTransactionLocal %x", tConnection);
+    printState("startTransactionLocal %lx", (long)tConnection);
     abort();
   }
 #endif
@@ -1826,8 +1955,11 @@ int Ndb::dropEventOperation(NdbEventOperation* tOp)
   DBUG_ENTER("Ndb::dropEventOperation");
   DBUG_PRINT("info", ("name: %s", tOp->getEvent()->getTable()->getName()));
   // remove it from list
+
+#ifdef REMOVED_WARNING_SURROUNDING_WEIRD_CODE
   NdbEventOperationImpl *op=
     NdbEventBuffer::getEventOperationImpl(tOp);
+#endif  
   
   theEventBuffer->dropEventOperation(tOp);
   DBUG_RETURN(0);
@@ -1908,6 +2040,19 @@ void Ndb::setReportThreshEventFreeMem(unsigned thresh)
     theEventBuffer->m_min_free_thresh= thresh;
     theEventBuffer->m_max_free_thresh= 100;
   }
+}
+
+Uint64 Ndb::allocate_transaction_id()
+{
+  Uint64 ret= theFirstTransId;
+
+  if ((theFirstTransId & 0xFFFFFFFF) == 0xFFFFFFFF) {
+    theFirstTransId = (theFirstTransId >> 32) << 32;
+  } else {
+    theFirstTransId++;
+  }
+
+  return ret;
 }
 
 #ifdef VM_TRACE

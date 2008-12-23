@@ -34,6 +34,13 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
+#include <signaldata/WaitGCP.hpp>
+
 #define CONSTRAINT_VIOLATION 893
 
 #define DEBUG(x) { ndbout << "TRIX::" << x << endl; }
@@ -61,6 +68,7 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_NODE_FAILREP, &Trix::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Trix::execINCL_NODEREQ);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trix::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Trix::execDBINFO_SCANREQ);
 
   // Index build
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Trix::execBUILD_INDX_IMPL_REQ);
@@ -87,6 +95,9 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_SUB_SYNC_REF, &Trix::execSUB_SYNC_REF);
   addRecSignal(GSN_SUB_SYNC_CONTINUE_REQ, &Trix::execSUB_SYNC_CONTINUE_REQ);
   addRecSignal(GSN_SUB_TABLE_DATA, &Trix::execSUB_TABLE_DATA);
+
+  addRecSignal(GSN_WAIT_GCP_REF, &Trix::execWAIT_GCP_REF);
+  addRecSignal(GSN_WAIT_GCP_CONF, &Trix::execWAIT_GCP_CONF);
 }
 
 /**
@@ -444,6 +455,75 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // Ignore
   }
   }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_AP_SNAPSHOT_SAVE(c_theSubscriptionRecPool);
+    return;
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_AP_SNAPSHOT_CHECK(c_theSubscriptionRecPool);
+    return;
+  }
+  
+  if (signal->theData[0] == 8004)
+  {
+    infoEvent("TRIX: c_theSubscriptionRecPool size: %u free: %u",
+              c_theSubscriptionRecPool.getSize(),
+              c_theSubscriptionRecPool.getNoOfFree());
+    return;
+  }
+
+}
+
+void Trix::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      const char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Attribute Order Buffer",
+           c_theAttrOrderBufferPool.getNoOfFree(),
+           c_theAttrOrderBufferPool.getSize() },
+          {"Subscription Record",
+           c_theSubscriptionRecPool.getNoOfFree(),
+           c_theSubscriptionRecPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      const char *blockname= "TRIX";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 // Build index
@@ -491,7 +571,8 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   subRec->requestType = INDEX_BUILD;
   subRec->fragCount = 0;
   subRec->m_rows_processed = 0;
-
+  subRec->m_flags = SubscriptionRecord::RF_WAIT_GCP; // Todo make configurable
+  subRec->m_gci = 0;
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
   if (noOfSections > 0) {
@@ -574,6 +655,10 @@ void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
 
+  const Uint32 gci_hi = utilExecuteConf->gci_hi;
+  const Uint32 gci_lo = utilExecuteConf->gci_lo;
+  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+
   subRecPtr.i = utilExecuteConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
     printf("rix::execUTIL_EXECUTE_CONF: Failed to find subscription data %u\n", subRecPtr.i);
@@ -581,9 +666,24 @@ void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->expectedConf--;
+
+  if (gci > subRecPtr.p->m_gci)
+  {
+    jam();
+    subRecPtr.p->m_gci = gci;
+  }
+
   checkParallelism(signal, subRec);
   if (subRec->expectedConf == 0)
+  {
+    if (subRec->m_flags & SubscriptionRecord::RF_WAIT_GCP)
+    {
+      jam();
+      wait_gcp(signal, subRecPtr);
+      return;
+    }
     buildComplete(signal, subRecPtr);
+  }
 }
 
 void Trix::execUTIL_EXECUTE_REF(Signal* signal)
@@ -678,7 +778,15 @@ void Trix::execSUB_SYNC_CONF(Signal* signal)
   subRec->expectedConf--;
   checkParallelism(signal, subRec);
   if (subRec->expectedConf == 0)
+  {
+    if (subRec->m_flags & SubscriptionRecord::RF_WAIT_GCP)
+    {
+      jam();
+      wait_gcp(signal, subRecPtr);
+      return;
+    }
     buildComplete(signal, subRecPtr);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -760,7 +868,7 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
   subCreateReq->tableId = subRec->sourceTableId;
   subCreateReq->subscriptionType = SubCreateReq::SingleTableScan;
   subCreateReq->schemaTransId = subRec->schemaTransId;
-  
+
   DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
 		     subRecPtr.i, subCreateReq->subscriptionId,
 		     subCreateReq->subscriptionKey));
@@ -972,6 +1080,62 @@ void Trix::executeReorgTransaction(Signal* signal,
 	     &handle);
 }
 
+void
+Trix::wait_gcp(Signal* signal, SubscriptionRecPtr subRecPtr, Uint32 delay)
+{
+  WaitGCPReq * req = (WaitGCPReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = subRecPtr.i;
+  req->requestType = WaitGCPReq::CurrentGCI;
+
+  if (delay == 0)
+  {
+    jam();
+    sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
+               WaitGCPReq::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    sendSignalWithDelay(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
+                        delay, WaitGCPReq::SignalLength);
+  }
+}
+
+void
+Trix::execWAIT_GCP_REF(Signal* signal)
+{
+  WaitGCPRef ref = *(WaitGCPRef*)signal->getDataPtr();
+
+  SubscriptionRecPtr subRecPtr;
+  c_theSubscriptions.getPtr(subRecPtr, ref.senderData);
+  wait_gcp(signal, subRecPtr, 100);
+}
+
+void
+Trix::execWAIT_GCP_CONF(Signal* signal)
+{
+  WaitGCPConf * conf = (WaitGCPConf*)signal->getDataPtr();
+  
+  SubscriptionRecPtr subRecPtr;
+  c_theSubscriptions.getPtr(subRecPtr, conf->senderData);
+
+  const Uint32 gci_hi = conf->gci_hi;
+  const Uint32 gci_lo = conf->gci_lo;
+  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+  
+  if (gci > subRecPtr.p->m_gci)
+  {
+    jam();
+    buildComplete(signal, subRecPtr);
+  }
+  else
+  {
+    jam();
+    wait_gcp(signal, subRecPtr, 100);
+  }
+}
+
 void Trix::buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr)
 {
   SubRemoveReq * const req = (SubRemoveReq*)signal->getDataPtrSend();
@@ -1176,6 +1340,8 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   subRec->prepareId = req->transId;
   subRec->fragCount = req->srcFragments;
   subRec->m_rows_processed = 0;
+  subRec->m_flags = SubscriptionRecord::RF_WAIT_GCP; // Todo make configurable
+  subRec->m_gci = 0;
   switch(req->requestType){
   case CopyDataImplReq::ReorgCopy:
     jam();
@@ -1198,6 +1364,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
+
   if (noOfSections > 1) {
     jam();
     SegmentedSectionPtr ptr;
@@ -1231,10 +1398,16 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     w.add(UtilPrepareReq::ScanTakeOverInd, 1);
     w.add(UtilPrepareReq::ReorgInd, 1);
     w.add(UtilPrepareReq::TableId, subRec->targetTableId);
-    // Add index attributes in increasing order and one PK attribute
-    for(Uint32 i = 0; i < subRec->noOfIndexColumns; i++)
-      w.add(UtilPrepareReq::AttributeId, i);
 
+    AttrOrderBuffer::DataBufferIterator iter;
+    ndbrequire(subRec->attributeOrder.first(iter));
+    
+    for(Uint32 i = 0; i < subRec->noOfIndexColumns; i++)
+    {
+      w.add(UtilPrepareReq::AttributeId, * iter.data);
+      subRec->attributeOrder.next(iter);
+    }
+    
     struct LinearSectionPtr sectionsPtr[UtilPrepareReq::NoOfSections];
     sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].p = propPage;
     sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].sz = w.getWordsUsed();

@@ -35,6 +35,7 @@
 #include <lgman.hpp>
 #include <pgman.hpp>
 #include <restore.hpp>
+#include <Dbinfo.hpp>
 #include <NdbEnv.h>
 #include <LocalProxy.hpp>
 #include <DblqhProxy.hpp>
@@ -43,6 +44,7 @@
 #include <DbtuxProxy.hpp>
 #include <BackupProxy.hpp>
 #include <RestoreProxy.hpp>
+#include <PgmanProxy.hpp>
 #include <mt.hpp>
 
 #ifndef VM_TRACE
@@ -80,11 +82,6 @@ void
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
-  Dbdict* dbdict = 0;
-  Dbdih* dbdih = 0;
-  Pgman* pg = 0;
-  Lgman* lg = 0;
-  Tsman* ts = 0;
 
   Block_context ctx(*data.theConfiguration, *data.m_mem_manager);
   
@@ -102,26 +99,29 @@ SimBlockList::load(EmulatorData& data){
 
   const bool mtLqh = globalData.isNdbMtLqh;
 
-  theList[0]  = pg = NEW_BLOCK(Pgman)(ctx);
-  theList[1]  = lg = NEW_BLOCK(Lgman)(ctx);
-  theList[2]  = ts = NEW_BLOCK(Tsman)(ctx, pg, lg);
+  if (!mtLqh)
+    theList[0] = NEW_BLOCK(Pgman)(ctx);
+  else
+    theList[0] = NEW_BLOCK(PgmanProxy)(ctx);
+  theList[1]  = NEW_BLOCK(Lgman)(ctx);
+  theList[2]  = NEW_BLOCK(Tsman)(ctx);
   if (!mtLqh)
     theList[3]  = NEW_BLOCK(Dbacc)(ctx);
   else
     theList[3]  = NEW_BLOCK(DbaccProxy)(ctx);
   theList[4]  = NEW_BLOCK(Cmvmi)(ctx);
   theList[5]  = fs;
-  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(ctx);
-  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(ctx);
+  theList[6]  = NEW_BLOCK(Dbdict)(ctx);
+  theList[7]  = NEW_BLOCK(Dbdih)(ctx);
   if (!mtLqh)
     theList[8]  = NEW_BLOCK(Dblqh)(ctx);
   else
     theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
   theList[9]  = NEW_BLOCK(Dbtc)(ctx);
   if (!mtLqh)
-    theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+    theList[10] = NEW_BLOCK(Dbtup)(ctx);
   else
-    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);//wl4391_todo pg
+    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);
   theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
   theList[12] = NEW_BLOCK(Qmgr)(ctx);
   theList[13] = NEW_BLOCK(Trix)(ctx);
@@ -139,7 +139,8 @@ SimBlockList::load(EmulatorData& data){
     theList[18] = NEW_BLOCK(Restore)(ctx);
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
-  assert(NO_OF_BLOCKS == 19);
+  theList[19] = NEW_BLOCK(Dbinfo)(ctx);
+  assert(NO_OF_BLOCKS == 20);
 
   if (globalData.isNdbMt) {
     add_main_thr_map();

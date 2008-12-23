@@ -22,6 +22,7 @@
 #include <DLList.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/GetTabInfo.hpp>
+#include <SafeMutex.hpp>
 
 #include "lgman.hpp"
 #include "pgman.hpp"
@@ -29,7 +30,7 @@
 class Tsman : public SimulatedBlock
 {
 public:
-  Tsman(Block_context&, Pgman*, Lgman*);
+  Tsman(Block_context&);
   virtual ~Tsman();
   BLOCK_DEFINES(Tsman);
   
@@ -147,7 +148,7 @@ public:
   struct Tablespace
   {
     Tablespace(){}
-    Tablespace(Tsman*, Lgman*, const struct CreateFilegroupImplReq*);
+    Tablespace(Tsman*, const struct CreateFilegroupImplReq*);
     
     Uint32 m_magic;
     union {
@@ -166,7 +167,8 @@ public:
 
     Uint32 m_extent_size;       // In pages
     Datafile_list::Head m_free_files; // Files w/ free space
-    Logfile_client m_logfile_client;
+    Tsman* m_tsman;
+    Uint32 m_logfile_group_id;
 
     Datafile_list::Head m_full_files; // Files wo/ free space
     Datafile_list::Head m_meta_files; // Files being created/dropped
@@ -201,8 +203,13 @@ private:
   Datafile_hash m_file_hash;
   Tablespace_list m_tablespace_list;
   Tablespace_hash m_tablespace_hash;
-  Page_cache_client m_page_cache_client;
-  Lgman * const m_lgman;
+  SimulatedBlock * m_pgman;
+  Lgman * m_lgman;
+  SimulatedBlock * m_tup;
+
+  SafeMutex m_client_mutex;
+  void client_lock(BlockNumber block, int line);
+  void client_unlock(BlockNumber block, int line);
   
   int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*,
 		SectionHandle* handle);
@@ -269,23 +276,42 @@ Tsman::calc_page_no_in_extent(Uint32 page_no, const Tsman::req* val) const
 class Tablespace_client
 {
 public:
+  Uint32 m_block;
   Tsman * m_tsman;
   Signal* m_signal;
   Uint32 m_table_id;
   Uint32 m_fragment_id;
   Uint32 m_tablespace_id;
+  bool m_lock;
+  DEBUG_OUT_DEFINES(TSMAN);
 
 public:
-  Tablespace_client(Signal* signal, Tsman* tsman, 
-		    Uint32 table, Uint32 fragment, Uint32 tablespaceId) {
+  Tablespace_client(Signal* signal, SimulatedBlock* block, Tsman* tsman, 
+		    Uint32 table, Uint32 fragment, Uint32 tablespaceId,
+                    bool lock = true) {
+    Uint32 bno = block->number();
+    Uint32 ino = block->instance();
+    m_block= numberToBlock(bno, ino);
     m_tsman= tsman;
     m_signal= signal;
     m_table_id= table;
     m_fragment_id= fragment;
     m_tablespace_id= tablespaceId;
+    m_lock = lock;
+
+    D("client ctor" << hex << V(m_block) << dec
+      << V(m_table_id) << V(m_fragment_id) << V(m_tablespace_id));
+    if (m_lock)
+      m_tsman->client_lock(m_block, 0);
   }
 
-  Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);
+  Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);//undef
+
+  ~Tablespace_client() {
+    D("client dtor" << hex << V(m_block));
+    if (m_lock)
+      m_tsman->client_unlock(m_block, 0);
+  }
   
   /**
    * Return >0 if success, no of pages in extent, sets key
@@ -369,9 +395,10 @@ Tablespace_client::alloc_extent(Local_key* key)
   
   if(req->reply.errorCode == 0){
     * key = req->reply.page_id;
+    D("alloc_extent" << V(*key) << V(req->reply.page_count));
     return req->reply.page_count;
   } else {
-    return -req->reply.errorCode; 
+    return -(int)req->reply.errorCode;
   }
 }
 
@@ -389,9 +416,10 @@ Tablespace_client::alloc_page_from_extent(Local_key* key, Uint32 bits)
 
   if(req->reply.errorCode == 0){
     *key = req->key;
+    D("alloc_page_from_extent" << V(*key) << V(bits) << V(req->bits));
     return req->bits;
   } else {
-    return -req->reply.errorCode; 
+    return -(int)req->reply.errorCode;
   }
 }
 
@@ -408,9 +436,10 @@ Tablespace_client::free_extent(Local_key* key, Uint64 lsn)
   m_tsman->execFREE_EXTENT_REQ(m_signal);
   
   if(req->reply.errorCode == 0){
+    D("free_extent" << V(*key) << V(lsn));
     return 0;
   } else {
-    return -req->reply.errorCode; 
+    return -(int)req->reply.errorCode;
   }
 }
 
@@ -419,6 +448,7 @@ int
 Tablespace_client::update_page_free_bits(Local_key *key, 
 					 unsigned committed_bits)
 {
+  D("update_page_free_bits" << V(*key) << V(committed_bits));
   return m_tsman->update_page_free_bits(m_signal, key, committed_bits);
 }
 

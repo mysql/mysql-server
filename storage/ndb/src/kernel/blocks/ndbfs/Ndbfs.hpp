@@ -22,21 +22,21 @@
 #include "AsyncFile.hpp"
 #include "OpenFiles.hpp"
 
-
+class AsyncIoThread;
 
 // Because one NDB Signal request can result in multiple requests to
 // AsyncFile one class must be made responsible to keep track
 // of all out standing request and when all are finished the result
 // must be reported to the sending block.
 
-
 class Ndbfs : public SimulatedBlock
 {
+  friend class AsyncIoThread;
 public:
   Ndbfs(Block_context&);
   virtual ~Ndbfs();
-
   virtual const char* get_filename(Uint32 fd) const;
+
 protected:
   BLOCK_DEFINES(Ndbfs);
 
@@ -69,17 +69,22 @@ private:
   Uint16 theLastId;
   BlockReference cownref;
 
-  // Communication from files 
+  // Communication from/to files
   MemoryChannel<Request> theFromThreads;
+  MemoryChannel<Request> theToThreads;
 
   Pool<Request>* theRequestPool;
 
-  AsyncFile* createAsyncFile();
-  AsyncFile* getIdleFile();
+  AsyncIoThread* createIoThread(AsyncFile* file);
+  AsyncFile* createAsyncFile(bool bound);
+  AsyncFile* getIdleFile(bool bound);
+  void pushIdleFile(AsyncFile*);
 
-  Vector<AsyncFile*> theFiles;     // List all created AsyncFiles
-  Vector<AsyncFile*> theIdleFiles; // List of idle AsyncFiles
-  OpenFiles theOpenFiles;          // List of open AsyncFiles
+  Vector<AsyncIoThread*> theThreads;// List of all created threads
+  Vector<AsyncFile*> theFiles;      // List all created AsyncFiles
+  Vector<AsyncFile*> theIdleBoundFiles;   // List of idle AsyncFiles
+  Vector<AsyncFile*> theIdleUnboundFiles; // List of idle AsyncFiles
+  OpenFiles theOpenFiles;           // List of open AsyncFiles
 
   BaseString theFileSystemPath;
   BaseString theBackupFilePath;

@@ -486,7 +486,7 @@ void getTextNR_CopyFragDone(QQQQ) {
   //-----------------------------------------------------------------------
   // REPORT Node Restart copied a fragment.
   //-----------------------------------------------------------------------
-  Uint32 rows = theData[4] + (Uint64(theData[5]) << 32);
+  Uint64 rows = theData[4] + (Uint64(theData[5]) << 32);
   Uint64 bytes = theData[6] + (Uint64(theData[7]) << 32);
   BaseString::snprintf(m_text, m_text_len, 
 		       "Table ID = %u, fragment ID = %u have been synced "
@@ -767,7 +767,7 @@ void getTextEventBufferStatus(QQQQ) {
   convert_unit(alloc, alloc_unit);
   convert_unit(max_, max_unit);
   BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status: used=%d%s(%d%) alloc=%d%s(%d%) "
+		       "Event buffer status: used=%d%s(%d%%) alloc=%d%s(%d%%) "
 		       "max=%d%s apply_epoch=%u/%u latest_epoch=%u/%u",
 		       used, used_unit,
 		       theData[2] ? (Uint32)((((Uint64)theData[1])*100)/theData[2]) : 0,
@@ -897,8 +897,8 @@ void getTextLogFileInitStatus(QQQQ) {
   if (theData[2])
     BaseString::snprintf(m_text, m_text_len,
                          "Local redo log file initialization status:\n"
-                         "#Total files: %lu, Completed: %lu\n"
-                         "#Total MBytes: %lu, Completed: %lu",
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
 //                         refToNode(theData[1]),
                          theData[2], theData[3],
                          theData[4], theData[5]);
@@ -910,8 +910,8 @@ void getTextLogFileInitStatus(QQQQ) {
 void getTextLogFileInitCompStatus(QQQQ) {
     BaseString::snprintf(m_text, m_text_len,
                          "Local redo log file initialization completed:\n"
-                         "#Total files: %lu, Completed: %lu\n"
-                         "#Total MBytes: %lu, Completed: %lu",
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
 //                         refToNode(theData[1]),
                          theData[2], theData[3],
                          theData[4], theData[5]);

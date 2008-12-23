@@ -124,6 +124,8 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   
   addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
   addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Backup::execDBINFO_SCANREQ);
 }
   
 Backup::~Backup()

@@ -103,8 +103,10 @@ ThreadConfig::scanTimeQueue()
 // The timeout value in this call is calculated as (10 ms - laptime)
 // This would make ndb use less cpu while improving response time.
 //--------------------------------------------------------------------
-void ThreadConfig::ipControlLoop(Uint32 thread_index)
+void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
 {
+  globalEmulatorData.theConfiguration->setAllLockCPU(true);
+
   Uint32 execute_loop_constant =
         globalEmulatorData.theConfiguration->schedulerExecutionTimer();
   Uint32 min_spin_time = 

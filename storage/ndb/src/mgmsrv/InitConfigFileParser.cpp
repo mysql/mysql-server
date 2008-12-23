@@ -212,10 +212,8 @@ InitConfigFileParser::run_config_rules(Context& ctx)
   strncat(tmpLine, system, MAX_LINE_LENGTH);
   strncat(tmpLine, ":NoOfConnections", MAX_LINE_LENGTH);
   ctx.m_config->put(tmpLine, nExtConnections);
-  
-  Config * ret = new Config();
-  ret->m_configValues = (struct ndb_mgm_configuration*)ctx.m_configValues.getConfigValues();
-  return ret;
+
+  return new Config(ctx.m_configValues.getConfigValues());
 }
 
 //****************************************************************************

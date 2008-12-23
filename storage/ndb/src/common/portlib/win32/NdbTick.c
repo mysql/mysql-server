@@ -36,6 +36,6 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros)
   QueryPerformanceFrequency(&liFreq);
   *secs = liCount.QuadPart / liFreq.QuadPart;
   liCount.QuadPart -= *secs * liFreq.QuadPart;
-  *micros = (liCount.QuadPart*1000000) / liFreq.QuadPart;
+  *micros = (Uint32)((liCount.QuadPart*1000000) / liFreq.QuadPart);
   return 0;
 }

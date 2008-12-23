@@ -89,6 +89,7 @@ File_class::open()
 bool 
 File_class::open(const char* aFileName, const char* mode) 
 {
+  assert(m_file == NULL); // Not already open
   if(m_fileName != aFileName){
     /**
      * Only copy if it's not the same string
@@ -104,6 +105,13 @@ File_class::open(const char* aFileName, const char* mode)
   
   return rc;
 }
+
+bool
+File_class::is_open()
+{
+  return (m_file != NULL);
+}
+
 File_class::~File_class()
 {
   close();  
@@ -158,7 +166,7 @@ File_class::readChar(char* buf, long start, long length) const
 int 
 File_class::readChar(char* buf)
 {
-  return readChar(buf, 0, strlen(buf));
+  return readChar(buf, 0, (long)strlen(buf));
 }
 
 int 
@@ -176,7 +184,7 @@ File_class::writeChar(const char* buf, long start, long length)
 int 
 File_class::writeChar(const char* buf)
 {
-  return writeChar(buf, 0, ::strlen(buf));
+  return writeChar(buf, 0, (long)::strlen(buf));
 }
 
 off_t

@@ -197,7 +197,7 @@ SectionReader::getWordsPtr(Uint32 maxLen,
   }
 
   return true;
-};
+}
 
 bool
 SectionReader::getWordsPtr(const Uint32*& readPtr,

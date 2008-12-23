@@ -74,15 +74,15 @@ NDBT_Attribute T3Attribs[] = {
   NDBT_Attribute("KOL04", NdbDictionary::Column::Char, 100),
   NDBT_Attribute("KOL05", NdbDictionary::Column::Varbinary, 100),
   NDBT_Attribute("KOL06", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL08", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL15", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL15", NdbDictionary::Column::Longvarbinary, 537),
   NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 100),
   NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 100),
   NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 100),
@@ -397,6 +397,7 @@ NDBT_Attribute D1Attribs[] = {
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Char, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL6", NdbDictionary::Column::Varbinary, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
 };
 static
 const
@@ -411,6 +412,9 @@ NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL7", NdbDictionary::Column::Longvarbinary, 384, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL8", NdbDictionary::Column::Varbinary, 88, false, true, 0, NdbDictionary::Column::StorageTypeDisk)
+
 };
 static
 const
@@ -757,9 +761,9 @@ NDBT_Attribute WIDE_2COL_ATTRIBS[] = {
   /* Note that we can't have any index on this table as it
    * has no space for the extra FRAGID the index requires!
    */
-  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarbinary, 
                  NDBT_Tables::MaxVarTypeKeyBytes, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary, 
                  NDBT_Tables::MaxKeyMaxVarTypeAttrBytes, false)
 };
 
@@ -776,9 +780,9 @@ NDBT_Table WIDE_2COL("WIDE_2COL", sizeof(WIDE_2COL_ATTRIBS)/
 static 
 const
 NDBT_Attribute WIDE_2COL_IX_ATTRIBS[] = {
-  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxVarTypeKeyBytes, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxKeyMaxVarTypeAttrBytesIndex , false)
 };
 
@@ -802,9 +806,9 @@ NDBT_Attribute WIDE_MAXKEY_HUGO_ATTRIBS[] = {
   /* Note that we can't have any index on this table as it
    * has no space for the extra FRAGID the index requires!
    */
-  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxVarTypeKeyBytes, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxKeyMaxVarTypeAttrBytes -
                  NDBT_Tables::HugoOverheadBytes, false),
   NDBT_Attribute("HUGOID", NdbDictionary::Column::Unsigned,
@@ -827,7 +831,7 @@ const
 NDBT_Attribute WIDE_MAXATTR_HUGO_ATTRIBS[] = {
   NDBT_Attribute("KEY", NdbDictionary::Column::Unsigned,
                  1, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MinKeyMaxVarTypeAttrBytes -
                  NDBT_Tables::HugoOverheadBytes, false),
   NDBT_Attribute("HUGOID", NdbDictionary::Column::Unsigned,
@@ -1113,11 +1117,21 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
 
   int res;
+  Uint32 mb = 8;
+  {
+    char buf[256];
+    if (NdbEnv_GetEnv("UNDOBUFFER", buf, sizeof(buf)))
+    {
+      mb = atoi(buf);
+      ndbout_c("Using %umb dd-undo-buffer", mb);
+    }
+  }
+
   NdbDictionary::LogfileGroup lg = pDict->getLogfileGroup("DEFAULT-LG");
   if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
   {
     lg.setName("DEFAULT-LG");
-    lg.setUndoBufferSize(8*1024*1024);
+    lg.setUndoBufferSize(mb*1024*1024);
     res = pDict->createLogfileGroup(lg);
     if(res != 0){
       g_err << "Failed to create logfilegroup:"
@@ -1126,7 +1140,9 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
     }
   }
 
-  Uint32 mb = 96;
+  mb = 96;
+  Uint32 files = 13;
+
   {
     char buf[256];
     if (NdbEnv_GetEnv("UNDOSIZE", buf, sizeof(buf)))
@@ -1136,7 +1152,19 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
     }
   }
   
+  {
+    char buf[256];
+    if (NdbEnv_GetEnv("UNDOFILES", buf, sizeof(buf)))
+    {
+      files = atoi(buf);
+      ndbout_c("Using max %u dd-undo files", files);
+    }
+  }
+  
   Uint32 sz = 32;
+  while (mb > files * sz)
+    sz += 32;
+
   for (Uint32 i = 0; i * sz < mb; i++)
   {
     char tmp[256];
@@ -1145,7 +1173,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
     if (strcmp(uf.getPath(), tmp) != 0)
     {
       uf.setPath(tmp);
-      uf.setSize(sz*1024*1024);
+      uf.setSize(Uint64(sz)*1024*1024);
       uf.setLogfileGroup("DEFAULT-LG");
       
       res = pDict->createUndofile(uf, true);
@@ -1171,30 +1199,39 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       return NDBT_FAILED;
     }
   }
-  
-  {
-    NdbDictionary::Datafile df = pDict->getDatafile(0, "datafile01.dat");
-    if (strcmp(df.getPath(), "datafile01.dat") != 0)
-    {
-      df.setPath("datafile01.dat");
-      df.setSize(64*1024*1024);
-      df.setTablespace("DEFAULT-TS");
-      
-      res = pDict->createDatafile(df, true);
-      if(res != 0){
-	g_err << "Failed to create datafile:"
-	      << endl << pDict->getNdbError() << endl;
-	return NDBT_FAILED;
-      }
-    }
-  }
 
+  mb = 128;
   {
-    NdbDictionary::Datafile df = pDict->getDatafile(0, "datafile02.dat");
-    if (strcmp(df.getPath(), "datafile02.dat") != 0)
+    char buf[256];
+    if (NdbEnv_GetEnv("DATASIZE", buf, sizeof(buf)))
     {
-      df.setPath("datafile02.dat");
-      df.setSize(64*1024*1024);
+      mb = atoi(buf);
+      ndbout_c("Using %umb dd-data", mb);
+    }
+  }
+  
+  sz = 64;
+  files = 13;
+  {
+    char buf[256];
+    if (NdbEnv_GetEnv("DATAFILES", buf, sizeof(buf)))
+    {
+      files = atoi(buf);
+      ndbout_c("Using max %u dd-data files", files);
+    }
+  }
+  
+  while (mb > files * sz)
+    sz += 32;
+  for (Uint32 i = 0; i * sz < mb; i++)
+  {
+    char tmp[256];
+    BaseString::snprintf(tmp, sizeof(tmp), "datafile%u.dat", i);
+    NdbDictionary::Datafile df = pDict->getDatafile(0, tmp);
+    if (strcmp(df.getPath(), tmp) != 0)
+    {
+      df.setPath(tmp);
+      df.setSize(Uint64(sz)*1024*1024);
       df.setTablespace("DEFAULT-TS");
       
       res = pDict->createDatafile(df, true);
@@ -1205,7 +1242,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       }
     }
   }
-  
+    
   return NDBT_OK;
 }
 

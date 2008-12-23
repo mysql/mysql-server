@@ -710,6 +710,8 @@ private:
   STATIC_CONST( NodeFillByte = 0xa4 );
 #endif
 
+  void execDBINFO_SCANREQ(Signal* signal);
+
   // start up info
   Uint32 c_internalStartPhase;
   Uint32 c_typeOfStart;

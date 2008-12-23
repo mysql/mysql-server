@@ -17,9 +17,9 @@
 #define MgmtSrvr_H
 
 #include "Config.hpp"
-#include <mgmapi.h>
+#include "ConfigSubscriber.hpp"
 
-#include <ConfigRetriever.hpp>
+#include <mgmapi.h>
 #include <Vector.hpp>
 #include <NodeBitmask.hpp>
 #include <ndb_version.h>
@@ -70,8 +70,8 @@ public:
   @class MgmtSrvr
   @brief Main class for the management server.
  */
-class MgmtSrvr {
-  
+class MgmtSrvr : private ConfigSubscriber {
+
 public:
   // some compilers need all of this
   class Allocated_resources;
@@ -93,7 +93,6 @@ public:
     NodeBitmask m_reserved_nodes;
     NDB_TICKS m_alloc_timeout;
   };
-  NdbMutex *m_node_id_mutex;
 
   /**
    * Enable/disable eventlog log levels/severities.
@@ -130,6 +129,11 @@ public:
     const char* bind_address;
     int no_nodeid_checks;
     int print_full_config;
+    const char* configdir;
+    int verbose;
+    MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
+    int reload;
+    int initial;
   };
 
   MgmtSrvr(); // Not implemented
@@ -138,21 +142,15 @@ public:
 
   ~MgmtSrvr();
 
-  /*
-    To be called after constructor. Loads configuration
-    from disk or fetches it from other server
-   */
-  bool init();
-
 private:
-  /* Functions used from 'init' */
-  Config* load_init_config(void);
-  Config* load_init_mycnf(void);
-  bool fetch_config(void);
-  bool save_config(const Config* conf);
-  bool save_config(void);
+  /* Function used from 'init' */
+  const char* check_configdir() const;
 
 public:
+  /*
+    To be called after constructor.
+  */
+  bool init();
 
   /*
     To be called after 'init', starts up the services
@@ -161,15 +159,13 @@ public:
   bool start(void);
 private:
   /* Functions used from 'start' */
-  bool start_transporter(void);
-  bool start_mgm_service(void);
+  bool start_transporter(const Config*);
+  bool start_mgm_service(const Config*);
   bool connect_to_self(void);
 
 public:
 
   NodeId getOwnNodeId() const {return _ownNodeId;};
-
-  void print_config() { _config->print(); };
 
   /**
    * Get status on a node.
@@ -203,15 +199,6 @@ public:
    * shutdown the DB nodes
    */
   int shutdownDB(int * cnt = 0, bool abort = false);
-
-  /**
-   *   print version info about a node
-   * 
-   *   @param   processId: Id of the DB process to stop
-   *   @return  0 if succeeded, otherwise: as stated above, plus:
-   */
-  int versionNode(int nodeId, Uint32 &version, Uint32 &mysql_version,
-		  const char **address);
 
   /**
    *   Maintenance on the system
@@ -282,7 +269,7 @@ public:
   /**
    * Backup functionallity
    */
-  int startBackup(Uint32& backupId, int waitCompleted= 2, Uint32 input_backupId= 0);
+  int startBackup(Uint32& backupId, int waitCompleted= 2, Uint32 input_backupId= 0, Uint32 backuppoint= 0);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 
@@ -373,10 +360,11 @@ public:
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
 		     struct sockaddr *client_addr,
-                     SOCKET_SIZE_TYPE *client_addr_len,
 		     int &error_code, BaseString &error_string,
                      int log_event = 1);
-  
+
+  bool change_config(Config& new_config, BaseString& msg);
+
   /**
    *
    */
@@ -390,13 +378,9 @@ public:
    */
   const char* getErrorText(int errorCode, char *buf, int buf_sz);
 
-  /**
-   *   Get configuration
-   */
-  const Config * getConfig() const;
 private:
-  void setConfig(Config* conf);
-  void setClusterLog(void);
+  void config_changed(NodeId, const Config*);
+  void setClusterLog(const Config* conf);
 public:
 
   /**
@@ -428,6 +412,12 @@ public:
                      Uint32 transId, Uint32 transKey, Uint32 flags);
 
 private:
+
+  int versionNode(int nodeId, Uint32 &version,
+                  Uint32 &mysql_version, const char **address);
+
+  int sendVersionReq(int processId, Uint32 &version,
+                     Uint32& mysql_version, const char **address);
 
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
@@ -466,6 +456,16 @@ private:
 
   int check_nodes_starting();
   int check_nodes_stopping();
+  int check_nodes_single_user();
+
+
+  Logger*  getLogger();
+
+  int ndbinfo(Uint32 tableId, Vector<BaseString> *cols, Vector<BaseString> *rows);
+
+  int ndbinfo(BaseString table_name,
+              Vector<BaseString> *cols,
+              Vector<BaseString> *rows);
 
   //**************************************************************************
 
@@ -474,17 +474,28 @@ private:
   NodeId _ownNodeId;
   Uint32 m_port;
   SocketServer m_socket_server;
-  ConfigRetriever m_config_retriever;
 
-  BlockReference _ownReference; 
-  NdbMutex *m_configMutex;
-  const Config * _config;
+  Vector<BaseString> m_ndbinfo_table_names;
+  Vector< Vector<Uint32> > m_ndbinfo_column_types;
+  Vector< Vector<BaseString> > m_ndbinfo_column_names;
+
+  NdbMutex* m_local_config_mutex;
+  const Config* m_local_config;
+
+  NdbMutex *m_node_id_mutex;
+
+  BlockReference _ownReference;
+
+  class ConfigManager* m_config_manager;
+
+  bool m_need_restart;
 
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
 
   void handleReceivedSignal(NdbApiSignal* signal);
   void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
+  void execDBINFO_SCANREQ(NdbApiSignal* signal);
 
   /**
      Callback function installed into TransporterFacade, will be called
@@ -515,8 +526,6 @@ private:
  
   class TransporterFacade * theFacade;
 
-  int  sendVersionReq( int processId, Uint32 &version, Uint32& mysql_version,
-		       const char **address);
   int translateStopRef(Uint32 errCode);
   
   bool _isStopThread;
@@ -538,12 +547,27 @@ private:
   struct NdbThread* _logLevelThread;
   static void *logLevelThread_C(void *);
   void logLevelThreadRun();
+
+  void report_unknown_signal(SimpleSignal *signal);
+
+
+public:
+  /*
+    Get packed copy of configuration in the supplied buffer
+  */
+  bool getPackedConfig(UtilBuffer& pack_buf);
+
+  void print_config(const char* section_filter = NULL,
+                    NodeId nodeid_filter = 0,
+                    const char* param_filter = NULL,
+                    NdbOut& out = ndbout);
+
+  bool reload_config(const char* config_filename,
+                     bool mycnf, BaseString& msg);
+
+  void show_variables(NdbOut& out = ndbout);
+
 };
 
-inline
-const Config *
-MgmtSrvr::getConfig() const {
-  return _config;
-}
 
 #endif // MgmtSrvr_H

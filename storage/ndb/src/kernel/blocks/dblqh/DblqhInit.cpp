@@ -71,6 +71,9 @@ void Dblqh::initData()
    m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
+  for (Uint32 i = 0; i < 1024; i++) {
+    ctransidHash[i] = RNIL;
+  }//for
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -343,6 +346,10 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_FRAG_REQ, &Dblqh::execDROP_FRAG_REQ);
   addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
   addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
+
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
+  addRecSignal(GSN_FSWRITEREQ,
+               &Dblqh::execFSWRITEREQ);
 
   initData();
 

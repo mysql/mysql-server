@@ -87,22 +87,6 @@ extern "C" {
 			   int nodeId, 
 			   int errorCode,
 			   struct ndb_mgm_reply* reply);
-
-  /**
-   * Dump state
-   *
-   * @param handle the NDB management handle.
-   * @param nodeId the node id.
-   * @param args integer array
-   * @param number of args in int array
-   * @param reply the reply message.
-   * @return 0 if successful or an error code.
-   */
-  int ndb_mgm_dump_state(NdbMgmHandle handle,
-			 int nodeId,
-			 const int * args,
-			 int num_args,
-			 struct ndb_mgm_reply* reply);
     
 
   /**

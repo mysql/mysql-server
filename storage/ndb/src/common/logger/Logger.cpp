@@ -165,17 +165,17 @@ Logger::addHandler(LogHandler* pHandler)
   Guard g(m_mutex);
   assert(pHandler != NULL);
 
-  bool rc = pHandler->open();	
-  if (rc)
+  if (!pHandler->is_open() &&
+      !pHandler->open())
   {
-    m_pHandlerList->add(pHandler);
-  }
-  else
-  {
+    // Failed to open
     delete pHandler;
-  }	
+    return false;
+  }
 
-  return rc;
+  m_pHandlerList->add(pHandler);
+
+  return true;
 }
 
 bool
@@ -380,6 +380,30 @@ Logger::debug(const char* pMsg, ...) const
   va_start(ap, pMsg);
   log(LL_DEBUG, pMsg, ap);
   va_end(ap);
+}
+
+
+
+int Logger::getHandlerCount() {
+  int r=0;
+  if(m_pConsoleHandler) r++;
+  if(m_pFileHandler) r++;
+  if(m_pSyslogHandler) r++;
+  r+=m_pHandlerList->size();
+  return r;
+}
+
+
+LogHandler* Logger::getHandler(int i) {
+  if(i==0) return m_pConsoleHandler;
+  if(i==1) return m_pFileHandler;
+  if(i==2) return m_pSyslogHandler;
+  LogHandler *r=NULL;
+  while(i-- > 2)
+    r= m_pHandlerList->next();
+  while(m_pHandlerList->next()!=NULL)
+    m_pHandlerList->next();
+  return r;
 }
 
 //

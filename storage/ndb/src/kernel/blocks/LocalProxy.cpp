@@ -23,6 +23,8 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   BLOCK_CONSTRUCTOR(LocalProxy);
 
   ndbrequire(instance() == 0); // this is main block
+  c_lqhWorkers = 0;
+  c_extraWorkers = 0; // sub-class constructor can set
   c_workers = 0;
   Uint32 i;
   for (i = 0; i < MaxWorkers; i++)
@@ -146,7 +148,8 @@ LocalProxy::sendREQ(Signal* signal, SsParallel& ss)
 
   ss.m_workerMask.clear();
   ss.m_worker = 0;
-  while (ss.m_worker < c_workers) {
+  const Uint32 count = ss.m_extraLast ? c_lqhWorkers : c_workers;
+  while (ss.m_worker < count) {
     jam();
     ss.m_workerMask.set(ss.m_worker);
     (this->*ss.m_sendREQ)(signal, ss.m_ssId);
@@ -162,7 +165,8 @@ LocalProxy::recvCONF(Signal* signal, SsParallel& ss)
   BlockReference ref = signal->getSendersBlockRef();
   ndbrequire(refToMain(ref) == number());
 
-  ss.m_worker = refToInstance(ref) - 1;
+  Uint32 ino = refToInstance(ref);
+  ss.m_worker = workerIndex(ino);
   ndbrequire(ref == workerRef(ss.m_worker));
   ndbrequire(ss.m_worker < c_workers);
   ndbrequire(ss.m_workerMask.get(ss.m_worker));
@@ -214,22 +218,58 @@ LocalProxy::lastReply(const SsParallel& ss)
   return ss.m_workerMask.isclear();
 }
 
+bool
+LocalProxy::lastExtra(Signal* signal, SsParallel& ss)
+{
+  if (c_lqhWorkers + ss.m_extraSent < c_workers) {
+    jam();
+    ss.m_worker = c_lqhWorkers + ss.m_extraSent;
+    ss.m_workerMask.set(ss.m_worker);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    ss.m_extraSent++;
+    return false;
+  }
+  return true;
+}
+
+// used in "reverse" proxying (start with worker REQs)
+void
+LocalProxy::setMask(SsParallel& ss)
+{
+  Uint32 i;
+  for (i = 0; i < c_workers; i++)
+    ss.m_workerMask.set(i);
+}
+
+void
+LocalProxy::setMask(SsParallel& ss, const WorkerMask& mask)
+{
+  ss.m_workerMask.assign(mask);
+}
+
 // load workers (before first signal)
 
 void
 LocalProxy::loadWorkers()
 {
-  c_workers = getLqhWorkers();
+  c_lqhWorkers = getLqhWorkers();
+  c_workers = c_lqhWorkers + c_extraWorkers;
 
   Uint32 i;
   for (i = 0; i < c_workers; i++) {
-    const Uint32 instanceNo = 1 + i;
+    jam();
+    Uint32 instanceNo = workerInstance(i);
+
     SimulatedBlock* worker = newWorker(instanceNo);
     ndbrequire(worker->instance() == instanceNo);
     ndbrequire(this->getInstance(instanceNo) == worker);
     c_worker[i] = worker;
 
-    add_lqh_worker_thr_map(number(), instanceNo);
+    if (i < c_lqhWorkers) {
+      add_lqh_worker_thr_map(number(), instanceNo);
+    } else {
+      add_extra_worker_thr_map(number(), instanceNo);
+    }
   }
 }
 

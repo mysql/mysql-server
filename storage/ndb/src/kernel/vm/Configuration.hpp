@@ -21,6 +21,7 @@
 #include <ndb_types.h>
 #include <NdbMutex.h>
 #include <NdbThread.h>
+#include <Bitmask.hpp>
 
 enum ThreadTypes
 {
@@ -34,22 +35,15 @@ enum ThreadTypes
 
 #define MAX_NDB_THREADS 256
 #define NO_LOCK_CPU 65535
+#define NDB_CPU_MASK_SZ 256
 
 struct ThreadInfo
 {
-  NDB_TID_TYPE threadId;
-  NDB_THAND_TYPE threadHandle;
   enum ThreadTypes type;
+  struct NdbThread* pThread;
 };
 
 class Configuration;
-
-struct ThreadContainer
-{
-  Configuration *conf;
-  enum ThreadTypes type;
-  Uint32 index;
-};
 
 class ConfigRetriever;
 
@@ -80,21 +74,24 @@ public:
 
   Uint32 executeLockCPU() const;
   void executeLockCPU(Uint32 value);
+  const Bitmask<NDB_CPU_MASK_SZ/32> & getExecuteCpuMask() const {
+    return _executeLockCPU;
+  }
 
   Uint32 maintLockCPU() const;
   void maintLockCPU(Uint32 value);
 
   void setAllRealtimeScheduler();
   void setAllLockCPU(bool exec_thread);
-  int setLockCPU(NDB_TID_TYPE threadId,
+  int setLockCPU(NdbThread*,
                  enum ThreadTypes type,
                  bool exec_thread,
                  bool init);
-  int setRealtimeScheduler(NDB_THAND_TYPE threadHandle,
+  int setRealtimeScheduler(NdbThread*,
                            enum ThreadTypes type,
                            bool real_time,
                            bool init);
-  Uint32 addThreadId(enum ThreadTypes type);
+  Uint32 addThread(struct NdbThread*, enum ThreadTypes type);
   void removeThreadId(Uint32 index);
   void yield_main(Uint32 thread_index, bool start);
   void initThreadArray();
@@ -148,7 +145,7 @@ private:
   Uint32 _schedulerExecutionTimer;
   Uint32 _schedulerSpinTimer;
   Uint32 _realtimeScheduler;
-  Uint32 _executeLockCPU;
+  Bitmask<NDB_CPU_MASK_SZ/32> _executeLockCPU;
   Uint32 _maintLockCPU;
   Uint32 _timeBetweenWatchDogCheckInitial;
 

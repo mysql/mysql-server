@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3349,6 +3349,17 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     {
       close_temporary_tables(thd);
       cleanup_load_tmpdir();
+    }
+    else
+    {
+      /*
+        Set all temporary tables thread references to the current thread
+        as they may point to the "old" SQL slave thread in case of its
+        restart.
+      */
+      TABLE *table;
+      for (table= thd->temporary_tables; table; table= table->next)
+        table->in_use= thd;
     }
     break;
 
@@ -7215,6 +7226,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
+      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
+
       table->in_use = old_thd;
       switch (error)
       {
@@ -7230,11 +7244,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
         case HA_ERR_TABLE_DEF_CHANGED:
         case HA_ERR_CANNOT_ADD_FOREIGN:
-        
+
         which are not included into to the list.
+
+        Note that HA_ERR_RECORD_DELETED is not in the list since
+        do_exec_row() should not return that error code.
       */
       case HA_ERR_RECORD_CHANGED:
-      case HA_ERR_RECORD_DELETED:
       case HA_ERR_KEY_NOT_FOUND:
       case HA_ERR_END_OF_FILE:
       case HA_ERR_FOUND_DUPP_KEY:
@@ -7243,7 +7259,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       case HA_ERR_NO_REFERENCED_ROW:
       case HA_ERR_ROW_IS_REFERENCED:
 
-        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
         if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
         {
           if (global_system_variables.log_warnings)
@@ -7266,7 +7281,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        m_curr_row_end.
       */ 
    
-      DBUG_PRINT("info", ("error: %d", error));
       DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
                           (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
 
@@ -7868,8 +7882,9 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   int error= 0;
 
-  if (!rpl_filter->db_ok(table_list->db) ||
-      (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list)))
+  if (rli->sql_thd->slave_thread /* filtering is for slave only */ &&
+      (!rpl_filter->db_ok(table_list->db) ||
+       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
   {
     my_free(memory, MYF(MY_WME));
   }
@@ -8085,7 +8100,6 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     */
   }
 
-  m_table->file->ha_start_bulk_insert(0);
   /*
     We need TIMESTAMP_NO_AUTO_SET otherwise ha_write_row() will not use fill
     any TIMESTAMP column with data from the row but instead will use
@@ -8224,7 +8238,16 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   
   /* unpack row into table->record[0] */
   error= unpack_current_row(rli); // TODO: how to handle errors?
-
+  if (m_curr_row == m_rows_buf)
+  {
+    /* this is the first row to be inserted, we estimate the rows with
+       the size of the first row and use that value to initialize
+       storage engine for bulk insertion */
+    ulong estimated_rows= (m_rows_end - m_curr_row) / (m_curr_row_end - m_curr_row);
+    m_table->file->ha_start_bulk_insert(estimated_rows);
+  }
+  
+  
 #ifndef DBUG_OFF
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
@@ -8274,6 +8297,8 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
@@ -8306,7 +8331,9 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
                                              HA_READ_KEY_EXACT);
       if (error)
       {
-        DBUG_PRINT("info",("index_read_idx() returns error %d",error)); 
+        DBUG_PRINT("info",("index_read_idx() returns %s", HA_ERR(error)));
+        if (error == HA_ERR_RECORD_DELETED)
+          error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
@@ -8595,6 +8622,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
+      if (error == HA_ERR_RECORD_DELETED)
+        error= HA_ERR_KEY_NOT_FOUND;
       table->file->print_error(error, MYF(0));
     }
     DBUG_RETURN(error);
@@ -8645,15 +8674,17 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       the necessary bits on the bytes and don't set the filler bits
       correctly.
     */
-    my_ptrdiff_t const pos=
-      table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
-    table->record[0][pos]= 0xFF;
-    
+    if (table->s->null_bytes > 0)
+      table->record[0][table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+
     if ((error= table->file->index_read_map(table->record[0], m_key, 
                                             HA_WHOLE_KEY,
                                             HA_READ_KEY_EXACT)))
     {
       DBUG_PRINT("info",("no record matching the key found in the table"));
+      if (error == HA_ERR_RECORD_DELETED)
+        error= HA_ERR_KEY_NOT_FOUND;
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
       goto err;
@@ -8711,8 +8742,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      if ((error= table->file->index_next(table->record[0])))
+      while ((error= table->file->index_next(table->record[0])))
       {
+        /* We just skip records that has already been deleted */
+        if (error == HA_ERR_RECORD_DELETED)
+          continue;
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
         table->file->ha_index_end();
@@ -8743,13 +8777,21 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+  restart_rnd_next:
       error= table->file->rnd_next(table->record[0]);
 
+      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
       case 0:
-      case HA_ERR_RECORD_DELETED:
         break;
+
+      /*
+        If the record was deleted, we pick the next one without doing
+        any comparisons.
+      */
+      case HA_ERR_RECORD_DELETED:
+        goto restart_rnd_next;
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
@@ -8780,7 +8822,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_DUMP("record found", table->record[0], table->s->reclength);
     table->file->ha_rnd_end();
 
-    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == HA_ERR_RECORD_DELETED || error == 0);
+    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     goto err;
   }
 ok:

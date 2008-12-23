@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -184,6 +184,8 @@ mysql_event_fill_row(THD *thd,
 
   DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
+
+  DBUG_ASSERT(et->on_completion != Event_parse_data::ON_COMPLETION_DEFAULT);
 
   if (table->s->fields < ET_FIELD_COUNT)
   {
@@ -744,6 +746,18 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   }
 
   store_record(table,record[1]);
+
+  /*
+    We check whether ALTER EVENT was given dates that are in the past.
+    However to know how to react, we need the ON COMPLETION type. The
+    check is deferred to this point because by now we have the previous
+    setting (from the event-table) to fall back on if nothing was specified
+    in the ALTER EVENT-statement.
+  */
+
+  if (parse_data->check_dates(thd,
+                              (int) table->field[ET_FIELD_ON_COMPLETION]->val_int()))
+    goto end;
 
   /* Don't update create on row update. */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;

@@ -170,6 +170,16 @@ public:
    * getText - Return as hex-digits (only for debug routines).
    */
   static char* getText(unsigned size, const Uint32 data[], char* buf);
+
+  /**
+   * Parse string with numbers format
+   *   1,2,3-5
+   * @return -1 if unparsable chars found, 
+   *         -2 str has number > bitmask size
+   *            else returns number of bits set 
+   */
+  static int parseMask(unsigned size, Uint32 data[], const char * str);
+
 private:
   static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
   static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
@@ -601,6 +611,9 @@ public:
    */
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
+
+  static int parseMask(Uint32 data[], const char * src);
+  int parseMask(const char * src);
 };
 
 template <unsigned size>
@@ -914,6 +927,21 @@ inline bool
 BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 {
   return BitmaskPOD<size>::overlaps(this->rep.data, that.rep.data);
+}
+
+template <unsigned size>
+int
+BitmaskPOD<size>::parseMask(Uint32 data[], const char* buf)
+{
+  return BitmaskImpl::parseMask(size, data, buf);
+}
+
+template <unsigned size>
+inline
+int
+BitmaskPOD<size>::parseMask(const char* buf)
+{
+  return BitmaskPOD<size>::parseMask(rep.data, buf);
 }
 
 template <unsigned size>

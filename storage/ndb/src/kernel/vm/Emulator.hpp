@@ -31,7 +31,6 @@ extern class  TimeQueue           globalTimeQueue;
 extern class  FastScheduler       globalScheduler;
 extern class  TransporterRegistry globalTransporterRegistry;
 extern struct GlobalData          globalData;
-extern struct thr_repository      g_thr_repository;
 
 #ifdef VM_TRACE
 extern class SignalLoggerManager globalSignalLoggers;

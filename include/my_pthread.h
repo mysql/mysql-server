@@ -101,7 +101,6 @@ struct timespec {
 }
 
 void win_pthread_init(void);
-int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
@@ -135,18 +134,58 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #undef SAFE_MUTEX				/* This will cause conflicts */
 typedef DWORD pthread_key_t;
 #define pthread_key(T,V)  DWORD V
-#define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
-#define pthread_key_delete(A) TlsFree(A)
-#define my_pthread_setspecific_ptr(T,V) (!TlsSetValue((T),(V)))
-#define pthread_setspecific(A,B) (!TlsSetValue((A),(B)))
-#define pthread_getspecific(A) (TlsGetValue(A))
-#define my_pthread_getspecific(T,A) ((T) TlsGetValue(A))
-#define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(V))
 
-#define pthread_equal(A,B) ((A) == (B))
-#define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
-#define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
-#define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
+static inline int pthread_key_create(pthread_key_t *key, void (*destr_function)(void*))
+{
+  *key= TlsAlloc();
+  if(*key == TLS_OUT_OF_INDEXES)
+    return EAGAIN;
+  return 0;
+}
+
+static inline int pthread_key_delete(pthread_key_t key)
+{
+  if(TlsFree(key))
+    return 0;
+  return 1;
+}
+
+#define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,V)
+
+static inline int pthread_setspecific(pthread_key_t key, const void *pointer)
+{
+  if(TlsSetValue(key, (void*)pointer))
+    return 0;
+  return 1;
+}
+
+static inline void* pthread_getspecific(pthread_key_t key)
+{
+  return TlsGetValue(key);
+}
+
+#define my_pthread_getspecific(T,A) ((T) pthread_getspecific(A))
+#define my_pthread_getspecific_ptr(T,V) ((T) pthread_getspecific(V))
+
+static inline int pthread_equal(pthread_t thread1, pthread_t thread2)
+{
+  return thread1 == thread2;
+}
+
+typedef void pthread_mutex_attr_t;
+static inline int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutex_attr_t *mutex_attr)
+{
+  InitializeCriticalSection(mutex);
+  return 0;
+}
+
+static inline int pthread_mutex_lock(pthread_mutex_t *mutex)
+{
+  EnterCriticalSection(mutex);
+  return 0;
+}
+
+int pthread_mutex_trylock(pthread_mutex_t *mutex);
 
 static inline int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {

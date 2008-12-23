@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
 /* Bits to show what an alter table will do */
 #include <sql_bitmap.h>
 
-#define HA_MAX_ALTER_FLAGS 39
+#define HA_MAX_ALTER_FLAGS 40
 typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 
 #define HA_ADD_INDEX                  (0)
@@ -92,6 +92,7 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_RENAME_TABLE               (36)
 #define HA_ALTER_STORAGE_ENGINE       (37)
 #define HA_RECREATE                   (38)
+#define HA_ALTER_TABLE_REORG          (39)
 /* Remember to increase HA_MAX_ALTER_FLAGS when adding more flags! */
 
 /* Return values for check_if_supported_alter */
@@ -324,7 +325,9 @@ enum enum_binlog_func {
   BFN_RESET_SLAVE=       2,
   BFN_BINLOG_WAIT=       3,
   BFN_BINLOG_END=        4,
-  BFN_BINLOG_PURGE_FILE= 5
+  BFN_BINLOG_PURGE_FILE= 5,
+  BFN_GLOBAL_SCHEMA_LOCK=  6,
+  BFN_GLOBAL_SCHEMA_UNLOCK=7
 };
 
 enum enum_binlog_command {
@@ -1178,6 +1181,13 @@ public:
     inserter.
   */
   Discrete_interval auto_inc_interval_for_cur_row;
+  /**
+     Number of reserved auto-increment intervals. Serves as a heuristic
+     when we have no estimation of how many records the statement will insert:
+     the more intervals we have reserved, the bigger the next one. Reset in
+     handler::ha_release_auto_increment().
+  */
+  uint auto_inc_intervals_count;
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
@@ -1186,7 +1196,8 @@ public:
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
-    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
+    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
+    auto_inc_intervals_count(0)
     {}
   virtual ~handler(void)
   {
@@ -1252,6 +1263,7 @@ public:
   int ha_delete_row(const uchar * buf, bool will_batch= FALSE);
   void ha_release_auto_increment();
 
+  int check_collation_compatibility();
   int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
   /** to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
@@ -1290,8 +1302,8 @@ public:
 
   int ha_change_partitions(HA_CREATE_INFO *create_info,
                            const char *path,
-                           ulonglong *copied,
-                           ulonglong *deleted,
+                           ulonglong * const copied,
+                           ulonglong * const deleted,
                            const uchar *pack_frm_data,
                            size_t pack_frm_len);
   int ha_drop_partitions(const char *path);
@@ -2042,7 +2054,8 @@ private:
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one.
+    by one. It should reset auto_increment if
+    thd->lex->sql_command == SQLCOM_TRUNCATE.
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
@@ -2081,8 +2094,8 @@ private:
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
-                                ulonglong *copied,
-                                ulonglong *deleted,
+                                ulonglong * const copied,
+                                ulonglong * const deleted,
                                 const uchar *pack_frm_data,
                                 size_t pack_frm_len)
   { return HA_ERR_WRONG_COMMAND; }
@@ -2204,16 +2217,35 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 int ha_reset_slave(THD *thd);
+void ha_binlog_wait(THD *thd);
+int ha_binlog_end(THD *thd);
+#else
+inline int ha_int_dummy() { return 0; }
+#define ha_reset_logs(a) ha_int_dummy()
+#define ha_binlog_index_purge_file(a,b) ha_int_dummy()
+#define ha_reset_slave(a) ha_int_dummy()
+#define ha_binlog_wait(a) do {} while (0)
+#define ha_binlog_end(a)  do {} while (0)
+#endif
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
-void ha_binlog_wait(THD *thd);
-int ha_binlog_end(THD *thd);
+class Ha_global_schema_lock_guard
+{
+public:
+  Ha_global_schema_lock_guard(THD *thd);
+  ~Ha_global_schema_lock_guard();
+  int lock(int no_queue= 0);
+private:
+  THD *m_thd;
+  int m_lock;
+};
 #else
 inline int ha_int_dummy() { return 0; }
 #define ha_reset_logs(a) ha_int_dummy()
@@ -2222,4 +2254,11 @@ inline int ha_int_dummy() { return 0; }
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
+class Ha_global_schema_lock_guard
+{
+public:
+  Ha_global_schema_lock_guard(THD *thd) {}
+  ~Ha_global_schema_lock_guard() {}
+  int lock(int no_queue= 0) { return 0; }
+};
 #endif

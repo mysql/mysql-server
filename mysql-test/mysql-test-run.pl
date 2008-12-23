@@ -135,7 +135,7 @@ our $default_vardir;
 
 our $opt_usage;
 our $opt_suites;
-our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,ndb_binlog"; # Default suites to run
+our $opt_suites_default= "ndb,ndb_binlog,rpl_ndb,main,binlog,rpl"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
@@ -288,6 +288,8 @@ our $opt_warnings;
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster= 0;
+our $opt_ndb_mt_threads= "8,8";
+our @opt_ndb_mt_threads= ();
 our $opt_with_ndbcluster_only= 0;
 our $glob_ndbcluster_supported= 0;
 our $opt_ndb_extra_test= 0;
@@ -296,6 +298,12 @@ our $opt_skip_slave_binlog= 0;
 
 our $exe_ndb_mgm;
 our $exe_ndb_waiter;
+our $exe_ndb_desc;
+our $exe_ndb_restore;
+our $exe_ndb_select_all;
+our $exe_ndb_drop_table;
+our $exe_ndb_config;
+our $exe_ndb_show_tables;
 our $path_ndb_tools_dir;
 our $path_ndb_examples_dir;
 our $exe_ndb_example;
@@ -352,6 +360,7 @@ sub run_testcase_check_skip_test($);
 sub report_failure_and_restart ($);
 sub do_before_start_master ($);
 sub do_before_start_slave ($);
+sub get_ndb_mt_threads($$);
 sub ndbd_start ($$$);
 sub ndb_mgmd_start ($);
 sub mysqld_start ($$$);
@@ -566,6 +575,7 @@ sub command_line_setup () {
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
              'with-ndbcluster|ndb'      => \$opt_with_ndbcluster,
+             'ndb-mt-threads=s'         => \$opt_ndb_mt_threads,
              'vs-config'            => \$opt_vs_config,
 
              # Control what test suites or cases to run
@@ -1372,6 +1382,16 @@ sub command_line_setup () {
 	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
     }
   }
+
+  # check ndb mt threads option and choose any random values
+  @opt_ndb_mt_threads = split(/,/, $opt_ndb_mt_threads);
+  for my $idx (0..7) # fill in 8 nodes
+  {
+    my $ret= get_ndb_mt_threads($idx, 1);
+    mtr_error("invalid ndb-mt-threads value: $opt_ndb_mt_threads[$idx]")
+      unless $ret;
+    $opt_ndb_mt_threads[$idx]= $ret->{ver};
+  }
 }
 
 #
@@ -1599,28 +1619,54 @@ sub executable_setup_ndb () {
 			 "$ndb_path/ndbmtd",
 			 "$glob_basedir/libexec/ndbmtd");
 
-  mtr_report("Found multi threaded ndbd, will be used \"round robin\"")
+  mtr_report("Found multi threaded ndbd (see option --ndb-mt-threads)")
     if ($exe_ndbmtd);
 
-  $exe_ndb_mgm=
+  $exe_ndb_mgm= mtr_native_path(
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmclient","ndb_mgm"),
 			 "$ndb_path/src/mgmclient/ndb_mgm",
-			 "$ndb_path/ndb_mgm");
+			 "$ndb_path/ndb_mgm"));
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmsrv","ndb_mgmd"),
 			 "$ndb_path/src/mgmsrv/ndb_mgmd",
 			 "$ndb_path/ndb_mgmd",
 			 "$glob_basedir/libexec/ndb_mgmd");
 
-  $exe_ndb_waiter=
+  $exe_ndb_waiter= mtr_native_path(
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools","ndb_waiter"),
 			 "$ndb_path/tools/ndb_waiter",
-			 "$ndb_path/ndb_waiter");
+			 "$ndb_path/ndb_waiter"));
 
-  # May not exist
-  $path_ndb_tools_dir= mtr_path_exists(vs_config_dirs("storage/ndb/tools",''),
-				       "$ndb_path/tools",
-				       "$ndb_path");
+  $exe_ndb_desc= mtr_native_path(
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_desc'),
+			 "$ndb_path/tools/ndb_desc",
+			 "$ndb_path/ndb_desc"));
+
+  $exe_ndb_restore= mtr_native_path(
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_restore'),
+			  "$ndb_path/tools/ndb_restore",
+			  "$ndb_path/ndb_restore"));
+
+  $exe_ndb_select_all= mtr_native_path(
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_select_all'),
+			 "$ndb_path/tools/ndb_select_all",
+			 "$ndb_path/ndb_select_all"));
+
+  $exe_ndb_drop_table= mtr_native_path(
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_drop_table'),
+			 "$ndb_path/tools/ndb_drop_table",
+			 "$ndb_path/ndb_drop_table"));
+
+  $exe_ndb_config= mtr_native_path(
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_config'),
+			 "$ndb_path/tools/ndb_config",
+			 "$ndb_path/ndb_config"));
+
+  $exe_ndb_show_tables= mtr_native_path(
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_show_tables'),
+			 "$ndb_path/tools/ndb_show_tables",
+			 "$ndb_path/ndb_show_tables"));
+
   # May not exist
   $path_ndb_examples_dir=
     mtr_file_exists("$ndb_path/ndbapi-examples",
@@ -2003,9 +2049,15 @@ sub environment_setup () {
 
     $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
 
-    $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
+    $ENV{'NDB_BACKUPS'}=mtr_native_path($clusters->[0]->{'data_dir'}."/BACKUP/BACKUP");
     $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
-    $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+    $ENV{'NDB_DESC'}=                 $exe_ndb_desc;
+    $ENV{'NDB_RESTORE'}=              $exe_ndb_restore;
+    $ENV{'NDB_SELECT_ALL'}=           $exe_ndb_select_all;
+    $ENV{'NDB_WAITER'}=               $exe_ndb_waiter;
+    $ENV{'NDB_DROP_TABLE'}=           $exe_ndb_drop_table;
+    $ENV{'NDB_CONFIG'}=               $exe_ndb_config;
+    $ENV{'NDB_SHOW_TABLES'}=          $exe_ndb_show_tables;
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
 
     if ( $mysql_version_id >= 50000 )
@@ -2704,6 +2756,20 @@ sub ndbcluster_start_install ($) {
     }
     s/CHOOSE_DiskPageBufferMemory/$ndb_pbmem/;
 
+    if (/CHOOSE_MAX_NO_OF_EXECUTION_THREADS_(\d+)/)
+    {
+      my $nodeid= $1;
+      my $idx= $nodeid - 1;
+      my $ret= get_ndb_mt_threads($idx, 1);
+      $ret or die "Bad template for nodeid=$nodeid";
+      s/CHOOSE_MAX_NO_OF_EXECUTION_THREADS_\d+/$ret->{ver}/;
+      if ($ret->{type} == 1 || $ret->{type} == 2)
+      {
+        s/^/#/;
+      }
+      mtr_report("ndb mt threads node $nodeid: $ret->{ver} [$ret->{name}]");
+    }
+
     print OUT "$_ \n";
   }
   close OUT;
@@ -2794,6 +2860,8 @@ sub ndb_mgmd_start ($) {
   mtr_add_arg($args, "--core");
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "--config-file=%s", "$cluster->{'data_dir'}/config.ini");
+  mtr_add_arg($args, "--configdir=%s", "$cluster->{'data_dir'}");
+#  mtr_add_arg($args, "--ndb-nodeid=%d", $cluster->{'nodes'} + 1);
 
 
   my $path_ndb_mgmd_log= "$cluster->{'data_dir'}/\l$cluster->{'name'}_ndb_mgmd.log";
@@ -2820,7 +2888,47 @@ sub ndb_mgmd_start ($) {
 }
 
 
-my $exe_ndbmtd_counter= 0;
+sub get_ndb_mt_threads ($$) {
+  my $idx= shift;
+  my $have_exe_ndbmtd = shift;
+  return undef unless $idx >= 0;
+  # based on current ndb main.cpp
+  my @list= (
+    { ver=> [qw(1)],     type=> 1, name=> "non-mt",     wt=> 3 },
+    { ver=> [qw(2 3)],   type=> 2, name=> "mt-classic", wt=> 2 },
+    { ver=> [qw(4 5 6)], type=> 3, name=> "mt-lqh-2",   wt=> 1 },
+    { ver=> [qw(7 8)],   type=> 3, name=> "mt-lqh-4",   wt=> 4 },
+  );
+  my $ver= $opt_ndb_mt_threads[$idx] || "r";
+  if ($ver eq "r")
+  {
+    my $i= int(rand(@list));
+    for (0..0) {
+      my $j= int(rand(@list));
+      if ($list[$i]->{wt} < $list[$j]->{wt})
+      {
+        $i= $j;
+      }
+    }
+    $ver= $list[$i]->{ver}[0];
+  }
+  if (!$have_exe_ndbmtd)
+  {
+    $ver= '1';
+  }
+  for my $x (@list)
+  {
+    for my $y (@{$x->{ver}})
+    {
+      if ($y eq $ver)
+      {
+        return { ver=> $ver, type=> $x->{type}, name=> $x->{name} }
+      }
+    }
+  }
+  return undef;
+}
+
 
 sub ndbd_start ($$$) {
   my $cluster= shift;
@@ -2842,14 +2950,10 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "$extra_args");
 
   my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
-  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}.log";
+  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}_out.log";
 
-  my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
-  }
+  my $ret= get_ndb_mt_threads($idx, $exe_ndbmtd);
+  my $exe= $ret->{type} == 1 ? $exe_ndbd : $exe_ndbmtd;
 
   $pid= mtr_spawn($exe, $args, "",
 		  $path_ndbd_log,
@@ -3632,7 +3736,16 @@ sub run_testcase ($) {
   {
     mtr_timer_stop_all($glob_timers);
     mtr_report("\nServers started, exiting");
-    exit(0);
+    if ($glob_win32_perl)
+    {
+      #ActiveState perl hangs  when using normal exit, use  POSIX::_exit instead
+      use POSIX qw[ _exit ]; 
+      POSIX::_exit(0);
+    }
+    else
+    {
+      exit(0);
+    }
   }
 
   {
@@ -4010,7 +4123,6 @@ sub mysqld_arguments ($$$$) {
       }
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
         if ( ! $glob_use_embedded_server )
         {
           mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
@@ -4093,7 +4205,6 @@ sub mysqld_arguments ($$$$) {
       }
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
         if ( ! $glob_use_embedded_server )
         {
           mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
@@ -4417,19 +4528,10 @@ sub run_testcase_need_master_restart($)
   elsif (! mtr_same_opts($master->[0]->{'start_opts'},
                          $tinfo->{'master_opt'}) )
   {
-    # Chech that diff is binlog format only
-    my $diff_opts= mtr_diff_opts($master->[0]->{'start_opts'},$tinfo->{'master_opt'});
-    if (scalar(@$diff_opts) eq 2) 
-    {
-      $do_restart= 1 unless ($diff_opts->[0] =~/^--binlog-format=/ and $diff_opts->[1] =~/^--binlog-format=/);
-    }
-    else
-    {
-      $do_restart= 1;
-      mtr_verbose("Restart master: running with different options '" .
-	         join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
+    $do_restart= 1;
+    mtr_verbose("Restart master: running with different options '" .
+		join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
 	  	join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
-    }
   }
   elsif( ! $master->[0]->{'pid'} )
   {
@@ -5296,6 +5398,8 @@ Options to control what engine/variation to run
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
   ndb|with-ndbcluster   Use cluster as default table type
+  ndb-mt-threads=VER,.. MT threads of each DB node (comma-separated)
+                        VER: 1=non-mt 2-3=mt-classic 4-8=mt-lqh r=random
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 

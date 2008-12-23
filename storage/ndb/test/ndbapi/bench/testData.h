@@ -121,6 +121,16 @@ typedef struct {
 } TransactionData ;
 
 typedef struct {
+  const class NdbRecord* subscriberTableNdbRecord;
+  const class NdbRecord* groupTableNdbRecord;
+  const class NdbRecord* sessionTableNdbRecord;
+  const class NdbInterpretedCode* incrServerReadsProg;
+  const class NdbInterpretedCode* incrServerInsertsProg;
+  const class NdbInterpretedCode* incrServerDeletesProg;
+  const class NdbRecord* serverTableNdbRecord;
+} NdbRecordSharedData ;
+
+typedef struct {
   struct NdbThread* pThread;
 
   unsigned long randomSeed;
@@ -135,10 +145,12 @@ typedef struct {
   /**
    * For async execution
    */
-  RunState          runState;
-  double            startTime;
-  TransactionData   transactionData;
-  struct Ndb      * pNDB;
+  RunState              runState;
+  double                startTime;
+  TransactionData       transactionData;
+  class Ndb           * pNDB;
+  NdbRecordSharedData*  ndbRecordSharedData;
+  bool                  useCombinedUpdate;
 } ThreadData;
 
 /***************************************************************

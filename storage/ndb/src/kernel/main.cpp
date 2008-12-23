@@ -250,20 +250,34 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                         "config, exiting.");
     return -1;
   }
+
   if (tupmem)
   {
     Resource_limit rl;
     rl.m_min = tupmem;
     rl.m_max = tupmem;
-    rl.m_resource_id = 3;
+    rl.m_resource_id = RG_DATAMEM;
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (shared_mem+tupmem)
+  Uint32 maxopen = 4 * 4; // 4 redo parts, max 4 files per part
+  Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
+  Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
+
+  if (filepages)
+  {
+    Resource_limit rl;
+    rl.m_min = filepages;
+    rl.m_max = filepages;
+    rl.m_resource_id = RG_FILE_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (shared_mem + tupmem + filepages)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem + tupmem;
+    rl.m_max = shared_mem + tupmem + filepages;
     rl.m_resource_id = 0;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -280,7 +294,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
 
     g_eventLogger->alert("Malloc (%lld bytes) for %s and %s failed, exiting",
-                         Uint64(shared_mem + tupmem) * 32768,
+                         Uint64(shared_mem + tupmem) * GLOBAL_PAGE_SIZE,
                          dm.m_name, sga.m_name);
     return -1;
   }
@@ -293,16 +307,9 @@ get_multithreaded_config(EmulatorData& ed)
 {
   // multithreaded is compiled in ndbd/ndbmtd for now
   globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
-  if (!globalData.isNdbMt)
+  if (!globalData.isNdbMt) {
+    ndbout << "NDBMT: non-mt" << endl;
     return 0;
-
-  // mt lqh via environment during development
-  {
-    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
-    if (p != 0 && strchr("1Y", p[0]) != 0)
-      globalData.isNdbMtLqh = true;
-    if (!globalData.isNdbMtLqh)
-      return 0;
   }
 
   const ndb_mgm_configuration_iterator * p =
@@ -312,16 +319,54 @@ get_multithreaded_config(EmulatorData& ed)
     abort();
   }
 
-  Uint32 workers = 0;
-  Uint32 threads = 0;
-  if (ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers) ||
-      ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads))
+  Uint32 mtthreads = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
+  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
+  
+  if (mtthreads > 3)
   {
-    g_eventLogger->alert("Failed to get CFG_NDBMT parameters from "
-                        "config, exiting.");
-    return -1;
+    globalData.isNdbMtLqh = true;    
+  }
+  
+  // mt lqh via environment during development
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+    if (p != 0)
+    {
+      if (strchr("1Y", p[0]) != 0)
+        globalData.isNdbMtLqh = true;
+      else
+        globalData.isNdbMtLqh = false;
+    }
+  }
+#endif
+
+  if (!globalData.isNdbMtLqh)
+    return 0;
+
+  Uint32 threads = 0;
+  switch(mtthreads){
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+    threads = 1; // TC + receiver + SUMA + LQH
+    break;
+  case 4:
+  case 5:
+  case 6:
+    threads = 2; // TC + receiver + SUMA + 2 * LQH
+    break;
+  default:
+    threads = 4; // TC + receiver + SUMA + 4 * LQH
   }
 
+  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads);
+  Uint32 workers = threads;
+  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers);
+
+#ifdef VM_TRACE
   // testing
   {
     const char* p;
@@ -332,14 +377,15 @@ get_multithreaded_config(EmulatorData& ed)
     if (p != 0)
       threads = atoi(p);
   }
+#endif
 
   ndbout << "NDBMT: workers=" << workers
          << " threads=" << threads << endl;
-
+  
   assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
   assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
   assert(workers % threads == 0);
-
+  
   globalData.ndbMtLqhWorkers = workers;
   globalData.ndbMtLqhThreads = threads;
   return 0;
@@ -359,7 +405,6 @@ int main(int argc, char** argv)
 
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
-  NdbThread_Init();
   globalEmulatorData.create();
 
   // Parse command line options
@@ -528,7 +573,7 @@ int main(int argc, char** argv)
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
-  globalEmulatorData.theWatchDog->doStart();
+  NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
   {
     /*
@@ -614,16 +659,25 @@ int main(int argc, char** argv)
 		"Connection to mgmd terminated before setup was complete", 
 		"StopOnError missing");
 
-  if (!globalTransporterRegistry.start_clients()){
+  NdbThread* pTrp = globalTransporterRegistry.start_clients();
+  if (pTrp == 0)
+  {
     ndbout_c("globalTransporterRegistry.start_clients() failed");
     exit(-1);
   }
-  globalEmulatorData.m_socket_server->startServer();
+
+  NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();
+
+  globalEmulatorData.theConfiguration->addThread(pTrp, SocketClientThread);
+  globalEmulatorData.theConfiguration->addThread(pWatchdog, WatchDogThread);
+  globalEmulatorData.theConfiguration->addThread(pSockServ, SocketServerThread);
 
   //  theConfig->closeConfiguration();
   {
-    Uint32 inx = globalEmulatorData.theConfiguration->addThreadId(MainThread);
-    globalEmulatorData.theThreadConfig->ipControlLoop(inx);
+    NdbThread *pThis = NdbThread_CreateObject(0);
+    Uint32 inx = globalEmulatorData.theConfiguration->addThread(pThis,
+                                                                MainThread);
+    globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
     globalEmulatorData.theConfiguration->removeThreadId(inx);
   }
   NdbShutdown(NST_Normal);

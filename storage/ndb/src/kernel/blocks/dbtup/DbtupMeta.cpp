@@ -189,7 +189,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       fragOperPtr.p->m_null_bits[ind]++;
     } 
 
-    if (AttributeDescriptor::getArrayType(attrDescriptor)==NDB_ARRAYTYPE_FIXED)
+    if (AttributeDescriptor::getArrayType(attrDescriptor)==NDB_ARRAYTYPE_FIXED
+        || ind==DD)
     {
       jam();
       regTabPtr.p->m_attributes[ind].m_no_of_fixsize++;
@@ -336,17 +337,16 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
 	 getNodeState().starting.startPhase <= 4))
     {
-      Callback cb;
+      CallbackPtr cb;
       jam();
 
       cb.m_callbackData= fragOperPtr.i;
-      cb.m_callbackFunction = 
-	safe_cast(&Dbtup::undo_createtable_callback);
+      cb.m_callbackIndex = UNDO_CREATETABLE_CALLBACK;
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
+      D("Logfile_client - execTUP_ADD_ATTRREQ");
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      if((terrorCode = 
-          c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id, sz)))
+      if((terrorCode = lgman.alloc_log_space(sz)))
       {
         addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
         return;
@@ -511,7 +511,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   bzero(&rep,sizeof(rep));
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
-    Tablespace_client tsman(0, c_tsman, 0, 0,
+    D("Tablespace_client - execTUPFRAGREQ");
+    Tablespace_client tsman(0, this, c_tsman, 0, 0,
                             regFragPtr.p->m_tablespace_id);
     ndbrequire(tsman.get_tablespace_info(&rep) == 0);
     regFragPtr.p->m_logfile_group_id= rep.tablespace.logfile_group_id;
@@ -1163,7 +1164,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       regTabPtr->notNullAttributeMask.set(i);
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {
-      if(arr == NDB_ARRAYTYPE_FIXED)
+      if(arr == NDB_ARRAYTYPE_FIXED || ind==DD)
       {
         if (attrLen!=0)
         {
@@ -1306,6 +1307,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   getFragmentrec(regFragPtr, fragOperPtr.p->fragidFrag, regTabPtr.p);
   ndbrequire(regFragPtr.i != RNIL);
   
+  D("Logfile_client - undo_createtable_callback");
   Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
 
   Disk_undo::Create create;
@@ -1318,8 +1320,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= fragOperPtr.i;
-  req.m_callback.m_callbackFunction = 
-    safe_cast(&Dbtup::undo_createtable_logsync_callback);
+  req.m_callback.m_callbackIndex = UNDO_CREATETABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
   switch(ret){
@@ -1443,7 +1444,8 @@ void Dbtup::setUpKeyArray(Tablerec* const regTabPtr)
         continue;
       }
 
-      if (AttributeDescriptor::getArrayType(desc) != NDB_ARRAYTYPE_FIXED ||
+      if ((AttributeDescriptor::getArrayType(desc) != NDB_ARRAYTYPE_FIXED 
+           && !AttributeDescriptor::getDiskBased(desc)) ||
           (AttributeDescriptor::getDynamic(desc) &&
            AttributeDescriptor::getArrayType(desc) == NDB_ARRAYTYPE_FIXED &&
            AttributeDescriptor::getSizeInWords(desc) > InternalMaxDynFix))
@@ -1610,12 +1612,13 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
 
   if (logfile_group_id != RNIL)
   {
-    Callback cb;
+    CallbackPtr cb;
     cb.m_callbackData= tabPtr.i;
-    cb.m_callbackFunction = 
-      safe_cast(&Dbtup::drop_table_log_buffer_callback);
+    cb.m_callbackIndex = DROP_TABLE_LOG_BUFFER_CALLBACK;
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
-    int r0 = c_lgman->alloc_log_space(logfile_group_id, sz);
+    D("Logfile_client - releaseFragment");
+    Logfile_client lgman(this, c_lgman, logfile_group_id);
+    int r0 = lgman.alloc_log_space(sz);
     if (r0)
     {
       jam();
@@ -1624,7 +1627,6 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       goto done;
     }
 
-    Logfile_client lgman(this, c_lgman, logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
     switch(res){
     case 0:
@@ -1633,7 +1635,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     case -1:
       warningEvent("Failed to get log buffer for drop table: %u",
 		   tabPtr.i);
-      c_lgman->free_log_space(logfile_group_id, sz);
+      lgman.free_log_space(sz);
       goto done;
       break;
     default:
@@ -1704,7 +1706,9 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
       safe_cast(&Dbtup::drop_fragment_unmap_page_callback);
     
     int flags= Page_cache_client::COMMIT_REQ;
-    int res= m_pgman.get_page(signal, req, flags);
+    Page_cache_client pgman(this, c_pgman);
+    int res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
     switch(res)
     {
     case 0:
@@ -1732,7 +1736,8 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
 
   Uint32 fragId = ((Page*)page.p)->m_fragment_id;
   Uint32 tableId = ((Page*)page.p)->m_table_id;
-  m_pgman.drop_page(key, page_id);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.drop_page(key, page_id);
 
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
@@ -1762,10 +1767,9 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
-	Callback cb;
+        CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
-	cb.m_callbackFunction = 
-	  safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
+	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
 #if NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
 	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
@@ -1820,6 +1824,7 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   drop.m_table = tabPtr.i;
   drop.m_type_length = 
     (Disk_undo::UNDO_DROP << 16) | (sizeof(drop) >> 2);
+  D("Logfile_client - drop_table_log_buffer_callback");
   Logfile_client lgman(this, c_lgman, logfile_group_id);
   
   Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
@@ -1827,8 +1832,7 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
 
   Logfile_client::Request req;
   req.m_callback.m_callbackData= tablePtrI;
-  req.m_callback.m_callbackFunction = 
-    safe_cast(&Dbtup::drop_table_logsync_callback);
+  req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
   switch(ret){
@@ -1905,7 +1909,8 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       Uint64 lsn = 0;
 #endif
       
-      Tablespace_client tsman(signal, c_tsman, tabPtr.i, 
+      D("Tablespace_client - drop_fragment_free_extent_log_buffer_callback");
+      Tablespace_client tsman(signal, this, c_tsman, tabPtr.i, 
 			      fragPtr.p->fragmentId,
 			      fragPtr.p->m_tablespace_id);
       

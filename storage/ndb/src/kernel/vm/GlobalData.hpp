@@ -85,11 +85,14 @@ struct GlobalData {
     gcp_timer_limit = 0;
 #endif
   }
-  ~GlobalData(){}
+  ~GlobalData() { m_global_page_pool.clear(); m_shared_page_pool.clear();}
   
   void             setBlock(BlockNumber blockNo, SimulatedBlock * block);
   SimulatedBlock * getBlock(BlockNumber blockNo);
   SimulatedBlock * getBlock(BlockNumber blockNo, Uint32 instanceNo);
+  SimulatedBlock * getBlockInstance(BlockNumber fullBlockNo) {
+    return getBlock(blockToMain(fullBlockNo), blockToInstance(fullBlockNo));
+  }
   
   void           incrementWatchDogCounter(Uint32 place);
   Uint32 * getWatchDogPtr();

@@ -16,18 +16,33 @@
 #ifndef NDB_MGMD_HPP
 #define NDB_MGMD_HPP
 
-#include <BaseString.hpp>
-
 #include <mgmapi.h>
-#include <mgmapi_debug.h>
+#include <mgmapi_internal.h>
+
+#include <BaseString.hpp>
+#include <Properties.hpp>
+
+#include <OutputStream.hpp>
+#include <SocketInputStream2.hpp>
+
+#include "../../src/mgmsrv/Config.hpp"
 
 class NdbMgmd {
   BaseString m_connect_str;
   NdbMgmHandle m_handle;
-
-  void error(const char* msg)
+  Uint32 m_nodeid;
+  bool m_verbose;
+  void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
   {
-    ndbout_c("NdbMgmd:%s", msg);
+    if (!m_verbose)
+      return;
+
+    va_list args;
+    printf("NdbMgmd::");
+    va_start(args, msg);
+    vprintf(msg, args);
+    va_end(args);
+    printf("\n");
 
     if (m_handle){
       ndbout_c(" error: %d, line: %d, desc: %s",
@@ -38,13 +53,11 @@ class NdbMgmd {
   }
 public:
   NdbMgmd() :
-    m_connect_str(getenv("NDB_CONNECTSTRING")),
-    m_handle(NULL)
+    m_handle(NULL), m_nodeid(0), m_verbose(true)
     {
-      if (!m_connect_str.length()){
-        fprintf(stderr, "Could not init NdbConnectString");
-        abort();
-      }
+      const char* connect_string= getenv("NDB_CONNECTSTRING");
+      if (connect_string)
+        m_connect_str.assign(connect_string);
     }
 
   ~NdbMgmd()
@@ -61,14 +74,28 @@ public:
     return m_connect_str.c_str();
   }
 
-  bool connect(void) {
+  void verbose(bool yes = true){
+    m_verbose= yes;
+  }
+
+  int last_error(void) const {
+    return ndb_mgm_get_latest_error(m_handle);
+  }
+
+  const char* last_error_message(void) const {
+    return ndb_mgm_get_latest_error_desc(m_handle);
+  }
+
+  bool connect(const char* connect_string = NULL) {
     m_handle= ndb_mgm_create_handle();
     if (!m_handle){
       error("connect: ndb_mgm_create_handle failed");
       return false;
     }
 
-    if (ndb_mgm_set_connectstring(m_handle, getConnectString()) != 0){
+    if (ndb_mgm_set_connectstring(m_handle,
+                                  connect_string ?
+                                  connect_string : getConnectString()) != 0){
       error("connect: ndb_mgm_set_connectstring failed");
       return false;
     }
@@ -77,9 +104,233 @@ public:
       error("connect: ndb_mgm_connect failed");
       return false;
     }
+
+    if ((m_nodeid = ndb_mgm_get_mgmd_nodeid(m_handle)) == 0){
+      error("connect: could not get nodeid of connected mgmd");
+      return false;
+    }
+
     return true;
   }
 
+  bool is_connected(void) {
+    if (!m_handle){
+      error("is_connected: no handle");
+      return false;
+    }
+    if (!ndb_mgm_is_connected(m_handle)){
+      error("is_connected: not connected");
+      return false;
+    }
+    return true;
+  }
+
+  bool restart(bool abort = false) {
+    if (!is_connected()){
+      error("restart: not connected");
+      return false;
+    }
+
+    int disconnect= 0;
+    int node_list= m_nodeid;
+    int restarted= ndb_mgm_restart3(m_handle,
+                                    1,
+                                    &node_list,
+                                    false, /* initial */
+                                    false, /* nostart */
+                                    abort,
+                                    &disconnect);
+
+    if (restarted != 1){
+      error("restart: failed to restart node %d, restarted: %d",
+            m_nodeid, restarted);
+      return false;
+    }
+    return true;
+  }
+
+  bool call(const char* cmd, const Properties& args,
+            const char* cmd_reply, Properties& reply,
+            const char* bulk = NULL,
+            bool name_value_pairs = true){
+
+    if (!is_connected()){
+      error("call: not connected");
+      return false;
+    }
+
+    SocketOutputStream out(_ndb_mgm_get_socket(m_handle));
+
+    if (out.println(cmd)){
+      error("call: println failed at line %d", __LINE__);
+      return false;
+    }
+
+    Properties::Iterator iter(&args);
+    const char *name;
+    while((name = iter.next()) != NULL) {
+      PropertiesType t;
+      Uint32 val_i;
+      Uint64 val_64;
+      BaseString val_s;
+
+      args.getTypeOf(name, &t);
+      switch(t) {
+      case PropertiesType_Uint32:
+	args.get(name, &val_i);
+	if (out.println("%s: %d", name, val_i)){
+          error("call: println failed at line %d", __LINE__);
+          return false;
+        }
+	break;
+      case PropertiesType_Uint64:
+	args.get(name, &val_64);
+	if (out.println("%s: %Ld", name, val_64)){
+          error("call: println failed at line %d", __LINE__);
+          return false;
+        }
+	break;
+      case PropertiesType_char:
+	args.get(name, val_s);
+	if (out.println("%s: %s", name, val_s.c_str())){
+          error("call: println failed at line %d", __LINE__);
+          return false;
+        }
+	break;
+      default:
+      case PropertiesType_Properties:
+	/* Illegal */
+        abort();
+	break;
+      }
+    }
+
+    // Emtpy line terminates argument list
+    if (out.print("\n")){
+      error("call: print('\n') failed at line %d", __LINE__);
+      return false;
+    }
+
+    // Send any bulk data
+    if (bulk && out.println(bulk)){
+      error("call: print('<bulk>') failed at line %d", __LINE__);
+      return false;
+    }
+
+    BaseString buf;
+    SocketInputStream2 in(_ndb_mgm_get_socket(m_handle));
+    if (cmd_reply)
+    {
+      // Read the reply header and compare against "cmd_reply"
+      if (!in.gets(buf)){
+        error("call: could not read reply command");
+        return false;
+      }
+
+      // 1. Check correct reply header
+      if (buf != cmd_reply){
+        error("call: unexpected reply command, expected: '%s', got '%s'",
+              cmd_reply, buf.c_str());
+        return false;
+      }
+    }
+
+    // 2. Read lines until empty line
+    int line = 1;
+    while(in.gets(buf)){
+
+      // empty line -> end of reply
+      if (buf == "")
+        return true;
+
+      if (name_value_pairs)
+      {
+        // 3a. Read colon separated name value pair, split
+        // the name value pair on first ':'
+        Vector<BaseString> name_value_pair;
+        if (buf.split(name_value_pair, ":", 2) != 2){
+          error("call: illegal name value pair '%s' received", buf.c_str());
+          return false;
+        }
+
+        reply.put(name_value_pair[0].trim(" ").c_str(),
+                  name_value_pair[1].trim(" ").c_str());
+      }
+      else
+      {
+        // 3b. Not name value pair, save the line into "reply"
+        // using unique key
+        reply.put("line", line++, buf.c_str());
+      }
+    }
+
+    error("call: should never come here");
+    reply.print();
+    abort();
+    return false;
+  }
+
+
+  bool get_config(Config& config){
+
+    if (!is_connected()){
+      error("get_config: not connected");
+      return false;
+    }
+
+    struct ndb_mgm_configuration* conf =
+      ndb_mgm_get_configuration(m_handle,0);
+    if (!conf) {
+      error("get_config: ndb_mgm_get_configuration failed");
+      return false;
+    }
+
+    config.m_configValues= conf;
+    return true;
+  }
+
+  bool set_config(Config& config){
+
+    if (!is_connected()){
+      error("set_config: not connected");
+      return false;
+    }
+
+    if (ndb_mgm_set_configuration(m_handle,
+                                  config.values()) != 0)
+    {
+      error("set_config: ndb_mgm_set_configuration failed");
+      return false;
+    }
+    return true;
+  }
+
+  bool end_session(void){
+    if (!is_connected()){
+      error("end_session: not connected");
+      return false;
+    }
+
+    if (ndb_mgm_end_session(m_handle) != 0){
+      error("end_session: ndb_mgm_end_session failed");
+      return false;
+    }
+    return true;
+  }
+
+  // Pretty printer for 'ndb_mgm_node_type'
+  class NodeType {
+    BaseString m_str;
+  public:
+    NodeType(Uint32 node_type) {
+      const char* str= NULL;
+      const char* alias=
+        ndb_mgm_get_node_type_alias_string((ndb_mgm_node_type)node_type, &str);
+      m_str.assfmt("%s(%s)", alias, str);
+    }
+
+    const char* c_str() { return m_str.c_str(); }
+  };
 };
 
 #endif

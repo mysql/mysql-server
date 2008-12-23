@@ -111,7 +111,7 @@ public:
     : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
   {}
   Ndb_table_guard(NDBDICT *dict, const char *tabname)
-    : m_dict(dict)
+    : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
   {
     DBUG_ENTER("Ndb_table_guard");
     init(tabname);
@@ -120,19 +120,32 @@ public:
   ~Ndb_table_guard()
   {
     DBUG_ENTER("~Ndb_table_guard");
-    if (m_ndbtab)
-    {
-      DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
-                          m_ndbtab, m_invalidate));
-      m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
-    }
+    reinit();
     DBUG_VOID_RETURN;
   }
   void init(const char *tabname)
   {
     DBUG_ENTER("Ndb_table_guard::init");
+    /* must call reinit() if already initialized */
+    DBUG_ASSERT(m_ndbtab == NULL);
     m_ndbtab= m_dict->getTableGlobal(tabname);
     m_invalidate= 0;
+    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+    DBUG_VOID_RETURN;
+  }
+  void reinit(const char *tabname= 0)
+  {
+    DBUG_ENTER("Ndb_table_guard::reinit");
+    if (m_ndbtab)
+    {
+      DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
+                          m_ndbtab, m_invalidate));
+      m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
+      m_ndbtab= NULL;
+      m_invalidate= 0;
+    }
+    if (tabname)
+      init(tabname);
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
@@ -152,7 +165,21 @@ private:
   int m_invalidate;
 };
 
+class Thd_proc_info_guard
+{
+public:
+  Thd_proc_info_guard(THD *thd)
+   : m_thd(thd), m_proc_info(thd->proc_info) {}
+  ~Thd_proc_info_guard() { m_thd->proc_info= m_proc_info; }
+private:
+  THD *m_thd;
+  const char *m_proc_info;
+};
+
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
+
+void ndbcluster_global_schema_lock_init();
+void ndbcluster_global_schema_lock_deinit();
 
 extern pthread_t ndb_binlog_thread;
 extern pthread_mutex_t injector_mutex;
@@ -175,10 +202,6 @@ void ndbcluster_binlog_init_handlerton();
   Initialize the binlog part of the NDB_SHARE
 */
 int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
-
-bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
@@ -292,4 +315,18 @@ void
 set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
 { thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
-Ndb* check_ndb_in_thd(THD* thd);
+Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb= false);
+
+int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
+int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
+
+class Ndbcluster_global_schema_lock_guard
+{
+public:
+  Ndbcluster_global_schema_lock_guard(THD *thd);
+  ~Ndbcluster_global_schema_lock_guard();
+  int lock();
+private:
+  THD *m_thd;
+  int m_lock;
+};

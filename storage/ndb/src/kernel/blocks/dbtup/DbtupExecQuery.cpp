@@ -373,7 +373,10 @@ Dbtup::load_diskpage(Signal* signal,
     }
 #endif
     
-    if((res= m_pgman.get_page(signal, req, flags)) > 0)
+    Page_cache_client pgman(this, c_pgman);
+    res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
+    if(res > 0)
     {
       //ndbout_c("in cache");
       // In cache
@@ -449,7 +452,10 @@ Dbtup::load_diskpage_scan(Signal* signal,
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
-    if((res= m_pgman.get_page(signal, req, flags)) > 0)
+    Page_cache_client pgman(this, c_pgman);
+    res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
+    if(res > 0)
     {
       // ndbout_c("in cache");
       // In cache
@@ -974,8 +980,9 @@ int Dbtup::handleUpdateReq(Signal* signal,
       Uint32 sz= operPtrP->m_undo_buffer_space= 
 	(sizeof(Dbtup::Disk_undo::Update) >> 2) + sizes[DD] - 1;
       
-      terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-					   sz);
+      D("Logfile_client - handleUpdateReq");
+      Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      terrorCode= lgman.alloc_log_space(sz);
       if(unlikely(terrorCode))
       {
 	operPtrP->m_undo_buffer_space= 0;
@@ -1372,8 +1379,9 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto log_space_error;
     }
 
-    res= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-				  regOperPtr.p->m_undo_buffer_space);
+    D("Logfile_client - handleInsertReq");
+    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+    res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space);
     if(unlikely(res))
     {
       terrorCode= res;
@@ -1672,8 +1680,9 @@ int Dbtup::handleDeleteReq(Signal* signal,
       (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       regTabPtr->m_offsets[DD].m_fix_header_size - 1;
     
-    terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-                                         sz);
+    D("Logfile_client - handleDeleteReq");
+    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+    terrorCode= lgman.alloc_log_space(sz);
     if(unlikely(terrorCode))
     {
       regOperPtr->m_undo_buffer_space= 0;
@@ -2452,12 +2461,23 @@ int Dbtup::interpreterNextLab(Signal* signal,
         const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
         // fixed length in 5.0
 	Uint32 attrLen = AttributeDescriptor::getSizeInBytes(TattrDesc1);
+        
+        if (typeId == NDB_TYPE_BIT)
+        {
+          /* Size in bytes for bit fields can be incorrect due to
+           * rounding down
+           */
+          Uint32 bitFieldAttrLen= (AttributeDescriptor::getArraySize(TattrDesc1)
+                                   + 7) / 8;
+          attrLen= bitFieldAttrLen;
+        }
 
 	bool r1_null = ah.isNULL();
 	bool r2_null = argLen == 0;
 	int res1;
-        if (cond != Interpreter::LIKE &&
-            cond != Interpreter::NOT_LIKE) {
+        if (cond <= Interpreter::GE)
+        {
+          /* Inequality - EQ, NE, LT, LE, GT, GE */
           if (r1_null || r2_null) {
             // NULL==NULL and NULL<not-NULL
             res1 = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
@@ -2470,16 +2490,42 @@ int Dbtup::interpreterNextLab(Signal* signal,
             res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
           }
 	} else {
-          if (r1_null || r2_null) {
-            // NULL like NULL is true (has no practical use)
-            res1 =  r1_null && r2_null ? 0 : -1;
-          } else {
-	    jam();
-	    if (unlikely(sqlType.m_like == 0))
-	    {
-	      return TUPKEY_abort(signal, 40);
-	    }
-            res1 = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
+          if ((cond == Interpreter::LIKE) ||
+              (cond == Interpreter::NOT_LIKE))
+          {
+            if (r1_null || r2_null) {
+              // NULL like NULL is true (has no practical use)
+              res1 =  r1_null && r2_null ? 0 : -1;
+            } else {
+              jam();
+              if (unlikely(sqlType.m_like == 0))
+              {
+                return TUPKEY_abort(signal, 40);
+              }
+              res1 = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
+            }
+          }
+          else
+          {
+            /* AND_XX_MASK condition */
+            ndbassert(cond <= Interpreter::AND_NE_ZERO);
+            if (unlikely(sqlType.m_mask == 0))
+            {
+              return TUPKEY_abort(signal,40);
+            }
+            /* If either arg is NULL, we say COL AND MASK
+             * NE_ZERO and NE_MASK.
+             */
+            if (r1_null || r2_null) {
+              res1= 1;
+            } else {
+              
+              bool cmpZero= 
+                (cond == Interpreter::AND_EQ_ZERO) ||
+                (cond == Interpreter::AND_NE_ZERO);
+              
+              res1 = (*sqlType.m_mask)(s1, attrLen, s2, argLen, cmpZero);
+            }
           }
         }
 
@@ -2509,6 +2555,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
           break;
         case Interpreter::NOT_LIKE:
           res = (res1 == 1);
+          break;
+        case Interpreter::AND_EQ_MASK:
+          res = (res1 == 0);
+          break;
+        case Interpreter::AND_NE_MASK:
+          res = (res1 != 0);
+          break;
+        case Interpreter::AND_EQ_ZERO:
+          res = (res1 == 0);
+          break;
+        case Interpreter::AND_NE_ZERO:
+          res = (res1 != 0);
           break;
 	  // XXX handle invalid value
         }
@@ -2877,8 +2935,6 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
   Uint32 fix_len;
   const Uint32 *var_p;
   Uint32 var_len;
-  const Uint32 *disk_p;
-  Uint32 disk_len;
   const char *typ;
 
   fix_p= tuple_words;
@@ -3673,7 +3729,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
     
-    int res = c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
+    D("Logfile_client - nr_delete");
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    int res = lgman.alloc_log_space(sz);
     ndbrequire(res == 0);
     
     /**
@@ -3717,7 +3775,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     }
 #endif
     
-    res = m_pgman.get_page(signal, preq, flags);
+    Page_cache_client pgman(this, c_pgman);
+    res = pgman.get_page(signal, preq, flags);
+    m_pgman_ptr = pgman.m_ptr;
     if (res == 0)
     {
       goto timeslice;
@@ -3727,13 +3787,13 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       return -1;
     }
 
-    PagePtr disk_page = *(PagePtr*)&m_pgman.m_ptr;
+    PagePtr disk_page = *(PagePtr*)&m_pgman_ptr;
     disk_page_set_dirty(disk_page);
 
-    preq.m_callback.m_callbackFunction =
-      safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
-    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    res= lgman.get_log_buffer(signal, sz, &preq.m_callback);
+    CallbackPtr cptr;
+    cptr.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
+    cptr.m_callbackData = senderData;
+    res= lgman.get_log_buffer(signal, sz, &cptr);
     switch(res){
     case 0:
       signal->theData[2] = disk_page.i;
@@ -3758,7 +3818,7 @@ timeslice:
 
 void
 Dbtup::nr_delete_page_callback(Signal* signal, 
-			       Uint32 userpointer, Uint32 page_id)
+			       Uint32 userpointer, Uint32 page_id)//unused
 {
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
@@ -3781,10 +3841,10 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
     tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
   
-  Callback cb;
+  CallbackPtr cb;
   cb.m_callbackData = userpointer;
-  cb.m_callbackFunction =
-    safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
+  cb.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
+  D("Logfile_client - nr_delete_page_callback");
   Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
   int res= lgman.get_log_buffer(signal, sz, &cb);
   switch(res){

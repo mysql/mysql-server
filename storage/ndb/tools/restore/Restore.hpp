@@ -52,7 +52,7 @@ typedef  void* (*AttrConvertFunc)(const void *old_data,
 //class AttributeDesc;
 struct AttributeDesc;
 struct AttributeData;
-struct AttributeS;
+class AttributeS;
 
 struct AttributeData {
   bool null;
@@ -82,7 +82,7 @@ struct AttributeDesc {
   friend class TableS;
   friend class RestoreDataIterator;
   friend class RestoreMetaData;
-  friend struct AttributeS;
+  friend class AttributeS;
   Uint32 size; // bits       
   Uint32 arraySize;
   Uint32 attrId;
@@ -100,7 +100,8 @@ public:
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
 }; // AttributeDesc
 
-struct AttributeS {
+class AttributeS {
+public:
   const AttributeDesc * Desc;
   AttributeData Data;
 };
@@ -180,7 +181,7 @@ public:
   Uint32 getLocalId() const { 
     return m_local_id; 
   }
-  Uint32 getNoOfRecords() const { 
+  Uint64 getNoOfRecords() const { 
     return m_noOfRecords; 
   }
   /*
@@ -297,6 +298,8 @@ protected:
 
   Uint64 m_file_size;
   Uint64 m_file_pos;
+
+  bool  m_is_undolog;
 
   void (* free_data_callback)();
   virtual void reset_buffers() {}

@@ -30,38 +30,43 @@ libkernel_a_SOURCES = \
 	Emulator.cpp		\
 	Configuration.cpp		\
 	WatchDog.cpp \
-        SimplePropertiesSection.cpp \
         SectionReader.cpp \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
         ndbd_malloc.cpp \
 	ndbd_malloc_impl.cpp \
 	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
-	GlobalData.cpp
+	GlobalData.cpp \
+	SafeMutex.cpp
 
 libsched_a_SOURCES = TimeQueue.cpp		\
                      ThreadConfig.cpp \
                      FastScheduler.cpp \
                      TransporterCallback_nonmt.cpp \
                      SimulatedBlock_nonmt.cpp \
+                     LongSignal_nonmt.cpp \
+                     SimplePropertiesSection_nonmt.cpp \
 		     dummy_nonmt.cpp
 
 libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         TransporterCallback_mt.cpp \
+                        LongSignal_mt.cpp \
+                        SimplePropertiesSection_mt.cpp \
                         mt.cpp \
                         dummy_mt.cpp
 
-EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt
+EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt LongSignal.cpp SimplePropertiesSection.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
-LDADD_LOC = $(top_builddir)/ndb/src/common/util/libgeneral.la
+LDADD_LOC = $(top_builddir)/storage/ndb/src/common/util/libgeneral.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
 EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256 \
-                 testSectionReader testLongSignals
+                 testSectionReader testLongSignals \
+		 testSafeMutex
 
 ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
 ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
@@ -104,4 +109,14 @@ testLongSignals_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la \
   @readline_link@ @TERMCAP_LIB@
+
+testSafeMutex_CXXFLAGS = -DUNIT_TEST
+testSafeMutex_SOURCES = SafeMutex.cpp
+testSafeMutex_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la \
+  @readline_link@ @TERMCAP_LIB@
+
 

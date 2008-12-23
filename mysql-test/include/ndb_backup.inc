@@ -6,7 +6,7 @@
 
 # there is no neat way to find the backupid, this is a hack to find it...
 
---exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
+--exec $NDB_SELECT_ALL --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=, SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
 
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 

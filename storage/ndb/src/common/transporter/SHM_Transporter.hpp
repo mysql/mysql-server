@@ -49,6 +49,8 @@ public:
    */
   virtual ~SHM_Transporter();
   
+  virtual bool configure_derived(const TransporterConfiguration* conf);
+
   /**
    * Do initialization
    */
@@ -119,7 +121,7 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
-  bool doSend();
+  int doSend();
   int m_remote_pid;
   Uint32 m_signal_threshold;
 

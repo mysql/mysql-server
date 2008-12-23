@@ -67,7 +67,7 @@ Ndb_local_table_info *
 LocalDictCache::get(const char * name){
   ASSERT_NOT_MYSQLD;
   assert(! is_ndb_blob_table(name));
-  const Uint32 len = strlen(name);
+  const Uint32 len = (Uint32)strlen(name);
   return m_tableHash.getData(name, len);
 }
 
@@ -76,14 +76,14 @@ LocalDictCache::put(const char * name, Ndb_local_table_info * tab_info){
   ASSERT_NOT_MYSQLD;
   assert(! is_ndb_blob_table(name));
   const Uint32 id = tab_info->m_table_impl->m_id;
-  m_tableHash.insertKey(name, strlen(name), id, tab_info);
+  m_tableHash.insertKey(name, (Uint32)strlen(name), id, tab_info);
 }
 
 void
 LocalDictCache::drop(const char * name){
   ASSERT_NOT_MYSQLD;
   assert(! is_ndb_blob_table(name));
-  Ndb_local_table_info *info= m_tableHash.deleteKey(name, strlen(name));
+  Ndb_local_table_info *info= m_tableHash.deleteKey(name, (Uint32)strlen(name));
   DBUG_ASSERT(info != 0);
   Ndb_local_table_info::destroy(info);
 }
@@ -180,7 +180,7 @@ GlobalDictCache::get(const char * name, int *error)
   DBUG_PRINT("enter", ("name: %s", name));
   assert(! is_ndb_blob_table(name));
 
-  const Uint32 len = strlen(name);
+  const Uint32 len = (Uint32)strlen(name);
   Vector<TableVersion> * versions = 0;
   versions = m_tableHash.getData(name, len);
   if(versions == 0){
@@ -256,7 +256,7 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
                        tab ? tab->m_version >> 24 : 0));
   assert(! is_ndb_blob_table(name));
 
-  const Uint32 len = strlen(name);
+  const Uint32 len = (Uint32)strlen(name);
   Vector<TableVersion> * vers = m_tableHash.getData(name, len);
   if(vers == 0){
     // Should always tried to retreive it first 
@@ -366,7 +366,7 @@ GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
   assert(! is_ndb_blob_table(tab));
 
   unsigned i;
-  const Uint32 len = strlen(tab->m_internalName.c_str());
+  const Uint32 len = (Uint32)strlen(tab->m_internalName.c_str());
   Vector<TableVersion> * vers = 
     m_tableHash.getData(tab->m_internalName.c_str(), len);
   if(vers == 0){
@@ -426,7 +426,7 @@ GlobalDictCache::alter_table_rep(const char * name,
 {
   DBUG_ENTER("GlobalDictCache::alter_table_rep");
   assert(! is_ndb_blob_table(name));
-  const Uint32 len = strlen(name);
+  const Uint32 len = (Uint32)strlen(name);
   Vector<TableVersion> * vers = 
     m_tableHash.getData(name, len);
   

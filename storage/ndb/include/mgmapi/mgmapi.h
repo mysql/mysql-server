@@ -405,6 +405,23 @@ extern "C" {
    */
   void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
 
+  /**
+   * Set 'ignore_sigpipe' behaviour
+   *
+   * The mgmapi will by default install a signal handler
+   * that ignores all SIGPIPE signals that might occur when
+   * writing to an already closed or reset socket. An application
+   * that wish to use its own handler for SIGPIPE should call this
+   * function after 'ndb_mgm_create_handle' and before
+   * 'ndb_mgm_connect'(where the signal handler is installed)
+   *
+   * @param   handle        Management handle
+   * @param   val           Value
+   *                        0 - Don't ignore SIGPIPE
+   *                        1 - Ignore SIGPIPE(default)
+   */
+  int ndb_mgm_set_ignore_sigpipe(NdbMgmHandle handle, int val);
+
   /** @} *********************************************************************/
   /**
    * @name Functions: Connect/Disconnect Management Server
@@ -554,6 +571,15 @@ extern "C" {
    */
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
 
+  /**
+   * Gets connection bind address
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 hostname
+   */
+  const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
@@ -642,6 +668,24 @@ extern "C" {
   struct ndb_mgm_cluster_state * 
   ndb_mgm_get_status2(NdbMgmHandle handle,
                       const enum ndb_mgm_node_type types[]);
+                      
+
+
+  /**
+   * Dump state
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId the node id.
+   * @param args integer array
+   * @param number of args in int array
+   * @param reply the reply message.
+   * @return 0 if successful or an error code.
+   */
+  int ndb_mgm_dump_state(NdbMgmHandle handle,
+			 int nodeId,
+			 const int * args,
+			 int num_args,
+			 struct ndb_mgm_reply* reply);
 
   /** @} *********************************************************************/
   /**
@@ -1045,6 +1089,27 @@ extern "C" {
 			   unsigned int input_backupId);
 
   /**
+   * Start backup
+   *
+   * @param   handle          NDB management handle.
+   * @param   wait_completed  0:  Don't wait for confirmation<br>
+   *                          1:  Wait for backup to be started<br>
+   *                          2:  Wait for backup to be completed
+   * @param   backup_id       Backup ID is returned from function.
+   * @param   reply           Reply message.
+   * @param   input_backupId  run as backupId and set next backup id to input_backupId+1.
+   * @param   backuppoint     Backup happen at start time(1) or complete time(0).
+   * @return                  -1 on error.
+   * @note                    backup_id will not be returned if
+   *                          wait_completed == 0
+   */
+  int ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+			   unsigned int* backup_id,
+			   struct ndb_mgm_reply* reply,
+			   unsigned int input_backupId,
+			   unsigned int backuppoint);
+
+  /**
    * Abort backup
    *
    * @param   handle        NDB management handle.
@@ -1157,6 +1222,28 @@ extern "C" {
                           int *major, int *minor, int* build,
                           int len, char* str);
 
+  /**
+   * Query NDB$INFO.
+   * On success, returns number of rows.
+   * ndb_mgm_ndbinfo_getrow() *MUST* be called that many times.
+   */
+  int ndb_mgm_ndbinfo(NdbMgmHandle handle, const char *query, int *rows);
+
+  /**
+   * Gets the column names for NDBINFO query
+   *
+   * Must be called after successful ndb_mgm_ndbinfo() but BEFORE
+   * ndb_mgm_getrows.
+   */
+  int ndb_mgm_ndbinfo_colcount(NdbMgmHandle h);
+  int ndb_mgm_ndbinfo_getcolums(NdbMgmHandle h, int n, int l, char** c);
+  char* ndb_mgm_ndbinfo_nextcolumn(char* row, int *len);
+
+  /**
+   * returns zero on success.
+   * Must be called after ndb_mgm_ndbinfo and after ndb_mgm_ndbinfo_getcolumns
+   */
+  int ndb_mgm_ndbinfo_getrow(NdbMgmHandle h, char* row, int len);
 
   /**
    * Config iterator
@@ -1214,23 +1301,23 @@ extern "C" {
      NDB_MGM_CLUSTERLOG_ALERT = 6,
      NDB_MGM_CLUSTERLOG_ALL = 7
   };
-  inline
+  static inline
   int ndb_mgm_filter_clusterlog(NdbMgmHandle h,
 				enum ndb_mgm_clusterlog_level s,
 				int e, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_severity_filter(h,(enum ndb_mgm_event_severity)s,
 						  e,r); }
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_logfilter(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_severity_filter_old(h); }
 
-  inline
+  static inline
   int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle h, int n,
 				      enum ndb_mgm_event_category c,
 				      int l, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
 
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_loglevel_clusterlog(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_loglevel_old(h); }
 

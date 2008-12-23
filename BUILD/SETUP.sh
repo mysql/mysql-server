@@ -92,13 +92,17 @@ if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
   warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
   warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
-  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label"
+  warnings="$warnings -Wunused-value -Wunused-variable"
+
+  # Make "printf like format specifier warnings" into error
+  #warnings="$warnings -Werror=format"
 
 # For more warnings, uncomment the following line
 # warnings="$global_warnings -Wshadow"
 
 # C warnings
-  c_warnings="$warnings -Wunused-parameter"
+  c_warnings="$warnings -Wunused-parameter -Wno-format-zero-length"
 # C++ warnings
   cxx_warnings="$warnings"
 # cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"

@@ -213,7 +213,8 @@ NodeReceiverGroup::operator=(BlockReference blockRef){
 
 inline
 SectionHandle::SectionHandle(SimulatedBlock* b)
-  : m_block(b)
+  : m_cnt(0), 
+    m_block(b)
 {
 }
 

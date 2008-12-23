@@ -123,6 +123,7 @@ void Dbtup::scanProcedure(Signal* signal,
                                   regOperPtr,
                                   storedPtr.i,
                                   ZSTORED_TOO_MUCH_ATTRINFO_ERROR);
+    return;
   }
 
   signal->theData[0] = regOperPtr->userpointer;
@@ -204,7 +205,7 @@ void Dbtup::releaseCopyProcedure()
   first.p->m_lastSegment= cCopyLastSeg;
   
   cCopyLastSeg= RNIL;
-};
+}
   
 
 void Dbtup::copyProcedure(Signal* signal,

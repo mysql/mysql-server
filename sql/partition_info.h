@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright 2006-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,9 @@ class partition_info;
 typedef int (*get_part_id_func)(partition_info *part_info,
                                  uint32 *part_id,
                                  longlong *func_value);
-typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
-
+typedef int (*get_subpart_id_func)(partition_info *part_info,
+                                   uint32 *part_id);
+ 
 struct st_ddl_log_memory_entry;
 
 class partition_info : public Sql_alloc

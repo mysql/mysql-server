@@ -256,7 +256,6 @@ ScanInterpretTest::scanRead(Ndb* pNdb,
 
     int eof;
     int rows = 0;
-    NdbConnection* pInsTrans;
 
     while((eof = pOp->nextResult(true)) == 0){
       do {

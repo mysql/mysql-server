@@ -18,6 +18,7 @@
  *
  */
 
+#include <ndb_global.h>
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
 #include <sys/time.h>
