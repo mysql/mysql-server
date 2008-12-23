@@ -288,7 +288,7 @@ our $opt_warnings;
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster= 0;
-our $opt_ndb_mt_threads= "8,8";
+our $opt_ndb_mt_threads= "8,8,8,8";
 our @opt_ndb_mt_threads= ();
 our $opt_with_ndbcluster_only= 0;
 our $glob_ndbcluster_supported= 0;
