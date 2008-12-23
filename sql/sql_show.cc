@@ -44,7 +44,7 @@ static void
 append_algorithm(TABLE_LIST *table, String *buff);
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
-static bool schema_table_store_record(THD *thd, TABLE *table);
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 
 /***************************************************************************
@@ -1884,7 +1884,7 @@ typedef struct st_index_field_values
     1	                  error
 */
 
-static bool schema_table_store_record(THD *thd, TABLE *table)
+bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
   if ((error= table->file->write_row(table->record[0])))
