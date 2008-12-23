@@ -40,6 +40,8 @@ static int createEvent(Ndb *pNdb,
 	  << pNdb->getNdbError().message << endl;
     return NDBT_FAILED;
   }
+  
+  myDict->dropEvent(eventName);
 
   NdbDictionary::Event myEvent(eventName);
   myEvent.setTable(tab.getName());
@@ -168,7 +170,6 @@ struct receivedEvent {
 static int 
 eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int records)
 {
-  int i;
   const char function[] = "HugoTransactions::eventOperation: ";
   struct receivedEvent* recInsertEvent;
   NdbAutoObjArrayPtr<struct receivedEvent>
@@ -185,7 +186,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
   stats.n_duplicates = 0;
   stats.n_inconsistent_gcis = 0;
 
-  for (i = 0; i < records; i++) {
+  for (int i = 0; i < records; i++) {
     recInsertEvent[i].pk    = 0xFFFFFFFF;
     recInsertEvent[i].count = 0;
     recInsertEvent[i].event = 0xFFFFFFFF;
@@ -211,7 +212,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 
   char eventName[1024];
   sprintf(eventName,"%s_EVENT",tab.getName());
-  Uint32 noEventColumnName = tab.getNoOfColumns();
+  int noEventColumnName = tab.getNoOfColumns();
 
   g_info << function << "create EventOperation\n";
   pOp = pNdb->createEventOperation(eventName);
@@ -243,7 +244,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
   g_info << function << "ok\n";
 
   int count = 0;
-  Uint32 last_inconsitant_gci = 0xEFFFFFF0;
+  Uint64 last_inconsitant_gci = (Uint64)-1;
 
   while (r < records){
     //printf("now waiting for event...\n");
@@ -258,7 +259,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	r++;
 	count++;
 
-	Uint32 gci = pOp->getGCI();
+	Uint64 gci = pOp->getGCI();
 	Uint32 pk = recAttr[0]->u_32_value();
 
         if (!pOp->isConsistent()) {
@@ -296,7 +297,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	  recEvent[pk].count++;
 	}
 
-	for (i = 1; i < noEventColumnName; i++) {
+	for (int i = 1; i < noEventColumnName; i++) {
 	  if (recAttr[i]->isNULL() >= 0) { // we have a value
 	    g_info << " post[" << i << "]=";
 	    if (recAttr[i]->isNULL() == 0) // we have a non-null value
@@ -337,7 +338,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
   if (stats.n_updates > 0) {
     stats.n_consecutive++;
   }
-  for (i = 0; i < (Uint32)records/3; i++) {
+  for (int i = 0; i < records/3; i++) {
     if (recInsertEvent[i].pk != i) {
       stats.n_consecutive ++;
       ndbout << "missing insert pk " << i << endl;
@@ -1687,8 +1688,9 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_RETURN(NDBT_OK);
 }
 
-static int restartAllNodes()
+static int restartAllNodes(int & cnt)
 {
+  cnt = 0;
   NdbRestarter restarter;
   int id = 0;
   do {
@@ -1703,6 +1705,7 @@ static int restartAllNodes()
       break;
     }
     id = id % restarter.getNumDbNodes();
+    cnt++;
   } while (id);
   return id != 0;
 }
@@ -1713,17 +1716,19 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
   Ndb * ndb= GETNDB(step);
   int result = NDBT_OK;
   NdbRestarter restarter;
-  int loops = ctx->getNumLoops();
+  int loops = 2*ctx->getNumLoops();
 
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
     return NDBT_OK;
   }
+  NdbDictionary::Table copy(* ctx->getTab());
   do
   {
+    const NdbDictionary::Table* pTab = 
+      ndb->getDictionary()->getTable(copy.getName());
     result = NDBT_FAILED;
-    const NdbDictionary::Table* pTab = ctx->getTab();
     if (createEvent(ndb, *pTab, ctx))
     {
       g_err << "createEvent failed" << endl;
@@ -1741,7 +1746,8 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     ndbout << "Restarting with dropped events with subscribers" << endl;
-    if (restartAllNodes())
+    int cnt0 = 0, cnt1 = 0;
+    if (restartAllNodes(cnt0))
       break;
     if (ndb->getDictionary()->dropTable(pTab->getName()) != 0){
       g_err << "Failed to drop " << pTab->getName() <<" in db" << endl;
@@ -1749,23 +1755,23 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
     }
     ndbout << "Restarting with dropped events and dropped "
            << "table with subscribers" << endl;
-    if (restartAllNodes())
+    if (restartAllNodes(cnt1))
       break;
     if (ndb->dropEventOperation(pOp))
     {
       g_err << "Failed dropEventOperation" << endl;
       break;
     }
-    NdbDictionary::Table tmp(*pTab);
     //tmp.setNodeGroupIds(0, 0);
-    if (ndb->getDictionary()->createTable(tmp) != 0){
+    if (ndb->getDictionary()->createTable(copy) != 0){
       g_err << "createTable failed: "
             << ndb->getDictionary()->getNdbError() << endl;
       break;
     }
     result = NDBT_OK;
-  } while (--loops);
-
+    loops -= (cnt0 + cnt1);
+  } while (--loops > 0);
+  
   DBUG_RETURN(result);
 }
 

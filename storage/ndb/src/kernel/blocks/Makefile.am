@@ -41,6 +41,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbtup/DbtupDebug.cpp dbtup/DbtupScan.cpp \
   dbtup/DbtupDiskAlloc.cpp dbtup/DbtupVarAlloc.cpp \
   dbtup/tuppage.cpp dbtup/Undo_buffer.cpp \
+  ndbfs/AsyncIoThread.cpp \
   ndbfs/PosixAsyncFile.cpp ndbfs/AsyncFile.cpp \
   ndbfs/Ndbfs.cpp \
   ndbfs/VoidFs.cpp \
@@ -62,7 +63,11 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbtux/DbtuxProxy.cpp \
   backup/BackupProxy.cpp \
   RestoreProxy.cpp \
-  dblqh/DblqhCommon.cpp
+  dbinfo/Dbinfo.cpp \
+  dbinfo/ndbinfo_helpers.cpp \
+  dblqh/DblqhCommon.cpp \
+  PgmanProxy.cpp \
+  dbtup/DbtupClient.cpp
 
 EXTRA_PROGRAMS = ndb_print_file
 ndb_print_file_SOURCES = print_file.cpp diskpage.cpp dbtup/tuppage.cpp
@@ -95,7 +100,8 @@ EXTRA_DIST = CMakeLists.txt    \
 	suma/CMakeLists.txt    \
 	trix/CMakeLists.txt    \
 	ndbfs/Win32AsyncFile.cpp \
-	ndbfs/Win32AsyncFile.hpp
+	ndbfs/Win32AsyncFile.hpp \
+	dbinfo/CMakeLists.txt
 
 
 # Don't update the files from bitkeeper

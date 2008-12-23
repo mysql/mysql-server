@@ -44,7 +44,6 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -270,13 +269,7 @@ Ndb::report_node_failure_completed(Uint32 node_id)
   {
     // node failed
     // eventOperations in the ndb object should be notified
-    theEventBuffer->report_node_failure(node_id);
-    if(!theImpl->m_transporter_facade->theClusterMgr->isClusterAlive())
-    {
-      // cluster is unavailable, 
-      // eventOperations in the ndb object should be notified
-      theEventBuffer->completeClusterFailed();
-    }
+    theEventBuffer->report_node_failure_completed(node_id);
   }
   
   abortTransactionsAfterNodeFailure(node_id);
@@ -315,7 +308,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         localCon->theCompletionStatus = NdbTransaction::CompletedSuccess;
       } else {
 #ifdef VM_TRACE
-        printState("abortTransactionsAfterNodeFailure %x", this);
+        printState("abortTransactionsAfterNodeFailure %lx", (long)this);
         abort();
 #endif
       }
@@ -715,6 +708,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_SCHEMA_TRANS_BEGIN_REF:
   case GSN_SCHEMA_TRANS_END_CONF:
   case GSN_SCHEMA_TRANS_END_REF:
+  case GSN_SCHEMA_TRANS_END_REP:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
   case GSN_CREATE_HASH_MAP_REF:
@@ -912,6 +906,12 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
     return;
   } 
+  case GSN_API_REGCONF:{
+    return; // Ignore
+  }
+  case GSN_TAKE_OVERTCCONF:
+    abortTransactionsAfterNodeFailure(tFirstData); // theData[0]
+    break;
   default:
     tFirstDataPtr = NULL;
     goto InvalidSignal;
@@ -1090,7 +1090,7 @@ Ndb::check_send_timeout()
       {
 #ifdef VM_TRACE
         a_con->printState();
-	Uint32 t1 = a_con->theTransactionId;
+	Uint32 t1 = (Uint32) a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
 	ndbout_c("4012 [%.8x %.8x]", t1, t2);
 	//abort();

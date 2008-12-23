@@ -155,6 +155,9 @@ protected:
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
   void execEND_LCPREQ(Signal* signal);
+
+  void execDBINFO_SCANREQ(Signal *signal);
+
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
@@ -170,7 +173,12 @@ public:
 
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
-    Uint32 data[BACKUP_WORDS_PER_PAGE];
+    union {
+      Uint32 data[BACKUP_WORDS_PER_PAGE];
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
@@ -184,7 +192,12 @@ public:
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
-    Uint32 nextPool;
+    union {
+      Uint32 nextPool;
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
   };
   typedef Ptr<Fragment> FragmentPtr;
 
@@ -659,6 +672,8 @@ public:
   void afterGetTabinfoLockTab(Signal *signal,
                               BackupRecordPtr ptr, TablePtr tabPtr);
   void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
+
+  BackupFormat::LogFile::LogEntry* get_log_buffer(Signal*,TriggerPtr, Uint32);
 };
 
 inline

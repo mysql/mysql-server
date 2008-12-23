@@ -52,5 +52,7 @@ ADD_LIBRARY(ndbgeneral STATIC
             ndb_init.cpp
             ndb_opts.c
             basestring_vsnprintf.c
-            Bitmask.cpp)
+            Bitmask.cpp
+	    ndbinfo.c
+)
 TARGET_LINK_LIBRARIES(ndbgeneral zlib)

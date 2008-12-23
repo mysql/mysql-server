@@ -1256,6 +1256,7 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 SET SESSION AUTOCOMMIT = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+set binlog_format=mixed;
 --echo # Switch to connection con1
 connection con1;
 

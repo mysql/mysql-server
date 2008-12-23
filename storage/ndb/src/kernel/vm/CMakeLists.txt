@@ -35,6 +35,7 @@ ADD_LIBRARY(ndbkernel STATIC
             Rope.cpp
             WOPool.cpp
 	    GlobalData.cpp
+	    SafeMutex.cpp
 )
 ADD_LIBRARY(ndbsched STATIC
             TimeQueue.cpp
@@ -43,4 +44,6 @@ ADD_LIBRARY(ndbsched STATIC
             TransporterCallback_nonmt.cpp
             SimulatedBlock_nonmt.cpp
 	    dummy_nonmt.cpp
+	    SimplePropertiesSection_nonmt.cpp
+	    LongSignal_nonmt.cpp
 )

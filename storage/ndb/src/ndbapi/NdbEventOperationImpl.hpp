@@ -425,8 +425,7 @@ public:
     and added to all event ops listed as active or pending delete
     in m_dropped_ev_op using insertDataL, includeing the blob
     event ops referenced by a regular event op.
-    - NdbEventBuffer::report_node_failure
-    - NdbEventBuffer::completeClusterFailed
+    - NdbEventBuffer::report_node_failure_completed
 
     TE_ACTIVE is sent from the kernel on initial execute/start of the
     event op, but is also internally generetad on node connect like
@@ -528,12 +527,12 @@ public:
   int insertDataL(NdbEventOperationImpl *op,
 		  const SubTableData * const sdata, Uint32 len,
 		  LinearSectionPtr ptr[3]);
-  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const, Uint32 len);
+  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const, Uint32 len,
+                                int complete_cluster_failure= 0);
   void complete_outof_order_gcis();
   
   void report_node_connected(Uint32 node_id);
-  void report_node_failure(Uint32 node_id);
-  void completeClusterFailed();
+  void report_node_failure_completed(Uint32 node_id);
 
   // used by user thread 
   Uint64 getLatestGCI();
@@ -649,7 +648,7 @@ private:
   NdbMutex *m_add_drop_mutex;
 
   inline Gci_container* find_bucket(Uint64 gci){
-    Uint32 pos = (gci & ACTIVE_GCI_MASK);
+    Uint32 pos = (Uint32)(gci & ACTIVE_GCI_MASK);
     Gci_container *bucket= ((Gci_container*)(m_active_gci.getBase())) + pos;
     if(likely(gci == bucket->m_gci))
       return bucket;
@@ -664,6 +663,8 @@ private:
   void complete_bucket(Gci_container*);
   bool find_max_known_gci(Uint64 * res) const;
   void resize_known_gci();
+
+  Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_alive_node_bit_mask;
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
 

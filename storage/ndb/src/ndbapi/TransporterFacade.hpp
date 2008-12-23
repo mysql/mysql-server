@@ -53,11 +53,16 @@ public:
   STATIC_CONST( MAX_NO_THREADS = 4711 );
   TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
-  bool init(Uint32, const ndb_mgm_configuration *);
 
-  int start_instance(int, const ndb_mgm_configuration*);
+  int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
-  
+
+  /*
+    (Re)configure the TransporterFacade
+    to a specific configuration
+  */
+  bool configure(NodeId, const ndb_mgm_configuration *);
+
   /**
    * Register this block for sending/receiving signals
    * @blockNo block number to use, -1 => any blockNumber
@@ -168,13 +173,13 @@ public:
   void reportError(NodeId nodeId, TransporterError errorCode,
                    const char *info = 0);
   void transporter_recv_from(NodeId node);
-  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
   {
     return theTransporterRegistry->get_bytes_to_send_iovec(node, dst, max);
   }
-  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes)
+  Uint32 bytes_sent(NodeId node, Uint32 bytes)
   {
-    return theTransporterRegistry->bytes_sent(node, src, bytes);
+    return theTransporterRegistry->bytes_sent(node, bytes);
   }
   bool has_data_to_send(NodeId node)
   {
@@ -222,8 +227,7 @@ private:
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;
-  int theOwnId;
-
+  NodeId theOwnId;
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
@@ -283,7 +287,7 @@ private:
     Vector<Object_Execute> m_objectExecute;
     Vector<NodeStatusFunction> m_statusFunction;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction, int);
+    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
     int close(int number);
     void expand(Uint32 size);
 
@@ -303,7 +307,8 @@ private:
       return (m_statusNext[index] & (1 << 16)) != 0;
     }
   } m_threads;
-  
+
+  Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
   Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 
@@ -380,7 +385,6 @@ TransporterFacade::getNodeGrp(NodeId n) const {
 inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
-
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   return node.m_alive;
 }
@@ -395,9 +399,10 @@ inline
 bool
 TransporterFacade::get_node_stopping(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
+  assert(node.m_info.getType() == NodeInfo::DB);
   return (!node.m_state.getSingleUserMode() &&
-          (node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
-          (node.m_state.startLevel == NodeState::SL_STOPPING_2));
+          ((node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
+           (node.m_state.startLevel == NodeState::SL_STOPPING_2)));
 }
 
 inline
@@ -405,18 +410,11 @@ bool
 TransporterFacade::getIsNodeSendable(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   const Uint32 startLevel = node.m_state.startLevel;
+  assert(node.m_info.getType() == NodeInfo::DB);
 
-  if (node.m_info.m_type == NodeInfo::DB) {
-    return node.compatible && (startLevel == NodeState::SL_STARTED ||
-                               startLevel == NodeState::SL_STOPPING_1 ||
-                               node.m_state.getSingleUserMode());
-  } else {
-    ndbout_c("TransporterFacade::getIsNodeSendable: Illegal node type: "
-             "%d of node: %d", 
-             node.m_info.m_type, n);
-    abort();
-    return false; // to remove compiler warning
-  }
+  return node.compatible && (startLevel == NodeState::SL_STARTED ||
+                             startLevel == NodeState::SL_STOPPING_1 ||
+                             node.m_state.getSingleUserMode());
 }
 
 inline

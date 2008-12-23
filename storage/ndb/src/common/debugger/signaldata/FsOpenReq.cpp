@@ -46,13 +46,28 @@ printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Open mode unknown!");
   }
 
+  if (flags & FsOpenReq::OM_APPEND)
+    fprintf(output, ", Append");
+  if (flags & FsOpenReq::OM_SYNC)
+    fprintf(output, ", Sync");
   if (flags & FsOpenReq::OM_CREATE)
     fprintf(output, ", Create new file");
   if (flags & FsOpenReq::OM_TRUNCATE)
     fprintf(output, ", Truncate existing file");
-  if (flags & FsOpenReq::OM_APPEND)
-    fprintf(output, ", Append");
-  
+  if (flags & FsOpenReq::OM_AUTOSYNC)
+    fprintf(output, ", Auto Sync");
+
+  if (flags & FsOpenReq::OM_CREATE_IF_NONE)
+    fprintf(output, ", Create if None");
+  if (flags & FsOpenReq::OM_INIT)
+    fprintf(output, ", Initialise");
+  if (flags & FsOpenReq::OM_CHECK_SIZE)
+    fprintf(output, ", Check Size");
+  if (flags & FsOpenReq::OM_DIRECT)
+    fprintf(output, ", O_DIRECT");
+  if (flags & FsOpenReq::OM_GZ)
+    fprintf(output, ", gz compressed");
+
   fprintf(output, "\n");
   return true;
 }

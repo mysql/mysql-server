@@ -307,7 +307,10 @@ ConfigValuesFactory::ConfigValuesFactory(ConfigValues * cfg){
 ConfigValuesFactory::~ConfigValuesFactory()
 {
   if(m_cfg)
+  {
+    m_cfg->~ConfigValues();
     free(m_cfg);
+  }
 }
 
 ConfigValues *
@@ -617,8 +620,8 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
 	break;
       case Int64Type:{
 	Uint64 i64 = * get64(val); 
-	Uint32 hi = (i64 >> 32);
-	Uint32 lo = (i64 & 0xFFFFFFFF);
+	Uint32 hi = (Uint32)(i64 >> 32);
+	Uint32 lo = (Uint32)(i64 & 0xFFFFFFFF);
 	* (Uint32*)dst = htonl(key); dst += 4;
 	* (Uint32*)dst = htonl(hi); dst += 4;
 	* (Uint32*)dst = htonl(lo); dst += 4;
@@ -626,7 +629,7 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
 	break;
       case StringType:{
 	const char * str = * getString(val);
-	Uint32 len = strlen(str) + 1;
+	Uint32 len = Uint32(strlen(str) + 1);
 	* (Uint32*)dst = htonl(key); dst += 4;
 	* (Uint32*)dst = htonl(len); dst += 4;
 	memcpy(dst, str, len); 
@@ -642,7 +645,7 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
   }
 
   const Uint32 * sum = (Uint32*)_dst;
-  const Uint32 len = ((Uint32*)dst) - sum;
+  const Uint32 len = Uint32(((Uint32*)dst) - sum);
   Uint32 chk = 0;
   for(i = 0; i<len; i++){
     chk ^= htonl(sum[i]);

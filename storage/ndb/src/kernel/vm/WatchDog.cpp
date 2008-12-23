@@ -101,24 +101,17 @@ WatchDog::unregisterWatchedThread(Uint32 threadId)
   NdbMutex_Unlock(m_mutex);
 }
 
-void
+struct NdbThread*
 WatchDog::doStart()
 {
-  struct ThreadContainer container;
   theStop = false;
-  container.conf = globalEmulatorData.theConfiguration;
-  container.type = WatchDogThread;
-  theThreadPtr = NdbThread_CreateWithFunc(runWatchDog, 
+  theThreadPtr = NdbThread_Create(runWatchDog,
 				  (void**)this, 
 				  32768,
 				  "ndb_watchdog",
-                                  NDB_THREAD_PRIO_HIGH,
-                                  ndb_thread_add_thread_id,
-                                  &container,
-                                  sizeof(container),
-                                  ndb_thread_remove_thread_id,
-                                  &container,
-                                  sizeof(container));
+                                  NDB_THREAD_PRIO_HIGH);
+
+  return theThreadPtr;
 }
 
 void
@@ -201,7 +194,7 @@ WatchDog::run()
       g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
                           (Uint64)my_tms.tms_utime,
                           (Uint64)my_tms.tms_stime);
-      g_eventLogger->warning("Watchdog: Warning overslept %u ms, expected %u ms.",
+      g_eventLogger->warning("Watchdog: Warning overslept %llu ms, expected %u ms.",
                              NdbTick_getMicrosPassed(last_time, now)/1000,
                              sleep_time);
     }

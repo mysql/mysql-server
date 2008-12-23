@@ -2021,6 +2021,9 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_SCHEMA_TRANS_END_REF:
     tmp->execSCHEMA_TRANS_END_REF(signal, ptr);
     break;
+  case GSN_SCHEMA_TRANS_END_REP:
+    tmp->execSCHEMA_TRANS_END_REP(signal, ptr);
+    break;
   case GSN_WAIT_GCP_CONF:
     tmp->execWAIT_GCP_CONF(signal, ptr);
     break;
@@ -2657,7 +2660,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     Uint16 replicaCount = ntohs(tableDesc->ReplicaData[0]);
     Uint16 fragCount = ntohs(tableDesc->ReplicaData[1]);
 
-    impl->m_replicaCount = replicaCount;
+    assert(replicaCount <= 256);
+
+    impl->m_replicaCount = (Uint8)replicaCount;
     impl->m_fragmentCount = fragCount;
     DBUG_PRINT("info", ("replicaCount=%x , fragCount=%x",replicaCount,fragCount));
     Uint32 pos = 2;
@@ -2804,15 +2809,7 @@ NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t,
                                  NdbOptimizeTableHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl)");
-  /**
-   * make sure we get global table object here
-   */
-  NdbTableImpl *g_table = getTableGlobal(t.getName());
-  if (g_table == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_table));
+  DBUG_RETURN(h.init(&m_ndb, t));
 }
 
 int
@@ -2820,16 +2817,7 @@ NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index,
                                  NdbOptimizeIndexHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl)");
-  /**
-   * make sure we get global index object here
-   */
-  const NdbIndexImpl * g_index = getIndexGlobal(index.getName(),
-                                                index.getTable());
-  if (g_index == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_index));
+  DBUG_RETURN(h.init(&m_ndb, index));
 }
 
 int
@@ -3262,10 +3250,7 @@ loop:
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
     tmpAttr.AttributeExtScale = col->m_scale;
     tmpAttr.AttributeExtLength = col->m_length;
-    if(col->m_storageType == NDB_STORAGETYPE_DISK)
-      tmpAttr.AttributeArrayType = NDB_ARRAYTYPE_FIXED;
-    else
-      tmpAttr.AttributeArrayType = col->m_arrayType;
+    tmpAttr.AttributeArrayType = col->m_arrayType;
 
     if(col->m_pk)
       tmpAttr.AttributeStorageType = NDB_STORAGETYPE_MEMORY;      
@@ -3685,7 +3670,10 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   idx->m_temporary = tab->m_temporary;
 
   const Uint32 distKeys = prim->m_noOfDistributionKeys;
-  Uint32 keyCount = (distKeys ? distKeys : prim->m_noOfKeys);
+  Uint32 keyCount =
+    (type == NdbDictionary::Object::UniqueHashIndex) ?
+    tab->m_noOfKeys : (distKeys ? distKeys : prim->m_noOfKeys);
+  const Uint32 fullKeyCount = keyCount;
 
   unsigned i;
   // skip last attribute (NDB$PK or NDB$TNODE)
@@ -3725,11 +3713,16 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
       keyCount--;
       org->m_distributionKey = 1;
     }
+    else if (type == NdbDictionary::Object::UniqueHashIndex)
+    {
+      keyCount--;
+      org->m_distributionKey = 1;
+    }
   }
 
   if(keyCount == 0)
   {
-    tab->m_noOfDistributionKeys = (distKeys ? distKeys : prim->m_noOfKeys);
+    tab->m_noOfDistributionKeys = fullKeyCount;
   }
   else 
   {
@@ -4838,9 +4831,12 @@ static int scanEventTable(Ndb* pNdb,
       goto error;
     }
 
-    tmp_list.count = row_count;
+    /* Cannot handle > 2^32 yet (limit on tmp_list.count is unsigned int) */
+    assert((row_count & 0xffffffff) == row_count);
+
+    tmp_list.count = (unsigned int)row_count;
     tmp_list.elements =
-      new NdbDictionary::Dictionary::List::Element[row_count];
+      new NdbDictionary::Dictionary::List::Element[(unsigned int)row_count];
 
     int eof;
     unsigned rows = 0;
@@ -4853,7 +4849,7 @@ static int scanEventTable(Ndb* pNdb,
         el.type = NdbDictionary::Object::TableEvent;
         el.state = NdbDictionary::Object::StateOnline;
         el.store = NdbDictionary::Object::StorePermanent;
-        Uint32 len = strlen(event_name->aRef());
+        Uint32 len = (Uint32)strlen(event_name->aRef());
         el.name = new char[len+1];
         memcpy(el.name, event_name->aRef(), len);
         el.name[len] = 0;
@@ -6140,6 +6136,19 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                              i,
                              rec) != 0)
       goto err;
+
+    /*
+      Distibution key flag for unique index needs to be corrected
+      to reflect the keys in the index base table
+    */
+    if (table->m_indexType == NdbDictionary::Object::UniqueHashIndex)
+    {
+      NdbRecord::Attr *recCol= &rec->columns[i];
+      if (table->m_columns[i]->m_distributionKey)
+        recCol->flags|= NdbRecord::IsDistributionKey;
+      else
+        recCol->flags&= ~NdbRecord::IsDistributionKey;
+    }
   }
 
   /* Now we sort the array in attrId order. */
@@ -6204,6 +6213,11 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       {
         key_indexes[numKeys]= i;
         numKeys++;
+      }
+      if (recCol->flags & NdbRecord::IsDistributionKey)
+      {
+        if (numIndexDistrKeys < tableNumDistKeys)
+          distkey_indexes[numIndexDistrKeys++]= i;
       }
     }
   }
@@ -6305,11 +6319,11 @@ NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) cons
     remaining_bits-= 8;
   }
 
-  Uint32 small_bits= bits;
+  Uint32 small_bits= (Uint32)bits;
   memcpy(dst_buffer, &small_bits, 4);
   if (maxSize > 4)
   {
-    small_bits= bits >> 32;
+    small_bits= (Uint32)(bits >> 32);
     memcpy(dst_buffer+4, &small_bits, 4);
   }
 }
@@ -6335,7 +6349,7 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
   dst_ptr+= remaining_bits/8;
   while (remaining_bits >= 8)
   {
-    *--dst_ptr= bits & 0xff;
+    *--dst_ptr= (char)(bits & 0xff);
     bits>>= 8;
     remaining_bits-= 8;
   }
@@ -6596,8 +6610,8 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   f.FileType = file.m_type;
   f.FilegroupId = group.m_id;
   f.FilegroupVersion = group.m_version;
-  f.FileSizeHi = (file.m_size >> 32);
-  f.FileSizeLo = (file.m_size & 0xFFFFFFFF);
+  f.FileSizeHi = (Uint32)(file.m_size >> 32);
+  f.FileSizeLo = (Uint32)(file.m_size & 0xFFFFFFFF);
   
   SimpleProperties::UnpackStatus s;
   s = SimpleProperties::pack(w, 
@@ -6888,7 +6902,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7048,7 +7062,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7197,7 +7211,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7449,11 +7463,32 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
   if (! m_tx.m_transOn) {
     DBUG_RETURN(0);
   }
+  /*
+    Check if schema transaction has been aborted
+    already, for example because of master node failure.
+   */
+  if (m_error.code == 787)
+  {
+    if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
+    {
+      m_error.code = 0;
+      DBUG_RETURN(0);
+    }
+    DBUG_RETURN(-1);
+  }
   DBUG_PRINT("info", ("transId: %x transKey: %x",
                       m_tx.m_transId, m_tx.m_transKey));
   int ret = m_receiver.endSchemaTrans(flags);
   m_tx.m_transOn = false;
   if (ret == -1) {
+    if (m_error.code == 787)
+    {
+      if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
+      {
+        m_error.code = 0;
+        DBUG_RETURN(0);
+      }
+    }
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
@@ -7569,6 +7604,17 @@ NdbDictInterface::execSCHEMA_TRANS_END_REF(NdbApiSignal * signal,
     CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
+  m_waiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execSCHEMA_TRANS_END_REP(NdbApiSignal * signal,
+                                           LinearSectionPtr ptr[3])
+{
+  const SchemaTransEndRep* rep =
+    CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());
+  m_error.code = rep->errorCode;
+  m_masterNodeId = rep->masterNodeId;
   m_waiter.signal(NO_WAIT);
 }
 

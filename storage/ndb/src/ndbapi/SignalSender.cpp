@@ -18,6 +18,7 @@
 #include <SignalLoggerManager.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/TestOrd.hpp>
 
 
 SimpleSignal::SimpleSignal(bool dealloc){
@@ -126,11 +127,6 @@ SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
 }
 
-Uint32
-SignalSender::getAliveNode() const{
-  return theFacade->get_an_alive_node();
-}
-
 const ClusterMgr::Node & 
 SignalSender::getNodeInfo(Uint16 nodeId) const {
   return theFacade->theClusterMgr->getNodeInfo(nodeId);
@@ -140,6 +136,55 @@ Uint32
 SignalSender::getNoOfConnectedNodes() const {
   return theFacade->theClusterMgr->getNoOfConnectedNodes();
 }
+
+
+void
+SignalSender::getNodes(NodeBitmask& mask,
+                       NodeInfo::NodeType type)
+{
+  mask.clear();
+  for(Uint32 i = 1; i < MAX_NODES; i++)
+  {
+    const ClusterMgr::Node& node= getNodeInfo(i);
+    if(!node.defined)
+      continue;
+    if(type == NodeInfo::INVALID || // INVALID -> add all nodes to mask
+       node.m_info.getType() == type)
+    {
+      mask.set(i);
+    }
+  }
+}
+
+
+NodeBitmask
+SignalSender::broadcastSignal(NodeBitmask mask,
+                              SimpleSignal& sig,
+                              Uint16 recBlock, Uint16 gsn,
+                              Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+
+  NodeBitmask result;
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    if(mask.get(i) && sendSignal(i, &sig) == SEND_OK)
+      result.set(i);
+  }
+  return result;
+}
+
+
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId,
+                         SimpleSignal& sig,
+                         Uint16 recBlock, Uint16 gsn,
+                         Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+  return sendSignal(nodeId, &sig);
+}
+
 
 template<class T>
 SimpleSignal *
@@ -161,7 +206,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   NDB_TICKS stop = now + timeOutMillis;
-  NDB_TICKS wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
+  Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
   do {
     NdbCondition_WaitTimeout(m_cond,
 			     theFacade->theMutexPtr, 
@@ -178,7 +223,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     }
     
     now = NdbTick_CurrentMillisecond();
-    wait = (timeOutMillis == 0 ? 10 : stop - now);
+    wait = (Uint32)(timeOutMillis == 0 ? 10 : stop - now);
   } while(stop > now || timeOutMillis == 0);
   
   return 0;
@@ -282,16 +327,94 @@ SignalSender::execNodeStatus(void* signalSender,
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
     NdbNodeBitmask::clear(rep->theNodes);
-    NdbNodeBitmask::set(rep->theNodes,nodeId);
+
+    // Mark ndb nodes as failed in bitmask
+    const ClusterMgr::Node node= ss->getNodeInfo(nodeId);
+    if (node.m_info.getType() ==  NodeInfo::DB)
+      NdbNodeBitmask::set(rep->theNodes, nodeId);
   }
 
   ss->m_jobBuffer.push_back(s);
   NdbCondition_Signal(ss->m_cond);
 }
 
+
+template<class T>
+NodeId
+SignalSender::find_node(const NodeBitmask& mask, T & t)
+{
+  unsigned n= 0;
+  do {
+     n= mask.find(n+1);
+
+     if (n == NodeBitmask::NotFound)
+       return 0;
+
+    assert(n < MAX_NODES);
+
+  } while (!t.found_ok(*this, getNodeInfo(n)));
+
+  return n;
+}
+
+
+class FindConfirmedNode {
+public:
+  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+    return node.m_api_reg_conf;
+  }
+};
+
+
+NodeId
+SignalSender::find_confirmed_node(const NodeBitmask& mask)
+{
+  FindConfirmedNode f;
+  return find_node(mask, f);
+}
+
+
+class FindConnectedNode {
+public:
+  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+    return node.connected;
+  }
+};
+
+
+NodeId
+SignalSender::find_connected_node(const NodeBitmask& mask)
+{
+  FindConnectedNode f;
+  return find_node(mask, f);
+}
+
+
+class FindAliveNode {
+public:
+  bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
+    return node.m_alive;
+  }
+};
+
+
+NodeId
+SignalSender::find_alive_node(const NodeBitmask& mask)
+{
+  FindAliveNode f;
+  return find_node(mask, f);
+}
+
+
 #if __SUNPRO_CC != 0x560
 template SimpleSignal* SignalSender::waitFor<WaitForNode>(unsigned, WaitForNode&);
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
+template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
+                                                           FindConfirmedNode&);
+template NodeId SignalSender::find_node<FindAliveNode>(const NodeBitmask&,
+                                                       FindAliveNode&);
+template NodeId SignalSender::find_node<FindConnectedNode>(const NodeBitmask&,
+                                                           FindConnectedNode&);
 #endif
 template class Vector<SimpleSignal*>;
   

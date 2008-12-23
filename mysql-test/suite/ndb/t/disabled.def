@@ -9,9 +9,7 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
-ndb_index_ordered        : Bug#38370 The test ndb.ndb_index_ordered fails with the community features on
-
+ndb_reconnect            : jonas 2008-11-20, breaks, please enable when fixed
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open

@@ -38,6 +38,8 @@
 
 #include "mysql.h"
 
+#include <my_socket.h>
+
 /* Remove client convenience wrappers */
 #undef max_allowed_packet
 #undef net_buffer_length
@@ -139,12 +141,16 @@ char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 
   Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
-
-int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
+#ifdef __WIN__
+int my_connect(SOCKET fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
+#else
+int my_connect(int fd,    const struct sockaddr *name, uint namelen,
+	       uint timeout)
+#endif
 {
 #if defined(__WIN__) || defined(__NETWARE__)
-  return connect(fd.s, (struct sockaddr*) name, namelen);
+  return connect(fd, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
 
@@ -154,16 +160,16 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   */
 
   if (timeout == 0)
-    return connect(fd.fd, (struct sockaddr*) name, namelen);
+    return connect(fd, (struct sockaddr*) name, namelen);
 
-  flags = fcntl(fd.fd, F_GETFL, 0);	  /* Set socket to not block */
+  flags = fcntl(fd, F_GETFL, 0);	  /* Set socket to not block */
 #ifdef O_NONBLOCK
-  fcntl(fd.fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
+  fcntl(fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
 #endif
 
-  res= connect(fd.fd, (struct sockaddr*) name, namelen);
+  res= connect(fd, (struct sockaddr*) name, namelen);
   s_err= errno;			/* Save the error... */
-  fcntl(fd.fd, F_SETFL, flags);
+  fcntl(fd, F_SETFL, flags);
   if ((res != 0) && (s_err != EINPROGRESS))
   {
     errno= s_err;			/* Restore it */
@@ -171,7 +177,9 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   }
   if (res == 0)				/* Connected quickly! */
     return(0);
-  return wait_for_data(fd, timeout);
+  my_socket ms;
+  ms.fd= fd;
+  return wait_for_data(ms, timeout);
 #endif
 }
 
@@ -1967,7 +1975,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
-    if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+    if (my_connect(MY_SOCKET_FORMAT_VALUE(sock),(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		   mysql->options.connect_timeout))
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",
@@ -2111,7 +2119,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       my_gethostbyname_r_free();
     }
     sock_addr.sin_port = (ushort) htons((ushort) port);
-    if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
+    if (my_connect(MY_SOCKET_FORMAT_VALUE(sock),(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		   mysql->options.connect_timeout))
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,

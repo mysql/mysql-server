@@ -116,6 +116,11 @@ setup_files(atrt_config& config, int setup, int sshx)
   BaseString mycnf;
   mycnf.assfmt("%s/my.cnf", g_basedir);
   
+  if (!create_directory(g_basedir))
+  {
+    return false;
+  }
+
   if (mycnf != g_my_cnf)
   {
     struct stat sbuf;
@@ -242,7 +247,7 @@ setup_files(atrt_config& config, int setup, int sshx)
       BaseString tmp;
       tmp.assfmt("%s/env.sh", proc.m_proc.m_cwd.c_str());
       char **env = BaseString::argify(0, proc.m_proc.m_env.c_str());
-      if (env[0])
+      if (env[0] || proc.m_proc.m_path.length())
       {
 	Vector<BaseString> keys;
 	FILE *fenv = fopen(tmp.c_str(), "w+");
@@ -261,6 +266,16 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  keys.push_back(env[k]);
 	  free(env[k]);
 	}
+	if (proc.m_proc.m_path.length())
+	{
+	  fprintf(fenv, "CMD=\"%s", proc.m_proc.m_path.c_str());
+	  if (proc.m_proc.m_args.length())
+	  {
+	    fprintf(fenv, " %s", proc.m_proc.m_args.c_str());
+	  }
+	  fprintf(fenv, "\"\nexport CMD\n");
+	}
+	
 	fprintf(fenv, "PATH=%s/bin:%s/libexec:$PATH\n", g_prefix, g_prefix);
 	keys.push_back("PATH");
 	for (size_t k = 0; k<keys.size(); k++)

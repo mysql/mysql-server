@@ -39,6 +39,10 @@
 
 #include <NdbTick.h>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
 
 /**************************************************************************
  * ------------------------------------------------------------------------
@@ -62,6 +66,7 @@ DbUtil::DbUtil(Block_context& ctx) :
   addRecSignal(GSN_STTOR, &DbUtil::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &DbUtil::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &DbUtil::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &DbUtil::execDBINFO_SCANREQ);
   addRecSignal(GSN_CONTINUEB, &DbUtil::execCONTINUEB);
   
   //addRecSignal(GSN_TCSEIZEREF, &DbUtil::execTCSEIZEREF);
@@ -293,11 +298,8 @@ void
 DbUtil::execCONTINUEB(Signal* signal){
   jamEntry();
   const Uint32 Tdata0 = signal->theData[0];
-  
-  switch(Tdata0){
-  default:
-    ndbrequire(0);
-  }
+
+  ndbrequire(0);
 }
 
 void
@@ -678,6 +680,68 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
   }
 }
 
+void DbUtil::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      const char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Page",
+           c_pagePool.getNoOfFree(),
+           c_pagePool.getSize() },
+          {"Prepare",
+           c_preparePool.getNoOfFree(),
+           c_preparePool.getSize() },
+          {"Prepared Operation",
+           c_preparedOperationPool.getNoOfFree(),
+           c_preparedOperationPool.getSize() },
+          {"Operation",
+           c_operationPool.getNoOfFree(),
+           c_operationPool.getSize() },
+          {"Transaction",
+           c_transactionPool.getNoOfFree(),
+           c_transactionPool.getSize() },
+          {"Attribute Mapping",
+           c_attrMappingPool.getNoOfFree(),
+           c_attrMappingPool.getSize() },
+          {"Data Buffer",
+           c_dataBufPool.getNoOfFree(),
+           c_dataBufPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      const char *blockname= "DBUTIL";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+}
 void
 DbUtil::mutex_created(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
@@ -1636,6 +1700,8 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   ndbrequire(opPtr.p->rs.seize(prepOp->rsLen));
   ndbrequire(opPtr.p->keyInfo.seize(prepOp->keyLen));
 
+  transPtr.p->gci_hi = 0;
+  transPtr.p->gci_lo = 0;
   transPtr.p->gsn = GSN_UTIL_SEQUENCE_REQ;
   transPtr.p->clientRef = signal->senderBlockRef();
   transPtr.p->clientData = req->senderData;
@@ -1895,6 +1961,8 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
    * Seize Transaction record
    ************************************************************/
   ndbrequire(c_runningTransactions.seize(transPtr));
+  transPtr.p->gci_hi = 0;
+  transPtr.p->gci_lo = 0;
   transPtr.p->gsn        = GSN_UTIL_EXECUTE_REQ;
   transPtr.p->clientRef  = clientRef;
   transPtr.p->clientData = clientData;
@@ -2319,7 +2387,8 @@ DbUtil::execTCKEYCONF(Signal* signal){
   
   TcKeyConf * keyConf = (TcKeyConf*)signal->getDataPtr();
 
-  //const Uint32 gci      = keyConf->gci;
+  Uint32 gci_lo = 0;
+  const Uint32 gci_hi   = keyConf->gci_hi;
   const Uint32 transI   = keyConf->apiConnectPtr >> 1;
   const Uint32 confInfo = keyConf->confInfo;
   const Uint32 transId1 = keyConf->transId1;
@@ -2338,10 +2407,18 @@ DbUtil::execTCKEYCONF(Signal* signal){
     }
   }	
 
+  if (TcKeyConf::getCommitFlag(confInfo))
+  {
+    jam();
+    gci_lo = keyConf->operations[ops].apiOperationPtr;
+  }
+
   /**
    * Check commit ack marker flag
    */
-  if (TcKeyConf::getMarkerFlag(confInfo)){
+  if (TcKeyConf::getMarkerFlag(confInfo))
+  {
+    jam();
     signal->theData[0] = transId1;
     signal->theData[1] = transId2;
     sendSignal(DBTC_REF, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
@@ -2351,7 +2428,14 @@ DbUtil::execTCKEYCONF(Signal* signal){
   c_runningTransactions.getPtr(transPtr, transI);
   ndbrequire(transId1 == transPtr.p->transId[0] && 
 	     transId2 == transPtr.p->transId[1]);
-  
+
+  if (TcKeyConf::getCommitFlag(confInfo))
+  {
+    jam();
+    transPtr.p->gci_hi = gci_hi;
+    transPtr.p->gci_lo = gci_lo;
+  }
+
   transPtr.p->recv += recv;
   if(!transPtr.p->complete()){
     jam();
@@ -2469,6 +2553,8 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
       struct LinearSectionPtr sectionsPtr[UtilExecuteReq::NoOfSections];
       UtilExecuteConf * ret = (UtilExecuteConf *)signal->getDataPtrSend();
       ret->senderData = transPtr.p->clientData;
+      ret->gci_hi = transPtr.p->gci_hi;
+      ret->gci_lo = transPtr.p->gci_lo;
       if (getResultSet(signal, transPtr.p, sectionsPtr)) {
 #if 0 //def EVENT_DEBUG
 	for (int j = 0; j < 2; j++) {

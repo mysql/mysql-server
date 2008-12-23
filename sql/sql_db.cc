@@ -37,7 +37,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path, uint level, 
                                  TABLE_LIST **dropped_tables);
          
-static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
+long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 static void mysql_change_db_impl(THD *thd,
                                  LEX_STRING *new_db_name,
@@ -616,6 +616,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   MY_STAT stat_info;
   uint create_options= create_info ? create_info->options : 0;
   uint path_len;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
@@ -642,6 +643,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     error= -1;
     goto exit2;
   }
+
+  global_schema_lock_guard.lock();
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -767,6 +770,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   char path[FN_REFLEN+16];
   long result=1;
   int error= 0;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_alter_db");
 
   /*
@@ -783,6 +787,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
+
+  global_schema_lock_guard.lock();
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -861,6 +867,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   MY_DIR *dirp;
   uint length;
   TABLE_LIST* dropped_tables= 0;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_rm_db");
 
   /*
@@ -880,6 +887,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     error= -1;
     goto exit2;
   }
+
+  global_schema_lock_guard.lock();
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -1096,7 +1105,11 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     else if (file->name[0] == 'a' && file->name[1] == 'r' &&
              file->name[2] == 'c' && file->name[3] == '\0')
     {
-      /* .frm archive */
+      /* .frm archive:
+        Those archives are obsolete, but following code should
+        exist to remove existent "arc" directories.
+        See #ifdef FRM_ARCHIVE directives for obsolete code.
+      */
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
       strxmov(newpath, org_path, "/", "arc", NullS);
@@ -1260,9 +1273,13 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
   RETURN
     > 0 number of removed files
     -1  error
+
+  NOTE
+    A support of "arc" directories is obsolete, however this
+    function should exist to remove existent "arc" directories.
+    See #ifdef FRM_ARCHIVE directives for obsolete code.
 */
-static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp,
-				 const char *org_path)
+long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
 {
   long deleted= 0;
   ulong found_other_files= 0;
@@ -1304,6 +1321,7 @@ static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp,
     {
       goto err;
     }
+    deleted++;
   }
   if (thd->killed)
     goto err;

@@ -3,12 +3,12 @@ Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5051
-Next DBDICT 6008
-Next DBDIH 7215
-Next DBTC 8064
+Next DBLQH 5053
+Next DBDICT 6013
+Next DBDIH 7216
+Next DBTC 8078
 Next CMVMI 9000
-Next BACKUP 10041
+Next BACKUP 10042
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13043
@@ -184,7 +184,9 @@ And crash when all have "not" been sent
 
 7213: in GCP_COMMIT Kill specified node and self, stop processing
 7214: in GCP_TCFINISHED kill specified node
-     
+
+7215: set c_fragments_per_node = 1 (needs to be done at startup)
+
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
 
@@ -251,6 +253,8 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5041: Crash is receiving simple read from other TC on different node
 
 8050: Send TCKEYREF is operation is non local
+8071: Send TCKEYREF is unique index operation is non local
+8072: 8050 || 8071
 
 5100,5101: Drop ABORT req in primary replica
            Crash on "next" ABORT
@@ -350,6 +354,25 @@ ABORT OF TCKEYREQ
 
 8051 : Simulate failure of allocation for saveINDXKEYINFO
 
+DBTC LONG SIGNAL TESTING
+------------------------
+8065: Consume all but 10 long section segments on next TCKEYREQ
+8066: Consume all but 1 long section segments on next TCKEYREQ
+8067: Consume all long section segments on next TCKEYREQ
+8068: Free all segments hoarded by 8065, 8066, 8067
+
+8069: Always send 'short' LQHKEYREQ to LQH
+8070: Always send 'short' SCANFRAGREQ to LQH
+
+8074: Drop first fragment of fragmented SCANTABREQ
+8075: Drop middle fragments of fragmented SCANTABREQ
+8076: Drop last fragment of fragmented SCANTABREQ
+8077: Drop all fragments of fragmented SCANTABREQ
+
+DBLQH LONG SIGNAL TESTING
+-------------------------
+5051: Send short LQHKEYREQ to next replica
+5052: Fail to store KeyInfo from TUP in long section
 
 CMVMI
 -----
@@ -486,6 +509,7 @@ Backup Stuff:
 10039: Halt backup for table >= 2
 10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
+10041: delay backup after create trigger. for testing undo log file.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
@@ -551,6 +575,19 @@ CTa = create table, ATr = alter trigger, and so on
 #6135: Fail prepare (err=9135) in ATr
 #6136: Fail prepare (err=9136) in BIn
 
+# Master failure, partial progress 
+6140: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_START
+6141: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_PARSE
+6142: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_PREPARE
+6143: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_PREPARE
+6144: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_ABORT_PARSE
+6145: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_ABORT_PREPARE
+6146: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_COMMIT
+6147: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_COMMIT
+6148: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_COMPLETE
+6149: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_COMPLETE
+6150: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_END
+
 System Restart:
 ---------------
 
@@ -589,6 +626,11 @@ Dbdict:
 6004 Crash in participant @ CreateTabReq::Commit
 6005 Crash in participant @ CreateTabReq::CreateDrop
 6007 Fail on readTableFile for READ_TAB_FILE1 (28770)
+6012 Bump up next table id to 4096
+6013 Master failure during prepare
+6014 Master failure during commit
+6015 Master failure after commit
+
 
 6200 Set error code after handleTabInfoInit in master
 6201 Set error code after handleTabInfoInit in master (index)

@@ -221,13 +221,9 @@ NdbTransaction::restart(){
   DBUG_ENTER("NdbTransaction::restart");
   if(theCompletionStatus == CompletedSuccess){
     releaseCompletedOperations();
-    Uint64 tTransid = theNdb->theFirstTransId;
-    theTransactionId = tTransid;
-    if ((tTransid & 0xFFFFFFFF) == 0xFFFFFFFF) {
-      theNdb->theFirstTransId = (tTransid >> 32) << 32;
-    } else {
-      theNdb->theFirstTransId = tTransid + 1;
-    }
+
+    theTransactionId = theNdb->allocate_transaction_id();
+
     theCommitStatus = Started;
     theCompletionStatus = NotCompleted;
     theTransactionIsStarted = false;
@@ -578,7 +574,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
       for (unsigned i = 0; i < theNdb->theNoOfCompletedTransactions; i++)
         anyway += theNdb->theCompletedTransactionsArray[i] == this;
       if (anyway) {
-        theNdb->printState("execute %x", this);
+        theNdb->printState("execute %lx", (long)this);
         abort();
       }
 #endif
@@ -1045,7 +1041,7 @@ NdbTransaction::release(){
   theInUseState = false;
 #ifdef VM_TRACE
   if (theListState != NotInList) {
-    theNdb->printState("release %x", this);
+    theNdb->printState("release %lx", (long)this);
     abort();
   }
 #endif

@@ -42,5 +42,6 @@ ADD_LIBRARY(ndbNDBT STATIC
         NdbSchemaCon.cpp
         NdbSchemaOp.cpp
         getarg.c
-        CpcClient.cpp)
+        CpcClient.cpp
+	SocketInputStream2.cpp)
 

@@ -6,12 +6,12 @@ UNDO_BUFFER_SIZE = 1M ENGINE=NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 12M
+INITIAL_SIZE 64M
 ENGINE NDB;
 CREATE TABLE t1 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
-primary key(a,b),
+primary key(a,c),
 unique (b))
 ENGINE = NDB
 partition by key(a);
@@ -141,8 +141,12 @@ a	b	c
 select * from t2 where b = 50;
 a	b	c
 50	50	50
+alter online table t1 reorganize partition;
+alter online table t2 reorganize partition;
 alter online table t1 add partition partitions 1;
 alter online table t2 add partition partitions 4;
+alter online table t1 reorganize partition;
+ERROR HY000: REORGANISE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
 select count(*) from t1;
 count(*)
 100

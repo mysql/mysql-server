@@ -3092,12 +3092,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;					// Add next user
     }
 
-    db_name= (table_list->view_db.length ?
-	      table_list->view_db.str :
-	      table_list->db);
-    table_name= (table_list->view_name.length ?
-		table_list->view_name.str :
-		table_list->table_name);
+    db_name= table_list->get_db_name();
+    table_name= table_list->get_table_name();
 
     /* Find/create cached table grant */
     grant_table= table_hash_search(Str->host.str, NullS, db_name,
@@ -3907,8 +3903,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (!want_access)
       continue;                                 // ok
 
-    if (!(~table->grant.privilege & want_access) || 
-        table->derived || table->schema_table)
+    if (!(~table->grant.privilege & want_access) ||
+        table->is_anonymous_derived_table() || table->schema_table)
     {
       /*
         It is subquery in the FROM clause. VIEW set table->derived after
@@ -3926,8 +3922,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       continue;
     }
     if (!(grant_table= table_hash_search(sctx->host, sctx->ip,
-                                         table->db, sctx->priv_user,
-                                         table->table_name,0)))
+                                         table->get_db_name(), sctx->priv_user,
+                                         table->get_table_name(), FALSE)))
     {
       want_access &= ~table->grant.privilege;
       goto err;					// No grants
@@ -3963,7 +3959,7 @@ err:
              command,
              sctx->priv_user,
              sctx->host_or_ip,
-             table ? table->table_name : "unknown");
+             table ? table->get_table_name() : "unknown");
   }
   DBUG_RETURN(1);
 }
@@ -4118,7 +4114,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     @retval 1 Falure
   @details This function walks over the columns of a table reference 
    The columns may originate from different tables, depending on the kind of
-   table reference, e.g. join.
+   table reference, e.g. join, view.
    For each table it will retrieve the grant information and will use it
    to check the required access privileges for the fields requested from it.
 */    
@@ -4133,6 +4129,11 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   GRANT_INFO *grant;
   /* Initialized only to make gcc happy */
   GRANT_TABLE *grant_table= NULL;
+  /* 
+     Flag that gets set if privilege checking has to be performed on column
+     level.
+  */
+  bool using_column_privileges= FALSE;
 
   rw_rdlock(&LOCK_grant);
 
@@ -4140,10 +4141,10 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   {
     const char *field_name= fields->name();
 
-    if (table_name != fields->table_name())
+    if (table_name != fields->get_table_name())
     {
-      table_name= fields->table_name();
-      db_name= fields->db_name();
+      table_name= fields->get_table_name();
+      db_name= fields->get_db_name();
       grant= fields->grant();
       /* get a fresh one for each table */
       want_access= want_access_arg & ~grant->privilege;
@@ -4169,6 +4170,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
       GRANT_COLUMN *grant_column= 
         column_hash_search(grant_table, field_name,
                            (uint) strlen(field_name));
+      if (grant_column)
+        using_column_privileges= TRUE;
       if (!grant_column || (~grant_column->rights & want_access))
         goto err;
     }
@@ -4181,12 +4184,21 @@ err:
 
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
-  my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-           command,
-           sctx->priv_user,
-           sctx->host_or_ip,
-           fields->name(),
-           table_name);
+  /*
+    Do not give an error message listing a column name unless the user has
+    privilege to see all columns.
+  */
+  if (using_column_privileges)
+    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+             command, sctx->priv_user,
+             sctx->host_or_ip, table_name); 
+  else
+    my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+             command,
+             sctx->priv_user,
+             sctx->host_or_ip,
+             fields->name(),
+             table_name);
   return 1;
 }
 

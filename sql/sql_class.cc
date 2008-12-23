@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -488,6 +488,24 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
   strmake(m_message, message_arg, sizeof(m_message) - 1);
 
   m_status= DA_ERROR;
+}
+
+/**
+ * modify_affected_rows
+ * Modify the number of affected rows, and optionally the 
+ * message in the Diagnostics area
+ */
+void
+Diagnostics_area::modify_affected_rows(ha_rows new_affected_rows,
+                                       const char* new_message)
+{
+  DBUG_ASSERT(is_set());
+  DBUG_ASSERT(m_status == DA_OK);
+  DBUG_ASSERT(can_overwrite_status);
+
+  m_affected_rows= new_affected_rows;
+  if (new_message)
+    strmake(m_message, new_message, sizeof(m_message) - 1);
 }
 
 
@@ -1481,6 +1499,12 @@ sql_exchange::sql_exchange(char *name,bool flag)
   cs= NULL;
 }
 
+bool sql_exchange::escaped_given(void)
+{
+  return escaped != &default_escaped;
+}
+
+
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
   bool res;
@@ -1766,8 +1790,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ?
                   (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
-  escape_char=	(exchange->escaped->length() ?
-                (int) (uchar) (*exchange->escaped)[0] : -1);
+  if (exchange->escaped->length() && (exchange->escaped_given() ||
+      !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
+    escape_char= (int) (uchar) (*exchange->escaped)[0];
+  else
+    escape_char= -1;
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
@@ -2845,7 +2872,10 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
-  return (int) thd->variables.binlog_format;
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+    return (int) thd->variables.binlog_format;
+  else
+    return BINLOG_FORMAT_UNSPEC;
 }
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
@@ -3504,6 +3534,21 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 }
 
 
+int THD::binlog_remove_pending_rows_event(bool clear_maps)
+{
+  DBUG_ENTER("THD::binlog_remove_pending_rows_event");
+
+  if (!mysql_bin_log.is_open())
+    DBUG_RETURN(0);
+
+  mysql_bin_log.remove_pending_rows_event(this);
+
+  if (clear_maps)
+    binlog_table_maps= 0;
+
+  DBUG_RETURN(0);
+}
+
 int THD::binlog_flush_pending_rows_event(bool stmt_end)
 {
   DBUG_ENTER("THD::binlog_flush_pending_rows_event");
@@ -3536,6 +3581,29 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
+#if !defined(DBUG_OFF) && !defined(_lint)
+static const char *
+show_query_type(THD::enum_binlog_query_type qtype)
+{
+  switch (qtype) {
+  case THD::ROW_QUERY_TYPE:
+    return "ROW";
+  case THD::STMT_QUERY_TYPE:
+    return "STMT";
+  case THD::MYSQL_QUERY_TYPE:
+    return "MYSQL";
+  case THD::QUERY_TYPE_COUNT:
+  default:
+    DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
+  }
+
+  static char buf[64];
+  sprintf(buf, "UNKNOWN#%d", qtype);
+  return buf;
+}
+#endif
+
+
 /*
   Member function that will log query, either row-based or
   statement-based depending on the value of the 'current_stmt_binlog_row_based'
@@ -3564,7 +3632,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype: %d  query: '%s'", qtype, query_arg));
+  DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
+                       show_query_type(qtype), query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
@@ -3603,6 +3672,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
   switch (qtype) {
   case THD::ROW_QUERY_TYPE:
+    DBUG_PRINT("debug",
+               ("current_stmt_binlog_row_based: %d",
+                current_stmt_binlog_row_based));
     if (current_stmt_binlog_row_based)
       DBUG_RETURN(0);
     /* Otherwise, we fall through */

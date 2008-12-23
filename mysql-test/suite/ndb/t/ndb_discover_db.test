@@ -1,0 +1,33 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+-- disable_warnings
+drop database if exists discover_db;
+drop database if exists discover_db_2;
+-- enable_warnings
+
+#
+# Prepare for testing database discovery by creating
+# databases, and removing them on one mysqld
+# The discovery happens in ndb_discover_db2.test
+#
+
+# check that created database is discovered
+create database discover_db;
+create table discover_db.t1 (a int key, b int) engine ndb;
+
+# check that altered database is discovered
+create database discover_db_2;
+alter database discover_db_2 character set binary;
+create table discover_db_2.t1 (a int key, b int) engine ndb;
+
+-- remove_file $MYSQLTEST_VARDIR/master1-data/discover_db/t1.frm
+-- remove_file $MYSQLTEST_VARDIR/master1-data/discover_db/t1.ndb
+-- remove_file $MYSQLTEST_VARDIR/master1-data/discover_db/db.opt
+-- rmdir $MYSQLTEST_VARDIR/master1-data/discover_db
+
+-- remove_file $MYSQLTEST_VARDIR/master1-data/discover_db_2/t1.frm
+-- remove_file $MYSQLTEST_VARDIR/master1-data/discover_db_2/t1.ndb
+-- remove_file $MYSQLTEST_VARDIR/master1-data/discover_db_2/db.opt
+-- rmdir $MYSQLTEST_VARDIR/master1-data/discover_db_2
+

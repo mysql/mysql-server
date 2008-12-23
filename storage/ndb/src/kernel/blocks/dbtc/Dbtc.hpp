@@ -1287,6 +1287,7 @@ private:
   void execROUTE_ORD(Signal* signal);
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execSEND_PACKED(Signal* signal);
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);
@@ -1384,7 +1385,7 @@ private:
                      TcConnectRecord * const regTcPtr);
   void sendCompleteLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
-  void sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord *);
+  void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
 			      Uint32 gsn, Uint32 len);
@@ -1395,14 +1396,14 @@ private:
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
   void findApiConnectFail(Signal* signal);
-  void findTcConnectFail(Signal* signal);
+  void findTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initApiConnectFail(Signal* signal);
-  void initTcConnectFail(Signal* signal);
+  void initTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal);
   void setupFailData(Signal* signal);
   void updateApiStateFail(Signal* signal);
-  void updateTcStateFail(Signal* signal);
+  void updateTcStateFail(Signal* signal, Uint32 instanceKey);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
@@ -1461,6 +1462,7 @@ private:
   void seizeApiConnect(Signal* signal);
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
+  void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
@@ -1867,6 +1869,10 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
+
+#ifdef ERROR_INSERT
+  bool testFragmentDrop(Signal* signal);
+#endif
 
   // For Error inserts
   Uint32 errorInsertHoardedSegments;

@@ -58,7 +58,9 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 {
   DBUG_ENTER("NdbOperation::equal_impl");
   DBUG_PRINT("enter", ("col: %s  op: %d  val: 0x%lx",
-                       tAttrInfo->m_name.c_str(), theOperationType,
+                       (tAttrInfo == NULL) ? "NULL" :
+                       tAttrInfo->m_name.c_str(), 
+                       theOperationType,
                        (long) aValuePassed));
   
   const char* aValue = aValuePassed;
@@ -150,7 +152,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       const bool tDistrKey = tAttrInfo->m_distributionKey;
       const int attributeSize = sizeInBytes;
       const int slack = sizeInBytes & 3;
-      const int align = UintPtr(aValue) & 7;
+      const int align = Uint32(UintPtr(aValue)) & 7;
 
       if (((align & 3) != 0) || (slack != 0) || (tDistrKey && (align != 0)))
       {
@@ -390,6 +392,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
       setErrorCodeAbort(4001);
       return -1;
     }
+    tSignal->setLength(KeyInfo::MaxSignalLength);
     if (theTCREQ->next() != NULL)
        theLastKEYINFO->next(tSignal);
     else

@@ -60,7 +60,9 @@ testIndexStat \
 ndbapi_50compat0 \
 ndbapi_50compat1 \
 testNDBT \
-NdbRepStress
+testReconnect \
+NdbRepStress \
+msa
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -87,7 +89,10 @@ testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
 testLimits_SOURCES = testLimits.cpp
-testMgm_SOURCES = testMgm.cpp
+testMgm_SOURCES = testMgm.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
 testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
@@ -113,6 +118,8 @@ testLcp_SOURCES = testLcp.cpp
 testPartitioning_SOURCES = testPartitioning.cpp
 testNDBT_SOURCES = testNDBT.cpp
 testNDBT_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
+testReconnect_SOURCES = testReconnect.cpp
+testReconnect_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 testBitfield_SOURCES = testBitfield.cpp
 NdbRepStress_SOURCES = acrt/NdbRepStress.cpp
 DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
@@ -122,6 +129,7 @@ test_event_merge_SOURCES = test_event_merge.cpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testIndexStat_SOURCES = testIndexStat.cpp
 reorg_tab_SOURCES = reorg_tab.cpp
+msa_SOURCES = msa.cpp
 
 ndbapi_50compat0_CPPFLAGS = -DNDBAPI_50_COMPAT
 ndbapi_50compat0_SOURCES = ndbapi_50compat0.cpp

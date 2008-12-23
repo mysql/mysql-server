@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2404,8 +2404,15 @@ static uint get_table_structure(char *table, char *db, char *table_type,
             fprintf(sql_file, ",\n  %s %s",
                     quote_name(row[0], name_buff, 0), row[1]);
           }
+
+          /*
+            Stand-in tables are always MyISAM tables as the default
+            engine might have a column-limit that's lower than the
+            number of columns in the view, and MyISAM support is
+            guaranteed to be in the server anyway.
+          */
           fprintf(sql_file,
-                  "\n) */;\n"
+                  "\n) ENGINE=MyISAM */;\n"
                   "SET character_set_client = @saved_cs_client;\n");
 
           check_io(sql_file);

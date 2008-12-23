@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,8 +83,56 @@ const LEX_STRING command_name[]={
 };
 
 const char *xa_state_names[]={
-  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
+  "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
+
+/**
+  Mark a XA transaction as rollback-only if the RM unilaterally
+  rolled back the transaction branch.
+
+  @note If a rollback was requested by the RM, this function sets
+        the appropriate rollback error code and transits the state
+        to XA_ROLLBACK_ONLY.
+
+  @return TRUE if transaction was rolled back or if the transaction
+          state is XA_ROLLBACK_ONLY. FALSE otherwise.
+*/
+static bool xa_trans_rolled_back(XID_STATE *xid_state)
+{
+  if (xid_state->rm_error)
+  {
+    switch (xid_state->rm_error) {
+    case ER_LOCK_WAIT_TIMEOUT:
+      my_error(ER_XA_RBTIMEOUT, MYF(0));
+      break;
+    case ER_LOCK_DEADLOCK:
+      my_error(ER_XA_RBDEADLOCK, MYF(0));
+      break;
+    default:
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+    }
+    xid_state->xa_state= XA_ROLLBACK_ONLY;
+  }
+
+  return (xid_state->xa_state == XA_ROLLBACK_ONLY);
+}
+
+/**
+  Rollback work done on behalf of at ransaction branch.
+*/
+static bool xa_trans_rollback(THD *thd)
+{
+  bool status= test(ha_rollback(thd));
+
+  thd->options&= ~(ulong) OPTION_BEGIN;
+  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  xid_cache_delete(&thd->transaction.xid_state);
+  thd->transaction.xid_state.xa_state= XA_NOTR;
+  thd->transaction.xid_state.rm_error= 0;
+
+  return status;
+}
 
 static void unlock_locked_tables(THD *thd)
 {
@@ -2083,13 +2131,15 @@ mysql_execute_command(THD *thd)
 #endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -2487,6 +2537,7 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
+      Ha_global_schema_lock_guard global_schema_lock_guard(thd);
 
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
@@ -2508,6 +2559,8 @@ mysql_execute_command(THD *thd)
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
+        if (!thd->locked_tables)
+          global_schema_lock_guard.lock();
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -4503,6 +4556,7 @@ create_sp_error:
     }
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
     thd->transaction.all.modified_non_trans_table= FALSE;
@@ -4528,6 +4582,8 @@ create_sp_error:
       my_error(ER_XAER_NOTA, MYF(0));
       break;
     }
+    if (xa_trans_rolled_back(&thd->transaction.xid_state))
+      break;
     thd->transaction.xid_state.xa_state=XA_IDLE;
     my_ok(thd);
     break;
@@ -4559,12 +4615,23 @@ create_sp_error:
       XID_STATE *xs=xid_cache_search(thd->lex->xid);
       if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
+      else if (xa_trans_rolled_back(xs))
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+        xid_cache_delete(xs);
+        break;
+      }
       else
       {
         ha_commit_or_rollback_by_xid(thd->lex->xid, 1);
         xid_cache_delete(xs);
         my_ok(thd);
       }
+      break;
+    }
+    if (xa_trans_rolled_back(&thd->transaction.xid_state))
+    {
+      xa_trans_rollback(thd);
       break;
     }
     if (thd->transaction.xid_state.xa_state == XA_IDLE &&
@@ -4613,28 +4680,26 @@ create_sp_error:
         my_error(ER_XAER_NOTA, MYF(0));
       else
       {
+        bool ok= !xa_trans_rolled_back(xs);
         ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
         xid_cache_delete(xs);
-        my_ok(thd);
+        if (ok)
+          my_ok(thd);
       }
       break;
     }
     if (thd->transaction.xid_state.xa_state != XA_IDLE &&
-        thd->transaction.xid_state.xa_state != XA_PREPARED)
+        thd->transaction.xid_state.xa_state != XA_PREPARED &&
+        thd->transaction.xid_state.xa_state != XA_ROLLBACK_ONLY)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (ha_rollback(thd))
+    if (xa_trans_rollback(thd))
       my_error(ER_XAER_RMERR, MYF(0));
     else
       my_ok(thd);
-    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->transaction.all.modified_non_trans_table= FALSE;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    xid_cache_delete(&thd->transaction.xid_state);
-    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
@@ -4872,6 +4937,8 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      !(all_tables->view &&
+        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
@@ -5184,7 +5251,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       continue;
     }
 
-    if (tables->derived ||
+    if (tables->is_anonymous_derived_table() ||
         (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
@@ -5194,12 +5261,14 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			 0, no_errors, test(tables->schema_table)))
+      if (check_access(thd, want_access, tables->get_db_name(),
+                       &tables->grant.privilege, 0, no_errors, 
+                       test(tables->schema_table)))
         goto deny;                            // Access denied
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			  0, no_errors, test(tables->schema_table)))
+    else if (check_access(thd, want_access, tables->get_db_name(),
+                          &tables->grant.privilege, 0, no_errors, 
+                          test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;
@@ -5482,6 +5551,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   */
   thd->reset_current_stmt_binlog_row_based();
 
+  DBUG_PRINT("debug",
+             ("current_stmt_binlog_row_based: %d",
+              thd->current_stmt_binlog_row_based));
+
   DBUG_VOID_RETURN;
 }
 
@@ -5622,7 +5695,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+  lex->lock_option= TL_READ_DEFAULT;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -7498,6 +7571,39 @@ int test_if_data_home_dir(const char *dir)
 }
 
 C_MODE_END
+
+
+/**
+  Check that host name string is valid.
+
+  @param[in] str string to be checked
+
+  @return             Operation status
+    @retval  FALSE    host name is ok
+    @retval  TRUE     host name string is longer than max_length or
+                      has invalid symbols
+*/
+
+bool check_host_name(LEX_STRING *str)
+{
+  const char *name= str->str;
+  const char *end= str->str + str->length;
+  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+    return TRUE;
+
+  while (name != end)
+  {
+    if (*name == '@')
+    {
+      my_printf_error(ER_UNKNOWN_ERROR, 
+                      "Malformed hostname (illegal symbol: '%c')", MYF(0),
+                      *name);
+      return TRUE;
+    }
+    name++;
+  }
+  return FALSE;
+}
 
 
 extern int MYSQLparse(void *thd); // from sql_yacc.cc

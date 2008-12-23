@@ -223,6 +223,7 @@ Dbtc::Dbtc(Block_context& ctx):
   // Received signals
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtc::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbtc::execDBINFO_SCANREQ);
   addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED, true);
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
@@ -315,7 +316,8 @@ Dbtc::Dbtc(Block_context& ctx):
 		    &cachePtr,
 		    &hostptr,
 		    &timeOutptr,
-		    &scanFragptr }; 
+		    &scanFragptr, 
+                    &tcNodeFailptr }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif

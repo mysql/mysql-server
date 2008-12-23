@@ -20,10 +20,9 @@
 #include <GlobalSignalNumbers.h>
 #include <DebuggerNames.hpp>
 #include <NdbTick.h>
+#include <NdbEnv.h>
 
-// avoids MT log mixups but has some serializing effect
-static const bool g_use_mutex = true;
-
+#ifdef VM_TRACE_TIME
 static char* mytime()
 {
   NDB_TICKS t = NdbTick_CurrentMillisecond();
@@ -33,7 +32,7 @@ static char* mytime()
   sprintf(buf, "%u.%03u", s, ms);
   return buf;
 }
-
+#endif
 SignalLoggerManager::SignalLoggerManager()
 {
   for (int i = 0; i < NO_OF_BLOCKS; i++){
@@ -42,8 +41,11 @@ SignalLoggerManager::SignalLoggerManager()
   outputStream = 0;
   m_ownNodeId = 0;
   m_logDistributed = false;
+
+  // using mutex avoids MT log mixups but has some serializing effect
   m_mutex = 0;
-  if (g_use_mutex)
+  const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG_MUTEX", (char*)0, 0);
+  if (p != 0 && strchr("1Y", p[0]) != 0)
     m_mutex = NdbMutex_Create();
 }
 
@@ -546,8 +548,7 @@ SignalLoggerManager::printSignalHeader(FILE * output,
     sprintf(rInstanceText, "/%u", (uint)receiverInstanceNo);
   if (senderInstanceNo != 0)
     sprintf(sInstanceText, "/%u", (uint)senderInstanceNo);
-// wl4391_todo senders instance missing
-// assert(gsn != GSN_LQHKEYREQ || receiverProcessor == senderProcessor || senderInstanceNo != 0);
+
   if (printReceiversSignalId)
     fprintf(output, 
 	    "r.bn: %d%s \"%s\", r.proc: %d, r.sigId: %d gsn: %d \"%s\" prio: %d\n"

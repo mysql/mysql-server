@@ -81,9 +81,9 @@ open (OUTFILE, "> ${destdir}/doxygen.sty.new")
 while (<INFILE>) 
 {
     if (/\\rfoot/) {
-	print OUTFILE "\\rfoot[\\fancyplain{}{\\bfseries\\small \\copyright~Copyright 2003-2004 MySQL AB\\hfill support-cluster\@mysql.com}]{}\n";
+	print OUTFILE "\\rfoot[\\fancyplain{}{\\bfseries\\small \\copyright~Copyright 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.\\hfill support-cluster\@mysql.com}]{}\n";
     } elsif (/\\lfoot/) {
-	print OUTFILE "\\lfoot[]{\\fancyplain{}{\\bfseries\\small support-cluster\@mysql.com\\hfill \\copyright~Copyright 2003-2004 MySQL AB}}\n";
+	print OUTFILE "\\lfoot[]{\\fancyplain{}{\\bfseries\\small support-cluster\@mysql.com\\hfill \\copyright~Copyright 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.}}\n";
     } else {
 	print OUTFILE;
     }

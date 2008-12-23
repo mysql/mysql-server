@@ -19,6 +19,8 @@ insert into t1 select a+32 from t1;
 insert into t1 select a+64 from t1;
 insert into t1 select a+128 from t1;
 
+--enable_info
+
 --echo
 --echo # test: simple delete of multiple pk's
 --echo # expected result 1 roundtrips
@@ -30,6 +32,31 @@ insert into t1 select a+128 from t1;
 --source include/ndb_init_execute_count.inc
 delete from t1 where a in (1,7, 90, 100, 130);
 --source include/ndb_execute_count.inc
+
+# Test delete with non existant pk
+# Bug 37153
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows 
+--echo # 0 - delete the rows 
+--echo # 1 - commit
+--echo # affected = 0
+--echo
+--source include/ndb_init_execute_count.inc
+delete from t1 where a=1000;
+--source include/ndb_execute_count.inc
+
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows 
+--echo # 0 - delete the rows 
+--echo # 1 - commit
+--echo # affected = 0
+--echo
+--source include/ndb_init_execute_count.inc
+delete from t1 where a in (1000, 1001, 1002, 1003, 1004);
+--source include/ndb_execute_count.inc
+
 
 # cleanup
 drop table t1;

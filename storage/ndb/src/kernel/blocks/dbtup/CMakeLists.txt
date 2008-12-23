@@ -38,4 +38,5 @@ ADD_LIBRARY(ndbdbtup STATIC
             tuppage.cpp
             Undo_buffer.cpp
 	    DbtupProxy.cpp
+	    DbtupClient.cpp
 )

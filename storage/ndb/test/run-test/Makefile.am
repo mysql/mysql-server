@@ -23,8 +23,8 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
-          conf-fimafeng08.cnf conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
-#          conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
+          conf-fimafeng08.cnf conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql \
+          conf-upgrade.cnf upgrade-tests.txt
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           autotest-run.sh atrt-backtrace.sh
@@ -42,7 +42,6 @@ LDADD_LOC = $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \
                       -I$(top_srcdir)/ndb/src/mgmsrv \
                       -I$(top_srcdir)/ndb/include/mgmcommon \
-                      -DMYSQLCLUSTERDIR="\"\"" \
                  -DDEFAULT_PREFIX="\"$(prefix)\""
 
 atrt_LDFLAGS = -static @ndb_bin_am_ldflags@

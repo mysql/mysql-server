@@ -95,7 +95,10 @@ int
 NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
 {
   m_transConnection = myConnection;
-  //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
+
+  if(NdbOperation::init(tab, NULL, false) != 0)
+    return -1;
+
   theNdb->theRemainingStartTransactions++; // will be checked in hupp...
   NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
   if (!aScanConnection){
@@ -105,11 +108,8 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   }
 
   // NOTE! The hupped trans becomes the owner of the operation
-  if(NdbOperation::init(tab, aScanConnection, false) != 0){
-    theNdb->theRemainingStartTransactions--;
-    return -1;
-  }
-  
+  theNdbCon= aScanConnection;
+
   initInterpreter();
   
   theStatus = GetValue;
@@ -214,7 +214,7 @@ NdbScanOperation::addInterpretedCode()
   }
 
   return res;
-};
+}
 
 /* Method for handling scanoptions passed into 
  * NdbTransaction::scanTable or scanIndex
@@ -582,7 +582,7 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
   const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
   Uint64 tmp[ MaxKeySizeInLongWords ];
   char* tmpshrink = (char*)tmp;
-  size_t tmplen = sizeof(tmp);
+  Uint32 tmplen = (Uint32)sizeof(tmp);
   
   Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
   Uint32 i;
@@ -957,7 +957,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   m_savedBatchOldApi= batch;
 
   return 0;
-};
+}
 
 /* Most of the scan definition work for old + NdbRecord API scans is done here */
 int 
@@ -1340,7 +1340,7 @@ NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
   return nextResult(&dummyOutRowPtr,
                     fetchAllowed,
                     forceSend);
-};
+}
 
 /* nextResult() for NdbRecord operation. */
 int
@@ -1551,7 +1551,7 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
     theData[0] = theNdbCon->theTCConPtr;
     theData[1] = stopScanFlag == true ? 1 : 0;
     Uint64 transId = theNdbCon->theTransactionId;
-    theData[2] = transId;
+    theData[2] = (Uint32) transId;
     theData[3] = (Uint32) (transId >> 32);
     
     /**
@@ -1717,7 +1717,7 @@ int NdbScanOperation::finaliseScanOldApi()
    * table, and add the user-requested values in a similar
    * way to the extra GetValues mechanism
    */
-  assert(theOperationType == OpenScanRequest |
+  assert(theOperationType == OpenScanRequest ||
          theOperationType == OpenRangeScanRequest);
 
   /* Prepare ScanOptions structure using saved parameters */
@@ -2149,6 +2149,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     Uint32 left = len - i;
     while(tSignal && left > KeyInfo::DataLength){
       tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setLength(KeyInfo::MaxSignalLength);
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * KeyInfo::DataLength);
       src += 4 * KeyInfo::DataLength;
@@ -2156,10 +2157,13 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
       
       tSignal->next(theNdb->getSignal());
       tSignal = tSignal->next();
+      newOp->theLastKEYINFO = tSignal;
     }
     
     if(tSignal && left > 0){
       tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setLength(KeyInfo::HeaderLength + left);
+      newOp->theLastKEYINFO = tSignal;
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * left);
     }      
@@ -2333,31 +2337,49 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
 NdbBlob*
 NdbScanOperation::getBlobHandle(const char* anAttrName)
 {
-  /* We need the row KeyInfo for Blobs
-   * Old Api scans have saved flags at this point
-   */
-  if (m_scanUsingOldApi)
-    m_savedScanFlagsOldApi|= SF_KeyInfo;
+  const NdbColumnImpl* col= m_currentTable->getColumn(anAttrName);
+  
+  if (col != NULL)
+  {
+    /* We need the row KeyInfo for Blobs
+     * Old Api scans have saved flags at this point
+     */
+    if (m_scanUsingOldApi)
+      m_savedScanFlagsOldApi|= SF_KeyInfo;
+    else
+      m_keyInfo= 1;
+    
+    return NdbOperation::getBlobHandle(m_transConnection, col);
+  }
   else
-    m_keyInfo= 1;
-
-  return NdbOperation::getBlobHandle(m_transConnection, 
-                                     m_currentTable->getColumn(anAttrName));
+  {
+    setErrorCode(4004);
+    return NULL;
+  }
 }
 
 NdbBlob*
 NdbScanOperation::getBlobHandle(Uint32 anAttrId)
 {
-  /* We need the row KeyInfo for Blobs 
-   * Old Api scans have saved flags at this point
-   */
-  if (m_scanUsingOldApi)
-    m_savedScanFlagsOldApi|= SF_KeyInfo;
+  const NdbColumnImpl* col= m_currentTable->getColumn(anAttrId);
+  
+  if (col != NULL)
+  {
+    /* We need the row KeyInfo for Blobs 
+     * Old Api scans have saved flags at this point
+     */
+    if (m_scanUsingOldApi)
+      m_savedScanFlagsOldApi|= SF_KeyInfo;
+    else
+      m_keyInfo= 1;
+    
+    return NdbOperation::getBlobHandle(m_transConnection, col);
+  }
   else
-    m_keyInfo= 1;
-
-  return NdbOperation::getBlobHandle(m_transConnection, 
-                                     m_currentTable->getColumn(anAttrId));
+  {
+    setErrorCode(4004);
+    return NULL;
+  }
 }
 
 /** 
@@ -2787,7 +2809,7 @@ const NdbIndexScanOperation::IndexBound*
 NdbIndexScanOperation::getIndexBoundFromRecAttr(NdbRecAttr* recAttr)
 {
   return &((OldApiScanRangeDefinition*)recAttr->aRef())->ib;
-};
+}
 
 
 /* Method called to release any resources allocated by the old 
@@ -3230,7 +3252,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   theData[0] = theNdbCon->theTCConPtr;
   theData[1] = 0;
   Uint64 transId = theNdbCon->theTransactionId;
-  theData[2] = transId;
+  theData[2] = (Uint32) transId;
   theData[3] = (Uint32) (transId >> 32);
   
   /**
@@ -3452,4 +3474,24 @@ NdbIndexScanOperation::get_range_no()
     return tRec->get_range_no();
   }
   return -1;
+}
+
+const NdbOperation *
+NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
+                                   const NdbRecord *result_rec,
+                                   char *result_row,
+                                   const unsigned char *result_mask,
+                                   const NdbOperation::OperationOptions *opts,
+                                   Uint32 sizeOfOptions)
+{
+  unsigned char empty_mask[NDB_MAX_ATTRIBUTES_IN_TABLE>>3];
+  /* Default is to not read any attributes, just take over the lock. */
+  if (!result_row)
+  {
+    bzero(empty_mask, sizeof(empty_mask));
+    result_mask= &empty_mask[0];
+  }
+  return takeOverScanOpNdbRecord(NdbOperation::ReadRequest, takeOverTrans,
+                                 result_rec, result_row, 
+                                 result_mask, opts, sizeOfOptions);
 }

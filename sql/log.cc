@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1377,6 +1377,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                       FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->options, OPTION_BEGIN)));
 
+  thd->binlog_flush_pending_rows_event(TRUE);
+
   /*
     NULL denotes ROLLBACK with nothing to replicate: i.e., rollback of
     only transactional tables.  If the transaction contain changes to
@@ -1395,8 +1397,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
-
     error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev);
     trx_data->reset();
 
@@ -1421,6 +1421,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       If rolling back a statement in a transaction, we truncate the
       transaction cache to remove the statement.
      */
+    thd->binlog_remove_pending_rows_event(TRUE);
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
       trx_data->reset();
     else                                        // ...statement
@@ -3781,6 +3782,31 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 }
 
 
+/**
+  Remove the pending rows event, discarding any outstanding rows.
+
+  If there is no pending rows event available, this is effectively a
+  no-op.
+ */
+int
+MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::remove_pending_rows_event");
+
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  DBUG_ASSERT(trx_data);
+
+  if (Rows_log_event* pending= trx_data->pending())
+  {
+    delete pending;
+    trx_data->set_pending(NULL);
+  }
+
+  DBUG_RETURN(0);
+}
+
 /*
   Moves the last bunch of rows from the pending Rows event to the binlog
   (either cached binlog if transaction, or disk binlog). Sets a new pending
@@ -3997,11 +4023,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           DBUG_PRINT("info",("number of auto_inc intervals: %u",
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              nb_elements()));
-          /*
-            If the auto_increment was second in a table's index (possible with
-            MyISAM or BDB) (table->next_number_keypart != 0), such event is
-            in fact not necessary. We could avoid logging it.
-          */
           Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              minimum());

@@ -25,6 +25,9 @@ printSTART_REC_REQ(FILE * output,
 		  Uint16 recBlockNo){
   StartRecReq * sig = (StartRecReq *) theData;
 
+  if (len != StartRecReq::SignalLength)
+    return false;
+
   fprintf(output, " receivingNodeId: %d senderRef: (%d, %d)\n",
 	  sig->receivingNodeId, 
 	  refToNode(sig->senderRef),
@@ -42,7 +45,7 @@ printSTART_REC_REQ(FILE * output,
   
   char buf[100];
   fprintf(output,
-          " sr_nodes: %s", mask.getText(buf));
+          " sr_nodes: %s\n", mask.getText(buf));
 
   return true;
 }
@@ -53,6 +56,9 @@ printSTART_REC_CONF(FILE * output,
 		    Uint32 len, 
 		    Uint16 recBlockNo){
   StartRecConf * sig = (StartRecConf *) theData;
+
+  if (len != StartRecConf::SignalLength)
+    return false;
 
   fprintf(output, " startingNodeId: %d senderData: %u\n",
 	  sig->startingNodeId,

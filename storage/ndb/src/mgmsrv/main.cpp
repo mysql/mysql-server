@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
 #include <ndb_mgmclient.hpp>
-#include <my_dir.h>
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
@@ -83,9 +82,6 @@ bool g_RestartServer= false;
 static MgmtSrvr* mgm;
 static MgmtSrvr::MgmtOpts opts;
 
-static int opt_daemon;
-static int opt_non_interactive;
-
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),
@@ -118,6 +114,22 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "configdir", 256,
+    "Directory for the binary configuration files",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "verbose", 'v',
+    "Write more log messages",
+    (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "reload", 256,
+    "Reload config from config.ini or my.cnf if it has changed on startup",
+    (uchar**) &opts.reload, (uchar**) &opts.reload, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "initial", 256,
+    "Delete all binary config files and start from config.ini or my.cnf",
+    (uchar**) &opts.initial, (uchar**) &opts.initial, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -131,6 +143,22 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
+static char **defaults_argv;
+
+static void
+mgmd_exit(int result)
+{
+  g_eventLogger->close();
+
+  /* Free memory allocated by 'load_defaults' */
+  free_defaults(defaults_argv);
+
+  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
+  exit(result);
+}
+
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -140,6 +168,7 @@ int main(int argc, char** argv)
   ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
 
   load_defaults("my",load_default_groups,&argc,&argv);
+  defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -147,7 +176,7 @@ int main(int argc, char** argv)
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
-    exit(ho_error);
+    mgmd_exit(ho_error);
 
   if (opts.interactive ||
       opts.non_interactive ||
@@ -158,26 +187,13 @@ int main(int argc, char** argv)
   /* Output to console initially */
   g_eventLogger->createConsoleHandler();
 
+  if (opts.verbose)
+    g_eventLogger->enable(Logger::LL_DEBUG);
+
   if (opts.mycnf && opts.config_filename)
   {
     g_eventLogger->error("Both --mycnf and -f is not supported");
-    exit(1);
-  }
-
-  if (opts.mycnf == 0 && opts.config_filename == 0)
-  {
-    MY_STAT buf;
-    if (my_stat("config.ini", &buf, MYF(0)) != NULL)
-      opts.config_filename = "config.ini";
-  }
-start:
-
-  g_eventLogger->info("NDB Cluster Management Server. %s", NDB_VERSION_STRING);
-
-  mgm= new MgmtSrvr(opts, opt_connect_str);
-  if (mgm == NULL) {
-    g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
-    exit(1);
+    mgmd_exit(1);
   }
 
   /**
@@ -188,10 +204,20 @@ start:
   signal(SIGPIPE, SIG_IGN);
 #endif
 
+start:
+
+  g_eventLogger->info("NDB Cluster Management Server. %s", NDB_VERSION_STRING);
+
+  mgm= new MgmtSrvr(opts, opt_connect_str);
+  if (mgm == NULL) {
+    g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
+    mgmd_exit(1);
+  }
+
   /* Init mgm, load or fetch config */
   if (!mgm->init()) {
     delete mgm;
-    exit(1);
+    mgmd_exit(1);
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
@@ -202,7 +228,7 @@ start:
     if (localNodeId == 0) {
       g_eventLogger->error("Couldn't get own node id");
       delete mgm;
-      exit(1);
+      mgmd_exit(1);
     }
 
     // Become a daemon
@@ -213,14 +239,14 @@ start:
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
       g_eventLogger->error("Cannot become daemon: %s", NdbDaemon_ErrorText);
       delete mgm;
-      exit(1);
+      mgmd_exit(1);
     }
   }
 
   /* Start mgm services */
   if (!mgm->start()) {
     delete mgm;
-    exit(1);
+    mgmd_exit(1);
   }
 
   if(opts.interactive) {
@@ -248,9 +274,6 @@ start:
     goto start;
   }
 
-  g_eventLogger->close();
-
-  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-  return 0;
+  mgmd_exit(0);
 }
 

@@ -323,6 +323,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZFREE_VAR_PAGES 13
 #define ZFREE_PAGES 14
 #define ZREBUILD_FREE_PAGE_LIST 15
+#define ZDISK_RESTART_UNDO 16
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -356,7 +357,23 @@ public:
   class Dblqh *c_lqh;
   Tsman* c_tsman;
   Lgman* c_lgman;
-  Page_cache_client m_pgman;
+  Pgman* c_pgman;
+  // copy of pgman.m_ptr set after each get_page
+  Ptr<GlobalPage> m_pgman_ptr;
+
+  enum CallbackIndex {
+    // lgman
+    UNDO_CREATETABLE_LOGSYNC_CALLBACK = 1,
+    DROP_TABLE_LOGSYNC_CALLBACK = 2,
+    UNDO_CREATETABLE_CALLBACK = 3,
+    DROP_TABLE_LOG_BUFFER_CALLBACK = 4,
+    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 5,
+    NR_DELETE_LOG_BUFFER_CALLBACK = 6,
+    DISK_PAGE_LOG_BUFFER_CALLBACK = 7,
+    COUNT_CALLBACKS = 8
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
 
 enum TransState {
   TRANS_IDLE = 0,
@@ -410,6 +427,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
+    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); };
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
     Uint32 newNoOfCharsets;
@@ -1571,7 +1589,7 @@ struct KeyReqStruct {
   OperationrecPtr prevOpPtr;
 };
 
-  friend class Undo_buffer;
+  friend struct Undo_buffer;
   Undo_buffer c_undo_buffer;
   
 /*
@@ -1598,7 +1616,7 @@ struct TupHeadInfo {
   Uint32          terrorCode;
 
 public:
-  Dbtup(Block_context&, Pgman*, Uint32 instanceNumber = 0);
+  Dbtup(Block_context&, Uint32 instanceNumber = 0);
   virtual ~Dbtup();
 
   /*
@@ -1712,7 +1730,9 @@ private:
   // Drop table
   void execFSREMOVEREF(Signal*);
   void execFSREMOVECONF(Signal*);
-  
+
+  void execDBINFO_SCANREQ(Signal*);
+
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 // Methods to handle execution of TUPKEYREQ + ATTRINFO.
@@ -2332,11 +2352,24 @@ private:
 				 KeyReqStruct *req_struct,
 				 AttributeHeader* ahOut,
 				 Uint32  attrDes2);
+
+  bool readDiskVarAsFixedSizeNotNULL(Uint8* outBuffer,
+				KeyReqStruct *req_struct,
+				AttributeHeader* ahOut,
+				Uint32  attrDes2);
+  
+  bool readDiskVarAsFixedSizeNULLable(Uint8* outBuffer,
+				 KeyReqStruct *req_struct,
+				 AttributeHeader* ahOut,
+				 Uint32  attrDes2);
   bool readDiskVarSizeNULLable(Uint8*, KeyReqStruct*, AttributeHeader*,Uint32);
   bool readDiskVarSizeNotNULL(Uint8*, KeyReqStruct*, AttributeHeader*, Uint32);
 
   bool updateDiskFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
   bool updateDiskFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
+
+  bool updateDiskVarAsFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
+  bool updateDiskVarAsFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
 
   bool updateDiskVarSizeNULLable(Uint32*, KeyReqStruct *, Uint32);
   bool updateDiskVarSizeNotNULL(Uint32*, KeyReqStruct *, Uint32);
@@ -3045,6 +3078,9 @@ private:
     Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr, tabPtrP->total_rec_size);
     if (unlikely(dst == 0))
       return 0;
+#ifdef HAVE_purify
+    bzero(dst, tabPtrP->total_rec_size);
+#endif
     dst += ((tabPtrP->m_no_of_attributes + 31) >> 5);
     return (Tuple_header*)dst;
   }
@@ -3142,11 +3178,17 @@ public:
     Ptr<Page> m_page_ptr;
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
+    Apply_undo();
   };
 
   void disk_restart_lcp_id(Uint32 table, Uint32 frag, Uint32 lcpId);
   
 private:
+  // these 2 were file-static before mt-lqh
+  bool f_undo_done;
+  Dbtup::Apply_undo f_undo;
+  Uint32 c_proxy_undo_data[MAX_TUPLE_SIZE_IN_WORDS];
+
   void disk_restart_undo_next(Signal*);
   void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
@@ -3370,5 +3412,32 @@ Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   memcpy(dst, src, 4*len);
 }
+
+// Dbtup_client provides proxying similar to Page_cache_client
+
+class Dbtup_client
+{
+  friend class DbtupProxy;
+  Uint32 m_block;
+  class DbtupProxy* m_dbtup_proxy; // set if we go via proxy
+  Dbtup* m_dbtup;
+  DEBUG_OUT_DEFINES(DBTUP);
+
+public:
+  Dbtup_client(SimulatedBlock* block, SimulatedBlock* dbtup);
+
+  // LGMAN
+
+  void disk_restart_undo(Signal* signal, Uint64 lsn,
+                         Uint32 type, const Uint32 * ptr, Uint32 len);
+
+  // TSMAN
+
+  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+				const Local_key* key, Uint32 pages);
+
+  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+			      const Local_key* key, Uint32 bits);
+};
 
 #endif

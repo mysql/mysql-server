@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern ulong ndb_cache_check_time;
-extern char opt_ndb_constrbuf[];
+extern "C" char opt_ndb_constrbuf[];
 extern ulong ndb_extra_logging;
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
@@ -1181,6 +1181,21 @@ void fix_slave_exec_mode(enum_var_type type)
   if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
 }
+
+
+bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
+  /*
+    All variables that affect writing to binary log (either format or
+    turning logging on and off) use the same checking. We call the
+    superclass ::check function to assign the variable correctly, and
+    then check the value.
+   */
+  bool result= sys_var_thd_enum::check(thd, var);
+  if (!result)
+    result= check_log_update(thd, var);
+  return result;
+}
+
 
 bool sys_var_thd_binlog_format::is_readonly() const
 {
@@ -2396,6 +2411,12 @@ end:
 bool sys_var_log_state::update(THD *thd, set_var *var)
 {
   bool res;
+
+  if (this == &sys_var_log)
+    WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
+  else if (this == &sys_var_log_slow)
+    WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
+
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
   {
@@ -2410,6 +2431,11 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
 
 void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 {
+  if (this == &sys_var_log)
+    WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
+  else if (this == &sys_var_log_slow)
+    WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
+
   pthread_mutex_lock(&LOCK_global_system_variables);
   logger.deactivate_log_handler(thd, log_type);
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -3716,7 +3742,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 
 void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "table_type", "'storage_engine'");
+  WARN_DEPRECATED(thd, "5.2", "@@table_type", "'@@storage_engine'");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3978,8 +4004,8 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "log_bin_trust_routine_creators",
-                      "'log_bin_trust_function_creators'");
+  WARN_DEPRECATED(thd, "5.2", "@@log_bin_trust_routine_creators",
+                      "'@@log_bin_trust_function_creators'");
 }
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)

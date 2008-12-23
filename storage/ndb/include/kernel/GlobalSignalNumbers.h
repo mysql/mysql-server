@@ -22,7 +22,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 764;
+const GlobalSignalNumber MAX_GSN = 768;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -92,19 +92,23 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_TCKEY_FAILREFCONF_R         40
 
-/* 41 unused */
-/* 42 unused */
-/* 43 unused */
-/* 44 unused */
-/* 45 unused */
-/* 46 unused */
-/* 47 unused */
-/* 48 unused */
-/* 49 unused */
-/* 50 unused */
-/* 51 unused */
-/* 52 unused */
-/* 53 unused */
+#define GSN_DBINFO_SCANREQ              41
+#define GSN_DBINFO_SCANCONF             42
+#define GSN_DBINFO_SCANREF              43
+#define GSN_DBINFO_TRANSID_AI           44
+
+#define GSN_CONFIG_CHANGE_REQ           45
+#define GSN_CONFIG_CHANGE_REF           46
+#define GSN_CONFIG_CHANGE_CONF          47
+
+#define GSN_CONFIG_CHANGE_IMPL_REQ      48
+#define GSN_CONFIG_CHANGE_IMPL_REF      49
+#define GSN_CONFIG_CHANGE_IMPL_CONF     50
+
+#define GSN_CONFIG_CHECK_REQ            51
+#define GSN_CONFIG_CHECK_REF            52
+#define GSN_CONFIG_CHECK_CONF           53
+
 /* 54 unused */
 /* 55 unused */
 /* 56 unused */
@@ -907,9 +911,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_CONF              678
 #define GSN_TUX_MAINT_REF               679
 
-/* not used                             680 */
-/* not used                             681 */
-
 /**
  * from mgmtsrvr to  NDBCNTR
  */
@@ -938,12 +939,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* used 694 */
 /* used 695 */
 /* used 696 */
-
-#define GSN_706
-#define GSN_707
-#define GSN_708
-#define GSN_709
-
 
 /*
  * EVENT Signals
@@ -1001,6 +996,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_FILE_IMPL_REF          668
 #define GSN_DROP_FILE_IMPL_CONF         669
 
+/* DICT master takeover signals */
+#define GSN_DICT_TAKEOVER_REQ           765
+#define GSN_DICT_TAKEOVER_REF           766
+#define GSN_DICT_TAKEOVER_CONF          767
+
+
 /* DICT LOCK signals */
 #define GSN_DICT_LOCK_REQ               410
 #define GSN_DICT_LOCK_CONF              411
@@ -1013,6 +1014,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SCHEMA_TRANS_END_REQ        734
 #define GSN_SCHEMA_TRANS_END_CONF       735
 #define GSN_SCHEMA_TRANS_END_REF        736
+#define GSN_SCHEMA_TRANS_END_REP        768
 #define GSN_SCHEMA_TRANS_IMPL_REQ       737
 #define GSN_SCHEMA_TRANS_IMPL_CONF      738
 #define GSN_SCHEMA_TRANS_IMPL_REF       739
@@ -1056,5 +1058,14 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_NODEGROUP_IMPL_REQ     454
 #define GSN_DROP_NODEGROUP_IMPL_REF     457
 #define GSN_DROP_NODEGROUP_IMPL_CONF    448
+
+#define GSN_DATA_FILE_ORD               706
+
+#define GSN_CALLBACK_REQ                707 /*reserved*/
+#define GSN_CALLBACK_CONF               708
+#define GSN_CALLBACK_ACK                709
+
+#define GSN_RELEASE_PAGES_REQ           680
+#define GSN_RELEASE_PAGES_CONF          681
 
 #endif

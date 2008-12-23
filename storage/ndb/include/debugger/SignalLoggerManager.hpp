@@ -108,7 +108,8 @@ public:
   /**
    * Generic messages in the signal log
    */
-  void log(BlockNumber bno, const char * msg, ...);
+  void log(BlockNumber bno, const char * msg, ...)
+    ATTRIBUTE_FORMAT(printf, 3, 4);
   
   /**
    * LogModes
@@ -190,10 +191,11 @@ private:
   Uint8         logModes[NO_OF_BLOCKS];
 
   NdbMutex* m_mutex;
+
+public:
   void lock() { if (m_mutex != 0) NdbMutex_Lock(m_mutex); }
   void unlock() { if (m_mutex != 0) NdbMutex_Unlock(m_mutex); }
  
-public:
   inline bool
   logMatch(BlockNumber bno, LogMode mask)
   {

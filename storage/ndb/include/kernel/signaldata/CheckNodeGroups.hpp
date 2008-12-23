@@ -37,7 +37,10 @@ public:
     Uint32 output;
   };
 
-  Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
+  union {
+    Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
+    Uint32 extraNodeGroups;    // For GetDefaultFragments
+  };
   NdbNodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
         			   * output for GetNodeGroupMembers
 				   */

@@ -90,12 +90,11 @@ public:
                                                  used >= m_overload_limit);
   }
   
-  virtual bool doSend() = 0;
+  virtual int doSend() = 0;
 
   bool has_data_to_send()
   {
-    return (m_send_iovec_used > 0 ||
-            get_callback_obj()->has_data_to_send(remoteNodeId));
+    return get_callback_obj()->has_data_to_send(remoteNodeId);
   }
 
   /* Get the configured maximum send buffer usage. */
@@ -116,6 +115,9 @@ protected:
 	      bool checksum, 
 	      bool signalId,
               Uint32 max_send_buffer);
+
+  virtual bool configure(const TransporterConfiguration* conf);
+  virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
 
   /**
    * Blocking, for max timeOut milli seconds
@@ -171,9 +173,7 @@ private:
   virtual bool send_limit_reached(int bufsize) = 0;
 
 protected:
-  static const Uint32 SEND_IOVEC_SIZE = 64;
-  Uint32 m_send_iovec_used;
-  struct iovec m_send_iovec[SEND_IOVEC_SIZE];
+  Uint32 m_os_max_iovec;
 
   Uint32 getErrorCount();
   Uint32 m_errorCount;
@@ -189,7 +189,7 @@ protected:
   void report_error(enum TransporterError err, const char *info = 0)
     { m_transporter_registry.report_error(remoteNodeId, err, info); };
 
-  bool fetch_send_iovec_data();
+  Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
 };
 
@@ -223,56 +223,20 @@ Transporter::getErrorCount()
  * partial send).
  */
 inline
-bool
-Transporter::fetch_send_iovec_data()
+Uint32
+Transporter::fetch_send_iovec_data(struct iovec dst[], Uint32 cnt)
 {
-  Uint32 used = m_send_iovec_used;
-  Uint32 avail = SEND_IOVEC_SIZE - used;
-  if (avail > 0)
-  {
-    int count = get_callback_obj()->get_bytes_to_send_iovec(remoteNodeId,
-                                                            m_send_iovec + used,
-                                                            avail);
-    if (count < 0)
-      return false;                             // Error
-    m_send_iovec_used = used + count;
-  }
-
-  assert(m_send_iovec_used < SEND_IOVEC_SIZE);
-
-  return true;
+  return get_callback_obj()->get_bytes_to_send_iovec(remoteNodeId,
+                                                     dst, cnt);
 }
 
-/* Drop all iovec's that have been sent (last one maybe partially). */
 inline
 void
 Transporter::iovec_data_sent(int nBytesSent)
 {
   Uint32 used_bytes
-    = get_callback_obj()->bytes_sent(remoteNodeId, m_send_iovec, nBytesSent);
+    = get_callback_obj()->bytes_sent(remoteNodeId, nBytesSent);
   update_status_overloaded(used_bytes);
-
-  Uint32 used = m_send_iovec_used;
-  int sofar = 0;
-  Uint32 i;
-  for (i = 0; i < used; i++)
-  {
-    int len = m_send_iovec[i].iov_len;
-    assert(len >= 0);
-    int new_sofar = sofar + len;
-    if (new_sofar > nBytesSent)
-    {
-      int partial = nBytesSent - sofar;
-      assert(partial >= 0);
-      m_send_iovec[i].iov_base = (char *)m_send_iovec[i].iov_base + partial;
-      m_send_iovec[i].iov_len = len - partial;
-      if (i > 0)
-        memmove(m_send_iovec, m_send_iovec + i, (used - i)*sizeof(iovec));
-      break;
-    }
-    sofar = new_sofar;
-  }
-  m_send_iovec_used = used - i;
 }
 
 #endif // Define of Transporter_H

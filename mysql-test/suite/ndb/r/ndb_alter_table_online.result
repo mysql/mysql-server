@@ -672,64 +672,14 @@ CREATE TABLE t1
 ENGINE=NDB;
 Warnings:
 Warning	1478	Row format FIXED incompatible with dynamic attribute b
--- t1 --
-Version: #
-Fragment type: 9
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: #
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: 257
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 0
-FragmentCount: 2
-TableStatus: Retrieved
--- Attributes -- 
 pk1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DYNAMIC
-
--- Indexes -- 
-PRIMARY KEY(pk1) - UniqueHashIndex
-PRIMARY(pk1) - OrderedIndex
-
-
-NDBT_ProgramExit: 0 - OK
-
 DROP TABLE t1;
 CREATE TABLE t1
 (pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
 b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
--- t1 --
-Version: #
-Fragment type: 9
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: #
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: 257
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-FragmentCount: 2
-TableStatus: Retrieved
--- Attributes -- 
 pk1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY
-
--- Indexes -- 
-PRIMARY KEY(pk1) - UniqueHashIndex
-PRIMARY(pk1) - OrderedIndex
-
-
-NDBT_ProgramExit: 0 - OK
-
 ********************
 * Cleanup Section
 ********************

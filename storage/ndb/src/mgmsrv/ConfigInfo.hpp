@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,8 @@ public:
      */
     union {
       const char*  _default;
-      Uint32       _section_type; // if _type = CI_SECTION
+      UintPtr      _section_type; // if _type = CI_SECTION
+      /** NOTE must be UintPtr to be of same size as _default */
     };
     const char*    _min;
     const char*    _max;

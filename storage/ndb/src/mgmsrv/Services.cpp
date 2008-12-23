@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <ctype.h>
 
 #include <uucode.h>
 #include <socket_io.h>
@@ -33,6 +32,8 @@
 
 #include <base64.h>
 #include <ndberror.h>
+
+#include <ndbinfo.h>
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
@@ -188,6 +189,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("start backup", &MgmApiSession::startBackup, ""),
     MGM_ARG("completed", Int, Optional ,"Wait until completed"),
     MGM_ARG("backupid", Int, Optional ,"User input backup id"),
+    MGM_ARG("backuppoint", Int, Optional ,"backup snapshot at start time or complete time"),
 
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
@@ -285,6 +287,21 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("drop nodegroup", &MgmApiSession::drop_nodegroup, ""),
     MGM_ARG("ng", Int, Mandatory, "Nodegroup"),
+
+  MGM_CMD("ndbinfo", &MgmApiSession::getNdbInfo, ""),
+    MGM_ARG("query", String, Mandatory, "SQL-Like Query"),
+
+  MGM_CMD("show config", &MgmApiSession::showConfig, ""),
+    MGM_ARG("Section", String, Optional, "Section name"),
+    MGM_ARG("NodeId", Int, Optional, "Nodeid"),
+    MGM_ARG("Name", String, Optional, "Parameter name"),
+
+  MGM_CMD("reload config", &MgmApiSession::reloadConfig, ""),
+    MGM_ARG("config_filename", String, Optional, "Reload from path"),
+    MGM_ARG("mycnf", Int, Optional, "Reload from my.cnf"),
+    MGM_ARG("force", Int, Optional, "Force reload"),
+
+  MGM_CMD("show variables", &MgmApiSession::show_variables, ""),
 
   MGM_END()
 };
@@ -431,52 +448,6 @@ MgmApiSession::runSession()
   DBUG_VOID_RETURN;
 }
 
-static Properties *
-backward(const char * base, const Properties* reply){
-  Properties * ret = new Properties();
-  Properties::Iterator it(reply);
-  for(const char * name = it.first(); name != 0; name=it.next()){
-    PropertiesType type;
-    reply->getTypeOf(name, &type);
-    switch(type){
-    case PropertiesType_Uint32:{
-      Uint32 val;
-      reply->get(name, &val);
-      ret->put(name, val);
-    }
-      break;
-    case PropertiesType_char:
-      {
-	const char * val;
-	reply->get(name, &val);
-	ret->put(name, val);
-	if(!strcmp(name, "Type") && !strcmp(val, "DB")){
-	  ret->put("NoOfDiskBufferPages", (unsigned)0);
-	  ret->put("NoOfDiskFiles", (unsigned)0);
-	  ret->put("NoOfDiskClusters", (unsigned)0);
-	  ret->put("NoOfFreeDiskClusters", (unsigned)0);
-	  ret->put("NoOfDiskClustersPerDiskFile", (unsigned)0);
-	  ret->put("NoOfConcurrentCheckpointsDuringRestart", (unsigned)1);
-	  ret->put("NoOfConcurrentCheckpointsAfterRestart", (unsigned)1);
-	  ret->put("NoOfConcurrentProcessesHandleTakeover", (unsigned)1);
-	}
-      }
-      break;
-    case PropertiesType_Properties:
-      {
-	const Properties * recurse;
-	reply->get(name, &recurse);
-	Properties * val = backward(name, recurse);
-	ret->put(name, val);
-      }
-      break;
-    case PropertiesType_Uint64:
-      break;
-    }
-  }
-  return ret;
-}
-
 void
 MgmApiSession::get_nodeid(Parser_t::Context &,
 			  const class Properties &args)
@@ -537,7 +508,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
   if (r != 0 ) {
     m_output->println(cmd);
-    m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
+    m_output->println("result: getpeername(" MY_SOCKET_FORMAT   \
+                      ") failed, err= %d",
+                      MY_SOCKET_FORMAT_VALUE(m_socket), r);
     m_output->println("");
     return;
   }
@@ -549,7 +522,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     NDB_TICKS tick= 0;
     /* only report error on second attempt as not to clog the cluster log */
     while (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-                                   (struct sockaddr*)&addr, &addrlen,
+                                   (struct sockaddr*)&addr,
                                    error_code, error_string,
                                    tick == 0 ? 0 : log_event))
     {
@@ -615,14 +588,6 @@ MgmApiSession::getConfig(Parser_t::Context &,
   args.get("version", &version);
   args.get("node", &node);
 
-  const Config *conf = m_mgmsrv.getConfig();
-  if(conf == NULL) {
-    m_output->println("get config reply");
-    m_output->println("result: Could not fetch configuration");
-    m_output->println("");
-    return;
-  }
-
   if(node != 0){
     bool compatible;
     switch (m_mgmsrv.getNodeType(node)) {
@@ -648,22 +613,25 @@ MgmApiSession::getConfig(Parser_t::Context &,
       return;
     }
   }  
-  
-  NdbMutex_Lock(m_mgmsrv.m_configMutex);
-  const ConfigValues * cfg = &conf->m_configValues->m_config;
-  
-  UtilBuffer src;
-  cfg->pack(src);
-  NdbMutex_Unlock(m_mgmsrv.m_configMutex);
-  
-  char *tmp_str = (char *) malloc(base64_needed_encoded_length(src.length()));
-  (void) base64_encode(src.get_data(), src.length(), tmp_str);
+
+  UtilBuffer packed;
+  if (!m_mgmsrv.getPackedConfig(packed))
+  {
+    m_output->println("get config reply");
+    m_output->println("result: Could not fetch configuration");
+    m_output->println("");
+    return;
+  }
+
+  char *tmp_str =
+    (char *) malloc(base64_needed_encoded_length(packed.length()));
+  (void) base64_encode(packed.get_data(), packed.length(), tmp_str);
 
   SLEEP_ERROR_INSERTED(1);
 
   m_output->println("get config reply");
   m_output->println("result: Ok");
-  m_output->println("Content-Length: %d", strlen(tmp_str));
+  m_output->println("Content-Length: %ld", strlen(tmp_str));
   m_output->println("Content-Type: ndbconfig/octet-stream");
   SLEEP_ERROR_INSERTED(2);
   m_output->println("Content-Transfer-Encoding: base64");
@@ -748,19 +716,19 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
   DBUG_ENTER("MgmApiSession::startBackup");
   unsigned backupId;
-  unsigned input_backupId;
+  unsigned input_backupId= 0;
+  unsigned backuppoint= 0;
   Uint32 completed= 2;
   int result;
 
   args.get("completed", &completed);
 
   if(args.contains("backupid"))
-  {
     args.get("backupid", &input_backupId);
-    result = m_mgmsrv.startBackup(backupId, completed, input_backupId);
-  }
-  else
-    result = m_mgmsrv.startBackup(backupId, completed);
+  if(args.contains("backuppoint"))
+    args.get("backuppoint", &backuppoint);
+
+  result = m_mgmsrv.startBackup(backupId, completed, input_backupId, backuppoint);
 
   m_output->println("start backup reply");
   if(result != 0)
@@ -916,7 +884,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 
   if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("set loglevel reply");
-    m_output->println("result: Invalid loglevel", errorString.c_str());
+    m_output->println("result: Invalid loglevel: %s", errorString.c_str());
     m_output->println("");
     return;
   }
@@ -1781,6 +1749,7 @@ void
 MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
                                 Properties const &args)
 {
+  int res = 0;
   BaseString nodestr;
   BaseString retval;
   int ng = -1;
@@ -1796,28 +1765,26 @@ MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
     int node;
     if ((res = sscanf(list[i].c_str(), "%u", &node)) != 1)
     {
+      nodes.clear();
       result = "FAIL: Invalid format for nodes";
-      goto end;
+      break;
     }
     nodes.push_back(node);
   }
+  
+  res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng);
 
-  if(nodes.size() == 0)
-  {
-    result= "FAIL: Must have at least 1 node in the node group";
-    goto end;
-  }
-
-  int res;
-  if((res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng)) != 0)
-  {
-    result.assfmt("error: %d", res);
-  }
-
-end:
   m_output->println("create nodegroup reply");
   m_output->println("ng: %d", ng);
-  m_output->println("result: %s", result.c_str());
+  if (res)
+  {
+    m_output->println("error_code: %d", res);
+    m_output->println("result: %d-%s", res, get_error_text(res));
+  }
+  else
+  {
+    m_output->println("result: Ok");
+  }
   m_output->println("");
 }
 
@@ -1836,7 +1803,7 @@ MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
     result.assfmt("error: %d", res);
   }
 
-end:
+//end:
   m_output->println("drop nodegroup reply");
   m_output->println("result: %s", result.c_str());
   m_output->println("");
@@ -2016,8 +1983,8 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     }
     delete decoded;
 
-    //m_mgmsrv.setConfig(new Config(cvf.getConfigValues()));
-
+    Config new_config(cvf.getConfigValues());
+    (void)m_mgmsrv.change_config(new_config, result);
   }
 
 done:
@@ -2027,6 +1994,97 @@ done:
   m_output->println("");
 }
 
+int print_ndbinfo_table_mgm(struct ndbinfo_table* t, BaseString &out);
+
+void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
+{
+  BaseString query;
+  args.get("query", query);
+
+  Vector<BaseString> columns;
+  Vector<BaseString> rows;
+
+  m_output->println("ndbinfo reply");
+
+  int r= m_mgmsrv.ndbinfo(query, &columns, &rows);
+
+  if(r)
+  {
+    m_output->println("error: %d",r);
+    m_output->println("");
+    return;
+  }
+
+  m_output->println("error: 0");
+  m_output->println("rows: %d",rows.size());
+  m_output->println("");
+
+  m_output->println("%d",columns.size());
+
+  for(unsigned i = 0; i < columns.size(); i++)
+    m_output->println(columns[i].c_str());
+
+  for(unsigned i = 0; i < rows.size(); i++)
+    m_output->println(rows[i].c_str());
+
+  return ;
+}
+
+
+void MgmApiSession::showConfig(Parser_t::Context &ctx, Properties const &args)
+{
+  const char* section = NULL;
+  const char* name = NULL;
+  Uint32 nodeid = 0;
+
+  args.get("Section", &section);
+  args.get("NodeId", &nodeid);
+  args.get("Name", &name);
+
+  NdbOut socket_out(*m_output, false /* turn off autoflush */);
+  m_output->println("show config reply");
+  m_mgmsrv.print_config(section, nodeid, name,
+                        socket_out);
+  m_output->println("");
+}
+
+
+void
+MgmApiSession::reloadConfig(Parser_t::Context &,
+                            const class Properties &args)
+{
+  const char* config_filename= NULL;
+  Uint32 mycnf = 0;
+
+  args.get("config_filename", &config_filename);
+  args.get("mycnf", &mycnf);
+
+  g_eventLogger->debug("config_filename: %s, mycnf: %s",
+                       str_null(config_filename),
+                       yes_no(mycnf));
+
+  m_output->println("reload config reply");
+
+  BaseString msg;
+  if (!m_mgmsrv.reload_config(config_filename, (mycnf != 0), msg))
+    m_output->println("result: %s", msg.c_str());
+  else
+    m_output->println("result: Ok");
+
+  m_output->println("");
+}
+
+
+void
+MgmApiSession::show_variables(Parser_t::Context &,
+                              const class Properties &args)
+{
+  m_output->println("show variables reply");
+  NdbOut socket_out(*m_output, false /* turn off autoflush */);
+  m_mgmsrv.show_variables(socket_out);
+  m_output->println("");
+
+}
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

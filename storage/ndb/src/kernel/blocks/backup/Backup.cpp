@@ -58,12 +58,15 @@
 
 #include <signaldata/DumpStateOrd.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
 
 static NDB_TICKS startTime;
-
-static const Uint32 BACKUP_SEQUENCE = 0x1F000000;
 
 #ifdef VM_TRACE
 #define DEBUG_OUT(x) ndbout << x << endl
@@ -173,7 +176,7 @@ Backup::createSequence(Signal* signal)
   UtilSequenceReq * req = (UtilSequenceReq*)signal->getDataPtrSend();
   
   req->senderData  = RNIL;
-  req->sequenceId  = BACKUP_SEQUENCE;
+  req->sequenceId  = NDB_BACKUP_SEQUENCE;
   req->requestType = UtilSequenceReq::Create;
   
   sendSignal(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ, 
@@ -260,8 +263,8 @@ Backup::execCONTINUEB(Signal* signal)
       fragInfo->SectionLength = htonl(sz);
       fragInfo->TableId = htonl(fragPtr.p->tableId);
       fragInfo->FragmentNo = htonl(fragPtr_I);
-      fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
-      fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
+      fragInfo->NoOfRecordsLow = htonl((Uint32)(fragPtr.p->noOfRecords & 0xFFFFFFFF));
+      fragInfo->NoOfRecordsHigh = htonl((Uint32)(fragPtr.p->noOfRecords >> 32));
       fragInfo->FilePosLow = htonl(0);
       fragInfo->FilePosHigh = htonl(0);
       
@@ -648,6 +651,105 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     c_defaults.m_compressed_lcp= signal->theData[1];
     infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
   }
+}
+
+void Backup::execDBINFO_SCANREQ(Signal *signal)
+{
+  jamEntry();
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+
+  char buf[512];
+  struct dbinfo_ratelimit rl;
+  struct dbinfo_row r;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  if(req.tableId == NDBINFO_BACKUP_RECORDS_TABLEID)
+  {
+    BackupRecordPtr ptr LINT_SET_PTR;
+    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      dbinfo_write_row_column_uint32(&r, ptr.i);
+      dbinfo_write_row_column_uint32(&r, ptr.p->backupId);
+      dbinfo_write_row_column_uint32(&r, ptr.p->masterRef);
+      dbinfo_write_row_column_uint32(&r, ptr.p->clientRef);
+      dbinfo_write_row_column_uint32(&r, ptr.p->slaveState.getState());
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfBytes);
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfRecords);
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogBytes);
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogRecords);
+      dbinfo_write_row_column_uint32(&r, ptr.p->errorCode);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+  else if( req.tableId == NDBINFO_BACKUP_PARAMETERS_TABLEID )
+  {
+    dbinfo_write_row_init(&r, buf, sizeof(buf));
+    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+    dbinfo_write_row_column_uint32(&r, m_curr_disk_write_speed);
+    dbinfo_write_row_column_uint32(&r, 4*m_words_written_this_period);
+    dbinfo_write_row_column_uint32(&r, m_overflow_disk_write);
+    dbinfo_write_row_column_uint32(&r, m_reset_delay_used);
+    dbinfo_write_row_column_uint32(&r, m_reset_disk_speed_time);
+    dbinfo_write_row_column_uint32(&r, c_backupPool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_backupFilePool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_tablePool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_triggerPool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_fragmentPool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_pagePool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_backup);
+    dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_lcp);
+    dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+  }
+  else if( req.tableId == NDBINFO_POOLS_TABLEID )
+  {
+    struct {
+      const char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Backup Record",
+           c_backupPool.getNoOfFree(),
+           c_backupPool.getSize() },
+          {"Backup File",
+           c_backupFilePool.getNoOfFree(),
+           c_backupFilePool.getSize() },
+          {"Table",
+           c_tablePool.getNoOfFree(),
+           c_tablePool.getSize() },
+          {"Trigger",
+           c_triggerPool.getNoOfFree(),
+           c_triggerPool.getSize() },
+          {"Fragment",
+           c_fragmentPool.getNoOfFree(),
+           c_fragmentPool.getSize() },
+          {"Page",
+           c_pagePool.getNoOfFree(),
+           c_pagePool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      const char *blockname= "BACKUP";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 bool
@@ -1217,10 +1319,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->flags = flags;
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
-  if(input_backupId)
-    ptr.p->backupId = input_backupId;
-  else
-    ptr.p->backupId = 0;
+  ptr.p->backupId = input_backupId;
   ptr.p->backupKey[0] = 0;
   ptr.p->backupKey[1] = 0;
   ptr.p->backupDataLen = 0;
@@ -1230,7 +1329,7 @@ Backup::execBACKUP_REQ(Signal* signal)
     
   ptr.p->masterData.gsn = GSN_UTIL_SEQUENCE_REQ;
   utilReq->senderData  = ptr.i;
-  utilReq->sequenceId  = BACKUP_SEQUENCE;
+  utilReq->sequenceId  = NDB_BACKUP_SEQUENCE;
   if(input_backupId) {
     utilReq->requestType = UtilSequenceReq::SetVal;
     utilReq->value = input_backupId;
@@ -1525,26 +1624,7 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     return;
   }
   
-  /**
-   * Reply to client
-   */
   CRASH_INSERTION((10034));
-
-  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
-  {
-    BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
-    conf->backupId = ptr.p->backupId;
-    conf->senderData = ptr.p->clientData;
-    conf->nodes = ptr.p->nodes;
-    sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal, 
-	       BackupConf::SignalLength, JBB);
-  }
-
-  signal->theData[0] = NDB_LE_BackupStarted;
-  signal->theData[1] = ptr.p->clientRef;
-  signal->theData[2] = ptr.p->backupId;
-  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
 
   /**
    * We've received GSN_DEFINE_BACKUP_CONF from all participants.
@@ -1636,7 +1716,21 @@ Backup::sendCreateTrig(Signal* signal,
   req->indexVersion = 0;
 
   Uint32 ti = 0;
-  TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION);
+  /*
+   * We always send PK for any operations and any triggertypes.
+   * For SUBSCRIPTION_BEFORE
+   *   We send after image for INSERT.
+   *   We send before image for DELETE.
+   *   We send before+after image for UPDATE.
+   * For SUBSCRIPTION
+   *   We send after image for INSERT.
+   *   We send only PK for DELETE.
+   *   We send after image for UPDATE.
+   */
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+    TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION_BEFORE);
+  else
+    TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION);
   TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
   TriggerInfo::setMonitorReplicas(ti, true);
   TriggerInfo::setMonitorAllAttributes(ti, false);
@@ -1856,6 +1950,25 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     return;
   }
 
+  /* 
+   * We reply to client after create trigger
+   */
+  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
+  {
+    BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
+    conf->backupId = ptr.p->backupId;
+    conf->senderData = ptr.p->clientData;
+    conf->nodes = ptr.p->nodes;
+    sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal,
+             BackupConf::SignalLength, JBB);
+  }
+
+  signal->theData[0] = NDB_LE_BackupStarted;
+  signal->theData[1] = ptr.p->clientRef;
+  signal->theData[2] = ptr.p->backupId;
+  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
+
   /**
    * Wait for GCP
    */
@@ -1866,8 +1979,14 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   waitGCPReq->senderRef = reference();
   waitGCPReq->senderData = ptr.i;
   waitGCPReq->requestType = WaitGCPReq::CompleteForceStart;
-  sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
-	     WaitGCPReq::SignalLength,JBB);
+  //we delay 10 seconds for testcases to generate events to be recorded in the UNDO log
+  if (ERROR_INSERTED(10041))
+  {
+    sendSignalWithDelay(DBDIH_REF, GSN_WAIT_GCP_REQ, signal, 10*1000, WaitGCPReq::SignalLength);
+  }
+  else
+    sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
+    	       WaitGCPReq::SignalLength,JBB);
 }
 
 void
@@ -2298,10 +2417,14 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
   req->tableVersion = 0;
   req->indexId = RNIL;
   req->indexVersion = 0;
+  req->receiverRef = reference();
 
   // TUP needs some triggerInfo to find right list
   Uint32 ti = 0;
-  TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION);
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+    TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION_BEFORE);
+  else
+    TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION);
   TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
   TriggerInfo::setMonitorReplicas(ti, true);
   TriggerInfo::setMonitorAllAttributes(ti, false);
@@ -2774,7 +2897,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   if(senderRef == reference())
     ptr.p->flags = req->flags;
   else
-    ptr.p->flags = req->flags & ~((Uint32)0x3); /* remove waitCompleted flags
+    ptr.p->flags = req->flags & ~((Uint32)BackupReq::WAITCOMPLETED); /* remove waitCompleted flags
 						 * as non master should never
 						 * reply
 						 */
@@ -2884,7 +3007,10 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       ptr.p->ctlFilePtr = files[i].i;
       break;
     case 1:
-      files[i].p->fileType = BackupFormat::LOG_FILE;
+      if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+        files[i].p->fileType = BackupFormat::UNDO_FILE;
+      else
+        files[i].p->fileType = BackupFormat::LOG_FILE;
       ptr.p->logFilePtr = files[i].i;
       break;
     case 2:
@@ -3054,6 +3180,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   c_backupFilePool.getPtr(filePtr, ptr.p->logFilePtr);
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
   
+  //write uncompressed log file when enable undo log,since log file is read from back to front.
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+    req->fileFlags &= ~FsOpenReq::OM_GZ;
+ 
   req->userPointer = filePtr.i;
   FsOpenReq::setVersion(req->fileNumber, 2);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_LOG);
@@ -3069,6 +3199,8 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
 
   if (c_defaults.m_o_direct)
     req->fileFlags |= FsOpenReq::OM_DIRECT;
+  if (c_defaults.m_compressed_backup)
+    req->fileFlags |= FsOpenReq::OM_GZ;
   req->userPointer = filePtr.i;
   FsOpenReq::setVersion(req->fileNumber, 2);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
@@ -3172,8 +3304,14 @@ Backup::openFilesReply(Signal* signal,
       return;
     }//if
     
+    BackupFormat::FileType logfiletype;
+    if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+      logfiletype = BackupFormat::UNDO_FILE;
+    else
+      logfiletype = BackupFormat::LOG_FILE;
+
     ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
-    if(!insertFileHeader(BackupFormat::LOG_FILE, ptr.p, filePtr.p)) {
+    if(!insertFileHeader(logfiletype, ptr.p, filePtr.p)) {
       jam();
       defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
       return;
@@ -3918,7 +4056,7 @@ Backup::execTRANSID_AI(Signal* signal)
   const Uint32 filePtrI = signal->theData[0];
   //const Uint32 transId1 = signal->theData[1];
   //const Uint32 transId2 = signal->theData[2];
-  const Uint32 dataLen  = signal->length() - 3;
+  Uint32 dataLen  = signal->length() - 3;
   
   BackupFilePtr filePtr LINT_SET_PTR;
   c_backupFilePool.getPtr(filePtr, filePtrI);
@@ -3928,14 +4066,30 @@ Backup::execTRANSID_AI(Signal* signal)
   /**
    * Unpack data
    */
+  Uint32 * dst = op.dst;
+  if (signal->getNoOfSections() == 0)
+  {
+    jam();
+    const Uint32 * src = &signal->theData[3];
+    * dst = htonl(dataLen);
+    memcpy(dst + 1, src, 4*dataLen);
+  }
+  else
+  {
+    jam();
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr dataPtr;
+    handle.getSection(dataPtr, 0);
+    dataLen = dataPtr.sz;
+
+    * dst = htonl(dataLen);
+    copy(dst + 1, dataPtr);
+    releaseSections(handle);
+  }
+
   op.attrSzTotal += dataLen;
   ndbrequire(dataLen < op.maxRecordSize);
 
-  const Uint32 * src = &signal->theData[3];
-  Uint32 * dst = op.dst;
-
-  * dst = htonl(dataLen);
-  memcpy(dst + 1, src, 4*dataLen);
   op.finished(dataLen);
 
   op.newRecord(dst + dataLen + 1);
@@ -4513,6 +4667,66 @@ Backup::execBACKUP_TRIG_REQ(Signal* signal)
   signal->theData[0] = result;
 }
 
+BackupFormat::LogFile::LogEntry *
+Backup::get_log_buffer(Signal* signal,
+                       TriggerPtr trigPtr, Uint32 sz)
+{
+  Uint32 * dst;
+  if(ERROR_INSERTED(10030))
+  {
+    jam();
+    dst = 0;
+  }
+  else
+  {
+    jam();
+    FsBuffer & buf = trigPtr.p->operation->dataBuffer;
+    ndbrequire(sz <= buf.getMaxWrite());
+    if (unlikely(!buf.getWritePtr(&dst, sz)))
+    {
+      jam();
+      dst = 0;
+    }
+  }
+
+  if (unlikely(dst == 0))
+  {
+    Uint32 save[TrigAttrInfo::StaticLength];
+    memcpy(save, signal->getDataPtr(), 4*TrigAttrInfo::StaticLength);
+    BackupRecordPtr ptr LINT_SET_PTR;
+    c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+    trigPtr.p->errorCode = AbortBackupOrd::LogBufferFull;
+    AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
+    ord->backupId = ptr.p->backupId;
+    ord->backupPtr = ptr.i;
+    ord->requestType = AbortBackupOrd::LogBufferFull;
+    ord->senderData= ptr.i;
+    sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal,
+               AbortBackupOrd::SignalLength, JBB);
+
+    memcpy(signal->getDataPtrSend(), save, 4*TrigAttrInfo::StaticLength);
+    return 0;
+  }//if
+
+  BackupFormat::LogFile::LogEntry * logEntry =
+    (BackupFormat::LogFile::LogEntry *)dst;
+  logEntry->Length       = 0;
+  logEntry->TableId      = htonl(trigPtr.p->tableId);
+
+  if(trigPtr.p->event==0)
+    logEntry->TriggerEvent= htonl(TriggerEvent::TE_INSERT);
+  else if(trigPtr.p->event==1)
+    logEntry->TriggerEvent= htonl(TriggerEvent::TE_UPDATE);
+  else if(trigPtr.p->event==2)
+    logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
+  else {
+    ndbout << "Bad Event: " << trigPtr.p->event << endl;
+    ndbrequire(false);
+  }
+
+  return logEntry;
+}
+
 void
 Backup::execTRIG_ATTRINFO(Signal* signal) {
   jamEntry();
@@ -4530,58 +4744,38 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
     return;
   }//if
 
-  if(trg->getAttrInfoType() == TrigAttrInfo::BEFORE_VALUES) {
-    jam();
-    /**
-     * Backup is doing REDO logging and don't need before values
-     */
-    return;
-  }//if
+  BackupRecordPtr ptr LINT_SET_PTR;
+  c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG) {
+    if(trg->getAttrInfoType() == TrigAttrInfo::AFTER_VALUES) {
+      jam();
+      /**
+       * Backup is doing UNDO logging and don't need after values
+       */
+      return;
+    }//if
+  }
+  else {
+    if(trg->getAttrInfoType() == TrigAttrInfo::BEFORE_VALUES) {
+      jam();
+      /**
+       * Backup is doing REDO logging and don't need before values
+       */
+      return;
+    }//if
+  }
 
   BackupFormat::LogFile::LogEntry * logEntry = trigPtr.p->logEntry;
   if(logEntry == 0) 
   {
     jam();
-    Uint32 * dst;
-    FsBuffer & buf = trigPtr.p->operation->dataBuffer;
-    ndbrequire(trigPtr.p->maxRecordSize <= buf.getMaxWrite());
-
-    if(ERROR_INSERTED(10030) ||
-       !buf.getWritePtr(&dst, trigPtr.p->maxRecordSize)) 
+    Uint32 sz = trigPtr.p->maxRecordSize;
+    logEntry = trigPtr.p->logEntry = get_log_buffer(signal, trigPtr, sz);
+    if (unlikely(logEntry == 0))
     {
       jam();
-      Uint32 save[TrigAttrInfo::StaticLength];
-      memcpy(save, signal->getDataPtr(), 4*TrigAttrInfo::StaticLength);
-      BackupRecordPtr ptr LINT_SET_PTR;
-      c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
-      trigPtr.p->errorCode = AbortBackupOrd::LogBufferFull;
-      AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
-      ord->backupId = ptr.p->backupId;
-      ord->backupPtr = ptr.i;
-      ord->requestType = AbortBackupOrd::LogBufferFull;
-      ord->senderData= ptr.i;
-      sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal, 
-		 AbortBackupOrd::SignalLength, JBB);
-
-      memcpy(signal->getDataPtrSend(), save, 4*TrigAttrInfo::StaticLength);
       return;
-    }//if
-
-    logEntry = (BackupFormat::LogFile::LogEntry *)dst;
-    trigPtr.p->logEntry = logEntry;
-    logEntry->Length       = 0;
-    logEntry->TableId      = htonl(trigPtr.p->tableId);
-
-
-    if(trigPtr.p->event==0)
-      logEntry->TriggerEvent= htonl(TriggerEvent::TE_INSERT);
-    else if(trigPtr.p->event==1)
-      logEntry->TriggerEvent= htonl(TriggerEvent::TE_UPDATE);
-    else if(trigPtr.p->event==2)
-      logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
-    else {
-      ndbout << "Bad Event: " << trigPtr.p->event << endl;
-      ndbrequire(false);
     }
   } else {
     ndbrequire(logEntry->TableId == htonl(trigPtr.p->tableId));
@@ -4610,17 +4804,80 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
   
   ndbrequire(trigPtr.p->event != ILLEGAL_TRIGGER_ID);
 
+  BackupRecordPtr ptr LINT_SET_PTR;
+  c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+
   if(trigPtr.p->errorCode != 0) {
     jam();
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
     return;
   }//if
+
+  if (signal->getNoOfSections())
+  {
+    jam();
+    SectionHandle handle(this, signal);
+    TablePtr tabPtr;
+    c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
+    FragmentPtr fragPtr;
+    tabPtr.p->fragments.getPtr(fragPtr, fragId);
+    if (fragPtr.p->node != getOwnNodeId()) 
+    {
+      jam();
+      trigPtr.p->logEntry = 0;      
+      releaseSections(handle);
+      return;
+    }
+
+    SegmentedSectionPtr dataPtr[3];
+    handle.getSection(dataPtr[0], 0);
+    handle.getSection(dataPtr[1], 1);
+    handle.getSection(dataPtr[2], 2);
+    /**
+     * dataPtr[0] : Primary key info
+     * dataPtr[1] : Before values
+     * dataPtr[2] : After values
+     */
+
+    /* Backup is doing UNDO logging and need before values
+     * Add 2 extra words to get_log_buffer for potential gci and logEntry length info stored at end.
+     */
+    if(ptr.p->flags & BackupReq::USE_UNDO_LOG) {
+      trigPtr.p->logEntry = get_log_buffer(signal,
+                                           trigPtr, dataPtr[0].sz + dataPtr[1].sz + 2);
+      if (unlikely(trigPtr.p->logEntry == 0))
+      {
+        jam();
+        releaseSections(handle);
+        return;
+      }
+      copy(trigPtr.p->logEntry->Data, dataPtr[0]);
+      copy(trigPtr.p->logEntry->Data+dataPtr[0].sz, dataPtr[1]);
+      trigPtr.p->logEntry->Length = dataPtr[0].sz + dataPtr[1].sz;
+    }
+    //  Backup is doing REDO logging and need after values
+    else {
+      trigPtr.p->logEntry = get_log_buffer(signal,
+                                           trigPtr, dataPtr[0].sz + dataPtr[2].sz + 1);
+      if (unlikely(trigPtr.p->logEntry == 0))
+      {
+        jam();
+        releaseSections(handle);
+        return;
+      }
+      copy(trigPtr.p->logEntry->Data, dataPtr[0]);
+      copy(trigPtr.p->logEntry->Data+dataPtr[0].sz, dataPtr[2]);
+      trigPtr.p->logEntry->Length = dataPtr[0].sz + dataPtr[2].sz;
+    }
+
+    releaseSections(handle);
+  }
 
   ndbrequire(trigPtr.p->logEntry != 0);
   Uint32 len = trigPtr.p->logEntry->Length;
   trigPtr.p->logEntry->FragId = htonl(fragId);
 
-  BackupRecordPtr ptr LINT_SET_PTR;
-  c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
   if(gci != ptr.p->currGCP)
   {
     jam();
@@ -4630,17 +4887,30 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     ptr.p->currGCP = gci;
   }
 
+  Uint32 datalen = len;
   len += (sizeof(BackupFormat::LogFile::LogEntry) >> 2) - 2;
   trigPtr.p->logEntry->Length = htonl(len);
 
-  ndbrequire(len + 1 <= trigPtr.p->operation->dataBuffer.getMaxWrite());
-  trigPtr.p->operation->dataBuffer.updateWritePtr(len + 1);
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+  {
+    /* keep the length at both the end of logEntry and ->logEntry variable
+       The total length of logEntry is len + 2
+    */
+    trigPtr.p->logEntry->Data[datalen] = htonl(len);
+  }
+
+  Uint32 entryLength = len +1;
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+    entryLength ++;
+
+  ndbrequire(entryLength <= trigPtr.p->operation->dataBuffer.getMaxWrite());
+  trigPtr.p->operation->dataBuffer.updateWritePtr(entryLength);
   trigPtr.p->logEntry = 0;
   
   {
-    const Uint32 tmp = (len + 1) << 2;
-    trigPtr.p->operation->noOfBytes     += tmp;
-    trigPtr.p->operation->m_bytes_total += tmp;
+    const Uint32 entryByteLength = entryLength << 2;
+    trigPtr.p->operation->noOfBytes     += entryByteLength;
+    trigPtr.p->operation->m_bytes_total += entryByteLength;
     trigPtr.p->operation->noOfRecords     += 1;
     trigPtr.p->operation->m_records_total += 1;
   }

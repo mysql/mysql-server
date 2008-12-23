@@ -16,7 +16,6 @@
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
-#include <ndb_global.h>
 #include <NdbOperation.hpp>
 
 class NdbBlob;
@@ -377,6 +376,11 @@ public:
                                          const NdbOperation::OperationOptions *opts = 0,
                                          Uint32 sizeOfOptions = 0);
 
+  /**
+   * Get NdbTransaction object for this scan operation
+   */
+  NdbTransaction* getNdbTransaction() const;
+
 protected:
   NdbScanOperation(Ndb* aNdb,
                    NdbOperation::Type aType = NdbOperation::TableScan);
@@ -603,27 +607,6 @@ NdbScanOperation::deleteCurrentTuple(NdbTransaction * takeOverTrans){
 
 inline
 const NdbOperation *
-NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
-                                   const NdbRecord *result_rec,
-                                   char *result_row,
-                                   const unsigned char *result_mask,
-                                   const NdbOperation::OperationOptions *opts,
-                                   Uint32 sizeOfOptions)
-{
-  unsigned char empty_mask[NDB_MAX_ATTRIBUTES_IN_TABLE>>3];
-  /* Default is to not read any attributes, just take over the lock. */
-  if (!result_row)
-  {
-    bzero(empty_mask, sizeof(empty_mask));
-    result_mask= &empty_mask[0];
-  }
-  return takeOverScanOpNdbRecord(NdbOperation::ReadRequest, takeOverTrans,
-                                 result_rec, result_row, 
-                                 result_mask, opts, sizeOfOptions);
-}
-
-inline
-const NdbOperation *
 NdbScanOperation::updateCurrentTuple(NdbTransaction *takeOverTrans,
                                      const NdbRecord *attr_rec,
                                      const char *attr_row,
@@ -655,5 +638,15 @@ NdbScanOperation::deleteCurrentTuple(NdbTransaction *takeOverTrans,
                                  result_rec, result_row, result_mask,
                                  opts, sizeOfOptions);
 }
+
+inline
+NdbTransaction*
+NdbScanOperation::getNdbTransaction() const
+{
+  /* return the user visible transaction object ptr, not the
+   * scan's 'internal' / buddy transaction object
+   */
+  return m_transConnection;
+};
 
 #endif

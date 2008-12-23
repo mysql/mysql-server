@@ -91,3 +91,20 @@ printSCHEMA_TRANS_END_REF(FILE* output, const Uint32* theData, Uint32 len, Uint1
   fprintf(output, "\n");
   return true;
 }
+
+bool
+printSCHEMA_TRANS_END_REP(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+{
+  const SchemaTransEndRep* sig = (const SchemaTransEndRep*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig->errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");
+  return true;
+}
+
+

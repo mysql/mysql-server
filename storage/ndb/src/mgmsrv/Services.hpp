@@ -61,6 +61,8 @@ public:
 
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
   void setConfig(Parser_t::Context &ctx, const class Properties &args);
+  void showConfig(Parser_t::Context &ctx, const class Properties &args);
+  void reloadConfig(Parser_t::Context &ctx, const class Properties &args);
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
@@ -117,8 +119,12 @@ public:
   void getSessionId(Parser_t::Context &ctx, Properties const &args);
   void getSession(Parser_t::Context &ctx, Properties const &args);
 
+  void getNdbInfo(Parser_t::Context &ctx, Properties const &args);
+
   void create_nodegroup(Parser_t::Context &ctx, Properties const &args);
   void drop_nodegroup(Parser_t::Context &ctx, Properties const &args);
+
+  void show_variables(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {
@@ -133,5 +139,16 @@ public:
     return new MgmApiSession(m_mgmsrv, socket, m_next_session_id++);
   }
 };
+
+static const char* str_null(const char* str)
+{
+  return (str ? str : "(null)");
+}
+
+static const char* yes_no(bool value)
+{
+  return (value ? "yes" : "no");
+}
+
 
 #endif

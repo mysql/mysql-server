@@ -9,7 +9,7 @@ static void default_ndb_opt_short(void)
   ndb_short_usage_sub(g_ndb_opt_progname,NULL);
 }
 
-static void default_ndb_opt_usage()
+static void default_ndb_opt_usage(void)
 {
   struct my_option my_long_options[] =
     {
@@ -70,7 +70,7 @@ ndb_std_get_one_option(int optid,
     {
       DBUG_PUSH("d:t");
     }
-    opt_endinfo= 1;
+    opt_ndb_endinfo= 1;
     break;
 #endif
   case 'V':
@@ -100,7 +100,7 @@ ndb_std_get_one_option(int optid,
     opt_ndb_constrbuf_len+= len;
   }
   /* fall through to add the connectstring to the end
-   * and set opt_ndbcluster_connectstring
+   * and set opt_ndb_connectstring
    */
   case OPT_NDB_CONNECTSTRING:
     if (opt_ndb_connectstring && opt_ndb_connectstring[0])
@@ -118,6 +118,11 @@ ndb_std_get_one_option(int optid,
 
 void ndb_std_print_version()
 {
-  printf("MySQL distrib %s, for %s (%s)\n",
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+#ifndef DBUG_OFF
+  const char *suffix= "-debug";
+#else
+  const char *suffix= "";
+#endif
+  printf("MySQL distrib %s%s, for %s (%s)\n",
+         NDB_VERSION_STRING,suffix,SYSTEM_TYPE,MACHINE_TYPE);
 }

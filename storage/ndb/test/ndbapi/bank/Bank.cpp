@@ -708,7 +708,7 @@ int Bank::findLastGL(Uint64 &lastTime){
 }
 
 
-int Bank::performMakeGL(int time){
+int Bank::performMakeGL(Uint64 time){
   g_info << "performMakeGL: " << time << endl;
   /**
    *  Create one GL record for each account type.

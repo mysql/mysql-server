@@ -113,6 +113,8 @@
 #define ERROR_INSERT_VARIABLE UintR cerrorInsert, c_error_insert_extra
 #define ERROR_INSERTED(x) (cerrorInsert == (x))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
+#define ERROR_INSERT_VALUE cerrorInsert
+#define ERROR_INSERT_EXTRA c_error_insert_extra
 #define SET_ERROR_INSERT_VALUE(x) cerrorInsert = x
 #define SET_ERROR_INSERT_VALUE2(x,y) cerrorInsert = x; c_error_insert_extra = y
 #define CLEAR_ERROR_INSERT_VALUE cerrorInsert = 0
@@ -120,9 +122,10 @@
 #define ERROR_INSERT_VARIABLE typedef void * cerrorInsert // Will generate compiler error if used
 #define ERROR_INSERTED(x) false
 #define ERROR_INSERTED_CLEAR(x) false
-#define SET_ERROR_INSERT_VALUE(x)
-#define SET_ERROR_INSERT_VALUE2(x,y)
-#define CLEAR_ERROR_INSERT_VALUE
+#define ERROR_INSERT_VALUE 0
+#define SET_ERROR_INSERT_VALUE(x) do { } while(0)
+#define SET_ERROR_INSERT_VALUE2(x,y) do { } while(0)
+#define CLEAR_ERROR_INSERT_VALUE do { } while(0)
 #endif
 
 #define DECLARE_DUMP0(BLOCK, CODE, DESC) if (arg == CODE)
@@ -196,7 +199,7 @@
     progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__); \
   }
 #else
-#define ndbassert(check)
+#define ndbassert(check) do { } while(0)
 #endif
 
 #define ndbrequireErr(check, error) \

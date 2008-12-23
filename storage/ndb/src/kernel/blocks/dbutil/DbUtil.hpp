@@ -74,6 +74,7 @@ protected:
   void execSTTOR(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
   /**
@@ -146,7 +147,12 @@ public:
    * @brief   For storing SimpleProperties objects and similar temporary data
    */
   struct Page32 {
-    Uint32  data[UTIL_WORDS_PER_PAGE];
+    union {
+      Uint32 data[UTIL_WORDS_PER_PAGE];
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
     Uint32  nextPool;                  // Note: This used as data when seized
   };
 
@@ -346,6 +352,8 @@ public:
 
     Uint32 errorCode;
     Uint32 noOfRetries;
+    Uint32 gci_hi;
+    Uint32 gci_lo;
     Uint32 sent;        // No of operations sent
     Uint32 recv;        // No of completed operations received
     inline bool complete() const { return sent == recv; };

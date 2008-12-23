@@ -32,10 +32,6 @@ int useTableLogging;
 #endif
 
 
-static void usage()
-{
-}
-
 static 
 void usage(const char *prog)
 {

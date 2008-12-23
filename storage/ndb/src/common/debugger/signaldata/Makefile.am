@@ -45,7 +45,7 @@ libsignaldataprint_la_SOURCES = \
  	  CreateTab.cpp CreateTable.cpp DropTable.cpp \
   	  CreateTrigImpl.cpp DropTrigImpl.cpp \
  	  CreateIndxImpl.cpp DropIndxImpl.cpp AlterIndxImpl.cpp \
- 	  BuildIndx.cpp BuildIndxImpl.cpp
+ 	  BuildIndx.cpp BuildIndxImpl.cpp ApiVersion.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am

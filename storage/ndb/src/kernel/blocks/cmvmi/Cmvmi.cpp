@@ -47,6 +47,8 @@
 extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
+extern void mt_set_section_chunk_size();
+
 Cmvmi::Cmvmi(Block_context& ctx) :
   SimulatedBlock(CMVMI, ctx)
   ,subscribers(subscriberPool)
@@ -70,6 +72,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   long_sig_buffer_size= long_sig_buffer_size / sizeof(SectionSegment);
   g_sectionSegmentPool.setSize(long_sig_buffer_size,
                                true,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
+
+  mt_set_section_chunk_size();
 
   // Add received signals
   addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);
@@ -219,6 +223,15 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   if (nodeId == 0)
   {
     nodeId= refToNode(signal->getSendersBlockRef());
+
+    if (nodeId == 0)
+    {
+      /* Event reporter supplied no node id,
+       * assume it was local
+       */
+      nodeId= getOwnNodeId();
+    }
+
     eventReport->setNodeId(nodeId);
   }
 
@@ -948,7 +961,8 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
   sendSignal(TSMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
   sendSignal(PGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  
+  sendSignal(DBINFO_REF,GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
+
   /**
    *
    * Here I can dump CMVMI state if needed

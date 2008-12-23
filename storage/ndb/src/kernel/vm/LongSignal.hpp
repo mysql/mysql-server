@@ -26,9 +26,18 @@ struct SectionSegment {
 
   STATIC_CONST( DataLength = NDB_SECTION_SEGMENT_SZ );
   
-  Uint32 m_ownerRef;
-  Uint32 m_sz;
-  Uint32 m_lastSegment;
+  union {
+    Uint32 m_sz;
+    Uint32 chunkSize;
+  };
+  union {
+    Uint32 m_ownerRef;
+    Uint32 nextChunk;
+  };
+  union {
+    Uint32 m_lastSegment;
+    Uint32 lastChunk;  // 
+  };
   union {
     Uint32 m_nextSegment;
     Uint32 nextPool;
@@ -50,38 +59,14 @@ extern SectionSegmentPool g_sectionSegmentPool;
  * Function prototypes
  */
 void print(SegmentedSectionPtr ptr, FILE* out);
-void copy(SegmentedSectionPtr dst, Uint32 * src, Uint32 len);
 void copy(Uint32 * dst, SegmentedSectionPtr src);
 void copy(Uint32 * dst, Uint32 srcFirstIVal);
-bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
-/* appendToSection : If firstSegmentIVal == RNIL, import */
-bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
-/* dupSection : Create new section as copy of src section */
-bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
-
-
-inline
-bool
-import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len)
-{
-  Ptr<SectionSegment> tmp;
-  if (import(tmp, src, len))
-  {
-    ptr.i = tmp.i;
-    ptr.p = tmp.p;
-    ptr.sz = len;
-    return true;
-  }
-  return false;
-}
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 
 /* Defined in SimulatedBlock.cpp */
 void getSection(SegmentedSectionPtr & ptr, Uint32 id);
 void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
-void release(SegmentedSectionPtr & ptr);
-void releaseSection(Uint32 firstSegmentIVal);
 
 /* Internal verification */
 bool verifySection(Uint32 firstIVal, 

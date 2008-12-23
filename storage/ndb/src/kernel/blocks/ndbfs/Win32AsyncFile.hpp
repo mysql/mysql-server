@@ -30,32 +30,25 @@ class Win32AsyncFile : public AsyncFile
   friend class Ndbfs;
 public:
   Win32AsyncFile(SimulatedBlock& fs);
-  ~Win32AsyncFile();
+  virtual ~Win32AsyncFile();
 
-  void reportTo( MemoryChannel<Request> *reportTo );
+  virtual int init();
+  virtual bool isOpen();
+  virtual void openReq(Request *request);
+  virtual void closeReq(Request *request);
+  virtual void syncReq(Request *request);
+  virtual void removeReq(Request *request);
+  virtual void appendReq(Request *request);
+  virtual void rmrfReq(Request *request, const char * path, bool removePath);
 
-  void execute( Request* request );
-
-  bool isOpen();
+  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset);
+  virtual int writeBuffer(const char * buf, size_t size, off_t offset);
 
 private:
-
-  void openReq(Request *request);
-  void closeReq(Request *request);
-  void syncReq(Request *request);
-  void removeReq(Request *request);
-  void appendReq(Request *request);
-  void rmrfReq(Request *request, char * path, bool removePath);
-
-  int readBuffer(Request*, char * buf, size_t size, off_t offset);
-  int writeBuffer(const char * buf, size_t size, off_t offset,
-		  size_t chunk_size = WRITECHUNK);
-
   int extendfile(Request* request);
   void createDirectories();
 
   HANDLE hFile;
-  Uint32 m_open_flags; // OM_ flags from request to open file
 };
 
 #endif
