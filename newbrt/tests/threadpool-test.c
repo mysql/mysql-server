@@ -63,7 +63,6 @@ fidle (void *arg) {
     int r;
     
     r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
-    threadpool_set_thread_idle(my_threadpool->threadpool);
     while (!my_threadpool->closed) {
         r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }

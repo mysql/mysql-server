@@ -481,10 +481,10 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
 #endif
         p->flush_callback(p->cachefile, p->key, p->value, p->extraargs, p->size, FALSE, FALSE, 
                           ct->lsn_of_checkpoint, need_to_rename_p(ct, p));
-        ctpair_destroy(p);
 #if DO_CALLBACK_UNLOCK
         cachetable_lock(ct);
 #endif
+        ctpair_destroy(p);
     }
 }
 
