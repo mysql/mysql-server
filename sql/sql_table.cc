@@ -5870,7 +5870,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
-        key_create_info.parser_name= *key_info->parser_name;
+        key_create_info.parser_name= *plugin_name(key_info->parser);
 
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;
