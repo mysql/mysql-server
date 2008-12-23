@@ -674,6 +674,14 @@ public:
   void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
 
   BackupFormat::LogFile::LogEntry* get_log_buffer(Signal*,TriggerPtr, Uint32);
+
+  /*
+   * MT LQH.  LCP runs separately in each instance number.
+   * BACKUP uses instance key 1 (real instance 0 or 1).
+  */
+  Uint32 instanceKey(BackupRecordPtr ptr) {
+    return ptr.p->is_lcp() ? instance() : 1;
+  }
 };
 
 inline

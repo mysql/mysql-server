@@ -1534,7 +1534,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   
   ptr.p->masterData.gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instance());
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   sendSignal(rg, GSN_DEFINE_BACKUP_REQ, signal, 
 	     DefineBackupReq::SignalLength, JBB);
@@ -1889,7 +1889,7 @@ Backup::sendStartBackup(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
    */
   ptr.p->masterData.gsn = GSN_START_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instance());
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   sendSignal(rg, GSN_START_BACKUP_REQ, signal,
 	     StartBackupReq::SignalLength, JBB);
@@ -2118,7 +2118,7 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
 	req->count = 0;
 
 	ptr.p->masterData.sendCounter++;
-	const BlockReference ref = numberToRef(BACKUP, instance(), nodeId);
+	BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
 	sendSignal(ref, GSN_BACKUP_FRAGMENT_REQ, signal,
 		   BackupFragmentReq::SignalLength, JBB);
       }//if
@@ -2218,7 +2218,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
       rep->noOfTableRowsHigh = (Uint32)(tabPtr.p->noOfRecords >> 32);
       rep->noOfFragmentRowsLow = (Uint32)(noOfRecords & 0xFFFFFFFF);
       rep->noOfFragmentRowsHigh = (Uint32)(noOfRecords >> 32);
-      BlockNumber backupBlockNo = numberToBlock(BACKUP, instance());
+      BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
       NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
       sendSignal(rg, GSN_BACKUP_FRAGMENT_COMPLETE_REP, signal,
                  BackupFragmentCompleteRep::SignalLength, JBB);
@@ -2533,7 +2533,7 @@ Backup::sendStopBackup(Signal* signal, BackupRecordPtr ptr)
 
   ptr.p->masterData.gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instance());
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   sendSignal(rg, GSN_STOP_BACKUP_REQ, signal, 
 	     StopBackupReq::SignalLength, JBB);
@@ -2724,7 +2724,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   ord->backupId = ptr.p->backupId;
   ord->backupPtr = ptr.i;
   ord->senderData= ptr.i;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instance());
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   
   switch(ptr.p->masterData.gsn){
@@ -2776,7 +2776,7 @@ Backup::abort_scan(Signal * signal, BackupRecordPtr ptr)
       if(fragPtr.p->scanning != 0 && ptr.p->nodes.get(nodeId)) {
         jam();
 	
-	const BlockReference ref = calcInstanceBlockRef(BACKUP, nodeId);
+	BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
 	sendSignal(ref, GSN_ABORT_BACKUP_ORD, signal,
 		   AbortBackupOrd::SignalLength, JBB);
 	
@@ -4932,7 +4932,7 @@ Backup::sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr,
     const Uint32 nodeId = node.p->nodeId;
     if(node.p->alive && ptr.p->nodes.get(nodeId)) {
       jam();
-      BlockReference ref = calcInstanceBlockRef(BACKUP, nodeId);
+      BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), nodeId);
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, signal, 
 		 AbortBackupOrd::SignalLength, JBB);
     }//if
@@ -5189,7 +5189,7 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 #ifdef DEBUG_ABORT
       ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
 #endif
-      BlockReference ref = calcInstanceBlockRef(BACKUP, getMasterNodeId());
+      BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), getMasterNodeId());
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, 
 		 signal, AbortBackupOrd::SignalLength, JBB);
       return;

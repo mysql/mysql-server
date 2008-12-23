@@ -2721,10 +2721,10 @@ sub ndbcluster_start_install ($) {
     }
     else
     {
-      $ndb_no_ord=32;
+      $ndb_no_ord=128; # MT LQH
       $ndb_con_op=10000;
       $ndb_dmem="20M";
-      $ndb_imem="1M";
+      $ndb_imem="4M"; # MT LQH
       $ndb_pbmem="4M";
     }
   }
