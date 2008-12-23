@@ -108,18 +108,13 @@ public:
 
 class Item_func_monthname :public Item_func_month
 {
+  MY_LOCALE *locale;
 public:
   Item_func_monthname(Item *a) :Item_func_month(a) {}
   const char *func_name() const { return "monthname"; }
   String *val_str(String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() 
-  {
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=10*my_charset_bin.mbmaxlen;
-    maybe_null=1; 
-  }
+  void fix_length_and_dec();
 };
 
 
@@ -272,18 +267,13 @@ public:
 
 class Item_func_dayname :public Item_func_weekday
 {
+  MY_LOCALE *locale;
  public:
   Item_func_dayname(Item *a) :Item_func_weekday(a,0) {}
   const char *func_name() const { return "dayname"; }
   String *val_str(String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() 
-  { 
-    collation.set(&my_charset_bin);
-    decimals=0; 
-    max_length=9*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
-  }
+  void fix_length_and_dec();
 };
 
 
