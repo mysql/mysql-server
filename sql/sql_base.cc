@@ -2984,7 +2984,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     Fill record with random values to find bugs where we access fields
     without first reading them.
   */
-  bfill(table->record[0], table->reclength, 254);
+  bfill(table->record[0], table->s->reclength, 254);
 #endif
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
