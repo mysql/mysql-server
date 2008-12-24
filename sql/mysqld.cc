@@ -4128,6 +4128,7 @@ void decrement_handler_count()
 #endif /* defined(__NT__) || defined(HAVE_SMEM) */
 
 
+#ifndef EMBEDDED_LIBRARY
 #ifndef DBUG_OFF
 /*
   Debugging helper function to keep the locale database
@@ -4166,7 +4167,6 @@ static void test_lc_time_sz()
 #endif//DBUG_OFF
 
 
-#ifndef EMBEDDED_LIBRARY
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
