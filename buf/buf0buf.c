@@ -1863,6 +1863,7 @@ buf_page_get_gen(
 	ibool		accessed;
 	ulint		fix_type;
 	ibool		must_read;
+	mutex_t*	block_mutex;
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH)
@@ -1881,7 +1882,8 @@ loop:
 	//buf_pool_mutex_enter();
 
 	if (block) {
-		mutex_enter(&block->mutex);
+		block_mutex = buf_page_get_mutex(block);
+		mutex_enter(block_mutex);
 
 		/* If the guess is a compressed page descriptor that
 		has been allocated by buf_buddy_alloc(), it may have
@@ -1896,7 +1898,7 @@ loop:
 		    || space != block->page.space
 		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
 
-			mutex_exit(&block->mutex);
+			mutex_exit(block_mutex);
 
 			block = guess = NULL;
 		} else {
@@ -1909,7 +1911,8 @@ loop:
 		mutex_enter(&page_hash_mutex);
 		block = (buf_block_t*) buf_page_hash_get(space, offset);
 		if (block) {
-			mutex_enter(&block->mutex);
+			block_mutex = buf_page_get_mutex(block);
+			mutex_enter(block_mutex);
 		}
 		mutex_exit(&page_hash_mutex);
 	}
@@ -1940,7 +1943,7 @@ loop2:
 	if (must_read && mode == BUF_GET_IF_IN_POOL) {
 		/* The page is only being read to buffer */
 		//buf_pool_mutex_exit();
-		mutex_exit(&block->mutex);
+		mutex_exit(block_mutex);
 
 		return(NULL);
 	}
@@ -1965,7 +1968,7 @@ wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
 			//buf_pool_mutex_exit();
-			mutex_exit(&block->mutex);
+			mutex_exit(block_mutex);
 			os_thread_sleep(WAIT_FOR_READ);
 
 			goto loop;
@@ -1973,16 +1976,17 @@ wait_until_unfixed:
 
 		/* Allocate an uncompressed page. */
 		//buf_pool_mutex_exit();
-		mutex_exit(&block->mutex);
+		mutex_exit(block_mutex);
 
 		block = buf_LRU_get_free_block(0);
 		ut_a(block);
+		block_mutex = buf_page_get_mutex(block);
 
 		//buf_pool_mutex_enter();
 		mutex_enter(&flush_list_mutex);
 		mutex_enter(&LRU_list_mutex);
 		mutex_enter(&page_hash_mutex);
-		mutex_enter(&block->mutex);
+		mutex_enter(block_mutex);
 
 		{
 			buf_page_t*	hash_bpage
@@ -1993,12 +1997,13 @@ wait_until_unfixed:
 				while buf_pool_mutex was released.
 				Free the block that was allocated. */
 
-				buf_LRU_block_free_non_file_page(block);
-				mutex_exit(&block->mutex);
+				buf_LRU_block_free_non_file_page(block, TRUE);
+				mutex_exit(block_mutex);
 
 				block = (buf_block_t*) hash_bpage;
+				block_mutex = buf_page_get_mutex(block);
 
-				mutex_enter(&block->mutex);
+				mutex_enter(block_mutex);
 				mutex_exit(&page_hash_mutex);
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
@@ -2015,7 +2020,7 @@ wait_until_unfixed:
 			Free the block that was allocated and try again.
 			This should be extremely unlikely. */
 
-			buf_LRU_block_free_non_file_page(block);
+			buf_LRU_block_free_non_file_page(block, TRUE);
 			//mutex_exit(&block->mutex);
 
 			mutex_exit(&page_hash_mutex);
@@ -2084,10 +2089,10 @@ wait_until_unfixed:
 		mutex_exit(&buf_pool_mutex);
 
 		rw_lock_x_lock(&block->lock);
-		mutex_exit(&block->mutex);
+		mutex_exit(block_mutex);
 		mutex_exit(&buf_pool_zip_mutex);
 
-		buf_buddy_free(bpage, sizeof *bpage);
+		buf_buddy_free(bpage, sizeof *bpage, FALSE);
 
 		//buf_pool_mutex_exit();
 
@@ -2102,7 +2107,7 @@ wait_until_unfixed:
 
 		/* Unfix and unlatch the block. */
 		//buf_pool_mutex_enter();
-		mutex_enter(&block->mutex);
+		mutex_enter(block_mutex);
 		mutex_enter(&buf_pool_mutex);
 		buf_pool->n_pend_unzip--;
 		mutex_exit(&buf_pool_mutex);
@@ -2143,7 +2148,7 @@ wait_until_unfixed:
 
 	buf_page_set_accessed(&block->page, TRUE);
 
-	mutex_exit(&block->mutex);
+	mutex_exit(block_mutex);
 
 	buf_block_make_young(&block->page);
 
@@ -2694,7 +2699,7 @@ buf_page_init_for_read(
 err_exit:
 		if (block) {
 			mutex_enter(&block->mutex);
-			buf_LRU_block_free_non_file_page(block);
+			buf_LRU_block_free_non_file_page(block, TRUE);
 			mutex_exit(&block->mutex);
 		}
 
@@ -2753,9 +2758,9 @@ err_exit2:
 			operation until after the block descriptor has
 			been added to buf_pool->LRU and
 			buf_pool->page_hash. */
-			//mutex_exit(&block->mutex); /*##may be able to removed?##*/
-			data = buf_buddy_alloc(zip_size, &lru);
-			//mutex_enter(&block->mutex); /*##may be able to removed?##*/
+			mutex_exit(&block->mutex);
+			data = buf_buddy_alloc(zip_size, &lru, FALSE);
+			mutex_enter(&block->mutex);
 			block->page.zip.data = data;
 
 			/* To maintain the invariant
@@ -2779,8 +2784,8 @@ err_exit2:
 		control block (bpage), in order to avoid the
 		invocation of buf_buddy_relocate_block() on
 		uninitialized data. */
-		data = buf_buddy_alloc(zip_size, &lru);
-		bpage = buf_buddy_alloc(sizeof *bpage, &lru);
+		data = buf_buddy_alloc(zip_size, &lru, TRUE);
+		bpage = buf_buddy_alloc(sizeof *bpage, &lru, TRUE);
 
 		/* If buf_buddy_alloc() allocated storage from the LRU list,
 		it released and reacquired buf_pool_mutex.  Thus, we must
@@ -2931,15 +2936,15 @@ buf_page_create(
 		rw_lock_x_lock(&block->lock);
 
 		page_zip_set_size(&block->page.zip, zip_size);
-		//mutex_exit(&block->mutex); /*##may be able to removed?##*/
+		mutex_exit(&block->mutex);
 		/* buf_pool_mutex may be released and reacquired by
 		buf_buddy_alloc().  Thus, we must release block->mutex
 		in order not to break the latching order in
 		the reacquisition of buf_pool_mutex.  We also must
 		defer this operation until after the block descriptor
 		has been added to buf_pool->LRU and buf_pool->page_hash. */
-		data = buf_buddy_alloc(zip_size, &lru);
-		//mutex_enter(&block->mutex); /*##may be able to removed?##*/
+		data = buf_buddy_alloc(zip_size, &lru, FALSE);
+		mutex_enter(&block->mutex);
 		block->page.zip.data = data;
 
 		/* To maintain the invariant

@@ -736,7 +736,7 @@ buf_block_free(
 
 	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
-	buf_LRU_block_free_non_file_page(block);
+	buf_LRU_block_free_non_file_page(block, FALSE);
 
 	mutex_exit(&block->mutex);
 

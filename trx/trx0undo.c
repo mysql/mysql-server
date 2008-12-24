@@ -1366,8 +1366,46 @@ trx_undo_lists_init(
 	rseg_header = trx_rsegf_get_new(rseg->space, rseg->zip_size,
 					rseg->page_no, &mtr);
 
+	if (!srv_extra_undoslots) {
+		/* uses direct call for avoid "Assertion failure" */
+		//page_no = trx_rsegf_get_nth_undo(rseg_header, TRX_RSEG_N_EXTRA_SLOTS - 1, &mtr);
+		page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
+					 + (TRX_RSEG_N_EXTRA_SLOTS - 1) * TRX_RSEG_SLOT_SIZE,
+					 MLOG_4BYTES, &mtr);
+		if (page_no != 0) {
+			/* check extended slots are not used */
+			for (i = TRX_RSEG_N_SLOTS; i < TRX_RSEG_N_EXTRA_SLOTS; i++) {
+				/* uses direct call for avoid "Assertion failure" */
+				page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
+							 + i * TRX_RSEG_SLOT_SIZE,
+							 MLOG_4BYTES, &mtr);
+				if (page_no != FIL_NULL) {
+					srv_extra_undoslots = TRUE;
+					fprintf(stderr,
+"InnoDB: Error: innodb_extra_undoslots option is disabled, but it was enabled before.\n"
+"InnoDB: The datafile is not normal for mysqld and disabled innodb_extra_undoslots.\n"
+"InnoDB: Enable innodb_extra_undoslots if it was enabled before, and\n"
+"InnoDB: ### don't use this datafile with other mysqld or ibbackup! ###\n"
+"InnoDB: Cannot continue operation for the safety. Calling exit(1).\n");
+					exit(1);
+				}
+			}
+			fprintf(stderr,
+"InnoDB: Warning: innodb_extra_undoslots option is disabled, but it was  enabled before.\n"
+"InnoDB: But extended undo slots seem not used, so continue operation.\n");
+		}
+	}
+
 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
 		page_no = trx_rsegf_get_nth_undo(rseg_header, i, &mtr);
+
+		/* If it was not initialized when the datafile created,
+		page_no will be 0 for the extended slots after that */
+
+		if (page_no == 0) {
+			page_no = FIL_NULL;
+			trx_rsegf_set_nth_undo(rseg_header, i, page_no, &mtr);
+		}
 
 		/* In forced recovery: try to avoid operations which look
 		at database pages; undo logs are rapidly changing data, and

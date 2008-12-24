@@ -162,7 +162,8 @@ static
 void
 buf_buddy_block_free(
 /*=================*/
-	void*	buf)	/* in: buffer frame to deallocate */
+	void*	buf,	/* in: buffer frame to deallocate */
+	ibool	have_page_hash_mutex)
 {
 	const ulint	fold	= BUF_POOL_ZIP_FOLD_PTR(buf);
 	buf_page_t*	bpage;
@@ -190,7 +191,7 @@ buf_buddy_block_free(
 
 	block = (buf_block_t*) bpage;
 	mutex_enter(&block->mutex);
-	buf_LRU_block_free_non_file_page(block);
+	buf_LRU_block_free_non_file_page(block, have_page_hash_mutex);
 	mutex_exit(&block->mutex);
 
 	ut_ad(buf_buddy_n_frames > 0);
@@ -274,10 +275,11 @@ buf_buddy_alloc_low(
 			possibly NULL if lru==NULL */
 	ulint	i,	/* in: index of buf_pool->zip_free[],
 			or BUF_BUDDY_SIZES */
-	ibool*	lru)	/* in: pointer to a variable that will be assigned
+	ibool*	lru,	/* in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released,
 			or NULL if the LRU list should not be used */
+	ibool	have_page_hash_mutex)
 {
 	buf_block_t*	block;
 
@@ -312,9 +314,15 @@ buf_buddy_alloc_low(
 
 	/* Try replacing an uncompressed page in the buffer pool. */
 	//buf_pool_mutex_exit();
+	mutex_exit(&LRU_list_mutex);
+	if (have_page_hash_mutex)
+		mutex_exit(&page_hash_mutex);
 	block = buf_LRU_get_free_block(0);
 	*lru = TRUE;
 	//buf_pool_mutex_enter();
+	mutex_enter(&LRU_list_mutex);
+	if (have_page_hash_mutex)
+		mutex_enter(&page_hash_mutex);
 
 alloc_big:
 	buf_buddy_block_register(block);
@@ -407,7 +415,8 @@ buf_buddy_relocate(
 			/* out: TRUE if relocated */
 	void*	src,	/* in: block to relocate */
 	void*	dst,	/* in: free block to relocate to */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ibool	have_page_hash_mutex)
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
@@ -433,12 +442,14 @@ buf_buddy_relocate(
 	actually is a properly initialized buf_page_t object. */
 
 	if (size >= PAGE_ZIP_MIN_SIZE) {
-		mutex_exit(&zip_free_mutex);
+		if (!have_page_hash_mutex)
+			mutex_exit(&zip_free_mutex);
 
 		/* This is a compressed page. */
 		mutex_t*	mutex;
 
-		mutex_enter(&page_hash_mutex);
+		if (!have_page_hash_mutex)
+			mutex_enter(&page_hash_mutex);
 		/* The src block may be split into smaller blocks,
 		some of which may be free.  Thus, the
 		mach_read_from_4() calls below may attempt to read
@@ -459,8 +470,10 @@ buf_buddy_relocate(
 			added to buf_pool->page_hash yet.  Obviously,
 			it cannot be relocated. */
 
-			mutex_exit(&page_hash_mutex);
-			mutex_enter(&zip_free_mutex);
+			if (!have_page_hash_mutex) {
+				mutex_exit(&page_hash_mutex);
+				mutex_enter(&zip_free_mutex);
+			}
 			return(FALSE);
 		}
 
@@ -470,10 +483,16 @@ buf_buddy_relocate(
 			For the sake of simplicity, give up. */
 			ut_ad(page_zip_get_size(&bpage->zip) < size);
 
-			mutex_exit(&page_hash_mutex);
-			mutex_enter(&zip_free_mutex);
+			if (!have_page_hash_mutex) {
+				mutex_exit(&page_hash_mutex);
+				mutex_enter(&zip_free_mutex);
+			}
 			return(FALSE);
 		}
+
+		/* To keep latch order */
+		if (have_page_hash_mutex)
+			mutex_exit(&zip_free_mutex);
 
 		/* The block must have been allocated, but it may
 		contain uninitialized data. */
@@ -482,7 +501,8 @@ buf_buddy_relocate(
 		mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(mutex);
-		mutex_exit(&page_hash_mutex);
+		if (!have_page_hash_mutex)
+			mutex_exit(&page_hash_mutex);
 
 		if (buf_page_can_relocate(bpage)) {
 			/* Relocate the compressed page. */
@@ -529,7 +549,8 @@ buf_buddy_free_low(
 /*===============*/
 	void*	buf,	/* in: block to be freed, must not be
 			pointed to by the buffer pool */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i,	/* in: index of buf_pool->zip_free[] */
+	ibool	have_page_hash_mutex)
 {
 	buf_page_t*	bpage;
 	buf_page_t*	buddy;
@@ -546,7 +567,7 @@ recombine:
 	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
 
 	if (i == BUF_BUDDY_SIZES) {
-		buf_buddy_block_free(buf);
+		buf_buddy_block_free(buf, have_page_hash_mutex);
 		return;
 	}
 
@@ -614,7 +635,7 @@ buddy_nonfree:
 		buf_buddy_remove_from_free(bpage, i);
 
 		/* Try to relocate the buddy of buf to the free block. */
-		if (buf_buddy_relocate(buddy, bpage, i)) {
+		if (buf_buddy_relocate(buddy, bpage, i, have_page_hash_mutex)) {
 
 			ut_d(buddy->state = BUF_BLOCK_ZIP_FREE);
 			goto buddy_free2;
@@ -642,7 +663,7 @@ buddy_nonfree:
 		}
 #endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
 
-		if (buf_buddy_relocate(buddy, buf, i)) {
+		if (buf_buddy_relocate(buddy, buf, i, have_page_hash_mutex)) {
 
 			buf = bpage;
 			UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);

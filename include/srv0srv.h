@@ -73,6 +73,8 @@ extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*	srv_data_file_is_raw_partition;
 
+extern ibool	srv_extra_undoslots;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern ulong	srv_auto_extend_increment;

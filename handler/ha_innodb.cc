@@ -167,6 +167,7 @@ static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
+static my_bool	innobase_extra_undoslots		= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
@@ -1959,6 +1960,8 @@ innobase_init(
 						MYF(MY_ALLOW_ZERO_PTR));
 		goto error;
 	}
+
+	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
 
 	/* -------------- Log files ---------------------------*/
 
@@ -9357,6 +9360,13 @@ static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   "The common part for InnoDB table spaces.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_BOOL(extra_undoslots, innobase_extra_undoslots,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable to use about 4000 undo slots instead of default 1024. "
+  "#### Attention: Once you enable this parameter, "
+  "don't use the datafile for normal mysqld or ibbackup! ####",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Enable InnoDB doublewrite buffer (enabled by default). "
@@ -9606,6 +9616,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(extra_undoslots),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(file_per_table),

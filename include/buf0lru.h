@@ -147,7 +147,8 @@ UNIV_INTERN
 void
 buf_LRU_block_free_non_file_page(
 /*=============================*/
-	buf_block_t*	block);	/* in: block, must not contain a file page */
+	buf_block_t*	block,	/* in: block, must not contain a file page */
+	ibool		have_page_hash_mutex);
 /**********************************************************************
 Adds a block to the LRU list. */
 UNIV_INTERN

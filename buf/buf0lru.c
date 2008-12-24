@@ -112,8 +112,9 @@ static
 void
 buf_LRU_block_free_hashed_page(
 /*===========================*/
-	buf_block_t*	block);	/* in: block, must contain a file page and
+	buf_block_t*	block,	/* in: block, must contain a file page and
 				be in a state where it can be freed */
+	ibool		have_page_hash_mutex);
 
 /**********************************************************************
 Determines if the unzip_LRU list should be used for evicting a victim
@@ -389,7 +390,7 @@ scan_again:
 			if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
 			    != BUF_BLOCK_ZIP_FREE) {
 				buf_LRU_block_free_hashed_page((buf_block_t*)
-							       bpage);
+							       bpage, TRUE);
 			} else {
 				/* The compressed block descriptor
 				(bpage) has been deallocated and
@@ -860,7 +861,7 @@ loop:
 		if (UNIV_UNLIKELY(zip_size)) {
 			ibool	lru;
 			page_zip_set_size(&block->page.zip, zip_size);
-			block->page.zip.data = buf_buddy_alloc(zip_size, &lru);
+			block->page.zip.data = buf_buddy_alloc(zip_size, &lru, FALSE);
 			UNIV_MEM_DESC(block->page.zip.data, zip_size, block);
 		} else {
 			page_zip_set_size(&block->page.zip, 0);
@@ -1392,7 +1393,7 @@ buf_LRU_free_block(
 		from the LRU list), refuse to free bpage. */
 alloc:
 		buf_pool_mutex_exit_forbid();
-		b = buf_buddy_alloc(sizeof *b, NULL);
+		b = buf_buddy_alloc(sizeof *b, NULL, FALSE);
 		buf_pool_mutex_exit_allow();
 
 		if (UNIV_UNLIKELY(!b)) {
@@ -1424,7 +1425,7 @@ alloc:
 	    || ( bpage->oldest_modification
 		 && buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ) ) {
 		if (b) {
-			buf_buddy_free(b, sizeof *b);
+			buf_buddy_free(b, sizeof *b, TRUE);
 		}
 		mutex_exit(&LRU_list_mutex);
 		mutex_exit(&page_hash_mutex);
@@ -1599,7 +1600,7 @@ alloc:
 			mutex_exit(&buf_pool_zip_mutex);
 		}
 
-		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
+		buf_LRU_block_free_hashed_page((buf_block_t*) bpage, FALSE);
 	} else {
 		/* It may be bug of 1.0.2 */
 		//mutex_enter(block_mutex);
@@ -1614,7 +1615,8 @@ UNIV_INTERN
 void
 buf_LRU_block_free_non_file_page(
 /*=============================*/
-	buf_block_t*	block)	/* in: block, must not contain a file page */
+	buf_block_t*	block,	/* in: block, must not contain a file page */
+	ibool		have_page_hash_mutex)
 {
 	void*	data;
 
@@ -1652,7 +1654,7 @@ buf_LRU_block_free_non_file_page(
 		block->page.zip.data = NULL;
 		mutex_exit(&block->mutex);
 		buf_pool_mutex_exit_forbid();
-		buf_buddy_free(data, page_zip_get_size(&block->page.zip));
+		buf_buddy_free(data, page_zip_get_size(&block->page.zip), have_page_hash_mutex);
 		buf_pool_mutex_exit_allow();
 		mutex_enter(&block->mutex);
 		page_zip_set_size(&block->page.zip, 0);
@@ -1823,8 +1825,8 @@ buf_LRU_block_remove_hashed_page(
 		mutex_exit(&buf_pool_zip_mutex);
 		buf_pool_mutex_exit_forbid();
 		buf_buddy_free(bpage->zip.data,
-			       page_zip_get_size(&bpage->zip));
-		buf_buddy_free(bpage, sizeof(*bpage));
+			       page_zip_get_size(&bpage->zip), TRUE);
+		buf_buddy_free(bpage, sizeof(*bpage), TRUE);
 		buf_pool_mutex_exit_allow();
 		UNIV_MEM_UNDESC(bpage);
 		return(BUF_BLOCK_ZIP_FREE);
@@ -1844,7 +1846,7 @@ buf_LRU_block_remove_hashed_page(
 			bpage->zip.data = NULL;
 
 			mutex_exit(&((buf_block_t*) bpage)->mutex);
-			buf_buddy_free(data, page_zip_get_size(&bpage->zip));
+			buf_buddy_free(data, page_zip_get_size(&bpage->zip), TRUE);
 			mutex_enter(&((buf_block_t*) bpage)->mutex);
 			page_zip_set_size(&bpage->zip, 0);
 		}
@@ -1870,15 +1872,16 @@ static
 void
 buf_LRU_block_free_hashed_page(
 /*===========================*/
-	buf_block_t*	block)	/* in: block, must contain a file page and
+	buf_block_t*	block,	/* in: block, must contain a file page and
 				be in a state where it can be freed */
+	ibool		have_page_hash_mutex)
 {
 	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&block->mutex));
 
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
-	buf_LRU_block_free_non_file_page(block);
+	buf_LRU_block_free_non_file_page(block, have_page_hash_mutex);
 }
 
 /************************************************************************

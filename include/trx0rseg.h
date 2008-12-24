@@ -115,8 +115,11 @@ trx_rseg_create(
 	mtr_t*	mtr);		/* in: mtr */
 
 
+/* Real max value may be 4076 in usual. But reserve 4 slot for safety or etc... */
+#define TRX_RSEG_N_EXTRA_SLOTS	(((UNIV_PAGE_SIZE - (FIL_PAGE_DATA + FIL_PAGE_DATA_END + TRX_RSEG_UNDO_SLOTS)) / TRX_RSEG_SLOT_SIZE) - 4)
+
 /* Number of undo log slots in a rollback segment file copy */
-#define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
+#define TRX_RSEG_N_SLOTS	(srv_extra_undoslots ? TRX_RSEG_N_EXTRA_SLOTS : (UNIV_PAGE_SIZE / 16))
 
 /* Maximum number of transactions supported by a single rollback segment */
 #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
