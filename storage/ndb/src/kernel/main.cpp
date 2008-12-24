@@ -214,7 +214,7 @@ static bool get_int_property(Properties &info,
   return true;
 }
 
-int reportShutdown(class Configuration *config, int error_exit, int restart, int sphase= 256)
+int reportShutdown(class Configuration *config, int error_exit, int restart, Uint32 sphase= 256)
 {
   Uint32 error= 0, signum= 0;
 #ifndef NDB_WIN
