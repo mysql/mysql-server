@@ -4340,6 +4340,39 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	6
 DROP TABLE t1, t2;
+CREATE TABLE t1 (f1 bigint(20) NOT NULL default '0',
+f2 int(11) NOT NULL default '0',
+f3 bigint(20) NOT NULL default '0',
+f4 varchar(255) NOT NULL default '',
+PRIMARY KEY (f1),
+KEY key1 (f4),
+KEY key2 (f2));
+CREATE TABLE t2 (f1 int(11) NOT NULL default '0',
+f2 enum('A1','A2','A3') NOT NULL default 'A1',
+f3 int(11) NOT NULL default '0',
+PRIMARY KEY (f1),
+KEY key1 (f3));
+CREATE TABLE t3 (f1 bigint(20) NOT NULL default '0',
+f2 datetime NOT NULL default '1980-01-01 00:00:00',
+PRIMARY KEY (f1));
+insert into t1 values (1, 1, 1, 'abc');
+insert into t1 values (2, 1, 2, 'def');
+insert into t1 values (3, 1, 2, 'def');
+insert into t2 values (1, 'A1', 1);
+insert into t3 values (1, '1980-01-01');
+SELECT a.f3, cr.f4, count(*) count
+FROM t2 a
+STRAIGHT_JOIN t1 cr ON cr.f2 = a.f1
+LEFT JOIN
+(t1 cr2
+JOIN t3 ae2 ON cr2.f3 = ae2.f1
+) ON a.f1 = cr2.f2 AND ae2.f2 < now() - INTERVAL 7 DAY AND
+cr.f4 = cr2.f4
+GROUP BY a.f3, cr.f4;
+f3	f4	count
+1	abc	1
+1	def	2
+drop table t1, t2, t3;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
