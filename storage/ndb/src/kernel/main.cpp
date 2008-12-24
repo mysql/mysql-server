@@ -86,16 +86,83 @@ void childReportError(int error)
 
 void childExit(int code, Uint32 currentStartPhase)
 {
+#ifndef NDB_WIN
   writeChildInfo("sphase", currentStartPhase);
   writeChildInfo("exit", code);
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
   exit(code);
+#else
+  {
+    Configuration* theConfig = globalEmulatorData.theConfiguration;
+    theConfig->closeConfiguration(true);
+    switch(code){
+    case NRT_Default:
+        g_eventLogger->info("Angel shutting down");
+        reportShutdown(theConfig, 0, 0, currentStartPhase);
+        exit(0);
+        break;
+    case NRT_NoStart_Restart:
+        theConfig->setInitialStart(false);
+        globalData.theRestartFlag = initial_state;
+        break;
+    case NRT_NoStart_InitialStart:
+        theConfig->setInitialStart(true);
+        globalData.theRestartFlag = initial_state;
+        break;
+    case NRT_DoStart_InitialStart:
+        theConfig->setInitialStart(true);
+        globalData.theRestartFlag = perform_start;
+        break;
+    default:
+        if(theConfig->stopOnError()){
+          /**
+           * Error shutdown && stopOnError()
+           */
+          reportShutdown(theConfig, 1, 0, currentStartPhase);
+          exit(0);
+        }
+        // Fall-through
+    case NRT_DoStart_Restart:
+        theConfig->setInitialStart(false);
+        globalData.theRestartFlag = perform_start;
+        break;
+    }
+    char buf[80];
+    sprintf(buf,"WIN_NDBD_CFG=%d %d %d",theConfig->getInitialStart(),
+                                        globalData.theRestartFlag,
+                                        globalData.ownId);
+    _putenv(buf);
+
+    char exe[MAX_PATH];
+    GetModuleFileName(0,exe,MAX_PATH);
+
+    STARTUPINFO sinfo;
+    ZeroMemory(&sinfo, sizeof(sinfo));
+    sinfo.cb= sizeof(STARTUPINFO);
+    sinfo.dwFlags= STARTF_USESHOWWINDOW;
+    sinfo.wShowWindow= SW_HIDE;
+
+    PROCESS_INFORMATION pinfo;
+    assert(!reportShutdown(theConfig, 0, 1, currentStartPhase));
+    g_eventLogger->info("Ndb has terminated.  e.exit=%d", code);
+    if(code==NRT_NoStart_Restart)
+      globalTransporterRegistry.disconnectAll();
+    g_eventLogger->info("Ndb has terminated.  Restarting");
+    if(CreateProcess(exe, GetCommandLine(), NULL, NULL, TRUE, 0, NULL, NULL,
+      &sinfo, &pinfo) == 0)
+    {
+      g_eventLogger->error("Angel was unable to create child ndbd process"
+        " error: %d", GetLastError());
+    }
+  }
+#endif
 }
 
 void childAbort(int code, Uint32 currentStartPhase)
 {
+#ifndef NDB_WIN
   writeChildInfo("sphase", currentStartPhase);
   writeChildInfo("exit", code);
   fprintf(child_info_file_w, "\n");
@@ -105,6 +172,9 @@ void childAbort(int code, Uint32 currentStartPhase)
   signal(SIGABRT, SIG_DFL);
 #endif
   abort();
+#else
+  childExit(code,currentStartPhase);
+#endif
 }
 
 static int insert(const char * pair, Properties & p)
@@ -144,16 +214,17 @@ static bool get_int_property(Properties &info,
   return true;
 }
 
-int reportShutdown(class Configuration *config, int error_exit, int restart)
+int reportShutdown(class Configuration *config, int error_exit, int restart, int sphase= 256)
 {
-  Uint32 error= 0, signum= 0, sphase= 256;
+  Uint32 error= 0, signum= 0;
+#ifndef NDB_WIN
   Properties info;
   readChildInfo(info);
 
   get_int_property(info, "signal", &signum);
   get_int_property(info, "error", &error);
   get_int_property(info, "sphase", &sphase);
-
+#endif
   Uint32 length, theData[25];
   EventReport *rep = (EventReport *)theData;
 
@@ -374,7 +445,6 @@ get_multithreaded_config(EmulatorData& ed)
   return 0;
 }
 
-
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -395,7 +465,14 @@ int main(int argc, char** argv)
   if(!theConfig->init(argc, argv)){
     return NRT_Default;
   }
-  
+  char*cfg= getenv("WIN_NDBD_CFG");
+  if(cfg) {
+    int x,y,z;
+    sscanf(cfg,"%d %d %d",&x,&y,&z);
+    theConfig->setInitialStart(x);
+    globalData.theRestartFlag= (restartStates)y;
+    globalData.ownId= z;
+  }
   { // Do configuration
 #ifndef NDB_WIN32
 	signal(SIGPIPE, SIG_IGN);
