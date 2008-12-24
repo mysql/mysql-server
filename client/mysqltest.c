@@ -2441,7 +2441,7 @@ static int replace(DYNAMIC_STRING *ds_str,
 
 
 /* where to put this declaration in the file? */
-regex_replace(DYNAMIC_STRING *ds, char *expr);
+int regex_replace(DYNAMIC_STRING *ds, char *expr);
 
 /*
   Execute given command.
