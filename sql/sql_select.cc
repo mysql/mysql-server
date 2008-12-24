@@ -2587,7 +2587,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
         if (s->dependent & table->map)
           s->dependent |= table->reginfo.join_tab->dependent;
       }
-      if (s->dependent)
+      if (outer_join & s->table->map)
         s->table->maybe_null= 1;
     }
     /* Catch illegal cross references for outer joins */
