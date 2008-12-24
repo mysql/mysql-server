@@ -5953,6 +5953,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 }
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
                                     const char* db, const char* t_name,
                                     const char* column, uint col_length,
@@ -5973,6 +5974,7 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
   table->field[i]->store(is_grantable, strlen(is_grantable), cs);
   return schema_table_store_record(thd, table);
 }
+#endif
 
 
 int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
