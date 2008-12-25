@@ -4177,9 +4177,9 @@ void do_shutdown_server(struct st_command *command)
 
   /* Check that server dies */
   while(timeout--){
-    if (my_kill(0, pid) < 0){
+    if (my_kill(pid, 0) < 0){
       DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
-      break;
+      DBUG_VOID_RETURN;
     }
     DBUG_PRINT("info", ("Sleeping, timeout: %d", timeout));
     my_sleep(1000000L);
@@ -4187,7 +4187,7 @@ void do_shutdown_server(struct st_command *command)
 
   /* Kill the server */
   DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-  (void)my_kill(9, pid);
+  (void)my_kill(pid, 9);
 
   DBUG_VOID_RETURN;
 
