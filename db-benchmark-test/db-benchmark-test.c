@@ -3,6 +3,7 @@
 
 /* Insert a bunch of stuff */
 #ifdef BDB
+// Some strange combination of -std=c99 and GNU_SOURCE and SVID_SOURCE and other cpp flags makes u_int not get typedefed, and then BDB's db.h uses it.
 typedef unsigned int u_int;
 #endif
 #include <db.h>
