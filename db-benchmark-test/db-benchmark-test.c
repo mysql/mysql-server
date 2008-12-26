@@ -116,7 +116,6 @@ static void benchmark_setup (void) {
 
     if (do_transactions) {
 	r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
-	if (singlex) do_prelock(db, tid);
     }
     if (pagesize && db->set_pagesize) {
         r = db->set_pagesize(db, pagesize); 
@@ -282,6 +281,8 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --prelock             Prelock the database.\n");
+    fprintf(stderr, "    --prelockflag         Prelock the database and send the DB_PRELOCKED_WRITE flag.\n");
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
     fprintf(stderr, "    --nolog               If transactions are used, then don't write the recovery log\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
