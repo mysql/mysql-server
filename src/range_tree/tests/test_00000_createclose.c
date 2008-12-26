@@ -14,7 +14,7 @@ int main(int argc, const char *argv[]) {
 #ifdef TOKU_RT_NOOVERLAPS
     if (allow_overlaps) continue;
 #endif
-    	r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, malloc, free, realloc);
+    	r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, toku_malloc, toku_free, toku_realloc);
     	CKERR(r);
     
     	assert(tree!=NULL);
@@ -37,7 +37,7 @@ int main(int argc, const char *argv[]) {
             mallocced = 0;
             failon = i;
             r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps,
-                               fail_malloc, free, realloc);
+                               fail_malloc, toku_free, toku_realloc);
             CKERR2(r, ENOMEM);
 
             assert(tree==NULL);

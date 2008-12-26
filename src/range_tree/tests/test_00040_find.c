@@ -40,7 +40,7 @@ int main(int argc, const char *argv[]) {
                 |-------A-------|
             |-------B-------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, toku_malloc, toku_free, toku_realloc);
     CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -172,7 +172,7 @@ int main(int argc, const char *argv[]) {
     /* Done */
 
     r = toku_rt_close(tree);            CKERR(r);
-    free(buf);
+    toku_free(buf);
     buf = NULL;
 #endif /* #ifdef TOKU_RT_NOOVERLAPS */
 
@@ -190,7 +190,7 @@ int main(int argc, const char *argv[]) {
     find_range.left  = (toku_point*)&nums[3];
     find_range.right = (toku_point*)&nums[4];
         
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, malloc, free, realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, toku_malloc, toku_free, toku_realloc);
     CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);

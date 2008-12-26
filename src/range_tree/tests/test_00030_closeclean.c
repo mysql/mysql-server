@@ -22,9 +22,9 @@ run_test (BOOL overlap_allowed) {
         int_cmp, 
         char_cmp, 
         overlap_allowed, 
-        malloc, 
-        free, 
-        realloc
+        toku_malloc, 
+        toku_free, 
+        toku_realloc
         );
     CKERR(r);
 

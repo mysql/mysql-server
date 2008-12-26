@@ -12,7 +12,7 @@ static void* malloc_fail(size_t size) {
         errno = ENOMEM;
         return NULL;
     } else 
-        return malloc(size);
+        return toku_malloc(size);
 }
 
 static void
@@ -30,7 +30,7 @@ RunTest (BOOL f_overlaps_allowed) {
 
     /* Insert and delete lots of ranges to force memory increase and decrease */
 
-    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc, free, realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, toku_malloc, toku_free, toku_realloc);
     CKERR(r);
 
     /* Insert lots of ranges */
@@ -61,8 +61,8 @@ RunTest (BOOL f_overlaps_allowed) {
     /* Failure when allocating the tree */
     malloc_cnt  = 0;
     malloc_cntl = 1;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc_fail, free, 
-                       realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc_fail, toku_free, 
+                       toku_realloc);
     CKERR2(r, ENOMEM);
 
 }

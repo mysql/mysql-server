@@ -3,7 +3,7 @@
 .DEFAULT_GOAL= default
 TOKUROOT=./
 
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 default: build
 
 SRCDIRS = $(OS_CHOICE) newbrt src cxx utils db-benchmark-test db-benchmark-test-cxx

@@ -9,7 +9,7 @@ DEPEND_COMPILE+= \
 
 SKIP_RANGETREERULE=1
 
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 RANGETREE        = rangetree.$(AEXT)
 RANGETREE_LINEAR = rangetree_linear.$(AEXT)
@@ -26,6 +26,8 @@ LIBRARIES=$(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE) # $(RANGETREE_LOG)
 $(RANGETREE_TLOG):   log_nooverlap.$(OEXT)
 $(RANGETREE_LINEAR): linear.$(OEXT)
 $(RANGETREE_LOG):    log.$(OEXT)
+
+$(RANGETREE_TLOG) $(RANGETREE_LINEAR) $(RANGETREE_LOG): CPPFLAGS+=-I$(TOKUROOT)include
 
 $(RANGETREE): $(RANGETREE_TLOG)
 	cp $< $@

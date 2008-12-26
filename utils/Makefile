@@ -10,7 +10,7 @@ DEPEND_COMPILE += \
 #end
 
 HERE = utils
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 ifndef BDBDIR
 BDBDIR=/usr/local/BerkeleyDB.4.4
 endif

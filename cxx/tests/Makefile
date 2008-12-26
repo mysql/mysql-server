@@ -11,7 +11,7 @@ DEPEND_COMPILE += \
 #end
 
 HERE = cxx/tests
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 SHOULD_FAIL = 
 $(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
@@ -31,7 +31,7 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 
 # OPTFLAGS = -O0
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CPPFLAGS = -I../ -I../../include -I../../linux
+CPPFLAGS = -I../ -I../../include -I../../linux -I$(TOKUROOT)toku_include
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
 LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz -lpthread
 

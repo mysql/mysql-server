@@ -17,18 +17,18 @@ DEPEND_COMPILE += \
 
 SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
 
 ifdef BDBDIR
-BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include -I$(PORTABILITY_HEADERS)
+BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib $(LIBPORTABILITY) -lpthread
 else
-BDB_CPPFLAGS = -I$(PORTABILITY_HEADERS) -I../include
+BDB_CPPFLAGS = 
 BDB_LDFLAGS = -ldb $(LIBPORTABILITY)
 endif
-BDB_CPPFLAGS += -D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+BDB_CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600 -DBDB -I$(TOKUROOT)toku_include -I$(PORTABILITY_HEADERS)
 
 TOKUDB=libtokudb.$(SOEXT)
 TDB_DLINK_FILES = $(TOKUROOT)lib/$(TOKUDB)
@@ -62,7 +62,7 @@ clean:
 	rm -f $(TARGETS)
 	rm -rf $(BENCHDBS)
 
-$(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS += -DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I../include
+$(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS+=-DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include -I$(TOKUROOT)include
 
 ifneq ($(PROF),)
     USE_STATIC=1

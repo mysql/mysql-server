@@ -69,7 +69,7 @@ else ifeq ($(VERBOSE),1)
   MAYBEATSIGN=@
 endif
 
-CPPFLAGS = $(INCLUDEDIRS) -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)include
+CPPFLAGS = $(INCLUDEDIRS) -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include
 
 #CFLAG default options
 # Add -Wconversion #DISABLED for now.
@@ -111,9 +111,9 @@ OPT_ARFLAGS=cr
 LINK=-l
 DEPEND_COMPILE += \
 	$(TOKUROOT)include/db.h \
-	$(TOKUROOT)include/toku_os.h \
-	$(TOKUROOT)include/toku_portability.h \
-	$(TOKUROOT)include/rdtsc.h \
+	$(TOKUROOT)toku_include/toku_os.h \
+	$(TOKUROOT)toku_include/toku_portability.h \
+	$(TOKUROOT)toku_include/rdtsc.h \
 # keep this line so I can have a \ on the previous line
 CCQUIET=
 
@@ -260,7 +260,7 @@ LDFLAGS += -$(CRUNTIME)
 CFLAGS += -$(CRUNTIME)
 endif
 # Need XOPEN_SOURCE=600 to get strtoll()
-CPPFLAGS += -D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
 
 #TODO: Fix this up if we want to keep using CIL.
 #ifeq ($(CIL),1)
@@ -359,9 +359,8 @@ BIN_FROM_O_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(BINOUTPUT)$@ $(LDFLAGS_NOLIB)
 %$(BINSUF):%.$(OEXT) $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(BIN_FROM_O_FLAGS)
 
-O_FROM_C_FLAGS=  $(CFLAGS) $(CPPFLAGS) -c $(OOUTPUT)$@
 %.$(OEXT):%.c        $(DEPEND_COMPILE)
-	$(CC) $< $(O_FROM_C_FLAGS) 
+	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
 
 %.$(AEXT):
 	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))

@@ -16,7 +16,7 @@ DEPEND_COMPILE += \
 
 SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test-cxx
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 BENCHDBS = bench.bdb/ bench.tokudb
 

@@ -9,7 +9,7 @@ DEPEND_COMPILE+= \
 #end
 
 SKIP_LOCKTREERULE=1
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 LOCKTREE         = locktree.$(AEXT)
 LOCKTREE_LINEAR  = locktree_linear.$(AEXT)
@@ -28,15 +28,17 @@ LIBRARIES=$(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE) # $(LOCKTREE_LOG)
 $(LOCKTREE_TLOG):                   $(OBJS) locktree_nooverlap.$(OEXT)
 $(LOCKTREE_LOG) $(LOCKTREE_LINEAR): $(OBJS) locktree.$(OEXT)
 
+locktree.$(OEXT) locktree_nooverlap.$(OEXT) $(OBJS): CPPFLAGS+=-I$(TOKUROOT)include
+
 $(LOCKTREE): $(LOCKTREE_TLOG)
 	cp $< $@
 
 .PHONY: build check
 build: $(LIBRARIES)
 
+locktree_nooverlap.$(OEXT): CPPFLAGS+=-DTOKU_RT_NOOVERLAPS
 locktree_nooverlap.$(OEXT): locktree.c $(DEPEND_COMPILE)
-	$(CC) $< -DTOKU_RT_NOOVERLAPS $(O_FROM_C_FLAGS)
+	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
 
 build check clean:
 	cd tests;$(MAKE) $@
-

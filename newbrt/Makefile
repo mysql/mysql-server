@@ -16,7 +16,7 @@ NEWBRT_BUNDLE    = newbrt.bundle
 LINK_FILES += $(NEWBRT)
 
 SKIP_NEWBRTRULE=1
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
@@ -65,7 +65,7 @@ BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 BRT_O_FILES = $(patsubst %,%.$(OEXT),$(BRT_SOURCES))
 
 newbrt.$(OEXT): $(BRT_C_FILES) $(DEPEND_COMPILE)
-	$(CC) $(BRT_C_FILES) $(COMBINE_C) $(O_FROM_C_FLAGS)
+	$(CC) -c $(BRT_C_FILES) $(COMBINE_C) $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
 
 
 ifneq ($(CYGWIN),)
