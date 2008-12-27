@@ -107,8 +107,8 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
     1   Error
 */
 
-bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
-                              table_map *map)
+bool check_view_single_update(List<Item> &fields, List<Item> &values,
+                              TABLE_LIST *view, table_map *map)
 {
   /* it is join view => we need to find the table for update */
   List_iterator_fast<Item> it(fields);
@@ -116,6 +116,10 @@ bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   TABLE_LIST *tbl= 0;            // reset for call to check_single_table()
   table_map tables= 0;
 
+  while ((item= it++))
+    tables|= item->used_tables();
+
+  it.init(values);
   while ((item= it++))
     tables|= item->used_tables();
 
@@ -238,7 +242,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      if (check_view_single_update(fields, table_list, map))
+      if (check_view_single_update(fields, values, table_list, map))
         return -1;
       table= table_list->table;
     }
@@ -298,7 +302,8 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 */
 
 static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
-                               List<Item> &update_fields, table_map *map)
+                               List<Item> &update_fields,
+                               List<Item> &update_values, table_map *map)
 {
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark;
@@ -320,7 +325,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
-      check_view_single_update(update_fields, insert_table_list, map))
+      check_view_single_update(update_fields, update_values, insert_table_list,
+                               map))
     return -1;
 
   if (table->timestamp_field)
@@ -1246,7 +1252,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= TRUE;
-      res= check_update_fields(thd, context->table_list, update_fields, &map);
+      res= check_update_fields(thd, context->table_list, update_fields,
+                               update_values, &map);
       select_lex->no_wrap_view_item= FALSE;
     }
 
@@ -2912,7 +2919,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
     lex->select_lex.no_wrap_view_item= TRUE;
     res= res || check_update_fields(thd, context->table_list,
-                                    *info.update_fields, &map);
+                                    *info.update_fields, *info.update_values,
+                                    &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate functions 
@@ -3580,7 +3588,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     DBUG_RETURN(-1);
   }
 
- /* First field to copy */
+  /* First field to copy */
   field= table->field+table->s->fields - values.elements;
 
   /* Mark all fields that are given values */

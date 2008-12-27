@@ -3249,7 +3249,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
   pgcache_page_no_t page;
   uint block_size= share->block_size;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
-  my_bool zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN);
+  my_bool zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN), error;
   DBUG_ENTER("maria_zerofill_data");
 
   /* This works only with BLOCK_RECORD files */
@@ -3344,15 +3344,22 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                              LSN_IMPOSSIBLE, 1, FALSE);
   }
-  DBUG_RETURN(_ma_bitmap_flush(share) ||
-              flush_pagecache_blocks(share->pagecache, &info->dfile,
-                                     FLUSH_FORCE_WRITE));
+  error= _ma_bitmap_flush(share);
+  if (flush_pagecache_blocks(share->pagecache, &info->dfile,
+                             FLUSH_FORCE_WRITE))
+    error= 1;
+  DBUG_RETURN(error);
 
 err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                            LSN_IMPOSSIBLE, 0, FALSE);
+  /* flush what was changed so far */
+  (void) _ma_bitmap_flush(share);
+  (void) flush_pagecache_blocks(share->pagecache, &info->dfile,
+                                FLUSH_FORCE_WRITE);
+
   DBUG_RETURN(1);
 }
 

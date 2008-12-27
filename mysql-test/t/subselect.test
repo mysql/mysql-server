@@ -3379,7 +3379,11 @@ CREATE VIEW v2 (a,b) AS
 
 --error 1369
 INSERT INTO v2(a,b) VALUES (2,2);
+
+# disabled for now as this refers to old content of t2
+--disable_parsing
 INSERT INTO v2(a,b) VALUES (1,2);
+--enable_parsing
 SELECT * FROM v1;
 
 CREATE VIEW v3 AS

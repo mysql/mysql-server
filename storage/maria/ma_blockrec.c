@@ -2408,11 +2408,22 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
                                     uint count)
 {
   my_bool res= 0;
+  uint delete_count;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("free_full_page_range");
 
+  delete_count= count;
+  if (share->state.state.data_file_length ==
+      (page + count) * share->block_size)
+  {
+    /*
+      Don't delete last page from pagecache as this will make the file
+      shorter than expected if the last operation extended the file
+    */
+    delete_count--;
+  }
   if (pagecache_delete_pages(share->pagecache, &info->dfile,
-                             page, count, PAGECACHE_LOCK_WRITE, 0))
+                             page, delete_count, PAGECACHE_LOCK_WRITE, 0))
     res= 1;
 
   if (share->now_transactional)

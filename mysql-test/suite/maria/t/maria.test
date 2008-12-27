@@ -1855,6 +1855,7 @@ create table t1(a int primary key, b blob, c blob) engine=maria;
 insert into t1 values(1,repeat('a',100), repeat('b',657860));
 --error ER_DUP_ENTRY
 insert into t1 values(1,repeat('a',100), repeat('b',657860));
+check table t1;
 drop table t1;
 
 # Set defaults back

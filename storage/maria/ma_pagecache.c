@@ -2974,7 +2974,11 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     }
     if (lsn != LSN_IMPOSSIBLE)
       check_and_set_lsn(pagecache, lsn, block);
-    block->status&= ~PCBLOCK_ERROR;
+    /*
+      Reset error flag. Mark also that page is active; This may not have
+      been the case if there was an error reading the page
+    */
+    block->status= (block->status & ~PCBLOCK_ERROR) | PCBLOCK_READ;
   }
 
   /* if we lock for write we must link the block to changed blocks */

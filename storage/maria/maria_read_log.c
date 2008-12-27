@@ -23,9 +23,9 @@ static const char *load_default_groups[]= { "maria_read_log",0 };
 static void get_options(int *argc,char * * *argv);
 #ifndef DBUG_OFF
 #if defined(__WIN__)
-const char *default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
+const char *default_dbug_option= "d:t:O,\\maria_read_log.trace";
 #else
-const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
+const char *default_dbug_option= "d:t:o,/tmp/maria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
 static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;

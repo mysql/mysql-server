@@ -616,10 +616,14 @@ void maria_versioning(MARIA_HA *info, my_bool versioning)
   /* For now, this is a hack */
   if (info->s->have_versioning)
   {
+    enum thr_lock_type save_lock_type;
     /* Assume is a non threaded application (for now) */
     info->s->lock_key_trees= 0;
+    /* Set up info->lock.type temporary for _ma_block_get_status() */
+    save_lock_type= info->lock.type;
     info->lock.type= versioning ? TL_WRITE_CONCURRENT_INSERT : TL_WRITE;
     _ma_block_get_status((void*) info, versioning);
+    info->lock.type= save_lock_type;
   }
 }
 
