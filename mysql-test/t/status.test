@@ -171,4 +171,40 @@ SHOW SESSION STATUS LIKE 'Last_query_cost';
 DROP TABLE t1;
 
 
+#
+# Bug#41131 "Questions" fails to increment - ignores statements instead stored procs
+#
+connect (con1,localhost,root,,);
+connection con1;
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+DELIMITER $$;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  DECLARE foo INTEGER;
+  DECLARE bar INTEGER;
+  SET foo=1;
+  SET bar=2;
+  RETURN foo;
+END $$
+CREATE PROCEDURE p1()
+  BEGIN
+  SELECT 1;
+END $$
+DELIMITER ;$$
+let $org_queries= `SHOW STATUS LIKE 'Queries'`;
+SELECT f1();
+CALL p1();
+let $new_queries= `SHOW STATUS LIKE 'Queries'`;
+--disable_log
+let $diff= `SELECT SUBSTRING('$new_queries',9)-SUBSTRING('$org_queries',9)`;
+--enable_log
+eval SELECT $diff;
+disconnect con1;
+connection default;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+
 # End of 5.0 tests
