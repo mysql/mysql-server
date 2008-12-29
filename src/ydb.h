@@ -10,6 +10,9 @@ void toku_ydb_init(void);
 // Called when the ydb library is unloaded.
 void toku_ydb_destroy(void);
 
+// Called to use dlmalloc functions.
+void setup_dlmalloc(void);
+
 // db_env_create for the trace library
 int db_env_create_toku10(DB_ENV **, u_int32_t) __attribute__((__visibility__("default")));
 
