@@ -1,16 +1,16 @@
 {
  global:
    db_create;
-   db_env_create; 
+   db_env_create;
    db_strerror;
    db_version;
    log_compare;
-   db_env_set_func_fsync;   
+   db_env_set_func_fsync;
    db_env_set_func_malloc;
    db_env_set_func_realloc;
    db_env_set_func_free;
 
-   toku_get_maxrss;
+   toku_os_get_max_rss;
 
    toku_ydb_error_all_cases;
    toku_set_trace_file;
