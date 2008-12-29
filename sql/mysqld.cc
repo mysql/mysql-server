@@ -6620,6 +6620,7 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
+  {"Queries",                  (char*) 0,                       SHOW_QUERIES},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions),
    SHOW_LONG_STATUS},
 
