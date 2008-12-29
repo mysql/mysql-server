@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Put some insert messages into an internal buffer (by first creating a DB, filling it up, then closing it, and reopening, and inserting a few things)
  * Then perform a transaction that overwrites some of those internal things.
  * Then abort the transaction.

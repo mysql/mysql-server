@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Primary with two associated things. */
 
 #include <assert.h>

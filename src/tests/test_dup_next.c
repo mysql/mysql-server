@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* test the cursor DB_NEXT_DUP operation */
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."

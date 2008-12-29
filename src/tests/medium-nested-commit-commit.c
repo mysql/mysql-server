@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Test to see if a medium-size nested transaction (the nested pieces are not too big, but the whole thing is so big that it's rollbacks spill into a file)
  * can commit properly. 
  *  Four Tests:

@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Test to see if delete works right with dupsort.
  * The issue is that things might look OK before the commit, but bad after the commit.
  */

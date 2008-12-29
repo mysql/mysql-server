@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <errno.h>

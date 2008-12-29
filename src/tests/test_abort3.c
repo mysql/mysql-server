@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Try to exercise all the cases for the leafcommands in brt.c
  */
 

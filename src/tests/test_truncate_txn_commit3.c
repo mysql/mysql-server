@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 // truncate a database within a transaction
 // begin txn; delete 0; truncate; commit
 // verify that the database is empty

@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 // Verify that different cursors return different data items when DBT is given no flags.
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."

@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Test to see if DB->get works on a zeroed DBT. */
 
 #include <toku_portability.h>
