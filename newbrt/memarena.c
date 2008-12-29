@@ -110,7 +110,6 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
                dest, dest->other_bufs, dest->n_other_bufs, 
                source, source->other_bufs, source->n_other_bufs,
                errno);
-        printf("toku_memory_counters: %d %d %d\n", toku_malloc_counter, toku_realloc_counter, toku_free_counter);
 	new_other_bufs = toku_malloc((dest->n_other_bufs + source->n_other_bufs + 1)*sizeof (char **));
  	printf("new_other_bufs=%p errno=%d\n", new_other_bufs, errno);
     }
