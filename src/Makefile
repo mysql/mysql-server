@@ -15,7 +15,9 @@ include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
 YDB=ydb.$(AEXT)
+YDB_BUNDLE=ydb.bundle
 TYDB=tydb.$(AEXT)
+TYDB=tydb.bundle
 
 LIBNAME=libtokudb
 TLIBNAME=libtokudbtrace
@@ -96,8 +98,8 @@ endif
 static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 	xilib /out:$@ $^
 
-ipo_libtokudb.obj: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-	$(CC) -Qipo-c *.obj lock_tree/*.obj range_tree/*.obj ../newbrt/*.obj
+ipo_libtokudb.obj: $(YDB_BUNDLE) $(LOCKTREE_BUNDLE) $(RANGETREE_BUNDLE) $(NEWBRT_BUNDLE) $(LIBPORTABILITY_BUNDLE)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 	mv ipo_out.obj $@
 
 ipo_libtokudb.lib: ipo_libtokudb.obj
