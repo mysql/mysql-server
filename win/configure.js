@@ -48,6 +48,7 @@ try
             case "__NT__":
             case "CYBOZU":
             case "EMBED_MANIFESTS":
+            case "EXTRA_DEBUG":
             case "WITH_EMBEDDED_SERVER":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;

@@ -2680,7 +2680,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
   {
-    if (different_db= memcmp(print_event_info->db, db, db_len + 1))
+    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)))
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);

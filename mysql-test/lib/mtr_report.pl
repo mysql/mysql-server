@@ -412,7 +412,10 @@ sub mtr_report_stats ($) {
 
                 # When trying to set lower_case_table_names = 2
                 # on a case sensitive file system. Bug#37402.
-                /lower_case_table_names was set to 2, even though your the file system '.*' is case sensitive.  Now setting lower_case_table_names to 0 to avoid future problems./
+                /lower_case_table_names was set to 2, even though your the file system '.*' is case sensitive.  Now setting lower_case_table_names to 0 to avoid future problems./ or
+
+                # this test is expected to print warnings
+                ($testname eq 'main.innodb_bug39438')
 		)
             {
               next;                       # Skip these lines
