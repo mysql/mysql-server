@@ -368,17 +368,7 @@ void my_thread_end(void)
 
 struct st_my_thread_var *_my_thread_var(void)
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
-#if defined(USE_TLS)
-  /* This can only happen in a .DLL */
-  if (!tmp)
-  {
-    my_thread_init();
-    tmp=my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
-  }
-#endif
-  return tmp;
+  return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 }
 
 
