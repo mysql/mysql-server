@@ -3617,6 +3617,44 @@ void decrement_handler_count()
 
 
 #ifndef EMBEDDED_LIBRARY
+#ifndef DBUG_OFF
+/*
+  Debugging helper function to keep the locale database
+  (see sql_locale.cc) and max_month_name_length and
+  max_day_name_length variable values in consistent state.
+*/
+static void test_lc_time_sz()
+{
+  DBUG_ENTER("test_lc_time_sz");
+  for (MY_LOCALE **loc= my_locales; *loc; loc++)
+  {
+    uint max_month_len= 0;
+    uint max_day_len = 0;
+    for (const char **month= (*loc)->month_names->type_names; *month; month++)
+    {
+      set_if_bigger(max_month_len,
+                    my_numchars_mb(&my_charset_utf8_general_ci,
+                                   *month, *month + strlen(*month)));
+    }
+    for (const char **day= (*loc)->day_names->type_names; *day; day++)
+    {
+      set_if_bigger(max_day_len,
+                    my_numchars_mb(&my_charset_utf8_general_ci,
+                                   *day, *day + strlen(*day)));
+    }
+    if ((*loc)->max_month_name_length != max_month_len ||
+        (*loc)->max_day_name_length != max_day_len)
+    {
+      DBUG_PRINT("Wrong max day name(or month name) length for locale:",
+                 ("%s", (*loc)->name));
+      DBUG_ASSERT(0);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+#endif//DBUG_OFF
+
+
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
@@ -3710,6 +3748,10 @@ int main(int argc, char **argv)
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
   openlog(libwrapName, LOG_PID, LOG_AUTH);
+#endif
+
+#ifndef DBUG_OFF
+  test_lc_time_sz();
 #endif
 
   /*
@@ -6578,6 +6620,7 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
+  {"Queries",                  (char*) 0,                       SHOW_QUERIES},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions),
    SHOW_LONG_STATUS},
 
