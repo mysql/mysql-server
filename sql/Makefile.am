@@ -207,8 +207,8 @@ install-exec-hook:
 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
 
 if HAVE_DTRACE_DASH_G
-libndb_la_LIBADD = probes_all.o
-libndb_la_DEPENDENCIES = dtrace_files dtrace_providers probes_all.o
+libndb_la_LIBADD = probes_libndb.o
+libndb_la_DEPENDENCIES = dtrace_files dtrace_providers probes_libndb.o
 mysqld_LDADD += probes_all.o
 mysqld_DEPENDENCIES += dtrace_files dtrace_providers probes_all.o
 CLEANFILES += dtrace_files dtrace_providers probes_all.o
@@ -225,6 +225,9 @@ probes_all.o: probes_mysql.d $(DTRACEFILES)
 	providers=`(for i in $(DTRACEDIRS); do cat $$i/dtrace_providers 2>/dev/null; done) | tr " " "\n" | sort | uniq | sed -e '/^$$/d' -e 's/^/-s /'`; \
 	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in $$f; do test -f $$i/$$j && echo "$$i/$$j "; done; done`; \
 	$(DTRACE) $(DTRACEFLAGS) -G $$providers $$objects -o $@
+
+probes_libndb.o: probes_mysql.d
+	$(DTRACE) $(DTRACEFLAGS) -G -s $^ .libs/libndb_la-ha_ndbcluster.o -o $@
 endif
 
 # Don't update the files from bitkeeper
