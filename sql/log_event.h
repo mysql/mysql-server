@@ -3870,7 +3870,10 @@ public:
 
   virtual Log_event_type get_type_code() { return INCIDENT_EVENT; }
 
-  virtual bool is_valid() const { return 1; }
+  virtual bool is_valid() const
+  {
+    return m_incident > INCIDENT_NONE && m_incident < INCIDENT_COUNT;
+  }
   virtual int get_data_size() {
     return INCIDENT_HEADER_LEN + 1 + m_message.length;
   }
