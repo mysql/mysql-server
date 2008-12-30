@@ -28,7 +28,6 @@
 #include <mysql_priv.h>
 
 #include <m_ctype.h>
-#include <hash.h>
 #include <mysys_err.h>
 #include <mysql/plugin.h>
 
@@ -180,14 +179,12 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
 
-static HASH	innobase_open_tables;
+static hash_table_t*	innobase_open_tables;
 
 #ifdef __NETWARE__	/* some special cleanup for NetWare */
 bool nw_panic = FALSE;
 #endif
 
-static uchar* innobase_get_key(INNOBASE_SHARE *share, size_t *length,
-	my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
@@ -2114,8 +2111,7 @@ innobase_init(
 		goto error;
 	}
 
-	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
-					(hash_get_key) innobase_get_key, 0, 0);
+	innobase_open_tables = hash_create(200);
 	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
@@ -2159,10 +2155,11 @@ innobase_end(handlerton *hton, ha_panic_function type)
 
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
 		innodb_inited = 0;
+		hash_table_free(innobase_open_tables);
+		innobase_open_tables = NULL;
 		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
 			err = 1;
 		}
-		hash_free(&innobase_open_tables);
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
 		pthread_mutex_destroy(&innobase_share_mutex);
@@ -8133,12 +8130,21 @@ bool innobase_show_status(handlerton *hton, THD* thd,
  locking.
 ****************************************************************************/
 
-static uchar* innobase_get_key(INNOBASE_SHARE* share, size_t *length,
-	my_bool not_used __attribute__((unused)))
+/****************************************************************************
+Folds a string in system_charset_info. */
+static
+ulint
+innobase_fold_name(
+/*===============*/
+				/* out: fold value of the name */
+	const uchar*	name,	/* in: string to be folded */
+	size_t		length)	/* in: length of the name in bytes */
 {
-	*length=share->table_name_length;
+	ulong n1 = 1, n2 = 4;
 
-	return (uchar*) share->table_name;
+	system_charset_info->coll->hash_sort(system_charset_info,
+					     name, length, &n1, &n2);
+	return((ulint) n1);
 }
 
 static INNOBASE_SHARE* get_share(const char* table_name)
@@ -8147,24 +8153,29 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 	pthread_mutex_lock(&innobase_share_mutex);
 	uint length=(uint) strlen(table_name);
 
-	if (!(share=(INNOBASE_SHARE*) hash_search(&innobase_open_tables,
-				(uchar*) table_name,
-				length))) {
+	ulint	fold = innobase_fold_name((const uchar*) table_name, length);
+
+	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
+		    INNOBASE_SHARE*, share,
+		    !my_strnncoll(system_charset_info,
+				  share->table_name,
+				  share->table_name_length,
+				  (const uchar*) table_name, length));
+
+	if (!share) {
+
+		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
+		grows too big */
 
 		share = (INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
 			MYF(MY_FAE | MY_ZEROFILL));
 
-		share->table_name_length=length;
-		share->table_name=(char*) (share+1);
-		strmov(share->table_name,table_name);
+		share->table_name_length = length;
+		share->table_name = (uchar*) memcpy(share + 1,
+						    table_name, length + 1);
 
-		if (my_hash_insert(&innobase_open_tables,
-				(uchar*) share)) {
-			pthread_mutex_unlock(&innobase_share_mutex);
-			my_free(share,0);
-
-			return(0);
-		}
+		HASH_INSERT(INNOBASE_SHARE, table_name_hash,
+			    innobase_open_tables, fold, share);
 
 		thr_lock_init(&share->lock);
 		pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
@@ -8180,11 +8191,34 @@ static void free_share(INNOBASE_SHARE* share)
 {
 	pthread_mutex_lock(&innobase_share_mutex);
 
+#ifdef UNIV_DEBUG
+	INNOBASE_SHARE* share2;
+	ulint fold = innobase_fold_name(share->table_name,
+					share->table_name_length);
+
+	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
+		    INNOBASE_SHARE*, share2,
+		    !my_strnncoll(system_charset_info,
+				  share->table_name,
+				  share->table_name_length,
+				  share2->table_name,
+				  share2->table_name_length));
+
+	ut_a(share2 == share);
+#endif /* UNIV_DEBUG */
+
 	if (!--share->use_count) {
-		hash_delete(&innobase_open_tables, (uchar*) share);
+		ulint	fold = innobase_fold_name(share->table_name,
+						  share->table_name_length);
+
+		HASH_DELETE(INNOBASE_SHARE, table_name_hash,
+			    innobase_open_tables, fold, share);
 		thr_lock_delete(&share->lock);
 		pthread_mutex_destroy(&share->mutex);
 		my_free(share, MYF(0));
+
+		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
+		shrinks too much */
 	}
 
 	pthread_mutex_unlock(&innobase_share_mutex);
