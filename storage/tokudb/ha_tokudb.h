@@ -12,7 +12,15 @@ typedef struct st_tokudb_share {
 
     ulonglong auto_ident;
     ulonglong last_auto_increment, auto_inc_create_value;
+    //
+    // estimate on number of rows in table
+    //
     ha_rows rows;
+    //
+    // estimate on number of rows added in the process of a locked tables
+    // this is so we can better estimate row count during a lock table
+    //
+    ha_rows rows_from_locked_table;
     DB *status_block;
     //
     // DB that is indexed on the primary key
