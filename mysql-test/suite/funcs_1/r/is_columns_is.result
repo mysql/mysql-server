@@ -43,10 +43,10 @@ NULL	information_schema	COLUMN_PRIVILEGES	TABLE_NAME	4		NO	varchar	64	192	NULL	N
 NULL	information_schema	COLUMN_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ENGINES	COMMENT	3		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	ENGINES	ENGINE	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	ENGINES	SAVEPOINTS	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	ENGINES	SAVEPOINTS	6	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	ENGINES	SUPPORT	2		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	ENGINES	TRANSACTIONS	4		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-NULL	information_schema	ENGINES	XA	5		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	ENGINES	TRANSACTIONS	4	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	ENGINES	XA	5	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	EVENTS	CHARACTER_SET_CLIENT	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	EVENTS	COLLATION_CONNECTION	23		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	EVENTS	CREATED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	

@@ -23,8 +23,9 @@
 
 #include "mysql_priv.h"
 
-ulong volatile manager_status;
-bool volatile manager_thread_in_use;
+
+static bool volatile manager_thread_in_use;
+static bool abort_manager;
 
 pthread_t manager_thread;
 pthread_mutex_t LOCK_manager;
@@ -63,7 +64,6 @@ bool mysql_manager_submit(void (*action)())
 pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 {
   int error = 0;
-  ulong status;
   struct timespec abstime;
   bool reset_flush_time = TRUE;
   struct handler_cb *cb= NULL;
@@ -72,7 +72,6 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 
   pthread_detach_this_thread();
   manager_thread = pthread_self();
-  manager_status = 0;
   manager_thread_in_use = 1;
 
   for (;;)
@@ -87,16 +86,14 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 	set_timespec(abstime, flush_time);
         reset_flush_time = FALSE;
       }
-      while (!manager_status && (!error || error == EINTR) && !abort_loop)
+      while ((!error || error == EINTR) && !abort_manager)
         error= pthread_cond_timedwait(&COND_manager, &LOCK_manager, &abstime);
     }
     else
     {
-      while (!manager_status && (!error || error == EINTR) && !abort_loop)
+      while ((!error || error == EINTR) && !abort_manager)
         error= pthread_cond_wait(&COND_manager, &LOCK_manager);
     }
-    status = manager_status;
-    manager_status = 0;
     if (cb == NULL)
     {
       cb= cb_list;
@@ -104,7 +101,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     }
     pthread_mutex_unlock(&LOCK_manager);
 
-    if (abort_loop)
+    if (abort_manager)
       break;
 
     if (error == ETIMEDOUT || error == ETIME)
@@ -121,11 +118,42 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
       my_free((uchar*)cb, MYF(0));
       cb= next;
     }
-
-    if (status)
-      DBUG_PRINT("error", ("manager did not handle something: %lx", status));
   }
   manager_thread_in_use = 0;
+  DBUG_LEAVE; // Can't use DBUG_RETURN after my_thread_end
   my_thread_end();
-  DBUG_RETURN(NULL);
+  return (NULL);
 }
+
+
+/* Start handle manager thread */
+void start_handle_manager()
+{
+  DBUG_ENTER("start_handle_manager");
+  abort_manager = false;
+  if (flush_time && flush_time != ~(ulong) 0L)
+  {
+    pthread_t hThread;
+    if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
+      sql_print_warning("Can't create handle_manager thread");
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/* Initiate shutdown of handle manager thread */
+void stop_handle_manager()
+{
+  DBUG_ENTER("stop_handle_manager");
+  abort_manager = true;
+  pthread_mutex_lock(&LOCK_manager);
+  if (manager_thread_in_use)
+  {
+    DBUG_PRINT("quit", ("initiate shutdown of handle manager thread: 0x%lx",
+                        (ulong)manager_thread));
+   pthread_cond_signal(&COND_manager);
+  }
+  pthread_mutex_unlock(&LOCK_manager);
+  DBUG_VOID_RETURN;
+}
+

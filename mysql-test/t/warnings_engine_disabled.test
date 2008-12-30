@@ -4,7 +4,7 @@
 #
 disable_query_log;
 --require r/true.require
-select support = 'Disabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select support = 'NO' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
 
@@ -16,4 +16,9 @@ create table t1 (id int) engine=NDB;
 alter table t1 engine=NDB;
 drop table t1;
 
-
+#
+# Bug#29263 disabled storage engines omitted in SHOW ENGINES
+#
+SELECT ENGINE, SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='ndbcluster';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE
+PLUGIN_NAME='ndbcluster';

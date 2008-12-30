@@ -1,0 +1,42 @@
+#
+# Tests of innodb/binlog with the row binlog format
+# 
+source include/have_innodb.inc;
+source include/have_log_bin.inc;
+source include/have_binlog_format_row.inc;
+
+#
+# Bug #40221 Replication failure on RBR + UPDATE the primary key
+#
+
+CREATE TABLE t1 (i int unique) ENGINE=innodb;
+reset master;
+
+# part 1: update can cause the dup key
+
+begin;
+insert into t1 values (1),(2);
+--echo *** the following UPDATE query wont generate any updates for the binlog ***
+--error ER_DUP_ENTRY
+update t1 set i = 3 where i < 3;
+commit;
+
+--echo *** Results of the test: the binlog must have only Write_rows events not any Update_rows ***
+source include/show_binlog_events.inc;
+
+# part 2: insert can cause the dup key
+
+delete from t1;
+reset master;
+
+begin;
+insert into t1 values (1),(2);
+--echo *** the following UPDATE query wont generate any updates for the binlog ***
+--error ER_DUP_ENTRY
+insert into t1 values (3),(4),(1),(2);
+commit;
+
+--echo *** Results of the test: the binlog must have only one Write_rows event not two ***
+source include/show_binlog_events.inc;
+
+drop table t1;
