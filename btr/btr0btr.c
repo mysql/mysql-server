@@ -263,7 +263,7 @@ btr_get_next_user_rec(
 
 /******************************************************************
 Creates a new index page (not the root, and also not
-used in page reorganization). */
+used in page reorganization).  @see btr_page_empty(). */
 static
 void
 btr_page_create(
@@ -1065,19 +1065,21 @@ btr_parse_page_reorganize(
 }
 
 /*****************************************************************
-Empties an index page. */
+Empties an index page.  @see btr_page_create().*/
 static
 void
 btr_page_empty(
 /*===========*/
 	buf_block_t*	block,	/* in: page to be emptied */
 	page_zip_des_t*	page_zip,/* out: compressed page, or NULL */
-	mtr_t*		mtr,	/* in: mtr */
-	dict_index_t*	index)	/* in: index of the page */
+	dict_index_t*	index,	/* in: index of the page */
+	ulint		level,	/* in: the B-tree level of the page */
+	mtr_t*		mtr)	/* in: mtr */
 {
 	page_t*	page = buf_block_get_frame(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(page_zip == buf_block_get_page_zip(block));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -1088,10 +1090,10 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_create_zip(block, index,
-				btr_page_get_level(page, mtr), mtr);
+		page_create_zip(block, index, level, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
+		btr_page_set_level(page, NULL, level, mtr);
 	}
 
 	block->check_index_page_at_flush = TRUE;
@@ -1153,7 +1155,6 @@ btr_root_raise_and_insert(
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, root_block, MTR_MEMO_PAGE_X_FIX));
-	btr_search_drop_page_hash_index(root_block);
 
 	/* Allocate a new page to the tree. Root splitting is done by first
 	moving the root records to the new page, emptying the root, putting
@@ -1226,12 +1227,7 @@ btr_root_raise_and_insert(
 			     | REC_INFO_MIN_REC_FLAG);
 
 	/* Rebuild the root page to get free space */
-	if (UNIV_LIKELY_NULL(root_page_zip)) {
-		page_create_zip(root_block, index, level + 1, mtr);
-	} else {
-		page_create(root_block, mtr, dict_table_is_comp(index->table));
-		btr_page_set_level(root, NULL, level + 1, mtr);
-	}
+	btr_page_empty(root_block, root_page_zip, index, level + 1, mtr);
 
 	/* Set the next node and previous node fields, although
 	they should already have been set.  The previous node field
@@ -1240,8 +1236,6 @@ btr_root_raise_and_insert(
 	set if and only if btr_page_get_prev() == FIL_NULL. */
 	btr_page_set_next(root, root_page_zip, FIL_NULL, mtr);
 	btr_page_set_prev(root, root_page_zip, FIL_NULL, mtr);
-
-	root_block->check_index_page_at_flush = TRUE;
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -1700,6 +1694,8 @@ btr_attach_half_pages(
 
 	/* Get the level of the split pages */
 	level = btr_page_get_level(buf_block_get_frame(block), mtr);
+	ut_ad(level
+	      == btr_page_get_level(buf_block_get_frame(new_block), mtr));
 
 	/* Build the node pointer (= node key and page address) for the upper
 	half */
@@ -1756,11 +1752,9 @@ btr_attach_half_pages(
 
 	btr_page_set_prev(lower_page, lower_page_zip, prev_page_no, mtr);
 	btr_page_set_next(lower_page, lower_page_zip, upper_page_no, mtr);
-	btr_page_set_level(lower_page, lower_page_zip, level, mtr);
 
 	btr_page_set_prev(upper_page, upper_page_zip, lower_page_no, mtr);
 	btr_page_set_next(upper_page, upper_page_zip, next_page_no, mtr);
-	btr_page_set_level(upper_page, upper_page_zip, level, mtr);
 }
 
 /*****************************************************************
@@ -2364,11 +2358,7 @@ btr_lift_page_up(
 	btr_search_drop_page_hash_index(block);
 
 	/* Make the father empty */
-	btr_page_empty(father_block, father_page_zip, mtr, index);
-	/* Set the level before inserting records, because
-	page_zip_compress() requires that the first user record
-	on a non-leaf page has the min_rec_mark set. */
-	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
+	btr_page_empty(father_block, father_page_zip, index, page_level, mtr);
 
 	/* Copy the records to the father page one by one. */
 	if (0
@@ -2415,7 +2405,7 @@ btr_lift_page_up(
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
 
-	/* We play safe and reset the free bits for the father */
+	/* We play it safe and reset the free bits for the father */
 	if (!dict_index_is_clust(index)) {
 		ibuf_reset_free_bits(father_block);
 	}
@@ -2716,7 +2706,10 @@ err_exit:
 }
 
 /*****************************************************************
-Discards a page that is the only page on its level. */
+Discards a page that is the only page on its level.  This will empty
+the whole B-tree, leaving just an empty root page.  This function
+should never be reached, because btr_compress(), which is invoked in
+delete operations, calls btr_lift_page_up() to flatten the B-tree. */
 static
 void
 btr_discard_only_page_on_level(
@@ -2725,60 +2718,52 @@ btr_discard_only_page_on_level(
 	buf_block_t*	block,	/* in: page which is the only on its level */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	btr_cur_t	father_cursor;
-	buf_block_t*	father_block;
-	page_t*		father_page;
-	page_zip_des_t*	father_page_zip;
-	page_t*		page		= buf_block_get_frame(block);
-	ulint		page_level;
+	ulint	page_level = 0;
 
-	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
-	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	btr_search_drop_page_hash_index(block);
+	while (buf_block_get_page_no(block) != dict_index_get_page(index)) {
+		btr_cur_t	cursor;
+		buf_block_t*	father;
+		const page_t*	page	= buf_block_get_frame(block);
 
-	btr_page_get_father(index, block, mtr, &father_cursor);
-	father_block = btr_cur_get_block(&father_cursor);
-	father_page_zip = buf_block_get_page_zip(father_block);
-	father_page = buf_block_get_frame(father_block);
+		ut_a(page_get_n_recs(page) == 1);
+		ut_a(page_level == btr_page_get_level(page, mtr));
+		ut_a(btr_page_get_prev(page, mtr) == FIL_NULL);
+		ut_a(btr_page_get_next(page, mtr) == FIL_NULL);
 
-	page_level = btr_page_get_level(page, mtr);
+		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+		btr_search_drop_page_hash_index(block);
 
-	lock_update_discard(father_block, PAGE_HEAP_NO_SUPREMUM, block);
+		btr_page_get_father(index, block, mtr, &cursor);
+		father = btr_cur_get_block(&cursor);
 
-	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
+		lock_update_discard(father, PAGE_HEAP_NO_SUPREMUM, block);
 
-	/* Free the file page */
-	btr_page_free(index, block, mtr);
+		/* Free the file page */
+		btr_page_free(index, block, mtr);
 
-	if (UNIV_LIKELY(buf_block_get_page_no(father_block)
-			== dict_index_get_page(index))) {
-		/* The father is the root page */
+		block = father;
+		page_level++;
+	}
+
+	/* block is the root page, which must be empty, except
+	for the node pointer to the (now discarded) block(s). */
 
 #ifdef UNIV_BTR_DEBUG
-		if (!dict_index_is_ibuf(index)) {
-			const page_t*	root
-				= buf_block_get_frame(father_block);
-			const ulint	space
-				= dict_index_get_space(index);
-			ut_a(btr_root_fseg_validate(
-				     FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
-				     + root, space));
-			ut_a(btr_root_fseg_validate(
-				     FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-				     + root, space));
-		}
+	if (!dict_index_is_ibuf(index)) {
+		const page_t*	root	= buf_block_get_frame(block);
+		const ulint	space	= dict_index_get_space(index);
+		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+					    + root, space));
+		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+					    + root, space));
+	}
 #endif /* UNIV_BTR_DEBUG */
-		btr_page_empty(father_block, father_page_zip, mtr, index);
 
-		/* We play safe and reset the free bits for the father */
-		if (!dict_index_is_clust(index)) {
-			ibuf_reset_free_bits(father_block);
-		}
-	} else {
-		ut_ad(page_get_n_recs(father_page) == 1);
+	btr_page_empty(block, buf_block_get_page_zip(block), index, 0, mtr);
 
-		btr_discard_only_page_on_level(index, father_block, mtr);
+	/* We play it safe and reset the free bits for the root */
+	if (!dict_index_is_clust(index)) {
+		ibuf_reset_free_bits(block);
 	}
 }
 
