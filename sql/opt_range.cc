@@ -1109,6 +1109,9 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
     quick->file= NULL;
   quick_selects.delete_elements();
   delete pk_quick_select;
+  /* It's ok to call the next two even if they are already deinitialized */
+  end_read_record(&read_record);
+  free_io_cache(head);
   free_root(&alloc,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -7735,7 +7738,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         DBUG_RETURN(NULL);
 
       /* The argument of MIN/MAX. */
-      Item *expr= min_max_item->args[0]->real_item();    
+      Item *expr= min_max_item->get_arg(0)->real_item();
       if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
       {
         if (! min_max_arg_item)
