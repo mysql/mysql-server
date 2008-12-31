@@ -1,11 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* How fast can we do insertions when there are many files? */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <sys/stat.h>
-#include "test.h"
 
 #define NFILES 1000
 #define NINSERTS_PER 1000

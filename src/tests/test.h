@@ -1,4 +1,7 @@
-#include "toku_portability.h"
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include <toku_portability.h>
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>

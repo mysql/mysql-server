@@ -1,12 +1,11 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 /* try a reverse compare function to verify that the database always uses the application's
    compare function */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +14,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "test.h"
 
 static int
 keycompare (const void *key1, unsigned int key1len, const void *key2, unsigned int key2len) {

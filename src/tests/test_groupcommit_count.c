@@ -1,15 +1,13 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 /* Test by counting the fsyncs, to see if group commit is working. */
 
-#include <toku_portability.h>
 #include <db.h>
 #include <toku_pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "test.h"
 
 DB_ENV *env;
 DB *db;

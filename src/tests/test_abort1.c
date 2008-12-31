@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 
 /* Simple test of logging.  Can I start a TokuDB with logging enabled? */
 #include <assert.h>
@@ -8,12 +8,10 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <memory.h>
 #include <stdio.h>
 
-#include "test.h"
 
 // ENVDIR is defined in the Makefile
 

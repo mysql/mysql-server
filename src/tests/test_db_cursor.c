@@ -1,16 +1,15 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
+#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#include "test.h"
 /* Primary with two associated things. */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <errno.h>
 #include <memory.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "test.h"
 
 static enum mode {
     MODE_DEFAULT, MODE_MORE
