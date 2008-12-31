@@ -1,14 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include <toku_portability.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-/* Test to see if setting malloc works, and if dlmalloc works. */
-
 #define DONT_DEPRECATE_MALLOC
+#include <toku_portability.h>
 
-#if !defined(TOKU_WINDOWS) || !TOKU_WINDOWS
-#include <valgrind/memcheck.h>
-#endif
+/* Test to see if setting malloc works, and if dlmalloc works. */
 
 #include <toku_portability.h>
 #include <memory.h>
