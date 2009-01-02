@@ -5473,9 +5473,19 @@ create_table_def(
 
 			charset_no = (ulint)field->charset()->number;
 
-			ut_a(charset_no < 256); /* in data0type.h we assume
-						that the number fits in one
-						byte */
+			if (UNIV_UNLIKELY(charset_no >= 256)) {
+				/* in data0type.h we assume that the
+				number fits in one byte in prtype */
+				push_warning_printf(
+					(THD*) trx->mysql_thd,
+					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					ER_CANT_CREATE_TABLE,
+					"In InnoDB, charset-collation codes"
+					" must be below 256."
+					" Unsupported code %lu.",
+					(ulong) charset_no);
+				DBUG_RETURN(ER_CANT_CREATE_TABLE);
+			}
 		}
 
 		ut_a(field->type() < 256); /* we assume in dtype_form_prtype()
