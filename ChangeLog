@@ -5,7 +5,7 @@
 	mysql-test/innodb-use-sys-malloc-master.opt,
 	mysql-test/innodb-use-sys-malloc.result,
 	mysql-test/innodb-use-sys-malloc.test:
-	Implement the parameter innodb_use_sys_malloc
+	Implement the configuration parameter innodb_use_sys_malloc
 	(false by default), for disabling InnoDB's internal memory allocator
 	and using system malloc/free instead.
 
@@ -16,7 +16,8 @@
 	0, compress the page at the same time.  This is necessary, because
 	the column information stored on the compressed page will differ
 	between leaf and non-leaf pages.  Leaf pages are identified by
-	PAGE_LEVEL=0.
+	PAGE_LEVEL=0.  This bug can make InnoDB crash when all rows of a
+	compressed table are deleted.
 
 2008-12-17	The InnoDB Team
 
