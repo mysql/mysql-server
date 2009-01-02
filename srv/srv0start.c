@@ -1047,6 +1047,11 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
 
+	if (srv_use_sys_malloc) {
+		fprintf(stderr,
+			"InnoDB: The InnoDB memory heap is disabled\n");
+	}
+
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
 	print an error message if someone tries to start up InnoDB a
