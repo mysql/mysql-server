@@ -1459,9 +1459,12 @@ srv_suspend_mysql_thread(
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	/* Wait for the release */
+	/* Suspend this thread and wait for the event. */
 
 	os_event_wait(event);
+
+	/* After resuming, reacquire the data dictionary latch if
+	necessary. */
 
 	switch (had_dict_lock) {
 	case RW_S_LATCH:
