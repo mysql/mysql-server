@@ -243,7 +243,6 @@ ConfigManager::find_nodeid_from_config(void)
   }
 
   return found_nodeid;
-
 }
 
 
@@ -282,7 +281,6 @@ ConfigManager::init_nodeid(void)
     m_node_id = nodeid;
     DBUG_RETURN(true);
   }
-
 
   // We _could_ try connecting to other running mgmd(s)
   // and fetch our nodeid. But, that introduces a dependency
@@ -477,6 +475,7 @@ ConfigManager::prepareConfigChange(const Config* config)
                          "when already prepared");
     return false;
   }
+
   Uint32 generation= config->getGeneration();
   if (generation == 0)
   {
@@ -538,7 +537,7 @@ ConfigManager::prepareConfigChange(const Config* config)
   }
 
 #ifdef __WIN__
-  /* 
+  /*
 	File is opened with the commit flag "c" so
 	that the contents of the file buffer are written
 	directly to disk when fflush is called
@@ -598,7 +597,6 @@ ConfigManager::set_config(Config* new_config)
 
   for (unsigned i = 0; i < m_subscribers.size(); i++)
     m_subscribers[i]->config_changed(m_node_id, new_config);
-
 }
 
 
@@ -634,7 +632,6 @@ ConfigManager::config_ok(const Config* conf)
                          datadir);
     return false;
   }
-
   return true;
 }
 
@@ -1725,7 +1722,7 @@ ConfigManager::delete_saved_configs(void) const
                            full_name.c_str());
       if (!delete_file(full_name.c_str()))
       {
-        // Make function return false3, but continue and try
+        // Make function return false, but continue and try
         // to delete other files
         result = false;
       }
@@ -1767,7 +1764,7 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
   if (max_version == 0)
     return false;
 
-  config_name.assfmt("%s%sndb_%u_config.bin.%u", 
+  config_name.assfmt("%s%sndb_%u_config.bin.%u",
                      m_configdir, DIR_SEPARATOR, m_node_id, max_version);
   return true;
 }
