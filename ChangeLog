@@ -1,3 +1,23 @@
+2009-01-02	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c,
+	srv/srv0start.c, mem/mem0pool.c,
+	mysql-test/innodb-use-sys-malloc-master.opt,
+	mysql-test/innodb-use-sys-malloc.result,
+	mysql-test/innodb-use-sys-malloc.test:
+	Implement the parameter innodb_use_sys_malloc
+	(false by default), for disabling InnoDB's internal memory allocator
+	and using system malloc/free instead.
+
+2008-12-30	The InnoDB Team
+
+	* btr/btr0btr.c:
+	When setting the PAGE_LEVEL of a compressed B-tree page from or to
+	0, compress the page at the same time.  This is necessary, because
+	the column information stored on the compressed page will differ
+	between leaf and non-leaf pages.  Leaf pages are identified by
+	PAGE_LEVEL=0.
+
 2008-12-17	The InnoDB Team
 
 	* include/row0upd.h, include/row0sel.h, pars/pars0pars.c,
