@@ -130,13 +130,13 @@ void childExit(int code, Uint32 currentStartPhase)
         break;
     }
     char buf[80];
-    sprintf(buf,"WIN_NDBD_CFG=%d %d %d",theConfig->getInitialStart(),
-                                        globalData.theRestartFlag,
-                                        globalData.ownId);
+    BaseString::snprintf(buf, sizeof(buf), "WIN_NDBD_CFG=%d %d %d",
+                         theConfig->getInitialStart(),
+                         globalData.theRestartFlag, globalData.ownId);
     _putenv(buf);
 
     char exe[MAX_PATH];
-    GetModuleFileName(0,exe,MAX_PATH);
+    GetModuleFileName(0,exe,sizeof(exe));
 
     STARTUPINFO sinfo;
     ZeroMemory(&sinfo, sizeof(sinfo));
@@ -145,8 +145,11 @@ void childExit(int code, Uint32 currentStartPhase)
     sinfo.wShowWindow= SW_HIDE;
 
     PROCESS_INFORMATION pinfo;
-    assert(!reportShutdown(theConfig, 0, 1, currentStartPhase));
-    g_eventLogger->info("Ndb has terminated.  e.exit=%d", code);
+    if(reportShutdown(theConfig, 0, 1, currentStartPhase)) {
+      g_eventLogger->error("unable to shutdown");
+      exit(1);
+    }
+    g_eventLogger->info("Ndb has terminated.  code=%d", code);
     if(code==NRT_NoStart_Restart)
       globalTransporterRegistry.disconnectAll();
     g_eventLogger->info("Ndb has terminated.  Restarting");
@@ -468,7 +471,10 @@ int main(int argc, char** argv)
   char*cfg= getenv("WIN_NDBD_CFG");
   if(cfg) {
     int x,y,z;
-    sscanf(cfg,"%d %d %d",&x,&y,&z);
+    if(3!=sscanf(cfg,"%d %d %d",&x,&y,&z)) {
+      g_eventLogger->error("internal error: couldn't find 3 parameters");
+      exit(1);
+    }
     theConfig->setInitialStart(x);
     globalData.theRestartFlag= (restartStates)y;
     globalData.ownId= z;
