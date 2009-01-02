@@ -136,6 +136,8 @@ UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
+/* use os/external memory allocator */
+UNIV_INTERN my_bool	srv_use_sys_malloc	= FALSE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* previously requested size */

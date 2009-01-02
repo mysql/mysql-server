@@ -93,6 +93,7 @@ extern ulong	srv_flush_log_at_trx_commit;
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;
+extern my_bool	srv_use_sys_malloc;
 extern ulint	srv_buf_pool_size;	/* requested size in bytes */
 extern ulint	srv_buf_pool_old_size;	/* previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/* current size in bytes */
