@@ -1329,6 +1329,35 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   DBUG_RETURN(ret);
 }
 
+/*
+  Test if diff is present.  This is needed on Windows systems
+  as the OS returns 1 whether diff is successful or if it is
+  not present.
+  
+  We run diff -v and look for output in stdout.
+  We don't redirect stderr to stdout to make for a simplified check
+  Windows will output '"diff"' is not recognized... to stderr if it is
+  not present.
+*/
+
+int diff_check()
+{
+ char buf[512]= {0};
+ FILE *res_file;
+ char *cmd = "diff -v";
+ int have_diff = 0;
+
+  if (!(res_file= popen(cmd, "r")))
+    die("popen(\"%s\", \"r\") failed", cmd);
+
+/* if diff is not present, nothing will be in stdout to increment have_diff */
+  if (fgets(buf, sizeof(buf), res_file))
+  {
+    have_diff += 1;
+  } 
+ pclose(res_file);
+ return have_diff;
+}
 
 /*
   Show the diff of two files using the systems builtin diff
@@ -1348,34 +1377,51 @@ void show_diff(DYNAMIC_STRING* ds,
 {
 
   DYNAMIC_STRING ds_tmp;
+  int have_diff = 0;
 
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
     die("Out of memory");
+  
+  /* determine if we have diff on Windows
+     needs special processing due to return values
+     on that OS
+  */
+  have_diff = diff_check();
 
-  /* First try with unified diff */
-  if (run_tool("diff",
-               &ds_tmp, /* Get output from diff in ds_tmp */
-               "-u",
-               filename1,
-               filename2,
-               "2>&1",
-               NULL) > 1) /* Most "diff" tools return >1 if error */
+  if (have_diff)
   {
-    dynstr_set(&ds_tmp, "");
-
-    /* Fallback to context diff with "diff -c" */
+    /* First try with unified diff */
     if (run_tool("diff",
                  &ds_tmp, /* Get output from diff in ds_tmp */
-                 "-c",
+                 "-u",
                  filename1,
                  filename2,
                  "2>&1",
                  NULL) > 1) /* Most "diff" tools return >1 if error */
     {
-      /*
-        Fallback to dump both files to result file and inform
-        about installing "diff"
-      */
+      dynstr_set(&ds_tmp, "");
+
+      /* Fallback to context diff with "diff -c" */
+      if (run_tool("diff",
+                   &ds_tmp, /* Get output from diff in ds_tmp */
+                   "-c",
+                   filename1,
+                   filename2,
+                   "2>&1",
+                   NULL) > 1) /* Most "diff" tools return >1 if error */
+      {
+        have_diff= 1;
+      }  
+    }
+  }
+
+if (!(have_diff))
+  {
+    /*
+      Fallback to dump both files to result file and inform
+      about installing "diff"
+    */
+      
       dynstr_set(&ds_tmp, "");
 
       dynstr_append(&ds_tmp,
@@ -1399,8 +1445,7 @@ void show_diff(DYNAMIC_STRING* ds,
       dynstr_append(&ds_tmp, " >>>\n");
       cat_file(&ds_tmp, filename2);
       dynstr_append(&ds_tmp, "<<<<\n");
-    }
-  }
+  } 
 
   if (ds)
   {
