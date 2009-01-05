@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../../../
-INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I$(TOKUROOT)src/range_tree
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I$(TOKUROOT)src/range_tree -I$(TOKUROOT)include
 DEPEND_COMPILE += \
 	../*.h \
 	test.h \
