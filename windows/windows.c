@@ -135,6 +135,22 @@ toku_os_gettid(void) {
     return GetCurrentThreadId();
 }
 
+int 
+toku_os_get_max_process_data_size(uint64_t *maxdata) {
+#ifdef _WIN32
+    // the process gets 1/2 of the 32 bit address space
+    *maxdata = 1ULL << 31;
+    return 0;
+#else
+#ifdef _WIN64
+    *maxdata = ~0ULL;
+    return 0;
+#else
+    return EINVAL;
+#endif
+#endif
+}
+
 int
 toku_os_lock_file(char *name) {
     int fd = _sopen(name, O_CREAT, _SH_DENYRW, S_IREAD|S_IWRITE);
