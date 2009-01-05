@@ -169,3 +169,19 @@ toku_os_is_absolute_name(const char* path) {
     return path[0] == '/';
 }
 
+int
+toku_os_get_max_process_data_size(uint64_t *maxdata) {
+    int r;
+    struct rlimit rlimit;
+
+    r = getrlimit(RLIMIT_DATA, &rlimit);
+    if (r == 0) {
+        *maxdata = rlimit.rlim_max;
+        // for 32 bit processes, we assume that 1/2 of the address space is
+        // used for mapping the kernel.
+        if (sizeof (rlimit.rlim_max) == 4 && rlimit.rlim_max == 0xffffffff)
+            *maxdata /= 2;
+    } else
+        r = errno;
+    return r;
+}

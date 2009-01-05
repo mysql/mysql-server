@@ -1,4 +1,4 @@
-CPPFLAGS = -I../../include -I..
+CPPFLAGS = -I../../toku_include -I..
 CFLAGS = -Wall -Werror -g -O0
 LDFLAGS = ../libtokuportability.a -lpthread
 SRCS = $(wildcard test-*.c)
