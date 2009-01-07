@@ -172,7 +172,7 @@ int main(int argc, char** argv)
 
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_mgmd.trace";
+  opt_debug= "d:t:i:F:o,/tmp/ndb_mgmd.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))

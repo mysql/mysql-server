@@ -45,9 +45,9 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
                                  int timeout_ms)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
-  DBUG_PRINT("enter", ("%s, version: %d, node_type: %d, bind: %s, timeout: %d",
-                       _connect_string, version, node_type,
-                       _bindaddress, timeout_ms));
+  DBUG_PRINT("enter", ("connect_string: '%s'", _connect_string));
+  DBUG_PRINT("enter", ("version: %d, node_type: %d, bind: %s, timeout: %d",
+                       version, node_type,_bindaddress, timeout_ms));
 
   m_version = version;
   m_node_type = node_type;
