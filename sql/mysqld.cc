@@ -230,7 +230,7 @@ extern "C" sig_handler handle_segfault(int sig);
 #if defined(__linux__)
 #define ENABLE_TEMP_POOL 1
 #else
-#define ENABLE_TEMP_TOOL 0
+#define ENABLE_TEMP_POOL 0
 #endif
 
 /* Constants */
