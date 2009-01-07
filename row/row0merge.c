@@ -442,14 +442,29 @@ row_merge_tuple_cmp(
 	int		cmp;
 	const dfield_t*	field	= a;
 
+	/* Compare the fields of the tuples until a difference is
+	found or we run out of fields to compare.  If !cmp at the
+	end, the tuples are equal. */
 	do {
 		cmp = cmp_dfield_dfield(a++, b++);
 	} while (!cmp && --n_field);
 
 	if (UNIV_UNLIKELY(!cmp) && UNIV_LIKELY_NULL(dup)) {
+		/* Report a duplicate value error if the tuples are
+		logically equal.  NULL columns are logically inequal,
+		although they are equal in the sorting order.  Find
+		out if any of the fields are NULL. */
+		for (b = field; b != a; b++) {
+			if (dfield_is_null(b)) {
+
+				goto func_exit;
+			}
+		}
+
 		row_merge_dup_report(dup, field);
 	}
 
+func_exit:
 	return(cmp);
 }
 
