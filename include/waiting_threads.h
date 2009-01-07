@@ -185,6 +185,7 @@ typedef struct st_wt_thd {
 #define WT_OK                   0
 #define WT_DEADLOCK             -1
 #define WT_DEPTH_EXCEEDED       -2
+#define WT_FREE_TO_GO           -3
 
 void wt_init(void);
 void wt_end(void);

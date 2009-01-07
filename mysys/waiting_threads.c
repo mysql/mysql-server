@@ -613,7 +613,24 @@ static int deadlock(WT_THD *thd, WT_THD *blocker, uint depth,
   if (ret == WT_DEADLOCK && depth)
     change_victim(blocker, &arg);
   if (arg.rc)
+  {
+    /*
+      Special return code if there's nobody to wait for.
+
+      depth == 0 means that we start the search from thd (thd == blocker).
+      ret == WT_OK means that no cycle was found and arg.rc == thd->waiting_for.
+      and arg.rc->owners.elements == 0 means that (applying the rule above)
+      thd->waiting_for->owners.elements == 0, and thd doesn't have anybody to
+      wait for.
+    */
+    if (depth == 0 && ret == WT_OK && arg.rc->owners.elements == 0)
+    {
+      DBUG_ASSERT(thd == blocker);
+      DBUG_ASSERT(arg.rc == thd->waiting_for);
+      ret= WT_FREE_TO_GO;
+    }
     rc_unlock(arg.rc);
+  }
   /* notify the victim, if appropriate */
   if (ret == WT_DEADLOCK && arg.victim != thd)
   {
@@ -888,7 +905,10 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT)
   {
-    if (deadlock(thd, thd, 0, *thd->deadlock_search_depth_long))
+    int r= deadlock(thd, thd, 0, *thd->deadlock_search_depth_long);
+    if (r == WT_FREE_TO_GO)
+      ret= WT_OK;
+    else if (r != WT_OK)
       ret= WT_DEADLOCK;
     else if (*thd->timeout_long > *thd->timeout_short)
     {
