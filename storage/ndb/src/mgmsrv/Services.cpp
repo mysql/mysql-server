@@ -338,7 +338,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
   my_getpeername(sock, (struct sockaddr*)&addr, &addrlen);
   m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-
+  DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
   DBUG_VOID_RETURN;
 }
 

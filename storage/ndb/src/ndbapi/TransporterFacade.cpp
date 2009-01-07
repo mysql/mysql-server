@@ -838,7 +838,6 @@ TransporterFacade::configure(NodeId nodeId,
 void
 TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 {
-  DBUG_ENTER("TransporterFacade::for_each");
   Uint32 sz = m_threads.m_statusNext.size();
   TransporterFacade::ThreadData::Object_Execute oe; 
   for (Uint32 i = 0; i < sz ; i ++) 
@@ -849,7 +848,6 @@ TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       (* oe.m_executeFunction) (oe.m_object, aSignal, ptr);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 void
