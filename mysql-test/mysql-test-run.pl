@@ -1508,15 +1508,21 @@ sub executable_setup_ndb () {
 				"$glob_basedir/storage/ndb",
 				"$glob_basedir/bin");
 
+  # Some might be found in sbin, not bin.
+  my $daemon_path= mtr_file_exists("$glob_basedir/ndb",
+				   "$glob_basedir/storage/ndb",
+				   "$glob_basedir/sbin",
+				   "$glob_basedir/bin");
+
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
+			 "$daemon_path/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
+			 "$daemon_path/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
