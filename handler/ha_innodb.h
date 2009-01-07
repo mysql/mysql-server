@@ -269,3 +269,12 @@ convert_error_code_to_mysql(
 	int		error,	/* in: InnoDB error code */
 	ulint		flags,	/* in: InnoDB table flags, or 0 */
 	MYSQL_THD	thd);	/* in: user thread handle or NULL */
+
+/*************************************************************************
+Allocates an InnoDB transaction for a MySQL handler object. */
+extern "C"
+trx_t*
+innobase_trx_allocate(
+/*==================*/
+				/* out: InnoDB transaction handle */
+	MYSQL_THD	thd);	/* in: user thread handle */

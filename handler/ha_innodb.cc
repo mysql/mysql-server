@@ -1212,6 +1212,53 @@ innobase_next_autoinc(
 }
 
 /*************************************************************************
+Initializes some fields in an InnoDB transaction object. */
+static
+void
+innobase_trx_init(
+/*==============*/
+	THD*	thd,	/* in: user thread handle */
+	trx_t*	trx)	/* in/out: InnoDB transaction handle */
+{
+	DBUG_ENTER("innobase_trx_init");
+	DBUG_ASSERT(EQ_CURRENT_THD(thd));
+	DBUG_ASSERT(thd == trx->mysql_thd);
+
+	trx->check_foreigns = !thd_test_options(
+		thd, OPTION_NO_FOREIGN_KEY_CHECKS);
+
+	trx->check_unique_secondary = !thd_test_options(
+		thd, OPTION_RELAXED_UNIQUE_CHECKS);
+
+	DBUG_VOID_RETURN;
+}
+
+/*************************************************************************
+Allocates an InnoDB transaction for a MySQL handler object. */
+extern "C" UNIV_INTERN
+trx_t*
+innobase_trx_allocate(
+/*==================*/
+			/* out: InnoDB transaction handle */
+	THD*	thd)	/* in: user thread handle */
+{
+	trx_t*	trx;
+
+	DBUG_ENTER("innobase_trx_allocate");
+	DBUG_ASSERT(thd != NULL);
+	DBUG_ASSERT(EQ_CURRENT_THD(thd));
+
+	trx = trx_allocate_for_mysql();
+
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = thd_query(thd);
+
+	innobase_trx_init(thd, trx);
+
+	DBUG_RETURN(trx);
+}
+
+/*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one. */
@@ -1227,31 +1274,13 @@ check_trx_exists(
 	ut_ad(EQ_CURRENT_THD(thd));
 
 	if (trx == NULL) {
-		DBUG_ASSERT(thd != NULL);
-		trx = trx_allocate_for_mysql();
-
-		trx->mysql_thd = thd;
-		trx->mysql_query_str = thd_query(thd);
-
-	} else {
-		if (trx->magic_n != TRX_MAGIC_N) {
-			mem_analyze_corruption(trx);
-
-			ut_error;
-		}
+		trx = innobase_trx_allocate(thd);
+	} else if (UNIV_UNLIKELY(trx->magic_n != TRX_MAGIC_N)) {
+		mem_analyze_corruption(trx);
+		ut_error;
 	}
 
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	} else {
-		trx->check_foreigns = TRUE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
-	} else {
-		trx->check_unique_secondary = TRUE;
-	}
+	innobase_trx_init(thd, trx);
 
 	return(trx);
 }
@@ -5931,18 +5960,7 @@ ha_innobase::create(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	trx = trx_allocate_for_mysql();
-
-	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
-	}
+	trx = innobase_trx_allocate(thd);
 
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
@@ -6348,23 +6366,12 @@ ha_innobase::delete_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
+	trx = innobase_trx_allocate(thd);
+
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
 	} else {
 		srv_lower_case_table_names = FALSE;
-	}
-
-	trx = trx_allocate_for_mysql();
-
-	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
 	}
 
 	name_len = strlen(name);
@@ -6449,19 +6456,14 @@ innobase_drop_database(
 #ifdef	__WIN__
 	innobase_casedn_str(namebuf);
 #endif
+#if defined __WIN__ && !defined MYSQL_SERVER
+	/* In the Windows plugin, thd = current_thd is always NULL */
 	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = thd;
-	if (thd) {
-		trx->mysql_query_str = thd_query(thd);
-
-		if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-			trx->check_foreigns = FALSE;
-		}
-	} else {
-		/* In the Windows plugin, thd = current_thd is always NULL */
-		trx->mysql_query_str = NULL;
-	}
-
+	trx->mysql_thd = NULL;
+	trx->mysql_query_str = NULL;
+#else
+	trx = innobase_trx_allocate(thd);
+#endif
 	error = row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
 
@@ -6571,13 +6573,7 @@ ha_innobase::rename_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
+	trx = innobase_trx_allocate(thd);
 
 	error = innobase_rename_table(trx, from, to, TRUE);
 

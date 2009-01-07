@@ -633,11 +633,8 @@ ha_innobase::add_index(
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
-	trx = trx_allocate_for_mysql();
+	trx = innobase_trx_allocate(user_thd);
 	trx_start_if_not_started(trx);
-
-	trx->mysql_thd = user_thd;
-	trx->mysql_query_str = thd_query(user_thd);
 
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
@@ -1125,11 +1122,8 @@ ha_innobase::final_drop_index(
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
-	trx = trx_allocate_for_mysql();
+	trx = innobase_trx_allocate(user_thd);
 	trx_start_if_not_started(trx);
-
-	trx->mysql_thd = user_thd;
-	trx->mysql_query_str = thd_query(user_thd);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */
