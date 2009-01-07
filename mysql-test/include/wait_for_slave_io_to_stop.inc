@@ -11,8 +11,14 @@
 # $slave_keep_connection. See wait_for_slave_param.inc for
 # descriptions.
 
-let $slave_param= Slave_IO_Running;
-let $slave_param_value= No;
-let $slave_error_message= Failed while waiting for slave IO thread to stop;
-source include/wait_for_slave_param.inc;
-let $slave_error_message= ;
+# if server has not used CHANGE MASTER to initiate slave, SHOW SLAVE
+# STATUS will return an empty set.
+let $_slave_io_running= query_get_value("SHOW SLAVE STATUS", Slave_IO_Running, 1);
+if (`SELECT '$_slave_io_running' != 'No such row'`)
+{
+  let $slave_param= Slave_IO_Running;
+  let $slave_param_value= No;
+  let $slave_error_message= Failed while waiting for slave IO thread to stop;
+  source include/wait_for_slave_param.inc;
+  let $slave_error_message= ;
+}
