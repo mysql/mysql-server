@@ -62,14 +62,9 @@ ndb_std_get_one_option(int optid,
   switch (optid) {
 #ifndef DBUG_OFF
   case '#':
-    if (opt_debug)
-    {
-      DBUG_PUSH(opt_debug);
-    }
-    else
-    {
-      DBUG_PUSH("d:t");
-    }
+    if (!opt_debug)
+      opt_debug= "d:t";
+    DBUG_SET_INITIAL(argument ? argument : opt_debug);
     opt_ndb_endinfo= 1;
     break;
 #endif
