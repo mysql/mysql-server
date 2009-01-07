@@ -4815,7 +4815,7 @@ int ha_partition::info(uint flag)
     /*
       Calculates statistical variables
       records:           Estimate of number records in table
-      We report sum (always at least 2)
+      We report sum (always at least 2 if not empty)
       deleted:           Estimate of number holes in the table due to
       deletes
       We report sum
@@ -4854,13 +4854,13 @@ int ha_partition::info(uint flag)
           stats.check_time= file->stats.check_time;
       }
     } while (*(++file_array));
-    if (stats.records < 2 &&
+    if (stats.records && stats.records < 2 &&
         !(m_file[0]->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       stats.records= 2;
     if (stats.records > 0)
       stats.mean_rec_length= (ulong) (stats.data_file_length / stats.records);
     else
-      stats.mean_rec_length= 1; //? What should we set here 
+      stats.mean_rec_length= 0;
   }
   if (flag & HA_STATUS_CONST)
   {
