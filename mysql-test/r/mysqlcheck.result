@@ -133,3 +133,4 @@ v1
 v-1
 drop view v1, `v-1`;
 drop table t1;
+End of 5.1 tests
