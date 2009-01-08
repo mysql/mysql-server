@@ -1,3 +1,19 @@
+2009-01-07	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix a bug in recovery when dropping temporary indexes
+
+2009-01-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
+	Fix Bug#41680 calls to trx_allocate_for_mysql are not consistent
+
+2009-01-07	The InnoDB Team
+
+	* mysql-test/innodb_bug41904.result, mysql-test/innodb_bug41904.test,
+	row/row0merge.c:
+	Fix Bug#41904 create unique index problem
+
 2009-01-02	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c,
