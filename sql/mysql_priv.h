@@ -2270,9 +2270,9 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 
 /* from hostname.cc */
 struct in_addr;
-char * ip_to_hostname(struct in_addr *in,uint *errors);
-void inc_host_errors(struct in_addr *in);
-void reset_host_errors(struct in_addr *in);
+char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors);
+void inc_host_errors(struct sockaddr_storage *in);
+void reset_host_errors(struct sockaddr_storage *in);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);

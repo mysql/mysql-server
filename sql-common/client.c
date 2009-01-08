@@ -1842,8 +1842,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
   char		*end,*host_info;
   my_socket	sock;
-  in_addr_t	ip_addr;
-  struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
 #ifdef MYSQL_SERVER
@@ -2022,6 +2020,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
+    struct addrinfo *res_lst, hints, *t_res;
+    int gai_errno;
+    char port_buf[NI_MAXSERV];
+ 
     unix_socket=0;				/* This is not used */
     if (!port)
       port=mysql_port;
@@ -2033,102 +2035,135 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     thr_alarm_init(&alarmed);
     thr_alarm(&alarmed, mysql->options.connect_timeout, &alarm_buff);
 #endif
-    /* _WIN64 ;  Assume that the (int) range is enough for socket() */
-    sock = my_socket_create(AF_INET,SOCK_STREAM,0);
+
+    DBUG_PRINT("info",("IP '%s'", "client"));
+
 #ifdef MYSQL_SERVER
     thr_end_alarm(&alarmed);
 #endif
-    if (!my_socket_valid(sock))
-    {
-      set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
-                               ER(CR_IPSOCK_ERROR), socket_errno);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype= SOCK_STREAM;
+    hints.ai_protocol= IPPROTO_TCP;
+    hints.ai_family= AF_UNSPEC;
+
+    DBUG_PRINT("info",("getaddrinfo %s", host));
+    my_snprintf(port_buf, NI_MAXSERV, "%d", port);
+    gai_errno= getaddrinfo(host, port_buf, &hints, &res_lst);
+
+    if (gai_errno != 0) 
+    { 
+      /* 
+        For DBUG we are keeping the right message but for client we default to
+        historical error message.
+      */
+      DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
+      set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                               ER(CR_UNKNOWN_HOST), host, errno);
+
       goto error;
     }
-    if (mysql->options.bind_name) {
-      /* TODOs for client bind:
-         - check error codes
-         - don't use socket for localhost if this option is given
-       */
-      in_addr_t bind_addr;
-      bind_addr = inet_addr(mysql->options.bind_name);
-      if (bind_addr == INADDR_NONE)
+
+    /* We only look at the first item (something to think about changing in the future) */
+    t_res= res_lst; 
+    {
+      DBUG_PRINT("info",("Creating socket : Family %d, Type %d, Protocol %d",
+                         t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol));
+      sock= my_socket_create(t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol);
+      if (!my_socket_valid(sock))
       {
-        int tmp_errno;
-        struct hostent tmp_hostent,*hp;
-        char buff2[GETHOSTBYNAME_BUFF_SIZE];
-        hp = my_gethostbyname_r(mysql->options.bind_name, &tmp_hostent,
-                                buff2, sizeof(buff2), &tmp_errno);
-        if (!hp)
+        DBUG_PRINT("info",("Socket created was invalid"));
+        set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
+                                 ER(CR_IPSOCK_ERROR), socket_errno);
+        
+        freeaddrinfo(res_lst);
+        goto error; 
+      }
+
+      if (mysql->options.bind_name) {
+        /* TODOs for client bind:
+           - check error codes
+           - don't use socket for localhost if this option is given
+        */
+        struct addrinfo* clientBindAddrInfo= NULL;
+        DBUG_PRINT("info",("Attempting client bind to address : %s",
+                           mysql->options.bind_name));
+        /* Lookup address info for name */
+        int gai_errno= getaddrinfo(mysql->options.bind_name, 0,
+                                   &hints, &clientBindAddrInfo);
+        if (gai_errno)
         {
-          my_gethostbyname_r_free();
-          net->last_errno=CR_UNKNOWN_HOST;
-          strmov(net->sqlstate, unknown_sqlstate);
-          my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                      ER(CR_UNKNOWN_HOST), mysql->options.bind_name, tmp_errno);
+          DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
+          set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                                   ER(CR_UNKNOWN_HOST), mysql->options.bind_name, errno);
           goto error;
         }
-        bzero(&bind_addr,sizeof(bind_addr));
-        memcpy(&bind_addr, hp->h_addr,
-               min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
-        my_gethostbyname_r_free();
-      }
-      if (bind_addr != INADDR_NONE) {
-        struct sockaddr_in  IPaddr;
-        bzero((char*) &IPaddr, sizeof(IPaddr));
-        IPaddr.sin_family = AF_INET;
-        IPaddr.sin_addr.s_addr = bind_addr;
-        IPaddr.sin_port = 0;
-        if (my_bind(sock, (struct sockaddr *) &IPaddr, sizeof(IPaddr))) {
-          net->last_errno=CR_IPSOCK_ERROR;
-          strmov(net->sqlstate, unknown_sqlstate);
-          my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                      ER(CR_IPSOCK_ERROR), mysql->options.bind_name, errno);
+        
+        DBUG_PRINT("info",("Got address info for address, attempting bind"));
+        
+        /* We'll attempt to bind to each of the addresses returned, until
+         * we find one that works
+         */
+        struct addrinfo* currAddr= clientBindAddrInfo;
+        int bindResult= -1;
+
+        while((currAddr != NULL) && (bindResult != 0))
+        {
+          /* Bind the socket to the given address */
+          bindResult= my_bind(sock, 
+                              currAddr->ai_addr, 
+                              currAddr->ai_addrlen);
+
+          if (bindResult)
+          {
+            DBUG_PRINT("info",("bind failed, attempting another bind address"));
+            /* Problem with the bind, move to next address if present */
+            currAddr= currAddr->ai_next;
+          }
+        }
+
+        freeaddrinfo(clientBindAddrInfo);
+
+        if (bindResult)
+        {
+          set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
+                                   ER(CR_IPSOCK_ERROR), mysql->options.bind_name, errno);
           goto error;
         }
+        DBUG_PRINT("info", ("Successfully bound client side of socket"));
       }
-    }
 
-    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
-    bzero((char*) &sock_addr,sizeof(sock_addr));
-    sock_addr.sin_family = AF_INET;
-
-    /*
-      The server name may be a host name or IP address
-    */
-
-    if ((int) (ip_addr = inet_addr(host)) != (int) INADDR_NONE)
-    {
-      memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
-    }
-    else
-    {
-      int tmp_errno;
-      struct hostent tmp_hostent,*hp;
-      char buff2[GETHOSTBYNAME_BUFF_SIZE];
-      hp = my_gethostbyname_r(host,&tmp_hostent,buff2,sizeof(buff2),
-			      &tmp_errno);
-      if (!hp)
+      net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
+      if (! net->vio )
       {
-	my_gethostbyname_r_free();
-        set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                                 ER(CR_UNKNOWN_HOST), host, tmp_errno);
-	goto error;
+        DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
+        set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+        my_socket_close(sock);
+        my_socket_invalidate(&sock);
+        freeaddrinfo(res_lst);
+        goto error;
       }
-      memcpy(&sock_addr.sin_addr, hp->h_addr,
-             min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
-      my_gethostbyname_r_free();
+
+      if (my_connect(MY_SOCKET_FORMAT_VALUE(sock), t_res->ai_addr, t_res->ai_addrlen,
+                     mysql->options.connect_timeout))
+      {
+        DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
+                            host));
+        set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
+                                 ER(CR_CONN_HOST_ERROR), host, socket_errno);
+        vio_delete(net->vio);
+        net->vio = 0;
+        my_socket_close(sock);
+        my_socket_invalidate(&sock);
+        freeaddrinfo(res_lst);
+
+        goto error; 
+      }
     }
-    sock_addr.sin_port = (ushort) htons((ushort) port);
-    if (my_connect(MY_SOCKET_FORMAT_VALUE(sock),(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		   mysql->options.connect_timeout))
-    {
-      DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
-			  host));
-      set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-                               ER(CR_CONN_HOST_ERROR), host, socket_errno);
-      goto error;
-    }
+
+    freeaddrinfo(res_lst);
   }
+
   if (!net->vio)
   {
     DBUG_PRINT("error",("Unknow protocol %d ",mysql->options.protocol));

@@ -66,7 +66,8 @@ void init_master_info_with_options(Master_info* mi)
   mi->master_log_name[0] = 0;
   mi->master_log_pos = BIN_LOG_HEADER_SIZE;             // skip magic number
 
-  strmake(mi->bind_addr, "0.0.0.0", sizeof(mi->bind_addr));
+  /* Reset Master Bind to empty string (bind all IPv4 + IPv6) */
+  strmake(mi->bind_addr, "", sizeof(mi->bind_addr));
 
   if (master_host)
     strmake(mi->host, master_host, sizeof(mi->host) - 1);

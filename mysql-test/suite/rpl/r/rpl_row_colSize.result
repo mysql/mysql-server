@@ -57,7 +57,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -112,7 +112,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -167,7 +167,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -223,7 +223,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -279,7 +279,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -334,7 +334,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -390,7 +390,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -446,7 +446,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -533,7 +533,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -589,7 +589,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -644,7 +644,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -699,7 +699,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -755,7 +755,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
-Master_Bind	0.0.0.0
+Master_Bind	
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
