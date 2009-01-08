@@ -383,7 +383,7 @@ int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbu
 
 static void note_txn_closing (TOKUTXN txn);
 
-static void cleanup_txn (TOKUTXN txn) {
+void toku_logger_txn_close (TOKUTXN txn) {
     memarena_close(&txn->rollentry_arena);
     if (txn->rollentry_filename!=0) {
 	int r = close(txn->rollentry_fd);
@@ -399,15 +399,15 @@ static void cleanup_txn (TOKUTXN txn) {
     return;
 }
 
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item) {
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, void (*yield)(void*), void*yieldv) {
     int r=0;
-    rolltype_dispatch_assign(item, toku_commit_, r, txn);
+    rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv);
     return r;
 }
 
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item) {
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, void (*yield)(void*), void*yieldv) {
     int r=0;
-    rolltype_dispatch_assign(item, toku_rollback_, r, txn);
+    rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv);
     if (r!=0) return r;
     return 0;
 }
@@ -416,7 +416,8 @@ static int note_brt_used_in_parent_txn(OMTVALUE brtv, u_int32_t UU(index), void*
     return toku_txn_note_brt(parentv, brtv);
 }
 
-int toku_logger_commit (TOKUTXN txn, int nosync) {
+// Doesn't close the txn, just performs the commit operations.
+int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void*yieldv) {
     // printf("%s:%d committing\n", __FILE__, __LINE__);
     // panic handled in log_commit
     int r = toku_log_commit(txn->logger, (LSN*)0, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
@@ -429,7 +430,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 		// we take ownership of it.
 		BYTESTRING fname = {len, toku_strdup_in_rollback(txn, txn->rollentry_filename)};
 		r = toku_logger_save_rollback_rollinclude(txn->parent, fname);
-		if (r!=0) { cleanup_txn(txn); return r; }
+		if (r!=0) return r;
 		r = close(txn->rollentry_fd);
 		if (r!=0) {
 		    // We have to do the unlink ourselves, and then
@@ -438,7 +439,6 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 		    unlink(txn->rollentry_filename);
 		    toku_free(txn->rollentry_filename);
 		    txn->rollentry_filename = 0;
-		    cleanup_txn(txn);
 		    return r;
 		}
 		// Stop the cleanup from closing and unlinking the file.
@@ -478,20 +478,22 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	    {
 		struct roll_entry *item;
 		//printf("%s:%d abort\n", __FILE__, __LINE__);
+		int count=0;
 		while ((item=txn->newest_logentry)) {
 		    txn->newest_logentry = item->prev;
-		    r = toku_commit_rollback_item(txn, item);
-		    if (r!=0) { cleanup_txn(txn); return r; }
+		    r = toku_commit_rollback_item(txn, item, yield, yieldv);
+		    if (r!=0) return r;
+		    count++;
+		    if (count%2 == 0) yield(yieldv);
 		}
 	    }
 
 	    // Read stuff out of the file and execute it.
 	    if (txn->rollentry_filename) {
-		r = toku_commit_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn);
+		r = toku_commit_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn, yield, yieldv);
 	    }
 	}
     }
-    cleanup_txn(txn);
     return r;
 }
 
@@ -834,7 +836,8 @@ toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)
 }
 #endif
 
-int toku_logger_abort(TOKUTXN txn) {
+// Doesn't close the txn, just performs the abort operations.
+int toku_logger_abort(TOKUTXN txn, void (*yield)(void*), void*yieldv) {
     //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
@@ -845,19 +848,21 @@ int toku_logger_abort(TOKUTXN txn) {
     }
     {
 	struct roll_entry *item;
+	int count=0;
 	while ((item=txn->newest_logentry)) {
 	    txn->newest_logentry = item->prev;
-	    int r = toku_abort_rollback_item(txn, item);
-	    if (r!=0) { cleanup_txn(txn); return r; }
+	    int r = toku_abort_rollback_item(txn, item, yield, yieldv);
+	    if (r!=0) return r;
+	    count++;
+	    if (count%2 == 0) yield(yieldv);
 	}
     }
     list_remove(&txn->live_txns_link);
     // Read stuff out of the file and roll it back.
     if (txn->rollentry_filename) {
-        int r = toku_rollback_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn);
+        int r = toku_rollback_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn, yield, yieldv);
         assert(r==0);
     }
-    cleanup_txn(txn);
     return 0;
 }
 
