@@ -1627,8 +1627,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_nopager= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
+#ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
+#endif
     break;
   case OPT_SERVER_ARG:
 #ifdef EMBEDDED_LIBRARY

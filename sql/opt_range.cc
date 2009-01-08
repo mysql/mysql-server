@@ -1151,7 +1151,7 @@ int QUICK_RANGE_SELECT::init()
 
   if (file->inited != handler::NONE)
     file->ha_index_or_rnd_end();
-  DBUG_RETURN(error= file->ha_index_init(index, 1));
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -9200,7 +9200,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         DBUG_RETURN(NULL);
 
       /* The argument of MIN/MAX. */
-      Item *expr= min_max_item->args[0]->real_item();    
+      Item *expr= min_max_item->get_arg(0)->real_item();
       if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
       {
         if (! min_max_arg_item)

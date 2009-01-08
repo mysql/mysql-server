@@ -7201,9 +7201,6 @@ static void test_field_misc()
 {
   MYSQL_STMT  *stmt;
   MYSQL_RES   *result;
-  MYSQL_BIND  my_bind[1];
-  char        table_type[NAME_LEN];
-  ulong       type_length;
   int         rc;
 
   myheader("test_field_misc");
@@ -7246,53 +7243,6 @@ static void test_field_misc()
   mysql_free_result(result);
   mysql_stmt_close(stmt);
 
-  stmt= mysql_simple_prepare(mysql, "SELECT @@table_type");
-  check_stmt(stmt);
-
-  rc= mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  bzero((char*) my_bind, sizeof(my_bind));
-  my_bind[0].buffer_type= MYSQL_TYPE_STRING;
-  my_bind[0].buffer= table_type;
-  my_bind[0].length= &type_length;
-  my_bind[0].buffer_length= NAME_LEN;
-
-  rc= mysql_stmt_bind_result(stmt, my_bind);
-  check_execute(stmt, rc);
-
-  rc= mysql_stmt_fetch(stmt);
-  check_execute(stmt, rc);
-  if (!opt_silent)
-    fprintf(stdout, "\n default table type: %s(%ld)", table_type, type_length);
-
-  rc= mysql_stmt_fetch(stmt);
-  DIE_UNLESS(rc == MYSQL_NO_DATA);
-
-  mysql_stmt_close(stmt);
-
-  stmt= mysql_simple_prepare(mysql, "SELECT @@table_type");
-  check_stmt(stmt);
-
-  result= mysql_stmt_result_metadata(stmt);
-  mytest(result);
-  DIE_UNLESS(mysql_stmt_field_count(stmt) == mysql_num_fields(result));
-
-  rc= mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  DIE_UNLESS(1 == my_process_stmt_result(stmt));
-
-  verify_prepare_field(result, 0,
-                       "@@table_type", "",   /* field and its org name */
-                       mysql_get_server_version(mysql) <= 50000 ?
-                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       "", "",              /* table and its org name */
-                       "", type_length, 0);   /* db name, length */
-
-  mysql_free_result(result);
-  mysql_stmt_close(stmt);
-
   stmt= mysql_simple_prepare(mysql, "SELECT @@max_error_count");
   check_stmt(stmt);
 
@@ -7309,7 +7259,8 @@ static void test_field_misc()
                        "@@max_error_count", "",   /* field and its org name */
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
-                       "", 10, 0);            /* db name, length */
+                       /* db name, length */
+                       "", MY_INT64_NUM_DECIMAL_DIGITS , 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7329,7 +7280,8 @@ static void test_field_misc()
                        "@@max_allowed_packet", "", /* field and its org name */
                        MYSQL_TYPE_LONGLONG, /* field type */
                        "", "",              /* table and its org name */
-                       "", 10, 0);          /* db name, length */
+                       /* db name, length */
+                       "", MY_INT64_NUM_DECIMAL_DIGITS, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -17624,6 +17576,87 @@ static void test_bug38486(void)
   DBUG_VOID_RETURN;
 }
 
+static void test_bug40365(void)
+{
+  uint         rc, i;
+  MYSQL_STMT   *stmt= 0;
+  MYSQL_BIND   my_bind[2];
+  my_bool      is_null[2]= {0};
+  MYSQL_TIME   tm[2];
+
+  DBUG_ENTER("test_bug40365");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1(c1 DATETIME, \
+                                          c2 DATE)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES(?, ?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 2);
+
+  bzero((char*) my_bind, sizeof(my_bind));
+  my_bind[0].buffer_type= MYSQL_TYPE_DATETIME;
+  my_bind[1].buffer_type= MYSQL_TYPE_DATE;
+  for (i= 0; i < (int) array_elements(my_bind); i++)
+  {
+    my_bind[i].buffer= (void *) &tm[i];
+    my_bind[i].is_null= &is_null[i];
+  }
+
+  rc= mysql_stmt_bind_param(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  for (i= 0; i < (int) array_elements(my_bind); i++)
+  {
+    tm[i].neg= 0;
+    tm[i].second_part= 0;
+    tm[i].year= 2009;
+    tm[i].month= 2;
+    tm[i].day= 29;
+    tm[i].hour= 0;
+    tm[i].minute= 0;
+    tm[i].second= 0;
+  }
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_commit(mysql);
+  myquery(rc);
+  mysql_stmt_close(stmt);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT * FROM t1");
+  check_stmt(stmt);
+
+  rc= mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  if (!opt_silent)
+    fprintf(stdout, "\n");
+
+  for (i= 0; i < array_elements(my_bind); i++)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "\ntime[%d]: %02d-%02d-%02d ",
+              i, tm[i].year, tm[i].month, tm[i].day);
+      DIE_UNLESS(tm[i].year == 0);
+      DIE_UNLESS(tm[i].month == 0);
+      DIE_UNLESS(tm[i].day == 0);
+  }
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -17933,6 +17966,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_1", test_wl4166_1 },
   { "test_wl4166_2", test_wl4166_2 },
   { "test_bug38486", test_bug38486 },
+  { "test_bug40365", test_bug40365 },
   { 0, 0 }
 };
 

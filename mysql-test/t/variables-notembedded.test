@@ -28,3 +28,83 @@ set global slave_net_timeout=default;
 # sql_slave_skip_counter is write-only, so we can't save previous
 # value and restore it here.  That's ok, because it's normally 0.
 set global sql_slave_skip_counter= 0;
+
+#
+# Bug#28234 - global/session scope - documentation vs implementation
+#
+--echo
+#
+# Additional variables fixed from sql_repl.cc.
+#
+--echo #
+SHOW VARIABLES like 'log_slave_updates';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_slave_updates;
+SELECT @@global.log_slave_updates;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.log_slave_updates= true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.log_slave_updates= true;
+#
+--echo #
+SHOW VARIABLES like 'relay_log';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.relay_log;
+SELECT @@global.relay_log;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.relay_log= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.relay_log= 'x';
+#
+--echo #
+SHOW VARIABLES like 'relay_log_index';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.relay_log_index;
+SELECT @@global.relay_log_index;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.relay_log_index= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.relay_log_index= 'x';
+#
+--echo #
+SHOW VARIABLES like 'relay_log_info_file';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.relay_log_info_file;
+SELECT @@global.relay_log_info_file;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.relay_log_info_file= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.relay_log_info_file= 'x';
+#
+--echo #
+SHOW VARIABLES like 'relay_log_space_limit';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.relay_log_space_limit;
+SELECT @@global.relay_log_space_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.relay_log_space_limit= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.relay_log_space_limit= 7;
+#
+--echo #
+--replace_column 2 #
+SHOW VARIABLES like 'slave_load_tmpdir';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.slave_load_tmpdir;
+--replace_column 1 #
+SELECT @@global.slave_load_tmpdir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.slave_load_tmpdir= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.slave_load_tmpdir= 'x';
+#
+--echo #
+SHOW VARIABLES like 'slave_skip_errors';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.slave_skip_errors;
+SELECT @@global.slave_skip_errors;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.slave_skip_errors= 7;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.slave_skip_errors= 7;
+#
