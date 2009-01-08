@@ -398,7 +398,11 @@ cleanup:
   free_underlaid_joins(thd, select_lex);
   if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
   {
-    thd->row_count_func= deleted;
+    /*
+      If a TRUNCATE TABLE was issued, the number of rows should be reported as
+      zero since the exact number is unknown.
+    */
+    thd->row_count_func= reset_auto_increment ? 0 : deleted;
     my_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }

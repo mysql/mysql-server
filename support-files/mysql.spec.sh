@@ -272,7 +272,11 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
 	    --with-pic \
             --prefix=/ \
+%if %{CLUSTER_BUILD}
 	    --with-extra-charsets=all \
+%else
+	    --with-extra-charsets=complex \
+%endif
 %if %{YASSL_BUILD}
 	    --with-ssl \
 %endif

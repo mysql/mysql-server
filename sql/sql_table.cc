@@ -3548,11 +3548,13 @@ bool mysql_create_table_no_lock(THD *thd,
 #endif /* HAVE_READLINK */
   {
     if (create_info->data_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "DATA DIRECTORY option ignored");
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
     if (create_info->index_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "INDEX DIRECTORY option ignored");
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
   }
   create_info->table_options=db_options;
@@ -4208,7 +4210,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if (table->table && table->table->part_info)
+      if (table->table)
       {
         /*
           Set up which partitions that should be processed
@@ -4216,11 +4218,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         Alter_info *alter_info= &lex->alter_info;
 
-        if (alter_info->flags & ALTER_ANALYZE_PARTITION ||
-            alter_info->flags & ALTER_CHECK_PARTITION ||
-            alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
-            alter_info->flags & ALTER_REPAIR_PARTITION)
+        if (alter_info->flags & ALTER_ADMIN_PARTITION)
         {
+          if (!table->table->part_info)
+          {
+            my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
           uint no_parts_found;
           uint no_parts_opt= alter_info->partition_names.elements;
           no_parts_found= set_part_state(alter_info, table->table->part_info,
@@ -4298,6 +4302,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       DBUG_PRINT("admin", ("calling view_operator_func"));
       result_code= (*view_operator_func)(thd, table);
+      goto send_result;
+    }
+
+    if (table->schema_table)
+    {
+      result_code= HA_ADMIN_NOT_IMPLEMENTED;
       goto send_result;
     }
 
@@ -5333,6 +5343,8 @@ compare_tables(THD *thd,
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_ROW_FORMAT ||
+      create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
+      create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
       !table->s->mysql_version ||
@@ -7112,7 +7124,6 @@ view_err:
   /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
-  thd_proc_info(thd, "copy to tmp table");
   copied=deleted=0;
   /*
     We do not copy data for MERGE tables. Only the children have data.
@@ -7123,6 +7134,7 @@ view_err:
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
+    thd_proc_info(thd, "copy to tmp table");
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
@@ -7134,6 +7146,7 @@ view_err:
     VOID(pthread_mutex_lock(&LOCK_open));
     wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
     VOID(pthread_mutex_unlock(&LOCK_open));
+    thd_proc_info(thd, "manage keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
     error= ha_autocommit_or_rollback(thd, 0);
