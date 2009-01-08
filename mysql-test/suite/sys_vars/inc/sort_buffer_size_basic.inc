@@ -40,8 +40,11 @@
 #                 Save initial value                        #
 #############################################################
 
-# due to differences when running on Windows (bug filed)
+# due to differences when running on Windows (Bug#36695)
 --source include/not_windows.inc
+
+let $kbrange32 = BETWEEN 32776 AND 32999;
+let $mbrange2 = BETWEEN 2097116 AND 2100000;
 
 --disable_warnings
 
@@ -55,11 +58,13 @@ SET @start_session_value = @@session.sort_buffer_size;
 
 SET @@global.sort_buffer_size = 1000;
 SET @@global.sort_buffer_size = DEFAULT;
-SELECT @@global.sort_buffer_size >= 2097116 AND @@global.sort_buffer_size < 3000000;
+eval
+SELECT @@global.sort_buffer_size $mbrange2;
 
 SET @@session.sort_buffer_size = 2000;
 SET @@session.sort_buffer_size = DEFAULT;
-SELECT @@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 3000000;
+eval 
+SELECT @@session.sort_buffer_size $mbrange2;
 
 
 --echo '#--------------------FN_DYNVARS_151_02-------------------------#'
@@ -68,10 +73,12 @@ SELECT @@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 30
 ######################################################################
 
 SET @@global.sort_buffer_size = DEFAULT;
-SELECT @@global.sort_buffer_size >= 2097116 AND @@global.sort_buffer_size < 3000000;
+eval 
+SELECT @@global.sort_buffer_size $mbrange2;
 
 SET @@session.sort_buffer_size = DEFAULT;
-SELECT @@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 3000000;
+eval 
+SELECT @@session.sort_buffer_size $mbrange2;
 
 
 --echo '#--------------------FN_DYNVARS_151_03-------------------------#'
@@ -80,9 +87,11 @@ SELECT @@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 30
 ################################################################################
 
 SET @@global.sort_buffer_size = 32776;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
+eval 
+SELECT @@global.sort_buffer_size $kbrange32;
 SET @@global.sort_buffer_size = 32777;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
+eval 
+SELECT @@global.sort_buffer_size $kbrange32;
 SET @@global.sort_buffer_size = 4294967295;
 SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 4294967294;
@@ -94,9 +103,11 @@ SELECT @@global.sort_buffer_size;
 ###################################################################################
  
 SET @@session.sort_buffer_size = 32776;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
+eval 
+SELECT @@session.sort_buffer_size $kbrange32;
 SET @@session.sort_buffer_size = 32777;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
+eval 
+SELECT @@session.sort_buffer_size $kbrange32;
 SET @@session.sort_buffer_size = 4294967295;
 SELECT @@session.sort_buffer_size;
 SET @@session.sort_buffer_size = 4294967294;
@@ -109,9 +120,11 @@ SELECT @@session.sort_buffer_size;
 ##################################################################
 
 SET @@global.sort_buffer_size = 32775;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
+eval 
+SELECT @@global.sort_buffer_size $kbrange32;
 SET @@global.sort_buffer_size = -1024;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
+eval 
+SELECT @@global.sort_buffer_size $kbrange32;
 SET @@global.sort_buffer_size = 4294967296;
 SELECT @@global.sort_buffer_size;
 --Error ER_PARSE_ERROR
@@ -122,9 +135,11 @@ SET @@global.sort_buffer_size = test;
 SELECT @@global.sort_buffer_size;
 
 SET @@session.sort_buffer_size = 32775;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
+eval 
+SELECT @@session.sort_buffer_size $kbrange32;
 SET @@session.sort_buffer_size = -2;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
+eval 
+SELECT @@session.sort_buffer_size $kbrange32;
 --Error ER_PARSE_ERROR
 SET @@session.sort_buffer_size = 65530.34.;
 SET @@session.sort_buffer_size = 4294967296;
@@ -148,7 +163,7 @@ SELECT @@global.sort_buffer_size = VARIABLE_VALUE FROM
 ####################################################################
 
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE FROM
-       INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
 
 
 --echo '#------------------FN_DYNVARS_151_08-----------------------#'
@@ -157,9 +172,11 @@ SELECT @@session.sort_buffer_size = VARIABLE_VALUE FROM
 ####################################################################
 
 SET @@global.sort_buffer_size = TRUE;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
+eval 
+SELECT @@global.sort_buffer_size $kbrange32;
 SET @@global.sort_buffer_size = FALSE;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
+eval 
+SELECT @@global.sort_buffer_size $kbrange32;
 
 --echo '#---------------------FN_DYNVARS_151_09----------------------#'
 #################################################################################### 
@@ -185,7 +202,8 @@ SELECT @@local.sort_buffer_size = @@session.sort_buffer_size;
 ###################################################################################
 
 SET sort_buffer_size = 9100;
-SELECT @@sort_buffer_size >= 32776 AND @@sort_buffer_size < 33000;
+eval 
+SELECT @@sort_buffer_size $kbrange32;
 --Error ER_UNKNOWN_TABLE
 SELECT local.sort_buffer_size;
 --Error ER_UNKNOWN_TABLE
