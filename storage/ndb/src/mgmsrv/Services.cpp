@@ -321,7 +321,7 @@ extern int g_errorInsert;
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
-  : SocketServer::Session(sock), m_mgmsrv(mgm)
+  : SocketServer::Session(sock), m_mgmsrv(mgm), m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
   m_input = new SocketInputStream(sock, 30000);
@@ -336,9 +336,10 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
 
   struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  my_getpeername(sock, (struct sockaddr*)&addr, &addrlen);
-  m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  if (my_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
+    m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
+
   DBUG_VOID_RETURN;
 }
 
