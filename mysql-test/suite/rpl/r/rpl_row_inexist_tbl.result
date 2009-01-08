@@ -56,5 +56,5 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1146
 Last_SQL_Error	Error 'Table 'test.t1' doesn't exist' on opening tables
-Master_Bind	0.0.0.0
+Master_Bind	
 drop table t1, t2;

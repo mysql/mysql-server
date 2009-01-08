@@ -48,7 +48,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 start slave;
 stop slave;
 SHOW SLAVE STATUS;
@@ -90,7 +90,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
