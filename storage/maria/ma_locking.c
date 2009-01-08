@@ -112,7 +112,8 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
           /* transactional tables rather flush their state at Checkpoint */
           if (!share->base.born_transactional)
           {
-            if (_ma_state_info_write_sub(share->kfile.file, &share->state, 1))
+            if (_ma_state_info_write_sub(share->kfile.file, &share->state,
+                                         MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET))
               error= my_errno;
             else
             {
@@ -316,8 +317,10 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
       share->state.update_count= info->last_loop= ++info->this_loop;
 #endif
 
-      if ((error= _ma_state_info_write_sub(share->kfile.file,
-                                           &share->state, 1)))
+      if ((error=
+           _ma_state_info_write_sub(share->kfile.file,
+                                    &share->state,
+                                    MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET)))
 	olderror=my_errno;
 #ifdef __WIN__
       if (maria_flush)

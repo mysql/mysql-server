@@ -7089,7 +7089,10 @@ my_bool _ma_apply_undo_bulk_insert(MARIA_HA *info, LSN undo_lsn)
   error= (maria_delete_all_rows(info) ||
           maria_enable_indexes(info) ||
           /* we enabled indices so need '2' below */
-          _ma_state_info_write(info->s, 1|2|4) ||
+          _ma_state_info_write(info->s,
+                               MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                               MA_STATE_INFO_WRITE_FULL_INFO |
+                               MA_STATE_INFO_WRITE_LOCK) ||
           _ma_write_clr(info, undo_lsn, LOGREC_UNDO_BULK_INSERT,
                         FALSE, 0, &lsn, NULL));
   DBUG_RETURN(error);

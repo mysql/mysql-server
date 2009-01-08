@@ -846,7 +846,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   errpos=1;
 
   DBUG_PRINT("info", ("write state info and base info"));
-  if (_ma_state_info_write_sub(file, &share.state, 2) ||
+  if (_ma_state_info_write_sub(file, &share.state,
+                               MA_STATE_INFO_WRITE_FULL_INFO) ||
       _ma_base_info_write(file, &share.base))
     goto err;
   DBUG_PRINT("info", ("base_pos: %d  base_info_size: %d",

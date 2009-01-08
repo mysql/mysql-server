@@ -101,7 +101,7 @@ int maria_close(register MARIA_HA *info)
           State must be written to file as it was not done at table's
           unlocking.
         */
-        if (_ma_state_info_write(share, 1))
+        if (_ma_state_info_write(share, MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET))
           error= my_errno;
       }
       /*

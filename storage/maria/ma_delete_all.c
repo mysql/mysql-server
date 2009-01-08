@@ -116,7 +116,9 @@ int maria_delete_all_rows(MARIA_HA *info)
       To avoid this, we need to set skip_redo_lsn now, and thus need to sync
       files.
     */
-    my_bool error= _ma_state_info_write(share, 1|4) ||
+    my_bool error= _ma_state_info_write(share,
+                                        MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                                        MA_STATE_INFO_WRITE_LOCK) ||
       _ma_update_state_lsns(share, lsn, trnman_get_min_trid(), FALSE, FALSE) ||
       _ma_sync_table_files(info);
     info->trn->rec_lsn= LSN_IMPOSSIBLE;
