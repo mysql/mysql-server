@@ -1,11 +1,11 @@
 --disable_abort_on_error
-# Run this test only when mysqld don't has partitioning (not compiled with)
-# the statements are not expected to work, just check that we
-# can't crash the server
--- require r/not_partition.require
-disable_query_log;
+# Run this test only when mysqld has partitioning, but it is disabled.
+# The statements are not expected to work, just check that we
+# can't crash the server.
+--require r/disabled_partition.require
+--disable_query_log
 show variables like "have_partitioning";
-enable_query_log;
+--enable_query_log
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -31,7 +31,7 @@ ALTER TABLE t1 ENGINE Memory;
 ALTER TABLE t1 ADD (new INT);
 DROP TABLE t1;
 
---error ER_FEATURE_DISABLED
+--error ER_OPTION_PREVENTS_STATEMENT
 CREATE TABLE t1 (
     firstname VARCHAR(25) NOT NULL,
     lastname VARCHAR(25) NOT NULL,
@@ -42,13 +42,13 @@ CREATE TABLE t1 (
 PARTITION BY KEY(joined)
 PARTITIONS 6;
 
---error ER_FEATURE_DISABLED
+--error ER_OPTION_PREVENTS_STATEMENT
 ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
 
 --error ER_BAD_TABLE_ERROR
 drop table t1;
 
---error ER_FEATURE_DISABLED
+--error ER_OPTION_PREVENTS_STATEMENT
 CREATE TABLE t1 (
     firstname VARCHAR(25) NOT NULL,
     lastname VARCHAR(25) NOT NULL,
@@ -66,7 +66,7 @@ PARTITION BY RANGE( YEAR(joined) ) (
 --error ER_BAD_TABLE_ERROR
 drop table t1;
 
---error ER_FEATURE_DISABLED
+--error ER_OPTION_PREVENTS_STATEMENT
 CREATE TABLE t1 (id INT, purchased DATE)
     PARTITION BY RANGE( YEAR(purchased) )
     SUBPARTITION BY HASH( TO_DAYS(purchased) )
