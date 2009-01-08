@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1245,6 +1245,9 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
     quick->file= NULL;
   quick_selects.delete_elements();
   delete pk_quick_select;
+  /* It's ok to call the next two even if they are already deinitialized */
+  end_read_record(&read_record);
+  free_io_cache(head);
   free_root(&alloc,MYF(0));
   DBUG_VOID_RETURN;
 }

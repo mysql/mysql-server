@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3427,14 +3427,6 @@ bool mysql_create_table_no_lock(THD *thd,
   }
   else  
   {
- #ifdef FN_DEVCHAR
-    /* check if the table name contains FN_DEVCHAR when defined */
-    if (strchr(alias, FN_DEVCHAR))
-    {
-      my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
-      DBUG_RETURN(TRUE);
-    }
-#endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
                                       internal_tmp_table ? FN_IS_TMP : 0);
   }
@@ -5870,7 +5862,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
-        key_create_info.parser_name= *key_info->parser_name;
+        key_create_info.parser_name= *plugin_name(key_info->parser);
 
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;

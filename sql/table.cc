@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -400,6 +400,8 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 void free_table_share(TABLE_SHARE *share)
 {
   MEM_ROOT mem_root;
+  uint idx;
+  KEY *key_info;
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
@@ -426,6 +428,16 @@ void free_table_share(TABLE_SHARE *share)
   plugin_unlock(NULL, share->db_plugin);
   share->db_plugin= NULL;
 
+  /* Release fulltext parsers */
+  key_info= share->key_info;
+  for (idx= share->keys; idx; idx--, key_info++)
+  {
+    if (key_info->flags & HA_USES_PARSER)
+    {
+      plugin_unlock(NULL, key_info->parser);
+      key_info->flags= 0;
+    }
+  }
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -1943,22 +1955,11 @@ partititon_err:
 int closefrm(register TABLE *table, bool free_share)
 {
   int error=0;
-  uint idx;
-  KEY *key_info;
   DBUG_ENTER("closefrm");
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
     error=table->file->close();
-  key_info= table->key_info;
-  for (idx= table->s->keys; idx; idx--, key_info++)
-  {
-    if (key_info->flags & HA_USES_PARSER)
-    {
-      plugin_unlock(NULL, key_info->parser);
-      key_info->flags= 0;
-    }
-  }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)
