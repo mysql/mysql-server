@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -230,7 +230,7 @@ extern "C" sig_handler handle_segfault(int sig);
 #if defined(__linux__)
 #define ENABLE_TEMP_POOL 1
 #else
-#define ENABLE_TEMP_TOOL 0
+#define ENABLE_TEMP_POOL 0
 #endif
 
 /* Constants */
@@ -4129,6 +4129,44 @@ void decrement_handler_count()
 
 
 #ifndef EMBEDDED_LIBRARY
+#ifndef DBUG_OFF
+/*
+  Debugging helper function to keep the locale database
+  (see sql_locale.cc) and max_month_name_length and
+  max_day_name_length variable values in consistent state.
+*/
+static void test_lc_time_sz()
+{
+  DBUG_ENTER("test_lc_time_sz");
+  for (MY_LOCALE **loc= my_locales; *loc; loc++)
+  {
+    uint max_month_len= 0;
+    uint max_day_len = 0;
+    for (const char **month= (*loc)->month_names->type_names; *month; month++)
+    {
+      set_if_bigger(max_month_len,
+                    my_numchars_mb(&my_charset_utf8_general_ci,
+                                   *month, *month + strlen(*month)));
+    }
+    for (const char **day= (*loc)->day_names->type_names; *day; day++)
+    {
+      set_if_bigger(max_day_len,
+                    my_numchars_mb(&my_charset_utf8_general_ci,
+                                   *day, *day + strlen(*day)));
+    }
+    if ((*loc)->max_month_name_length != max_month_len ||
+        (*loc)->max_day_name_length != max_day_len)
+    {
+      DBUG_PRINT("Wrong max day name(or month name) length for locale:",
+                 ("%s", (*loc)->name));
+      DBUG_ASSERT(0);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+#endif//DBUG_OFF
+
+
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
@@ -4227,6 +4265,10 @@ int main(int argc, char **argv)
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
   openlog(libwrapName, LOG_PID, LOG_AUTH);
+#endif
+
+#ifndef DBUG_OFF
+  test_lc_time_sz();
 #endif
 
   /*
@@ -6868,6 +6910,14 @@ The minimum value for this variable is 4096.",
 };
 
 
+static int show_queries(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONGLONG;
+  var->value= (char *)&thd->query_id;
+  return 0;
+}
+
+
 static int show_net_compression(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
@@ -7283,6 +7333,7 @@ SHOW_VAR status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_NOFLUSH},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_NOFLUSH},
 #endif /*HAVE_QUERY_CACHE*/
+  {"Queries",                  (char*) &show_queries,            SHOW_FUNC},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions), SHOW_LONG_STATUS},
 #ifdef HAVE_REPLICATION
   {"Rpl_status",               (char*) &show_rpl_status,          SHOW_FUNC},

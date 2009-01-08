@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,6 +473,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   if (wild && !wild[0])
     wild=0;
+
 
   bzero((char*) &table_list,sizeof(table_list));
 
