@@ -1453,4 +1453,27 @@ LIMIT 1)
 1
 DROP TABLE derived1;
 DROP TABLE D;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
+SET SQL_MODE='ONLY_FULL_GROUP_BY';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+SELECT COUNT(*) FROM t1 where a=1;
+COUNT(*)
+3
+SELECT COUNT(*),a FROM t1;
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SELECT COUNT(*) FROM t1 a JOIN t1 b ON a.a= b.a;
+COUNT(*)
+9
+SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
+FROM t1 outr;
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SELECT COUNT(*) FROM t1 a JOIN t1 outr 
+ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
+COUNT(*)
+0
+SET SQL_MODE=default;
+DROP TABLE t1;
 End of 5.0 tests

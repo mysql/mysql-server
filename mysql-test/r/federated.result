@@ -2130,6 +2130,15 @@ Table	Checksum
 test.t1	2465757603
 DROP TABLE t1;
 DROP TABLE t1;
+CREATE TABLE t1 (a TEXT, b TEXT, KEY(b(1)));
+INSERT INTO t1 VALUES (NULL, NULL), (NULL, NULL), (NULL, NULL), (NULL, NULL);
+CREATE TABLE t1
+(a TEXT, b TEXT, KEY(b(1))) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+SELECT t1.a FROM t1, t1 as t2 WHERE t2.b NOT LIKE t1.b;
+a
+DROP TABLE t1;
+DROP TABLE t1;
 End of 5.0 tests
 create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';

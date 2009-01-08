@@ -848,15 +848,12 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_COALESCE_PARTITION (1L << 20)
 #define ALTER_REORGANIZE_PARTITION (1L << 21)
 #define ALTER_PARTITION          (1L << 22)
-#define ALTER_OPTIMIZE_PARTITION (1L << 23)
+#define ALTER_ADMIN_PARTITION    (1L << 23)
 #define ALTER_TABLE_REORG        (1L << 24)
 #define ALTER_REBUILD_PARTITION  (1L << 25)
 #define ALTER_ALL_PARTITION      (1L << 26)
-#define ALTER_ANALYZE_PARTITION  (1L << 27)
-#define ALTER_CHECK_PARTITION    (1L << 28)
-#define ALTER_REPAIR_PARTITION   (1L << 29)
-#define ALTER_REMOVE_PARTITIONING (1L << 30)
-#define ALTER_FOREIGN_KEY         (1L << 31)
+#define ALTER_REMOVE_PARTITIONING (1L << 27)
+#define ALTER_FOREIGN_KEY         (1L << 28)
 
 /**
   @brief Parsing data for CREATE or ALTER TABLE.
