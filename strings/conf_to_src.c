@@ -249,7 +249,7 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (C) 2000-2007 MySQL AB\n"
+"/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"

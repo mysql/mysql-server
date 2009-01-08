@@ -1463,12 +1463,12 @@ sub executable_setup () {
   {
     $exe_ndbd=
       my_find_bin($basedir,
-		  ["storage/ndb/src/kernel", "libexec", "bin"],
+		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
 		  "ndbd");
 
     $exe_ndb_mgmd=
       my_find_bin($basedir,
-		  ["storage/ndb/src/mgmsrv", "libexec", "bin"],
+		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
 
     $exe_ndb_waiter=
