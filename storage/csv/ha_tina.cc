@@ -1591,10 +1591,21 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
+/**
+   Return the compatiblity of alter table changes, created for new 
+   fast on-line alter table operation.
+   @param    info                Information about  new altered table properties
+   @param    table_changes       Information if the table layout is changed
+   @retval   COMPATIBLE_DATA_NO  Altered table changes made are incompatible
+   @retval   COMPATIBLE_DATA_YES Altered table changes made are compatible
+*/
 bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
 					   uint table_changes)
 {
-  return COMPATIBLE_DATA_YES;
+  if (table_changes == IS_EQUAL_NO)
+    return COMPATIBLE_DATA_NO;
+  else
+    return COMPATIBLE_DATA_YES;
 }
 
 struct st_mysql_storage_engine csv_storage_engine=
