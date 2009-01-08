@@ -980,7 +980,7 @@ static void close_server_sock()
       to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));
-    VOID(closesocket(tmp_sock));
+    VOID(my_socket_close(tmp_sock));
 #endif
   }
   tmp_sock=unix_sock;
@@ -995,7 +995,7 @@ static void close_server_sock()
       to hang on AIX 4.3 during shutdown
     */
     DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
-    VOID(closesocket(tmp_sock));
+    VOID(my_socket_close(tmp_sock));
 #endif
     VOID(unlink(mysqld_unix_port));
   }
@@ -4948,7 +4948,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 
 #ifdef HAVE_LIBWRAP
     {
-      if (sock == ip_sock)
+      if (my_socket_equal(sock, ip_sock))
       {
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
@@ -4973,8 +4973,8 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock, SHUT_RDWR);
-	  (void) closesocket(new_sock);
+	  (void) my_shutdown(new_sock, SHUT_RDWR);
+	  (void) my_socket_close(new_sock);
 	  continue;
 	}
       }
