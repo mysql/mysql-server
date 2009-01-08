@@ -129,6 +129,18 @@ public:
     return true;
   }
 
+  bool disconnect(void) {
+    if (ndb_mgm_disconnect(m_handle) != 0){
+      error("disconnect: ndb_mgm_disconnect failed");
+      return false;
+    }
+
+    ndb_mgm_destroy_handle(&m_handle);
+    m_handle = NULL;
+
+    return true;
+  }
+
   bool restart(bool abort = false) {
     if (!is_connected()){
       error("restart: not connected");

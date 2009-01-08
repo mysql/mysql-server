@@ -1702,11 +1702,27 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
-  m_mgmsrv.transporter_connect(m_socket);
+  if (!m_mgmsrv.transporter_connect(m_socket))
+  {
+    // Connection not allowed or failed
+    g_eventLogger->warning("Failed to convert connection "
+                           "from '%s' to transporter",
+                           name());
 
-  m_stop= true;
-  m_stopped= true; // force a stop (no closing socket)
-  my_socket_invalidate(&m_socket);   // so nobody closes it
+    // Close the socket to indicate failure to other side
+  }
+  else
+  {
+    /*
+      Conversion to transporter suceeded
+      Stop this session thread and release resources
+      but don't close the socket, it's been taken over
+      by the transporter
+    */
+    my_socket_invalidate(&m_socket);   // so nobody closes it
+  }
+
+  m_stop= true; // Stop the session
 }
 
 void
@@ -2085,6 +2101,7 @@ MgmApiSession::show_variables(Parser_t::Context &,
   m_output->println("");
 
 }
+
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
