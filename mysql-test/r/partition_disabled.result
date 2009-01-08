@@ -1,47 +1,47 @@
 DROP TABLE IF EXISTS t1;
 FLUSH TABLES;
 SELECT * FROM t1;
-ERROR 42000: Unknown table engine 'partition'
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 TRUNCATE TABLE t1;
-ERROR 42000: Unknown table engine 'partition'
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	Error	Unknown table engine 'partition'
+test.t1	analyze	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	analyze	error	Corrupt
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	Error	Unknown table engine 'partition'
+test.t1	check	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	check	error	Corrupt
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	Unknown table engine 'partition'
+test.t1	optimize	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	optimize	error	Corrupt
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	Unknown table engine 'partition'
+test.t1	repair	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	repair	error	Corrupt
 ALTER TABLE t1 REPAIR PARTITION ALL;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	Unknown table engine 'partition'
+test.t1	repair	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	repair	error	Corrupt
 ALTER TABLE t1 CHECK PARTITION ALL;
 Table	Op	Msg_type	Msg_text
-test.t1	check	Error	Unknown table engine 'partition'
+test.t1	check	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	check	error	Corrupt
 ALTER TABLE t1 OPTIMIZE PARTITION ALL;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	Unknown table engine 'partition'
+test.t1	optimize	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	optimize	error	Corrupt
 ALTER TABLE t1 ANALYZE PARTITION ALL;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	Error	Unknown table engine 'partition'
+test.t1	analyze	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
 test.t1	analyze	error	Corrupt
 ALTER TABLE t1 REBUILD PARTITION ALL;
-ERROR 42000: Unknown table engine 'partition'
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 ALTER TABLE t1 ENGINE Memory;
-ERROR 42000: Unknown table engine 'partition'
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 ALTER TABLE t1 ADD (new INT);
-ERROR 42000: Unknown table engine 'partition'
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 DROP TABLE t1;
 CREATE TABLE t1 (
 firstname VARCHAR(25) NOT NULL,
@@ -52,9 +52,9 @@ joined DATE NOT NULL
 )
 PARTITION BY KEY(joined)
 PARTITIONS 6;
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 CREATE TABLE t1 (
@@ -71,7 +71,7 @@ PARTITION p2 VALUES LESS THAN (1980),
 PARTITION p3 VALUES LESS THAN (1990),
 PARTITION p4 VALUES LESS THAN MAXVALUE
 );
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 CREATE TABLE t1 (id INT, purchased DATE)
@@ -82,7 +82,7 @@ PARTITION p0 VALUES LESS THAN (1990),
 PARTITION p1 VALUES LESS THAN (2000),
 PARTITION p2 VALUES LESS THAN MAXVALUE
 );
-ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-partition' to have it working
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 create table t1 (a varchar(10) charset latin1 collate latin1_bin);
