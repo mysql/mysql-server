@@ -1505,7 +1505,8 @@ TransporterRegistry::start_clients_thread()
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
 
-            DBUG_PRINT("info", ("connection node %d should use dynamic port ",
+            DBUG_PRINT("info", ("connection to node %d should use "
+                                "dynamic port",
                                 nodeId));
 
 	    if(!ndb_mgm_is_connected(m_mgm_handle))
