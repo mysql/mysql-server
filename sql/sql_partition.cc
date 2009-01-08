@@ -2078,16 +2078,16 @@ char *generate_partition_syntax(partition_info *part_info,
     err+= add_string_len(fptr, part_info->part_func_string,
                          part_info->part_func_len);
   err+= add_end_parenthesis(fptr);
-  err+= add_space(fptr);
   if ((!part_info->use_default_no_partitions) &&
        part_info->use_default_partitions)
   {
+    err+= add_string(fptr, "\n");
     err+= add_string(fptr, "PARTITIONS ");
     err+= add_int(fptr, part_info->no_parts);
-    err+= add_space(fptr);
   }
   if (part_info->is_sub_partitioned())
   {
+    err+= add_string(fptr, "\n");
     err+= add_subpartition_by(fptr);
     /* Must be hash partitioning for subpartitioning */
     if (part_info->linear_hash_ind)
@@ -2100,13 +2100,12 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_string_len(fptr, part_info->subpart_func_string,
                            part_info->subpart_func_len);
     err+= add_end_parenthesis(fptr);
-    err+= add_space(fptr);
     if ((!part_info->use_default_no_subpartitions) && 
           part_info->use_default_subpartitions)
     {
+      err+= add_string(fptr, "\n");
       err+= add_string(fptr, "SUBPARTITIONS ");
       err+= add_int(fptr, part_info->no_subparts);
-      err+= add_space(fptr);
     }
   }
   tot_no_parts= part_info->partitions.elements;
@@ -2115,6 +2114,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (!part_info->use_default_partitions)
   {
     bool first= TRUE;
+    err+= add_string(fptr, "\n");
     err+= add_begin_parenthesis(fptr);
     i= 0;
     do
@@ -2126,6 +2126,7 @@ char *generate_partition_syntax(partition_info *part_info,
         if (!first)
         {
           err+= add_comma(fptr);
+          err+= add_string(fptr, "\n");
           err+= add_space(fptr);
         }
         first= FALSE;
@@ -2140,6 +2141,7 @@ char *generate_partition_syntax(partition_info *part_info,
         }
         else
         {
+          err+= add_string(fptr, "\n");
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -2154,6 +2156,8 @@ char *generate_partition_syntax(partition_info *part_info,
             if (j != (no_subparts-1))
             {
               err+= add_comma(fptr);
+              err+= add_string(fptr, "\n");
+              err+= add_space(fptr);
               err+= add_space(fptr);
             }
             else
@@ -4195,12 +4199,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       !(thd->work_part_info= thd->lex->part_info->get_clone()))
     DBUG_RETURN(TRUE);
 
+  /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
+  DBUG_ASSERT(!(alter_info->flags & ALTER_ADMIN_PARTITION));
+
   if (alter_info->flags &
       (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
        ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
-       ALTER_TABLE_REORG | ALTER_OPTIMIZE_PARTITION |
-       ALTER_CHECK_PARTITION | ALTER_ANALYZE_PARTITION |
-       ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
+       ALTER_TABLE_REORG | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
     partition_info *alt_part_info= thd->work_part_info;
@@ -4251,8 +4256,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         alter_info->no_parts= curr_part_no - new_part_no;
       }
     }
-    if (table->s->db_type()->alter_table_flags &&
-        (!(flags= table->s->db_type()->alter_table_flags(alter_info->flags))))
+    if (!(flags= table->file->alter_table_flags(alter_info->flags)))
     {
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       DBUG_RETURN(1);
@@ -4592,11 +4596,7 @@ that are reorganised.
       }
       tab_part_info->no_parts-= no_parts_dropped;
     }
-    else if ((alter_info->flags & ALTER_OPTIMIZE_PARTITION) ||
-             (alter_info->flags & ALTER_ANALYZE_PARTITION) ||
-             (alter_info->flags & ALTER_CHECK_PARTITION) ||
-             (alter_info->flags & ALTER_REPAIR_PARTITION) ||
-             (alter_info->flags & ALTER_REBUILD_PARTITION))
+    else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
       uint no_parts_found;
       uint no_parts_opt= alter_info->partition_names.elements;
@@ -4604,18 +4604,7 @@ that are reorganised.
       if (no_parts_found != no_parts_opt &&
           (!(alter_info->flags & ALTER_ALL_PARTITION)))
       {
-        const char *ptr;
-        if (alter_info->flags & ALTER_OPTIMIZE_PARTITION)
-          ptr= "OPTIMIZE";
-        else if (alter_info->flags & ALTER_ANALYZE_PARTITION)
-          ptr= "ANALYZE";
-        else if (alter_info->flags & ALTER_CHECK_PARTITION)
-          ptr= "CHECK";
-        else if (alter_info->flags & ALTER_REPAIR_PARTITION)
-          ptr= "REPAIR";
-        else
-          ptr= "REBUILD";
-        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), ptr);
+        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         DBUG_RETURN(TRUE);
       }
       if (!(*fast_alter_partition))

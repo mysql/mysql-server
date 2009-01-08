@@ -5658,7 +5658,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_OPTIMIZE;
-            lex->alter_info.flags|= ALTER_OPTIMIZE_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }
@@ -5668,7 +5668,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_ANALYZE;
-            lex->alter_info.flags|= ALTER_ANALYZE_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }
@@ -5676,7 +5676,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_CHECK;
-            lex->alter_info.flags|= ALTER_CHECK_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->check_opt.init();
           }
           opt_mi_check_type
@@ -5685,7 +5685,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_REPAIR;
-            lex->alter_info.flags|= ALTER_REPAIR_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }

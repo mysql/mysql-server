@@ -1244,7 +1244,6 @@ struct TABLE_LIST
   st_lex_user   definer;                /* definer of view */
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
-  ulonglong	revision;		/* revision control number */
   /** 
       @brief The declared algorithm, if this is a view.
       @details One of
