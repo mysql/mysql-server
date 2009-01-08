@@ -61,6 +61,9 @@ sub rmtree {
 
 sub mkpath {
   my $path;
+
+  die "Usage: mkpath(<path>)" unless @_ == 1;
+
   foreach my $dir ( File::Spec->splitdir( @_ ) ) {
     #print "dir: $dir\n";
     if ($dir =~ /^[a-z]:/i){
@@ -72,8 +75,9 @@ sub mkpath {
     $path= File::Spec->catdir($path, $dir);
     #print "path: $path\n";
 
-    next if -d $path; # Path already exist
-    next if mkdir($path); # mkdir worked
+    next if -d $path; # Path already exists and is a directory
+    croak("File already exists but is not a directory: '$path'") if -e $path;
+    next if mkdir($path);
 
     # mkdir failed, try one more time
     next if mkdir($path);
