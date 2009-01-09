@@ -186,4 +186,6 @@ delimiter
 2
 2
 2
+@z:='1'	@z=database()
+1	NULL
 End of 5.0 tests
