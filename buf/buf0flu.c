@@ -790,19 +790,19 @@ buf_flush_try_page(
 		return(0);
 	}
 
+	buf_page_set_io_fix(bpage, BUF_IO_WRITE);
+
+	buf_page_set_flush_type(bpage, flush_type);
+
+	if (buf_pool->n_flush[flush_type] == 0) {
+
+		os_event_reset(buf_pool->no_flush[flush_type]);
+	}
+
+	buf_pool->n_flush[flush_type]++;
+
 	switch (flush_type) {
 	case BUF_FLUSH_LIST:
-		buf_page_set_io_fix(bpage, BUF_IO_WRITE);
-
-		buf_page_set_flush_type(bpage, flush_type);
-
-		if (buf_pool->n_flush[flush_type] == 0) {
-
-			os_event_reset(buf_pool->no_flush[flush_type]);
-		}
-
-		buf_pool->n_flush[flush_type]++;
-
 		/* If the simulated aio thread is not running, we must
 		not wait for any latch, as we may end up in a deadlock:
 		if buf_fix_count == 0, then we know we need not wait */
@@ -835,18 +835,7 @@ buf_flush_try_page(
 		s-lock is acquired on the page without waiting: this is
 		accomplished because in the if-condition above we require
 		the page not to be bufferfixed (in function
-		..._ready_for_flush). */
-
-		buf_page_set_io_fix(bpage, BUF_IO_WRITE);
-
-		buf_page_set_flush_type(bpage, flush_type);
-
-		if (buf_pool->n_flush[flush_type] == 0) {
-
-			os_event_reset(buf_pool->no_flush[flush_type]);
-		}
-
-		buf_pool->n_flush[flush_type]++;
+		buf_flush_ready_for_flush). */
 
 		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
@@ -862,17 +851,6 @@ buf_flush_try_page(
 		break;
 
 	case BUF_FLUSH_SINGLE_PAGE:
-		buf_page_set_io_fix(bpage, BUF_IO_WRITE);
-
-		buf_page_set_flush_type(bpage, flush_type);
-
-		if (buf_pool->n_flush[flush_type] == 0) {
-
-			os_event_reset(buf_pool->no_flush[flush_type]);
-		}
-
-		buf_pool->n_flush[flush_type]++;
-
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit();
 
