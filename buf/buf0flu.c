@@ -796,6 +796,12 @@ buf_flush_try_page(
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit();
 
+		/* Even though bpage is not protected by any mutex at
+		this point, it is safe to access bpage, because it is
+		io_fixed and oldest_modification != 0.  Thus, it
+		cannot be relocated in the buffer pool or removed from
+		flush_list or LRU_list. */
+
 		if (!is_s_latched) {
 			buf_flush_buffered_writes();
 
@@ -842,6 +848,11 @@ buf_flush_try_page(
 	default:
 		ut_error;
 	}
+
+	/* Even though bpage is not protected by any mutex at this
+	point, it is safe to access bpage, because it is io_fixed and
+	oldest_modification != 0.  Thus, it cannot be relocated in the
+	buffer pool or removed from flush_list or LRU_list. */
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
