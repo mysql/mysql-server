@@ -323,7 +323,7 @@ SocketServer::checkSessionsImpl()
 {
   for(int i = m_sessions.size() - 1; i >= 0; i--)
   {
-    if(m_sessions[i].m_session->m_stopped &&
+    if(m_sessions[i].m_session->m_thread_stopped &&
        (m_sessions[i].m_session->m_refCount == 0))
     {
       if(m_sessions[i].m_thread != 0)
@@ -371,21 +371,16 @@ void*
 sessionThread_C(void* _sc){
   SocketServer::Session * si = (SocketServer::Session *)_sc;
 
-  /**
-   * may have m_stopped set if we're transforming a mgm
-   * connection into a transporter connection.
-   */
-  if(!si->m_stopped)
-  {
-    if(!si->m_stop){
-      si->m_stopped = false;
-      si->runSession();
-    } else {
-      NDB_CLOSE_SOCKET(si->m_socket);
-    }
-  }
-  
-  si->m_stopped = true;
+  assert(si->m_thread_stopped == false);
+
+  if(!si->m_stop)
+    si->runSession();
+  else
+    NDB_CLOSE_SOCKET(si->m_socket);
+
+  // Mark the thread as stopped to allow the
+  // session resources to be released
+  si->m_thread_stopped = true;
   return 0;
 }
 

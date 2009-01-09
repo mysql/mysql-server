@@ -111,9 +111,12 @@ public:
   bool init(NodeId localNodeId);
 
   /**
-   * after a connect from client, perform connection using correct transporter
-   */
-  bool connect_server(NDB_SOCKET_TYPE sockfd);
+     Handle the handshaking with a new client connection
+     on the server port.
+     NOTE! Connection should be closed if function
+     returns false
+  */
+  bool connect_server(NDB_SOCKET_TYPE sockfd) const;
 
   bool connect_client(NdbMgmHandle *h);
 
