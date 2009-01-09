@@ -227,14 +227,22 @@ struct sql_ex_info
 #define QUERY_HEADER_MINIMAL_LEN     (4 + 4 + 1 + 2)
 // where 5.0 differs: 2 for len of N-bytes vars.
 #define QUERY_HEADER_LEN     (QUERY_HEADER_MINIMAL_LEN + 2)
+#define STOP_HEADER_LEN      0
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
+#define SLAVE_HEADER_LEN     0
 #define START_V3_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
 #define ROTATE_HEADER_LEN    8 // this is FROZEN (the Rotate post-header is frozen)
+#define INTVAR_HEADER_LEN      0
 #define CREATE_FILE_HEADER_LEN 4
 #define APPEND_BLOCK_HEADER_LEN 4
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
+#define NEW_LOAD_HEADER_LEN    LOAD_HEADER_LEN
+#define RAND_HEADER_LEN        0
+#define USER_VAR_HEADER_LEN    0
 #define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
+#define XID_HEADER_LEN         0
+#define BEGIN_LOAD_QUERY_HEADER_LEN APPEND_BLOCK_HEADER_LEN
 #define ROWS_HEADER_LEN        8
 #define TABLE_MAP_HEADER_LEN   8
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
