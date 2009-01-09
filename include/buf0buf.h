@@ -981,8 +981,10 @@ struct buf_page_struct{
 	since they can be stored in the same machine word.  Some of them are
 	additionally protected by buf_pool_mutex. */
 
-	unsigned	space:32;	/* tablespace id */
-	unsigned	offset:32;	/* page number */
+	unsigned	space:32;	/* tablespace id; also protected
+					by buf_pool_mutex. */
+	unsigned	offset:32;	/* page number; also protected
+					by buf_pool_mutex. */
 
 	unsigned	state:3;	/* state of the control block
 					(@see enum buf_page_state); also
