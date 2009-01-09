@@ -319,7 +319,11 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
     print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]), 0);
     assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
-    print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), 0);
+    {
+	printf("struct txn_stat {\n  u_int64_t rolltmp_raw_count;\n};\n");
+	const char *extra[] = {"int (*txn_stat)(DB_TXN *, struct txn_stat **)"};
+	print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);
+    }
 
     assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
     print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]), 0);

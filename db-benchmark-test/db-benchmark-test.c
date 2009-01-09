@@ -46,6 +46,7 @@ int prelockflag = 0;
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 int singlex = 0;  // Do a single transaction
+int check_small_rolltmp = 0; // verify that the rollback logs are small (only valid if singlex)
 int do_transactions = 0;
 int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no logging when transactions are used
 int do_abort = 0;
@@ -146,7 +147,14 @@ static void benchmark_shutdown (void) {
     int r;
     
     if (do_transactions && singlex) {
-	system("ls -l bench.tokudb");
+#if defined(TOKUDB)
+	struct txn_stat *s;
+	r = tid->txn_stat(tid, &s);
+	assert(r==0);
+	assert(s->rolltmp_raw_count < 100);
+	os_free(s);
+	//system("ls -l bench.tokudb");
+#endif
 	r = (do_abort ? tid->abort(tid) : tid->commit(tid, 0));    assert(r==0);
     }
 
@@ -285,6 +293,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --check_small_rolltmp (Only valid in --singlex mode)  Verify that very little data was saved in the rollback logs.\n");
     fprintf(stderr, "    --prelock             Prelock the database.\n");
     fprintf(stderr, "    --prelockflag         Prelock the database and send the DB_PRELOCKED_WRITE flag.\n");
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
@@ -338,6 +347,8 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
+	} else if (strcmp(arg, "--check_small_rolltmp") == 0) {
+	    check_small_rolltmp = 1;
 	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], 0, 10);
@@ -395,6 +406,16 @@ int main (int argc, const char *argv[]) {
 	if (!noserial && !norandom) printf("and ");
 	if (!norandom) printf("random ");
 	printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
+    }
+#if !defined TOKUDB
+    if (check_small_rolltmp) {
+	fprintf(stderr, "--check_small_rolltmp only works on the TokuDB (not BDB)\n");
+	return print_usage(argv[0]);
+    }
+#endif
+    if (check_small_rolltmp && !singlex) {
+	fprintf(stderr, "--check_small_rolltmp requires --singlex\n");
+	return print_usage(argv[0]);
     }
     benchmark_setup();
     gettimeofday(&t1,0);

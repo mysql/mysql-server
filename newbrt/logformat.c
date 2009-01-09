@@ -500,6 +500,7 @@ generate_rollbacks (void) {
 		    fprintf(cf, "  else txn->newest_logentry->next = v;\n");
 		    fprintf(cf, "  txn->newest_logentry = v;\n");
 		    fprintf(cf, "  txn->rollentry_resident_bytecount += rollback_fsize;\n");
+		    fprintf(cf, "  txn->rollentry_raw_count          += rollback_fsize;\n");
 		    fprintf(cf, "  return toku_maybe_spill_rollbacks(txn);\n}\n");
 	    });
 

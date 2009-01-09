@@ -1097,6 +1097,15 @@ static u_int32_t locked_txn_id(DB_TXN *txn) {
     toku_ydb_lock(); u_int32_t r = toku_txn_id(txn); toku_ydb_unlock(); return r;
 }
 
+static int toku_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
+    XMALLOC(*txn_stat);
+    return toku_logger_txn_rolltmp_raw_count(txn->i->tokutxn, &(*txn_stat)->rolltmp_raw_count);
+}
+
+static int locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
+    toku_ydb_lock(); u_int32_t r = toku_txn_stat(txn, txn_stat); toku_ydb_unlock(); return r;
+}
+
 static int locked_txn_commit(DB_TXN *txn, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_txn_commit(txn, flags); toku_ydb_unlock(); return r;
 }
@@ -1135,6 +1144,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     result->commit = locked_txn_commit;
     result->id = locked_txn_id;
     result->parent = stxn;
+    result->txn_stat = locked_txn_stat;
     MALLOC(result->i);
     if (!result->i) {
         toku_free(result);

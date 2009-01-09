@@ -99,7 +99,8 @@ struct tokutxn {
     size_t     rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
     char      *rollentry_filename;
     int        rollentry_fd;         // If we spill the roll_entries, we write them into this fd.
-    toku_off_t      rollentry_filesize;   // How many bytes are in the rollentry.
+    toku_off_t      rollentry_filesize;   // How many bytes are in the rollentry file (compressed)
+    u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
 };
 

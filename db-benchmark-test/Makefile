@@ -44,7 +44,7 @@ build: $(TARGETS)
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-xfast check-x
+check: check-default check-xfast check-x check-no-rolltmp
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
@@ -57,6 +57,9 @@ check-x: $(TARGET_TDB)
 check-xfast: $(TARGET_TDB)
 	./$(TARGET_TDB) $(QUIET) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
 
+# A relatively fast test that detects #853 (don't log changes to a dictionary created in the same txn)
+check-no-rolltmp: $(TARGET_TDB)
+	./$(TARGET_TDB) --env no-rolltmp.dir --singlex --nolog --check_small_rolltmp $(SUMMARIZE_CMD)
 
 clean:
 	rm -f $(TARGETS)

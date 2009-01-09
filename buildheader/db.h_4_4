@@ -240,11 +240,15 @@ struct __toku_db_txn_active {
   DB_LSN lsn; /* 32-bit offset=16 size=8, 64=bit offset=24 size=8 */
   char __toku_dummy2[184];  /* Padding at the end */ 
 };
+struct txn_stat {
+  u_int64_t rolltmp_raw_count;
+};
 struct __toku_db_txn {
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   DB_TXN *parent; /* 32-bit offset=4 size=4, 64=bit offset=8 size=8 */
   struct __toku_db_txn_internal *i;
-  void* __toku_dummy0[16];
+  int (*txn_stat)(DB_TXN *, struct txn_stat **);
+  void* __toku_dummy0[15];
   char __toku_dummy1[8];
   void *api_internal; /* 32-bit offset=84 size=4, 64=bit offset=160 size=8 */
   void* __toku_dummy2[2];

@@ -48,6 +48,9 @@ int toku_logger_abort(TOKUTXN, void(*/*yield*/)(void*), void*/*yield_v*/);
 // Closes a txn.  Call after commiting or aborting.
 void toku_logger_txn_close (TOKUTXN);
 
+// Return the number of bytes that went into the rollback data structure (the uncompressed count if there is compression)
+int toku_logger_txn_rolltmp_raw_count(TOKUTXN, u_int64_t *count);
+
 int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TOKULOGGER /*logger*/);
 
 int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);

@@ -456,6 +456,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void
 		}
 		txn->parent->newest_logentry = txn->newest_logentry;
 		txn->parent->rollentry_resident_bytecount += txn->rollentry_resident_bytecount;
+		txn->parent->rollentry_raw_count          += txn->rollentry_raw_count;
 		txn->rollentry_resident_bytecount = 0;
 	    }
 	    if (txn->parent->oldest_logentry==0) {
@@ -526,6 +527,7 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER 
 
     list_push(&logger->live_txns, &result->live_txns_link);
     result->rollentry_resident_bytecount=0;
+    result->rollentry_raw_count = 0;
     result->rollentry_filename = 0;
     result->rollentry_fd = -1;
     result->rollentry_filesize = 0;
@@ -987,7 +989,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 }
 
 int toku_maybe_spill_rollbacks (TOKUTXN txn) {
-    if (txn->rollentry_resident_bytecount>1<<20) {
+    if (txn->rollentry_resident_bytecount>(1<<20)) {
 	struct roll_entry *item;
 	ssize_t bufsize = txn->rollentry_resident_bytecount;
 	char *MALLOC_N(bufsize, buf);
@@ -1120,3 +1122,10 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
     return r;
 }
 
+// Return the number of bytes that went into the rollback data structure (the uncompressed count if there is compression)
+int
+toku_logger_txn_rolltmp_raw_count(TOKUTXN txn, u_int64_t *raw_count)
+{
+    *raw_count = txn->rollentry_raw_count;
+    return 0;
+}
