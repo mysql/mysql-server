@@ -1622,8 +1622,8 @@ static void network_init(void)
      */
     if (a->ai_family == AF_INET6)
     {
-      DBUG_PRINT("info",("Clearing IPV6_ONLY socket option"));
       int enable= 0;
+      DBUG_PRINT("info",("Clearing IPV6_ONLY socket option"));
       my_setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY,
                     &enable, sizeof(enable));
     }

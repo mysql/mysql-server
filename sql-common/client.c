@@ -2086,11 +2086,15 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
            - don't use socket for localhost if this option is given
         */
         struct addrinfo* clientBindAddrInfo= NULL;
+        struct addrinfo* currAddr= NULL;
+        int gai_errno= 0;
+        int bindResult= -1;
+
         DBUG_PRINT("info",("Attempting client bind to address : %s",
                            mysql->options.bind_name));
         /* Lookup address info for name */
-        int gai_errno= getaddrinfo(mysql->options.bind_name, 0,
-                                   &hints, &clientBindAddrInfo);
+        gai_errno= getaddrinfo(mysql->options.bind_name, 0,
+                               &hints, &clientBindAddrInfo);
         if (gai_errno)
         {
           DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
@@ -2104,8 +2108,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         /* We'll attempt to bind to each of the addresses returned, until
          * we find one that works
          */
-        struct addrinfo* currAddr= clientBindAddrInfo;
-        int bindResult= -1;
+        currAddr= clientBindAddrInfo;
 
         while((currAddr != NULL) && (bindResult != 0))
         {
