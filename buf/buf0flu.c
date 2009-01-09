@@ -43,37 +43,20 @@ UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_page_t*	bpage)	/* in: block which is modified */
+	buf_block_t*	block)	/* in/out: block which is modified */
 {
 	ut_ad(buf_pool_mutex_own());
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
-		  <= bpage->oldest_modification));
+		  <= block->page.oldest_modification));
 
-	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_PAGE:
-		mutex_enter(&buf_pool_zip_mutex);
-		buf_page_set_state(bpage, BUF_BLOCK_ZIP_DIRTY);
-		mutex_exit(&buf_pool_zip_mutex);
-		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
-		/* fall through */
-	case BUF_BLOCK_ZIP_DIRTY:
-	case BUF_BLOCK_FILE_PAGE:
-		ut_ad(bpage->in_LRU_list);
-		ut_ad(bpage->in_page_hash);
-		ut_ad(!bpage->in_zip_hash);
-		ut_ad(!bpage->in_flush_list);
-		ut_d(bpage->in_flush_list = TRUE);
-		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
-		break;
-	case BUF_BLOCK_ZIP_FREE:
-	case BUF_BLOCK_NOT_USED:
-	case BUF_BLOCK_READY_FOR_USE:
-	case BUF_BLOCK_MEMORY:
-	case BUF_BLOCK_REMOVE_HASH:
-		ut_error;
-		return;
-	}
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(block->page.in_LRU_list);
+	ut_ad(block->page.in_page_hash);
+	ut_ad(!block->page.in_zip_hash);
+	ut_ad(!block->page.in_flush_list);
+	ut_d(block->page.in_flush_list = TRUE);
+	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low());
@@ -88,51 +71,34 @@ UNIV_INTERN
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_page_t*	bpage)	/* in: block which is modified */
+	buf_block_t*	block)	/* in/out: block which is modified */
 {
 	buf_page_t*	prev_b;
 	buf_page_t*	b;
 
 	ut_ad(buf_pool_mutex_own());
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_PAGE:
-		mutex_enter(&buf_pool_zip_mutex);
-		buf_page_set_state(bpage, BUF_BLOCK_ZIP_DIRTY);
-		mutex_exit(&buf_pool_zip_mutex);
-		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
-		/* fall through */
-	case BUF_BLOCK_ZIP_DIRTY:
-	case BUF_BLOCK_FILE_PAGE:
-		ut_ad(bpage->in_LRU_list);
-		ut_ad(bpage->in_page_hash);
-		ut_ad(!bpage->in_zip_hash);
-		ut_ad(!bpage->in_flush_list);
-		ut_d(bpage->in_flush_list = TRUE);
-		break;
-	case BUF_BLOCK_ZIP_FREE:
-	case BUF_BLOCK_NOT_USED:
-	case BUF_BLOCK_READY_FOR_USE:
-	case BUF_BLOCK_MEMORY:
-	case BUF_BLOCK_REMOVE_HASH:
-		ut_error;
-		return;
-	}
+	ut_ad(block->page.in_LRU_list);
+	ut_ad(block->page.in_page_hash);
+	ut_ad(!block->page.in_zip_hash);
+	ut_ad(!block->page.in_flush_list);
+	ut_d(block->page.in_flush_list = TRUE);
 
 	prev_b = NULL;
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-	while (b && b->oldest_modification > bpage->oldest_modification) {
+	while (b && b->oldest_modification > block->page.oldest_modification) {
 		ut_ad(b->in_flush_list);
 		prev_b = b;
 		b = UT_LIST_GET_NEXT(list, b);
 	}
 
 	if (prev_b == NULL) {
-		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, bpage);
+		UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
 	} else {
 		UT_LIST_INSERT_AFTER(list, buf_pool->flush_list,
-				     prev_b, bpage);
+				     prev_b, &block->page);
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
