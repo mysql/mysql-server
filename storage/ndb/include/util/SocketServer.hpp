@@ -42,21 +42,20 @@ public:
     friend void* sessionThread_C(void*);
     Session(NDB_SOCKET_TYPE sock) :
       m_stop(false),
-      m_stopped(false),
       m_socket(sock),
-      m_refCount(0)
+      m_refCount(0),
+      m_thread_stopped(false)
       {
 	DBUG_ENTER("SocketServer::Session");
 	DBUG_PRINT("enter",("NDB_SOCKET: " MY_SOCKET_FORMAT,
                             MY_SOCKET_FORMAT_VALUE(m_socket)));
 	DBUG_VOID_RETURN;
       }
-    
     bool m_stop;    // Has the session been ordered to stop?
-    bool m_stopped; // Has the session stopped?
-    
     NDB_SOCKET_TYPE m_socket;
     unsigned m_refCount;
+  private:
+    bool m_thread_stopped; // Has the session thread stopped?
   };
   
   /**

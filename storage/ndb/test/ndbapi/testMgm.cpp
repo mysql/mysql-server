@@ -1291,6 +1291,92 @@ int runTestGetVersionUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+
+
+static bool
+check_connection(NdbMgmd& mgmd)
+{
+  Properties args, reply;
+  mgmd.verbose(false); // Verbose off
+  bool result= mgmd.call("check connection", args,
+                         "check connection reply", reply);
+  mgmd.verbose(); // Verbose on
+  return result;
+}
+
+
+static bool
+check_transporter_connect(NdbMgmd& mgmd, const char * hello)
+{
+  SocketOutputStream out(mgmd.socket());
+
+  // Call 'transporter connect'
+  if (out.println("transporter connect") ||
+      out.println(""))
+  {
+    g_err << "Send failed" << endl;
+    return false;
+  }
+
+  // Send the 'hello'
+  g_info << "Client hello: '" << hello << "'" << endl;
+  if (out.println(hello))
+  {
+    g_err << "Send hello '" << hello << "' failed" << endl;
+    return false;
+  }
+
+  // Should not be possible to read a reply now, socket
+  // should have been closed
+  if (check_connection(mgmd)){
+    g_err << "not disconnected" << endl;
+    return false;
+  }
+
+  // disconnect and connect again
+  if (!mgmd.disconnect())
+    return false;
+  if (!mgmd.connect())
+    return false;
+
+  return true;
+}
+
+
+int runTestTransporterConnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result = NDBT_FAILED;
+  if (
+      // Junk hello strings
+      check_transporter_connect(mgmd, "hello") &&
+      check_transporter_connect(mgmd, "hello again") &&
+
+      // "Blow" the buffer
+      check_transporter_connect(mgmd, "string_longer_than_buf_1234567890") &&
+
+      // Out of range nodeid
+      check_transporter_connect(mgmd, "-1") &&
+      check_transporter_connect(mgmd, "-2 2") &&
+      check_transporter_connect(mgmd, "10000") &&
+      check_transporter_connect(mgmd, "99999 8") &&
+
+      // Valid nodeid, invalid transporter type
+      // Valid nodeid and transporter type, state != CONNECTING
+      // ^These are only possible to test by finding an existing
+      //  NDB node that are not started and use its setting(s)
+
+      true)
+   result = NDBT_OK;
+
+  return result;
+}
+
+
 static bool
 show_config(NdbMgmd& mgmd,
             const Properties& args,
@@ -1930,6 +2016,10 @@ TESTCASE("TestGetNodeId",
 TESTCASE("TestGetVersion",
 	 "Test 'get version'"){
   INITIALIZER(runTestGetVersion);
+}
+TESTCASE("TestTransporterConnect",
+	 "Test 'transporter connect'"){
+  INITIALIZER(runTestTransporterConnect);
 }
 #ifdef NOT_YET
 TESTCASE("TestRestartMgmd",
