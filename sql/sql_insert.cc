@@ -88,6 +88,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
   SYNOPSIS
     check_view_single_update()
     fields            The insert/update fields to be checked.
+    values            Values to use for update
     view              The view for insert.
     map     [in/out]  The insert table map.
 
@@ -107,7 +108,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
     1   Error
 */
 
-bool check_view_single_update(List<Item> &fields, List<Item> &values,
+bool check_view_single_update(List<Item> &fields, List<Item> *values,
                               TABLE_LIST *view, table_map *map)
 {
   /* it is join view => we need to find the table for update */
@@ -119,10 +120,15 @@ bool check_view_single_update(List<Item> &fields, List<Item> &values,
   while ((item= it++))
     tables|= item->used_tables();
 
-  it.init(values);
-  while ((item= it++))
-    tables|= item->used_tables();
+  if (values)
+  {
+    it.init(*values);
+    while ((item= it++))
+      tables|= item->used_tables();
+  }
 
+  /* Convert to real table bits */
+  tables&= ~PSEUDO_TABLE_BITS;
   /* Check found map against provided map */
   if (*map)
   {
@@ -156,6 +162,10 @@ error:
     fields                      The insert fields.
     values                      The insert values.
     check_unique                If duplicate values should be rejected.
+    fields_and_values_from_different_maps
+				Set to 1 if fields and values are using
+                                different table maps, like on select ... insert
+    map                         Store here table map for used fields
 
   NOTE
     Clears TIMESTAMP_AUTO_SET_ON_INSERT from table->timestamp_field_type
@@ -169,7 +179,9 @@ error:
 
 static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
                                List<Item> &fields, List<Item> &values,
-                               bool check_unique, table_map *map)
+                               bool check_unique,
+                               bool fields_and_values_from_different_maps,
+                               table_map *map)
 {
   TABLE *table= table_list->table;
 
@@ -242,7 +254,10 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
-      if (check_view_single_update(fields, values, table_list, map))
+      if (check_view_single_update(fields, 
+                                   fields_and_values_from_different_maps ?
+                                   (List<Item>*) 0 : &values,
+                                   table_list, map))
         return -1;
       table= table_list->table;
     }
@@ -325,8 +340,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
-      check_view_single_update(update_fields, update_values, insert_table_list,
-                               map))
+      check_view_single_update(update_fields, &update_values,
+                               insert_table_list, map))
     return -1;
 
   if (table->timestamp_field)
@@ -1234,9 +1249,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
 
-    res= check_insert_fields(thd, context->table_list, fields, *values,
-                             !insert_into_view, &map) ||
-      setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
+    res= (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0) ||
+          check_insert_fields(thd, context->table_list, fields, *values,
+                              !insert_into_view, 0, &map));
 
     if (!res && check_fields)
     {
@@ -1249,6 +1264,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->abort_on_warning= saved_abort_on_warning;
     }
 
+    if (!res)
+      res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
+
     if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= TRUE;
@@ -1259,9 +1277,6 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
-
-    if (!res)
-      res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
   }
 
   if (res)
@@ -2890,10 +2905,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     we are fixing fields from insert list.
   */
   lex->current_select= &lex->select_lex;
-  res= check_insert_fields(thd, table_list, *fields, values,
-                           !insert_into_view, &map) ||
-       setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0);
-
+  res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
+        check_insert_fields(thd, table_list, *fields, values,
+                            !insert_into_view, 1, &map));
   if (!res && fields->elements)
   {
     bool saved_abort_on_warning= thd->abort_on_warning;
