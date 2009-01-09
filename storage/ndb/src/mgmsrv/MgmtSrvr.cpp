@@ -3575,21 +3575,26 @@ MgmtSrvr::getConnectionDbParameter(int node1,
 }
 
 
-void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
+bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
 {
-  if (theFacade->get_registry()->connect_server(sockfd))
-  {
-    /**
-     * Force an update_connections() so that the
-     * ClusterMgr and TransporterFacade is up to date
-     * with the new connection.
-     * Important for correct node id reservation handling
-     */
-    NdbMutex_Lock(theFacade->theMutexPtr);
-    theFacade->get_registry()->update_connections();
-    NdbMutex_Unlock(theFacade->theMutexPtr);
-  }
+  DBUG_ENTER("MgmtSrvr::transporter_connect");
+  TransporterRegistry* tr= theFacade->get_registry();
+  if (!tr->connect_server(sockfd))
+    DBUG_RETURN(false);
+
+  /*
+    Force an update_connections() so that the
+    ClusterMgr and TransporterFacade is up to date
+    with the new connection.
+    Important for correct node id reservation handling
+  */
+  theFacade->lock_mutex();
+  tr->update_connections();
+  theFacade->unlock_mutex();
+
+  DBUG_RETURN(true);
 }
+
 
 bool MgmtSrvr::connect_to_self()
 {
@@ -4055,7 +4060,6 @@ MgmtSrvr::show_variables(NdbOut& out)
   out << "log_level_thread_sleep: " << _logLevelThreadSleep << endl;
   out << "master_node: " << m_master_node << endl;
 }
-
 
 
 template class MutexVector<NodeId>;
