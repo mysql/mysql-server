@@ -3,31 +3,31 @@ SET @start_session_value = @@session.sort_buffer_size;
 '#--------------------FN_DYNVARS_151_01-------------------------#'
 SET @@global.sort_buffer_size = 1000;
 SET @@global.sort_buffer_size = DEFAULT;
-SELECT @@global.sort_buffer_size >= 2097116 AND @@global.sort_buffer_size < 3000000;
-@@global.sort_buffer_size >= 2097116 AND @@global.sort_buffer_size < 3000000
+SELECT @@global.sort_buffer_size BETWEEN 2097116 AND 2100000;
+@@global.sort_buffer_size BETWEEN 2097116 AND 2100000
 1
 SET @@session.sort_buffer_size = 2000;
 SET @@session.sort_buffer_size = DEFAULT;
-SELECT @@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 3000000;
-@@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 3000000
+SELECT @@session.sort_buffer_size BETWEEN 2097116 AND 2100000;
+@@session.sort_buffer_size BETWEEN 2097116 AND 2100000
 1
 '#--------------------FN_DYNVARS_151_02-------------------------#'
 SET @@global.sort_buffer_size = DEFAULT;
-SELECT @@global.sort_buffer_size >= 2097116 AND @@global.sort_buffer_size < 3000000;
-@@global.sort_buffer_size >= 2097116 AND @@global.sort_buffer_size < 3000000
+SELECT @@global.sort_buffer_size BETWEEN 2097116 AND 2100000;
+@@global.sort_buffer_size BETWEEN 2097116 AND 2100000
 1
 SET @@session.sort_buffer_size = DEFAULT;
-SELECT @@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 3000000;
-@@session.sort_buffer_size >= 2097116 AND @@session.sort_buffer_size < 3000000
+SELECT @@session.sort_buffer_size BETWEEN 2097116 AND 2100000;
+@@session.sort_buffer_size BETWEEN 2097116 AND 2100000
 1
 '#--------------------FN_DYNVARS_151_03-------------------------#'
 SET @@global.sort_buffer_size = 32776;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
-@@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000
+SELECT @@global.sort_buffer_size BETWEEN 32776 AND 32999;
+@@global.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@global.sort_buffer_size = 32777;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
-@@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000
+SELECT @@global.sort_buffer_size BETWEEN 32776 AND 32999;
+@@global.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@global.sort_buffer_size = 4294967295;
 SELECT @@global.sort_buffer_size;
@@ -39,12 +39,12 @@ SELECT @@global.sort_buffer_size;
 4294967294
 '#--------------------FN_DYNVARS_151_04-------------------------#'
 SET @@session.sort_buffer_size = 32776;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
-@@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000
+SELECT @@session.sort_buffer_size BETWEEN 32776 AND 32999;
+@@session.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@session.sort_buffer_size = 32777;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
-@@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000
+SELECT @@session.sort_buffer_size BETWEEN 32776 AND 32999;
+@@session.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@session.sort_buffer_size = 4294967295;
 SELECT @@session.sort_buffer_size;
@@ -56,12 +56,12 @@ SELECT @@session.sort_buffer_size;
 4294967294
 '#------------------FN_DYNVARS_151_05-----------------------#'
 SET @@global.sort_buffer_size = 32775;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
-@@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000
+SELECT @@global.sort_buffer_size BETWEEN 32776 AND 32999;
+@@global.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@global.sort_buffer_size = -1024;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
-@@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000
+SELECT @@global.sort_buffer_size BETWEEN 32776 AND 32999;
+@@global.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@global.sort_buffer_size = 4294967296;
 SELECT @@global.sort_buffer_size;
@@ -78,12 +78,12 @@ SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
 4294967296
 SET @@session.sort_buffer_size = 32775;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
-@@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000
+SELECT @@session.sort_buffer_size BETWEEN 32776 AND 32999;
+@@session.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@session.sort_buffer_size = -2;
-SELECT @@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000;
-@@session.sort_buffer_size >= 32776 AND @@session.sort_buffer_size < 33000
+SELECT @@session.sort_buffer_size BETWEEN 32776 AND 32999;
+@@session.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@session.sort_buffer_size = 65530.34.;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
@@ -105,12 +105,12 @@ INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
 1
 '#------------------FN_DYNVARS_151_08-----------------------#'
 SET @@global.sort_buffer_size = TRUE;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
-@@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000
+SELECT @@global.sort_buffer_size BETWEEN 32776 AND 32999;
+@@global.sort_buffer_size BETWEEN 32776 AND 32999
 1
 SET @@global.sort_buffer_size = FALSE;
-SELECT @@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000;
-@@global.sort_buffer_size >= 32776 AND @@global.sort_buffer_size < 33000
+SELECT @@global.sort_buffer_size BETWEEN 32776 AND 32999;
+@@global.sort_buffer_size BETWEEN 32776 AND 32999
 1
 '#---------------------FN_DYNVARS_151_09----------------------#'
 SET @@global.sort_buffer_size = 9000;
@@ -127,8 +127,8 @@ SELECT @@local.sort_buffer_size = @@session.sort_buffer_size;
 1
 '#---------------------FN_DYNVARS_151_11----------------------#'
 SET sort_buffer_size = 9100;
-SELECT @@sort_buffer_size >= 32776 AND @@sort_buffer_size < 33000;
-@@sort_buffer_size >= 32776 AND @@sort_buffer_size < 33000
+SELECT @@sort_buffer_size BETWEEN 32776 AND 32999;
+@@sort_buffer_size BETWEEN 32776 AND 32999
 1
 SELECT local.sort_buffer_size;
 ERROR 42S02: Unknown table 'local' in field list
