@@ -7,7 +7,7 @@
 #
 # let $slave_param= Slave_SQL_Running;
 # let $slave_param_value= No;
-# --source include/slave_wait_param.inc
+# source include/slave_wait_param.inc;
 #
 # Parameters:
 #
@@ -27,14 +27,14 @@
 #   The default timeout is 5 minutes. You can change the timeout by
 #   setting $slave_timeout. The unit is tenths of seconds.
 #
-# $slave_keep_connection
+# $master_connection
 #   If the timeout is reached, debug info is given by calling SHOW
-#   SLAVE STATUS, SHOW PROCESSLIST, and SHOW BINLOG EVENTS.  By
-#   default (assuming the current connection is slave), a 'connection
-#   master' is then issued, and the same information is printed again
-#   on the master host.  You can avoid switching to master (and thus
-#   suppress debug info on master too) by setting
-#   $slave_keep_connection to 1.
+#   SLAVE STATUS, SHOW PROCESSLIST, and SHOW BINLOG EVENTS.  Then, a
+#   'connection master' is then issued, and more debug info is given
+#   by calling SHOW MASTER STATUS, SHOW PROCESSLIST, and SHOW BINLOG
+#   EVENTS.  If $master_connection is set, the latter three commands
+#   will be issued on $master_connection instead of on the host named
+#   'master'.  See also show_rpl_debug_info.inc
 #
 # $slave_error_message
 #   If set, this is printed when a timeout occurs. This is primarily
@@ -57,38 +57,26 @@ if (`SELECT '$_slave_param_comparison' = ''`)
 }
 
 let $_show_slave_status_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
-while (`SELECT NOT('$_show_slave_status_value' $_slave_param_comparison '$slave_param_value')`)
+while (`SELECT NOT('$_show_slave_status_value' $_slave_param_comparison '$slave_param_value') AND $_slave_timeout_counter > 0`)
 {
-  if (!$_slave_timeout_counter)
-  {
-    --echo **** ERROR: failed while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
-    if (`SELECT '$slave_error_message' != ''`)
-    {
-      --echo Message: $slave_error_message
-    }
-    --echo Note: the following output may have changed since the failure was detected
-    --echo **** Showing SLAVE STATUS, PROCESSLIST, and BINLOG EVENTS on slave ****
-    query_vertical SHOW SLAVE STATUS;
-    SHOW PROCESSLIST;
-    let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
-    eval SHOW BINLOG EVENTS IN '$binlog_name';
-    if (!$slave_keep_connection) {
-      let $master_binlog_name_io= query_get_value("SHOW SLAVE STATUS", Master_Log_File, 1);
-      let $master_binlog_name_sql= query_get_value("SHOW SLAVE STATUS", Relay_Master_Log_File, 1);
-      --echo **** Showing MASTER STATUS, PROCESSLIST, and BINLOG EVENTS on master ****
-      --echo [on master]
-      connection master;
-      query_vertical SHOW MASTER STATUS;
-      SHOW PROCESSLIST;
-      eval SHOW BINLOG EVENTS IN '$master_binlog_name_sql';
-      if (`SELECT '$master_binlog_name_io' != '$master_binlog_name_sql'`)
-      {
-        eval SHOW BINLOG EVENTS IN '$master_binlog_name_io';
-      }
-    }
-    exit;
-  }
   dec $_slave_timeout_counter;
-  sleep 0.1;
-  let $_show_slave_status_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
+  if ($_slave_timeout_counter)
+  {
+    sleep 0.1;
+    let $_show_slave_status_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
+  }
+}
+
+# This has to be outside the loop until BUG#41913 has been fixed
+if (!$_slave_timeout_counter)
+{
+  --echo **** ERROR: timeout after $slave_timeout seconds while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
+  if (`SELECT '$slave_error_message' != ''`)
+  {
+    --echo Message: $slave_error_message
+  }
+  --echo Current connection is '$CURRENT_CONNECTION'
+  echo Note: the following output may have changed since the failure was detected;
+  source include/show_rpl_debug_info.inc;
+  exit;
 }
