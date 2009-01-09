@@ -1,3 +1,14 @@
+2009-01-09	The InnoDB Team
+
+	* include/buf0flu.h, include/buf0flu.ic, buf/buf0flu.c:
+	Remove unused code from the functions
+	buf_flush_insert_into_flush_list() and
+	buf_flush_insert_sorted_into_flush_list().
+
+2009-01-09	The InnoDB Team
+
+	* buf/buf0flu.c: Simplify the function buf_flush_try_page().
+
 2009-01-07	The InnoDB Team
 
 	* row/row0merge.c:
