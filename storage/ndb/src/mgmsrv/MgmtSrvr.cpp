@@ -3437,6 +3437,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
   Uint32 type = NODE_TYPE_DB + 1;
   if(node != 0){
+    // Set parameter only in the specified node
     if(iter.find(CFG_NODE_ID, node) != 0){
       msg.assign("Unable to find node (iter.find())");
       return -1;
@@ -3446,6 +3447,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
       return -1;
     }
   } else {
+    // Set parameter in all DB nodes
     do {
       if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
 	msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");

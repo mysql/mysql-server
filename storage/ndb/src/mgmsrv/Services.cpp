@@ -236,8 +236,8 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
   MGM_CMD("set parameter", &MgmApiSession::setParameter, ""),
-    MGM_ARG("node", String, Mandatory, "Node"),
-    MGM_ARG("parameter", String, Mandatory, "Parameter"),
+    MGM_ARG("node", Int, Mandatory, "Node"),
+    MGM_ARG("parameter", Int, Mandatory, "Parameter"),
     MGM_ARG("value", String, Mandatory, "Value"),
 
   MGM_CMD("set connection parameter",
@@ -1505,18 +1505,20 @@ Ndb_mgmd_event_service::stop_sessions(){
 
 void
 MgmApiSession::setParameter(Parser_t::Context &,
-			    Properties const &args) {
-  BaseString node, param, value;
-  args.get("node", node);
-  args.get("parameter", param);
+			    Properties const &args)
+{
+  Uint32 node, param;
+  BaseString value;
+  args.get("node", &node);
+  args.get("parameter", &param);
   args.get("value", value);
-  
+
   BaseString result;
-  int ret = m_mgmsrv.setDbParameter(atoi(node.c_str()), 
-				    atoi(param.c_str()),
+  int ret = m_mgmsrv.setDbParameter(node,
+				    param,
 				    value.c_str(),
 				    result);
-  
+
   m_output->println("set parameter reply");
   m_output->println("message: %s", result.c_str());
   m_output->println("result: %d", ret);
