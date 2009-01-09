@@ -153,6 +153,7 @@ buf_flush_ready_for_flush(
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	ut_ad(flush_type == BUF_FLUSH_LRU || BUF_FLUSH_LIST);
 
 	if (bpage->oldest_modification != 0
 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
@@ -736,15 +737,14 @@ buf_flush_try_page(
 					flushed, 0 otherwise */
 	ulint		space,		/* in: space id */
 	ulint		offset,		/* in: page offset */
-	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU, BUF_FLUSH_LIST,
-					or BUF_FLUSH_SINGLE_PAGE */
+	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU
+					or BUF_FLUSH_LIST */
 {
 	buf_page_t*	bpage;
 	mutex_t*	block_mutex;
 	ibool		is_uncompressed;
 
-	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST
-	      || flush_type == BUF_FLUSH_SINGLE_PAGE);
+	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
 	buf_pool_mutex_enter();
 
@@ -833,16 +833,6 @@ buf_flush_try_page(
 
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit();
-		break;
-
-	case BUF_FLUSH_SINGLE_PAGE:
-		mutex_exit(block_mutex);
-		buf_pool_mutex_exit();
-
-		if (is_uncompressed) {
-			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
-					   BUF_IO_WRITE);
-		}
 		break;
 
 	default:
