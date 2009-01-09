@@ -312,7 +312,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
     break;
   default:
     DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                         sizeof(buf), buf));
+                         (int)sizeof(buf), buf));
     DBUG_RETURN(false);
   }
 
@@ -1730,7 +1730,8 @@ TransporterRegistry::startReceiving()
     sa.sa_handler = shm_sig_handler;
     sa.sa_flags = 0;
     int ret;
-    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR);
+    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR)
+      ;
     if(ret != 0)
     {
       DBUG_PRINT("error",("Install failed"));
