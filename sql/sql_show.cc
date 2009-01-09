@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -468,17 +468,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
-  if (wild)
-  {
-    if (!wild[0])
-      wild= 0;
-    else
-      wild_length= strlen(wild);
-  }
+  if (wild && !wild[0])
+    wild=0;
 
 
   bzero((char*) &table_list,sizeof(table_list));
@@ -543,11 +537,8 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       {
 	if (lower_case_table_names)
 	{
-          if (my_wildcmp(files_charset_info,
-                         uname, uname + file_name_len,
-                         wild, wild + wild_length,
-                         wild_prefix, wild_one, wild_many))
-            continue;
+	  if (wild_case_compare(files_charset_info, uname, wild))
+	    continue;
 	}
 	else if (wild_compare(uname, wild, 0))
 	  continue;

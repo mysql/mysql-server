@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -230,7 +230,7 @@ extern "C" sig_handler handle_segfault(int sig);
 #if defined(__linux__)
 #define ENABLE_TEMP_POOL 1
 #else
-#define ENABLE_TEMP_TOOL 0
+#define ENABLE_TEMP_POOL 0
 #endif
 
 /* Constants */

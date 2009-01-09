@@ -1,9 +1,0 @@
-#
-# Bug#25830 SHOW TABLE STATUS behaves differently depending on table name
-#
-set names utf8;
-create table `Ö` (id int);
-show tables from test like 'Ö';
-show tables from test like 'ö';
-drop table `Ö`;
-
