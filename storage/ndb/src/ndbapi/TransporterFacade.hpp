@@ -256,6 +256,8 @@ private:
   friend void* runReceiveResponse_C(void*);
   friend void atexit_stop_instance();
 
+  bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
+
   /**
    * Block number handling
    */
