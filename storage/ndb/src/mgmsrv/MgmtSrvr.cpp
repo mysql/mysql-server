@@ -695,6 +695,52 @@ MgmtSrvr::setClusterLog(const Config* config)
 }
 
 
+
+static void
+copy_dynamic_ports(const Config* from, const Config* to)
+{
+  DBUG_ENTER("copy_dynamic_ports");
+  ConfigIter iter(from, CFG_SECTION_CONNECTION);
+  for(; iter.valid(); iter.next())
+  {
+    Uint32 node1 = 0;
+    Uint32 node2 = 0;
+    Uint32 port = 0;
+    require(iter.get(CFG_CONNECTION_NODE_1, &node1) == 0 &&
+            iter.get(CFG_CONNECTION_NODE_2, &node2) == 0 &&
+            iter.get(CFG_CONNECTION_SERVER_PORT, &port) == 0);
+
+    if ((int)port > 0) // Not dynamic port
+      continue;
+
+    DBUG_PRINT("info", ("Found dynamic port: %d between %d->%d",
+                        port, node1, node2));
+
+    /* Find the connecton in other config */
+    ConfigIter itB(to, CFG_SECTION_CONNECTION);
+    Uint32 node1_B, node2_B;
+    while(itB.get(CFG_CONNECTION_NODE_1, &node1_B) == 0 &&
+          itB.get(CFG_CONNECTION_NODE_2, &node2_B) == 0)
+    {
+      if (node1 == node1_B && node2 == node2_B)
+      {
+        ConfigValues::Iterator itC(to->m_configValues->m_config,
+                                   itB.m_config);
+
+        require(itC.set(CFG_CONNECTION_SERVER_PORT, (unsigned)port));
+
+        DBUG_PRINT("info", ("Set dynamic port: %d between %d->%d",
+                            port, node1, node2));
+      }
+
+      if(itB.next() != 0)
+        break;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void
 MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 {
@@ -707,10 +753,13 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
   _ownNodeId= node_id;
 
-  // TODO Magnus, Copy information about dynamic ports from
-  // new to old or save that info elsewhere
+  if (m_local_config)
+  {
+    // Copy dynamic ports to new config
+    copy_dynamic_ports(m_local_config, new_config);
+    delete m_local_config;
+  }
 
-  delete m_local_config;
   m_local_config= new Config(new_config); // Copy
   require(m_local_config);
 
