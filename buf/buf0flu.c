@@ -653,6 +653,16 @@ buf_flush_write_block_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
+	/* We are not holding buf_pool_mutex or block_mutex here.
+	Nevertheless, it is safe to access bpage, because it is
+	io_fixed and oldest_modification != 0.  Thus, it cannot be
+	relocated in the buffer pool or removed from flush_list or
+	LRU_list. */
+	ut_ad(!buf_pool_mutex_own());
+	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
+	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_WRITE);
+	ut_ad(bpage->oldest_modification != 0);
+
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
 #endif
@@ -731,7 +741,6 @@ buf_flush_try_page(
 {
 	buf_page_t*	bpage;
 	mutex_t*	block_mutex;
-	ibool		locked;
 	ibool		is_uncompressed;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST
@@ -768,16 +777,18 @@ buf_flush_try_page(
 
 	buf_pool->n_flush[flush_type]++;
 
-	is_uncompressed = buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE;
+	is_uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(is_uncompressed == (block_mutex != &buf_pool_zip_mutex));
 
 	switch (flush_type) {
+		ibool	is_s_latched;
 	case BUF_FLUSH_LIST:
 		/* If the simulated aio thread is not running, we must
 		not wait for any latch, as we may end up in a deadlock:
 		if buf_fix_count == 0, then we know we need not wait */
 
-		locked = bpage->buf_fix_count == 0;
-		if (locked && is_uncompressed) {
+		is_s_latched = (bpage->buf_fix_count == 0);
+		if (is_s_latched && is_uncompressed) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
 					   BUF_IO_WRITE);
 		}
@@ -785,7 +796,7 @@ buf_flush_try_page(
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit();
 
-		if (!locked) {
+		if (!is_s_latched) {
 			buf_flush_buffered_writes();
 
 			if (is_uncompressed) {
@@ -1031,19 +1042,20 @@ flush_next:
 		function a pointer to a block in the list! */
 
 		do {
-			mutex_t* block_mutex = buf_page_get_mutex(bpage);
+			mutex_t*block_mutex = buf_page_get_mutex(bpage);
+			ibool	ready;
 
 			ut_a(buf_page_in_file(bpage));
 
 			mutex_enter(block_mutex);
+			ready = buf_flush_ready_for_flush(bpage, flush_type);
+			mutex_exit(block_mutex);
 
-			if (buf_flush_ready_for_flush(bpage, flush_type)) {
-
+			if (ready) {
 				space = buf_page_get_space(bpage);
 				offset = buf_page_get_page_no(bpage);
 
 				buf_pool_mutex_exit();
-				mutex_exit(block_mutex);
 
 				old_page_count = page_count;
 
@@ -1059,14 +1071,9 @@ flush_next:
 				goto flush_next;
 
 			} else if (flush_type == BUF_FLUSH_LRU) {
-
-				mutex_exit(block_mutex);
-
 				bpage = UT_LIST_GET_PREV(LRU, bpage);
 			} else {
 				ut_ad(flush_type == BUF_FLUSH_LIST);
-
-				mutex_exit(block_mutex);
 
 				bpage = UT_LIST_GET_PREV(list, bpage);
 				ut_ad(!bpage || bpage->in_flush_list);
@@ -1080,8 +1087,7 @@ flush_next:
 
 	buf_pool->init_flush[flush_type] = FALSE;
 
-	if ((buf_pool->n_flush[flush_type] == 0)
-	    && (buf_pool->init_flush[flush_type] == FALSE)) {
+	if (buf_pool->n_flush[flush_type] == 0) {
 
 		/* The running flush batch has ended */
 

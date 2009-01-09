@@ -7,7 +7,9 @@
 
 2009-01-09	The InnoDB Team
 
-	* buf/buf0flu.c: Simplify the function buf_flush_try_page().
+	* buf/buf0flu.c: Simplify the functions buf_flush_try_page() and
+	buf_flush_batch().  Add debug assertions and an explanation to
+	buf_flush_write_block_low().
 
 2009-01-07	The InnoDB Team
 
