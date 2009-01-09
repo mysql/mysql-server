@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -379,6 +379,9 @@ inline ulonglong double2ulonglong(double d)
 
 #define HAVE_OPENSSL 1
 #define HAVE_YASSL 1
+
+#define COMMUNITY_SERVER 1
+#define ENABLED_PROFILING 1
 
 /* Define charsets you want */
 /* #undef HAVE_CHARSET_armscii8 */

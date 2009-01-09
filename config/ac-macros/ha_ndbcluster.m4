@@ -280,7 +280,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   esac
 
   # libndbclient versioning when linked with GNU ld.
-  if $LD --version 2>/dev/null|grep -q GNU; then
+  if $LD --version 2>/dev/null|grep GNU >/dev/null 2>&1 ; then
     NDB_LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/storage/ndb/src/libndb.ver"
     AC_CONFIG_FILES(storage/ndb/src/libndb.ver)
   fi
