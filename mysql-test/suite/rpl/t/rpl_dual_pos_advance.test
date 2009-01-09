@@ -12,7 +12,8 @@ source include/have_innodb.inc;
 
 # set up "dual head"
 
-let $slave_keep_connection= 1;
+# Needed for debug info in wait_for_slave_sql_to_stop.
+let $master_connection= slave;
 connection slave;
 reset master;
 
