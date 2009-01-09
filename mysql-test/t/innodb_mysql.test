@@ -91,4 +91,45 @@ INSERT INTO foo2 SELECT * FROM foo;
 
 DROP TABLE foo, bar, foo2;
 
+#
+# Bug#41348: INSERT INTO tbl SELECT * FROM temp_tbl overwrites locking type of temp table
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t3,t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS VARCHAR(250)
+ BEGIN
+     return 'hhhhhhh' ;
+ END|
+DELIMITER ;|
+
+CREATE TABLE t1 (a VARCHAR(20), b VARCHAR(20), c VARCHAR(20)) ENGINE=INNODB;
+
+BEGIN WORK;
+
+CREATE TEMPORARY TABLE t2 (a VARCHAR(20), b VARCHAR(20), c varchar(20)) ENGINE=INNODB;
+CREATE TEMPORARY TABLE t3 LIKE t2;
+
+INSERT INTO t1 VALUES ('a','b',NULL),('c','d',NULL),('e','f',NULL);
+
+SET @stmt := CONCAT('INSERT INTO t2 SELECT tbl.a, tbl.b, f1()',' FROM t1 tbl');
+PREPARE stmt1 FROM @stmt;
+
+SET @stmt := CONCAT('INSERT INTO t3', ' SELECT * FROM t2');
+PREPARE stmt3 FROM @stmt;
+
+EXECUTE stmt1;
+
+COMMIT;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt3;
+
+DROP TABLE t1,t3,t2;
+DROP FUNCTION f1;
+
 --echo End of 5.1 tests
