@@ -8,7 +8,7 @@
 # source include/wait_for_slave_sql_to_start.inc;
 #
 # Parameters to this macro are $slave_timeout and
-# $slave_keep_connection. See wait_for_slave_param.inc for
+# $master_connection. See wait_for_slave_param.inc for
 # descriptions.
 
 let $slave_param= Slave_SQL_Running;

@@ -15,7 +15,7 @@
 # Must be called on the master. Will change connection to the slave.
 #
 # Parameters to this macro are $slave_timeout and
-# $slave_keep_connection. See wait_for_slave_param.inc for
+# $master_connection. See wait_for_slave_param.inc for
 # descriptions.
 
 let $_master_file= query_get_value("SHOW MASTER STATUS", File, 1);
