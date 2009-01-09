@@ -766,6 +766,7 @@ buf_flush_try_page(
 	buf_page_t*	bpage;
 	mutex_t*	block_mutex;
 	ibool		locked;
+	ibool		is_uncompressed;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST
 	      || flush_type == BUF_FLUSH_SINGLE_PAGE);
@@ -801,6 +802,8 @@ buf_flush_try_page(
 
 	buf_pool->n_flush[flush_type]++;
 
+	is_uncompressed = buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE;
+
 	switch (flush_type) {
 	case BUF_FLUSH_LIST:
 		/* If the simulated aio thread is not running, we must
@@ -808,8 +811,7 @@ buf_flush_try_page(
 		if buf_fix_count == 0, then we know we need not wait */
 
 		locked = bpage->buf_fix_count == 0;
-		if (locked
-		    && buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+		if (locked && is_uncompressed) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
 					   BUF_IO_WRITE);
 		}
@@ -820,7 +822,7 @@ buf_flush_try_page(
 		if (!locked) {
 			buf_flush_buffered_writes();
 
-			if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+			if (is_uncompressed) {
 				rw_lock_s_lock_gen(&((buf_block_t*) bpage)
 						   ->lock, BUF_IO_WRITE);
 			}
@@ -837,7 +839,7 @@ buf_flush_try_page(
 		the page not to be bufferfixed (in function
 		buf_flush_ready_for_flush). */
 
-		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+		if (is_uncompressed) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
 					   BUF_IO_WRITE);
 		}
@@ -854,7 +856,7 @@ buf_flush_try_page(
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit();
 
-		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+		if (is_uncompressed) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
 					   BUF_IO_WRITE);
 		}
