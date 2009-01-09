@@ -1344,7 +1344,7 @@ int diff_check()
 {
  char buf[512]= {0};
  FILE *res_file;
- char *cmd = "diff -v";
+ const char *cmd = "diff -v";
  int have_diff = 0;
 
   if (!(res_file= popen(cmd, "r")))
