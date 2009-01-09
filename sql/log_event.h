@@ -327,18 +327,16 @@ struct sql_ex_info
 #define Q_CHARSET_DATABASE_CODE 8
 
 #define Q_TABLE_MAP_FOR_UPDATE_CODE 9
-/* Intvar event post-header */
 
+/* Intvar event data */
 #define I_TYPE_OFFSET        0
 #define I_VAL_OFFSET         1
 
-/* Rand event post-header */
-
+/* Rand event data */
 #define RAND_SEED1_OFFSET 0
 #define RAND_SEED2_OFFSET 8
 
-/* User_var event post-header */
-
+/* User_var event data */
 #define UV_VAL_LEN_SIZE        4
 #define UV_VAL_IS_NULL         1
 #define UV_VAL_TYPE_SIZE       1
@@ -346,7 +344,6 @@ struct sql_ex_info
 #define UV_CHARSET_NUMBER_SIZE 4
 
 /* Load event post-header */
-
 #define L_THREAD_ID_OFFSET   0
 #define L_EXEC_TIME_OFFSET   4
 #define L_SKIP_LINES_OFFSET  8
@@ -357,7 +354,6 @@ struct sql_ex_info
 #define L_DATA_OFFSET        LOAD_HEADER_LEN
 
 /* Rotate event post-header */
-
 #define R_POS_OFFSET       0
 #define R_IDENT_OFFSET     8
 
@@ -2214,10 +2210,11 @@ protected:
 
   @section Intvar_log_event_binary_format Binary Format
 
-  The Post-Header has two components:
+  The Post-Header for this event type is empty.  The Body has two
+  components:
 
   <table>
-  <caption>Post-Header for Intvar_log_event</caption>
+  <caption>Body for Intvar_log_event</caption>
 
   <tr>
     <th>Name</th>
@@ -2291,11 +2288,12 @@ private:
   which are stored internally as two 64-bit numbers.
 
   @section Rand_log_event_binary_format Binary Format  
-  This event type has no Post-Header. The Body of this event type has
-  two components:
+
+  The Post-Header for this event type is empty.  The Body has two
+  components:
 
   <table>
-  <caption>Post-Header for Intvar_log_event</caption>
+  <caption>Body for Rand_log_event</caption>
 
   <tr>
     <th>Name</th>
