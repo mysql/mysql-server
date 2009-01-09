@@ -15,13 +15,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 
 /************************************************************************
-Inserts a modified block into the flush list. */
-UNIV_INTERN
-void
-buf_flush_insert_into_flush_list(
-/*=============================*/
-	buf_page_t*	bpage);	/* in: block which is modified */
-/************************************************************************
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN
 void
