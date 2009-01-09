@@ -156,8 +156,8 @@ my_bool _ma_once_end_pack_row(MARIA_SHARE *share)
 {
   if (share->decode_trees)
   {
-    my_free((uchar*) share->decode_trees,MYF(0));
-    my_free((uchar*) share->decode_tables,MYF(0));
+    my_free(share->decode_trees,MYF(0));
+    my_free(share->decode_tables,MYF(0));
   }
   return 0;
 }
@@ -184,14 +184,14 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
     maria_quick_table_bits=MAX_QUICK_TABLE_BITS;
 
   my_errno=0;
-  if (my_read(file,(uchar*) header,sizeof(header),MYF(MY_NABP)))
+  if (my_read(file, header, sizeof(header), MYF(MY_NABP)))
   {
     if (!my_errno)
       my_errno=HA_ERR_END_OF_FILE;
     goto err0;
   }
   /* Only the first three bytes of magic number are independent of version. */
-  if (memcmp((uchar*) header, (uchar*) maria_pack_file_magic, 3))
+  if (memcmp(header, maria_pack_file_magic, 3))
   {
     my_errno=HA_ERR_WRONG_IN_RECORD;
     goto err0;
@@ -332,9 +332,9 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
 err3:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err2:
-  my_free((uchar*) share->decode_tables,MYF(0));
+  my_free(share->decode_tables, MYF(0));
 err1:
-  my_free((uchar*) share->decode_trees,MYF(0));
+  my_free(share->decode_trees, MYF(0));
 err0:
   DBUG_RETURN(1);
 }
@@ -752,7 +752,7 @@ int _ma_read_pack_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
                               &info->rec_buff, &info->rec_buff_size, file,
                               filepos))
     goto err;
-  if (my_read(file,(uchar*) info->rec_buff + block_info.offset ,
+  if (my_read(file, info->rec_buff + block_info.offset ,
 	      block_info.rec_len - block_info.offset, MYF(MY_NABP)))
     goto panic;
   info->update|= HA_STATE_AKTIV;
@@ -782,7 +782,7 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
     from+= info->s->base.null_bytes;
     reclength-= info->s->base.null_bytes;
   }
-  init_bit_buffer(bit_buff, (uchar*) from, reclength);
+  init_bit_buffer(bit_buff, from, reclength);
   for (current_field=share->columndef, end=current_field+share->base.fields ;
        current_field < end ;
        current_field++,to=end_field)
@@ -882,7 +882,7 @@ static void uf_space_normal(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
                             uchar *to, uchar *end)
 {
   if (get_bit(bit_buff))
-    bfill((uchar*) to,(end-to),' ');
+    bfill(to, (end-to), ' ');
   else
     decode_bytes(rec,bit_buff,to,end);
 }
@@ -893,7 +893,7 @@ static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec,
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((uchar*) to,(end-to),' ');
+    bfill(to, (end-to), ' ');
   else
   {
     if (get_bit(bit_buff))
@@ -905,7 +905,7 @@ static void uf_space_endspace_selected(MARIA_COLUMNDEF *rec,
       }
       if (to+spaces != end)
 	decode_bytes(rec,bit_buff,to,end-spaces);
-      bfill((uchar*) end-spaces,spaces,' ');
+      bfill(end - spaces, spaces, ' ');
     }
     else
       decode_bytes(rec,bit_buff,to,end);
@@ -926,7 +926,7 @@ static void uf_endspace_selected(MARIA_COLUMNDEF *rec,
     }
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to,end-spaces);
-    bfill((uchar*) end-spaces,spaces,' ');
+    bfill(end - spaces, spaces, ' ');
   }
   else
     decode_bytes(rec,bit_buff,to,end);
@@ -937,7 +937,7 @@ static void uf_space_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((uchar*) to,(end-to),' ');
+    bfill(to, (end-to), ' ');
   else
   {
     if ((spaces=get_bits(bit_buff,rec->space_length_bits))+to > end)
@@ -947,7 +947,7 @@ static void uf_space_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
     }
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to,end-spaces);
-    bfill((uchar*) end-spaces,spaces,' ');
+    bfill(end - spaces, spaces, ' ');
   }
 }
 
@@ -962,7 +962,7 @@ static void uf_endspace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
   }
   if (to+spaces != end)
     decode_bytes(rec,bit_buff,to,end-spaces);
-  bfill((uchar*) end-spaces,spaces,' ');
+  bfill(end - spaces, spaces, ' ');
 }
 
 static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec,
@@ -971,7 +971,7 @@ static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec,
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((uchar*) to,(end-to),' ');
+    bfill(to, (end-to), ' ');
   else
   {
     if (get_bit(bit_buff))
@@ -981,7 +981,7 @@ static void uf_space_prespace_selected(MARIA_COLUMNDEF *rec,
 	bit_buff->error=1;
 	return;
       }
-      bfill((uchar*) to,spaces,' ');
+      bfill(to, spaces, ' ');
       if (to+spaces != end)
 	decode_bytes(rec,bit_buff,to+spaces,end);
     }
@@ -1003,7 +1003,7 @@ static void uf_prespace_selected(MARIA_COLUMNDEF *rec,
       bit_buff->error=1;
       return;
     }
-    bfill((uchar*) to,spaces,' ');
+    bfill(to, spaces, ' ');
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to+spaces,end);
   }
@@ -1017,7 +1017,7 @@ static void uf_space_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
 {
   uint spaces;
   if (get_bit(bit_buff))
-    bfill((uchar*) to,(end-to),' ');
+    bfill(to, (end-to), ' ');
   else
   {
     if ((spaces=get_bits(bit_buff,rec->space_length_bits))+to > end)
@@ -1025,7 +1025,7 @@ static void uf_space_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
       bit_buff->error=1;
       return;
     }
-    bfill((uchar*) to,spaces,' ');
+    bfill(to, spaces, ' ');
     if (to+spaces != end)
       decode_bytes(rec,bit_buff,to+spaces,end);
   }
@@ -1040,7 +1040,7 @@ static void uf_prespace(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
     bit_buff->error=1;
     return;
   }
-  bfill((uchar*) to,spaces,' ');
+  bfill(to, spaces, ' ');
   if (to+spaces != end)
     decode_bytes(rec,bit_buff,to+spaces,end);
 }
@@ -1091,14 +1091,14 @@ static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
     if (bit_buff->blob_pos+length > bit_buff->blob_end)
     {
       bit_buff->error=1;
-      bzero((uchar*) to,(end-to));
+      bzero(to, (end-to));
       return;
     }
-    decode_bytes(rec,bit_buff,(uchar*) bit_buff->blob_pos,
-                 (uchar*) bit_buff->blob_pos+length);
-    _ma_store_blob_length((uchar*) to,pack_length,length);
-    memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,
-		 sizeof(char*));
+    decode_bytes(rec, bit_buff, bit_buff->blob_pos,
+                 bit_buff->blob_pos + length);
+    _ma_store_blob_length(to, pack_length, length);
+    memcpy_fixed((uchar*) to+pack_length,(uchar*) &bit_buff->blob_pos,
+		 sizeof(uchar*));
     bit_buff->blob_pos+=length;
   }
 }
@@ -1359,7 +1359,7 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
   file= info->dfile.file;
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_ma_read_cache(&info->rec_cache, (uchar*) block_info.header,
+    if (_ma_read_cache(&info->rec_cache, block_info.header,
                        filepos, share->pack.ref_length,
                        skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
@@ -1379,14 +1379,14 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
 
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_ma_read_cache(&info->rec_cache, (uchar*) info->rec_buff,
+    if (_ma_read_cache(&info->rec_cache, info->rec_buff,
                        block_info.filepos, block_info.rec_len,
                        skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
   }
   else
   {
-    if (my_read(info->dfile.file, (uchar*)info->rec_buff + block_info.offset,
+    if (my_read(info->dfile.file, info->rec_buff + block_info.offset,
 		block_info.rec_len-block_info.offset,
 		MYF(MY_NABP)))
       goto err;
@@ -1424,7 +1424,7 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
     if (my_read(file, header,ref_length,MYF(MY_NABP)))
       return BLOCK_FATAL_ERROR;
-    DBUG_DUMP("header",(uchar*) header,ref_length);
+    DBUG_DUMP("header", header, ref_length);
   }
   head_length= read_pack_length((uint) maria->s->pack.version, header,
                                 &info->rec_len);
@@ -1441,7 +1441,7 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
                          info->rec_len + info->blob_len +
                          maria->s->base.extra_rec_buff_size))
       return BLOCK_FATAL_ERROR;			/* not enough memory */
-    bit_buff->blob_pos= (uchar*) *rec_buff_p + info->rec_len;
+    bit_buff->blob_pos= *rec_buff_p + info->rec_len;
     bit_buff->blob_end= bit_buff->blob_pos + info->blob_len;
     maria->blob_length=info->blob_len;
   }
@@ -1588,8 +1588,8 @@ _ma_mempack_get_block_info(MARIA_HA *maria,
     if (_ma_alloc_buffer(rec_buff_p, rec_buff_size_p,
                          info->blob_len + maria->s->base.extra_rec_buff_size))
       return 0;				/* not enough memory */
-    bit_buff->blob_pos= (uchar*) *rec_buff_p;
-    bit_buff->blob_end= (uchar*) *rec_buff_p + info->blob_len;
+    bit_buff->blob_pos= *rec_buff_p;
+    bit_buff->blob_end= *rec_buff_p + info->blob_len;
   }
   return header;
 }

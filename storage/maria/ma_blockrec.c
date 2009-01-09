@@ -539,9 +539,9 @@ err:
 void _ma_end_block_record(MARIA_HA *info)
 {
   DBUG_ENTER("_ma_end_block_record");
-  my_free((uchar*) info->cur_row.empty_bits, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->cur_row.empty_bits, MYF(MY_ALLOW_ZERO_PTR));
   delete_dynamic(&info->bitmap_blocks);
-  my_free((uchar*) info->cur_row.extents, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->cur_row.extents, MYF(MY_ALLOW_ZERO_PTR));
   my_free(info->blob_buff, MYF(MY_ALLOW_ZERO_PTR));
   /*
     The data file is closed, when needed, in ma_once_end_block_record().

@@ -2973,7 +2973,7 @@ restart:
               This IF should be true because we use in-memory data which
               supposed to be correct.
             */
-            if (translog_page_validator((uchar*) buffer,
+            if (translog_page_validator(buffer,
                                         LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
                                         (uchar*) &file_copy))
             {
@@ -2996,15 +2996,14 @@ restart:
   }
   file= get_logfile_by_number(file_no);
   DBUG_ASSERT(file != NULL);
-  buffer=
-    (uchar*) pagecache_read(log_descriptor.pagecache, &file->handler,
-                            LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
-                            3, (direct_link ? NULL : buffer),
-                            PAGECACHE_PLAIN_PAGE,
-                            (direct_link ?
-                             PAGECACHE_LOCK_READ :
-                             PAGECACHE_LOCK_LEFT_UNLOCKED),
-                            direct_link);
+  buffer= pagecache_read(log_descriptor.pagecache, &file->handler,
+                         LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
+                         3, (direct_link ? NULL : buffer),
+                         PAGECACHE_PLAIN_PAGE,
+                         (direct_link ?
+                          PAGECACHE_LOCK_READ :
+                          PAGECACHE_LOCK_LEFT_UNLOCKED),
+                         direct_link);
   DBUG_PRINT("info", ("Direct link is assigned to : 0x%lx * 0x%lx",
                       (ulong) direct_link,
                       (ulong)(direct_link ? *direct_link : NULL)));
@@ -4083,7 +4082,7 @@ void translog_destroy()
     my_close(log_descriptor.directory_fd, MYF(MY_WME));
   my_atomic_rwlock_destroy(&LOCK_id_to_share);
   if (id_to_share != NULL)
-    my_free((uchar*)(id_to_share + 1), MYF(MY_WME));
+    my_free((id_to_share + 1), MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 
@@ -6248,7 +6247,7 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
   DBUG_ENTER("translog_free_record_header");
   if (buff->groups_no != 0)
   {
-    my_free((uchar*) buff->groups, MYF(0));
+    my_free(buff->groups, MYF(0));
     buff->groups_no= 0;
   }
   DBUG_VOID_RETURN;

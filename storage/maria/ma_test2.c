@@ -518,8 +518,8 @@ int main(int argc, char *argv[])
       bcmp(read_record2,read_record3,reclength))
   {
     printf("Can't find last record\n");
-    DBUG_DUMP("record2",(uchar*) read_record2,reclength);
-    DBUG_DUMP("record3",(uchar*) read_record3,reclength);
+    DBUG_DUMP("record2", read_record2, reclength);
+    DBUG_DUMP("record3", read_record3, reclength);
     goto err;
   }
   ant=1;
@@ -705,8 +705,8 @@ int main(int argc, char *argv[])
     if (maria_rfirst(file,read_record,(int) i) ||
 	maria_rlast(file,read_record2,(int) i))
       goto err;
-    copy_key(file,(uint) i,(uchar*) read_record,(uchar*) key);
-    copy_key(file,(uint) i,(uchar*) read_record2,(uchar*) key2);
+    copy_key(file,(uint) i, read_record,  key);
+    copy_key(file,(uint) i, read_record2, key2);
     min_key.key= key;
     min_key.keypart_map= HA_WHOLE_KEY;
     min_key.flag= HA_READ_KEY_EXACT;

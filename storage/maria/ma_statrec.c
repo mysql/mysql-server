@@ -155,7 +155,7 @@ my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
   if (info->s->file_read(info, info->rec_buff, info->s->base.reclength,
 	       pos, MYF(MY_NABP)))
     DBUG_RETURN(1);
-  DBUG_RETURN(_ma_unique_comp(def, record, (uchar*) info->rec_buff,
+  DBUG_RETURN(_ma_unique_comp(def, record, info->rec_buff,
                               def->null_are_equal));
 }
 
@@ -276,11 +276,11 @@ int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
   }
 
 	/* Read record with cacheing */
-  error=my_b_read(&info->rec_cache,(uchar*) buf,share->base.reclength);
+  error=my_b_read(&info->rec_cache, buf, share->base.reclength);
   if (info->s->base.pack_reclength != info->s->base.reclength && !error)
   {
-    char tmp[8];				/* Skill fill bytes */
-    error=my_b_read(&info->rec_cache,(uchar*) tmp,
+    uchar tmp[8];				/* Skill fill bytes */
+    error=my_b_read(&info->rec_cache, tmp,
 		    info->s->base.pack_reclength - info->s->base.reclength);
   }
   if (locked)

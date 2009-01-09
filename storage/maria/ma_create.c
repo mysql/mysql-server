@@ -659,7 +659,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     goto err_no_lock;
   }
 
-  bmove(share.state.header.file_version,(uchar*) maria_file_magic,4);
+  bmove(share.state.header.file_version, maria_file_magic, 4);
   ci->old_options=options | (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
                              HA_OPTION_COMPRESS_RECORD |
                              HA_OPTION_TEMP_COMPRESS_RECORD: 0);
@@ -956,11 +956,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       column_array[col_order[i]->column_nr]= i;
       if (_ma_columndef_write(file, col_order[i]))
       {
-        my_free((uchar*) col_order, MYF(0));
+        my_free(col_order, MYF(0));
         goto err;
       }
     }
-    my_free((uchar*) col_order, MYF(0));
+    my_free(col_order, MYF(0));
   }
   else
   {

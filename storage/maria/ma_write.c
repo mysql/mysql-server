@@ -367,7 +367,7 @@ static my_bool _ma_ck_write_btree(MARIA_HA *info, MARIA_KEY *key)
     if (!error)
       error= _ma_ft_convert_to_ft2(info, key);
     delete_dynamic(info->ft1_to_ft2);
-    my_free((uchar*)info->ft1_to_ft2, MYF(0));
+    my_free(info->ft1_to_ft2, MYF(0));
     info->ft1_to_ft2=0;
   }
   DBUG_RETURN(error != 0);
@@ -683,7 +683,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
 #ifndef DBUG_OFF
   if (prev_key && (keyinfo->flag & (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
   {
-    DBUG_DUMP("prev_key",(uchar*) prev_key, _ma_keylength(keyinfo,prev_key));
+    DBUG_DUMP("prev_key", prev_key, _ma_keylength(keyinfo,prev_key));
   }
   if (keyinfo->flag & HA_PACK_KEY)
   {
@@ -700,8 +700,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
     }
-    bmove_upp((uchar*) endpos+t_length,(uchar*) endpos,
-              (uint) (endpos-key_pos));
+    bmove_upp(endpos+t_length, endpos, (uint) (endpos-key_pos));
   }
   else
   {
@@ -894,8 +893,7 @@ int _ma_split_page(MARIA_HA *info, MARIA_KEY *key, MARIA_PAGE *split_page,
   {
     DBUG_PRINT("test",("Splitting nod"));
     pos=key_pos-nod_flag;
-    memcpy((uchar*) new_page.buff + share->keypage_header, (uchar*) pos,
-           (size_t) nod_flag);
+    memcpy(new_page.buff + share->keypage_header, pos, (size_t) nod_flag);
   }
 
   /* Move middle item to key and pointer to new page */
@@ -913,7 +911,7 @@ int _ma_split_page(MARIA_HA *info, MARIA_KEY *key, MARIA_PAGE *split_page,
   t_length=(*keyinfo->pack_key)(&tmp_key, nod_flag, (uchar *) 0,
 				(uchar*) 0, (uchar*) 0, &s_temp);
   length=(uint) ((split_page->buff + a_length) - key_pos);
-  memcpy((uchar*) new_page.buff+key_ref_length+t_length,(uchar*) key_pos,
+  memcpy(new_page.buff + key_ref_length + t_length, key_pos,
 	 (size_t) length);
   (*keyinfo->store_key)(keyinfo,new_page.buff+key_ref_length,&s_temp);
   page_length= length + t_length + key_ref_length;
@@ -1340,10 +1338,9 @@ static int _ma_balance_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   extra_buff= info->buff+share->base.max_key_block_length;
   new_left_length= new_right_length= (share->keypage_header + nod_flag +
                                       (keys+1) / 3 * curr_keylength);
-  extra_page.info= info;
+  extra_page.info=    info;
   extra_page.keyinfo= keyinfo;
-  extra_page.buff= extra_buff;
-  extra_page.flag= 0;
+  extra_page.buff=    extra_buff;
 
   /*
     5 is the minum number of keys we can have here. This comes from
@@ -1368,11 +1365,11 @@ static int _ma_balance_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   bzero(extra_buff, share->keypage_header);
   extra_page.flag= nod_flag ? KEYPAGE_FLAG_ISNOD : 0;
   extra_page.size= extra_buff_length;
+  page_store_info(share, &extra_page);
 
   /* Copy key number */
   extra_buff[share->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_KEYID_SIZE -
              KEYPAGE_FLAG_SIZE]= keyinfo->key_nr;
-  page_store_info(share, &extra_page);
 
   /* move first largest keys to new page  */
   pos= right_page->buff + right_length-extra_length;

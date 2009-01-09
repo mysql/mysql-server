@@ -69,8 +69,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   TREE_ELEMENT *selem;
   double       gweight=1;
   MARIA_HA     *info= aio->info;
-  uchar         *keybuff= (uchar*) aio->keybuff;
-  MARIA_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
+  uchar        *keybuff= aio->keybuff;
+  MARIA_KEYDEF *keyinfo= info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
   uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
   MARIA_KEY    key;
@@ -360,7 +360,7 @@ float maria_ft_nlq_find_relevance(FT_INFO *handler,
 
 void maria_ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free((uchar*)handler,MYF(0));
+  my_free(handler, MYF(0));
 }
 
 

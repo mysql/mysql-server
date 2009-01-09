@@ -322,7 +322,7 @@ int _ma_seq_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
   page=      ma_page->buff;
   end= page + ma_page->size;
   page+= share->keypage_header + nod_flag;
-  *ret_pos= (uchar*) page;
+  *ret_pos= page;
   t_buff[0]=0;                                  /* Avoid bugs */
 
   tmp_key.data= t_buff;
@@ -438,7 +438,7 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
     uint packed= *page & 128;
     uint key_flag;
 
-    vseg= (uchar*) page;
+    vseg= page;
     if (keyinfo->seg->length >= 127)
     {
       suffix_len=mi_uint2korr(vseg) & 32767;
@@ -509,7 +509,7 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
         from+= transid_packed_length(from);
         key_flag= SEARCH_PAGE_KEY_HAS_TRANSID;
       }
-      page= (uchar*) from+nod_flag;
+      page= from + nod_flag;
       length= (uint) (from-vseg);
     }
 
@@ -651,7 +651,7 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
     saved_length=length;
   }
   if (saved_length)
-    memcpy(saved_to, (uchar*) saved_from, saved_length);
+    memcpy(saved_to, saved_from, saved_length);
 
   *last_key= page == end;
 
@@ -1092,7 +1092,7 @@ uint _ma_get_pack_key(MARIA_KEY *int_key, uint page_flag,
       else
         length=keyseg->length;
     }
-    memcpy((uchar*) key,(uchar*) page,(size_t) length);
+    memcpy(key, page,(size_t) length);
     key+=length;
     page+=length;
   }
@@ -1280,7 +1280,7 @@ uint _ma_get_binary_pack_key(MARIA_KEY *int_key, uint page_flag, uint nod_flag,
     DBUG_ASSERT((int) length >= 0);
     DBUG_PRINT("info",("key: 0x%lx  from: 0x%lx  length: %u",
 		       (long) key, (long) from, length));
-    memmove((uchar*) key, (uchar*) from, (size_t) length);
+    memmove(key, from, (size_t) length);
     key+=length;
     from+=length;
   }

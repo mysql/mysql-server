@@ -155,7 +155,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   {
     my_bool res= pagecache_write(share->pagecache,
                                  &bitmap->file, bitmap->page, 0,
-                                 (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
+                                 bitmap->map, PAGECACHE_PLAIN_PAGE,
                                  PAGECACHE_LOCK_LEFT_UNLOCKED,
                                  PAGECACHE_PIN_LEFT_UNPINNED,
                                  PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE);
@@ -166,7 +166,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     MARIA_PINNED_PAGE page_link;
     int res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
-                             (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
+                             bitmap->map, PAGECACHE_PLAIN_PAGE,
                              PAGECACHE_LOCK_WRITE, PAGECACHE_PIN,
                              PAGECACHE_WRITE_DELAY, &page_link.link,
                              LSN_IMPOSSIBLE);
@@ -263,7 +263,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
   pthread_cond_destroy(&share->bitmap.bitmap_cond);
   delete_dynamic(&share->bitmap.pinned_pages);
-  my_free((uchar*) share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
   share->bitmap.map= 0;
   return res;
 }
@@ -768,8 +768,7 @@ static my_bool _ma_read_bitmap_page(MARIA_HA *info,
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   res= pagecache_read(share->pagecache,
                       &bitmap->file, page, 0,
-                      (uchar*) bitmap->map,
-                      PAGECACHE_PLAIN_PAGE,
+                      bitmap->map, PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL;
 
   /*

@@ -166,11 +166,11 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   res= 1;
 
 ok:
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   return res;
 
 err:
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   info->cur_row.lastpos= HA_OFFSET_ERROR;
   return -1;
 }
@@ -405,11 +405,11 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   res= 1;
 
 ok:
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   return res;
 
 err:
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   info->cur_row.lastpos= HA_OFFSET_ERROR;
   return -1;
 }
@@ -1058,11 +1058,11 @@ static int maria_rtree_delete_req(MARIA_HA *info, const MARIA_KEY *key,
   res= 1;
 
 ok:
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   DBUG_RETURN(res);
 
 err:
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
@@ -1197,7 +1197,7 @@ my_bool maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key,
         }
       }
       my_afree(page_buf);
-      my_free((uchar*) ReinsertList.pages, MYF(0));
+      my_free(ReinsertList.pages, MYF(0));
     }
 
     /* check for redundant root (not leaf, 1 child) and eliminate */
@@ -1329,7 +1329,7 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, MARIA_KEY *key, uint32 flag)
       res= HA_POS_ERROR;
   }
 
-  my_afree((uchar*)page_buf);
+  my_afree(page_buf);
   return res;
 
 err:

@@ -598,7 +598,7 @@ FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr,
   return ftb;
 err:
   free_root(& ftb->mem_root, MYF(0));
-  my_free((uchar*)ftb,MYF(0));
+  my_free(ftb, MYF(0));
   return 0;
 }
 
@@ -997,7 +997,7 @@ void maria_ft_boolean_close_search(FT_INFO *ftb)
     delete_tree(& ftb->no_dupes);
   }
   free_root(& ftb->mem_root, MYF(0));
-  my_free((uchar*)ftb,MYF(0));
+  my_free(ftb, MYF(0));
 }
 
 

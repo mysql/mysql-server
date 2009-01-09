@@ -1825,7 +1825,7 @@ err:
   }
   if (temp_buff)
   {
-    my_afree((uchar*) temp_buff);
+    my_afree(temp_buff);
   }
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -1928,11 +1928,11 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,
     goto err;
   }
   if (temp_buff)
-    my_afree((uchar*) temp_buff);
+    my_afree(temp_buff);
   DBUG_RETURN(0);
 err:
   if (temp_buff)
-    my_afree((uchar*) temp_buff);
+    my_afree(temp_buff);
   DBUG_RETURN(1);
 } /* sort_record_index */
 

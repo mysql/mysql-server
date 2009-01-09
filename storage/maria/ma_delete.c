@@ -257,7 +257,7 @@ my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
     }
   }
 err:
-  my_afree((uchar*) root_buff);
+  my_afree(root_buff);
   DBUG_PRINT("exit",("Return: %d",result));
   DBUG_RETURN(result);
 } /* _ma_ck_real_delete */

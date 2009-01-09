@@ -482,7 +482,7 @@ static my_bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count)
  error:
   while (i--)
     maria_close(mrg->file[i]);
-  my_free((uchar*) mrg->file,MYF(0));
+  my_free(mrg->file, MYF(0));
   return 1;
 }
 
@@ -828,11 +828,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     for (i=0 ; i < trees ; i++)
     {
       if (huff_trees[i].element_buffer)
-	my_free((uchar*) huff_trees[i].element_buffer,MYF(0));
+	my_free(huff_trees[i].element_buffer,MYF(0));
       if (huff_trees[i].code)
-	my_free((uchar*) huff_trees[i].code,MYF(0));
+	my_free(huff_trees[i].code,MYF(0));
     }
-    my_free((uchar*) huff_trees,MYF(0));
+    my_free(huff_trees,MYF(0));
   }
   if (huff_counts)
   {
@@ -840,11 +840,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     {
       if (huff_counts[i].tree_buff)
       {
-	my_free((uchar*) huff_counts[i].tree_buff,MYF(0));
+	my_free(huff_counts[i].tree_buff,MYF(0));
 	delete_tree(&huff_counts[i].int_tree);
       }
     }
-    my_free((uchar*) huff_counts,MYF(0));
+    my_free(huff_counts, MYF(0));
   }
   delete_queue(&queue);		/* This is safe to free */
   return;
@@ -1041,7 +1041,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	{
 	  uint i;
           /* Zero fields are just counted. Go to the next record. */
-	  if (!memcmp((uchar*) start_pos,zero_string,count->field_length))
+	  if (!memcmp(start_pos, zero_string, count->field_length))
 	  {
 	    count->zero_fields++;
 	    continue;
@@ -1150,7 +1150,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
   mrg->records=record_count;
   mrg->max_blob_length=max_blob_length;
-  my_afree((uchar*) record);
+  my_afree(record);
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
@@ -1337,12 +1337,12 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       }
       else
       {
-	my_free((uchar*) huff_counts->tree_buff,MYF(0));
+	my_free(huff_counts->tree_buff,MYF(0));
 	delete_tree(&huff_counts->int_tree);
 	huff_counts->tree_buff=0;
       }
       if (tree.element_buffer)
-	my_free((uchar*) tree.element_buffer,MYF(0));
+	my_free(tree.element_buffer,MYF(0));
     }
     if (huff_counts->pack_type & PACK_TYPE_SPACE_FIELDS)
       space_fields++;
@@ -1460,8 +1460,8 @@ static HUFF_TREE* make_huff_trees(HUFF_COUNTS *huff_counts, uint trees)
     if (make_huff_tree(huff_tree+tree,huff_counts+tree))
     {
       while (tree--)
-	my_free((uchar*) huff_tree[tree].element_buffer,MYF(0));
-      my_free((uchar*) huff_tree,MYF(0));
+	my_free(huff_tree[tree].element_buffer,MYF(0));
+      my_free(huff_tree,MYF(0));
       DBUG_RETURN(0);
     }
   }
@@ -2169,7 +2169,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     {				/* This should be impossible */
       VOID(fprintf(stderr, "Tree offset got too big: %d, aborted\n",
                    huff_tree->max_offset));
-      my_afree((uchar*) packed_tree);
+      my_afree(packed_tree);
       return 0;
     }
 
@@ -2341,7 +2341,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
   DBUG_PRINT("info", (" "));
   if (verbose >= 2)
     VOID(printf("\n"));
-  my_afree((uchar*) packed_tree);
+  my_afree(packed_tree);
   if (errors)
   {
     VOID(fprintf(stderr, "Error: Generated decode trees are corrupt. Stop.\n"));
@@ -2484,7 +2484,7 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length +
                        null_bytes))
 	break;
-      record_pos= (uchar*) file_buffer.pos;
+      record_pos= file_buffer.pos;
       file_buffer.pos+= max_pack_length;
       if (null_bytes)
       {
@@ -2529,7 +2529,7 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 
 	switch (count->field_type) {
 	case FIELD_SKIP_ZERO:
-	  if (!memcmp((uchar*) start_pos,zero_string,field_length))
+	  if (!memcmp(start_pos, zero_string, field_length))
 	  {
             DBUG_PRINT("fields", ("FIELD_SKIP_ZERO zeroes only, bits:  1"));
 	    write_bits(1,1);
@@ -2754,7 +2754,7 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
         DBUG_PRINT("fields", ("---"));
       }
       flush_bits();
-      length=(ulong) ((uchar*) file_buffer.pos - record_pos) - max_pack_length;
+      length=(ulong) (file_buffer.pos - record_pos) - max_pack_length;
       pack_length= _ma_save_pack_length(pack_version, record_pos, length);
       if (pack_blob_length)
 	pack_length+= _ma_save_pack_length(pack_version,
@@ -2795,7 +2795,7 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   if (verbose >= 2)
     VOID(printf("wrote %s records.\n", llstr((longlong) record_count, llbuf)));
 
-  my_afree((uchar*) record);
+  my_afree(record);
   mrg->ref_length=max_pack_length;
   mrg->min_pack_length=max_record_length ? min_record_length : 0;
   mrg->max_pack_length=max_record_length;
@@ -2873,15 +2873,14 @@ static int flush_buffer(ulong neaded_length)
   if (neaded_length != ~(ulong) 0 &&
       (ulong) (file_buffer.end-file_buffer.buffer) < neaded_length)
   {
-    char *tmp;
+    uchar *tmp;
     neaded_length+=256;				/* some margin */
-    tmp= my_realloc((char*) file_buffer.buffer, neaded_length,MYF(MY_WME));
+    tmp= (uchar*) my_realloc(file_buffer.buffer, neaded_length,MYF(MY_WME));
     if (!tmp)
       return 1;
-    file_buffer.pos= ((uchar*) tmp +
-                      (ulong) (file_buffer.pos - file_buffer.buffer));
-    file_buffer.buffer= (uchar*) tmp;
-    file_buffer.end= (uchar*) (tmp+neaded_length-8);
+    file_buffer.pos=    (tmp + (ulong) (file_buffer.pos - file_buffer.buffer));
+    file_buffer.buffer= tmp;
+    file_buffer.end=    (tmp+neaded_length-8);
   }
   return 0;
 }
@@ -2889,7 +2888,7 @@ static int flush_buffer(ulong neaded_length)
 
 static void end_file_buffer(void)
 {
-  my_free((uchar*) file_buffer.buffer,MYF(0));
+  my_free(file_buffer.buffer, MYF(0));
 }
 
 	/* output `bits` low bits of `value' */
@@ -3108,7 +3107,7 @@ static int mrg_close(PACK_MRG_INFO *mrg)
   for (i=0 ; i < mrg->count ; i++)
     error|=maria_close(mrg->file[i]);
   if (mrg->free_file)
-    my_free((uchar*) mrg->file,MYF(0));
+    my_free(mrg->file, MYF(0));
   DBUG_RETURN(error);
 }
 
@@ -3171,7 +3170,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     */
     if (huff_counts->tree_buff)
     {
-      my_free((uchar*) huff_counts->tree_buff, MYF(0));
+      my_free(huff_counts->tree_buff, MYF(0));
       delete_tree(&huff_counts->int_tree);
       huff_counts->tree_buff= NULL;
       DBUG_PRINT("fakebigcodes", ("freed distinct column values"));

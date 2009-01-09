@@ -189,8 +189,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_KEYREAD:			/* Read only keys to record */
   case HA_EXTRA_REMEMBER_POS:
     info->opt_flag|= REMEMBER_OLD_POS;
-    bmove((uchar*) info->last_key.data + share->base.max_key_length*2,
-	  (uchar*) info->last_key.data,
+    bmove(info->last_key.data + share->base.max_key_length*2,
+	  info->last_key.data,
           info->last_key.data_length + info->last_key.ref_length);
     info->save_update=	info->update;
     info->save_lastinx= info->lastinx;
@@ -208,8 +208,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_RESTORE_POS:
     if (info->opt_flag & REMEMBER_OLD_POS)
     {
-      bmove((uchar*) info->last_key.data,
-	    (uchar*) info->last_key.data + share->base.max_key_length*2,
+      bmove(info->last_key.data,
+	    info->last_key.data + share->base.max_key_length*2,
 	    info->save_lastkey_data_length + info->save_lastkey_ref_length);
       info->update=	info->save_update | HA_STATE_WRITTEN;
       info->lastinx=	info->save_lastinx;

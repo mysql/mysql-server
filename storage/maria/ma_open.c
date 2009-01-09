@@ -313,8 +313,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
     }
-    if (memcmp((uchar*) share->state.header.file_version,
-	       (uchar*) maria_file_magic, 4))
+    if (memcmp(share->state.header.file_version, maria_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump", share->state.header.file_version,
@@ -911,12 +910,12 @@ err:
     (*share->once_end)(share);
     /* fall through */
   case 4:
-    my_free((uchar*) share,MYF(0));
+    my_free(share,MYF(0));
     /* fall through */
   case 3:
     /* fall through */
   case 2:
-    my_afree((uchar*) disk_cache);
+    my_afree(disk_cache);
     /* fall through */
   case 1:
     VOID(my_close(kfile,MYF(0)));
@@ -941,8 +940,8 @@ my_bool _ma_alloc_buffer(uchar **old_addr, size_t *old_size,
   if (*old_size < new_size)
   {
     uchar *addr;
-    if (!(addr= (uchar*) my_realloc((uchar*) *old_addr, new_size,
-                                   MYF(MY_ALLOW_ZERO_PTR))))
+    if (!(addr= (uchar*) my_realloc(*old_addr, new_size,
+                                    MYF(MY_ALLOW_ZERO_PTR))))
       return 1;
     *old_addr= addr;
     *old_size= new_size;
