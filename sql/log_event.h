@@ -227,14 +227,22 @@ struct sql_ex_info
 #define QUERY_HEADER_MINIMAL_LEN     (4 + 4 + 1 + 2)
 // where 5.0 differs: 2 for len of N-bytes vars.
 #define QUERY_HEADER_LEN     (QUERY_HEADER_MINIMAL_LEN + 2)
+#define STOP_HEADER_LEN      0
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
+#define SLAVE_HEADER_LEN     0
 #define START_V3_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
 #define ROTATE_HEADER_LEN    8 // this is FROZEN (the Rotate post-header is frozen)
+#define INTVAR_HEADER_LEN      0
 #define CREATE_FILE_HEADER_LEN 4
 #define APPEND_BLOCK_HEADER_LEN 4
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
+#define NEW_LOAD_HEADER_LEN    LOAD_HEADER_LEN
+#define RAND_HEADER_LEN        0
+#define USER_VAR_HEADER_LEN    0
 #define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
+#define XID_HEADER_LEN         0
+#define BEGIN_LOAD_QUERY_HEADER_LEN APPEND_BLOCK_HEADER_LEN
 #define ROWS_HEADER_LEN        8
 #define TABLE_MAP_HEADER_LEN   8
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
@@ -319,18 +327,16 @@ struct sql_ex_info
 #define Q_CHARSET_DATABASE_CODE 8
 
 #define Q_TABLE_MAP_FOR_UPDATE_CODE 9
-/* Intvar event post-header */
 
+/* Intvar event data */
 #define I_TYPE_OFFSET        0
 #define I_VAL_OFFSET         1
 
-/* Rand event post-header */
-
+/* Rand event data */
 #define RAND_SEED1_OFFSET 0
 #define RAND_SEED2_OFFSET 8
 
-/* User_var event post-header */
-
+/* User_var event data */
 #define UV_VAL_LEN_SIZE        4
 #define UV_VAL_IS_NULL         1
 #define UV_VAL_TYPE_SIZE       1
@@ -338,7 +344,6 @@ struct sql_ex_info
 #define UV_CHARSET_NUMBER_SIZE 4
 
 /* Load event post-header */
-
 #define L_THREAD_ID_OFFSET   0
 #define L_EXEC_TIME_OFFSET   4
 #define L_SKIP_LINES_OFFSET  8
@@ -349,7 +354,6 @@ struct sql_ex_info
 #define L_DATA_OFFSET        LOAD_HEADER_LEN
 
 /* Rotate event post-header */
-
 #define R_POS_OFFSET       0
 #define R_IDENT_OFFSET     8
 
@@ -2206,10 +2210,11 @@ protected:
 
   @section Intvar_log_event_binary_format Binary Format
 
-  The Post-Header has two components:
+  The Post-Header for this event type is empty.  The Body has two
+  components:
 
   <table>
-  <caption>Post-Header for Intvar_log_event</caption>
+  <caption>Body for Intvar_log_event</caption>
 
   <tr>
     <th>Name</th>
@@ -2283,11 +2288,12 @@ private:
   which are stored internally as two 64-bit numbers.
 
   @section Rand_log_event_binary_format Binary Format  
-  This event type has no Post-Header. The Body of this event type has
-  two components:
+
+  The Post-Header for this event type is empty.  The Body has two
+  components:
 
   <table>
-  <caption>Post-Header for Intvar_log_event</caption>
+  <caption>Body for Rand_log_event</caption>
 
   <tr>
     <th>Name</th>
