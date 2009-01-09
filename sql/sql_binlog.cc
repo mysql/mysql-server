@@ -18,7 +18,7 @@
 #include "base64.h"
 
 /**
-  Execute a BINLOG statement
+  Execute a BINLOG statement.
 
   To execute the BINLOG command properly the server needs to know
   which format the BINLOG command's event is in.  Therefore, the first
@@ -26,6 +26,9 @@
   Format_description_log_event, as outputted by mysqlbinlog.  This
   Format_description_log_event is cached in
   rli->description_event_for_exec.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
 */
 
 void mysql_client_binlog_statement(THD* thd)
