@@ -64,6 +64,8 @@ const struct logtype rollbacks[] = {
 			  NULLFIELD}},
     {"rollinclude", 'r', FA{{"BYTESTRING", "fname", 0},
                             NULLFIELD}},
+    {"tablelock_on_empty_table", 'L', FA{{"FILENUM", "filenum", 0},
+					 NULLFIELD}},
 //    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
 //		       {"BYTESTRING", "fname", 0},
 //		       NULLFIELD}},

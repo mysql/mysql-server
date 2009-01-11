@@ -3311,6 +3311,10 @@ static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
                                          toku_lt_neg_infinity, toku_lt_neg_infinity,
                                          toku_lt_infinity,     toku_lt_infinity);
+    if (r==0) {
+	r = toku_brt_note_table_lock(db->i->brt, txn->i->tokutxn); // tell the BRT layer that the table is locked (so that it can reduce the amount of rollback (rolltmp) data.
+    }
+
     return r;
 }
 

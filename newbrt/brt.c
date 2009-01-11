@@ -475,7 +475,7 @@ static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int child
     u_int32_t new_fingerprint = old_fingerprint + fdiff;
     //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
     *fingerprint = new_fingerprint;
-    if (t->txn_that_created != xid) {
+    if (t->txnid_that_created_or_locked_when_empty != xid) {
 	int r = toku_log_brtenq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs);
 	if (r!=0) return r;
     }
@@ -979,7 +979,7 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
 		u_int32_t delta = toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 		u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		if (r!=0) return r;
-		if (t->txn_that_created != xid) {
+		if (t->txnid_that_created_or_locked_when_empty != xid) {
 		    r = toku_log_brtdeq(logger, &node->log_lsn, 0, fnum, node->thisnodename, n_children_in_a);
 		    if (r!=0) return r;
 		}
@@ -1521,7 +1521,7 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     //printf(" got "); print_leafentry(stdout, new_le); printf("\n");
 
     if (le && new_le) {
-	if (t->txn_that_created != cmd->xid) {
+	if (t->txnid_that_created_or_locked_when_empty != cmd->xid) {
 	    if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) goto return_r;
 	    if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, new_le))) goto return_r;
 	}
@@ -1544,7 +1544,7 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	if (le) {
 	    // It's there, note that it's gone and remove it from the mempool
 
-	    if (t->txn_that_created != cmd->xid) {
+	    if (t->txnid_that_created_or_locked_when_empty != cmd->xid) {
 		if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) goto return_r;
 	    }
 
@@ -1559,7 +1559,7 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	if (new_le) {
 	    if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) goto return_r;
 
-	    if (t->txn_that_created != cmd->xid) {
+	    if (t->txnid_that_created_or_locked_when_empty != cmd->xid) {
 		if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, new_le))) goto return_r;
 	    }
 
@@ -2551,7 +2551,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
 // Effect: Insert the key-val pair into brt.
 {
     int r;
-    if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
+    if (txn && (brt->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
 	toku_cachefile_refup(brt->cf);
 	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
 	int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
@@ -2573,7 +2573,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
  
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
-    if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
+    if (txn && (brt->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
 	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
@@ -2844,7 +2844,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     }
     t->database_name = malloced_name;
     t->db = db;
-    t->txn_that_created = 0; // Uses 0 for no transaction.
+    t->txnid_that_created_or_locked_when_empty = 0; // Uses 0 for no transaction.
     {
         int fd = -1;
         BOOL did_create = FALSE;
@@ -2858,7 +2858,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             r = toku_logger_log_fcreate(txn, fname_in_env, mode);
             if (r != 0) goto died_after_open;
-	    t->txn_that_created = toku_txn_get_txnid(txn);
+	    t->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
         }
 	r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
@@ -4076,7 +4076,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
-    if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
+    if (txn && (brt->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
 	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
 	BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
 	toku_cachefile_refup(brt->cf);
@@ -4315,3 +4315,25 @@ void toku_brt_destroy(void) {
     toku_brt_lock_destroy();
 }
 
+static int
+brt_is_empty (BRT brt, TOKULOGGER logger) {
+    BRT_CURSOR cursor;
+    int rr = toku_brt_cursor(brt, &cursor, 1);
+    if (rr!=0) return 0; // not empty if there is any error
+    int firstr = brt_cursor_first(cursor, NULL, NULL, logger);
+    rr = toku_brt_cursor_close(cursor);
+    if (rr!=0) return 0;
+    if (firstr==DB_NOTFOUND) return 1;
+    else return 0;
+}
+
+int
+toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
+{
+    if (brt_is_empty(brt, toku_txn_logger(txn))) {
+	brt->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
+	toku_cachefile_refup(brt->cf);
+	return toku_logger_save_rollback_tablelock_on_empty_table(txn, toku_cachefile_filenum(brt->cf));
+    }
+    return 0;
+}

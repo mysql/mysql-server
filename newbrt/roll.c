@@ -299,3 +299,28 @@ toku_rollback_rollinclude (BYTESTRING bs,
     toku_free(fname);
     return 0;
 }
+
+int
+toku_rollback_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yield), void* UU(yield_v))
+{
+    // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
+
+    CACHEFILE cf;
+    //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    assert(r==0);
+
+    OMTVALUE brtv=NULL;
+    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
+    assert(r==0); // we cannot handle the case where the table is already closed...  Is that an important case?  If it is important, we could do something about it by creating a "truncate" message that propagates down the tree, removing everything.
+    BRT brt = brtv;
+    r = toku_brt_truncate(brt);
+
+    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+}
+
+int
+toku_commit_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yield), void* UU(yield_v))
+{
+    return do_nothing_with_filenum(txn, filenum);
+}
