@@ -417,6 +417,7 @@ ulong ndb_report_thresh_binlog_mem_usage= 0;
 my_bool opt_ndb_log_update_as_write= FALSE;
 my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
+my_bool opt_ndb_log_empty_epochs= FALSE;
 
 extern "C" char opt_ndb_constrbuf[1024];
 extern "C" my_bool opt_ndb_shm;
@@ -5455,6 +5456,7 @@ enum options_mysqld
   OPT_NDB_USE_COPYING_ALTER_TABLE,
   OPT_NDB_LOG_UPDATE_AS_WRITE, OPT_NDB_LOG_UPDATED_ONLY,
   OPT_NDB_LOG_ORIG,
+  OPT_NDB_LOG_EMPTY_EPOCHS,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -6050,6 +6052,11 @@ master-ssl",
    "multiple rows in ndb_binlog_index, one for each originating epoch.",
    (uchar**) &opt_ndb_log_orig,
    (uchar**) &opt_ndb_log_orig,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"ndb-log-empty-epochs", OPT_NDB_LOG_EMPTY_EPOCHS,
+   "",
+   (uchar**) &opt_ndb_log_empty_epochs,
+   (uchar**) &opt_ndb_log_empty_epochs,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
