@@ -461,7 +461,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(!srv_thread_concurrency)) {
+	if (UNIV_LIKELY(!trx->declared_to_be_inside_innodb)) {
 
 		return;
 	}
