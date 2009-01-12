@@ -158,9 +158,8 @@ mtr_commit(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
-#ifdef UNIV_DEBUG
-	mtr->state = MTR_COMMITTING;
-#endif
+	ut_d(mtr->state = MTR_COMMITTING);
+
 	write_log = mtr->modifications && mtr->n_log_recs;
 
 	if (write_log) {
@@ -181,9 +180,7 @@ mtr_commit(
 		log_release();
 	}
 
-#ifdef UNIV_DEBUG
-	mtr->state = MTR_COMMITTED;
-#endif
+	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
 }
