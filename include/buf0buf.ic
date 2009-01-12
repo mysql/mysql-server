@@ -20,6 +20,7 @@ buf_page_get_freed_page_clock(
 					/* out: freed_page_clock */
 	const buf_page_t*	bpage)	/* in: block */
 {
+	/* This is sometimes read without holding buf_pool_mutex. */
 	return(bpage->freed_page_clock);
 }
 
@@ -88,6 +89,9 @@ buf_pool_get_oldest_modification(void)
 	}
 
 	buf_pool_mutex_exit();
+
+	/* The returned answer may be out of date: the flush_list can
+	change after the mutex has been released. */
 
 	return(lsn);
 }
@@ -261,6 +265,7 @@ buf_page_get_LRU_position(
 	const buf_page_t*	bpage)	/* in: control block */
 {
 	ut_ad(buf_page_in_file(bpage));
+	ut_ad(buf_pool_mutex_own());
 
 	return(bpage->LRU_position);
 }
@@ -429,6 +434,7 @@ buf_page_is_old(
 	const buf_page_t*	bpage)	/* in: control block */
 {
 	ut_ad(buf_page_in_file(bpage));
+	ut_ad(buf_pool_mutex_own());
 
 	return(bpage->old);
 }
@@ -1040,6 +1046,10 @@ buf_page_release(
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
 	block->page.buf_fix_count--;
+
+	/* Dirty blocks should be in the flush list. */
+	ut_ad(!block->page.oldest_modification
+	      || block->page.in_flush_list);
 
 	mutex_exit(&block->mutex);
 
