@@ -35,6 +35,7 @@
 #endif
 
 extern my_bool opt_ndb_log_orig;
+extern my_bool opt_ndb_log_empty_epochs;
 
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
@@ -6073,7 +6074,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
-          if (trans_row_count == 0)
+          if ((trans_row_count == 0) && !opt_ndb_log_empty_epochs)
           {
             /* nothing to commit, rollback instead */
             if (int r= trans.rollback())
