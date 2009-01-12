@@ -805,8 +805,9 @@ buf_page_get_newest_modification(
 					page frame */
 {
 	ib_uint64_t	lsn;
+	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
-	buf_pool_mutex_enter();
+	mutex_enter(block_mutex);
 
 	if (buf_page_in_file(bpage)) {
 		lsn = bpage->newest_modification;
@@ -814,7 +815,7 @@ buf_page_get_newest_modification(
 		lsn = 0;
 	}
 
-	buf_pool_mutex_exit();
+	mutex_exit(block_mutex);
 
 	return(lsn);
 }
