@@ -657,7 +657,6 @@ struct TABLE_LIST
   st_lex_user   definer;                /* definer of view */
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
-  ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   ulonglong     view_suid;              /* view is suid (TRUE dy default) */
   ulonglong     with_check;             /* WITH CHECK OPTION */
