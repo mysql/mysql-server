@@ -620,6 +620,7 @@ row_create_prebuilt(
 	prebuilt->ins_node = NULL;
 
 	prebuilt->ins_upd_rec_buff = NULL;
+	prebuilt->default_rec = NULL;
 
 	prebuilt->upd_node = NULL;
 	prebuilt->ins_graph = NULL;
