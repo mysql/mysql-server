@@ -28,10 +28,9 @@ mtr_start(
 	mtr->modifications = FALSE;
 	mtr->n_log_recs = 0;
 
-#ifdef UNIV_DEBUG
-	mtr->state = MTR_ACTIVE;
-	mtr->magic_n = MTR_MAGIC_N;
-#endif
+	ut_d(mtr->state = MTR_ACTIVE);
+	ut_d(mtr->magic_n = MTR_MAGIC_N);
+
 	return(mtr);
 }
 
