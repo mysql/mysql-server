@@ -803,9 +803,8 @@ buf_flush_page(
 		Because any thread may call the LRU flush, even when owning
 		locks on pages, to avoid deadlocks, we must make sure that the
 		s-lock is acquired on the page without waiting: this is
-		accomplished because in the if-condition above we require
-		the page not to be bufferfixed (in function
-		buf_flush_ready_for_flush). */
+		accomplished because buf_flush_ready_for_flush() must hold,
+		and that requires the page not to be bufferfixed. */
 
 		if (is_uncompressed) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
