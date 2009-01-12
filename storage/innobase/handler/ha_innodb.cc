@@ -6022,11 +6022,13 @@ ha_innobase::info(
 			n_rows++;
 		}
 
-		/* Fix bug#29507: TRUNCATE shows too many rows affected.
-		Do not show the estimates for TRUNCATE command. */
+		/* Fix bug#40386: Not flushing query cache after truncate.
+		n_rows can not be 0 unless the table is empty, set to 1
+		instead. The original problem of bug#29507 is actually
+		fixed in the server code. */
 		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
 
-			n_rows = 0;
+			n_rows = 1;
 
 			/* We need to reset the prebuilt value too, otherwise
 			checks for values greater than the last value written
