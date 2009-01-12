@@ -128,7 +128,7 @@ static my_bool	innobase_file_per_table			= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
-static my_bool innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_adaptive_hash_index	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -1712,8 +1712,6 @@ innobase_init(
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
-
-	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
 
 	srv_use_adaptive_hash_indexes =
 		(ibool) innobase_adaptive_hash_index;
@@ -5976,7 +5974,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (srv_stats_on_metadata) {
+		if (innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -8236,7 +8234,7 @@ static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
+  PLUGIN_VAR_OPCMDARG,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
