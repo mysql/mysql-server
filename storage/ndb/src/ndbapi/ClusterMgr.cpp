@@ -37,6 +37,7 @@
 #include <mgmapi_config_parameters.h>
 
 int global_flag_skip_invalidate_cache = 0;
+int global_flag_skip_waiting_for_clean_cache = 0;
 //#define DEBUG_REG
 
 // Just a C wrapper for threadMain
@@ -240,11 +241,14 @@ ClusterMgr::threadMain( ){
     if (m_cluster_state == CS_waiting_for_clean_cache &&
         theFacade.m_globalDictCache)
     {
-      theFacade.m_globalDictCache->lock();
-      unsigned sz= theFacade.m_globalDictCache->get_size();
-      theFacade.m_globalDictCache->unlock();
-      if (sz)
-        goto next;
+      if (!global_flag_skip_waiting_for_clean_cache)
+      {
+        theFacade.m_globalDictCache->lock();
+        unsigned sz= theFacade.m_globalDictCache->get_size();
+        theFacade.m_globalDictCache->unlock();
+        if (sz)
+          goto next;
+      }
       m_cluster_state = CS_waiting_for_first_connect;
     }
 
