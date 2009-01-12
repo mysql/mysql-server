@@ -153,8 +153,8 @@ UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
-ulint	srv_n_read_io_threads	= 1;
-ulint	srv_n_write_io_threads	= 1;
+UNIV_INTERN ulint	srv_n_read_io_threads	= 1;
+UNIV_INTERN ulint	srv_n_write_io_threads	= 1;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
@@ -319,15 +319,22 @@ UNIV_INTERN int	srv_query_thread_priority = 0;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
-ulint	srv_io_capacity = 100;
+UNIV_INTERN ulint	srv_io_capacity = 100;
 
 /* Returns the number of IO operations that is X percent of the capacity.
 PCT_IO(5) -> returns the number of IO operations that is 5% of the max
 where max is srv_io_capacity. */
 #define PCT_IO(pct) ((ulint) (srv_io_capacity * ((double) pct / 100.0)))
 
-ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
-ulint	srv_adaptive_checkpoint = 0; /* 0:disable 1:enable */
+UNIV_INTERN long long	srv_ibuf_max_size = 0;
+UNIV_INTERN ulint	srv_ibuf_active_contract = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_ibuf_accel_rate = 100;
+#define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
+
+UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
+
+UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0:disable 1:enable */
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
@@ -2395,7 +2402,7 @@ loop:
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < PCT_IO(5))) {
 			srv_main_thread_op_info = "doing insert buffer merge";
 			ibuf_contract_for_n_pages(
-				TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
+				TRUE, PCT_IBUF_IO((srv_insert_buffer_batch_size / 4)));
 
 			srv_main_thread_op_info = "flushing log";
 
@@ -2431,6 +2438,11 @@ loop:
 
 			} else {
 				if ((log_sys->lsn - oldest_lsn)
+				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 8)) {
+					/* LOG_POOL_PREFLUSH_RATIO_ASYNC is exceeded. */
+					/* We should not flush from here. */
+					mutex_exit(&(log_sys->mutex));
+				} else if ((log_sys->lsn - oldest_lsn)
 				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 4)) {
 
 					/* 2nd defence line (max_checkpoint_age * 3/4) */
@@ -2494,7 +2506,7 @@ loop:
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(TRUE, PCT_IO((srv_insert_buffer_batch_size / 4)));
+	ibuf_contract_for_n_pages(TRUE, PCT_IBUF_IO((srv_insert_buffer_batch_size / 4)));
 
 	srv_main_thread_op_info = "flushing log";
 	log_buffer_flush_to_disk();
@@ -2629,7 +2641,7 @@ background_loop:
 		n_bytes_merged = 0;
 	} else {
 		n_bytes_merged = ibuf_contract_for_n_pages(
-			TRUE, PCT_IO((srv_insert_buffer_batch_size * 5)));
+			TRUE, PCT_IBUF_IO((srv_insert_buffer_batch_size * 5)));
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";

@@ -1860,7 +1860,6 @@ buf_page_get_gen(
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
 	buf_block_t*	block;
-	buf_page_t*	bpage= NULL;
 	ibool		accessed;
 	ulint		fix_type;
 	ibool		must_read;
@@ -1883,9 +1882,7 @@ loop:
 	//buf_pool_mutex_enter();
 
 	if (block) {
-		bpage = &block->page;
-
-		block_mutex = buf_page_get_mutex(bpage);
+		block_mutex = buf_page_get_mutex((buf_page_t*)block);
 		mutex_enter(block_mutex);
 
 		/* If the guess is a compressed page descriptor that
@@ -1914,8 +1911,7 @@ loop:
 		mutex_enter(&page_hash_mutex);
 		block = (buf_block_t*) buf_page_hash_get(space, offset);
 		if (block) {
-			bpage = &block->page;
-			block_mutex = buf_page_get_mutex(bpage);
+			block_mutex = buf_page_get_mutex((buf_page_t*)block);
 			mutex_enter(block_mutex);
 		}
 		mutex_exit(&page_hash_mutex);
@@ -1984,12 +1980,11 @@ wait_until_unfixed:
 
 		block = buf_LRU_get_free_block(0);
 		ut_a(block);
-                bpage = &block->page;
-		block_mutex = buf_page_get_mutex(bpage);
+		block_mutex = buf_page_get_mutex((buf_page_t*)block);
 
 		//buf_pool_mutex_enter();
-		mutex_enter(&flush_list_mutex);
 		mutex_enter(&LRU_list_mutex);
+		mutex_enter(&flush_list_mutex);
 		mutex_enter(&page_hash_mutex);
 		mutex_enter(block_mutex);
 
@@ -2006,8 +2001,7 @@ wait_until_unfixed:
 				mutex_exit(block_mutex);
 
 				block = (buf_block_t*) hash_bpage;
-                		bpage = &block->page;
-				block_mutex = buf_page_get_mutex(bpage);
+				block_mutex = buf_page_get_mutex((buf_page_t*)block);
 
 				mutex_enter(block_mutex);
 				mutex_exit(&page_hash_mutex);

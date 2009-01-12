@@ -1131,9 +1131,15 @@ flush_next:
 
 				old_page_count = page_count;
 
+				if (srv_flush_neighbor_pages) {
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
 					space, offset, flush_type);
+				} else {
+				/* Try to flush the page only */
+				page_count += buf_flush_try_page(
+					space, offset, flush_type);
+				}
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,

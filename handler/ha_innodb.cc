@@ -2073,6 +2073,8 @@ innobase_init(
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
+	srv_read_ahead &= 3;
+
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
@@ -9586,14 +9588,62 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IO operations per second the server can do. Tunes background IO rate.",
   NULL, NULL, 100, 100, 999999999, 0);
 
-static MYSQL_SYSVAR_ULONG(read_ahead, srv_read_ahead,
+static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "The maximum size of the insert buffer. (in bytes)",
+  NULL, NULL, LONGLONG_MAX, 0, LONGLONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Diasable read aheads bit0:random bit1:linear",
-  NULL, NULL, 3, 0, 3, 0);
+  "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
+  NULL, NULL, 0, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
+  PLUGIN_VAR_RQCMDARG,
+  "Tunes amount of insert buffer processing of background, in addition to innodb_io_capacity. (in percentage)",
+  NULL, NULL, 100, 100, 999999999, 0);
+
+static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
+  NULL, NULL, 1, 0, 1, 0);
+
+static
+void
+innodb_read_ahead_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) & 3;
+}
+const char *read_ahead_names[]=
+{
+  "none", /* 0 */
+  "random",
+  "linear",
+  "both", /* 3 */
+  /* For compatibility of the older patch */
+  "0", /* 4 ("none" + 4) */
+  "1",
+  "2",
+  "3", /* 7 ("both" + 4) */
+  NullS
+};
+TYPELIB read_ahead_typelib=
+{
+  array_elements(read_ahead_names) - 1, "read_ahead_typelib",
+  read_ahead_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
+  PLUGIN_VAR_RQCMDARG,
+  "Control read ahead activity. (none, random, linear, [both])",
+  NULL, innodb_read_ahead_update, 3, &read_ahead_typelib);
 
 static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing along modified age 0:disable 1:enable",
+  "Enable/Disable flushing along modified age. 0:disable 1:enable",
   NULL, NULL, 0, 0, 1, 0);
 
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
@@ -9656,6 +9706,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(show_locks_held),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(ibuf_max_size),
+  MYSQL_SYSVAR(ibuf_active_contract),
+  MYSQL_SYSVAR(ibuf_accel_rate),
+  MYSQL_SYSVAR(flush_neighbor_pages),
   MYSQL_SYSVAR(read_ahead),
   MYSQL_SYSVAR(adaptive_checkpoint),
   MYSQL_SYSVAR(read_io_threads),
