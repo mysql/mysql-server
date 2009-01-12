@@ -725,46 +725,31 @@ buf_flush_write_block_low(
 }
 
 /************************************************************************
-Writes a page asynchronously from the buffer buf_pool to a file, if it can be
-found in the buf_pool and it is in a flushable state. NOTE: in simulated aio
-we must call os_aio_simulated_wake_handler_threads after we have posted a batch
-of writes! */
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: in simulated aio we must call
+os_aio_simulated_wake_handler_threads after we have posted a batch of
+writes! NOTE: buf_pool_mutex and buf_page_get_mutex(bpage) must be
+held upon entering this function, and they will be released by this
+function. */
 static
-ulint
-buf_flush_try_page(
-/*===============*/
-					/* out: 1 if a page was
-					flushed, 0 otherwise */
-	ulint		space,		/* in: space id */
-	ulint		offset,		/* in: page offset */
+void
+buf_flush_page(
+/*===========*/
+	buf_page_t*	bpage,		/* in: buffer control block */
 	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 {
-	buf_page_t*	bpage;
 	mutex_t*	block_mutex;
 	ibool		is_uncompressed;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
+	ut_ad(buf_pool_mutex_own());
+	ut_ad(buf_page_in_file(bpage));
 
-	buf_pool_mutex_enter();
-
-	bpage = buf_page_hash_get(space, offset);
-
-	if (!bpage) {
-		buf_pool_mutex_exit();
-		return(0);
-	}
-
-	ut_a(buf_page_in_file(bpage));
 	block_mutex = buf_page_get_mutex(bpage);
+	ut_ad(mutex_own(block_mutex));
 
-	mutex_enter(block_mutex);
-
-	if (!buf_flush_ready_for_flush(bpage, flush_type)) {
-		mutex_exit(block_mutex);
-		buf_pool_mutex_exit();
-		return(0);
-	}
+	ut_ad(buf_flush_ready_for_flush(bpage, flush_type));
 
 	buf_page_set_io_fix(bpage, BUF_IO_WRITE);
 
@@ -852,8 +837,6 @@ buf_flush_try_page(
 	}
 #endif /* UNIV_DEBUG */
 	buf_flush_write_block_low(bpage);
-
-	return(1);
 }
 
 /***************************************************************
@@ -903,21 +886,20 @@ buf_flush_try_neighbors(
 	for (i = low; i < high; i++) {
 
 		bpage = buf_page_hash_get(space, i);
-		ut_a(!bpage || buf_page_in_file(bpage));
 
 		if (!bpage) {
 
 			continue;
+		}
 
-		} else if (flush_type == BUF_FLUSH_LRU && i != offset
-			   && !buf_page_is_old(bpage)) {
+		ut_a(buf_page_in_file(bpage));
 
-			/* We avoid flushing 'non-old' blocks in an LRU flush,
-			because the flushed blocks are soon freed */
+		/* We avoid flushing 'non-old' blocks in an LRU flush,
+		because the flushed blocks are soon freed */
 
-			continue;
-		} else {
-
+		if (flush_type != BUF_FLUSH_LRU
+		    || i == offset
+		    || buf_page_is_old(bpage)) {
 			mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
@@ -932,23 +914,14 @@ buf_flush_try_neighbors(
 				flush the doublewrite buffer before we start
 				waiting. */
 
-				buf_pool_mutex_exit();
-
-				mutex_exit(block_mutex);
-
-				/* Note: as we release the buf_pool mutex
-				above, in buf_flush_try_page we cannot be sure
-				the page is still in a flushable state:
-				therefore we check it again inside that
-				function. */
-
-				count += buf_flush_try_page(space, i,
-							    flush_type);
+				buf_flush_page(bpage, flush_type);
+				ut_ad(!mutex_own(block_mutex));
+				count++;
 
 				buf_pool_mutex_enter();
-			} else {
-				mutex_exit(block_mutex);
 			}
+
+			mutex_exit(block_mutex);
 		}
 	}
 
