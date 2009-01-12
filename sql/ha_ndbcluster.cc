@@ -11209,7 +11209,14 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       continue;
     }
     if (!ndb_binlog_tables_inited)
+    {
       ndbcluster_setup_binlog_table_shares(thd);
+      if (!ndb_binlog_tables_inited)
+      {
+        set_timespec(abstime, 1);
+        continue;
+      }
+    }
 
     if (ndb_cache_check_time == 0)
     {
