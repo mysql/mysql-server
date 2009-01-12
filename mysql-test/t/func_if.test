@@ -108,3 +108,46 @@ drop table t1;
 select if(0, 18446744073709551610, 18446744073709551610);
 
 
+#
+# Bug #37662: nested if() inside sum() is parsed in exponential time
+#
+
+CREATE TABLE t1(a DECIMAL(10,3));
+
+# check : should be fast. more than few secs means failure.
+SELECT t1.a,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,
+ IF((ROUND(t1.a,2)=1), 2,0)))))))))))))))))))))))))))))) + 1
+FROM t1;
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests

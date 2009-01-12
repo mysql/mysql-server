@@ -355,10 +355,10 @@ void thr_lock_init(THR_LOCK *lock)
 void thr_lock_delete(THR_LOCK *lock)
 {
   DBUG_ENTER("thr_lock_delete");
-  VOID(pthread_mutex_destroy(&lock->mutex));
   pthread_mutex_lock(&THR_LOCK_lock);
   thr_lock_thread_list=list_delete(thr_lock_thread_list,&lock->list);
   pthread_mutex_unlock(&THR_LOCK_lock);
+  pthread_mutex_destroy(&lock->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -494,7 +494,8 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   {
     result= THR_LOCK_SUCCESS;
     if (data->lock->get_status)
-      (*data->lock->get_status)(data->status_param, 0);
+      (*data->lock->get_status)(data->status_param,
+                                data->type == TL_WRITE_CONCURRENT_INSERT);
     check_locks(data->lock,"got wait_for_lock",0);
   }
   pthread_mutex_unlock(&data->lock->mutex);

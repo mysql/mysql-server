@@ -54,14 +54,15 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			charset.c charset-def.c my_bitmap.c my_bit.c md5.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
-			my_memmem.c \
+			my_memmem.c stacktrace.c \
 			my_windac.c my_access.c base64.c my_libwrap.c \
 		        wqueue.c
-EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
-			thr_mutex.c thr_rwlock.c \
-			CMakeLists.txt mf_soundex.c \
+if THREAD
+libmysys_a_SOURCES+=	thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
+			thr_mutex.c thr_rwlock.c waiting_threads.c
+endif
+EXTRA_DIST =		CMakeLists.txt mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c
-libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
@@ -75,10 +76,15 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \
                         @DEFS@
 
-libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@
-
 # I hope this always does the right thing. Otherwise this is only test programs
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
+
+CLEANFILES =		test_bitmap$(EXEEXT) test_priority_queue$(EXEEXT) \
+			test_thr_alarm$(EXEEXT) test_thr_lock$(EXEEXT) \
+			test_vsnprintf$(EXEEXT) test_io_cache$(EXEEXT) \
+			test_dir$(EXEEXT) test_charset$(EXEEXT) \
+			testhash$(EXEEXT) test_gethwaddr$(EXEEXT) \
+			test_base64$(EXEEXT) test_thr_mutex$(EXEEXT)
 
 #
 # The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)
@@ -129,6 +135,9 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(CP) $(srcdir)/base64.c ./test_base64.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_base64.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_base64.c
+
+test_thr_mutex$(EXEEXT): test_thr_mutex.c $(LIBRARIES)
+	$(LINK) $(FLAGS) $(srcdir)/test_thr_mutex.c $(LDADD) $(LIBS)
 
 
 # Don't update the files from bitkeeper

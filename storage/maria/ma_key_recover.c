@@ -70,7 +70,7 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
                              info->trn->rec_lsn, undo_lsn,
-                             pinned_page->changed);
+                             pinned_page->changed, FALSE);
   }
 
   info->pinned_pages.elements= 0;
@@ -123,12 +123,23 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
 
+
+  /*
+    We need intern_lock mutex for calling _ma_state_info_write in the trigger.
+    We do it here to have the same sequence of mutexes locking everywhere
+    (first intern_lock then transactional log  buffer lock)
+  */
+  if (undo_type == LOGREC_UNDO_BULK_INSERT)
+    pthread_mutex_lock(&info->s->intern_lock);
+
   res= translog_write_record(res_lsn, LOGREC_CLR_END,
                              info->trn, info,
                              (translog_size_t)
                              log_array[TRANSLOG_INTERNAL_PARTS + 0].length,
                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
                              log_data + LSN_STORE_SIZE, &msg);
+  if (undo_type == LOGREC_UNDO_BULK_INSERT)
+    pthread_mutex_unlock(&info->s->intern_lock);
   DBUG_RETURN(res);
 }
 
@@ -149,6 +160,7 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   struct st_msg_to_write_hook_for_clr_end *msg=
     (struct st_msg_to_write_hook_for_clr_end *)hook_arg;
   my_bool error= FALSE;
+  DBUG_ENTER("write_hook_for_clr_end");
   DBUG_ASSERT(trn->trid != 0);
   trn->undo_lsn= msg->previous_undo_lsn;
 
@@ -177,9 +189,10 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_KEY_DELETE:
     break;
   case LOGREC_UNDO_BULK_INSERT:
+    safe_mutex_assert_owner(&share->intern_lock);
     error= (maria_enable_indexes(tbl_info) ||
             /* we enabled indices, need '2' below */
-            _ma_state_info_write(share, 1|2|4));
+            _ma_state_info_write(share, 1|2));
     /* no need for _ma_reset_status(): REDO_DELETE_ALL is just before us */
     break;
   default:
@@ -187,7 +200,7 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   }
   if (trn->undo_lsn == LSN_IMPOSSIBLE) /* has fully rolled back */
     trn->first_undo_lsn= LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -707,7 +720,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   DBUG_RETURN(result);
 }
 
@@ -786,7 +799,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   DBUG_RETURN(result);
 }
 
@@ -1057,7 +1070,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   if (result)
     _ma_mark_file_crashed(share);
   DBUG_RETURN(result);

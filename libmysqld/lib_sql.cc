@@ -79,6 +79,15 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
+  my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
+
+  if (!thd)
+  {
+    /* Do "reconnect" if possible */
+    if (mysql_reconnect(mysql) || stmt_skip)
+      return 1;
+    thd= (THD *) mysql->thd;
+  }
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.start_new_query();
@@ -285,7 +294,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   my_bool res;
 
   int4store(header, stmt->stmt_id);
-  header[4]= stmt->flags;
+  header[4]= (uchar) stmt->flags;
   thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
@@ -375,7 +384,9 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thread_count--;
   thd->store_globals();
+  thd->unlink();
   delete thd;
+  my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
 }
 
@@ -529,12 +540,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  if (flush_time && flush_time != ~(ulong) 0L)
-  {
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
-      sql_print_error("Warning: Can't create thread to manage maintenance");
-  }
+  start_handle_manager();
 
   // FIXME initialize binlog_filter and rpl_filter if not already done
   //       corresponding delete is in clean_up()
@@ -618,6 +624,7 @@ void *create_embedded_thd(int client_flag)
   bzero((char*) &thd->net, sizeof(thd->net));
 
   thread_count++;
+  threads.append(thd);
   return thd;
 err:
   delete(thd);
@@ -848,7 +855,7 @@ void Protocol_text::remove_last_row()
 {
   MYSQL_DATA *data= thd->cur_data;
   MYSQL_ROWS **last_row_hook= &data->data;
-  uint count= data->rows;
+  my_ulonglong count= data->rows;
   DBUG_ENTER("Protocol_text::remove_last_row");
   while (--count)
     last_row_hook= &(*last_row_hook)->next;
@@ -1094,6 +1101,9 @@ void Protocol_text::prepare_for_resend()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
+#ifndef DBUG_OFF
+  field_pos= 0;
+#endif
 
   DBUG_VOID_RETURN;
 }
@@ -1124,6 +1134,9 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
   return FALSE;
 }
 
+#if defined(_MSC_VER) && _MSC_VER < 1400
+#define vsnprintf _vsnprintf
+#endif
 
 int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
                        const char *format, va_list argsi)

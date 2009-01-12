@@ -1,4 +1,8 @@
+--source include/have_sjis.inc
 --source include/have_ucs2.inc
+--source include/have_ujis.inc
+--source include/have_utf8.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£Ô£±`;
@@ -10,9 +14,6 @@ drop table if exists `£Ô£¶`;
 drop table if exists `£Ô£·`;
 drop table if exists `£Ô£¸`;
 drop table if exists `£Ô£¹`;
-drop table if exists `£Ô£±£°`;
-drop table if exists `£Ô£±£±`;
-drop table if exists `£Ô£±£²`;
 --enable_warnings
 
 #
@@ -29,12 +30,9 @@ CREATE TABLE `£Ô£³` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engi
 CREATE TABLE `£Ô£´` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Ô£µ` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Ô£¶` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Ô£·` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£¸` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£±£°` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Ô£±£±` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Ô£±£²` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Ô£·` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Ô£¸` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 
 #Insert the following data in each table
 # jisx0201 hankaku-katakana data
@@ -116,31 +114,6 @@ INSERT INTO `£Ô£¹` VALUES
 ,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
 ,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
 
-INSERT INTO `£Ô£±£°` VALUES
- ('PQRSTUVWXYZ[\\]^_')
-,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
-,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
-,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
-,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
-
-INSERT INTO `£Ô£±£±` VALUES
- ('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
-,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
-,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
-,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
-,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
-,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
-,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
-
-INSERT INTO `£Ô£±£²` VALUES
- ('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
-,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
-,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
-,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
-,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
-,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
-,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
-
 #InnoDB
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£±`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±`;
@@ -165,7 +138,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¶`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¶`;
 
-#Heap
+#MEMORY
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£·`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£·`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£·`;
@@ -177,18 +150,6 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¹`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¹`;
 
-#BDB
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£±£°`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±£°`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£±£°`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£±£±`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±£±`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£±£±`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£±£²`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±£²`;
-# The result will get garbled because jisx0212 is not included in sjis
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£±£²`;
-
 drop table `£Ô£±`;
 drop table `£Ô£²`;
 drop table `£Ô£³`;
@@ -198,6 +159,3 @@ drop table `£Ô£¶`;
 drop table `£Ô£·`;
 drop table `£Ô£¸`;
 drop table `£Ô£¹`;
-drop table `£Ô£±£°`;
-drop table `£Ô£±£±`;
-drop table `£Ô£±£²`;

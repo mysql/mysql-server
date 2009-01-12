@@ -23,6 +23,52 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
+/**
+  An interface that is used to take an action when
+  the locking module notices that a table version has changed
+  since the last execution. "Table" here may refer to any kind of
+  table -- a base table, a temporary table, a view or an
+  information schema table.
+
+  When we open and lock tables for execution of a prepared
+  statement, we must verify that they did not change
+  since statement prepare. If some table did change, the statement
+  parse tree *may* be no longer valid, e.g. in case it contains
+  optimizations that depend on table metadata.
+
+  This class provides an interface (a method) that is
+  invoked when such a situation takes place.
+  The implementation of the method simply reports an error, but
+  the exact details depend on the nature of the SQL statement.
+
+  At most 1 instance of this class is active at a time, in which
+  case THD::m_reprepare_observer is not NULL.
+
+  @sa check_and_update_table_version() for details of the
+  version tracking algorithm 
+
+  @sa Open_tables_state::m_reprepare_observer for the life cycle
+  of metadata observers.
+*/
+
+class Reprepare_observer
+{
+public:
+  /**
+    Check if a change of metadata is OK. In future
+    the signature of this method may be extended to accept the old
+    and the new versions, but since currently the check is very
+    simple, we only need the THD to report an error.
+  */
+  bool report_error(THD *thd);
+  bool is_invalidated() const { return m_invalidated; }
+  void reset_reprepare_observer() { m_invalidated= FALSE; }
+private:
+  bool m_invalidated;
+};
+
+#include <waiting_threads.h>
+
 class Relay_log_info;
 
 class Query_log_event;
@@ -31,6 +77,7 @@ class Slave_log_event;
 class sp_rcontext;
 class sp_cache;
 class Lex_input_stream;
+class Parser_state;
 class Rows_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -352,6 +399,9 @@ struct system_variables
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
 
+  /* deadlock detection */
+  ulong wt_timeout_short, wt_deadlock_search_depth_short;
+  ulong wt_timeout_long, wt_deadlock_search_depth_long;
 };
 
 
@@ -406,6 +456,7 @@ typedef struct system_status_var
   ulong filesort_scan_count;
   /* Prepared statements and binary protocol */
   ulong com_stmt_prepare;
+  ulong com_stmt_reprepare;
   ulong com_stmt_execute;
   ulong com_stmt_send_long_data;
   ulong com_stmt_fetch;
@@ -436,7 +487,7 @@ void free_tmp_table(THD *thd, TABLE *entry);
 
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
-#define INIT_ARENA_DBUG_INFO is_backup_arena= 0
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
 #else
 #define INIT_ARENA_DBUG_INFO
 #endif
@@ -452,6 +503,7 @@ public:
   MEM_ROOT *mem_root;                   // Pointer to current memroot
 #ifndef DBUG_OFF
   bool is_backup_arena; /* True if this arena is used for backup. */
+  bool is_reprepared;
 #endif
   /*
     The states relfects three diffrent life cycles for three
@@ -693,7 +745,7 @@ struct st_savepoint {
   Ha_trx_info         *ha_list;
 };
 
-enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
+enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
 extern const char *xa_state_names[];
 
 typedef struct st_xid_state {
@@ -701,6 +753,8 @@ typedef struct st_xid_state {
   XID  xid;                           // transaction identifier
   enum xa_states xa_state;            // used by external XA only
   bool in_thd;
+  /* Error reported by the Resource Manager (RM) to the Transaction Manager. */
+  uint rm_error;
 } XID_STATE;
 
 extern pthread_mutex_t LOCK_xid_cache;
@@ -788,6 +842,20 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
 class Open_tables_state
 {
 public:
+  /**
+    As part of class THD, this member is set during execution
+    of a prepared statement. When it is set, it is used
+    by the locking subsystem to report a change in table metadata.
+
+    When Open_tables_state part of THD is reset to open
+    a system or INFORMATION_SCHEMA table, the member is cleared
+    to avoid spurious ER_NEED_REPREPARE errors -- system and
+    INFORMATION_SCHEMA tables are not subject to metadata version
+    tracking.
+    @sa check_and_update_table_version()
+  */
+  Reprepare_observer *m_reprepare_observer;
+
   /**
     List of regular tables in use by this thread. Contains temporary and
     base tables that were opened with @see open_tables().
@@ -891,6 +959,7 @@ public:
     extra_lock= lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
     state_flags= 0U;
+    m_reprepare_observer= NULL;
   }
 };
 
@@ -935,6 +1004,22 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_WORKER= 32
 };
 
+inline char const *
+show_system_thread(enum_thread_type thread)
+{
+#define RETURN_NAME_AS_STRING(NAME) case (NAME): return #NAME
+  switch (thread) {
+    RETURN_NAME_AS_STRING(NON_SYSTEM_THREAD);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DELAYED_INSERT);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_IO);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_SQL);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
+  }
+#undef RETURN_NAME_AS_STRING
+  return "UNKNOWN"; /* keep gcc happy */
+}
 
 /**
   This class represents the interface for internal error handlers.
@@ -1299,9 +1384,14 @@ public:
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
   int binlog_flush_pending_rows_event(bool stmt_end);
+  int binlog_remove_pending_rows_event(bool clear_maps);
 
 private:
-  uint binlog_table_maps; // Number of table maps currently in the binlog
+  /*
+    Number of outstanding table maps, i.e., table maps in the
+    transaction cache.
+  */
+  uint binlog_table_maps;
 
   enum enum_binlog_flag {
     BINLOG_FLAG_UNSAFE_STMT_PRINTED,
@@ -1327,6 +1417,7 @@ public:
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
     XID_STATE xid_state;
+    WT_THD wt;
     Rows_log_event *m_pending_rows_event;
 
     /*
@@ -1384,6 +1475,13 @@ public:
     Note: in the parser, stmt_arena == thd, even for PS/SP.
   */
   Query_arena *stmt_arena;
+
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  table_map table_map_for_update;
+
   /* Tells if LAST_INSERT_ID(#) was called for the current statement */
   bool arg_of_last_insert_id_function;
   /*
@@ -1451,6 +1549,9 @@ public:
     then the latter INSERT will insert no rows
     (first_successful_insert_id_in_cur_stmt == 0), but storing "INSERT_ID=3"
     in the binlog is still needed; the list's minimum will contain 3.
+    This variable is cumulative: if several statements are written to binlog
+    as one (stored functions or triggers are used) this list is the
+    concatenation of all intervals reserved by all statements.
   */
   Discrete_intervals_list auto_inc_intervals_in_cur_stmt_for_binlog;
   /* Used by replication and SET INSERT_ID */
@@ -1709,13 +1810,11 @@ public:
   } binlog_evt_union;
 
   /**
-    Character input stream consumed by the lexical analyser,
-    used during parsing.
-    Note that since the parser is not re-entrant, we keep only one input
-    stream here. This member is valid only when executing code during parsing,
-    and may point to invalid memory after that.
+    Internal parser state.
+    Note that since the parser is not re-entrant, we keep only one parser
+    state here. This member is valid only when executing code during parsing.
   */
-  Lex_input_stream *m_lip;
+  Parser_state *m_parser_state;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
@@ -2018,6 +2117,10 @@ public:
 
       Don't reset binlog format for NDB binlog injector thread.
     */
+    DBUG_PRINT("debug",
+               ("temporary_tables: %p, in_sub_stmt: %d, system_thread: %s",
+                temporary_tables, in_sub_stmt,
+                show_system_thread(system_thread)));
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
         (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
     {
@@ -2179,6 +2282,7 @@ public:
   ulong skip_lines;
   CHARSET_INFO *cs;
   sql_exchange(char *name,bool dumpfile_flag);
+  bool escaped_given(void);
 };
 
 #include "log_event.h"
@@ -2193,6 +2297,7 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
+  uint nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2229,6 +2334,12 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+  /**
+     The nest level, if supported. 
+     @return
+     -1 if nest level is undefined, otherwise a positive integer.
+   */
+  int get_nest_level() { return (int) nest_level; }
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -2322,6 +2433,14 @@ class select_export :public select_to_file {
   bool fixed_row_size;
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
+  /**
+     Creates a select_export to represent INTO OUTFILE <filename> with a
+     defined level of subquery nesting.
+   */
+  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
+  {
+    nest_level= nest_level_arg;
+  }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -2331,6 +2450,15 @@ public:
 class select_dump :public select_to_file {
 public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
+  /**
+     Creates a select_export to represent INTO DUMPFILE <filename> with a
+     defined level of subquery nesting.
+   */  
+  select_dump(sql_exchange *ex, uint nest_level_arg) : 
+    select_to_file(ex) 
+  {
+    nest_level= nest_level_arg;
+  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -2770,6 +2898,16 @@ class select_dumpvar :public select_result_interceptor {
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
+  /**
+     Creates a select_dumpvar to represent INTO <variable> with a defined 
+     level of subquery nesting.
+   */
+  select_dumpvar(uint nest_level_arg)
+  {
+    var_list.empty();
+    row_count= 0;
+    nest_level= nest_level_arg;
+  }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -2785,6 +2923,20 @@ public:
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
 #define CF_WRITE_LOGS_COMMAND  16
+/**
+  Must be set for SQL statements that may contain
+  Item expressions and/or use joins and tables.
+  Indicates that the parse tree of such statement may
+  contain rule-based optimizations that depend on metadata
+  (i.e. number of columns in a table), and consequently
+  that the statement must be re-prepared whenever
+  referenced metadata changes. Must not be set for
+  statements that themselves change metadata, e.g. RENAME,
+  ALTER and other DDL, since otherwise will trigger constant
+  reprepare. Consequently, complex item expressions and
+  joins are currently prohibited in these statements.
+*/
+#define CF_REEXECUTION_FRAGILE 32
 
 /* Functions in sql_class.cc */
 

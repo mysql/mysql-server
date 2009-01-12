@@ -442,6 +442,8 @@ static void usage(void)
 #endif
                       printf(", they will be used\n\
                       in a round-robin fashion.\n\
+  --require-control-file  Abort if we can't find/read the maria_log_control\n\
+                          file\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      maria_chk very silent.\n\
   -v, --verbose       Print more information. This can be used with\n\
@@ -1186,7 +1188,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
         VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
         error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
                                        MYF(0));
-        if (_ma_open_datafile(info,info->s, -1))
+        if (_ma_open_datafile(info,info->s, NullS, -1))
           error=1;
         param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
         param->read_cache.file= info->dfile.file;

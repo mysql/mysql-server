@@ -70,8 +70,8 @@ uint sf_malloc_prehunc=0,		/* If you have problem with core- */
      sf_malloc_endhunc=0,		/* dump when malloc-message.... */
 					/* set theese to 64 or 128  */
      sf_malloc_quick=0;			/* set if no calls to sanity */
-ulong sf_malloc_cur_memory= 0L;		/* Current memory usage */
-ulong sf_malloc_max_memory= 0L;		/* Maximum memory usage */
+size_t sf_malloc_cur_memory= 0L;		/* Current memory usage */
+size_t sf_malloc_max_memory= 0L;		/* Maximum memory usage */
 uint  sf_malloc_count= 0;		/* Number of times NEW() was called */
 uchar *sf_min_adress= (uchar*) ~(unsigned long) 0L,
      *sf_max_adress= (uchar*) 0L;
@@ -91,6 +91,18 @@ int (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
     my_message_no_curses;
 int (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
+
+static const char *proc_info_dummy(void *a __attribute__((unused)),
+                                   const char *b __attribute__((unused)),
+                                   const char *c __attribute__((unused)),
+                                   const char *d __attribute__((unused)),
+                                   const unsigned int e __attribute__((unused)))
+{
+  return 0;
+}
+
+const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
+                              const unsigned int)= proc_info_dummy;
 
 #ifdef __WIN__
 /* from my_getsystime.c */

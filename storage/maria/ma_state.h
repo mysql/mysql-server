@@ -17,13 +17,15 @@
 
 typedef struct st_maria_status_info
 {
-  ha_rows records;				/* Rows in table */
-  ha_rows del;					/* Removed rows */
-  my_off_t empty;				/* lost space in datafile */
-  my_off_t key_empty;				/* lost space in indexfile */
+  ha_rows records;                      /* Rows in table */
+  ha_rows del;                          /* Removed rows */
+  my_off_t empty;                       /* lost space in datafile */
+  my_off_t key_empty;                   /* lost space in indexfile */
   my_off_t key_file_length;
   my_off_t data_file_length;
   ha_checksum checksum;
+  uint32 changed:1,                     /* Set if table was changed */
+         no_transid:1;                  /* Set if no transid was set on rows */
 } MARIA_STATUS_INFO;
 
 
@@ -62,6 +64,7 @@ void _ma_get_status(void* param, my_bool concurrent_insert);
 void _ma_update_status(void* param);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void* to, void *from);
+void _ma_reset_update_flag(void *param, my_bool concurrent_insert);
 my_bool _ma_check_status(void *param);
 void _ma_block_get_status(void* param, my_bool concurrent_insert);
 void _ma_block_update_status(void *param);
@@ -76,6 +79,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
 my_bool _ma_row_visible_always(MARIA_HA *info);
 my_bool _ma_row_visible_non_transactional_table(MARIA_HA *info);
 my_bool _ma_row_visible_transactional_table(MARIA_HA *info);
-void _ma_remove_not_visible_states_with_lock(struct st_maria_share *share);
+void _ma_remove_not_visible_states_with_lock(struct st_maria_share *share,
+                                             my_bool all);
 void _ma_remove_table_from_trnman(struct st_maria_share *share, TRN *trn);
 void _ma_reset_history(struct st_maria_share *share);

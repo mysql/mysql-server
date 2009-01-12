@@ -2121,15 +2121,14 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
     if (param->del_blocks != share->state.state.del)
     {
       _ma_check_print_warning(param,
-                              "Found %10s deleted blocks       Should be: %s",
+                              "Found %10s deleted blocks.  Should be: %s",
                               llstr(param->del_blocks,llbuff),
                               llstr(share->state.state.del,llbuff2));
     }
     if (param->splits != share->state.split)
     {
       _ma_check_print_warning(param,
-                              "Found %10s parts                Should be: "
-                              "%s parts",
+                              "Found %10s parts.  Should be: %s",
                               llstr(param->splits, llbuff),
                               llstr(share->state.split,llbuff2));
     }
@@ -2714,7 +2713,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
                                 (param->testflag & T_BACKUP_DATA ?
                                  MYF(MY_REDEL_MAKE_BACKUP): MYF(0)) |
                                 sync_dir) ||
-        _ma_open_datafile(info, share, -1))
+        _ma_open_datafile(info, share, NullS, -1))
     {
       goto err;
     }
@@ -3216,7 +3215,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
       pagecache_unlock_by_link(share->pagecache, page_link.link,
                                PAGECACHE_LOCK_WRITE_UNLOCK,
                                PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                               LSN_IMPOSSIBLE, 0);
+                               LSN_IMPOSSIBLE, 0, FALSE);
       _ma_check_print_error(param,
                             "Page %9s: Got error %d when reading index file",
                             llstr(pos, llbuff), my_errno);
@@ -3252,7 +3251,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
   }
   if (flush_pagecache_blocks(share->pagecache, &share->kfile,
                              FLUSH_FORCE_WRITE))
@@ -3283,7 +3282,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
   pgcache_page_no_t page;
   uint block_size= share->block_size;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
-  my_bool zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN);
+  my_bool zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN), error;
   DBUG_ENTER("maria_zerofill_data");
 
   /* This works only with BLOCK_RECORD files */
@@ -3376,17 +3375,24 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
   }
-  DBUG_RETURN(_ma_bitmap_flush(share) ||
-              flush_pagecache_blocks(share->pagecache, &info->dfile,
-                                     FLUSH_FORCE_WRITE));
+  error= _ma_bitmap_flush(share);
+  if (flush_pagecache_blocks(share->pagecache, &info->dfile,
+                             FLUSH_FORCE_WRITE))
+    error= 1;
+  DBUG_RETURN(error);
 
 err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
+  /* flush what was changed so far */
+  (void) _ma_bitmap_flush(share);
+  (void) flush_pagecache_blocks(share->pagecache, &info->dfile,
+                                FLUSH_FORCE_WRITE);
+
   DBUG_RETURN(1);
 }
 
@@ -3828,7 +3834,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
                                   (param->testflag & T_BACKUP_DATA ?
                                    MYF(MY_REDEL_MAKE_BACKUP): MYF(0)) |
                                   sync_dir) ||
-          _ma_open_datafile(info, share, -1))
+          _ma_open_datafile(info, share, NullS, -1))
       {
         _ma_check_print_error(param, "Couldn't change to new data file");
         goto err;
@@ -4441,7 +4447,7 @@ err:
                                   MYF((param->testflag & T_BACKUP_DATA ?
                                        MY_REDEL_MAKE_BACKUP : 0) |
                                       sync_dir)) ||
-	  _ma_open_datafile(info,share,-1))
+	  _ma_open_datafile(info,share, NullS, -1))
 	got_error=1;
     }
   }

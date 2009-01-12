@@ -417,11 +417,11 @@ public:
   bool no_table_names_allowed; /* used for global order by */
   bool no_error; /* suppress error message (convert it to warnings) */
 
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw ()
   {
     return sql_alloc(size);
   }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
@@ -667,6 +667,7 @@ public:
     case of an error during prepare the PS is not created.
   */
   bool first_execution;
+  bool first_natural_join_processing;
   bool first_cond_optimization;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
@@ -842,15 +843,12 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_COALESCE_PARTITION (1L << 15)
 #define ALTER_REORGANIZE_PARTITION (1L << 16) 
 #define ALTER_PARTITION          (1L << 17)
-#define ALTER_OPTIMIZE_PARTITION (1L << 18)
+#define ALTER_ADMIN_PARTITION    (1L << 18)
 #define ALTER_TABLE_REORG        (1L << 19)
 #define ALTER_REBUILD_PARTITION  (1L << 20)
 #define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_ANALYZE_PARTITION  (1L << 22)
-#define ALTER_CHECK_PARTITION    (1L << 23)
-#define ALTER_REPAIR_PARTITION   (1L << 24)
-#define ALTER_REMOVE_PARTITIONING (1L << 25)
-#define ALTER_FOREIGN_KEY         (1L << 26)
+#define ALTER_REMOVE_PARTITIONING (1L << 22)
+#define ALTER_FOREIGN_KEY        (1L << 23)
 
 enum enum_alter_table_change_level
 {
@@ -1513,7 +1511,6 @@ typedef struct st_lex : public Query_tables_list
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   XID *xid;
-  uchar* yacc_yyss, *yacc_yyvs;
   THD *thd;
 
   /* maintain a list of used plugins for this LEX */
@@ -1550,6 +1547,7 @@ typedef struct st_lex : public Query_tables_list
   List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
+  List<Item_func_set_user_var> set_var_list; // in-query assignment list
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
   /*
@@ -1846,6 +1844,59 @@ typedef struct st_lex : public Query_tables_list
     return FALSE;
   }
 } LEX;
+
+
+/**
+  The internal state of the syntax parser.
+  This object is only available during parsing,
+  and is private to the syntax parser implementation (sql_yacc.yy).
+*/
+class Yacc_state
+{
+public:
+  Yacc_state()
+    : yacc_yyss(NULL), yacc_yyvs(NULL)
+  {}
+
+  ~Yacc_state();
+
+  /**
+    Bison internal state stack, yyss, when dynamically allocated using
+    my_yyoverflow().
+  */
+  uchar *yacc_yyss;
+
+  /**
+    Bison internal semantic value stack, yyvs, when dynamically allocated using
+    my_yyoverflow().
+  */
+  uchar *yacc_yyvs;
+
+  /*
+    TODO: move more attributes from the LEX structure here.
+  */
+};
+
+/**
+  Internal state of the parser.
+  The complete state consist of:
+  - state data used during lexical parsing,
+  - state data used during syntactic parsing.
+*/
+class Parser_state
+{
+public:
+  Parser_state(THD *thd, const char* buff, unsigned int length)
+    : m_lip(thd, buff, length), m_yacc()
+  {}
+
+  ~Parser_state()
+  {}
+
+  Lex_input_stream m_lip;
+  Yacc_state m_yacc;
+};
+
 
 struct st_lex_local: public st_lex
 {

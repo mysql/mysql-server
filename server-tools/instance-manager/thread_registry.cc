@@ -21,6 +21,7 @@
 #include <thr_alarm.h>
 #include <signal.h>
 #include "log.h"
+#include <my_sys.h>
 
 #ifndef __WIN__
 /* Kick-off signal handler */

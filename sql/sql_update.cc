@@ -457,7 +457,7 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info,thd,table,select,0,1);
+        init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -523,7 +523,7 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto err;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info,thd,table,select,0,1);
+  init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   updated= found= 0;
   /* Generate an error when trying to set a NOT NULL field to NULL. */
@@ -715,6 +715,11 @@ int mysql_update(THD *thd,
     else
       table->file->unlock_row();
     thd->row_count++;
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
   }
   dup_key_found= 0;
   /*
@@ -853,8 +858,9 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   Item *fake_conds= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE *table= table_list->table;
-  TABLE_LIST tables;
+#endif
   List<Item> all_fields;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
@@ -878,9 +884,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   table_list->register_want_access(SELECT_ACL);
 #endif
 
-  bzero((char*) &tables,sizeof(tables));	// For ORDER BY
-  tables.table= table;
-  tables.alias= table_list->alias;
   thd->lex->allow_sum_func= 0;
 
   if (setup_tables_and_check_access(thd, &select_lex->context, 
@@ -1002,7 +1005,7 @@ reopen_tables:
     DBUG_RETURN(TRUE);
   }
 
-  tables_for_update= get_table_map(fields);
+  thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
   /*
     Setup timestamp handling and locking mode
@@ -1041,7 +1044,7 @@ reopen_tables:
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
       */
-      tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+      tl->lock_type= read_lock_type_for_table(thd, table);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1078,10 +1081,13 @@ reopen_tables:
   }
 
   /* now lock and fill tables */
-  if (lock_tables(thd, table_list, table_count, &need_reopen))
+  if (!thd->stmt_arena->is_stmt_prepare() &&
+      lock_tables(thd, table_list, table_count, &need_reopen))
   {
     if (!need_reopen)
       DBUG_RETURN(TRUE);
+
+    DBUG_PRINT("info", ("lock_tables failed, reopening"));
 
     /*
       We have to reopen tables since some of them were altered or dropped
@@ -1097,6 +1103,34 @@ reopen_tables:
     /* We have to cleanup translation tables of views. */
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
+
+    /*
+      To not to hog memory (as a result of the 
+      unit->reinit_exec_mechanism() call below):
+    */
+    lex->unit.cleanup();
+
+    for (SELECT_LEX *sl= lex->all_selects_list;
+        sl;
+        sl= sl->next_select_in_list())
+    {
+      SELECT_LEX_UNIT *unit= sl->master_unit();
+      unit->reinit_exec_mechanism(); // reset unit->prepared flags
+      /*
+        Reset 'clean' flag back to force normal execution of
+        unit->cleanup() in Prepared_statement::cleanup_stmt()
+        (call to lex->unit.cleanup() above sets this flag to TRUE).
+      */
+      unit->unclean();
+    }
+
+    /*
+      Also we need to cleanup Natural_join_column::table_field items.
+      To not to traverse a join tree we will cleanup whole
+      thd->free_list (in PS execution mode that list may not contain
+      items from 'fields' list, so the cleanup above is necessary to.
+    */
+    cleanup_items(thd->free_list);
 
     close_tables_for_reopen(thd, &table_list);
     goto reopen_tables;
@@ -1441,6 +1475,32 @@ multi_update::initialize_tables(JOIN *join)
     }
     table->prepare_for_position();
 
+    /*
+      enable uncacheable flag if we update a view with check option
+      and check option has a subselect, otherwise, the check option
+      can be evaluated after the subselect was freed as independent
+      (See full_local in JOIN::join_free()).
+    */
+    if (table_ref->check_option && !join->select_lex->uncacheable)
+    {
+      SELECT_LEX_UNIT *tmp_unit;
+      SELECT_LEX *sl;
+      for (tmp_unit= join->select_lex->first_inner_unit();
+           tmp_unit;
+           tmp_unit= tmp_unit->next_unit())
+      {
+        for (sl= tmp_unit->first_select(); sl; sl= sl->next_select())
+        {
+          if (sl->master_unit()->item)
+          {
+            join->select_lex->uncacheable|= UNCACHEABLE_CHECKOPTION;
+            goto loop_end;
+          }
+        }
+      }
+    }
+loop_end:
+
     if (table == first_table_for_update && table_ref->check_option)
     {
       table_map unupdated_tables= table_ref->check_option->used_tables() &
@@ -1669,6 +1729,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
         tbl->file->position(tbl->record[0]);
         memcpy((char*) tmp_table->field[field_num]->ptr,
                (char*) tbl->file->ref, tbl->file->ref_length);
+        /*
+         For outer joins a rowid field may have no NOT_NULL_FLAG,
+         so we have to reset NULL bit for this field.
+         (set_notnull() resets NULL bit only if available).
+        */
+        tmp_table->field[field_num]->set_notnull();
         field_num++;
       } while ((tbl= tbl_it++));
 

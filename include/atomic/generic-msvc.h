@@ -52,8 +52,8 @@ LONG _InterlockedExchangeAdd (LONG volatile *Addend, LONG Value);
 #endif /*_M_IX86*/
 
 #define MY_ATOMIC_MODE "msvc-intrinsics"
-#define IL_EXCHG_ADD32   InterlockedExchangeAdd
-#define IL_COMP_EXCHG32  InterlockedCompareExchange
+#define IL_EXCHG_ADD32(X,Y) InterlockedExchangeAdd((volatile LONG *)(X),(Y))
+#define IL_COMP_EXCHG32(X,Y,Z) InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
 #define IL_COMP_EXCHGptr InterlockedCompareExchangePointer
 #define IL_EXCHG32       InterlockedExchange
 #define IL_EXCHGptr      InterlockedExchangePointer

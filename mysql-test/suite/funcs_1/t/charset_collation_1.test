@@ -22,9 +22,11 @@ if (`SELECT EXISTS (SELECT 1 FROM information_schema.collations
        OR (    @@version_comment NOT LIKE '%Source%'
            AND @@version_comment NOT LIKE '%Enterprise%'
            AND @@version_comment NOT LIKE '%Classic%'
-           AND @@version_comment NOT LIKE '%Pushbuild%')`)
+           AND @@version_comment NOT LIKE '%Pushbuild%')
+       OR (SELECT count(*) = 0 FROM information_schema.collations
+                    WHERE collation_name = 'ucs2_bin')`)
 {
-  skip Test needs Enterprise, Classic , Pushbuild or Source-without-max build;
+  skip Test needs Enterprise, Classic , regular Pushbuild or Source-without-max build;
 }
 
 --source suite/funcs_1/datadict/charset_collation.inc

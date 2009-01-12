@@ -200,7 +200,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   pack_bytes= (packed+7)/8;
   if (pack_reclength != INT_MAX32)
     pack_reclength+= reclength+packed +
-      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_PACK_RECORD));
+      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_OPTION_PACK_RECORD));
   min_pack_length+= pack_bytes;
 
   if (!ci->data_file_length && ci->max_rows)
@@ -638,6 +638,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     my_printf_error(0, "MyISAM table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
+    my_errno= HA_ERR_TABLE_EXIST;
     goto err;
   }
 

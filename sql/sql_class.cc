@@ -198,6 +198,19 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
+/** Push an error to the error stack and return TRUE for now. */
+
+bool
+Reprepare_observer::report_error(THD *thd)
+{
+  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
+
+  m_invalidated= TRUE;
+
+  return TRUE;
+}
+
+
 Open_tables_state::Open_tables_state(ulong version_arg)
   :version(version_arg), state_flags(0U)
 {
@@ -248,13 +261,16 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info, 
-                              const char *calling_function, 
-                              const char *calling_file, 
+const char *set_thd_proc_info(THD *thd, const char *info,
+                              const char *calling_function,
+                              const char *calling_file,
                               const unsigned int calling_line)
 {
+  if (!thd)
+    thd= current_thd;
+
   const char *old_info= thd->proc_info;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line,
                            (info != NULL) ? info : "(null)"));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
@@ -293,20 +309,25 @@ void thd_inc_row_count(THD *thd)
   thd->row_count++;
 }
 
-/*
+
+/**
   Dumps a text description of a thread, its security context
   (user, host) and the current query.
 
-  SYNOPSIS
-    thd_security_context()
-    thd                 current thread context
-    buffer              pointer to preferred result buffer
-    length              length of buffer
-    max_query_len       how many chars of query to copy (0 for all)
+  @param thd thread context
+  @param buffer pointer to preferred result buffer
+  @param length length of buffer
+  @param max_query_len how many chars of query to copy (0 for all)
 
-  RETURN VALUES
-    pointer to string
+  @req LOCK_thread_count
+  
+  @note LOCK_thread_count mutex is not necessary when the function is invoked on
+   the currently running thread (current_thd) or if the caller in some other
+   way guarantees that access to thd->query is serialized.
+ 
+  @return Pointer to string
 */
+
 extern "C"
 char *thd_security_context(THD *thd, char *buffer, unsigned int length,
                            unsigned int max_query_len)
@@ -315,6 +336,16 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const Security_context *sctx= &thd->main_security_ctx;
   char header[64];
   int len;
+  /*
+    The pointers thd->query and thd->proc_info might change since they are
+    being modified concurrently. This is acceptable for proc_info since its
+    values doesn't have to very accurate and the memory it points to is static,
+    but we need to attempt a snapshot on the pointer values to avoid using NULL
+    values. The pointer to thd->query however, doesn't point to static memory
+    and has to be protected by LOCK_thread_count or risk pointing to
+    uninitialized memory.
+  */
+  const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
                    "MySQL thread id %lu, query id %lu",
@@ -340,10 +371,10 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(sctx->user);
   }
 
-  if (thd->proc_info)
+  if (proc_info)
   {
     str.append(' ');
-    str.append(thd->proc_info);
+    str.append(proc_info);
   }
 
   if (thd->query)
@@ -357,7 +388,17 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   }
   if (str.c_ptr_safe() == buffer)
     return buffer;
-  return thd->strmake(str.ptr(), str.length());
+
+  /*
+    We have to copy the new string to the destination buffer because the string
+    was reallocated to a larger buffer to be able to fit.
+  */
+  DBUG_ASSERT(buffer != NULL);
+  length= min(str.length(), length-1);
+  memcpy(buffer, str.c_ptr_quick(), length);
+  /* Make sure that the new string is null terminated */
+  buffer[length]= '\0';
+  return buffer;
 }
 
 /**
@@ -503,6 +544,7 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0), binlog_flags(0UL),
+   table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
@@ -518,7 +560,7 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_lip(NULL)
+   m_parser_state(NULL)
 {
   ulong tmp;
 
@@ -583,6 +625,10 @@ THD::THD()
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
+  wt_thd_lazy_init(&transaction.wt, &variables.wt_deadlock_search_depth_short,
+                                    &variables.wt_timeout_short,
+                                    &variables.wt_deadlock_search_depth_long,
+                                    &variables.wt_timeout_long);
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -829,6 +875,7 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+  wt_thd_destroy(&transaction.wt);
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
@@ -836,7 +883,7 @@ void THD::cleanup(void)
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
-  
+
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -874,6 +921,7 @@ THD::~THD()
 #endif
   stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
+
   if (!cleanup_done)
     cleanup();
 
@@ -955,6 +1003,14 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
     *(to++)+= *(from++) - *(dec++);
 }
 
+#define SECONDS_TO_WAIT_FOR_KILL 2
+#if !defined(__WIN__) && defined(HAVE_SELECT)
+/* my_sleep() can wait for sub second times */
+#define WAIT_FOR_KILL_TRY_TIMES 20
+#else
+#define WAIT_FOR_KILL_TRY_TIMES 2
+#endif
+
 
 void THD::awake(THD::killed_state state_to_set)
 {
@@ -1009,12 +1065,35 @@ void THD::awake(THD::killed_state state_to_set)
       we issue a second KILL or the status it's waiting for happens).
       It's true that we have set its thd->killed but it may not
       see it immediately and so may have time to reach the cond_wait().
+
+      We have to do the loop with trylock, because if we would use
+      pthread_mutex_lock(), we can cause a deadlock as we are here locking
+      the mysys_var->mutex and mysys_var->current_mutex in a different order
+      than in the thread we are trying to kill.
+      We only sleep for 2 seconds as we don't want to have LOCK_delete
+      locked too long time.
+
+      There is a small change we may not succeed in aborting a thread that
+      is not yet waiting for a mutex, but as this happens only for a
+      thread that was doing something else when the kill was issued and
+      which should detect the kill flag before it starts to wait, this
+      should be good enough.
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
-      pthread_mutex_lock(mysys_var->current_mutex);
-      pthread_cond_broadcast(mysys_var->current_cond);
-      pthread_mutex_unlock(mysys_var->current_mutex);
+      uint i;
+      for (i= 0; i < WAIT_FOR_KILL_TRY_TIMES * SECONDS_TO_WAIT_FOR_KILL; i++)
+      {
+        int ret= pthread_mutex_trylock(mysys_var->current_mutex);
+        pthread_cond_broadcast(mysys_var->current_cond);
+        if (!ret)
+        {
+          /* Signal is sure to get through */
+          pthread_mutex_unlock(mysys_var->current_mutex);
+          break;
+        }
+      }
+      my_sleep(1000000L / WAIT_FOR_KILL_TRY_TIMES);
     }
     pthread_mutex_unlock(&mysys_var->mutex);
   }
@@ -1050,6 +1129,15 @@ bool THD::store_globals()
     created in another thread
   */
   thr_lock_info_init(&lock_info);
+
+#ifdef SAFE_MUTEX
+  /* Register order of mutex for wrong mutex deadlock detector */
+  pthread_mutex_lock(&LOCK_delete);
+  pthread_mutex_lock(&mysys_var->mutex);
+
+  pthread_mutex_unlock(&mysys_var->mutex);
+  pthread_mutex_unlock(&LOCK_delete);
+#endif
   return 0;
 }
 
@@ -1102,6 +1190,8 @@ void THD::cleanup_after_query()
   free_items();
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
+  /* reset table map for multi-table update */
+  table_map_for_update= 0;
 }
 
 
@@ -1432,6 +1522,7 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
+  nest_level= (uint) -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -1465,6 +1556,12 @@ sql_exchange::sql_exchange(char *name,bool flag)
   escaped=    &default_escaped;
   cs= NULL;
 }
+
+bool sql_exchange::escaped_given(void)
+{
+  return escaped != &default_escaped;
+}
+
 
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
@@ -1568,6 +1665,12 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  /* 
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return TRUE;
   ::my_eof(thd);
   is_result_set_started= 0;
   return FALSE;
@@ -1745,8 +1848,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ?
                   (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
-  escape_char=	(exchange->escaped->length() ?
-                (int) (uchar) (*exchange->escaped)[0] : -1);
+  if (exchange->escaped->length() && (exchange->escaped_given() ||
+      !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
+    escape_char= (int) (uchar) (*exchange->escaped)[0];
+  else
+    escape_char= -1;
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
@@ -2771,7 +2877,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
               handler_tables == 0 && derived_tables == 0 &&
               lock == 0 && locked_tables == 0 &&
-              prelocked_mode == NON_PRELOCKED);
+              prelocked_mode == NON_PRELOCKED &&
+              m_reprepare_observer == NULL);
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
@@ -2821,7 +2928,10 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
-  return (int) thd->variables.binlog_format;
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+    return (int) thd->variables.binlog_format;
+  else
+    return BINLOG_FORMAT_UNSPEC;
 }
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
@@ -2869,8 +2979,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    backup->auto_inc_intervals_forced= auto_inc_intervals_forced;
-    auto_inc_intervals_forced.empty();
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
+    auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
   }
 #endif
   
@@ -2918,8 +3028,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    auto_inc_intervals_forced= backup->auto_inc_intervals_forced;
-    backup->auto_inc_intervals_forced.empty();
+    backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
   }
 #endif
 
@@ -3416,6 +3526,21 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 }
 
 
+int THD::binlog_remove_pending_rows_event(bool clear_maps)
+{
+  DBUG_ENTER("THD::binlog_remove_pending_rows_event");
+
+  if (!mysql_bin_log.is_open())
+    DBUG_RETURN(0);
+
+  mysql_bin_log.remove_pending_rows_event(this);
+
+  if (clear_maps)
+    binlog_table_maps= 0;
+
+  DBUG_RETURN(0);
+}
+
 int THD::binlog_flush_pending_rows_event(bool stmt_end)
 {
   DBUG_ENTER("THD::binlog_flush_pending_rows_event");
@@ -3448,6 +3573,29 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
+#if !defined(DBUG_OFF) && !defined(_lint)
+static const char *
+show_query_type(THD::enum_binlog_query_type qtype)
+{
+  switch (qtype) {
+  case THD::ROW_QUERY_TYPE:
+    return "ROW";
+  case THD::STMT_QUERY_TYPE:
+    return "STMT";
+  case THD::MYSQL_QUERY_TYPE:
+    return "MYSQL";
+  case THD::QUERY_TYPE_COUNT:
+  default:
+    DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
+  }
+
+  static char buf[64];
+  sprintf(buf, "UNKNOWN#%d", qtype);
+  return buf;
+}
+#endif
+
+
 /*
   Member function that will log query, either row-based or
   statement-based depending on the value of the 'current_stmt_binlog_row_based'
@@ -3476,7 +3624,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype: %d  query: '%s'", qtype, query_arg));
+  DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
+                       show_query_type(qtype), query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
@@ -3515,6 +3664,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
   switch (qtype) {
   case THD::ROW_QUERY_TYPE:
+    DBUG_PRINT("debug",
+               ("current_stmt_binlog_row_based: %d",
+                current_stmt_binlog_row_based));
     if (current_stmt_binlog_row_based)
       DBUG_RETURN(0);
     /* Otherwise, we fall through */

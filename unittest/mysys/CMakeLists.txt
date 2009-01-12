@@ -26,3 +26,9 @@ TARGET_LINK_LIBRARIES(base64-t mytap mysys dbug strings wsock32)
 
 ADD_EXECUTABLE(my_atomic-t my_atomic-t.c)
 TARGET_LINK_LIBRARIES(my_atomic-t mytap mysys dbug strings wsock32)
+
+ADD_EXECUTABLE(lf-t lf-t.c)
+TARGET_LINK_LIBRARIES(lf-t mytap mysys dbug strings wsock32)
+
+ADD_EXECUTABLE(waiting_threads-t waiting_threads-t.c)
+TARGET_LINK_LIBRARIES(waiting_threads-t mytap mysys dbug strings wsock32)

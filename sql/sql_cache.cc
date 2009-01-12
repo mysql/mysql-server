@@ -1548,10 +1548,9 @@ void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
   for (; tables_used; tables_used= tables_used->next_local)
   {
     thd_proc_info(thd, "invalidating query cache entries (table)");
-    if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE) &&
+    if (tables_used->lock_type >= TL_WRITE_ALLOW_WRITE &&
         tables_used->table)
     {
-      THD *thd= current_thd; 
       invalidate_table(thd, tables_used->table);
     }
   }
@@ -2639,7 +2638,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
-    if (tables_used->derived && !tables_used->view)
+    if (tables_used->is_anonymous_derived_table())
     {
       DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
@@ -2752,7 +2751,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	 tmp++)
       unlink_table(tmp);
   }
-  return (n);
+  return test(n);
 }
 
 

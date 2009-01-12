@@ -47,6 +47,7 @@ int maria_close(register MARIA_HA *info)
     if (maria_lock_database(info,F_UNLCK))
       error=my_errno;
   }
+  pthread_mutex_lock(&share->close_lock);
   pthread_mutex_lock(&share->intern_lock);
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
@@ -107,13 +108,14 @@ int maria_close(register MARIA_HA *info)
         File must be synced as it is going out of the maria_open_list and so
         becoming unknown to future Checkpoints.
       */
-      if (!share->temporary && my_sync(share->kfile.file, MYF(MY_WME)))
+      if (share->now_transactional && my_sync(share->kfile.file, MYF(MY_WME)))
         error= my_errno;
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
     }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
+    (void) pthread_mutex_destroy(&share->key_del_lock);
     {
       int i,keys;
       keys = share->state.header.keys;
@@ -124,22 +126,30 @@ int maria_close(register MARIA_HA *info)
     }
 #endif
     DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
-    if (share->in_checkpoint == MARIA_CHECKPOINT_LOOKS_AT_ME)
+    /*
+      We assign -1 because checkpoint does not need to flush (in case we
+      have concurrent checkpoint if no then we do not need it here also)
+    */
+    share->kfile.file= -1;
+
+    /*
+      Remember share->history for future opens
+
+      We have to unlock share->intern_lock then lock it after
+      LOCK_trn_list (trnman_lock()) to avoid dead locks.
+    */
+    pthread_mutex_unlock(&share->intern_lock);
+    _ma_remove_not_visible_states_with_lock(share, TRUE);
+    pthread_mutex_lock(&share->intern_lock);
+
+    if (share->in_checkpoint & MARIA_CHECKPOINT_LOOKS_AT_ME)
     {
-      share->kfile.file= -1; /* because Checkpoint does not need to flush */
       /* we cannot my_free() the share, Checkpoint would see a bad pointer */
       share->in_checkpoint|= MARIA_CHECKPOINT_SHOULD_FREE_ME;
     }
     else
       share_can_be_freed= TRUE;
 
-    /*
-      Remember share->history for future opens
-      Here we take share->intern_lock followed by trans_lock but this is
-      safe as no other thread one can use 'share' here.
-    */
-    share->state_history= _ma_remove_not_visible_states(share->state_history,
-                                                        1, 0);
     if (share->state_history)
     {
       MARIA_STATE_HISTORY_CLOSED *history;
@@ -160,16 +170,19 @@ int maria_close(register MARIA_HA *info)
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   pthread_mutex_unlock(&share->intern_lock);
+  pthread_mutex_unlock(&share->close_lock);
   if (share_can_be_freed)
   {
-    VOID(pthread_mutex_destroy(&share->intern_lock));
+    (void) pthread_mutex_destroy(&share->intern_lock);
+    (void) pthread_mutex_destroy(&share->close_lock);
     my_free((uchar *)share, MYF(0));
+    /*
+      If share cannot be freed, it's because checkpoint has previously
+      recorded to include this share in the checkpoint and so is soon going to
+      look at some of its content (share->in_checkpoint/id/last_version).
+    */
   }
-  if (info->ftparser_param)
-  {
-    my_free((uchar*)info->ftparser_param, MYF(0));
-    info->ftparser_param= 0;
-  }
+  my_free(info->ftparser_param, MYF(MY_ALLOW_ZERO_PTR));
   if (info->dfile.file >= 0)
   {
     /*

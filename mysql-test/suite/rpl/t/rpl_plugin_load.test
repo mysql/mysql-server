@@ -1,0 +1,60 @@
+#
+# Bug#35807 - INSTALL PLUGIN replicates row-based, but not stmt-based
+#
+# The test verifies that INSTALL PLUGIN and UNINSTALL PLUGIN
+# work with replication.
+#
+# The test tries to install and uninstall a plugin on master,
+# and verifies that it does not affect the slave,
+# and that it does not add anything to the binlog.
+
+--source include/not_embedded.inc
+--source include/have_log_bin.inc
+# Dynamic loading of Example does not work on Windows currently.
+--source include/not_windows.inc
+--source include/have_example_plugin.inc
+
+# Initialize replication.
+--source include/master-slave.inc
+--echo Verify that example engine is not installed.
+SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
+--echo Get binlog position before install plugin.
+let $before_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo Install example engine.
+INSTALL PLUGIN example SONAME 'ha_example.so';
+--echo Get binlog position after install plugin.
+let $after_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo Compute the difference of the  binlog positions.
+--echo Should be zero as install plugin should not be replicated.
+--disable_query_log
+eval SELECT $after_pos - $before_pos AS Delta;
+--enable_query_log
+--echo Verify that example engine is installed.
+SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
+# Wait for slave to catch up with master.
+sync_slave_with_master;
+#
+    --echo connection slave: Verify that example engine is not installed.
+    connection slave;
+    SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
+#
+--echo connection master: Uninstall example engine.
+connection master;
+--echo Get binlog position before uninstall plugin.
+let $before_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+UNINSTALL PLUGIN example;
+--echo Get binlog position after uninstall plugin.
+let $after_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+--echo Compute the difference of the  binlog positions.
+--echo Should be zero as uninstall plugin should not be replicated.
+--disable_query_log
+eval SELECT $after_pos - $before_pos AS Delta;
+--enable_query_log
+--echo Verify that example engine is not installed.
+SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
+# Wait for slave to catch up with master.
+sync_slave_with_master;
+#
+# Cleanup
+--source include/master-slave-end.inc
+--echo End of test

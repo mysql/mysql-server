@@ -301,12 +301,6 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
     goto end;
   }
 
-  sql_print_information("Event Scheduler: "
-                        "[%s].[%s.%s] started in thread %lu.",
-                        job_data.definer.str,
-                        job_data.dbname.str, job_data.name.str,
-                        thd->thread_id);
-
   thd->enable_slow_log= TRUE;
 
   res= job_data.execute(thd, event->dropped);
@@ -318,13 +312,6 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           "[%s].[%s.%s] event execution failed.",
                           job_data.definer.str,
                           job_data.dbname.str, job_data.name.str);
-  else
-    sql_print_information("Event Scheduler: "
-                          "[%s].[%s.%s] executed successfully in thread %lu.",
-                          job_data.definer.str,
-                          job_data.dbname.str, job_data.name.str,
-                          thd->thread_id);
-
 end:
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
@@ -350,6 +337,14 @@ Event_scheduler::Event_scheduler(Event_queue *queue_arg)
 {
   pthread_mutex_init(&LOCK_scheduler_state, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_state, NULL);
+
+#ifdef SAFE_MUTEX
+  /* Ensure right mutex order */
+  pthread_mutex_lock(&LOCK_scheduler_state);
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(&LOCK_scheduler_state);
+#endif
 }
 
 

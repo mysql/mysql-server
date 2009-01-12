@@ -49,6 +49,7 @@
 #define MAX_SLAVE_RETRY_PAUSE 5
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
+char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 
@@ -275,6 +276,64 @@ err:
 }
 
 
+/**
+  Convert slave skip errors bitmap into a printable string.
+*/
+
+static void print_slave_skip_errors(void)
+{
+  /*
+    To be safe, we want 10 characters of room in the buffer for a number
+    plus terminators. Also, we need some space for constant strings.
+    10 characters must be sufficient for a number plus {',' | '...'}
+    plus a NUL terminator. That is a max 6 digit number.
+  */
+  const size_t MIN_ROOM= 10;
+  DBUG_ENTER("print_slave_skip_errors");
+  DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
+  DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
+
+  if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
+  {
+    /* purecov: begin tested */
+    memcpy(slave_skip_error_names, STRING_WITH_LEN("OFF"));
+    /* purecov: end */
+  }
+  else if (bitmap_is_set_all(&slave_error_mask))
+  {
+    /* purecov: begin tested */
+    memcpy(slave_skip_error_names, STRING_WITH_LEN("ALL"));
+    /* purecov: end */
+  }
+  else
+  {
+    char *buff= slave_skip_error_names;
+    char *bend= buff + sizeof(slave_skip_error_names);
+    int  errnum;
+
+    for (errnum= 1; errnum < MAX_SLAVE_ERROR; errnum++)
+    {
+      if (bitmap_is_set(&slave_error_mask, errnum))
+      {
+        if (buff + MIN_ROOM >= bend)
+          break; /* purecov: tested */
+        buff= int10_to_str(errnum, buff, 10);
+        *buff++= ',';
+      }
+    }
+    if (buff != slave_skip_error_names)
+      buff--; // Remove last ','
+    if (errnum < MAX_SLAVE_ERROR)
+    {
+      /* Couldn't show all errors */
+      buff= strmov(buff, "..."); /* purecov: tested */
+    }
+    *buff=0;
+  }
+  DBUG_PRINT("init", ("error_names: '%s'", slave_skip_error_names));
+  DBUG_VOID_RETURN;
+}
+
 /*
   Init function to set up array for errors that should be skipped for slave
 
@@ -314,6 +373,8 @@ void init_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
+  /* Convert slave skip errors bitmap into a printable string. */
+  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
 
@@ -4057,9 +4118,17 @@ end:
    @param rli Relay_log_info which tells the master's version
    @param bug_id Number of the bug as found in bugs.mysql.com
    @param report bool report error message, default TRUE
+
+   @param pred Predicate function that will be called with @c param to
+   check for the bug. If the function return @c true, the bug is present,
+   otherwise, it is not.
+
+   @param param  State passed to @c pred function.
+
    @return TRUE if master has the bug, FALSE if it does not.
 */
-bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id, bool report)
+bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
+                        bool (*pred)(const void *), const void *param)
 {
   struct st_version_range_for_one_bug {
     uint        bug_id;
@@ -4072,6 +4141,7 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id, bool report)
     {24432, { 5, 1, 12 }, { 5, 1, 17 } },
     {33029, { 5, 0,  0 }, { 5, 0, 58 } },
     {33029, { 5, 1,  0 }, { 5, 1, 12 } },
+    {37426, { 5, 1,  0 }, { 5, 1, 26 } },
   };
   const uchar *master_ver=
     rli->relay_log.description_event_for_exec->server_version_split;
@@ -4085,11 +4155,11 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id, bool report)
       *fixed_in= versions_for_all_bugs[i].fixed_in;
     if ((versions_for_all_bugs[i].bug_id == bug_id) &&
         (memcmp(introduced_in, master_ver, 3) <= 0) &&
-        (memcmp(fixed_in,      master_ver, 3) >  0))
+        (memcmp(fixed_in,      master_ver, 3) >  0) &&
+        (pred == NULL || (*pred)(param)))
     {
       if (!report)
 	return TRUE;
-      
       // a short message for SHOW SLAVE STATUS (message length constraints)
       my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
                       " http://bugs.mysql.com/bug.php?id=%u"
@@ -4136,7 +4206,8 @@ bool rpl_master_erroneous_autoinc(THD *thd)
   if (active_mi && active_mi->rli.sql_thd == thd)
   {
     Relay_log_info *rli= &active_mi->rli;
-    return rpl_master_has_bug(rli, 33029, FALSE);
+    DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
+    return rpl_master_has_bug(rli, 33029, FALSE, NULL, NULL);
   }
   return FALSE;
 }

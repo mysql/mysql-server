@@ -404,14 +404,14 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 */
 
 int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
-                       uint test_if_locked)
+                       uint test_if_locked_arg)
 {
   DBUG_ENTER("ha_myisammrg::open");
   DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
-  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked));
+  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked_arg));
 
   /* Save for later use. */
-  this->test_if_locked= test_if_locked;
+  test_if_locked= test_if_locked_arg;
 
   /* retrieve children table list. */
   my_errno= 0;
@@ -1154,6 +1154,12 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
 int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   return HA_ADMIN_OK;
+}
+
+
+ha_rows ha_myisammrg::records()
+{
+  return myrg_records(file);
 }
 
 

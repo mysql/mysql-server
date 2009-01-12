@@ -8,7 +8,9 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a integer)
 partition by range (a)
@@ -57,13 +59,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	
 explain partitions select * from t1 where a >= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t1 where a <= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t1 where a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -96,16 +98,16 @@ select * from t1 where a > 1;
 a	b
 explain partitions select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	6	Using where
 explain partitions select * from t1 where a >= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	6	Using where
 explain partitions select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	6	Using where
 explain partitions select * from t1 where a <= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	6	Using where
 explain partitions select * from t1 where a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -137,7 +139,11 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) (PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = MyISAM, PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = MyISAM, PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = MyISAM,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = MyISAM,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = MyISAM) */
 ALTER TABLE t1
 partition by range (a)
 partitions 3
@@ -157,7 +163,11 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) (PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = MyISAM, PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = MyISAM, PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = MyISAM,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = MyISAM,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = MyISAM) */
 drop table if exists t1;
 CREATE TABLE t1 (
 a int not null,
@@ -254,7 +264,15 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a+b) (PARTITION x1 VALUES LESS THAN (1) (SUBPARTITION x11 ENGINE = MyISAM, SUBPARTITION x12 ENGINE = MyISAM), PARTITION x2 VALUES LESS THAN (5) (SUBPARTITION x21 ENGINE = MyISAM, SUBPARTITION x22 ENGINE = MyISAM)) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a+b)
+(PARTITION x1 VALUES LESS THAN (1)
+ (SUBPARTITION x11 ENGINE = MyISAM,
+  SUBPARTITION x12 ENGINE = MyISAM),
+ PARTITION x2 VALUES LESS THAN (5)
+ (SUBPARTITION x21 ENGINE = MyISAM,
+  SUBPARTITION x22 ENGINE = MyISAM)) */
 ALTER TABLE t1 ADD COLUMN d int;
 show create table t1;
 Table	Create Table
@@ -264,7 +282,15 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a+b) (PARTITION x1 VALUES LESS THAN (1) (SUBPARTITION x11 ENGINE = MyISAM, SUBPARTITION x12 ENGINE = MyISAM), PARTITION x2 VALUES LESS THAN (5) (SUBPARTITION x21 ENGINE = MyISAM, SUBPARTITION x22 ENGINE = MyISAM)) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a+b)
+(PARTITION x1 VALUES LESS THAN (1)
+ (SUBPARTITION x11 ENGINE = MyISAM,
+  SUBPARTITION x12 ENGINE = MyISAM),
+ PARTITION x2 VALUES LESS THAN (5)
+ (SUBPARTITION x21 ENGINE = MyISAM,
+  SUBPARTITION x22 ENGINE = MyISAM)) */
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -487,7 +513,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (0) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a bigint unsigned)
 partition by range (a)
@@ -497,7 +526,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (2) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM) */
 insert into t1 values (0xFFFFFFFFFFFFFFFF);
 ERROR HY000: Table has no partition for value 18446744073709551615
 drop table t1;
@@ -742,3 +774,23 @@ WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	18	Using where
 DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t2 (
+defid int(10) unsigned NOT NULL,
+day int(10) unsigned NOT NULL,
+count int(10) unsigned NOT NULL,
+filler char(200),
+KEY (defid,day)
+) 
+PARTITION BY RANGE (day) (
+PARTITION p7 VALUES LESS THAN (20070401) , 
+PARTITION p8 VALUES LESS THAN (20070501));
+insert into t2 select 20, 20070311, 1, 'filler' from t1 A, t1 B;
+insert into t2 select 20, 20070411, 1, 'filler' from t1 A, t1 B;
+insert into t2 values(52, 20070321, 123, 'filler') ;
+insert into t2 values(52, 20070322, 456, 'filler') ;
+select sum(count) from t2 ch where ch.defid in (50,52) and ch.day between 20070320 and 20070401 group by defid;
+sum(count)
+579
+drop table t1, t2;

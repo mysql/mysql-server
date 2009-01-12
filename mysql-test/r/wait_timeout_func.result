@@ -1,0 +1,32 @@
+SET @start_value= @@global.wait_timeout;
+'#--------------------FN_DYNVARS_186_01-------------------------#'
+SET @start_time= UNIX_TIMESTAMP();
+connect (test_con1, localhost, root,,);
+SELECT @@session.wait_timeout = @@global.wait_timeout AS 'Expect 1';
+Expect 1
+1
+SET @@session.wait_timeout = <session_value>;
+connect (test_con2, localhost, root,,);
+SET @@session.wait_timeout = <session_value> - 1;
+connection default;
+wait until connections ready
+SELECT info FROM information_schema.processlist;
+info
+SELECT info FROM information_schema.processlist
+'#--------------------FN_DYNVARS_186_03-------------------------#'
+SET @@global.wait_timeout= <global_value>;
+SELECT @@session.wait_timeout = @start_value AS 'Expect 1';
+Expect 1
+1
+connect (test_con3, localhost, root,,);
+SELECT @@session.wait_timeout = @@global.wait_timeout AS 'Expect 1';
+Expect 1
+1
+connection default;
+SELECT info FROM information_schema.processlist;
+info
+SELECT info FROM information_schema.processlist
+SELECT UNIX_TIMESTAMP() - @start_time >= <global_value> + <session_value>;;
+UNIX_TIMESTAMP() - @start_time >= <global_value> + <session_value>;
+1
+SET @@global.wait_timeout= @start_value;

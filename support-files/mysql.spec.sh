@@ -27,6 +27,11 @@
 %{?_with_yassl:%define YASSL_BUILD 1}
 %{!?_with_yassl:%define YASSL_BUILD 0}
 
+# use "rpmbuild --with cluster" or "rpm --define '_with_cluster 1'" (for RPM 3.x)
+# to build with cluster support (off by default)
+%{?_with_cluster:%define CLUSTER_BUILD 1}
+%{!?_with_cluster:%define CLUSTER_BUILD 0}
+
 # use "rpmbuild --with maria" or "rpm --define '_with_maria 1'" (for RPM 3.x)
 # to build with maria support (off by default)
 %{?_with_maria:%define MARIA_BUILD 1}
@@ -139,6 +144,7 @@ This package contains the standard MySQL clients and administration tools.
 
 %{see_base}
 
+%if %{CLUSTER_BUILD}
 %package ndb-storage
 Summary:	MySQL - ndbcluster storage engine
 Group:		Applications/Databases
@@ -179,6 +185,7 @@ This package contains some extra ndbcluster storage engine tools for the advance
 They should be used with caution.
 
 %{see_base}
+%endif
 
 %package test
 Requires: %{name}-client perl-DBI perl
@@ -253,12 +260,19 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	./configure \
  	    $* \
 	    --with-innodb \
+%if %{CLUSTER_BUILD}
 	    --with-ndbcluster \
+%else
+  	    --without-ndbcluster \
+%endif
 	    --with-archive-storage-engine \
 	    --with-csv-storage-engine \
-	    --with-example-storage-engine \
 	    --with-blackhole-storage-engine \
+%if %{FEDERATED_BUILD}
 	    --with-federated-storage-engine \
+%else
+   	    --without-federated-storage-engine \
+%endif
 %if %{MARIA_BUILD}
 	    --with-plugin-maria \
 	    --with-maria-tmp-tables \
@@ -317,8 +331,6 @@ mkdir -p $RBR%{_libdir}/mysql
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
 
-# Build the Debug binary.
-
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
 # including exceptions into the code
 if [ -z "$CXX" -a -z "$CC" ]
@@ -327,16 +339,25 @@ then
 	export CXX="gcc"
 fi
 
+# Prepare compiler flags
+CFLAGS=${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}
+CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti }
+
 ##############################################################################
 #
 #  Build the debug version
 #
 ##############################################################################
 
-# Strip -Oxxx, add -g and --with-debug.
-(cd mysql-debug-%{mysql_version} &&
-CFLAGS=`echo "${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" | sed -e 's/-O[0-9]*//g'` \
-CXXFLAGS=`echo "${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" | sed -e 's/-O[0-9]*//g'` \
+(
+# We are in a subshell, so we can modify variables just for one run.
+CFLAGS=`echo $CFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //' -e 's/$/ -g/'`
+CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //' -e 's/$/ -g/'`
+
+# Add -g and --with-debug.
+cd mysql-debug-%{mysql_version} &&
+CFLAGS=\"$CFLAGS\" \
+CXXFLAGS=\"$CXXFLAGS\" \
 BuildMySQL "--enable-shared \
 		--with-debug \
 %if %{MARIA_BUILD}
@@ -361,8 +382,8 @@ fi
 ##############################################################################
 
 (cd mysql-release-%{mysql_version} &&
-CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
-CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
+CFLAGS=\"$CFLAGS\" \
+CXXFLAGS=\"$CXXFLAGS\" \
 BuildMySQL "--enable-shared \
 		--with-embedded-server \
 %if %{MARIA_BUILD}
@@ -428,6 +449,9 @@ install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Install embedded server library in the build root
 install -m 644 $MBD/libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+
+# in RPMs, it is unlikely that anybody should use "sql-bench"
+rm -fr $RBR%{_datadir}/sql-bench
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -573,12 +597,13 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information." 
 
+%if %{CLUSTER_BUILD}
 %post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
 if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
-
+%endif
 
 %preun server
 if test $1 = 0
@@ -613,10 +638,13 @@ fi
 
 %doc mysql-release-%{mysql_version}/COPYING mysql-release-%{mysql_version}/README 
 %doc mysql-release-%{mysql_version}/support-files/my-*.cnf
+%if %{CLUSTER_BUILD}
 %doc mysql-release-%{mysql_version}/support-files/ndb-*.ini
+%endif
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
+%doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
@@ -635,12 +663,14 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
+%attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
@@ -681,6 +711,7 @@ fi
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
+%attr(755, root, root) %{_bindir}/mysql_upgrade_shell
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
 %attr(755, root, root) %{_bindir}/mysqladmin
@@ -693,6 +724,7 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
@@ -708,6 +740,7 @@ fi
 %postun shared
 /sbin/ldconfig
 
+%if %{CLUSTER_BUILD}
 %files ndb-storage
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndbd
@@ -737,6 +770,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
@@ -748,13 +783,15 @@ fi
 
 %files ndb-extra
 %defattr(-,root,root,0755)
-%attr(755, root, root) %{_sbindir}/ndb_cpcd
 %attr(755, root, root) %{_bindir}/ndb_delete_all
 %attr(755, root, root) %{_bindir}/ndb_drop_index
 %attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_sbindir}/ndb_cpcd
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
+%endif
 
 %files devel
 %defattr(-, root, root, 0755)
@@ -764,6 +801,7 @@ fi
 %dir %attr(755, root, root) %{_includedir}/mysql
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
+%{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
 %if %{have_libgcc}
@@ -777,8 +815,10 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.la
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
+%if %{CLUSTER_BUILD}
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
+%endif
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
@@ -787,7 +827,9 @@ fi
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
+%if %{CLUSTER_BUILD}
 %{_libdir}/libndb*.so*
+%endif
 
 %files test
 %defattr(-, root, root, 0755)
@@ -809,6 +851,34 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Thu Nov 06 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.
+  This should cover both gcc and icc flags.  Fixes bug#40546.
+  
+* Fri Aug 29 2008 Kent Boortz <kent@mysql.com>
+
+- Removed the "Federated" storage engine option, and enabled in all
+
+* Tue Aug 26 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Get rid of the "warning: Installed (but unpackaged) file(s) found:"
+  Some generated files aren't needed in RPMs:
+  - the "sql-bench/" subdirectory
+  Some files were missing:
+  - /usr/share/aclocal/mysql.m4  ("devel" subpackage)
+  - Manual "mysqlbug" ("server" subpackage)
+  - Program "innochecksum" and its manual ("server" subpackage)
+  - Manual "mysql_find_rows" ("client" subpackage)
+  - Script "mysql_upgrade_shell" ("client" subpackage)
+  - Program "ndb_cpcd" and its manual ("ndb-extra" subpackage)
+  - Manuals "ndb_mgm" + "ndb_restore" ("ndb-tools" subpackage)
+
+* Mon Mar 31 2008 Kent Boortz <kent@mysql.com>
+
+- Made the "Federated" storage engine an option
+- Made the "Cluster" storage engine and sub packages an option
+
 * Wed Mar 19 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Add the man pages for "ndbd" and "ndb_mgmd".

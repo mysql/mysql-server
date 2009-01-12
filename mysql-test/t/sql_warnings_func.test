@@ -1,0 +1,120 @@
+############# mysql-test\t\sql_warnings_func.test #########################
+#                                                                         #
+# Variable Name: sql_warnings                                             #
+# Scope: SESSION                                                          #
+# Access Type: Dynamic                                                    #
+# Data Type: BOOLEAN                                                      #
+# Default Value: FALSE 0                                                  #
+# Values:       TRUE 1, FALSE 0                                           #
+#                                                                         #
+#                                                                         #
+# Creation Date: 2008-03-02                                               #
+# Author:  Sharique Abdullah                                              #
+#                                                                         #
+# Description: Test Cases of Dynamic System Variable "sql_warnings"       #
+#              that checks behavior of this variable in the following ways#
+#              * Functionality based on different values                  #
+#                                                                         #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html       #
+#                                                                         #
+###########################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+SET @default_sql_warnings = @@sql_warnings;
+
+#
+# Creating tables
+#
+
+CREATE TEMPORARY TABLE t1(a varchar(5), b varchar(20));
+
+--enable_info
+--disable_warnings
+
+--echo '#-----------------------------FN_DYNVARS_167_01------------#'
+#
+# Value DEFAULT
+#
+SET @@sql_warnings = DEFAULT;
+
+INSERT INTO t1 VALUES('abcdef', 'val1');
+
+--echo '#-----------------------------FN_DYNVARS_167_02------------------#'
+#
+# OFF value
+#
+
+SET @@sql_warnings = 0;
+
+INSERT INTO t1 VALUES('abcdef', 'val1');
+
+--echo '#-----------------------------FN_DYNVARS_167_03---------------#'
+#
+# ON value
+#
+
+SET @@sql_warnings = 1;
+
+INSERT INTO t1 VALUES('abcdef', 'val1');
+
+
+--echo '#----------------------------FN_DYNVARS_167_04---------------#'
+#
+# Session data integrity check Value check
+#
+
+--disable_info
+
+--echo ** Connecting con_int1 using root **
+connect (con_int1,localhost,root,,);
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_warnings;
+--echo 0 / FALSE Expected
+
+SET SESSION sql_warnings = FALSE;
+
+--echo ** Connecting con_int2 using root **
+connect (con_int2,localhost,root,,);
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_warnings;
+--echo 0 / FALSE Expected
+
+SET SESSION sql_warnings = TRUE;
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_warnings;
+--echo 1 / TRUE Expected
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_warnings;
+--echo 0 / FALSE Expected
+
+--echo ** Connection default **
+connection default;
+
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+
+#
+# Cleanup
+#
+
+DROP TABLE t1;
+
+SET @@sql_warnings = @default_sql_warnings;
+
+--disable_info
+--enable_warnings

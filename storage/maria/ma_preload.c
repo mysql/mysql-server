@@ -104,7 +104,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
     else /* otherwise it stays in cache: */
       pagecache_unlock_by_link(share->pagecache, page_link,
                                PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
-                               LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, FALSE);
+                               LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, FALSE, FALSE);
   }
 
   my_free(buff, MYF(0));

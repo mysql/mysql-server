@@ -453,7 +453,7 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
   {
     /*
       We de-assign the id even though index has not been flushed, this is ok
-      as intern_lock serializes us with a Checkpoint looking at our share.
+      as close_lock serializes us with a Checkpoint looking at our share.
     */
     translog_deassign_id_from_share(share);
   }
@@ -1964,7 +1964,7 @@ static my_bool write_tail(MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link->link,
                              PAGECACHE_LOCK_WRITE_TO_READ,
                              PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
     DBUG_ASSERT(page_link->changed);
     page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
     res= 0;
@@ -2408,11 +2408,23 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
                                     uint count)
 {
   my_bool res= 0;
+  uint delete_count;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("free_full_page_range");
 
-  if (pagecache_delete_pages(share->pagecache, &info->dfile,
-                             page, count, PAGECACHE_LOCK_WRITE, 0))
+  delete_count= count;
+  if (share->state.state.data_file_length ==
+      (page + count) * share->block_size)
+  {
+    /*
+      Don't delete last page from pagecache as this will make the file
+      shorter than expected if the last operation extended the file
+    */
+    delete_count--;
+  }
+  if (delete_count &&
+      pagecache_delete_pages(share->pagecache, &info->dfile,
+                             page, delete_count, PAGECACHE_LOCK_WRITE, 0))
     res= 1;
 
   if (share->now_transactional)
@@ -3026,7 +3038,7 @@ static my_bool write_block_record(MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link->link,
                              PAGECACHE_LOCK_WRITE_TO_READ,
                              PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
     page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link->changed= 1;
   }
@@ -3094,7 +3106,7 @@ static my_bool write_block_record(MARIA_HA *info,
                                                        info->rec_buff);
       log_pos= store_page_range(log_pos, head_block+1, block_size,
                                 (ulong) block_length, &extents);
-      log_array_pos->str=    (char*) info->rec_buff;
+      log_array_pos->str= info->rec_buff;
       log_array_pos->length= block_length;
       log_entry_length+= block_length;
       log_array_pos++;
@@ -3489,23 +3501,26 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   for (block= blocks->block + 1, end= block + blocks->count - 1; block < end;
        block++)
   {
-    if (block->used & BLOCKUSED_TAIL)
+    if (block->used & BLOCKUSED_USED)
     {
-      /*
-        block->page_count is set to the tail directory entry number in
-        write_block_record()
-      */
-      if (delete_head_or_tail(info, block->page, block->page_count & ~TAIL_BIT,
-                              0, 0))
-        res= 1;
-    }
-    else if (block->used & BLOCKUSED_USED)
-    {
-      if (free_full_page_range(info, block->page, block->page_count))
-        res= 1;
+      if (block->used & BLOCKUSED_TAIL)
+      {
+        /*
+          block->page_count is set to the tail directory entry number in
+          write_block_record()
+        */
+        if (delete_head_or_tail(info, block->page,
+                                block->page_count & ~TAIL_BIT,
+                                0, 0))
+          res= 1;
+      }
+      else
+      {
+        if (free_full_page_range(info, block->page, block->page_count))
+          res= 1;
+      }
     }
   }
-
   if (share->now_transactional)
   {
     if (_ma_write_clr(info, info->cur_row.orig_undo_lsn,
@@ -4025,7 +4040,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            lock_at_write,
                            PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 1);
+                           LSN_IMPOSSIBLE, 1, FALSE);
   page_link.unlock= lock_at_unpin;
   set_dynamic(&info->pinned_pages, (void*) &page_link,
               info->pinned_pages.elements-1);
@@ -4982,10 +4997,12 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
   info->scan.bitmap_pos= info->scan.bitmap_end;
   info->scan.bitmap_page= (pgcache_page_no_t) 0 - share->bitmap.pages_covered;
   /*
-    We have to flush bitmap as we will read the bitmap from the page cache
-    while scanning rows
+    We need to flush what's in memory (bitmap.map) to page cache otherwise, as
+    we are going to read bitmaps from page cache in table scan (see
+    _ma_scan_block_record()), we may miss recently inserted rows (bitmap page
+    in page cache would be too old).
   */
-  DBUG_RETURN(_ma_bitmap_wait_or_flush(info->s));
+  DBUG_RETURN(_ma_bitmap_flush(info->s));
 }
 
 
@@ -5141,7 +5158,9 @@ restart_record_read:
     if (end_of_data > info->scan.dir_end ||
         offset < PAGE_HEADER_SIZE || length < share->base.min_block_length)
     {
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(!(end_of_data > info->scan.dir_end));
+      DBUG_ASSERT(!(offset < PAGE_HEADER_SIZE));
+      DBUG_ASSERT(!(length < share->base.min_block_length));
       goto err;
     }
 #endif
@@ -5408,7 +5427,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   log_parts++;
 
   /* Stored bitmap over packed (zero length or all-zero fields) */
-  log_parts->str=    (char *) info->cur_row.empty_bits;
+  log_parts->str= info->cur_row.empty_bits;
   log_parts->length= share->base.pack_bytes;
   row_length+=       log_parts->length;
   log_parts++;
@@ -5416,7 +5435,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   if (share->base.max_field_lengths)
   {
     /* Store length of all not empty char, varchar and blob fields */
-    log_parts->str=      (char *) field_lengths - 2;
+    log_parts->str= field_lengths - 2;
     log_parts->length=   info->cur_row.field_lengths_length+2;
     int2store(log_parts->str, info->cur_row.field_lengths_length);
     row_length+= log_parts->length;
@@ -5428,8 +5447,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     /*
       Store total blob length to make buffer allocation easier during UNDO
      */
-    log_parts->str=      (char *) info->length_buff;
-    log_parts->length=   (uint) (ma_store_length((uchar *) log_parts->str,
+    log_parts->str=  info->length_buff;
+    log_parts->length= (uint) (ma_store_length((uchar *) log_parts->str,
                                                  info->cur_row.blob_length) -
                                  (uchar*) log_parts->str);
     row_length+=          log_parts->length;
@@ -5442,7 +5461,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
        column < end_column;
        column++)
   {
-    log_parts->str= (char*) record + column->offset;
+    log_parts->str= record + column->offset;
     log_parts->length= column->length;
     row_length+= log_parts->length;
     log_parts++;
@@ -5493,7 +5512,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     default:
       DBUG_ASSERT(0);
     }
-    log_parts->str= (char*) column_pos;
+    log_parts->str= column_pos;
     log_parts->length= column_length;
     row_length+= log_parts->length;
     log_parts++;
@@ -5512,8 +5531,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     */
     if (blob_length)
     {
-      char *blob_pos;
-      memcpy_fixed((uchar*) &blob_pos, record + column->offset + size_length,
+      uchar *blob_pos;
+      memcpy_fixed(&blob_pos, record + column->offset + size_length,
                    sizeof(blob_pos));
       log_parts->str= blob_pos;
       log_parts->length= blob_length;
@@ -5612,7 +5631,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
     {
       field_data= ma_store_length(field_data,
                                   (uint) (column - share->columndef));
-      log_parts->str= (char*) oldrec + column->offset;
+      log_parts->str= oldrec + column->offset;
       log_parts->length= column->length;
       row_length+=       column->length;
       log_parts++;
@@ -5719,7 +5738,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
                                   (ulong) (column - share->columndef));
       field_data= ma_store_length(field_data, (ulong) old_column_length);
 
-      log_parts->str=     (char*) old_column_pos;
+      log_parts->str=     old_column_pos;
       log_parts->length=  old_column_length;
       row_length+=        old_column_length;
       log_parts++;
@@ -5730,10 +5749,9 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
 
   /* Store length of field length data before the field/field_lengths */
   field_lengths= (uint) (field_data - start_field_data);
-  start_log_parts->str=  ((char*)
-                          (start_field_data -
+  start_log_parts->str=  ((start_field_data -
                            ma_calc_length_for_store_length(field_lengths)));
-  ma_store_length((uchar *) start_log_parts->str, field_lengths);
+  ma_store_length((uchar*)start_log_parts->str, field_lengths);
   start_log_parts->length= (size_t) (field_data - start_log_parts->str);
   row_length+= start_log_parts->length;
   DBUG_RETURN(row_length);
@@ -5911,7 +5929,7 @@ my_bool write_hook_for_file_id(enum translog_record_type type
                                TRN *trn
                                __attribute__ ((unused)),
                                MARIA_HA *tbl_info,
-                               LSN *lsn __attribute__ ((unused)),
+                               LSN *lsn,
                                void *hook_arg
                                __attribute__ ((unused)))
 {
@@ -5919,6 +5937,44 @@ my_bool write_hook_for_file_id(enum translog_record_type type
   tbl_info->s->lsn_of_file_id= *lsn;
   return 0;
 }
+
+
+/**
+   Updates transaction's rec_lsn when committing.
+
+   A transaction writes its commit record before being committed in trnman, so
+   if Checkpoint happens just between the COMMIT record log write and the
+   commit in trnman, it will record that transaction is not committed. Assume
+   the transaction (trn1) did an INSERT; after the checkpoint, a second
+   transaction (trn2) does a DELETE of what trn1 has inserted. Then crash,
+   Checkpoint record says that trn1 was not committed, and REDO phase starts
+   from Checkpoint record's LSN. So it will not find the COMMIT record of
+   trn1, will want to roll back trn1, which will fail because the row/key
+   which it wants to delete does not exist anymore.
+   To avoid this, Checkpoint needs to know that the REDO phase must start
+   before this COMMIT record, so transaction sets its rec_lsn to the COMMIT's
+   record LSN, and as Checkpoint reads the transaction's rec_lsn, Checkpoint
+   will know.
+
+   @note so after commit trn->rec_lsn is a "commit LSN", which could be of
+   use later.
+
+   @return Operation status, always 0 (success)
+*/
+
+my_bool write_hook_for_commit(enum translog_record_type type
+                              __attribute__ ((unused)),
+                              TRN *trn,
+                              MARIA_HA *tbl_info
+                              __attribute__ ((unused)),
+                              LSN *lsn,
+                              void *hook_arg
+                              __attribute__ ((unused)))
+{
+  trn->rec_lsn= *lsn;
+  return 0;
+}
+
 
 /***************************************************************************
   Applying of REDO log records
@@ -6034,7 +6090,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       pagecache_unlock_by_link(share->pagecache, page_link.link,
                                PAGECACHE_LOCK_WRITE_UNLOCK,
                                PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                               LSN_IMPOSSIBLE, 0);
+                               LSN_IMPOSSIBLE, 0, FALSE);
       DBUG_RETURN(0);
     }
 
@@ -6124,7 +6180,7 @@ err:
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
   DBUG_RETURN((my_errno= error));
 }
@@ -6194,7 +6250,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
     DBUG_RETURN(0);
   }
 
@@ -6222,7 +6278,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
   DBUG_RETURN((my_errno= error));
 
@@ -6326,7 +6382,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
     goto err;
   }
   if (lsn_korr(buff) >= lsn)
@@ -6335,7 +6391,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
   }
   else
   {
@@ -6475,7 +6531,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                       LSN_IMPOSSIBLE, 0);
+                                       LSN_IMPOSSIBLE, 0, FALSE);
               goto err;
             }
             /*
@@ -6495,7 +6551,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                       LSN_IMPOSSIBLE, 0);
+                                       LSN_IMPOSSIBLE, 0, FALSE);
               continue;
             }
           }
@@ -7082,7 +7138,7 @@ void maria_ignore_trids(MARIA_HA *info)
   if (info->s->base.born_transactional)
   {
     if (!info->trn)
-      info->trn= &dummy_transaction_object;
+      _ma_set_trn_for_table(info, &dummy_transaction_object);
     /* Ignore transaction id when row is read */
     info->trn->min_read_from= ~(TrID) 0;
   }

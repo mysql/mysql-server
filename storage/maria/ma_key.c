@@ -61,14 +61,36 @@ static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,uchar *record);
   if trid < 256-12
     one byte
   else
-    one byte prefix (256-length_of_trid_in_bytes) followed by data
+    one byte prefix length_of_trid_in_bytes + 249 followed by data
     in high-byte-first order
 
   Prefix bytes 244 to 249 are reserved for negative transid, that can be used
   when we pack transid relative to each other on a key block.
 
-  We have to store transid in high-byte-first order to be able to do a
-  fast byte-per-byte comparision of them without packing them up.
+  We have to store transid in high-byte-first order so that we can compare
+  them unpacked byte per byte and as soon we find a difference we know
+  which is smaller.
+
+  For example, assuming we the following data:
+
+  key_data:               1                (4 byte integer)
+  pointer_to_row:         2 << 8 + 3 = 515 (page 2, row 3)
+  table_create_transid    1000             Defined at create table time and
+                                           stored in table definition
+  transid                 1010	           Transaction that created row
+  delete_transid          2011             Transaction that deleted row
+
+  In addition we assume the table is created with a data pointer length
+  of 4 bytes (this is automatically calculated based on the medium
+  length of rows and the given max number of rows)
+
+  The binary data for the key would then look like this in hex:
+
+  00 00 00 01     Key data (1 stored high byte first)
+  00 00 00 47	  (515 << 1) + 1         ;  The last 1 is marker that key cont.
+  15              ((1010-1000) << 1) + 1 ;  The last 1 is marker that key cont.
+  FB 07 E6        Length byte (FE = 249 + 2 means 2 bytes) and 
+                  ((2011 - 1000) << 1) = 07 E6
 */
 
 uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid)
@@ -76,7 +98,7 @@ uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid)
   uchar *start;
   uint length;
   uchar buff[8];
-  DBUG_ASSERT(trid < (LL(1) << (MAX_PACK_TRANSID_SIZE*8)));
+  DBUG_ASSERT(trid < (LL(1) << (MARIA_MAX_PACK_TRANSID_SIZE*8)));
   DBUG_ASSERT(trid >= info->s->state.create_trid);
 
   trid= (trid - info->s->state.create_trid) << 1;
@@ -84,7 +106,7 @@ uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid)
   /* Mark that key contains transid */
   to[-1]|= 1;
 
-  if (trid < MIN_TRANSID_PACK_PREFIX)
+  if (trid < MARIA_MIN_TRANSID_PACK_OFFSET)
   {
     to[0]= (uchar) trid;
     return 1;
@@ -100,7 +122,8 @@ uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid)
   } while (trid);
 
   length= (uint) (to - buff);
-  start[0]= (uchar) (256 - length);             /* Store length prefix */
+  /* Store length prefix */
+  start[0]= (uchar) (length + MARIA_TRANSID_PACK_OFFSET);
   start++;
   /* Copy things in high-byte-first order to output buffer */
   do
@@ -127,12 +150,13 @@ ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from)
   ulonglong value;
   uint length;
 
-  if (from[0] < MIN_TRANSID_PACK_PREFIX)
+  if (from[0] < MARIA_MIN_TRANSID_PACK_OFFSET)
     value= (ulonglong) from[0];
   else
   {
     value= 0;
-    for (length= (uint) (256 - from[0]), value= (ulonglong) from[1], from+=2;
+    for (length= (uint) (from[0] - MARIA_TRANSID_PACK_OFFSET),
+           value= (ulonglong) from[1], from+=2;
          --length ;
          from++)
       value= (value << 8) + ((ulonglong) *from);

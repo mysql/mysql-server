@@ -1,1 +1,1 @@
---log-slow-queries --log-long-format --log-queries-not-using-indexes
+--log-output=table,file --slow-query-log --log-long-format --log-queries-not-using-indexes --general-log

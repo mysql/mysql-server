@@ -227,7 +227,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   long_tr_id[5]= 0xff;
 
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   trn->short_id= 0;
   trn->first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
@@ -250,7 +250,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     if (i % 2)
     {
       lsn_store(lsn_buff, lsn_base);
-      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
       /* check auto-count feature */
       parts[TRANSLOG_INTERNAL_PARTS + 1].str= NULL;
@@ -268,9 +268,9 @@ int main(int argc __attribute__((unused)), char *argv[])
       lsn_store(lsn_buff, lsn_base);
       if ((rec_len= rand_buffer_size()) < 12)
         rec_len= 12;
-      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
-      parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].str= long_buffer;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
       /* check record length auto-counting */
       if (translog_write_record(&lsn,
@@ -290,7 +290,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     {
       lsn_store(lsn_buff, lsn_base);
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
-      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= 23;
       if (translog_write_record(&lsn,
                                 LOGREC_FIXED_RECORD_2LSN_EXAMPLE,
@@ -308,9 +308,9 @@ int main(int argc __attribute__((unused)), char *argv[])
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
       if ((rec_len= rand_buffer_size()) < 19)
         rec_len= 19;
-      parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
+      parts[TRANSLOG_INTERNAL_PARTS + 0].str= lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= 14;
-      parts[TRANSLOG_INTERNAL_PARTS + 1].str= (char*)long_buffer;
+      parts[TRANSLOG_INTERNAL_PARTS + 1].str= long_buffer;
       parts[TRANSLOG_INTERNAL_PARTS + 1].length= rec_len;
       if (translog_write_record(&lsn,
                                 LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE,
@@ -327,7 +327,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       ok(1, "write LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE");
     }
     int4store(long_tr_id, i);
-    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
@@ -346,7 +346,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
     if ((rec_len= rand_buffer_size()) < 9)
       rec_len= 9;
-    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_buffer;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= rec_len;
     if (translog_write_record(&lsn,
                               LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,

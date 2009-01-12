@@ -1,8 +1,10 @@
-#################################################################################
-# Author:  Serge Kozlov								#
-# Date:    09/21/2005								#
-# Purpose: Testing the charsets for NDB engine					#
-#################################################################################
+################################################################################
+# Author:  Serge Kozlov                                                        #
+# Date:    09/21/2005                                                          #
+# Purpose: Testing the charsets for NDB engine                                 #
+#                                                                              #
+# Checking of other prerequisites is in charset_master.test                    #
+################################################################################
 
 --source include/have_ndb.inc
 --source include/not_embedded.inc

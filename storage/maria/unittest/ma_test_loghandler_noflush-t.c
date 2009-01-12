@@ -93,7 +93,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   int4store(long_tr_id, 0);
   long_tr_id[5]= 0xff;
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&first_lsn,
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,

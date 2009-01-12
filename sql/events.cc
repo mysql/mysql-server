@@ -860,6 +860,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 bool
 Events::init(my_bool opt_noacl)
 {
+
   THD *thd;
   bool res= FALSE;
 
@@ -953,7 +954,6 @@ end:
   DBUG_RETURN(res);
 }
 
-
 /*
   Cleans up scheduler's resources. Called at server shutdown.
 
@@ -995,7 +995,12 @@ Events::deinit()
 void
 Events::init_mutexes()
 {
-  pthread_mutex_init(&LOCK_event_metadata, MY_MUTEX_INIT_FAST);
+  /*
+    Inconsisent usage between LOCK_event_metadata and LOCK_scheduler_state
+    and LOCK_open
+  */
+  my_pthread_mutex_init(&LOCK_event_metadata, MY_MUTEX_INIT_FAST,
+                        "LOCK_event_metadata", MYF_NO_DEADLOCK_DETECTION);
 }
 
 
@@ -1148,7 +1153,7 @@ Events::load_events_from_db(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  init_read_record(&read_record_info, thd, table, NULL, 0, 1);
+  init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;
@@ -1169,7 +1174,7 @@ Events::load_events_from_db(THD *thd)
       goto end;
     }
     drop_on_completion= (et->on_completion ==
-                         Event_queue_element::ON_COMPLETION_DROP);
+                         Event_parse_data::ON_COMPLETION_DROP);
 
 
     if (event_queue->create_event(thd, et, &created))

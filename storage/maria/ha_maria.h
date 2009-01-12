@@ -112,6 +112,7 @@ public:
   int restart_rnd_next(uchar * buf);
   void position(const uchar * record);
   int info(uint);
+  int info(uint, my_bool);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset(void);
@@ -139,6 +140,7 @@ public:
   int repair(THD * thd, HA_CHECK_OPT * check_opt);
   bool check_and_repair(THD * thd);
   bool is_crashed() const;
+  bool is_changed() const;
   bool auto_repair() const { return 1; }
   int optimize(THD * thd, HA_CHECK_OPT * check_opt);
   int restore(THD * thd, HA_CHECK_OPT * check_opt);

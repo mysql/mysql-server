@@ -178,7 +178,7 @@ static signal_entry install_signal[]= {
 #endif
 };
 
-int skip_big_tests= 0;
+int skip_big_tests= 1;
 
 void
 plan(int count)

@@ -90,7 +90,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   /* write more then 1 file */
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
@@ -98,7 +98,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                             TRANSLOG_INTERNAL_PARTS + 1,
                             parts, NULL, NULL))
   {
-    fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
+    fprintf(stderr, "Can't write record #0\n");
     translog_destroy();
     exit(1);
   }
@@ -111,7 +111,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                               TRANSLOG_INTERNAL_PARTS + 1,
                               parts, NULL, NULL))
     {
-      fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
+      fprintf(stderr, "Can't write record #0\n");
       translog_destroy();
       exit(1);
     }
@@ -164,7 +164,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   ok(1, "Log init OK");
 
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
@@ -172,7 +172,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                             TRANSLOG_INTERNAL_PARTS + 1,
                             parts, NULL, NULL))
   {
-    fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
+    fprintf(stderr, "Can't write record #0\n");
     translog_destroy();
     exit(1);
   }

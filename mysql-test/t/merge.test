@@ -461,7 +461,7 @@ CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t2;
 DROP TABLE t2;
 
@@ -553,11 +553,11 @@ drop table t1;
 #             CREATE TABLE fails
 #
 CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t1(a INT);
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t2(a BLOB);
@@ -883,7 +883,7 @@ DROP TABLE t4;
 --echo # 2. Normal rename.
 SELECT * FROM t3 ORDER BY c1;
 RENAME TABLE t2 TO t5;
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t3 ORDER BY c1;
 RENAME TABLE t5 TO t2;
 SELECT * FROM t3 ORDER BY c1;
@@ -901,7 +901,7 @@ UNLOCK TABLES;
 --echo #
 --echo # 4. Alter table rename.
 ALTER TABLE t2 RENAME TO t5;
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t3 ORDER BY c1;
 ALTER TABLE t5 RENAME TO t2;
 SELECT * FROM t3 ORDER BY c1;
@@ -961,7 +961,7 @@ CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
 LOCK TABLES t1 WRITE, t2 WRITE;
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
---error ER_NO_SUCH_TABLE
+--error 1168
 SELECT * FROM t2;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t1;
@@ -1206,7 +1206,7 @@ UNLOCK TABLES;
 # Succeeds in embedded server - is converted to normal insert
 # Fails in normal server, ps-protocol - not supported by engine
 # Fails in normal server, normal protocol - not a base table
---error 0, ER_ILLEGAL_HA, ER_WRONG_OBJECT
+--error 0, ER_DELAYED_NOT_SUPPORTED, ER_WRONG_OBJECT
 INSERT DELAYED INTO t4 VALUES(44);
 # Get rid of row in embedded server
 DELETE FROM t4 WHERE c1 = 44;
@@ -1219,9 +1219,9 @@ INSERT DELAYED INTO t3 VALUES(33);
   }
 SELECT * FROM t4 ORDER BY c1;
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
---error ER_DELAYED_INSERT_TABLE_LOCKED, ER_ILLEGAL_HA
+--error ER_DELAYED_INSERT_TABLE_LOCKED, ER_DELAYED_NOT_SUPPORTED
 INSERT DELAYED INTO t4 VALUES(444);
---error ER_DELAYED_INSERT_TABLE_LOCKED, ER_ILLEGAL_HA
+--error ER_DELAYED_INSERT_TABLE_LOCKED, ER_DELAYED_NOT_SUPPORTED
 INSERT DELAYED INTO t3 VALUES(333);
 SELECT * FROM t4 ORDER BY c1;
 UNLOCK TABLES;
@@ -1398,6 +1398,36 @@ OPTIMIZE TABLE t1;
 FLUSH TABLES m1, t1;
 UNLOCK TABLES;
 DROP TABLE t1, m1;
+
+#
+# Bug#35068 - Assertion fails when reading from i_s.tables
+#             and there is incorrect merge table
+#
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
+--replace_column 8 # 9 # 10 # 11 # 12 # 13 # 14 # 15 # 16 # 17 # 19 # 20 #
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
+TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
+
+DROP TABLE tm1;
+
+--echo End of 5.1 tests
+
+#
+# Bug#36006 - Optimizer does table scan for select count(*)
+#
+CREATE TABLE t1(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
+CREATE TABLE t2(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
+CREATE TABLE t3(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
+CREATE TABLE t4(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2))
+  ENGINE=MRG_MYISAM UNION=(t1, t2, t3);
+INSERT INTO t1 VALUES (1,1), (1,2),(1,3), (1,4);
+INSERT INTO t2 VALUES (2,1), (2,2),(2,3), (2,4);
+INSERT INTO t3 VALUES (3,1), (3,2),(3,3), (3,4);
+EXPLAIN SELECT COUNT(*) FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t4;
+DROP TABLE t1, t2, t3, t4;
+
+--echo End of 5.1 tests
 
 --disable_result_log
 --disable_query_log

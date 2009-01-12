@@ -1,0 +1,125 @@
+################# mysql-test\t\log_output_func.test  ##########################
+#                                                                             #
+# Variable Name: log_output                                                   # 
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: TABLE                                                        #
+# Range: TABLE, FILE, NONE                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+# Modified: HHunger 2008-08-29 
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable log_output               #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference:                                                                  #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                             #
+###############################################################################
+
+# The access to mysql.general_log delivers different result depending on
+# ps-protocol. So, it is switched off.
+--disable_ps_protocol
+
+SET @start_value= @@global.log_output;
+SET @start_general_log= @@global.general_log;
+SET @start_general_log_file= @@global.general_log_file;
+
+--echo '#--------------------FN_DYNVARS_065_01-------------------------#'
+##################################################################
+# Check if setting log_output is changed in every new connection # 
+##################################################################
+
+SET @@global.log_output = 'NONE';
+# con1 will be default connection from now on
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+SET @@global.log_output = 'TABLE,FILE';
+
+# Test that the effect is global
+--echo 'connect (con2,localhost,root,,,,)'
+connect (con2,localhost,root,,,,);
+SELECT @@global.log_output;
+
+--echo '#--------------------FN_DYNVARS_065_02-------------------------#'
+####################################################
+# Begin the functionality Testing of log_output    #
+####################################################
+
+--echo 'connection con1'
+connection con1;
+
+#===============================================================
+--echo '---Checking general_log when log_output is NONE---'
+#===============================================================
+
+SET @@global.log_output = 'NONE';
+TRUNCATE TABLE mysql.general_log;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUE(1);
+SELECT 'abc';
+SELECT count(*) FROM mysql.general_log;
+
+#===============================================================
+--echo '---Checking general_log when log_output is TABLE---'
+#===============================================================
+
+SET @@global.log_output = 'TABLE';
+TRUNCATE TABLE mysql.general_log;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUE(1);
+SELECT 'abc';
+# At least the last 4 statement should be logged.
+SELECT count(*)>4 FROM mysql.general_log;
+
+#===============================================================
+# Checking general_log when log_output is FILE
+#===============================================================
+
+SET @@global.general_log = 'OFF';
+FLUSH LOGS;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET @@global.general_log_file = '$MYSQLTEST_VARDIR/run/mytest.log';
+SET @@global.general_log = 'ON';
+SET @@global.log_output = 'FILE';
+TRUNCATE TABLE mysql.general_log;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUE(1);
+SELECT 'abc';
+SELECT count(*) FROM mysql.general_log;
+
+DROP TABLE t1;
+
+file_exists $MYSQLTEST_VARDIR/run/mytest.log ;
+
+#==============================================================
+# Clean up
+#==============================================================
+
+--echo connection default;
+connection default;
+SET @@global.general_log= 'OFF';
+SET @@global.general_log_file= @start_general_log_file;
+SET @@global.log_output= @start_value;
+SET @@global.general_log= @start_general_log;
+SET @@global.general_log= 'ON';
+
+--enable_ps_protocol
+####################################################
+# End of functionality Testing for log_output      #
+####################################################
+

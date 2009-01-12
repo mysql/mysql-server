@@ -92,6 +92,7 @@ if [ x"$PLATFORM" = x"" ] ; then
   system=`echo $system | sed -e 's/darwin6.*/osx10.2/g'`
   system=`echo $system | sed -e 's/darwin7.*/osx10.3/g'`
   system=`echo $system | sed -e 's/darwin8.*/osx10.4/g'`
+  system=`echo $system | sed -e 's/darwin9.*/osx10.5/g'`
   system=`echo $system | sed -e 's/\(aix4.3\).*/\1/g'`
   system=`echo $system | sed -e 's/\(aix5.1\).*/\1/g'`
   system=`echo $system | sed -e 's/\(aix5.2\).*/\1/g'`
@@ -384,6 +385,9 @@ copyfileto $BASE/include config.h include/*
 
 rm -f $BASE/include/Makefile* $BASE/include/*.in $BASE/include/config-win.h
 
+# In a NetWare binary package, these tools and their manuals are not useful
+rm -f $BASE/man/man1/make_win_*
+
 copyfileto $BASE/support-files support-files/*
 
 copyfileto $BASE/share scripts/*.sql
@@ -426,6 +430,7 @@ fi
 
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh \
     $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution \
+    $BASE/bin/make_win_* \
     $BASE/bin/setsomevars $BASE/support-files/Makefile* \
     $BASE/support-files/*.sh
 

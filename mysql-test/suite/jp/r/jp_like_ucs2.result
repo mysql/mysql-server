@@ -7,9 +7,6 @@ drop table if exists `£Ô£¶`;
 drop table if exists `£Ô£·`;
 drop table if exists `£Ô£¸`;
 drop table if exists `£Ô£¹`;
-drop table if exists `£Ô£±£°`;
-drop table if exists `£Ô£±£±`;
-drop table if exists `£Ô£±£²`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 SET collation_connection = ucs2_general_ci;
@@ -19,12 +16,9 @@ CREATE TABLE `£Ô£³` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engi
 CREATE TABLE `£Ô£´` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Ô£µ` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Ô£¶` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Ô£·` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£¸` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£±£°` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Ô£±£±` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Ô£±£²` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Ô£·` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Ô£¸` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 INSERT INTO `£Ô£±` VALUES
 ('PQRSTUVWXYZ[\\]^_')
 ,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
@@ -93,31 +87,6 @@ INSERT INTO `£Ô£¸` VALUES
 ,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
 ,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
 INSERT INTO `£Ô£¹` VALUES
-('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
-,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
-,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
-,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
-,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
-,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
-,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
-INSERT INTO `£Ô£±£°` VALUES
-('PQRSTUVWXYZ[\\]^_')
-,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
-,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
-,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
-,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
-INSERT INTO `£Ô£±£±` VALUES
-('¡¡¡¡¡¢¡£¡¤¡¥¡¦¡§¡¨¡©¡ª¡«¡¬¡­¡®¡¯¡°¡±¡²¡³')
-,('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
-,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
-,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
-,('¤È¤É¤Ê¤Ë¤Ì¤Í¤Î¤Ï¤Ð¤Ñ¤Ò¤Ó¤Ô¤Õ¤Ö¤×¤Ø¤Ù¤Ú¤Û')
-,('¤Ü¤Ý¤Þ¤ß¤à¤á¤â¤ã¤ä¤å¤æ¤ç¤è¤é¤ê¤ë¤ì¤í¤î¤ï')
-,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
-,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
-,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
-,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
-INSERT INTO `£Ô£±£²` VALUES
 ('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
 ,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
 ,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
@@ -335,76 +304,6 @@ SELECT * FROM `£Ô£¹` WHERE `£Ã£±` LIKE '%í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀ
 SELECT * FROM `£Ô£¹` WHERE `£Ã£±` LIKE '%í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ';
 £Ã£±
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE ' %';
-£Ã£±
- Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE '% %';
-£Ã£±
- Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE '% ';
-£Ã£±
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE 'ŽÀ%';
-£Ã£±
-ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE '%Ž×ŽØ%';
-£Ã£±
-ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE '%Ž¿';
-£Ã£±
-Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE 'Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿%';
-£Ã£±
-Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE '%Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿%';
-£Ã£±
-Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
-SELECT * FROM `£Ô£±£°` WHERE `£Ã£±` LIKE '%Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿';
-£Ã£±
-Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '¡¡%';
-£Ã£±
-¡¡¡¡¡¢¡£¡¤¡¥¡¦¡§¡¨¡©¡ª¡«¡¬¡­¡®¡¯¡°¡±¡²¡³
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '%¡¡%';
-£Ã£±
-¡¡¡¡¡¢¡£¡¤¡¥¡¦¡§¡¨¡©¡ª¡«¡¬¡­¡®¡¯¡°¡±¡²¡³
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '%¡¡';
-£Ã£±
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '¤È%';
-£Ã£±
-¤È¤É¤Ê¤Ë¤Ì¤Í¤Î¤Ï¤Ð¤Ñ¤Ò¤Ó¤Ô¤Õ¤Ö¤×¤Ø¤Ù¤Ú¤Û
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '%¤¢%';
-£Ã£±
-¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '%¤ï';
-£Ã£±
-¤Ü¤Ý¤Þ¤ß¤à¤á¤â¤ã¤ä¤å¤æ¤ç¤è¤é¤ê¤ë¤ì¤í¤î¤ï
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³%';
-£Ã£±
-¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '%¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³%';
-£Ã£±
-¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³
-SELECT * FROM `£Ô£±£±` WHERE `£Ã£±` LIKE '%¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³';
-£Ã£±
-¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³
-SELECT * FROM `£Ô£±£²` WHERE `£Ã£±` LIKE 'í´%';
-£Ã£±
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-SELECT * FROM `£Ô£±£²` WHERE `£Ã£±` LIKE '%í»%';
-£Ã£±
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-SELECT * FROM `£Ô£±£²` WHERE `£Ã£±` LIKE '%íÇ';
-£Ã£±
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-SELECT * FROM `£Ô£±£²` WHERE `£Ã£±` LIKE 'í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ%';
-£Ã£±
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-SELECT * FROM `£Ô£±£²` WHERE `£Ã£±` LIKE '%í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ%';
-£Ã£±
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-SELECT * FROM `£Ô£±£²` WHERE `£Ã£±` LIKE '%í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ';
-£Ã£±
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 DROP TABLE `£Ô£±`;
 DROP TABLE `£Ô£²`;
 DROP TABLE `£Ô£³`;
@@ -414,6 +313,3 @@ DROP TABLE `£Ô£¶`;
 DROP TABLE `£Ô£·`;
 DROP TABLE `£Ô£¸`;
 DROP TABLE `£Ô£¹`;
-DROP TABLE `£Ô£±£°`;
-DROP TABLE `£Ô£±£±`;
-DROP TABLE `£Ô£±£²`;

@@ -110,7 +110,7 @@ typedef struct {
 typedef struct {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
-  void  *stack_ends_here;
+  void  **stack_ends_here;
   void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
@@ -166,8 +166,8 @@ void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
 void lf_pinbox_destroy(LF_PINBOX *pinbox);
 
 lock_wrap(lf_pinbox_get_pins, LF_PINS *,
-          (LF_PINBOX *pinbox, void *stack_end),
-          (pinbox, stack_end),
+          (LF_PINBOX *pinbox),
+          (pinbox),
           &pinbox->pinarray.lock)
 lock_wrap_void(lf_pinbox_put_pins,
                (LF_PINS *pins),
@@ -182,15 +182,13 @@ lock_wrap_void(lf_pinbox_free,
   memory allocator, lf_alloc-pin.c
 */
 
-struct st_lf_alloc_node {
-  struct st_lf_alloc_node *next;
-};
-
 typedef struct st_lf_allocator {
   LF_PINBOX pinbox;
-  struct st_lf_alloc_node * volatile top;
+  uchar * volatile top;
   uint element_size;
   uint32 volatile mallocs;
+  void (*constructor)(uchar *);
+  void (*destructor)(uchar *);
 } LF_ALLOCATOR;
 
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
@@ -202,8 +200,8 @@ uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 */
 #define _lf_alloc_free(PINS, PTR)     _lf_pinbox_free((PINS), (PTR))
 #define lf_alloc_free(PINS, PTR)       lf_pinbox_free((PINS), (PTR))
-#define _lf_alloc_get_pins(A, ST)     _lf_pinbox_get_pins(&(A)->pinbox, (ST))
-#define lf_alloc_get_pins(A, ST)       lf_pinbox_get_pins(&(A)->pinbox, (ST))
+#define _lf_alloc_get_pins(A)         _lf_pinbox_get_pins(&(A)->pinbox)
+#define lf_alloc_get_pins(A)           lf_pinbox_get_pins(&(A)->pinbox)
 #define _lf_alloc_put_pins(PINS)      _lf_pinbox_put_pins(PINS)
 #define lf_alloc_put_pins(PINS)        lf_pinbox_put_pins(PINS)
 #define lf_alloc_direct_free(ALLOC, ADDR) my_free((uchar*)(ADDR), MYF(0))
@@ -220,13 +218,17 @@ lock_wrap(lf_alloc_new, void *,
 
 #define LF_HASH_UNIQUE 1
 
+/* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
+#define LF_HASH_OVERHEAD (sizeof(int*)*4)
+
 typedef struct {
   LF_DYNARRAY array;                    /* hash itself */
   LF_ALLOCATOR alloc;                   /* allocator for elements */
   hash_get_key get_key;                 /* see HASH */
   CHARSET_INFO *charset;                /* see HASH */
   uint key_offset, key_length;          /* see HASH */
-  uint element_size, flags;             /* LF_HASH_UNIQUE, etc */
+  uint element_size;                    /* size of memcpy'ed area on insert */
+  uint flags;                           /* LF_HASH_UNIQUE, etc */
   int32 volatile size;                  /* size of array */
   int32 volatile count;                 /* number of elements in the hash */
 } LF_HASH;
@@ -242,8 +244,8 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
   shortcut macros to access underlying pinbox functions from an LF_HASH
   see _lf_pinbox_get_pins() and _lf_pinbox_put_pins()
 */
-#define _lf_hash_get_pins(HASH, ST) _lf_alloc_get_pins(&(HASH)->alloc, (ST))
-#define lf_hash_get_pins(HASH, ST)   lf_alloc_get_pins(&(HASH)->alloc, (ST))
+#define _lf_hash_get_pins(HASH)     _lf_alloc_get_pins(&(HASH)->alloc)
+#define lf_hash_get_pins(HASH)       lf_alloc_get_pins(&(HASH)->alloc)
 #define _lf_hash_put_pins(PINS)     _lf_pinbox_put_pins(PINS)
 #define lf_hash_put_pins(PINS)       lf_pinbox_put_pins(PINS)
 #define lf_hash_search_unpin(PINS)   lf_unpin((PINS), 2)

@@ -29,6 +29,7 @@
 #include "ma_loghandler.h"
 #include "ma_control_file.h"
 #include "ma_state.h"
+#include <waiting_threads.h>
 
 /* For testing recovery */
 #ifdef TO_BE_REMOVED
@@ -145,14 +146,15 @@ typedef struct st_maria_state_info
 #define MARIA_KEYDEF_SIZE	(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
-#define MARIA_MAX_KEY_BUFF	(HA_MAX_KEY_BUFF + MAX_PACK_TRANSID_SIZE)
+#define MARIA_MAX_KEY_BUFF	(HA_MAX_KEY_BUFF + MARIA_MAX_PACK_TRANSID_SIZE)
 #define MARIA_COLUMNDEF_SIZE	(2*7+1+1+4)
 #define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
-/* Internal management bytes needed to store 2 keys on an index page */
-#define MAX_PACK_TRANSID_SIZE (TRANSID_SIZE+1)
-#define MIN_TRANSID_PACK_PREFIX (256-TRANSID_SIZE*2)
-#define MARIA_INDEX_OVERHEAD_SIZE (MAX_PACK_TRANSID_SIZE * 2)
+/* Internal management bytes needed to store 2 transid/key on an index page */
+#define MARIA_MAX_PACK_TRANSID_SIZE   (TRANSID_SIZE+1)
+#define MARIA_TRANSID_PACK_OFFSET     (256- TRANSID_SIZE - 1)
+#define MARIA_MIN_TRANSID_PACK_OFFSET (MARIA_TRANSID_PACK_OFFSET-TRANSID_SIZE)
+#define MARIA_INDEX_OVERHEAD_SIZE     (MARIA_MAX_PACK_TRANSID_SIZE * 2)
 #define MARIA_DELETE_KEY_NR  255	/* keynr for deleted blocks */
 
 /*
@@ -351,7 +353,7 @@ typedef struct st_maria_share
   PAGECACHE_FILE kfile;			/* Shared keyfile */
   File data_file;			/* Shared data file */
   int mode;				/* mode of file on open */
-  uint reopen;				/* How many times reopened */
+  uint reopen;				/* How many times opened */
   uint in_trans;                        /* Number of references by trn */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
   uint block_size;			/* block_size of keyfile & data file*/
@@ -360,7 +362,10 @@ typedef struct st_maria_share
   myf write_flag;
   enum data_file_type data_file_type;
   enum pagecache_page_type page_type;   /* value depending transactional */
-  uint8 in_checkpoint;               /**< if Checkpoint looking at table */
+  /**
+     if Checkpoint looking at table; protected by close_lock or THR_LOCK_maria
+  */
+  uint8 in_checkpoint;
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
@@ -384,9 +389,20 @@ typedef struct st_maria_share
 #ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);
-  pthread_mutex_t intern_lock;		/* Locking for use with _locking */
+  /**
+    Protects kfile, dfile, most members of the state, state disk writes,
+    versioning information (like in_trans, state_history).
+    @todo find the exhaustive list.
+  */
+  pthread_mutex_t intern_lock;	
   pthread_mutex_t key_del_lock;
   pthread_cond_t  key_del_cond;
+  /**
+    _Always_ held while closing table; prevents checkpoint from looking at
+    structures freed during closure (like bitmap). If you need close_lock and
+    intern_lock, lock them in this order.
+  */
+  pthread_mutex_t close_lock;
 #endif
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in
@@ -461,7 +477,7 @@ typedef struct st_maria_block_scan
 struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
-  struct st_transaction *trn;           /* Pointer to active transaction */
+  struct st_ma_transaction *trn;           /* Pointer to active transaction */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -492,13 +508,14 @@ struct st_maria_handler
   uint32 int_keytree_version;		/* -""- */
   int (*read_record)(MARIA_HA *, uchar*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
-  ulonglong last_auto_increment;  	/* auto value at start of statement */
+  ulonglong last_auto_increment;        /* auto value at start of statement */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */
   ulong last_loop;			/* last used counter */
   MARIA_RECORD_POS save_lastpos;
   MARIA_RECORD_POS dup_key_pos;
+  TrID             dup_key_trid;
   my_off_t pos;				/* Intern variable */
   my_off_t last_keypage;		/* Last key page read */
   my_off_t last_search_keypage;		/* Last keypage when searching */
@@ -545,6 +562,8 @@ struct st_maria_handler
   /* If info->keyread_buff has to be re-read for rnext */
   my_bool keyread_buff_used;
   my_bool once_flags;			/* For MARIA_MRG */
+  /* For bulk insert enable/disable transactions control */
+  my_bool switched_transactional;
 #ifdef __WIN__
   my_bool owned_by_merge;               /* This Maria table is part of a merge union */
 #endif
@@ -688,6 +707,19 @@ struct st_maria_handler
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 #define _ma_have_versioning(info) ((info)->row_flag & ROW_FLAG_TRANSID)
 
+/**
+   Sets table's trn and prints debug information
+   @param tbl              MARIA_HA of table
+   @param newtrn           what to put into tbl->trn
+   @note cast of newtrn is because %p of NULL gives warning (NULL is int)
+*/
+#define _ma_set_trn_for_table(tbl, newtrn) do {                         \
+    DBUG_PRINT("info",("table: %p trn: %p -> %p",                       \
+                       (tbl), (tbl)->trn, (void *)(newtrn)));           \
+    (tbl)->trn= (newtrn);                                               \
+  } while (0)
+
+
 #define MARIA_MIN_BLOCK_LENGTH	20		/* Because of delete-link */
 /* Don't use to small record-blocks */
 #define MARIA_EXTEND_BLOCK_LENGTH	20
@@ -776,7 +808,6 @@ typedef struct st_pinned_page
 
 
 /* Keeps all information about a page and related to a page */
-
 typedef struct st_maria_page
 {
   MARIA_HA *info;
@@ -931,8 +962,8 @@ extern my_bool _ma_compact_keypage(MARIA_PAGE *page, TrID min_read_from);
 extern uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid);
 extern ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from);
 #define transid_packed_length(data) \
-  ((data)[0] < MIN_TRANSID_PACK_PREFIX ? 1 : \
-   (uint) (257 - (uchar) (data)[0]))
+  ((data)[0] < MARIA_MIN_TRANSID_PACK_OFFSET ? 1 : \
+   (uint) ((uchar) (data)[0]) - (MARIA_TRANSID_PACK_OFFSET - 1))
 #define key_has_transid(key) (*(key) & 1)
 
 #define page_mark_changed(info, page) \
@@ -1099,7 +1130,8 @@ void _ma_def_scan_restore_pos(MARIA_HA *info, MARIA_RECORD_POS lastpos);
 
 extern MARIA_HA *_ma_test_if_reopen(const char *filename);
 my_bool _ma_check_table_is_closed(const char *name, const char *where);
-int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, File file_to_dup);
+int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
+                      File file_to_dup);
 int _ma_open_keyfile(MARIA_SHARE *share);
 void _ma_setup_functions(register MARIA_SHARE *share);
 my_bool _ma_dynmap_file(MARIA_HA *info, my_off_t size);

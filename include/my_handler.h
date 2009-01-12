@@ -45,6 +45,7 @@ extern "C" {
 
 #define HA_MAX_POSSIBLE_KEY_BUFF    (HA_MAX_KEY_LENGTH + 24+ 6+6) 
 #define HA_MAX_KEY_BUFF  (HA_MAX_KEY_LENGTH+HA_MAX_KEY_SEG*6+8+8)
+#define HA_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 
 typedef struct st_HA_KEYSEG		/* Key-portion */
 {

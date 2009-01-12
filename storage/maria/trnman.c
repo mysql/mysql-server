@@ -37,6 +37,13 @@ static TRN committed_list_min, committed_list_max;
 /* a counter, used to generate transaction ids */
 static TrID global_trid_generator;
 
+/*
+  The minimum existing transaction id for trnman_get_min_trid()
+  The default value is used when transaction manager not initialize;
+  Probably called from maria_chk
+*/
+static TrID trid_min_read_from= ~(TrID) 0;
+
 /* the mutex for everything above */
 static pthread_mutex_t LOCK_trn_list;
 
@@ -44,9 +51,9 @@ static pthread_mutex_t LOCK_trn_list;
 static TRN *pool;
 
 /* a hash for committed transactions that maps trid to a TRN structure */
-static LF_HASH trid_to_committed_trn;
+static LF_HASH trid_to_trn;
 
-/* an array that maps short_trid of an active transaction to a TRN structure */
+/* an array that maps short_id of an active transaction to a TRN structure */
 static TRN **short_trid_to_active_trn;
 
 /* locks for short_trid_to_active_trn and pool */
@@ -81,6 +88,17 @@ void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
   trn->locked_tables= locked_tables;
 }
 
+static void wt_thd_release_self(TRN *trn)
+{
+  if (trn->wt)
+  {
+    WT_RESOURCE_ID rc;
+    rc.type= &ma_rc_dup_unique;
+    rc.value= (intptr)trn;
+    wt_thd_release(trn->wt, & rc);
+    trn->wt= 0;
+  }
+}
 
 static my_bool
 default_trnman_end_trans_hook(TRN *trn __attribute__ ((unused)),
@@ -91,24 +109,6 @@ default_trnman_end_trans_hook(TRN *trn __attribute__ ((unused)),
   return 0;
 }
 
-
-/*
-  NOTE
-    Just as short_id doubles as loid, this function doubles as
-    short_trid_to_LOCK_OWNER. See the compile-time assert below.
-*/
-
-#ifdef NOT_USED
-static TRN *short_trid_to_TRN(uint16 short_trid)
-{
-  TRN *trn;
-  compile_time_assert(offsetof(TRN, locks) == 0);
-  my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  trn= my_atomic_loadptr((void **)&short_trid_to_active_trn[short_trid]);
-  my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
-  return (TRN *)trn;
-}
-#endif
 
 static uchar *trn_get_hash_key(const uchar *trn, size_t *len,
                               my_bool unused __attribute__ ((unused)))
@@ -136,7 +136,7 @@ int trnman_init(TrID initial_trid)
                                      MYF(MY_WME|MY_ZEROFILL));
   if (unlikely(!short_trid_to_active_trn))
     DBUG_RETURN(1);
-  short_trid_to_active_trn--; /* min short_trid is 1 */
+  short_trid_to_active_trn--; /* min short_id is 1 */
 
   /*
     Initialize lists.
@@ -165,16 +165,13 @@ int trnman_init(TrID initial_trid)
 
   pool= 0;
   global_trid_generator= initial_trid;
-  lf_hash_init(&trid_to_committed_trn, sizeof(TRN*), LF_HASH_UNIQUE,
+  trid_min_read_from= initial_trid;
+  lf_hash_init(&trid_to_trn, sizeof(TRN*), LF_HASH_UNIQUE,
                0, 0, trn_get_hash_key, 0);
   DBUG_PRINT("info", ("pthread_mutex_init LOCK_trn_list"));
   pthread_mutex_init(&LOCK_trn_list, MY_MUTEX_INIT_FAST);
   my_atomic_rwlock_init(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_init(&LOCK_pool);
-
-#ifdef NOT_USED
-  lockman_init(&maria_lockman, (loid_to_lo_func *)&short_trid_to_TRN, 10000);
-#endif
 
   DBUG_RETURN(0);
 }
@@ -190,7 +187,7 @@ void trnman_destroy()
 
   if (short_trid_to_active_trn == NULL) /* trnman already destroyed */
     DBUG_VOID_RETURN;
-  DBUG_ASSERT(trid_to_committed_trn.count == 0);
+  DBUG_ASSERT(trid_to_trn.count == 0);
   DBUG_ASSERT(trnman_active_transactions == 0);
   DBUG_ASSERT(trnman_committed_transactions == 0);
   DBUG_ASSERT(active_list_max.prev == &active_list_min);
@@ -201,20 +198,17 @@ void trnman_destroy()
   {
     TRN *trn= pool;
     pool= pool->next;
-    DBUG_ASSERT(trn->locks.mutex == 0);
-    DBUG_ASSERT(trn->locks.cond == 0);
+    pthread_mutex_destroy(&trn->state_lock);
     my_free((void *)trn, MYF(0));
   }
-  lf_hash_destroy(&trid_to_committed_trn);
+  lf_hash_destroy(&trid_to_trn);
   DBUG_PRINT("info", ("pthread_mutex_destroy LOCK_trn_list"));
   pthread_mutex_destroy(&LOCK_trn_list);
   my_atomic_rwlock_destroy(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_destroy(&LOCK_pool);
   my_free((void *)(short_trid_to_active_trn+1), MYF(0));
   short_trid_to_active_trn= NULL;
-#ifdef NOT_USED
-  lockman_destroy(&maria_lockman);
-#endif
+
   DBUG_VOID_RETURN;
 }
 
@@ -233,11 +227,13 @@ static TrID new_trid()
   DBUG_RETURN(++global_trid_generator);
 }
 
-static void set_short_trid(TRN *trn)
+static uint get_short_trid(TRN *trn)
 {
   int i= (int) ((global_trid_generator + (intptr)trn) * 312089 %
-                SHORT_TRID_MAX + 1);
-  for ( ; !trn->short_id ; i= 1)
+                SHORT_TRID_MAX) + 1;
+  uint res=0;
+
+  for ( ; !res ; i= 1)
   {
     my_atomic_rwlock_wrlock(&LOCK_short_trid_to_trn);
     for ( ; i <= SHORT_TRID_MAX; i++) /* the range is [1..SHORT_TRID_MAX] */
@@ -246,12 +242,13 @@ static void set_short_trid(TRN *trn)
       if (short_trid_to_active_trn[i] == NULL &&
           my_atomic_casptr((void **)&short_trid_to_active_trn[i], &tmp, trn))
       {
-        trn->short_id= i;
+        res= i;
         break;
       }
     }
     my_atomic_rwlock_wrunlock(&LOCK_short_trid_to_trn);
   }
+  return res;
 }
 
 /*
@@ -260,17 +257,18 @@ static void set_short_trid(TRN *trn)
     mutex and cond will be used for lock waits
 */
 
-TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
-                    void *stack_end)
+TRN *trnman_new_trn(WT_THD *wt)
 {
+  int res;
   TRN *trn;
+  union { TRN *trn; void *v; } tmp;
   DBUG_ENTER("trnman_new_trn");
 
   /*
     we have a mutex, to do simple things under it - allocate a TRN,
     increment trnman_active_transactions, set trn->min_read_from.
 
-    Note that all the above is fast. generating short_trid may be slow,
+    Note that all the above is fast. generating short_id may be slow,
     as it involves scanning a large array - so it's done outside of the
     mutex.
   */
@@ -279,19 +277,19 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
   pthread_mutex_lock(&LOCK_trn_list);
 
   /* Allocating a new TRN structure */
-  trn= pool;
+  tmp.trn= pool;
   /*
     Popping an unused TRN from the pool
     (ABA isn't possible, we're behind a mutex
   */
   my_atomic_rwlock_wrlock(&LOCK_pool);
-  while (trn && !my_atomic_casptr((void **)&pool, (void **)&trn,
-                                  (void *)trn->next))
+  while (tmp.trn && !my_atomic_casptr((void **)&pool, &tmp.v,
+                                  (void *)tmp.trn->next))
     /* no-op */;
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 
   /* Nothing in the pool ? Allocate a new one */
-  if (!trn)
+  if (!(trn= tmp.trn))
   {
     /*
       trn should be completely initalized at create time to allow
@@ -307,11 +305,14 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
       return 0;
     }
     trnman_allocated_transactions++;
+    pthread_mutex_init(&trn->state_lock, MY_MUTEX_INIT_FAST);
   }
-  trn->pins= lf_hash_get_pins(&trid_to_committed_trn, stack_end);
+  trn->wt= wt;
+  trn->pins= lf_hash_get_pins(&trid_to_trn);
   if (!trn->pins)
   {
     trnman_free_trn(trn);
+    pthread_mutex_unlock(&LOCK_trn_list);
     return 0;
   }
 
@@ -320,11 +321,11 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
   trn->min_read_from= active_list_min.next->trid;
 
   trn->trid= new_trid();
-  trn->short_id= 0;
 
   trn->next= &active_list_max;
   trn->prev= active_list_max.prev;
   active_list_max.prev= trn->prev->next= trn;
+  trid_min_read_from= active_list_min.next->min_read_from;
   DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
 
@@ -337,17 +338,9 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     trn->min_read_from= trn->trid + 1;
   }
 
-  trn->commit_trid= 0;
+  trn->commit_trid=  ~(TrID)0;
   trn->rec_lsn= trn->undo_lsn= trn->first_undo_lsn= 0;
   trn->used_tables= 0;
-
-  trn->locks.mutex= mutex;
-  trn->locks.cond= cond;
-  trn->locks.waiting_for= 0;
-  trn->locks.all_locks= 0;
-#ifdef NOT_USED
-  trn->locks.pins= lf_alloc_get_pins(&maria_lockman.alloc);
-#endif
 
   trn->locked_tables= 0;
 
@@ -355,9 +348,19 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     only after the following function TRN is considered initialized,
     so it must be done the last
   */
-  set_short_trid(trn);
+  pthread_mutex_lock(&trn->state_lock);
+  trn->short_id= get_short_trid(trn);
+  pthread_mutex_unlock(&trn->state_lock);
 
-  DBUG_PRINT("exit", ("trn: x%lx  trid: 0x%lu",
+  res= lf_hash_insert(&trid_to_trn, trn->pins, &trn);
+  DBUG_ASSERT(res <= 0);
+  if (res)
+  {
+    trnman_end_trn(trn, 0);
+    return 0;
+  }
+
+  DBUG_PRINT("exit", ("trn: 0x%lx  trid: 0x%lu",
                       (ulong) trn, (ulong) trn->trid));
 
   DBUG_RETURN(trn);
@@ -383,14 +386,16 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
 my_bool trnman_end_trn(TRN *trn, my_bool commit)
 {
   int res= 1;
+  uint16 cached_short_id= trn->short_id; /* we have to cache it, see below */
   TRN *free_me= 0;
   LF_PINS *pins= trn->pins;
   DBUG_ENTER("trnman_end_trn");
+  DBUG_PRINT("enter", ("trn=0x%lx commit=%d", (ulong) trn, commit));
 
-  DBUG_ASSERT(trn->rec_lsn == 0);
   /* if a rollback, all UNDO records should have been executed */
   DBUG_ASSERT(commit || trn->undo_lsn == 0);
   DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
+
   pthread_mutex_lock(&LOCK_trn_list);
 
   /* remove from active list */
@@ -423,60 +428,45 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     }
   }
 
+  pthread_mutex_lock(&trn->state_lock);
+  trn->commit_trid= global_trid_generator;
+  wt_thd_release_self(trn);
+  pthread_mutex_unlock(&trn->state_lock);
+
   /*
     if transaction is committed and it was not the only active transaction -
-    add it to the committed list (which is used for read-from relation)
+    add it to the committed list
   */
   if (commit && active_list_min.next != &active_list_max)
   {
-    trn->commit_trid= global_trid_generator;
     trn->next= &committed_list_max;
     trn->prev= committed_list_max.prev;
     trnman_committed_transactions++;
-
-    res= lf_hash_insert(&trid_to_committed_trn, pins, &trn);
-    /*
-      By going on with life is res<0, we let other threads block on
-      our rows (because they will never see us committed in
-      trid_to_committed_trn) until they timeout. Though correct, this is not a
-      good situation:
-      - if connection reconnects and wants to check if its rows have been
-      committed, it will not be able to do that (it will just lock on them) so
-      connection stays permanently in doubt
-      - internal structures trid_to_committed_trn and committed_list are
-      desynchronized.
-      So we should take Maria down immediately, the two problems being
-      automatically solved at restart.
-    */
-    DBUG_ASSERT(res <= 0);
-  }
-  if (res)
-  {
-    /*
-      res == 1 means the condition in the if() above was false.
-      res == -1 means lf_hash_insert failed
-    */
-    trn->next= free_me;
-    free_me= trn;
+    committed_list_max.prev= trn->prev->next= trn;
   }
   else
   {
-    committed_list_max.prev= trn->prev->next= trn;
+    trn->next= free_me;
+    free_me= trn;
   }
+  trid_min_read_from= active_list_min.next->min_read_from;
+
   if ((*trnman_end_trans_hook)(trn, commit,
                                active_list_min.next != &active_list_max))
     res= -1;
   trnman_active_transactions--;
+
+  DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
 
-  /* the rest is done outside of a critical section */
-#ifdef NOT_USED
-  lockman_release_locks(&maria_lockman, &trn->locks);
-#endif
-  trn->locks.mutex= 0;
-  trn->locks.cond= 0;
+  /*
+    the rest is done outside of a critical section
+
+    note that we don't own trn anymore, it may be in a shared list now.
+    Thus, we cannot dereference it, and must use cached_short_id below.
+  */
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->short_id], 0);
+  my_atomic_storeptr((void **)&short_trid_to_active_trn[cached_short_id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
 
   /*
@@ -491,18 +481,13 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     TRN *t= free_me;
     free_me= free_me->next;
 
-    /*
-      ignore OOM here. it's harmless, and there's nothing we could do, anyway
-    */
-    (void)lf_hash_delete(&trid_to_committed_trn, pins, &t->trid, sizeof(TrID));
+    /* ignore OOM. it's harmless, and we can do nothing here anyway */
+    (void)lf_hash_delete(&trid_to_trn, pins, &t->trid, sizeof(TrID));
 
     trnman_free_trn(t);
   }
 
   lf_hash_put_pins(pins);
-#ifdef NOT_USED
-  lf_pinbox_put_pins(trn->locks.pins);
-#endif
 
   DBUG_RETURN(res < 0);
 }
@@ -525,6 +510,10 @@ void trnman_free_trn(TRN *trn)
      modifies the value of tmp.
   */
   union { TRN *trn; void *v; } tmp;
+
+  pthread_mutex_lock(&trn->state_lock);
+  trn->short_id= 0;
+  pthread_mutex_unlock(&trn->state_lock);
 
   tmp.trn= pool;
 
@@ -580,15 +569,42 @@ int trnman_can_read_from(TRN *trn, TrID trid)
     return trid == trn->trid;
   }
 
-  found= lf_hash_search(&trid_to_committed_trn, trn->pins, &trid, sizeof(trid));
+  found= lf_hash_search(&trid_to_trn, trn->pins, &trid, sizeof(trid));
   if (found == NULL)
-    return 0; /* not in the hash of committed transactions = cannot read */
+    return 0; /* not in the hash of transactions = cannot read */
   if (found == MY_ERRPTR)
     return -1;
 
   can= (*found)->commit_trid < trn->trid;
   lf_hash_search_unpin(trn->pins);
   return can;
+}
+
+TRN *trnman_trid_to_trn(TRN *trn, TrID trid)
+{
+  TRN **found;
+  LF_REQUIRE_PINS(3);
+
+  if (trid < trn->min_read_from)
+    return 0; /* it's committed eons ago */
+
+  found= lf_hash_search(&trid_to_trn, trn->pins, &trid, sizeof(trid));
+  if (found == NULL || found == MY_ERRPTR)
+    return 0; /* no luck */
+
+  /* we've found something */
+  pthread_mutex_lock(&(*found)->state_lock);
+
+  if ((*found)->short_id == 0)
+  {
+    pthread_mutex_unlock(&(*found)->state_lock);
+    lf_hash_search_unpin(trn->pins);
+    return 0; /* but it was a ghost */
+  }
+  lf_hash_search_unpin(trn->pins);
+
+  /* Gotcha! */
+  return *found; /* note that TRN is returned locked !!! */
 }
 
 /* TODO: the stubs below are waiting for savepoints to be implemented */
@@ -673,7 +689,10 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
     */
     uint sid;
     LSN rec_lsn, undo_lsn, first_undo_lsn;
-    if ((sid= trn->short_id) == 0)
+    pthread_mutex_lock(&trn->state_lock);
+    sid= trn->short_id;
+    pthread_mutex_unlock(&trn->state_lock);
+    if (sid == 0)
     {
       /*
         Not even inited, has done nothing. Or it is the
@@ -768,7 +787,8 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
   TrID old_trid_generator= global_trid_generator;
   TRN *trn;
   DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
-  if (unlikely((trn= trnman_new_trn(NULL, NULL, NULL)) == NULL))
+  global_trid_generator= longid-1; /* force a correct trid in the new trn */
+  if (unlikely((trn= trnman_new_trn(NULL)) == NULL))
     return NULL;
   /* deallocate excessive allocations of trnman_new_trn() */
   global_trid_generator= old_trid_generator;
@@ -776,7 +796,6 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
   short_trid_to_active_trn[trn->short_id]= 0;
   DBUG_ASSERT(short_trid_to_active_trn[shortid] == NULL);
   short_trid_to_active_trn[shortid]= trn;
-  trn->trid= longid;
   trn->short_id= shortid;
   return trn;
 }
@@ -790,25 +809,14 @@ TRN *trnman_get_any_trn()
 
 
 /**
-  Returns the minimum existing transaction id
-
-  @notes
-    This can only be called when we have at least one running transaction.
+  Returns the minimum existing transaction id. May return a too small
+  number in race conditions, but this is ok as the value is used to
+  remove not visible transid from index/rows.
 */
 
 TrID trnman_get_min_trid()
 {
-  TrID min_read_from;
-  if (short_trid_to_active_trn == NULL)
-  {
-    /* Transaction manager not initialize; Probably called from maria_chk */
-    return ~(TrID) 0;
-  }
-
-  pthread_mutex_lock(&LOCK_trn_list);
-  min_read_from= active_list_min.next->min_read_from;
-  pthread_mutex_unlock(&LOCK_trn_list);
-  return min_read_from;
+  return trid_min_read_from;
 }
 
 
@@ -873,9 +881,26 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
 
   if (!trnman_is_locked)
     pthread_mutex_lock(&LOCK_trn_list);
+  safe_mutex_assert_owner(&LOCK_trn_list);
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
-    if (trn->trid > min_id && trn->trid < max_id)
+    /*
+      We use <= for max_id as max_id is a commit_trid and trn->trid
+      is transaction id.  When calculating commit_trid we use the
+      current value of global_trid_generator.  global_trid_generator is
+      incremented for each new transaction.
+
+      For example, assuming we have
+      min_id = 5
+      max_id = 10
+
+      A trid of value 5 can't see the history event between 5 & 10
+      at it vas started before min_id 5 was committed.
+      A trid of value 10 can't see the next history event (max_id = 10)
+      as it started before this was committed. In this case it must use
+      the this event.
+    */
+    if (trn->trid > min_id && trn->trid <= max_id)
     {
       ret= 1;
       break;
@@ -896,6 +921,7 @@ void trnman_lock()
   pthread_mutex_lock(&LOCK_trn_list);
 }
 
+
 /**
    unlock transaction list
 */
@@ -903,4 +929,14 @@ void trnman_lock()
 void trnman_unlock()
 {
   pthread_mutex_unlock(&LOCK_trn_list);
+}
+
+
+/**
+  Is trman initialized
+*/
+
+my_bool trman_is_inited()
+{
+  return (short_trid_to_active_trn != NULL);
 }

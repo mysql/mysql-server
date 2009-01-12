@@ -80,7 +80,7 @@ path=`dirname $0`
 . "$path/check-cpu"
 
 export AM_MAKEFLAGS
-AM_MAKEFLAGS="-j 4"
+AM_MAKEFLAGS="-j 6"
 
 # SSL library to use.--with-ssl will select our bundled yaSSL
 # implementation of SSL. To use openSSl you will nee too point out
@@ -105,7 +105,7 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   cxx_warnings="$cxx_warnings -Wreorder"
   cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
 # Added unless --with-debug=full
-  debug_extra_cflags="-O1 -Wuninitialized"
+  debug_extra_cflags="-O0 -g3 -gdwarf-2" #1 -Wuninitialized"
 else
   warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
   c_warnings="$warnings"

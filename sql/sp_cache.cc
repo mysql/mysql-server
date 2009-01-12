@@ -106,6 +106,12 @@ void sp_cache_clear(sp_cache **cp)
 }
 
 
+void sp_cache_end()
+{
+  pthread_mutex_destroy(&Cversion_lock);
+}
+
+
 /*
   Insert a routine into the cache.
 
@@ -207,6 +213,19 @@ void sp_cache_flush_obsolete(sp_cache **cp)
       c->version= v;
     }
   }
+}
+
+
+/**
+  Return the current version of the cache.
+*/
+
+ulong sp_cache_version(sp_cache **cp)
+{
+  sp_cache *c= *cp;
+  if (c)
+    return c->version;
+  return 0;
 }
 
 

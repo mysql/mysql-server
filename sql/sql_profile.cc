@@ -38,9 +38,6 @@
 
 #define MAX_QUERY_LENGTH 300
 
-/* Reserved for systems that can't record the function name in source. */
-const char * const _unknown_func_ = "<unknown>";
-
 /**
   Connects Information_Schema and Profiling.
 */

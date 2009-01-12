@@ -920,7 +920,10 @@ uint ha_federated::convert_row_to_internal_format(uchar *record,
     old_ptr= (my_ptrdiff_t) (record - table->record[0]);
     (*field)->move_field_offset(old_ptr);
     if (!*row)
+    {
       (*field)->set_null();
+      (*field)->reset();
+    }
     else
     {
       if (bitmap_is_set(table->read_set, (*field)->field_index))

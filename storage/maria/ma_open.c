@@ -85,8 +85,8 @@ MARIA_HA *_ma_test_if_reopen(const char *filename)
 */
 
 
-static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
-                                      File data_file)
+static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
+                                      int mode, File data_file)
 {
   int save_errno;
   uint errpos;
@@ -104,7 +104,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   }
   if (data_file >= 0)
     info.dfile.file= data_file;
-  else if (_ma_open_datafile(&info, share, -1))
+  else if (_ma_open_datafile(&info, share, name, -1))
     goto err;
   errpos= 5;
 
@@ -178,7 +178,8 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 
   if (!share->base.born_transactional)   /* For transactional ones ... */
   {
-    info.trn= &dummy_transaction_object; /* ... force crash if no trn given */
+    /* ... force crash if no trn given */
+    _ma_set_trn_for_table(&info, &dummy_transaction_object);
     info.state= &share->state.state;	/* Change global values by default */
   }
   else
@@ -235,7 +236,7 @@ MARIA_HA *maria_clone(MARIA_SHARE *share, int mode)
 {
   MARIA_HA *new_info;
   pthread_mutex_lock(&THR_LOCK_maria);
-  new_info= maria_clone_internal(share, mode,
+  new_info= maria_clone_internal(share, NullS, mode,
                                  share->data_file_type == BLOCK_RECORD ?
                                  share->bitmap.file.file : -1);
   pthread_mutex_unlock(&THR_LOCK_maria);
@@ -255,7 +256,7 @@ MARIA_HA *maria_clone(MARIA_SHARE *share, int mode)
 MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 {
   int kfile,open_mode,save_errno;
-  uint i,j,len,errpos,head_length,base_pos,info_length,keys,
+  uint i,j,len,errpos,head_length,base_pos,info_length,keys, realpath_err,
     key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
@@ -276,8 +277,16 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   head_length=sizeof(share_buff.state.header);
   bzero((uchar*) &info,sizeof(info));
 
-  my_realpath(name_buff, fn_format(org_name,name,"",MARIA_NAME_IEXT,
-                                   MY_UNPACK_FILENAME),MYF(0));
+  realpath_err= my_realpath(name_buff, fn_format(org_name, name, "",
+                                                 MARIA_NAME_IEXT,
+                                                 MY_UNPACK_FILENAME),MYF(0));
+  if (my_is_symlink(org_name) &&
+      (realpath_err || (*maria_test_invalid_symlink)(name_buff)))
+  {
+    my_errno= HA_WRONG_CREATE_OPTION;
+    DBUG_RETURN(0);
+  }
+
   pthread_mutex_lock(&THR_LOCK_maria);
   old_info= 0;
   if ((open_flags & HA_OPEN_COPY) ||
@@ -345,7 +354,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if (!strcmp(name_buff, org_name) ||
         my_readlink(index_name, org_name, MYF(0)) == -1)
       (void) strmov(index_name, org_name);
-    *strrchr(org_name, '.')= '\0';
+    *strrchr(org_name, FN_EXTCHAR)= '\0';
     (void) fn_format(data_name,org_name,"",MARIA_NAME_DEXT,
                      MY_APPEND_EXT|MY_UNPACK_FILENAME|MY_RESOLVE_SYMLINKS);
 
@@ -439,7 +448,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     /* Ensure we have space in the key buffer for transaction id's */
     if (share->base.born_transactional)
       share->base.max_key_length= ALIGN_SIZE(share->base.max_key_length +
-                                             MAX_PACK_TRANSID_SIZE);
+                                             MARIA_MAX_PACK_TRANSID_SIZE);
 
     /*
       If page cache is not initialized, then assume we will create the
@@ -737,7 +746,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if ((share->data_file_type == BLOCK_RECORD ||
          share->data_file_type == COMPRESSED_RECORD))
     {
-      if (_ma_open_datafile(&info, share, -1))
+      if (_ma_open_datafile(&info, share, name, -1))
         goto err;
       data_file= info.dfile.file;
     }
@@ -799,7 +808,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         if (!(share->state_history= (MARIA_STATE_HISTORY *)
               my_malloc(sizeof(*share->state_history), MYF(MY_WME))))
           goto err;
-        share->state_history->trid= 0;          /* Visibly by all */
+        share->state_history->trid= 0;          /* Visible by all */
         share->state_history->state= share->state.state;
         share->state_history->next= 0;
       }
@@ -809,11 +818,13 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&share->key_del_lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&share->key_del_cond, 0);
+    pthread_mutex_init(&share->close_lock, MY_MUTEX_INIT_FAST);
     for (i=0; i<keys; i++)
       VOID(my_rwlock_init(&share->keyinfo[i].root_lock, NULL));
     VOID(my_rwlock_init(&share->mmap_lock, NULL));
 
     share->row_is_visible= _ma_row_visible_always;
+    share->lock.get_status= _ma_reset_update_flag;
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */
@@ -882,7 +893,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       data_file= share->bitmap.file.file;       /* Only opened once */
   }
 
-  if (!(m_info= maria_clone_internal(share, mode, data_file)))
+  if (!(m_info= maria_clone_internal(share, name, mode, data_file)))
     goto err;
 
   pthread_mutex_unlock(&THR_LOCK_maria);
@@ -1727,9 +1738,27 @@ void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
   exist a dup()-like call that would give us two different file descriptors.
 *************************************************************************/
 
-int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share,
+int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
                       File file_to_dup __attribute__((unused)))
 {
+  char *data_name= share->data_file_name.str;
+  char real_data_name[FN_REFLEN];
+
+  if (org_name)
+  {
+    fn_format(real_data_name, org_name, "", MARIA_NAME_DEXT, 4);
+    if (my_is_symlink(real_data_name))
+    {
+      if (my_realpath(real_data_name, real_data_name, MYF(0)) ||
+          (*maria_test_invalid_symlink)(real_data_name))
+      {
+        my_errno= HA_WRONG_CREATE_OPTION;
+        return 1;
+      }
+      data_name= real_data_name;
+    }
+  }
+
   info->dfile.file= share->bitmap.file.file=
     my_open(share->data_file_name.str, share->mode | O_SHARE,
             MYF(MY_WME));

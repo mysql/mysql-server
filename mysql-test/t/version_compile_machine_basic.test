@@ -1,0 +1,100 @@
+
+
+################## mysql-test\t\version_compile_machine_basic.test ############
+#                                                                             #
+# Variable Name: version_compile_machine                                      #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: String                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable version_compile_machine   #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_055_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.version_compile_machine);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_055_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.version_compile_machine=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.version_compile_machine);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_055_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.version_compile_machine = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='version_compile_machine';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.version_compile_machine);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='version_compile_machine';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_055_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@version_compile_machine = @@GLOBAL.version_compile_machine;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_055_05----------------------#'
+################################################################################
+#   Check if version_compile_machine can be accessed with and without @@ sign  #
+################################################################################
+
+SELECT COUNT(@@version_compile_machine);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.version_compile_machine);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.version_compile_machine);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.version_compile_machine);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT version_compile_machine = @@SESSION.version_compile_machine;
+--echo Expected error 'Readonly variable'
+
+

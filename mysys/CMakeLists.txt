@@ -39,12 +39,12 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				my_mkdir.c my_mmap.c my_net.c my_once.c my_open.c my_pread.c my_pthread.c 
 				my_quick.c my_read.c my_realloc.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c my_wincond.c
-				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c 
+				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c stacktrace.c
 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c
                                 lf_alloc-pin.c lf_dynarray.c lf_hash.c
                                 my_atomic.c my_getncpus.c my_rnd.c
-                                my_uuid.c wqueue.c
+                                my_uuid.c wqueue.c waiting_threads.c
 )
 
 IF(NOT SOURCE_SUBLIBS)

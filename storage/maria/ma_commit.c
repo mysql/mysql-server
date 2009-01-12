@@ -33,6 +33,7 @@ int ma_commit(TRN *trn)
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS];
   DBUG_ENTER("ma_commit");
 
+  DBUG_ASSERT(trn->rec_lsn == LSN_IMPOSSIBLE);
   if (trn->undo_lsn == 0) /* no work done, rollback (cheaper than commit) */
     DBUG_RETURN(trnman_rollback_trn(trn));
   /*
@@ -61,8 +62,14 @@ int ma_commit(TRN *trn)
                              trn, NULL, 0,
                              sizeof(log_array)/sizeof(log_array[0]),
                              log_array, NULL, NULL) |
-        translog_flush(commit_lsn) |
-        trnman_commit_trn(trn));
+        translog_flush(commit_lsn));
+
+  DBUG_EXECUTE_IF("maria_sleep_in_commit",
+                  {
+                    DBUG_PRINT("info", ("maria_sleep_in_commit"));
+                    sleep(3);
+                  });
+  res|= trnman_commit_trn(trn);
 
 
   /*
@@ -106,16 +113,12 @@ int maria_begin(MARIA_HA *info)
 
   if (info->s->now_transactional)
   {
-    TRN *trn;
-    struct st_my_thread_var *mysys_var= my_thread_var;
-    trn= trnman_new_trn(&mysys_var->mutex,
-                        &mysys_var->suspend,
-                        (char*) &mysys_var + STACK_DIRECTION *1024*128);
+    TRN *trn= trnman_new_trn(0);
     if (unlikely(!trn))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
     DBUG_PRINT("info", ("TRN set to 0x%lx", (ulong) trn));
-    info->trn= trn;
+    _ma_set_trn_for_table(info, trn);
   }
   DBUG_RETURN(0);
 }

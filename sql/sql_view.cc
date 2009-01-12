@@ -655,7 +655,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
-  if (view->revision != 1)
+  if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   start_waiting_global_read_lock(thd);
   if (res)
@@ -673,12 +673,8 @@ err:
 }
 
 
-/* index of revision number in following table */
-static const int revision_number_position= 8;
 /* number of required parameters for making view */
-static const int required_view_parameters= 16;
-/* number of backups */
-static const int num_view_backups= 3;
+static const int required_view_parameters= 14;
 
 /*
   table of VIEW .frm field descriptors
@@ -711,9 +707,6 @@ static File_option view_parameters[]=
  {{ C_STRING_WITH_LEN("with_check_option")},
   my_offsetof(TABLE_LIST, with_check),
   FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("revision")},
-  my_offsetof(TABLE_LIST, revision),
-  FILE_OPTIONS_REV},
  {{ C_STRING_WITH_LEN("timestamp")},
   my_offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
@@ -816,13 +809,24 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_PRINT("info", ("View: %s", view_query.ptr()));
 
   /* fill structure */
-  view->select_stmt.str= view_query.c_ptr_safe();
-  view->select_stmt.length= view_query.length();
   view->source= thd->lex->create_view_select;
+
+  if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
+                            view_query.length(), false))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
 
   view->file_version= 1;
   view->calc_md5(md5);
-  view->md5.str= md5;
+  if (!(view->md5.str= (char*) thd->memdup(md5, 32)))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
   view->md5.length= 32;
   can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
@@ -910,18 +914,9 @@ loop_out:
       }
 
       /*
-        read revision number
-
         TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
-      if (parser->parse((uchar*)view, thd->mem_root,
-                        view_parameters + revision_number_position, 1,
-                        &file_parser_dummy_hook))
-      {
-        error= thd->is_error() ? -1 : 0;
-        goto err;
-      }
     }
     else
    {
@@ -949,8 +944,13 @@ loop_out:
   lex_string_set(&view->view_connection_cl_name,
                  view->view_creation_ctx->get_connection_cl()->name);
 
-  view->view_body_utf8.str= is_query.c_ptr_safe();
-  view->view_body_utf8.length= is_query.length();
+  if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
+                            is_query.length(), false))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
 
   /*
     Check that table of main select do not used in subqueries.
@@ -981,7 +981,7 @@ loop_out:
   }
 
   if (sql_create_definition_file(&dir, &file, view_file_type,
-				 (uchar*)view, view_parameters, num_view_backups))
+				 (uchar*)view, view_parameters))
   {
     error= thd->is_error() ? -1 : 1;
     goto err;
@@ -1021,7 +1021,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   bool parse_status;
   bool result, view_is_mergeable;
   TABLE_LIST *view_main_select_tables;
-
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 
@@ -1049,8 +1048,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   if (table->index_hints && table->index_hints->elements)
   {
-      my_error(ER_WRONG_USAGE, MYF(0), "index hints", "VIEW");
-      DBUG_RETURN(TRUE);
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
+             table->index_hints->head()->key_name.str, table->table_name);
+    DBUG_RETURN(TRUE);
   }
 
   /* check loop via view definition */
@@ -1147,9 +1147,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     char old_db_buf[NAME_LEN+1];
     LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
     bool dbchanged;
-    Lex_input_stream lip(thd,
-                         table->select_stmt.str,
-                         table->select_stmt.length);
+    Parser_state parser_state(thd,
+                              table->select_stmt.str,
+                              table->select_stmt.length);
 
     /* 
       Use view db name as thread default database, in order to ensure
@@ -1193,7 +1193,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
     /* Parse the query. */
 
-    parse_status= parse_sql(thd, &lip, table->view_creation_ctx);
+    parse_status= parse_sql(thd, & parser_state, table->view_creation_ctx);
 
     /* Restore environment. */
 
@@ -1947,8 +1947,7 @@ mysql_rename_view(THD *thd,
       goto err;
 
     /* rename view and it's backups */
-    if (rename_in_schema_file(view->db, view->table_name, new_name, 
-                              view_def.revision - 1, num_view_backups))
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_name))
       goto err;
 
     dir.str= dir_buff;
@@ -1963,12 +1962,10 @@ mysql_rename_view(THD *thd,
     file.length= pathstr.length - dir.length;
 
     if (sql_create_definition_file(&dir, &file, view_file_type,
-                                   (uchar*)&view_def, view_parameters,
-                                   num_view_backups)) 
+                                   (uchar*)&view_def, view_parameters))
     {
       /* restore renamed view in case of error */
-      rename_in_schema_file(view->db, new_name, view->table_name, 
-                            view_def.revision - 1, num_view_backups);
+      rename_in_schema_file(thd, view->db, new_name, view->table_name);
       goto err;
     }
   } else

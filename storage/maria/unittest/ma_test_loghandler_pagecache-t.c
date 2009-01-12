@@ -131,7 +131,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
   my_close(file1.file, MYF(MY_WME));
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   dummy_transaction_object.first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
   if (translog_write_record(&lsn,

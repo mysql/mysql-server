@@ -1,0 +1,230 @@
+SET @global_start_value = @@global.time_zone;
+SELECT @global_start_value;
+@global_start_value
+SYSTEM
+SET @session_start_value = @@session.time_zone;
+SELECT @session_start_value;
+@session_start_value
+SYSTEM
+'#--------------------FN_DYNVARS_001_01------------------------#'
+SET @@time_zone = "+02:00";
+SET @@time_zone = DEFAULT;
+SELECT @@time_zone;
+@@time_zone
+SYSTEM
+SET @@global.time_zone = "-00:30";
+SET @@global.time_zone = DEFAULT;
+SELECT @@global.time_zone;
+@@global.time_zone
+SYSTEM
+'#---------------------FN_DYNVARS_001_02-------------------------#'
+SET @@session.time_zone = "+02:00";
+SELECT @@session.time_zone;
+@@session.time_zone
++02:00
+SET @@global.time_zone = "+05:00";
+SELECT @@global.time_zone;
+@@global.time_zone
++05:00
+SELECT @@session.time_zone AS res_is_02_00;
+res_is_02_00
++02:00
+SET @@session.time_zone = "-02:00";
+SELECT @@session.time_zone;
+@@session.time_zone
+-02:00
+SELECT @@global.time_zone AS res_is_05_00;
+res_is_05_00
++05:00
+SELECT @@global.time_zone=@@session.time_zone AS res_is_false;
+res_is_false
+0
+'#--------------------FN_DYNVARS_001_03------------------------#'
+SET @@time_zone = "+13:00";
+SELECT @@time_zone;
+@@time_zone
++13:00
+SET @@time_zone = "-12:00";
+SELECT @@time_zone;
+@@time_zone
+-12:00
+SET @@time_zone = "+12:59";
+SELECT @@time_zone;
+@@time_zone
++12:59
+SET @@time_zone = "-11:30";
+SELECT @@time_zone;
+@@time_zone
+-11:30
+SET @@time_zone = "+00:00";
+SELECT @@time_zone;
+@@time_zone
++00:00
+SET @@time_zone = "-12:59";
+SELECT @@time_zone;
+@@time_zone
+-12:59
+SET @@time_zone = "-00:00";
+SELECT @@time_zone;
+@@time_zone
++00:00
+SET @@time_zone = "+10:00";
+SELECT @@time_zone;
+@@time_zone
++10:00
+SET @@time_zone = "+0:0";
+SELECT @@time_zone;
+@@time_zone
++00:00
+SET @@time_zone = "-10:00";
+SELECT @@time_zone;
+@@time_zone
+-10:00
+SET @@time_zone = "+2:00";
+SELECT @@time_zone;
+@@time_zone
++02:00
+SET @@global.time_zone = "+13:00";
+SELECT @@global.time_zone;
+@@global.time_zone
++13:00
+SET @@global.time_zone = "-12:00";
+SELECT @@global.time_zone;
+@@global.time_zone
+-12:00
+SET @@global.time_zone = "+12:59";
+SELECT @@global.time_zone;
+@@global.time_zone
++12:59
+SET @@global.time_zone = "-11:30";
+SELECT @@global.time_zone;
+@@global.time_zone
+-11:30
+SET @@global.time_zone = "+00:00";
+SELECT @@global.time_zone;
+@@global.time_zone
++00:00
+SET @@global.time_zone = "-12:59";
+SELECT @@global.time_zone;
+@@global.time_zone
+-12:59
+SET @@global.time_zone = "-00:00";
+SELECT @@global.time_zone;
+@@global.time_zone
++00:00
+SET @@global.time_zone = "+10:00";
+SELECT @@global.time_zone;
+@@global.time_zone
++10:00
+SET @@global.time_zone = "+0:0";
+SELECT @@global.time_zone;
+@@global.time_zone
++00:00
+SET @@global.time_zone = "-10:00";
+SELECT @@global.time_zone;
+@@global.time_zone
+-10:00
+SET @@global.time_zone = "+2:00";
+SELECT @@global.time_zone;
+@@global.time_zone
++02:00
+'#--------------------FN_DYNVARS_001_04-------------------------#'
+SET @@time_zone = "+24:00";
+ERROR HY000: Unknown or incorrect time zone: '+24:00'
+SET @@time_zone = "+23:59";
+ERROR HY000: Unknown or incorrect time zone: '+23:59'
+SET @@time_zone = "+13:01";
+ERROR HY000: Unknown or incorrect time zone: '+13:01'
+SET @@time_zone = "-13:01";
+ERROR HY000: Unknown or incorrect time zone: '-13:01'
+SET @@global.time_zone = "+24:00";
+ERROR HY000: Unknown or incorrect time zone: '+24:00'
+SET @@global.time_zone = "+23:59";
+ERROR HY000: Unknown or incorrect time zone: '+23:59'
+SET @@global.time_zone = "+13:01";
+ERROR HY000: Unknown or incorrect time zone: '+13:01'
+SET @@global.time_zone = "-13:01";
+ERROR HY000: Unknown or incorrect time zone: '-13:01'
+'#-------------------FN_DYNVARS_001_05----------------------------#'
+SET @@global.time_zone = 'SYSTEM';
+SELECT @@global.time_zone;
+@@global.time_zone
+SYSTEM
+SET @@time_zone = 'SYSTEM';
+SELECT @@time_zone;
+@@time_zone
+SYSTEM
+'#----------------------FN_DYNVARS_001_06------------------------#'
+SELECT @@time_zone = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='time_zone';
+@@time_zone = VARIABLE_VALUE
+1
+'#----------------------FN_DYNVARS_001_07------------------------#'
+SELECT @@global.time_zone = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='time_zone';
+@@global.time_zone = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_001_08-------------------------#'
+SET @@time_zone = OFF;
+ERROR HY000: Unknown or incorrect time zone: 'OFF'
+SET @@time_zone = ON;
+ERROR HY000: Unknown or incorrect time zone: 'ON'
+SET @@time_zone = TRUE;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@time_zone = FALSE;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@global.time_zone = OFF;
+ERROR HY000: Unknown or incorrect time zone: 'OFF'
+SET @@global.time_zone = ON;
+ERROR HY000: Unknown or incorrect time zone: 'ON'
+SET @@global.time_zone = TRUE;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@global.time_zone = FALSE;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@time_zone = 1;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@time_zone = +0200;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@time_zone = GMT+;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET @@time_zone = "";
+ERROR HY000: Unknown or incorrect time zone: ''
+SET @@global.time_zone = 1;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@global.time_zone = +0200;
+ERROR 42000: Incorrect argument type to variable 'time_zone'
+SET @@global.time_zone = GMT+;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET @@global.time_zone = "";
+ERROR HY000: Unknown or incorrect time zone: ''
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@time_zone = '+02:30';
+SELECT @@time_zone = @@local.time_zone and @@time_zone = @@session.time_zone;
+@@time_zone = @@local.time_zone and @@time_zone = @@session.time_zone
+1
+SET @@time_zone = '-01:30';
+SELECT @@time_zone = @@local.time_zone and @@time_zone = @@session.time_zone;
+@@time_zone = @@local.time_zone and @@time_zone = @@session.time_zone
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET time_zone = "+01:00";
+SELECT @@time_zone;
+@@time_zone
++01:00
+SELECT local.time_zone;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.time_zone;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT time_zone = @@session.time_zone;
+ERROR 42S22: Unknown column 'time_zone' in 'field list'
+SET @@time_zone = @session_start_value;
+SELECT @@time_zone;
+@@time_zone
+SYSTEM
+SET @@global.time_zone = @global_start_value;
+SELECT @@global.time_zone;
+@@global.time_zone
+SYSTEM

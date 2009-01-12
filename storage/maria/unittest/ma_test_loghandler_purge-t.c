@@ -90,7 +90,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   /* write more then 1 file */
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
@@ -136,7 +136,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   ok(1, "First file is removed");
 
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_buffer;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= LONG_BUFFER_SIZE;
   if (translog_write_record(&lsn,
 			    LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
@@ -160,7 +160,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   ok(1, "Second and third files are not removed");
 
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   if (translog_write_record(&lsn,
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,

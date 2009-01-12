@@ -245,7 +245,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
   }
   if (usable_index==MAX_KEY)
-    init_read_record(&info,thd,table,select,1,1);
+    init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
@@ -398,7 +398,11 @@ cleanup:
   free_underlaid_joins(thd, select_lex);
   if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
   {
-    thd->row_count_func= deleted;
+    /*
+      If a TRUNCATE TABLE was issued, the number of rows should be reported as
+      zero since the exact number is unknown.
+    */
+    thd->row_count_func= reset_auto_increment ? 0 : deleted;
     my_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
@@ -834,7 +838,7 @@ int multi_delete::do_deletes()
     }
 
     READ_RECORD	info;
-    init_read_record(&info,thd,table,NULL,0,1);
+    init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
     /*
       Ignore any rows not found in reference tables as they may already have
       been deleted by foreign key handling

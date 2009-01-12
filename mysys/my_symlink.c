@@ -90,16 +90,6 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #endif /* HAVE_READLINK */
 }
 
-/*
-  Resolve all symbolic links in path
-  'to' may be equal to 'filename'
-
-  Because purify gives a lot of UMR errors when using realpath(),
-  this code is disabled when using purify.
-
-  If MY_RESOLVE_LINK is given, only do realpath if the file is a link.
-*/
-
 #if defined(SCO)
 #define BUFF_LEN 4097
 #elif defined(MAXPATHLEN)
@@ -108,38 +98,52 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #define BUFF_LEN FN_LEN
 #endif
 
+
+int my_is_symlink(const char *filename __attribute__((unused)))
+{
+#if defined (HAVE_LSTAT) && defined (S_ISLNK)
+  struct stat stat_buff;
+  return !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
+#elif defined (_WIN32)
+  DWORD dwAttr = GetFileAttributes(filename);
+  return (dwAttr != INVALID_FILE_ATTRIBUTES) &&
+    (dwAttr & FILE_ATTRIBUTE_REPARSE_POINT);
+#else  /* No symlinks */
+  return 0;
+#endif
+}
+
+
+/*
+  Resolve all symbolic links in path
+  'to' may be equal to 'filename'
+*/
+
 int my_realpath(char *to, const char *filename,
 		myf MyFlags __attribute__((unused)))
 {
-#if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_REALPATH) && !defined(HAVE_BROKEN_REALPATH)
   int result=0;
   char buff[BUFF_LEN];
-  struct stat stat_buff;
+  char *ptr;
   DBUG_ENTER("my_realpath");
 
-  if (!(MyFlags & MY_RESOLVE_LINK) ||
-      (!lstat(filename,&stat_buff) && S_ISLNK(stat_buff.st_mode)))
-  {
-    char *ptr;
-    DBUG_PRINT("info",("executing realpath"));
-    if ((ptr=realpath(filename,buff)))
-    {
+  DBUG_PRINT("info",("executing realpath"));
+  if ((ptr=realpath(filename,buff)))
       strmake(to,ptr,FN_REFLEN-1);
-    }
-    else
-    {
-      /*
-	Realpath didn't work;  Use my_load_path() which is a poor substitute
-	original name but will at least be able to resolve paths that starts
-	with '.'.
-      */
-      DBUG_PRINT("error",("realpath failed with errno: %d", errno));
-      my_errno=errno;
-      if (MyFlags & MY_WME)
-	my_error(EE_REALPATH, MYF(0), filename, my_errno);
-      my_load_path(to, filename, NullS);
-      result= -1;
-    }
+  else
+  {
+    /*
+      Realpath didn't work;  Use my_load_path() which is a poor substitute
+      original name but will at least be able to resolve paths that starts
+      with '.'.
+    */
+    DBUG_PRINT("error",("realpath failed with errno: %d", errno));
+    my_errno=errno;
+    if (MyFlags & MY_WME)
+      my_error(EE_REALPATH, MYF(0), filename, my_errno);
+    my_load_path(to, filename, NullS);
+    result= -1;
   }
   DBUG_RETURN(result);
 #else

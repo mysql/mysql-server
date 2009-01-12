@@ -4138,6 +4138,15 @@ lock_rec_print(
 }
 
 #ifndef UNIV_HOTBACKUP
+
+#ifdef UNIV_DEBUG
+/* Print the number of lock structs from lock_print_info_summary() only
+in non-production builds for performance reasons, see
+http://bugs.mysql.com/36942 */
+#define PRINT_NUM_OF_LOCK_STRUCTS
+#endif /* UNIV_DEBUG */
+
+#ifdef PRINT_NUM_OF_LOCK_STRUCTS
 /*************************************************************************
 Calculates the number of record lock structs in the record lock hash table. */
 static
@@ -4164,6 +4173,7 @@ lock_get_n_rec_locks(void)
 
 	return(n_locks);
 }
+#endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 
 /*************************************************************************
 Prints info of locks for all transactions. */
@@ -4207,9 +4217,11 @@ lock_print_info_summary(
 		"History list length %lu\n",
 		(ulong) trx_sys->rseg_history_len);
 
+#ifdef PRINT_NUM_OF_LOCK_STRUCTS
 	fprintf(file,
 		"Total number of lock structs in row lock hash table %lu\n",
 		(ulong) lock_get_n_rec_locks());
+#endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 }
 
 /*************************************************************************

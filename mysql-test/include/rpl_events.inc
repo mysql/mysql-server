@@ -41,18 +41,17 @@ let $wait_condition=
 
 # check that table t1 contains something
 --echo "Checking event data on the master"
---enable_info
---replace_column 3 TIMESTAMP
-SELECT * FROM t1 ORDER BY id;
---disable_info
+let $events_done=`SELECT count(*)  FROM t1 id`;
+--disable_query_log
+eval SELECT $events_done > 0 as ONE;
+--enable_query_log
 
 sync_slave_with_master;
 
 --echo "Checking event data on the slave"
---enable_info
---replace_column 3 TIMESTAMP
-SELECT * FROM t1 ORDER BY id;
---disable_info
+--disable_query_log
+eval SELECT count(*) - $events_done as ZERO FROM t1 id;
+--enable_query_log
 
 --echo "Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';

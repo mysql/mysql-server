@@ -1,14 +1,9 @@
-#### suite/funcs_1/t/myisam_triggers.test
+#### suite/funcs_1/t/myisam_trig_0407.test
 
 # MyISAM tables should be used
 #
 # Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 let $engine_type= myisam;
 
-# Create some objects needed in many testcases
-USE test;
---source suite/funcs_1/include/myisam_tb3.inc
-
 --source suite/funcs_1/triggers/triggers_0407.inc
-DROP TABLE test.tb3;
-
