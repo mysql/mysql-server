@@ -78,8 +78,12 @@ my_bool my_init(void)
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
   init_glob_errs();
-#if defined(THREAD) && defined(SAFE_MUTEX)
+#if defined(THREAD)
+  if (my_thread_global_init())
+    return 1;
+#  if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
+#  endif
 #endif
 #if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
@@ -89,8 +93,6 @@ my_bool my_init(void)
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
-  if (my_thread_global_init())
-    return 1;
 #if !defined( __WIN__) && !defined(__NETWARE__)
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
