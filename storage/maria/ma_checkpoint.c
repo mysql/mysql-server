@@ -35,6 +35,7 @@
 #include "ma_blockrec.h"
 #include "ma_checkpoint.h"
 #include "ma_loghandler_lsn.h"
+#include "ma_servicethread.h"
 
 
 /** @brief type of checkpoint currently running */
@@ -43,10 +44,9 @@ static CHECKPOINT_LEVEL checkpoint_in_progress= CHECKPOINT_NONE;
 static pthread_mutex_t LOCK_checkpoint;
 /** @brief for killing the background checkpoint thread */
 static pthread_cond_t  COND_checkpoint;
-/** @brief if checkpoint module was inited or not */
-static my_bool checkpoint_inited= FALSE;
-/** @brief 'kill' flag for the background checkpoint thread */
-static int checkpoint_thread_die;
+/** @brief control structure for checkpoint background thread */
+static MA_SERVICE_THREAD_CONTROL checkpoint_control=
+  {THREAD_DEAD, FALSE, &LOCK_checkpoint, &COND_checkpoint};
 /* is ulong like pagecache->blocks_changed */
 static ulong pages_to_flush_before_next_checkpoint;
 static PAGECACHE_FILE *dfiles, /**< data files to flush in background */
@@ -99,7 +99,7 @@ int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait)
   int result= 0;
   DBUG_ENTER("ma_checkpoint_execute");
 
-  if (!checkpoint_inited)
+  if (!checkpoint_control.inited)
   {
     /*
       If ha_maria failed to start, maria_panic_hton is called, we come here.
@@ -326,17 +326,17 @@ int ma_checkpoint_init(ulong interval)
   pthread_t th;
   int res= 0;
   DBUG_ENTER("ma_checkpoint_init");
-  checkpoint_inited= TRUE;
-  checkpoint_thread_die= 2; /* not yet born == dead */
-  if (pthread_mutex_init(&LOCK_checkpoint, MY_MUTEX_INIT_SLOW) ||
-      pthread_cond_init(&COND_checkpoint, 0))
+  if (ma_service_thread_control_init(&checkpoint_control))
     res= 1;
   else if (interval > 0)
   {
     compile_time_assert(sizeof(void *) >= sizeof(ulong));
     if (!(res= pthread_create(&th, NULL, ma_checkpoint_background,
                               (void *)interval)))
-      checkpoint_thread_die= 0; /* thread lives, will have to be killed */
+    {
+      /* thread lives, will have to be killed */
+      checkpoint_control.status= THREAD_RUNNING;
+    }
   }
   DBUG_RETURN(res);
 }
@@ -423,30 +423,12 @@ void ma_checkpoint_end(void)
   DBUG_EXECUTE_IF("maria_crash",
                   { DBUG_PRINT("maria_crash", ("now")); DBUG_ABORT(); });
 
-  if (checkpoint_inited)
+  if (checkpoint_control.inited)
   {
-    pthread_mutex_lock(&LOCK_checkpoint);
-    if (checkpoint_thread_die != 2) /* thread was started ok */
-    {
-      DBUG_PRINT("info",("killing Maria background checkpoint thread"));
-      checkpoint_thread_die= 1; /* kill it */
-      do /* and wait for it to be dead */
-      {
-        /* wake it up if it was in a sleep */
-        pthread_cond_broadcast(&COND_checkpoint);
-        DBUG_PRINT("info",("waiting for Maria background checkpoint thread"
-                           " to die"));
-        pthread_cond_wait(&COND_checkpoint, &LOCK_checkpoint);
-      }
-      while (checkpoint_thread_die != 2);
-    }
-    pthread_mutex_unlock(&LOCK_checkpoint);
+    ma_service_thread_control_end(&checkpoint_control);
     my_free((uchar *)dfiles, MYF(MY_ALLOW_ZERO_PTR));
     my_free((uchar *)kfiles, MYF(MY_ALLOW_ZERO_PTR));
     dfiles= kfiles= NULL;
-    pthread_mutex_destroy(&LOCK_checkpoint);
-    pthread_cond_destroy(&COND_checkpoint);
-    checkpoint_inited= FALSE;
   }
   DBUG_VOID_RETURN;
 }
@@ -586,7 +568,6 @@ pthread_handler_t ma_checkpoint_background(void *arg)
 #if 0 /* good for testing, to do a lot of checkpoints, finds a lot of bugs */
     sleeps=0;
 #endif
-    struct timespec abstime;
     switch (sleeps % interval)
     {
     case 0:
@@ -691,25 +672,11 @@ pthread_handler_t ma_checkpoint_background(void *arg)
         sleep_time= interval - (sleeps % interval);
       }
     }
-    pthread_mutex_lock(&LOCK_checkpoint);
-    if (checkpoint_thread_die == 1)
+    if (my_service_thread_sleep(&checkpoint_control,
+                                sleep_time * 1000000000ULL))
       break;
-#if 0 /* good for testing, to do a lot of checkpoints, finds a lot of bugs */
-    pthread_mutex_unlock(&LOCK_checkpoint);
-    my_sleep(100000); /* a tenth of a second */
-    pthread_mutex_lock(&LOCK_checkpoint);
-#else
-    /* To have a killable sleep, we use timedwait like our SQL GET_LOCK() */
-    DBUG_PRINT("info", ("sleeping %u seconds", sleep_time));
-    set_timespec(abstime, sleep_time);
-    pthread_cond_timedwait(&COND_checkpoint, &LOCK_checkpoint, &abstime);
-#endif
-    if (checkpoint_thread_die == 1)
-      break;
-    pthread_mutex_unlock(&LOCK_checkpoint);
     sleeps+= sleep_time;
   }
-  pthread_mutex_unlock(&LOCK_checkpoint);
   DBUG_PRINT("info",("Maria background checkpoint thread ends"));
   {
     CHECKPOINT_LEVEL level= CHECKPOINT_FULL;
@@ -720,12 +687,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     DBUG_EXECUTE_IF("maria_checkpoint_indirect", level= CHECKPOINT_INDIRECT;);
     ma_checkpoint_execute(level, FALSE);
   }
-  pthread_mutex_lock(&LOCK_checkpoint);
-  checkpoint_thread_die= 2; /* indicate that we are dead */
-  /* wake up ma_checkpoint_end() which may be waiting for our death */
-  pthread_cond_broadcast(&COND_checkpoint);
-  /* broadcast was inside unlock because ma_checkpoint_end() destroys mutex */
-  pthread_mutex_unlock(&LOCK_checkpoint);
+  my_service_thread_signal_end(&checkpoint_control);
   my_thread_end();
   return 0;
 }
