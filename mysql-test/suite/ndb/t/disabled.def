@@ -11,5 +11,4 @@
 ##############################################################################
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
-ndb_reconnect            : jonas 2008-11-20, breaks, please enable when fixed
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open

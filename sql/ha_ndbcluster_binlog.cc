@@ -3628,7 +3628,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
   const NDBTAB *reptab= ndbtab_g.get_table();
   if (reptab == NULL &&
-      dict->getNdbError().classification == NdbError::SchemaError)
+      (dict->getNdbError().classification == NdbError::SchemaError ||
+       dict->getNdbError().code == 4009))
   {
     DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
     if (do_set_binlog_flags)
@@ -3795,6 +3796,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   }
 
 err:
+  DBUG_PRINT("info", ("error %d, error_str %s, ndberror.code %u",
+                      error, error_str, ndberror.code));
   if (error > 0)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -5509,7 +5512,6 @@ restart_cluster_failure:
     }
   }
   pthread_mutex_unlock(&LOCK_server_started);
- restart:
   /*
     Main NDB Injector loop
   */
@@ -6143,11 +6145,6 @@ restart_cluster_failure:
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
-  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
-  {
-    ndb_binlog_tables_inited= FALSE;
-    goto restart;
-  }
  err:
   if (do_ndbcluster_binlog_close_connection != BCCC_restart)
   {
@@ -6169,6 +6166,13 @@ restart_cluster_failure:
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
 
+  /*
+    This will cause the util thread to start to try to initialize again
+    via ndbcluster_setup_binlog_table_shares.  But since injector_ndb is
+    set to NULL it will not succeed until injector_ndb is reinitialized.
+  */
+  ndb_binlog_tables_inited= FALSE;
+
   if (ndb_apply_status_share)
   {
     /* ndb_share reference binlog extra free */
@@ -6177,7 +6181,6 @@ restart_cluster_failure:
                              ndb_apply_status_share->use_count));
     free_share(&ndb_apply_status_share);
     ndb_apply_status_share= 0;
-    ndb_binlog_tables_inited= FALSE;
   }
   if (ndb_schema_share)
   {
@@ -6189,7 +6192,6 @@ restart_cluster_failure:
                              ndb_schema_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
-    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
   }
@@ -6219,7 +6221,6 @@ restart_cluster_failure:
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
   {
-    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
   }
