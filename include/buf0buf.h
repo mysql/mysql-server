@@ -1053,7 +1053,8 @@ struct buf_page_struct{
 					not yet been flushed on disk; zero if
 					all modifications are on disk */
 
-	/* 3. LRU replacement algorithm fields; protected by buf_pool_mutex */
+	/* 3. LRU replacement algorithm fields; protected by
+	buf_pool_mutex only (not buf_pool_zip_mutex or block->mutex) */
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
