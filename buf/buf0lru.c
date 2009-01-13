@@ -251,7 +251,7 @@ scan_again:
 			if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
 				goto next_page;
 			}
-			/* Array full. We release the buf_pool->mutex to
+			/* Array full. We release the buf_pool_mutex to
 			obey the latching order. */
 			buf_pool_mutex_exit();
 
