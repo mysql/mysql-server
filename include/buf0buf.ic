@@ -928,6 +928,8 @@ buf_page_hash_get(
 	fold = buf_page_address_fold(space, offset);
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, buf_page_t*, bpage,
+		    ut_ad(bpage->in_page_hash && !bpage->in_zip_hash
+			  && buf_page_in_file(bpage)),
 		    bpage->space == space && bpage->offset == offset);
 	if (bpage) {
 		ut_a(buf_page_in_file(bpage));

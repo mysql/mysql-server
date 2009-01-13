@@ -363,7 +363,9 @@ fil_space_get_by_id(
 	ut_ad(mutex_own(&fil_system->mutex));
 
 	HASH_SEARCH(hash, fil_system->spaces, id,
-		    fil_space_t*, space, space->id == id);
+		    fil_space_t*, space,
+		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
+		    space->id == id);
 
 	return(space);
 }
@@ -384,7 +386,9 @@ fil_space_get_by_name(
 	fold = ut_fold_string(name);
 
 	HASH_SEARCH(name_hash, fil_system->name_hash, fold,
-		    fil_space_t*, space, !strcmp(name, space->name));
+		    fil_space_t*, space,
+		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
+		    !strcmp(name, space->name));
 
 	return(space);
 }
