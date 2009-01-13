@@ -1,7 +1,7 @@
 #include <db_cxx.h>
 #include <errno.h>
 #include <assert.h>
-
+#include <stdlib.h>
 
 #include <iostream>
 using namespace std;
