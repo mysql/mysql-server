@@ -2100,6 +2100,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
           DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
           set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                    ER(CR_UNKNOWN_HOST), mysql->options.bind_name, errno);
+          freeaddrinfo(res_lst);
           goto error;
         }
         
@@ -2131,6 +2132,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         {
           set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
                                    ER(CR_IPSOCK_ERROR), mysql->options.bind_name, errno);
+          freeaddrinfo(res_lst);
           goto error;
         }
         DBUG_PRINT("info", ("Successfully bound client side of socket"));
