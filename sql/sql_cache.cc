@@ -859,6 +859,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
                                    CLIENT_PROTOCOL_41);
     flags.more_results_exists= test(thd->server_status &
                                     SERVER_MORE_RESULTS_EXISTS);
+    flags.in_trans= test(thd->server_status & SERVER_STATUS_IN_TRANS);
+    flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
     flags.pkt_nr= net->pkt_nr;
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
@@ -879,7 +881,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
-def_week_frmt: %lu",                          
+def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
@@ -893,7 +895,10 @@ def_week_frmt: %lu",
                           flags.max_sort_length,
                           flags.group_concat_max_len,
                           flags.div_precision_increment,
-                          flags.default_week_format));
+                          flags.default_week_format,
+                          (int)flags.in_trans,
+                          (int)flags.autocommit));
+
     /*
      Make InnoDB to release the adaptive hash index latch before
      acquiring the query cache mutex.
@@ -1144,6 +1149,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
                                  CLIENT_PROTOCOL_41);
   flags.more_results_exists= test(thd->server_status &
                                   SERVER_MORE_RESULTS_EXISTS);
+  flags.in_trans= test(thd->server_status & SERVER_STATUS_IN_TRANS);
+  flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
   flags.pkt_nr= thd->net.pkt_nr;
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
@@ -1162,7 +1169,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
-def_week_frmt: %lu",                          
+def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
@@ -1176,7 +1183,9 @@ def_week_frmt: %lu",
                           flags.max_sort_length,
                           flags.group_concat_max_len,
                           flags.div_precision_increment,
-                          flags.default_week_format));
+                          flags.default_week_format,
+                          (int)flags.in_trans,
+                          (int)flags.autocommit));
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
