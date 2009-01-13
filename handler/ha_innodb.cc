@@ -8164,6 +8164,7 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 
 	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
 		    INNOBASE_SHARE*, share,
+		    ut_ad(share->use_count > 0),
 		    !my_strnncoll(system_charset_info,
 				  share->table_name,
 				  share->table_name_length,
@@ -8205,6 +8206,7 @@ static void free_share(INNOBASE_SHARE* share)
 
 	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
 		    INNOBASE_SHARE*, share2,
+		    ut_ad(share->use_count > 0),
 		    !my_strnncoll(system_charset_info,
 				  share->table_name,
 				  share->table_name_length,

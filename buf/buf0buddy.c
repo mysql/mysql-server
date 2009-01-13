@@ -172,6 +172,8 @@ buf_buddy_block_free(
 	ut_a(!ut_align_offset(buf, UNIV_PAGE_SIZE));
 
 	HASH_SEARCH(hash, buf_pool->zip_hash, fold, buf_page_t*, bpage,
+		    ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY
+			  && bpage->in_zip_hash && !bpage->in_page_hash),
 		    ((buf_block_t*) bpage)->frame == buf);
 	ut_a(bpage);
 	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);

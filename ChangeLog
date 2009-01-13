@@ -1,3 +1,13 @@
+2009-01-13	The InnoDB Team
+
+	* include/hash0hash.h, include/dict0dict.ic, dict/dict0dict.c,
+	include/buf0buf.ic, buf/buf0buddy.c, trx/trx0i_s.c,
+	handler/ha_innodb.cc, handler/win_delay_loader.cc,
+	dict/dict0mem.c, ha/ha0storage.c, thr/thr0loc.c, fil/fil0fil.c:
+	Add the parameter ASSERTION to HASH_SEARCH() macro, and use it for
+	light validation of the traversed items in hash table lookups when
+	UNIV_DEBUG is enabled.
+
 2009-01-09	The InnoDB Team
 
 	* include/buf0flu.h, include/buf0flu.ic, buf/buf0flu.c:
