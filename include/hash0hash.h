@@ -66,12 +66,8 @@ hash_calc_hash(
 	hash_table_t*	table);	/* in: hash table */
 /************************************************************************
 Assert that the mutex for the table in a hash operation is owned. */
-#ifdef UNIV_SYNC_DEBUG
-# define HASH_ASSERT_OWNED(TABLE, FOLD) \
+#define HASH_ASSERT_OWNED(TABLE, FOLD)					\
 ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));
-#else
-# define HASH_ASSERT_OWNED(TABLE, FOLD)
-#endif
 
 /***********************************************************************
 Inserts a struct to a hash table. */
