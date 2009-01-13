@@ -1977,7 +1977,6 @@ row_merge_create_temporary_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		dict_mem_table_free(new_table);
 		new_table = NULL;
 	}
 
