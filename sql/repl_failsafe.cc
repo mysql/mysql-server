@@ -644,6 +644,16 @@ err:
 }
 #endif
 
+
+/**
+  Execute a SHOW SLAVE HOSTS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool show_slave_hosts(THD* thd)
 {
   List<Item> field_list;
