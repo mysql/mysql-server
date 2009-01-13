@@ -4436,11 +4436,14 @@ fil_aio_wait(
 
 	ut_ad(fil_validate());
 
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type);
+#elif defined(LINUX_NATIVE_AIO)
+		ret = os_aio_linux_handle(segment, &fil_node,
+					  &message, &type);
 #else
 		ret = 0; /* Eliminate compiler warning */
 		ut_error;

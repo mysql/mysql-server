@@ -969,6 +969,7 @@ innobase_start_or_create_for_mysql(void)
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
 	ibool		log_opened	= FALSE;
+	ibool		success;
 	ib_uint64_t	min_flushed_lsn;
 	ib_uint64_t	max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
@@ -1071,7 +1072,6 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
-	os_aio_use_native_aio = FALSE;
 
 #ifdef __WIN__
 	if (os_get_os_version() == OS_WIN95
@@ -1083,12 +1083,30 @@ innobase_start_or_create_for_mysql(void)
 		but when run in conjunction with InnoDB Hot Backup, it seemed
 		to corrupt the data files. */
 
-		os_aio_use_native_aio = FALSE;
+		srv_use_native_aio = FALSE;
 	} else {
 		/* On Win 2000 and XP use async i/o */
-		os_aio_use_native_aio = TRUE;
+		srv_use_native_aio = TRUE;
 	}
+
+#elif defined(LINUX_NATIVE_AIO)
+
+	if (srv_use_native_aio) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Using Linux native AIO\n");
+	}
+#else
+	/* Currently native AIO is supported only on windows and linux
+	and that also when the support is compiled in. In all other
+	cases, we ignore the setting of innodb_use_native_aio. */
+
+	/* TODO: comment this out after internal testing. */
+	fprintf(stderr, "Ignoring innodb_use_native_aio\n");
+	srv_use_native_aio = FALSE;
+
 #endif
+
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
 
@@ -1113,11 +1131,11 @@ innobase_start_or_create_for_mysql(void)
 #else
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
-		os_aio_use_native_aio = FALSE;
+		srv_use_native_aio = FALSE;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-		os_aio_use_native_aio = FALSE;
+		srv_use_native_aio = FALSE;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
@@ -1210,19 +1228,38 @@ innobase_start_or_create_for_mysql(void)
 		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
 	}
 
-	if (!os_aio_use_native_aio) {
+	if (!srv_use_native_aio) {
 		/* In simulated aio we currently have use only for 4 threads */
 		srv_n_file_io_threads = 4;
 
-		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		success = os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD *
+				      srv_n_file_io_threads,
+				      srv_n_file_io_threads,
+				      SRV_MAX_N_PENDING_SYNC_IOS);
+		if (!success) {
+			return(DB_ERROR);
+		}
 	} else {
-		os_aio_init(SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		/* Windows has a pending IO per thread limit.
+		Linux does not have any such restriction.
+		The question of what should be segment size
+		is a trade off. The larger size means longer
+		linear searches through the array and a smaller
+		value can lead to array being full, causing
+		unnecessary delays. The following value
+		for Linux is fairly arbitrary and needs to be
+		tested and tuned. */
+		success = os_aio_init(
+#if defined(LINUX_NATIVE_AIO)
+				      8 * 
+#endif /* LINUX_NATIVE_AIO */
+				      SRV_N_PENDING_IOS_PER_THREAD *
+				      srv_n_file_io_threads,
+				      srv_n_file_io_threads,
+				      SRV_MAX_N_PENDING_SYNC_IOS);
+		if (!success) {
+			return(DB_ERROR);
+		}
 	}
 
 	fil_init(srv_max_n_open_files);
