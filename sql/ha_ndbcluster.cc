@@ -12354,10 +12354,10 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 abort:
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
-{
+    {
       DBUG_PRINT("info", ("Failed to abort schema transaction"));
       ERR_PRINT(dict->getNdbError());
-}
+    }
 err:
     set_ndb_share_state(m_share, NSS_INITIAL);
     /* ndb_share reference schema free */
