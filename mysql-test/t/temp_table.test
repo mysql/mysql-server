@@ -204,4 +204,35 @@ DELETE FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug#41348: INSERT INTO tbl SELECT * FROM temp_tbl overwrites locking type of temp table
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (a INT);
+CREATE TEMPORARY TABLE t2 LIKE t1;
+
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS INT
+ BEGIN
+     return 1;
+ END|
+DELIMITER ;|
+
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT f1();
+
+CREATE TABLE t3 SELECT * FROM t1;
+INSERT INTO t1 SELECT f1();
+
+UPDATE t1,t2 SET t1.a = t2.a;
+INSERT INTO t2 SELECT f1();
+
+DROP TABLE t1,t2,t3;
+DROP FUNCTION f1;
+
 --echo End of 5.1 tests
