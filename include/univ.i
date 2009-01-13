@@ -162,6 +162,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						for compressed pages */
 #define UNIV_ZIP_COPY				/* call page_zip_copy_recs()
 						more often */
+#define UNIV_AIO_DEBUG				/* prints info about
+						submitted and reaped AIO
+						requests to the log. */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
