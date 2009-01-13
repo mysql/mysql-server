@@ -918,9 +918,9 @@ buf_flush_try_neighbors(
 				count++;
 
 				buf_pool_mutex_enter();
+			} else {
+				mutex_exit(block_mutex);
 			}
-
-			mutex_exit(block_mutex);
 		}
 	}
 
