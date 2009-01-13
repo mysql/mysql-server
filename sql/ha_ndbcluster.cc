@@ -10840,8 +10840,11 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
 #ifdef HAVE_NDB_BINLOG
   if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::alter_table_phase2"));
+  {
+    error= ndbcluster_no_global_schema_lock_abort
+      (thd, "ha_ndbcluster::alter_table_phase2");
+    goto err;
+  }
 #endif
 
   if ((*alter_flags & dropping).is_set())
