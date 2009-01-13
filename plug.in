@@ -12,6 +12,14 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_C_BIGENDIAN
   case "$target_os" in
 	lin*)
+             AC_CHECK_HEADER(libaio.h,
+               AC_CHECK_LIB(aio, io_setup,
+                 LIBS="$LIBS -laio"
+                 AC_DEFINE(LINUX_NATIVE_AIO, [1],
+                           [Linux native async I/O support]),
+                 AC_MSG_WARN([No Linux native async I/O])),
+               AC_MSG_WARN([No Linux native async I/O]))
+
 		CFLAGS="$CFLAGS -DUNIV_LINUX";;
 	hpux10*)
 		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;

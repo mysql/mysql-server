@@ -102,6 +102,12 @@ UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
 
+/* If this flag is TRUE, then we will use the native aio of the
+OS (provided we compiled Innobase with it in), otherwise we will
+use simulated aio we build below with threads.
+Currently we support native aio on windows and linux */
+UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
+
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */

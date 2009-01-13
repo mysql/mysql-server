@@ -51,12 +51,6 @@ typedef int	os_file_t;
 
 extern ulint	os_innodb_umask;
 
-/* If this flag is TRUE, then we will use the native aio of the
-OS (provided we compiled Innobase with it in), otherwise we will
-use simulated aio we build below with threads */
-
-extern ibool	os_aio_use_native_aio;
-
 #define OS_FILE_SECTOR_SIZE		512
 
 /* The next value should be smaller or equal to the smallest sector size used
@@ -98,6 +92,7 @@ log. */
 						to become available again */
 #define	OS_FILE_SHARING_VIOLATION	76
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
+#define	OS_FILE_AIO_INTERRUPTED		78
 
 /* Types for aio operations */
 #define OS_FILE_READ	10
@@ -556,9 +551,10 @@ in the three first aio arrays is the parameter n_segments given to the
 function. The caller must create an i/o handler thread for each segment in
 the four first arrays, but not for the sync aio array. */
 UNIV_INTERN
-void
+ibool
 os_aio_init(
 /*========*/
+				/* out: TRUE on success. */
 	ulint	n,		/* in: maximum number of pending aio operations
 				allowed; n must be divisible by n_segments */
 	ulint	n_segments,	/* in: combined number of segments in the four
@@ -736,5 +732,33 @@ innobase_mysql_tmpfile(void);
 /*========================*/
 			/* out: temporary file descriptor, or < 0 on error */
 #endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
+
+
+#if defined(LINUX_NATIVE_AIO)
+/**************************************************************************
+This function is only used in Linux native asynchronous i/o.
+Waits for an aio operation to complete. This function is used to wait the
+for completed requests. The aio array of pending requests is divided
+into segments. The thread specifies which segment or slot it wants to wait
+for. NOTE: this function will also take care of freeing the aio slot,
+therefore no other thread is allowed to do the freeing! */
+UNIV_INTERN
+ibool
+os_aio_linux_handle(
+/*================*/
+				/* out: TRUE if the IO was successful */
+	ulint	global_seg,	/* in: segment number in the aio array
+				to wait for; segment 0 is the ibuf
+				i/o thread, segment 1 is log i/o thread,
+				then follow the non-ibuf read threads,
+				and the last are the non-ibuf write
+				threads. */
+	fil_node_t**message1,	/* out: the messages passed with the */
+	void**	message2,	/* aio request; note that in case the
+				aio operation failed, these output
+				parameters are valid and can be used to
+				restart the operation. */
+	ulint*	type);		/* out: OS_FILE_WRITE or ..._READ */
+#endif /* LINUX_NATIVE_AIO */
 
 #endif

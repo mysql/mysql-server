@@ -68,6 +68,11 @@ extern ulint	srv_check_file_format_at_startup;
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 
+/* If this flag is TRUE, then we will use the native aio of the
+OS (provided we compiled Innobase with it in), otherwise we will
+use simulated aio we build below with threads.
+Currently we support native aio on windows and linux */
+extern my_bool	srv_use_native_aio;
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
