@@ -12362,11 +12362,11 @@ abort:
       ERR_PRINT(dict->getNdbError());
     }
 err:
-    set_ndb_share_state(m_share, NSS_INITIAL);
     /* ndb_share reference schema free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
                              m_share->key, m_share->use_count));
   }
+  set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
   delete alter_data;
   DBUG_RETURN(error);
