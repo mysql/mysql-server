@@ -1,9 +1,17 @@
-#include "includes.h"
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <stdio.h>
+#include <errno.h>
+
+#include "toku_portability.h"
+#include "toku_pthread.h"
+#include "toku_assert.h"
+#include "memory.h"
+#include "threadpool.h"
 
 struct threadpool {
     int max_threads;
     int current_threads;
-    toku_pthread_t pids[];
+    toku_pthread_t tids[];
 };
 
 int threadpool_create(THREADPOOL *threadpoolptr, int max_threads) {
@@ -15,7 +23,7 @@ int threadpool_create(THREADPOOL *threadpoolptr, int max_threads) {
     threadpool->current_threads = 0;
     int i;
     for (i=0; i<max_threads; i++) 
-        threadpool->pids[i] = 0;
+        threadpool->tids[i] = 0;
     *threadpoolptr = threadpool;
     return 0;
 }
@@ -25,7 +33,7 @@ void threadpool_destroy(THREADPOOL *threadpoolptr) {
     int i;
     for (i=0; i<threadpool->current_threads; i++) {
         int r; void *ret;
-        r = toku_pthread_join(threadpool->pids[i], &ret);
+        r = toku_pthread_join(threadpool->tids[i], &ret);
         assert(r == 0);
     }
     *threadpoolptr = 0;
@@ -34,7 +42,7 @@ void threadpool_destroy(THREADPOOL *threadpoolptr) {
 
 void threadpool_maybe_add(THREADPOOL threadpool, void *(*f)(void *), void *arg) {
     if (threadpool->current_threads < threadpool->max_threads) {
-        int r = toku_pthread_create(&threadpool->pids[threadpool->current_threads], 0, f, arg);
+        int r = toku_pthread_create(&threadpool->tids[threadpool->current_threads], 0, f, arg);
         if (r == 0) {
             threadpool->current_threads++;
         }

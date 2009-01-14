@@ -54,6 +54,7 @@ BRT_SOURCES = \
   recover \
   roll \
   threadpool \
+  toku_worker \
   trace_mem \
   x1764 \
   ybt \

@@ -34,8 +34,6 @@ REGRESSION_TESTS_RAW = \
 	brt-test4 \
 	brt-test5 \
 	cachetable-rwlock-test \
-	cachetable-writequeue-test \
-	threadpool-test \
 	cachetable-test \
 	cachetable-test2 \
 	cachetable-put-test \
@@ -74,6 +72,8 @@ REGRESSION_TESTS_RAW = \
 	test-leafentry \
 	test_oexcl \
 	test_toku_malloc_plain_free \
+	threadpool-test \
+	workqueue-test \
         x1764-test \
 	ybt-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line

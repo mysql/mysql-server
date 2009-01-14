@@ -149,6 +149,7 @@ static int fetch (CACHEFILE f, CACHEKEY key, u_int32_t fullhash __attribute__((_
     assert (expect_f==f);
     assert((long)extraargs==23);
     *value = make_item(key.b);
+    *sizep = test_object_size;
     did_fetch=key;
     written_lsn->lsn = 0;
     return 0;

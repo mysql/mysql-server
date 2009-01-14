@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
