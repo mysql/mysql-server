@@ -453,6 +453,7 @@ wdl_get_procaddr_from_map(
 		map_fold,
 		map_hash_chain_t*,
 		hash_chain,
+		,
 		(ut_strcmp(hash_chain->symbol, import_proc) == 0));
 
 	if (hash_chain == NULL) {
@@ -472,6 +473,7 @@ wdl_get_procaddr_from_map(
 			map_fold,
 			map_hash_chain_t*,
 			hash_chain,
+			,
 			(ut_strcmp(hash_chain->symbol, import_proc) == 0));
 
 		if (hash_chain == NULL) {
@@ -515,6 +517,7 @@ wdl_get_varaddr_from_map(
 		map_fold,
 		map_hash_chain_t*,
 		hash_chain,
+		,
 		(ut_strcmp(hash_chain->symbol, import_variable) == 0));
 
 	if (hash_chain == NULL) {
@@ -534,6 +537,7 @@ wdl_get_varaddr_from_map(
 			map_fold,
 			map_hash_chain_t*,
 			hash_chain,
+			,
 			(ut_strcmp(hash_chain->symbol, import_variable) == 0));
 
 		if (hash_chain == NULL) {

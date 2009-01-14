@@ -142,6 +142,8 @@ UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
+/* use os/external memory allocator */
+UNIV_INTERN my_bool	srv_use_sys_malloc	= FALSE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* previously requested size */
@@ -1463,9 +1465,12 @@ srv_suspend_mysql_thread(
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	/* Wait for the release */
+	/* Suspend this thread and wait for the event. */
 
 	os_event_wait(event);
+
+	/* After resuming, reacquire the data dictionary latch if
+	necessary. */
 
 	switch (had_dict_lock) {
 	case RW_S_LATCH:

@@ -821,6 +821,8 @@ search_innodb_locks(
 		i_s_hash_chain_t*,
 		/* auxiliary variable */
 		hash_chain,
+		/* assertion on every traversed item */
+		,
 		/* this determines if we have found the lock */
 		locks_row_eq_lock(hash_chain->value, lock, heap_no));
 

@@ -11,6 +11,7 @@ Created 5/12/1997 Heikki Tuuri
 #include "mem0pool.ic"
 #endif
 
+#include "srv0srv.h"
 #include "sync0sync.h"
 #include "ut0mem.h"
 #include "ut0lst.h"
@@ -336,6 +337,12 @@ mem_area_alloc(
 	ulint		n;
 	ibool		ret;
 
+	/* If we are using os allocator just make a simple call
+	to malloc */
+	if (srv_use_sys_malloc) {
+		return(malloc(*psize));
+	}
+
 	size = *psize;
 	n = ut_2_log(ut_max(size + MEM_AREA_EXTRA_SIZE, MEM_AREA_MIN_SIZE));
 
@@ -469,6 +476,10 @@ mem_area_free(
 	void*		new_ptr;
 	ulint		size;
 	ulint		n;
+
+	if (srv_use_sys_malloc) {
+		return(free(ptr));
+	}
 
 	/* It may be that the area was really allocated from the OS with
 	regular malloc: check if ptr points within our memory pool */
