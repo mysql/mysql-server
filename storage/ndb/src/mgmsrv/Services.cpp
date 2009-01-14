@@ -386,11 +386,12 @@ MgmApiSession::runSession()
 
     if (m_parser->run(ctx, *this))
     {
-      stop= m_stop;
+      stop= m_stop; // Has session been stopped
       assert(ctx.m_status == Parser_t::Ok);
     }
     else
     {
+      stop= m_stop; // Has session been stopped
       const char* msg= NULL;
       switch(ctx.m_status) {
       case Parser_t::Eof:    // Client disconnected
