@@ -146,7 +146,7 @@ CREATE TABLE `я` (a INT);
 SET NAMES DEFAULT;
 mysqlcheck --default-character-set="latin1" --databases test
 test.?
-Error    : Table 'test.?' doesn't exist
+Error    : Table doesn't exist
 error    : Corrupt
 mysqlcheck --default-character-set="utf8" --databases test
 test.я                                            OK
