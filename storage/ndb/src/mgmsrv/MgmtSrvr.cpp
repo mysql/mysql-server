@@ -797,7 +797,12 @@ MgmtSrvr::~MgmtSrvr()
   m_socket_server.stopServer();
 
   /* Stop all active session */
-  m_socket_server.stopSessions(true);
+  if (!m_socket_server.stopSessions(true,
+                                    2 * MgmApiSession::SOCKET_TIMEOUT))
+  {
+    g_eventLogger->error("Failed to wait for all sessions to stop, "
+                         "continuing with shutdown anyway.");
+  }
 
   // Stop transporter
   if(theFacade != 0){
