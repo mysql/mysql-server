@@ -190,6 +190,15 @@ typedef struct st_lex_server_options
   char *server_name, *host, *db, *username, *password, *scheme, *socket, *owner;
 } LEX_SERVER_OPTIONS;
 
+
+/**
+  Structure to hold parameters for CHANGE MASTER or START/STOP SLAVE
+  or SHOW NEW MASTER.
+
+  Remark: this should not be confused with Master_info (and perhaps
+  would better be renamed to st_lex_replication_info).  Some fields,
+  e.g., delay, are saved in Relay_log_info, not in Master_info.
+*/
 typedef struct st_lex_master_info
 {
   char *host, *user, *password, *log_file_name;
