@@ -6678,6 +6678,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   uint32             max_endpoint_val;
   get_endpoint_func  get_endpoint;
   uint field_len= field->pack_length_in_rec();
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
   if (part_info->part_type == RANGE_PARTITION)
   {
@@ -6698,7 +6699,6 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     max_endpoint_val=    part_info->no_list_values;
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
-    part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
     if (max_endpoint_val == 0)
     {
       /*
@@ -6760,7 +6760,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp= !test(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
-    if (part_iter->part_nums.start == part_iter->part_nums.end &&
+    if (part_iter->part_nums.start >= part_iter->part_nums.end &&
         !part_iter->ret_null_part)
       return 0; /* No partitions */
   }
@@ -6938,7 +6938,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
 
 uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 {
-  if (part_iter->part_nums.cur == part_iter->part_nums.end)
+  if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
     part_iter->part_nums.cur= part_iter->part_nums.start;
     return NOT_A_PARTITION_ID;
