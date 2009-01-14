@@ -751,18 +751,34 @@ dict_table_add_to_cache(
 	{
 		dict_table_t*	table2;
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
-			    dict_table_t*, table2,
-			    (ut_strcmp(table2->name, table->name) == 0));
+			    dict_table_t*, table2, ut_ad(table2->cached),
+			    ut_strcmp(table2->name, table->name) == 0);
 		ut_a(table2 == NULL);
+
+#ifdef UNIV_DEBUG
+		/* Look for the same table pointer with a different name */
+		HASH_SEARCH_ALL(name_hash, dict_sys->table_hash,
+				dict_table_t*, table2, ut_ad(table2->cached),
+				table2 == table);
+		ut_ad(table2 == NULL);
+#endif /* UNIV_DEBUG */
 	}
 
 	/* Look for a table with the same id: error if such exists */
 	{
 		dict_table_t*	table2;
 		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold,
-			    dict_table_t*, table2,
-			    (ut_dulint_cmp(table2->id, table->id) == 0));
+			    dict_table_t*, table2, ut_ad(table2->cached),
+			    ut_dulint_cmp(table2->id, table->id) == 0);
 		ut_a(table2 == NULL);
+
+#ifdef UNIV_DEBUG
+		/* Look for the same table pointer with a different id */
+		HASH_SEARCH_ALL(id_hash, dict_sys->table_id_hash,
+				dict_table_t*, table2, ut_ad(table2->cached),
+				table2 == table);
+		ut_ad(table2 == NULL);
+#endif /* UNIV_DEBUG */
 	}
 
 	/* Add table to hash table of tables */
@@ -844,7 +860,7 @@ dict_table_rename_in_cache(
 	{
 		dict_table_t*	table2;
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
-			    dict_table_t*, table2,
+			    dict_table_t*, table2, ut_ad(table2->cached),
 			    (ut_strcmp(table2->name, new_name) == 0));
 		if (UNIV_LIKELY_NULL(table2)) {
 			ut_print_timestamp(stderr);

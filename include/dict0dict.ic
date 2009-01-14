@@ -720,7 +720,8 @@ dict_table_check_if_in_cache_low(
 	table_fold = ut_fold_string(table_name);
 
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
-		    dict_table_t*, table, !strcmp(table->name, table_name));
+		    dict_table_t*, table, ut_ad(table->cached),
+		    !strcmp(table->name, table_name));
 	return(table);
 }
 
@@ -745,6 +746,8 @@ dict_table_get_low(
 		table = dict_load_table(table_name);
 	}
 
+	ut_ad(!table || table->cached);
+
 	return(table);
 }
 
@@ -766,10 +769,13 @@ dict_table_get_on_id_low(
 	fold = ut_fold_dulint(table_id);
 
 	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
-		    dict_table_t*, table, !ut_dulint_cmp(table->id, table_id));
+		    dict_table_t*, table, ut_ad(table->cached),
+		    !ut_dulint_cmp(table->id, table_id));
 	if (table == NULL) {
 		table = dict_load_table_on_id(table_id);
 	}
+
+	ut_ad(!table || table->cached);
 
 	/* TODO: should get the type information from MySQL */
 

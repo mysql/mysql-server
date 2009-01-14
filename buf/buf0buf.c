@@ -245,7 +245,7 @@ static ulint	buf_dbg_counter	= 0; /* This is used to insert validation
 					operations in excution in the
 					debug version */
 /** Flag to forbid the release of the buffer pool mutex.
-Protected by buf_pool->mutex. */
+Protected by buf_pool_mutex. */
 UNIV_INTERN ulint		buf_pool_mutex_exit_forbidden = 0;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG

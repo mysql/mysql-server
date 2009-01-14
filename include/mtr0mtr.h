@@ -344,10 +344,14 @@ struct mtr_struct{
 				this mtr */
 	ib_uint64_t	end_lsn;/* end lsn of the possible log entry for
 				this mtr */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
+#endif /* UNIV_DEBUG */
 };
 
-#define	MTR_MAGIC_N		54551
+#ifdef UNIV_DEBUG
+# define MTR_MAGIC_N		54551
+#endif /* UNIV_DEBUG */
 
 #define MTR_ACTIVE		12231
 #define MTR_COMMITTING		56456

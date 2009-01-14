@@ -45,6 +45,7 @@ ha_storage_get(
 		fold,			/* key */
 		ha_storage_node_t*,	/* type of node->next */
 		node,			/* auxiliary variable */
+		,			/* assertion */
 		IS_FOUND);		/* search criteria */
 
 	if (node == NULL) {

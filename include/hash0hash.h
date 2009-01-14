@@ -66,12 +66,8 @@ hash_calc_hash(
 	hash_table_t*	table);	/* in: hash table */
 /************************************************************************
 Assert that the mutex for the table in a hash operation is owned. */
-#ifdef UNIV_SYNC_DEBUG
-# define HASH_ASSERT_OWNED(TABLE, FOLD) \
+#define HASH_ASSERT_OWNED(TABLE, FOLD)					\
 ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));
-#else
-# define HASH_ASSERT_OWNED(TABLE, FOLD)
-#endif
 
 /***********************************************************************
 Inserts a struct to a hash table. */
@@ -151,7 +147,7 @@ Gets the next struct in a hash chain, NULL if none. */
 
 /************************************************************************
 Looks for a struct in a hash table. */
-#define HASH_SEARCH(NAME, TABLE, FOLD, TYPE, DATA, TEST)\
+#define HASH_SEARCH(NAME, TABLE, FOLD, TYPE, DATA, ASSERTION, TEST)\
 {\
 \
 	HASH_ASSERT_OWNED(TABLE, FOLD)\
@@ -160,6 +156,7 @@ Looks for a struct in a hash table. */
 	HASH_ASSERT_VALID(DATA);\
 \
 	while ((DATA) != NULL) {\
+		ASSERTION;\
 		if (TEST) {\
 			break;\
 		} else {\
@@ -168,6 +165,32 @@ Looks for a struct in a hash table. */
 		}\
 	}\
 }
+
+/************************************************************************
+Looks for an item in all hash buckets. */
+#define HASH_SEARCH_ALL(NAME, TABLE, TYPE, DATA, ASSERTION, TEST)	\
+do {									\
+	ulint	i3333;							\
+									\
+	for (i3333 = (TABLE)->n_cells; i3333--; ) {			\
+		(DATA) = (TYPE) HASH_GET_FIRST(TABLE, i3333);		\
+									\
+		while ((DATA) != NULL) {				\
+			HASH_ASSERT_VALID(DATA);			\
+			ASSERTION;					\
+									\
+			if (TEST) {					\
+				break;					\
+			}						\
+									\
+			(DATA) = (TYPE) HASH_GET_NEXT(NAME, DATA);	\
+		}							\
+									\
+		if ((DATA) != NULL) {					\
+			break;						\
+		}							\
+	}								\
+} while (0)
 
 /****************************************************************
 Gets the nth cell in a hash table. */
