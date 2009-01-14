@@ -7,15 +7,11 @@ NDB_STD_OPTS_VARS;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_logevent_listen"),
+  NDB_STD_OPTS("eventlog"),
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void usage()
 {
-  char desc[] = 
-    "tabname\n"\
-    "This program list all properties of table(s) in NDB Cluster.\n"\
-    "  ex: desc T1 T2 T4\n";
   ndb_std_print_version();
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
@@ -40,7 +36,7 @@ main(int argc, char** argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+  opt_debug= "d:t:O,/tmp/eventlog.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
