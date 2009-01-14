@@ -1,3 +1,7 @@
+SET @old_general_log= @@global.general_log;
+SET @old_general_log_file= @@global.general_log_file;
+SET @old_slow_query_log= @@global.slow_query_log;
+SET @old_slow_query_log_file= @@global.slow_query_log_file;
 set global general_log= OFF;
 truncate table mysql.general_log;
 truncate table mysql.slow_log;
@@ -33,20 +37,26 @@ general_log	ON
 log	ON
 log_slow_queries	OFF
 slow_query_log	OFF
-set session long_query_time=1;
-select sleep(2);
-sleep(2)
+# Establish connection con1 (user=root)
+# Switch to connection con1
+set @long_query_time = <long_query_time>;
+set session long_query_time = @long_query_time;
+select sleep(@long_query_time + 1);
+sleep(@long_query_time + 1)
 0
 select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
+# Switch to connection default
 set global slow_query_log= ON;
-set session long_query_time=1;
-select sleep(2);
-sleep(2)
+# Switch to connection con1
+set session long_query_time = @long_query_time;
+select sleep(@long_query_time + 1);
+sleep(@long_query_time + 1)
 0
 select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
-TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	select sleep(2)
+TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	select sleep(@long_query_time + 1)
+# Switch to connection default
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
@@ -92,8 +102,8 @@ slow_query_log_file	#
 show variables like 'log_output';
 Variable_name	Value
 log_output	FILE,TABLE
-set global general_log_file='/not exiting path/log.master';
-ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not exiting path/log.master'
+set global general_log_file='/not existing path/log.master';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not existing path/log.master'
 set global general_log_file='MYSQLTEST_VARDIR';
 ERROR 42000: Variable 'general_log_file' can't be set to the value of 'MYSQLTEST_VARDIR'
 set global general_log_file='';
@@ -153,8 +163,10 @@ select * from mysql.general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
 TIMESTAMP	USER_HOST	#	1	Query	drop table t1
 TIMESTAMP	USER_HOST	#	1	Query	select * from mysql.general_log
-SET @old_general_log_state = @@global.general_log;
-SET @old_slow_log_state = @@global.slow_query_log;
+SET @@global.general_log = @old_general_log;
+SET @@global.general_log_file = @old_general_log_file;
+SET @@global.slow_query_log = @old_slow_query_log;
+SET @@global.slow_query_log_file = @old_slow_query_log_file;
 SET GLOBAL general_log = ON;
 SET GLOBAL slow_query_log = ON;
 FLUSH TABLES WITH READ LOCK;
@@ -173,10 +185,9 @@ SET GLOBAL READ_ONLY = ON;
 SET GLOBAL general_log = ON;
 SET GLOBAL slow_query_log = ON;
 SET GLOBAL READ_ONLY = OFF;
-SET GLOBAL general_log = @old_general_log_state;
-SET GLOBAL slow_query_log = @old_slow_log_state;
-SET @old_general_log_state = @@global.general_log;
-SET @old_slow_log_state = @@global.slow_query_log;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL slow_query_log = @old_slow_query_log;
+SET GLOBAL general_log = ON;
 SHOW VARIABLES LIKE 'general_log';
 Variable_name	Value
 general_log	ON
@@ -239,28 +250,23 @@ log_slow_queries	ON
 SELECT @@slow_query_log, @@log_slow_queries;
 @@slow_query_log	@@log_slow_queries
 1	1
-SET GLOBAL general_log = @old_general_log_state;
-SET GLOBAL slow_query_log = @old_slow_log_state;
-set @old_general_log_file= @@global.general_log_file;
-set @old_slow_query_log_file= @@global.slow_query_log_file;
-set global general_log_file= concat('/not exiting path/log.maste', 'r');
-ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not exiting path/log.master'
-set global general_log_file= NULL;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL slow_query_log = @old_slow_query_log;
+SET GLOBAL general_log_file= CONCAT('/not existing path/log.maste', 'r');
+ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not existing path/log.master'
+SET GLOBAL general_log_file= NULL;
 ERROR 42000: Variable 'general_log_file' can't be set to the value of 'NULL'
-set global slow_query_log_file= concat('/not exiting path/log.maste', 'r');
-ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of '/not exiting path/log.master'
-set global slow_query_log_file= NULL;
+SET GLOBAL slow_query_log_file= CONCAT('/not existing path/log.maste', 'r');
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of '/not existing path/log.master'
+SET GLOBAL slow_query_log_file= NULL;
 ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'NULL'
-set global general_log_file= @old_general_log_file;
-set global slow_query_log_file= @old_slow_query_log_file;
+SET GLOBAL general_log_file= @old_general_log_file;
+SET GLOBAL slow_query_log_file= @old_slow_query_log_file;
 
 # --
 # -- Bug#32748: Inconsistent handling of assignments to
-# -- general_log_file/slow_query_log_file.
+# --            general_log_file/slow_query_log_file.
 # --
-
-SET @general_log_file_saved = @@global.general_log_file;
-SET @slow_query_log_file_saved = @@global.slow_query_log_file;
 
 SET GLOBAL general_log_file = 'bug32748.query.log';
 SET GLOBAL slow_query_log_file = 'bug32748.slow.log';
@@ -270,8 +276,8 @@ Variable_name	Value
 general_log_file	bug32748.query.log
 slow_query_log_file	bug32748.slow.log
 
-SET GLOBAL general_log_file = @general_log_file_saved;
-SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
+SET GLOBAL general_log_file = @old_general_log_file;
+SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
 
 # -- End of Bug#32748.
 deprecated:
@@ -298,4 +304,13 @@ SET GLOBAL general_log_file = @my_glf;
 SET GLOBAL slow_query_log_file = @my_sqlf;
 SET GLOBAL general_log = DEFAULT;
 SET GLOBAL slow_query_log = DEFAULT;
+SET @@global.general_log = @old_general_log;
+SET @@global.general_log_file = @old_general_log_file;
+SET @@global.slow_query_log = @old_slow_query_log;
+SET @@global.slow_query_log_file = @old_slow_query_log_file;
 End of 5.1 tests
+# Close connection con1
+SET global general_log = @old_general_log;
+SET global general_log_file = @old_general_log_file;
+SET global slow_query_log = @old_slow_query_log;
+SET global slow_query_log_file = @old_slow_query_log_file;
