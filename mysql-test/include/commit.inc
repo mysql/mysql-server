@@ -617,10 +617,10 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo
 --echo # No test because of Bug#8729 "rename table fails on temporary table"
 
---echo # 24. DDL: TRUNCATE TEMPORARY TABLE, does not start a transaction
+--echo # 24. DDL: TRUNCATE TEMPORARY TABLE
 --echo
 truncate table t2;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(4, 0, 4, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -733,7 +733,7 @@ call p_verify_status_increment(1, 0, 1, 0);
 rename table t4 to t3;
 call p_verify_status_increment(1, 0, 1, 0);
 truncate table t3;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(4, 4, 4, 4);
 create view v1 as select * from t2;
 call p_verify_status_increment(1, 0, 1, 0);
 check table t1;
