@@ -40,15 +40,13 @@ static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
-	    *default_charset = (char *)MYSQL_DEFAULT_CHARSET_NAME,
-	    *current_host = 0;
+	    *default_charset= 0, *current_host= 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
-static CHARSET_INFO *charset_info= &my_charset_latin1;
 
 enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
@@ -282,12 +280,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_FIX_DB_NAMES:
     what_to_do= DO_UPGRADE;
-    default_charset= (char*) "utf8";
     opt_databases= 1;
     break;
   case OPT_FIX_TABLE_NAMES:
     what_to_do= DO_UPGRADE;
-    default_charset= (char*) "utf8";
     break;
   case 'p':
     if (argument)
@@ -367,11 +363,20 @@ static int get_options(int *argc, char ***argv)
       what_to_do = DO_CHECK;
   }
 
-  /* TODO: This variable is not yet used */
-  if (strcmp(default_charset, charset_info->csname) &&
-      !(charset_info= get_charset_by_csname(default_charset, 
-  					    MY_CS_PRIMARY, MYF(MY_WME))))
-      exit(1);
+  /*
+    If there's no --default-character-set option given with
+    --fix-table-name or --fix-db-name set the default character set to "utf8".
+  */
+  if (!default_charset && (opt_fix_db_names || opt_fix_table_names))
+  {
+    default_charset= (char*) "utf8";
+  }
+  if (default_charset && !get_charset_by_csname(default_charset, MY_CS_PRIMARY,
+                                                MYF(MY_WME)))
+  {
+    printf("Unsupported character set: %s\n", default_charset);
+    return 1;
+  }
   if (*argc > 0 && opt_alldbs)
   {
     printf("You should give only options, no arguments at all, with option\n");
@@ -779,6 +784,8 @@ static int dbConnect(char *host, char *user, char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+  if (default_charset)
+    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {

@@ -2230,6 +2230,7 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
