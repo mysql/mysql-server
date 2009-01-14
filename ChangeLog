@@ -1,3 +1,63 @@
+2009-01-13	The InnoDB Team
+
+	* include/hash0hash.h, include/dict0dict.ic, dict/dict0dict.c,
+	include/buf0buf.ic, buf/buf0buddy.c, trx/trx0i_s.c,
+	handler/ha_innodb.cc, handler/win_delay_loader.cc,
+	dict/dict0mem.c, ha/ha0storage.c, thr/thr0loc.c, fil/fil0fil.c:
+	Add the parameter ASSERTION to HASH_SEARCH() macro, and use it for
+	light validation of the traversed items in hash table lookups when
+	UNIV_DEBUG is enabled.
+
+2009-01-09	The InnoDB Team
+
+	* include/buf0flu.h, include/buf0flu.ic, buf/buf0flu.c:
+	Remove unused code from the functions
+	buf_flush_insert_into_flush_list() and
+	buf_flush_insert_sorted_into_flush_list().
+
+2009-01-09	The InnoDB Team
+
+	* buf/buf0flu.c: Simplify the functions buf_flush_try_page() and
+	buf_flush_batch().  Add debug assertions and an explanation to
+	buf_flush_write_block_low().
+
+2009-01-07	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix a bug in recovery when dropping temporary indexes
+
+2009-01-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
+	Fix Bug#41680 calls to trx_allocate_for_mysql are not consistent
+
+2009-01-07	The InnoDB Team
+
+	* mysql-test/innodb_bug41904.result, mysql-test/innodb_bug41904.test,
+	row/row0merge.c:
+	Fix Bug#41904 create unique index problem
+
+2009-01-02	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c,
+	srv/srv0start.c, mem/mem0pool.c,
+	mysql-test/innodb-use-sys-malloc-master.opt,
+	mysql-test/innodb-use-sys-malloc.result,
+	mysql-test/innodb-use-sys-malloc.test:
+	Implement the configuration parameter innodb_use_sys_malloc
+	(false by default), for disabling InnoDB's internal memory allocator
+	and using system malloc/free instead.
+
+2008-12-30	The InnoDB Team
+
+	* btr/btr0btr.c:
+	When setting the PAGE_LEVEL of a compressed B-tree page from or to
+	0, compress the page at the same time.  This is necessary, because
+	the column information stored on the compressed page will differ
+	between leaf and non-leaf pages.  Leaf pages are identified by
+	PAGE_LEVEL=0.  This bug can make InnoDB crash when all rows of a
+	compressed table are deleted.
+
 2008-12-17	The InnoDB Team
 
 	* include/row0upd.h, include/row0sel.h, pars/pars0pars.c,

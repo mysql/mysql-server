@@ -1212,6 +1212,53 @@ innobase_next_autoinc(
 }
 
 /*************************************************************************
+Initializes some fields in an InnoDB transaction object. */
+static
+void
+innobase_trx_init(
+/*==============*/
+	THD*	thd,	/* in: user thread handle */
+	trx_t*	trx)	/* in/out: InnoDB transaction handle */
+{
+	DBUG_ENTER("innobase_trx_init");
+	DBUG_ASSERT(EQ_CURRENT_THD(thd));
+	DBUG_ASSERT(thd == trx->mysql_thd);
+
+	trx->check_foreigns = !thd_test_options(
+		thd, OPTION_NO_FOREIGN_KEY_CHECKS);
+
+	trx->check_unique_secondary = !thd_test_options(
+		thd, OPTION_RELAXED_UNIQUE_CHECKS);
+
+	DBUG_VOID_RETURN;
+}
+
+/*************************************************************************
+Allocates an InnoDB transaction for a MySQL handler object. */
+extern "C" UNIV_INTERN
+trx_t*
+innobase_trx_allocate(
+/*==================*/
+			/* out: InnoDB transaction handle */
+	THD*	thd)	/* in: user thread handle */
+{
+	trx_t*	trx;
+
+	DBUG_ENTER("innobase_trx_allocate");
+	DBUG_ASSERT(thd != NULL);
+	DBUG_ASSERT(EQ_CURRENT_THD(thd));
+
+	trx = trx_allocate_for_mysql();
+
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = thd_query(thd);
+
+	innobase_trx_init(thd, trx);
+
+	DBUG_RETURN(trx);
+}
+
+/*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one. */
@@ -1227,31 +1274,13 @@ check_trx_exists(
 	ut_ad(EQ_CURRENT_THD(thd));
 
 	if (trx == NULL) {
-		DBUG_ASSERT(thd != NULL);
-		trx = trx_allocate_for_mysql();
-
-		trx->mysql_thd = thd;
-		trx->mysql_query_str = thd_query(thd);
-
-	} else {
-		if (trx->magic_n != TRX_MAGIC_N) {
-			mem_analyze_corruption(trx);
-
-			ut_error;
-		}
+		trx = innobase_trx_allocate(thd);
+	} else if (UNIV_UNLIKELY(trx->magic_n != TRX_MAGIC_N)) {
+		mem_analyze_corruption(trx);
+		ut_error;
 	}
 
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	} else {
-		trx->check_foreigns = TRUE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
-	} else {
-		trx->check_unique_secondary = TRUE;
-	}
+	innobase_trx_init(thd, trx);
 
 	return(trx);
 }
@@ -4621,7 +4650,8 @@ ha_innobase::unlock_row(void)
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+		    && prebuilt->trx->isolation_level
+		    != TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -5480,9 +5510,19 @@ create_table_def(
 
 			charset_no = (ulint)field->charset()->number;
 
-			ut_a(charset_no < 256); /* in data0type.h we assume
-						that the number fits in one
-						byte */
+			if (UNIV_UNLIKELY(charset_no >= 256)) {
+				/* in data0type.h we assume that the
+				number fits in one byte in prtype */
+				push_warning_printf(
+					(THD*) trx->mysql_thd,
+					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					ER_CANT_CREATE_TABLE,
+					"In InnoDB, charset-collation codes"
+					" must be below 256."
+					" Unsupported code %lu.",
+					(ulong) charset_no);
+				DBUG_RETURN(ER_CANT_CREATE_TABLE);
+			}
 		}
 
 		ut_a(field->type() < 256); /* we assume in dtype_form_prtype()
@@ -5927,18 +5967,7 @@ ha_innobase::create(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	trx = trx_allocate_for_mysql();
-
-	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
-	}
+	trx = innobase_trx_allocate(thd);
 
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
@@ -6344,23 +6373,12 @@ ha_innobase::delete_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
+	trx = innobase_trx_allocate(thd);
+
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
 	} else {
 		srv_lower_case_table_names = FALSE;
-	}
-
-	trx = trx_allocate_for_mysql();
-
-	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
 	}
 
 	name_len = strlen(name);
@@ -6445,19 +6463,14 @@ innobase_drop_database(
 #ifdef	__WIN__
 	innobase_casedn_str(namebuf);
 #endif
+#if defined __WIN__ && !defined MYSQL_SERVER
+	/* In the Windows plugin, thd = current_thd is always NULL */
 	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = thd;
-	if (thd) {
-		trx->mysql_query_str = thd_query(thd);
-
-		if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-			trx->check_foreigns = FALSE;
-		}
-	} else {
-		/* In the Windows plugin, thd = current_thd is always NULL */
-		trx->mysql_query_str = NULL;
-	}
-
+	trx->mysql_thd = NULL;
+	trx->mysql_query_str = NULL;
+#else
+	trx = innobase_trx_allocate(thd);
+#endif
 	error = row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
 
@@ -6567,13 +6580,7 @@ ha_innobase::rename_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	trx = trx_allocate_for_mysql();
-	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
+	trx = innobase_trx_allocate(thd);
 
 	error = innobase_rename_table(trx, from, to, TRUE);
 
@@ -8164,6 +8171,7 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 
 	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
 		    INNOBASE_SHARE*, share,
+		    ut_ad(share->use_count > 0),
 		    !my_strnncoll(system_charset_info,
 				  share->table_name,
 				  share->table_name_length,
@@ -8205,6 +8213,7 @@ static void free_share(INNOBASE_SHARE* share)
 
 	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
 		    INNOBASE_SHARE*, share2,
+		    ut_ad(share->use_count > 0),
 		    !my_strnncoll(system_charset_info,
 				  share->table_name,
 				  share->table_name_length,
@@ -9580,6 +9589,11 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
   "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
 
+static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Use OS memory allocator instead of InnoDB's internal memory allocator",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Use native AIO if supported on this platform.",
@@ -9631,6 +9645,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   NULL
 };
