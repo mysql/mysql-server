@@ -104,9 +104,17 @@ public:
   /**
    * stop sessions
    *
-   * Note: Implies stopServer
+   * Note: Implies previous stopServer
+   *
+   * wait, wait until all sessions has stopped if true
+   * wait_timeout - wait, but abort wait after this
+   *                time(in milliseconds)
+   *                0 = infinite
+   *
+   * returns false if wait was abandoned
+   *
    */
-  void stopSessions(bool wait = false);
+  bool stopSessions(bool wait = false, unsigned wait_timeout = 0);
   
   void foreachSession(void (*f)(Session*, void*), void *data);
   void checkSessions();
