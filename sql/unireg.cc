@@ -63,8 +63,8 @@ static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
     db_file		Handler to use. May be zero, in which case we use
     			create_info->db_type
   RETURN
-    0  ok
-    1  error
+    false  ok
+    true   error
 */
 
 bool mysql_create_frm(THD *thd, my_string file_name,
