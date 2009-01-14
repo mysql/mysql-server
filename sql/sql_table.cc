@@ -114,6 +114,30 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 }
 
 
+/**
+  Check if given string begins with "#mysql50#" prefix, cut it if so.
+  
+  @param   from          string to check and cut 
+  @param   to[out]       buffer for result string
+  @param   to_length     its size
+  
+  @retval
+    0      no prefix found
+  @retval
+    non-0  result string length
+*/
+
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
+{
+  if (from[0] == '#' && 
+      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
+               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+    return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+                           to_length - 1) - to);
+  return 0;
+}
+
+
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -133,11 +157,8 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   DBUG_ENTER("tablename_to_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if (from[0] == '#' && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-    DBUG_RETURN((uint) (strmake(to, from+MYSQL50_TABLE_NAME_PREFIX_LENGTH,
-                                to_length-1) -
-                        (from + MYSQL50_TABLE_NAME_PREFIX_LENGTH)));
+  if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
+    DBUG_RETURN(length);
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
