@@ -8129,6 +8129,9 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     analyze if explicit data is provided for slave's TIMESTAMP columns).
   */
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+  
+  /* Honor next number column if present */
+  m_table->next_number_field= m_table->found_next_number_field;
   return error;
 }
 
@@ -8137,6 +8140,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
                                               int error)
 {
   int local_error= 0;
+  m_table->next_number_field=0;
   if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
