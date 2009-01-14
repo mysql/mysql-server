@@ -795,7 +795,6 @@ done:
   return result;
 }
 
-
 int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmHandle h;
@@ -867,6 +866,56 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+// Enabled in 6.4
+#if NDB_VERSION_D > 60400
+int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {
+    15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+    1, NDB_MGM_EVENT_CATEGORY_STARTUP,
+    0
+  };
+  NdbLogEventHandle le_handle =
+    ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+  if (!le_handle)
+    return NDBT_FAILED;
+
+  g_info << "Calling ndb_log_event_get_next" << endl;
+
+  struct ndb_logevent le_event;
+  int r = ndb_logevent_get_next(le_handle,
+                                &le_event,
+                                2000);
+  g_info << "ndb_log_event_get_next returned " << r << endl;
+
+  int result = NDBT_FAILED;
+  if (r == 0)
+  {
+    // Got timeout
+    g_info << "ndb_logevent_get_next returned timeout" << endl;
+    result = NDBT_OK;
+  }
+  else
+  {
+    if(r>0)
+      g_err << "ERROR: Receieved unexpected event: "
+            << le_event.type << endl;
+    if(r<0)
+      g_err << "ERROR: ndb_logevent_get_next returned error: "
+            << r << endl;
+  }
+
+  ndb_mgm_destroy_logevent_handle(&le_handle);
+
+  return result;
+}
+#endif
+
 NDBT_TESTSUITE(testMgm);
 TESTCASE("SingleUserMode", 
 	 "Test single user mode"){
@@ -918,6 +967,14 @@ TESTCASE("TestStatus200",
   STEPS(runTestStatus, 200);
 
 }
+// Enabled in 6.4
+#if 0
+TESTCASE("Bug40922",
+	 "Make sure that ndb_logevent_get_next returns when "
+         "called with a timeout"){
+  INITIALIZER(runTestBug40922);
+}
+#endif
 NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
