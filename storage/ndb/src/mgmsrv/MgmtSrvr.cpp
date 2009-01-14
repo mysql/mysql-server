@@ -1164,7 +1164,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     for (unsigned i= 0; i < node_ids.size(); i++)
     {
       nodeId= node_ids[i];
-      ndbout << "asked to stop " << nodeId << endl;
+      g_eventLogger->info("Going to stop node %d", nodeId);
 
       if ((getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
           &&(getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB))
@@ -1181,7 +1181,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       }
       else
       {
-        ndbout << "which is me" << endl;
+        g_eventLogger->info("Stopping this node");
         *stopSelf= (restart)? -1 : 1;
         stoppedNodes.set(nodeId);
       }
@@ -1505,8 +1505,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     *stopCount = nodes.count();
   
   // start up the nodes again
-  NDB_TICKS waitTime = 12000;
-  NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
+  const NDB_TICKS waitTime = 12000;
+  const NDB_TICKS startTime = NdbTick_CurrentMillisecond();
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
     NodeId nodeId= node_ids[i];
@@ -1515,7 +1515,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 #ifdef VM_TRACE
     ndbout_c("Waiting for %d not started", nodeId);
 #endif
-    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED && waitTime > 0)
+    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
+           (NdbTick_CurrentMillisecond() - startTime) < waitTime)
     {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 mysql_version = 0;
@@ -1525,7 +1526,6 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
       status(nodeId, &s, &version, &mysql_version, &startPhase, 
              &system, &dynamicId, &nodeGroup, &connectCount, &address);
       NdbSleep_MilliSleep(100);  
-      waitTime = (maxTime - NdbTick_CurrentMillisecond());
     }
   }
 
@@ -1588,9 +1588,9 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
    * Here all nodes were correctly stopped,
    * so we wait for all nodes to be contactable
    */
-  NDB_TICKS waitTime = 12000;
   NodeId nodeId = 0;
-  NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
+  const NDB_TICKS waitTime = 12000;
+  const NDB_TICKS startTime = NdbTick_CurrentMillisecond();
 
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
     if (!nodes.get(nodeId))
@@ -1600,7 +1600,9 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
 #ifdef VM_TRACE
     ndbout_c("Waiting for %d not started", nodeId);
 #endif
-    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED && waitTime > 0) {
+    while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
+           (NdbTick_CurrentMillisecond() - startTime) < waitTime)
+    {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 mysql_version = 0;
       Uint32 connectCount = 0;
@@ -1609,7 +1611,6 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
       status(nodeId, &s, &version, &mysql_version, &startPhase, 
 	     &system, &dynamicId, &nodeGroup, &connectCount, &address);
       NdbSleep_MilliSleep(100);  
-      waitTime = (maxTime - NdbTick_CurrentMillisecond());
     }
   }
   
