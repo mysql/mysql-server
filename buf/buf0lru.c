@@ -1567,9 +1567,9 @@ buf_LRU_block_free_non_file_page(
 {
 	void*	data;
 
+	ut_ad(block);
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&block->mutex));
-	ut_ad(block);
 
 	switch (buf_block_get_state(block)) {
 	case BUF_BLOCK_MEMORY:
@@ -1789,7 +1789,9 @@ buf_LRU_block_remove_hashed_page(
 			bpage->zip.data = NULL;
 
 			mutex_exit(&((buf_block_t*) bpage)->mutex);
+			buf_pool_mutex_exit_forbid();
 			buf_buddy_free(data, page_zip_get_size(&bpage->zip));
+			buf_pool_mutex_exit_allow();
 			mutex_enter(&((buf_block_t*) bpage)->mutex);
 			page_zip_set_size(&bpage->zip, 0);
 		}
