@@ -10747,20 +10747,20 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
          goto err;
        }
        /*
-	 If the user has not specified the field format
-	 make it dynamic to enable on-line add attribute
+         If the user has not specified the field format
+         make it dynamic to enable on-line add attribute
        */
        if (field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT &&
            create_info->row_type == ROW_TYPE_DEFAULT &&
            col.getDynamic())
        {
-	 push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                              ER_ILLEGAL_HA_CREATE_OPTION,
-		             "Converted FIXED field to DYNAMIC "
-			     "to enable on-line ADD COLUMN",
+                             "Converted FIXED field to DYNAMIC "
+                             "to enable on-line ADD COLUMN",
                              field->field_name);
-	}
-        new_tab->addColumn(col);
+       }
+       new_tab->addColumn(col);
      }
   }
 
@@ -10840,8 +10840,11 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
 #ifdef HAVE_NDB_BINLOG
   if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::alter_table_phase2"));
+  {
+    error= ndbcluster_no_global_schema_lock_abort
+      (thd, "ha_ndbcluster::alter_table_phase2");
+    goto err;
+  }
 #endif
 
   if ((*alter_flags & dropping).is_set())

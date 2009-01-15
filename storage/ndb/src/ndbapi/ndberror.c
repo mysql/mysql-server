@@ -686,6 +686,7 @@ ErrorBundle ErrorCodes[] = {
   { 4298, DMEC, AE, "Invalid or unsupported ScanOptions structure" },
   { 4299, DMEC, AE, "Incorrect combination of ScanOption flags, extraGetValues ptr and numExtraGetValues" },
   { 2810, DMEC, TR, "No space left on the device" },
+  { 2811, DMEC, TR, "Error with file permissions, please check file system" },
   { 2815, DMEC, TR, "Error in reading files, please check file system" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
