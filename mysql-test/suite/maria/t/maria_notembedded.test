@@ -33,26 +33,63 @@ drop table t1;
 #
 create table t1 (a int unique) transactional=1;
 insert t1 values (1);
+
 lock table t1 write concurrent;
 insert t1 values (2);
-connect(con_d,localhost,root,,);
+
+connect(con_a,localhost,root,,);
 lock table t1 write concurrent;
 insert t1 values (3);
 send insert t1 values (2);
+
+connect(con_b,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (4);
+send insert t1 values (3);
+
+connect(con_c,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (5);
+send insert t1 values (4);
+
+connect(con_d,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (6);
+send insert t1 values (5);
+
 connection default;
-let $wait_condition=select count(*) = 1 from information_schema.processlist where state="waiting for a resource";
+let $wait_condition=select count(*) = 4 from information_schema.processlist where state="waiting for a resource";
 --source include/wait_condition.inc
 --error ER_LOCK_DEADLOCK
-insert t1 values (3);
+insert t1 values (6);
 unlock tables;
+
+connection con_a;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_a;
+
+connection con_b;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_b;
+
+connection con_c;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_c;
+
 connection con_d;
 --error ER_DUP_ENTRY
 reap;
 unlock tables;
 disconnect con_d;
+
 connection default;
 drop table t1;
-
 
 --disable_result_log
 --disable_query_log

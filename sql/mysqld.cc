@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3718,8 +3718,6 @@ static int init_server_components()
   if (table_cache_init() | table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
-  wt_init();
-
   query_cache_result_size_limit(query_cache_limit);
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_init();
@@ -3731,6 +3729,7 @@ static int init_server_components()
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
+  wt_init();
 
   /* Setup logs */
 
@@ -7471,7 +7470,7 @@ static void usage(void)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
   puts("\
-Copyright (C) 2000 MySQL AB, by Monty and others\n\
+Copyright (C) 2000-2008 MySQL AB, Monty and others, 2008-2009 Sun Microsystems, Inc.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
 Starts the MySQL database server\n");

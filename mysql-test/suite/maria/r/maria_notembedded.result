@@ -30,9 +30,24 @@ insert t1 values (2);
 lock table t1 write concurrent;
 insert t1 values (3);
 insert t1 values (2);
+lock table t1 write concurrent;
+insert t1 values (4);
 insert t1 values (3);
+lock table t1 write concurrent;
+insert t1 values (5);
+insert t1 values (4);
+lock table t1 write concurrent;
+insert t1 values (6);
+insert t1 values (5);
+insert t1 values (6);
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 unlock tables;
 ERROR 23000: Duplicate entry '2' for key 'a'
+unlock tables;
+ERROR 23000: Duplicate entry '3' for key 'a'
+unlock tables;
+ERROR 23000: Duplicate entry '4' for key 'a'
+unlock tables;
+ERROR 23000: Duplicate entry '5' for key 'a'
 unlock tables;
 drop table t1;

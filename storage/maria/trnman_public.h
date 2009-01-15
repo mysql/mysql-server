@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
 #define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)
 #define trnman_rollback_trn(T)  trnman_end_trn(T, FALSE)
-void trnman_free_trn(TRN *trn);
 int trnman_can_read_from(TRN *trn, TrID trid);
 TRN *trnman_trid_to_trn(TRN *trn, TrID trid);
 void trnman_new_statement(TRN *trn);

@@ -1,4 +1,5 @@
-/* Copyright (C) 2006,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2004-2008 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+   Copyright (C) 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,9 +41,11 @@ C_MODE_END
   Note that in future versions, only *transactional* Maria tables can
   rollback, so this flag should be up or down conditionally.
 */
-#define MARIA_CANNOT_ROLLBACK HA_NO_TRANSACTIONS
 #ifdef MARIA_CANNOT_ROLLBACK
+#define CANNOT_ROLLBACK_FLAG HA_NO_TRANSACTIONS
 #define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
+#else
+#define CANNOT_ROLLBACK_FLAG 0
 #endif
 #define THD_TRN (*(TRN **)thd_ha_data(thd, maria_hton))
 
@@ -716,7 +719,7 @@ handler(hton, table_arg), file(0),
 int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-                HA_FILE_BASED | HA_CAN_GEOMETRY | MARIA_CANNOT_ROLLBACK |
+                HA_FILE_BASED | HA_CAN_GEOMETRY | CANNOT_ROLLBACK_FLAG |
                 HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1), bulk_insert_single_undo(BULK_INSERT_NONE)

@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ C_MODE_START
 #include "trnman_public.h"
 #include "ma_loghandler_lsn.h"
 
-/*
+/**
   trid - 6 uchar transaction identifier. Assigned when a transaction
   is created. Transaction can always be identified by its trid,
   even after transaction has ended.
@@ -33,7 +33,7 @@ C_MODE_START
   when short_id is 0, TRN is not initialized, for all practical purposes
   it could be considered unused.
 
-  when commit_trid is ~(TrID)0 the transaction is running, otherwise it's
+  when commit_trid is MAX_TRID the transaction is running, otherwise it's
   committed.
 
   state_lock mutex protects the state of a TRN, that is whether a TRN
@@ -46,7 +46,7 @@ struct st_ma_transaction
   LF_PINS              *pins;
   WT_THD               *wt;
   pthread_mutex_t      state_lock;
-  void                 *used_tables;  /* Tables used by transaction */
+  void                 *used_tables;  /**< Tables used by transaction */
   TRN                  *next, *prev;
   TrID                 trid, min_read_from, commit_trid;
   LSN		       rec_lsn, undo_lsn;
@@ -56,6 +56,7 @@ struct st_ma_transaction
 };
 
 #define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)
+#define MAX_TRID (~(TrID)0)
 
 extern WT_RESOURCE_TYPE ma_rc_dup_unique;
 

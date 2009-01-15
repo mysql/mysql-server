@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ static TrID global_trid_generator;
   The default value is used when transaction manager not initialize;
   Probably called from maria_chk
 */
-static TrID trid_min_read_from= ~(TrID) 0;
+static TrID trid_min_read_from= MAX_TRID;
 
 /* the mutex for everything above */
 static pthread_mutex_t LOCK_trn_list;
@@ -59,6 +59,7 @@ static TRN **short_trid_to_active_trn;
 /* locks for short_trid_to_active_trn and pool */
 static my_atomic_rwlock_t LOCK_short_trid_to_trn, LOCK_pool;
 static my_bool default_trnman_end_trans_hook(TRN *, my_bool, my_bool);
+static void trnman_free_trn(TRN *);
 
 my_bool (*trnman_end_trans_hook)(TRN *, my_bool, my_bool)=
   default_trnman_end_trans_hook;
@@ -88,6 +89,7 @@ void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
   trn->locked_tables= locked_tables;
 }
 
+/** Wake up threads waiting for this transaction */
 static void wt_thd_release_self(TRN *trn)
 {
   if (trn->wt)
@@ -149,12 +151,12 @@ int trnman_init(TrID initial_trid)
   */
 
   active_list_max.trid= active_list_min.trid= 0;
-  active_list_max.min_read_from= ~(TrID) 0;
+  active_list_max.min_read_from= MAX_TRID;
   active_list_max.next= active_list_min.prev= 0;
   active_list_max.prev= &active_list_min;
   active_list_min.next= &active_list_max;
 
-  committed_list_max.commit_trid= ~(TrID) 0;
+  committed_list_max.commit_trid= MAX_TRID;
   committed_list_max.next= committed_list_min.prev= 0;
   committed_list_max.prev= &committed_list_min;
   committed_list_min.next= &committed_list_max;
@@ -198,6 +200,7 @@ void trnman_destroy()
   {
     TRN *trn= pool;
     pool= pool->next;
+    DBUG_ASSERT(trn->wt == NULL);
     pthread_mutex_destroy(&trn->state_lock);
     my_free((void *)trn, MYF(0));
   }
@@ -251,10 +254,12 @@ static uint get_short_trid(TRN *trn)
   return res;
 }
 
-/*
-  DESCRIPTION
-    start a new transaction, allocate and initialize transaction object
-    mutex and cond will be used for lock waits
+/**
+  Allocates and initialzies a new TRN object
+
+  @note the 'wt' parameter can only be 0 in a single-threaded code (or,
+  generally, where threads cannot block each other), otherwise the
+  first call to the deadlock detector will sigsegv.
 */
 
 TRN *trnman_new_trn(WT_THD *wt)
@@ -338,7 +343,8 @@ TRN *trnman_new_trn(WT_THD *wt)
     trn->min_read_from= trn->trid + 1;
   }
 
-  trn->commit_trid=  ~(TrID)0;
+  /* no other transaction can read changes done by this one */
+  trn->commit_trid=  MAX_TRID;
   trn->rec_lsn= trn->undo_lsn= trn->first_undo_lsn= 0;
   trn->used_tables= 0;
 
@@ -394,6 +400,7 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
 
   /* if a rollback, all UNDO records should have been executed */
   DBUG_ASSERT(commit || trn->undo_lsn == 0);
+  DBUG_ASSERT(trn != &dummy_transaction_object);
   DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
 
   pthread_mutex_lock(&LOCK_trn_list);
@@ -429,7 +436,8 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
   }
 
   pthread_mutex_lock(&trn->state_lock);
-  trn->commit_trid= global_trid_generator;
+  if (commit)
+    trn->commit_trid= global_trid_generator;
   wt_thd_release_self(trn);
   pthread_mutex_unlock(&trn->state_lock);
 
@@ -502,7 +510,7 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
   running. It may even be called automatically on checkpoints if no
   transactions are running.
 */
-void trnman_free_trn(TRN *trn)
+static void trnman_free_trn(TRN *trn)
 {
   /*
      union is to solve strict aliasing issue.
@@ -580,6 +588,16 @@ int trnman_can_read_from(TRN *trn, TrID trid)
   return can;
 }
 
+/**
+  Finds a TRN by its TrID
+
+  @param trn    current trn. Needed for pinning pointers (see lf_pin)
+  @param trid   trid to search for
+
+  @return found trn or 0
+
+  @note that trn is returned with its state locked!
+*/
 TRN *trnman_trid_to_trn(TRN *trn, TrID trid)
 {
   TRN **found;
@@ -604,7 +622,7 @@ TRN *trnman_trid_to_trn(TRN *trn, TrID trid)
   lf_hash_search_unpin(trn->pins);
 
   /* Gotcha! */
-  return *found; /* note that TRN is returned locked !!! */
+  return *found;
 }
 
 /* TODO: the stubs below are waiting for savepoints to be implemented */
