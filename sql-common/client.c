@@ -2020,7 +2020,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
-    struct addrinfo *res_lst, hints, *t_res;
+    struct addrinfo *res_lst= NULL, hints;
     int gai_errno;
     char port_buf[NI_MAXSERV];
  
@@ -2060,16 +2060,18 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
       set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                ER(CR_UNKNOWN_HOST), host, errno);
+      
+      if (res_lst)
+        freeaddrinfo(res_lst);
 
       goto error;
     }
 
     /* We only look at the first item (something to think about changing in the future) */
-    t_res= res_lst; 
     {
       DBUG_PRINT("info",("Creating socket : Family %d, Type %d, Protocol %d",
-                         t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol));
-      sock= my_socket_create(t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol);
+                         res_lst->ai_family, res_lst->ai_socktype, res_lst->ai_protocol));
+      sock= my_socket_create(res_lst->ai_family, res_lst->ai_socktype, res_lst->ai_protocol);
       if (!my_socket_valid(sock))
       {
         DBUG_PRINT("info",("Socket created was invalid"));
@@ -2100,6 +2102,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
           DBUG_PRINT("info",("getaddrinfo error %d", gai_errno));
           set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                    ER(CR_UNKNOWN_HOST), mysql->options.bind_name, errno);
+
+          if (clientBindAddrInfo)
+            freeaddrinfo(clientBindAddrInfo);
+          
           freeaddrinfo(res_lst);
           goto error;
         }
@@ -2149,7 +2155,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         goto error;
       }
 
-      if (my_connect(MY_SOCKET_FORMAT_VALUE(sock), t_res->ai_addr, t_res->ai_addrlen,
+      if (my_connect(MY_SOCKET_FORMAT_VALUE(sock), res_lst->ai_addr, res_lst->ai_addrlen,
                      mysql->options.connect_timeout))
       {
         DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
