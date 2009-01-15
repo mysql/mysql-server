@@ -2002,7 +2002,7 @@ void st_select_lex::print_limit(THD *thd,
        item->substype() == Item_subselect::ALL_SUBS))
   {
     DBUG_ASSERT(!item->fixed ||
-                select_limit->val_int() == LL(1) && offset_limit == 0);
+                (select_limit->val_int() == LL(1) && offset_limit == 0));
     return;
   }
 
