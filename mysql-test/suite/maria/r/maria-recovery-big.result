@@ -4,7 +4,6 @@ create database mysqltest;
 use mysqltest;
 * TEST of recovery with blobs
 * shut down mysqld, removed logs, restarted it
-set @@max_allowed_packet=32000000;
 create table t1 (a int, b longtext) engine=maria table_checksum=1;
 * copied t1 for feeding_recovery
 insert into t1 values (1,"123456789012345678901234567890"),(2,"09876543210987654321");
