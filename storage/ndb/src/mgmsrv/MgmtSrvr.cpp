@@ -695,6 +695,52 @@ MgmtSrvr::setClusterLog(const Config* config)
 }
 
 
+
+static void
+copy_dynamic_ports(const Config* from, const Config* to)
+{
+  DBUG_ENTER("copy_dynamic_ports");
+  ConfigIter iter(from, CFG_SECTION_CONNECTION);
+  for(; iter.valid(); iter.next())
+  {
+    Uint32 node1 = 0;
+    Uint32 node2 = 0;
+    Uint32 port = 0;
+    require(iter.get(CFG_CONNECTION_NODE_1, &node1) == 0 &&
+            iter.get(CFG_CONNECTION_NODE_2, &node2) == 0 &&
+            iter.get(CFG_CONNECTION_SERVER_PORT, &port) == 0);
+
+    if ((int)port > 0) // Not dynamic port
+      continue;
+
+    DBUG_PRINT("info", ("Found dynamic port: %d between %d->%d",
+                        port, node1, node2));
+
+    /* Find the connecton in other config */
+    ConfigIter itB(to, CFG_SECTION_CONNECTION);
+    Uint32 node1_B, node2_B;
+    while(itB.get(CFG_CONNECTION_NODE_1, &node1_B) == 0 &&
+          itB.get(CFG_CONNECTION_NODE_2, &node2_B) == 0)
+    {
+      if (node1 == node1_B && node2 == node2_B)
+      {
+        ConfigValues::Iterator itC(to->m_configValues->m_config,
+                                   itB.m_config);
+
+        require(itC.set(CFG_CONNECTION_SERVER_PORT, (unsigned)port));
+
+        DBUG_PRINT("info", ("Set dynamic port: %d between %d->%d",
+                            port, node1, node2));
+      }
+
+      if(itB.next() != 0)
+        break;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void
 MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 {
@@ -707,10 +753,13 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
   _ownNodeId= node_id;
 
-  // TODO Magnus, Copy information about dynamic ports from
-  // new to old or save that info elsewhere
+  if (m_local_config)
+  {
+    // Copy dynamic ports to new config
+    copy_dynamic_ports(m_local_config, new_config);
+    delete m_local_config;
+  }
 
-  delete m_local_config;
   m_local_config= new Config(new_config); // Copy
   require(m_local_config);
 
@@ -3394,6 +3443,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
   Uint32 type = NODE_TYPE_DB + 1;
   if(node != 0){
+    // Set parameter only in the specified node
     if(iter.find(CFG_NODE_ID, node) != 0){
       msg.assign("Unable to find node (iter.find())");
       return -1;
@@ -3403,6 +3453,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
       return -1;
     }
   } else {
+    // Set parameter in all DB nodes
     do {
       if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
 	msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
@@ -3483,13 +3534,13 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
 
 int
-MgmtSrvr::setConnectionDbParameter(int node1, 
-				   int node2,
-				   int param,
-				   int value,
-				   BaseString& msg)
+MgmtSrvr::setConnectionDbParameter(int node1, int node2,
+                                   int param, int value,
+                                   BaseString& msg)
 {
   DBUG_ENTER("MgmtSrvr::setConnectionDbParameter");
+  DBUG_PRINT("enter", ("node1: %d, node2: %d, param: %d, value: %d",
+                       node1, node2, param, value));
 
   Uint32 current_value,new_value;
   Guard g(m_local_config_mutex);
@@ -3502,12 +3553,18 @@ MgmtSrvr::setConnectionDbParameter(int node1,
 
   for(;iter.valid();iter.next()) {
     Uint32 n1,n2;
-    iter.get(CFG_CONNECTION_NODE_1, &n1);
-    iter.get(CFG_CONNECTION_NODE_2, &n2);
-    if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
-       || (n1 == (unsigned)node2 && n2 == (unsigned)node1))
+    if (iter.get(CFG_CONNECTION_NODE_1, &n1) != 0 ||
+        iter.get(CFG_CONNECTION_NODE_2, &n2) != 0)
+    {
+      msg.assign("Could not get node1 or node2 from connection section");
+      DBUG_RETURN(-6);
+    }
+
+    if((n1 == (unsigned)node1 && n2 == (unsigned)node2) ||
+       (n1 == (unsigned)node2 && n2 == (unsigned)node1))
       break;
   }
+
   if(!iter.valid()) {
     msg.assign("Unable to find connection between nodes");
     DBUG_RETURN(-2);
@@ -3526,29 +3583,28 @@ MgmtSrvr::setConnectionDbParameter(int node1,
     DBUG_RETURN(-4);
   }
 
-  // TODO Magnus, in theory this new config should be saved on
-  // nodes, but it's probably a better idea to save this
-  // dynamic information elsewhere instead.
-
   if(iter.get(param, &new_value) != 0) {
     msg.assign("Unable to get parameter after setting it.");
     DBUG_RETURN(-5);
   }
 
   msg.assfmt("%u -> %u",current_value,new_value);
+
+  DBUG_PRINT("exit", ("Set parameter(%d) to %d for %d -> %d, old: %d",
+                      param, new_value, node1, node2, current_value));
   DBUG_RETURN(1);
 }
 
 
 int
-MgmtSrvr::getConnectionDbParameter(int node1, 
-				   int node2,
-				   int param,
-				   int *value,
-				   BaseString& msg)
+MgmtSrvr::getConnectionDbParameter(int node1, int node2,
+                                   int param, int *value,
+                                   BaseString& msg)
 {
-
   DBUG_ENTER("MgmtSrvr::getConnectionDbParameter");
+  DBUG_PRINT("enter", ("node1: %d, node2: %d, param: %d",
+                       node1, node2, param));
+
   Guard g(m_local_config_mutex);
   ConfigIter iter(m_local_config, CFG_SECTION_CONNECTION);
 
@@ -3559,10 +3615,15 @@ MgmtSrvr::getConnectionDbParameter(int node1,
 
   for(;iter.valid();iter.next()) {
     Uint32 n1=0,n2=0;
-    iter.get(CFG_CONNECTION_NODE_1, &n1);
-    iter.get(CFG_CONNECTION_NODE_2, &n2);
-    if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
-       || (n1 == (unsigned)node2 && n2 == (unsigned)node1))
+    if (iter.get(CFG_CONNECTION_NODE_1, &n1) != 0 ||
+        iter.get(CFG_CONNECTION_NODE_2, &n2) != 0)
+    {
+      msg.assign("Could not get node1 or node2 from connection section");
+      DBUG_RETURN(-1);
+    }
+
+    if((n1 == (unsigned)node1 && n2 == (unsigned)node2) ||
+       (n1 == (unsigned)node2 && n2 == (unsigned)node1))
       break;
   }
   if(!iter.valid()) {
@@ -3577,6 +3638,8 @@ MgmtSrvr::getConnectionDbParameter(int node1,
 
   msg.assfmt("%d",*value);
 
+  DBUG_PRINT("exit", ("Return parameter(%d): %u for %d -> %d, msg: %s",
+                      param, *value, node1, node2, msg.c_str()));
   DBUG_RETURN(1);
 }
 
