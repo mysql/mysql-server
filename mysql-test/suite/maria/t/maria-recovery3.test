@@ -39,7 +39,6 @@ let $mvr_restore_old_snapshot=0;
 # UNDO phase prevents physical comparison, normally,
 # so we'll only use checksums to compare.
 let $mms_compare_physically=0;
-let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 create table t1(a int primary key) engine=maria;
 insert into t1 values(1);
 -- source include/maria_make_snapshot_for_comparison.inc
@@ -64,6 +63,30 @@ drop table t1;
 # Note that even if machine is loaded and thus INSERT is committed
 # before checkpoint happens, test should still pass (though it won't
 # reproduce the conditions of the bug).
+
+# Test for BUG#41493 Maria: two recovery failures (wrong logging of BLOB pages)
+--echo * TEST of logging of BLOBs
+let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=1;
+CREATE TABLE `t1` (
+`blob` blob,
+`blob_key` blob
+) ENGINE=maria ROW_FORMAT=page
+;
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+set global maria_checkpoint_interval=0; # no checkpoints
+INSERT INTO `t1` VALUES (NULL,repeat('A',5198));
+INSERT INTO `t1` VALUES (NULL,repeat('B',65535));
+INSERT INTO `t1` VALUES (repeat('K',5198),repeat('L',2325));
+INSERT INTO `t1` VALUES (repeat('C',65535),NULL);
+INSERT INTO `t1` VALUES (NULL,repeat('D',65535));
+INSERT INTO `t1` VALUES (repeat('E',65535),repeat('F',16111));
+INSERT INTO `t1` VALUES (repeat('G',65535),repeat('H',65535));
+INSERT INTO `t1` VALUES (repeat('I',5198),repeat('J',65535));
+check table t1 extended;
+-- source include/maria_make_snapshot_for_comparison.inc
+-- source include/maria_verify_recovery.inc
+drop table t1;
 
 # clean up everything
 let $mms_purpose=comparison;

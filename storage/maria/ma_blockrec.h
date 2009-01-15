@@ -236,7 +236,11 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info, LSN lsn,
 uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
                                       const uchar *header);
 uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info, LSN lsn,
-                                     const uchar *header, LSN redo_lsn);
+                                     const uchar *header, LSN redo_lsn,
+                                     uint * const number_of_blobs,
+                                     uint * const number_of_ranges,
+                                     pgcache_page_no_t * const first_page,
+                                     pgcache_page_no_t * const last_page);
 my_bool _ma_apply_redo_bitmap_new_page(MARIA_HA *info, LSN lsn,
                                        const uchar *header);
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,

@@ -1412,6 +1412,9 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
 {
   int error= 1;
   uchar *buff;
+  uint number_of_blobs, number_of_ranges;
+  pgcache_page_no_t first_page, last_page;
+  char llbuf1[22], llbuf2[22];
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     return 0;
@@ -1426,11 +1429,19 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
   }
   buff= log_record_buffer.str;
   if (_ma_apply_redo_insert_row_blobs(info, current_group_end_lsn,
-                                      buff, rec->lsn))
+                                      buff, rec->lsn, &number_of_blobs,
+                                      &number_of_ranges,
+                                      &first_page, &last_page))
     goto end;
+  llstr(first_page, llbuf1);
+  llstr(last_page, llbuf2);
+  tprint(tracef, " %u blobs %u ranges, first page %s last %s",
+         number_of_blobs, number_of_ranges, llbuf1, llbuf2);
+
   error= 0;
 
 end:
+  tprint(tracef, " \n");
   return error;
 }
 
