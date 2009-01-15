@@ -1,3 +1,14 @@
+2009-01-14	The InnoDB Team
+
+	* include/trx0roll.h, trx/trx0roll.c, trx/trx0trx.c:
+	Fix Bug#38187 Error 153 when creating savepoints
+
+2009-01-14	The InnoDB Team
+
+	* dict/dict0load.c:
+	Fix Bug#42075 dict_load_indexes failure in dict_load_table will
+	corrupt the dictionary cache
+
 2009-01-13	The InnoDB Team
 
 	* include/hash0hash.h, include/dict0dict.ic, dict/dict0dict.c,
