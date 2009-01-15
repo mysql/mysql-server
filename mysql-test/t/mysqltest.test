@@ -2206,6 +2206,14 @@ connection $x;
 connection $y;
 --echo $CURRENT_CONNECTION
 
+# Disconnect the not selected connection
+disconnect $x;
+--echo $CURRENT_CONNECTION
+
+# Disconnect the selected connection
+disconnect $y;
+--echo $CURRENT_CONNECTION
+
 
 --echo End of tests
 
