@@ -60,13 +60,16 @@ STRIP=1				# Option ignored
 SILENT=0
 PLATFORM=""
 TMP=/tmp
+NEW_NAME=""			# Final top directory and TAR package name
 SUFFIX=""
+SHORT_PRODUCT_TAG=""		# If don't want server suffix in package name
 NDBCLUSTER=""			# Option ignored
 
 for arg do
   case "$arg" in
     --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
     --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
+    --short-product-tag=*) SHORT_PRODUCT_TAG=`echo "$arg" | sed -e "s;--short-product-tag=;;"` ;;
     --no-strip) STRIP=0 ;;
     --machine=*) machine=`echo "$arg" | sed -e "s;--machine=;;"` ;;
     --platform=*) PLATFORM=`echo "$arg" | sed -e "s;--platform=;;"` ;;
@@ -113,7 +116,11 @@ case $PLATFORM in
 esac
 
 # Change the distribution to a long descriptive name
-NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-@VERSION@-$PLATFORM$SUFFIX
+if [ x"$SHORT_PRODUCT_TAG = x"" ] ; then
+  NEW_NAME=mysql-$SHORT_PRODUCT_TAG-@VERSION@-$PLATFORM$SUFFIX
+else
+  NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-@VERSION@-$PLATFORM$SUFFIX
+fi
 
 # ----------------------------------------------------------------------
 # Define BASE, and remove the old BASE directory if any
