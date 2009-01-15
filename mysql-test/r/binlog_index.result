@@ -21,6 +21,7 @@ flush logs;
 *** must be a warning master-bin.000001 was not found ***
 Warnings:
 Warning	1612	Being purged log MYSQLTEST_VARDIR/log/master-bin.000001 was not found
+Warning	1612	Being purged log MYSQLTEST_VARDIR/log/master-bin.000001 was not found
 *** must show one record, of the active binlog, left in the index file after PURGE ***
 show binary logs;
 Log_name	File_size

@@ -951,6 +951,26 @@ bool multi_delete::send_eof()
 ****************************************************************************/
 
 /*
+  Row-by-row truncation if the engine does not support table recreation.
+  Probably a InnoDB table.
+*/
+
+static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
+{
+  bool error, save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  DBUG_ENTER("mysql_truncate_by_delete");
+  table_list->lock_type= TL_WRITE;
+  mysql_init_select(thd->lex);
+  thd->clear_current_stmt_binlog_row_based();
+  error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
+  ha_autocommit_or_rollback(thd, error);
+  end_trans(thd, error ? ROLLBACK : COMMIT);
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_RETURN(error);
+}
+
+
+/*
   Optimize delete of all rows by doing a full generate of the table
   This will work even if the .ISM and .ISD tables are destroyed
 
@@ -1055,24 +1075,6 @@ end:
   DBUG_RETURN(error);
 
 trunc_by_del:
-  /* Probably InnoDB table */
-  ulonglong save_options= thd->options;
-  table_list->lock_type= TL_WRITE;
-  thd->options&= ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
-  ha_enable_transaction(thd, FALSE);
-  mysql_init_select(thd->lex);
-  bool save_binlog_row_based= thd->current_stmt_binlog_row_based;
-  thd->clear_current_stmt_binlog_row_based();
-  error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-                      HA_POS_ERROR, LL(0), TRUE);
-  ha_enable_transaction(thd, TRUE);
-  /*
-    Safety, in case the engine ignored ha_enable_transaction(FALSE)
-    above. Also clears thd->transaction.*.
-  */
-  error= ha_autocommit_or_rollback(thd, error);
-  ha_commit(thd);
-  thd->options= save_options;
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  error= mysql_truncate_by_delete(thd, table_list);
   DBUG_RETURN(error);
 }

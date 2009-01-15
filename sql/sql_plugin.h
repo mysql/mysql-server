@@ -54,6 +54,7 @@ typedef struct st_mysql_show_var SHOW_VAR;
 #define PLUGIN_IS_UNINITIALIZED 4
 #define PLUGIN_IS_READY         8
 #define PLUGIN_IS_DYING         16
+#define PLUGIN_IS_DISABLED      32
 
 /* A handle for the dynamic library containing a plugin or plugins. */
 

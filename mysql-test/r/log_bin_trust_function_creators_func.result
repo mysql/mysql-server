@@ -10,10 +10,7 @@ create table t2 (a INT);
 SELECT @@log_bin_trust_function_creators;
 @@log_bin_trust_function_creators
 0
-SELECT @@sql_log_bin;
-@@sql_log_bin
-1
-## Creating new function f1 ##
+##  Creating new function f1 fails because no DETERMINISTIC ###
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
 IF (a < 3) THEN 
@@ -21,8 +18,24 @@ INSERT INTO t2 VALUES (a);
 END IF;
 RETURN 1;
 END|
-'Bug: Create Function should give error here because non-super user';
-'is creating function here';
+ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+## Creating new function f1 fails because non-super user ##
+CREATE FUNCTION f1(a INT) RETURNS INT DETERMINISTIC
+BEGIN
+IF (a < 3) THEN
+INSERT INTO t2 VALUES (a);
+END IF;
+RETURN 1;
+END|
+ERROR HY000: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+## Creating new function f1 succeeds ##
+CREATE FUNCTION f1(a INT) RETURNS INT DETERMINISTIC
+BEGIN
+IF (a < 3) THEN
+INSERT INTO t2 VALUES (a);
+END IF;
+RETURN 1;
+END|
 ## Creating new table t1 ##
 CREATE TABLE t1 (a INT);
 ## Inserting some records in t1 ##
