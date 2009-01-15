@@ -112,3 +112,78 @@ show tables;
 show tables;
 drop view v1, `v-1`;
 drop table t1;
+
+#
+# Bug #33094: Error in upgrading from 5.0 to 5.1 when table contains triggers
+# Bug #41385: Crash when attempting to repair a #mysql50# upgraded table with
+#             triggers
+#
+SET NAMES utf8;
+CREATE TABLE `#mysql50#@` (a INT);
+SHOW TABLES;
+SET NAMES DEFAULT;
+--echo mysqlcheck --fix-table-names --databases test
+--exec $MYSQL_CHECK --fix-table-names --databases test
+SET NAMES utf8;
+SHOW TABLES;
+DROP TABLE `@`;
+
+CREATE TABLE `я` (a INT);
+SET NAMES DEFAULT;
+--echo mysqlcheck --default-character-set="latin1" --databases test
+# Error returned depends on platform, replace it with "Table doesn't exist"
+--replace_result "Can't find file: './test/@003f.frm' (errno: 22)" "Table doesn't exist" "Table 'test.?' doesn't exist" "Table doesn't exist"
+--exec $MYSQL_CHECK --default-character-set="latin1" --databases test
+--echo mysqlcheck --default-character-set="utf8" --databases test
+--exec $MYSQL_CHECK --default-character-set="utf8" --databases test
+SET NAMES utf8;
+DROP TABLE `я`;
+SET NAMES DEFAULT;
+
+CREATE DATABASE `#mysql50#a@b`;
+USE `#mysql50#a@b`;
+CREATE TABLE `#mysql50#c@d` (a INT);
+CREATE TABLE t1 (a INT);
+
+# Create 5.0 like triggers
+--write_file $MYSQLTEST_VARDIR/master-data/a@b/c@d.TRG
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1 BEFORE INSERT ON `c@d` FOR EACH ROW SET NEW.a = 10 * NEW.a'
+sql_modes=0
+definers='root@localhost'
+EOF
+--write_file $MYSQLTEST_VARDIR/master-data/a@b/tr1.TRN
+TYPE=TRIGGERNAME
+trigger_table=c@d
+EOF
+--write_file $MYSQLTEST_VARDIR/master-data/a@b/t1.TRG
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr2 BEFORE INSERT ON `a@b`.t1 FOR EACH ROW SET NEW.a = 100 * NEW.a'
+sql_modes=0
+definers='root@localhost'
+EOF
+--write_file $MYSQLTEST_VARDIR/master-data/a@b/tr2.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE TRIGGER_SCHEMA="#mysql50#a@b" ORDER BY trigger_name;
+
+--echo mysqlcheck --fix-db-names --fix-table-names --all-databases
+--exec $MYSQL_CHECK --fix-db-names --fix-table-names --all-databases
+
+USE `a@b`;
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE TRIGGER_SCHEMA="a@b" ORDER BY trigger_name;
+
+INSERT INTO `c@d` VALUES (2), (1);
+SELECT * FROM `c@d`;
+INSERT INTO t1 VALUES (3), (5);
+SELECT * FROM t1;
+
+DROP DATABASE `a@b`;
+
+USE test;
+
+--echo End of 5.1 tests

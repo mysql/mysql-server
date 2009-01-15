@@ -1,7 +1,7 @@
-# suite/funcs_1/t/is_collation_character_set_applicability.test
+# suite/funcs_1/t/is_coll_char_set_appl.test
 #
 # Check the layout of information_schema.collation_character_set_applicability
-# and some functionality realted tests.
+# and some functionality related tests.
 #
 # Author:
 # 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of

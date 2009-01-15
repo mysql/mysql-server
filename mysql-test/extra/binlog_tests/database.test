@@ -28,3 +28,5 @@ enable_warnings;
 insert into t1 values (1);
 drop table tt1, t1;
 source include/show_binlog_events.inc;
+
+FLUSH STATUS;

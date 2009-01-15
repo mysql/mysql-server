@@ -1,0 +1,27 @@
+#
+# Bug#39438 Testcase for Bug#39436 crashes on 5.1 in fil_space_get_latch
+# http://bugs.mysql.com/39438
+#
+# This test must be run with innodb_file_per_table=1 because the crash
+# only occurs if that option is turned on and DISCARD TABLESPACE only
+# works with innodb_file_per_table.
+#
+
+-- source include/have_innodb.inc
+
+SET storage_engine=InnoDB;
+
+# we care only that the following SQL commands do not crash the server
+-- disable_query_log
+-- disable_result_log
+
+DROP TABLE IF EXISTS bug39438;
+
+CREATE TABLE bug39438 (id INT) ENGINE=INNODB;
+
+ALTER TABLE bug39438 DISCARD TABLESPACE;
+
+# this crashes the server if the bug is present
+SHOW TABLE STATUS;
+
+DROP TABLE bug39438;
