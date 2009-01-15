@@ -708,6 +708,7 @@ public:
     ScanNumberMask m_scanNumberMask;
     DLList<ScanRecord>::Head m_activeScans;
     DLFifoList<ScanRecord>::Head m_queuedScans;
+    DLFifoList<ScanRecord>::Head m_queuedTupScans;
 
     Uint16 srLqhLognode[4];
     /**

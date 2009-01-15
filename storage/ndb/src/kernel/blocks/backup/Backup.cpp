@@ -2320,7 +2320,7 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 
   sendAbortBackupOrd(signal, ptr, AbortBackupOrd::BackupComplete);
   
-  if(!ptr.p->checkError())
+  if(!ptr.p->checkError() &&  ptr.p->masterData.errorCode == 0)
   {
     if (SEND_BACKUP_COMPLETED_FLAG(ptr.p->flags))
     {
@@ -4908,6 +4908,7 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   default:
 #endif
     ptr.p->setErrorCode(requestType);
+    ptr.p->masterData.errorCode = requestType;
     ok= true;
   }
   ndbrequire(ok);
