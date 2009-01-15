@@ -53,3 +53,135 @@ CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
 CREATE INDEX i1 on t1 (a(3));
 SELECT * FROM t1 WHERE a = 'abcde';
 DROP TABLE t1;
+
+#
+# Bug #37742: HA_EXTRA_KEYREAD flag is set when key contains only prefix of
+# requested column
+#
+
+CREATE TABLE foo (a int, b int, c char(10),
+                  PRIMARY KEY (c(3)),
+                  KEY b (b)
+) engine=innodb;
+
+CREATE TABLE foo2 (a int, b int, c char(10),
+                  PRIMARY KEY (c),
+                  KEY b (b)
+) engine=innodb;
+
+CREATE TABLE bar (a int, b int, c char(10),
+                  PRIMARY KEY (c(3)),
+                  KEY b (b)
+) engine=myisam;
+
+INSERT INTO foo VALUES
+   (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
+   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+
+INSERT INTO bar SELECT * FROM foo;
+INSERT INTO foo2 SELECT * FROM foo;
+
+--query_vertical EXPLAIN SELECT c FROM bar WHERE b>2;
+--query_vertical EXPLAIN SELECT c FROM foo WHERE b>2;
+--query_vertical EXPLAIN SELECT c FROM foo2 WHERE b>2;
+
+--query_vertical EXPLAIN SELECT c FROM bar WHERE c>2;
+--query_vertical EXPLAIN SELECT c FROM foo WHERE c>2;
+--query_vertical EXPLAIN SELECT c FROM foo2 WHERE c>2;
+
+DROP TABLE foo, bar, foo2;
+
+#
+# Bug#41348: INSERT INTO tbl SELECT * FROM temp_tbl overwrites locking type of temp table
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t3,t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS VARCHAR(250)
+ BEGIN
+     return 'hhhhhhh' ;
+ END|
+DELIMITER ;|
+
+CREATE TABLE t1 (a VARCHAR(20), b VARCHAR(20), c VARCHAR(20)) ENGINE=INNODB;
+
+BEGIN WORK;
+
+CREATE TEMPORARY TABLE t2 (a VARCHAR(20), b VARCHAR(20), c varchar(20)) ENGINE=INNODB;
+CREATE TEMPORARY TABLE t3 LIKE t2;
+
+INSERT INTO t1 VALUES ('a','b',NULL),('c','d',NULL),('e','f',NULL);
+
+SET @stmt := CONCAT('INSERT INTO t2 SELECT tbl.a, tbl.b, f1()',' FROM t1 tbl');
+PREPARE stmt1 FROM @stmt;
+
+SET @stmt := CONCAT('INSERT INTO t3', ' SELECT * FROM t2');
+PREPARE stmt3 FROM @stmt;
+
+EXECUTE stmt1;
+
+COMMIT;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt3;
+
+DROP TABLE t1,t3,t2;
+DROP FUNCTION f1;
+
+#
+# Bug#37016: TRUNCATE TABLE removes some rows but not all
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY,
+                 t1_id INT, INDEX par_ind (t1_id),
+                 FOREIGN KEY (t1_id) REFERENCES t1(id)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (3,2);
+
+SET AUTOCOMMIT = 0;
+
+START TRANSACTION;
+--error ER_ROW_IS_REFERENCED_2
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+COMMIT;
+SELECT * FROM t1;
+
+START TRANSACTION;
+--error ER_ROW_IS_REFERENCED_2
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+ROLLBACK;
+SELECT * FROM t1;
+
+SET AUTOCOMMIT = 1;
+
+START TRANSACTION;
+SELECT * FROM t1;
+COMMIT;
+
+--error ER_ROW_IS_REFERENCED_2
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t2 WHERE id = 3;
+
+START TRANSACTION;
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+ROLLBACK;
+SELECT * FROM t1;
+TRUNCATE TABLE t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo End of 5.1 tests
