@@ -74,6 +74,10 @@ public:
     return _ndb_mgm_get_socket(m_handle);
   }
 
+  NodeId nodeid(void) const {
+    return m_nodeid;
+  }
+
   const char* getConnectString() const {
     return m_connect_str.c_str();
   }
