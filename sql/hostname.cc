@@ -138,7 +138,7 @@ char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors)
 {
   char *name= NULL;
 
-  struct addrinfo hints,*res_lst,*t_res;
+  struct addrinfo hints,*res_lst= NULL,*t_res;
   int gxi_error;
   char hostname_buff[NI_MAXHOST];
 
@@ -231,6 +231,9 @@ char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors)
     if (gxi_error == EAI_NONAME )
 #endif
       add_wrong_ip(in);
+
+    if (res_lst)
+      freeaddrinfo(res_lst);
 
     my_free(name, MYF(0));
     DBUG_RETURN(0);
