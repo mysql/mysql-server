@@ -59,6 +59,8 @@ public:
   virtual ~MgmApiSession();
   void runSession();
 
+  static const unsigned SOCKET_TIMEOUT = 30000;
+
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
   void setConfig(Parser_t::Context &ctx, const class Properties &args);
   void showConfig(Parser_t::Context &ctx, const class Properties &args);

@@ -324,8 +324,8 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   : SocketServer::Session(sock), m_mgmsrv(mgm), m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
-  m_input = new SocketInputStream(sock, 30000);
-  m_output = new BufferedSockOutputStream(sock, 30000);
+  m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
+  m_output = new BufferedSockOutputStream(sock, SOCKET_TIMEOUT);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;
@@ -386,11 +386,12 @@ MgmApiSession::runSession()
 
     if (m_parser->run(ctx, *this))
     {
-      stop= m_stop;
+      stop= m_stop; // Has session been stopped
       assert(ctx.m_status == Parser_t::Ok);
     }
     else
     {
+      stop= m_stop; // Has session been stopped
       const char* msg= NULL;
       switch(ctx.m_status) {
       case Parser_t::Eof:    // Client disconnected
@@ -1976,7 +1977,8 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     int r = 0;
     size_t start = 0;
     do {
-      if((r= read_socket(m_socket,30000,
+      if((r= read_socket(m_socket,
+                         SOCKET_TIMEOUT,
                          &buf64[start],
                          len64-start)) < 1)
       {

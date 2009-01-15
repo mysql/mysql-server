@@ -23,6 +23,7 @@
 #include <NdbOut.hpp>
 #include <NdbThread.h>
 #include <NdbSleep.h>
+#include <NdbTick.h>
 
 #define DEBUG(x) ndbout << x << endl;
 
@@ -339,8 +340,8 @@ SocketServer::checkSessionsImpl()
   }
 }
 
-void
-SocketServer::stopSessions(bool wait){
+bool
+SocketServer::stopSessions(bool wait, unsigned wait_timeout){
   int i;
   m_session_mutex.lock();
   for(i = m_sessions.size() - 1; i>=0; i--)
@@ -352,17 +353,26 @@ SocketServer::stopSessions(bool wait){
   for(i = m_services.size() - 1; i>=0; i--)
     m_services[i].m_service->stopSessions();
   
-  if(wait){
-    m_session_mutex.lock();
-    while(m_sessions.size() > 0){
-      checkSessionsImpl();
-      m_session_mutex.unlock();
-      NdbSleep_MilliSleep(100);
-      m_session_mutex.lock();
-    }
+  if(!wait)
+    return false; // No wait
+
+  NDB_TICKS start = NdbTick_CurrentMillisecond();
+  m_session_mutex.lock();
+  while(m_sessions.size() > 0){
+    checkSessionsImpl();
     m_session_mutex.unlock();
+
+    if (wait_timeout > 0 &&
+        (NdbTick_CurrentMillisecond() - start) > wait_timeout)
+      return false; // Wait abandoned
+
+    NdbSleep_MilliSleep(100);
+    m_session_mutex.lock();
   }
+  m_session_mutex.unlock();
+  return true; // All sessions gone
 }
+
 
 /***** Session code ******/
 
