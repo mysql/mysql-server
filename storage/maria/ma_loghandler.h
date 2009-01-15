@@ -144,6 +144,7 @@ enum translog_record_type
   LOGREC_UNDO_BULK_INSERT,
   LOGREC_REDO_BITMAP_NEW_PAGE,
   LOGREC_IMPORTED_TABLE,
+  LOGREC_DEBUG_INFO,
   LOGREC_FIRST_FREE,
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
 };
@@ -165,6 +166,12 @@ enum en_key_op
   KEY_OP_MULTI_COPY,    /* List of memcpy()s with fixed-len sources in page */
   KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
   KEY_OP_COMPACT_PAGE   /* Compact key page */
+};
+
+
+enum translog_debug_info_type
+{
+  LOGREC_DEBUG_INFO_QUERY
 };
 
 /* Size of log file; One log file is restricted to 4G */
@@ -323,6 +330,9 @@ translog_assign_id_to_share_from_recovery(struct st_maria_share *share,
 extern my_bool translog_walk_filenames(const char *directory,
                                        my_bool (*callback)(const char *,
                                                            const char *));
+extern my_bool translog_log_debug_info(TRN *trn,
+                                       enum translog_debug_info_type type,
+                                       uchar *info, size_t length);
 
 enum enum_translog_status
 {

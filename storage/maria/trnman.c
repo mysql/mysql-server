@@ -88,6 +88,19 @@ void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
   trn->locked_tables= locked_tables;
 }
 
+#ifdef EXTRA_DEBUG
+uint16 trnman_get_state(TRN *trn)
+{
+  return trn->state;
+}
+
+void trnman_set_state(TRN *trn, uint16 state)
+{
+  trn->state= state;
+}
+#endif
+
+
 static void wt_thd_release_self(TRN *trn)
 {
   if (trn->wt)
