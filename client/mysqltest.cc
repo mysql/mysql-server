@@ -4507,24 +4507,23 @@ void select_connection(struct st_command *command)
 
 void do_close_connection(struct st_command *command)
 {
-  char *p= command->first_argument, *name;
-  struct st_connection *con;
-
   DBUG_ENTER("close_connection");
-  DBUG_PRINT("enter",("name: '%s'",p));
 
-  if (!*p)
-    die("Missing connection name in disconnect");
-  name= p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
+  struct st_connection *con;
+  static DYNAMIC_STRING ds_connection;
+  const struct command_arg close_connection_args[] = {
+    { "connection_name", ARG_STRING, TRUE, &ds_connection,
+      "Name of the connection to close." }
+  };
+  check_command_args(command, command->first_argument,
+                     close_connection_args,
+                     sizeof(close_connection_args)/sizeof(struct command_arg),
+                     ' ');
 
-  if (*p)
-    *p++= 0;
-  command->last_argument= p;
+  DBUG_PRINT("enter",("connection name: '%s'", ds_connection.str));
 
-  if (!(con= find_connection_by_name(name)))
-    die("connection '%s' not found in connection pool", name);
+  if (!(con= find_connection_by_name(ds_connection.str)))
+    die("connection '%s' not found in connection pool", ds_connection.str);
 
   DBUG_PRINT("info", ("Closing connection %s", con->name));
 #ifndef EMBEDDED_LIBRARY
@@ -4562,6 +4561,13 @@ void do_close_connection(struct st_command *command)
   */
   if (!(con->name = my_strdup("-closed_connection-", MYF(MY_WME))))
     die("Out of memory");
+
+  if (con == cur_con)
+  {
+    /* Current connection was closed */
+    var_set_int("$mysql_get_server_version", 0xFFFFFFFF);
+    var_set_string("$CURRENT_CONNECTION", con->name);
+  }
 
   DBUG_VOID_RETURN;
 }
