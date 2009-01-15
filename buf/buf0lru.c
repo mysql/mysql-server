@@ -377,6 +377,12 @@ scan_again:
 				buf_LRU_block_free_hashed_page((buf_block_t*)
 							       bpage);
 			} else {
+				/* The block_mutex should have been
+				released by buf_LRU_block_remove_hashed_page()
+				when it returns BUF_BLOCK_ZIP_FREE. */
+				ut_ad(block_mutex == &buf_pool_zip_mutex);
+				ut_ad(!mutex_own(block_mutex));
+
 				/* The compressed block descriptor
 				(bpage) has been deallocated and
 				block_mutex released.  Also,
@@ -1541,6 +1547,10 @@ alloc:
 
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	} else {
+		/* The block_mutex should have been released by
+		buf_LRU_block_remove_hashed_page() when it returns
+		BUF_BLOCK_ZIP_FREE. */
+		ut_ad(block_mutex == &buf_pool_zip_mutex);
 		mutex_enter(block_mutex);
 	}
 
