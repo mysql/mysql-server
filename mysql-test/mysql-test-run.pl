@@ -163,6 +163,7 @@ our $exe_my_print_defaults;
 our $exe_perror;
 our $lib_udf_example;
 our $lib_example_plugin;
+our $lib_simple_parser;
 our $exe_libtool;
 
 our $opt_bench= 0;
@@ -1723,6 +1724,10 @@ sub executable_setup () {
       mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
                       "$glob_basedir/storage/example/.libs/ha_example.so",);
 
+    # Look for the simple_parser library
+    $lib_simple_parser=
+      mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
+                      "$glob_basedir/plugin/fulltext/.libs/mypluglib.so",);
   }
 
   # Look for mysqltest executable
@@ -2206,6 +2211,14 @@ sub environment_setup () {
     ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
 
   # ----------------------------------------------------
+  # Add the path where mysqld will find mypluglib.so
+  # ----------------------------------------------------
+  $ENV{'SIMPLE_PARSER'}=
+    ($lib_simple_parser ? basename($lib_simple_parser) : "");
+  $ENV{'SIMPLE_PARSER_OPT'}=
+    ($lib_simple_parser ? "--plugin_dir=" . dirname($lib_simple_parser) : "");
+
+  # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------
   $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
@@ -2392,6 +2405,9 @@ sub remove_stale_vardir () {
     mtr_verbose("Removing $opt_vardir/");
     mtr_rmtree("$opt_vardir/");
   }
+  # Remove the "tmp" dir
+  mtr_verbose("Removing $opt_tmpdir/");
+  mtr_rmtree("$opt_tmpdir/");
 }
 
 #

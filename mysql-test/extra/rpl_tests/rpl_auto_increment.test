@@ -145,6 +145,23 @@ select * from t3 order by a;
 connection master;
 
 drop table t1,t2,t3;
+sync_slave_with_master;
+
+#
+# BUG#41986 Replication slave does not pick up proper AUTO_INCREMENT value for Innodb tables
+#
+connection master;
+set auto_increment_increment=1;
+set auto_increment_offset=1;
+CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+show create table t1;
+
+sync_slave_with_master;
+show create table t1;
+
+connection master;
+drop table t1;
 
 # End cleanup
 sync_slave_with_master;
