@@ -2680,7 +2680,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
   {
-    if (different_db= memcmp(print_event_info->db, db, db_len + 1))
+    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)))
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);
@@ -3425,7 +3425,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
     post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8),
-                                       MYF(MY_ZEROFILL));
+                                       MYF(0));
+
     /*
       This long list of assignments is not beautiful, but I see no way to
       make it nicer, as the right members are #defines, not array members, so
@@ -3433,16 +3434,40 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     */
     if (post_header_len)
     {
+      // Allows us to sanity-check that all events initialized their
+      // events (see the end of this 'if' block).
+      IF_DBUG(memset(post_header_len, 255,
+                     number_of_event_types*sizeof(uint8)););
+
+      /* Note: all event types must explicitly fill in their lengths here. */
       post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
       post_header_len[QUERY_EVENT-1]= QUERY_HEADER_LEN;
+      post_header_len[STOP_EVENT-1]= STOP_HEADER_LEN;
       post_header_len[ROTATE_EVENT-1]= ROTATE_HEADER_LEN;
+      post_header_len[INTVAR_EVENT-1]= INTVAR_HEADER_LEN;
       post_header_len[LOAD_EVENT-1]= LOAD_HEADER_LEN;
+      post_header_len[SLAVE_EVENT-1]= SLAVE_HEADER_LEN;
       post_header_len[CREATE_FILE_EVENT-1]= CREATE_FILE_HEADER_LEN;
       post_header_len[APPEND_BLOCK_EVENT-1]= APPEND_BLOCK_HEADER_LEN;
       post_header_len[EXEC_LOAD_EVENT-1]= EXEC_LOAD_HEADER_LEN;
       post_header_len[DELETE_FILE_EVENT-1]= DELETE_FILE_HEADER_LEN;
-      post_header_len[NEW_LOAD_EVENT-1]= post_header_len[LOAD_EVENT-1];
+      post_header_len[NEW_LOAD_EVENT-1]= NEW_LOAD_HEADER_LEN;
+      post_header_len[RAND_EVENT-1]= RAND_HEADER_LEN;
+      post_header_len[USER_VAR_EVENT-1]= USER_VAR_HEADER_LEN;
       post_header_len[FORMAT_DESCRIPTION_EVENT-1]= FORMAT_DESCRIPTION_HEADER_LEN;
+      post_header_len[XID_EVENT-1]= XID_HEADER_LEN;
+      post_header_len[BEGIN_LOAD_QUERY_EVENT-1]= BEGIN_LOAD_QUERY_HEADER_LEN;
+      post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]= EXECUTE_LOAD_QUERY_HEADER_LEN;
+      /*
+        The PRE_GA events are never be written to any binlog, but
+        their lengths are included in Format_description_log_event.
+        Hence, we need to be assign some value here, to avoid reading
+        uninitialized memory when the array is written to disk.
+      */
+      post_header_len[PRE_GA_WRITE_ROWS_EVENT-1] = 0;
+      post_header_len[PRE_GA_UPDATE_ROWS_EVENT-1] = 0;
+      post_header_len[PRE_GA_DELETE_ROWS_EVENT-1] = 0;
+
       post_header_len[TABLE_MAP_EVENT-1]=    TABLE_MAP_HEADER_LEN;
       post_header_len[WRITE_ROWS_EVENT-1]=   ROWS_HEADER_LEN;
       post_header_len[UPDATE_ROWS_EVENT-1]=  ROWS_HEADER_LEN;
@@ -3462,9 +3487,14 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[WRITE_ROWS_EVENT-1]=
                       post_header_len[UPDATE_ROWS_EVENT-1]=
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
-      post_header_len[BEGIN_LOAD_QUERY_EVENT-1]= post_header_len[APPEND_BLOCK_EVENT-1];
-      post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]= EXECUTE_LOAD_QUERY_HEADER_LEN;
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
+
+      // Sanity-check that all post header lengths are initialized.
+      IF_DBUG({
+          int i;
+          for (i=0; i<number_of_event_types; i++)
+            assert(post_header_len[i] != 255);
+        });
     }
     break;
 
@@ -4813,7 +4843,9 @@ Intvar_log_event::Intvar_log_event(const char* buf,
                                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
 {
-  buf+= description_event->common_header_len;
+  /* The Post-Header is empty. The Varible Data part begins immediately. */
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[INTVAR_EVENT-1];
   type= buf[I_TYPE_OFFSET];
   val= uint8korr(buf+I_VAL_OFFSET);
 }
@@ -4957,7 +4989,9 @@ Rand_log_event::Rand_log_event(const char* buf,
                                const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
 {
-  buf+= description_event->common_header_len;
+  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[RAND_EVENT-1];
   seed1= uint8korr(buf+RAND_SEED1_OFFSET);
   seed2= uint8korr(buf+RAND_SEED2_OFFSET);
 }
@@ -5061,7 +5095,9 @@ Xid_log_event(const char* buf,
               const Format_description_log_event *description_event)
   :Log_event(buf, description_event)
 {
-  buf+= description_event->common_header_len;
+  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[XID_EVENT-1];
   memcpy((char*) &xid, buf, sizeof(xid));
 }
 
@@ -5207,7 +5243,9 @@ User_var_log_event(const char* buf,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
 {
-  buf+= description_event->common_header_len;
+  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  buf+= description_event->common_header_len +
+    description_event->post_header_len[USER_VAR_EVENT-1];
   name_len= uint4korr(buf);
   name= (char *) buf + UV_NAME_LEN_SIZE;
   buf+= UV_NAME_LEN_SIZE + name_len;
@@ -8091,6 +8129,9 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     analyze if explicit data is provided for slave's TIMESTAMP columns).
   */
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+  
+  /* Honor next number column if present */
+  m_table->next_number_field= m_table->found_next_number_field;
   return error;
 }
 
@@ -8099,6 +8140,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
                                               int error)
 {
   int local_error= 0;
+  m_table->next_number_field=0;
   if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
@@ -9057,7 +9099,17 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
-  m_incident= static_cast<Incident>(uint2korr(buf + common_header_len));
+  int incident_number= uint2korr(buf + common_header_len);
+  if (incident_number >= INCIDENT_COUNT ||
+      incident_number <= INCIDENT_NONE)
+  {
+    // If the incident is not recognized, this binlog event is
+    // invalid.  If we set incident_number to INCIDENT_NONE, the
+    // invalidity will be detected by is_valid().
+    incident_number= INCIDENT_NONE;
+    DBUG_VOID_RETURN;
+  }
+  m_incident= static_cast<Incident>(incident_number);
   char const *ptr= buf + common_header_len + post_header_len;
   char const *const str_end= buf + event_len;
   uint8 len= 0;                   // Assignment to keep compiler happy
@@ -9084,9 +9136,6 @@ Incident_log_event::description() const
   };
 
   DBUG_PRINT("info", ("m_incident: %d", m_incident));
-
-  DBUG_ASSERT(0 <= m_incident);
-  DBUG_ASSERT((size_t) m_incident <= sizeof(description)/sizeof(*description));
 
   return description[m_incident];
 }

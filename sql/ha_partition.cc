@@ -2818,6 +2818,36 @@ void ha_partition::unlock_row()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Check if semi consistent read was used
+
+  SYNOPSIS
+    was_semi_consistent_read()
+
+  RETURN VALUE
+    TRUE   Previous read was a semi consistent read
+    FALSE  Previous read was not a semi consistent read
+
+  DESCRIPTION
+    See handler.h:
+    In an UPDATE or DELETE, if the row under the cursor was locked by another
+    transaction, and the engine used an optimistic read of the last
+    committed row value under the cursor, then the engine returns 1 from this
+    function. MySQL must NOT try to update this optimistic value. If the
+    optimistic value does not match the WHERE condition, MySQL can decide to
+    skip over this row. Currently only works for InnoDB. This can be used to
+    avoid unnecessary lock waits.
+
+    If this method returns nonzero, it will also signal the storage
+    engine that the next read will be a locking re-read of the row.
+*/
+bool ha_partition::was_semi_consistent_read()
+{
+  DBUG_ENTER("ha_partition::was_semi_consistent_read");
+  DBUG_ASSERT(m_last_part < m_tot_parts &&
+              bitmap_is_set(&(m_part_info->used_partitions), m_last_part));
+  DBUG_RETURN(m_file[m_last_part]->was_semi_consistent_read());
+}
 
 /**
   Use semi consistent read if possible
@@ -3431,7 +3461,7 @@ int ha_partition::rnd_next(uchar *buf)
   
   while (TRUE)
   {
-    int result= file->rnd_next(buf);
+    result= file->rnd_next(buf);
     if (!result)
     {
       m_last_part= part_id;
@@ -4785,7 +4815,7 @@ int ha_partition::info(uint flag)
     /*
       Calculates statistical variables
       records:           Estimate of number records in table
-      We report sum (always at least 2)
+      We report sum (always at least 2 if not empty)
       deleted:           Estimate of number holes in the table due to
       deletes
       We report sum
@@ -4824,13 +4854,13 @@ int ha_partition::info(uint flag)
           stats.check_time= file->stats.check_time;
       }
     } while (*(++file_array));
-    if (stats.records < 2 &&
+    if (stats.records && stats.records < 2 &&
         !(m_file[0]->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       stats.records= 2;
     if (stats.records > 0)
       stats.mean_rec_length= (ulong) (stats.data_file_length / stats.records);
     else
-      stats.mean_rec_length= 1; //? What should we set here 
+      stats.mean_rec_length= 0;
   }
   if (flag & HA_STATUS_CONST)
   {

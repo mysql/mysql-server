@@ -209,4 +209,29 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 drop database db37908;
 drop procedure proc37908;
 drop function func37908;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+DECLARE foo INTEGER;
+DECLARE bar INTEGER;
+SET foo=1;
+SET bar=2;
+RETURN foo;
+END $$
+CREATE PROCEDURE p1()
+BEGIN
+SELECT 1;
+END $$
+SELECT f1();
+f1()
+1
+CALL p1();
+1
+1
+SELECT 9;
+9
+9
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
 set @@global.concurrent_insert= @old_concurrent_insert;

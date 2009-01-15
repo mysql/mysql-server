@@ -9,8 +9,7 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 
-ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
+ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open

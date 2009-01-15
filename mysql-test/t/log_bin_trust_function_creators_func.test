@@ -20,6 +20,8 @@
 #                                                                             #
 ###############################################################################
 
+source include/have_log_bin.inc;
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -45,10 +47,10 @@ connect (test_con1,localhost,tt,,);
 connection test_con1;
 
 SELECT @@log_bin_trust_function_creators;
-SELECT @@sql_log_bin;
 
---echo ## Creating new function f1 ##
+--echo ##  Creating new function f1 fails because no DETERMINISTIC ###
 delimiter |;
+--error ER_BINLOG_UNSAFE_ROUTINE
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
    IF (a < 3) THEN 
@@ -58,8 +60,30 @@ BEGIN
 END|
 delimiter ;|
 
---echo 'Bug: Create Function should give error here because non-super user';
---echo 'is creating function here';
+--echo ## Creating new function f1 fails because non-super user ##
+delimiter |;
+--error ER_BINLOG_CREATE_ROUTINE_NEED_SUPER
+CREATE FUNCTION f1(a INT) RETURNS INT DETERMINISTIC
+BEGIN
+   IF (a < 3) THEN
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 1;
+END|
+delimiter ;|
+
+connection default;
+
+--echo ## Creating new function f1 succeeds ##
+delimiter |;
+CREATE FUNCTION f1(a INT) RETURNS INT DETERMINISTIC
+BEGIN
+   IF (a < 3) THEN
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 1;
+END|
+delimiter ;|
 
 --echo ## Creating new table t1 ##
 CREATE TABLE t1 (a INT);
