@@ -391,6 +391,10 @@ void THD::init_for_queries()
 
 void THD::change_user(void)
 {
+  pthread_mutex_lock(&LOCK_status);
+  add_to_status(&global_status_var, &status_var);
+  pthread_mutex_unlock(&LOCK_status);
+
   cleanup();
   cleanup_done= 0;
   init();
