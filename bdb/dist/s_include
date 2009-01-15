@@ -79,7 +79,7 @@ for i in db btree clib common dbreg env fileops hash hmac \
 	[ $i = os ] && f="$f ../os_win32/*.c"
 	[ $i = rpc_server ] && f="../$i/c/*.c"
 	[ $i = crypto ] && f="../$i/*.c ../$i/*/*.c"
-	awk -f gen_inc.awk \
+	$AWK -f gen_inc.awk \
 	    -v db_version_unique_name=$DB_VERSION_UNIQUE_NAME \
 	    -v e_dfile=$e_dfile \
 	    -v e_pfile=$e_pfile \
@@ -97,7 +97,7 @@ done
 # files.
 for i in dbm hsearch; do
 	f="../$i/*.c"
-	awk -f gen_inc.awk \
+	$AWK -f gen_inc.awk \
 	    -v db_version_unique_name=$DB_VERSION_UNIQUE_NAME \
 	    -v e_dfile=$e_dfile \
 	    -v e_pfile=$e_pfile \
@@ -142,7 +142,7 @@ head space defonly _DB_EXT_185_DEF_IN_ > $e_dfile
 head space _DB_EXT_185_PROT_IN_ > $e_pfile
 
 f="../db185/*.c"
-awk -f gen_inc.awk \
+$AWK -f gen_inc.awk \
     -v db_version_unique_name=$DB_VERSION_UNIQUE_NAME \
     -v e_dfile=$e_dfile \
     -v e_pfile=$e_pfile \
