@@ -101,6 +101,7 @@ DROP TABLE t1;
 # Actually this test has nothing to do with innodb per se, it just requires
 # transactional table.
 #
+flush status;
 show status like "binlog_cache_use";
 show status like "binlog_cache_disk_use";
 
