@@ -2778,7 +2778,8 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     TOKUDB_DBUG_ENTER("ha_tokudb::index_read %p find %d", this, find_flag);
     // TOKUDB_DBUG_DUMP("key=", key, key_len);
     DBT row;
-    int error;
+    int error;    
+    u_int32_t flags = 0;
     struct smart_dbt_info info;
     struct heavi_info heavi_info;
     bool do_read_row = true;
@@ -2797,7 +2798,8 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     heavi_info.key = &last_key;
     switch (find_flag) {
     case HA_READ_KEY_EXACT: /* Find first record else error */
-        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        flags = SET_READ_FLAG(DB_SET_RANGE);
+        error = cursor->c_get(cursor, &last_key, &row, flags);
         if (error == 0) {
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
@@ -2807,8 +2809,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
+        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heavi(
-            cursor, 0, 
+            cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             after_key_heavi, &heavi_info, 
             1
@@ -2816,8 +2819,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         do_read_row = false;
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
+        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heavi(
-            cursor, 0, 
+            cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             before_key_heavi, &heavi_info, 
             -1
@@ -2825,10 +2829,12 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         do_read_row = false;
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
-        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        flags = SET_READ_FLAG(DB_SET_RANGE);
+        error = cursor->c_get(cursor, &last_key, &row, flags);
         break;
     case HA_READ_KEY_OR_PREV: /* Record or previous */
-        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        flags = SET_READ_FLAG(DB_SET_RANGE);
+        error = cursor->c_get(cursor, &last_key, &row, flags);
         if (error == 0) {
             DBT orig_key; 
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
@@ -2840,8 +2846,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
+        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heavi(
-            cursor, 0, 
+            cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             prefix_last_or_prev_heavi, &heavi_info, 
             -1
@@ -2849,8 +2856,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         do_read_row = false;
         break;
     case HA_READ_PREFIX_LAST:
+        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heavi(
-            cursor, 0, 
+            cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             prefix_last_or_prev_heavi, &heavi_info, 
             -1
