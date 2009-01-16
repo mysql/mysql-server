@@ -4307,6 +4307,15 @@ my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
 }
 
 
+bool Item_func_set_user_var::is_null_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return is_null();
+}
+
+
 void Item_func_set_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
