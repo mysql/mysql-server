@@ -21,6 +21,7 @@
 basedir=""
 builddir=""
 ldata="@localstatedir@"
+langdir=""
 srcdir=""
 
 args=""
@@ -106,7 +107,7 @@ parse_arguments()
         # Note that the user will be passed to mysqld so that it runs
         # as 'user' (crucial e.g. if log-bin=/some_other_path/
         # where a chown of datadir won't help)
-	 user=`parse_arg "$arg"` ;;
+        user=`parse_arg "$arg"` ;;
       --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;; # Obsolete
       --rpm) in_rpm=1 ;;
@@ -171,7 +172,20 @@ find_in_basedir()
 cannot_find_file()
 {
   echo
-  echo "FATAL ERROR: Could not find $*"
+  echo "FATAL ERROR: Could not find $1"
+
+  shift
+  if test $# -ne 0
+  then
+    echo
+    echo "The following directories were searched:"
+    echo
+    for dir in "$@"
+    do
+      echo "    $dir"
+    done
+  fi
+
   echo
   echo "If you compiled from source, you need to run 'make install' to"
   echo "copy the software into the correct location ready for operation."
@@ -210,6 +224,11 @@ then
 elif test -n "$basedir"
 then
   print_defaults=`find_in_basedir my_print_defaults bin extra`
+  if test -z "$print_defaults"
+  then
+    cannot_find_file my_print_defaults $basedir/bin $basedir/extra
+    exit 1
+  fi
 else
   print_defaults="@bindir@/my_print_defaults"
 fi
@@ -232,7 +251,7 @@ then
   bindir="$basedir/client"
   extra_bindir="$basedir/extra"
   mysqld="$basedir/sql/mysqld"
-  mysqld_opt="--language=$srcdir/sql/share/english"
+  langdir="$srcdir/sql/share/english"
   pkgdatadir="$srcdir/scripts"
   scriptdir="$srcdir/scripts"
 elif test -n "$basedir"
@@ -240,7 +259,23 @@ then
   bindir="$basedir/bin"
   extra_bindir="$bindir"
   mysqld=`find_in_basedir mysqld libexec sbin bin`
+  if test -z "$mysqld"
+  then
+    cannot_find_file mysqld $basedir/libexec $basedir/sbin $basedir/bin
+    exit 1
+  fi
+  langdir=`find_in_basedir --dir errmsg.sys share/english share/mysql/english`
+  if test -z "$langdir"
+  then
+    cannot_find_file errmsg.sys $basedir/share/english $basedir/share/mysql/english
+    exit 1
+  fi
   pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
+  if test -z "$pkgdatadir"
+  then
+    cannot_find_file fill_help_tables.sql $basedir/share $basedir/share/mysql
+    exit 1
+  fi
   scriptdir="$basedir/scripts"
 else
   basedir="@prefix@"
@@ -269,6 +304,16 @@ if test ! -x "$mysqld"
 then
   cannot_find_file "$mysqld"
   exit 1
+fi
+
+if test -n "$langdir"
+then
+  if test ! -f "$langdir/errmsg.sys"
+  then
+    cannot_find_file "$langdir/errmsg.sys"
+    exit 1
+  fi
+  mysqld_opt="--language=$langdir"
 fi
 
 # Try to determine the hostname
