@@ -45,7 +45,7 @@ cmp $loglist $f > /dev/null 2>&1 ||
 for i in db dbreg btree fileops hash qam txn; do
 	for f in ../$i/*.src; do
 		subsystem=`basename $f .src`
-		awk -f gen_rec.awk \
+		$AWK -f gen_rec.awk \
 		    -v source_file=$source \
 		    -v header_file=$header \
 		    -v template_file=$template < $f

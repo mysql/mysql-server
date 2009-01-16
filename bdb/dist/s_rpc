@@ -43,7 +43,7 @@ rm -f   $client_file \
 xidsize=\
 `awk '/^#define/ { if ($2 == "DB_XIDDATASIZE") { print $3 }}' $dbinc_file`
 
-awk -f gen_rpc.awk \
+$AWK -f gen_rpc.awk \
     -v major=$DB_VERSION_MAJOR \
     -v minor=$DB_VERSION_MINOR \
     -v xidsize=$xidsize \
