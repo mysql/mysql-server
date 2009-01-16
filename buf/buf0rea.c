@@ -20,6 +20,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0file.h"
 #include "srv0start.h"
 
+extern ulint srv_read_ahead;
 extern ulint srv_read_ahead_rnd;
 extern ulint srv_read_ahead_seq;
 extern ulint srv_buf_pool_reads;

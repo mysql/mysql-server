@@ -530,11 +530,18 @@ success:
 		/* This must be a buf_page_t object. */
 		UNIV_MEM_ASSERT_RW(src, size);
 
+		if (have_page_hash_mutex)
+			mutex_exit(&page_hash_mutex);
+
 		mutex_exit(&zip_free_mutex);
 		if (buf_buddy_relocate_block(src, dst)) {
 
 			goto success;
 		}
+
+		if (have_page_hash_mutex)
+			mutex_enter(&page_hash_mutex);
+
 		mutex_enter(&zip_free_mutex);
 	}
 
