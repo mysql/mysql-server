@@ -751,6 +751,13 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       (via maria_recreate_table()) and it does not have a log.
     */
     sync_dir= MY_SYNC_DIR;
+    /*
+      If crash between _ma_state_info_write_sub() and
+      _ma_update_state__lsns_sub(), table should be ignored by Recovery (or
+      old REDOs would fail), so we cannot let LSNs be 0:
+    */
+    share.state.skip_redo_lsn= share.state.is_of_horizon=
+      share.state.create_rename_lsn= LSN_MAX;
   }
 
   if (datafile_type == DYNAMIC_RECORD)
@@ -1060,11 +1067,21 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                        log_array, NULL, NULL) ||
                  translog_flush(lsn)))
       goto err;
+    share.kfile.file= file;
+    DBUG_EXECUTE_IF("maria_flush_whole_log",
+                    {
+                      DBUG_PRINT("maria_flush_whole_log", ("now"));
+                      translog_flush(translog_get_horizon());
+                    });
+    DBUG_EXECUTE_IF("maria_crash_create_table",
+                    {
+                      DBUG_PRINT("maria_crash_create_table", ("now"));
+                      DBUG_ABORT();
+                    });
     /*
       store LSN into file, needed for Recovery to not be confused if a
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
-    share.kfile.file= file;
     if (_ma_update_state_lsns_sub(&share, lsn, trnman_get_min_safe_trid(),
                                   FALSE, TRUE))
       goto err;
