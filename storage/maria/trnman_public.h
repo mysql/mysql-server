@@ -69,5 +69,17 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
 void trnman_lock();
 void trnman_unlock();
 my_bool trman_is_inited();
+#ifdef EXTRA_DEBUG
+uint16 trnman_get_flags(TRN *);
+void trnman_set_flags(TRN *, uint16 flags);
+#else
+#define trnman_get_flags(A) 0
+#define trnman_set_flags(A, B) do { } while (0)
+#endif
+
+/* Flag bits */
+#define TRN_STATE_INFO_LOGGED       1  /* Query is logged */
+#define TRN_STATE_TABLES_CAN_CHANGE 2  /* Things can change during trans. */
+
 C_MODE_END
 #endif

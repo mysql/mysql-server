@@ -53,6 +53,7 @@ struct st_ma_transaction
   LSN_WITH_FLAGS       first_undo_lsn;
   uint                 locked_tables;
   uint16               short_id;
+  uint16               flags;         /**< Various flags */
 };
 
 #define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)

@@ -2264,6 +2264,9 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
+  THD *thd= current_thd;
+  (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
+                                 (uchar*) thd->query, thd->query_length);
   if (file->s->now_transactional &&
       ((table->in_use->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
        table->in_use->locked_tables))
@@ -2280,6 +2283,9 @@ int ha_maria::delete_all_rows()
 
 int ha_maria::delete_table(const char *name)
 {
+  THD *thd= current_thd;
+  (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
+                                 (uchar*) thd->query, thd->query_length);
   return maria_delete_table(name);
 }
 
@@ -2353,6 +2359,16 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Disabling logging for table"));
         _ma_tmp_disable_logging_for_table(file, TRUE);
       }
+#ifdef EXTRA_DEBUG
+      if (lock_type == F_WRLCK &&
+          ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
+      {
+        trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
+                         TRN_STATE_TABLES_CAN_CHANGE);
+        (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
+                                       (uchar*) thd->query, thd->query_length);
+      }
+#endif
     }
     else
     {
@@ -2377,9 +2393,10 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         external lock of the table
       */
       file->state= &file->s->state.state;
-      if (trn && trnman_has_locked_tables(trn))
+      if (trn)
       {
-        if (!trnman_decrement_locked_tables(trn))
+        if (trnman_has_locked_tables(trn) &&
+            !trnman_decrement_locked_tables(trn))
         {
           /*
             OK should not have been sent to client yet (ACID).
@@ -2402,6 +2419,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
           }
 #endif
         }
+        trnman_set_flags(trn, trnman_get_flags(trn) & ~ TRN_STATE_INFO_LOGGED);
       }
     }
   } /* if transactional table */
@@ -2436,6 +2454,16 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
       call to start_stmt().
     */
     trnman_new_statement(trn);
+
+#ifdef EXTRA_DEBUG
+    if (!(trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED) &&
+        trnman_get_flags(trn) & TRN_STATE_TABLES_CAN_CHANGE)
+    {
+      trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED);
+      (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
+                                     (uchar*) thd->query, thd->query_length);
+    }
+#endif
   }
   return 0;
 }
@@ -2648,6 +2676,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   enum data_file_type row_type;
+  THD *thd= current_thd;
   DBUG_ENTER("ha_maria::create");
 
   for (i= 0; i < share->keys; i++)
@@ -2712,6 +2741,9 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
        ha_create_info->page_checksum ==  HA_CHOICE_YES)
     create_flags|= HA_CREATE_PAGE_CHECKSUM;
 
+  (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
+                                 (uchar*) thd->query, thd->query_length);
+
   /* TODO: Check that the following fn_format is really needed */
   error=
     maria_create(fn_format(buff, name, "", "",
@@ -2728,6 +2760,9 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
 
 int ha_maria::rename_table(const char *from, const char *to)
 {
+  THD *thd= current_thd;
+  (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
+                                 (uchar*) thd->query, thd->query_length);
   return maria_rename(from, to);
 }
 
@@ -2872,6 +2907,8 @@ static int maria_commit(handlerton *hton __attribute__ ((unused)),
   TRN *trn= THD_TRN;
   DBUG_ENTER("maria_commit");
   trnman_reset_locked_tables(trn, 0);
+  trnman_set_flags(trn, trnman_get_flags(trn) & ~TRN_STATE_INFO_LOGGED);
+
   /* statement or transaction ? */
   if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
     DBUG_RETURN(0); // end of statement

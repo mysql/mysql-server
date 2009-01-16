@@ -89,6 +89,18 @@ void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
   trn->locked_tables= locked_tables;
 }
 
+#ifdef EXTRA_DEBUG
+uint16 trnman_get_flags(TRN *trn)
+{
+  return trn->flags;
+}
+
+void trnman_set_flags(TRN *trn, uint16 flags)
+{
+  trn->flags= flags;
+}
+#endif
+
 /** Wake up threads waiting for this transaction */
 static void wt_thd_release_self(TRN *trn)
 {

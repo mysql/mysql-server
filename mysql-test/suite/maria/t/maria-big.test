@@ -2,6 +2,11 @@
 --source include/have_maria.inc
 --source include/big_test.inc
 
+set global max_allowed_packet=400000000;
+# need new session to use setting above
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+
 enable_info;
 set storage_engine=maria;
 set global maria_log_file_size=4294967295;
@@ -38,7 +43,6 @@ drop table t1, t2;
 # Test creating a really big blob (up to 16M)
 #
 
-set @@max_allowed_packet=400000000;
 create table t1 (a int, b longtext);
 insert into t1 values (1,"123456789012345678901234567890"),(2,"09876543210987654321");
 

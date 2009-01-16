@@ -3146,8 +3146,8 @@ static my_bool write_block_record(MARIA_HA *info,
 
           log_pos= store_page_range(log_pos, tmp_block, block_size,
                                     blob_length, &extents);
-          tmp_block+= tmp_block->sub_blocks;
         }
+        tmp_block+= tmp_block->sub_blocks;
       }
     }
 
@@ -6182,6 +6182,7 @@ err:
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                              LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
+  DBUG_ASSERT(0); /* catch recovery errors early */
   DBUG_RETURN((my_errno= error));
 }
 
@@ -6280,6 +6281,7 @@ err:
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                            LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
+  DBUG_ASSERT(0);
   DBUG_RETURN((my_errno= error));
 
 }
@@ -6337,6 +6339,7 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
     if (res)
     {
       _ma_mark_file_crashed(share);
+      DBUG_ASSERT(0);
       DBUG_RETURN(res);
     }
   }
@@ -6420,6 +6423,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
 
 err:
   _ma_mark_file_crashed(share);
+  DBUG_ASSERT(0);
   DBUG_RETURN(1);
 }
 
@@ -6431,6 +6435,10 @@ err:
    @parma  lsn             LSN to put on pages
    @param  header          Header (with FILEID)
    @param  redo_lsn        REDO record's LSN
+   @param[out] number_of_blobs Number of blobs found in log record
+   @param[out] number_of_ranges Number of ranges found
+   @param[out] first_page  First page touched
+   @param[out] last_page   Last page touched
 
    @note Write full pages (full head & blob pages)
 
@@ -6441,13 +6449,18 @@ err:
 
 uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
                                      LSN lsn, const uchar *header,
-                                     LSN redo_lsn)
+                                     LSN redo_lsn,
+                                     uint * const number_of_blobs,
+                                     uint * const number_of_ranges,
+                                     pgcache_page_no_t * const first_page,
+                                     pgcache_page_no_t * const last_page)
 {
   MARIA_SHARE *share= info->s;
   const uchar *data;
   uint      data_size= FULL_PAGE_SIZE(share->block_size);
   uint      blob_count, ranges;
   uint16    sid;
+  pgcache_page_no_t first_page2= ULONGLONG_MAX, last_page2= 0;
   DBUG_ENTER("_ma_apply_redo_insert_row_blobs");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
@@ -6455,9 +6468,9 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
 
   sid= fileid_korr(header);
   header+= FILEID_STORE_SIZE;
-  ranges= pagerange_korr(header);
+  *number_of_ranges= ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
-  blob_count= pagerange_korr(header);
+  *number_of_blobs= blob_count= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
   DBUG_ASSERT(ranges >= blob_count);
 
@@ -6495,6 +6508,8 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         enum pagecache_page_pin unpin_method;
         uint length;
 
+        set_if_smaller(first_page2, page);
+        set_if_bigger(last_page2, page);
         if (_ma_redo_not_needed_for_page(sid, redo_lsn, page, FALSE))
           continue;
 
@@ -6545,15 +6560,22 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
           }
           else
           {
+#ifndef DBUG_OFF
+            uchar found_page_type= (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK);
+#endif
             if (lsn_korr(buff) >= lsn)
             {
               /* Already applied */
+              DBUG_PRINT("info", ("already applied %llu >= %llu",
+                                  lsn_korr(buff), lsn));
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                                        LSN_IMPOSSIBLE, 0, FALSE);
               continue;
             }
+            DBUG_ASSERT((found_page_type == (uchar) BLOB_PAGE) ||
+                        (found_page_type == (uchar) UNALLOCATED_PAGE));
           }
           unlock_method= PAGECACHE_LOCK_WRITE_UNLOCK;
           unpin_method=  PAGECACHE_UNPIN;
@@ -6595,10 +6617,13 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         goto err;
     }
   }
+  *first_page= first_page2;
+  *last_page=  last_page2;
   DBUG_RETURN(0);
 
 err:
   _ma_mark_file_crashed(share);
+  DBUG_ASSERT(0);
   DBUG_RETURN(1);
 }
 
