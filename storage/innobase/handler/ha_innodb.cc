@@ -3687,7 +3687,7 @@ no_commit:
 
 			/* We don't want to mask autoinc overflow errors. */
 			if (prebuilt->autoinc_error != DB_SUCCESS) {
-				error = prebuilt->autoinc_error;
+				error = (int) prebuilt->autoinc_error;
 
 				goto report_error;
 			}
