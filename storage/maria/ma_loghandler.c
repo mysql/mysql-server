@@ -8311,8 +8311,11 @@ void translog_set_file_size(uint32 size)
    Write debug information to log if we EXTRA_DEBUG is enabled
 */
 
-my_bool translog_log_debug_info(TRN *trn, enum translog_debug_info_type type,
-                                uchar *info, size_t length)
+my_bool translog_log_debug_info(TRN *trn __attribute__((unused)),
+                                enum translog_debug_info_type type
+                                __attribute__((unused)),
+                                uchar *info __attribute__((unused)),
+                                size_t length __attribute__((unused)))
 {
 #ifdef EXTRA_DEBUG
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];

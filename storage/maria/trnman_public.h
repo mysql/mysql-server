@@ -75,7 +75,7 @@ uint16 trnman_get_state(TRN *);
 void trnman_set_state(TRN *, uint16 state_bit);
 #else
 #define trnman_get_state(A) 0
-uint16 trnman_set_state(A, B) do { } while (0)
+#define trnman_set_state(A, B) do { } while (0)
 #endif
 
 /* Bits for 'state' */

@@ -3493,8 +3493,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||
         hooks->postlock(&table, 1))
   {
-    DBUG_ASSERT(0);                             // This should never happen
     /* purecov: begin tested */
+    /*
+      This can happen in innodb when you get a deadlock when using same table
+      in insert and select
+    */
     my_error(ER_CANT_LOCK, MYF(0), my_errno);
     if (*lock)
     {
