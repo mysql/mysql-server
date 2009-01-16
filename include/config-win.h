@@ -197,11 +197,6 @@ typedef uint rf_SetTimer;
 #define SIGNAL_WITH_VIO_CLOSE
 #endif
 
-/* Use all character sets in MySQL */
-#define USE_MB 1
-#define USE_MB_IDENT 1
-#define USE_STRCOLL 1
-
 /* All windows servers should support .sym files */
 #undef USE_SYMDIR
 #define USE_SYMDIR
@@ -371,9 +366,6 @@ inline ulonglong double2ulonglong(double d)
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
 
-#define MYSQL_DEFAULT_CHARSET_NAME "latin1"
-#define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
-
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
 
@@ -383,40 +375,54 @@ inline ulonglong double2ulonglong(double d)
 #define COMMUNITY_SERVER 1
 #define ENABLED_PROFILING 1
 
-/* Define charsets you want */
-/* #undef HAVE_CHARSET_armscii8 */
-/* #undef HAVE_CHARSET_ascii */
+/*
+  Our Windows binaries include all character sets which MySQL supports.
+  Any changes to the available character sets must also go into
+  config/ac-macros/character_sets.m4
+*/
+
+#define MYSQL_DEFAULT_CHARSET_NAME "latin1"
+#define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
+
+#define USE_MB 1
+#define USE_MB_IDENT 1
+#define USE_STRCOLL 1
+
+#define HAVE_CHARSET_armscii8
+#define HAVE_CHARSET_ascii
 #define HAVE_CHARSET_big5 1
 #define HAVE_CHARSET_cp1250 1
-/* #undef HAVE_CHARSET_cp1251 */
-/* #undef HAVE_CHARSET_cp1256 */
-/* #undef HAVE_CHARSET_cp1257 */
-/* #undef HAVE_CHARSET_cp850 */
-/* #undef HAVE_CHARSET_cp852 */
-/* #undef HAVE_CHARSET_cp866 */
+#define HAVE_CHARSET_cp1251
+#define HAVE_CHARSET_cp1256
+#define HAVE_CHARSET_cp1257
+#define HAVE_CHARSET_cp850
+#define HAVE_CHARSET_cp852
+#define HAVE_CHARSET_cp866
 #define HAVE_CHARSET_cp932 1
-/* #undef HAVE_CHARSET_dec8 */
+#define HAVE_CHARSET_dec8
 #define HAVE_CHARSET_eucjpms 1
 #define HAVE_CHARSET_euckr 1
 #define HAVE_CHARSET_gb2312 1
 #define HAVE_CHARSET_gbk 1
-/* #undef HAVE_CHARSET_greek */
-/* #undef HAVE_CHARSET_hebrew */
-/* #undef HAVE_CHARSET_hp8 */
-/* #undef HAVE_CHARSET_keybcs2 */
-/* #undef HAVE_CHARSET_koi8r */
-/* #undef HAVE_CHARSET_koi8u */
+#define HAVE_CHARSET_geostd8
+#define HAVE_CHARSET_greek
+#define HAVE_CHARSET_hebrew
+#define HAVE_CHARSET_hp8
+#define HAVE_CHARSET_keybcs2
+#define HAVE_CHARSET_koi8r
+#define HAVE_CHARSET_koi8u
 #define HAVE_CHARSET_latin1 1
 #define HAVE_CHARSET_latin2 1
-/* #undef HAVE_CHARSET_latin5 */
-/* #undef HAVE_CHARSET_latin7 */
-/* #undef HAVE_CHARSET_macce */
-/* #undef HAVE_CHARSET_macroman */
+#define HAVE_CHARSET_latin5
+#define HAVE_CHARSET_latin7
+#define HAVE_CHARSET_macce
+#define HAVE_CHARSET_macroman
 #define HAVE_CHARSET_sjis 1
-/* #undef HAVE_CHARSET_swe7 */
+#define HAVE_CHARSET_swe7
 #define HAVE_CHARSET_tis620 1
 #define HAVE_CHARSET_ucs2 1
 #define HAVE_CHARSET_ujis 1
 #define HAVE_CHARSET_utf8 1
+
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
