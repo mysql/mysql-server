@@ -3834,6 +3834,7 @@ lock_table_has_to_wait_in_queue(
 	dict_table_t*	table;
 	lock_t*		lock;
 
+	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_wait(wait_lock));
 
 	table = wait_lock->un_member.tab_lock.table;
