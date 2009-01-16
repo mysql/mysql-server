@@ -88,6 +88,28 @@ check table t1 extended;
 -- source include/maria_verify_recovery.inc
 drop table t1;
 
+# Test for BUG#42112 "Maria: recovery failure (pushbuild2) Assertion
+# `rownr == 0 && new_page' failed"
+
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+create table t1 engine=maria select 1;
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+set global maria_checkpoint_interval=0; # no checkpoints
+insert into t1 values(2);
+truncate table t1;
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_crash_statement= truncate table t1;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash_create_table";
+truncate table t1;
+-- source include/maria_verify_recovery.inc
+# Table is bad but at least Recovery didn't crash and a new truncate
+# can succeed:
+truncate table t1;
+check table t1 extended;
+drop table t1;
+
+
 # clean up everything
 let $mms_purpose=comparison;
 eval drop database mysqltest_for_$mms_purpose;
