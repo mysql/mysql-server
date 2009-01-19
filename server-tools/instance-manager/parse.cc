@@ -78,7 +78,7 @@ Named_value_arr::Named_value_arr() :
 
 bool Named_value_arr::init()
 {
-  if (my_init_dynamic_array(&arr, sizeof(Named_value), 0, 32))
+  if (my_init_dynamic_array(&arr, sizeof(Named_value), 32, 32))
     return TRUE;
 
   initialized= TRUE;

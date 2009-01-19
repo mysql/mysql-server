@@ -496,7 +496,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   /* There are only 16 bits for the total header length. */
   if (info_length > 65535)
   {
-    my_printf_error(0, "MyISAM table '%s' has too many columns and/or "
+    my_printf_error(HA_WRONG_CREATE_OPTION,
+                    "MyISAM table '%s' has too many columns and/or "
                     "indexes and/or unique constraints.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_WRONG_CREATE_OPTION;

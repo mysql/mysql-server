@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,8 @@ pthread_handler_t test_trnman(void *arg)
   TRN    *trn[MAX_ITER];
   int    m= (*(int *)arg);
 
-  my_thread_init();
+  if (my_thread_init())
+    BAIL_OUT("my_thread_init failed!");
 
   for (x= ((int)(intptr)(&m)); m > 0; )
   {

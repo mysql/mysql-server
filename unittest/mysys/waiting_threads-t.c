@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #include "thr_template.c"
 #include <waiting_threads.h>
 #include <m_string.h>
-#include <locale.h>
 
 struct test_wt_thd {
   WT_THD thd;
@@ -31,6 +30,7 @@ ulong wt_timeout_long=10000, wt_deadlock_search_depth_long=15;
 
 #define reset(ARRAY) bzero(ARRAY, sizeof(ARRAY))
 
+/* see explanation of the kill strategies in waiting_threads.h */
 enum { LATEST, RANDOM, YOUNGEST, LOCKS } kill_strategy;
 
 WT_RESOURCE_TYPE restype={ wt_resource_id_memcmp, 0};
@@ -68,13 +68,14 @@ pthread_handler_t test_wt(void *arg)
 
     res= 0;
 
+    /* prepare for waiting for a random number of random threads */
     for (j= n= (rnd() % THREADS)/10; !res && j >= 0; j--)
     {
 retry:
-      i= rnd() % (THREADS-1);
-      if (i >= id) i++;
+      i= rnd() % (THREADS-1); /* pick a random thread */
+      if (i >= id) i++;   /* with a number from 0 to THREADS-1 excluding ours */
 
-      for (k=n; k >=j; k--)
+      for (k=n; k >=j; k--) /* the one we didn't pick before */
         if (blockers[k] == i)
           goto retry;
       blockers[j]= i;
@@ -121,7 +122,7 @@ retry:
 #define DEL "(deleted)"
     char *x=malloc(strlen(thds[id].thd.name)+sizeof(DEL)+1);
     strxmov(x, thds[id].thd.name, DEL, 0);
-    thds[id].thd.name=x; /* it's a memory leak, go on, shoot me */
+    thds[id].thd.name=x;
   }
 #endif
 
@@ -165,8 +166,8 @@ void do_one_test()
 
 void do_tests()
 {
-  plan(12);
-  compile_time_assert(THREADS >= 3);
+  plan(14);
+  compile_time_assert(THREADS >= 4);
 
   DBUG_PRINT("wt", ("================= initialization ==================="));
 
@@ -206,22 +207,22 @@ void do_tests()
     pthread_mutex_lock(&lock);
     bad= wt_thd_cond_timedwait(& thds[0].thd, &lock);
     pthread_mutex_unlock(&lock);
-    ok(bad == ETIMEDOUT, "timeout test returned %d", bad);
+    ok(bad == WT_TIMEOUT, "timeout test returned %d", bad);
 
     ok_wait(0,1,0);
     ok_wait(1,2,1);
     ok_deadlock(2,0,2);
 
     pthread_mutex_lock(&lock);
-    wt_thd_cond_timedwait(& thds[0].thd, &lock);
-    wt_thd_cond_timedwait(& thds[1].thd, &lock);
+    ok(wt_thd_cond_timedwait(& thds[0].thd, &lock) == WT_TIMEOUT, "as always");
+    ok(wt_thd_cond_timedwait(& thds[1].thd, &lock) == WT_TIMEOUT, "as always");
     wt_thd_release_all(& thds[0].thd);
     wt_thd_release_all(& thds[1].thd);
     wt_thd_release_all(& thds[2].thd);
     wt_thd_release_all(& thds[3].thd);
     pthread_mutex_unlock(&lock);
 
-    for (cnt=0; cnt < 3; cnt++)
+    for (cnt=0; cnt < 4; cnt++)
     {
       wt_thd_destroy(& thds[cnt].thd);
       wt_thd_lazy_init(& thds[cnt].thd,
@@ -261,6 +262,7 @@ void do_tests()
     wt_thd_release_all(& thds[cnt].thd);
     wt_thd_destroy(& thds[cnt].thd);
     pthread_mutex_destroy(& thds[cnt].lock);
+    free(thds[cnt].thd.name);
   }
   pthread_mutex_unlock(&lock);
   wt_end();

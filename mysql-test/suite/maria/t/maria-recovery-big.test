@@ -33,7 +33,6 @@ use mysqltest;
 
 --echo * TEST of recovery with blobs
 -- source include/maria_empty_logs.inc
-set @@max_allowed_packet=32000000;
 create table t1 (a int, b longtext) engine=maria table_checksum=1;
 let $mms_tables=1;
 -- source include/maria_make_snapshot_for_feeding_recovery.inc

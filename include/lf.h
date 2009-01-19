@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,8 +187,8 @@ typedef struct st_lf_allocator {
   uchar * volatile top;
   uint element_size;
   uint32 volatile mallocs;
-  void (*constructor)(uchar *);
-  void (*destructor)(uchar *);
+  void (*constructor)(uchar *); /* called, when an object is malloc()'ed */
+  void (*destructor)(uchar *);  /* called, when an object is free()'d    */
 } LF_ALLOCATOR;
 
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
@@ -219,7 +219,7 @@ lock_wrap(lf_alloc_new, void *,
 #define LF_HASH_UNIQUE 1
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
-#define LF_HASH_OVERHEAD (sizeof(int*)*4)
+extern const int LF_HASH_OVERHEAD;
 
 typedef struct {
   LF_DYNARRAY array;                    /* hash itself */

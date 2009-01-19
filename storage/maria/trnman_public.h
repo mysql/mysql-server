@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
 #define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)
 #define trnman_rollback_trn(T)  trnman_end_trn(T, FALSE)
-void trnman_free_trn(TRN *trn);
 int trnman_can_read_from(TRN *trn, TrID trid);
 TRN *trnman_trid_to_trn(TRN *trn, TrID trid);
 void trnman_new_statement(TRN *trn);
@@ -70,5 +69,17 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
 void trnman_lock();
 void trnman_unlock();
 my_bool trman_is_inited();
+#ifdef EXTRA_DEBUG
+uint16 trnman_get_flags(TRN *);
+void trnman_set_flags(TRN *, uint16 flags);
+#else
+#define trnman_get_flags(A) 0
+#define trnman_set_flags(A, B) do { } while (0)
+#endif
+
+/* Flag bits */
+#define TRN_STATE_INFO_LOGGED       1  /* Query is logged */
+#define TRN_STATE_TABLES_CAN_CHANGE 2  /* Things can change during trans. */
+
 C_MODE_END
 #endif

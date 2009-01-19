@@ -1,3 +1,4 @@
+set global max_allowed_packet=400000000;
 set storage_engine=maria;
 affected rows: 0
 set global maria_log_file_size=4294967295;
@@ -60,8 +61,6 @@ count(*)
 4096
 affected rows: 1
 drop table t1, t2;
-affected rows: 0
-set @@max_allowed_packet=400000000;
 affected rows: 0
 create table t1 (a int, b longtext);
 affected rows: 0

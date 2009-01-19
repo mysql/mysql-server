@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -430,19 +430,19 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 
 /* adapt for two different flavors of struct timespec */
 #ifdef HAVE_TIMESPEC_TS_SEC
-#define TV_sec  ts_sec
-#define TV_nsec ts_nsec
+#define MY_tv_sec  ts_sec
+#define MY_tv_nsec ts_nsec
 #else
-#define TV_sec  tv_sec
-#define TV_nsec tv_nsec
+#define MY_tv_sec  tv_sec
+#define MY_tv_nsec tv_nsec
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 #ifndef set_timespec_time_nsec
 #define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
   ulonglong nsec= (NSEC);                                               \
   ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).TV_sec=  (now / ULL(10000000));                             \
-  (ABSTIME).TV_nsec= (now % ULL(10000000) * 100 + (nsec % 100));        \
+  (ABSTIME).MY_tv_sec=  (now / ULL(10000000));                          \
+  (ABSTIME).MY_tv_nsec= (now % ULL(10000000) * 100 + (nsec % 100));     \
 } while(0)
 #endif /* !set_timespec_time_nsec */
 

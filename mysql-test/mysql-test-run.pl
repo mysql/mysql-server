@@ -134,6 +134,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 our $default_vardir;
 
 our $opt_usage;
+our $opt_list_options;
 our $opt_suites;
 our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,maria"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
@@ -556,7 +557,7 @@ sub command_line_setup () {
   );
 
   Getopt::Long::Configure("pass_through");
-  GetOptions(
+  my %options=(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
@@ -694,9 +695,13 @@ sub command_line_setup () {
              (map { $_ => \&warn_about_removed_option } @removed_options),
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+             'list-options'             => \$opt_list_options,
+            );
+
+  GetOptions(%options) or usage("Can't read options");
 
   usage("") if $opt_usage;
+  list_options(\%options) if $opt_list_options;
 
   $glob_scriptname=  basename($0);
 
@@ -5473,3 +5478,16 @@ HERE
   mtr_exit(1);
 
 }
+
+sub list_options ($) {
+  my $hash= shift;
+
+  for (keys %$hash) {
+    s/(=.*|!)$//;
+    s/\|/\n--/g;
+    print "--$_\n";
+  }
+
+  mtr_exit(1);
+}
+

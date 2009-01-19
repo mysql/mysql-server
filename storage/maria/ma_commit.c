@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #include "trnman.h"
 
 /**
-   @brief writes a COMMIT record to log and commits transaction in memory
+   writes a COMMIT record to log and commits transaction in memory
 
    @param  trn              transaction
 
@@ -82,7 +82,7 @@ int ma_commit(TRN *trn)
 
 
 /**
-   @brief Writes a COMMIT record for a transaciton associated with a file
+   Writes a COMMIT record for a transaciton associated with a file
 
    @param  info              Maria handler
 
@@ -98,13 +98,17 @@ int maria_commit(MARIA_HA *info)
 
 
 /**
-   @brief Starts a transaction on a file handle
+   Starts a transaction on a file handle
 
    @param  info              Maria handler
 
    @return Operation status
      @retval 0      ok
      @retval #      Error code.
+
+   @note this can be used only in single-threaded programs (tests),
+   because we create a transaction (trnman_new_trn) with WT_THD=0.
+   XXX it needs to be fixed when we'll start using maria_begin from SQL.
 */
 
 int maria_begin(MARIA_HA *info)

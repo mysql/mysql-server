@@ -98,6 +98,7 @@ prototype_redo_exec_hook(UNDO_KEY_DELETE);
 prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 prototype_redo_exec_hook(COMMIT);
 prototype_redo_exec_hook(CLR_END);
+prototype_redo_exec_hook(DEBUG_INFO);
 prototype_undo_exec_hook(UNDO_ROW_INSERT);
 prototype_undo_exec_hook(UNDO_ROW_DELETE);
 prototype_undo_exec_hook(UNDO_ROW_UPDATE);
@@ -488,6 +489,11 @@ static void display_record_position(const LOG_DESC *log_desc,
          number ? "" : "   ", number, LSN_IN_PARTS(rec->lsn),
          rec->short_trid, log_desc->name, rec->type,
          (ulong)rec->record_length);
+  if (rec->type == LOGREC_DEBUG_INFO)
+  {
+    /* Print some extra information */
+    (*log_desc->record_execute_in_redo_phase)(rec);
+  }
 }
 
 
@@ -1412,6 +1418,9 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
 {
   int error= 1;
   uchar *buff;
+  uint number_of_blobs, number_of_ranges;
+  pgcache_page_no_t first_page, last_page;
+  char llbuf1[22], llbuf2[22];
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     return 0;
@@ -1426,11 +1435,19 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
   }
   buff= log_record_buffer.str;
   if (_ma_apply_redo_insert_row_blobs(info, current_group_end_lsn,
-                                      buff, rec->lsn))
+                                      buff, rec->lsn, &number_of_blobs,
+                                      &number_of_ranges,
+                                      &first_page, &last_page))
     goto end;
+  llstr(first_page, llbuf1);
+  llstr(last_page, llbuf2);
+  tprint(tracef, " %u blobs %u ranges, first page %s last %s",
+         number_of_blobs, number_of_ranges, llbuf1, llbuf2);
+
   error= 0;
 
 end:
+  tprint(tracef, " \n");
   return error;
 }
 
@@ -1993,6 +2010,37 @@ prototype_redo_exec_hook(CLR_END)
 
 
 /**
+   Hock to print debug information (like MySQL query)
+*/
+
+prototype_redo_exec_hook(DEBUG_INFO)
+{
+  uchar *data;
+  enum translog_debug_info_type debug_info;
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+      rec->record_length)
+  {
+    eprint(tracef, "Failed to read record debug record");
+    return 1;
+  }
+  debug_info= (enum translog_debug_info_type) log_record_buffer.str[0];
+  data= log_record_buffer.str + 1;
+  switch (debug_info) {
+  case LOGREC_DEBUG_INFO_QUERY:
+    tprint(tracef, "Query: %s\n", (char*) data);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  return 0;
+}
+
+
+/**
   In some cases we have to skip execution of an UNDO record during the UNDO
   phase.
 */
@@ -2350,6 +2398,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook(UNDO_BULK_INSERT);
   install_undo_exec_hook(UNDO_BULK_INSERT);
   install_redo_exec_hook(IMPORTED_TABLE);
+  install_redo_exec_hook(DEBUG_INFO);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 #ifndef DBUG_OFF
@@ -3391,6 +3440,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
     procent_printed= 1;
   }
 }
+
 
 #ifdef MARIA_EXTERNAL_LOCKING
 #error Marias Checkpoint and Recovery are really not ready for it
