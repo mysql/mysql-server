@@ -377,7 +377,17 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
     assert(brtnode->thisnodename.b==nodename.b);
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, h);
+	if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
+	    int r = toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, h);
+	    if (r) {
+		if (h->panic==0) {
+		    char s[200];
+		    h->panic=r;
+		    snprintf(s, sizeof(s), "While writing data to disk, error %d (%s)", r, strerror(r));
+		    h->panic_string = toku_strdup(s);
+		}
+	    }
+	}
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -1196,7 +1206,6 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger, BOOL *did
 					    NULL,
 					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback,
 					    t->h);
-	assert(r==0); // REMOVE LATER
 	if (r!=0) return r;
 	child = childnode_v;
 	assert(child->thisnodename.b!=0);
@@ -2525,7 +2534,10 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
 
     VERIFY_NODE(brt, node);
     verify_local_fingerprint_nonleaf(node);
-    if ((r = push_something_at_root(brt, &node, rootp, cmd, logger))) return r;
+    if ((r = push_something_at_root(brt, &node, rootp, cmd, logger))) {
+	toku_unpin_brtnode(brt, node); // ignore any error code on the unpin.
+	return r;
+    }
     verify_local_fingerprint_nonleaf(node);
     r = toku_unpin_brtnode(brt, node);
     assert(r == 0);
@@ -2864,7 +2876,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     }
     if (r!=0) {
 	died_after_open: 
-        toku_cachefile_close(&t->cf, toku_txn_logger(txn));
+        toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0);
         t->database_name = 0;
 	goto died0a;
     }
@@ -3035,25 +3047,35 @@ toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
     //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
     //       block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
     if (h->dirty) {
-	toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
+	{
+	    int r = toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
+	    if (r) return r;
+	}
 	u_int64_t write_to = block_allocator_allocated_limit(h->block_allocator); // Must compute this after writing the header.
 	//printf("%s:%d fifo written to %lu\n", __FILE__, __LINE__, write_to);
-	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), write_to, h->fifo);
+	{
+	    int r = toku_serialize_fifo_at(toku_cachefile_fd(cachefile), write_to, h->fifo);
+	    if (r) return r;
+	}
 	h->dirty = 0;
     }
     return 0;
 }
 
 int
-toku_brtheader_close (CACHEFILE cachefile, void *header_v)
+toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error_string)
 {
     struct brt_header *h = header_v;
-    toku_brtheader_checkpoint(cachefile, h);
+    int r = toku_brtheader_checkpoint(cachefile, h);
+    if (malloced_error_string) *malloced_error_string = h->panic_string;
+    if (r==0) {
+	r=h->panic;
+    }
     toku_brtheader_free(h);
-    return 0;
+    return r;
 }
 
-int toku_close_brt (BRT brt, TOKULOGGER logger) {
+int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
     int r;
     while (!list_empty(&brt->cursors)) {
 	BRT_CURSOR c = list_struct(list_pop(&brt->cursors), struct brt_cursor, cursors_link);
@@ -3074,17 +3096,18 @@ int toku_close_brt (BRT brt, TOKULOGGER logger) {
 	    r = toku_log_brtclose(logger, &lsn, 1, bs, toku_cachefile_filenum(brt->cf)); // flush the log on close, otherwise it might not make it out.
 	    if (r!=0) return r;
 	}
-        assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero.
+	if (!brt->h->panic)
+	    assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero (but if panic, don't worry)
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
 	// printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
-        if ((r = toku_cachefile_close(&brt->cf, logger))!=0) return r;
+        r = toku_cachefile_close(&brt->cf, logger, error_string);
     }
     if (brt->database_name) toku_free(brt->database_name);
     if (brt->fname) toku_free(brt->fname);
     if (brt->skey) { toku_free(brt->skey); }
     if (brt->sval) { toku_free(brt->sval); }
     toku_free(brt);
-    return 0;
+    return r;
 }
 
 int toku_brt_create(BRT *brt_ptr) {

@@ -8,23 +8,25 @@ EXPORTS
    	db_env_set_func_malloc @7
    	db_env_set_func_realloc @8
    	db_env_set_func_free @9
-   	toku_os_get_max_rss @10
-   	toku_ydb_error_all_cases @11
-   	toku_set_trace_file @12
-   	toku_close_trace_file @13
-   	toku_add_trace_mem @14
-   	toku_print_trace_mem @15
-   	toku_free @16
-   	toku_malloc @17
-   	toku_os_get_file_size @18
-   	toku_os_getpid @19
-   	toku_os_gettid @20
-   	toku_os_initialize_settings @21
-   	toku_os_is_absolute_name @22
-   	toku_os_mkdir @23
-   	toku_realloc @24
-   	toku_strdup @25
-   	dlmalloc @26
-   	dlrealloc @27
-   	dlfree @28
+   	db_env_set_func_pwrite @10
+   	db_env_set_func_write @11
+   	toku_os_get_max_rss @12
+   	toku_ydb_error_all_cases @13
+   	toku_set_trace_file @14
+   	toku_close_trace_file @15
+   	toku_add_trace_mem @16
+   	toku_print_trace_mem @17
+   	toku_free @18
+   	toku_malloc @19
+   	toku_os_get_file_size @20
+   	toku_os_getpid @21
+   	toku_os_gettid @22
+   	toku_os_initialize_settings @23
+   	toku_os_is_absolute_name @24
+   	toku_os_mkdir @25
+   	toku_realloc @26
+   	toku_strdup @27
+   	dlmalloc @28
+   	dlrealloc @29
+   	dlfree @30
 

@@ -38,6 +38,7 @@ LSN toku_logger_last_lsn(TOKULOGGER);
 
 int toku_logger_set_lg_max (TOKULOGGER logger, u_int32_t);
 int toku_logger_get_lg_max (TOKULOGGER logger, u_int32_t *);
+int toku_logger_set_lg_bsize(TOKULOGGER, u_int32_t);
 
 // Doesn't close the txn, just performs the commit operations.
 int toku_logger_commit (TOKUTXN txn, int no_sync, void(*yield)(void*yield_v), void*yield_v);

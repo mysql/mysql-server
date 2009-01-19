@@ -39,7 +39,7 @@ doit (void) {
     r = toku_brt_lookup(t, toku_fill_dbt(&k, "a", 2), toku_init_dbt(&v));
     assert(r==DB_NOTFOUND);
 
-    r = toku_close_brt(t, 0);           assert(r==0);
+    r = toku_close_brt(t, 0, 0);        assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 

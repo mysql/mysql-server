@@ -123,6 +123,8 @@ struct block_translation_pair {
 struct brt_header {
     int refcount;
     int dirty;
+    int panic; // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
+    char *panic_string; // A malloced string that can indicate what went wrong.
     int layout_version;
     unsigned int nodesize;
     int n_named_roots; /* -1 if the only one is unnamed */
@@ -181,7 +183,7 @@ struct brt {
 };
 
 /* serialization code */
-void toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h);
+int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brt_header *h);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
@@ -286,7 +288,7 @@ enum brt_layout_version_e {
 };
 
 void toku_brtheader_free (struct brt_header *h);
-int toku_brtheader_close (CACHEFILE cachefile, void *header_v);
+int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string);
 int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 
 #define BLOCK_ALLOCATOR_ALIGNMENT 4096

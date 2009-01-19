@@ -562,13 +562,35 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 }
 
 static int toku_env_close(DB_ENV * env, u_int32_t flags) {
-    // Even if the env is panicedk, try to close as much as we can.
     int is_panicked = toku_env_is_panicked(env);
+    char *panic_string = env->i->panic_string;
+    env->i->panic_string = 0;
+
+    // Even if the env is panicked, try to close as much as we can.
     int r0=0,r1=0;
-    if (env->i->cachetable)
+    if (env->i->cachetable) {
         r0=toku_cachetable_close(&env->i->cachetable);
-    if (env->i->logger)
+	if (r0) {
+	    toku_ydb_do_error(env, r0, "Cannot close environment (cachetable close error)\n");
+	}
+    }
+    if (env->i->logger) {
         r1=toku_logger_close(&env->i->logger);
+	if (r0==0 && r1) {
+	    toku_ydb_do_error(env, r0, "Cannot close environment (logger close error)\n");
+	}
+    }
+    // Even if nothing else went wrong, but we were panicked, then raise an error.
+    // But if something else went wrong then raise that error (above)
+    if (is_panicked) {
+	if (r0==0 && r1==0) {
+	    toku_ydb_do_error(env, is_panicked, "Cannot close environment due to previous error: %s\n", panic_string);
+	}
+	if (panic_string) toku_free(panic_string);
+    } else {
+	assert(panic_string==0);
+    }
+
     if (env->i->data_dirs) {
         u_int32_t i;
         assert(env->i->n_data_dirs > 0);
@@ -589,8 +611,7 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     if (flags!=0) return EINVAL;
     if (r0) return r0;
     if (r1) return r1;
-    if (is_panicked) return EINVAL;
-    return 0;
+    return is_panicked;
 }
 
 static int toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
@@ -699,8 +720,7 @@ static int toku_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
 
 static int toku_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
     HANDLE_PANICKED_ENV(env);
-    bsize=bsize;
-    return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support ENV->set_lg_bsize\n");
+    return toku_logger_set_lg_bsize(env->i->logger, bsize);
 }
 
 static int toku_env_set_lg_dir(DB_ENV * env, const char *dir) {
@@ -929,6 +949,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
     memset(result->i, 0, sizeof *result->i);
     result->i->is_panicked=0;
+    result->i->panic_string = 0;
     result->i->ref_count = 1;
     result->i->errcall = 0;
     result->i->errpfx = 0;
@@ -1275,13 +1296,27 @@ static int toku_db_close(DB * db, u_int32_t flags) {
         }
     }
     flags=flags;
-    int r = toku_close_brt(db->i->brt, db->dbenv->i->logger);
-    if (r != 0)
-        return r;
+    char *error_string = 0;
+    int r1 = toku_close_brt(db->i->brt, db->dbenv->i->logger, &error_string);
+    if (r1) {
+	db->dbenv->i->is_panicked = r1; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
+	db->dbenv->i->panic_string = error_string;
+	if (error_string) {
+	    toku_ydb_do_error(db->dbenv, r1, "%s\n", error_string);
+	} else {
+	    toku_ydb_do_error(db->dbenv, r1, "Closing file\n");
+	}
+	error_string=0;
+    }
+    assert(error_string==0);
+    int r2 = 0;
     if (db->i->db_id) { toku_db_id_remove_ref(&db->i->db_id); }
     if (db->i->lt) {
-        r = toku_lt_remove_ref(db->i->lt);
-        if (r!=0) { return r; }
+        r2 = toku_lt_remove_ref(db->i->lt);
+	if (r2) {
+	    db->dbenv->i->is_panicked = r2; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
+	    db->dbenv->i->panic_string = 0;
+	}
     }
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     // Even if panicked, let's close as much as we can.
@@ -1293,8 +1328,10 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     toku_free(db->i);
     toku_free(db);
     ydb_unref();
-    if (r==0 && is_panicked) return EINVAL;
-    return r;
+    if (r1) return r1;
+    if (r2) return r2;
+    if (is_panicked) return EINVAL;
+    return 0;
 }
 
 /* Verify that an element from the secondary database is still consistent
@@ -2851,12 +2888,15 @@ finish:
 }
 
 static int toku_db_lt_panic(DB* db, int r) {
+    assert(r!=0);
     assert(db && db->i && db->dbenv && db->dbenv->i);
     DB_ENV* env = db->dbenv;
-    env->i->is_panicked = 1;
-    if (r < 0) toku_ydb_do_error(env, 0, toku_lt_strerror((TOKU_LT_ERROR)r));
-    else       toku_ydb_do_error(env, r, "Error in locktree.\n");
-    return EINVAL;
+    env->i->is_panicked = r;
+
+    if (r < 0) env->i->panic_string = toku_strdup(toku_lt_strerror((TOKU_LT_ERROR)r));
+    else       env->i->panic_string = toku_strdup("Error in locktree.\n");
+
+    return toku_ydb_do_error(env, r, env->i->panic_string);
 }
 
 static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
@@ -3683,6 +3723,13 @@ const char *db_version(int *major, int *minor, int *patch) {
  
 int db_env_set_func_fsync (int (*fsync_function)(int)) {
     return toku_set_func_fsync(fsync_function);
+}
+
+int db_env_set_func_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, off_t)) {
+    return toku_set_func_pwrite(pwrite_function);
+}
+int db_env_set_func_write (ssize_t (*write_function)(int, const void *, size_t)) {
+    return toku_set_func_write(write_function);
 }
 
 int db_env_set_func_malloc (void *(*f)(size_t)) {

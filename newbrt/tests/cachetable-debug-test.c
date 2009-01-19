@@ -75,7 +75,7 @@ cachetable_debug_test (int n) {
 
     if (verbose) print_hash_histogram();
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

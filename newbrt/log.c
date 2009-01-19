@@ -103,6 +103,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->n_in_file=0;
     result->directory=0;
     result->checkpoint_lsns[0]=result->checkpoint_lsns[1]=(LSN){0};
+    result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     *resultp=result;
     r = ml_init(&result->input_lock); if (r!=0) goto died0;
     r = ml_init(&result->output_lock); if (r!=0) goto died1;
@@ -221,6 +222,15 @@ int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp) {
     *lg_maxp = logger->lg_max;
     return 0;
     
+}
+
+int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize) {
+    if (logger==0) return EINVAL; // no logger
+    if (logger->is_panicked) return EINVAL;
+    if (logger->is_open) return EINVAL;
+    if (bsize<=0 || bsize>(1<<30)) return EINVAL;
+    logger->write_block_size = bsize;
+    return 0;
 }
 
 // Enter holding both locks
@@ -989,7 +999,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 }
 
 int toku_maybe_spill_rollbacks (TOKUTXN txn) {
-    if (txn->rollentry_resident_bytecount>(1<<20)) {
+    if (txn->rollentry_resident_bytecount>txn->logger->write_block_size) {
 	struct roll_entry *item;
 	ssize_t bufsize = txn->rollentry_resident_bytecount;
 	char *MALLOC_N(bufsize, buf);

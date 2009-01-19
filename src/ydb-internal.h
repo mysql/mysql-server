@@ -50,7 +50,8 @@ typedef void (*toku_env_errcall_t)(const DB_ENV *, const char *, const char *);
 #endif
 
 struct __toku_db_env_internal {
-    int is_panicked;
+    int is_panicked; // if nonzero, then its an error number
+    char *panic_string;
     int ref_count;
     u_int32_t open_flags;
     int open_mode;

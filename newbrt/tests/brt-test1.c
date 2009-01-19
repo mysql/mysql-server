@@ -27,7 +27,7 @@ static void test1 (void) {
 	assert(strcmp(v.data, "there")==0);
 	assert(v.size==6);
     }
-    r = toku_close_brt(t, 0);              assert(r==0);
+    r = toku_close_brt(t, 0, 0);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
     toku_memory_check_all_free();
     if (verbose) printf("test1 ok\n");

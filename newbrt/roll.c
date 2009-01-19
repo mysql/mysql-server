@@ -84,7 +84,7 @@ static int do_insertion (enum brt_cmd_type type, TXNID xid, FILENUM filenum, BYT
 	BRT brt = brtv;
 	r = toku_brt_root_put_cmd(brt, &brtcmd, txn->logger);
     }
-    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+    return toku_cachefile_close(&cf, toku_txn_logger(txn), 0);
 }
 
 
@@ -92,7 +92,7 @@ static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
     CACHEFILE cf;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r==0);
-    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+    return toku_cachefile_close(&cf, toku_txn_logger(txn), 0);
 }
 
 
@@ -316,7 +316,7 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(
     BRT brt = brtv;
     r = toku_brt_truncate(brt);
 
-    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+    return toku_cachefile_close(&cf, toku_txn_logger(txn), 0);
 }
 
 int
