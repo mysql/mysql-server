@@ -1,26 +1,27 @@
-############# mysql-test\t\thread_cache_size_func.test #######################################
-#                                                                                       #
-# Variable Name: thread_cache_size                                                      #
-# Scope: SESSION                                                                        #
-# Access Type: Dynamic                                                                  #
-# Data Type: Enumeration                                                                #
-# Default Value: 0                                                                      #
-# Values:      0-16384                                                                  #
-#                                                                                       #
-#                                                                                       #
-# Creation Date: 2008-03-02                                                             #
-# Author:  Sharique Abdullah                                                                #
-#                                                                                       #
-# Description: Test Cases of Dynamic System Variable "thread_cache_size"                #
-#              that checks behavior of this variable in the following ways              #
-#              * Functionality based on different values                                #
-#                                                                                       #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
-# option_mysqld_thread_cache_size                                                       #
-#                                                                                       #
-#########################################################################################
-
-
+############# mysql-test\t\thread_cache_size_func.test ##########################
+#                                                                               #
+# Variable Name: thread_cache_size                                              #
+# Scope: SESSION                                                                #
+# Access Type: Dynamic                                                          #
+# Data Type: Enumeration                                                        #
+# Default Value: 0                                                              #
+# Values:      0-16384                                                          #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-03-02                                                     #
+# Author:  Sharique Abdullah                                                    #
+#                                                                               #
+# Modified: HHunger 2008-08-27 Reduced test to needed function and inserted     #
+#                              wait-loops                                       #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable "thread_cache_size"        #
+#              that checks behavior of this variable in the following ways      #
+#              * Functionality based on different values                        #
+#                                                                               #
+# Reference:                                                                    #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                               #
+#################################################################################
 
 #
 # Setup
@@ -32,41 +33,31 @@ SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
 
 FLUSH STATUS;
 
-#
-# Greater than cache threads, setting cache size to 3
-#
 -- ECHO '# Test1#'
 SET @@GLOBAL.thread_cache_size=3;
-
-let $threadsCreated1 = query_get_value(SHOW STATUS LIKE 'Threads_created', Value, 1);
---echo Saving threads cached, threads created values
-
 SHOW STATUS LIKE 'Threads_cached';
 --echo 0 Expected
-
---ECHO '#Old value for thread_cache'#
 
 ##################################
 # Make 4 connections             #
 ##################################
 
 --echo ** Connecting conn1 using username 'root' **
-connect (conn1,localhost,root,,);
+CONNECT (conn1,localhost,root,,);
 --echo ** Connecting conn2 using username 'root' **
-connect (conn2,localhost,root,,);
+CONNECT (conn2,localhost,root,,);
 --echo ** Connecting conn3 using username 'root' **
-connect (conn3,localhost,root,,);
+CONNECT (conn3,localhost,root,,);
 --echo ** Connecting conn4 using username 'root' **
-connect (conn4,localhost,root,,);
+CONNECT (conn4,localhost,root,,);
 
-let $threadsCreated2 = query_get_value(SHOW STATUS LIKE 'Threads_created', Value, 1);
---echo Saving threads cached, threads created values
+--echo ** Connection default **
+CONNECTION default;
 
---disable_query_log
-eval SELECT ($threadsCreated2 - $threadsCreated1) AS 'Threads Created Difference';
---enable_query_log
+# Wait until all connections done
+let $wait_condition= SELECT COUNT(*)= 5 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
 
---echo 4 Expected
 SHOW STATUS LIKE 'Threads_cached';
 --echo 0 Expected
 
@@ -74,85 +65,54 @@ SHOW STATUS LIKE 'Threads_cached';
 #Disconnecting all the connections #
 ####################################
 
---echo ** Connection default **
-connection default;
-
 --echo ** Disconnecting conn1,conn2,conn3,conn4 **
-disconnect conn1;
-disconnect conn2;
-disconnect conn3;
-disconnect conn4;
+DISCONNECT conn1;
+DISCONNECT conn2;
+DISCONNECT conn3;
+DISCONNECT conn4;
 
 #
 # Checking the status
 #
 
---echo '#new  values for thread cache after disconnecting'#
-let $threadsCreated3 = query_get_value(SHOW STATUS LIKE 'Threads_created', Value, 1);
+# Wait until all disconnects ready
+let $wait_condition= SELECT COUNT(*)= 1 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
 
---echo Saving threads cached, threads created values
---disable_query_log
-eval SELECT ($threadsCreated3 - $threadsCreated2) AS 'Threads Created Difference';
---enable_query_log
---echo 0 Expected
 SHOW STATUS LIKE 'Threads_cached';
 --echo 3 Expected
-
 
 #
 # Decreasing cache size to 1
 #
-SET @@GLOBAL.thread_cache_size=1;
-
-connection default;
-
-let $threadsCreated6 = query_get_value(SHOW STATUS LIKE 'Threads_created', Value, 1);
---echo Saving threads cached, threads created values
---disable_query_log
-eval SELECT $threadsCreated6 - $threadsCreated3 AS 'Threads Created Difference';
---enable_query_log
---echo 0 Expected
-SHOW STATUS LIKE 'Threads_cached';
---echo 1 Expected
---echo Bug: The number of threads cached should have decreased with cache size decrease.
+SET @@GLOBAL.thread_cache_size= 1;
 
 --echo ** Connecting conn1 using username 'root' **
 CONNECT (conn1,localhost,root,,);
 --echo ** Connecting conn2 using username 'root' **
 CONNECT (conn2,localhost,root,,);
 
-let $threadsCreated4 = query_get_value(SHOW STATUS LIKE 'Threads_created', Value, 1);
---echo Saving threads cached, threads created values
---disable_query_log
-eval SELECT $threadsCreated4 - $threadsCreated3 AS 'Threads Created Difference';
---enable_query_log
---echo 1 Expected
---echo Bug: The number of threads created should have increased because the cache should have 1 thread only
-SHOW STATUS LIKE 'Threads_cached';
---echo 0 Expected
---echo Bug: The number of threads created should have decreased because atleast 1 new connection came in
+--echo connection default;
+CONNECTION default;
 
---echo ** Connection default **
-connection default;
+# Wait until all connects ready
+let $wait_condition= SELECT COUNT(*)= 3 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
 
 --echo ** Disconnecting conn1,conn2 **
-disconnect conn1;
-disconnect conn2;
+DISCONNECT conn1;
+DISCONNECT conn2;
 
---ECHO '#new status values for thread cache'#
-let $threadsCreated5 = query_get_value(SHOW STATUS LIKE 'Threads_created', Value, 1);
---echo Saving threads cached, threads created values
---disable_query_log
-eval SELECT ($threadsCreated5 - $threadsCreated4) AS 'Threads Created Difference';
---enable_query_log
---echo 0 Expected
+# Wait until all disconnects ready
+let $wait_condition= SELECT COUNT(*)= 1 FROM INFORMATION_SCHEMA.PROCESSLIST;
+--source include/wait_condition.inc
+
 SHOW STATUS LIKE 'Threads_cached';
 --echo 1 Expected
-
---echo Saving threads cached, threads created values
 
 #
 # Cleanup
 #
 
 SET @@GLOBAL.thread_cache_size = @global_thread_cache_size;
+

@@ -2080,16 +2080,16 @@ char *generate_partition_syntax(partition_info *part_info,
     err+= add_string_len(fptr, part_info->part_func_string,
                          part_info->part_func_len);
   err+= add_end_parenthesis(fptr);
-  err+= add_space(fptr);
   if ((!part_info->use_default_no_partitions) &&
        part_info->use_default_partitions)
   {
+    err+= add_string(fptr, "\n");
     err+= add_string(fptr, "PARTITIONS ");
     err+= add_int(fptr, part_info->no_parts);
-    err+= add_space(fptr);
   }
   if (part_info->is_sub_partitioned())
   {
+    err+= add_string(fptr, "\n");
     err+= add_subpartition_by(fptr);
     /* Must be hash partitioning for subpartitioning */
     if (part_info->linear_hash_ind)
@@ -2102,13 +2102,12 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_string_len(fptr, part_info->subpart_func_string,
                            part_info->subpart_func_len);
     err+= add_end_parenthesis(fptr);
-    err+= add_space(fptr);
     if ((!part_info->use_default_no_subpartitions) && 
           part_info->use_default_subpartitions)
     {
+      err+= add_string(fptr, "\n");
       err+= add_string(fptr, "SUBPARTITIONS ");
       err+= add_int(fptr, part_info->no_subparts);
-      err+= add_space(fptr);
     }
   }
   tot_no_parts= part_info->partitions.elements;
@@ -2117,6 +2116,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (!part_info->use_default_partitions)
   {
     bool first= TRUE;
+    err+= add_string(fptr, "\n");
     err+= add_begin_parenthesis(fptr);
     i= 0;
     do
@@ -2128,6 +2128,7 @@ char *generate_partition_syntax(partition_info *part_info,
         if (!first)
         {
           err+= add_comma(fptr);
+          err+= add_string(fptr, "\n");
           err+= add_space(fptr);
         }
         first= FALSE;
@@ -2142,6 +2143,7 @@ char *generate_partition_syntax(partition_info *part_info,
         }
         else
         {
+          err+= add_string(fptr, "\n");
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -2156,6 +2158,8 @@ char *generate_partition_syntax(partition_info *part_info,
             if (j != (no_subparts-1))
             {
               err+= add_comma(fptr);
+              err+= add_string(fptr, "\n");
+              err+= add_space(fptr);
               err+= add_space(fptr);
             }
             else
@@ -4185,12 +4189,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       !(thd->work_part_info= thd->lex->part_info->get_clone()))
     DBUG_RETURN(TRUE);
 
+  /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
+  DBUG_ASSERT(!(alter_info->flags & ALTER_ADMIN_PARTITION));
+
   if (alter_info->flags &
       (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
        ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
-       ALTER_TABLE_REORG | ALTER_OPTIMIZE_PARTITION |
-       ALTER_CHECK_PARTITION | ALTER_ANALYZE_PARTITION |
-       ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
+       ALTER_TABLE_REORG | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
     partition_info *alt_part_info= thd->work_part_info;
@@ -4218,9 +4223,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           after the change as before. Thus we can reply ok immediately
           without any changes at all.
         */
-        DBUG_RETURN(fast_end_partition(thd, ULL(0), ULL(0),
-                                       table, NULL,
-                                       TRUE, NULL, FALSE));
+        *fast_alter_partition= TRUE;
+        DBUG_RETURN(FALSE);
       }
       else if (new_part_no > curr_part_no)
       {
@@ -4582,11 +4586,7 @@ that are reorganised.
       }
       tab_part_info->no_parts-= no_parts_dropped;
     }
-    else if ((alter_info->flags & ALTER_OPTIMIZE_PARTITION) ||
-             (alter_info->flags & ALTER_ANALYZE_PARTITION) ||
-             (alter_info->flags & ALTER_CHECK_PARTITION) ||
-             (alter_info->flags & ALTER_REPAIR_PARTITION) ||
-             (alter_info->flags & ALTER_REBUILD_PARTITION))
+    else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
       uint no_parts_found;
       uint no_parts_opt= alter_info->partition_names.elements;
@@ -4594,18 +4594,7 @@ that are reorganised.
       if (no_parts_found != no_parts_opt &&
           (!(alter_info->flags & ALTER_ALL_PARTITION)))
       {
-        const char *ptr;
-        if (alter_info->flags & ALTER_OPTIMIZE_PARTITION)
-          ptr= "OPTIMIZE";
-        else if (alter_info->flags & ALTER_ANALYZE_PARTITION)
-          ptr= "ANALYZE";
-        else if (alter_info->flags & ALTER_CHECK_PARTITION)
-          ptr= "CHECK";
-        else if (alter_info->flags & ALTER_REPAIR_PARTITION)
-          ptr= "REPAIR";
-        else
-          ptr= "REBUILD";
-        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), ptr);
+        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         DBUG_RETURN(TRUE);
       }
       if (!(*fast_alter_partition))
@@ -5305,8 +5294,8 @@ static bool write_log_changed_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
   DDL_LOG_ENTRY ddl_log_entry;
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
-  char tmp_path[FN_LEN];
-  char normal_path[FN_LEN];
+  char tmp_path[FN_REFLEN];
+  char normal_path[FN_REFLEN];
   List_iterator<partition_element> part_it(part_info->partitions);
   uint temp_partitions= part_info->temp_partitions.elements;
   uint no_elements= part_info->partitions.elements;
@@ -5517,7 +5506,7 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
-  char shadow_path[FN_LEN];
+  char shadow_path[FN_REFLEN];
   DBUG_ENTER("write_log_drop_shadow_frm");
 
   build_table_shadow_filename(shadow_path, sizeof(shadow_path), lpt);
@@ -5560,8 +5549,8 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  char path[FN_LEN];
-  char shadow_path[FN_LEN];
+  char path[FN_REFLEN];
+  char shadow_path[FN_REFLEN];
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_rename_frm");
 
@@ -5611,8 +5600,8 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  char tmp_path[FN_LEN];
-  char path[FN_LEN];
+  char tmp_path[FN_REFLEN];
+  char path[FN_REFLEN];
   uint next_entry= 0;
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_drop_partition");
@@ -5670,8 +5659,8 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
-  char tmp_path[FN_LEN];
-  char path[FN_LEN];
+  char tmp_path[FN_REFLEN];
+  char path[FN_REFLEN];
   uint next_entry= 0;
   DBUG_ENTER("write_log_add_change_partition");
 
@@ -5724,8 +5713,8 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry;
   DDL_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  char path[FN_LEN];
-  char shadow_path[FN_LEN];
+  char path[FN_REFLEN];
+  char shadow_path[FN_REFLEN];
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   uint next_entry= 0;
   DBUG_ENTER("write_log_final_change_partition");
@@ -6681,6 +6670,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   uint field_len= field->pack_length_in_rec();
   DBUG_ENTER("get_part_iter_for_interval_via_mapping");
   DBUG_ASSERT(!is_subpart);
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
   if (part_info->part_type == RANGE_PARTITION)
   {
@@ -6701,7 +6691,6 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     max_endpoint_val=    part_info->no_list_values;
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
-    part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
     if (max_endpoint_val == 0)
     {
       /*
@@ -6765,7 +6754,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp= !test(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
-    if (part_iter->part_nums.start == part_iter->part_nums.end &&
+    if (part_iter->part_nums.start >= part_iter->part_nums.end &&
         !part_iter->ret_null_part)
     {
       DBUG_RETURN(0); /* No partitions */
@@ -6948,7 +6937,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
 
 uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 {
-  if (part_iter->part_nums.cur == part_iter->part_nums.end)
+  if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
     part_iter->part_nums.cur= part_iter->part_nums.start;
     return NOT_A_PARTITION_ID;

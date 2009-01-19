@@ -290,7 +290,8 @@ static void do_resolve()
   char buf[1024], *p;
   while (fgets(buf, sizeof(buf), fp_dump))
   {
-    p = buf;
+    /* skip bracket */
+    p= (p= strchr(buf, '[')) ? p+1 : buf;
     /* skip space */
     while (my_isspace(&my_charset_latin1,*p))
       ++p;

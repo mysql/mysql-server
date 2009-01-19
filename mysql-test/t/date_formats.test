@@ -340,3 +340,15 @@ select str_to_date('04/30 /2004', '%m /%d /%Y');
 select str_to_date('04/30/2004 ', '%m/%d/%Y ');
 
 --echo "End of 4.1 tests"
+
+#
+# Bug #41470: DATE_FORMAT() crashes the complete server with a valid date
+#
+
+# show that these two do not crash the server:
+SELECT DATE_FORMAT("0000-01-01",'%W %d %M %Y') as valid_date;
+SELECT DATE_FORMAT("0000-02-28",'%W %d %M %Y') as valid_date;
+# show that date within the Gregorian range render correct results: (THU)
+SELECT DATE_FORMAT("2009-01-01",'%W %d %M %Y') as valid_date;
+
+--echo "End of 5.0 tests"
