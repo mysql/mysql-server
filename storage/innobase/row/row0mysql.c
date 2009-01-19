@@ -342,7 +342,7 @@ row_mysql_store_col_in_innobase_format(
 		/* In some cases we strip trailing spaces from UTF-8 and other
 		multibyte charsets, from FIXED-length CHAR columns, to save
 		space. UTF-8 would otherwise normally use 3 * the string length
-		bytes to store a latin1 string! */
+		bytes to store an ASCII string! */
 
 		/* We assume that this CHAR field is encoded in a
 		variable-length character set where spaces have
