@@ -2828,7 +2828,7 @@ int ha_federated::info(uint flag)
     if (!(row= mysql_fetch_row(result)))
       goto error;
 
-    if (flag & HA_STATUS_VARIABLE | HA_STATUS_CONST)
+    if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST))
     {
       /*
         deleted is set in ha_federated::info

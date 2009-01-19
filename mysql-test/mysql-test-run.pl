@@ -163,6 +163,7 @@ our $exe_my_print_defaults;
 our $exe_perror;
 our $lib_udf_example;
 our $lib_example_plugin;
+our $lib_simple_parser;
 our $exe_libtool;
 
 our $opt_bench= 0;
@@ -1584,16 +1585,22 @@ sub executable_setup_ndb () {
 				"$glob_basedir/storage/ndb",
 				"$glob_basedir/bin");
 
+  # Some might be found in sbin, not bin.
+  my $daemon_path= mtr_file_exists("$glob_basedir/ndb",
+				   "$glob_basedir/storage/ndb",
+				   "$glob_basedir/sbin",
+				   "$glob_basedir/bin");
+
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd",
+			 "$daemon_path/ndbd",
 			 "$glob_basedir/libexec/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd",
+			 "$daemon_path/ndb_mgmd",
 			 "$glob_basedir/libexec/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
@@ -1724,6 +1731,10 @@ sub executable_setup () {
       mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
                       "$glob_basedir/storage/example/.libs/ha_example.so",);
 
+    # Look for the simple_parser library
+    $lib_simple_parser=
+      mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
+                      "$glob_basedir/plugin/fulltext/.libs/mypluglib.so",);
   }
 
   # Look for mysqltest executable
@@ -2207,6 +2218,14 @@ sub environment_setup () {
     ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
 
   # ----------------------------------------------------
+  # Add the path where mysqld will find mypluglib.so
+  # ----------------------------------------------------
+  $ENV{'SIMPLE_PARSER'}=
+    ($lib_simple_parser ? basename($lib_simple_parser) : "");
+  $ENV{'SIMPLE_PARSER_OPT'}=
+    ($lib_simple_parser ? "--plugin_dir=" . dirname($lib_simple_parser) : "");
+
+  # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------
   $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
@@ -2393,6 +2412,9 @@ sub remove_stale_vardir () {
     mtr_verbose("Removing $opt_vardir/");
     mtr_rmtree("$opt_vardir/");
   }
+  # Remove the "tmp" dir
+  mtr_verbose("Removing $opt_tmpdir/");
+  mtr_rmtree("$opt_tmpdir/");
 }
 
 #
@@ -2442,6 +2464,12 @@ sub setup_vardir() {
   mkpath("$opt_vardir/run");
   mkpath("$opt_vardir/tmp");
   mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
+
+  if ($master->[0]->{'path_sock'} !~ m/^$opt_tmpdir/)
+  {
+    mtr_report("Symlinking $master->[0]->{'path_sock'}");
+	symlink($master->[0]->{'path_sock'}, "$opt_tmpdir/master.sock");
+  }
 
   # Create new data dirs
   foreach my $data_dir (@data_dir_lst)
