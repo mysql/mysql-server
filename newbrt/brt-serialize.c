@@ -208,7 +208,9 @@ enum { compression_header_len = (4   // compressed_len
 				 +4 // uncompressed_len
 				 ) };
 
-int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h) {
+static inline void ignore_int (int UU(ignore_me)) {}
+
+int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads) {
     struct wbuf w;
     int i;
     unsigned int calculated_size = toku_serialize_brtnode_size(node) - 8; // don't include the compressed or uncompressed sizes
@@ -323,9 +325,22 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 		  buf[uncompressed_magic_len],   buf[uncompressed_magic_len+1],
 		  buf[uncompressed_magic_len+2], buf[uncompressed_magic_len+3]);
     {
+#ifdef ADAPTIVE_COMPRESSION
+	// Marketing has expressed concern that this algorithm will make customers go crazy.
+	int compression_level;
+	if      (n_workitems <=   n_threads) compression_level = 5;
+	else if (n_workitems <= 2*n_threads) compression_level = 4;
+	else if (n_workitems <= 3*n_threads) compression_level = 3;
+	else if (n_workitems <= 4*n_threads) compression_level = 2;
+	else                                 compression_level = 1;
+#else
+	int compression_level = 5;
+	ignore_int(n_workitems); ignore_int(n_threads);
+#endif
+	//printf("compress(%d) n_workitems=%d n_threads=%d\n", compression_level, n_workitems, n_threads);
 	int r = compress2(((Bytef*)compressed_buf)+uncompressed_magic_len + compression_header_len, &compressed_len,
 			  ((Bytef*)buf)+uncompressed_magic_len, calculated_size-uncompressed_magic_len,
-			  1);
+			  compression_level);
 	assert(r==Z_OK);
     }
 

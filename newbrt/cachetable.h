@@ -52,7 +52,8 @@ int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char */*fn
 
 // Get access to the asynchronous work queue
 // Returns: a pointer to the work queue
-WORKQUEUE toku_cachetable_get_workqueue(CACHETABLE);
+WORKQUEUE toku_cachetable_get_workqueue (CACHETABLE);
+void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threads);
 
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
 // When write_me is true, the value should be written to storage.

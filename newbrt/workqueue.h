@@ -42,13 +42,14 @@ static inline void *workitem_arg(WORKITEM wi) {
 // divide the workqueue into per worker thread queues.
 typedef struct workqueue *WORKQUEUE;
 struct workqueue {
-    WORKITEM head, tail;             // list of workitem's
+    WORKITEM head, tail;             // list of workitems
     toku_pthread_mutex_t lock;
     toku_pthread_cond_t wait_read;   // wait for read
     int want_read;                   // number of threads waiting to read
     toku_pthread_cond_t wait_write;  // wait for write
     int want_write;                  // number of threads waiting to write
     char closed;                     // kicks waiting threads off of the write queue
+    int n_in_queue;                  // count of how many workitems are in the queue.
 };
 
 // Get a pointer to the workqueue lock.  This is used by workqueue client software
@@ -80,6 +81,7 @@ static void workqueue_init(WORKQUEUE wq) {
     r = toku_pthread_cond_init(&wq->wait_write, 0); assert(r == 0);
     wq->want_write = 0;
     wq->closed = 0;
+    wq->n_in_queue = 0;
 }
 
 // Destroy a work queue
@@ -120,6 +122,7 @@ static inline int workqueue_empty(WORKQUEUE wq) {
 __attribute__((unused))
 static void workqueue_enq(WORKQUEUE wq, WORKITEM wi, int dolock) {
     if (dolock) workqueue_lock(wq);
+    wq->n_in_queue++;
     wi->next = 0;
     if (wq->tail)
         wq->tail->next = wi;
@@ -141,6 +144,7 @@ static void workqueue_enq(WORKQUEUE wq, WORKITEM wi, int dolock) {
 __attribute__((unused))
 static int workqueue_deq(WORKQUEUE wq, WORKITEM *wiptr, int dolock) {
     if (dolock) workqueue_lock(wq);
+    assert(wq->n_in_queue >= 0);
     while (workqueue_empty(wq)) {
         if (wq->closed) {
             if (dolock) workqueue_unlock(wq);
@@ -150,6 +154,7 @@ static int workqueue_deq(WORKQUEUE wq, WORKITEM *wiptr, int dolock) {
         int r = toku_pthread_cond_wait(&wq->wait_read, &wq->lock); assert(r == 0);
         wq->want_read--;
     }
+    wq->n_in_queue--;
     WORKITEM wi = wq->head;
     wq->head = wi->next;
     if (wq->head == 0)
@@ -180,6 +185,14 @@ static void workqueue_wakeup_write(WORKQUEUE wq, int dolock) {
         }
         if (dolock) workqueue_unlock(wq);
     }
+}
+
+__attribute__((unused))
+static int workqueue_n_in_queue (WORKQUEUE wq, int dolock) {
+    if (dolock) workqueue_lock(wq);
+    int r = wq->n_in_queue;
+    if (dolock) workqueue_unlock(wq);
+    return r;
 }
 
 #endif
