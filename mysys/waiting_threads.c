@@ -545,7 +545,7 @@ void wt_thd_destroy(WT_THD *thd)
   It can be used in WT_RESOURCE_TYPE structures where bytewise
   comparison of values is sufficient.
 */
-int wt_resource_id_memcmp(const void *a, const void *b)
+my_bool wt_resource_id_memcmp(const void *a, const void *b)
 {
   /* we use the fact that there's no padding in the middle of WT_RESOURCE_ID */
   compile_time_assert(offsetof(WT_RESOURCE_ID, type) == sizeof(ulonglong));

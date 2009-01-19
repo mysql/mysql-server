@@ -262,7 +262,9 @@ void do_tests()
     wt_thd_release_all(& thds[cnt].thd);
     wt_thd_destroy(& thds[cnt].thd);
     pthread_mutex_destroy(& thds[cnt].lock);
+#ifndef DBUG_OFF
     free(thds[cnt].thd.name);
+#endif
   }
   pthread_mutex_unlock(&lock);
   wt_end();

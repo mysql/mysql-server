@@ -123,7 +123,7 @@ int wt_thd_will_wait_for(WT_THD *, WT_THD *, const WT_RESOURCE_ID *);
 int wt_thd_cond_timedwait(WT_THD *, pthread_mutex_t *);
 void wt_thd_release(WT_THD *, const WT_RESOURCE_ID *);
 #define wt_thd_release_all(THD) wt_thd_release((THD), 0)
-int wt_resource_id_memcmp(const void *, const void *);
+my_bool wt_resource_id_memcmp(const void *, const void *);
 
 C_MODE_END
 
