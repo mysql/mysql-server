@@ -17,14 +17,14 @@
 #              * Valid & Invalid values                                       #
 #              * Scope & Access method                                        #
 #              * Data Integrity                                               #
+# Modified:    Horst Hunger 2008-11-27                                        #
+#              Due to OS depending values the check has been changed          #
+#              from concrete values to ranges.                                #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
 #                                                                             #
 ###############################################################################
-# Changes:                                                             #
-# 2008-03-06 hhunger Got "lost connections with 5.1.24                 #
-########################################################################
 
 --source include/load_sysvars.inc
 
@@ -38,8 +38,6 @@
 ######################################################################## 
 
 SET @start_value = @@global.key_buffer_size;
-SELECT @start_value;
-
 
 --echo '#--------------------FN_DYNVARS_055_01------------------------#'
 ######################################################################## 
@@ -49,9 +47,7 @@ SELECT @start_value;
 SET @@global.key_buffer_size = 99;
 --Error ER_NO_DEFAULT
 SET @@global.key_buffer_size = DEFAULT;
---echo 'Bug# 34878: This variable has default value according to documentation';
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
-
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 
 --echo '#---------------------FN_DYNVARS_055_02-------------------------#'
 ############################################### 
@@ -66,26 +62,25 @@ SELECT @@global.key_buffer_size = @start_value;
 #        Change the value of key_buffer_size to a valid value          #
 ######################################################################## 
 
-SET @@global.key_buffer_size = @min_key_buffer_size;
-SELECT @@global.key_buffer_size= @min_key_buffer_size;
+SET @@global.key_buffer_size = 8 ;
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 --disable_warnings
-#Due to "lost connection"
+#Due to increasing the runtime significantly and allocating the buffer instantly.
 #SET @@global.key_buffer_size = 4294967295;
 --enable_warnings
 #SELECT @@global.key_buffer_size;
 SET @@global.key_buffer_size = 1800;
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 SET @@global.key_buffer_size = 65535;
 SELECT @@global.key_buffer_size;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 
 --echo '#--------------------FN_DYNVARS_055_04-------------------------#'
 ########################################################################### 
 #         Change the value of key_buffer_size to invalid value            #
 ########################################################################### 
 
-# Due to "lost connection"
+# Due to increasing the runtime significantly and allocating the buffer instantly
+# with a size of 18446744073709551615 bytes with 32bit exec.
 #SET @@global.key_buffer_size = -1;
 #SELECT @@global.key_buffer_size;
 #SET @@global.key_buffer_size = 100000000000;
@@ -96,16 +91,14 @@ SELECT @@global.key_buffer_size;
 #SET @@global.key_buffer_size = -1024;
 #SELECT @@global.key_buffer_size;
 SET @@global.key_buffer_size = 4;
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = ON;
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = 'test';
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
-
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 
 --echo '#-------------------FN_DYNVARS_055_05----------------------------#'
 ########################################################################### 
@@ -114,8 +107,7 @@ SELECT @@global.key_buffer_size = @min_key_buffer_size;
 
 --Error ER_GLOBAL_VARIABLE
 SET @@session.key_buffer_size = 0;
-SELECT @@key_buffer_size = @min_key_buffer_size;
-
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 
 --echo '#----------------------FN_DYNVARS_055_06------------------------#'
 ############################################################################## 
@@ -130,17 +122,15 @@ SELECT @@key_buffer_size = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='key_buffer_size';
 
-
 --echo '#---------------------FN_DYNVARS_055_07----------------------#'
 ################################################################### 
 #      Check if TRUE and FALSE values can be used on variable     #
 ################################################################### 
 
 SET @@global.key_buffer_size = TRUE;
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 SET @@global.key_buffer_size = FALSE;
-SELECT @@global.key_buffer_size = @min_key_buffer_size;
-
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 
 --echo '#---------------------FN_DYNVARS_055_08----------------------#'
 #####################################################################
@@ -150,7 +140,7 @@ SELECT @@global.key_buffer_size = @min_key_buffer_size;
 
 # due to differences in contents of the warnings
 --disable_warnings
-SET @@global.key_buffer_size = @min_key_buffer_size;
+SET @@global.key_buffer_size = 8 ;
 SELECT @@key_buffer_size = @@global.key_buffer_size;
 --enable_warnings
 
@@ -160,8 +150,8 @@ SELECT @@key_buffer_size = @@global.key_buffer_size;
 ##########################################################################
 
 --Error ER_GLOBAL_VARIABLE
-SET key_buffer_size = @min_key_buffer_size;
-SELECT @@key_buffer_size = @min_key_buffer_size;
+SET key_buffer_size = 8 ;
+SELECT @@global.key_buffer_size >= 8 AND @@global.key_buffer_size <= 36;
 --Error ER_PARSE_ERROR
 SET local.key_buffer_size = 10;
 --Error ER_UNKNOWN_TABLE
@@ -179,9 +169,9 @@ SELECT key_buffer_size = @@session.key_buffer_size;
 ##############################
 
 SET @@global.key_buffer_size = @start_value;
-SELECT @@global.key_buffer_size;
 
 --enable_warnings
 #######################################################################
 #              END OF key_buffer_size TESTS                           #
 #######################################################################
+

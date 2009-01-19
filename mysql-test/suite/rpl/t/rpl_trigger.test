@@ -467,20 +467,48 @@ drop trigger if exists t1_bi;
 insert into t1 values (3, "c");
 
 select * from t1;
-
-save_master_pos;
-connection slave;
-sync_with_master;
-
+sync_slave_with_master;
 select * from t1;
 
 connection master;
 
 drop table t1;
+sync_slave_with_master;
+
+#
+# Bug#40116: Uncommited changes are replicated and stay on slave after
+# rollback on master
+#
+
+connection master;
+source include/master-slave-reset.inc;
+source include/have_innodb.inc;
+connection slave;
+source include/have_innodb.inc;
+
+connection master;
+create table t1 ( f int ) engine = innodb;
+create table log ( r int ) engine = myisam; 
+create trigger tr
+  after insert on t1
+  for each row insert into log values ( new.f );
+
+set autocommit = 0;
+insert into t1 values ( 1 );
+rollback;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+--source include/diff_tables.inc
+
+let $diff_table_1=master:test.log;
+let $diff_table_2=slave:test.log;
+--source include/diff_tables.inc
+
+connection master;
+drop table t1, log;
+sync_slave_with_master;
 
 #
 # End of tests
 #
-save_master_pos;
-connection slave;
-sync_with_master;

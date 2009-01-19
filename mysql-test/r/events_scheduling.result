@@ -1,7 +1,8 @@
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
+SET @event_scheduler=@@global.event_scheduler;
 SET GLOBAL event_scheduler=OFF;
-Try agian to make sure it's allowed
+Try again to make sure it's allowed
 SET GLOBAL event_scheduler=OFF;
 SHOW VARIABLES LIKE 'event_scheduler';
 Variable_name	Value
@@ -61,18 +62,6 @@ CREATE EVENT event_4 ON SCHEDULE EVERY 1 SECOND ENDS NOW() + INTERVAL 1 SECOND
 ON COMPLETION PRESERVE
 DO
 INSERT INTO table_4 VALUES (1);
-SELECT IF(SUM(a) >= 4, 'OK', 'ERROR') FROM table_1;
-IF(SUM(a) >= 4, 'OK', 'ERROR')
-OK
-SELECT IF(SUM(a) >= 5, 'OK', 'ERROR') FROM table_2;
-IF(SUM(a) >= 5, 'OK', 'ERROR')
-OK
-SELECT IF(SUM(a) >= 1, 'OK', 'ERROR') FROM table_3;
-IF(SUM(a) >= 1, 'OK', 'ERROR')
-OK
-SELECT IF(SUM(a) >= 1, 'OK', 'ERROR') FROM table_4;
-IF(SUM(a) >= 1, 'OK', 'ERROR')
-OK
 SELECT IF(TIME_TO_SEC(TIMEDIFF(ENDS,STARTS))=6, 'OK', 'ERROR')
 FROM INFORMATION_SCHEMA.EVENTS
 WHERE EVENT_SCHEMA=DATABASE() AND EVENT_NAME='event_2';
@@ -94,4 +83,4 @@ DROP TABLE table_2;
 DROP TABLE table_3;
 DROP TABLE table_4;
 DROP DATABASE events_test;
-SET GLOBAL event_scheduler=OFF;
+SET GLOBAL event_scheduler=@event_scheduler;

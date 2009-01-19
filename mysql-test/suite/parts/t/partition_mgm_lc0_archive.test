@@ -31,7 +31,6 @@
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
-let $have_bug37719= 1;
 
 ##### Storage engine to be tested
 --source include/have_archive.inc
