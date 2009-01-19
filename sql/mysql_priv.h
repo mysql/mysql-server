@@ -148,15 +148,20 @@ typedef struct my_locale_st
   TYPELIB *ab_month_names;
   TYPELIB *day_names;
   TYPELIB *ab_day_names;
+  uint max_month_name_length;
+  uint max_day_name_length;
 #ifdef __cplusplus 
   my_locale_st(uint number_par,
                const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
-               TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
+               TYPELIB *day_names_par, TYPELIB *ab_day_names_par,
+               uint max_month_name_length_par, uint max_day_name_length_par) : 
     number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
-    day_names(day_names_par), ab_day_names(ab_day_names_par)
+    day_names(day_names_par), ab_day_names(ab_day_names_par),
+    max_month_name_length(max_month_name_length_par),
+    max_day_name_length(max_day_name_length_par)
   {}
 #endif
 } MY_LOCALE;
@@ -564,6 +569,7 @@ enum open_table_mode
 #define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     32
+#define UNCACHEABLE_CHECKOPTION   64
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
@@ -1790,10 +1796,9 @@ int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */
-extern ulong volatile manager_status;
-extern bool volatile manager_thread_in_use, mqh_used;
-extern pthread_t manager_thread;
-pthread_handler_t handle_manager(void *arg);
+extern bool volatile  mqh_used;
+void start_handle_manager();
+void stop_handle_manager();
 bool mysql_manager_submit(void (*action)());
 
 
@@ -2198,8 +2203,8 @@ void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
 void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
                String *str);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
-ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
-                             Item *warn_item, bool *is_null);
+longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                            Item *warn_item, bool *is_null);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
@@ -2249,6 +2254,7 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,

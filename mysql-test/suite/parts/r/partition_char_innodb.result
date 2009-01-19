@@ -10,7 +10,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values (repeat('a',255)), ('b'), (repeat('a',128)), (repeat('b',64));
 select * from t1;
 a
@@ -36,7 +41,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` char(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 27  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 27 */
 26 inserts;
 insert into t2 values (repeat(char(ascii('a')+0),26+54));
 insert into t2 values (repeat(char(ascii('a')+1),25+54));
@@ -108,7 +115,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` binary(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values (repeat('a',255)), ('b'), (repeat('a',128)), (repeat('b',64));
 select hex(a) from t1;
 hex(a)
@@ -137,7 +149,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` binary(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 27  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 27 */
 26 inserts;
 insert into t2 values (repeat(char(ascii('a')+0),26+54));
 insert into t2 values (repeat(char(ascii('a')+1),25+54));
@@ -209,7 +223,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values (repeat('a',767)), ('b'), (repeat('a',500)), (repeat('b',64));
 select * from t1;
 a
@@ -235,7 +254,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 27  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 27 */
 26 inserts;
 insert into t2 values (repeat(char(ascii('a')+0),26*26));
 insert into t2 values (repeat(char(ascii('a')+1),25*25));
@@ -307,7 +328,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varbinary(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values (repeat('a',767)), ('b'), (repeat('a',500)), (repeat('b',64));
 select * from t1;
 a
@@ -333,7 +359,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varbinary(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 30  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 30 */
 26 inserts;
 insert into t2 values (repeat(char(ascii('a')+0),26*26));
 insert into t2 values (repeat(char(ascii('a')+1),25*25));
@@ -405,7 +433,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('A','B','C','D','E','F','G','H','I','J','K','L') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values ('A'),('D'),('L'),('G');
 select * from t1;
 a
@@ -442,7 +475,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` enum('1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 27  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 27 */
 0 inserts;
 insert into t2 values (char(ascii('A')+26));
 Warnings:
@@ -527,7 +562,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('A','B','C','D','E','F','G','H','I','J','K','L') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
+ PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
+ PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
+ PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values ('A,B'),('C,D'),('E,L'),('G,H,K');
 select * from t1 order by a;
 a
@@ -564,7 +604,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` set('1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 27  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 27 */
 insert into t2 values ('A'),('B'),('C'),('D'),('E'),('F'),('G'),('H'),('I'),('K'),('L'),('M'),('N'),('O'),('P'),('Q'),('S'),('T'),('U'),('V'),('X'),('Y'),('Z');
 insert into t2 values ('A,B'),('B,C'),('C,D'),('D,E'),('E,F'),('F,G'),('G,H'),('H,I'),('I,J'),('K,L'),('L,M'),('M,N'),('N,O'),('O,P'),('P,Q'),('Q,R'),('S,T'),('T,U'),('U,V'),('V,W'),('X,Y'),('Y,Z'),('Z,A');
 insert into t2 values ('A,B,C'),('B,C,D'),('C,D,E'),('D,E,F'),('E,F,G'),('F,G,H'),('G,H,I'),('H,I,J'),('I,J,K'),('K,L,M'),('L,M,N'),('M,N,O'),('N,O,P'),('O,P,Q'),('P,Q,R'),('Q,R,S'),('S,T,U'),('T,U,V'),('U,V,W'),('V,W,X'),('X,Y,Z'),('Y,Z,A'),('Z,A,B');

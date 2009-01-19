@@ -257,6 +257,17 @@ bool purge_error_message(THD* thd, int res)
 }
 
 
+/**
+  Execute a PURGE BINARY LOGS TO <log> command.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param to_log Name of the last log to purge.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool purge_master_logs(THD* thd, const char* to_log)
 {
   char search_file_name[FN_REFLEN];
@@ -273,6 +284,17 @@ bool purge_master_logs(THD* thd, const char* to_log)
 }
 
 
+/**
+  Execute a PURGE BINARY LOGS BEFORE <date> command.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param purge_time Date before which logs should be purged.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool purge_master_logs_before_date(THD* thd, time_t purge_time)
 {
   if (!mysql_bin_log.is_open())
@@ -891,6 +913,20 @@ err:
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Execute a START SLAVE statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object for the slave's IO thread.
+
+  @param net_report If true, saves the exit status into thd->main_da.
+
+  @retval 0 success
+  @retval 1 error
+*/
 int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
@@ -1016,6 +1052,19 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 }
 
 
+/**
+  Execute a STOP SLAVE statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object for the slave's IO thread.
+
+  @param net_report If true, saves the exit status into thd->main_da.
+
+  @retval 0 success
+  @retval 1 error
+*/
 int stop_slave(THD* thd, Master_info* mi, bool net_report )
 {
   DBUG_ENTER("stop_slave");
@@ -1068,20 +1117,17 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 }
 
 
-/*
-  Remove all relay logs and start replication from the start
+/**
+  Execute a RESET SLAVE statement.
 
-  SYNOPSIS
-    reset_slave()
-    thd			Thread handler
-    mi			Master info for the slave
+  @param thd Pointer to THD object of the client thread executing the
+  statement.
 
-  RETURN
-    0	ok
-    1	error
+  @param mi Pointer to Master_info object for the slave.
+
+  @retval 0 success
+  @retval 1 error
 */
-
-
 int reset_slave(THD *thd, Master_info* mi)
 {
   MY_STAT stat_area;
@@ -1197,6 +1243,18 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 }
 
 
+/**
+  Execute a CHANGE MASTER statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object belonging to the slave's IO
+  thread.
+
+  @retval FALSE success
+  @retval TRUE error
+*/
 bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
@@ -1417,6 +1475,16 @@ bool change_master(THD* thd, Master_info* mi)
   DBUG_RETURN(FALSE);
 }
 
+
+/**
+  Execute a RESET MASTER statement.
+
+  @param thd Pointer to THD object of the client thread executing the
+  statement.
+
+  @retval 0 success
+  @retval 1 error
+*/
 int reset_master(THD* thd)
 {
   if (!mysql_bin_log.is_open())
@@ -1446,6 +1514,15 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 }
 
 
+/**
+  Execute a SHOW BINLOG EVENTS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool mysql_show_binlog_events(THD* thd)
 {
   Protocol *protocol= thd->protocol;
@@ -1596,6 +1673,15 @@ err:
 }
 
 
+/**
+  Execute a SHOW MASTER STATUS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool show_binlog_info(THD* thd)
 {
   Protocol *protocol= thd->protocol;
@@ -1629,18 +1715,15 @@ bool show_binlog_info(THD* thd)
 }
 
 
-/*
-  Send a list of all binary logs to client
+/**
+  Execute a SHOW BINARY LOGS statement.
 
-  SYNOPSIS
-    show_binlogs()
-    thd		Thread specific variable
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
 
-  RETURN VALUES
-    FALSE OK
-    TRUE  error
+  @retval FALSE success
+  @retval TRUE failure
 */
-
 bool show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
@@ -1814,65 +1897,39 @@ static void fix_slave_net_timeout(THD *thd, enum_var_type type)
 
 static sys_var_chain vars = { NULL, NULL };
 
+static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
+                                              OPT_GLOBAL, SHOW_MY_BOOL,
+                                              (uchar*) &opt_log_slave_updates);
+static sys_var_const    sys_relay_log(&vars, "relay_log",
+                                      OPT_GLOBAL, SHOW_CHAR_PTR,
+                                      (uchar*) &opt_relay_logname);
+static sys_var_const    sys_relay_log_index(&vars, "relay_log_index",
+                                      OPT_GLOBAL, SHOW_CHAR_PTR,
+                                      (uchar*) &opt_relaylog_index_name);
+static sys_var_const    sys_relay_log_info_file(&vars, "relay_log_info_file",
+                                      OPT_GLOBAL, SHOW_CHAR_PTR,
+                                      (uchar*) &relay_log_info_file);
 static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
 					    &relay_log_purge);
+static sys_var_const    sys_relay_log_space_limit(&vars,
+                                                  "relay_log_space_limit",
+                                                  OPT_GLOBAL, SHOW_LONGLONG,
+                                                  (uchar*)
+                                                  &relay_log_space_limit);
+static sys_var_const    sys_slave_load_tmpdir(&vars, "slave_load_tmpdir",
+                                              OPT_GLOBAL, SHOW_CHAR_PTR,
+                                              (uchar*) &slave_load_tmpdir);
 static sys_var_long_ptr	sys_slave_net_timeout(&vars, "slave_net_timeout",
 					      &slave_net_timeout,
                                               fix_slave_net_timeout);
+static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
+                                              OPT_GLOBAL, SHOW_CHAR,
+                                              (uchar*) slave_skip_error_names);
 static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
 						&slave_trans_retries);
 static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
 
-static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff);
-
-
-static SHOW_VAR fixed_vars[]= {
-  {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
-  {"relay_log" , (char*) &opt_relay_logname, SHOW_CHAR_PTR},
-  {"relay_log_index", (char*) &opt_relaylog_index_name, SHOW_CHAR_PTR},
-  {"relay_log_info_file", (char*) &relay_log_info_file, SHOW_CHAR_PTR},
-  {"relay_log_space_limit",   (char*) &relay_log_space_limit,       SHOW_LONGLONG},
-  {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
-  {"slave_skip_errors",       (char*) &show_slave_skip_errors,      SHOW_FUNC},
-};
-
-static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
-{
-  var->type=SHOW_CHAR;
-  var->value= buff;
-  if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
-  {
-    var->value= const_cast<char *>("OFF");
-  }
-  else if (bitmap_is_set_all(&slave_error_mask))
-  {
-    var->value= const_cast<char *>("ALL");
-  }
-  else
-  {
-    /* 10 is enough assuming errors are max 4 digits */
-    int i;
-    var->value= buff;
-    for (i= 1;
-         i < MAX_SLAVE_ERROR &&
-         (buff - var->value) < SHOW_VAR_FUNC_BUFF_SIZE;
-         i++)
-    {
-      if (bitmap_is_set(&slave_error_mask, i))
-      {
-        buff= int10_to_str(i, buff, 10);
-        *buff++= ',';
-      }
-    }
-    if (var->value != buff)
-      buff--;				// Remove last ','
-    if (i < MAX_SLAVE_ERROR)
-      buff= strmov(buff, "...");  // Couldn't show all errors
-    *buff=0;
-  }
-  return 0;
-}
 
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {
@@ -1920,8 +1977,6 @@ bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 
 int init_replication_sys_vars()
 {
-  mysql_append_static_vars(fixed_vars, sizeof(fixed_vars) / sizeof(SHOW_VAR));
-
   if (mysql_add_sys_var_chain(vars.first, my_long_options))
   {
     /* should not happen */
