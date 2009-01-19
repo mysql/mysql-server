@@ -116,7 +116,7 @@ case $PLATFORM in
 esac
 
 # Change the distribution to a long descriptive name
-if [ x"$SHORT_PRODUCT_TAG" = x"" ] ; then
+if [ x"$SHORT_PRODUCT_TAG" != x"" ] ; then
   NEW_NAME=mysql-$SHORT_PRODUCT_TAG-@VERSION@-$PLATFORM$SUFFIX
 else
   NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-@VERSION@-$PLATFORM$SUFFIX
