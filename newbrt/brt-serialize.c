@@ -359,7 +359,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	ssize_t n_wrote;
 	r=toku_pwrite_extend(fd, compressed_buf, n_to_write, offset, &n_wrote);
 	if (r) {
-	    fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
+	    // fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
 	} else {
 	    r=0;
 	}
@@ -771,7 +771,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	rr = toku_pwrite_extend(fd, w.buf, size, h->block_translation_address_on_disk, &nwrote);
 	toku_free(w.buf);
 	if (rr) {
-	    fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, rr, strerror(rr));
+	    //fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, rr, strerror(rr));
 	    goto finish;
 	}
 	assert((u_int64_t)nwrote==size);
