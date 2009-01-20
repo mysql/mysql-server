@@ -548,9 +548,15 @@ class NdbDictInterface {
 public:
   // one transaction per Dictionary instance is supported
   struct Tx {
+    // api-side schema op, currently only for alter table
+    struct Op {
+      Uint32 m_gsn;
+      NdbTableImpl* m_impl;
+    };
     bool m_transOn;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
+    Vector<Op> m_op;
     Tx() :
       m_transOn(false),
       m_transId(0),

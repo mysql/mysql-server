@@ -2895,8 +2895,17 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
   DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
   // Alter the table
   int ret = m_receiver.alterTable(m_ndb, old_impl, impl);
+#if ndb_bug41905
   old_impl.m_status = NdbDictionary::Object::Invalid;
+#endif
   if(ret == 0){
+    NdbDictInterface::Tx::Op op;
+    op.m_gsn = GSN_ALTER_TABLE_REQ;
+    op.m_impl = &old_impl;
+    if (m_tx.m_op.push_back(op) == -1) {
+      m_error.code = 4000;
+      DBUG_RETURN(-1);
+    }
     DBUG_RETURN(ret);
   }
   ERR_RETURN(getNdbError(), ret);
@@ -7469,6 +7478,7 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
    */
   if (m_error.code == 787)
   {
+    m_tx.m_op.clear();
     if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
     {
       m_error.code = 0;
@@ -7481,6 +7491,7 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
   int ret = m_receiver.endSchemaTrans(flags);
   m_tx.m_transOn = false;
   if (ret == -1) {
+    m_tx.m_op.clear();
     if (m_error.code == 787)
     {
       if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
@@ -7491,12 +7502,24 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
     }
     DBUG_RETURN(-1);
   }
+
+  // invalidate old version of altered table
+  uint i;
+  for (i = 0; i < m_tx.m_op.size(); i++) {
+    NdbDictInterface::Tx::Op& op = m_tx.m_op[i];
+    if (op.m_gsn == GSN_ALTER_TABLE_REQ)
+    {
+      op.m_impl->m_status = NdbDictionary::Object::Invalid;
+    }
+  }
+  m_tx.m_op.clear();
   DBUG_RETURN(0);
 }
 
 int
 NdbDictInterface::beginSchemaTrans()
 {
+  assert(m_tx.m_op.size() == 0);
   NdbApiSignal tSignal(m_reference);
   SchemaTransBeginReq* req =
     CAST_PTR(SchemaTransBeginReq, tSignal.getDataPtrSend());
@@ -7632,3 +7655,5 @@ const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ANY_VALUE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::OPTIMIZE = 0;
+
+template class Vector<NdbDictInterface::Tx::Op>;
