@@ -203,12 +203,11 @@ toku_rollback_cmddelete (TXNID      xid,
 
 int
 toku_commit_fileentries (int        fd,
-			 toku_off_t filesize,
 			 TOKUTXN    txn,
 			 YIELDF     yield,
 			 void *     yieldv)
 {
-    BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
+    BREAD f = create_bread_from_fd_initialize_at(fd);
     int r=0;
     MEMARENA ma = memarena_create();
     int count=0;
@@ -230,12 +229,11 @@ toku_commit_fileentries (int        fd,
 
 int
 toku_rollback_fileentries (int        fd,
-			   toku_off_t filesize,
 			   TOKUTXN    txn,
 			   YIELDF     yield,
 			   void *     yieldv)
 {
-    BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
+    BREAD f = create_bread_from_fd_initialize_at(fd);
     assert(f);
     int r=0;
     MEMARENA ma = memarena_create();
@@ -265,11 +263,7 @@ toku_commit_rollinclude (BYTESTRING bs,
     char *fname = fixup_fname(&bs);
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
-
-    int64_t fsize = 0;
-    r = toku_os_get_file_size(fd, &fsize);
-    assert(r==0);
-    r = toku_commit_fileentries(fd, fsize, txn, yield, yieldv);
+    r = toku_commit_fileentries(fd, txn, yield, yieldv);
     assert(r==0);
     r = close(fd);
     assert(r==0);
@@ -288,10 +282,7 @@ toku_rollback_rollinclude (BYTESTRING bs,
     char *fname = fixup_fname(&bs);
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
-    int64_t fsize = 0;
-    r = toku_os_get_file_size(fd, &fsize);
-    assert(r==0);
-    r = toku_rollback_fileentries(fd, fsize, txn, yield, yieldv);
+    r = toku_rollback_fileentries(fd, txn, yield, yieldv);
     assert(r==0);
     r = close(fd);
     assert(r==0);

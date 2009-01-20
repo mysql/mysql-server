@@ -501,7 +501,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void
 
 	    // Read stuff out of the file and execute it.
 	    if (txn->rollentry_filename) {
-		r = toku_commit_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn, yield, yieldv);
+		r = toku_commit_fileentries(txn->rollentry_fd, txn, yield, yieldv);
 	    }
 	}
     }
@@ -872,7 +872,7 @@ int toku_logger_abort(TOKUTXN txn, void (*yield)(void*), void*yieldv) {
     list_remove(&txn->live_txns_link);
     // Read stuff out of the file and roll it back.
     if (txn->rollentry_filename) {
-        int r = toku_rollback_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn, yield, yieldv);
+        int r = toku_rollback_fileentries(txn->rollentry_fd, txn, yield, yieldv);
         assert(r==0);
     }
     return 0;
@@ -1027,9 +1027,32 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	    txn->rollentry_fd = open(txn->rollentry_filename, O_CREAT+O_RDWR+O_EXCL+O_BINARY, 0600);
 	    if (txn->rollentry_fd==-1) return errno;
 	}
-	ssize_t r = write_it(txn->rollentry_fd, buf, w.ndone);
-	if (r<0) return r;
-	assert(r==(ssize_t)w.ndone);
+	uLongf compressed_len = compressBound(w.ndone);
+	char *MALLOC_N(compressed_len, compressed_buf);
+	{
+	    int r = compress2((Bytef*)compressed_buf, &compressed_len,
+			      (Bytef*)buf,            w.ndone,
+			      1);
+	    assert(r==Z_OK);
+	}
+	{
+	    u_int32_t v = htonl(compressed_len);
+	    ssize_t r = write_it(txn->rollentry_fd, &v, sizeof(v)); assert(r==sizeof(v));
+	}
+	{
+	    ssize_t r = write_it(txn->rollentry_fd, compressed_buf, compressed_len);
+	    if (r<0) return r;
+	    assert(r==(ssize_t)compressed_len);
+	}
+	{
+	    u_int32_t v = htonl(w.ndone);
+	    ssize_t r = write_it(txn->rollentry_fd, &v, sizeof(v)); assert(r==sizeof(v));
+	}
+	{
+	    u_int32_t v = htonl(compressed_len);
+	    ssize_t r = write_it(txn->rollentry_fd, &v, sizeof(v)); assert(r==sizeof(v));
+	}
+	toku_free(compressed_buf);
 	txn->rollentry_filesize+=w.ndone;
 	toku_free(buf);
 

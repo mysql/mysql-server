@@ -179,12 +179,10 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn);
 
 struct roll_entry;
 int toku_rollback_fileentries (int        fd,
-			       toku_off_t filesize,
 			       TOKUTXN    txn,
 			       void (*yield)(void*yieldv),
 			       void *     yieldv);
 int toku_commit_fileentries (int        fd,
-			     toku_off_t filesize,
 			     TOKUTXN    txn,
 			     void (*yield)(void*yieldv),
 			     void *     yieldv);
