@@ -796,6 +796,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	if (p->key.b==key.b && p->cachefile==cachefile) {
             ctpair_read_lock(&p->rwlock, ct->mutex);
             if (p->state == CTPAIR_INVALID) {
+                ctpair_read_unlock(&p->rwlock);
                 if (ctpair_users(&p->rwlock) == 0)
                     ctpair_destroy(p);
                 cachetable_unlock(ct);
