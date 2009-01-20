@@ -699,7 +699,10 @@ lock_is_table_exclusive(
 	const lock_t*	lock;
 	ibool		ok	= FALSE;
 
-	ut_ad(table && trx);
+	ut_ad(table);
+	ut_ad(trx);
+
+	lock_mutex_enter_kernel();
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock;
@@ -707,7 +710,7 @@ lock_is_table_exclusive(
 		if (lock->trx != trx) {
 			/* A lock on the table is held
 			by some other transaction. */
-			return(FALSE);
+			goto not_ok;
 		}
 
 		if (!(lock_get_type_low(lock) & LOCK_TABLE)) {
@@ -724,10 +727,15 @@ lock_is_table_exclusive(
 			auto_increment lock. */
 			break;
 		default:
+not_ok:
 			/* Other table locks than LOCK_IX are not allowed. */
-			return(FALSE);
+			ok = FALSE;
+			goto func_exit;
 		}
 	}
+
+func_exit:
+	lock_mutex_exit_kernel();
 
 	return(ok);
 }
