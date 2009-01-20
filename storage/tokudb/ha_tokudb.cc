@@ -187,6 +187,9 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
                     HA_FILE_BASED | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX |HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE), 
     added_rows(0), deleted_rows(0), last_dup_key((uint) - 1), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
     transaction = NULL;
+    num_added_rows_in_stmt = 0;
+    num_deleted_rows_in_stmt = 0;
+    num_updated_rows_in_stmt = 0;
 }
 
 static const char *ha_tokudb_exts[] = {
@@ -1884,6 +1887,11 @@ int ha_tokudb::write_row(uchar * record) {
     DB_TXN* txn = NULL;
 
     //
+    // status message to be shown in "show process list"
+    //
+    char status_msg[200]; //buffer of 200 should be a good upper bound.
+
+    //
     // some crap that needs to be done because MySQL does not properly abstract
     // this work away from us, namely filling in auto increment and setting auto timestamp
     //
@@ -2003,6 +2011,11 @@ int ha_tokudb::write_row(uchar * record) {
 
     if (!error) {
         added_rows++;
+        num_added_rows_in_stmt++;
+        if ((num_added_rows_in_stmt % 1000) == 0) {
+            sprintf(status_msg, "Inserted about %llu rows", num_added_rows_in_stmt);
+            thd_proc_info(thd, status_msg);
+        }
     }
 cleanup:
     if (error == DB_KEYEXIST) {
@@ -2093,6 +2106,10 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     THD* thd = ha_thd();
     DB_TXN* sub_trans = NULL;
     DB_TXN* txn = NULL;
+    //
+    // status message to be shown in "show process list"
+    //
+    char status_msg[200]; //buffer of 200 should be a good upper bound.
 
     LINT_INIT(error);
     statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
@@ -2206,6 +2223,13 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         }
     }
 
+    if (!error) {
+        num_updated_rows_in_stmt++;
+        if ((num_updated_rows_in_stmt % 1000) == 0) {
+            sprintf(status_msg, "Inserted about %llu rows", num_updated_rows_in_stmt);
+            thd_proc_info(thd, status_msg);
+        }
+    }
 
 
 cleanup:
@@ -2314,6 +2338,11 @@ int ha_tokudb::delete_row(const uchar * record) {
     DBT prim_key;
     key_map keys = table_share->keys_in_use;
     bool has_null;
+    //
+    // status message to be shown in "show process list"
+    //
+    char status_msg[200]; //buffer of 200 should be a good upper bound.
+    THD* thd = ha_thd();
     statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
 
     create_dbt_key_from_table(&prim_key, primary_key, key_buff, record, &has_null);
@@ -2329,6 +2358,11 @@ int ha_tokudb::delete_row(const uchar * record) {
     }
     else {
         deleted_rows++;
+        num_deleted_rows_in_stmt++;
+        if ((num_deleted_rows_in_stmt % 1000) == 0) {
+            sprintf(status_msg, "Inserted about %llu rows", num_deleted_rows_in_stmt);
+            thd_proc_info(thd, status_msg);
+        }
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -3466,6 +3500,14 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     ulong tx_isolation = thd_tx_isolation(thd);
     HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
     tokudb_trx_data *trx = NULL;
+
+    //
+    // reset per-stmt variables
+    //
+    num_added_rows_in_stmt = 0;
+    num_deleted_rows_in_stmt = 0;
+    num_updated_rows_in_stmt = 0;
+
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
         trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
@@ -3612,6 +3654,14 @@ cleanup:
 int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
     TOKUDB_DBUG_ENTER("ha_tokudb::start_stmt");
     int error = 0;
+
+    //
+    // reset per-stmt variables
+    //
+    num_added_rows_in_stmt = 0;
+    num_deleted_rows_in_stmt = 0;
+    num_updated_rows_in_stmt = 0;
+
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     DBUG_ASSERT(trx);
     /*

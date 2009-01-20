@@ -150,10 +150,26 @@ private:
     //
     ulong int_table_flags;
     // 
-    // count on the number of rows that gets changed, such as when write_row occurs 
+    // count on the number of rows that gets changed, such as when write_row occurs
+    // this is meant to help keep estimate on number of elements in DB
     // 
     ulonglong added_rows;
     ulonglong deleted_rows;
+
+
+    //
+    // count on number of rows inserted by statement
+    // this is to help give user progress on what is happening
+    // the reason that the variables added_rows and deleted_rows
+    // are not used is that those variables are also used to help
+    // estimate the number of rows in the DB. There are tricky things that
+    // can happen with "lock tables", so I do not want to couple these
+    // two features together. There is a little duplicate work, but I think it is fine
+    //
+    ulonglong num_added_rows_in_stmt;
+    ulonglong num_deleted_rows_in_stmt;
+    ulonglong num_updated_rows_in_stmt;
+
     //
     // index into key_file that holds DB* that is indexed on
     // the primary_key. this->key_file[primary_index] == this->file
