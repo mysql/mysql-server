@@ -1,3 +1,7 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+
+// verify that the cache table checkpoint with prefetched blocks active works.
+// the blocks in the reading state should be ignored.
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
@@ -5,9 +9,9 @@
 #include "test.h"
 #include "cachetable.h"
 
-static const int item_size = 1;
+const int item_size = 1;
 
-static int n_flush, n_write_me, n_keep_me, n_fetch;
+int n_flush, n_write_me, n_keep_me, n_fetch;
 
 static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p) {
     cf = cf; key = key; value = value; extraargs = extraargs; modified_lsn = modified_lsn; rename_p = rename_p;
@@ -20,8 +24,8 @@ static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long
 
 static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs, LSN *written_lsn) {
     cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs; written_lsn = written_lsn;
-    assert(0); // should not be called
     n_fetch++;
+    sleep(10);
     *value = 0;
     *sizep = item_size;
     return 0;
@@ -29,8 +33,7 @@ static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, l
 
 // put n items into the cachetable, maybe mark them dirty, do a checkpoint, and
 // verify that all of the items have been written and are clean.
-
-static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
+static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dirty) {
     if (verbose) printf("%s:%d n=%d dirty=%d\n", __FUNCTION__, __LINE__, n, (int) dirty);
     const int test_limit = n;
     int r;
@@ -40,6 +43,14 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+
+    // prefetch block n+1. this will take 10 seconds.
+    {
+        CACHEKEY key = make_blocknum(n+1);
+        u_int32_t fullhash = toku_cachetable_hash(f1, key);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, 0);
+        toku_cachetable_verify(ct);
+    }
 
     // insert items into the cachetable. all should be dirty
     int i;
@@ -114,8 +125,8 @@ test_main(int argc, const char *argv[]) {
         }
     }
     for (i=0; i<8; i++) {
-        cachetable_checkpoint_test(i, CACHETABLE_CLEAN);
-        cachetable_checkpoint_test(i, CACHETABLE_DIRTY);
+        cachetable_prefetch_checkpoint_test(i, CACHETABLE_CLEAN);
+        cachetable_prefetch_checkpoint_test(i, CACHETABLE_DIRTY);
     }
     return 0;
 }

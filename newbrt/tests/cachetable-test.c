@@ -29,7 +29,7 @@ static inline void test_mutex_unlock() {
 // hook my_malloc_always_fails into malloc to control malloc and verify
 // the correct recovery from malloc failures
 #if defined(__linux__)
-#define DO_MALLOC_HOOK 0
+#define DO_MALLOC_HOOK 1
 #else
 #define DO_MALLOC_HOOK 0
 #endif
@@ -334,19 +334,19 @@ static void test_nested_pin (void) {
     assert(r==0);
     assert(vv==&i0);
     assert(i0==0);
-    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, 0, test_object_size);
+    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, test_object_size);
     assert(r==0);
     r = toku_cachetable_maybe_get_and_pin(f, make_blocknum(1), f1hash, &vv2);
     assert(r==0);
     assert(vv2==vv);
-    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, 0, test_object_size);
+    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, test_object_size);
     assert(r==0);
     u_int32_t f2hash = toku_cachetable_hash(f, make_blocknum(2));
     r = toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, test_object_size, flush_n, fetch_n, f2);
     assert(r==0); // The other one is pinned, but now the cachetable fails gracefully:  It allows the pin to happen
-    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, 0, test_object_size);
+    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, test_object_size);
     assert(r==0);
-    r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, 0, test_object_size);
+    r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, CACHETABLE_CLEAN, test_object_size);
     assert(r==0);
     //    toku_os_usleep(1*1000000);
     r = toku_cachefile_close(&f, 0, 0); assert(r==0);

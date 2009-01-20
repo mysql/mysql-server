@@ -359,7 +359,7 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //    }
     verify_local_fingerprint_nonleaf(node);
     VERIFY_NODE(brt,node);
-    return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, node->dirty, brtnode_memory_size(node));
+    return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, (enum cachetable_dirty) node->dirty, brtnode_memory_size(node));
 }
 
 void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
@@ -4281,7 +4281,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 	//	     printf(" (%d)%u ", len, *(int*)le_any_key(data)));
 	fprintf(file, "\n");
     }
-    r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, 0, 0);
+    r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0);
     assert(r==0);
     return result;
 }

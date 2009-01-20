@@ -53,6 +53,7 @@ int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char */*fn
 // Get access to the asynchronous work queue
 // Returns: a pointer to the work queue
 WORKQUEUE toku_cachetable_get_workqueue (CACHETABLE);
+
 void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threads);
 
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
@@ -73,7 +74,7 @@ void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userd
 // If userdata is already non-NULL, then we simply overwrite it.
 
 void *toku_cachefile_get_userdata(CACHEFILE);
-// Effect: Get the user dataa.
+// Effect: Get the user data.
 
 // Put a memory object into the cachetable.
 // Effects: Lookup the key in the cachetable. If the key is not in the cachetable, 
@@ -103,8 +104,8 @@ int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 // void**.  If the item is not in memory, then return a nonzero error number.
 int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 
-// cachetable object state WRT external memory
-enum cachetable_object_state {
+// cachetable pair clean or dirty WRT external memory
+enum cachetable_dirty {
     CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile
     CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
 };
@@ -113,7 +114,7 @@ enum cachetable_object_state {
 // Effects: If the memory object is in the cachetable, then OR the dirty flag, 
 // update the size, and release the read lock on the memory object.
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, int dirty, long size);
+int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
 
 int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing something already present is OK. */
 // Effect: Remove an object from the cachetable.  Don't write it back.

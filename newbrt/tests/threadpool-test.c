@@ -63,7 +63,7 @@ my_thread_f (void *arg) {
 }
 
 #if defined(__linux__)
-#define DO_MALLOC_HOOK 0
+#define DO_MALLOC_HOOK 1
 #else
 #define DO_MALLOC_HOOK 0
 #endif
