@@ -6651,6 +6651,134 @@ end:
   return result;
 }
 
+int
+runBug41905(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  BaseString tabName(pTab->getName());
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  NdbDictionary::Table creTab = *pTab;
+  creTab.setForceVarPart(true);
+  int ret = NDBT_OK;
+
+  (void)pDic->dropTable(tabName.c_str());
+  if (pDic->createTable(creTab)) {
+    g_err << __LINE__ << ": " << pDic->getNdbError() << endl;
+    ret = NDBT_FAILED;
+  }
+
+  Uint32 cols = creTab.getNoOfColumns();
+  Uint32 vers = 0;
+  while (ret == NDBT_OK) {
+    const NdbDictionary::Table* pOldTab = pDic->getTableGlobal(tabName.c_str());
+    assert(pOldTab != 0);
+
+    const Uint32 old_st = pOldTab->getObjectStatus();
+    const Uint32 old_cols = pOldTab->getNoOfColumns();
+    const Uint32 old_vers = pOldTab->getObjectVersion() >> 24;
+
+    if (old_st != NdbDictionary::Object::Retrieved) {
+      g_err << __LINE__ << ": " << "got status " << old_st << endl;
+      ret = NDBT_FAILED;
+      break;
+    }
+    // bug#41905 or related: other thread causes us to get old version
+    if (old_cols != cols || old_vers != vers) {
+      g_err << __LINE__ << ": "
+            << "got cols,vers " << old_cols << "," << old_vers
+            << " expected " << cols << "," << vers << endl;
+      ret = NDBT_FAILED;
+      break;
+    }
+    if (old_cols >= 100)
+      break;
+    const NdbDictionary::Table& oldTab = *pOldTab;
+
+    NdbDictionary::Table newTab = oldTab;
+    char colName[100];
+    sprintf(colName, "COL41905_%02d", cols);
+    g_info << "add " << colName << endl;
+    NDBT_Attribute newCol(colName, NdbDictionary::Column::Unsigned, 1,
+                          false, true, (CHARSET_INFO*)0,
+                          NdbDictionary::Column::StorageTypeMemory, true);
+    newTab.addColumn(newCol);
+
+    ctx->setProperty("Bug41905", 1);
+    NdbSleep_MilliSleep(10);
+
+    if (pDic->beginSchemaTrans() != 0) {
+      g_err << __LINE__ << ": " << pDic->getNdbError() << endl;
+      ret = NDBT_FAILED;
+      break;
+    }
+    if (pDic->alterTable(oldTab, newTab) != 0) {
+      g_err << __LINE__ << ": " << pDic->getNdbError() << endl;
+      ret = NDBT_FAILED;
+      break;
+    }
+    if (pDic->endSchemaTrans() != 0) {
+      g_err << __LINE__ << ": " << pDic->getNdbError() << endl;
+      ret = NDBT_FAILED;
+      break;
+    }
+
+    cols++;
+    vers++;
+    pDic->removeTableGlobal(*pOldTab, 0);
+    ctx->setProperty("Bug41905", 2);
+    NdbSleep_MilliSleep(10);
+  }
+
+  ctx->setProperty("Bug41905", 3);
+  return ret;
+}
+
+int
+runBug41905getTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  BaseString tabName(pTab->getName());
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  while (1) {
+    while (1) {
+      if (ctx->getProperty("Bug41905") == 1)
+        break;
+      if (ctx->getProperty("Bug41905") == 3)
+        goto out;
+      NdbSleep_MilliSleep(10);
+    }
+
+    uint ms = (uint)rand() % 1000;
+    NdbSleep_MilliSleep(ms);
+    g_info << "get begin ms=" << ms << endl;
+
+    Uint32 count = 0;
+    Uint32 oldstatus = 0;
+    while (1) {
+      count++;
+      const NdbDictionary::Table* pTmp = pDic->getTableGlobal(tabName.c_str());
+      assert(pTmp != 0);
+      Uint32 code = pDic->getNdbError().code;
+      Uint32 status = pTmp->getObjectStatus();
+      if (oldstatus == 2 && status == 3)
+        g_info << "code=" << code << " status=" << status << endl;
+      oldstatus = status;
+      pDic->removeTableGlobal(*pTmp, 0);
+      if (ctx->getProperty("Bug41905") != 1)
+        break;
+      NdbSleep_MilliSleep(10);
+    }
+    g_info << "get end count=" << count << endl;
+  }
+
+out:
+  return NDBT_OK;
+}
+
 /** telco-6.4 **/
  
 NDBT_TESTSUITE(testDict);
@@ -6864,6 +6992,11 @@ TESTCASE("FailAddPartition",
 TESTCASE("TableAddPartitions",
 	 "Add partitions to an existing table using alterTable()"){
   INITIALIZER(runTableAddPartition);
+}
+TESTCASE("Bug41905",
+	 ""){
+  STEP(runBug41905);
+  STEP(runBug41905getTable);
 }
 /** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);
