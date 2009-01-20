@@ -954,6 +954,8 @@ add_trx_relevant_locks_to_cache(
 					requested lock row, or NULL or
 					undefined */
 {
+	ut_ad(mutex_own(&kernel_mutex));
+
 	/* If transaction is waiting we add the wait lock and all locks
 	from another transactions that are blocking the wait lock. */
 	if (trx->que_state == TRX_QUE_LOCK_WAIT) {
@@ -1094,6 +1096,8 @@ fetch_data_into_cache(
 	trx_t*			trx;
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	requested_lock_row;
+
+	ut_ad(mutex_own(&kernel_mutex));
 
 	trx_i_s_cache_clear(cache);
 
