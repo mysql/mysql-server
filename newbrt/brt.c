@@ -3868,7 +3868,7 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, int get_flags, T
         else
             r = brt_cursor_prev(cursor, key, val, logger);
         break;
-#ifdef DB_PREV_DUP
+#if 0 && defined(DB_PREV_DUP)
     case DB_PREV_DUP:
         if (brt_cursor_not_set(cursor))
             r = EINVAL;
