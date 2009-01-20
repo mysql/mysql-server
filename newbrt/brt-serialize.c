@@ -978,7 +978,7 @@ int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
 			 unlock_for_pwrite();
 			 return r;
 		     }
-		     assert(r==(ssize_t)size);
+		     assert((ssize_t)size==nwrote);
 		     freeoff+=size;
 		     toku_free(buf);
 		 });
