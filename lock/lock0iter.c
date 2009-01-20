@@ -15,6 +15,9 @@ Created July 16, 2007 Vasil Dimov
 #include "lock0priv.h"
 #include "ut0dbg.h"
 #include "ut0lst.h"
+#ifdef UNIV_DEBUG
+# include "srv0srv.h" /* kernel_mutex */
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Initialize lock queue iterator so that it starts to iterate from
@@ -34,6 +37,8 @@ lock_queue_iterator_reset(
 	ulint			bit_no)	/* in: record number in the
 					heap */
 {
+	ut_ad(mutex_own(&kernel_mutex));
+
 	iter->current_lock = lock;
 
 	if (bit_no != ULINT_UNDEFINED) {
@@ -67,6 +72,8 @@ lock_queue_iterator_get_prev(
 	lock_queue_iterator_t*	iter)	/* in/out: iterator */
 {
 	const lock_t*	prev_lock;
+
+	ut_ad(mutex_own(&kernel_mutex));
 
 	switch (lock_get_type_low(iter->current_lock)) {
 	case LOCK_REC:
