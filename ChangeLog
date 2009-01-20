@@ -1,3 +1,13 @@
+2009-01-20	The InnoDB Team
+
+	* include/rem0rec.h, include/rem0rec.ic:
+	Fix Bug#41571 MySQL segfaults after innodb recovery
+
+2009-01-20	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#42152 Race condition in lock_is_table_exclusive()
+
 2009-01-14	The InnoDB Team
 
 	* include/trx0roll.h, trx/trx0roll.c, trx/trx0trx.c:
