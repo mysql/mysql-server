@@ -143,6 +143,6 @@ clean:
 	rm -rf log-test7.c.dir_*
 	rm -rf *.dir 
 	rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
-	rm -f *.brt *brt.clean *brt.dirty *.tdb *.dat *.data *.out
+	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out
 
 $(BINS):
