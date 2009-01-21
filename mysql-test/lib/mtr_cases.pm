@@ -45,10 +45,13 @@ our $reorder= 1;
 sub collect_option {
   my ($opt, $value)= @_;
 
+  # Evaluate $opt as string to use "Getopt::Long::Callback legacy API"
+  my $opt_name = "$opt";
+
   # Convert - to _ in option name
-  $opt =~ s/-/_/g;
+  $opt_name =~ s/-/_/g;
   no strict 'refs';
-  ${$opt}= $value;
+  ${$opt_name}= $value;
 }
 
 use File::Basename;
