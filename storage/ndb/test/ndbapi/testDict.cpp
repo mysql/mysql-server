@@ -6708,6 +6708,9 @@ runBug41905(NDBT_Context* ctx, NDBT_Step* step)
     ctx->setProperty("Bug41905", 1);
     NdbSleep_MilliSleep(10);
 
+    const bool removeEarly = (uint)rand() % 2;
+    g_info << "removeEarly = " << removeEarly << endl;
+
     if (pDic->beginSchemaTrans() != 0) {
       g_err << __LINE__ << ": " << pDic->getNdbError() << endl;
       ret = NDBT_FAILED;
@@ -6718,6 +6721,10 @@ runBug41905(NDBT_Context* ctx, NDBT_Step* step)
       ret = NDBT_FAILED;
       break;
     }
+
+    if (removeEarly)
+      pDic->removeTableGlobal(*pOldTab, 0);
+
     if (pDic->endSchemaTrans() != 0) {
       g_err << __LINE__ << ": " << pDic->getNdbError() << endl;
       ret = NDBT_FAILED;
@@ -6726,7 +6733,8 @@ runBug41905(NDBT_Context* ctx, NDBT_Step* step)
 
     cols++;
     vers++;
-    pDic->removeTableGlobal(*pOldTab, 0);
+    if (!removeEarly)
+      pDic->removeTableGlobal(*pOldTab, 0);
     ctx->setProperty("Bug41905", 2);
     NdbSleep_MilliSleep(10);
   }
