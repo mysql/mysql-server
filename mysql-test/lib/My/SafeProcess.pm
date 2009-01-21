@@ -349,10 +349,21 @@ sub start_kill {
   {
     $pid= $self->{SAFE_PID};
     die "Can't kill not started process" unless defined $pid;
-    $ret= kill(15, $pid);
+    $ret= kill("TERM", $pid);
   }
 
   return $ret;
+}
+
+
+sub dump_core {
+  my ($self)= @_;
+  return if IS_WINDOWS;
+  my $pid= $self->{SAFE_PID};
+  die "Can't cet core from not started process" unless defined $pid;
+  _verbose("Sending ABRT to $self");
+  kill ("ABRT", $pid);
+  return 1;
 }
 
 
