@@ -2906,6 +2906,11 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
       m_error.code = 4000;
       DBUG_RETURN(-1);
     }
+    m_globalHash->lock();
+    ret = m_globalHash->inc_ref_count(op.m_impl);
+    m_globalHash->unlock();
+    if (ret != 0)
+      m_error.code = 723;
     DBUG_RETURN(ret);
   }
   ERR_RETURN(getNdbError(), ret);
@@ -7510,6 +7515,11 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
     if (op.m_gsn == GSN_ALTER_TABLE_REQ)
     {
       op.m_impl->m_status = NdbDictionary::Object::Invalid;
+      m_globalHash->lock();
+      int ret = m_globalHash->dec_ref_count(op.m_impl);
+      m_globalHash->unlock();
+      if (ret != 0)
+        abort();
     }
   }
   m_tx.m_op.clear();
