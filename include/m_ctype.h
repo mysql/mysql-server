@@ -445,6 +445,7 @@ my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, uint len);
 uint my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong len);
 my_bool my_charset_is_ascii_based(CHARSET_INFO *cs);
 my_bool my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs);
+uint my_charset_repertoire(CHARSET_INFO *cs);
 
 
 #define	_MY_U	01	/* Upper case */

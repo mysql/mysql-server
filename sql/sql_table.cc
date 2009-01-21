@@ -1535,7 +1535,9 @@ static bool prepare_blob_field(THD *thd, create_field *sql_field)
     
   if ((sql_field->flags & BLOB_FLAG) && sql_field->length)
   {
-    if (sql_field->sql_type == FIELD_TYPE_BLOB)
+    if (sql_field->sql_type == FIELD_TYPE_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB)
     {
       /* The user has given a length to the blob column */
       sql_field->sql_type= get_blob_type_from_length(sql_field->length);

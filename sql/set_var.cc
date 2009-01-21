@@ -3489,6 +3489,7 @@ int set_var_password::check(THD *thd)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
   {
+    DBUG_ASSERT(thd->security_ctx->priv_host);
     if (*thd->security_ctx->priv_host != 0)
     {
       user->host.str= (char *) thd->security_ctx->priv_host;
@@ -3499,6 +3500,12 @@ int set_var_password::check(THD *thd)
       user->host.str= (char *)"%";
       user->host.length= 1;
     }
+  }
+  if (!user->user.str)
+  {
+    DBUG_ASSERT(thd->security_ctx->priv_user);
+    user->user.str= (char *) thd->security_ctx->priv_user;
+    user->user.length= strlen(thd->security_ctx->priv_user);
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
