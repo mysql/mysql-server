@@ -18,7 +18,7 @@ static void test0 (void) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     if (verbose) printf("%s:%d test0\n", __FILE__, __LINE__);
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_open_brt(fname, 0, 1, &t, 1024, ct, null_txn, toku_default_compare_fun, null_db);
     assert(r==0);
     //printf("%s:%d test0\n", __FILE__, __LINE__);

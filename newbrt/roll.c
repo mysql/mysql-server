@@ -48,6 +48,8 @@ toku_rollback_fcreate (TXNID      UU(xid),
 #endif
     int r = unlink(full_fname);
     assert(r==0);
+    r = toku_graceful_delete(full_fname);
+    assert(r==0);
     toku_free(fname);
     return 0;
 }

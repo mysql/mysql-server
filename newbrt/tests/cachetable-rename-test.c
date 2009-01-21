@@ -82,7 +82,7 @@ static void test_rename (void) {
     test_mutex_init();
     const char fname[] = __FILE__ "rename.dat";
     r=toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     for (i=0; i<TRIALLIMIT; i++) {

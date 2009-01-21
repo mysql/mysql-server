@@ -11,9 +11,9 @@ extern "C" {
 #define TOKUDB 1
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 6
-#define DB_VERSION_PATCH 21
+#define DB_VERSION_PATCH 19
 #ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.21"
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.19"
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
@@ -106,6 +106,7 @@ typedef enum {
 /* TOKUDB specific error codes */
 #define TOKUDB_OUT_OF_LOCKS -100000
 #define TOKUDB_SUCCEEDED_EARLY -100001
+#define TOKUDB_DIRTY_DICTIONARY -100004
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin

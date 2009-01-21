@@ -7,6 +7,17 @@
 
 int verbose=0;
 
+void
+unlink_file_and_bit(const char *name) {
+    char dirty[strlen(name) + sizeof(".dirty")];
+    char clean[strlen(name) + sizeof(".clean")];
+    sprintf(dirty, "%s.dirty", name);
+    sprintf(clean, "%s.clean", name);
+    unlink(name);
+    unlink(dirty);
+    unlink(clean);
+}
+
 static inline void
 default_parse_args (int argc, const char *argv[]) {
     const char *progname=argv[0];

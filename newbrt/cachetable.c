@@ -128,6 +128,7 @@ struct cachefile {
 			 * every record in the transaction, we'll be ok.  Hence we use a 64-bit counter to make sure we don't run out.
 			 */
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
+    BOOL is_dirty;      /* Has this been written to since it was closed? */
     CACHETABLE cachetable;
     struct fileid fileid;
     FILENUM filenum;
@@ -220,7 +221,14 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	}
     }
     {
-	CACHEFILE MALLOC(newcf);
+        BOOL was_dirty = FALSE;
+        r = toku_graceful_open(fname, &was_dirty);
+        if (r!=0) {
+            close(fd); 
+            return r;
+        }
+
+        CACHEFILE MALLOC(newcf);
         newcf->cachetable = ct;
         newcf->filenum.fileid = next_filenum_to_use.fileid++;
         cachefile_init_filenum(newcf, fd, fname, fileid);
@@ -231,6 +239,7 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	newcf->userdata = 0;
 	newcf->close_userdata = 0;
 	newcf->checkpoint_userdata = 0;
+        newcf->is_dirty = was_dirty;
 
 	*cfptr = newcf;
 	return 0;
@@ -314,13 +323,20 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
     if (cf->refcount==0) {
 	int r;
 	if ((r = cachetable_flush_cachefile(ct, cf))) {
+            //This is not a graceful shutdown; do not set file as clean.
             cachetable_unlock(ct);
             return r;
         }
 	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, error_string))) {
+            //This is not a graceful shutdown; do not set file as clean.
 	    cachetable_unlock(ct);
 	    return r;
 	}
+        //Graceful shutdown.  'clean' the file.
+	if ((r = toku_graceful_close(cf))) {
+	    cachetable_unlock(ct);
+            return r;
+        }
 	cf->close_userdata = NULL;
 	cf->checkpoint_userdata = NULL;
 	cf->userdata = NULL;
@@ -334,8 +350,7 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	    //BYTESTRING bs = {.len=strlen(cf->fname), .data=cf->fname};
 	    //r = toku_log_cfclose(logger, 0, 0, bs, cf->filenum);
 	}
-	if (cf->fname)
-	    toku_free(cf->fname);
+	if (cf->fname) toku_free(cf->fname);
 	toku_free(cf);
 	*cfp=0;
 	return r;
@@ -1039,6 +1054,7 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     // are dirty.  pairs in the READING or WRITING states are already in the
     // work queue.
     unsigned i;
+
     for (i=0; i < ct->table_size; i++) {
 	PAIR p;
 	for (p = ct->table[i]; p; p = p->hash_chain) {
@@ -1360,5 +1376,241 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
     }
     cachefile_init_filenum(cf, null_fd, NULL, fileid);
     return 0;
+}
+
+static toku_pthread_mutex_t graceful_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
+static int graceful_is_locked=0;
+
+void toku_graceful_lock_init(void) {
+    int r = toku_pthread_mutex_init(&graceful_mutex, NULL); assert(r == 0);
+}
+
+void toku_graceful_lock_destroy(void) {
+    int r = toku_pthread_mutex_destroy(&graceful_mutex); assert(r == 0);
+}
+
+static inline void
+lock_for_graceful (void) {
+    // Locks the graceful_mutex. 
+    int r = toku_pthread_mutex_lock(&graceful_mutex);
+    assert(r==0);
+    graceful_is_locked = 1;
+}
+
+static inline void
+unlock_for_graceful (void) {
+    graceful_is_locked = 0;
+    int r = toku_pthread_mutex_unlock(&graceful_mutex);
+    assert(r==0);
+}
+
+static int
+graceful_open_get_append_fd(const char *db_fname, BOOL *is_dirtyp, BOOL *create) {
+    BOOL clean_exists;
+    BOOL dirty_exists;
+    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
+    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
+
+    sprintf(cleanbuf, "%s.clean", db_fname);
+    sprintf(dirtybuf, "%s.dirty", db_fname);
+
+    struct stat tmpbuf;
+    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
+    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+    int r = 0;
+
+    *create = FALSE;
+    if (dirty_exists && clean_exists) {
+        r = unlink(cleanbuf);
+        clean_exists = FALSE;
+    }
+    if (r==0) {
+        if (!dirty_exists && !clean_exists) {
+            *create = TRUE;
+            dirty_exists = TRUE;
+        }
+        if (dirty_exists) {
+            *is_dirtyp = TRUE;
+            r = open(dirtybuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
+        }
+        else {
+            assert(clean_exists);
+            *is_dirtyp = FALSE;
+            r = open(cleanbuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
+        }
+    }
+    return r;
+}
+
+static int
+graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
+    BOOL clean_exists;
+    BOOL dirty_exists;
+    BOOL db_exists;
+    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
+    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
+
+    sprintf(cleanbuf, "%s.clean", db_fname);
+    sprintf(dirtybuf, "%s.dirty", db_fname);
+
+    struct stat tmpbuf;
+    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
+    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+    db_exists    = stat(db_fname, &tmpbuf) == 0;
+    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+    int r = 0;
+
+    if (dirty_exists) {
+        if (clean_exists) r = unlink(dirtybuf);
+        else              r = rename(dirtybuf, cleanbuf);
+    }
+    if (db_exists) r = open(cleanbuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
+    else if (clean_exists) r = unlink(cleanbuf);
+    *db_missing = !db_exists;
+    return r;
+}
+
+static int
+graceful_dirty_get_append_fd(const char *db_fname) {
+    BOOL clean_exists;
+    BOOL dirty_exists;
+    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
+    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
+
+    sprintf(cleanbuf, "%s.clean", db_fname);
+    sprintf(dirtybuf, "%s.dirty", db_fname);
+
+    struct stat tmpbuf;
+    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
+    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+    int r = 0;
+
+    if (clean_exists) {
+        if (dirty_exists) r = unlink(cleanbuf);
+        else              r = rename(cleanbuf, dirtybuf);
+    }
+    r = open(dirtybuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
+    return r;
+}
+
+static void
+graceful_log(int fd, char *operation, BOOL was_dirty, BOOL is_dirty) {
+    //Logging.  Ignore errors.
+    static char buf[sizeof(":-> pid= tid=  ")
+                    +7  //operation
+                    +5  //was dirty
+                    +5  //is  dirty
+                    +5  //process id
+                    +5  //thread id
+                    +26 //ctime string (including \n)
+                   ];
+    assert(graceful_is_locked); //ctime uses static buffer.  Lock must be held.
+    time_t temptime;
+    time(&temptime);
+    snprintf(buf, sizeof(buf), "%-7s:%-5s->%-5s pid=%-5d tid=%-5d  %s",
+             operation,
+             was_dirty ? "dirty" : "clean",
+             is_dirty  ? "dirty" : "clean",
+             toku_os_getpid(),
+             toku_os_gettid(),
+             ctime(&temptime));
+    write(fd, buf, strlen(buf));
+} 
+
+int
+toku_graceful_open(const char *db_fname, BOOL *is_dirtyp) {
+    int r;
+    int r2 = 0;
+    BOOL is_dirty;
+    BOOL created;
+    int fd;
+
+    lock_for_graceful();
+    fd = graceful_open_get_append_fd(db_fname, &is_dirty, &created);
+    if (fd == -1) r = errno;
+    else {
+        graceful_log(fd, created ? "Created" : "Opened", is_dirty, is_dirty);
+        *is_dirtyp = is_dirty;
+        if (created || !is_dirty) r = 0;
+        else r = TOKUDB_DIRTY_DICTIONARY;
+        r2 = close(fd);
+    }
+    unlock_for_graceful();
+    return r ? r : r2;
+}
+
+int
+toku_graceful_close(CACHEFILE cf) {
+    int r  = 0;
+    int r2 = 0;
+    int fd;
+    const char *db_fname = cf->fname;
+
+    if (db_fname) {
+        lock_for_graceful();
+        BOOL db_missing = FALSE;
+        BOOL was_dirty = cf->is_dirty;
+        fd = graceful_close_get_append_fd(db_fname, &db_missing);
+        if (fd == -1) {
+            if (!db_missing) r = errno;
+        }
+        else {
+            graceful_log(fd, "Closed", was_dirty, FALSE);
+            r2 = close(fd);
+            cf->is_dirty = FALSE;
+        }
+        unlock_for_graceful();
+    }
+    return r ? r : r2;
+
+}
+
+int
+toku_graceful_dirty(CACHEFILE cf) {
+    int r  = 0;
+    int r2 = 0;
+    int fd;
+    const char *db_fname = cf->fname;
+
+    if (!cf->is_dirty && db_fname) {
+        lock_for_graceful();
+        fd = graceful_dirty_get_append_fd(db_fname);
+        if (fd == -1) r = errno;
+        else {
+            graceful_log(fd, "Dirtied", FALSE, TRUE);
+            r2 = close(fd);
+            cf->is_dirty = TRUE;
+        }
+        unlock_for_graceful();
+    }
+    return r ? r : r2;
+}
+
+int
+toku_graceful_delete(const char *db_fname) {
+    BOOL clean_exists;
+    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
+    BOOL dirty_exists;
+    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
+
+    sprintf(cleanbuf, "%s.clean", db_fname);
+    sprintf(dirtybuf, "%s.dirty", db_fname);
+
+    struct stat tmpbuf;
+    lock_for_graceful();
+    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
+    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+
+    int r = 0;
+    if (clean_exists) {
+        r = unlink(cleanbuf);
+    }
+    if (r==0 && dirty_exists) {
+        r = unlink(dirtybuf);
+    }
+    unlock_for_graceful();
+    return r;
 }
 

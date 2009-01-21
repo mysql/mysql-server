@@ -150,7 +150,7 @@ static void test_chaining (void) {
     for (i=0; i<N_FILES; i++) {
 	r = snprintf(fname[i], FILENAME_LEN, __FILE__ ".%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
-	unlink(fname[i]);
+	unlink_file_and_bit(fname[i]);
 	r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 	}
     for (i=0; i<N_PRESENT_LIMIT; i++) {

@@ -25,7 +25,7 @@
 
 static void
 test (u_int64_t fsize) {
-    unlink(FNAME);
+    unlink_file_and_bit(FNAME);
     // Create a file of size fsize.  Fill it with 8-byte values which are integers, in order)
     assert(fsize%(N_BIGINTS*sizeof(u_int64_t)) == 0); // Make sure the fsize is a multiple of the buffer size.
     u_int64_t i = 0;
@@ -95,7 +95,7 @@ assert(sizeof(buf) == N_BIGINTS * BIGINT_SIZE);
     }
     //printf("Did %" PRIu64 "\n", fsize);
     //system("ls -l " FNAME);
-    unlink(FNAME);
+    unlink_file_and_bit(FNAME);
 }
 
 int

@@ -105,7 +105,7 @@ static void test_brt_cursor_first(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_first:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -146,7 +146,7 @@ static void test_brt_cursor_last(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_last:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -187,7 +187,7 @@ static void test_brt_cursor_first_last(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_first_last:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -232,7 +232,7 @@ static void test_brt_cursor_rfirst(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_rfirst:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -306,7 +306,7 @@ static void test_brt_cursor_walk(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_walk:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -378,7 +378,7 @@ static void test_brt_cursor_rwalk(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_rwalk:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -456,7 +456,7 @@ static void test_brt_cursor_rand(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_rand:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -508,7 +508,7 @@ static void test_brt_cursor_split(int n, DB *db) {
 
     if (verbose) printf("test_brt_cursor_split:%d %p\n", n, db);
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -585,7 +585,7 @@ static void test_multiple_brt_cursors(int n, DB *db) {
     BRT brt;
     BRT_CURSOR cursors[n];
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -631,7 +631,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
     const int ncursors = n/cursor_gap;
     BRT_CURSOR cursors[ncursors];
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     int nodesize = 1<<12;
     int h = log16(n);
@@ -715,7 +715,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     BRT brt;
     BRT_CURSOR cursor=0;
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -787,7 +787,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     BRT brt;
     BRT_CURSOR cursor=0;
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -853,7 +853,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     BRT brt;
     BRT_CURSOR cursor=0;
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     error = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
@@ -914,7 +914,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     BRT brt;
     BRT_CURSOR cursor=0;
 
-    unlink(fname);
+    unlink_file_and_bit(fname);
 
     error = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);

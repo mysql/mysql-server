@@ -18,7 +18,7 @@ static DB * const null_db = 0;
 static void test_delete_all (void) {
     char fname[]= __FILE__ ".brt";
     u_int32_t limit =200;
-    unlink(fname);
+    unlink_file_and_bit(fname);
     CACHETABLE ct;
     int r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
     BRT t;
