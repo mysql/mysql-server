@@ -68,7 +68,6 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp) {
     }
     int dirnamelen = strlen(directory);
     while ((de=readdir(d))) {
-	if (de==0) return errno;
 	long long thisl;
 	int r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
 	if (r!=1) continue; // Skip over non-log files.
