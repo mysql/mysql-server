@@ -219,7 +219,7 @@ INSERT INTO global_suppressions VALUES
 --
 CREATE DEFINER=root@localhost PROCEDURE check_warnings(OUT result INT)
 BEGIN
-  DECLARE `text` text charset utf8;
+  DECLARE `text` mediumtext charset utf8;
   DECLARE `pos` bigint unsigned;
 
   -- Don't write these queries to binlog
