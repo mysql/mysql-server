@@ -5,6 +5,10 @@
 #include <db.h>
 #include <fcntl.h>
 
+#ifndef USE_TDB
+#error This test only works for TokuDB.
+#endif
+
 void mkfile (const char *fname) {
     int fd = creat(fname, O_WRONLY);
     if (fd<0) perror("opening");

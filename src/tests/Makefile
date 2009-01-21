@@ -42,6 +42,7 @@ BDB_DONTRUN_TESTS = \
 	keyrange-dupsort-unflat \
 	manyfiles \
 	test938c \
+	test1324 \
 	helgrind1 \
 	helgrind2 \
 	helgrind3 \
