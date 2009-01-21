@@ -117,6 +117,16 @@ static void kill_child (void)
 }
 
 
+static void handle_abort (int sig)
+{
+    message("Got signal %d, child_pid: %d, sending ABRT", sig, child_pid);
+
+    if (child_pid > 0) {
+	kill (-child_pid, SIGABRT);	// Don't wait for it to terminate
+    }
+}
+
+    
 static void handle_signal (int sig)
 {
   message("Got signal %d, child_pid: %d", sig, child_pid);
@@ -144,6 +154,7 @@ int main(int argc, char* const argv[] )
   signal(SIGTERM, handle_signal);
   signal(SIGINT,  handle_signal);
   signal(SIGCHLD, handle_signal);
+  signal(SIGABRT, handle_abort);
 
   sprintf(safe_process_name, "safe_process[%d]", own_pid);
 
