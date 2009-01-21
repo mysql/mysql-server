@@ -7,6 +7,7 @@ extern "C" {
 #include "misc.h"
 #endif
 #include "toku_os.h"
+#include "dlmalloc.h"
 }
 
 
@@ -111,17 +112,16 @@ static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
 #endif
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-#if defined(_WIN32)
 extern "C" {
 #include "ydb.h"
 }
-#endif
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
 #if defined(_WIN32)
     toku_ydb_init();
 #endif
+    setup_dlmalloc();
 
     tokudb_hton = (handlerton *) p;
 
@@ -448,9 +448,9 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     }
   err:
     if (all_logs)
-        free(all_logs);
+        dlfree(all_logs);
     if (free_logs)
-        free(free_logs);
+        dlfree(free_logs);
     free_root(&show_logs_root, MYF(0));
     *root_ptr = old_mem_root;
     TOKUDB_DBUG_RETURN(error);
@@ -494,7 +494,7 @@ void tokudb_cleanup_log_files(void) {
 #endif
         }
 
-        free(names);
+        dlfree(names);
     }
 
     DBUG_VOID_RETURN;
