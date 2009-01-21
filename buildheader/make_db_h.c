@@ -106,7 +106,8 @@ void print_defines (void) {
     dodefine(DB_NEXT_DUP);
     dodefine(DB_NEXT_NODUP);
     dodefine(DB_PREV);
-#ifdef DB_PREV_DUP
+#if 0 && defined(DB_PREV_DUP)
+    // DB_PREV_DUP isn't working in tdb, so don't use it.
     dodefine(DB_PREV_DUP);
 #endif
     dodefine(DB_PREV_NODUP);
