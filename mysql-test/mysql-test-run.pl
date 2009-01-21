@@ -3347,7 +3347,6 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
-  mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
@@ -4325,7 +4324,6 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
-  mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--skip-safemalloc");
 
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
@@ -4341,6 +4339,7 @@ sub start_check_testcase ($$$) {
      name          => $name,
      path          => $exe_mysqltest,
      error         => $errfile,
+     output        => $errfile,
      args          => \$args,
      user_data     => $errfile,
      verbose       => $opt_verbose,
