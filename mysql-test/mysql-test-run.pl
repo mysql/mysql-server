@@ -464,7 +464,11 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
-
+	      # Move any core files from e.g. mysqltest
+	      foreach my $coref (glob("core*"))
+	      {
+                move($coref, $savedir);
+              }
 	      if ($opt_max_save_core > 0) {
 		# Limit number of core files saved
 		find({ no_chdir => 1,
@@ -2381,7 +2385,7 @@ sub kill_leftovers ($) {
       }
       mtr_report(" - found old pid $pid in '$elem', killing it...");
 
-      my $ret= kill(9, $pid);
+      my $ret= kill("KILL", $pid);
       if ($ret == 0) {
 	mtr_report("   process did not exist!");
 	next;
@@ -3284,11 +3288,6 @@ sub run_testcase ($) {
     $test_timeout_proc->kill();
 
     # ----------------------------------------------------
-    # It's not mysqltest that has exited, kill it
-    # ----------------------------------------------------
-    $test->kill();
-
-    # ----------------------------------------------------
     # Check if it was a server that died
     # ----------------------------------------------------
     if ( grep($proc eq $_, started(all_servers())) )
@@ -3297,9 +3296,29 @@ sub run_testcase ($) {
       $tinfo->{comment}=
 	"Server $proc failed during test run";
 
+      # ----------------------------------------------------
+      # It's not mysqltest that has exited, kill it
+      # ----------------------------------------------------
+      $test->kill();
+
       report_failure_and_restart($tinfo);
       return 1;
     }
+
+    # Try to dump core for mysqltest and all servers
+    foreach my $proc ($test, started(all_servers())) 
+    {
+      mtr_print("Trying to dump core for $proc");
+      if ($proc->dump_core())
+      {
+	$proc->wait_one(20);
+      }
+    }
+
+    # ----------------------------------------------------
+    # It's not mysqltest that has exited, kill it
+    # ----------------------------------------------------
+    $test->kill();
 
     # ----------------------------------------------------
     # Check if testcase timer expired
@@ -3319,6 +3338,7 @@ sub run_testcase ($) {
       }
       $tinfo->{'timeout'}= testcase_timeout(); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
+
       report_failure_and_restart($tinfo);
       return 1;
     }
@@ -3347,7 +3367,6 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
-  mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
@@ -4222,7 +4241,7 @@ sub start_servers($) {
     }
     else
     {
-      mysql_install_db($mysqld);
+      mysql_install_db($mysqld); # For versional testing
 
       mtr_error("Failed to install system db to '$datadir'")
 	unless -d $datadir;
@@ -4325,7 +4344,6 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
-  mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--skip-safemalloc");
 
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
@@ -4341,6 +4359,7 @@ sub start_check_testcase ($$$) {
      name          => $name,
      path          => $exe_mysqltest,
      error         => $errfile,
+     output        => $errfile,
      args          => \$args,
      user_data     => $errfile,
      verbose       => $opt_verbose,
