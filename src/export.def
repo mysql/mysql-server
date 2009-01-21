@@ -29,4 +29,5 @@ EXPORTS
    	dlmalloc @28
    	dlrealloc @29
    	dlfree @30
+   	setup_dlmalloc @31
 
