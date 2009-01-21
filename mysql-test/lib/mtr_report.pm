@@ -44,12 +44,13 @@ our $timer= 1;
 sub report_option {
   my ($opt, $value)= @_;
 
-  # Convert - to _ in option name
-  $opt =~ s/-/_/g;
-  no strict 'refs';
-  ${$opt}= $value;
+  # Evaluate $opt as string to use "Getopt::Long::Callback legacy API"
+  my $opt_name = "$opt";
 
-  #print $name, " setting $opt to ", (defined $value? $value : "undef") ,"\n";
+  # Convert - to _ in option name
+  $opt_name =~ s/-/_/g;
+  no strict 'refs';
+  ${$opt_name}= $value;
 }
 
 sub _name {
