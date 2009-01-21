@@ -100,47 +100,43 @@ sub posix_path {
   return $path;
 }
 
+use File::Temp qw /tempdir/;
 
 sub check_socket_path_length {
   my ($path)= @_;
-  my $truncated= 0;
 
   return 0 if IS_WINDOWS;
 
   require IO::Socket::UNIX;
 
+  my $truncated= 1; # Be negative
+
+  # Create a tempfile name with same length as "path"
+  my $tmpdir = tempdir( CLEANUP => 0);
+  my $len = length($path) - length($tmpdir);
+  my $testfile = $tmpdir . "x" x ($len  > 0 ? $len : 1);
   my $sock;
   eval {
-    # Create the directories where the
-    # socket till be created
-    mkpath(dirname($path));
-
     $sock= new IO::Socket::UNIX
       (
-       Local => $path,
+       Local => $testfile,
        Listen => 1,
       );
 
+    die "Could not create UNIX domain socket: $!"
+      unless defined $sock;
+
+    die "UNIX domain socket patch was truncated"
+      unless ($testfile eq $sock->hostpath());
+
+    $truncated= 0; # Yes, it worked!
+
   };
-  if ($@)
-  {
-    print $@, '\n';
-    return 2;
-  }
-  if (!defined $sock){
-    #print "Could not create UNIX domain socket: $!\n";
-    return 3;
-  }
-  if ($path ne $sock->hostpath()){
-    # Path was truncated
-    $truncated= 1;
-    # Output diagnostic messages
-    print "path: '$path', length: ", length($path) ,"\n";
-    print "hostpath: '", $sock->hostpath(),
-	  "', length: ", length($sock->hostpath()), "\n";
-  }
-  $sock= undef; # Close socket
-  unlink($path); # Remove the physical file
+  #print "check_socket_path_length, failed: ", $@, '\n' if ($@);
+
+  $sock= undef;  # Close socket
+  unlink($testfile); # Remove the physical file
+  rmdir($tmpdir); # Remove the tempdir
   return $truncated;
 }
 
