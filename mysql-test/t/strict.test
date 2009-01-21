@@ -1200,6 +1200,15 @@ show create table t1;
 drop table t1;
 
 #
+# Bug #39591: Crash if table comment is longer than 62 characters
+#
+
+#60 chars, 120 (+1) bytes (UTF-8 with 2-byte chars)
+CREATE TABLE t3 (f1 INT) COMMENT 'כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן';
+SHOW CREATE TABLE t3;
+DROP TABLE t3;
+
+#
 # Bug #26359: Strings becoming truncated and converted to numbers under STRICT mode
 #
 set sql_mode= 'traditional';

@@ -516,8 +516,9 @@ public:
   {
     collation.set(default_charset());
     uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
-    max_length= ((char_length + (char_length-args[0]->decimals)/3) *
-                 collation.collation->mbmaxlen);
+    uint max_sep_count= char_length/3 + (decimals ? 1 : 0) + /*sign*/1;
+    max_length= (char_length + max_sep_count + decimals) *
+      collation.collation->mbmaxlen;
   }
   const char *func_name() const { return "format"; }
   void print(String *);

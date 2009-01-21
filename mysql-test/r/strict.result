@@ -1348,6 +1348,13 @@ t1	CREATE TABLE `t1` (
   `i` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='123456789*123456789*123456789*123456789*123456789*123456789*'
 drop table t1;
+CREATE TABLE t3 (f1 INT) COMMENT 'כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן';
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן'
+DROP TABLE t3;
 set sql_mode= 'traditional';
 create table t1(col1 tinyint, col2 tinyint unsigned, 
 col3 smallint, col4 smallint unsigned,

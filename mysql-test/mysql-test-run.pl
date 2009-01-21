@@ -1508,15 +1508,21 @@ sub executable_setup_ndb () {
 				"$glob_basedir/storage/ndb",
 				"$glob_basedir/bin");
 
+  # Some might be found in sbin, not bin.
+  my $daemon_path= mtr_file_exists("$glob_basedir/ndb",
+				   "$glob_basedir/storage/ndb",
+				   "$glob_basedir/sbin",
+				   "$glob_basedir/bin");
+
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
+			 "$daemon_path/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
+			 "$daemon_path/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
@@ -2380,13 +2386,7 @@ sub setup_vardir() {
   {
     # on windows, copy all files from std_data into var/std_data_ln
     mkpath("$opt_vardir/std_data_ln");
-    opendir(DIR, "$glob_mysql_test_dir/std_data")
-      or mtr_error("Can't find the std_data directory: $!");
-    for(readdir(DIR)) {
-      next if -d "$glob_mysql_test_dir/std_data/$_";
-      copy("$glob_mysql_test_dir/std_data/$_", "$opt_vardir/std_data_ln/$_");
-    }
-    closedir(DIR);
+    mtr_copy_dir("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
   }
 
   # Remove old log files
