@@ -305,9 +305,8 @@ delimiter //;
 create procedure p1 ()
 begin
   DECLARE v INT DEFAULT 0;
-  DECLARE e INT DEFAULT 0;
   DECLARE i INT;
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET e = e + 1;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
   SET i = sleep(5);
   WHILE v < 10000 do
     CREATE SERVER s
@@ -317,7 +316,6 @@ begin
 	DROP SERVER s;
     SET v = v + 1;
   END WHILE;
-  SELECT e > 0;
 END//
 delimiter ;//
 connection other;
