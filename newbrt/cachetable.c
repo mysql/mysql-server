@@ -1411,7 +1411,7 @@ unlock_for_graceful (void) {
 }
 
 static int
-graceful_open_get_append_fd(const char *db_fname, BOOL *is_dirtyp, BOOL *create) {
+graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create) {
     BOOL clean_exists;
     BOOL dirty_exists;
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
@@ -1426,26 +1426,17 @@ graceful_open_get_append_fd(const char *db_fname, BOOL *is_dirtyp, BOOL *create)
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
-    *create = FALSE;
-    if (dirty_exists && clean_exists) {
-        r = unlink(cleanbuf);
-        clean_exists = FALSE;
+    *was_dirtyp = dirty_exists;
+    *create     = FALSE;
+    if (!dirty_exists && !clean_exists) {
+        *create = TRUE;
+        dirty_exists = TRUE;
     }
-    if (r==0) {
-        if (!dirty_exists && !clean_exists) {
-            *create = TRUE;
-            dirty_exists = TRUE;
-        }
-        if (dirty_exists) {
-            *is_dirtyp = TRUE;
-            r = open(dirtybuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
-        }
-        else {
-            assert(clean_exists);
-            *is_dirtyp = FALSE;
-            r = open(cleanbuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
-        }
+    if (clean_exists) {
+        if (dirty_exists) r = unlink(cleanbuf);
+        else              r = rename(cleanbuf, dirtybuf);
     }
+    r = open(dirtybuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
     return r;
 }
 
@@ -1529,17 +1520,20 @@ int
 toku_graceful_open(const char *db_fname, BOOL *is_dirtyp) {
     int r;
     int r2 = 0;
-    BOOL is_dirty;
+    BOOL was_dirty;
     BOOL created;
     int fd;
 
     lock_for_graceful();
-    fd = graceful_open_get_append_fd(db_fname, &is_dirty, &created);
+    fd = graceful_open_get_append_fd(db_fname, &was_dirty, &created);
     if (fd == -1) r = errno;
     else {
-        graceful_log(fd, created ? "Created" : "Opened", is_dirty, is_dirty);
-        *is_dirtyp = is_dirty;
-        if (created || !is_dirty) r = 0;
+        graceful_log(fd,
+                     created ? "Created" : "Opened",
+                     was_dirty,
+                     TRUE);
+        *is_dirtyp = TRUE;
+        if (created || !was_dirty) r = 0;
         else r = TOKUDB_DIRTY_DICTIONARY;
         r2 = close(fd);
     }
