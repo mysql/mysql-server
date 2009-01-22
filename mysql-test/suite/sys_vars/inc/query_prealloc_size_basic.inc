@@ -74,8 +74,8 @@ SELECT @@session.query_prealloc_size   = 8192;
 SET @@global.query_prealloc_size   = 8192;
 SELECT @@global.query_prealloc_size  ;
 
-SET @@global.query_prealloc_size   = 4294967295;
-SELECT @@global.query_prealloc_size  ;
+#SET @@global.query_prealloc_size   = 4294967295;
+#SELECT @@global.query_prealloc_size  ;
 
 SET @@global.query_prealloc_size   = 655354;
 SELECT @@global.query_prealloc_size  ;
@@ -89,8 +89,8 @@ SELECT @@global.query_prealloc_size  ;
 SET @@session.query_prealloc_size   = 8192;
 SELECT @@session.query_prealloc_size  ;
 
-SET @@session.query_prealloc_size   = 4294967295;
-SELECT @@session.query_prealloc_size  ;
+#SET @@session.query_prealloc_size   = 4294967295;
+#SELECT @@session.query_prealloc_size  ;
 
 SET @@session.query_prealloc_size   = 655345;
 SELECT @@session.query_prealloc_size  ;
@@ -106,11 +106,11 @@ SELECT @@session.query_prealloc_size  ;
 SET @@global.query_prealloc_size   = 0;
 SELECT @@global.query_prealloc_size  ;
 
-SET @@global.query_prealloc_size   = -1024;
-SELECT @@global.query_prealloc_size  ;
+#SET @@global.query_prealloc_size   = -1024;
+#SELECT @@global.query_prealloc_size  ;
 
-SET @@global.query_prealloc_size   = 429496729533;
-SELECT @@global.query_prealloc_size  ;
+#SET @@global.query_prealloc_size   = 429496729533;
+#SELECT @@global.query_prealloc_size  ;
 
 
 --Error ER_PARSE_ERROR
@@ -137,8 +137,8 @@ SELECT @@global.query_prealloc_size  ;
 SET @@session.query_prealloc_size   = 0;
 SELECT @@session.query_prealloc_size  ;
 
-SET @@session.query_prealloc_size   = -2;
-SELECT @@session.query_prealloc_size  ;
+#SET @@session.query_prealloc_size   = -2;
+#SELECT @@session.query_prealloc_size  ;
 
 --Error ER_PARSE_ERROR
 

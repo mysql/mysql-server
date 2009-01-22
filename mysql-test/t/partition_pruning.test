@@ -8,6 +8,22 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 
+#
+# Bug#40972: some sql execution lead the whole database crashing
+#
+# Setup so the start is at partition pX and end is at p1
+# Pruning does handle 'bad' dates differently.
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT,
+ b DATETIME,
+ PRIMARY KEY (a,b),
+ KEY (b))
+PARTITION BY RANGE (to_days(b))
+(PARTITION p0 VALUES LESS THAN (733681) COMMENT = 'LESS THAN 2008-10-01',
+ PARTITION p1 VALUES LESS THAN (733712) COMMENT = 'LESS THAN 2008-11-01',
+ PARTITION pX VALUES LESS THAN MAXVALUE);
+SELECT a,b FROM t1 WHERE b >= '2008-12-01' AND b < '2009-12-00';
+DROP TABLE t1;
 
 # Check if we can infer from condition on partition fields that 
 # no records will match.

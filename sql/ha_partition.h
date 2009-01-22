@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ private:
   uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
   uint m_no_locks;                       // For engines like ha_blackhole, which needs no locks
-  uint m_last_part;                      // Last file that we update,write
+  uint m_last_part;                      // Last file that we update,write,read
   int m_lock_type;                       // Remembers type of last
                                          // external_lock
   part_id_range m_part_spec;             // Which parts to scan
@@ -325,6 +325,10 @@ public:
     Call to unlock rows not to be updated in transaction
   */
   virtual void unlock_row();
+  /*
+    Check if semi consistent read
+  */
+  virtual bool was_semi_consistent_read();
   /*
     Call to hint about semi consistent read
   */
