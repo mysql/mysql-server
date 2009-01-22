@@ -3783,68 +3783,107 @@ extern "C" {
 
 static int rmall(const char *dname) {
     int error = 0;
-    DIR *d = opendir(dname);
     char* fname = NULL;
-    if (d) {
-        struct dirent *dirent;
-        while ((dirent = readdir(d)) != 0) {
-            if (0 == strcmp(dirent->d_name, ".") || 0 == strcmp(dirent->d_name, ".."))
-                continue;
-            fname = (char *)my_malloc(strlen(dname) + 1 + strlen(dirent->d_name) + 1, MYF(MY_WME));
-            sprintf(fname, "%s/%s", dname, dirent->d_name);
-            if (dirent->d_type == DT_DIR) {
-                error = rmall(fname);
-            } 
-            else {
+    struct dirent *dirent = NULL;;
+    DIR *d = opendir(dname);
+
+    if (d == NULL) {
+        error = errno;
+        goto cleanup;
+    }
+    //
+    // we do two loops, first loop just removes all the .tokudb files
+    // second loop removes extraneous files
+    //
+    while ((dirent = readdir(d)) != 0) {
+        if (0 == strcmp(dirent->d_name, ".") || 0 == strcmp(dirent->d_name, ".."))
+            continue;
+        fname = (char *)my_malloc(strlen(dname) + 1 + strlen(dirent->d_name) + 1, MYF(MY_WME));
+        sprintf(fname, "%s/%s", dname, dirent->d_name);
+        if (dirent->d_type == DT_DIR) {
+            error = rmall(fname);
+            if (error) { goto cleanup; }
+        } 
+        else {
+            //
+            // if clause checks if the file is a .tokudb file
+            //
+            if (strlen(fname) >= strlen (ha_tokudb_ext) &&
+                strcmp(fname + (strlen(fname) - strlen(ha_tokudb_ext)), ha_tokudb_ext) == 0) 
+            {
                 if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
                     TOKUDB_TRACE("removing:%s\n", fname);
                 }
                 //
-                // if clause checks if the file is a .tokudb file
+                // if this fails under low memory conditions, gracefully exit and return error
+                // user will be notified that something went wrong, and he will
+                // have to deal with it
                 //
-                if (strlen(fname) >= strlen (ha_tokudb_ext) &&
-                    strcmp(fname + (strlen(fname) - strlen(ha_tokudb_ext)), ha_tokudb_ext) == 0) 
-                {
-                    //
-                    // if this fails under low memory conditions, gracefully exit and return error
-                    // user will be notified that something went wrong, and he will
-                    // have to deal with it
-                    //
-                    DB* db = NULL;
-                    error = db_create(&db, db_env, 0);
-                    if (error) {
-                        break;
-                    }
-                    //
-                    // it is ok to do db->remove on any .tokudb file, because any such
-                    // file was created with db->open
-                    //
-                    db->remove(db, fname, NULL, 0);
-                }
-                else {
-                    //
-                    // in case we have some file that is not .tokudb, we just delete it
-                    //
-                    error = unlink(fname);
-                    if (error != 0) {
-                        error = errno;
-                        break;
-                    }
-                }
-                my_free(fname, MYF(MY_ALLOW_ZERO_PTR));
-                fname = NULL;
+                DB* db = NULL;
+                error = db_create(&db, db_env, 0);
+                if (error) { goto cleanup; }
+
+                //
+                // it is ok to do db->remove on any .tokudb file, because any such
+                // file was created with db->open
+                //
+                error = db->remove(db, fname, NULL, 0);
+                if (error) { goto cleanup; }
             }
+            else {
+                continue;
+            }
+            my_free(fname, MYF(MY_ALLOW_ZERO_PTR));
+            fname = NULL;
         }
-        closedir(d);
-        if (error == 0) {
-            error = rmdir(dname);
-            if (error != 0)
-                error = errno;
-        }
-    } 
-    else {
-        error = errno;
     }
+    closedir(d);
+    d = NULL;
+
+    fname = NULL;
+    d = opendir(dname);
+    if (d == NULL) {
+        error = errno;
+        goto cleanup;
+    }
+    //
+    // second loop to remove extraneous files
+    //
+    while ((dirent = readdir(d)) != 0) {
+        if (0 == strcmp(dirent->d_name, ".") || 0 == strcmp(dirent->d_name, ".."))
+            continue;
+        fname = (char *)my_malloc(strlen(dname) + 1 + strlen(dirent->d_name) + 1, MYF(MY_WME));
+        sprintf(fname, "%s/%s", dname, dirent->d_name);
+        if (dirent->d_type == DT_DIR) {
+            error = rmall(fname);
+            if (error) { goto cleanup; }
+        } 
+        else {
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+                TOKUDB_TRACE("removing:%s\n", fname);
+            }
+            //
+            // Now we are removing files that are not .tokudb, we just delete it
+            //
+            error = unlink(fname);
+            if (error != 0) {
+                error = errno;
+                break;
+            }
+            my_free(fname, MYF(MY_ALLOW_ZERO_PTR));
+            fname = NULL;
+        }
+    }
+    closedir(d);
+    d = NULL;
+    
+    error = rmdir(dname);
+    if (error != 0) {
+        error = errno;
+        goto cleanup;
+    }
+ 
+cleanup:    
     return error;
 }
 
