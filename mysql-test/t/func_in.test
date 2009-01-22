@@ -426,4 +426,17 @@ select * from t1 where NOT id in (select null union all select 1);
 select * from t1 where NOT id in (null, 1);
 drop table t1;
 
+#
+# Bug #41363: crash of mysqld on windows with aggregate in case
+#
+
+CREATE TABLE t1(c0 INTEGER, c1 INTEGER, c2 INTEGER);
+INSERT INTO t1 VALUES(1, 1, 1), (1, 1, 1);
+
+SELECT CASE AVG (c0) WHEN c1 * c2 THEN 1 END FROM t1;
+SELECT CASE c1 * c2 WHEN SUM(c0) THEN 1 WHEN AVG(c0) THEN 2 END FROM t1;
+SELECT CASE c1 WHEN c1 + 1 THEN 1 END, ABS(AVG(c0)) FROM t1;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

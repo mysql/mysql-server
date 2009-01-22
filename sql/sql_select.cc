@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1667,8 +1667,11 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(*columns_list,
-                          Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+      if (result->send_fields(*columns_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+      {
+        DBUG_VOID_RETURN;
+      }
       /*
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
@@ -2584,7 +2587,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
         if (s->dependent & table->map)
           s->dependent |= table->reginfo.join_tab->dependent;
       }
-      if (s->dependent)
+      if (outer_join & s->table->map)
         s->table->maybe_null= 1;
     }
     /* Catch illegal cross references for outer joins */
@@ -13856,6 +13859,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
   length=0;
   for (i=0 ; i < table_count ; i++)
   {
+    bool have_bit_fields= FALSE;
     uint null_fields=0,used_fields;
     Field **f_ptr,*field;
     MY_BITMAP *read_set= tables[i].table->read_set;
@@ -13870,13 +13874,16 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 	length+=field->fill_cache_field(copy);
 	if (copy->blob_field)
 	  (*blob_ptr++)=copy;
-	if (field->maybe_null())
+	if (field->real_maybe_null())
 	  null_fields++;
+        if (field->type() == MYSQL_TYPE_BIT &&
+            ((Field_bit*)field)->bit_len)
+          have_bit_fields= TRUE;    
 	copy++;
       }
     }
     /* Copy null bits from table */
-    if (null_fields && tables[i].table->s->null_fields)
+    if (null_fields || have_bit_fields)
     {						/* must copy null bits */
       copy->str= tables[i].table->null_flags;
       copy->length= tables[i].table->s->null_bytes;
