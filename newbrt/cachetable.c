@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
+#include <time.h>
 
 #include "toku_portability.h"
 #include "memory.h"
