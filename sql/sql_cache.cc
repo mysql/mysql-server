@@ -781,6 +781,9 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
+  /* Ensure that only complete results are cached. */
+  DBUG_ASSERT(thd->main_da.is_eof());
+
   if (thd->killed)
   {
     query_cache_abort(&thd->net);
