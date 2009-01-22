@@ -236,23 +236,30 @@ split_fields (char *line, char *fields[], int maxfields) {
     return i;
 }
 
+static int
+usage(const char *arg0) {
+    printf("Usage: %s [--nodata] [--interactive] brtfilename\n", arg0);
+    return 1;
+}
+
 int 
 main (int argc, const char *argv[]) {
     const char *arg0 = argv[0];
-    static int interactive = 0;
+    int interactive = 0;
     argc--; argv++;
-    while (argc>1) {
-	if (strcmp(argv[0], "--nodata")==0) {
+    while (argc>0) {
+	if (strcmp(argv[0], "--nodata") == 0) {
 	    dump_data = 0;
         } else if (strcmp(argv[0], "--interactive") == 0) {
             interactive = 1;
-	} else {
-	    printf("Usage: %s [--nodata] brtfilename\n", arg0);
-	    exit(1);
-	}
+        } else if (strcmp(argv[0], "--help") == 0) {
+            return usage(arg0);
+	} else 
+	    break;
 	argc--; argv++;
     }
-    assert(argc==1);
+    if (argc != 1) return usage(arg0);
+
     const char *n = argv[0];
     int f = open(n, O_RDONLY + O_BINARY);  assert(f>=0);
     struct brt_header *h;
