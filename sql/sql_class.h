@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -456,8 +456,15 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
-
   /*
+    Number of statements sent from the client
+  */
+  ulong questions;
+  /*
+    IMPORTANT!
+    SEE last_system_status_var DEFINITION BELOW.
+    Below 'last_system_status_var' are all variables which doesn't make any
+    sense to add to the /global/ status variable counter.
     Status variables which it does not make sense to add to
     global status variable counter
   */
@@ -470,7 +477,7 @@ typedef struct system_status_var
   counter
 */
 
-#define last_system_status_var com_stmt_close
+#define last_system_status_var questions
 
 void mark_transaction_to_rollback(THD *thd, bool all);
 

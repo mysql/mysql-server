@@ -9,7 +9,6 @@ SET @min_flush_time = 0;
 #SET @max_flush_time = 0;
 
 SET @default_key_buffer_size= 131072;
-SET @min_key_buffer_size= 8;
 
 #SET @default_join_buffer_size = 131072;
 #SET @min_join_buffer_size = 8200;

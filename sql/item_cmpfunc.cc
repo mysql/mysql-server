@@ -394,19 +394,16 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
-    my_bitmap_map *old_write_map;
-    my_bitmap_map *old_read_map;
+    my_bitmap_map *old_maps[2];
     ulonglong orig_field_val; /* original field value if valid */
 
-    LINT_INIT(old_write_map);
-    LINT_INIT(old_read_map);
+    LINT_INIT(old_maps[0]);
+    LINT_INIT(old_maps[1]);
     LINT_INIT(orig_field_val);
 
     if (table)
-    {
-      old_write_map= dbug_tmp_use_all_columns(table, table->write_set);
-      old_read_map= dbug_tmp_use_all_columns(table, table->read_set);
-    }
+      dbug_tmp_use_all_columns(table, old_maps, 
+                               table->read_set, table->write_set);
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
                              MODE_INVALID_DATES;
@@ -441,10 +438,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     thd->variables.sql_mode= orig_sql_mode;
     thd->count_cuted_fields= orig_count_cuted_fields;
     if (table)
-    {
-      dbug_tmp_restore_column_map(table->write_set, old_write_map);
-      dbug_tmp_restore_column_map(table->read_set, old_read_map);
-    }
+      dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_maps);
   }
   return result;
 }
@@ -2719,6 +2713,16 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
+    if (with_sum_func || current_thd->lex->current_select->group_list.elements)
+    {
+      /*
+        See TODO commentary in the setup_copy_fields function:
+        item in a group may be wrapped with an Item_copy_string item.
+        That item has a STRING_RESULT result type, so we need
+        to take this type into account.
+      */
+      found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
+    }
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
