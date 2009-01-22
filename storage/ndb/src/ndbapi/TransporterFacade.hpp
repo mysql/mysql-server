@@ -323,7 +323,9 @@ TransporterFacade::unlock_mutex()
 inline
 unsigned Ndb_cluster_connection_impl::get_connect_count() const
 {
-  return m_transporter_facade->theClusterMgr->m_connect_count;
+  if (m_transporter_facade->theClusterMgr)
+    return m_transporter_facade->theClusterMgr->m_connect_count;
+  return 0;
 }
 
 inline
