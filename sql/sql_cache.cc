@@ -710,7 +710,12 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
-  if (thd->killed)
+  /*
+    Check if the NET layer raised a unreported error -- my_error() and
+    as a consequence query_cache_abort() haven't been called. Abort the
+    cached result as it might be only partially complete.
+  */
+  if (thd->killed || thd->net.report_error)
   {
     query_cache_abort(&thd->net);
     DBUG_VOID_RETURN;
