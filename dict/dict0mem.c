@@ -16,8 +16,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "que0que.h"
-#include "pars0pars.h"
 #include "lock0lock.h"
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when

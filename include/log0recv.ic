@@ -6,10 +6,7 @@ Recovery
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
 
-#include "sync0sync.h"
-#include "mem0mem.h"
-#include "log0log.h"
-#include "os0file.h"
+#include "univ.i"
 
 extern ibool	recv_recovery_from_backup_on;
 

@@ -12,7 +12,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "univ.i"
 #include "dict0types.h"
 #include "data0type.h"
-#include "data0data.h"
 #include "mem0mem.h"
 #include "rem0types.h"
 #include "btr0types.h"
