@@ -40,5 +40,5 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 # Cleanup
-set session debug="-d,sleep_after_global_schema_lock";
+set session debug="-d,";
 drop table t1;
