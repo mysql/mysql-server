@@ -27,7 +27,7 @@ start slave sql_thread;
 # end_log_pos of the last event of the relay log
 --let $slave_param_value = 149436
 --source include/wait_for_slave_param.inc
---echo ==== a prove that the $fake_relay_log has been processed successfully ====
+--echo ==== a prove that the fake has been processed successfully ====
 SELECT COUNT(*) - 17920 as zero FROM t3;
 
 --echo ==== Clean up ====
