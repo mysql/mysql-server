@@ -18,7 +18,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "sync0rw.h"
 #include "mem0mem.h"
 #include "rem0types.h"
-#include "btr0types.h"
 #include "ut0mem.h"
 #include "ut0lst.h"
 #include "hash0hash.h"

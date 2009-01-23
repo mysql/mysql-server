@@ -35,7 +35,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "log0log.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
 #include "page0zip.h"
