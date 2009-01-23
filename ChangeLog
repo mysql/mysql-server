@@ -1,3 +1,8 @@
+2009-01-23	The InnoDB Team
+
+	* include/buf0buf.h, buf/buf0buf.c:
+	Remove the unused mode BUF_GET_NOWAIT of buf_page_get_gen()
+
 2009-01-20	The InnoDB Team
 
 	* include/rem0rec.h, include/rem0rec.ic:
