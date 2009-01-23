@@ -12,7 +12,6 @@ Created 10/4/1994 Heikki Tuuri
 #endif
 
 #include "page0zip.h"
-#include "rem0cmp.h"
 #include "mtr0log.h"
 #include "log0recv.h"
 #include "rem0cmp.h"

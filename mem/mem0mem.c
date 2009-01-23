@@ -14,8 +14,6 @@ Created 6/9/1994 Heikki Tuuri
 
 #include "mach0data.h"
 #include "buf0buf.h"
-#include "btr0sea.h"
-#include "srv0srv.h"
 #include "mem0dbg.c"
 #include <stdarg.h>
 

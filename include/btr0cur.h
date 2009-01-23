@@ -11,7 +11,6 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "univ.i"
 #include "dict0dict.h"
-#include "data0data.h"
 #include "page0cur.h"
 #include "btr0types.h"
 #include "que0types.h"
