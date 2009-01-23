@@ -400,6 +400,8 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 void free_table_share(TABLE_SHARE *share)
 {
   MEM_ROOT mem_root;
+  uint idx;
+  KEY *key_info;
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
@@ -426,6 +428,16 @@ void free_table_share(TABLE_SHARE *share)
   plugin_unlock(NULL, share->db_plugin);
   share->db_plugin= NULL;
 
+  /* Release fulltext parsers */
+  key_info= share->key_info;
+  for (idx= share->keys; idx; idx--, key_info++)
+  {
+    if (key_info->flags & HA_USES_PARSER)
+    {
+      plugin_unlock(NULL, key_info->parser);
+      key_info->flags= 0;
+    }
+  }
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -1416,7 +1428,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
           {
-            field->part_of_key= share->keys_in_use;
+            if (field->key_length() == key_part->length &&
+                !(field->flags & BLOB_FLAG))
+              field->part_of_key= share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey= share->keys_in_use;
           }
@@ -1941,22 +1955,11 @@ partititon_err:
 int closefrm(register TABLE *table, bool free_share)
 {
   int error=0;
-  uint idx;
-  KEY *key_info;
   DBUG_ENTER("closefrm");
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
     error=table->file->close();
-  key_info= table->key_info;
-  for (idx= table->s->keys; idx; idx--, key_info++)
-  {
-    if (key_info->flags & HA_USES_PARSER)
-    {
-      plugin_unlock(NULL, key_info->parser);
-      key_info->flags= 0;
-    }
-  }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)

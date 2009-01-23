@@ -1295,6 +1295,13 @@ drop view v1;
 drop table test;
 drop function test_function;
 
+#
+# Bug#41456 SET PASSWORD hates CURRENT_USER()
+#
+SELECT CURRENT_USER();
+SET PASSWORD FOR CURRENT_USER() = PASSWORD("admin");
+SET PASSWORD FOR CURRENT_USER() = PASSWORD("");
+
 --echo End of 5.0 tests
 
 #

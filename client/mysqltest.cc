@@ -1442,6 +1442,36 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
 
 /*
+  Test if diff is present.  This is needed on Windows systems
+  as the OS returns 1 whether diff is successful or if it is
+  not present.
+  
+  We run diff -v and look for output in stdout.
+  We don't redirect stderr to stdout to make for a simplified check
+  Windows will output '"diff"' is not recognized... to stderr if it is
+  not present.
+*/
+
+int diff_check()
+{
+    char buf[512]= {0};
+    FILE *res_file;
+    const char *cmd = "diff -v";
+    int have_diff = 0;
+
+    if (!(res_file= popen(cmd, "r")))
+        die("popen(\"%s\", \"r\") failed", cmd);
+
+    /* if diff is not present, nothing will be in stdout to increment have_diff */
+    if (fgets(buf, sizeof(buf), res_file))
+        {
+            have_diff += 1;
+        } 
+    pclose(res_file);
+    return have_diff;
+}
+
+/*
   Show the diff of two files using the systems builtin diff
   command. If no such diff command exist, just dump the content
   of the two files and inform about how to get "diff"
@@ -1457,28 +1487,28 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
 void show_diff(DYNAMIC_STRING* ds,
                const char* filename1, const char* filename2)
 {
-
-  const char* diff_failed= 0;
   DYNAMIC_STRING ds_tmp;
+  int have_diff = 0;
 
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
     die("Out of memory");
 
-  /* First try with unified diff */
-  if (run_tool("diff",
-               &ds_tmp, /* Get output from diff in ds_tmp */
-               "-u",
-               filename1,
-               filename2,
-               "2>&1",
-               NULL) > 1) /* Most "diff" tools return >1 if error */
-  {
-    dynstr_set(&ds_tmp, "");
+  /* determine if we have diff on Windows
+     needs special processing due to return values
+     on that OS
+  */
+#ifdef __WIN__
+  have_diff = diff_check();
+#else
+  have_diff = 1;
+#endif  
 
-    /* Fallback to context diff with "diff -c" */
+  if (have_diff)
+  {
+    /* First try with unified diff */
     if (run_tool("diff",
                  &ds_tmp, /* Get output from diff in ds_tmp */
-                 "-c",
+                 "-u",
                  filename1,
                  filename2,
                  "2>&1",
@@ -1486,29 +1516,38 @@ void show_diff(DYNAMIC_STRING* ds,
     {
       dynstr_set(&ds_tmp, "");
 
-      /* Fallback to plain "diff" */
+      /* Fallback to context diff with "diff -c" */
       if (run_tool("diff",
                    &ds_tmp, /* Get output from diff in ds_tmp */
+                   "-c",
                    filename1,
                    filename2,
                    "2>&1",
                    NULL) > 1) /* Most "diff" tools return >1 if error */
       {
-        dynstr_set(&ds_tmp, "");
+	dynstr_set(&ds_tmp, "");
 
-        diff_failed= "Could not execute 'diff -u', 'diff -c' or 'diff'";
+	/* Fallback to simple diff with "diff" */
+	if (run_tool("diff",
+		     &ds_tmp, /* Get output from diff in ds_tmp */
+		     filename1,
+		     filename2,
+		     "2>&1",
+		     NULL) > 1) /* Most "diff" tools return >1 if error */
+	    {
+		have_diff= 0;
+	    }
       }
     }
-  }
+  }  
 
-  if (diff_failed)
+  if (! have_diff)
   {
     /*
       Fallback to dump both files to result file and inform
       about installing "diff"
     */
 	dynstr_append(&ds_tmp, "\n");
-    dynstr_append(&ds_tmp, diff_failed);
     dynstr_append(&ds_tmp,
 "\n"
 "The two files differ but it was not possible to execute 'diff' in\n"
@@ -7326,6 +7365,13 @@ static sig_handler signal_handler(int sig)
 {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();
+
+  fprintf(stderr, "Writing a core file...\n");
+  fflush(stderr);
+  my_write_core(sig);
+#ifndef __WIN__
+  exit(1);			// Shouldn't get here but just in case
+#endif
 }
 
 #ifdef __WIN__
