@@ -1,5 +1,10 @@
 2009-01-23	The InnoDB Team
 
+	* btr/btr0sea.c:
+	Fix Bug#42279 Race condition in btr_search_drop_page_hash_when_freed()
+
+2009-01-23	The InnoDB Team
+
 	* include/buf0buf.h, buf/buf0buf.c:
 	Remove the unused mode BUF_GET_NOWAIT of buf_page_get_gen()
 
