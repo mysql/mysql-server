@@ -62,7 +62,9 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 DROP EVENT IF EXISTS test.slave_once;
 --enable_warnings
 
-CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
+# Create an event on slave and check its state. An event shouldn't be executed 
+# so set start time in 1 hour.
+CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
   INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
 
 --echo "Checking event status on the slave for originator value = slave's server_id"
@@ -81,8 +83,11 @@ connection master;
 DROP EVENT IF EXISTS test.justonce;
 --enable_warnings
 
+# Create an event on master and check its state on slave. An event shouldn't be executed 
+# so set start time in 1 hour. Check that changes of event statement replicated to slave
+
 --echo "Creating event test.er on the master"
-CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
+CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
   INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
 
 --echo "Checking event status on the master"
@@ -95,7 +100,7 @@ SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND
 
 connection master;
 --echo "Altering event test.er on the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO 
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
   INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
 
 --echo "Checking event status on the master"
@@ -123,8 +128,11 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 # test the DISABLE ON SLAVE for setting event SLAVESIDE_DISABLED as status
 # on CREATE EVENT
 
+# Create an event on slave and check its status. An event shouldn't be executed 
+# so set start time in 1 hour.
+
 --echo "Creating event test.slave_terminate on the slave"
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DO 
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
   INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
 
 --echo "Checking event status on the slave"
