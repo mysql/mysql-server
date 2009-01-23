@@ -3090,15 +3090,15 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   */
   do
   {
-    ulonglong epoch, orig_epoch;
-    uint orig_server_id;
+    ulonglong epoch= 0, orig_epoch= 0;
+    uint orig_server_id= 0;
     empty_record(ndb_binlog_index);
 
     ndb_binlog_index->field[0]->store(first->master_log_pos, true);
     ndb_binlog_index->field[1]->store(first->master_log_file,
                                       strlen(first->master_log_file),
                                       &my_charset_bin);
-    ndb_binlog_index->field[2]->store(first->epoch, true);
+    ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
     {
       ndb_binlog_index->field[3]->store(row->n_inserts);
