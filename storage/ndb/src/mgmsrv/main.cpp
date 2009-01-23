@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -22,7 +23,7 @@
 
 #include <version.h>
 #include <kernel_types.h>
-#include <NdbDaemon.h>
+#include <my_daemon.h>
 #include <NdbConfig.h>
 #include <NdbSleep.h>
 #include <ndb_version.h>
@@ -86,6 +87,7 @@ static MgmtSrvr::MgmtOpts opts;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),
+  MY_DAEMON_LONG_OPTS(opts.)
   { "config-file", 'f', "Specify cluster configuration file",
     (uchar**) &opts.config_filename, (uchar**) &opts.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -138,8 +140,13 @@ static void usage()
 
 static char **defaults_argv;
 
-static void
-mgmd_exit(int result)
+/*
+   mgmd_exit()
+   do_exit=true:
+     if in a windows service, don't want process to exit()
+     until cleanup of other threads is done
+*/
+static void mgmd_exit(int result, bool do_exit = true)
 {
   g_eventLogger->close();
 
@@ -148,13 +155,24 @@ mgmd_exit(int result)
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
-  exit(result);
+  if(do_exit)
+    exit(result);
 }
 
+int null_printf(const char*s,...)
+{
+  return 0;
+}
+#define DBG IF_WIN(g_eventLogger->debug,null_printf)
 
+int event_loop(void*);
+int start();
+int argc_;char**argv_;
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
+  argc_= argc;
+  argv_= argv;
 
   g_eventLogger->setCategory("MgmSrvr");
 
@@ -177,6 +195,33 @@ int main(int argc, char** argv)
     opts.daemon= 0;
   }
 
+#ifdef _WIN32
+  if(opts.remove)
+    return my_daemon_remove((char*)opts.remove);
+  if(opts.install) {
+    char *svc_cmd= my_daemon_make_svc_cmd(argc_ - 1, argv_ + 1);
+    if(!svc_cmd) {
+      g_eventLogger->error(my_daemon_error);
+      mgmd_exit(1);
+    }
+    return my_daemon_install((char*)opts.install, svc_cmd);
+  }
+
+#ifdef _DEBUG
+  /* it is impossible to attach a debugger to a starting service
+  ** so it is necessary to log to a known place to diagnose
+  ** problems.  services don't have a stdout/stderr so the only
+  ** way to write debug info is to a file.
+  ** change this path if you don't have a c:\
+  */
+  if(opts.service) {
+    char *fn= "c:\\ndb_mgmd_debug.log";
+    g_eventLogger->createFileHandler(fn);
+    DBG(NdbConfig_StdoutFileName(0));
+    DBG(NdbConfig_get_path(0));
+  } else
+#endif
+#endif
   /* Output to console initially */
   g_eventLogger->createConsoleHandler();
 
@@ -196,13 +241,22 @@ int main(int argc, char** argv)
 #if !defined NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
+  return start();
+}
 
-start:
+int daemon_stop()
+{
+  g_StopServer= true;
+  return 0;
+}
 
+int start()
+{
   g_eventLogger->info("NDB Cluster Management Server. %s", NDB_VERSION_STRING);
 
   mgm= new MgmtSrvr(opts, opt_connect_str);
   if (mgm == NULL) {
+    DBG("mgm is NULL");
     g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
     mgmd_exit(1);
   }
@@ -214,30 +268,41 @@ start:
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
-
-  if (opts.daemon) {
-
+  IF_WIN(DBG("cl %s",GetCommandLine()),0);
+  if (IF_WIN(opts.service,opts.daemon)) {
+    DBG("service name %s",IF_WIN(opts.service,""));
     NodeId localNodeId= mgm->getOwnNodeId();
     if (localNodeId == 0) {
       g_eventLogger->error("Couldn't get own node id");
       delete mgm;
       mgmd_exit(1);
     }
-
-    // Become a daemon
+    struct MY_DAEMON thedaemon= {event_loop,daemon_stop};
     char *lockfile= NdbConfig_PidFileName(localNodeId);
     char *logfile=  NdbConfig_StdoutFileName(localNodeId);
-    NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
-
-    if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
-      g_eventLogger->error("Cannot become daemon: %s", NdbDaemon_ErrorText);
-      delete mgm;
+    DBG("to open %s,%s", lockfile, logfile);
+    if (my_daemon_prefiles(lockfile, logfile)) {
+      g_eventLogger->error("daemon_prefiles %s", my_daemon_error);
       mgmd_exit(1);
     }
+    if(my_daemon_files()) {
+      g_eventLogger->error("daemon_files %s", my_daemon_error);
+      mgmd_exit(1);
+    }
+    return my_daemon_run((char*)IF_WIN(opts.service,0),&thedaemon);
   }
+#ifdef _WIN32
+  if(opts.daemon) {
+    g_eventLogger->error("no daemon mode on windows, use -i to set up a service.");
+    mgmd_exit(1);
+  }
+#endif
+  return event_loop(0);
+}
 
-  /* Start mgm services */
-  if (!mgm->start()) {
+int event_loop(void*)
+{
+  if (!mgm->start()) { /* Start mgm services */
     delete mgm;
     mgmd_exit(1);
   }
@@ -264,9 +329,12 @@ start:
   if(g_RestartServer){
     g_eventLogger->info("Restarting server...");
     g_RestartServer= g_StopServer= false;
-    goto start;
+    int ex= start();
+    if(ex)
+      mgmd_exit(ex);
   }
 
-  mgmd_exit(0);
+  mgmd_exit(0,IF_WIN(!opts.service,1));
+  return 0;
 }
 
