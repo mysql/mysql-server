@@ -32,6 +32,7 @@ try
     var default_comment = "Source distribution";
     var default_port = GetValue(configureIn, "MYSQL_TCP_PORT_DEFAULT");
     var actual_port = 0;
+    var with_ndb_test = 0;
 
     var configfile = fso.CreateTextFile("win\\configure.data", true);
     for (i=0; i < args.Count(); i++)
@@ -64,6 +65,9 @@ try
                     break;
             case "MYSQL_TCP_PORT":
                     actual_port = parts[1];
+                    break;
+            case "WITH_NDB_TEST":
+                    with_ndb_test = 1;
                     break;
         }
     }
@@ -116,6 +120,7 @@ try
                          GetBaseVersion(version) + "\")");
     configfile.WriteLine("SET (MYSQL_VERSION_ID \"" +
                          GetVersionId(version) + "\")");
+    configfile.WriteLine("SET (WITH_NDB_TEST \"" + with_ndb_test + "\")");
 
     configfile.Close();
     
