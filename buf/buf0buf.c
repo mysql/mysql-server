@@ -1799,7 +1799,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH, BUF_GET_NOWAIT */
+				BUF_GET_NO_LATCH */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
@@ -1815,7 +1815,7 @@ buf_page_get_gen(
 	      || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
+	      || (mode == BUF_GET_NO_LATCH));
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
@@ -2065,29 +2065,8 @@ wait_until_unfixed:
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-	if (mode == BUF_GET_NOWAIT) {
-		ibool	success;
-
-		if (rw_latch == RW_S_LATCH) {
-			success = rw_lock_s_lock_func_nowait(&(block->lock),
-							     file, line);
-			fix_type = MTR_MEMO_PAGE_S_FIX;
-		} else {
-			ut_ad(rw_latch == RW_X_LATCH);
-			success = rw_lock_x_lock_func_nowait(&(block->lock),
-							     file, line);
-			fix_type = MTR_MEMO_PAGE_X_FIX;
-		}
-
-		if (!success) {
-			mutex_enter(&block->mutex);
-			buf_block_buf_fix_dec(block);
-			mutex_exit(&block->mutex);
-
-			return(NULL);
-		}
-	} else if (rw_latch == RW_NO_LATCH) {
-
+	switch (rw_latch) {
+	case RW_NO_LATCH:
 		if (must_read) {
 			/* Let us wait until the read operation
 			completes */
@@ -2109,15 +2088,19 @@ wait_until_unfixed:
 		}
 
 		fix_type = MTR_MEMO_BUF_FIX;
-	} else if (rw_latch == RW_S_LATCH) {
+		break;
 
+	case RW_S_LATCH:
 		rw_lock_s_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+
+	case RW_X_LATCH:
 		rw_lock_x_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
 	}
 
 	mtr_memo_push(mtr, block, fix_type);
