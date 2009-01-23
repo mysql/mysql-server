@@ -3090,8 +3090,8 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   */
   do
   {
-    ulonglong epoch, orig_epoch;
-    uint orig_server_id;
+    ulonglong epoch= 0, orig_epoch= 0;
+    uint orig_server_id= 0;
     empty_record(ndb_binlog_index);
 
     ndb_binlog_index->field[0]->store(first->master_log_pos);
