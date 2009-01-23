@@ -148,15 +148,20 @@ typedef struct my_locale_st
   TYPELIB *ab_month_names;
   TYPELIB *day_names;
   TYPELIB *ab_day_names;
+  uint max_month_name_length;
+  uint max_day_name_length;
 #ifdef __cplusplus 
   my_locale_st(uint number_par,
                const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
-               TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
+               TYPELIB *day_names_par, TYPELIB *ab_day_names_par,
+               uint max_month_name_length_par, uint max_day_name_length_par) : 
     number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
-    day_names(day_names_par), ab_day_names(ab_day_names_par)
+    day_names(day_names_par), ab_day_names(ab_day_names_par),
+    max_month_name_length(max_month_name_length_par),
+    max_day_name_length(max_day_name_length_par)
   {}
 #endif
 } MY_LOCALE;
@@ -2225,6 +2230,7 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,

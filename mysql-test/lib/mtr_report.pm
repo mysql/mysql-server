@@ -260,7 +260,7 @@ sub mtr_report_stats ($) {
   {
     mtr_warning("Got errors/warnings while running tests, please examine",
 		"'$warnlog' for details.");
-  }
+ }
 
   print "\n";
 

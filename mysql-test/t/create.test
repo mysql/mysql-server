@@ -1533,5 +1533,11 @@ DROP TABLE t1;
 
 ###########################################################################
 
+#
+# Bug#40104 regression with table names?
+#
+create table `me:i`(id int);
+drop table `me:i`;
+
 --echo
 --echo End of 5.1 tests

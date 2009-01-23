@@ -32,3 +32,29 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYISAMCHK -s --unpack $MYSQLD_DATADIR/test/t1
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
+
+#
+# Bug#40949 Debug version of MySQL server crashes when run OPTIMIZE on compressed table.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1(f1 int, f2 char(255));
+insert into t1 values(1, 'foo'), (2, 'bar');
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+flush tables;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYISAMPACK $MYSQLD_DATADIR/test/t1
+optimize table t1;
+drop table t1;

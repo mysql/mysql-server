@@ -3,6 +3,8 @@ drop database if exists mysqltest_db1;
 drop database if exists mysqltest_db2;
 create database events_test;
 use events_test;
+set @concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert = 0;
 select * from information_schema.global_variables where variable_name like 'event_scheduler';
 VARIABLE_NAME	VARIABLE_VALUE
 EVENT_SCHEDULER	ON
@@ -60,7 +62,7 @@ select get_lock('test_bug16407', 60);
 end|
 "Now if everything is fine the event has compiled and is locked"
 select /*1*/ user, host, db, info from information_schema.processlist
-where info = 'select get_lock(\'test_bug16407\', 60)';
+where state = 'User lock' and info = 'select get_lock(\'test_bug16407\', 60)';
 user	host	db	info
 root	localhost	events_test	select get_lock('test_bug16407', 60)
 select release_lock('test_bug16407');
@@ -84,7 +86,7 @@ get_lock('ee_16407_2', 60)
 set global event_scheduler= 1;
 "Another sql_mode test"
 set sql_mode="traditional";
-create table events_smode_test(ev_name char(10), a date) engine=myisam;
+create table events_smode_test(ev_name char(10), a date);
 "This should never insert something"
 create event ee_16407_2 on schedule every 60 second do
 begin
@@ -92,7 +94,7 @@ select get_lock('ee_16407_2', 60) /*ee_16407_2*/;
 select release_lock('ee_16407_2');
 insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
 end|
-insert into events_smode_test values ('test','1980-19-02')|
+insert into events_test.events_smode_test values ('test','1980-19-02')|
 ERROR 22007: Incorrect date value: '1980-19-02' for column 'a' at row 1
 "This is ok"
 create event ee_16407_3 on schedule every 60 second do
@@ -116,7 +118,7 @@ events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_
 events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 events_test	ee_16407_4	
 select /*2*/ user, host, db, info from information_schema.processlist
-where info = 'select get_lock(\'ee_16407_2\', 60)';
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
 user	host	db	info
 root	localhost	events_test	select get_lock('ee_16407_2', 60)
 root	localhost	events_test	select get_lock('ee_16407_2', 60)
@@ -125,10 +127,10 @@ select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
 select /*3*/ user, host, db, info from information_schema.processlist
-where info = 'select get_lock(\'ee_16407_2\', 60)';
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
 user	host	db	info
 set global event_scheduler= off;
-select * from events_smode_test order by ev_name, a;
+select * from events_test.events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_3	1980-02-19
 ee_16407_3	1980-02-29
@@ -143,7 +145,7 @@ drop event ee_16407_2;
 drop event ee_16407_3;
 drop event ee_16407_4;
 "And now one last test regarding sql_mode and call of SP from an event"
-delete from events_smode_test;
+delete from events_test.events_smode_test;
 set sql_mode='ansi';
 select get_lock('ee_16407_5', 60);
 get_lock('ee_16407_5', 60)
@@ -166,10 +168,8 @@ call events_test.ee_16407_6_pendant();
 end|
 "Should have 2 locked processes"
 select /*4*/ user, host, db, info from information_schema.processlist
-where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%')
-order by info;
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
 user	host	db	info
-event_scheduler	localhost	NULL	NULL
 root	localhost	events_test	select get_lock('ee_16407_5', 60)
 root	localhost	events_test	select get_lock('ee_16407_5', 60)
 select release_lock('ee_16407_5');
@@ -177,11 +177,9 @@ release_lock('ee_16407_5')
 1
 "Should have 0 processes locked"
 select /*5*/ user, host, db, info from information_schema.processlist
-where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%')
-order by info;
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
 user	host	db	info
-event_scheduler	localhost	NULL	NULL
-select * from events_smode_test order by ev_name, a;
+select * from events_test.events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_6	2004-02-29
 "And here we check one more time before we drop the events"
@@ -740,3 +738,4 @@ name
 drop event e1;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
+SET @@global.concurrent_insert= @concurrent_insert;
