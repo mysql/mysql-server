@@ -20,6 +20,8 @@
 
 static FileOutputStream ndbouts_fileoutputstream(stdout);
 NdbOut ndbout(ndbouts_fileoutputstream);
+static FileOutputStream ndberrs_fileoutputstream(stderr);
+NdbOut ndberr(ndberrs_fileoutputstream);
 
 static const char * fms[] = {
   "%d", "0x%02x",      // Int8

@@ -33,6 +33,7 @@
 
 #include <LogLevel.hpp>
 #include <EventLogger.hpp>
+#include <Logger.hpp>
 #include <NdbEnv.h>
 
 #include <NdbAutoPtr.hpp>
