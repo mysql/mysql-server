@@ -929,6 +929,7 @@ struct thr_repository
   Uint32 stopped_threads;
 };
 
+#if 0
 static
 Uint32
 fifo_used_pages(struct thr_data* selfptr)
@@ -937,6 +938,7 @@ fifo_used_pages(struct thr_data* selfptr)
                         selfptr->m_first_free,
                         THR_FREE_BUF_MAX);
 }
+#endif
 
 static
 void
