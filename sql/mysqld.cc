@@ -420,9 +420,11 @@ ulong opt_ndb_cluster_connection_pool;
 ulong ndb_extra_logging;
 ulong ndb_report_thresh_binlog_epoch_slip= 0;
 ulong ndb_report_thresh_binlog_mem_usage= 0;
+my_bool ndb_log_binlog_index= FALSE;
 my_bool opt_ndb_log_update_as_write= FALSE;
 my_bool opt_ndb_log_updated_only= FALSE;
 my_bool opt_ndb_log_orig= FALSE;
+my_bool opt_ndb_log_bin= FALSE;
 my_bool opt_ndb_log_empty_epochs= FALSE;
 
 extern "C" char opt_ndb_constrbuf[1024];
@@ -5506,7 +5508,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
   OPT_NDB_LOG_UPDATE_AS_WRITE, OPT_NDB_LOG_UPDATED_ONLY,
-  OPT_NDB_LOG_ORIG,
+  OPT_NDB_LOG_ORIG, OPT_NDB_LOG_BIN, OPT_NDB_LOG_BINLOG_INDEX,
   OPT_NDB_LOG_EMPTY_EPOCHS,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
@@ -6104,6 +6106,16 @@ master-ssl",
    (uchar**) &opt_ndb_log_orig,
    (uchar**) &opt_ndb_log_orig,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"ndb-log-bin", OPT_NDB_LOG_BIN,
+   "Log ndb tables in the binary log. Option only has meaning if "
+   "the binary log has been turned on for the server.",
+   (uchar**) &opt_ndb_log_bin, (uchar**) &opt_ndb_log_bin,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-log-binlog-index", OPT_NDB_LOG_BINLOG_INDEX,
+   "Insert mapping between epochs and binlog positions into the "
+   "ndb_binlog_index table.",
+   (uchar**) &ndb_log_binlog_index, (uchar**) &ndb_log_binlog_index,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb-log-empty-epochs", OPT_NDB_LOG_EMPTY_EPOCHS,
    "",
    (uchar**) &opt_ndb_log_empty_epochs,
