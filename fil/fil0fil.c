@@ -18,7 +18,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
-#include "log0log.h"
 #include "log0recv.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
