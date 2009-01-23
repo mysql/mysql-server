@@ -514,7 +514,9 @@ extern log_t*	log_sys;
 /* Values used as flags */
 #define LOG_FLUSH	7652559
 #define LOG_CHECKPOINT	78656949
-#define LOG_ARCHIVE	11122331
+#ifdef UNIV_LOG_ARCHIVE
+# define LOG_ARCHIVE	11122331
+#endif /* UNIV_LOG_ARCHIVE */
 #define LOG_RECOVER	98887331
 
 /* The counting of lsn's starts from this value: this must be non-zero */
