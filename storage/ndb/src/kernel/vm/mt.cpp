@@ -385,17 +385,19 @@ trylock(struct thr_mutex * sl)
 template<typename T>
 struct thr_safe_pool
 {
-  thr_safe_pool() : m_free_list(0), m_lock("mempool") {}
+  thr_safe_pool(const char * name) : m_free_list(0), m_cnt(0), m_lock(name) {}
 
   T* m_free_list;
-  Ndbd_mem_manager *m_mm;
+  Uint32 m_cnt;
   thr_spin_lock m_lock;
 
-  T* seize() {
+  T* seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T* ret = 0;
     lock(&m_lock);
     if (m_free_list)
     {
+      assert(m_cnt);
+      m_cnt--;
       ret = m_free_list;
       m_free_list = *reinterpret_cast<T**>(m_free_list);
       unlock(&m_lock);
@@ -405,8 +407,8 @@ struct thr_safe_pool
       Uint32 dummy;
       unlock(&m_lock);
       ret = reinterpret_cast<T*>
-        (m_mm->alloc_page(RT_JOB_BUFFER, &dummy,
-                          Ndbd_mem_manager::NDB_ZONE_ANY));
+        (mm->alloc_page(rg, &dummy,
+                        Ndbd_mem_manager::NDB_ZONE_ANY));
       // ToDo: How to deal with failed allocation?!?
       // I think in this case we need to start grabbing buffers kept for signal
       // trace.
@@ -414,11 +416,12 @@ struct thr_safe_pool
     return ret;
   }
 
-  void release(T* t){
+  void release(Ndbd_mem_manager *mm, Uint32 rg, T* t) {
     lock(&m_lock);
     T** nextptr = reinterpret_cast<T**>(t);
     * nextptr = m_free_list;
     m_free_list = t;
+    m_cnt++;
     unlock(&m_lock);
   }
 };
@@ -426,11 +429,11 @@ struct thr_safe_pool
 /**
  * thread_local_pool
  */
-template<typename T, typename U>
+template<typename T>
 class thread_local_pool
 {
 public:
-  thread_local_pool(thr_safe_pool<U> *global_pool, unsigned max_free) :
+  thread_local_pool(thr_safe_pool<T> *global_pool, unsigned max_free) :
     m_max_free(max_free),
     m_free(0),
     m_freelist(0),
@@ -438,8 +441,7 @@ public:
   {
   }
 
-  T *seize()
-  {
+  T *seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T *tmp = m_freelist;
     if (tmp)
     {
@@ -448,12 +450,11 @@ public:
       m_free--;
     }
     else
-      tmp = (T *)m_global_pool->seize();
+      tmp = m_global_pool->seize(mm, rg);
     return tmp;
   }
 
-  void release(T *t)
-  {
+  void release(Ndbd_mem_manager *mm, Uint32 rg, T *t) {
     unsigned free = m_free;
     if (free < m_max_free)
     {
@@ -462,28 +463,44 @@ public:
       m_freelist = t;
     }
     else
-      m_global_pool->release((U *)t);
+      m_global_pool->release(mm, rg, t);
   }
 
-  void releaseAll()
-  {
-    Uint32 save = m_max_free;
-    m_max_free = 0;
-    while(m_free)
+  /**
+   * Release to local pool even if it get's "too" full
+   *   (wrt to m_max_free)
+   */
+  void release_local(T *t) {
+    m_free++;
+    t->m_next = m_freelist;
+    m_freelist = t;
+  }
+
+
+  /**
+   * Release entries so that m_max_free is honored
+   *   (likely used together with release_local)
+   */
+  void release_global(Ndbd_mem_manager *mm, Uint32 rg) {
+    unsigned free = m_free;
+    Uint32 maxfree = m_max_free;
+
+    while (free > maxfree)
     {
-      T* t = seize();
-      release(t);
+      T* t = seize(0, 0);
+      m_global_pool->release(mm, rg, t);
+      free--;
     }
-    m_max_free = save;
+    assert(free == m_free);
   }
 
-  void set_pool(thr_safe_pool<U> * pool) { m_global_pool = pool; }
+  void set_pool(thr_safe_pool<T> * pool) { m_global_pool = pool; }
 
 private:
   unsigned m_max_free;
   unsigned m_free;
   T *m_freelist;
-  thr_safe_pool<U> *m_global_pool;
+  thr_safe_pool<T> *m_global_pool;
 };
 
 /**
@@ -511,6 +528,13 @@ struct thr_job_buffer // 32k
   Uint32 m_data[SIZE];
 };  
 
+static
+inline
+Uint32
+calc_fifo_used(Uint32 ri, Uint32 wi, Uint32 sz)
+{
+  return (wi >= ri) ? wi - ri : (sz - ri) + wi;
+}
 
 /**
  * thr_job_queue is shared between consumer / producer. 
@@ -525,6 +549,8 @@ struct thr_job_queue_head
 {
   unsigned m_read_index;  // Read/written by consumer, read by producer
   unsigned m_write_index; // Read/written by producer, read by consumer
+
+  Uint32 used() const;
 };
 
 struct thr_job_queue
@@ -534,6 +560,13 @@ struct thr_job_queue
   struct thr_job_queue_head* m_head;
   struct thr_job_buffer* m_buffers[SIZE];
 };
+
+inline
+Uint32
+thr_job_queue_head::used() const
+{
+  return calc_fifo_used(m_read_index, m_write_index, thr_job_queue::SIZE);
+}
 
 /*
  * Two structures tightly associated with thr_job_queue.
@@ -776,7 +809,7 @@ struct thr_data
   Bitmask<(MAX_NTRANSPORTERS+31)/32> m_pending_send_mask;
 
   /* pool for send buffers */
-  struct thread_local_pool<thr_send_page, thr_job_buffer> m_send_buffer_pool;
+  struct thread_local_pool<thr_send_page> m_send_buffer_pool;
 
   /* Send buffer for this thread, these are not touched by any other thread */
   struct thr_send_buffer m_send_buffers[MAX_NTRANSPORTERS];
@@ -826,14 +859,20 @@ struct thr_repository
   thr_repository()
     : m_receive_lock("recvlock"),
       m_section_lock("sectionlock"),
-      m_mem_manager_lock("memmanagerlock") {}
+      m_mem_manager_lock("memmanagerlock"),
+      m_jb_pool("jobbufferpool"),
+      m_sb_pool("sendbufferpool")
+    {}
 
   unsigned m_thread_count;
+
   struct thr_spin_lock m_receive_lock;
   struct thr_spin_lock m_section_lock;
   struct thr_spin_lock m_mem_manager_lock;
+  Ndbd_mem_manager * m_mm;
   struct thr_data m_thread[MAX_THREADS];
-  struct thr_safe_pool<thr_job_buffer> m_free_list;
+  struct thr_safe_pool<thr_job_buffer> m_jb_pool;
+  struct thr_safe_pool<thr_send_page> m_sb_pool;
 
   /**
    * send buffer handling
@@ -891,6 +930,23 @@ struct thr_repository
 };
 
 static
+Uint32
+fifo_used_pages(struct thr_data* selfptr)
+{
+  return calc_fifo_used(selfptr->m_first_unused,
+                        selfptr->m_first_free,
+                        THR_FREE_BUF_MAX);
+}
+
+static
+void
+job_buffer_full()
+{
+  ndbout_c("job buffer full");
+  abort();
+}
+
+static
 thr_job_buffer*
 seize_buffer(struct thr_repository* rep, int thr_no, bool prioa)
 {
@@ -922,17 +978,26 @@ seize_buffer(struct thr_repository* rep, int thr_no, bool prioa)
      * push out any existing buffers from the fifo (that would loose useful
      * data for signal dumps in trace files).
      */
+    Uint32 cnt = 0;
     Uint32 batch = THR_FREE_BUF_MAX / THR_FREE_BUF_BATCH;
     assert(batch > 0);
     assert(batch + THR_FREE_BUF_MIN < THR_FREE_BUF_MAX);
     do {
-      jb = rep->m_free_list.seize();
+      jb = rep->m_jb_pool.seize(rep->m_mm, RG_JOBBUFFER);
+      if (unlikely(jb == 0))
+      {
+        if (unlikely(cnt == 0))
+        {
+          job_buffer_full();
+        }
+        break;
+      }
       jb->m_len = 0;
       jb->m_prioa = false;
       first_free = (first_free ? first_free : THR_FREE_BUF_MAX) - 1;
       selfptr->m_free_fifo[first_free] = jb;
       batch--;
-    } while (batch > 0);
+    } while (cnt < batch);
     selfptr->m_first_free = first_free;
   }
 
@@ -1006,7 +1071,8 @@ release_buffer(struct thr_repository* rep, int thr_no, thr_job_buffer* jb)
     assert(batch > 0);
     assert(batch < THR_FREE_BUF_MAX);
     do {
-      rep->m_free_list.release(selfptr->m_free_fifo[first_free]);
+      rep->m_jb_pool.release(rep->m_mm, RG_JOBBUFFER,
+                             selfptr->m_free_fifo[first_free]);
       first_free = (first_free + 1) % THR_FREE_BUF_MAX;
       batch--;
     } while (batch > 0);
@@ -1664,22 +1730,22 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
 
 static
 void
-release_list(thread_local_pool<thr_send_page, thr_job_buffer>* pool,
+release_list(thread_local_pool<thr_send_page>* pool,
              thr_send_page* head, thr_send_page * tail)
 {
   while (head != tail)
   {
     thr_send_page * tmp = head;
     head = head->m_next;
-    pool->release(tmp);
+    pool->release_local(tmp);
   }
-  pool->release(tail);
+  pool->release_local(tail);
 }
 
 
 static
 Uint32
-bytes_sent(thread_local_pool<thr_send_page, thr_job_buffer>* pool,
+bytes_sent(thread_local_pool<thr_send_page>* pool,
            thr_repository::send_buffer* sb, NodeId node, Uint32 bytes)
 {
   assert(bytes);
@@ -1732,7 +1798,7 @@ bytes_sent(thread_local_pool<thr_send_page, thr_job_buffer>* pool,
     }
     else
     {
-      pool->release(sb->m_buffer.m_first_page);
+      pool->release_local(sb->m_buffer.m_first_page);
     }
   }
 
@@ -1772,11 +1838,11 @@ trp_callback::has_data_to_send(NodeId node)
 void
 trp_callback::reset_send_buffer(NodeId node)
 {
+  struct thr_repository *rep = &g_thr_repository;
   thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
   struct iovec v[32];
 
-  thread_local_pool<thr_send_page, thr_job_buffer>
-    pool(&g_thr_repository.m_free_list, Uint32(~0));
+  thread_local_pool<thr_send_page> pool(&rep->m_sb_pool, 0);
 
   lock(&sb->m_send_lock);
 
@@ -1794,7 +1860,7 @@ trp_callback::reset_send_buffer(NodeId node)
 
   unlock(&sb->m_send_lock);
 
-  pool.releaseAll();
+  pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
 }
 
 static inline
@@ -1871,6 +1937,8 @@ mt_send_handle::forceSend(NodeId nodeId)
     unlock(&sb->m_send_lock);
   } while (sb->m_force_send);
 
+  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+
   return true;
 }
 
@@ -1899,6 +1967,8 @@ try_send(thr_data * selfptr, Uint32 node)
     sb->m_send_thread = NO_SEND_THREAD;
     unlock(&sb->m_send_lock);
   } while (sb->m_force_send);
+
+  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
 }
 
 /**
@@ -2028,6 +2098,8 @@ do_send(struct thr_data* selfptr, bool must_send)
     } while (sb->m_force_send);
   }
 
+  selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+
   return selfptr->m_pending_send_count;
 }
 
@@ -2047,7 +2119,8 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
     try_send(m_selfptr, node);
   }
 
-  if ((p = m_selfptr->m_send_buffer_pool.seize()) != 0)
+  if ((p = m_selfptr->m_send_buffer_pool.seize(g_thr_repository.m_mm,
+                                               RG_TRANSPORTER_BUFFERS)) != 0)
   {
     p->m_bytes = 0;
     p->m_start = 0;
@@ -2065,14 +2138,6 @@ mt_send_handle::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
   thr_send_page * p = b->m_last_page;
   p->m_bytes += lenBytes;
   return p->m_bytes;
-}
-
-static
-void
-job_buffer_full()
-{
-  ndbout_c("job buffer full");
-  abort();
 }
 
 /*
@@ -2225,14 +2290,21 @@ map_instance_init()
 {
   g_map_instance[0] = 0;
   Uint32 ino;
-  for (ino = 1; ino < MAX_BLOCK_INSTANCES; ino++) {
-    if (!globalData.isNdbMtLqh) {
+  for (ino = 1; ino < MAX_BLOCK_INSTANCES; ino++)
+  {
+    if (!globalData.isNdbMtLqh)
+    {
       g_map_instance[ino] = 0;
-    } else {
+    }
+    else
+    {
       require(num_lqh_workers != 0);
-      if (ino <= MAX_NDBMT_LQH_WORKERS) {
+      if (ino <= MAX_NDBMT_LQH_WORKERS)
+      {
         g_map_instance[ino] = 1 + (ino - 1) % num_lqh_workers;
-      } else {
+      }
+      else
+      {
         /* Extra workers are not mapped. */
         g_map_instance[ino] = ino;
       }
@@ -2337,7 +2409,8 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
     r->m_read_pos = read_pos;
 
 #ifdef VM_TRACE
-    if (globalData.testOn) { //wl4391_todo segments
+    if (globalData.testOn)
+    { //wl4391_todo segments
       SegmentedSectionPtr ptr[3];
       ptr[0].i = sig->m_sectionPtrI[0];
       ptr[1].i = sig->m_sectionPtrI[1];
@@ -2541,6 +2614,20 @@ update_sched_stats(thr_data *selfptr)
     selfptr->m_prioa_size = 0;
     selfptr->m_priob_count = 0;
     selfptr->m_priob_size = 0;
+
+#if 0
+    Uint32 thr_no = selfptr->m_thr_no;
+    ndbout_c("--- %u fifo: %u jba: %u global: %u",
+             thr_no,
+             fifo_used_pages(selfptr),
+             selfptr->m_jba_head.used(),
+             g_thr_repository.m_free_list.m_cnt);
+    for (Uint32 i = 0; i<num_threads; i++)
+    {
+      ndbout_c("  %u-%u : %u",
+               thr_no, i, selfptr->m_in_queue_head[i].used());
+    }
+#endif
   }
 }
 
@@ -2699,7 +2786,8 @@ void
 sendpacked(struct thr_data* thr_ptr, Signal* signal)
 {
   Uint32 i;
-  for (i = 0; i < thr_ptr->m_instance_count; i++) {
+  for (i = 0; i < thr_ptr->m_instance_count; i++)
+  {
     BlockReference block = thr_ptr->m_instance_list[i];
     Uint32 main = blockToMain(block);
     Uint32 instance = blockToInstance(block);
@@ -3149,7 +3237,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_jba_read_state.m_read_end = 0;
   selfptr->m_jba_read_state.m_write_index = 0;
   selfptr->m_next_buffer = seize_buffer(rep, thr_no, false);
-  selfptr->m_send_buffer_pool.set_pool(&rep->m_free_list);
+  selfptr->m_send_buffer_pool.set_pool(&rep->m_sb_pool);
   
   for (i = 0; i<cnt; i++)
   {
@@ -3219,7 +3307,7 @@ static
 void
 rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
 {
-  rep->m_free_list.m_mm = mm;
+  rep->m_mm = mm;
 
   rep->m_thread_count = cnt;
   for (unsigned int i = 0; i<cnt; i++)
@@ -3250,6 +3338,42 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
 
 #include "ThreadConfig.hpp"
 #include <signaldata/StartOrd.hpp>
+
+Uint32
+compute_jb_pages(struct EmulatorData * ed)
+{
+  Uint32 cnt = NUM_MAIN_THREADS + globalData.ndbMtLqhThreads + 1;
+
+  Uint32 perthread = 0;
+
+  /**
+   * Each thread can have thr_job_queue::SIZE pages in out-queues
+   *   to each other thread
+   */
+  perthread += cnt * (1 + thr_job_queue::SIZE);
+
+  /**
+   * And thr_job_queue::SIZE prio A signals
+   */
+  perthread += (1 + thr_job_queue::SIZE);
+
+  /**
+   * And XXX time-queue signals
+   */
+  perthread += 32; // Say 1M for now
+
+  /**
+   * Each thread also keeps an own cache with max THR_FREE_BUF_MAX
+   */
+  perthread += THR_FREE_BUF_MAX;
+
+  /**
+   * Multiply by no of threads
+   */
+  Uint32 tot = cnt * perthread;
+
+  return tot;
+}
 
 ThreadConfig::ThreadConfig()
 {

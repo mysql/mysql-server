@@ -221,6 +221,7 @@ public:
    * a default will be used of sum(max send buffer) over all transporters.
    */
   void allocate_send_buffers(Uint32 total_send_buffer);
+
   /**
    * Get sum of max send buffer over all transporters, to be used as a default
    * for allocate_send_buffers eg.
@@ -228,7 +229,9 @@ public:
    * Must be called after creating all transporters for returned value to be
    * correct.
    */
-  Uint32 get_total_max_send_buffer() { return m_total_max_send_buffer; }
+  Uint64 get_total_max_send_buffer() { return m_total_max_send_buffer; }
+
+  bool get_using_default_send_buffer() const{ return m_use_default_send_buffer;}
 
   /**
    * Set or clear overloaded bit.
@@ -488,7 +491,7 @@ private:
    * Sum of max transporter memory for each transporter.
    * Used to compute default send buffer size.
    */
-  Uint32 m_total_max_send_buffer;
+  Uint64 m_total_max_send_buffer;
 
 public:
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);

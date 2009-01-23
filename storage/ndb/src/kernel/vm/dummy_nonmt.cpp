@@ -24,3 +24,9 @@ add_extra_worker_thr_map(Uint32, Uint32)
 {
   assert(false);
 }
+
+Uint32
+compute_jb_pages(struct EmulatorData*)
+{
+  return 0;
+}
