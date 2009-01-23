@@ -6955,7 +6955,7 @@ view_err:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       || (partition_changed && !(create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION))
 #endif
-      )
+     )
   {
     if (alter_info->build_method == HA_BUILD_ONLINE)
     {
