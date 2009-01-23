@@ -46,7 +46,7 @@ def main():
     exceptsymbols = {}
     for n in [ "_init", "_fini", "_end", "_edata", "__bss_start" ]:
         exceptsymbols[n] = 1
-    for n in [ "db_env_create", "db_create", "db_strerror", "db_version", "log_compare", "db_env_set_func_fsync", "dlfree", "dlmalloc", "dlrealloc", "db_env_set_func_free", "db_env_set_func_malloc", "db_env_set_func_realloc", "db_env_set_func_pwrite", "db_env_set_func_write"]:
+    for n in [ "db_env_create", "db_create", "db_strerror", "db_version", "log_compare", "db_env_set_func_fsync", "setup_dlmalloc", "dlfree", "dlmalloc", "dlrealloc", "db_env_set_func_free", "db_env_set_func_malloc", "db_env_set_func_realloc", "db_env_set_func_pwrite", "db_env_set_func_write"]:
         exceptsymbols[n] = 1
     return checkglobals(libname, exceptsymbols, verbose)
     
