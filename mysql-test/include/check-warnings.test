@@ -14,6 +14,7 @@ use mtr;
 
 create temporary table error_log (
   row int auto_increment primary key,
+  file_name varchar(255),
   line varchar(1024) null
 ) engine=myisam;
 
@@ -22,7 +23,8 @@ let $log_error= query_get_value(show variables like 'log_error', Value, 1);
 
 # Try to load the error log into the temporary table
 --error 0,1085
-eval load data infile '$log_error' into table error_log (line);
+eval load data infile '$log_error' into table error_log (line)
+  set file_name='$log_error';
 if ($mysql_errno)
 {
   # The error log was not world readable, this is normally
@@ -31,13 +33,16 @@ if ($mysql_errno)
   # a new error log file that is not world readable.
   # chmod the error log file and try to open it again
   chmod 0644 $log_error;
-  eval load data infile '$log_error' into table error_log (line);
+  eval load data infile '$log_error' into table error_log (line)
+    set file_name='$log_error';
 
   # Also load the .err-old file where there might be
   # additional warnings
+
   let $old_log_error = $log_error-old;
   chmod 0644 $old_log_error;
-  eval load data infile '$old_log_error' into table error_log (line);
+  eval load data infile '$old_log_error' into table error_log (line)
+    set file_name='$log_error';
 }
 
 # Call check_warnings to filter out any warning in

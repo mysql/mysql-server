@@ -233,7 +233,7 @@ BEGIN
   DELETE FROM error_log WHERE row < @max_row;
 
   CREATE TEMPORARY TABLE suspect_lines ENGINE=MyISAM AS
-   SELECT DISTINCT el.line, 0 as "suppressed"
+   SELECT DISTINCT el.file_name, el.line, 0 as "suppressed"
      FROM error_log el, suspicious_patterns ep
        WHERE el.line REGEXP ep.pattern;
 
@@ -251,8 +251,7 @@ BEGIN
     WHERE suppressed=0;
 
   IF @num_warnings > 0 THEN
-    SELECT @log_error;
-    SELECT line as log_error
+    SELECT file_name, line as log_error
         FROM suspect_lines WHERE suppressed=0;
     --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed
