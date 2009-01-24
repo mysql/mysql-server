@@ -219,40 +219,10 @@ INSERT INTO global_suppressions VALUES
 --
 CREATE DEFINER=root@localhost PROCEDURE check_warnings(OUT result INT)
 BEGIN
-  DECLARE `text` mediumtext charset utf8;
   DECLARE `pos` bigint unsigned;
 
   -- Don't write these queries to binlog
   SET SQL_LOG_BIN=0;
-  --
-  -- Load the server .err file into "error_log" table
-  --
-  CREATE TEMPORARY TABLE error_log (
-    row INT AUTO_INCREMENT PRIMARY KEY,
-    line mediumtext NULL
-  ) ENGINE=MyISAM;
-
-  SELECT variable_value INTO @log_error
-    FROM information_schema.global_variables
-      WHERE variable_name='LOG_ERROR';
-
-  SET @old_max_allowed_packet= @@global.max_allowed_packet;
-  SET @@global.max_allowed_packet= 1024*1024*1024;
-  SET text= load_file(@log_error);
-  SET  @@global.max_allowed_packet= @old_max_allowed_packet;
-  -- select text;
-
-  SET pos= LOCATE('\n', text);
-  WHILE pos DO
-    INSERT error_log (line)
-      VALUES (
-       SUBSTR(text, 1, pos-1)
-      );
-    SET text= SUBSTR(text FROM pos+1);
-    SET pos= LOCATE('\n', text);
-  END WHILE;
-
-  -- select * from error_log;
 
   --
   -- Remove all lines belonging to previous tests

@@ -4,6 +4,44 @@
 # for unexpected warnings found in the servers error log
 #
 --disable_query_log
+
+# Turn off any debug crashes, allow the variable to be
+# non existent in release builds
+--error 0,1193
+set debug="";
+
+use mtr;
+
+create temporary table error_log (
+  row int auto_increment primary key,
+  line varchar(1024) null
+) engine=myisam;
+
+# Get the name of servers error log
+let $log_error= query_get_value(show variables like 'log_error', Value, 1);
+
+# Try to load the error log into the temporary table
+--error 0,1085
+eval load data infile '$log_error' into table error_log (line);
+if ($mysql_errno)
+{
+  # The error log was not world readable, this is normally
+  # caused by a "flush logs" in the test program. mysqld
+  # will then rename the error log to .err-old and open
+  # a new error log file that is not world readable.
+  # chmod the error log file and try to open it again
+  chmod 0644 $log_error;
+  eval load data infile '$log_error' into table error_log (line);
+
+  # Also load the .err-old file where there might be
+  # additional warnings
+  let $old_log_error = $log_error-old;
+  chmod 0644 $old_log_error;
+  eval load data infile '$old_log_error' into table error_log (line);
+}
+
+# Call check_warnings to filter out any warning in
+# the error_log table
 call mtr.check_warnings(@result);
 if (`select @result = 0`){
   skip OK;
