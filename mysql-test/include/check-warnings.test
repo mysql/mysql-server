@@ -39,10 +39,11 @@ if ($mysql_errno)
   # Also load the .err-old file where there might be
   # additional warnings
 
-  let $old_log_error = $log_error-old;
-  chmod 0644 $old_log_error;
-  eval load data infile '$old_log_error' into table error_log (line)
-    set file_name='$old_log_error';
+  # Disabled intil Bug#42320 has been fixed
+  #let $old_log_error = $log_error-old;
+  #chmod 0644 $old_log_error;
+  #eval load data infile '$old_log_error' into table error_log (line)
+  #  set file_name='$old_log_error';
 }
 
 # Call check_warnings to filter out any warning in
