@@ -60,7 +60,7 @@ sub rmtree {
 
 
 use File::Basename;
-sub _mkpath_dbug {
+sub _mkpath_debug {
   my ($message, $path, $dir, $err)= @_;
 
   print "=" x 40, "\n";
