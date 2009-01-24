@@ -71,24 +71,25 @@ sub _mkpath_debug {
 
   print "-" x 40, "\n";
   my $dirname= dirname($path);
-  print "dirname: $dirname\n";
+  print "ls -l $dirname\n";
   print `ls -l $dirname`, "\n";
   print "-" x 40, "\n";
+  print "dir $dirname\n";
+  print `dir $dirname`, "\n";
+  print "-" x 40, "\n";
   my $dirname2= dirname($dirname);
-  print "dirname2: $dirname2\n";
+  print "ls -l $dirname2\n";
   print `ls -l $dirname2`, "\n";
+  print "-" x 40, "\n";
+  print "dir $dirname2\n";
+  print `dir $dirname2`, "\n";
   print "-" x 40, "\n";
   print "file exists\n" if (-e $path);
   print "file is a plain file\n" if (-f $path);
   print "file is a directory\n" if (-d $path);
   print "-" x 40, "\n";
-
-  if (IS_CYGWIN)
-  {
-    my $posix_path= Cygwin::win_to_posix_path($path);
-    print "trying to create using posix path: '$posix_path'\n";
-    mkdir($posix_path) or print "mkdir(posixpath) returned erro: $!\n";
-  }
+  print "showing handles for $path\n";
+  My::Handles::show_handles($path);
 
   print "=" x 40, "\n";
 
