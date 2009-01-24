@@ -3632,6 +3632,17 @@ sub save_datadir_after_failure($$) {
 }
 
 
+sub remove_ndbfs_from_ndbd_datadir {
+  my ($ndbd_datadir)= @_;
+  # Remove the ndb_*_fs directory from ndbd.X/ dir
+  foreach my $ndbfs_dir ( glob("$ndbd_datadir/ndb_*_fs") )
+  {
+    next unless -d $ndbfs_dir; # Skip if not a directory
+    rmtree($ndbfs_dir);
+  }
+}
+
+
 sub after_failure ($) {
   my ($tinfo)= @_;
 
@@ -3657,6 +3668,14 @@ sub after_failure ($) {
   if ( clusters() ) {
     foreach my $cluster ( clusters() ) {
       my $cluster_dir= "$opt_vardir/".$cluster->{name};
+
+      # Remove the fileystem of each ndbd
+      foreach my $ndbd ( in_cluster($cluster, ndbds()) )
+      {
+        my $ndbd_datadir= $ndbd->value("DataDir");
+        remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
+      }
+
       save_datadir_after_failure($cluster_dir, $save_dir);
     }
   }
