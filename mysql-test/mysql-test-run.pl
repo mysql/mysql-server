@@ -698,6 +698,12 @@ sub run_worker ($) {
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
       #$test->print_test();
+
+      # Clear comment and logfile, to avoid
+      # reusing them from previous test
+      delete($test->{'comment'});
+      delete($test->{'logfile'});
+
       run_testcase($test);
       #$test->{result}= 'MTR_RES_PASSED';
       # Send it back, now with results set

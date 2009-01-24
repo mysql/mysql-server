@@ -91,10 +91,13 @@ sub mtr_report_test_passed ($) {
     $tinfo->{timer}= $timer_str;
   }
 
-  # Set as passed unless already set
-  if ( not defined $tinfo->{'result'} ){
-    $tinfo->{'result'}= 'MTR_RES_PASSED';
+  # Big warning if status already set
+  if ( $tinfo->{'result'} ){
+    mtr_warning("mtr_report_test_passed: Test result",
+		"already set to '", $tinfo->{'result'}, ",");
   }
+
+  $tinfo->{'result'}= 'MTR_RES_PASSED';
 
   mtr_report_test($tinfo);
 }
