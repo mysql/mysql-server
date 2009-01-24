@@ -59,6 +59,42 @@ sub rmtree {
 };
 
 
+use File::Basename;
+sub _mkpath_dbug {
+  my ($message, $path, $dir, $err)= @_;
+
+  print "=" x 40, "\n";
+  print $message, "\n";
+  print "err: '$err'\n";
+  print "path: '$path'\n";
+  print "dir: '$dir'\n";
+
+  print "-" x 40, "\n";
+  my $dirname= dirname($path);
+  print "dirname: $dirname\n";
+  print `ls -l $dirname`, "\n";
+  print "-" x 40, "\n";
+  my $dirname2= dirname($dirname);
+  print "dirname2: $dirname2\n";
+  print `ls -l $dirname2`, "\n";
+  print "-" x 40, "\n";
+  print "file exists\n" if (-e $path);
+  print "file is a plain file\n" if (-f $path);
+  print "file is a directory\n" if (-d $path);
+  print "-" x 40, "\n";
+
+  if (IS_CYGWIN)
+  {
+    my $posix_path= Cygwin::win_to_posix_path($path);
+    print "trying to create using posix path: '$posix_path'\n";
+    mkdir($posix_path) or print "mkdir(posixpath) returned erro: $!\n";
+  }
+
+  print "=" x 40, "\n";
+
+}
+
+
 sub mkpath {
   my $path;
 
@@ -78,15 +114,20 @@ sub mkpath {
     next if -d $path; # Path already exists and is a directory
     croak("File already exists but is not a directory: '$path'") if -e $path;
     next if mkdir($path);
+    _mkpath_debug("mkdir failed", $path, $dir, $!);
 
     # mkdir failed, try one more time
     next if mkdir($path);
+    _mkpath_debug("mkdir failed, second time", $path, $dir, $!);
 
     # mkdir failed again, try two more time after sleep(s)
     sleep(1);
     next if mkdir($path);
+    _mkpath_debug("mkdir failed, third time", $path, $dir, $!);
+
     sleep(1);
     next if mkdir($path);
+    _mkpath_debug("mkdir failed, fourth time", $path, $dir, $!);
 
     # Report failure and die
     croak("Couldn't create directory '$path' ",
