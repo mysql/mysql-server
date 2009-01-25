@@ -81,7 +81,7 @@ check_test1e: test1e
 	  $(SUMMARIZE_CMD)
 
 check_create_dump_diff: db_create db_dump db_dump_e
-	rm -f cdd.tdb
+	rm -f cdd.tdb cdd.tdb.dirty cdd.tdb.clean
 	$(VGRIND) ./db_create cdd.tdb a b c d && \
 	 $(VGRIND) ./db_dump cdd.tdb > cdd.out && \
 	 (echo " 61";echo " 62";echo " 63";echo " 64")>cddexpect.out && \
