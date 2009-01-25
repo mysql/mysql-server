@@ -46,6 +46,7 @@ BDB_DONTRUN_TESTS = \
 	helgrind1 \
 	helgrind2 \
 	helgrind3 \
+	test1426 \
 #\ ends prev line
 
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
@@ -176,6 +177,7 @@ endif
 clean:
 	rm -f $(ALL_TESTS)
 	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
+	rm -f dump.bdb.1426 dump.tdb.1426
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
@@ -281,6 +283,14 @@ tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+# test1426 is run by comparing the BDB output to the TDB output
+test1426.tdbrun: test1426.tdb  test1426.bdb
+	./test1426.tdb -q
+	./test1426.bdb -q
+	db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426
+	../../utils/tokudb_dump -p -h dir.test1426.c.tdb main > dump.tdb.1426
+	diff -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426
 
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
