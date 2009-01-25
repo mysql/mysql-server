@@ -177,7 +177,7 @@ endif
 clean:
 	rm -f $(ALL_TESTS)
 	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
-	rm -f dump.bdb.1426 dump.tdb.1426
+	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
