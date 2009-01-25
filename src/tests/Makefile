@@ -97,13 +97,15 @@ RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TE
 RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS  = $(RUN_BDB_TESTS) $(RUN_TDB_TESTS)
 
+MORE_BDB_BINS = test1426.bdb
+
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
 default all build: $(ALL_TESTS)
 
 check: check.tdb check.bdb ;
 tests: tests.bdb tests.tdb ;
-tests.bdb: $(BDB_TESTS) ;
+tests.bdb: $(BDB_TESTS) $(MORE_BDB_BINS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
 tests.tdb: $(TDB_TESTS) ;
 check.tdb: $(RUN_TDB_TESTS) ;
