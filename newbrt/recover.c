@@ -83,7 +83,7 @@ create_dir_from_file (const char *fname) {
 }
 
 static void
-toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname,u_int32_t mode) {
+toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM UU(filenum), BYTESTRING fname,u_int32_t mode) {
     char *fixed_fname = fixup_fname(&fname);
     create_dir_from_file(fixed_fname);
     int fd = open(fixed_fname, O_CREAT+O_TRUNC+O_WRONLY+O_BINARY, mode);

@@ -15,6 +15,7 @@ typedef void (*YIELDF)(void*);
 
 int
 toku_commit_fcreate (TXNID UU(xid),
+                     FILENUM UU(filenum),
 		     BYTESTRING UU(bs_fname),
 		     TOKUTXN    UU(txn),
 		     YIELDF     UU(yield),
@@ -25,8 +26,9 @@ toku_commit_fcreate (TXNID UU(xid),
 
 int
 toku_rollback_fcreate (TXNID      UU(xid),
+                       FILENUM    filenum,
 		       BYTESTRING bs_fname,
-		       TOKUTXN    UU(txn),
+		       TOKUTXN    txn,
 		       YIELDF     UU(yield),
 		       void*      UU(yield_v))
 {
@@ -36,8 +38,6 @@ toku_rollback_fcreate (TXNID      UU(xid),
     char full_fname[full_len];
     int l = snprintf(full_fname,full_len, "%s/%s", directory, fname);
     assert(l<=full_len);
-#if 0
-    // I don't think this is right.  fcreate simply creates the file, and doesn't put it in the cache table.
     //Remove reference to the fd in the cachetable
     CACHEFILE cf;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
@@ -45,8 +45,7 @@ toku_rollback_fcreate (TXNID      UU(xid),
         r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
     }
-#endif
-    int r = unlink(full_fname);
+    r = unlink(full_fname);
     assert(r==0);
     r = toku_graceful_delete(full_fname);
     assert(r==0);
