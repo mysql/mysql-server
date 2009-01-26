@@ -237,6 +237,17 @@ BEGIN
       WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
 
   --
+  -- Suppress intentional safemalloc dump warnings
+  -- i.e inside "Begin/End safemalloc memeory dump" block
+  --
+  SELECT @min_row:=row
+    FROM error_log WHERE line = "Begin safemalloc memory dump:";
+  SELECT @max_row:=row
+    FROM error_log WHERE line = "End safemalloc memory dump.";
+  UPDATE error_log SET suspicious=0
+    WHERE suspicious=1 AND row > @min_row AND row < @max_row;
+
+  --
   -- Get the number of marked lines and return result
   --
   SELECT COUNT(*) INTO @num_warnings FROM error_log
