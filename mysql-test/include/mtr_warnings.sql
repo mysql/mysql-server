@@ -3,44 +3,6 @@ delimiter ||;
 use mtr||
 
 --
--- Load table with the patterns that are considered
--- as suspicious and should be examined further
---
-CREATE TABLE suspicious_patterns (
-  pattern VARCHAR(255)
-) ENGINE=MyISAM||
-
-
---
--- Declare a trigger that makes sure
--- no invalid patterns can be inserted
--- into suspicious_patterns
---
-/*!50002
-CREATE DEFINER=root@localhost TRIGGER sp_insert
-BEFORE INSERT ON suspicious_patterns
-FOR EACH ROW BEGIN
-  DECLARE dummy INT;
-  SELECT "" REGEXP NEW.pattern INTO dummy;
-END
-*/||
-
-
---
--- Insert patterns for the lines we should check
---
-INSERT INTO suspicious_patterns VALUES
- ("^Warning:|mysqld: Warning|\\[Warning\\]"),
- ("^Error:|\\[ERROR\\]"),
- ("^==.* at 0x"),
- ("InnoDB: Warning"),
- ("^safe_mutex:|allocated at line"),
- ("missing DBUG_RETURN"),
- ("Attempting backtrace"),
- ("Assertion .* failed")||
-
-
---
 -- Create table where testcases can insert patterns to
 -- be suppressed
 --
@@ -232,27 +194,57 @@ BEGIN
       WHERE line REGEXP "^CURRENT_TEST:";
   DELETE FROM error_log WHERE row < @max_row;
 
-  CREATE TEMPORARY TABLE suspect_lines ENGINE=MyISAM AS
-   SELECT DISTINCT el.file_name, el.line, 0 as "suppressed"
-     FROM error_log el, suspicious_patterns ep
-       WHERE el.line REGEXP ep.pattern;
+  --
+  -- Mark all lines with certain patterns as suspicious
+  --
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "^Warning:|mysqld: Warning|\\[Warning\\]";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "^Error:|\\[ERROR\\]";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "^==.* at 0x";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "InnoDB: Warning";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "^safe_mutex:|allocated at line";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "missing DBUG_RETURN";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "Attempting backtrace";
+  UPDATE error_log SET suspicious= 1
+    WHERE suspicious=0
+      AND line REGEXP "Assertion .* failed";
 
-  -- Mark lines that are suppressed by global suppressions
-  UPDATE suspect_lines sl, global_suppressions gs
-    SET suppressed=1
-      WHERE sl.line REGEXP gs.pattern;
+  --
+  -- Remove mark from lines that are suppressed by global suppressions
+  --
+  UPDATE error_log el, global_suppressions gs
+    SET suspicious=0
+      WHERE el.suspicious=1 AND el.line REGEXP gs.pattern;
 
-  -- Mark lines that are suppressed by test specific suppressions
-  UPDATE suspect_lines sl, test_suppressions ts
-    SET suppressed=2
-      WHERE sl.line REGEXP ts.pattern;
+  --
+  -- Remove mark from lines that are suppressed by test specific suppressions
+  --
+  UPDATE error_log el, test_suppressions ts
+    SET suspicious=0
+      WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
 
-  SELECT COUNT(*) INTO @num_warnings FROM suspect_lines
-    WHERE suppressed=0;
+  --
+  -- Get the number of marked lines and return result
+  --
+  SELECT COUNT(*) INTO @num_warnings FROM error_log
+    WHERE suspicious=1;
 
   IF @num_warnings > 0 THEN
-    SELECT file_name, line as log_error
-        FROM suspect_lines WHERE suppressed=0;
+    SELECT file_name, line
+        FROM error_log WHERE suspicious=1;
     --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed
     SELECT 2 INTO result;
@@ -263,7 +255,7 @@ BEGIN
 
   -- Cleanup for next test
   TRUNCATE test_suppressions;
-  DROP TABLE error_log, suspect_lines;
+  DROP TABLE error_log;
 
 END||
 
