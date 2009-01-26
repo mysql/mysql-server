@@ -18,18 +18,19 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_find_next_unused_log_file(dname,&lognum);
     assert(r==0 && lognum==0LL);
 
-    r = creat(dname "/log01.tokulog", S_IRWXU); assert(r>=0);
+    mode_t mode = S_IRWXU + S_IRWXG + S_IRWXO;
+    r = open(dname "/log01.tokulog", O_WRONLY + O_CREAT + O_BINARY, mode); assert(r>=0);
     r = close(r); assert(r==0);
 
     r = toku_logger_find_next_unused_log_file(dname,&lognum);
     assert(r==0 && lognum==2LL);
     
-    r = creat(dname "/log123456789012345.tokulog", S_IRWXU); assert(r>=0);
+    r = open(dname "/log123456789012345.tokulog", O_WRONLY + O_CREAT + O_BINARY, mode); assert(r>=0);
     r = close(r); assert(r==0);
     r = toku_logger_find_next_unused_log_file(dname,&lognum);
     assert(r==0 && lognum==123456789012346LL);
 
-    r = creat(dname "/log3.tokulog", S_IRWXU); assert(r>=0);
+    r = open(dname "/log3.tokulog", O_WRONLY + O_CREAT + O_BINARY, mode); assert(r>=0);
     r = close(r); assert(r==0);
     r = toku_logger_find_next_unused_log_file(dname,&lognum);
     assert(r==0 && lognum==123456789012346LL);
