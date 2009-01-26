@@ -16,7 +16,6 @@ typedef int  mode_t;
 struct fileid {
     uint32_t st_dev;
     uint64_t st_ino;
-    uint64_t st_creat;
 };
 
 
