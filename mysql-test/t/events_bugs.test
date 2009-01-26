@@ -1,40 +1,133 @@
 #### t/events_bugs.test
 #
 # Last change:
-# 2008-10-16 mleich
+# 2009-01-08 mleich
 #     - Fix for
-#       Bug#39848 events_bugs fails sporadically on pushbuild
-#              (missing rows in table event_log)
-#       Bug#39863 events_bugs fails sporadically on pushbuild (extra processes
-#                 in I_S.PROCESSLIST)
-#       Bug#39978 main.events_bugs does not clean up
-#       Bug#39569 events_bugs fails sporadically on pushbuild (should have
-#                 failed with errno 1539)
-#     - Minor improvements of formatting
+#       Bug#41111 events_bugs fails sporadically on pushbuild
+#     - Avoid effects of
+#       Bug#41925 Warning 1366 Incorrect string value: ...  for column processlist.info
+#
+# Please set $
+let $fixed_bug41925= 0;
+#     
+# Dear maintainer of this test. Please do NOT remove the next big comment.
+# The tests for events were quite unstable over a significant time because the
+# effects of events in general and their representation within the processlist
+# were partially not known. Therefore I had to make excessive experiments.
+# The comment with the outcome of these experiments will be moved into a README
+# file as soon as the tests for events get their own testsuite.
+#
+# Outcome of some experiments (mleich, mysql-5.1 2008-12):
+# --------------------------------------------------------
+# 0. Most time used setup:
+#    High parallel I/O load
+#    set global event_scheduler= off;
+#    sleep 3;
+#    use events_test;
+#    create event e_16407 on schedule every 2 second do
+#    begin
+#      select 'FIRST COMMAND', sleep(0.5);
+#      select 'SECOND COMMAND';
+#    end|
+#    set global event_scheduler= on;
+#    Start observation of the processlist
+#  
+#
+# 1. SET GLOBAL event_scheduler = 'ON' and immediate observation of the processlist.
+# 1.1 Effects around event scheduler:
+# 1.1.1 First phase (very short)
+#       No user 'event_scheduler' within information_schema.processlist.
+# 1.1.2 Second phase observed (independend of probably existing events and very short) was
+#       USER            HOST       DB   COMMAND TIME STATE        INFO
+#       event_scheduler localhost  NULL Daemon     0 Initialized  NULL
+# 1.1.3 Third phase observed:
+# 1.1.3.1 Case we do not have existing events (rather long)
+#         USER            HOST       DB   COMMAND TIME STATE                  INFO
+#         event_scheduler localhost  NULL Daemon     0 Waiting on empty queue NULL
+# 1.1.3.2 Case there exists already an event
+# 1.1.3.2.1 Event executor is not visible in processlist but comes up soon
+#           USER            HOST       DB    COMMAND TIME STATE  INFO
+#           event_scheduler localhost  NULL  Daemon     0 NULL
+#                   or
+#           event_scheduler localhost  NULL  Daemon     0  NULL  NULL
+# 1.1.3.2.2 A bit later, at least one event executor is or was visible in processlist
+#           The states mentioned in 3.2.1 or a bit later
+#           USER            HOST       DB    COMMAND TIME STATE                        INFO
+#           event_scheduler localhost  NULL  Daemon     0 Waiting for next activation  NULL
+# 1.2 Effects around event executor:
+#     Typical processlist content:
+#     USER    evtest1      -- Definer of event
+#     DB      events_test  -- DB during time of event creation (use DB is not allowed in events)
+#     COMMAND Connect
+#     STATE   NULL
+#     INFO    SET @evname = 'ev_sched_1823' -- Part of the event code
+#
+#     State before "User sleep select 'FIRST COMMAND', sleep(0.5);"
+#     ID  USER            HOST       DB    COMMAND TIME  STATE  INFO
+#     7   event_scheduler localhost  NULL  Connect    0  NULL   NULL
+#     !! The user is not the event creator and the DB is different.  !!
+#     !! This means that we must get later a change of the identity. !!
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE                 INFO
+#     root  localhost  events_test  Connect     0  checking permissions
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE                 INFO
+#     root  localhost  events_test  Connect     0  checking permissions  CREATE PROCEDURE ....
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE  INFO
+#     root  localhost  events_test  Connect     0  NULL   select 'FIRST COMMAND', sleep(0.5)
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE                 INFO
+#     root  localhost  events_test  Connect     0  checking permissions  select 'FIRST COMMAND'...
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE          INFO
+#     root  localhost  events_test  Connect     0  Opening table  select 'FIRST COMMAND', sleep(0.5)
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE   INFO
+#     root  localhost  events_test  Connect     0  Locked  select 'FIRST COMMAND', sleep(0.5)
+#     or
+#     USER  HOST       DB           COMMAND  TIME  STATE      INFO
+#     root  localhost  events_test  Connect     0  executing  select 'FIRST COMMAND', sleep(0.5)
+#
+#     State "User sleep select 'FIRST COMMAND', sleep(0.5);" reached
+#     USER  HOST       DB           COMMAND  TIME  STATE       INFO
+#     root  localhost  events_test  Connect     0  User sleep  select 'FIRST COMMAND', sleep(0.5)
+#
+#     State at end (! It looks like a slow CREATE PROC !) of event code execution was sometimes
+#     USER  HOST       DB           COMMAND  TIME  STATE               INFO
+#     root  localhost  events_test  Connect     0  logging slow query  CREATE PROCEDURE `e_16407`...
+#
+#     State after running some event code was sometimes
+#     USER  HOST       DB           COMMAND  TIME  STATE               INFO
+#     root  localhost  events_test  Connect  0     logging slow query  select 'SECOND COMMAND'
+#
+#     State somewhere (I guess just before the event executor disappears)
+#     USER              HOST     DB           COMMAND  TIME  STATE     INFO
+#     Event thread fin  <empty>  events_test  Connect  0     Clearing  NULL
 #
 #
-# Outcome of some experiments (mleich):
-# 1. SET GLOBAL event_scheduler = 'ON';
-#    Immediate observation of the processlist.
-#    Effects:
-#    1. There is no guarantee to find immediate the user 'event_scheduler'
-#       within information_schema.processlist.
-#    2. Some states of the user 'event_scheduler' found in PROCESSLIST:
-#       USER            HOST       DB   COMMAND TIME STATE                  INFO
-#       event_scheduler localhost  NULL Daemon  0    Waiting on empty queue NULL
-#       event_scheduler localhost  NULL Daemon  0    Initialized            NULL
 # 2. SET GLOBAL event_scheduler = 'OFF';
 #    Immediate observation of the processlist.
 #    Effects:
 #    1. I never found the user 'event_scheduler' within the processlist.
 #    2. Events just during execution could be found within the processlist
 #       = It does not look like "SET GLOBAL event_scheduler = 'OFF'" stops them.
-# 3. An event gets executed
-#    USER evtest1     (Definer of event)
-#    DB   events_test (DB during time of event creation)
-#    COMMAND Connect
-#    STATE   NULL
-#    INFO    SET @evname = 'ev_sched_1823' (Part of the event code)
+#         ==> Everything mentioned in 1.2 above could be observed.
+#
+# Several subtests were weak because they showed random result set differences after issuing
+# "SET GLOBAL EVENT_SCHEDULER= off;".
+#    1. Reason one: There were already event executors
+#       Fix: Wait till there is no event executor active ==> no session WHERE
+#            - command IN ('Connect')
+#              There must be no parallel session being just in "Connect" phase!
+#            or
+#            - user = <who created the maybe current running events>
+#                 There must be no parallel session of this person.
+#              or user = 'event_scheduler' with command = 'Connect'
+#                 The session which will soon change its identity to event creator.
+#
+#    2. Reason two: If an event modifies a MyISAM table than a delayed visibilty of changes
+#                   might occur (concurrent_inserts=on or delayed inserts ...).
 #
 
 # Can't test with embedded server that doesn't support grants
@@ -47,6 +140,10 @@ drop database if exists mysqltest_db2;
 --enable_warnings
 create database events_test;
 use events_test;
+# We use MyISAM tables and must avoid effects (visibility of changes might be
+# delayed) caused by concurrent_insert on (default).
+set @concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert = 0;
 
 #
 # START:  Bug #31332 --event-scheduler option misbehaving
@@ -56,8 +153,11 @@ use events_test;
 # option with no argument in events_bugs-master.opt turns the scheduler on.
 
 select * from information_schema.global_variables where variable_name like 'event_scheduler';
+# Check that the event_scheduler is really running
+--source include/running_event_scheduler.inc
 
 SET GLOBAL event_scheduler = 'OFF';
+--source include/check_events_off.inc
 
 #
 # END: Bug #31332
@@ -132,8 +232,10 @@ create event e_55 on schedule every 10 hour starts 10000101000000 do drop table 
 # Start - 16407: Events: Changes in sql_mode won't be taken into account
 #
 set global event_scheduler=off;
+--source include/check_events_off.inc
 delete from mysql.event;
 set global event_scheduler= on;
+--source include/running_event_scheduler.inc
 set @old_sql_mode:=@@sql_mode;
 set sql_mode=ansi;
 select get_lock('test_bug16407', 60);
@@ -148,13 +250,13 @@ delimiter ;|
 # We wait till one event runs and hangs when trying to get the user lock.
 let $wait_condition=
   select count(*) > 0 from information_schema.processlist
-  where info = 'select get_lock(\'test_bug16407\', 60)';
+  where state = 'User lock' and info = 'select get_lock(\'test_bug16407\', 60)';
 --source include/wait_condition.inc
 
 --echo "Now if everything is fine the event has compiled and is locked"
 # Expect to see one session in events_test waiting for the user lock.
 select /*1*/ user, host, db, info from information_schema.processlist
-where info = 'select get_lock(\'test_bug16407\', 60)';
+where state = 'User lock' and info = 'select get_lock(\'test_bug16407\', 60)';
 select release_lock('test_bug16407');
 # Try to avoid
 #    Bug#39863 events_bugs fails sporadically on pushbuild (extra processes in I_S.PROCESSLIST)
@@ -162,23 +264,27 @@ select release_lock('test_bug16407');
 #    Bug#32782 User lock hash fails to find lock
 #    "various issues related to missing or incorrect return results
 #     from release_lock()."
-# Therefore we check here if the event executing session disappeared or
+# Therefore we check here if the event executor is no more locked or
 # we waited >= 5 seconds for this to happen.
 let $wait_timeout= 5;
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist
-  where info = 'select get_lock(\'test_bug16407\', 60)';
+  where state = 'User lock' and info = 'select get_lock(\'test_bug16407\', 60)';
 --source include/wait_condition.inc
 if (!`$wait_condition`)
 {
-   --echo ERROR: There must be no session with info = 'select get_lock('test_bug16407', 60) within the processlist.
+   --echo ERROR: There must be no session with
+   --echo        state = 'User lock' and info = 'select get_lock('test_bug16407', 60)
+   --echo        within the processlist.
    --echo        We probably hit Bug#32782 User lock hash fails to find lock
-   eval select * from information_schema.processlist;
+   SELECT * FROM information_schema.processlist;
    --echo Abort
    exit;
 }
 
 set global event_scheduler= off;
+# Wait till the event scheduler and all event executors have finished their work.
+--source include/check_events_off.inc
 
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 --echo "Let's check whether we change the sql_mode on ALTER EVENT"
@@ -191,9 +297,10 @@ set sql_mode="ansi";
 select get_lock('ee_16407_2', 60);
 
 set global event_scheduler= 1;
+--source include/running_event_scheduler.inc
 --echo "Another sql_mode test"
 set sql_mode="traditional";
-create table events_smode_test(ev_name char(10), a date) engine=myisam;
+create table events_smode_test(ev_name char(10), a date);
 --echo "This should never insert something"
 delimiter |;
 create event ee_16407_2 on schedule every 60 second do
@@ -203,7 +310,7 @@ begin
   insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
 end|
 --error ER_TRUNCATED_WRONG_VALUE
-insert into events_smode_test values ('test','1980-19-02')|
+insert into events_test.events_smode_test values ('test','1980-19-02')|
 --echo "This is ok"
 create event ee_16407_3 on schedule every 60 second do
 begin
@@ -223,13 +330,20 @@ end|
 delimiter ;|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 
+# We wait till we have three event executors waiting for the removal of the lock.
 let $wait_condition=
   select count(*) = 3 from information_schema.processlist
-  where info = 'select get_lock(\'ee_16407_2\', 60)';
+  where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
 --source include/wait_condition.inc
 
+# There is an extreme low risk that an additional event execution is just coming
+# up because
+# - the events have to be started every 60 seconds.
+# - we are just after event creation + waiting for seeing 3 locked
+# We expect to see three event executors in state 'User lock'.
 select /*2*/ user, host, db, info from information_schema.processlist
-where info = 'select get_lock(\'ee_16407_2\', 60)';
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
+
 select release_lock('ee_16407_2');
 
 # Try to avoid
@@ -244,13 +358,37 @@ let $wait_timeout= 5;
 let $wait_condition=
   select count(*) = 0
   from information_schema.processlist
-  where info = 'select get_lock(\'ee_16407_2\', 60)';
+  where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
 --source include/wait_condition.inc
+if (!`$wait_condition`)
+{
+   --echo ERROR: There must be no session with
+   --echo        state = 'User lock' and info = 'select get_lock('test_bug16407_2', 60)
+   --echo        within the processlist.
+   --echo        We probably hit Bug#32782 User lock hash fails to find lock
+   SELECT * FROM information_schema.processlist;
+   --echo Abort
+   exit;
+}
 
+# We expect to see no event executors in state 'User lock'.
+if(!$fixed_bug41925)
+{
+   --disable_warnings
+}
 select /*3*/ user, host, db, info from information_schema.processlist
-where info = 'select get_lock(\'ee_16407_2\', 60)';
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
+if(!$fixed_bug41925)
+{
+   --enable_warnings
+}
+
 set global event_scheduler= off;
-select * from events_smode_test order by ev_name, a;
+# Wait till the event scheduler and all event executors have finished their work.
+# Without this the next queries will give unstable results.
+--source include/check_events_off.inc
+
+select * from events_test.events_smode_test order by ev_name, a;
 --echo "OK, last check before we drop them"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 drop event ee_16407_2;
@@ -259,11 +397,12 @@ drop event ee_16407_4;
 
 
 --echo "And now one last test regarding sql_mode and call of SP from an event"
-delete from events_smode_test;
+delete from events_test.events_smode_test;
 set sql_mode='ansi';
 select get_lock('ee_16407_5', 60);
 
 set global event_scheduler= on;
+--source include/running_event_scheduler.inc
 
 set sql_mode='traditional';
 delimiter |;
@@ -286,34 +425,46 @@ delimiter ;|
 
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
-  where info = 'select get_lock(\'ee_16407_5\', 60)';
+  where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
 --source include/wait_condition.inc
 
 --echo "Should have 2 locked processes"
 select /*4*/ user, host, db, info from information_schema.processlist
-where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%')
-order by info;
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
+
 select release_lock('ee_16407_5');
 
 let $wait_condition=
-  select count(*) = 1 and user = 'event_scheduler' and info is null
-  from information_schema.processlist
-  where (command!='Daemon' || user='event_scheduler')
-  and (info is null or info not like '%processlist%');
+  select count(*) = 0 from information_schema.processlist
+  where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
 --source include/wait_condition.inc
 
 --echo "Should have 0 processes locked"
+if(!$fixed_bug41925)
+{
+   --disable_warnings
+}
 select /*5*/ user, host, db, info from information_schema.processlist
-where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%')
-order by info;
-select * from events_smode_test order by ev_name, a;
+where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
+if(!$fixed_bug41925)
+{
+   --enable_warnings
+}
+
+# Wait till all event executors have finished their work, so that we can be sure
+# that their changes to events_smode_test are done.
+--source include/no_running_events.inc
+
+select * from events_test.events_smode_test order by ev_name, a;
 --echo "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+
 drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
 drop procedure ee_16407_6_pendant;
 set global event_scheduler= off;
+--source include/check_events_off.inc
 drop table events_smode_test;
 set sql_mode=@old_sql_mode;
 #
@@ -324,6 +475,7 @@ set sql_mode=@old_sql_mode;
 # START - 18897: Events: unauthorized action possible with alter event rename
 #
 set global event_scheduler=off;
+--source include/check_events_off.inc
 --disable_warnings
 delete from mysql.user where User like 'mysqltest_%';
 delete from mysql.db where User like 'mysqltest_%';
@@ -409,6 +561,7 @@ create function f22830 () returns int return 5;
 
 select get_lock('ee_22830', 60);
 set global event_scheduler=on;
+--source include/running_event_scheduler.inc
 
 delimiter |;
 create procedure p22830_wait()
@@ -456,6 +609,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 set global event_scheduler=off;
+--source include/check_events_off.inc
 select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
 drop procedure p22830_wait;
 drop function f22830;
@@ -537,6 +691,7 @@ DROP USER mysqltest_u1@localhost;
 # For the actual tests of time zones please see events_time_zone.test
 #
 SET GLOBAL EVENT_SCHEDULER= OFF;
+--source include/check_events_off.inc
 SET @save_time_zone= @@TIME_ZONE;
 
 #----------------------------------------------------------------------
@@ -749,6 +904,7 @@ let $engine=MyISAM;
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 SET GLOBAL event_scheduler = ON;
+--source include/running_event_scheduler.inc
 eval
 CREATE TABLE events_test.event_log
 (id int KEY AUTO_INCREMENT, ev_nm char(40), ev_cnt int, ev_tm timestamp)
@@ -817,12 +973,14 @@ disconnect e1;
 DROP EVENT events_test.ev_sched_1823;
 DROP TABLE events_test.event_log;
 SET GLOBAL event_scheduler = OFF;
+--source include/check_events_off.inc
 
 
 #
 # Bug#28641 CREATE EVENT with '2038.01.18 03:00:00' let server crash.
 #
 SET GLOBAL event_scheduler= ON;
+--source include/running_event_scheduler.inc
 DELIMITER |;
 CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
 DO BEGIN
@@ -831,6 +989,7 @@ END;|
 
 DELIMITER ;|
 SET GLOBAL event_scheduler= OFF;
+--source include/check_events_off.inc
 DROP EVENT bug28641;
 
 ###########################################################################
@@ -955,6 +1114,7 @@ SET GLOBAL READ_ONLY = 1;
 --echo
 
 SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 
 --echo
 
@@ -980,6 +1140,7 @@ let $wait_condition =
 --echo
 
 SET GLOBAL EVENT_SCHEDULER = OFF;
+--source include/check_events_off.inc
 
 --echo
 
@@ -1056,15 +1217,15 @@ drop event e1;
 #
 ###########################################################################
 
-let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where db='events_test' and command = 'Connect' and user=current_user();
---source include/wait_condition.inc
+# Ensure that all event executors have finished their work and cannot harm
+# the next test.
+--source include/no_running_events.inc
 
 DROP DATABASE events_test;
 # Restore the original state i.e to how it was when test started
 # (option with no argument in events_bugs-master.opt  turns the scheduler on).
-
 SET GLOBAL event_scheduler= 'ON';
+--source include/running_event_scheduler.inc
+SET @@global.concurrent_insert= @concurrent_insert;
 
 # THIS MUST BE THE LAST LINE in this file.

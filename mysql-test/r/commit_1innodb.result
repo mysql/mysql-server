@@ -683,10 +683,10 @@ SUCCESS
 # 23. DDL: RENAME TEMPORARY TABLE, does not start a transaction
 
 # No test because of Bug#8729 "rename table fails on temporary table"
-# 24. DDL: TRUNCATE TEMPORARY TABLE, does not start a transaction
+# 24. DDL: TRUNCATE TEMPORARY TABLE
 
 truncate table t2;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(4, 0, 4, 0);
 SUCCESS
 
 commit;
@@ -770,8 +770,11 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 insert t1 set a=4;
-# Sic: a bug. Binlog did not register itself this time.
-call p_verify_status_increment(1, 0, 1, 0);
+# Binlog does not register itself this time for other than the 1st
+# statement of the transaction with MIXED/STATEMENT binlog_format.
+# It needs registering with the ROW format. Therefore 1,0,2,2 are 
+# the correct arguments to this test after bug#40221 fixed.
+call p_verify_status_increment(1, 0, 2, 2);
 SUCCESS
 
 release savepoint a;
@@ -850,7 +853,7 @@ call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 truncate table t3;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(4, 4, 4, 4);
 SUCCESS
 
 create view v1 as select * from t2;

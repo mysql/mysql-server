@@ -103,7 +103,6 @@ DROP TABLE t1;
 
 connection default;
 SET @@global.myisam_data_pointer_size= @start_value;
-
 ################################################################
 # End of functionality Testing for myisam_data_pointer_size    #
 ################################################################
