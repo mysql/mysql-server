@@ -1247,6 +1247,11 @@ drop user 'greg'@'localhost';
 drop view v1;
 drop table test;
 drop function test_function;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+SET PASSWORD FOR CURRENT_USER() = PASSWORD("admin");
+SET PASSWORD FOR CURRENT_USER() = PASSWORD("");
 End of 5.0 tests
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;

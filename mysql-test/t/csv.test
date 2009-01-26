@@ -1805,4 +1805,17 @@ unlock tables;
 drop table t1;
 --disconnect con1
 
+#
+# Bug#41441 repair csv table crashes debug server
+#
+# Note: The test should be removed after Bug#33717 is fixed
+
+create table t1(a enum ('a') not null) engine=csv;
+insert into t1 values (2);
+--error ER_CRASHED_ON_USAGE
+select * from t1 limit 1;
+repair table t1;
+select * from t1 limit 1;
+drop table t1;
+
 --echo End of 5.1 tests
