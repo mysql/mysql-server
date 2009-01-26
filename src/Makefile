@@ -19,6 +19,9 @@ YDB_BUNDLE=ydb.bundle
 TYDB=tydb.$(AEXT)
 TYDB_BUNDLE=tydb.bundle
 
+IPO_YDB       = ipo_libtokudb.$(AEXT)
+NOIPO_YDB     = static_libtokudb.$(AEXT)
+
 LIBNAME=libtokudb
 TLIBNAME=libtokudbtrace
 
@@ -100,14 +103,14 @@ $(TLIBRARY_S): $(TLIBRARY) ;
 #$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 endif
 
-static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
+$(NOIPO_YDB): $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
 	xilib /out:$@ $^
 
 ipo_libtokudb.obj: $(YDB_BUNDLE) $(LOCKTREE_BUNDLE) $(RANGETREE_BUNDLE) $(NEWBRT_BUNDLE)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 	mv ipo_out.obj $@
 
-ipo_libtokudb.lib: ipo_libtokudb.obj
+$(IPO_YDB): ipo_libtokudb.obj
 	xilib /out:$@ $^
 
 

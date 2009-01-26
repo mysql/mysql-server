@@ -200,9 +200,9 @@ ifneq ($(CYGWIN),)
 	#Cygwin icc only
 	ifeq ($(CRUNTIME),)
 	ifeq ($(DEBUG),0)
-	    CRUNTIME=MD
+	    CRUNTIME=MT
 	else
-	    CRUNTIME=MDd
+	    CRUNTIME=MTd
 	endif
 	endif
         ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
@@ -331,7 +331,7 @@ LOCKTREE_BUNDLE  = $(TOKUROOT)src/lock_tree/locktree.bundle
 LOCKTREE_LINEAR  = $(TOKUROOT)src/lock_tree/locktree_linear.$(AEXT)
 LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
-$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG): $(@D)*.[ch]
+$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
 endif
 
@@ -341,14 +341,22 @@ RANGETREE_BUNDLE = $(TOKUROOT)src/range_tree/rangetree.bundle
 RANGETREE_LINEAR = $(TOKUROOT)src/range_tree/rangetree_linear.$(AEXT)
 RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
-$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG): $(@D)*.[ch]
+$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
 endif
 
 ifeq ($(SKIP_NEWBRTRULE),)
+IPO_NEWBRT       = $(TOKUROOT)newbrt/ipo_newbrt.$(AEXT)
 NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
 NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
-$(NEWBRT): $(@D)*.[ch]
+$(NEWBRT) $(NEWBRT_BUNDLE) $(IPO_NEWBRT): $(@D)*.[ch]
+	cd $(@D) && $(MAKE) $(@F)
+endif
+
+ifeq ($(SKIP_YDBRULE),)
+IPO_YDB       = $(TOKUROOT)src/ipo_libtokudb.$(AEXT)
+NOIPO_YDB     = $(TOKUROOT)src/static_libtokudb.$(AEXT)
+$(NOIPO_YDB) $(IPO_YDB): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
 endif
 

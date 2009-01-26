@@ -1,6 +1,19 @@
 .DEFAULT_GOAL=build
 TOKUROOT=../../
 INCLUDEDIRS=-I. -I..
+
+ifeq ($(CYGWIN),)
+LINK_FILES += $(NEWBRT)
+else ifneq ($(CC),icc)
+LINK_FILES += $(NEWBRT)
+else ifeq  ($(DEBUG),0)
+LINK_FILES += $(IPO_NEWBRT)
+else ifeq  ($(DEBUG),)
+LINK_FILES += $(IPO_NEWBRT)
+else
+LINK_FILES += $(NEWBRT)
+endif
+
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE
 
@@ -137,7 +150,6 @@ check_%: %
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
-LINK_FILES += ../newbrt.$(AEXT)
 
 clean:
 	rm -rf log-test7.c.dir_*

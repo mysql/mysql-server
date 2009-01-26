@@ -166,14 +166,27 @@ endif
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(BIN_FROM_C_FLAGS)
 
+TDB_EXTRA_NEEDED=
+ifeq ($(CYGWIN),)
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
+else ifneq ($(CC),icc)
+%.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
+%.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
+else ifeq  ($(DEBUG),0)
+%.tdb$(BINSUF):  LINK_FILES+=$(IPO_YDB)
+TDB_EXTRA_NEEDED=$(IPO_YDB)
+else
+%.tdb$(BINSUF):  LINK_FILES+=$(NOIPO_YDB)
+TDB_EXTRA_NEEDED=$(NOIPO_YDB)
+endif
+
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
 
-%.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
+%.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(TDB_EXTRA_NEEDED)
 	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS))
 
 clean:
