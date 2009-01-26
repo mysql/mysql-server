@@ -372,8 +372,8 @@ fi
 
 # NDB Cluster
 if [ x$NDBCLUSTER = x1 ]; then
-  ( cd ndb            ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
-  ( cd mysql-test/ndb ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
+  ( cd ndb            ; @MAKE@ DESTDIR=$BASE/ndb-stage install pkglibdir=@pkglibdir@ )
+  ( cd mysql-test/ndb ; @MAKE@ DESTDIR=$BASE/ndb-stage install pkglibdir=@pkglibdir@ )
   $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
