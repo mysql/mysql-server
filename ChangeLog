@@ -1,3 +1,15 @@
+2009-01-26	The InnoDB Team
+
+	* include/buf0buf.h, include/buf0buf.ic, buf/buf0buf.c,
+	include/mtr0log.ic, include/row0upd.ic, mtr/mtr0mtr.c,
+	btr/btr0sea.c:
+	Implement buf_block_align() with pointer arithmetics, as it is in
+	the built-in InnoDB distributed with MySQL.  Do not acquire the
+	buffer pool mutex before buf_block_align().  This removes a
+	scalability bottleneck in the adaptive hash index lookup.  In
+	CHECK TABLE, check that buf_pool->page_hash is consistent with
+	buf_block_align().
+
 2009-01-23	The InnoDB Team
 
 	* btr/btr0sea.c:

@@ -1750,6 +1750,53 @@ buf_zip_decompress(
 	return(FALSE);
 }
 
+/***********************************************************************
+Gets the block to whose frame the pointer is pointing to. */
+UNIV_INTERN
+buf_block_t*
+buf_block_align(
+/*============*/
+				/* out: pointer to block, never NULL */
+	const byte*	ptr)	/* in: pointer to a frame */
+{
+	buf_chunk_t*	chunk;
+	ulint		i;
+
+	/* TODO: protect buf_pool->chunks with a mutex (it will
+	currently remain constant after buf_pool_init()) */
+	for (chunk = buf_pool->chunks, i = buf_pool->n_chunks; i--; chunk++) {
+		lint	offs = ptr - chunk->blocks->frame;
+
+		if (UNIV_UNLIKELY(offs < 0)) {
+
+			continue;
+		}
+
+		offs >>= UNIV_PAGE_SIZE_SHIFT;
+
+		if (UNIV_LIKELY((ulint) offs < chunk->size)) {
+			buf_block_t*	block = &chunk->blocks[offs];
+
+			/* The function buf_chunk_init() invokes
+			buf_block_init() so that block[n].frame ==
+			block->frame + n * UNIV_PAGE_SIZE.  Check it. */
+			ut_ad(block->frame == page_align(ptr));
+			/* The space id and page number should be
+			stamped on the page. */
+			ut_ad(block->page.space
+			      == page_get_space_id(page_align(ptr)));
+			ut_ad(block->page.offset
+			      == page_get_page_no(page_align(ptr)));
+
+			return(block);
+		}
+	}
+
+	/* The block should always be found. */
+	ut_error;
+	return(NULL);
+}
+
 /************************************************************************
 Find out if a buffer block was created by buf_chunk_init(). */
 static
