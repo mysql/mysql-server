@@ -309,12 +309,7 @@ mtr_memo_contains_page(
 	const byte*	ptr,	/* in: pointer to buffer frame */
 	ulint		type)	/* in: type of object */
 {
-	ibool	ret;
-
-	buf_pool_mutex_enter();
-	ret = mtr_memo_contains(mtr, buf_block_align(ptr), type);
-	buf_pool_mutex_exit();
-	return(ret);
+	return(mtr_memo_contains(mtr, buf_block_align(ptr), type));
 }
 
 /*************************************************************
