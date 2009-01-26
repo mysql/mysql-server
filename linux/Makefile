@@ -21,4 +21,5 @@ clean:
 	rm -rf $(TARGET) $(LIBPORTABILITY)
 
 # For build, do nothing
-build:
+local build:;
+

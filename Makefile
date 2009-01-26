@@ -16,10 +16,21 @@ db-benchmark-test.dir: src.dir
 db-benchmark-test-cxx.dir: cxx.dir
 utils.dir: src.dir
 
+newbrt.cleandir: $(OS_CHOICE).cleandir
+src.cleandir: newbrt.cleandir
+cxx.cleandir: src.cleandir
+db-benchmark-test.cleandir: src.cleandir
+db-benchmark-test-cxx.cleandir: cxx.cleandir
+utils.cleandir: src.cleandir
+
 %.dir:
-	cd $(patsubst %.dir, %, $@) && $(MAKE) build
+	cd $* && $(MAKE) build
+
+%.localdir:
+	cd $* && $(MAKE) local
 
 build: $(patsubst %,%.dir, $(BUILDDIRS))
+local: $(patsubst %,%.localdir, $(BUILDDIRS))
 
 CHECKS = $(patsubst %,%.checkdir,$(filter-out linux, $(SRCDIRS)))
 

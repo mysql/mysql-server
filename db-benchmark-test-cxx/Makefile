@@ -46,7 +46,8 @@ QUIET =
 endif
 
 default: build
-build: $(TARGETS)
+build: local;
+local: $(TARGETS);
 
 check: check-default
 
