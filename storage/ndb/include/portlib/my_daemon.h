@@ -74,11 +74,11 @@ int my_daemon_remove(const char *name);
    these macros are provided for convenience.  including these macros
    in your main source file give you standard options for services
 */
+#define NONE
 #ifdef _WIN32
 #define MY_DAEMON_VARS_PASTE(prefix) \
   uchar *prefix##remove,*prefix##install,*prefix##service
 #define MY_DAEMON_VARS(prefix) uchar *prefix remove,* install,*prefix service
-#define NONE
 #define MY_DAEMON_VARS0 MY_DAEMON_VARS(NONE)
 #define MY_DAEMON_LONG_OPTS_PASTE(prefix) \
   {"install", 'i', "Install this service.", \
@@ -98,6 +98,7 @@ int my_daemon_remove(const char *name);
 #else
 #define MY_DAEMON_VARS_PASTE(prefix)
 #define MY_DAEMON_VARS(prefix)
+#define MY_DAEMON_VARS0
 #define MY_DAEMON_LONG_OPTS(prefix)
 #define MY_DAEMON_LONG_OPTS_PASTE(prefix)
 #endif
