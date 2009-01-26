@@ -339,6 +339,16 @@ my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
 
 
 /*
+  Returns repertoire for charset
+*/
+uint my_charset_repertoire(CHARSET_INFO *cs)
+{
+  return cs->state & MY_CS_PUREASCII ?
+    MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+}
+
+
+/*
   Detect whether a character set is ASCII compatible.
 
   Returns TRUE for:

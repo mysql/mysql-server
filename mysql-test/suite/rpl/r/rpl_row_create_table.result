@@ -4,34 +4,39 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
 CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
-SHOW BINLOG EVENTS FROM 216;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	#
-Pos	216
+Pos	106
 Event_type	Query
 Server_id	#
-End_log_pos	309
+End_log_pos	199
 Info	use `test`; CREATE TABLE t1 (a INT, b INT)
 Log_name	#
-Pos	309
+Pos	199
 Event_type	Query
 Server_id	#
-End_log_pos	415
+End_log_pos	305
 Info	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
 Log_name	#
-Pos	415
+Pos	305
 Event_type	Query
 Server_id	#
-End_log_pos	521
+End_log_pos	411
 Info	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
 Log_name	#
-Pos	521
+Pos	411
 Event_type	Query
 Server_id	#
-End_log_pos	640
+End_log_pos	530
 Info	use `test`; CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8
 **** On Master ****
 SHOW CREATE TABLE t1;
@@ -125,9 +130,14 @@ NULL	3	6
 NULL	4	2
 NULL	5	10
 NULL	6	12
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 1374;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -137,18 +147,23 @@ a	b
 1	2
 2	4
 3	6
-SHOW BINLOG EVENTS FROM 1374;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1374	Query	#	1474	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-#	1474	Query	#	1542	use `test`; BEGIN
-#	1542	Table_map	#	1584	table_id: # (test.t7)
-#	1584	Write_rows	#	1640	table_id: # flags: STMT_END_F
-#	1640	Query	#	1711	use `test`; ROLLBACK
+#	106	Query	#	206	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+#	206	Query	#	274	use `test`; BEGIN
+#	274	Table_map	#	316	table_id: # (test.t7)
+#	316	Write_rows	#	372	table_id: # flags: STMT_END_F
+#	372	Query	#	443	use `test`; ROLLBACK
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
 2	4
 3	6
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TEMPORARY TABLE tt4 (a INT, b INT);
 INSERT INTO tt4 VALUES (4,8), (5,10), (6,12);
 BEGIN;
@@ -156,12 +171,12 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-SHOW BINLOG EVENTS FROM 1711;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1711	Query	#	1779	use `test`; BEGIN
-#	1779	Table_map	#	1821	table_id: # (test.t7)
-#	1821	Write_rows	#	1877	table_id: # flags: STMT_END_F
-#	1877	Query	#	1946	use `test`; COMMIT
+#	106	Query	#	174	use `test`; BEGIN
+#	174	Table_map	#	216	table_id: # (test.t7)
+#	216	Write_rows	#	272	table_id: # flags: STMT_END_F
+#	272	Query	#	343	use `test`; ROLLBACK
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -178,6 +193,11 @@ a	b
 4	8
 5	10
 6	12
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TABLE t8 LIKE t4;
 CREATE TABLE t9 LIKE tt4;
 CREATE TEMPORARY TABLE tt5 LIKE t4;
@@ -196,10 +216,10 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW BINLOG EVENTS FROM 1946;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1946	Query	#	2032	use `test`; CREATE TABLE t8 LIKE t4
-#	2032	Query	#	2171	use `test`; CREATE TABLE `t9` (
+#	106	Query	#	192	use `test`; CREATE TABLE t8 LIKE t4
+#	192	Query	#	331	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )
@@ -276,9 +296,8 @@ a
 1
 2
 3
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	4	Format_desc	#	106	Server ver: #, Binlog ver: #
 #	106	Query	#	192	use `test`; CREATE TABLE t1 (a INT)
 #	192	Query	#	260	use `test`; BEGIN
 #	260	Table_map	#	301	table_id: # (test.t1)
@@ -308,7 +327,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	1329	Query	#	1397	use `test`; BEGIN
 #	1397	Table_map	#	1438	table_id: # (test.t1)
 #	1438	Write_rows	#	1482	table_id: # flags: STMT_END_F
-#	1482	Query	#	1551	use `test`; COMMIT
+#	1482	Query	#	1553	use `test`; ROLLBACK
 SHOW TABLES;
 Tables_in_test
 t1
@@ -371,9 +390,8 @@ a
 4
 6
 9
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	4	Format_desc	#	106	Server ver: #, Binlog ver: #
 #	106	Query	#	192	use `test`; CREATE TABLE t1 (a INT)
 #	192	Query	#	260	use `test`; BEGIN
 #	260	Table_map	#	301	table_id: # (test.t1)
@@ -394,6 +412,11 @@ a
 6
 9
 TRUNCATE TABLE t2;
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 BEGIN;
 INSERT INTO t2 SELECT a*a FROM t1;
 CREATE TEMPORARY TABLE tt2
@@ -406,14 +429,14 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT * FROM t2 ORDER BY a;
 a
-SHOW BINLOG EVENTS FROM 949;
+SHOW BINLOG EVENTS FROM 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	949	Query	#	1017	use `test`; BEGIN
-#	1017	Table_map	#	1058	table_id: # (test.t2)
-#	1058	Write_rows	#	1102	table_id: # flags: STMT_END_F
-#	1102	Table_map	#	1143	table_id: # (test.t2)
-#	1143	Write_rows	#	1182	table_id: # flags: STMT_END_F
-#	1182	Query	#	1253	use `test`; ROLLBACK
+#	106	Query	#	174	use `test`; BEGIN
+#	174	Table_map	#	215	table_id: # (test.t2)
+#	215	Write_rows	#	259	table_id: # flags: STMT_END_F
+#	259	Table_map	#	300	table_id: # (test.t2)
+#	300	Write_rows	#	339	table_id: # flags: STMT_END_F
+#	339	Query	#	410	use `test`; ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;

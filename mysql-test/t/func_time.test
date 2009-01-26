@@ -304,6 +304,15 @@ select unix_timestamp('1970-01-01 03:00:01');
 # check bad date, close to the boundary (we cut them off in the very end)
 select unix_timestamp('2038-01-19 07:14:07');
 
+#
+# Bug #28759: DAYNAME() and MONTHNAME() return binary string
+#
+
+SELECT CHARSET(DAYNAME(19700101));
+SELECT CHARSET(MONTHNAME(19700101));
+SELECT LOWER(DAYNAME(19700101));
+SELECT LOWER(MONTHNAME(19700101));
+SELECT COERCIBILITY(MONTHNAME('1970-01-01')),COERCIBILITY(DAYNAME('1970-01-01'));
 
 #
 # Test types from + INTERVAL
