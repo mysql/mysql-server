@@ -858,15 +858,15 @@ Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
 	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
-UNIV_INLINE
-const buf_block_t*
+UNIV_INTERN
+buf_block_t*
 buf_block_align(
 /*============*/
-				/* out: pointer to block */
+				/* out: pointer to block, never NULL */
 	const byte*	ptr);	/* in: pointer to a frame */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
