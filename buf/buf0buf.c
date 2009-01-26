@@ -2096,7 +2096,8 @@ wait_until_unfixed:
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 
-	case RW_X_LATCH:
+	default:
+		ut_ad(rw_latch == RW_X_LATCH);
 		rw_lock_x_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
