@@ -22,6 +22,3 @@ $(TARGET): $(OBJS)
 clean:
 	rm -rf $(TARGET) $(LIBPORTABILITY)
 
-# For build, do nothing
-local build:;
-

@@ -67,8 +67,7 @@ endif
 
 .PHONY: all clean test test_gen test_gen_hex test_load test_dump
 
-build all: local
-local: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS);
+build all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
 
 coverage: $(UTILS)
 
