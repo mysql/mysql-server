@@ -5,6 +5,9 @@
 #
 --disable_query_log
 
+# Don't write these queries to binlog
+set SQL_LOG_BIN=0;
+
 # Turn off any debug crashes, allow the variable to be
 # non existent in release builds
 --error 0,1193
@@ -14,8 +17,9 @@ use mtr;
 
 create temporary table error_log (
   row int auto_increment primary key,
+  suspicious int default 0,
   file_name varchar(255),
-  line varchar(1024) null
+  line varchar(1024) default null
 ) engine=myisam;
 
 # Get the name of servers error log
@@ -23,7 +27,8 @@ let $log_error= query_get_value(show variables like 'log_error', Value, 1);
 
 # Try to load the error log into the temporary table
 --error 0,1085
-eval load data infile '$log_error' into table error_log (line)
+eval load data infile '$log_error' into table error_log
+  fields terminated by 'xykls37' (line)
   set file_name='$log_error';
 if ($mysql_errno)
 {
@@ -33,7 +38,8 @@ if ($mysql_errno)
   # a new error log file that is not world readable.
   # chmod the error log file and try to open it again
   chmod 0644 $log_error;
-  eval load data infile '$log_error' into table error_log (line)
+  eval load data infile '$log_error' into table error_log
+    fields terminated by 'xykls37' (line)
     set file_name='$log_error';
 
   # Also load the .err-old file where there might be
@@ -42,7 +48,8 @@ if ($mysql_errno)
   # Disabled intil Bug#42320 has been fixed
   #let $old_log_error = $log_error-old;
   #chmod 0644 $old_log_error;
-  #eval load data infile '$old_log_error' into table error_log (line)
+  #eval load data infile '$old_log_error' into table error_log
+  #  fields terminated by 'xykls37' (line)
   #  set file_name='$old_log_error';
 }
 
