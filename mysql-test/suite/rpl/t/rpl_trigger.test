@@ -498,6 +498,7 @@ create trigger tr
 set autocommit = 0;
 insert into t1 values ( 1 );
 rollback;
+sync_slave_with_master;
 
 let $diff_table_1=master:test.t1;
 let $diff_table_2=slave:test.t1;
