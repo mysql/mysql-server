@@ -226,8 +226,10 @@ probes_all.o: probes_mysql.d $(DTRACEFILES)
 	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in $$f; do test -f $$i/$$j && echo "$$i/$$j "; done; done`; \
 	$(DTRACE) $(DTRACEFLAGS) -G $$providers $$objects -o $@
 
-probes_libndb.o: probes_mysql.d
-	$(DTRACE) $(DTRACEFLAGS) -G -s $^ .libs/libndb_la-ha_ndbcluster.o -o $@
+# Can't depend directly on .libs/*.o, because there is no generated rule for
+# that in the Makefile; it is a byproduct of *.lo
+probes_libndb.o: probes_mysql.d libndb_la-ha_ndbcluster.lo
+	$(DTRACE) $(DTRACEFLAGS) -G -s probes_mysql.d .libs/libndb_la-ha_ndbcluster.o -o $@
 endif
 
 # Don't update the files from bitkeeper
