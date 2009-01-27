@@ -68,9 +68,8 @@ let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 
 # Create relay log file.
 copy_file $fake_relay_log $_fake_relay_log;
-
 # Create relay log index.
-eval SELECT '$_fake_relay_log' INTO OUTFILE '$_fake_relay_index';
+--exec echo $_fake_relay_log > $_fake_relay_index
 
 # Setup replication from existing relay log.
 eval CHANGE MASTER TO MASTER_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_relay_log', RELAY_LOG_POS=4;
