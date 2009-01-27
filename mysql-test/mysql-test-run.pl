@@ -3422,8 +3422,8 @@ sub extract_warning_lines ($) {
 
   my @patterns =
     (
-     qr/^Warning:|mysqld: Warning|\\[Warning\\]/,
-     qr/^Error:|\\[ERROR\\]/,
+     qr/^Warning:|mysqld: Warning|\[Warning\]/,
+     qr/^Error:|\[ERROR\]/,
      qr/^==.* at 0x/,
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
