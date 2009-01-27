@@ -1,3 +1,12 @@
+2009-01-27	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix a race condition in buf_LRU_invalidate_tablespace():
+	The compressed page size (zip_size) was read while the block
+	descriptor was no longer protected by a mutex.  This could lead to
+	corruption when a table is dropped on a busy system that contains
+	compressed tables.
+
 2009-01-26	The InnoDB Team
 
 	* include/buf0buf.h, include/buf0buf.ic, buf/buf0buf.c,

@@ -300,7 +300,6 @@ buf_LRU_invalidate_tablespace(
 	ulint	id)	/* in: space id */
 {
 	buf_page_t*	bpage;
-	ulint		page_no;
 	ibool		all_freed;
 
 	/* Before we attempt to drop pages one by one we first
@@ -351,18 +350,21 @@ scan_again:
 #endif
 			if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE
 			    && ((buf_block_t*) bpage)->is_hashed) {
-				page_no = buf_page_get_page_no(bpage);
+				ulint	page_no;
+				ulint	zip_size;
 
 				buf_pool_mutex_exit();
+
+				zip_size = buf_page_get_zip_size(bpage);
+				page_no = buf_page_get_page_no(bpage);
+
 				mutex_exit(block_mutex);
 
 				/* Note that the following call will acquire
 				an S-latch on the page */
 
 				btr_search_drop_page_hash_when_freed(
-					id,
-					buf_page_get_zip_size(bpage),
-					page_no);
+					id, zip_size, page_no);
 				goto scan_again;
 			}
 
