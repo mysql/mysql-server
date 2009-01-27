@@ -480,6 +480,9 @@ public:
       SignalCounter sendCounter;
       Uint32 errorCode;
       union {
+        struct {
+          Uint32 retriesLeft;
+        } sequence;
 	struct {
 	  Uint32 startBackup;
 	} waitGCP;
@@ -647,6 +650,8 @@ public:
   void cleanup(Signal*, BackupRecordPtr ptr);
   void abort_scan(Signal*, BackupRecordPtr ptr);
   void removeBackup(Signal*, BackupRecordPtr ptr);
+
+  void sendUtilSequenceReq(Signal*, BackupRecordPtr ptr, Uint32 delay = 0);
 
   /*
     For periodic backup status reporting and explicit backup status reporting
