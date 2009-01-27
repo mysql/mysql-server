@@ -2908,6 +2908,7 @@ sub start_run_one ($$) {
      output        => $errfile,
      args          => \$args,
      user_data     => $errfile,
+     verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");
   return $proc;
@@ -3402,6 +3403,7 @@ sub start_check_warnings ($$) {
      output        => $errfile,
      args          => \$args,
      user_data     => $errfile,
+     verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");
   return $proc;
