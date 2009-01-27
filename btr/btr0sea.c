@@ -1707,8 +1707,6 @@ btr_search_validate(void)
 				= buf_block_hash_get(
 					buf_block_get_space(block),
 					buf_block_get_page_no(block));
-			const page_t*		page
-				= buf_block_get_frame(block);
 
 			if (hash_block) {
 				ut_a(hash_block == block);
@@ -1740,7 +1738,9 @@ btr_search_validate(void)
 					offsets,
 					block->curr_n_fields,
 					block->curr_n_bytes,
-					btr_page_get_index_id(page))) {
+					btr_page_get_index_id(block->frame))) {
+				const page_t*	page = block->frame;
+
 				ok = FALSE;
 				ut_print_timestamp(stderr);
 
