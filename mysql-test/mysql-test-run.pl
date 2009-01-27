@@ -178,7 +178,7 @@ our @opt_extra_mysqld_opt;
 
 our $opt_compress;
 our $opt_ssl;
-our $opt_skip_ssl;
+our $opt_skip_ssl = 1; # Until bug#42366 has been fixed
 our $opt_ssl_supported;
 our $opt_ps_protocol;
 our $opt_sp_protocol;
