@@ -449,7 +449,6 @@ get_one_option(int arg, const struct my_option * opt, char * value)
     if (g_replicate.length())
       g_replicate.append(";");
     g_replicate.append(value);
-    return 1;
   }
   return 0;
 }
@@ -489,6 +488,11 @@ parse_args(int argc, char** argv)
   
   const char *groups[] = { "atrt", 0 };
   int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv);
+
+  if (ret)
+  {
+    g_logger.error("Failed to load defaults, returned (%d)",ret);
+  }
   
   save_file = my_defaults_file;
   save_group_suffix = my_defaults_group_suffix;
@@ -499,10 +503,12 @@ parse_args(int argc, char** argv)
 		   my_defaults_extra_file);
     return false;
   }
-  
-  if (ret || handle_options(&argc, &argv, g_options, get_one_option))
+
+  ret =  handle_options(&argc, &argv, g_options, get_one_option);
+  if (ret)
   {
-    g_logger.error("Failed to load defaults/handle_options");
+    g_logger.error("load handle_options (%d, %s)", argc, *argv);
+    g_logger.error("Failed to handle_options, returned (%d)", ret);
     return false;
   }
 
