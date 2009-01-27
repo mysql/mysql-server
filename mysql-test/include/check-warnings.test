@@ -1,9 +1,43 @@
-
 #
 # This test is executed once after each test to check the servers
 # for unexpected warnings found in the servers error log
 #
+# NOTE! mysql-test-run.pl has already done a rough filtering
+# of the file and written any suspicious lines
+# to $error_log.warnings file
+#
 --disable_query_log
+
+# Don't write these queries to binlog
+set SQL_LOG_BIN=0;
+
+# Turn off any debug crashes, allow the variable to be
+# non existent in release builds
+--error 0,1193
+set debug="";
+
+use mtr;
+
+create temporary table error_log (
+  row int auto_increment primary key,
+  suspicious int default 1,
+  file_name varchar(255),
+  line varchar(1024) default null
+) engine=myisam;
+
+# Get the name of servers error log
+let $log_error= query_get_value(show variables like 'log_error', Value, 1);
+let $log_warning= $log_error.warnings;
+
+# Load the warnings into a temporary table
+eval load data infile '$log_warning' into table error_log
+  fields terminated by 'xykls37'
+  ignore 1 lines
+  (line)
+  set file_name='$log_error';
+
+# Call check_warnings to filter out any warning in
+# the error_log table
 call mtr.check_warnings(@result);
 if (`select @result = 0`){
   skip OK;
