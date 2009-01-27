@@ -26,7 +26,6 @@ int main(int argc, const char** argv){
   ndb_init();
 
   const char* _tabname = NULL;
-  const char* _to_tabname = NULL;
   const char* _dbname = "TEST_DB";
   const char* _connectstr = NULL;
   int _copy_data = true;
@@ -53,7 +52,6 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   _tabname = argv[optind];
-  _to_tabname = argv[optind+1];
   
   Ndb_cluster_connection con(_connectstr);
   if(con.connect(12, 5, 1) != 0)
@@ -68,35 +66,37 @@ int main(int argc, const char** argv){
   
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-  
-  ndbout << "Copying table " <<  _tabname << " to " << _to_tabname << "...";
+
   const NdbDictionary::Table* ptab = MyNdb.getDictionary()->getTable(_tabname);
-  if (ptab){
+  if (ptab == 0)
+  {
+    ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  for (int i = optind + 1; i<argc; i++)
+  {
+    const char *_to_tabname = argv[i];
+    ndbout << "Copying table " <<  _tabname << " to " << _to_tabname << "...";
     NdbDictionary::Table tab2(*ptab);
     tab2.setName(_to_tabname);
     if (MyNdb.getDictionary()->createTable(tab2) != 0){
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-  } else {
-    ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
-  }
-  ndbout << "OK" << endl;
-  if (_copy_data){
-    ndbout << "Copying data..."<<endl;
-    const NdbDictionary::Table * tab3 = 
-      NDBT_Table::discoverTableFromDb(&MyNdb, 
-				      _tabname);
-    //    if (!tab3)
-
-    UtilTransactions util(*tab3);
-
-    if(util.copyTableData(&MyNdb,
-			  _to_tabname) != NDBT_OK){
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
     ndbout << "OK" << endl;
+    if (_copy_data){
+      ndbout << "Copying data..."<<endl;
+      const NdbDictionary::Table * tab3 = 
+        NDBT_Table::discoverTableFromDb(&MyNdb, 
+                                        _tabname);
+      UtilTransactions util(*tab3);
+      
+      if(util.copyTableData(&MyNdb,
+                            _to_tabname) != NDBT_OK){
+        return NDBT_ProgramExit(NDBT_FAILED);
+      }
+      ndbout << "OK" << endl;
+    }
   }
   return NDBT_ProgramExit(NDBT_OK);
 }
