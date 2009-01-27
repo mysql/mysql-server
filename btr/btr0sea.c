@@ -1703,10 +1703,22 @@ btr_search_validate(void)
 		for (; node != NULL; node = node->next) {
 			const buf_block_t*	block
 				= buf_block_align(node->data);
-			const buf_block_t*	hash_block
-				= buf_block_hash_get(
+			const buf_block_t*	hash_block;
+
+			if (UNIV_LIKELY(buf_block_get_state(block)
+					== BUF_BLOCK_FILE_PAGE)) {
+
+				/* The space and offset are only valid
+				for file blocks.  It is possible that
+				the block is being freed
+				(BUF_BLOCK_REMOVE_HASH, see the
+				assertion and the comment below) */
+				hash_block = buf_block_hash_get(
 					buf_block_get_space(block),
 					buf_block_get_page_no(block));
+			} else {
+				hash_block = NULL;
+			}
 
 			if (hash_block) {
 				ut_a(hash_block == block);
