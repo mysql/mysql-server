@@ -464,8 +464,9 @@ sub run_test_server ($$$) {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
 	      # Move any core files from e.g. mysqltest
-	      foreach my $coref (glob("core*"))
+	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {
+		mtr_report(" - found '$coref', moving it to '$savedir'");
                 move($coref, $savedir);
               }
 	      if ($opt_max_save_core > 0) {
@@ -475,7 +476,9 @@ sub run_test_server ($$$) {
 			 my $core_file= $File::Find::name;
 			 my $core_name= basename($core_file);
 
-			 if ($core_name =~ "core*"){
+			 if ($core_name =~ /^core/ or  # Starting with core
+			     (IS_WINDOWS and $core_name =~ /\.dmp$/)){
+                                                       # Ending with .dmp
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
