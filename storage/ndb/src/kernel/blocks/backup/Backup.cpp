@@ -1076,20 +1076,24 @@ Backup::execBACKUP_REQ(Signal* signal)
   const Uint32 dataLen32 = req->backupDataLen; // In 32 bit words
   const Uint32 flags = signal->getLength() > 2 ? req->flags : 2;
 
-  if(getOwnNodeId() != getMasterNodeId()) {
+  if (getOwnNodeId() != getMasterNodeId())
+  {
     jam();
-    sendBackupRef(senderRef, flags, signal, senderData, BackupRef::IAmNotMaster);
+    sendBackupRef(senderRef, flags, signal, senderData,
+                  BackupRef::IAmNotMaster);
     return;
   }//if
 
   if (c_defaults.m_diskless)
   {
+    jam();
     sendBackupRef(senderRef, flags, signal, senderData, 
 		  BackupRef::CannotBackupDiskless);
     return;
   }
   
-  if(dataLen32 != 0) {
+  if (dataLen32 != 0)
+  {
     jam();
     sendBackupRef(senderRef, flags, signal, senderData, 
 		  BackupRef::BackupDefinitionNotImplemented);
@@ -1104,9 +1108,11 @@ Backup::execBACKUP_REQ(Signal* signal)
    */
   BackupRecordPtr ptr;
   c_backups.seize(ptr);
-  if(ptr.i == RNIL) {
+  if (ptr.i == RNIL)
+  {
     jam();
-    sendBackupRef(senderRef, flags, signal, senderData, BackupRef::OutOfBackupRecord);
+    sendBackupRef(senderRef, flags, signal, senderData,
+                  BackupRef::OutOfBackupRecord);
     return;
   }//if
 
@@ -1125,34 +1131,71 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->backupDataLen = 0;
   ptr.p->masterData.errorCode = 0;
 
+  ptr.p->masterData.sequence.retriesLeft = 3;
+  sendUtilSequenceReq(signal, ptr);
+}
+
+void
+Backup::sendUtilSequenceReq(Signal* signal, BackupRecordPtr ptr, Uint32 delay)
+{
+  jam();
+
   UtilSequenceReq * utilReq = (UtilSequenceReq*)signal->getDataPtrSend();
-    
   ptr.p->masterData.gsn = GSN_UTIL_SEQUENCE_REQ;
   utilReq->senderData  = ptr.i;
   utilReq->sequenceId  = NDB_BACKUP_SEQUENCE;
   utilReq->requestType = UtilSequenceReq::NextVal;
-  sendSignal(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ, 
-	     signal, UtilSequenceReq::SignalLength, JBB);
+
+  if (delay == 0)
+  {
+    jam();
+    sendSignal(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ,
+               signal, UtilSequenceReq::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    sendSignalWithDelay(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ,
+                        signal, delay, UtilSequenceReq::SignalLength);
+  }
 }
 
 void
 Backup::execUTIL_SEQUENCE_REF(Signal* signal)
 {
-  BackupRecordPtr ptr LINT_SET_PTR;
   jamEntry();
+  BackupRecordPtr ptr LINT_SET_PTR;
   UtilSequenceRef * utilRef = (UtilSequenceRef*)signal->getDataPtr();
   ptr.i = utilRef->senderData;
   c_backupPool.getPtr(ptr);
   ndbrequire(ptr.p->masterData.gsn == GSN_UTIL_SEQUENCE_REQ);
+
+  if (utilRef->errorCode == UtilSequenceRef::TCError)
+  {
+    jam();
+    if (ptr.p->masterData.sequence.retriesLeft > 0)
+    {
+      jam();
+      infoEvent("BACKUP: retrying sequence on error %u",
+                utilRef->TCErrorCode);
+      ptr.p->masterData.sequence.retriesLeft--;
+      sendUtilSequenceReq(signal, ptr, 300);
+      return;
+    }
+  }
+  warningEvent("BACKUP: aborting due to sequence error (%u, %u)",
+               utilRef->errorCode,
+               utilRef->TCErrorCode);
+
   sendBackupRef(signal, ptr, BackupRef::SequenceFailure);
 }//execUTIL_SEQUENCE_REF()
-
 
 void
 Backup::sendBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errorCode)
 {
   jam();
-  sendBackupRef(ptr.p->clientRef, ptr.p->flags, signal, ptr.p->clientData, errorCode);
+  sendBackupRef(ptr.p->clientRef, ptr.p->flags, signal,
+                ptr.p->clientData, errorCode);
   cleanup(signal, ptr);
 }
 
@@ -1163,6 +1206,7 @@ Backup::sendBackupRef(BlockReference senderRef, Uint32 flags, Signal *signal,
   jam();
   if (SEND_BACKUP_STARTED_FLAG(flags))
   {
+    jam();
     BackupRef* ref = (BackupRef*)signal->getDataPtrSend();
     ref->senderData = senderData;
     ref->errorCode = errorCode;
@@ -1170,7 +1214,9 @@ Backup::sendBackupRef(BlockReference senderRef, Uint32 flags, Signal *signal,
     sendSignal(senderRef, GSN_BACKUP_REF, signal, BackupRef::SignalLength, JBB);
   }
 
-  if(errorCode != BackupRef::IAmNotMaster){
+  if (errorCode != BackupRef::IAmNotMaster)
+  {
+    jam();
     signal->theData[0] = NDB_LE_BackupFailedToStart;
     signal->theData[1] = senderRef;
     signal->theData[2] = errorCode;

@@ -1564,7 +1564,8 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     ndbrequire(opPtr.p->attrInfo.next(it));
     * it.data = 0;
   }
-  
+
+  transPtr.p->noOfRetries = 3;
   runTransaction(signal, transPtr);
 }
 
@@ -1673,6 +1674,7 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
   ret->sequenceId = transP->sequence.sequenceId;
   ret->requestType = transP->sequence.requestType;
   ret->errorCode = (Uint32)errCode;
+  ret->TCErrorCode = transP->errorCode;
   sendSignal(transP->clientRef, GSN_UTIL_SEQUENCE_REF, signal, 
 	     UtilSequenceRef::SignalLength, JBB);
 }
