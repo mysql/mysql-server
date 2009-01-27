@@ -268,7 +268,9 @@ int start()
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
-  IF_WIN(DBG("cl %s",GetCommandLine()),0);
+#ifdef _WIN32
+  DBG("cl %s",GetCommandLine());
+#endif
   if (IF_WIN(opts.service,opts.daemon)) {
     DBG("service name %s",IF_WIN(opts.service,""));
     NodeId localNodeId= mgm->getOwnNodeId();
