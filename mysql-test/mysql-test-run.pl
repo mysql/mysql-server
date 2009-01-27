@@ -1677,8 +1677,8 @@ sub environment_setup {
 
   $ENV{'SIMPLE_PARSER'}=
     ($lib_simple_parser ? basename($lib_simple_parser) : "");
-  $ENV{'SIMPLE_PARSER_OPT'}=
-    ($lib_simple_parser ? "--plugin_dir=" . dirname($lib_simple_parser) : "");
+  $ENV{'SIMPLE_PARSER_OPT'}= "--plugin-dir=".
+    ($lib_simple_parser ? dirname($lib_simple_parser) : "");
 
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
