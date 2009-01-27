@@ -130,14 +130,14 @@ our @opt_combinations;
 
 our @opt_extra_mysqld_opt;
 
-our $opt_compress;
-our $opt_ssl;
-our $opt_skip_ssl;
-our $opt_ssl_supported;
-our $opt_ps_protocol;
-our $opt_sp_protocol;
-our $opt_cursor_protocol;
-our $opt_view_protocol;
+my $opt_compress;
+my $opt_ssl;
+my $opt_skip_ssl;
+my $opt_ssl_supported;
+my $opt_ps_protocol;
+my $opt_sp_protocol;
+my $opt_cursor_protocol;
+my $opt_view_protocol;
 
 our $opt_debug;
 our @opt_cases;                  # The test cases names in argv
@@ -4453,10 +4453,6 @@ sub start_mysqltest ($) {
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
     mtr_add_arg($args, "--ssl");
-  }
-  elsif ( $opt_ssl_supported )
-  {
-    mtr_add_arg($args, "--skip-ssl");
   }
 
   if ( $opt_embedded_server )

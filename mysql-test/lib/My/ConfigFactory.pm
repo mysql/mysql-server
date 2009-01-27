@@ -150,6 +150,13 @@ sub ssl_supported {
   return $self->{ARGS}->{ssl};
 }
 
+sub fix_skip_ssl {
+  return if !ssl_supported(@_);
+  # Add skip-ssl if ssl is supported to avoid
+  # that mysqltest connects with SSL by default
+  return 1;
+}
+
 sub fix_ssl_ca {
   return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
@@ -287,6 +294,7 @@ my @mysqltest_rules=
  { 'ssl-ca' => \&fix_ssl_ca },
  { 'ssl-cert' => \&fix_ssl_client_cert },
  { 'ssl-key' => \&fix_ssl_client_key },
+ { 'skip-ssl' => \&fix_skip_ssl },
 );
 
 
