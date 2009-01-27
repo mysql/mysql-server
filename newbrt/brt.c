@@ -1993,6 +1993,8 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             *splitk = kv_pair_malloc(le_any_key(le), le_any_keylen(le), 0, 0);
         }
     }
+    a->dirty = 1; // make them dirty even if nothing actually happened.
+    b->dirty = 1;
     // Boundary case: If both were empty then the loop will fall through.  (Generally if they are the same size the loop falls through.)
     return 0;
 }
@@ -2069,6 +2071,9 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
     }
     b->local_fingerprint = 0;
 
+    a->dirty = 1;
+    b->dirty = 1;
+
     fixup_child_fingerprint(parent, childnum_of_parent, a, t, logger);
 //    abort(); // don't forget to reuse blocknums
     *did_merge = TRUE;
@@ -2100,6 +2105,7 @@ maybe_merge_pinned_nodes (BRT t,
 {
     assert(a->height == b->height);
     verify_local_fingerprint_nonleaf(a);
+    parent->dirty = 1; // just to make sure 
     if (a->height == 0) {
         return maybe_merge_pinned_leaf_nodes(t, a, b, parent_splitk, logger, did_merge, splitk);
     } else {
@@ -2200,6 +2206,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
             assert(node->u.n.childinfos[childnuma].blocknum.b == childa->thisnodename.b);
             verify_local_fingerprint_nonleaf(node);
             verify_local_fingerprint_nonleaf(childa);
+	    childa->dirty = 1; // just to make sure
+	    childb->dirty = 1; // just to make sure
         } else {
             assert(splitk_kvpair);
             // If we didn't merge the nodes, then we need the correct pivot.
