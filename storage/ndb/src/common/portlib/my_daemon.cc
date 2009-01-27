@@ -30,7 +30,6 @@ NTService g_ntsvc;
 HANDLE    g_evt;
 #endif
 
-static int init();
 static char *daemon_name;
 static long daemonpid;
 
@@ -191,7 +190,7 @@ int my_daemon_files()
   check(lockf(pidfd, F_LOCK, 0) != -1, 1, "%s: lock failed", pidfile);
 #endif
   /* Become process group leader */
-  IF_WIN(0, check(setsid() != -1, 1, "setsid failed", ""));
+  IF_WIN(0, check(setsid() != -1, 1, "setsid failed%s", ""));
   /* Write pid to lock file */
   check(IF_WIN(_chsize, ftruncate) (pidfd, 0) != -1, 1,
         "%s: ftruncate failed", pidfile);
@@ -199,7 +198,7 @@ int my_daemon_files()
   check(write(pidfd, buf, n) == n, 1, "%s: write failed", pidfile);
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);
-  check(0 == open(IF_WIN("nul:", "/dev/null"), O_RDONLY), 1, "close 0", "");
+  check(0 == open(IF_WIN("nul:", "/dev/null"), O_RDONLY), 1, "close 0%s", "");
 #ifdef _WIN32
   *stdout= *stderr= *my_dlog;
 #else //no stdout/stderr on windows service
