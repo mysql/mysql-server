@@ -187,42 +187,6 @@ BEGIN
   SET SQL_LOG_BIN=0;
 
   --
-  -- Remove all lines belonging to previous tests
-  --
-  SELECT COALESCE(MAX(row),0) INTO @max_row
-    FROM error_log
-      WHERE line REGEXP "^CURRENT_TEST:";
-  DELETE FROM error_log WHERE row < @max_row;
-
-  --
-  -- Mark all lines with certain patterns as suspicious
-  --
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "^Warning:|mysqld: Warning|\\[Warning\\]";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "^Error:|\\[ERROR\\]";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "^==.* at 0x";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "InnoDB: Warning";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "^safe_mutex:|allocated at line";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "missing DBUG_RETURN";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "Attempting backtrace";
-  UPDATE error_log SET suspicious= 1
-    WHERE suspicious=0
-      AND line REGEXP "Assertion .* failed";
-
-  --
   -- Remove mark from lines that are suppressed by global suppressions
   --
   UPDATE error_log el, global_suppressions gs
@@ -235,17 +199,6 @@ BEGIN
   UPDATE error_log el, test_suppressions ts
     SET suspicious=0
       WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
-
-  --
-  -- Suppress intentional safemalloc dump warnings
-  -- i.e inside "Begin/End safemalloc memeory dump" block
-  --
-  SELECT @min_row:=row
-    FROM error_log WHERE line = "Begin safemalloc memory dump:";
-  SELECT @max_row:=row
-    FROM error_log WHERE line = "End safemalloc memory dump.";
-  UPDATE error_log SET suspicious=0
-    WHERE suspicious=1 AND row > @min_row AND row < @max_row;
 
   --
   -- Get the number of marked lines and return result

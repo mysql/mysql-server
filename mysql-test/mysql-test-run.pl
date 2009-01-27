@@ -3356,6 +3356,85 @@ sub run_testcase ($) {
 }
 
 
+#
+# Perform a rough examination of the servers
+# error log and write all lines that look
+# suspicious into $error_log.warnings
+#
+sub extract_warning_lines ($) {
+  my ($error_log) = @_;
+
+  # Open the servers .err log file and read all lines
+  # belonging to current tets into @lines
+  my $Ferr = IO::File->new($error_log)
+    or mtr_error("Could not open file '$error_log' for reading: $!");
+
+  my @lines;
+  while ( my $line = <$Ferr> )
+  {
+    if ( $line =~ /"^CURRENT_TEST:"/ )
+    {
+      # Throw away lines from previous tests
+      @lines = ();
+    }
+    push(@lines, $line);
+  }
+  $Ferr = undef; # Close error log file
+
+  # mysql_client_test.test sends a COM_DEBUG packet to the server
+  # to provoke a SAFEMALLOC leak report, ignore any warnings
+  # between "Begin/end safemalloc memory dump"
+  if ( grep(/Begin safemalloc memory dump:/, @lines) > 0)
+  {
+    my $discard_lines= 1;
+    foreach my $line ( @lines )
+    {
+      if ($line =~ /Begin safemalloc memory dump:/){
+	$discard_lines = 1;
+      } elsif ($line =~ /End safemalloc memory dump./){
+	$discard_lines = 0;
+      }
+
+      if ($discard_lines){
+	$line = "ignored";
+      }
+    }
+  }
+
+  # Write all suspicious lines to $error_log.warnings file
+  my $warning_log = "$error_log.warnings";
+  my $Fwarn = IO::File->new($warning_log, "w")
+    or die("Could not open file '$warning_log' for writing: $!");
+  print $Fwarn "Suspicious lines from $error_log\n";
+
+  my @patterns =
+    (
+     qr/^Warning:|mysqld: Warning|\\[Warning\\]/,
+     qr/^Error:|\\[ERROR\\]/,
+     qr/^==.* at 0x/,
+     qr/InnoDB: Warning|InnoDB: Error/,
+     qr/^safe_mutex:|allocated at line/,
+     qr/missing DBUG_RETURN/,
+     qr/Attempting backtrace/,
+     qr/Assertion .* failed/,
+    );
+
+  foreach my $line ( @lines )
+  {
+    foreach my $pat ( @patterns )
+    {
+      if ( $line =~ /$pat/ )
+      {
+	print $Fwarn $line;
+	last;
+      }
+    }
+  }
+  $Fwarn = undef; # Close file
+
+}
+
+
 # Run include/check-warnings.test
 #
 # RETURN VALUE
@@ -3367,6 +3446,8 @@ sub start_check_warnings ($$) {
   my $mysqld=   shift;
 
   my $name= "warnings-".$mysqld->name();
+
+  extract_warning_lines($mysqld->value('log-error'));
 
   my $args;
   mtr_init_args(\$args);
