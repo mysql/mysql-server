@@ -3342,7 +3342,7 @@ static int heaviside_from_search_t (OMTVALUE lev, void *extra) {
     abort(); return 0; 
 }
 
-static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, TOKULOGGER logger, BRT_CURSOR brtcursor) {
+static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, BOOL *doprefetch, TOKULOGGER logger, BRT_CURSOR brtcursor) {
     // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
 
     *re = get_leaf_reactivity(node); // searching doesn't change the reactivity, so we can calculate it here.
@@ -3418,22 +3418,23 @@ got_a_good_value:
                                     newval, &val, val_len, &brt->sval, FALSE);
         if (r!=0) return r;
     }
+    *doprefetch = TRUE;
     return 0;
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, TOKULOGGER logger, BRT_CURSOR brtcursor);
+brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, BOOL *doprefetch, TOKULOGGER logger, BRT_CURSOR brtcursor);
 
 // the number of nodes to prefetch
 #define TOKU_DO_PREFETCH 1
 #if TOKU_DO_PREFETCH
 
 static void
-brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcursor) {
-    if (0) printf("%s:%d node %p height %d child %d of %d\n", __FUNCTION__, __LINE__, node, node->height, childnum, node->u.n.n_children);
-    // if the node is the parent of leaves and the cursor is prefetching
-    // then prefetch the next child if there is one
-    if (node->height == 1 && brt_cursor_prefetching(brtcursor)) {
+brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcursor, BOOL *doprefetch) {
+    if (0) printf("%s:%d node %p height %d child %d of %d %d/%d\n", __FUNCTION__, __LINE__, node, node->height, childnum, node->u.n.n_children, *doprefetch, brt_cursor_prefetching(brtcursor));
+    // if we want to prefetch in the tree 
+    // then prefetch the next children if there are any
+    if (*doprefetch && brt_cursor_prefetching(brtcursor)) {
         int i;
         for (i=0; i<TOKU_DO_PREFETCH; i++) {
             int nextchildnum = childnum+i+1;
@@ -3443,6 +3444,7 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
             u_int32_t nextfullhash =  compute_child_fullhash(brt->cf, node, nextchildnum);
             toku_cachefile_prefetch(brt->cf, nextchildblocknum, nextfullhash, 
                                     toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+            *doprefetch = FALSE;
         }
     }
 }
@@ -3450,7 +3452,7 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
 #endif
 
 /* search in a node's child */
-static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *parent_re, TOKULOGGER logger, BRT_CURSOR brtcursor, BOOL *did_react)
+static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *parent_re, BOOL *doprefetch, TOKULOGGER logger, BRT_CURSOR brtcursor, BOOL *did_react)
 // Effect: Search in a node's child.
 //  If we change the shape, set *did_react = TRUE.  Else set *did_react = FALSE.
 {
@@ -3478,7 +3480,7 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
     verify_local_fingerprint_nonleaf(node);
     verify_local_fingerprint_nonleaf(childnode);
     enum reactivity child_re = RE_STABLE;
-    int r = brt_search_node(brt, childnode, search, newkey, newval, &child_re, logger, brtcursor);
+    int r = brt_search_node(brt, childnode, search, newkey, newval, &child_re, doprefetch, logger, brtcursor);
     // Even if r is reactive, we want to handle the maybe reactive child.
     verify_local_fingerprint_nonleaf(node);
     verify_local_fingerprint_nonleaf(childnode);
@@ -3486,7 +3488,7 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
 #if TOKU_DO_PREFETCH
     // maybe prefetch the next child
     if (r == 0)
-        brt_node_maybe_prefetch(brt, node, childnum, brtcursor);
+        brt_node_maybe_prefetch(brt, node, childnum, brtcursor, doprefetch);
 #endif
 
     {
@@ -3507,7 +3509,7 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
     return r;
 }
 
-static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, TOKULOGGER logger, BRT_CURSOR brtcursor) {
+static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, BOOL *doprefetch, TOKULOGGER logger, BRT_CURSOR brtcursor) {
     int count=0;
  again:
     count++;
@@ -3532,7 +3534,7 @@ static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, 
                                 brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
                 BOOL did_change_shape = FALSE;
                 verify_local_fingerprint_nonleaf(node);
-                int r = brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, brtcursor, &did_change_shape);
+                int r = brt_search_child(brt, node, child[c], search, newkey, newval, re, doprefetch, logger, brtcursor, &did_change_shape);
                 assert(r != EAGAIN);
                 if (r == 0) return r;
                 if (did_change_shape) goto again;
@@ -3542,18 +3544,18 @@ static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, 
         /* check the first (left) or last (right) node if nothing has been found */
         BOOL did_change_shape; // ignore this
         verify_local_fingerprint_nonleaf(node);
-        return brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, brtcursor, &did_change_shape);
+        return brt_search_child(brt, node, child[c], search, newkey, newval, re, doprefetch, logger, brtcursor, &did_change_shape);
     }
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, TOKULOGGER logger, BRT_CURSOR brtcursor)
+brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, enum reactivity *re, BOOL *doprefetch, TOKULOGGER logger, BRT_CURSOR brtcursor)
 {
     verify_local_fingerprint_nonleaf(node);
     if (node->height > 0)
-        return brt_search_nonleaf_node(brt, node, search, newkey, newval, re, logger, brtcursor);
+        return brt_search_nonleaf_node(brt, node, search, newkey, newval, re, doprefetch, logger, brtcursor);
     else {
-        return brt_search_leaf_node(brt, node, search, newkey, newval, re, logger, brtcursor);
+        return brt_search_leaf_node(brt, node, search, newkey, newval, re, doprefetch, logger, brtcursor);
     }
 }
 
@@ -3593,8 +3595,9 @@ toku_brt_search (BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULO
 
     {
         enum reactivity re = RE_STABLE;
+        BOOL doprefetch = FALSE;
         //static int counter = 0;        counter++;
-        r = brt_search_node(brt, node, search, newkey, newval, &re, logger, brtcursor);
+        r = brt_search_node(brt, node, search, newkey, newval, &re, &doprefetch, logger, brtcursor);
         if (r!=0) goto return_r;
 
         r = brt_handle_maybe_reactive_child_at_root(brt, rootp, &node, re, logger);
