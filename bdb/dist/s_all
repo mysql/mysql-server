@@ -1,6 +1,21 @@
 #!/bin/sh -
 #	$Id: s_all,v 1.10 2001/08/04 14:01:44 bostic Exp $
 
+# Search an AWK program, use GNU awk if available
+for x in gawk awk ; do
+  if type $x; then
+    AWK=$x
+    break
+  fi
+done
+
+if test -z "$AWK"; then
+  echo 'No AWK program found'
+  exit 1
+fi
+export AWK
+# end of AWK search
+
 sh s_dir
 
 #sh s_perm		# permissions.
