@@ -29,7 +29,21 @@ typedef enum {
 	IBUF_OP_COUNT = 3,
 } ibuf_op_t;
 
-extern ibuf_t*	ibuf;
+/** Combinations of operations that can be buffered. */
+typedef enum {
+	IBUF_USE_NONE = 0,
+	IBUF_USE_INSERT,	/* insert */
+	IBUF_USE_DELETE_MARK,	/* delete */
+	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
+	IBUF_USE_DELETE,	/* delete+purge */
+	IBUF_USE_ALL		/* insert+delete+purge */
+} ibuf_use_t;
+
+/** Operations that can currently be buffered. */
+extern ibuf_use_t	ibuf_use;
+
+/** The insert buffer control structure */
+extern ibuf_t*		ibuf;
 
 /* The purpose of the insert buffer is to reduce random disk access.
 When we wish to insert a record into a non-unique secondary index and

@@ -64,7 +64,7 @@ looking at the length of the field modulo DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE.
 The high-order bit of the character set field in the type info is the
 "nullable" flag for the field.
 
-In versions >= TODO:
+In versions >= InnoDB+ plugin:
 
 The optional marker byte at the start of the fourth field is replaced by
 mandatory 3 fields, totaling 4 bytes:
@@ -161,7 +161,10 @@ access order rules. */
 /* Table name for the insert buffer. */
 #define IBUF_TABLE_NAME		"SYS_IBUF_TABLE"
 
-/* The insert buffer control structure */
+/** Operations that can currently be buffered. */
+UNIV_INTERN ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
+
+/** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
 
 UNIV_INTERN ulint	ibuf_flush_count	= 0;
@@ -1656,17 +1659,22 @@ ibuf_entry_build(
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: index page number where entry should
 				be inserted */
-	ulint		counter,/* in: counter value */
+	ulint		counter,/* in: counter value;
+				ULINT_UNDEFINED=not used */
 	mem_heap_t*	heap)	/* in: heap into which to build */
 {
 	dtuple_t*	tuple;
 	dfield_t*	field;
 	const dfield_t*	entry_field;
 	ulint		n_fields;
-	ulint		type_info_size;
 	byte*		buf;
-	byte*		buf2;
+	byte*		ti;
+	byte*		type_info;
 	ulint		i;
+
+	ut_ad(counter != ULINT_UNDEFINED || op == IBUF_OP_INSERT);
+	ut_ad(counter == ULINT_UNDEFINED || counter <= 0xFFFF);
+	ut_ad(op < IBUF_OP_COUNT);
 
 	/* We have to build a tuple with the following fields:
 
@@ -1715,15 +1723,37 @@ ibuf_entry_build(
 
 	/* 4) Type info, part #1 */
 
-	type_info_size = IBUF_REC_INFO_SIZE
-		+ n_fields * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
-	buf2 = mem_heap_alloc(heap, type_info_size);
+	if (counter == ULINT_UNDEFINED) {
+		i = dict_table_is_comp(index->table) ? 1 : 0;
+	} else {
+		ut_ad(counter <= 0xFFFF);
+		i = IBUF_REC_INFO_SIZE;
+	}
 
-	mach_write_to_2(buf2 + IBUF_REC_OFFSET_COUNTER, counter);
+	ti = type_info = mem_heap_alloc(heap, i + n_fields
+					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
-	buf2[IBUF_REC_OFFSET_TYPE] = (byte) op;
-	buf2[IBUF_REC_OFFSET_FLAGS] = dict_table_is_comp(index->table)
-		? IBUF_REC_COMPACT : 0;
+	switch (i) {
+	default:
+		ut_error;
+		break;
+	case 1:
+		/* set the flag for ROW_FORMAT=COMPACT */
+		*ti++ = 0;
+		/* fall through */
+	case 0:
+		/* the old format does not allow delete buffering */
+		ut_ad(op == IBUF_OP_INSERT);
+		break;
+	case IBUF_REC_INFO_SIZE:
+		mach_write_to_2(ti + IBUF_REC_OFFSET_COUNTER, counter);
+
+		ti[IBUF_REC_OFFSET_TYPE] = (byte) op;
+		ti[IBUF_REC_OFFSET_FLAGS] = dict_table_is_comp(index->table)
+			? IBUF_REC_COMPACT : 0;
+		ti += IBUF_REC_INFO_SIZE;
+		break;
+	}
 
 	/* 5+) Fields from the entry */
 
@@ -1761,16 +1791,15 @@ ibuf_entry_build(
 #endif /* UNIV_DEBUG */
 
 		dtype_new_store_for_order_and_null_size(
-			buf2 + IBUF_REC_INFO_SIZE
-			+ i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
-			dfield_get_type(entry_field), fixed_len);
+			ti, dfield_get_type(entry_field), fixed_len);
+		ti += DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
 	}
 
 	/* 4) Type info, part #2 */
 
 	field = dtuple_get_nth_field(tuple, 3);
 
-	dfield_set_data(field, buf2, type_info_size);
+	dfield_set_data(field, type_info, ti - type_info);
 
 	/* Set all the types in the new tuple binary */
 
@@ -2378,7 +2407,23 @@ ibuf_contract_ext(
 	mutex_enter(&ibuf_mutex);
 
 	if (ibuf->empty) {
+ibuf_is_empty:
 		mutex_exit(&ibuf_mutex);
+
+#if 0 /* TODO */
+		if (srv_shutdown_state) {
+			/* If the insert buffer becomes empty during
+			shutdown, note it in the system tablespace. */
+
+			trx_sys_set_ibuf_format(TRX_SYS_IBUF_EMPTY);
+		}
+
+		/* TO DO: call trx_sys_set_ibuf_format() at startup
+		and whenever ibuf_use is changed to allow buffered
+		delete-marking or deleting.  Never downgrade the
+		stamped format except when the insert buffer becomes
+		empty. */
+#endif
 
 		return(0);
 	}
@@ -2406,9 +2451,7 @@ ibuf_contract_ext(
 		mtr_commit(&mtr);
 		btr_pcur_close(&pcur);
 
-		mutex_exit(&ibuf_mutex);
-
-		return(0);
+		goto ibuf_is_empty;
 	}
 
 	mutex_exit(&ibuf_mutex);
@@ -3138,6 +3181,9 @@ ibuf_insert_low(
 				/* out: DB_SUCCESS, DB_FAIL, DB_STRONG_FAIL */
 	ulint		mode,	/* in: BTR_MODIFY_PREV or BTR_MODIFY_TREE */
 	ibuf_op_t	op,	/* in: operation type */
+	ibool		no_counter,
+				/* in: TRUE=use 5.0.3 format;
+				FALSE=allow delete buffering */
 	const dtuple_t*	entry,	/* in: index entry to insert */
 	ulint		entry_size,
 				/* in: rec_get_converted_size(index, entry) */
@@ -3171,6 +3217,7 @@ ibuf_insert_low(
 	ut_a(!dict_index_is_clust(index));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(!no_counter || op == IBUF_OP_INSERT);
 	ut_a(op < IBUF_OP_COUNT);
 
 	ut_a(trx_sys_multiple_tablespace_format);
@@ -3239,7 +3286,8 @@ ibuf_insert_low(
 	value just before actually inserting the entry.) */
 
 	ibuf_entry = ibuf_entry_build(
-		op, index, entry, space, page_no, 0xFFFF, heap);
+		op, index, entry, space, page_no,
+		no_counter ? ULINT_UNDEFINED : 0xFFFF, heap);
 
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the
@@ -3335,8 +3383,9 @@ ibuf_insert_low(
 	/* Patch correct counter value to the entry to insert. This can
 	change the insert position, which can result in the need to abort in
 	some cases. */
-	if (!ibuf_set_entry_counter(ibuf_entry, space, page_no, &pcur,
-				    mode == BTR_MODIFY_PREV, &mtr)) {
+	if (!no_counter
+	    && !ibuf_set_entry_counter(ibuf_entry, space, page_no, &pcur,
+				       mode == BTR_MODIFY_PREV, &mtr)) {
 bitmap_fail:
 		err = DB_STRONG_FAIL;
 
@@ -3459,45 +3508,95 @@ ibuf_insert(
 	ulint		page_no,/* in: page number where to insert */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	ulint	err;
-	ulint	entry_size;
-	ibool	comp = dict_table_is_comp(index->table);
+	ulint		err;
+	ulint		entry_size;
+	ibool		no_counter;
+	/* Read the settable global variable ibuf_use only once in
+	this function, so that we will have a consistent view of it. */
+	ibuf_use_t	use		= ibuf_use;
 
 	ut_a(trx_sys_multiple_tablespace_format);
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(ut_is_2pow(zip_size));
-	ut_a(op < IBUF_OP_COUNT);
 
 	ut_a(!dict_index_is_clust(index));
 
-	if (UNIV_LIKELY(op != IBUF_OP_DELETE)) {
-		/* If another thread buffers an insert on a page while
-		the purge is in progress, the purge for the same page
-		must not be buffered, because it could remove a record
-		that was re-inserted later.
+	no_counter = use <= IBUF_USE_INSERT;
 
-		We do not call this in the IBUF_OP_DELETE case,
-		because that would always trigger the buffer pool
-		watch during purge and thus prevent the buffering of
-		delete operations.  We assume that IBUF_OP_DELETE
-		operations are only issued by the purge thread. */
-
-		buf_pool_mutex_enter();
-		buf_pool_watch_notify(space, page_no);
-		buf_pool_mutex_exit();
+	switch (op) {
+	case IBUF_OP_INSERT:
+		switch (use) {
+		case IBUF_USE_NONE:
+		case IBUF_USE_DELETE:
+		case IBUF_USE_DELETE_MARK:
+			return(FALSE);
+		case IBUF_USE_INSERT:
+		case IBUF_USE_INSERT_DELETE_MARK:
+		case IBUF_USE_ALL:
+			break;
+		}
+		break;
+	case IBUF_OP_DELETE_MARK:
+		switch (use) {
+		case IBUF_USE_NONE:
+		case IBUF_USE_INSERT:
+			return(FALSE);
+		case IBUF_USE_DELETE_MARK:
+		case IBUF_USE_DELETE:
+		case IBUF_USE_INSERT_DELETE_MARK:
+		case IBUF_USE_ALL:
+			break;
+		}
+		ut_ad(!no_counter);
+		break;
+	case IBUF_OP_DELETE:
+		switch (use) {
+		case IBUF_USE_NONE:
+		case IBUF_USE_INSERT:
+		case IBUF_USE_INSERT_DELETE_MARK:
+			return(FALSE);
+		case IBUF_USE_DELETE_MARK:
+		case IBUF_USE_DELETE:
+		case IBUF_USE_ALL:
+			break;
+		}
+		ut_ad(!no_counter);
+		goto skip_notify;
+	default:
+		ut_error;
 	}
 
+	/* If another thread buffers an insert on a page while
+	the purge is in progress, the purge for the same page
+	must not be buffered, because it could remove a record
+	that was re-inserted later.
+
+	We do not call this in the IBUF_OP_DELETE case,
+	because that would always trigger the buffer pool
+	watch during purge and thus prevent the buffering of
+	delete operations.  We assume that IBUF_OP_DELETE
+	operations are only issued by the purge thread. */
+
+	buf_pool_mutex_enter();
+	buf_pool_watch_notify(space, page_no);
+	buf_pool_mutex_exit();
+
+skip_notify:
 	entry_size = rec_get_converted_size(index, entry, 0);
 
-	if (entry_size >= (page_get_free_space_of_empty(comp) / 2)) {
+	if (entry_size
+	    >= page_get_free_space_of_empty(dict_table_is_comp(index->table))
+	    / 2) {
 
 		return(FALSE);
 	}
 
-	err = ibuf_insert_low(BTR_MODIFY_PREV, op, entry, entry_size,
+	err = ibuf_insert_low(BTR_MODIFY_PREV, op, no_counter,
+			      entry, entry_size,
 			      index, space, zip_size, page_no, thr);
 	if (err == DB_FAIL) {
-		err = ibuf_insert_low(BTR_MODIFY_TREE, op, entry, entry_size,
+		err = ibuf_insert_low(BTR_MODIFY_TREE, op, no_counter,
+				      entry, entry_size,
 				      index, space, zip_size, page_no, thr);
 	}
 
