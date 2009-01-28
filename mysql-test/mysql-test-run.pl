@@ -3388,7 +3388,7 @@ sub extract_warning_lines ($) {
   my @lines;
   while ( my $line = <$Ferr> )
   {
-    if ( $line =~ /"^CURRENT_TEST:"/ )
+    if ( $line =~ /^CURRENT_TEST:/ )
     {
       # Throw away lines from previous tests
       @lines = ();
