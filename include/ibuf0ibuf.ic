@@ -84,7 +84,8 @@ ibuf_should_try(
 						a secondary index when we
 						decide */
 {
-	if (!dict_index_is_clust(index)
+	if (ibuf_use != IBUF_USE_NONE
+	    && !dict_index_is_clust(index)
 	    && (ignore_sec_unique || !dict_index_is_unique(index))) {
 
 		ibuf_flush_count++;
