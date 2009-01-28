@@ -196,6 +196,7 @@ void
 ut_sprintf_timestamp(
 /*=================*/
 	char*	buf); /* in: buffer where to sprintf */
+#ifdef UNIV_HOTBACKUP
 /**************************************************************
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'. */
@@ -213,6 +214,7 @@ ut_get_year_month_day(
 	ulint*	year,	/* out: current year */
 	ulint*	month,	/* out: month */
 	ulint*	day);	/* out: day */
+#endif /* UNIV_HOTBACKUP */
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */
