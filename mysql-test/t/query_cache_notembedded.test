@@ -223,33 +223,4 @@ connection default;
 
 set GLOBAL query_cache_size=0;
 
-#
-# Bug#40264: Aborted cached query causes query to hang indefinitely on next cache hit
-#
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-FLUSH STATUS;
-SET GLOBAL query_cache_size=1048576;
-CREATE TABLE t1 (a INT);
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-LOCK TABLES t1 WRITE;
-connect(con1,localhost,root,,);
---send SELECT * FROM t1
-connection default;
-let $show_type= open tables where `table`='t1' and in_use=2;
-let $show_pattern= '%t1%2%';
---source include/wait_show_pattern.inc
-dirty_close con1;
-UNLOCK TABLES;
-let $show_type= open tables where `table`='t1' and in_use=0;
-let $show_pattern= '%t1%0%';
---source include/wait_show_pattern.inc
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-DROP TABLE t1;
-SET GLOBAL query_cache_size= default;
-
 # End of 5.0 tests
