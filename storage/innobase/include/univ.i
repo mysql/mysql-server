@@ -291,8 +291,8 @@ it is read or written. */
 #elif defined(__SUNPRO_C)
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
-# define UNIV_PREFETCH_R(addr) sparc_prefetch_read_many(addr)
-# define UNIV_PREFETCH_RW(addr) sparc_prefetch_write_many(addr)
+# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many(addr)
+# define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 #else
 /* Dummy versions of the macros */
 # define UNIV_EXPECT(expr,value) (expr)
