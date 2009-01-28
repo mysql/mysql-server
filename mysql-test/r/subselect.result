@@ -4478,4 +4478,40 @@ WHERE 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 DELETE FROM v3;
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+#
+# BUG#37822: Correlated subquery with IN and IS UNKNOWN provides wrong result
+# 
+create table t1(id integer primary key, g integer, v integer, s char(1));
+create table t2(id integer primary key, g integer, v integer, s char(1));
+insert into t1 values
+(10, 10, 10,   'l'),
+(20, 20, 20,   'l'),
+(40, 40, 40,   'l'),
+(41, 40, null, 'l'),
+(50, 50, 50,   'l'),
+(51, 50, null, 'l'),
+(60, 60, 60,   'l'),
+(61, 60, null, 'l'),
+(70, 70, 70,   'l'),
+(90, 90, null, 'l');
+insert into t2 values
+(10, 10, 10,   'r'),
+(30, 30, 30,   'r'),
+(50, 50, 50,   'r'),
+(60, 60, 60,   'r'),
+(61, 60, null, 'r'),
+(70, 70, 70,   'r'),
+(71, 70, null, 'r'),
+(80, 80, 80,   'r'),
+(81, 80, null, 'r'),
+(100,100,null, 'r');
+select *
+from t1
+where v in(select v
+from t2
+where t1.g=t2.g) is unknown;
+id	g	v	s
+51	50	NULL	l
+61	60	NULL	l
+drop table t1, t2;
 End of 5.1 tests.
