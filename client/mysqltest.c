@@ -1385,8 +1385,15 @@ void show_diff(DYNAMIC_STRING* ds,
   /* determine if we have diff on Windows
      needs special processing due to return values
      on that OS
+     This test is only done on Windows since it's only needed there
+     in order to correctly detect non-availibility of 'diff', and
+     the way it's implemented does not work with default 'diff' on Solaris.
   */
+#ifdef __WIN__
   have_diff = diff_check();
+#else
+  have_diff = 1;
+#endif
 
   if (have_diff)
   {
@@ -1410,7 +1417,7 @@ void show_diff(DYNAMIC_STRING* ds,
                    "2>&1",
                    NULL) > 1) /* Most "diff" tools return >1 if error */
       {
-        have_diff= 1;
+        have_diff= 0;
       }  
     }
   }
