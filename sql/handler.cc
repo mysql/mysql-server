@@ -2655,8 +2655,12 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_RECORD_FILE_FULL:
   case HA_ERR_INDEX_FILE_FULL:
+  {
     textno=ER_RECORD_FILE_FULL;
+    /* Write the error message to error log */
+    errflag|= ME_NOREFRESH;
     break;
+  }
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
     break;
