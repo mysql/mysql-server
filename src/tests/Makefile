@@ -36,6 +36,8 @@ BDB_DONTRUN_TESTS = \
 	bug1381 \
 	bug627 \
 	test_abort1 \
+	test_abort4 \
+	test_abort5 \
 	keyrange \
 	keyrange-unflat \
 	keyrange-dupsort \
