@@ -118,7 +118,7 @@ sub mtr_report_test ($) {
 
     if ( $warnings )
     {
-      mtr_report("[ fail ]  Found warnings in server log file!");
+      mtr_report("[ fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
       return;
