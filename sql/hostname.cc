@@ -88,14 +88,14 @@ static void add_hostname(struct sockaddr_storage *in,const char *name)
   {
     VOID(pthread_mutex_lock(&hostname_cache->lock));
     host_entry *entry;
-    if (!(entry=(host_entry*) hostname_cache->search((uchar*) &in,0)))
+    if (!(entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     {
       uint length=name ? (uint) strlen(name) : 0;
 
       if ((entry=(host_entry*) malloc(sizeof(host_entry)+length+1)))
       {
 	char *new_name;
-	memcpy_fixed(&entry->ip, &in, sizeof(struct sockaddr_storage));
+	memcpy_fixed(&entry->ip, in, sizeof(struct sockaddr_storage));
 	if (length)
 	  memcpy(new_name= (char *) (entry+1), name, length+1);
 	else
@@ -119,7 +119,7 @@ void inc_host_errors(struct sockaddr_storage *in)
 {
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   host_entry *entry;
-  if ((entry=(host_entry*) hostname_cache->search((uchar*) &in,0)))
+  if ((entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     entry->errors++;
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
 }
@@ -128,7 +128,7 @@ void reset_host_errors(struct sockaddr_storage *in)
 {
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   host_entry *entry;
-  if ((entry=(host_entry*) hostname_cache->search((uchar*) &in,0)))
+  if ((entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     entry->errors=0;
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
 }
@@ -175,7 +175,7 @@ char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors)
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
     VOID(pthread_mutex_lock(&hostname_cache->lock));
-    if ((entry=(host_entry*) hostname_cache->search((uchar*) &in,0)))
+    if ((entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     {
       if (entry->hostname)
 	name=my_strdup(entry->hostname,MYF(0));
