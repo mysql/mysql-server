@@ -449,6 +449,7 @@ get_one_option(int arg, const struct my_option * opt, char * value)
     if (g_replicate.length())
       g_replicate.append(";");
     g_replicate.append(value);
+    return 0;
   }
   return 0;
 }
@@ -492,6 +493,7 @@ parse_args(int argc, char** argv)
   if (ret)
   {
     g_logger.error("Failed to load defaults, returned (%d)",ret);
+    return false;
   }
   
   save_file = my_defaults_file;
@@ -507,8 +509,8 @@ parse_args(int argc, char** argv)
   ret =  handle_options(&argc, &argv, g_options, get_one_option);
   if (ret)
   {
-    g_logger.error("load handle_options (%d, %s)", argc, *argv);
-    g_logger.error("Failed to handle_options, returned (%d)", ret);
+    g_logger.error("handle_options failed, ret: %d, argc: %d, *argv: '%s'", 
+                    ret, argc, *argv);
     return false;
   }
 
