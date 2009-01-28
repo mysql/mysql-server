@@ -61,6 +61,7 @@ extern "C" {
 #include "../storage/innobase/include/dict0boot.h"
 #include "../storage/innobase/include/ha_prototypes.h"
 #include "../storage/innobase/include/ut0mem.h"
+#include "../storage/innobase/include/ibuf0ibuf.h"
 }
 
 #include "ha_innodb.h"
@@ -141,6 +142,7 @@ static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
+static char*	innobase_change_buffering			= NULL;
 
 /* Note: This variable can be set to on/off and any of the supported
 file formats in the configuration file, but can only be set to any
@@ -184,6 +186,16 @@ static hash_table_t*	innobase_open_tables;
 #ifdef __NETWARE__	/* some special cleanup for NetWare */
 bool nw_panic = FALSE;
 #endif
+
+/** Allowed values of innodb_change_buffering */
+static const char* innobase_change_buffering_values[IBUF_USE_ALL + 1] = {
+	"none",		/* IBUF_USE_NONE */
+	"inserts",	/* IBUF_USE_INSERT */
+	"deletes",	/* IBUF_USE_DELETE_MARK */
+	"changes",	/* IBUF_USE_INSERT_DELETE_MARK */
+	"purges",	/* IBUF_USE_DELETE */
+	"all"		/* IBUF_USE_ALL */
+};
 
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
@@ -2068,6 +2080,10 @@ innobase_init(
 			goto error;
 		}
 	}
+
+	ut_a((ulint) ibuf_use < UT_ARR_SIZE(innobase_change_buffering_values));
+	innobase_change_buffering = (char*)
+		innobase_change_buffering_values[ibuf_use];
 
 	/* --------------------------------------------------*/
 
@@ -9357,6 +9373,72 @@ innodb_file_format_check_update(
 	}
 }
 
+/*****************************************************************
+Check if it is a valid value of innodb_change_buffering.  This function is
+registered as a callback with MySQL. */
+static
+int
+innodb_change_buffering_validate(
+/*=====================*/
+						/* out: 0 for valid
+						innodb_change_buffering */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/* in: incoming string */
+{
+	const char*	change_buffering_input;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	change_buffering_input = value->val_str(value, buff, &len);
+
+	if (change_buffering_input != NULL) {
+		ulint	use;
+
+		for (use = 0; use < UT_ARR_SIZE(innobase_change_buffering_values);
+		     use++) {
+			if (!innobase_strcasecmp(
+				    change_buffering_input,
+				    innobase_change_buffering_values[use])) {
+				*(ibuf_use_t*) save = (ibuf_use_t) use;
+				return(0);
+			}
+		}
+	}
+
+	return(1);
+}
+
+/********************************************************************
+Update the system variable innodb_change_buffering using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_change_buffering_update(
+/*===================*/
+	THD*				thd,		/* in: thread handle */
+	struct st_mysql_sys_var*	var,		/* in: pointer to
+							system variable */
+	void*				var_ptr,	/* out: where the
+							formal string goes */
+	const void*			save)		/* in: immediate result
+							from check function */
+{
+	ut_a(var_ptr != NULL);
+	ut_a(save != NULL);
+	ut_a((*(ibuf_use_t*) save) <= IBUF_USE_ALL);
+
+	ibuf_use = *(const ibuf_use_t*) save;
+
+	*(const char**) var_ptr = innobase_change_buffering_values[ibuf_use];
+}
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -9599,6 +9681,13 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
+  PLUGIN_VAR_RQCMDARG,
+  "Buffer changes to reduce random access: "
+  "OFF, ON, inserting, deleting, changing, or purging.",
+  innodb_change_buffering_validate,
+  innodb_change_buffering_update, NULL);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -9647,6 +9736,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
+  MYSQL_SYSVAR(change_buffering),
   NULL
 };
 
