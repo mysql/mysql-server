@@ -1573,7 +1573,7 @@ static void network_init(void)
 
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
-    struct addrinfo *ai, *a;
+    struct addrinfo *addrlist, *addr;
     struct addrinfo hints;
     int error;  
     DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
@@ -1584,7 +1584,7 @@ static void network_init(void)
     hints.ai_family= AF_UNSPEC;
 
     my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
-    error= getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai);
+    error= getaddrinfo(my_bind_addr_str, port_buf, &hints, &addrlist);
     if (error != 0)
     {
       DBUG_PRINT("error",("Got error: %d from getaddrinfo()", error));
@@ -1592,10 +1592,10 @@ static void network_init(void)
       unireg_abort(1);				/* purecov: tested */
     }
 
-    for (a = ai; a != NULL; a = ai->ai_next)
+    for (addr = addrlist; addr != NULL; addr = addr->ai_next)
     {
-      ip_sock= my_socket_create(ai->ai_family, ai->ai_socktype,
-                                ai->ai_protocol);
+      ip_sock= my_socket_create(addr->ai_family, addr->ai_socktype,
+                                addr->ai_protocol);
       if (my_socket_valid(ip_sock))
         break;
     }
@@ -1620,7 +1620,7 @@ static void network_init(void)
        listen on both IPv6 and IPv4 wildcard addresses.
        Turn off IPV6_V6ONLY option.
      */
-    if (a->ai_family == AF_INET6)
+    if (addr->ai_family == AF_INET6)
     {
       int enable= 0;
       DBUG_PRINT("info",("Clearing IPV6_ONLY socket option"));
@@ -1638,7 +1638,7 @@ static void network_init(void)
     */
     for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
     {
-      if (((ret= my_bind(ip_sock, ai->ai_addr, ai->ai_addrlen)) >= 0 ) ||
+      if (((ret= my_bind(ip_sock, addr->ai_addr, addr->ai_addrlen)) >= 0 ) ||
           (socket_errno != SOCKET_EADDRINUSE) ||
           (waited >= mysqld_port_timeout))
         break;
@@ -1646,7 +1646,7 @@ static void network_init(void)
       this_wait= retry * retry / 3 + 1;
       sleep(this_wait);
     }
-    freeaddrinfo(ai);
+    freeaddrinfo(addrlist);
     if (ret < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
