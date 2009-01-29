@@ -1,7 +1,7 @@
 
 [cluster_config]
 MaxNoOfSavedMessages=          1000
-MaxNoOfConcurrentTransactions= 64
+MaxNoOfConcurrentTransactions= 128
 MaxNoOfConcurrentOperations=   10000
 DataMemory=                    20M
 IndexMemory=                   1M
