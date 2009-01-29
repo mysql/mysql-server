@@ -1676,8 +1676,13 @@ JOIN::exec()
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
         conds uses something like 'rand()'.
+        If the HAVING clause is either impossible or always true, then
+        JOIN::having is set to NULL by optimize_cond.
+        In this case JOIN::exec must check for JOIN::having_value, in the
+        same way it checks for JOIN::cond_value.
       */
       if (cond_value != Item::COND_FALSE &&
+          having_value != Item::COND_FALSE &&
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
