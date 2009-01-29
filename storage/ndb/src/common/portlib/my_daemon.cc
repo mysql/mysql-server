@@ -46,6 +46,7 @@ char *my_daemon_error=0;
 struct MY_DAEMON g_daemon;
 
 #ifdef _WIN32
+static int init();
 static int stopper(void*)
 {
   WaitForSingleObject(g_evt,INFINITE);
@@ -63,7 +64,7 @@ int my_daemon_run(char *name,struct MY_DAEMON*d)
   uintptr_t stop_thread= _beginthread((THREAD_FC)stopper,0,0);
   if(!stop_thread)
     return 1;
-  check(!init(), 1, "init failed\n", "");
+  check(!init(), 1, "%s", "init failed\n");
 #else /* Fork */
   pid_t n = fork();
   check(n!=-1,-1,"fork failed: %s", strerror(errno));
@@ -96,7 +97,7 @@ char *my_daemon_makecmdv(int c, const char **v)
 char *my_daemon_make_svc_cmd(int n, char **v)
 {
   check(!strcmp(v[0],"-i") || !strcmp(v[0],"--install"),
-        0, "the install option (-i) must be the first argument\n", "");
+        0, "%s", "the install option (-i) must be the first argument\n");
   *v= "-s";
   return my_daemon_makecmdv(n, (const char**)v);
 }
@@ -111,18 +112,18 @@ int my_daemon_install(const char *name, const char *cmd)
   if (*s)
     return 1;
   check(g_ntsvc.SeekStatus(name, 1), 1, "SeekStatus on %s failed", name);
-  check(scm= OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE), 1,
+  check(scm= OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE), 1, "%s",
         "Failed to install the service: "
-        "Could not open Service Control Manager.\n", "");
+        "Could not open Service Control Manager.\n");
   check(svc= CreateService(scm, name, name,
                             SERVICE_ALL_ACCESS,
                             SERVICE_WIN32_OWN_PROCESS,
                             (1 ? SERVICE_AUTO_START :
                              SERVICE_DEMAND_START), SERVICE_ERROR_NORMAL,
-                            cmd, 0, 0, 0, 0, 0), 1,
+                            cmd, 0, 0, 0, 0, 0), 1, "%s",
         "Failed to install the service: "
-        "Couldn't create service)\n",
-        "") printf("Service successfully installed.\n");
+        "Couldn't create service)\n"
+        ) printf("Service successfully installed.\n");
   CloseServiceHandle(svc);
   CloseServiceHandle(scm);
   return 0;
@@ -190,7 +191,7 @@ int my_daemon_files()
   check(lockf(pidfd, F_LOCK, 0) != -1, 1, "%s: lock failed", pidfile);
 #endif
   /* Become process group leader */
-  IF_WIN(0, check(setsid() != -1, 1, "setsid failed%s", ""));
+  IF_WIN(0, check(setsid() != -1, 1, "%s", "setsid failed"));
   /* Write pid to lock file */
   check(IF_WIN(_chsize, ftruncate) (pidfd, 0) != -1, 1,
         "%s: ftruncate failed", pidfile);
@@ -198,7 +199,7 @@ int my_daemon_files()
   check(write(pidfd, buf, n) == n, 1, "%s: write failed", pidfile);
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);
-  check(0 == open(IF_WIN("nul:", "/dev/null"), O_RDONLY), 1, "close 0%s", "");
+  check(0 == open(IF_WIN("nul:", "/dev/null"), O_RDONLY), 1, "%s", "close 0");
 #ifdef _WIN32
   *stdout= *stderr= *my_dlog;
 #else //no stdout/stderr on windows service
