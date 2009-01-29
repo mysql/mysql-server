@@ -121,7 +121,7 @@ SET @@collation_database = latin7_general_ci + latin7_general_cs;
 ###########################################################################
 
 let collation_variable = @@session.collation_database;
---source include/collation_basic.inc
+--source suite/sys_vars/inc/collation_basic.inc
 
 
 --echo '#--------------------FN_DYNVARS_016_07-------------------------#'
@@ -130,7 +130,7 @@ let collation_variable = @@session.collation_database;
 ###############################################################################
 
 let collation_variable = @@global.collation_database;
---source include/collation_basic.inc
+--source suite/sys_vars/inc/collation_basic.inc
 
 
 --echo '#--------------------FN_DYNVARS_016_08-------------------------#'
