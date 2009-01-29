@@ -4480,7 +4480,7 @@ DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
 #
 # BUG#37822: Correlated subquery with IN and IS UNKNOWN provides wrong result
-# 
+#
 create table t1(id integer primary key, g integer, v integer, s char(1));
 create table t2(id integer primary key, g integer, v integer, s char(1));
 insert into t1 values
