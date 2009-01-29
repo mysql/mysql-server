@@ -548,9 +548,15 @@ class NdbDictInterface {
 public:
   // one transaction per Dictionary instance is supported
   struct Tx {
+    // api-side schema op, currently only for alter table
+    struct Op {
+      Uint32 m_gsn;
+      NdbTableImpl* m_impl;
+    };
     bool m_transOn;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
+    Vector<Op> m_op;
     Tx() :
       m_transOn(false),
       m_transId(0),
@@ -1057,7 +1063,7 @@ inline
 Uint32
 Hash( const char* str ){
   Uint32 h = 0;
-  Uint32 len = strlen(str);
+  size_t len = strlen(str);
   while(len >= 4){
     h = (h << 5) + h + str[0];
     h = (h << 5) + h + str[1];

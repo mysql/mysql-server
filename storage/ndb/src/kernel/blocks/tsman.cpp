@@ -45,11 +45,7 @@ Tsman::Tsman(Block_context& ctx) :
   m_pgman(0),
   m_lgman(0),
   m_tup(0),
-#ifdef __sun // temp
-  m_client_mutex(1, false)
-#else
-  m_client_mutex(2, true)
-#endif
+  m_client_mutex("tsman-client", 2, true)
 {
   BLOCK_CONSTRUCTOR(Tsman);
 
@@ -771,6 +767,7 @@ Tsman::open_file(Signal* signal,
   req->fileFlags = 0;
   req->fileFlags |= FsOpenReq::OM_READWRITE;
   req->fileFlags |= FsOpenReq::OM_DIRECT;
+  req->fileFlags |= FsOpenReq::OM_THREAD_POOL;
   switch(requestInfo){
   case CreateFileImplReq::Create:
     req->fileFlags |= FsOpenReq::OM_CREATE_IF_NONE;

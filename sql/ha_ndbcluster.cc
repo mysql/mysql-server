@@ -647,6 +647,24 @@ Thd_ndb::Thd_ndb()
 
 Thd_ndb::~Thd_ndb()
 {
+  if (ndb_extra_logging > 1)
+  {
+    /*
+      print some stats about the connection at disconnect
+    */
+    for (int i= 0; i < MAX_NDB_NODES; i++)
+    {
+      if (m_transaction_hint_count[i] > 0 ||
+          m_transaction_no_hint_count[i] > 0)
+      {
+        sql_print_information("tid %u: node[%u] "
+                              "transaction_hint=%u, transaction_no_hint=%u",
+                              (unsigned)current_thd->thread_id, i,
+                              m_transaction_hint_count[i],
+                              m_transaction_no_hint_count[i]);
+      }
+    }
+  }
   if (ndb)
   {
     delete ndb;
@@ -2222,7 +2240,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   const NdbRecord *key_rec;
   const uchar *key_row;
 
-  if (m_user_defined_partitioning)
+  if (old_part_id != ~uint32(0))
   {
     options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
     options.partitionId=old_part_id;
@@ -3747,7 +3765,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   NdbTransaction *trans= thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
-  uint32 old_part_id= 0, new_part_id= 0;
+  uint32 old_part_id= ~uint32(0), new_part_id= ~uint32(0);
   int error;
   longlong func_value;
   Uint32 func_value_uint32;
@@ -3786,13 +3804,29 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
   }
 
-  if (m_use_partition_pruning &&
-      (error= get_parts_for_update(old_data, new_data, table->record[0],
-                                   m_part_info, &old_part_id, &new_part_id,
-                                   &func_value)))
+  while (m_use_partition_pruning)
   {
-    m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    if (!cursor && m_read_before_write_removal_used)
+    {
+      ndb_index_type type= get_index_type(active_index);
+      /*
+        Ndb unique indexes are global so when
+        m_read_before_write_removal_used is active
+        the unique index can be used directly for update
+        without finding the partitions
+      */
+      if (type == UNIQUE_INDEX ||
+          type == UNIQUE_ORDERED_INDEX)
+        break;
+    }
+    if ((error= get_parts_for_update(old_data, new_data, table->record[0],
+                                     m_part_info, &old_part_id, &new_part_id,
+                                     &func_value)))
+    {
+      m_part_info->err_value= func_value;
+      DBUG_RETURN(error);
+    }
+    break;
   }
 
   /*
@@ -3829,7 +3863,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   options.optionsPresent=0;
 
   /* Need to set the value of any user-defined partitioning function. */
-  if (m_user_defined_partitioning)
+  if (new_part_id != ~uint32(0))
   {
     if (func_value >= INT_MAX32)
       func_value_uint32= INT_MAX32;
@@ -4027,7 +4061,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   NdbTransaction *trans= m_thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
-  uint32 part_id;
+  uint32 part_id= ~uint32(0);
   int error;
   bool allow_batch= is_bulk_delete || (thd->options & OPTION_ALLOW_BATCH);
   DBUG_ENTER("ndb_delete_row");
@@ -4036,11 +4070,27 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
 
-  if (m_use_partition_pruning &&
-      (error= get_part_for_delete(record, table->record[0], m_part_info,
-                                  &part_id)))
+  while (m_use_partition_pruning)
   {
-    DBUG_RETURN(error);
+    if (!cursor && m_read_before_write_removal_used)
+    {
+      ndb_index_type type= get_index_type(active_index);
+      /*
+        Ndb unique indexes are global so when
+        m_read_before_write_removal_used is active
+        the unique index can be used directly for deleting
+        without finding the partitions
+      */
+      if (type == UNIQUE_INDEX ||
+          type == UNIQUE_ORDERED_INDEX)
+        break;
+    }
+    if ((error= get_part_for_delete(record, table->record[0], m_part_info,
+                                    &part_id)))
+    {
+      DBUG_RETURN(error);
+    }
+    break;
   }
 
   NdbOperation::OperationOptions options;
@@ -4085,7 +4135,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     const NdbRecord *key_rec;
     const uchar *key_row;
 
-    if (m_user_defined_partitioning)
+    if (part_id != ~uint32(0))
     {
       options.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
       options.partitionId= part_id;
@@ -4130,7 +4180,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     /*
       Poor approx. let delete ~ tabsize / 4
     */
-    uint delete_size= 12 + m_bytes_per_write >> 2;
+    uint delete_size= 12 + (m_bytes_per_write >> 2);
     bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
     if ( allow_batch &&
 	 table_share->primary_key != MAX_KEY &&
@@ -7546,18 +7596,20 @@ retry_temporary_error1:
 int ha_ndbcluster::delete_table(const char *name)
 {
   THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb;
   int error= 0;
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if (thd == injector_thd)
+  if ((thd == injector_thd) ||
+      (thd_ndb->options & TNO_NO_NDB_DROP_TABLE))
   {
     /*
       Table was dropped remotely is already
       dropped inside ndb.
       Just drop local files.
-     */
+    */
     DBUG_RETURN(handler::delete_table(name));
   }
 
@@ -7581,9 +7633,9 @@ int ha_ndbcluster::delete_table(const char *name)
     goto err;
   }
 
-  ndb= get_ndb(thd);
+  ndb= thd_ndb->ndb;
 
-  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+  if (!ndbcluster_has_global_schema_lock(thd_ndb))
     DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
                 (thd, "ha_ndbcluster::delete_table"));
 
@@ -8705,6 +8757,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   DBUG_PRINT("enter", ("db: %s", db));
   { // extra bracket to avoid gcc 2.95.3 warning
   uint i;
+  Thd_ndb *thd_ndb;
   Ndb* ndb;
   char name[FN_REFLEN];
   HASH ndb_tables, ok_tables;
@@ -8712,6 +8765,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  thd_ndb= get_thd_ndb(thd);
 
   if (dir)
     DBUG_RETURN(0); // Discover of databases not yet supported
@@ -8888,12 +8942,17 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char*) db;
       table_list.alias= table_list.table_name= (char*)file_name_str;
+      /*
+        set TNO_NO_NDB_DROP_TABLE flag to not drop ndb table.
+        it should not exist anyways
+      */
+      thd_ndb->options|= TNO_NO_NDB_DROP_TABLE;
       (void)mysql_rm_table_part2(thd, &table_list,
                                  FALSE,   /* if_exists */
                                  FALSE,   /* drop_temporary */ 
                                  FALSE,   /* drop_view */
                                  TRUE     /* dont_log_query*/);
-
+      thd_ndb->options&= ~TNO_NO_NDB_DROP_TABLE;
       /* Clear error message that is returned when table is deleted */
       thd->clear_error();
     }
@@ -11182,7 +11241,14 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       continue;
     }
     if (!ndb_binlog_tables_inited)
+    {
       ndbcluster_setup_binlog_table_shares(thd);
+      if (!ndb_binlog_tables_inited)
+      {
+        set_timespec(abstime, 1);
+        continue;
+      }
+    }
 
     if (ndb_cache_check_time == 0)
     {
@@ -12163,20 +12229,20 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
          goto abort;
        }
        /*
-	 If the user has not specified the field format
-	 make it dynamic to enable on-line add attribute
+         If the user has not specified the field format
+         make it dynamic to enable on-line add attribute
        */
        if (field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT &&
            create_info->row_type == ROW_TYPE_DEFAULT &&
            col.getDynamic())
        {
-	 push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                              ER_ILLEGAL_HA_CREATE_OPTION,
-		             "Converted FIXED field to DYNAMIC "
-			     "to enable on-line ADD COLUMN",
+                             "Converted FIXED field to DYNAMIC "
+                             "to enable on-line ADD COLUMN",
                              field->field_name);
-	}
-        new_tab->addColumn(col);
+       }
+       new_tab->addColumn(col);
      }
   }
 
@@ -12284,8 +12350,11 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
   dropping= dropping  | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
   if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::alter_table_phase2"));
+  {
+    error= ndbcluster_no_global_schema_lock_abort
+      (thd, "ha_ndbcluster::alter_table_phase2");
+    goto err;
+  }
 
   if ((*alter_flags & dropping).is_set())
   {
@@ -12320,16 +12389,16 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 abort:
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
-{
+    {
       DBUG_PRINT("info", ("Failed to abort schema transaction"));
       ERR_PRINT(dict->getNdbError());
-}
+    }
 err:
-    set_ndb_share_state(m_share, NSS_INITIAL);
     /* ndb_share reference schema free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
                              m_share->key, m_share->use_count));
   }
+  set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
   delete alter_data;
   DBUG_RETURN(error);

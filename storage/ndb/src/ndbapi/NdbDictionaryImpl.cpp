@@ -2809,15 +2809,7 @@ NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t,
                                  NdbOptimizeTableHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl)");
-  /**
-   * make sure we get global table object here
-   */
-  NdbTableImpl *g_table = getTableGlobal(t.getName());
-  if (g_table == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_table));
+  DBUG_RETURN(h.init(&m_ndb, t));
 }
 
 int
@@ -2825,16 +2817,7 @@ NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index,
                                  NdbOptimizeIndexHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl)");
-  /**
-   * make sure we get global index object here
-   */
-  const NdbIndexImpl * g_index = getIndexGlobal(index.getName(),
-                                                index.getTable());
-  if (g_index == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(h.init(&m_ndb, *g_index));
+  DBUG_RETURN(h.init(&m_ndb, index));
 }
 
 int
@@ -2912,8 +2895,22 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
   DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
   // Alter the table
   int ret = m_receiver.alterTable(m_ndb, old_impl, impl);
+#if ndb_bug41905
   old_impl.m_status = NdbDictionary::Object::Invalid;
+#endif
   if(ret == 0){
+    NdbDictInterface::Tx::Op op;
+    op.m_gsn = GSN_ALTER_TABLE_REQ;
+    op.m_impl = &old_impl;
+    if (m_tx.m_op.push_back(op) == -1) {
+      m_error.code = 4000;
+      DBUG_RETURN(-1);
+    }
+    m_globalHash->lock();
+    ret = m_globalHash->inc_ref_count(op.m_impl);
+    m_globalHash->unlock();
+    if (ret != 0)
+      m_error.code = 723;
     DBUG_RETURN(ret);
   }
   ERR_RETURN(getNdbError(), ret);
@@ -4866,7 +4863,7 @@ static int scanEventTable(Ndb* pNdb,
         el.type = NdbDictionary::Object::TableEvent;
         el.state = NdbDictionary::Object::StateOnline;
         el.store = NdbDictionary::Object::StorePermanent;
-        Uint32 len = strlen(event_name->aRef());
+        Uint32 len = (Uint32)strlen(event_name->aRef());
         el.name = new char[len+1];
         memcpy(el.name, event_name->aRef(), len);
         el.name[len] = 0;
@@ -6919,7 +6916,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7079,7 +7076,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7228,7 +7225,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  size_t strLen = strlen(name) + 1;
+  Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = 0;
@@ -7486,6 +7483,7 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
    */
   if (m_error.code == 787)
   {
+    m_tx.m_op.clear();
     if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
     {
       m_error.code = 0;
@@ -7498,6 +7496,7 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
   int ret = m_receiver.endSchemaTrans(flags);
   m_tx.m_transOn = false;
   if (ret == -1) {
+    m_tx.m_op.clear();
     if (m_error.code == 787)
     {
       if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
@@ -7508,12 +7507,29 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
     }
     DBUG_RETURN(-1);
   }
+
+  // invalidate old version of altered table
+  uint i;
+  for (i = 0; i < m_tx.m_op.size(); i++) {
+    NdbDictInterface::Tx::Op& op = m_tx.m_op[i];
+    if (op.m_gsn == GSN_ALTER_TABLE_REQ)
+    {
+      op.m_impl->m_status = NdbDictionary::Object::Invalid;
+      m_globalHash->lock();
+      int ret = m_globalHash->dec_ref_count(op.m_impl);
+      m_globalHash->unlock();
+      if (ret != 0)
+        abort();
+    }
+  }
+  m_tx.m_op.clear();
   DBUG_RETURN(0);
 }
 
 int
 NdbDictInterface::beginSchemaTrans()
 {
+  assert(m_tx.m_op.size() == 0);
   NdbApiSignal tSignal(m_reference);
   SchemaTransBeginReq* req =
     CAST_PTR(SchemaTransBeginReq, tSignal.getDataPtrSend());
@@ -7649,3 +7665,5 @@ const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ANY_VALUE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::OPTIMIZE = 0;
+
+template class Vector<NdbDictInterface::Tx::Op>;

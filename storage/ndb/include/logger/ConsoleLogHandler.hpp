@@ -40,6 +40,8 @@ public:
   virtual bool open();
   virtual bool close();
 
+  virtual bool is_open();
+
   virtual bool setParam(const BaseString &param, const BaseString &value);
   
 protected:	

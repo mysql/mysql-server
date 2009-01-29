@@ -66,11 +66,10 @@ struct NdbThread
 #ifdef NDB_SHM_TRANSPORTER
 void NdbThread_set_shm_sigmask(my_bool block)
 {
-  DBUG_ENTER("NdbThread_set_shm_sigmask");
   if (g_ndb_shm_signum)
   {
     sigset_t mask;
-    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
+    // DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
     sigemptyset(&mask);
     sigaddset(&mask, g_ndb_shm_signum);
     if (block)
@@ -78,7 +77,7 @@ void NdbThread_set_shm_sigmask(my_bool block)
     else
       pthread_sigmask(SIG_UNBLOCK, &mask, 0);
   }
-  DBUG_VOID_RETURN;
+  return;
 }
 #endif
 

@@ -303,7 +303,7 @@ my_socket vio_fd(Vio* vio)
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
+my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port, size_t buflen)
 {
   DBUG_ENTER("vio_peer_addr");
   DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT,
@@ -315,6 +315,8 @@ my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
   }
   else
   {
+    int error;
+    char port_buf[NI_MAXSERV];
     size_socket addrLen = sizeof(vio->remote);
     if (my_getpeername(vio->sd, (struct sockaddr *) (&vio->remote),
                        &addrLen) != 0)
@@ -322,34 +324,32 @@ my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
       DBUG_PRINT("exit", ("getpeername gave error: %d", socket_errno));
       DBUG_RETURN(1);
     }
-    my_inet_ntoa(vio->remote.sin_addr,buf);
-    *port= ntohs(vio->remote.sin_port);
+    vio->addrLen= (int)addrLen;
+    
+    if ((error= getnameinfo((struct sockaddr *)(&vio->remote), 
+                            addrLen,
+                            buf, buflen,
+                            port_buf, NI_MAXSERV, NI_NUMERICHOST|NI_NUMERICSERV)))
+    {
+      DBUG_PRINT("exit", ("getnameinfo gave error: %s", 
+                          gai_strerror(error)));
+      DBUG_RETURN(1);
+    }
+    
+    *port= (uint16)strtol(port_buf, (char **)NULL, 10);
+
+    /*
+      A lot of users do not have IPv6 loopback resolving to localhost
+      correctly setup. Should this exist? No. If we do not do it though
+      we will be getting a lot of support questions from users who
+      have bad setups. This code should be removed by say... 2012.
+        -Brian
+    */
+    if (!memcmp(buf, "::ffff:127.0.0.1", sizeof("::ffff:127.0.0.1")))
+      strmov(buf, "127.0.0.1");
   }
   DBUG_PRINT("exit", ("addr: %s", buf));
   DBUG_RETURN(0);
-}
-
-
-/*
-  Get in_addr for a TCP/IP connection
-
-  SYNOPSIS
-    vio_in_addr()
-    vio		vio handle
-    in		put in_addr here
-
-  NOTES
-    one must call vio_peer_addr() before calling this one
-*/
-
-void vio_in_addr(Vio *vio, struct in_addr *in)
-{
-  DBUG_ENTER("vio_in_addr");
-  if (vio->localhost)
-    bzero((char*) in, sizeof(*in));
-  else
-    *in=vio->remote.sin_addr;
-  DBUG_VOID_RETURN;
 }
 
 

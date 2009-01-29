@@ -1758,6 +1758,9 @@ SimulatedBlock::execNDB_TAMPER(Signal * signal){
 
 void
 SimulatedBlock::execSIGNAL_DROPPED_REP(Signal * signal){
+  /* Note no need for fragmented signal handling as we are
+   * going to crash this node
+   */
   char msg[64];
   const SignalDroppedRep * const rep = (SignalDroppedRep *)&signal->theData[0];
   BaseString::snprintf(msg, sizeof(msg), "%s GSN: %u (%u,%u)", getBlockName(number()),
@@ -2019,6 +2022,8 @@ SimulatedBlock::assembleFragments(Signal * signal){
       fragPtr.p->m_sectionPtrI[sectionNo] = sectionPtr[i];
     }
     
+    ndbassert(! fragPtr.p->isDropped() );
+    
     /**
      * Don't release allocated segments
      */
@@ -2034,41 +2039,208 @@ SimulatedBlock::assembleFragments(Signal * signal){
     /**
      * FragInfo == 2 or 3
      */
-    Uint32 i;
-    for(i = 0; i<secs; i++){
-      Uint32 sectionNo = secNos[i];
-      ndbassert(sectionNo < 3);
-      Uint32 sectionPtrI = sectionPtr[i];
-      if(fragPtr.p->m_sectionPtrI[sectionNo] != RNIL){
-	linkSegments(fragPtr.p->m_sectionPtrI[sectionNo], sectionPtrI);
-      } else {
-	fragPtr.p->m_sectionPtrI[sectionNo] = sectionPtrI;
+    if ( likely(! fragPtr.p->isDropped()) )
+    {
+      Uint32 i;
+      for(i = 0; i<secs; i++){
+        Uint32 sectionNo = secNos[i];
+        ndbassert(sectionNo < 3);
+        Uint32 sectionPtrI = sectionPtr[i];
+        if(fragPtr.p->m_sectionPtrI[sectionNo] != RNIL){
+          linkSegments(fragPtr.p->m_sectionPtrI[sectionNo], sectionPtrI);
+        } else {
+          fragPtr.p->m_sectionPtrI[sectionNo] = sectionPtrI;
+        }
       }
+      
+      /**
+       * fragInfo = 2
+       */
+      if(fragInfo == 2){
+        signal->header.m_fragmentInfo = 0;
+        signal->header.m_noOfSections = 0;
+        return false;
+      }
+      
+      /**
+       * fragInfo = 3
+       */
+      for(i = 0; i<3; i++){
+        Uint32 ptrI = fragPtr.p->m_sectionPtrI[i];
+        if(ptrI != RNIL){
+          signal->m_sectionPtrI[i] = ptrI;
+        } else {
+          break;
+        }
+      }
+
+      signal->setLength(sigLen - secs);
+      signal->header.m_noOfSections = i;
+      signal->header.m_fragmentInfo = 0;
+      
+      c_fragmentInfoHash.release(fragPtr);
+      return true;
+    }
+    else
+    {
+      /* This fragmented signal has already had at least 1 fragment
+       * dropped.  We must release the received segments.
+       */
+      for (Uint32 i=0; i < secs; i++)
+        releaseSection( sectionPtr[i] );
+      
+      signal->header.m_fragmentInfo = 0;
+      signal->header.m_noOfSections = 0;
+      
+      /* FragInfo == 2 
+       * More fragments to come, keep waiting
+       */
+      if (fragInfo == 2)
+        return false;
+      
+      /* FragInfo == 3
+       * That was the last fragment.
+       * We're now ready for handling the dropped signal.
+       */      
+      SignalDroppedRep * rep = (SignalDroppedRep*)signal->theData;
+      Uint32 gsn = signal->header.theVerId_signalNumber;
+      Uint32 len = signal->header.theLength;
+      Uint32 newLen= (len > 22 ? 22 : len);
+      memmove(rep->originalData, signal->theData, (4 * newLen));
+      rep->originalGsn = gsn;
+      rep->originalLength = len;
+      rep->originalSectionCount = 0;
+      signal->header.theVerId_signalNumber = GSN_SIGNAL_DROPPED_REP;
+      signal->header.theLength = newLen + 3;
+      signal->header.m_noOfSections = 0;
+      signal->header.m_fragmentInfo = 3;
+
+
+      /* Perform dropped signal handling, in this thread, now */
+      EXECUTE_DIRECT(theNumber, GSN_SIGNAL_DROPPED_REP, 
+                     signal, signal->header.theLength);
+      
+      /* return false to caller - they should not process the signal */
+      return false;
+    } // else (isDropped())
+  }
+  
+  /**
+   * Unable to find fragment
+   */
+  ndbrequire(false);
+  return false;
+}
+
+bool
+SimulatedBlock::assembleDroppedFragments(Signal* signal)
+{
+  /* This method is called at the start of a  SIGNAL_DROPPED_REP 
+   * handler when there is a chance that the dropped signal could
+   * be part of a fragmented signal.
+   * If the dropped signal was a fragmented signal, this
+   * needs to be handled specially to ensure that fragments
+   * of the signal are correctly dropped to avoid segment
+   * leaks etc.
+   * There are a number of cases : 
+   *   1) First fragment dropped  (FragInfo=1)
+   *      All remaining fragments must be dropped when they 
+   *      arrive.  The Signal dropped report handler must be 
+   *      executed when the last fragment has arrived.
+   *   2) Middle fragment dropped  (FragInfo=2)
+   *      Any existing stored segments must be released.  
+   *      All remaining fragments must be dropped when they
+   *      arrive.  
+   *   3) Last fragment dropped  (FragInfo=3)
+   *      Any existing stored segments must be released.  
+   *      Signal Dropped handling can occur, so return true.
+   *
+   * To indicate that a fragment has been dropped for a signal,
+   * all the section I Values in the fragment's hash entry are 
+   * set to RNIL.
+   * Signal Dropped Report handling is performed when the last
+   * fragment arrives.  If the last fragment is not dropped
+   * by the transporter layer then normal fragment assembly 
+   * arranges for dropped signal handling to occur.
+   */
+  Uint32 sigLen = signal->length() - 1;
+  Uint32 fragId = signal->theData[sigLen];
+  Uint32 fragInfo = signal->header.m_fragmentInfo;
+  Uint32 senderRef = signal->getSendersBlockRef();
+
+  if(fragInfo == 0){
+    return true;
+  }
+  
+  /* This method is for handling SIGNAL_DROPPED_REP only */
+  ndbrequire(signal->header.theVerId_signalNumber == GSN_SIGNAL_DROPPED_REP);
+  ndbrequire(signal->header.m_noOfSections == 0);
+
+  if(fragInfo == 1){
+    /**
+     * First in train
+     */
+    Ptr<FragmentInfo> fragPtr;
+    if(!c_fragmentInfoHash.seize(fragPtr)){
+      ndbrequire(false);
+      return false;
     }
     
+    new (fragPtr.p)FragmentInfo(fragId, senderRef);
+    c_fragmentInfoHash.add(fragPtr);
+    
+    /* Mark entry in hash as belonging to dropped signal so subsequent
+     * fragments can also be dropped
+     */
+    fragPtr.p->m_sectionPtrI[0]= RNIL;
+    fragPtr.p->m_sectionPtrI[1]= RNIL;
+    fragPtr.p->m_sectionPtrI[2]= RNIL;
+
+    /* Wait for last fragment before SignalDroppedRep handling */
+    signal->header.m_fragmentInfo = 0;
+    return false;
+  }
+  
+  FragmentInfo key(fragId, senderRef);
+  Ptr<FragmentInfo> fragPtr;
+  if(c_fragmentInfoHash.find(fragPtr, key)){
+    
+    /**
+     * FragInfo == 2 or 3
+     */
+    if (! fragPtr.p->isDropped() )
+    {
+      /* Fragmented Signal not already marked as dropped
+       * Need to free stored segments
+       */
+      releaseSection(fragPtr.p->m_sectionPtrI[0]);
+      releaseSection(fragPtr.p->m_sectionPtrI[1]);
+      releaseSection(fragPtr.p->m_sectionPtrI[2]);
+      
+      /* Mark as dropped now */
+      fragPtr.p->m_sectionPtrI[0]= RNIL;
+      fragPtr.p->m_sectionPtrI[1]= RNIL;
+      fragPtr.p->m_sectionPtrI[2]= RNIL;
+      
+      ndbassert( fragPtr.p->isDropped() );
+    }
+
     /**
      * fragInfo = 2
+     *   Still waiting for final fragments.
+     *   Return false to caller.
      */
     if(fragInfo == 2){
       signal->header.m_fragmentInfo = 0;
-      signal->header.m_noOfSections = 0;
       return false;
     }
     
     /**
      * fragInfo = 3
+     *   All fragments received, remove entry
+     *   from hash and return to caller for
+     *   dropped signal handling.
      */
-    for(i = 0; i<3; i++){
-      Uint32 ptrI = fragPtr.p->m_sectionPtrI[i];
-      if(ptrI != RNIL){
-	signal->m_sectionPtrI[i] = ptrI;
-      } else {
-	break;
-      }
-    }
-
-    signal->setLength(sigLen - secs);
-    signal->header.m_noOfSections = i;
     signal->header.m_fragmentInfo = 0;
 
     c_fragmentInfoHash.release(fragPtr);

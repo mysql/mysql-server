@@ -57,7 +57,22 @@ int
 NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
 			 NdbMutex* p_mutex,
 			 int msec);
-  
+/*
+ * same as NdbCondition_WaitTimeout only that
+ * endtime is a absolute time computed using
+ * NdbCondition_ComputeAbsTime
+ */
+int
+NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
+			 NdbMutex* p_mutex,
+			 const struct timespec * endtime);
+
+/**
+ * compute an absolute time suitable for use with NdbCondition_WaitTimeoutAbs
+ * and store it in <em>dst</em> <em>ms</em> specifies milliseconds from now
+ */
+void
+NdbCondition_ComputeAbsTime(struct timespec * dst, unsigned ms);
 
 /**
  * Signal a condition

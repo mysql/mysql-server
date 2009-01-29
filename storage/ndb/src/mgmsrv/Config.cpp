@@ -64,7 +64,9 @@ const size_t num_sections= sizeof(sections)/sizeof(unsigned);
 static const ConfigInfo g_info;
 
 void
-Config::print() const {
+Config::print(const char* section_filter, NodeId nodeid_filter,
+              const char* param_filter,
+              NdbOut& out) const {
 
   for(unsigned i= 0; i < num_sections; i++) {
     unsigned section= sections[i];
@@ -84,7 +86,19 @@ Config::print() const {
                                            section,
                                            section_type);
 
-      ndbout_c("[%s]", g_info.sectionName(section, section_type));
+      const char* section_name= g_info.sectionName(section, section_type);
+
+      // Section name filter
+      if (section_filter &&                     // Filter is on
+          strcmp(section_filter, section_name)) // Value is different
+        continue;
+
+      // NodeId filter
+      Uint32 nodeid = 0;
+      it.get(CFG_NODE_ID, &nodeid);
+      if (nodeid_filter &&                   // Filter is on
+          nodeid_filter != nodeid)           // Value is different
+        continue;
 
       /*  Loop through the section and print those values that exist */
       Uint32 val;
@@ -92,12 +106,23 @@ Config::print() const {
       const char* val_str;
       while((pinfo= param_iter.next())){
 
+        // Param name filter
+        if (param_filter &&                      // Filter is on
+            strcmp(param_filter, pinfo->_fname)) // Value is different
+          continue;
+
+        if (section_name) // Print section name only first time
+        {
+          out << "[" << section_name << "]" << endl;
+          section_name= NULL;
+        }
+
         if (!it.get(pinfo->_paramId, &val))
-          ndbout_c("%s=%u", pinfo->_fname, val);
+          out << pinfo->_fname << "=" << val << endl;
         else if (!it.get(pinfo->_paramId, &val64))
-          ndbout_c("%s=%llu", pinfo->_fname, val64);
+          out << pinfo->_fname << "=" << val64 << endl;
         else if (!it.get(pinfo->_paramId, &val_str))
-          ndbout_c("%s=%s", pinfo->_fname, val_str);
+          out << pinfo->_fname << "=" << val_str << endl;
       }
     }
   }
@@ -115,6 +140,19 @@ Config::getGeneration() const
     return 0;
 
   return generation;
+}
+
+
+Uint32
+Config::getPrimaryMgmNode() const
+{
+  Uint32 primaryMgmNode;
+  ConfigIter iter(this, CFG_SECTION_SYSTEM);
+
+  if (iter.get(CFG_SYS_PRIMARY_MGM_NODE, &primaryMgmNode))
+    return 0;
+
+  return primaryMgmNode;
 }
 
 
@@ -171,6 +209,15 @@ Config::setGeneration(Uint32 new_gen)
 
 
 bool
+Config::setPrimaryMgmNode(Uint32 new_primary)
+{
+  return setValue(CFG_SECTION_SYSTEM, 0,
+                  CFG_SYS_PRIMARY_MGM_NODE,
+                  new_primary);
+}
+
+
+bool
 Config::setName(const char* new_name)
 {
   return setValue(CFG_SECTION_SYSTEM, 0,
@@ -185,6 +232,27 @@ Config::pack(UtilBuffer& buf) const
   return m_configValues->m_config.pack(buf);
 }
 
+
+#include <base64.h>
+
+bool
+Config::pack64(BaseString& encoded) const
+{
+  UtilBuffer buf;
+  if (m_configValues->m_config.pack(buf) == 0)
+    return false;
+
+  // Expand the string to correct length by filling with Z
+  encoded.assfmt("%*s",
+                 base64_needed_encoded_length(buf.length()),
+                 "Z");
+
+  if (base64_encode(buf.get_data(),
+                    buf.length(),
+                    (char*)encoded.c_str()))
+    return false;
+  return true;
+}
 
 
 enum diff_types {
@@ -274,8 +342,8 @@ compare_value(const char* name, const char* key,
         if (val != val2) {
           Properties info(true);
           info.put("Type", DT_DIFF);
-          info.put("New", val2);
-          info.put("Old", val);
+          info.put("New", Uint64(val2));
+          info.put("Old", Uint64(val));
           add_diff(name, key,
                    diff,
                    pinfo->_fname, &info);
@@ -285,7 +353,7 @@ compare_value(const char* name, const char* key,
       {
         Properties info(true);
         info.put("Type", DT_MISSING_VALUE);
-        info.put("Old", val);
+        info.put("Old", Uint64(val));
         add_diff(name, key,
                  diff,
                  pinfo->_fname, &info);
@@ -676,5 +744,36 @@ bool Config::illegal_change(const Config* other) const {
   Properties diff_list;
   diff(other, diff_list);
   return illegal_change(diff_list);
+}
+
+
+void Config::getConnectString(BaseString& connectstring,
+                              const BaseString& separator) const
+{
+  bool first= true;
+  ConfigIter it(this, CFG_SECTION_NODE);
+
+  for(;it.valid(); it.next())
+  {
+    /* Get type of Node */
+    Uint32 nodeType;
+    require(it.get(CFG_TYPE_OF_SECTION, &nodeType) == 0);
+
+    if (nodeType != NODE_TYPE_MGM)
+      continue;
+
+    Uint32 port;
+    const char* hostname;
+    require(it.get(CFG_NODE_HOST, &hostname) == 0);
+    require(it.get(CFG_MGM_PORT, &port) == 0);
+
+    if (!first)
+      connectstring.append(separator);
+    first= false;
+
+    connectstring.appfmt("%s:%d", hostname, port);
+
+  }
+  ndbout << connectstring << endl;
 }
 

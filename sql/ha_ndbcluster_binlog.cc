@@ -35,11 +35,15 @@
 #endif
 
 extern my_bool opt_ndb_log_orig;
+extern my_bool opt_ndb_log_bin;
+extern my_bool opt_ndb_log_empty_epochs;
 
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 
 extern my_bool ndbcluster_silent;
+
+extern my_bool ndb_log_binlog_index;
 
 /*
   defines for cluster replication table names
@@ -244,7 +248,8 @@ static void dbug_print_table(const char *info, TABLE *table)
   - creating the ndb_apply_status table
 */
 static void run_query(THD *thd, char *buf, char *end,
-                      const int *no_print_error, my_bool disable_binlog)
+                      const int *no_print_error, my_bool disable_binlog,
+                      my_bool reset_error)
 {
   ulong save_thd_query_length= thd->query_length;
   char *save_thd_query= thd->query;
@@ -272,7 +277,7 @@ static void run_query(THD *thd, char *buf, char *end,
 
   mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
 
-  if (no_print_error && thd->is_slave_error)
+  if (no_print_error && thd->main_da.is_error())
   {
     int i;
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -299,7 +304,7 @@ static void run_query(THD *thd, char *buf, char *end,
     is called from ndbcluster_reset_logs(), which is called from
     mysql_flush().
   */
-  if (!thd->main_da.is_error())
+  if (!thd->main_da.is_error() || reset_error)
   {
     thd->main_da.reset_diagnostics_area();
   }
@@ -577,7 +582,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
                                   NDB_REP_DB "." NDB_REP_TABLE
                                   " WHERE File='"), file), "'");
 
-  run_query(thd, buf, end, NULL, TRUE);
+  run_query(thd, buf, end, NULL, TRUE, FALSE);
   if (thd->main_da.is_error() &&
       thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
   {
@@ -704,7 +709,7 @@ static void ndbcluster_reset_slave(THD *thd)
   DBUG_ENTER("ndbcluster_reset_slave");
   char buf[1024];
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
-  run_query(thd, buf, end, NULL, TRUE);
+  run_query(thd, buf, end, NULL, TRUE, FALSE);
   if (thd->main_da.is_error() &&
       ((thd->main_da.sql_errno() == ER_NO_SUCH_TABLE) ||
        (thd->main_da.sql_errno() == ER_OPEN_AS_READONLY && ndbcluster_silent)))
@@ -1084,9 +1089,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
 
       end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_APPLY_TABLE);
       const int no_print_error[1]= {0};
-      run_query(thd, buf, end, no_print_error, TRUE);
-      /* always reset here */
-      thd->main_da.reset_diagnostics_area();
+      run_query(thd, buf, end, no_print_error, TRUE, TRUE);
     }
   }
 
@@ -1108,9 +1111,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                                 721, // Table already exist
                                 4009,
                                 0}; // do not print error 701 etc
-  run_query(thd, buf, end, no_print_error, TRUE);
-  /* always reset here */
-  thd->main_da.reset_diagnostics_area();
+  run_query(thd, buf, end, no_print_error, TRUE, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -1161,9 +1162,7 @@ static int ndbcluster_create_schema_table(THD *thd)
 
       end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_SCHEMA_TABLE);
       const int no_print_error[1]= {0};
-      run_query(thd, buf, end, no_print_error, TRUE);
-      /* always reset here */
-      thd->main_da.reset_diagnostics_area();
+      run_query(thd, buf, end, no_print_error, TRUE, TRUE);
     }
   }
 
@@ -1189,9 +1188,7 @@ static int ndbcluster_create_schema_table(THD *thd)
                                 721, // Table already exist
                                 4009,
                                 0}; // do not print error 701 etc
-  run_query(thd, buf, end, no_print_error, TRUE);
-  /* always reset here */
-  thd->main_da.reset_diagnostics_area();
+  run_query(thd, buf, end, no_print_error, TRUE, TRUE);
 
   DBUG_RETURN(0);
 }
@@ -1308,9 +1305,8 @@ static int ndbcluster_find_all_databases(THD *thd)
             const int no_print_error[1]= {0};
             run_query(thd, query, query + query_length,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
           }
         }
         else if (strncasecmp("ALTER", query, 5) == 0)
@@ -1324,13 +1320,12 @@ static int ndbcluster_find_all_databases(THD *thd)
             name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
             run_query(thd, query, query + query_length,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
           }
         }
         else if (strncasecmp("DROP", query, 4) == 0)
@@ -2371,15 +2366,13 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-            const int no_print_error[1]=
-              {ER_BAD_TABLE_ERROR}; /* ignore missing table */
+            const int no_print_error[2]=
+              {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
                       no_print_error, //   /* don't print error */
-                      TRUE); //  /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
-
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
             /* binlog dropping table after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -2467,9 +2460,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
                       no_print_error,    /* print error */
-                      TRUE);   /* don't binlog the query */
-            /* always reset here */
-            thd->main_da.reset_diagnostics_area();
+                      TRUE,   /* don't binlog the query */
+                      TRUE);  /* reset error */
             /* binlog dropping database after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -2497,9 +2489,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           run_query(thd, schema->query,
                     schema->query + schema->query_length,
                     no_print_error,    /* print error */
-                    TRUE);   /* don't binlog the query */
-          /* always reset here */
-          thd->main_da.reset_diagnostics_area();
+                    TRUE,   /* don't binlog the query */
+                    TRUE);  /* reset error */
           log_query= 1;
           break;
         }
@@ -3099,21 +3090,23 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   */
   do
   {
+    ulonglong epoch= 0, orig_epoch= 0;
+    uint orig_server_id= 0;
     empty_record(ndb_binlog_index);
 
     ndb_binlog_index->field[0]->store(first->master_log_pos, true);
     ndb_binlog_index->field[1]->store(first->master_log_file,
                                       strlen(first->master_log_file),
                                       &my_charset_bin);
-    ndb_binlog_index->field[2]->store(first->epoch, true);
+    ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
     {
       ndb_binlog_index->field[3]->store(row->n_inserts);
       ndb_binlog_index->field[4]->store(row->n_updates);
       ndb_binlog_index->field[5]->store(row->n_deletes);
       ndb_binlog_index->field[6]->store(row->n_schemaops);
-      ndb_binlog_index->field[7]->store(row->orig_server_id);
-      ndb_binlog_index->field[8]->store(row->orig_epoch, true);
+      ndb_binlog_index->field[7]->store(orig_server_id= row->orig_server_id);
+      ndb_binlog_index->field[8]->store(orig_epoch= row->orig_epoch, true);
       ndb_binlog_index->field[9]->store(first->gci);
       row= row->next;
     }
@@ -3134,7 +3127,17 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
 
     if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
     {
-      sql_print_error("NDB Binlog: Writing row to ndb_binlog_index: %d", error);
+      char tmp[128];
+      if (ndb_binlog_index->s->fields > 7)
+        my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
+                    uint(epoch >> 32), uint(epoch),
+                    orig_server_id,
+                    uint(orig_epoch >> 32), uint(orig_epoch));
+
+      else
+        my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
+      sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index: %d",
+                      tmp, error);
       error= -1;
       goto add_ndb_binlog_index_err;
     }
@@ -3640,7 +3643,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
   const NDBTAB *reptab= ndbtab_g.get_table();
   if (reptab == NULL &&
-      dict->getNdbError().classification == NdbError::SchemaError)
+      (dict->getNdbError().classification == NdbError::SchemaError ||
+       dict->getNdbError().code == 4009))
   {
     DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
     if (do_set_binlog_flags)
@@ -3807,6 +3811,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   }
 
 err:
+  DBUG_PRINT("info", ("error %d, error_str %s, ndberror.code %u",
+                      error, error_str, ndberror.code));
   if (error > 0)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -5392,7 +5398,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Ndb *i_ndb= 0;
   Ndb *s_ndb= 0;
   Thd_ndb *thd_ndb=0;
-  int ndb_update_ndb_binlog_index= 1;
   injector *inj= injector::instance();
   uint incident_id= 0;
   Binlog_thread_state do_ndbcluster_binlog_close_connection;
@@ -5493,7 +5498,7 @@ restart_cluster_failure:
   injector_ndb= i_ndb;
   schema_ndb= s_ndb;
 
-  if (opt_bin_log)
+  if (opt_bin_log && opt_ndb_log_bin)
   {
     ndb_binlog_running= TRUE;
   }
@@ -5521,7 +5526,6 @@ restart_cluster_failure:
     }
   }
   pthread_mutex_unlock(&LOCK_server_started);
- restart:
   /*
     Main NDB Injector loop
   */
@@ -5822,6 +5826,44 @@ restart_cluster_failure:
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
+      uchar apply_status_buf[512];
+      TABLE *apply_status_table= NULL;
+      if (ndb_apply_status_share)
+      {
+        /*
+          We construct the buffer to write the apply status binlog
+          event here, as the table->record[0] buffer is referenced
+          by the apply status event operation, and will be filled
+          with data at the nextEvent call if the first event should
+          happen to be from the apply status table
+        */
+        Ndb_event_data *event_data= ndb_apply_status_share->event_data;
+        if (!event_data)
+        {
+          DBUG_ASSERT(ndb_apply_status_share->op);
+          event_data= 
+            (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
+          DBUG_ASSERT(event_data);
+        }
+        apply_status_table= event_data->table;
+
+        /* 
+           Intialize apply_status_table->record[0] 
+        */
+        empty_record(apply_status_table);
+
+        apply_status_table->field[0]->store((longlong)::server_id, true);
+        /*
+          gci is added later, just before writing to binlog as gci
+          is unknown here
+        */
+        apply_status_table->field[2]->store("", 0, &my_charset_bin);
+        apply_status_table->field[3]->store((longlong)0);
+        apply_status_table->field[4]->store((longlong)0);
+        DBUG_ASSERT(sizeof(apply_status_buf) >= apply_status_table->s->reclength);
+        memcpy(apply_status_buf, apply_status_table->record[0],
+               apply_status_table->s->reclength);
+      }
       NdbEventOperation *pOp= i_ndb->nextEvent();
       ndb_binlog_index_row _row;
       while (pOp != NULL)
@@ -5926,44 +5968,30 @@ restart_cluster_failure:
         }
         if (trans.good())
         {
-          if (ndb_apply_status_share)
+          if (apply_status_table)
           {
-            Ndb_event_data *event_data= 0;
-            if (ndb_apply_status_share->event_data)
-            {
-              event_data= ndb_apply_status_share->event_data;
-            }
-            else if (ndb_apply_status_share->op)
-            {
-              event_data= 
-                (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
-            }
-            DBUG_ASSERT(event_data);
-            TABLE *table= event_data->table;
-
 #ifndef DBUG_OFF
-            const LEX_STRING& name= table->s->table_name;
+            const LEX_STRING& name= apply_status_table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s",
                                 (int) name.length, name.str));
 #endif
-            injector::transaction::table tbl(table, TRUE);
+            injector::transaction::table tbl(apply_status_table, TRUE);
             IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
 
-	    /* 
-	       Intialize table->record[0] 
-	    */
-	    empty_record(table);
+            /* add the gci to the record */
+            Field *field= apply_status_table->field[1];
+            my_ptrdiff_t row_offset=
+              (my_ptrdiff_t) (apply_status_buf - apply_status_table->record[0]);
+            field->move_field_offset(row_offset);
+            field->store((longlong)gci, true);
+            field->move_field_offset(-row_offset);
 
-            table->field[0]->store((longlong)::server_id, true);
-            table->field[1]->store((longlong)gci, true);
-            table->field[2]->store("", 0, &my_charset_bin);
-            table->field[3]->store((longlong)0);
-            table->field[4]->store((longlong)0);
             trans.write_row(::server_id,
-                            injector::transaction::table(table, TRUE),
-                            &table->s->all_set, table->s->fields,
-                            table->record[0]);
+                            injector::transaction::table(apply_status_table, TRUE),
+                            &apply_status_table->s->all_set,
+                            apply_status_table->s->fields,
+                            apply_status_buf);
           }
           else
           {
@@ -6062,7 +6090,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
-          if (trans_row_count == 0)
+          if ((trans_row_count == 0) && !opt_ndb_log_empty_epochs)
           {
             /* nothing to commit, rollback instead */
             if (int r= trans.rollback())
@@ -6089,7 +6117,7 @@ restart_cluster_failure:
           rows->master_log_pos= start.file_pos();
 
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
-          if (ndb_update_ndb_binlog_index)
+          if (ndb_log_binlog_index)
           {
             ndb_add_ndb_binlog_index(thd, rows);
           }
@@ -6131,11 +6159,6 @@ restart_cluster_failure:
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
-  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
-  {
-    ndb_binlog_tables_inited= FALSE;
-    goto restart;
-  }
  err:
   if (do_ndbcluster_binlog_close_connection != BCCC_restart)
   {
@@ -6157,6 +6180,13 @@ restart_cluster_failure:
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
 
+  /*
+    This will cause the util thread to start to try to initialize again
+    via ndbcluster_setup_binlog_table_shares.  But since injector_ndb is
+    set to NULL it will not succeed until injector_ndb is reinitialized.
+  */
+  ndb_binlog_tables_inited= FALSE;
+
   if (ndb_apply_status_share)
   {
     /* ndb_share reference binlog extra free */
@@ -6165,7 +6195,6 @@ restart_cluster_failure:
                              ndb_apply_status_share->use_count));
     free_share(&ndb_apply_status_share);
     ndb_apply_status_share= 0;
-    ndb_binlog_tables_inited= FALSE;
   }
   if (ndb_schema_share)
   {
@@ -6177,7 +6206,6 @@ restart_cluster_failure:
                              ndb_schema_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
-    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
   }
@@ -6207,7 +6235,6 @@ restart_cluster_failure:
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
   {
-    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
   }

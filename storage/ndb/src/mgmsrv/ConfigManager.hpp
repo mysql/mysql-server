@@ -58,6 +58,9 @@ class ConfigManager : public MgmtThread {
   ConfigState m_config_state;
   ConfigState m_previous_state;
 
+  /* The original error that caused config change to be aborted */
+  ConfigChangeRef::ErrorCode m_config_change_error;
+
   BlockReference m_client_ref;
   BaseString m_config_name;
   Config* m_prepared_config;
@@ -69,18 +72,20 @@ class ConfigManager : public MgmtThread {
 
   NodeId m_node_id;
 
-  const char* m_datadir;
+  const char* m_configdir;
 
   /* Functions used from 'init' */
-  Config* load_init_config(const char*) const;
-  Config* load_init_mycnf(void) const;
+  static Config* load_init_config(const char*);
+  static Config* load_init_mycnf(void);
   Config* load_config(void) const;
   Config* fetch_config(void);
   bool save_config(const Config* conf);
   bool save_config(void);
   bool saved_config_exists(BaseString& config_name) const;
+  bool delete_saved_configs(void) const;
+  bool failed_config_change_exists(void) const;
   Config* load_saved_config(const BaseString& config_name);
-  NodeId find_nodeid_from_datadir(void);
+  NodeId find_nodeid_from_configdir(void);
   NodeId find_nodeid_from_config(void);
   bool init_nodeid(void);
 
@@ -133,7 +138,7 @@ class ConfigManager : public MgmtThread {
 
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
-                const char* datadir);
+                const char* configdir);
   virtual ~ConfigManager();
   bool init();
   void set_facade(TransporterFacade* facade) { m_facade= facade; };
@@ -150,6 +155,10 @@ public:
     Retrieve the current configuration in packed format
    */
   bool get_packed_config(UtilBuffer& pack_buf);
+
+  static Config* load_config(const char* config_filename, bool mycnf,
+                             BaseString& msg);
+
 };
 
 

@@ -42,6 +42,11 @@ initial segment in buf_LRU_get_recent_limit */
 
 #define BUF_LRU_INITIAL_RATIO	8
 
+/* When dropping the search hash index entries before deleting an ibd
+file, we build a local array of pages belonging to that tablespace
+in the buffer pool. Following is the size of that array. */
+#define BUF_LRU_DROP_SEARCH_HASH_SIZE	1024
+
 /* If we switch on the InnoDB monitor because there are too few available
 frames in the buffer pool, we set this to TRUE */
 ibool	buf_lru_switched_on_innodb_mon	= FALSE;
@@ -66,6 +71,120 @@ buf_LRU_block_free_hashed_page(
 				be in a state where it can be freed */
 
 /**********************************************************************
+Attempts to drop page hash index on a batch of pages belonging to a
+particular space id. */
+static
+void
+buf_LRU_drop_page_hash_batch(
+/*=========================*/
+	ulint		id,	/* in: space id */
+	const ulint*	arr,	/* in: array of page_no */
+	ulint		count)	/* in: number of entries in array */
+{
+	ulint	i;
+
+	ut_ad(arr != NULL);
+	ut_ad(count <= BUF_LRU_DROP_SEARCH_HASH_SIZE);
+
+	for (i = 0; i < count; ++i) {
+		btr_search_drop_page_hash_when_freed(id, arr[i]);
+	}
+}
+
+/**********************************************************************
+When doing a DROP TABLE/DISCARD TABLESPACE we have to drop all page
+hash index entries belonging to that table. This function tries to
+do that in batch. Note that this is a 'best effort' attempt and does
+not guarantee that ALL hash entries will be removed. */
+static
+void
+buf_LRU_drop_page_hash_for_tablespace(
+/*==================================*/
+	ulint	id)	/* in: space id */
+{
+	buf_block_t*	block;
+	ulint*		page_arr;
+	ulint		num_entries;
+
+	page_arr = ut_malloc(sizeof(ulint)
+			     * BUF_LRU_DROP_SEARCH_HASH_SIZE);
+	mutex_enter(&buf_pool->mutex);
+
+scan_again:
+	num_entries = 0;
+	block = UT_LIST_GET_LAST(buf_pool->LRU);
+
+	while (block != NULL) {
+		buf_block_t*	prev_block;
+
+		mutex_enter(&block->mutex);
+		prev_block = UT_LIST_GET_PREV(LRU, block);
+
+		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
+		if (block->space != id
+		    || block->buf_fix_count > 0
+		    || block->io_fix != 0) {
+			/* We leave the fixed pages as is in this scan.
+			To be dealt with later in the final scan. */
+			mutex_exit(&block->mutex);
+			goto next_page;
+		}
+
+		ut_ad(block->space == id);
+		if (block->is_hashed) {
+
+			/* Store the offset(i.e.: page_no) in the array
+			so that we can drop hash index in a batch
+			later. */
+			page_arr[num_entries] = block->offset;
+			mutex_exit(&block->mutex);
+			ut_a(num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE);
+			++num_entries;
+
+			if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
+				goto next_page;
+			}
+			/* Array full. We release the buf_pool->mutex to
+			obey the latching order. */
+			mutex_exit(&buf_pool->mutex);
+
+			buf_LRU_drop_page_hash_batch(id, page_arr,
+						     num_entries);
+			num_entries = 0;
+			mutex_enter(&buf_pool->mutex);
+		} else {
+			mutex_exit(&block->mutex);
+		}
+
+next_page:
+		/* Note that we may have released the buf_pool->mutex
+		above after reading the prev_block during processing
+		of a page_hash_batch (i.e.: when the array was full).
+		This means that prev_block can change in LRU list.
+		This is OK because this function is a 'best effort'
+		to drop as many search hash entries as possible and
+		it does not guarantee that ALL such entries will be
+		dropped. */
+		block = prev_block;
+
+		/* If, however, block has been removed from LRU list
+		to the free list then we should restart the scan.
+		block->state is protected by buf_pool->mutex. */
+		if (block && block->state != BUF_BLOCK_FILE_PAGE) {
+			ut_a(num_entries == 0);
+			goto scan_again;
+		}
+	}
+
+	mutex_exit(&buf_pool->mutex);
+
+	/* Drop any remaining batch of search hashed pages. */
+	buf_LRU_drop_page_hash_batch(id, page_arr, num_entries);
+	ut_free(page_arr);
+}
+
+/**********************************************************************
 Invalidates all pages belonging to a given tablespace when we are deleting
 the data file(s) of that tablespace. */
 
@@ -77,6 +196,14 @@ buf_LRU_invalidate_tablespace(
 	buf_block_t*	block;
 	ulint		page_no;
 	ibool		all_freed;
+
+	/* Before we attempt to drop pages one by one we first
+	attempt to drop page hash index entries in batches to make
+	it more efficient. The batching attempt is a best effort
+	attempt and does not guarantee that all pages hash entries
+	will be dropped. We get rid of remaining page hash entries
+	one by one below. */
+	buf_LRU_drop_page_hash_for_tablespace(id);
 
 scan_again:
 	mutex_enter(&(buf_pool->mutex));

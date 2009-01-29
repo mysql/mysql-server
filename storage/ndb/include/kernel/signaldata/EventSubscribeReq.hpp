@@ -56,7 +56,7 @@ struct EventSubscribeReq {
   EventSubscribeReq& operator= (const LogLevel& ll){
     noOfEntries = LogLevel::LOGLEVEL_CATEGORIES;
     for(size_t i = 0; i<noOfEntries; i++){
-      theData[i] = (i << 16) | ll.getLogLevel((LogLevel::EventCategory)i);
+      theData[i] = Uint32(i << 16) | ll.getLogLevel((LogLevel::EventCategory)i);
     }
     return * this;
   }

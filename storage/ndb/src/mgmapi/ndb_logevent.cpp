@@ -19,8 +19,8 @@
 
 #include <NdbOut.hpp>
 #include <Properties.hpp>
-#include <socket_io.h>
 #include <InputStream.hpp>
+#include <NdbTick.h>
 
 #include <debugger/EventLogger.hpp>
 #include <kernel/NodeBitmask.hpp>
@@ -462,11 +462,15 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
 
   SocketInputStream in(h->socket, timeout_in_milliseconds);
 
-  Properties p;
+  /*
+    Read log event header until header received
+    or timeout expired. The MGM server will continusly
+    send <PING>'s that should be ignored.
+  */
   char buf[256];
-
-  /* header */
-  while (1) {
+  NDB_TICKS start = NdbTick_CurrentMillisecond();
+  while(1)
+  {
     if (in.gets(buf,sizeof(buf)) == 0)
     {
       h->m_error= NDB_LEH_READ_ERROR;
@@ -486,9 +490,14 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
 
     if(in.timedout())
         return 0;
-  }
 
-  /* read name-value pairs into properties object */
+    if ((NdbTick_CurrentMillisecond() - start) > timeout_in_milliseconds)
+      return 0;
+
+  };
+
+  /* Read name-value pairs until empty new line */
+  Properties p;
   while (1)
   {
     if (in.gets(buf,sizeof(buf)) == 0)

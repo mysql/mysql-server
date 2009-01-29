@@ -26,156 +26,187 @@ NdbSqlUtil::m_typeList[] = {
   { // 0
     Type::Undefined,
     NULL,
+    NULL,
     NULL
   },
   { // 1
     Type::Tinyint,
     cmpTinyint,
+    NULL,
     NULL
   },
   { // 2
     Type::Tinyunsigned,
     cmpTinyunsigned,
+    NULL,
     NULL
   },
   { // 3
     Type::Smallint,
     cmpSmallint,
+    NULL,
     NULL
   },
   { // 4
     Type::Smallunsigned,
     cmpSmallunsigned,
+    NULL,
     NULL
   },
   { // 5
     Type::Mediumint,
     cmpMediumint,
+    NULL,
     NULL
   },
   { // 6
     Type::Mediumunsigned,
     cmpMediumunsigned,
+    NULL,
     NULL
   },
   { // 7
     Type::Int,
     cmpInt,
+    NULL,
     NULL
   },
   { // 8
     Type::Unsigned,
     cmpUnsigned,
+    NULL,
     NULL
   },
   { // 9
     Type::Bigint,
     cmpBigint,
+    NULL,
     NULL
   },
   { // 10
     Type::Bigunsigned,
     cmpBigunsigned,
+    NULL,
     NULL
   },
   { // 11
     Type::Float,
     cmpFloat,
+    NULL,
     NULL
   },
   { // 12
     Type::Double,
     cmpDouble,
+    NULL,
     NULL
   },
   { // 13
     Type::Olddecimal,
     cmpOlddecimal,
+    NULL,
     NULL
   },
   { // 14
     Type::Char,
     cmpChar,
-    likeChar
+    likeChar,
+    NULL
   },
   { // 15
     Type::Varchar,
     cmpVarchar,
-    likeVarchar
+    likeVarchar,
+    NULL
   },
   { // 16
     Type::Binary,
     cmpBinary,
-    likeBinary
+    likeBinary,
+    NULL
   },
   { // 17
     Type::Varbinary,
     cmpVarbinary,
-    likeVarbinary
+    likeVarbinary,
+    NULL
   },
   { // 18
     Type::Datetime,
     cmpDatetime,
+    NULL,
     NULL
   },
   { // 19
     Type::Date,
     cmpDate,
+    NULL,
     NULL
   },
   { // 20
     Type::Blob,
+    NULL,
     NULL,
     NULL
   },
   { // 21
     Type::Text,
     NULL,
+    NULL,
     NULL
   },
   { // 22
     Type::Bit,
     cmpBit,
-    NULL
+    NULL,
+    maskBit
   },
   { // 23
     Type::Longvarchar,
     cmpLongvarchar,
-    likeLongvarchar
+    likeLongvarchar,
+    NULL
   },
   { // 24
     Type::Longvarbinary,
     cmpLongvarbinary,
-    likeLongvarbinary
+    likeLongvarbinary,
+    NULL
   },
   { // 25
     Type::Time,
     cmpTime,
+    NULL,
     NULL
   },
   { // 26
     Type::Year,
     cmpYear,
+    NULL,
     NULL
   },
   { // 27
     Type::Timestamp,
     cmpTimestamp,
+    NULL,
     NULL
   },
   { // 28
     Type::Olddecimalunsigned,
     cmpOlddecimalunsigned,
+    NULL,
     NULL
   },
   { // 29
     Type::Decimal,
     cmpDecimal,
+    NULL,
     NULL
   },
   { // 30
     Type::Decimalunsigned,
     cmpDecimalunsigned,
+    NULL,
     NULL
   }
 };
@@ -680,9 +711,54 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 int
 NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 { 
-  Uint32 n = (n1 < n2) ? n1 : n2;
-  int ret = memcmp(p1, p2, n);
-  return ret;
+  /* Bitfields are stored as 32-bit words
+   * This means that a byte-by-byte comparison will not work on all platforms
+   * We do a word-wise comparison of the significant bytes.
+   * It is assumed that insignificant bits (but not bytes) are zeroed in the
+   * passed values.
+   */
+  const Uint32 bytes= MIN(n1, n2);
+  Uint32 words= (bytes + 3) >> 2;
+
+  /* Don't expect either value to be length zero */
+  assert(words);
+
+  /* Check ptr alignment */
+  if (unlikely(((((UintPtr)p1) & 3) != 0) ||
+               ((((UintPtr)p2) & 3) != 0)))
+  {
+    Uint32 copyP1[ MAX_TUPLE_SIZE_IN_WORDS ];
+    Uint32 copyP2[ MAX_TUPLE_SIZE_IN_WORDS ];
+    memcpy(copyP1, p1, words << 2);
+    memcpy(copyP2, p2, words << 2);
+
+    return cmpBit(info, copyP1, bytes, copyP2, bytes, full);
+  }
+
+  const Uint32* wp1= (const Uint32*) p1;
+  const Uint32* wp2= (const Uint32*) p2;
+  while (--words)
+  {
+    if (*wp1 < *wp2)
+      return -1;
+    if (*(wp1++) > *(wp2++))
+      return 1;
+  }
+
+  /* For the last word, we mask out any insignificant bytes */
+  const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
+  const Uint32 mask= sigBytes?
+    (1 << (sigBytes *8)) -1 :
+    ~0;
+  const Uint32 lastWord1= *wp1 & mask;
+  const Uint32 lastWord2= *wp2 & mask;
+  
+  if (lastWord1 < lastWord2)
+    return -1;
+  if (lastWord1 > lastWord2)
+    return 1;
+
+  return 0;
 }
 
 
@@ -873,6 +949,85 @@ NdbSqlUtil::likeLongvarbinary(const void* info, const void* p1, unsigned n1, con
   assert(info == 0);
   return likeLongvarchar(&my_charset_bin, p1, n1, p2, n2);
 }
+
+
+// mask Functions
+
+int
+NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero)
+{
+  /* Bitfields are stored in word oriented form, so we must compare them in that
+   * style as well
+   * It is assumed that insignificant bits (but not bytes) in the passed values
+   * are zeroed
+   */
+  const Uint32 bytes = MIN(dataLen, maskLen);
+  Uint32 words = (bytes + 3) >> 2;
+
+  /* Don't expect either value to be length zero */
+  assert(words);
+
+  /* Check ptr alignment */
+  if (unlikely(((((UintPtr)data) & 3) != 0) ||
+               ((((UintPtr)mask) & 3) != 0)))
+  {
+    Uint32 copydata[ MAX_TUPLE_SIZE_IN_WORDS ];
+    Uint32 copymask[ MAX_TUPLE_SIZE_IN_WORDS ];
+    memcpy(copydata, data, words << 2);
+    memcpy(copymask, mask, words << 2);
+
+    return maskBit(data, bytes, mask, bytes, cmpZero);
+  }
+
+  const Uint32* wdata= (const Uint32*) data;
+  const Uint32* wmask= (const Uint32*) mask;
+
+  if (cmpZero)
+  {
+    while (--words)
+    {
+      if ((*(wdata++) & *(wmask++)) != 0)
+        return 1;
+    }
+    
+    /* For the last word, we mask out any insignificant bytes */
+    const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
+    const Uint32 comparisonMask= sigBytes?
+      (1 << (sigBytes *8)) -1 :
+      ~0;
+    const Uint32 lastDataWord= *wdata & comparisonMask;
+    const Uint32 lastMaskWord= *wmask & comparisonMask;
+    
+    if ((lastDataWord & lastMaskWord) != 0)
+      return 1;
+
+    return 0;
+  }
+  else
+  {
+    while (--words)
+    {
+      if ((*(wdata++) & *wmask) != *wmask)
+        return 1;
+      
+      wmask++;
+    }
+
+    /* For the last word, we mask out any insignificant bytes */
+    const Uint32 sigBytes= bytes & 3; // 0..3; 0 == all bytes significant
+    const Uint32 comparisonMask= sigBytes?
+      (1 << (sigBytes *8)) -1 :
+      ~0;
+    const Uint32 lastDataWord= *wdata & comparisonMask;
+    const Uint32 lastMaskWord= *wmask & comparisonMask;
+    
+    if ((lastDataWord & lastMaskWord) != lastMaskWord)
+      return 1;
+
+    return 0;
+  }
+};
+
 
 // check charset
 

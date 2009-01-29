@@ -80,11 +80,13 @@ class UtilExecuteConf {
 				     Uint32 len, 
 				     Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 1 );
+  STATIC_CONST( SignalLength = 3 );
 
   GET_SET_SENDERDATA
 private:
   Uint32 senderData; // MUST be no 1!
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 

@@ -126,6 +126,7 @@ protected:
      * set and is treated as a fictional signal GSN_LCP_COMPLETE_ORD.
      */
     static const char* name() { return "LCP_FRAG_ORD"; }
+    WorkerMask m_active; // handled at least 1 fragment
     Ss_LCP_FRAG_ORD() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_FRAG_ORD;
       m_sendCONF = (SsFUNC)0;
@@ -187,6 +188,7 @@ protected:
      * Note TSMAN sends no END_LCP_CONF.
      */
     static const char* name() { return "END_LCP_REQ"; }
+    Uint32 m_ssIdLcp;
     Uint32 m_reqcount;
     Uint32 m_backupId;
     Uint32 m_proxyBlockNo;
@@ -195,6 +197,7 @@ protected:
     Ss_END_LCP_REQ() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendEND_LCP_CONF;
       m_sendCONF = (SsFUNC)&DblqhProxy::sendEND_LCP_REQ;
+      m_ssIdLcp = 0;
       m_reqcount = 0;
       m_backupId = 0;
       m_proxyBlockNo = 0;
@@ -380,9 +383,7 @@ protected:
 
   // GSN_START_RECREQ_2 [ sub-op, fictional gsn ]
   struct Ss_START_RECREQ_2 : SsParallel {
-#ifdef VM_TRACE
     static const char* name() { return "START_RECREQ_2"; }
-#endif
     struct Req {
       enum { SignalLength = 2 };
       Uint32 lcpId;
@@ -458,6 +459,99 @@ protected:
   void execEMPTY_LCP_CONF(Signal*);
   void execEMPTY_LCP_REF(Signal*);
   void sendEMPTY_LCP_CONF(Signal*, Uint32 ssId);
+
+  // GSN_EXEC_SR_1 [ fictional gsn ]
+  struct Ss_EXEC_SR_1 : SsParallel {
+    /*
+     * Handle EXEC_SRREQ and EXEC_SRCONF.  These are broadcast
+     * signals (not REQ/CONF).  EXEC_SR_1 receives one signal and
+     * sends it to its workers.  EXEC_SR_2 waits for signal from
+     * all workers and broadcasts it to all nodes.  These are
+     * required to handle mixed versions (non-mt, mt-lqh-1,2,4).
+     */
+    static const char* name() { return "EXEC_SR_1"; }
+    struct Sig {
+      enum { SignalLength = 1 };
+      Uint32 nodeId;
+    };
+    GlobalSignalNumber m_gsn;
+    Sig m_sig;
+    Ss_EXEC_SR_1() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendEXEC_SR_1;
+      m_sendCONF = (SsFUNC)0;
+      m_gsn = 0;
+    };
+    enum { poolSize = 1 };
+    static SsPool<Ss_EXEC_SR_1>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_EXEC_SR_1;
+    }
+  };
+  SsPool<Ss_EXEC_SR_1> c_ss_EXEC_SR_1;
+  Uint32 getSsId(const Ss_EXEC_SR_1::Sig* sig) {
+    return SsIdBase | refToNode(sig->nodeId);
+  };
+  void execEXEC_SRREQ(Signal*);
+  void execEXEC_SRCONF(Signal*);
+  void execEXEC_SR_1(Signal*, GlobalSignalNumber gsn);
+  void sendEXEC_SR_1(Signal*, Uint32 ssId);
+
+  // GSN_EXEC_SR_2 [ fictional gsn ]
+  struct Ss_EXEC_SR_2 : SsParallel {
+    static const char* name() { return "EXEC_SR_2"; }
+    struct Sig {
+      enum { SignalLength = 1 + NdbNodeBitmask::Size };
+      Uint32 nodeId;
+      Uint32 sr_nodes[NdbNodeBitmask::Size]; // local signal so ok to add
+    };
+    GlobalSignalNumber m_gsn;
+    Uint32 m_sigcount;
+    Sig m_sig; // all signals must be identical
+    Ss_EXEC_SR_2() {
+      // reversed roles
+      m_sendREQ = (SsFUNC)0;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendEXEC_SR_2;
+      m_gsn = 0;
+      m_sigcount = 0;
+    };
+    enum { poolSize = 1 };
+    static SsPool<Ss_EXEC_SR_2>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_EXEC_SR_2;
+    }
+  };
+  SsPool<Ss_EXEC_SR_2> c_ss_EXEC_SR_2;
+  Uint32 getSsId(const Ss_EXEC_SR_2::Sig* sig) {
+    return SsIdBase | refToNode(sig->nodeId);
+  };
+  void execEXEC_SR_2(Signal*, GlobalSignalNumber gsn);
+  void sendEXEC_SR_2(Signal*, Uint32 ssId);
+
+  // GSN_DROP_FRAG_REQ
+  struct Ss_DROP_FRAG_REQ : SsParallel {
+    DropFragReq m_req;
+    Ss_DROP_FRAG_REQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendDROP_FRAG_REQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendDROP_FRAG_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_FRAG_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_DROP_FRAG_REQ;
+    }
+  };
+  SsPool<Ss_DROP_FRAG_REQ> c_ss_DROP_FRAG_REQ;
+  Uint32 getSsId(const DropFragReq* req) {
+    return SsIdBase | (req->tableId ^ req->fragId);
+  }
+  Uint32 getSsId(const DropFragConf* conf) {
+    return SsIdBase | (conf->tableId ^ conf->fragId);
+  }
+  Uint32 getSsId(const DropFragRef* ref) {
+    return SsIdBase | (ref->tableId ^ ref->fragId);
+  }
+  void execDROP_FRAG_REQ(Signal*);
+  void sendDROP_FRAG_REQ(Signal*, Uint32 ssId);
+  void execDROP_FRAG_CONF(Signal*);
+  void execDROP_FRAG_REF(Signal*);
+  void sendDROP_FRAG_CONF(Signal*, Uint32 ssId);
 };
 
 #endif

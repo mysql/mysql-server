@@ -72,3 +72,10 @@ NdbLogPartInfo::partNoIndex(Uint32 lpno) const
   assert(partNo[i] == lpno);
   return i;
 }
+
+Uint32
+NdbLogPartInfo::instanceKey(Uint32 lpno) const
+{
+  assert(lpno < LogParts);
+  return 1 + lpno;
+}

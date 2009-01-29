@@ -30,7 +30,6 @@
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
 #include <ndb_mgmclient.hpp>
-#include <my_dir.h>
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
@@ -117,13 +116,21 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "datadir", 256,
-    "Data directory for this node",
-    (uchar**) &opts.datadir, (uchar**) &opts.datadir, 0,
+  { "configdir", 256,
+    "Directory for the binary configuration files",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Write more log messages",
     (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "reload", 256,
+    "Reload config from config.ini or my.cnf if it has changed on startup",
+    (uchar**) &opts.reload, (uchar**) &opts.reload, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "initial", 256,
+    "Delete all binary config files and start from config.ini or my.cnf",
+    (uchar**) &opts.initial, (uchar**) &opts.initial, 0,
     GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -183,7 +190,7 @@ int main(int argc, char** argv)
 
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_mgmd.trace";
+  opt_debug= "d:t:i:F:o,/tmp/ndb_mgmd.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))

@@ -36,7 +36,9 @@ public:
   Config(const Config*);
   virtual ~Config();
 
-  void print() const;
+  void print(const char* section_filter = NULL, NodeId nodeid_filter = NULL,
+             const char* param_filter = NULL,
+             NdbOut& out = ndbout) const;
 
   /*
     Returns generation of the config
@@ -52,9 +54,28 @@ public:
   bool setName(const char* new_name);
 
   /*
+    Returns primary MGM node of the config, this is used to
+    protect the config being overwritten by an "old" config.ini
+    or my.cnf - i.e as soon as the config.ini has been updated
+    and reloaded from one node, the config.ini on other nodes
+    become obsolete and a reload from those would revert to an
+    old config.
+    0 => config updated from mgmapi, no node is primary anymore
+    1 - MAX_NODES => only node with specified nodeid can reload
+                     config without force
+   */
+  Uint32 getPrimaryMgmNode() const;
+  bool setPrimaryMgmNode(Uint32);
+
+  /*
    Pack the config into a UtilBuffer and return it's size in bytes
   */
   Uint32 pack(UtilBuffer&) const;
+
+  /*
+    Pack the config as base64
+  */
+  bool pack64(BaseString&) const;
 
   /*
     Compare against another config and return a list of
@@ -67,6 +88,15 @@ public:
     Print the difference against another config
    */
   void print_diff(const Config* other) const;
+
+
+  /*
+    Get the full connectstring for this configuration. ie
+    a list of all the mgmd servers and their port separated
+    by separator.
+   */
+  void getConnectString(BaseString&,
+                        const BaseString& separator = BaseString(";")) const;
 
   /*
     Print the difference to string buffer
@@ -84,6 +114,7 @@ public:
   bool equal(const Config*, const unsigned* exclude = NULL) const;
 
   struct ndb_mgm_configuration * m_configValues;
+  struct ndb_mgm_configuration * values(void) const { return m_configValues; };
 
 private:
   bool setValue(Uint32 section, Uint32 section_no,

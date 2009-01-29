@@ -6,12 +6,12 @@ UNDO_BUFFER_SIZE = 1M ENGINE=NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 12M
+INITIAL_SIZE 64M
 ENGINE NDB;
 CREATE TABLE t1 (a int unsigned not null,
 b int unsigned not null,
 c int unsigned not null,
-primary key(a,b),
+primary key(a,c),
 unique (b))
 ENGINE = NDB
 partition by key(a);

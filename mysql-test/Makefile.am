@@ -47,6 +47,8 @@ dist-hook:
 		$(distdir)/std_data/ndb_backup51_data_le \
 		$(distdir)/std_data/ndb_backup51_d2_be \
 		$(distdir)/std_data/ndb_backup51_d2_le \
+		$(distdir)/std_data/ndb_backup51_undolog_be \
+		$(distdir)/std_data/ndb_backup51_undolog_le \
 		$(distdir)/std_data/ndb_backup_packed \
 		$(distdir)/std_data/parts \
 		$(distdir)/lib \
@@ -83,6 +85,8 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(distdir)/std_data/ndb_backup51_data_le
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_be/BACKUP* $(distdir)/std_data/ndb_backup51_d2_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_le/BACKUP* $(distdir)/std_data/ndb_backup51_d2_le
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_undolog_be/BACKUP* $(distdir)/std_data/ndb_backup51_undolog_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_undolog_le/BACKUP* $(distdir)/std_data/ndb_backup51_undolog_le
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup_packed/BACKUP* $(distdir)/std_data/ndb_backup_packed
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(distdir)/std_data/parts
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/*.MY* $(distdir)/std_data/parts
@@ -106,6 +110,8 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_be \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_le \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_undolog_be \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_undolog_le \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup_packed \
 		$(DESTDIR)$(testdir)/std_data/parts \
 		$(DESTDIR)$(testdir)/lib \
@@ -147,6 +153,8 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_le
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_undolog_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_undolog_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_undolog_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_undolog_le
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup_packed/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup_packed
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(DESTDIR)$(testdir)/std_data/parts
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/*.MY* $(DESTDIR)$(testdir)/std_data/parts

@@ -238,6 +238,8 @@ ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
     DBUG_RETURN(-1);
   }
   handle->cfg_i= -1;
+  handle->cfg.bind_address_port= handle->m_bindaddress_port;
+  handle->cfg.bind_address.assign(handle->m_bindaddress ? handle->m_bindaddress : "");
   DBUG_RETURN(0);
 }
 
@@ -265,6 +267,11 @@ ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
   {
     handle->m_bindaddress = 0;
     handle->m_bindaddress_port = 0;
+  }
+  if (handle->cfg.ids.size() != 0)
+  {
+    handle->cfg.bind_address_port= handle->m_bindaddress_port;
+    handle->cfg.bind_address.assign(handle->m_bindaddress ? handle->m_bindaddress : "");
   }
   DBUG_RETURN(0);
 }
@@ -2195,10 +2202,11 @@ ndb_mgm_start(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
  *****************************************************************************/
 extern "C"
 int 
-ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
+ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
 		     struct ndb_mgm_reply*, /*reply*/
-		     unsigned int input_backupId) 
+		     unsigned int input_backupId,
+		     unsigned int backuppoint) 
 {
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_start_backup");
@@ -2214,6 +2222,7 @@ ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
   args.put("completed", wait_completed);
   if(input_backupId > 0)
     args.put("backupid", input_backupId);
+  args.put("backuppoint", backuppoint);
   const Properties *reply;
   { // start backup can take some time, set timeout high
     int old_timeout= handle->timeout;
@@ -2241,12 +2250,21 @@ ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
 
 extern "C"
 int 
+ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
+		     unsigned int* _backup_id,
+		     struct ndb_mgm_reply* reply,
+		     unsigned int input_backupId)
+{
+  return ndb_mgm_start_backup3(handle, wait_completed, _backup_id, reply, input_backupId, 0);
+}
+
+extern "C"
+int 
 ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
-		     struct ndb_mgm_reply* /*reply*/)
+		     struct ndb_mgm_reply* reply)
 {
-  struct ndb_mgm_reply reply;
-  return ndb_mgm_start_backup2(handle, wait_completed, _backup_id, &reply, 0);
+  return ndb_mgm_start_backup2(handle, wait_completed, _backup_id, reply, 0);
 }
 
 extern "C"
@@ -3071,11 +3089,14 @@ err:
   DBUG_RETURN(retval);
 }
 
-
 extern "C"
 int
 ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 {
+  CHECK_HANDLE(h, 0);
+  SET_ERROR(h, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_set_configuration");
+  CHECK_CONNECTED(h, 0);
+
   const ConfigValues * cfg = (ConfigValues*)c;
 
   UtilBuffer buf;
@@ -3090,7 +3111,7 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
 
   Properties args;
-  args.put("Content-Length", strlen(encoded.c_str()));
+  args.put("Content-Length", (Uint32)strlen(encoded.c_str()));
   args.put("Content-Type",  "ndbconfig/octet-stream");
   args.put("Content-Transfer-Encoding", "base64");
 
@@ -3111,7 +3132,7 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   delete reply;
 
   if(strcmp(result.c_str(), "Ok") != 0) {
-    fprintf(h->errstream, "ERROR Message: %s\n", result.c_str());
+    SET_ERROR(h, NDB_MGM_CONFIG_CHANGE_FAILED, result.c_str());
     return -1;
   }
 

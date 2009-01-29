@@ -36,6 +36,7 @@
 #include <mgmapi_config_parameters.h>
 
 int global_flag_skip_invalidate_cache = 0;
+int global_flag_skip_waiting_for_clean_cache = 0;
 //#define DEBUG_REG
 
 // Just a C wrapper for threadMain
@@ -254,11 +255,14 @@ ClusterMgr::threadMain( ){
     if (m_cluster_state == CS_waiting_for_clean_cache &&
         theFacade.m_globalDictCache)
     {
-      theFacade.m_globalDictCache->lock();
-      unsigned sz= theFacade.m_globalDictCache->get_size();
-      theFacade.m_globalDictCache->unlock();
-      if (sz)
-        continue;
+      if (!global_flag_skip_waiting_for_clean_cache)
+      {
+        theFacade.m_globalDictCache->lock();
+        unsigned sz= theFacade.m_globalDictCache->get_size();
+        theFacade.m_globalDictCache->unlock();
+        if (sz)
+          continue;
+      }
       m_cluster_state = CS_waiting_for_first_connect;
     }
 
@@ -285,7 +289,7 @@ ClusterMgr::threadMain( ){
 	continue;
       }
       
-      theNode.hbCounter += timeSlept;
+      theNode.hbCounter += (Uint32)timeSlept;
       if (theNode.hbCounter >= m_max_api_reg_req_interval ||
           theNode.hbCounter >= theNode.hbFrequency) {
 	/**
@@ -574,8 +578,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
     theFacade.ReportNodeDead(nodeId);
   }
   
-  theNode.nfCompleteRep = false;
-  if(noOfAliveNodes == 0)
+  if (noOfConnectedNodes == 0)
   {
     if (!global_flag_skip_invalidate_cache &&
         theFacade.m_globalDictCache)
@@ -586,6 +589,10 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
       m_connect_count ++;
       m_cluster_state = CS_waiting_for_clean_cache;
     }
+  }
+  theNode.nfCompleteRep = false;
+  if(noOfAliveNodes == 0)
+  {
     NFCompleteRep rep;
     for(Uint32 i = 1; i < MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){

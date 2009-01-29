@@ -42,7 +42,7 @@ require(bool v)
 extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
-                             const char* datadir) :
+                             const char* configdir) :
   MgmtThread("ConfigManager"),
   m_opts(opts),
   m_facade(NULL),
@@ -56,10 +56,11 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
   m_config_change_state(CCS_IDLE),
   m_config_state(CS_UNINITIALIZED),
   m_previous_state(CS_UNINITIALIZED),
+  m_config_change_error(ConfigChangeRef::OK),
   m_client_ref(RNIL),
   m_prepared_config(NULL),
   m_node_id(0),
-  m_datadir(datadir)
+  m_configdir(configdir)
 {
 }
 
@@ -117,20 +118,20 @@ alone_on_host(Config* conf,
 
 
 /**
-   find_nodeid_from_datadir
+   find_nodeid_from_configdir
 
-   Check if datadir only contains config files
+   Check if configdir only contains config files
    with one nodeid -> read the latest and confirm
    there should only be one mgm node on this host
 */
 
 NodeId
-ConfigManager::find_nodeid_from_datadir(void)
+ConfigManager::find_nodeid_from_configdir(void)
 {
   BaseString config_name;
   DirIterator iter;
 
-  if (iter.open(m_datadir) != 0)
+  if (iter.open(m_configdir) != 0)
     return 0;
 
   const char* name;
@@ -144,7 +145,7 @@ ConfigManager::find_nodeid_from_datadir(void)
                "ndb_%u_config.bin.%u%c",
                &nodeid, &version, &extra) == 2)
     {
-      ndbout_c("match: %s", name);
+      // ndbout_c("match: %s", name);
 
       if (nodeid != found_nodeid)
       {
@@ -162,7 +163,7 @@ ConfigManager::find_nodeid_from_datadir(void)
     return 0;
 
   config_name.assfmt("%s%sndb_%u_config.bin.%u",
-                     m_datadir, DIR_SEPARATOR, found_nodeid, max_version);
+                     m_configdir, DIR_SEPARATOR, found_nodeid, max_version);
 
   Config* conf;
   if (!(conf = load_saved_config(config_name)))
@@ -242,7 +243,6 @@ ConfigManager::find_nodeid_from_config(void)
   }
 
   return found_nodeid;
-
 }
 
 
@@ -256,16 +256,16 @@ ConfigManager::init_nodeid(void)
   {
     // Nodeid was specifed on command line or in NDB_CONNECTSTRING
     g_eventLogger->debug("Got nodeid: %d from command line "    \
-                         "or NDB_CONNECTSTRING", m_node_id);
+                         "or NDB_CONNECTSTRING", nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
   }
 
-  nodeid = find_nodeid_from_datadir();
+  nodeid = find_nodeid_from_configdir();
   if (nodeid)
   {
-    // Found nodeid by searching in datadir
-    g_eventLogger->debug("Got nodeid: %d from searching in datadir",
+    // Found nodeid by searching in configdir
+    g_eventLogger->debug("Got nodeid: %d from searching in configdir",
                          nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
@@ -281,7 +281,6 @@ ConfigManager::init_nodeid(void)
     m_node_id = nodeid;
     DBUG_RETURN(true);
   }
-
 
   // We _could_ try connecting to other running mgmd(s)
   // and fetch our nodeid. But, that introduces a dependency
@@ -321,6 +320,12 @@ ConfigManager::init(void)
   if (!init_nodeid())
     DBUG_RETURN(false);
 
+  if (m_opts.initial && !delete_saved_configs())
+    DBUG_RETURN(false);
+
+  if (failed_config_change_exists())
+    DBUG_RETURN(false);
+
   BaseString config_bin_name;
   if (saved_config_exists(config_bin_name))
   {
@@ -335,11 +340,13 @@ ConfigManager::init(void)
     set_config(conf);
     m_config_state = CS_CONFIRMED;
 
-    if (m_opts.mycnf || m_opts.config_filename)
+    if (m_opts.reload && // --reload
+        (m_opts.mycnf || m_opts.config_filename))
     {
       Config* new_conf = load_config();
       if (new_conf == NULL)
         DBUG_RETURN(false);
+
 
       /* Copy the necessary values from old to new config */
       if (!new_conf->setGeneration(m_config->getGeneration()))
@@ -351,6 +358,12 @@ ConfigManager::init(void)
       if (!new_conf->setName(m_config->getName()))
       {
         g_eventLogger->error("Failed to copy name from old config");
+        DBUG_RETURN(false);
+      }
+
+      if (!new_conf->setPrimaryMgmNode(m_config->getPrimaryMgmNode()))
+      {
+        g_eventLogger->error("Failed to copy primary mgm node from old config");
         DBUG_RETURN(false);
       }
 
@@ -384,6 +397,17 @@ ConfigManager::init(void)
 
       if (!config_ok(conf))
         DBUG_RETURN(false);
+
+      /*
+        Set this node as primary node for config.ini/my.cnf
+        in order to make it possible that make sure an old
+        config.ini is only loaded with --force
+      */
+      if (!conf->setPrimaryMgmNode(m_node_id))
+      {
+        g_eventLogger->error("Failed to set primary MGM node");
+        DBUG_RETURN(false);
+      }
 
       /* Use the initial config for now */
       set_config(conf);
@@ -451,6 +475,7 @@ ConfigManager::prepareConfigChange(const Config* config)
                          "when already prepared");
     return false;
   }
+
   Uint32 generation= config->getGeneration();
   if (generation == 0)
   {
@@ -460,8 +485,8 @@ ConfigManager::prepareConfigChange(const Config* config)
   }
 
   assert(m_node_id);
-  m_config_name.assfmt("%s/ndb_%u_config.bin.%u",
-                       m_datadir, m_node_id, generation);
+  m_config_name.assfmt("%s%sndb_%u_config.bin.%u",
+                       m_configdir, DIR_SEPARATOR, m_node_id, generation);
   g_eventLogger->debug("Preparing configuration, generation: %d name: %s",
                        generation, m_config_name.c_str());
 
@@ -512,7 +537,7 @@ ConfigManager::prepareConfigChange(const Config* config)
   }
 
 #ifdef __WIN__
-  /* 
+  /*
 	File is opened with the commit flag "c" so
 	that the contents of the file buffer are written
 	directly to disk when fflush is called
@@ -572,7 +597,6 @@ ConfigManager::set_config(Config* new_config)
 
   for (unsigned i = 0; i < m_subscribers.size(); i++)
     m_subscribers[i]->config_changed(m_node_id, new_config);
-
 }
 
 
@@ -593,44 +617,21 @@ ConfigManager::config_ok(const Config* conf)
     return false;
   }
 
-  // Check if --datadir is same as DataDir from config
-  assert(m_datadir);
+  // Check DataDir exist
   ConfigIter iter(conf, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, m_node_id) == 0);
 
   const char *datadir;
   require(iter.get(CFG_NODE_DATADIR, &datadir) == 0);
 
-  if (strcmp(datadir, "") != 0 &&        // Not set -> empty string
-      strcmp(m_datadir, datadir) != 0)   // Different
+  if (strcmp(datadir, "") != 0 && // datadir != ""
+      access(datadir, F_OK))                 // dir exists
   {
-    // Not same --datadir and DataDir
-    if (strcmp(m_datadir, MYSQLCLUSTERDIR) == 0 ||
-        strcmp(datadir, MYSQLCLUSTERDIR) == 0)
-    {
-      // Using the builtin default --datadir
-      g_eventLogger->error("The builtin data directory '%s' does "      \
-                           "not match DataDir=%s specified in "         \
-                           "configuration. Either specify --datadir=%s " \
-                           "on command line or remove the DataDir=%s "  \
-                           "from configuration in order to use the "    \
-                           "builtin default.",
-                           m_datadir, datadir, m_datadir, datadir);
-      return false;
-    }
-    else
-    {
-      // Using --datadir specified on command line
-      g_eventLogger->error("The data directory specified on command line " \
-                           "with --datadir=%s does not match DataDir=%s " \
-                           "specified in configuration. You need to "    \
-                           "change one of them.",
-                           m_datadir, datadir);
-      return false;
-    }
+    g_eventLogger->error("Directory '%s' specified with DataDir "  \
+                         "in configuration does not exist.",       \
+                         datadir);
+    return false;
   }
-  NdbConfig_SetPath(m_datadir);
-
   return true;
 }
 
@@ -719,7 +720,8 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
         g_eventLogger->warning("Refusing to start initial "             \
                                "configuration change since this node "  \
                                "is not in INITIAL state");
-        sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::IllegalState);
+        sendConfigChangeImplRef(ss, nodeId,
+                                ConfigChangeRef::IllegalInitialState);
         return;
       }
 
@@ -765,6 +767,22 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     }
     else
     {
+
+      // Check that new config has same primary mgm node as current
+      Uint32 curr_primary = m_config->getPrimaryMgmNode();
+      Uint32 new_primary = new_config.getPrimaryMgmNode();
+      if (new_primary != curr_primary)
+      {
+        g_eventLogger->warning("Refusing to start configuration change " \
+                               "requested by node %d, the new config uses " \
+                               "different primary mgm node %d. "      \
+                               "Current primary mmgm node is %d.",
+                               nodeId, new_primary, curr_primary);
+        sendConfigChangeImplRef(ss, nodeId,
+                                ConfigChangeRef::NotPrimaryMgmNode);
+        return;
+      }
+
       if (new_generation == 0 ||
           new_generation != curr_generation)
       {
@@ -800,7 +818,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
     {
       g_eventLogger->error("Failed to set new generation to %d",
                            new_generation);
-      sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::SetGenerationFailed);
+      sendConfigChangeImplRef(ss, nodeId, ConfigChangeRef::InternalError);
       return;
     }
 
@@ -856,6 +874,10 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
     CAST_CONSTPTR(ConfigChangeImplRef, sig->getDataPtr());
   g_eventLogger->warning("Node %d refused configuration change, error: %d",
                          nodeId, ref->errorCode);
+
+  /* Remember the original error code */
+  if (m_config_change_error == 0)
+    m_config_change_error = (ConfigChangeRef::ErrorCode)ref->errorCode;
 
   switch(m_config_change_state){
 
@@ -973,6 +995,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
       return;
 
     require(m_client_ref != RNIL);
+    require(m_config_change_error == 0);
     if (m_client_ref == ss.getOwnRef())
     {
       g_eventLogger->info("Config change completed! New generation: %d",
@@ -1018,6 +1041,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
       return;
 
     require(m_client_ref != RNIL);
+    require(m_config_change_error);
     if (m_client_ref == ss.getOwnRef())
     {
       g_eventLogger->error("Config change failed!");
@@ -1027,8 +1051,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     {
       /* Send ref to the requestor */
       sendConfigChangeRef(ss, m_client_ref,
-                          ConfigChangeRef::ConfigChangeAborted);
+                          m_config_change_error);
     }
+    m_config_change_error= ConfigChangeRef::OK;
     m_client_ref = RNIL;
     m_config_change_state = CCS_IDLE;
     break;
@@ -1157,6 +1182,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigChangeOnGoing);
     return;
   }
+  require(m_config_change_error == ConfigChangeRef::OK);
 
   if (sig->header.m_noOfSections != 1)
   {
@@ -1176,7 +1202,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
   {
     g_eventLogger->warning("Refusing to start config change, the config "\
                            "is not ok");
-    sendConfigChangeRef(ss, from, ConfigChangeRef::FailedToUnpack);
+    sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigNotOk);
     return;
   }
 
@@ -1550,7 +1576,7 @@ ConfigManager::run()
 #include "InitConfigFileParser.hpp"
 
 Config*
-ConfigManager::load_init_config(const char* config_filename) const
+ConfigManager::load_init_config(const char* config_filename)
 {
    InitConfigFileParser parser;
    g_eventLogger->info("Reading cluster configuration from '%s'",
@@ -1560,7 +1586,7 @@ ConfigManager::load_init_config(const char* config_filename) const
 
 
 Config*
-ConfigManager::load_init_mycnf(void) const
+ConfigManager::load_init_mycnf(void)
 {
   InitConfigFileParser parser;
   g_eventLogger->info("Reading cluster configuration using my.cnf");
@@ -1569,19 +1595,36 @@ ConfigManager::load_init_mycnf(void) const
 
 
 Config*
-ConfigManager::load_config(void) const
+ConfigManager::load_config(const char* config_filename, bool mycnf,
+                           BaseString& msg)
 {
   Config* new_conf = NULL;
-  if (m_opts.mycnf && (new_conf = load_init_mycnf()) == NULL)
+  if (mycnf && (new_conf = load_init_mycnf()) == NULL)
   {
-    g_eventLogger->error("Could not load configuration from 'my.cnf'");
+    msg.assign("Could not load configuration from 'my.cnf'");
     return NULL;
   }
-  else if (m_opts.config_filename &&
-           (new_conf = load_init_config(m_opts.config_filename)) == NULL)
+  else if (config_filename &&
+           (new_conf = load_init_config(config_filename)) == NULL)
   {
-    g_eventLogger->error("Could not load configuration from '%s'",
-                         m_opts.config_filename);
+    msg.assfmt("Could not load configuration from '%s'",
+               config_filename);
+    return NULL;
+  }
+
+  return new_conf;
+}
+
+
+Config*
+ConfigManager::load_config(void) const
+{
+  BaseString msg;
+  Config* new_conf = NULL;
+  if ((new_conf = load_config(m_opts.config_filename,
+                              m_opts.mycnf, msg)) == NULL)
+  {
+    g_eventLogger->error(msg);
     return NULL;
   }
   return new_conf;
@@ -1626,12 +1669,76 @@ ConfigManager::fetch_config(void)
 }
 
 
+static bool
+delete_file(const char* file_name)
+{
+#ifdef _WIN32
+  if (DeleteFile(file_name) == 0)
+  {
+    g_eventLogger->error("Failed to delete file '%s', error: %d",
+                         file_name, GetLastError());
+    return false;
+  }
+#else
+  if (unlink(file_name) == -1)
+  {
+    g_eventLogger->error("Failed to delete file '%s', error: %d",
+                         file_name, errno);
+    return false;
+  }
+#endif
+  return true;
+}
+
+
+bool
+ConfigManager::delete_saved_configs(void) const
+{
+  DirIterator iter;
+
+  if (iter.open(m_configdir) != 0)
+    return false;
+
+  bool result = true;
+  const char* name;
+  unsigned nodeid;
+  char extra; // Avoid matching ndb_2_config.bin.2.tmp
+  BaseString full_name;
+  unsigned version;
+  while ((name= iter.next_file()) != NULL)
+  {
+    if (sscanf(name,
+               "ndb_%u_config.bin.%u%c",
+               &nodeid, &version, &extra) == 2)
+    {
+      // ndbout_c("match: %s", name);
+
+      if (nodeid != m_node_id)
+        continue;
+
+      // Delete the file
+      full_name.assfmt("%s%s%s", m_configdir, DIR_SEPARATOR, name);
+      g_eventLogger->debug("Deleting binary config file '%s'",
+                           full_name.c_str());
+      if (!delete_file(full_name.c_str()))
+      {
+        // Make function return false, but continue and try
+        // to delete other files
+        result = false;
+      }
+    }
+  }
+
+  return result;
+}
+
+
 bool
 ConfigManager::saved_config_exists(BaseString& config_name) const
 {
   DirIterator iter;
 
-  if (iter.open(m_datadir) != 0)
+  if (iter.open(m_configdir) != 0)
     return false;
 
   const char* name;
@@ -1657,9 +1764,50 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
   if (max_version == 0)
     return false;
 
-  config_name.assfmt("%s%sndb_%u_config.bin.%u", 
-                     m_datadir, DIR_SEPARATOR, m_node_id, max_version);
+  config_name.assfmt("%s%sndb_%u_config.bin.%u",
+                     m_configdir, DIR_SEPARATOR, m_node_id, max_version);
   return true;
+}
+
+
+
+bool
+ConfigManager::failed_config_change_exists() const
+{
+  DirIterator iter;
+
+  if (iter.open(m_configdir) != 0)
+    return false;
+
+  const char* name;
+  char tmp;
+  unsigned nodeid;
+  unsigned version;
+  while ((name= iter.next_file()) != NULL)
+  {
+    // Check for a previously failed config
+    // change, ie. ndb_<nodeid>_config.bin.X.tmp exist
+    if (sscanf(name,
+               "ndb_%u_config.bin.%u.tm%c",
+               &nodeid, &version, &tmp) == 3 &&
+        tmp == 'p')
+    {
+      if (nodeid != m_node_id)
+        continue;
+
+      g_eventLogger->error("Found binary configuration file '%s%s%s' from "
+                           "previous failed attempt to change config. This "
+                           "error must be manually resolved by removing the "
+                           "file(ie. ROLLBACK) or renaming the file to it's "
+                           "name without the .tmp extension(ie COMMIT). Make "
+                           "sure to check the other nodes so that they all "
+                           "have the same configuration generation.",
+                           m_configdir, DIR_SEPARATOR, name);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 

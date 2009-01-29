@@ -762,7 +762,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   }
   else
   {
-    ndbrequire(refToBlock(tabPtr.p->tabUserRef) == DBLQH);
+    ndbrequire(refToMain(tabPtr.p->tabUserRef) == DBLQH);
 
     DropFragConf * conf = (DropFragConf *)signal->getDataPtrSend();
     conf->senderRef = reference();
@@ -770,7 +770,6 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
     conf->tableId = tabPtr.i;
     sendSignal(tabPtr.p->tabUserRef, GSN_DROP_FRAG_CONF,
                signal, DropFragConf::SignalLength, JBB);
-
   }
   
   tabPtr.p->tabUserPtr = RNIL;

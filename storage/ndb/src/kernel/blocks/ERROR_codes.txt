@@ -1,14 +1,14 @@
-Next QMGR 937
+Next QMGR 938
 Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5051
+Next DBLQH 5053
 Next DBDICT 6013
-Next DBDIH 7215
-Next DBTC 8073
+Next DBDIH 7216
+Next DBTC 8078
 Next CMVMI 9000
-Next BACKUP 10041
+Next BACKUP 10042
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13043
@@ -184,7 +184,9 @@ And crash when all have "not" been sent
 
 7213: in GCP_COMMIT Kill specified node and self, stop processing
 7214: in GCP_TCFINISHED kill specified node
-     
+
+7215: set c_fragments_per_node = 1 (needs to be done at startup)
+
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
 
@@ -352,6 +354,25 @@ ABORT OF TCKEYREQ
 
 8051 : Simulate failure of allocation for saveINDXKEYINFO
 
+DBTC LONG SIGNAL TESTING
+------------------------
+8065: Consume all but 10 long section segments on next TCKEYREQ
+8066: Consume all but 1 long section segments on next TCKEYREQ
+8067: Consume all long section segments on next TCKEYREQ
+8068: Free all segments hoarded by 8065, 8066, 8067
+
+8069: Always send 'short' LQHKEYREQ to LQH
+8070: Always send 'short' SCANFRAGREQ to LQH
+
+8074: Drop first fragment of fragmented SCANTABREQ
+8075: Drop middle fragments of fragmented SCANTABREQ
+8076: Drop last fragment of fragmented SCANTABREQ
+8077: Drop all fragments of fragmented SCANTABREQ
+
+DBLQH LONG SIGNAL TESTING
+-------------------------
+5051: Send short LQHKEYREQ to next replica
+5052: Fail to store KeyInfo from TUP in long section
 
 CMVMI
 -----
@@ -488,6 +509,7 @@ Backup Stuff:
 10039: Halt backup for table >= 2
 10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
+10041: delay backup after create trigger. for testing undo log file.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

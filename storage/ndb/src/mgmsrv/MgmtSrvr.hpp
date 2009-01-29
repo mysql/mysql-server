@@ -130,9 +130,12 @@ public:
     const char* bind_address;
     int no_nodeid_checks;
     int print_full_config;
-    const char* datadir;
+    const char* configdir;
     int verbose;
     MY_DAEMON_VARS0;
+    MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
+    int reload;
+    int initial;
   };
 
   MgmtSrvr(); // Not implemented
@@ -143,7 +146,7 @@ public:
 
 private:
   /* Function used from 'init' */
-  const char* check_datadir() const;
+  const char* check_configdir() const;
 
 public:
   /*
@@ -268,7 +271,7 @@ public:
   /**
    * Backup functionallity
    */
-  int startBackup(Uint32& backupId, int waitCompleted= 2, Uint32 input_backupId= 0);
+  int startBackup(Uint32& backupId, int waitCompleted= 2, Uint32 input_backupId= 0, Uint32 backuppoint= 0);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 
@@ -362,7 +365,7 @@ public:
 		     int &error_code, BaseString &error_string,
                      int log_event = 1);
 
-  int change_config(Config& new_config);
+  bool change_config(Config& new_config, BaseString& msg);
 
   /**
    *
@@ -394,7 +397,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  void transporter_connect(NDB_SOCKET_TYPE sockfd);
+  bool transporter_connect(NDB_SOCKET_TYPE sockfd);
 
   const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
@@ -455,6 +458,7 @@ private:
 
   int check_nodes_starting();
   int check_nodes_stopping();
+  int check_nodes_single_user();
 
 
   Logger*  getLogger();
@@ -554,6 +558,16 @@ public:
     Get packed copy of configuration in the supplied buffer
   */
   bool getPackedConfig(UtilBuffer& pack_buf);
+
+  void print_config(const char* section_filter = NULL,
+                    NodeId nodeid_filter = 0,
+                    const char* param_filter = NULL,
+                    NdbOut& out = ndbout);
+
+  bool reload_config(const char* config_filename,
+                     bool mycnf, BaseString& msg);
+
+  void show_variables(NdbOut& out = ndbout);
 
 };
 

@@ -57,7 +57,6 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close_pipe;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_ignore_timeout;
@@ -77,7 +76,6 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close_shared_memory;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_ignore_timeout;
@@ -97,7 +95,6 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_ssl_close;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
@@ -115,7 +112,6 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;

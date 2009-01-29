@@ -76,6 +76,7 @@ ndbd_nodes=2
 relative_config_data_dir=
 opt_core=
 opt_exec_ndb=ndbd
+opt_add_ng="#(skip add ng) "
 
 ndb_no_ord=512
 ndb_no_attr=2048
@@ -83,7 +84,7 @@ ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 ndb_pbmem=32M
-ndb_threads=4
+ndb_threads=8
 
 VERBOSE=100
 NDB_MGM_EXTRA_OPTS=
@@ -153,6 +154,9 @@ while test $# -gt 0; do
     --mt)
      opt_exec_ndb=ndbmtd
      ;;
+    --add-ng)
+     opt_add_ng=""
+     ;;
     --core)
      opt_core="--core"
      ;;
@@ -193,20 +197,19 @@ if [ ! -f "$config_ini" ]; then
 fi
 
 exec_mgmtclient="$exec_mgmtclient --no-defaults $opt_core $NDB_MGM_EXTRA_OPTS"
-exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults --datadir=$fs_ndb $opt_core $NDB_MGMD_EXTRA_OPTS"
+exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults --configdir=$fs_ndb $opt_core $NDB_MGMD_EXTRA_OPTS"
 exec_ndb="$exec_ndb --no-defaults $opt_core $NDBD_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR"
 exec_waiter="$exec_waiter --no-defaults $opt_core"
+
+# add nowait in case of add node
+nowait_nodes="--nowait-nodes=`expr $ndbd_nodes + 1`,`expr $ndbd_nodes + 2`"
+exec_ndb="$exec_ndb $nowait_nodes"
+exec_waiter="$exec_waiter $nowait_nodes"
 
 ndb_host="localhost"
 ndb_mgmd_port=$port
 NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
 export NDB_CONNECTSTRING
-NDB_MT_LQH=1
-export NDB_MT_LQH
-NDBMT_LQH_THREADS=$ndb_threads
-export NDBMT_LQH_THREADS
-NDBMT_LQH_WORKERS=$ndb_threads
-export NDBMT_LQH_WORKERS
 
 sleep_until_file_created () {
   file=$1
@@ -263,6 +266,8 @@ if [ $initial_ndb ] ; then
     -e s,"CHOOSE_FILESYSTEM","$config_fs_ndb",g \
     -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
     -e s,"CHOOSE_DiskPageBufferMemory","$ndb_pbmem",g \
+    -e s,"CHOOSE_MAX_NO_OF_EXECUTION_THREADS_[0-9]","$ndb_threads",g \
+    -e s,"#ADD_NG ","$opt_add_ng",g \
     < "$config_ini" \
     > "$fs_ndb/config.ini"
 fi
@@ -274,7 +279,7 @@ if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
-if sleep_until_file_created $fs_ndb/ndb_`expr $ndbd_nodes + 1`.pid 120
+if sleep_until_file_created $fs_ndb/ndb_49.pid 120
 then :; else
   exit 1
 fi
@@ -288,7 +293,7 @@ do
   if [ `expr $VERBOSE \> 1` = 1 ] ; then
     echo "Starting ndbd $id($ndbd_nodes)"
   fi
-  ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
+  ( cd "$fs_ndb" ; $exec_ndb $flags_ndb --ndb-nodeid=$id & )
   if sleep_until_file_created $fs_ndb/ndb_${id}.pid 120
   then :; else
     stop_default_ndbcluster
@@ -381,7 +386,7 @@ do_ndb_test ()
 {
   test_name=$1
 
-  clusterlog=$fs_ndb/ndb_3_cluster.log
+  clusterlog=$fs_ndb/ndb_49_cluster.log
 
   test_log_result=$fs_result/${test_name}_log.result
   test_log_reject=$fs_result/${test_name}_log.reject

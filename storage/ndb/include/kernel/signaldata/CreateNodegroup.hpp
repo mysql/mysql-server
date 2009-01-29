@@ -72,10 +72,11 @@ struct CreateNodegroupRef {
     NoMoreObjectRecords = 710,
     InvalidFormat = 740,
     SingleUser = 299,
-    InvalidNoOfNodesInNodegroup = -1,
-    InvalidNodegroupId = -2,
-    NodeAlreadyInNodegroup = -3,
-    NodegroupInUse = -4
+    InvalidNoOfNodesInNodegroup = 320,
+    InvalidNodegroupId = 321,
+    NodeAlreadyInNodegroup = 322,
+    NodegroupInUse = 323,
+    NoNodeAlive = 324
   };
 
   Uint32 senderData;

@@ -10,9 +10,9 @@ source include/have_log_bin.inc;
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
 drop view if exists v1;
---error 0,1141,1147
+--error 0,ER_NONEXISTING_GRANT,ER_NONEXISTING_TABLE_GRANT
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
---error 0,1141,1147
+--error 0,ER_NONEXISTING_GRANT,ER_NONEXISTING_TABLE_GRANT
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 --enable_warnings
@@ -160,9 +160,9 @@ create table t2 (n int(10) not null primary key, d int(10));
 insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
 LOCK TABLES t1 write, t2 read;
---error 1099
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
---error 1099
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 unlock tables;
@@ -183,7 +183,7 @@ create table t1 (n int(10), d int(10));
 create table t2 (n int(10), d int(10));
 insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
---error 1175
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 set sql_safe_updates=0;
 drop table t1,t2;
@@ -196,7 +196,7 @@ set timestamp=1038000000;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 select n,d,unix_timestamp(t) from t1;
 select n,d,unix_timestamp(t) from t2;
---error 1064
+--error ER_PARSE_ERROR
 UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
 drop table t1,t2;
 set timestamp=0;
@@ -324,41 +324,6 @@ delete t1, t2 from t2,t1
 drop table t1,t2;
 
 #
-# Test for bug #1820.
-#
-
-create table t1 ( a int not null, b int not null) ;
---disable_query_log
-insert into t1 values (1,1),(2,2),(3,3),(4,4);
-let $1=19;
-set @d=4;
-while ($1)
-{
-  eval insert into t1 select a+@d,b+@d from t1;
-  eval set @d=@d*2;
-  dec $1;
-}
-
---enable_query_log
-alter table t1 add index i1(a);
-delete from t1 where a > 2000000;
-create table t2 like t1;
-insert into t2 select * from t1;
-
-select 't2 rows before small delete', count(*) from t1;
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 2;
-select 't2 rows after small delete', count(*) from t2;
-select 't1 rows after small delete', count(*) from t1;
-
-## Try deleting many rows 
-
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 100*1000;
-select 't2 rows after big delete', count(*) from t2;
-select 't1 rows after big delete', count(*) from t1;
-
-drop table t1,t2;
-
-#
 # Test alias (this is not correct in 4.0)
 #
 
@@ -367,7 +332,7 @@ CREATE TABLE t2 ( a int );
 DELETE t1 FROM t1, t2 AS t3;
 DELETE t4 FROM t1, t1 AS t4;
 DELETE t3 FROM t1 AS t3, t1 AS t4;
---error 1109
+--error ER_UNKNOWN_TABLE
 DELETE t1 FROM t1 AS t3, t2 AS t4;
 INSERT INTO t1 values (1),(2);
 INSERT INTO t2 values (1),(2);
@@ -422,7 +387,7 @@ drop database mysqltest;
 create table t1 (a int, primary key (a));
 create table t2 (a int, primary key (a));
 create table t3 (a int, primary key (a));
--- error 1109
+-- error ER_UNKNOWN_TABLE
 delete t1,t3 from t1,t2 where t1.a=t2.a and t2.a=(select t3.a from t3 where t1.a=t3.a);
 drop table t1, t2, t3;
 
@@ -431,9 +396,9 @@ drop table t1, t2, t3;
 #
 create table t1 (col1 int); 
 create table t2 (col1 int);
--- error 1093
+-- error ER_UPDATE_TABLE_USED
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
--- error 1093
+-- error ER_UPDATE_TABLE_USED
 delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
 drop table t1,t2;
 
@@ -458,7 +423,7 @@ drop table t1, t2;
 #
 create table t1(a int);
 create table t2(a int);
---error 1093
+--error ER_UPDATE_TABLE_USED
 delete from t1,t2 using t1,t2 where t1.a=(select a from t1);
 drop table t1, t2;
 # End of 4.1 tests

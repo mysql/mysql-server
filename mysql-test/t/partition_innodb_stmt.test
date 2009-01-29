@@ -1,0 +1,60 @@
+--source include/have_partition.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_innodb.inc
+
+--echo # connection default
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+CREATE TABLE t1
+(
+  id SMALLINT NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=innodb
+PARTITION BY RANGE (id)
+(
+  PARTITION p1 VALUES LESS THAN (2),
+  PARTITION p2 VALUES LESS THAN (4),
+  PARTITION p3 VALUES LESS THAN (10)
+);
+
+INSERT INTO t1 VALUES (1),(2),(3);
+
+--echo # Test READ COMMITTED -> REPEATABLE READ
+FLUSH TABLES;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+SELECT * FROM t1;
+
+connect (con1, localhost, root,,);
+connection con1;
+
+--echo #connection con1
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+INSERT INTO t1 VALUES(7);
+COMMIT;
+
+connection default;
+--echo # connection default
+COMMIT;
+
+FLUSH TABLES;
+
+--echo # Test REPEATABLE READ -> READ COMMITTED
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+
+--echo # connection con1
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+INSERT INTO t1 VALUES(9);
+COMMIT;
+
+disconnect con1;
+connection default;
+COMMIT;
+DROP TABLE t1;
