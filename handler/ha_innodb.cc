@@ -142,7 +142,7 @@ static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
-static char*	innobase_change_buffering			= NULL;
+static char*	innobase_change_buffering		= NULL;
 
 /* Note: This variable can be set to on/off and any of the supported
 file formats in the configuration file, but can only be set to any
@@ -9379,7 +9379,7 @@ registered as a callback with MySQL. */
 static
 int
 innodb_change_buffering_validate(
-/*=====================*/
+/*=============================*/
 						/* out: 0 for valid
 						innodb_change_buffering */
 	THD*				thd,	/* in: thread handle */
@@ -9421,7 +9421,7 @@ value. This function is registered as a callback with MySQL. */
 static
 void
 innodb_change_buffering_update(
-/*===================*/
+/*===========================*/
 	THD*				thd,		/* in: thread handle */
 	struct st_mysql_sys_var*	var,		/* in: pointer to
 							system variable */
@@ -9432,7 +9432,7 @@ innodb_change_buffering_update(
 {
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(ibuf_use_t*) save) <= IBUF_USE_ALL);
+	ut_a((*(ibuf_use_t*) save) <= IBUF_USE_INSERT);
 
 	ibuf_use = *(const ibuf_use_t*) save;
 
