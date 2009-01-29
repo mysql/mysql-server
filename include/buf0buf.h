@@ -37,8 +37,6 @@ Created 11/5/1995 Heikki Tuuri
 /* Modes for buf_page_get_gen */
 #define BUF_GET			10	/* get always */
 #define	BUF_GET_IF_IN_POOL	11	/* get if in pool */
-#define	BUF_GET_NOWAIT		12	/* get if can set the latch without
-					waiting */
 #define BUF_GET_NO_LATCH	14	/* get and bufferfix, but set no latch;
 					we have separated this case, because
 					it is error-prone programming not to
@@ -176,12 +174,6 @@ with care. */
 #define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
-/******************************************************************
-NOTE! The following macros should be used instead of buf_page_get_gen, to
-improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
-#define buf_page_get_nowait(SP, ZS, OF, LA, MTR)	buf_page_get_gen(\
-				SP, ZS, OF, LA, NULL,\
-				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
@@ -872,15 +864,15 @@ Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
 	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
-UNIV_INLINE
-const buf_block_t*
+UNIV_INTERN
+buf_block_t*
 buf_block_align(
 /*============*/
-				/* out: pointer to block */
+				/* out: pointer to block, never NULL */
 	const byte*	ptr);	/* in: pointer to a frame */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
