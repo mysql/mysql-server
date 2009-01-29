@@ -140,7 +140,10 @@ access order rules. */
 /* Table name for the insert buffer. */
 #define IBUF_TABLE_NAME		"SYS_IBUF_TABLE"
 
-/* The insert buffer control structure */
+/** Operations that can currently be buffered. */
+UNIV_INTERN ibuf_use_t	ibuf_use		= IBUF_USE_INSERT;
+
+/** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
 
 UNIV_INTERN ulint	ibuf_flush_count	= 0;
@@ -2107,6 +2110,7 @@ ibuf_contract_ext(
 	mutex_enter(&ibuf_mutex);
 
 	if (ibuf->empty) {
+ibuf_is_empty:
 		mutex_exit(&ibuf_mutex);
 
 		return(0);
@@ -2135,9 +2139,7 @@ ibuf_contract_ext(
 		mtr_commit(&mtr);
 		btr_pcur_close(&pcur);
 
-		mutex_exit(&ibuf_mutex);
-
-		return(0);
+		goto ibuf_is_empty;
 	}
 
 	mutex_exit(&ibuf_mutex);
@@ -2765,6 +2767,13 @@ ibuf_insert(
 	ut_ad(ut_is_2pow(zip_size));
 
 	ut_a(!dict_index_is_clust(index));
+
+	switch (ibuf_use) {
+	case IBUF_USE_NONE:
+		return(FALSE);
+	case IBUF_USE_INSERT:
+		break;
+	}
 
 	entry_size = rec_get_converted_size(index, entry, 0);
 
