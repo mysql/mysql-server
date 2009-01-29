@@ -213,7 +213,10 @@ static int update_status_variables(Thd_ndb *thd_ndb,
                             ns->connected_port);
   }
   ns->number_of_replicas= 0;
-  ns->number_of_ready_data_nodes= c->get_no_ready();
+  {
+    int n= c->get_no_ready();
+    ns->number_of_ready_data_nodes= n > 0 ?  n : 0;
+  }
   ns->number_of_data_nodes= c->no_db_nodes();
   ns->connect_count= c->get_connect_count();
   if (thd_ndb)
