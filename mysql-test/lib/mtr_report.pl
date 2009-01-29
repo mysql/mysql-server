@@ -415,7 +415,13 @@ sub mtr_report_stats ($) {
                 /lower_case_table_names was set to 2, even though your the file system '.*' is case sensitive.  Now setting lower_case_table_names to 0 to avoid future problems./ or
 
                 # this test is expected to print warnings
-                ($testname eq 'main.innodb_bug39438')
+                ($testname eq 'main.innodb_bug39438') or
+
+                # Bug#39886, logs 'Table full' error message
+                (($testname eq 'main.almost_full' or 
+                  $testname eq 'main.myisam_data_pointer_size_func') and
+                 (/The table '.*' is full/
+                 ))
 		)
             {
               next;                       # Skip these lines
