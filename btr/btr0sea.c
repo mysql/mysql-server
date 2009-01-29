@@ -1140,9 +1140,7 @@ btr_search_drop_page_hash_when_freed(
 
 	if (UNIV_LIKELY(block != NULL)) {
 
-#ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
-#endif /* UNIV_SYNC_DEBUG */
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 
 		btr_search_drop_page_hash_index(block);
 	}
