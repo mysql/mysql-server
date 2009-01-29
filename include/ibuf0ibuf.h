@@ -17,7 +17,17 @@ Created 7/19/1997 Heikki Tuuri
 #include "ibuf0types.h"
 #include "fsp0fsp.h"
 
-extern ibuf_t*	ibuf;
+/** Combinations of operations that can be buffered. */
+typedef enum {
+	IBUF_USE_NONE = 0,
+	IBUF_USE_INSERT		/* insert */
+} ibuf_use_t;
+
+/** Operations that can currently be buffered. */
+extern ibuf_use_t	ibuf_use;
+
+/** The insert buffer control structure */
+extern ibuf_t*		ibuf;
 
 /* The purpose of the insert buffer is to reduce random disk access.
 When we wish to insert a record into a non-unique secondary index and
