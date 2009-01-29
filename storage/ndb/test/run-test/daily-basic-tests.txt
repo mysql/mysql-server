@@ -1198,6 +1198,10 @@ max-time: 1200
 cmd: testNodeRestart
 args: -n Bug41295 T1
 
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug42422 -l 1 T1
+
 max-time: 500
 cmd: testLimits
 args: -n DropSignalFragments T1

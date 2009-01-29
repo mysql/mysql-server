@@ -309,7 +309,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
   
-  loops *= restarter.getNumDbNodes();
+  loops *= (restarter.getNumDbNodes() > 4 ? 4 : restarter.getNumDbNodes());
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
 
     int id = lastId % restarter.getNumDbNodes();
@@ -2836,7 +2836,10 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
     {
       for (int i = 0; i<cnt; i++)
       {
-        res.insertErrorInNode(nodes[i], 7180);
+        if (res.getNextMasterNodeId(master) == nodes[i])
+          res.insertErrorInNode(nodes[i], 7180);
+        else
+          res.insertErrorInNode(nodes[i], 7205);
       }
 
       int lcp = 7099;
@@ -3487,6 +3490,65 @@ runBug41469(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug42422(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  
+  if (res.getNumDbNodes() < 4)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  
+  int loops = ctx->getNumLoops();
+  while (--loops)
+  {
+    int master = res.getMasterNodeId();
+    ndbout_c("master: %u", master);
+    int nodeId = res.getRandomNodeSameNodeGroup(master, rand()); 
+    ndbout_c("target: %u", nodeId);
+    int node2 = res.getRandomNodeOtherNodeGroup(nodeId, rand());
+    ndbout_c("node 2: %u", node2);
+    
+    res.restartOneDbNode(nodeId,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nodeId, 1);
+    
+    int dump[] = { 9000, 0 };
+    dump[1] = node2;
+    
+    if (res.dumpStateOneNode(nodeId, dump, 2))
+      return NDBT_FAILED;
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(nodeId, val2, 2))
+      return NDBT_FAILED;
+    
+    res.insertErrorInNode(nodeId, 937);
+    ndbout_c("%u : starting %u", __LINE__, nodeId);
+    res.startNodes(&nodeId, 1);
+    NdbSleep_SecSleep(3);
+    ndbout_c("%u : waiting for %u to not get not-started", __LINE__, nodeId);
+    res.waitNodesNoStart(&nodeId, 1);
+    
+    ndbout_c("%u : starting %u", __LINE__, nodeId);
+    res.startNodes(&nodeId, 1);
+    
+    ndbout_c("%u : waiting for cluster started", __LINE__);
+    if (res.waitClusterStarted())
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -3963,6 +4025,9 @@ TESTCASE("Bug41469", ""){
   STEP(runBug41469);
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug42422", ""){
+  INITIALIZER(runBug42422);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
