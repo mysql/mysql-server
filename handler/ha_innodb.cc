@@ -3405,7 +3405,7 @@ skip_field:
 }
 
 /************************************************************************
-Get the upper limit of the MySQL integral type. */
+Get the upper limit of the MySQL integral and floating-point type. */
 
 ulonglong
 ha_innobase::innobase_get_int_col_max_value(
@@ -3444,11 +3444,19 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFFFFFULL;
 		break;
 	/* BIG */
-    	case HA_KEYTYPE_ULONGLONG:
+	case HA_KEYTYPE_ULONGLONG:
 		max_value = 0xFFFFFFFFFFFFFFFFULL;
 		break;
 	case HA_KEYTYPE_LONGLONG:
 		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_FLOAT:
+		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
+		max_value = 0x1000000;
+		break;
+	case HA_KEYTYPE_DOUBLE:
+		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
+		max_value = 0x20000000000000;
 		break;
 	default:
 		ut_error;
