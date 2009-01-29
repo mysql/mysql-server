@@ -1623,8 +1623,8 @@ void Item_in_optimizer::cleanup()
 
 bool Item_in_optimizer::is_null()
 {
-  cache->store(args[0]);
-  return (null_value= (cache->null_value || args[1]->is_null()));
+  val_int();
+  return null_value;
 }
 
 
