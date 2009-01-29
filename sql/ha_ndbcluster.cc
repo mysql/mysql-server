@@ -2240,7 +2240,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   const NdbRecord *key_rec;
   const uchar *key_row;
 
-  if (m_user_defined_partitioning)
+  if (old_part_id != ~uint32(0))
   {
     options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
     options.partitionId=old_part_id;
@@ -3765,7 +3765,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   NdbTransaction *trans= thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
-  uint32 old_part_id= 0, new_part_id= 0;
+  uint32 old_part_id= ~uint32(0), new_part_id= ~uint32(0);
   int error;
   longlong func_value;
   Uint32 func_value_uint32;
@@ -3804,13 +3804,29 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
   }
 
-  if (m_use_partition_pruning &&
-      (error= get_parts_for_update(old_data, new_data, table->record[0],
-                                   m_part_info, &old_part_id, &new_part_id,
-                                   &func_value)))
+  while (m_use_partition_pruning)
   {
-    m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    if (!cursor && m_read_before_write_removal_used)
+    {
+      ndb_index_type type= get_index_type(active_index);
+      /*
+        Ndb unique indexes are global so when
+        m_read_before_write_removal_used is active
+        the unique index can be used directly for update
+        without finding the partitions
+      */
+      if (type == UNIQUE_INDEX ||
+          type == UNIQUE_ORDERED_INDEX)
+        break;
+    }
+    if ((error= get_parts_for_update(old_data, new_data, table->record[0],
+                                     m_part_info, &old_part_id, &new_part_id,
+                                     &func_value)))
+    {
+      m_part_info->err_value= func_value;
+      DBUG_RETURN(error);
+    }
+    break;
   }
 
   /*
@@ -3847,7 +3863,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   options.optionsPresent=0;
 
   /* Need to set the value of any user-defined partitioning function. */
-  if (m_user_defined_partitioning)
+  if (new_part_id != ~uint32(0))
   {
     if (func_value >= INT_MAX32)
       func_value_uint32= INT_MAX32;
@@ -4045,7 +4061,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   NdbTransaction *trans= m_thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
-  uint32 part_id;
+  uint32 part_id= ~uint32(0);
   int error;
   bool allow_batch= is_bulk_delete || (thd->options & OPTION_ALLOW_BATCH);
   DBUG_ENTER("ndb_delete_row");
@@ -4054,11 +4070,27 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
 
-  if (m_use_partition_pruning &&
-      (error= get_part_for_delete(record, table->record[0], m_part_info,
-                                  &part_id)))
+  while (m_use_partition_pruning)
   {
-    DBUG_RETURN(error);
+    if (!cursor && m_read_before_write_removal_used)
+    {
+      ndb_index_type type= get_index_type(active_index);
+      /*
+        Ndb unique indexes are global so when
+        m_read_before_write_removal_used is active
+        the unique index can be used directly for deleting
+        without finding the partitions
+      */
+      if (type == UNIQUE_INDEX ||
+          type == UNIQUE_ORDERED_INDEX)
+        break;
+    }
+    if ((error= get_part_for_delete(record, table->record[0], m_part_info,
+                                    &part_id)))
+    {
+      DBUG_RETURN(error);
+    }
+    break;
   }
 
   NdbOperation::OperationOptions options;
@@ -4103,7 +4135,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     const NdbRecord *key_rec;
     const uchar *key_row;
 
-    if (m_user_defined_partitioning)
+    if (part_id != ~uint32(0))
     {
       options.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
       options.partitionId= part_id;
