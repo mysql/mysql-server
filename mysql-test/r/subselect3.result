@@ -795,6 +795,60 @@ WHERE INNR.varchar_key > 'n{'
 );
 varchar_nokey
 DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2), (11);
+# 2nd and 3rd columns should be same
+SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1 GROUP BY t1.a;
+a	ROW(11, 12) = (SELECT a, 22)	ROW(11, 12) IN (SELECT a, 22)
+1	0	0
+2	0	0
+11	0	0
+SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1 GROUP BY t1.a;
+a	ROW(11, 12) = (SELECT a, 12)	ROW(11, 12) IN (SELECT a, 12)
+1	0	0
+2	0	0
+11	1	1
+SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1;
+a	ROW(11, 12) = (SELECT a, 22)	ROW(11, 12) IN (SELECT a, 22)
+1	0	0
+2	0	0
+11	0	0
+SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
+a	ROW(11, 12) = (SELECT a, 12)	ROW(11, 12) IN (SELECT a, 12)
+1	0	0
+2	0	0
+11	1	1
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
+x	ROW(11, 12) = (SELECT MAX(x), 22)	ROW(11, 12) IN (SELECT MAX(x), 22)
+1	0	0
+2	0	0
+11	0	0
+# 2nd and 3rd columns should be same for x == 11 only
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
+x	ROW(11, 12) = (SELECT MAX(x), 12)	ROW(11, 12) IN (SELECT MAX(x), 12)
+1	0	1
+2	0	1
+11	1	1
+DROP TABLE t1;
+# both columns should be same
+SELECT ROW(1,2) = (SELECT NULL, NULL), ROW(1,2) IN (SELECT NULL, NULL);
+ROW(1,2) = (SELECT NULL, NULL)	ROW(1,2) IN (SELECT NULL, NULL)
+NULL	NULL
+SELECT ROW(1,2) = (SELECT   1,  NULL), ROW(1,2) IN (SELECT    1, NULL);
+ROW(1,2) = (SELECT   1,  NULL)	ROW(1,2) IN (SELECT    1, NULL)
+NULL	NULL
+SELECT ROW(1,2) = (SELECT NULL,    2), ROW(1,2) IN (SELECT NULL,    2);
+ROW(1,2) = (SELECT NULL,    2)	ROW(1,2) IN (SELECT NULL,    2)
+NULL	NULL
+SELECT ROW(1,2) = (SELECT NULL,    1), ROW(1,2) IN (SELECT NULL,    1);
+ROW(1,2) = (SELECT NULL,    1)	ROW(1,2) IN (SELECT NULL,    1)
+0	0
+SELECT ROW(1,2) = (SELECT    1,    1), ROW(1,2) IN (SELECT    1,    1);
+ROW(1,2) = (SELECT    1,    1)	ROW(1,2) IN (SELECT    1,    1)
+0	0
+SELECT ROW(1,2) = (SELECT    1,    2), ROW(1,2) IN (SELECT    1,    2);
+ROW(1,2) = (SELECT    1,    2)	ROW(1,2) IN (SELECT    1,    2)
+1	1
 End of 5.0 tests
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
