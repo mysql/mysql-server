@@ -54,6 +54,19 @@ delete from t1 where a = 1;
 select * from t1 where a = 1 order by a;
 
 --echo
+--echo # expected result 1 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the rows
+--echo # 0 - update the row (deferred to commit)
+--echo # 1 - update + commit the transaction
+--echo
+--source include/ndb_init_execute_count.inc
+update t1 set c = 1111 where b = 2;
+--source include/ndb_execute_count.inc
+
+select * from t1 where b = 2 order by a;
+
+--echo
 --echo # expected result 2 roundtrips
 --echo # 0 - info call
 --echo # 1 - read the rows

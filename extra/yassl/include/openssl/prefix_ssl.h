@@ -52,6 +52,7 @@
 #define SSL_load_error_strings yaSSL_load_error_strings
 #define SSL_set_session yaSSL_set_session
 #define SSL_get_session yaSSL_get_session
+#define SSL_flush_sessions yaSSL_flush_sessions
 #define SSL_SESSION_set_timeout yaSSL_SESSION_set_timeout
 #define SSL_CTX_set_session_cache_mode yaSSL_CTX_set_session_cache_mode
 #define SSL_get_peer_certificate yaSSL_get_peer_certificate

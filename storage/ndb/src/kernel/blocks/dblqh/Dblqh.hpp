@@ -679,6 +679,7 @@ public:
     ScanNumberMask m_scanNumberMask;
     DLList<ScanRecord>::Head m_activeScans;
     DLFifoList<ScanRecord>::Head m_queuedScans;
+    DLFifoList<ScanRecord>::Head m_queuedTupScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -859,6 +860,11 @@ public:
      * Log part
      */
     Uint32 m_log_part_ptr_i;
+
+    /**
+     * Instance key for fast access.
+     */
+    Uint16 lqhInstanceKey;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   
@@ -915,7 +921,9 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
-    bool inPackedList;
+    Uint8 inPackedList;
+    Uint8 nodestatus;
+    Uint8 _unused[2];
     UintR noOfPackedWordsLqh;
     UintR packedWordsLqh[30];
     UintR noOfPackedWordsTc;

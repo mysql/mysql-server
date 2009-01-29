@@ -166,17 +166,17 @@ Logger::addHandler(LogHandler* pHandler)
   Guard g(m_mutex);
   assert(pHandler != NULL);
 
-  bool rc = pHandler->open();	
-  if (rc)
+  if (!pHandler->is_open() &&
+      !pHandler->open())
   {
-    m_pHandlerList->add(pHandler);
-  }
-  else
-  {
+    // Failed to open
     delete pHandler;
-  }	
+    return false;
+  }
 
-  return rc;
+  m_pHandlerList->add(pHandler);
+
+  return true;
 }
 
 bool

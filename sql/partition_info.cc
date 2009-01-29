@@ -867,6 +867,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
 
     if (part_type != HASH_PARTITION || !list_of_part_fields)
     {
+      DBUG_ASSERT(part_expr);
       err= part_expr->walk(&Item::check_partition_func_processor, 0,
                            NULL);
       if (!err && is_sub_partitioned() && !list_of_subpart_fields)
@@ -956,11 +957,13 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
 #endif
       {
         if (part_elem->data_file_name)
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                       "DATA DIRECTORY option ignored");
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                              "DATA DIRECTORY");
         if (part_elem->index_file_name)
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                       "INDEX DIRECTORY option ignored");
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                              "INDEX DIRECTORY");
         part_elem->data_file_name= part_elem->index_file_name= NULL;
       }
       if (!is_sub_partitioned())

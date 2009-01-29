@@ -644,6 +644,16 @@ err:
 }
 #endif
 
+
+/**
+  Execute a SHOW SLAVE HOSTS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool show_slave_hosts(THD* thd)
 {
   List<Item> field_list;
@@ -708,7 +718,7 @@ int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi)
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
-  if (mi->bind_addr && !strcmp(mi->bind_addr,"0.0.0.0"))
+  if (mi->bind_addr && (mi->bind_addr[0] != 0))
   {
     DBUG_PRINT("info",("rpl failsafe BIND ADDR: %s",mi->bind_addr));
     mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);

@@ -1089,6 +1089,27 @@ extern "C" {
 			   unsigned int input_backupId);
 
   /**
+   * Start backup
+   *
+   * @param   handle          NDB management handle.
+   * @param   wait_completed  0:  Don't wait for confirmation<br>
+   *                          1:  Wait for backup to be started<br>
+   *                          2:  Wait for backup to be completed
+   * @param   backup_id       Backup ID is returned from function.
+   * @param   reply           Reply message.
+   * @param   input_backupId  run as backupId and set next backup id to input_backupId+1.
+   * @param   backuppoint     Backup happen at start time(1) or complete time(0).
+   * @return                  -1 on error.
+   * @note                    backup_id will not be returned if
+   *                          wait_completed == 0
+   */
+  int ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+			   unsigned int* backup_id,
+			   struct ndb_mgm_reply* reply,
+			   unsigned int input_backupId,
+			   unsigned int backuppoint);
+
+  /**
    * Abort backup
    *
    * @param   handle        NDB management handle.
@@ -1280,23 +1301,23 @@ extern "C" {
      NDB_MGM_CLUSTERLOG_ALERT = 6,
      NDB_MGM_CLUSTERLOG_ALL = 7
   };
-  inline
+  static inline
   int ndb_mgm_filter_clusterlog(NdbMgmHandle h,
 				enum ndb_mgm_clusterlog_level s,
 				int e, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_severity_filter(h,(enum ndb_mgm_event_severity)s,
 						  e,r); }
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_logfilter(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_severity_filter_old(h); }
 
-  inline
+  static inline
   int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle h, int n,
 				      enum ndb_mgm_event_category c,
 				      int l, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
 
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_loglevel_clusterlog(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_loglevel_old(h); }
 

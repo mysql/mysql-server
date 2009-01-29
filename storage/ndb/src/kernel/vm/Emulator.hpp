@@ -31,7 +31,6 @@ extern class  TimeQueue           globalTimeQueue;
 extern class  FastScheduler       globalScheduler;
 extern class  TransporterRegistry globalTransporterRegistry;
 extern struct GlobalData          globalData;
-extern struct thr_repository      g_thr_repository;
 
 #ifdef VM_TRACE
 extern class SignalLoggerManager globalSignalLoggers;
@@ -105,5 +104,10 @@ enum NdbRestartType {
 void 
 NdbShutdown(NdbShutdownType type, 
 	    NdbRestartType restartType = NRT_Default);
+
+/**
+ * Compute no of pages to be used as job-buffer
+ */
+Uint32 compute_jb_pages(struct EmulatorData* ed);
 
 #endif 

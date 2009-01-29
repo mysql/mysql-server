@@ -37,6 +37,12 @@ ConsoleLogHandler::close()
   return true;
 }
 
+bool
+ConsoleLogHandler::is_open()
+{
+  return true;
+}
+
 //
 // PROTECTED
 //

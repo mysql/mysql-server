@@ -164,6 +164,7 @@ our $exe_my_print_defaults;
 our $exe_perror;
 our $lib_udf_example;
 our $lib_example_plugin;
+our $lib_simple_parser;
 our $exe_libtool;
 
 our $opt_bench= 0;
@@ -177,7 +178,7 @@ our @opt_extra_mysqld_opt;
 
 our $opt_compress;
 our $opt_ssl;
-our $opt_skip_ssl;
+our $opt_skip_ssl = 1; # Until bug#42366 has been fixed
 our $opt_ssl_supported;
 our $opt_ps_protocol;
 our $opt_sp_protocol;
@@ -288,6 +289,8 @@ our $opt_warnings;
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster= 0;
+our $opt_ndb_mt_threads= "1,1,1,1";
+our @opt_ndb_mt_threads= ();
 our $opt_with_ndbcluster_only= 0;
 our $glob_ndbcluster_supported= 0;
 our $opt_ndb_extra_test= 0;
@@ -358,6 +361,7 @@ sub run_testcase_check_skip_test($);
 sub report_failure_and_restart ($);
 sub do_before_start_master ($);
 sub do_before_start_slave ($);
+sub get_ndb_mt_threads($$);
 sub ndbd_start ($$$);
 sub ndb_mgmd_start ($);
 sub mysqld_start ($$$);
@@ -572,6 +576,7 @@ sub command_line_setup () {
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
              'with-ndbcluster|ndb'      => \$opt_with_ndbcluster,
+             'ndb-mt-threads=s'         => \$opt_ndb_mt_threads,
              'vs-config'            => \$opt_vs_config,
 
              # Control what test suites or cases to run
@@ -1378,6 +1383,16 @@ sub command_line_setup () {
 	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
     }
   }
+
+  # check ndb mt threads option and choose any random values
+  @opt_ndb_mt_threads = split(/,/, $opt_ndb_mt_threads);
+  for my $idx (0..7) # fill in 8 nodes
+  {
+    my $ret= get_ndb_mt_threads($idx, 1);
+    mtr_error("invalid ndb-mt-threads value: $opt_ndb_mt_threads[$idx]")
+      unless $ret;
+    $opt_ndb_mt_threads[$idx]= $ret->{ver};
+  }
 }
 
 #
@@ -1591,21 +1606,27 @@ sub executable_setup_ndb () {
 				"$glob_basedir/storage/ndb",
 				"$glob_basedir/bin");
 
+  # Some might be found in sbin, not bin.
+  my $daemon_path= mtr_file_exists("$glob_basedir/ndb",
+				   "$glob_basedir/storage/ndb",
+				   "$glob_basedir/sbin",
+				   "$glob_basedir/bin");
+
   # Look for single threaded ndb
   $exe_ndbd=
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/kernel","ndbd"),
 			 "$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd",
+			 "$daemon_path/ndbd",
 			 "$glob_basedir/libexec/ndbd");
 
   # Look for multi threaded ndb
   $exe_ndbmtd=
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/kernel","ndbmtd"),
 			 "$ndb_path/src/kernel/ndbmtd",
-			 "$ndb_path/ndbmtd",
+			 "daemon_path/ndbmtd",
 			 "$glob_basedir/libexec/ndbmtd");
 
-  mtr_report("Found multi threaded ndbd, will be used \"round robin\"")
+  mtr_report("Found multi threaded ndbd (see option --ndb-mt-threads)")
     if ($exe_ndbmtd);
 
   $exe_ndb_mgm= mtr_native_path(
@@ -1615,7 +1636,7 @@ sub executable_setup_ndb () {
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmsrv","ndb_mgmd"),
 			 "$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd",
+			 "$daemon_path/ndb_mgmd",
 			 "$glob_basedir/libexec/ndb_mgmd");
 
   $exe_ndb_waiter= mtr_native_path(
@@ -1775,6 +1796,10 @@ sub executable_setup () {
       mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
                       "$glob_basedir/storage/example/.libs/ha_example.so",);
 
+    # Look for the simple_parser library
+    $lib_simple_parser=
+      mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
+                      "$glob_basedir/plugin/fulltext/.libs/mypluglib.so",);
   }
 
   # Look for mysqltest executable
@@ -2264,6 +2289,14 @@ sub environment_setup () {
     ($lib_example_plugin ? "--plugin_dir=" . dirname($lib_example_plugin) : "");
 
   # ----------------------------------------------------
+  # Add the path where mysqld will find mypluglib.so
+  # ----------------------------------------------------
+  $ENV{'SIMPLE_PARSER'}=
+    ($lib_simple_parser ? basename($lib_simple_parser) : "");
+  $ENV{'SIMPLE_PARSER_OPT'}=
+    ($lib_simple_parser ? "--plugin_dir=" . dirname($lib_simple_parser) : "");
+
+  # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------
   $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
@@ -2450,6 +2483,9 @@ sub remove_stale_vardir () {
     mtr_verbose("Removing $opt_vardir/");
     mtr_rmtree("$opt_vardir/");
   }
+  # Remove the "tmp" dir
+  mtr_verbose("Removing $opt_tmpdir/");
+  mtr_rmtree("$opt_tmpdir/");
 }
 
 #
@@ -2499,6 +2535,12 @@ sub setup_vardir() {
   mkpath("$opt_vardir/run");
   mkpath("$opt_vardir/tmp");
   mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
+
+  if ($master->[0]->{'path_sock'} !~ m/^$opt_tmpdir/)
+  {
+    mtr_report("Symlinking $master->[0]->{'path_sock'}");
+	symlink($master->[0]->{'path_sock'}, "$opt_tmpdir/master.sock");
+  }
 
   # Create new data dirs
   foreach my $data_dir (@data_dir_lst)
@@ -2707,10 +2749,10 @@ sub ndbcluster_start_install ($) {
     }
     else
     {
-      $ndb_no_ord=32;
+      $ndb_no_ord=128; # MT LQH
       $ndb_con_op=10000;
       $ndb_dmem="20M";
-      $ndb_imem="1M";
+      $ndb_imem="4M"; # MT LQH
       $ndb_pbmem="4M";
     }
   }
@@ -2741,6 +2783,20 @@ sub ndbcluster_start_install ($) {
       s/CHOOSE_PORT_TRANSPORTER/$base_port/;
     }
     s/CHOOSE_DiskPageBufferMemory/$ndb_pbmem/;
+
+    if (/CHOOSE_MAX_NO_OF_EXECUTION_THREADS_(\d+)/)
+    {
+      my $nodeid= $1;
+      my $idx= $nodeid - 1;
+      my $ret= get_ndb_mt_threads($idx, 1);
+      $ret or die "Bad template for nodeid=$nodeid";
+      s/CHOOSE_MAX_NO_OF_EXECUTION_THREADS_\d+/$ret->{ver}/;
+      if ($ret->{type} == 1 || $ret->{type} == 2)
+      {
+        s/^/#/;
+      }
+      mtr_report("ndb mt threads node $nodeid: $ret->{ver} [$ret->{name}]");
+    }
 
     print OUT "$_ \n";
   }
@@ -2832,8 +2888,8 @@ sub ndb_mgmd_start ($) {
   mtr_add_arg($args, "--core");
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "--config-file=%s", "$cluster->{'data_dir'}/config.ini");
-  mtr_add_arg($args, "--datadir=%s", "$cluster->{'data_dir'}");
-  mtr_add_arg($args, "--ndb-nodeid=%d", $cluster->{'nodes'} + 1);
+  mtr_add_arg($args, "--configdir=%s", "$cluster->{'data_dir'}");
+#  mtr_add_arg($args, "--ndb-nodeid=%d", $cluster->{'nodes'} + 1);
 
 
   my $path_ndb_mgmd_log= "$cluster->{'data_dir'}/\l$cluster->{'name'}_ndb_mgmd.log";
@@ -2860,7 +2916,47 @@ sub ndb_mgmd_start ($) {
 }
 
 
-my $exe_ndbmtd_counter= 0;
+sub get_ndb_mt_threads ($$) {
+  my $idx= shift;
+  my $have_exe_ndbmtd = shift;
+  return undef unless $idx >= 0;
+  # based on current ndb main.cpp
+  my @list= (
+    { ver=> [qw(1)],     type=> 1, name=> "non-mt",     wt=> 3 },
+    { ver=> [qw(2 3)],   type=> 2, name=> "mt-classic", wt=> 2 },
+    { ver=> [qw(4 5 6)], type=> 3, name=> "mt-lqh-2",   wt=> 1 },
+    { ver=> [qw(7 8)],   type=> 3, name=> "mt-lqh-4",   wt=> 4 },
+  );
+  my $ver= $opt_ndb_mt_threads[$idx] || "r";
+  if ($ver eq "r")
+  {
+    my $i= int(rand(@list));
+    for (0..0) {
+      my $j= int(rand(@list));
+      if ($list[$i]->{wt} < $list[$j]->{wt})
+      {
+        $i= $j;
+      }
+    }
+    $ver= $list[$i]->{ver}[0];
+  }
+  if (!$have_exe_ndbmtd)
+  {
+    $ver= '1';
+  }
+  for my $x (@list)
+  {
+    for my $y (@{$x->{ver}})
+    {
+      if ($y eq $ver)
+      {
+        return { ver=> $ver, type=> $x->{type}, name=> $x->{name} }
+      }
+    }
+  }
+  return undef;
+}
+
 
 sub ndbd_start ($$$) {
   my $cluster= shift;
@@ -2884,12 +2980,8 @@ sub ndbd_start ($$$) {
   my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
   my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}_out.log";
 
-  my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
-  }
+  my $ret= get_ndb_mt_threads($idx, $exe_ndbmtd);
+  my $exe= $ret->{type} == 1 ? $exe_ndbd : $exe_ndbmtd;
 
   $pid= mtr_spawn($exe, $args, "",
 		  $path_ndbd_log,
@@ -5334,6 +5426,8 @@ Options to control what engine/variation to run
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
   ndb|with-ndbcluster   Use cluster as default table type
+  ndb-mt-threads=VER,.. MT threads of each DB node (comma-separated)
+                        VER: 1=non-mt 2-3=mt-classic 4-8=mt-lqh r=random
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 

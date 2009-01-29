@@ -9,6 +9,8 @@
 # Creation Date: 2008-02-25                                                #
 # Author:  Sharique Abdullah                                               #
 #                                                                          #
+# Modified: HHunger 2008-08-28 Reimplemented the test completely.          #
+#                                                                          #
 # Description: Test Cases of Dynamic System Variable "timestamp"           #
 #              that checks behavior of this variable in the following ways #
 #              * Functionality based on different values                   #
@@ -17,63 +19,32 @@
 #                                                                          #
 ############################################################################
 
---echo ** Setup **
---echo
-#
-# Setup
-#
+# Change timestamp which must have an effect on now(), but not on sysdate().
+# Use Unix epoch timestamp
+# All comparisons must deliver true(1)
+# Exception: --sysdate-is-now switches off this behaviour and must not be set.
+
+--echo ** Connecting con1 using root **
+connect (con1,localhost,root,,);
+SELECT date(now()) = date(sysdate());
+SET @@session.timestamp = 1100000000;
+SELECT date(now()) != date(sysdate());
+
+# Assure that setting of the variable has no effect on other session.
 --echo ** Connecting con0 using root **
 connect (con0,localhost,root,,);
---echo ** Connecting con1 using root **
-connect (con1, localhost, root,,);
+SELECT @@session.timestamp != 1100000000;
+SET @@session.timestamp = 1000000000;
+SELECT date(now()) != date(sysdate());
 
---echo '#-----------------------------FN_DYNVARS_179_01------------------#'
-#
-# Checking for connection 1
-#
-
---echo ** Connection con0 **
-connection con0;
-SET @ts_old = @@SESSION.timestamp;
---echo waiting 1 sec
---sleep 1
-SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
---echo 1 means >=1 expected is true
-
-
-#
-# Checking for connection 2
-#
 --echo ** Connection con1 **
 connection con1;
-SET @ts_old = @@SESSION.timestamp;
---echo waiting 4 sec
---sleep 4
-SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old >= 4 AS 'Timestamp Difference';
---echo 1 means >=4 expected is true
-
---echo '#-----------------------------FN_DYNVARS_179_02---------------------#'
-#
-# Testing timezone change effect
-#
-
-SET @ts_old = @@SESSION.timestamp;
---sleep 1
---echo Changing time zone
-SET time_zone = 'MET';
-SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
---echo 1 means >=1 expected is true
-
-#
-# Cleanup
-#
---echo ** Cleanup **
+SELECT @@session.timestamp != 1000000000;
+SELECT @@session.timestamp = 1100000000;
 
 --echo ** Connection default **
 connection default;
 --echo Disconnecting Connections con0, con1
 disconnect con0;
 disconnect con1;
+

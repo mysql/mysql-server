@@ -29,7 +29,6 @@ bool
 LocalConfig::init(const char *connectString,
 		  const char *fileName)
 {
-  DBUG_ENTER("LocalConfig::init");
   /** 
    * Escalation:
    *  1. Check connectString
@@ -46,19 +45,19 @@ LocalConfig::init(const char *connectString,
   if(connectString != 0 && connectString[0] != 0){
     if(readConnectString(connectString, "connect string")){
       if (ids.size())
-	DBUG_RETURN(true);
+	return true;
       // only nodeid given, continue to find hosts
     } else
-      DBUG_RETURN(false);
+      return false;
   }
 
   //2. Check given filename
   if (fileName && strlen(fileName) > 0) {
     bool fopenError;
     if(readFile(fileName, fopenError)){
-      DBUG_RETURN(true);
+      return true;
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   //3. Check environment variable
@@ -66,9 +65,9 @@ LocalConfig::init(const char *connectString,
   if(NdbEnv_GetEnv("NDB_CONNECTSTRING", buf, sizeof(buf)) &&
      strlen(buf) != 0){
     if(readConnectString(buf, "NDB_CONNECTSTRING")){
-      DBUG_RETURN(true);
+      return true;
     }
-    DBUG_RETURN(false);
+    return false;
   }
   
   //4. Check Ndb.cfg in NDB_HOME
@@ -77,9 +76,9 @@ LocalConfig::init(const char *connectString,
     char *buf2= NdbConfig_NdbCfgName(1 /*true*/);
     NdbAutoPtr<char> tmp_aptr(buf2);
     if(readFile(buf2, fopenError))
-      DBUG_RETURN(true);
+      return true;
     if (!fopenError)
-      DBUG_RETURN(false);
+      return false;
   }
 
   //5. Check Ndb.cfg in cwd
@@ -88,9 +87,9 @@ LocalConfig::init(const char *connectString,
     char *buf2= NdbConfig_NdbCfgName(0 /*false*/);
     NdbAutoPtr<char> tmp_aptr(buf2);
     if(readFile(buf2, fopenError))
-      DBUG_RETURN(true);
+      return true;
     if (!fopenError)
-      DBUG_RETURN(false);
+      return false;
   }
 
   //7. Check
@@ -98,12 +97,12 @@ LocalConfig::init(const char *connectString,
     char buf2[256];
     BaseString::snprintf(buf2, sizeof(buf2), "host=localhost:%s", NDB_PORT);
     if(readConnectString(buf2, "default connect string"))
-      DBUG_RETURN(true);
+      return true;
   }
 
   setError(0, "");
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 LocalConfig::~LocalConfig(){
@@ -275,7 +274,8 @@ LocalConfig::parseString(const char * connectString, BaseString &err){
     err.assfmt("Unexpected entry: \"%s\"", tok);
     return false;
   }
-
+  bind_address_port= 0;
+  bind_address.assign("");
   return true;
 }
 
@@ -343,6 +343,15 @@ char *
 LocalConfig::makeConnectString(char *buf, int sz)
 {
   int p= BaseString::snprintf(buf,sz,"nodeid=%d", _ownNodeId);
+  if (p < sz && bind_address.length())
+  {
+    int new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
+                                      bind_address.c_str(), bind_address_port);
+    if (new_p < sz)
+      p= new_p;
+    else 
+      buf[p]= 0;
+  }
   if (p < sz)
     for (unsigned i = 0; i < ids.size(); i++)
     {
@@ -356,6 +365,18 @@ LocalConfig::makeConnectString(char *buf, int sz)
       {
 	buf[p]= 0;
 	break;
+      }
+      if (!bind_address.length() && ids[i].bind_address.length())
+      {
+        new_p= p+BaseString::snprintf(buf+p,sz-p,",bind-address=%s:%d",
+                                      ids[i].bind_address.c_str(), ids[i].bind_address_port);
+        if (new_p < sz)
+          p= new_p;
+        else 
+        {
+            buf[p]= 0;
+            break;
+        }
       }
     }
   buf[sz-1]=0;

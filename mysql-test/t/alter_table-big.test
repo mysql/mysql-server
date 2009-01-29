@@ -52,7 +52,7 @@ connection default;
 set session debug="-d,sleep_alter_enable_indexes";
 # Check that statements were executed/binlogged in correct order.
 --replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 
 # Clean up
 drop tables t1, t2;
@@ -110,7 +110,7 @@ set session debug="-d,sleep_alter_before_main_binlog";
 
 # Check that all statements were logged in correct order
 --replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 
 
 --echo End of 5.1 tests

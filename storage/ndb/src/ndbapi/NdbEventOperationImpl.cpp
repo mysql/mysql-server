@@ -1086,6 +1086,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   // initialize lists
   bzero(&g_empty_gci_container, sizeof(Gci_container));
   init_gci_containers();
+
+  m_alive_node_bit_mask.clear();
 }
 
 NdbEventBuffer::~NdbEventBuffer()
@@ -1847,11 +1849,16 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
 
 void
 NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
-                                         Uint32 len)
+                                         Uint32 len, int complete_cluster_failure)
 {
-  if (unlikely(m_active_op_count == 0))
+  if (!complete_cluster_failure)
   {
-    return;
+    m_alive_node_bit_mask.set(refToNode(rep->senderRef));
+
+    if (unlikely(m_active_op_count == 0))
+    {
+      return;
+    }
   }
   
   DBUG_ENTER_EVENT("NdbEventBuffer::execSUB_GCP_COMPLETE_REP");
@@ -2277,13 +2284,15 @@ NdbEventBuffer::report_node_connected(Uint32 node_id)
 }
 
 void
-NdbEventBuffer::report_node_failure(Uint32 node_id)
+NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 {
+  m_alive_node_bit_mask.clear(node_id);
+
   NdbEventOperation* op= m_ndb->getEventOperation(0);
   if (op == 0)
     return;
 
-  DBUG_ENTER("NdbEventBuffer::report_node_failure");
+  DBUG_ENTER("NdbEventBuffer::report_node_failure_completed");
   SubTableData data;
   LinearSectionPtr ptr[3];
   bzero(&data, sizeof(data));
@@ -2308,20 +2317,17 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
    */
   // no need to lock()/unlock(), receive thread calls this
   insert_event(&op->m_impl, data, ptr, data.senderData);
-  DBUG_VOID_RETURN;
-}
 
-void
-NdbEventBuffer::completeClusterFailed()
-{
-  NdbEventOperation* op= m_ndb->getEventOperation(0);
-  if (op == 0)
-    return;
+  if (!m_alive_node_bit_mask.isclear())
+    DBUG_VOID_RETURN;
 
-  DBUG_ENTER("NdbEventBuffer::completeClusterFailed");
+  /*
+   * Cluster failure
+   */
 
+  DBUG_PRINT("info", ("Cluster failure"));
 
-  Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
+  gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   bool found = find_max_known_gci(&gci);
 
   Uint64 * array = m_known_gci.getBase();
@@ -2357,18 +2363,10 @@ NdbEventBuffer::completeClusterFailed()
   /**
    * Inject new event
    */
-  SubTableData data;
-  LinearSectionPtr ptr[3];
-  bzero(&data, sizeof(data));
-  bzero(ptr, sizeof(ptr));
-
   data.tableId = ~0;
   data.requestInfo = 0;
   SubTableData::setOperation(data.requestInfo,
 			     NdbDictionary::Event::_TE_CLUSTER_FAILURE);
-  data.flags = SubTableData::LOG;
-  data.gci_hi = Uint32(gci >> 32);
-  data.gci_lo = Uint32(gci);
 
   /**
    * Insert this event for each operation
@@ -2400,7 +2398,7 @@ NdbEventBuffer::completeClusterFailed()
   rep.gci_lo= (Uint32)(gci & 0xFFFFFFFF);
   rep.gcp_complete_rep_count= cnt;
   rep.flags = 0;
-  execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength);
+  execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength, 1);
 
   DBUG_VOID_RETURN;
 }

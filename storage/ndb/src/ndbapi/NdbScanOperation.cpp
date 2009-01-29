@@ -582,7 +582,7 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
   const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
   Uint64 tmp[ MaxKeySizeInLongWords ];
   char* tmpshrink = (char*)tmp;
-  size_t tmplen = sizeof(tmp);
+  Uint32 tmplen = (Uint32)sizeof(tmp);
   
   Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
   Uint32 i;
@@ -2149,6 +2149,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     Uint32 left = len - i;
     while(tSignal && left > KeyInfo::DataLength){
       tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setLength(KeyInfo::MaxSignalLength);
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * KeyInfo::DataLength);
       src += 4 * KeyInfo::DataLength;
@@ -2156,10 +2157,13 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
       
       tSignal->next(theNdb->getSignal());
       tSignal = tSignal->next();
+      newOp->theLastKEYINFO = tSignal;
     }
     
     if(tSignal && left > 0){
       tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setLength(KeyInfo::HeaderLength + left);
+      newOp->theLastKEYINFO = tSignal;
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * left);
     }      

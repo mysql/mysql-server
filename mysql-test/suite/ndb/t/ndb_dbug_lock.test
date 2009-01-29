@@ -69,5 +69,5 @@ show create table t1;
 
 --echo # Cleanup
 --connection default
-set session debug="-d,sleep_after_global_schema_lock";
+set session debug="-d,";
 drop table t1;

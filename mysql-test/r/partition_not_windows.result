@@ -24,13 +24,15 @@ data directory='/not/existing'
   index directory='/not/existing'
 );
 Warnings:
-Warning	0	DATA DIRECTORY option ignored
-Warning	0	INDEX DIRECTORY option ignored
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (i) (PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+(PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 CREATE TABLE t1(a INT)

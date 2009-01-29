@@ -352,6 +352,8 @@ public:
 
     Uint32 errorCode;
     Uint32 noOfRetries;
+    Uint32 gci_hi;
+    Uint32 gci_lo;
     Uint32 sent;        // No of operations sent
     Uint32 recv;        // No of completed operations received
     inline bool complete() const { return sent == recv; };

@@ -13,7 +13,6 @@
 #   part_optA-D   Extra partitioning options (E.g. INDEX/DATA DIR)             #
 #                                                                              #
 #   have_bug33158 NDB case insensitive create, but case sensitive rename       #
-#   have_bug37719 Archive, crash when rename and then select                   #
 #------------------------------------------------------------------------------#
 # Original Author: mattiasj                                                    #
 # Original Date: 2008-06-27                                                    #
@@ -125,18 +124,12 @@ PARTITION BY KEY (a)
  PARTITION PartD $part_optD);
 INSERT INTO tablea VALUES (1), (2), (7), (8), (9), (10);
 SHOW TABLES;
-if (!$have_bug37719)
-{
 RENAME TABLE TableA to tableA;
-}
 --sorted_result
 SELECT * FROM tablea;
-if (!$have_bug37719)
-{
 --sorted_result
 SELECT * FROM tableA;
 RENAME TABLE tableA to TableA;
-}
 SHOW CREATE TABLE tablea;
 DROP TABLE tablea;
 }
@@ -262,18 +255,12 @@ PARTITION BY HASH (a)
  PARTITION PartD $part_optD);
 INSERT INTO tablea VALUES (1), (2), (7), (8), (9), (10);
 SHOW TABLES;
-if (!$have_bug37719)
-{
 RENAME TABLE TableA to tableA;
-}
 --sorted_result
 SELECT * FROM tablea;
-if (!$have_bug37719)
-{
 --sorted_result
 SELECT * FROM tableA;
 RENAME TABLE tableA to TableA;
-}
 SHOW CREATE TABLE tablea;
 DROP TABLE tablea;
 }
@@ -388,18 +375,12 @@ PARTITION BY RANGE (a)
  PARTITION PartD VALUES LESS THAN (13) $part_optD);
 INSERT INTO tablea VALUES (1), (2), (7), (8), (9), (10);
 SHOW TABLES;
-if (!$have_bug37719)
-{
 RENAME TABLE TableA to tableA;
-}
 --sorted_result
 SELECT * FROM tablea;
-if (!$have_bug37719)
-{
 --sorted_result
 SELECT * FROM tableA;
 RENAME TABLE tableA to TableA;
-}
 SHOW CREATE TABLE tablea;
 DROP TABLE tablea;
 }
@@ -516,18 +497,12 @@ PARTITION BY LIST (a)
  PARTITION PartD VALUES IN (5,6,12) $part_optD);
 INSERT INTO tablea VALUES (1), (2), (7), (8), (9), (10);
 SHOW TABLES;
-if (!$have_bug37719)
-{
 RENAME TABLE TableA to tableA;
-}
 --sorted_result
 SELECT * FROM tablea;
-if (!$have_bug37719)
-{
 --sorted_result
 SELECT * FROM tableA;
 RENAME TABLE tableA to TableA;
-}
 SHOW CREATE TABLE tablea;
 DROP TABLE tablea;
 }

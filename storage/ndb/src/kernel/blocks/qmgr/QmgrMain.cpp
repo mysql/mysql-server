@@ -991,6 +991,9 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   c_clusterNodes.assign(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
 
   myNodePtr.p->ndynamicId = TdynamicId;
+
+  // set own MT config here or in REF, and others in CM_NODEINFOREQ/CONF
+  setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
   
 /*--------------------------------------------------------------*/
 // Send this as an EVENT REPORT to inform about hearing about
@@ -1020,6 +1023,13 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 
   c_start.m_gsn = GSN_CM_NODEINFOREQ;
   c_start.m_nodes = c_clusterNodes;
+
+  if (ERROR_INSERTED(937))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 500, 1);
+  }
 
   return;
 }//Qmgr::execCM_REGCONF()
@@ -1109,6 +1119,7 @@ Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
   req->dynamicId = self->ndynamicId;
   req->version = getNodeInfo(getOwnNodeId()).m_version;
   req->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
+  req->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
   const Uint32 ref = calcQmgrBlockRef(nodeId);
   sendSignal(ref,GSN_CM_NODEINFOREQ, signal, CmNodeInfoReq::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOREQ, nodeId, "");
@@ -1214,6 +1225,9 @@ void Qmgr::execCM_REGREF(Signal* signal)
 
   skip_nodes.bitAND(c_definedNodes);
   c_start.m_skip_nodes.bitOR(skip_nodes);
+
+  // set own MT config here or in CONF, and others in CM_NODEINFOREQ/CONF
+  setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
   
   char buf[100];
   switch (TrefuseReason) {
@@ -1661,10 +1675,16 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 dynamicId = conf->dynamicId;
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
+  Uint32 lqh_workers = conf->lqh_workers;
   if (version < NDBD_SPLIT_VERSION)
   {
     jam();
     mysql_version = 0;
+  }
+  if (version < NDBD_MT_LQH_VERSION)
+  {
+    jam();
+    lqh_workers = 0;
   }
 
   NodeRecPtr nodePtr;  
@@ -1684,6 +1704,7 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   replyNodePtr.p->blockRef = signal->getSendersBlockRef();
   setNodeInfo(replyNodePtr.i).m_version = version;
   setNodeInfo(replyNodePtr.i).m_mysql_version = mysql_version;
+  setNodeInfo(replyNodePtr.i).m_lqh_workers = lqh_workers;
 
   recompute_version_info(NodeInfo::DB, version);
   
@@ -1741,8 +1762,13 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   Uint32 mysql_version = req->mysql_version;
   if (req->version < NDBD_SPLIT_VERSION)
     mysql_version = 0;
-  
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
+
+  Uint32 lqh_workers = req->lqh_workers;
+  if (req->version < NDBD_MT_LQH_VERSION)
+    lqh_workers = 0;
+  setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
+
   c_maxDynamicId = req->dynamicId;
 
   cmAddPrepare(signal, addNodePtr, nodePtr.p);
@@ -1799,6 +1825,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   conf->dynamicId = self->ndynamicId;
   conf->version = getNodeInfo(getOwnNodeId()).m_version;
   conf->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
+  conf->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
   sendSignal(nodePtr.p->blockRef, GSN_CM_NODEINFOCONF, signal,
 	     CmNodeInfoConf::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOCONF, refToNode(nodePtr.p->blockRef), "");
@@ -2926,7 +2953,13 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     jam();
     return;
   case ZSTARTING:
-    c_start.reset();
+    /**
+     * bug#42422
+     *   Force "real" failure handling
+     */
+    failedNodePtr.p->phase = ZRUNNING;
+    failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE);
+    return;
     // Fall-through
   default:
     jam();
@@ -3516,6 +3549,8 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
 {
   NodeRecPtr myNodePtr;
   jamEntry();
+  
+  c_start.reset();
   
   if (check_multi_node_shutdown(signal))
   {

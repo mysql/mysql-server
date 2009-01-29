@@ -36,7 +36,10 @@
 #include <mgmapi_configuration.hpp>
 
 int 
-NdbBackup::start(unsigned int & _backup_id){
+NdbBackup::start(unsigned int & _backup_id,
+		 int flags,
+		 unsigned int user_backup_id,
+		 unsigned int logtype){
 
   
   if (!isConnected())
@@ -45,10 +48,18 @@ NdbBackup::start(unsigned int & _backup_id){
   ndb_mgm_reply reply;
   reply.return_code = 0;
 
-  if (ndb_mgm_start_backup(handle,
-			   2, // wait until completed
+loop:
+  if (ndb_mgm_start_backup3(handle,
+			   flags,
 			   &_backup_id,
-			   &reply) == -1) {
+			   &reply,
+			   user_backup_id,
+			   logtype) == -1) {
+
+    if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
+        strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists"))
+      goto loop;
+    
     g_err << "Error: " << ndb_mgm_get_latest_error(handle) << endl;
     g_err << "Error msg: " << ndb_mgm_get_latest_error_msg(handle) << endl;
     g_err << "Error desc: " << ndb_mgm_get_latest_error_desc(handle) << endl;
@@ -63,6 +74,50 @@ NdbBackup::start(unsigned int & _backup_id){
     return reply.return_code;
   }
   return 0;
+}
+
+int
+NdbBackup::startLogEvent(){
+
+  if (!isConnected())
+    return -1;
+  log_handle= NULL;
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0, 0 };
+  log_handle = ndb_mgm_create_logevent_handle(handle, filter);
+  if (!log_handle) {
+    g_err << "Can't create log event" << endl;
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbBackup::checkBackupStatus(){
+
+  struct ndb_logevent log_event;
+  int result = 0;
+  int res;
+  if(!log_handle) {
+    return -1;
+  }
+  if ((res= ndb_logevent_get_next(log_handle, &log_event, 3000)) > 0)
+  {
+    switch (log_event.type) {
+      case NDB_LE_BackupStarted:
+	result = 1;
+	break;
+      case NDB_LE_BackupCompleted:
+	result = 2;
+        break;
+      case NDB_LE_BackupAborted:
+	result = 3;
+        break;
+      default:
+        break;
+    }
+  }
+  ndb_mgm_destroy_logevent_handle(&log_handle);
+  return result;
 }
 
 
@@ -118,9 +173,6 @@ NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
 		       int _node_id,
 		       unsigned _backup_id){
-  const int buf_len = 1000;
-  char buf[buf_len];
-
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
   const char* path = getBackupDataDirForNode(_node_id);
@@ -136,39 +188,58 @@ NdbBackup::execRestore(bool _restore_data,
   /* 
    * Copy  backup files to local dir
    */ 
-
-  BaseString::snprintf(buf, buf_len,
-	   "scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
-	   host, path,
-	   _backup_id,
-	   _backup_id,
-	   _node_id);
-
-  ndbout << "buf: "<< buf <<endl;
-  int res = system(buf);  
+  BaseString tmp;
+  tmp.assfmt("scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
+             host, path,
+             _backup_id,
+             _backup_id,
+             _node_id);
+  
+  ndbout << "buf: "<< tmp.c_str() <<endl;
+  int res = system(tmp.c_str());  
   
   ndbout << "scp res: " << res << endl;
   
-  BaseString::snprintf(buf, 255, "%sndb_restore -c \"%s:%d\" -n %d -b %d %s %s .", 
+  tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d %s %s .", 
 #if 1
-	   "",
+             "",
 #else
-	   "valgrind --leak-check=yes -v "
+             "valgrind --leak-check=yes -v "
 #endif
-	   ndb_mgm_get_connected_host(handle),
-	   ndb_mgm_get_connected_port(handle),
-	   _node_id, 
-	   _backup_id,
-	   _restore_data?"-r":"",
-	   _restore_meta?"-m":"");
+             ndb_mgm_get_connected_host(handle),
+             ndb_mgm_get_connected_port(handle),
+             _node_id, 
+             _backup_id,
+             _restore_data?"-r":"",
+             _restore_meta?"-m":"");
+  
+  ndbout << "buf: "<< tmp.c_str() <<endl;
+  res = system(tmp.c_str());
 
-  ndbout << "buf: "<< buf <<endl;
-  res = system(buf);
+  if (res && _restore_meta)
+  {
+    /** try once wo/ restoring DD objects */
 
+    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d -d %s %s .", 
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id, 
+               _backup_id,
+               _restore_data?"-r":"",
+               _restore_meta?"-m":"");
+    
+    ndbout << "buf: "<< tmp.c_str() <<endl;
+    res = system(tmp.c_str());
+  }
+  
   ndbout << "ndb_restore res: " << res << endl;
 
   return res;
-  
 }
 
 int 

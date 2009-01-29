@@ -63,6 +63,12 @@ FileLogHandler::open()
 }
 
 bool
+FileLogHandler::is_open()
+{
+  return m_pLogFile->is_open();
+}
+
+bool
 FileLogHandler::close()
 {
   bool rc = true;

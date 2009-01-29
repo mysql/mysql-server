@@ -325,20 +325,56 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                         "config, exiting.");
     return -1;
   }
+
   if (tupmem)
   {
     Resource_limit rl;
     rl.m_min = tupmem;
     rl.m_max = tupmem;
-    rl.m_resource_id = 3;
+    rl.m_resource_id = RG_DATAMEM;
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (shared_mem+tupmem)
+  Uint32 maxopen = 4 * 4; // 4 redo parts, max 4 files per part
+  Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
+  Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
+
+  if (filepages)
+  {
+    Resource_limit rl;
+    rl.m_min = filepages;
+    rl.m_max = filepages;
+    rl.m_resource_id = RG_FILE_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 jbpages = compute_jb_pages(&ed);;
+  if (jbpages)
+  {
+    Resource_limit rl;
+    rl.m_min = jbpages;
+    rl.m_max = jbpages;
+    rl.m_resource_id = RG_JOBBUFFER;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 sbpages = 0;
+  if (globalTransporterRegistry.get_using_default_send_buffer() == false)
+  {
+    Uint64 mem = globalTransporterRegistry.get_total_max_send_buffer();
+    sbpages = (mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+    Resource_limit rl;
+    rl.m_min = sbpages;
+    rl.m_max = sbpages;
+    rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (shared_mem + tupmem + filepages + jbpages + sbpages)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem + tupmem;
+    rl.m_max = shared_mem + tupmem + filepages + jbpages + sbpages;
     rl.m_resource_id = 0;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -355,7 +391,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
 
     g_eventLogger->alert("Malloc (%lld bytes) for %s and %s failed, exiting",
-                         Uint64(shared_mem + tupmem) * 32768,
+                         Uint64(shared_mem + tupmem) * GLOBAL_PAGE_SIZE,
                          dm.m_name, sga.m_name);
     return -1;
   }
@@ -368,8 +404,10 @@ get_multithreaded_config(EmulatorData& ed)
 {
   // multithreaded is compiled in ndbd/ndbmtd for now
   globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
-  if (!globalData.isNdbMt)
+  if (!globalData.isNdbMt) {
+    ndbout << "NDBMT: non-mt" << endl;
     return 0;
+  }
 
   const ndb_mgm_configuration_iterator * p =
     ed.theConfiguration->getOwnConfigIterator();
@@ -380,6 +418,7 @@ get_multithreaded_config(EmulatorData& ed)
 
   Uint32 mtthreads = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
+  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
   
   if (mtthreads > 3)
   {
@@ -642,6 +681,9 @@ int main(int argc, char** argv)
   
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
+  if (get_multithreaded_config(globalEmulatorData))
+    return -1;
+
   {
     /*
      * Memory allocation can take a long time for large memory.
@@ -655,9 +697,6 @@ int main(int argc, char** argv)
       return 1;
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
-
-  if (get_multithreaded_config(globalEmulatorData))
-    return -1;
 
   globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
   

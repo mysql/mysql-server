@@ -102,6 +102,10 @@ private:
     SubscriptionRecord(AttrOrderBuffer::DataBufferPool & aop):
       attributeOrder(aop)
     {}
+    enum RequestFlags {
+      RF_WAIT_GCP = 0x1
+    };
+    Uint32 m_flags;
     RequestType requestType;
     BlockReference userReference; // For user
     Uint32 connectionPtr; // For user
@@ -123,6 +127,7 @@ private:
     bool pendingSubSyncContinueConf;
     Uint32 expectedConf; // Count in n UTIL_EXECUTE_CONF + 1 SUB_SYNC_CONF
     Uint64 m_rows_processed;
+    Uint64 m_gci;
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -182,6 +187,10 @@ private:
   void execSUB_SYNC_CONTINUE_REQ(Signal* signal);
   void execSUB_TABLE_DATA(Signal* signal);
 
+  // GCP
+  void execWAIT_GCP_REF(Signal*);
+  void execWAIT_GCP_CONF(Signal*);
+
   // Utility functions
   void setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr);
   void startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
@@ -189,6 +198,7 @@ private:
   void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
   void executeReorgTransaction(Signal*, SubscriptionRecPtr, Uint32);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
+  void wait_gcp(Signal*, SubscriptionRecPtr subRecPtr, Uint32 delay = 0);
   void buildFailed(Signal* signal, 
 		   SubscriptionRecPtr subRecPtr, 
 		   BuildIndxRef::ErrorCode);

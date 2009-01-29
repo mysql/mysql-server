@@ -70,7 +70,8 @@ NdbOut& NdbOut::endline()
 {
   isHex = 0; // Reset hex to normal, if user forgot this
   m_out->println("");
-  m_out->flush();
+  if (m_autoflush)
+    m_out->flush();
   return *this;
 }
 
@@ -86,10 +87,9 @@ NdbOut& NdbOut::setHexFormat(int _format)
   return *this;
 }
 
-NdbOut::NdbOut(OutputStream & out) 
-  : m_out(& out)
+NdbOut::NdbOut(OutputStream & out, bool autoflush)
+  : m_out(& out), isHex(0), m_autoflush(autoflush)
 {
-  isHex = 0;
 }
 
 NdbOut::~NdbOut()
@@ -104,7 +104,7 @@ NdbOut::print(const char * fmt, ...){
   va_start(ap, fmt);
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  ndbout << buf;
+  *this << buf;
   va_end(ap);
 }
 
@@ -116,7 +116,7 @@ NdbOut::println(const char * fmt, ...){
   va_start(ap, fmt);
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  ndbout << buf << endl;
+  *this << buf << endl;
   va_end(ap);
 }
 

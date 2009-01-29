@@ -147,6 +147,7 @@
 #define CFG_NDBMT_LQH_WORKERS         188
 
 #define CFG_DB_INIT_REDO              189
+#define CFG_DB_THREAD_POOL            190
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
@@ -207,9 +208,9 @@
 #define CFG_SCI_SEND_LIMIT            554
 #define CFG_SCI_BUFFER_MEM            555
 
-#define CFG_602                       602 // Removed: was OSE
-#define CFG_603                       603 // Removed: was OSE
-#define CFG_604                       604 // Removed: was OSE
+#define CFG_602                       602 /* Removed: was OSE */
+#define CFG_603                       603 /* Removed: was OSE */
+#define CFG_604                       604 /* Removed: was OSE */
 
 /**
  * API Config variables
@@ -236,6 +237,6 @@
 #define CONNECTION_TYPE_TCP           0
 #define CONNECTION_TYPE_SHM           1
 #define CONNECTION_TYPE_SCI           2
-#define CONNECTION_TYPE_OSE           3 // Removed.
+#define CONNECTION_TYPE_OSE           3 /* Removed. */
 
 #endif

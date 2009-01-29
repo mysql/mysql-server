@@ -1639,8 +1639,9 @@ master_def:
            if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
                Lex->mi.heartbeat_period < 0.0)
            {
-             char buf[sizeof(SLAVE_MAX_HEARTBEAT_PERIOD*4)];
-             my_sprintf(buf, (buf, "%d seconds", SLAVE_MAX_HEARTBEAT_PERIOD));
+             const char format[]= "%d seconds";
+             char buf[sizeof(SLAVE_MAX_HEARTBEAT_PERIOD)*4 + sizeof(format)];
+             my_sprintf(buf, (buf, format, SLAVE_MAX_HEARTBEAT_PERIOD));
              my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
                       MYF(0),
                       " is negative or exceeds the maximum ",
@@ -3662,7 +3663,7 @@ ts_wait:
         ;
 
 size_number:
-          real_ulong_num { $$= $1;}
+          real_ulonglong_num { $$= $1;}
         | IDENT
           {
             ulonglong number;
@@ -5758,7 +5759,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_OPTIMIZE;
-            lex->alter_info.flags|= ALTER_OPTIMIZE_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }
@@ -5768,7 +5769,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_ANALYZE;
-            lex->alter_info.flags|= ALTER_ANALYZE_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }
@@ -5776,7 +5777,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_CHECK;
-            lex->alter_info.flags|= ALTER_CHECK_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->check_opt.init();
           }
           opt_mi_check_type
@@ -5785,7 +5786,7 @@ alter_commands:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_REPAIR;
-            lex->alter_info.flags|= ALTER_REPAIR_PARTITION;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
           }

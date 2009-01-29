@@ -74,7 +74,7 @@ public:
   NdbOut& flushline(void);
   NdbOut& setHexFormat(int _format);
   
-  NdbOut(OutputStream &);
+  NdbOut(OutputStream &, bool autoflush = true);
   virtual ~NdbOut();
 
   void print(const char * fmt, ...)
@@ -86,6 +86,7 @@ public:
 private:
   void choose(const char * fmt,...);
   int isHex;
+  bool m_autoflush;
 };
 
 #ifdef NDB_WIN

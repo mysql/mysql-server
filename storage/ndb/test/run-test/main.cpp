@@ -258,15 +258,19 @@ main(int argc, char ** argv)
   /**
    * Main loop
    */
-  while(!feof(g_test_case_file)){
+  while(!feof(g_test_case_file))
+  {
     /**
      * Do we need to restart ndb
      */
-    if(restart){
+    if(restart)
+    {
+      restart = false;
       g_logger.info("(Re)starting server processes...");
+
       if(!stop_processes(g_config, ~0))
 	goto end;
-
+      
       if (!setup_directories(g_config, 2))
 	goto end;
       
@@ -280,7 +284,7 @@ main(int argc, char ** argv)
       {
         g_logger.info("Failed to start server processes");
         g_logger.info("Gathering logs and saving them as test %u", test_no);
-
+        
         int tmp;
         if(!gather_result(g_config, &tmp))
           goto end;
@@ -331,31 +335,37 @@ main(int argc, char ** argv)
     
     const time_t start = time(0);
     time_t now = start;
-    do {
+    do 
+    {
       if(!update_status(g_config, atrt_process::AP_ALL))
 	goto end;
-
-      if(is_running(g_config, p_ndb) != 2){
+      
+      if(is_running(g_config, p_ndb) != 2)
+      {
 	result = ERR_NDB_FAILED;
 	break;
       }
-
-      if(is_running(g_config, p_servers) != 2){
+      
+      if(is_running(g_config, p_servers) != 2)
+      {
 	result = ERR_SERVERS_FAILED;
 	break;
       }
 
-      if(is_running(g_config, p_clients) == 0){
+      if(is_running(g_config, p_clients) == 0)
+      {
 	break;
       }
 
-      if (!do_command(g_config)){
+      if (!do_command(g_config))
+      {
         result = ERR_COMMAND_FAILED;
 	break;
       }
 
       now = time(0);
-      if(now  > (start + test_case.m_max_time)){
+      if(now  > (start + test_case.m_max_time))
+      {
 	result = ERR_MAX_TIME_ELAPSED;
 	break;
       }
@@ -375,18 +385,20 @@ main(int argc, char ** argv)
 		  test_no, 
 		  (result == 0 ? "OK" : "FAILED"), result);
 
-    if(g_report_file != 0){
+    if(g_report_file != 0)
+    {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld\n",
 	      test_case.m_name.c_str(), test_no, result, elapsed);
       fflush(g_report_file);
     }    
 
-    if(g_mode == 0 && result){
+    if(g_mode == 0 && result)
+    {
       g_logger.info
 	("Encountered failed test in interactive mode - terminating");
       break;
     }
-
+    
     BaseString resdir;
     resdir.assfmt("result.%d", test_no);
     remove_dir(resdir.c_str(), true);
@@ -404,11 +416,15 @@ main(int argc, char ** argv)
     {
       remove_dir("result", true);
     }
-    
-    if(result != 0){
+   
+    if (reset_config(g_config))
+    {
       restart = true;
-    } else {
-      restart = false;
+    }
+    
+    if(result != 0)
+    {
+      restart = true;
     }
     test_no++;
   }
@@ -438,7 +454,7 @@ get_one_option(int arg, const struct my_option * opt, char * value)
     if (g_replicate.length())
       g_replicate.append(";");
     g_replicate.append(value);
-    return 1;
+    return 0;
   }
   return 0;
 }
@@ -480,6 +496,12 @@ parse_args(int argc, char** argv)
   
   const char *groups[] = { "atrt", 0 };
   int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv);
+
+  if (ret)
+  {
+    g_logger.error("Failed to load defaults, returned (%d)",ret);
+    return false;
+  }
   
   save_file = my_defaults_file;
   save_group_suffix = my_defaults_group_suffix;
@@ -490,10 +512,12 @@ parse_args(int argc, char** argv)
 		   my_defaults_extra_file);
     return false;
   }
-  
-  if (ret || handle_options(&argc, &argv, g_options, get_one_option))
+
+  ret =  handle_options(&argc, &argv, g_options, get_one_option);
+  if (ret)
   {
-    g_logger.error("Failed to load defaults/handle_options");
+    g_logger.error("handle_options failed, ret: %d, argc: %d, *argv: '%s'", 
+                    ret, argc, *argv);
     return false;
   }
 
@@ -870,7 +894,8 @@ next:
 bool
 start_process(atrt_process & proc){
   if(proc.m_proc.m_id != -1){
-    g_logger.critical("starting already started process: %d", proc.m_index);
+    g_logger.critical("starting already started process: %u", 
+                      (unsigned)proc.m_index);
     return false;
   }
   
@@ -1141,13 +1166,23 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     if(proc.m_type == atrt_process::AP_NDB_API || 
        proc.m_type == atrt_process::AP_CLIENT)
     {
-      proc.m_proc.m_path = "";
+      BaseString cmd;
       if (tc.m_command.c_str()[0] != '/')
       {
-	proc.m_proc.m_path.appfmt("%s/bin/", g_prefix);
+        cmd.appfmt("%s/bin/", g_prefix);
       }
-      proc.m_proc.m_path.append(tc.m_command.c_str());
-      proc.m_proc.m_args.assign(tc.m_args);
+      cmd.append(tc.m_command.c_str());
+
+      if (0) // valgrind
+      {
+        proc.m_proc.m_path = "/usr/bin/valgrind";
+        proc.m_proc.m_args.appfmt("%s %s", cmd.c_str(), tc.m_args.c_str());
+      }
+      else
+      {
+        proc.m_proc.m_path = cmd;
+        proc.m_proc.m_args.assign(tc.m_args);
+      }
       if(!tc.m_run_all)
         break;
     }
@@ -1222,28 +1257,38 @@ setup_hosts(atrt_config& config){
   return true;
 }
 
+static
+bool
+do_rsync(const char *dir, const char *dst)
+{
+  BaseString tmp = g_setup_progname;
+  tmp.appfmt(" %s %s/ %s", dst, dir, dir);
+  
+  g_logger.info("rsyncing %s to %s", dir, dst);
+  g_logger.debug("system(%s)", tmp.c_str());
+  const int r1 = system(tmp.c_str());
+  if(r1 != 0)
+  {
+    g_logger.critical("Failed to rsync %s to %s", dir, dst);
+    return false;
+  }
+  
+  return true;
+}
+
 bool
 deploy(atrt_config & config)
 {
   for (size_t i = 0; i<config.m_hosts.size(); i++)
   {
-    BaseString tmp = g_setup_progname;
-    tmp.appfmt(" %s %s/ %s",
-	       config.m_hosts[i]->m_hostname.c_str(),
-	       g_prefix,
-	       g_prefix);
-  
-    g_logger.info("rsyncing %s to %s", g_prefix,
-		  config.m_hosts[i]->m_hostname.c_str());
-    g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = system(tmp.c_str());
-    if(r1 != 0)
-    {
-      g_logger.critical("Failed to rsync %s to %s", 
-			g_prefix,
-			config.m_hosts[i]->m_hostname.c_str());
+    if (!do_rsync(g_basedir, config.m_hosts[i]->m_hostname.c_str()))
       return false;
-    }
+
+    if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
+      return false;
+    
+    if (g_prefix1 && !do_rsync(g_prefix1, config.m_hosts[i]->m_hostname.c_str()))
+      return false;
   }
   
   return true;
@@ -1340,6 +1385,27 @@ require(bool x)
 {
   if (!x)
     abort();
+}
+
+bool
+reset_config(atrt_config & config)
+{
+  bool changed = false;
+  for(size_t i = 0; i<config.m_processes.size(); i++)
+  {
+    atrt_process & proc = *config.m_processes[i]; 
+    if (proc.m_save.m_saved)
+    {
+      if (!stop_process(proc))
+        return false;
+      
+      changed = true;
+      proc.m_save.m_saved = false;
+      proc.m_proc = proc.m_save.m_proc;
+      proc.m_proc.m_id = -1;
+    }
+  }
+  return changed;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;

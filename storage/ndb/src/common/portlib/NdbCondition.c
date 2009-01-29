@@ -130,22 +130,27 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
 int 
 NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
                          NdbMutex* p_mutex,
-                         int msecs){
-  int result;
+                         int msecs)
+{
   struct timespec abstime; 
+
+  NdbCondition_ComputeAbsTime(&abstime, msecs);
+  return NdbCondition_WaitTimeoutAbs(p_cond, p_mutex, &abstime);
+}
+
+void
+NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
+{
   int secs = 0;
-  
-  if (p_cond == NULL || p_mutex == NULL)
-    return 1;
 #ifndef NDB_WIN
 #ifdef HAVE_CLOCK_GETTIME
-  clock_gettime(clock_id, &abstime);
+  clock_gettime(clock_id, abstime);
 #else
   {
     struct timeval tick_time;
     gettimeofday(&tick_time, 0);
-    abstime.tv_sec  = tick_time.tv_sec;
-    abstime.tv_nsec = tick_time.tv_usec * 1000;
+    abstime->tv_sec  = tick_time.tv_sec;
+    abstime->tv_nsec = tick_time.tv_usec * 1000;
   }
 #endif
 
@@ -154,18 +159,26 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
     msecs = msecs % 1000;
   }
 
-  abstime.tv_sec  += secs;
-  abstime.tv_nsec += msecs * 1000000;
-  if (abstime.tv_nsec >= 1000000000) {
-    abstime.tv_sec  += 1;
-    abstime.tv_nsec -= 1000000000;
+  abstime->tv_sec  += secs;
+  abstime->tv_nsec += msecs * 1000000;
+  if (abstime->tv_nsec >= 1000000000) {
+    abstime->tv_sec  += 1;
+    abstime->tv_nsec -= 1000000000;
   }
 #else
-  set_timespec_nsec(abstime,msecs*1000000ULL);
+  set_timespec_nsec(*abstime,msecs*1000000ULL);
 #endif
-  result = pthread_cond_timedwait(&p_cond->cond, p_mutex, &abstime);
-  
-  return result;
+}
+
+int
+NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
+                            NdbMutex* p_mutex,
+                            const struct timespec * abstime)
+{
+  if (p_cond == NULL || p_mutex == NULL)
+    return 1;
+
+  return pthread_cond_timedwait(&p_cond->cond, p_mutex, abstime);
 }
 
 int 

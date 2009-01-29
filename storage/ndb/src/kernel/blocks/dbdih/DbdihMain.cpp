@@ -1228,6 +1228,10 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   {
     jam();
     c_fragments_per_node = getLqhWorkers();
+    // try to get some LQH workers which initially handle no fragments
+    if (ERROR_INSERTED(7215)) {
+      c_fragments_per_node = 1;
+    }
   }
   ndbout_c("Using %u fragments per node", c_fragments_per_node);
 
@@ -5037,16 +5041,32 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
                GCPPrepareConf::SignalLength, JBB);
   }//if
 
-  if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) {
+  if (c_GCP_COMMIT_Counter.isWaitingFor(failedNodeId)) 
+  {
     jam();
-    GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
-    conf->nodeId = failedNodeId;
-    conf->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
-    conf->gci_lo = Uint32(m_micro_gcp.m_old_gci);
-    conf->failno = cfailurenr;
-    sendSignal(reference(), GSN_GCP_NODEFINISH, signal, 
-               GCPNodeFinished::SignalLength, JBB);
-  }//if
+    
+    /**
+     * Waiting for GSN_GCP_NODEFINISH
+     *   TC-take-over can generate new transactions
+     *   that will be in this epoch
+     *   re-run GCP_NOMORETRANS to master-TC (self) that will run
+     *   take-over
+     */
+    c_GCP_COMMIT_Counter.clearWaitingFor(failedNodeId);
+    if (!c_GCP_COMMIT_Counter.isWaitingFor(getOwnNodeId()))
+    {
+      jam();
+      c_GCP_COMMIT_Counter.setWaitingFor(getOwnNodeId());
+      m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
+    }
+     
+    GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
+    req->senderData = m_micro_gcp.m_master_ref;
+    req->gci_hi = m_micro_gcp.m_old_gci >> 32;
+    req->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+               GCPNoMoreTrans::SignalLength, JBB);
+  }
 
   if (c_GCP_SAVEREQ_Counter.isWaitingFor(failedNodeId)) {
     jam();
@@ -5160,6 +5180,12 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
 
   signal->theData[0] = NDB_LE_GCP_TakeoverStarted;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
+
+  /**
+   * save own value...
+   *   to be able to check values returned in MASTER_GCPCONF
+   */
+  m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
 
   setLocalNodefailHandling(signal, oldMasterId, NF_GCP_TAKE_OVER);
 }//Dbdih::handleNewMaster()
@@ -5412,6 +5438,17 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   ndbassert(ok); // Unhandled case...
 
   ok = false;
+  /**
+   * GCI should differ with atmost one
+   */
+  ndbrequire(saveGCI == m_gcp_save.m_gci ||
+             saveGCI == m_gcp_save.m_gci + 1 ||
+             saveGCI + 1 == m_gcp_save.m_gci);
+  if (saveGCI > m_gcp_save.m_master.m_new_gci)
+  {
+    jam();
+    m_gcp_save.m_master.m_new_gci = saveGCI;
+  }
   switch(saveState){
   case MasterGCPConf::GCP_SAVE_IDLE:
     jam();
@@ -5526,7 +5563,6 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
   else
   {
     ok = false;
-    m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
     switch(m_gcp_save.m_master.m_state){
     case GcpSave::GCP_SAVE_IDLE:
       jam();
@@ -7089,7 +7125,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
         }
       }
-
+      
       if (flags & CreateFragmentationReq::RI_GET_FRAGMENTATION)
       {
         jam();
@@ -7864,6 +7900,8 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if ((err = add_fragments_to_table(tabPtr, buf)))
     {
       jam();
+      ndbrequire(tabPtr.p->totalfragments == save);
+      ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
       send_alter_tab_ref(signal, connectPtr, err);
       return;
     }
@@ -8057,8 +8095,7 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
   getFragstore(tabPtr.p, fragId, fragPtr);
   dec_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 
-  Uint32 allocated = chunks << LOG_NO_OF_FRAGS_PER_CHUNK;
-  if (fragId < allocated)
+  if (fragId == ((chunks - 1) << LOG_NO_OF_FRAGS_PER_CHUNK))
   {
     jam();
 
@@ -8067,6 +8104,7 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
     fragPtr.p->nextFragmentChunk = cfirstfragstore;
     cfirstfragstore = fragPtr.i;
     cremainingfrags += NO_OF_FRAGS_PER_CHUNK;
+    tabPtr.p->noOfFragChunks = chunks - 1;
   }
 
   tabPtr.p->totalfragments--;
@@ -8111,12 +8149,16 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     Ptr<TabRecord> tabPtr;
     tabPtr.i = connectPtr.p->table;
     ptrAss(tabPtr, tabRecord);
-    for (Uint32 i = connectPtr.p->m_alter.m_totalfragments - 1;
-         i >= connectPtr.p->m_alter.m_org_totalfragments; i--)
+
+    Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
+    Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
+    tabPtr.p->totalfragments = new_frags;
+    for (Uint32 i = new_frags - 1; i >= org_frags; i--)
     {
       jam();
       release_fragment_from_table(tabPtr, i);
     }
+    connectPtr.p->m_alter.m_totalfragments = org_frags;
 
     switch(connectPtr.p->connectState){
     case ConnectRecord::ALTER_TABLE_ABORT:
@@ -8895,6 +8937,21 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
                       signal, &c_GCP_SAVEREQ_Counter, &Dbdih::sendGCP_SAVEREQ);
     signal->theData[0] = 9999;
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    return;
+  }
+  else if (ERROR_INSERTED(7216))
+  {
+    infoEvent("GCP_SAVE all/%u", c_error_insert_extra);
+    NodeRecordPtr nodePtr;
+    nodePtr.i = c_error_insert_extra;
+    ptrAss(nodePtr, nodeRecord);
+
+    removeAlive(nodePtr);
+    sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ, RNIL);
+    insertAlive(nodePtr);
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+    c_GCP_SAVEREQ_Counter.setWaitingFor(c_error_insert_extra);
     return;
   }
 #endif
@@ -9823,8 +9880,8 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     if (m_micro_gcp.m_enabled == false)
     {
       jam();
-      sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
-                     SubGcpCompleteRep::SignalLength, JBB);
+      sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
+                 SubGcpCompleteRep::SignalLength, JBB);
       jamEntry();
       ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
       m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
@@ -16005,12 +16062,36 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
+
+    {
+      Uint32 cnghash = 0;
+      NodeGroupRecordPtr NGPtr;
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
+      }
+      RSS_OP_SNAPSHOT_SAVE(cnghash);
+    }
     return;
   }
 
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+
+    {
+      Uint32 cnghash = 0;
+      NodeGroupRecordPtr NGPtr;
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
+      }
+      RSS_OP_SNAPSHOT_CHECK(cnghash);
+    }
   }
 
   DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")
@@ -16021,6 +16102,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   DECLARE_DUMP0(DBDIH, 7214, "Set error 7214 with extra arg")
   {
     SET_ERROR_INSERT_VALUE2(7214, signal->theData[1]);
+    return;
+  }
+
+  DECLARE_DUMP0(DBDIH, 7216, "Set error 7216 with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(7216, signal->theData[1]);
     return;
   }
 }//Dbdih::execDUMP_STATE_ORD()
@@ -17090,10 +17177,16 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
       return;
     }
   }
-  
+
+  Uint32 len = DictUnlockOrd::SignalLength;
+  if (unlikely(getNodeInfo(cmasterNodeId).m_version < NDB_MAKE_VERSION(6,3,0)))
+  {
+    jam();
+    len = 2;
+  }
+
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
-  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,
-             DictUnlockOrd::SignalLength, JBB);
+  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal, len, JBB);
 }
 
 #ifdef ERROR_INSERT
@@ -17263,6 +17356,33 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       goto error;
     }
 
+    if (rt == CreateNodegroupImplReq::RT_PARSE || rt == CreateNodegroupImplReq::RT_PREPARE)
+    {
+      /**
+       * Check that atleast one of the nodes are alive
+       */
+      bool alive = false;
+      for (Uint32 i = 0; i<cnoReplicas; i++)
+      {
+        jam();
+        Uint32 nodeId = req->nodes[i];
+        if (getNodeStatus(nodeId) == NodeRecord::ALIVE)
+        {
+          jam();
+          alive = true;
+          break;
+        }
+      }
+      
+      jam();
+      if (alive == false)
+      {
+        jam();
+        err = CreateNodegroupRef::NoNodeAlive;
+        goto error;
+      }
+    }
+    
     if (rt == CreateNodegroupImplReq::RT_PARSE)
     {
       jam();

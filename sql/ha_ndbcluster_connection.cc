@@ -36,6 +36,15 @@ static ulong g_ndb_cluster_connection_pool_alloc= 0;
 static ulong g_ndb_cluster_connection_pool_pos= 0;
 static pthread_mutex_t g_ndb_cluster_connection_pool_mutex;
 
+/*
+  Global flag in ndbapi to specify if api should wait to connect
+  until dict cache is clean.
+
+  Set to 1 below to not wait, as ndb handler makes sure that no
+  old ndb objects are used.
+*/
+extern int global_flag_skip_waiting_for_clean_cache;
+
 int ndbcluster_connect(int (*connect_callback)(void))
 {
   NDB_TICKS end_time;
@@ -47,6 +56,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
 #endif
   int res;
   DBUG_ENTER("ndbcluster_connect");
+
+  global_flag_skip_waiting_for_clean_cache= 1;
+
   // Set connectstring if specified
   if (opt_ndb_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndb_connectstring));

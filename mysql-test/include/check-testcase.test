@@ -11,12 +11,12 @@
 #
 # Dump all global variables
 #
-show global variables;
+SHOW GLOBAL VARIABLES WHERE variable_name != 'timestamp';
 
 #
 # Dump all databases
 #
-show databases;
+SHOW DATABASES;
 
 #
 # Dump the "test" database, all it's tables and their data
@@ -29,23 +29,23 @@ show databases;
 #
 --exec $MYSQL_DUMP --skip-comments --skip-lock-tables --no-data mysql
 use mysql;
-select * from columns_priv;
-select * from db order by host, db, user;
-select * from func;
-select * from help_category;
-select * from help_keyword;
-select * from help_relation;
-select * from help_relation;
-select * from host;
-select * from proc;
-select * from procs_priv;
-select * from tables_priv;
-select * from time_zone;
-select * from time_zone_leap_second;
-select * from time_zone_name;
-select * from time_zone_transition;
-select * from time_zone_transition_type;
-select * from user;
+SELECT * FROM columns_priv;
+SELECT * FROM db ORDER BY host, db, user;
+SELECT * FROM func;
+SELECT * FROM help_category;
+SELECT * FROM help_keyword;
+SELECT * FROM help_relation;
+SELECT * FROM help_relation;
+SELECT * FROM host;
+SELECT * FROM proc;
+SELECT * FROM procs_priv;
+SELECT * FROM tables_priv;
+SELECT * FROM time_zone;
+SELECT * FROM time_zone_leap_second;
+SELECT * FROM time_zone_name;
+SELECT * FROM time_zone_transition;
+SELECT * FROM time_zone_transition_type;
+SELECT * FROM user;
 
 
 
