@@ -353,9 +353,12 @@ TransporterFacade::getNodeGrp(NodeId n) const {
 inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
-
-  const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
-  return node.m_alive;
+  if (theClusterMgr)
+  {
+    const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
+    return node.m_alive;
+  }
+  return 0;
 }
 
 inline
