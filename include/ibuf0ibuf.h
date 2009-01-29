@@ -12,7 +12,6 @@ Created 7/19/1997 Heikki Tuuri
 #include "univ.i"
 
 #include "dict0mem.h"
-#include "dict0dict.h"
 #include "mtr0mtr.h"
 #include "que0types.h"
 #include "ibuf0types.h"

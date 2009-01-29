@@ -35,7 +35,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "log0log.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
 #include "page0zip.h"
@@ -1812,6 +1811,53 @@ buf_zip_decompress(
 	return(FALSE);
 }
 
+/***********************************************************************
+Gets the block to whose frame the pointer is pointing to. */
+UNIV_INTERN
+buf_block_t*
+buf_block_align(
+/*============*/
+				/* out: pointer to block, never NULL */
+	const byte*	ptr)	/* in: pointer to a frame */
+{
+	buf_chunk_t*	chunk;
+	ulint		i;
+
+	/* TODO: protect buf_pool->chunks with a mutex (it will
+	currently remain constant after buf_pool_init()) */
+	for (chunk = buf_pool->chunks, i = buf_pool->n_chunks; i--; chunk++) {
+		lint	offs = ptr - chunk->blocks->frame;
+
+		if (UNIV_UNLIKELY(offs < 0)) {
+
+			continue;
+		}
+
+		offs >>= UNIV_PAGE_SIZE_SHIFT;
+
+		if (UNIV_LIKELY((ulint) offs < chunk->size)) {
+			buf_block_t*	block = &chunk->blocks[offs];
+
+			/* The function buf_chunk_init() invokes
+			buf_block_init() so that block[n].frame ==
+			block->frame + n * UNIV_PAGE_SIZE.  Check it. */
+			ut_ad(block->frame == page_align(ptr));
+			/* The space id and page number should be
+			stamped on the page. */
+			ut_ad(block->page.space
+			      == page_get_space_id(page_align(ptr)));
+			ut_ad(block->page.offset
+			      == page_get_page_no(page_align(ptr)));
+
+			return(block);
+		}
+	}
+
+	/* The block should always be found. */
+	ut_error;
+	return(NULL);
+}
+
 /************************************************************************
 Find out if a buffer block was created by buf_chunk_init(). */
 static
@@ -1861,7 +1907,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH, BUF_GET_NOWAIT or
+				BUF_GET_NO_LATCH, or
 				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
@@ -1880,7 +1926,6 @@ buf_page_get_gen(
 	ut_ad(mode == BUF_GET
 	      || mode == BUF_GET_IF_IN_POOL
 	      || mode == BUF_GET_NO_LATCH
-	      || mode == BUF_GET_NOWAIT
 	      || mode == BUF_GET_IF_IN_POOL_OR_WATCH);
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
@@ -2136,29 +2181,8 @@ wait_until_unfixed:
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-	if (mode == BUF_GET_NOWAIT) {
-		ibool	success;
-
-		if (rw_latch == RW_S_LATCH) {
-			success = rw_lock_s_lock_func_nowait(&(block->lock),
-							     file, line);
-			fix_type = MTR_MEMO_PAGE_S_FIX;
-		} else {
-			ut_ad(rw_latch == RW_X_LATCH);
-			success = rw_lock_x_lock_func_nowait(&(block->lock),
-							     file, line);
-			fix_type = MTR_MEMO_PAGE_X_FIX;
-		}
-
-		if (!success) {
-			mutex_enter(&block->mutex);
-			buf_block_buf_fix_dec(block);
-			mutex_exit(&block->mutex);
-
-			return(NULL);
-		}
-	} else if (rw_latch == RW_NO_LATCH) {
-
+	switch (rw_latch) {
+	case RW_NO_LATCH:
 		if (must_read) {
 			/* Let us wait until the read operation
 			completes */
@@ -2180,15 +2204,20 @@ wait_until_unfixed:
 		}
 
 		fix_type = MTR_MEMO_BUF_FIX;
-	} else if (rw_latch == RW_S_LATCH) {
+		break;
 
+	case RW_S_LATCH:
 		rw_lock_s_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+
+	default:
+		ut_ad(rw_latch == RW_X_LATCH);
 		rw_lock_x_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
 	}
 
 	mtr_memo_push(mtr, block, fix_type);

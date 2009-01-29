@@ -1782,6 +1782,7 @@ log_group_checkpoint(
 	}
 }
 
+#ifdef UNIV_HOTBACKUP
 /**********************************************************
 Writes info to a buffer of a log group when log files are created in
 backup restoration. */
@@ -1833,6 +1834,7 @@ log_reset_first_header_and_checkpoint(
 	allocated size in the tablespace, but unfortunately we do not
 	know it here */
 }
+#endif /* UNIV_HOTBACKUP */
 
 /**********************************************************
 Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */

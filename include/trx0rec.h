@@ -13,7 +13,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "row0types.h"
 #include "mtr0mtr.h"
-#include "trx0sys.h"
 #include "dict0types.h"
 #include "que0types.h"
 #include "data0data.h"

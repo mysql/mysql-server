@@ -9,7 +9,6 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0types_h
 #define trx0types_h
 
-#include "lock0types.h"
 #include "ut0byte.h"
 
 /* prepare trx_t::id for being printed via printf(3) */
