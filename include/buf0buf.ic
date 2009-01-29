@@ -222,7 +222,7 @@ buf_page_in_file(
 	case BUF_BLOCK_ZIP_FREE:
 		/* This is a free page in buf_pool->zip_free[].
 		Such pages should only be accessed by the buddy allocator. */
-		ut_error;
+		/* ut_error; */ /* optimistic */
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -280,7 +280,7 @@ buf_page_get_mutex(
 {
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_FREE:
-		ut_error;
+		/* ut_error; */ /* optimistic */
 		return(NULL);
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -414,11 +414,12 @@ buf_page_can_relocate(
 	const buf_page_t*	bpage)	/* control block being relocated */
 {
 	//ut_ad(buf_pool_mutex_own());
-	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-	ut_ad(buf_page_in_file(bpage));
-	ut_ad(bpage->in_LRU_list);
+	/* optimistic */
+	//ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	//ut_ad(buf_page_in_file(bpage));
+	//ut_ad(bpage->in_LRU_list);
 
-	return(buf_page_get_io_fix(bpage) == BUF_IO_NONE
+	return(bpage->in_LRU_list && bpage->io_fix == BUF_IO_NONE
 	       && bpage->buf_fix_count == 0);
 }
 
@@ -1045,12 +1046,15 @@ buf_page_release(
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
 		//buf_pool_mutex_enter();
 		mutex_enter(&flush_list_mutex);
+		mutex_enter(&block->mutex);
+		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		buf_flush_note_modification(block, mtr);
 		//buf_pool_mutex_exit();
 		mutex_exit(&flush_list_mutex);
 	}
-
+	else {
 	mutex_enter(&block->mutex);
+	}
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));

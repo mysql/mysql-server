@@ -226,6 +226,7 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock)
 {
+	ulint	tmp;
 	ut_a(lock);
 
 #ifndef HAVE_GCC_ATOMIC_BUILTINS
@@ -233,18 +234,25 @@ rw_lock_validate(
 #endif
 
 	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
+	/* It is dynamic combination */
 	ut_a((rw_lock_get_reader_count(lock) == 0)
 	     || (rw_lock_get_writer(lock) != RW_LOCK_EX));
-	ut_a((rw_lock_get_writer(lock) == RW_LOCK_EX)
-	     || (rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX)
-	     || (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED));
-	ut_a((rw_lock_get_s_waiters(lock) == 0)
-	     || (rw_lock_get_s_waiters(lock) == 1));
-	ut_a((rw_lock_get_x_waiters(lock) == 0)
-	     || (rw_lock_get_x_waiters(lock) == 1));
-	ut_a((rw_lock_get_wx_waiters(lock) == 0)
-	     || (rw_lock_get_wx_waiters(lock) == 1));
+#endif
+	tmp = rw_lock_get_writer(lock);
+	ut_a((tmp == RW_LOCK_EX)
+	     || (tmp == RW_LOCK_WAIT_EX)
+	     || (tmp == RW_LOCK_NOT_LOCKED));
+	tmp = rw_lock_get_s_waiters(lock);
+	ut_a((tmp == 0) || (tmp == 1));
+	tmp = rw_lock_get_x_waiters(lock);
+	ut_a((tmp == 0) || (tmp == 1));
+	tmp = rw_lock_get_wx_waiters(lock);
+	ut_a((tmp == 0) || (tmp == 1));
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
+	/* It is dynamic combination */
 	ut_a((lock->writer != RW_LOCK_EX) || (lock->writer_count > 0));
+#endif
 
 #ifndef HAVE_GCC_ATOMIC_BUILTINS
 	mutex_exit(rw_lock_get_mutex(lock));

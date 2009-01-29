@@ -1098,11 +1098,11 @@ struct buf_block_struct{
 					a block is in the unzip_LRU list
 					if page.state == BUF_BLOCK_FILE_PAGE
 					and page.zip.data != NULL */
-#ifdef UNIV_DEBUG
+//#ifdef UNIV_DEBUG
 	ibool		in_unzip_LRU_list;/* TRUE if the page is in the
 					decompressed LRU list;
 					used in debugging */
-#endif /* UNIV_DEBUG */
+//#endif /* UNIV_DEBUG */
 	byte*		frame;		/* pointer to buffer frame which
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by

@@ -20,5 +20,6 @@ extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
 extern struct st_mysql_plugin	i_s_innodb_patches;
+extern struct st_mysql_plugin	i_s_innodb_rseg;
 
 #endif /* i_s_h */

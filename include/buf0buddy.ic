@@ -107,9 +107,21 @@ buf_buddy_free(
 {
 	//ut_ad(buf_pool_mutex_own());
 
+	if (!have_page_hash_mutex) {
+		mutex_enter(&LRU_list_mutex);
+		mutex_enter(&flush_list_mutex);
+		mutex_enter(&page_hash_mutex);
+	}
+
 	mutex_enter(&zip_free_mutex);
-	buf_buddy_free_low(buf, buf_buddy_get_slot(size), have_page_hash_mutex);
+	buf_buddy_free_low(buf, buf_buddy_get_slot(size), TRUE);
 	mutex_exit(&zip_free_mutex);
+
+	if (!have_page_hash_mutex) {
+		mutex_exit(&LRU_list_mutex);
+		mutex_exit(&flush_list_mutex);
+		mutex_exit(&page_hash_mutex);
+	}
 }
 
 #ifdef UNIV_MATERIALIZE

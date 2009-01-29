@@ -106,6 +106,13 @@ UNIV_INTERN
 void
 trx_sys_create(void);
 /*================*/
+/*********************************************************************
+Create extra rollback segments when create_new_db */
+UNIV_INTERN
+void
+trx_sys_create_extra_rseg(
+/*======================*/
+	ulint	num);	/* in: number of extra user rollback segments */
 /********************************************************************
 Looks for a free slot for a rollback segment in the trx system file copy. */
 UNIV_INTERN

@@ -123,7 +123,7 @@ buf_buddy_alloc_zip(
 	/* Valgrind would complain about accessing free memory. */
 	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]);
 #endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
 
 	if (bpage) {
 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
@@ -315,14 +315,18 @@ buf_buddy_alloc_low(
 	/* Try replacing an uncompressed page in the buffer pool. */
 	//buf_pool_mutex_exit();
 	mutex_exit(&LRU_list_mutex);
-	if (have_page_hash_mutex)
+	if (have_page_hash_mutex) {
+		mutex_exit(&flush_list_mutex);
 		mutex_exit(&page_hash_mutex);
+	}
 	block = buf_LRU_get_free_block(0);
 	*lru = TRUE;
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
-	if (have_page_hash_mutex)
+	if (have_page_hash_mutex) {
+		mutex_enter(&flush_list_mutex);
 		mutex_enter(&page_hash_mutex);
+	}
 
 alloc_big:
 	buf_buddy_block_register(block);
@@ -350,6 +354,7 @@ buf_buddy_relocate_block(
 	buf_page_t*	b;
 
 	//ut_ad(buf_pool_mutex_own());
+	ut_ad(mutex_own(&flush_list_mutex));
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_FREE:
@@ -358,7 +363,7 @@ buf_buddy_relocate_block(
 	case BUF_BLOCK_FILE_PAGE:
 	case BUF_BLOCK_MEMORY:
 	case BUF_BLOCK_REMOVE_HASH:
-		ut_error;
+		/* ut_error; */ /* optimistic */
 	case BUF_BLOCK_ZIP_DIRTY:
 		/* Cannot relocate dirty pages. */
 		return(FALSE);
@@ -367,29 +372,23 @@ buf_buddy_relocate_block(
 		break;
 	}
 
-	/* optimistic */
+	mutex_enter(&buf_pool_zip_mutex);
+	mutex_enter(&zip_free_mutex);
+
 	if (!buf_page_can_relocate(bpage)) {
+		mutex_exit(&buf_pool_zip_mutex);
+		mutex_exit(&zip_free_mutex);
 		return(FALSE);
 	}
 
-	mutex_enter(&LRU_list_mutex);
-	mutex_enter(&flush_list_mutex);
-	mutex_enter(&page_hash_mutex);
-	mutex_enter(&buf_pool_zip_mutex);
-
-	if (!buf_page_can_relocate(bpage)) {
-		mutex_exit(&LRU_list_mutex);
-		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
+	if (bpage != buf_page_hash_get(bpage->space, bpage->offset)) {
 		mutex_exit(&buf_pool_zip_mutex);
+		mutex_exit(&zip_free_mutex);
 		return(FALSE);
 	}
 
 	buf_relocate(bpage, dpage);
 	ut_d(bpage->state = BUF_BLOCK_ZIP_FREE);
-
-	mutex_exit(&LRU_list_mutex);
-	mutex_exit(&page_hash_mutex);
 
 	/* relocate buf_pool->zip_clean */
 	b = UT_LIST_GET_PREV(list, dpage);
@@ -401,8 +400,8 @@ buf_buddy_relocate_block(
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, dpage);
 	}
 
-	mutex_exit(&flush_list_mutex);
 	mutex_exit(&buf_pool_zip_mutex);
+	mutex_exit(&zip_free_mutex);
 	return(TRUE);
 }
 
@@ -448,8 +447,11 @@ buf_buddy_relocate(
 		/* This is a compressed page. */
 		mutex_t*	mutex;
 
-		if (!have_page_hash_mutex)
+		if (!have_page_hash_mutex) {
+			mutex_enter(&LRU_list_mutex);
+			mutex_enter(&flush_list_mutex);
 			mutex_enter(&page_hash_mutex);
+		}
 		/* The src block may be split into smaller blocks,
 		some of which may be free.  Thus, the
 		mach_read_from_4() calls below may attempt to read
@@ -471,8 +473,10 @@ buf_buddy_relocate(
 			it cannot be relocated. */
 
 			if (!have_page_hash_mutex) {
-				mutex_exit(&page_hash_mutex);
 				mutex_enter(&zip_free_mutex);
+				mutex_exit(&LRU_list_mutex);
+				mutex_exit(&flush_list_mutex);
+				mutex_exit(&page_hash_mutex);
 			}
 			return(FALSE);
 		}
@@ -484,8 +488,10 @@ buf_buddy_relocate(
 			ut_ad(page_zip_get_size(&bpage->zip) < size);
 
 			if (!have_page_hash_mutex) {
-				mutex_exit(&page_hash_mutex);
 				mutex_enter(&zip_free_mutex);
+				mutex_exit(&LRU_list_mutex);
+				mutex_exit(&flush_list_mutex);
+				mutex_exit(&page_hash_mutex);
 			}
 			return(FALSE);
 		}
@@ -501,8 +507,7 @@ buf_buddy_relocate(
 		mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(mutex);
-		if (!have_page_hash_mutex)
-			mutex_exit(&page_hash_mutex);
+		mutex_enter(&zip_free_mutex);
 
 		if (buf_page_can_relocate(bpage)) {
 			/* Relocate the compressed page. */
@@ -520,29 +525,52 @@ success:
 					+= ut_time_us(NULL) - usec;
 			}
 
-			mutex_enter(&zip_free_mutex);
+			if (!have_page_hash_mutex) {
+				mutex_exit(&LRU_list_mutex);
+				mutex_exit(&flush_list_mutex);
+				mutex_exit(&page_hash_mutex);
+			}
 			return(TRUE);
 		}
 
+		if (!have_page_hash_mutex) {
+			mutex_exit(&LRU_list_mutex);
+			mutex_exit(&flush_list_mutex);
+			mutex_exit(&page_hash_mutex);
+		}
+
 		mutex_exit(mutex);
-		mutex_enter(&zip_free_mutex);
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
 		UNIV_MEM_ASSERT_RW(src, size);
 
-		if (have_page_hash_mutex)
-			mutex_exit(&page_hash_mutex);
-
 		mutex_exit(&zip_free_mutex);
+
+		if (!have_page_hash_mutex) {
+			mutex_enter(&LRU_list_mutex);
+			mutex_enter(&flush_list_mutex);
+			mutex_enter(&page_hash_mutex);
+		}
+
 		if (buf_buddy_relocate_block(src, dst)) {
+			mutex_enter(&zip_free_mutex);
+
+			if (!have_page_hash_mutex) {
+				mutex_exit(&LRU_list_mutex);
+				mutex_exit(&flush_list_mutex);
+				mutex_exit(&page_hash_mutex);
+			}
 
 			goto success;
 		}
 
-		if (have_page_hash_mutex)
-			mutex_enter(&page_hash_mutex);
-
 		mutex_enter(&zip_free_mutex);
+
+		if (!have_page_hash_mutex) {
+			mutex_exit(&LRU_list_mutex);
+			mutex_exit(&flush_list_mutex);
+			mutex_exit(&page_hash_mutex);
+		}
 	}
 
 	return(FALSE);
@@ -632,7 +660,7 @@ buddy_nonfree:
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	/* The buddy is not free. Is there a free block of this size? */
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
 
 	if (bpage) {
 		/* Remove the block from the free list, because a successful

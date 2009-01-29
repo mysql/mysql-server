@@ -1438,6 +1438,8 @@ innobase_start_or_create_for_mysql(void)
 		dict_create();
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
+		if (srv_extra_rsegments)
+			trx_sys_create_extra_rseg(srv_extra_rsegments);
 #ifdef UNIV_LOG_ARCHIVE
 	} else if (srv_archive_recovery) {
 		fprintf(stderr,

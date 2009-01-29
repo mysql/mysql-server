@@ -8842,6 +8842,10 @@ innobase_xa_prepare(
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
 	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
 	{
+		if (srv_enable_unsafe_group_commit && !THDVAR(thd, support_xa)) {
+			/* choose group commit rather than binlog order */
+			return(0);
+		}
 
 		/* For ibbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
@@ -9646,6 +9650,11 @@ static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
   "Enable/Disable flushing along modified age. 0:disable 1:enable",
   NULL, NULL, 0, 0, 1, 0);
 
+static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
+  NULL, NULL, 0, 0, 1, 0);
+
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background read I/O threads in InnoDB.",
@@ -9655,6 +9664,11 @@ static MYSQL_SYSVAR_ULONG(write_io_threads, innobase_write_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background write I/O threads in InnoDB.",
   NULL, NULL, 1, 1, 64, 0);
+
+static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of extra user rollback segments when create new database.",
+  NULL, NULL, 0, 0, 127, 0);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -9712,8 +9726,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_neighbor_pages),
   MYSQL_SYSVAR(read_ahead),
   MYSQL_SYSVAR(adaptive_checkpoint),
+  MYSQL_SYSVAR(enable_unsafe_group_commit),
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
+  MYSQL_SYSVAR(extra_rsegments),
   NULL
 };
 
@@ -9894,6 +9910,7 @@ mysql_declare_plugin(innobase)
   innobase_system_variables, /* system variables */
   NULL /* reserved */
 },
+i_s_innodb_rseg,
 i_s_innodb_buffer_pool_pages,
 i_s_innodb_buffer_pool_pages_index,
 i_s_innodb_buffer_pool_pages_blob,

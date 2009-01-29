@@ -3690,6 +3690,7 @@ btr_blob_free(
 	mtr_commit(mtr);
 
 	//buf_pool_mutex_enter();
+	mutex_enter(&LRU_list_mutex);
 	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
@@ -3700,7 +3701,7 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (buf_LRU_free_block(&block->page, all, NULL)
+		if (buf_LRU_free_block(&block->page, all, NULL, TRUE)
 		    != BUF_LRU_FREED
 		    && all && block->page.zip.data
 		    /* Now, buf_LRU_free_block() may release mutex temporarily */
@@ -3710,11 +3711,12 @@ btr_blob_free(
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_block(&block->page, FALSE, NULL);
+			buf_LRU_free_block(&block->page, FALSE, NULL, TRUE);
 		}
 	}
 
 	//buf_pool_mutex_exit();
+	mutex_exit(&LRU_list_mutex);
 	mutex_exit(&block->mutex);
 }
 

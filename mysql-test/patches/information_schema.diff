@@ -1,25 +1,26 @@
 diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema.result
 --- mysql-test/r/information_schema.result.orig	2008-08-04 09:27:49.000000000 +0300
 +++ mysql-test/r/information_schema.result	2008-10-07 11:21:51.000000000 +0300
-@@ -64,6 +64,17 @@
+@@ -64,6 +64,18 @@
  TRIGGERS
  USER_PRIVILEGES
  VIEWS
-+INNODB_CMP
-+INNODB_BUFFER_POOL_PAGES
-+INNODB_CMPMEM
 +INNODB_BUFFER_POOL_PAGES_INDEX
++INNODB_RSEG
++INNODB_LOCKS
++INNODB_BUFFER_POOL_PAGES
 +XTRADB_ENHANCEMENTS
 +INNODB_TRX
 +INNODB_BUFFER_POOL_PAGES_BLOB
 +INNODB_LOCK_WAITS
 +INNODB_CMP_RESET
-+INNODB_LOCKS
++INNODB_CMP
 +INNODB_CMPMEM_RESET
++INNODB_CMPMEM
  columns_priv
  db
  event
-@@ -795,6 +806,8 @@
+@@ -795,6 +807,8 @@
  TABLES	UPDATE_TIME	datetime
  TABLES	CHECK_TIME	datetime
  TRIGGERS	CREATED	datetime
@@ -28,7 +29,7 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
  event	execute_at	datetime
  event	last_executed	datetime
  event	starts	datetime
-@@ -843,12 +856,13 @@
+@@ -843,12 +857,13 @@
  TABLE_CONSTRAINTS	TABLE_NAME	select
  TABLE_PRIVILEGES	TABLE_NAME	select
  VIEWS	TABLE_NAME	select
@@ -39,43 +40,45 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
  SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
  table_schema	count(*)
 -information_schema	28
-+information_schema	39
++information_schema	40
  mysql	22
  create table t1 (i int, j int);
  create trigger trg1 before insert on t1 for each row
-@@ -1263,6 +1277,17 @@
+@@ -1263,6 +1278,18 @@
  TRIGGERS	TRIGGER_SCHEMA
  USER_PRIVILEGES	GRANTEE
  VIEWS	TABLE_SCHEMA
-+INNODB_CMP	page_size
-+INNODB_BUFFER_POOL_PAGES	page_type
-+INNODB_CMPMEM	page_size
 +INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_RSEG	rseg_id
++INNODB_LOCKS	lock_id
++INNODB_BUFFER_POOL_PAGES	page_type
 +XTRADB_ENHANCEMENTS	name
 +INNODB_TRX	trx_id
 +INNODB_BUFFER_POOL_PAGES_BLOB	space_id
 +INNODB_LOCK_WAITS	requesting_trx_id
 +INNODB_CMP_RESET	page_size
-+INNODB_LOCKS	lock_id
++INNODB_CMP	page_size
 +INNODB_CMPMEM_RESET	page_size
++INNODB_CMPMEM	page_size
  SELECT t.table_name, c1.column_name
  FROM information_schema.tables t
  INNER JOIN
-@@ -1306,14 +1331,25 @@
+@@ -1306,14 +1333,26 @@
  TRIGGERS	TRIGGER_SCHEMA
  USER_PRIVILEGES	GRANTEE
  VIEWS	TABLE_SCHEMA
-+INNODB_CMP	page_size
-+INNODB_BUFFER_POOL_PAGES	page_type
-+INNODB_CMPMEM	page_size
 +INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_RSEG	rseg_id
++INNODB_LOCKS	lock_id
++INNODB_BUFFER_POOL_PAGES	page_type
 +XTRADB_ENHANCEMENTS	name
 +INNODB_TRX	trx_id
 +INNODB_BUFFER_POOL_PAGES_BLOB	space_id
 +INNODB_LOCK_WAITS	requesting_trx_id
 +INNODB_CMP_RESET	page_size
-+INNODB_LOCKS	lock_id
++INNODB_CMP	page_size
 +INNODB_CMPMEM_RESET	page_size
++INNODB_CMPMEM	page_size
  SELECT MAX(table_name) FROM information_schema.tables;
  MAX(table_name)
 -VIEWS
@@ -89,7 +92,7 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
  DROP TABLE IF EXISTS bug23037;
  DROP FUNCTION IF EXISTS get_value;
  SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
-@@ -1382,6 +1418,16 @@
+@@ -1382,6 +1421,17 @@
  FILES	information_schema.FILES	1
  GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
  GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
@@ -102,11 +105,12 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
 +INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
 +INNODB_LOCKS	information_schema.INNODB_LOCKS	1
 +INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
++INNODB_RSEG	information_schema.INNODB_RSEG	1
 +INNODB_TRX	information_schema.INNODB_TRX	1
  KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
  PARTITIONS	information_schema.PARTITIONS	1
  PLUGINS	information_schema.PLUGINS	1
-@@ -1400,6 +1446,7 @@
+@@ -1400,6 +1450,7 @@
  TRIGGERS	information_schema.TRIGGERS	1
  USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
  VIEWS	information_schema.VIEWS	1
@@ -117,60 +121,63 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
 diff mysql-test/r/information_schema_db.result.orig mysql-test/r/information_schema_db.result
 --- mysql-test/r/information_schema_db.result.orig	2008-08-04 09:27:49.000000000 +0300
 +++ mysql-test/r/information_schema_db.result	2008-10-07 12:26:31.000000000 +0300
-@@ -33,6 +33,17 @@
+@@ -33,6 +33,18 @@
  TRIGGERS
  USER_PRIVILEGES
  VIEWS
-+INNODB_CMP
-+INNODB_BUFFER_POOL_PAGES
-+INNODB_CMPMEM
 +INNODB_BUFFER_POOL_PAGES_INDEX
++INNODB_RSEG
++INNODB_LOCKS
++INNODB_BUFFER_POOL_PAGES
 +XTRADB_ENHANCEMENTS
 +INNODB_TRX
 +INNODB_BUFFER_POOL_PAGES_BLOB
 +INNODB_LOCK_WAITS
 +INNODB_CMP_RESET
-+INNODB_LOCKS
++INNODB_CMP
 +INNODB_CMPMEM_RESET
++INNODB_CMPMEM
  show tables from INFORMATION_SCHEMA like 'T%';
  Tables_in_information_schema (T%)
  TABLES
 diff mysql-test/r/mysqlshow.result.orig mysql-test/r/mysqlshow.result
 --- mysql-test/r/mysqlshow.result.orig	2008-08-04 09:27:51.000000000 +0300
 +++ mysql-test/r/mysqlshow.result	2008-10-07 12:35:39.000000000 +0300
-@@ -107,6 +107,17 @@
+@@ -107,6 +107,18 @@
  | TRIGGERS                              |
  | USER_PRIVILEGES                       |
  | VIEWS                                 |
-+| INNODB_CMP                            |
-+| INNODB_BUFFER_POOL_PAGES              |
-+| INNODB_CMPMEM                         |
 +| INNODB_BUFFER_POOL_PAGES_INDEX        |
++| INNODB_RSEG                           |
++| INNODB_LOCKS                          |
++| INNODB_BUFFER_POOL_PAGES              |
 +| XTRADB_ENHANCEMENTS                   |
 +| INNODB_TRX                            |
 +| INNODB_BUFFER_POOL_PAGES_BLOB         |
 +| INNODB_LOCK_WAITS                     |
 +| INNODB_CMP_RESET                      |
-+| INNODB_LOCKS                          |
++| INNODB_CMP                            |
 +| INNODB_CMPMEM_RESET                   |
++| INNODB_CMPMEM                         |
  +---------------------------------------+
  Database: INFORMATION_SCHEMA
  +---------------------------------------+
-@@ -140,6 +151,17 @@
+@@ -140,6 +152,18 @@
  | TRIGGERS                              |
  | USER_PRIVILEGES                       |
  | VIEWS                                 |
-+| INNODB_CMP                            |
-+| INNODB_BUFFER_POOL_PAGES              |
-+| INNODB_CMPMEM                         |
 +| INNODB_BUFFER_POOL_PAGES_INDEX        |
++| INNODB_RSEG                           |
++| INNODB_LOCKS                          |
++| INNODB_BUFFER_POOL_PAGES              |
 +| XTRADB_ENHANCEMENTS                   |
 +| INNODB_TRX                            |
 +| INNODB_BUFFER_POOL_PAGES_BLOB         |
 +| INNODB_LOCK_WAITS                     |
 +| INNODB_CMP_RESET                      |
-+| INNODB_LOCKS                          |
++| INNODB_CMP                            |
 +| INNODB_CMPMEM_RESET                   |
++| INNODB_CMPMEM                         |
  +---------------------------------------+
  Wildcard: inf_rmation_schema
  +--------------------+
