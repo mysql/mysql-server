@@ -3768,7 +3768,7 @@ os_aio(
 	struct fil_node_struct * dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
-#endif
+#endif /* WIN_ASYNC_IO */
 	ibool		retry;
 	ulint		wake_later;
 
@@ -3785,7 +3785,7 @@ os_aio(
 	if (mode == OS_AIO_SYNC
 #ifdef WIN_ASYNC_IO
 	    && !srv_use_native_aio
-#endif
+#endif /* WIN_ASYNC_IO */
 	    ) {
 		/* This is actually an ordinary synchronous read or write:
 		no need to use an i/o-handler thread. NOTE that if we use
@@ -3828,7 +3828,7 @@ try_again:
 #if defined(LINUX_NATIVE_AIO)
 		/* In Linux native AIO we don't use sync IO array. */
 		ut_a(!srv_use_native_aio);
-#endif
+#endif /* LINUX_NATIVE_AIO */
 	} else {
 		array = NULL; /* Eliminate compiler warning */
 		ut_error;
@@ -3905,11 +3905,13 @@ try_again:
 
 		goto err_exit;
 	}
-#endif
+#endif /* WIN_ASYNC_IO */
 	/* aio was queued successfully! */
 	return(TRUE);
 
+#if defined LINUX_NATIVE_AIO || defined WIN_ASYNC_IO
 err_exit:
+#endif /* LINUX_NATIVE_AIO || WIN_ASYNC_IO */
 	os_aio_array_free_slot(array, slot);
 
 	retry = os_file_handle_error(name,
