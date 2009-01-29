@@ -1,5 +1,5 @@
---- mysql-test/t/innodb_lock_wait_timeout_basic.test.orig	2008-08-04 09:28:16.000000000 +0300
-+++ mysql-test/t/innodb_lock_wait_timeout_basic.test	2008-10-07 11:14:15.000000000 +0300
+--- mysql-test/suite/sys_vars/t/innodb_lock_wait_timeout_basic.test.orig	2008-08-04 09:28:16.000000000 +0300
++++ mysql-test/suite/sys_vars/t/innodb_lock_wait_timeout_basic.test	2008-10-07 11:14:15.000000000 +0300
 @@ -37,10 +37,6 @@
  #   Check if Value can set                                         #
  ####################################################################
@@ -25,8 +25,8 @@
  
  SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
  --echo 1 Expected
---- mysql-test/r/innodb_lock_wait_timeout_basic.result.orig	2008-08-04 09:27:50.000000000 +0300
-+++ mysql-test/r/innodb_lock_wait_timeout_basic.result	2008-10-07 11:15:14.000000000 +0300
+--- mysql-test/suite/sys_vars/r/innodb_lock_wait_timeout_basic.result.orig	2008-08-04 09:27:50.000000000 +0300
++++ mysql-test/suite/sys_vars/r/innodb_lock_wait_timeout_basic.result	2008-10-07 11:15:14.000000000 +0300
 @@ -4,9 +4,6 @@
  1
  1 Expected
