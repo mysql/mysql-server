@@ -113,8 +113,22 @@ a	b	c
 select * from t1 where a=1 and b in (1,6,10,21) order by b;
 a	b	c
 1	1	1
+select * from t1 where b=6;
+a	b	c
+2	6	1
 DELETE from t1 WHERE b = 6;
+select * from t1 where b=6;
+a	b	c
+select * from t1 where a=6;
+a	b	c
+6	15	1
+UPDATE t1 SET c=1001 WHERE a=6;
+select * from t1 where a=6;
+a	b	c
+6	15	1001
 DELETE from t1 WHERE a = 6;
+select * from t1 where a=6;
+a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
