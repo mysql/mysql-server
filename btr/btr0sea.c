@@ -19,8 +19,11 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "ha0ha.h"
 
-/* Flag: has the search system been disabled? */
-UNIV_INTERN ibool		btr_search_disabled	= FALSE;
+/* Flag: has the search system been enabled?
+Protected by btr_search_latch and btr_search_enabled_mutex. */
+UNIV_INTERN char		btr_search_enabled	= TRUE;
+
+static mutex_t			btr_search_enabled_mutex;
 
 /* A dummy variable to fool the compiler */
 UNIV_INTERN ulint		btr_search_this_is_zero = 0;
@@ -139,11 +142,11 @@ btr_search_sys_create(
 	btr_search_latch_temp = mem_alloc(sizeof(rw_lock_t));
 
 	rw_lock_create(&btr_search_latch, SYNC_SEARCH_SYS);
+	mutex_create(&btr_search_enabled_mutex, SYNC_SEARCH_SYS_CONF);
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
 	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
-
 }
 
 /************************************************************************
@@ -153,12 +156,20 @@ void
 btr_search_disable(void)
 /*====================*/
 {
-	btr_search_disabled = TRUE;
+	mutex_enter(&btr_search_enabled_mutex);
 	rw_lock_x_lock(&btr_search_latch);
 
-	ha_clear(btr_search_sys->hash_index);
+	btr_search_enabled = FALSE;
+
+	/* Clear all block->is_hashed flags and remove all entries
+	from btr_search_sys->hash_index. */
+	buf_pool_drop_hash_index();
+
+	/* btr_search_enabled_mutex should guarantee this. */
+	ut_ad(!btr_search_enabled);
 
 	rw_lock_x_unlock(&btr_search_latch);
+	mutex_exit(&btr_search_enabled_mutex);
 }
 
 /************************************************************************
@@ -168,7 +179,13 @@ void
 btr_search_enable(void)
 /*====================*/
 {
-	btr_search_disabled = FALSE;
+	mutex_enter(&btr_search_enabled_mutex);
+	rw_lock_x_lock(&btr_search_latch);
+
+	btr_search_enabled = TRUE;
+
+	rw_lock_x_unlock(&btr_search_latch);
+	mutex_exit(&btr_search_enabled_mutex);
 }
 
 /*********************************************************************
@@ -797,6 +814,10 @@ btr_search_guess_on_hash(
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 		rw_lock_s_lock(&btr_search_latch);
+
+		if (UNIV_UNLIKELY(!btr_search_enabled)) {
+			goto failure_unlock;
+		}
 	}
 
 	ut_ad(btr_search_latch.writer != RW_LOCK_EX);
@@ -1300,6 +1321,10 @@ btr_search_build_page_hash_index(
 	btr_search_check_free_space_in_heap();
 
 	rw_lock_x_lock(&btr_search_latch);
+
+	if (UNIV_UNLIKELY(!btr_search_enabled)) {
+		goto exit_func;
+	}
 
 	if (block->is_hashed && ((block->curr_n_fields != n_fields)
 				 || (block->curr_n_bytes != n_bytes)
