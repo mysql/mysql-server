@@ -188,7 +188,7 @@ bool nw_panic = FALSE;
 #endif
 
 /** Allowed values of innodb_change_buffering */
-static const char* innobase_change_buffering_values[IBUF_USE_INSERT + 1] = {
+static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"none",		/* IBUF_USE_NONE */
 	"inserts"	/* IBUF_USE_INSERT */
 };
@@ -9421,7 +9421,7 @@ innodb_change_buffering_update(
 {
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(ibuf_use_t*) save) <= IBUF_USE_INSERT);
+	ut_a((*(ibuf_use_t*) save) < IBUF_USE_COUNT);
 
 	ibuf_use = *(const ibuf_use_t*) save;
 

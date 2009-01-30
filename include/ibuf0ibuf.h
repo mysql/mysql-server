@@ -17,10 +17,14 @@ Created 7/19/1997 Heikki Tuuri
 #include "ibuf0types.h"
 #include "fsp0fsp.h"
 
-/** Combinations of operations that can be buffered. */
+/** Combinations of operations that can be buffered.  Because the enum
+values are used for indexing innobase_change_buffering_values[], they
+should start at 0 and there should not be any gaps. */
 typedef enum {
 	IBUF_USE_NONE = 0,
-	IBUF_USE_INSERT		/* insert */
+	IBUF_USE_INSERT,	/* insert */
+
+	IBUF_USE_COUNT		/* number of entries in ibuf_use_t */
 } ibuf_use_t;
 
 /** Operations that can currently be buffered. */
