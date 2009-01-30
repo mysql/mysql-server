@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,11 +52,11 @@ LONG _InterlockedExchangeAdd (LONG volatile *Addend, LONG Value);
 #endif /*_M_IX86*/
 
 #define MY_ATOMIC_MODE "msvc-intrinsics"
-#define IL_EXCHG_ADD32(X,Y) InterlockedExchangeAdd((volatile LONG *)(X),(Y))
-#define IL_COMP_EXCHG32(X,Y,Z) InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
-#define IL_COMP_EXCHGptr InterlockedCompareExchangePointer
-#define IL_EXCHG32       InterlockedExchange
-#define IL_EXCHGptr      InterlockedExchangePointer
+#define IL_EXCHG_ADD32(X,Y)     InterlockedExchangeAdd((volatile LONG *)(X),(Y))
+#define IL_COMP_EXCHG32(X,Y,Z)  InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
+#define IL_COMP_EXCHGptr        InterlockedCompareExchangePointer
+#define IL_EXCHG32(X,Y)         InterlockedExchange((volatile LONG *)(X),(Y))
+#define IL_EXCHGptr             InterlockedExchangePointer
 #define make_atomic_add_body(S) \
   v= IL_EXCHG_ADD ## S (a, v)
 #define make_atomic_cas_body(S)                                 \

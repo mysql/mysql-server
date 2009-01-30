@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -330,7 +330,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 {
   int npins, alloca_size;
   void *list, **addr;
-  uchar *first, *last= NULL;
+  void *first, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
 
   LINT_INIT(first);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -332,7 +332,8 @@ my_bool my_thread_init(void)
                         0);
   pthread_cond_init(&tmp->suspend, NULL);
 
-  tmp->stack_ends_here= &tmp + STACK_DIRECTION * my_thread_stack_size;
+  tmp->stack_ends_here= (char*)&tmp +
+                         STACK_DIRECTION * (long)my_thread_stack_size;
 
   pthread_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;

@@ -7189,6 +7189,7 @@ static void init_signal_handling(void)
 #endif
   sigaction(SIGILL, &sa, NULL);
   sigaction(SIGFPE, &sa, NULL);
+  DBUG_VOID_RETURN;
 }
 
 #endif /* !__WIN__ */

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,74 +13,134 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
+/**
+  @file
+
   "waiting threads" subsystem - a unified interface for threads to wait
   on each other, with built-in deadlock detection.
 
   Main concepts
   ^^^^^^^^^^^^^
-    a thread - is represented by a WT_THD structure. One physical thread
-      can have only one WT_THD descriptor.
+  a thread - is represented by a WT_THD structure. One physical thread
+    can have only one WT_THD descriptor at any given moment.
 
-    a resource - a thread does not wait for other threads directly,
-      instead it waits for a "resource", which is "owned" by other threads.
-      It waits, exactly, for all "owners" to "release" a resource.
-      It does not have to correspond to a physical resource. For example, it
-      may be convenient in certain cases to force resource == thread.
-      A resource is represented by a WT_RESOURCE structure. 
+  a resource - a thread does not wait for other threads directly,
+    instead it waits for a "resource", which is "owned" by other threads.
+    It waits, exactly, for all "owners" to "release" a resource.
+    It does not have to correspond to a physical resource. For example, it
+    may be convenient in certain cases to force resource == thread.
+    A resource is represented by a WT_RESOURCE structure. 
 
-    a resource identifier - a pair of {resource type, value}. A value is
-      an ulonglong number. Represented by a WT_RESOURCE_ID structure.
+  a resource identifier - a pair of {resource type, value}. A value is
+    an ulonglong number. Represented by a WT_RESOURCE_ID structure.
 
-    a resource type - a pointer to a statically defined instance of
+  a resource type - a pointer to a statically defined instance of
     WT_RESOURCE_TYPE structure. This structure contains a pointer to
     a function that knows how to compare values of this resource type.
     In the simple case it could be wt_resource_id_memcmp().
 
-   Usage
-   ^^^^^
-   to use the interface one needs to use this thread's WT_THD,
-   call wt_thd_will_wait_for() for every thread it needs to wait on,
-   then call wt_thd_cond_timedwait(). When thread releases a resource
-   it should call wt_thd_release() (or wt_thd_release_all()) - it will
-   notify (send a signal) threads waiting in wt_thd_cond_timedwait(),
-   if appropriate.
+  a wait-for graph - a graph, that represenst "wait-for" relationships.
+    It has two types of nodes - threads and resources. There are directed
+    edges from a thread to a resource it is waiting for (WT_THD::waiting_for),
+    from a thread to resources that it "owns" (WT_THD::my_resources),
+    and from a resource to threads that "own" it (WT_RESOURCE::owners)
 
-   Just like with pthread's cond_wait, there could be spurious
-   wake-ups from wt_thd_cond_timedwait(). A caller is expected to
-   handle that.
+  Graph completeness
+  ^^^^^^^^^^^^^^^^^^
 
-   wt_thd_will_wait_for() and wt_thd_cond_timedwait() return either
-   WT_OK or WT_DEADLOCK. Additionally wt_thd_cond_timedwait() can return
-   WT_TIMEOUT. Out of memory and other fatal errors are reported as
-   WT_DEADLOCK - and a transaction must be aborted just the same.
+  For flawless deadlock detection wait-for graph must be complete.
+  It means that when a thread starts waiting it needs to know *all* its
+  blockers, and call wt_thd_will_wait_for() for every one of them.
+  Otherwise two phenomena should be expected:
 
-   Configuration
-   ^^^^^^^^^^^^^
-   There are four config variables. Two deadlock search depths - short and
-   long - and two timeouts. Deadlock search is performed with the short
-   depth on every wt_thd_will_wait_for() call. wt_thd_cond_timedwait()
-   waits with a short timeout, performs a deadlock search with the long
-   depth, and waits with a long timeout. As most deadlock cycles are supposed
-   to be short, most deadlocks will be detected at once, and waits will
-   rarely be necessary.
+  1. Fuzzy timeouts:
 
-   These config variables are thread-local. Different threads may have
-   different search depth and timeout values.
+    thread A needs to get a lock, and is blocked by a thread B.
+    it waits.
+    Just before the timeout thread B releases the lock.
+    thread A is ready to grab the lock but discovers that it is also
+    blocked by a thread C.
+    It waits and times out.
 
-   Also, deadlock detector supports different killing strategies, the victim
-   in a deadlock cycle is selected based on the "weight". See "weight"
-   description in waiting_threads.h for details. It's up to the caller to
-   set weights accordingly.
+    As a result thread A has waited two timeout intervals, instead of one.
 
-   Status
-   ^^^^^^
-   We calculate the number of successfull waits (WT_OK returned from
-   wt_thd_cond_timedwait()), a number of timeouts, a deadlock cycle
-   length distribution - number of deadlocks with every length from
-   1 to WT_CYCLE_STATS, and a wait time distribution - number
-   of waits with a time from 1 us to 1 min in WT_CYCLE_STATS
-   intervals on a log scale.
+  2. Unreliable cycle detection:
+
+     Thread A waits for threads B and C
+     Thread C waits for D
+     Thread D wants to start waiting for A
+
+     one can see immediately that thread D creates a cycle, and thus
+     a deadlock is detected.
+
+     But if thread A would only wait for B, and start waiting for C
+     when B would unlock, thread D would be allowed to wait, a deadlock
+     would be only detected when B unlocks or somebody times out.
+
+  These two phenomena don't affect a correctness, and strictly speaking,
+  the caller is not required to call wt_thd_will_wait_for() for *all*
+  blockers - it may optimize wt_thd_will_wait_for() calls. But they
+  may be perceived as bugs by users, it must be understood that such
+  an optimization comes with its price.
+
+  Usage
+  ^^^^^
+
+  First, the wt* subsystem must be initialized by calling
+  wt_init(). In the server you don't need to do it, it's done
+  in mysqld.cc.
+
+  Similarly, wt_end() frees wt* structures, should be called
+  at the end, but in the server mysqld.cc takes care of that.
+
+  Every WT_THD should be initialized with wt_thd_lazy_init().
+  After that they can be used in other wt_thd_* calls.
+  Before discarding, WT_THD should be free'd with
+  wt_thd_destroy(). In the server both are handled in sql_class.cc,
+  it's an error to try to do it manually.
+
+  To use the deadlock detection one needs to use this thread's WT_THD,
+  call wt_thd_will_wait_for() for every thread it needs to wait on,
+  then call wt_thd_cond_timedwait(). When thread releases a resource
+  it should call wt_thd_release() (or wt_thd_release_all()) - it will
+  notify (send a signal) threads waiting in wt_thd_cond_timedwait(),
+  if appropriate.
+
+  Just like with pthread's cond_wait, there could be spurious
+  wake-ups from wt_thd_cond_timedwait(). A caller is expected to
+  handle that (that is, to re-check the blocking criteria).
+
+  wt_thd_will_wait_for() and wt_thd_cond_timedwait() return either
+  WT_OK or WT_DEADLOCK. Additionally wt_thd_cond_timedwait() can return
+  WT_TIMEOUT. Out of memory and other fatal errors are reported as
+  WT_DEADLOCK - and a transaction must be aborted just the same.
+
+  Configuration
+  ^^^^^^^^^^^^^
+  There are four config variables. Two deadlock search depths - short and
+  long - and two timeouts. Deadlock search is performed with the short
+  depth on every wt_thd_will_wait_for() call. wt_thd_cond_timedwait()
+  waits with a short timeout, performs a deadlock search with the long
+  depth, and waits with a long timeout. As most deadlock cycles are supposed
+  to be short, most deadlocks will be detected at once, and waits will
+  rarely be necessary.
+
+  These config variables are thread-local. Different threads may have
+  different search depth and timeout values.
+
+  Also, deadlock detector supports different killing strategies, the victim
+  in a deadlock cycle is selected based on the "weight". See "weight"
+  description in waiting_threads.h for details. It's up to the caller to
+  set weights accordingly.
+
+  Status
+  ^^^^^^
+  We calculate the number of successfull waits (WT_OK returned from
+  wt_thd_cond_timedwait()), a number of timeouts, a deadlock cycle
+  length distribution - number of deadlocks with every length from
+  1 to WT_CYCLE_STATS, and a wait time distribution - number
+  of waits with a time from 1 us to 1 min in WT_WAIT_STATS
+  intervals on a log e scale.
 */
 
 /*
@@ -93,10 +153,11 @@
 
       (example A=IX, B=IS, C=S, D=X)
 
-   you need to include lock level in the resource identifier - thread 1
-   waiting for lock A on resource R and thread 2 waiting for lock B
-   on resource R should wait on different WT_RESOURCE structures, on different
-   {lock, resource} pairs. Otherwise the following is possible:
+   you need to include lock level in the resource identifier - a
+   thread waiting for lock of the type A on resource R and another
+   thread waiting for lock of the type B on resource R should wait on
+   different WT_RESOURCE structures, on different {lock, resource}
+   pairs.  Otherwise the following is possible:
 
       thread1> take S-lock on R
       thread2> take IS-lock on R
@@ -113,40 +174,46 @@
 #include <waiting_threads.h>
 #include <m_string.h>
 
-/*
-  status variables:
-    distribution of cycle lengths
-    wait time log distribution
+/* status variables */
 
-  Note:
-
-    we call deadlock() twice per wait (with different search lengths).
-    it means a deadlock will be counted twice. It's difficult to avoid,
-    as on the second search we could find a *different* deadlock and we
-    *want* to count it too. So we just count all deadlocks - two searches
-    mean two increments on the wt_cycle_stats.
+/**
+  preset table of wait intervals
 */
-
 ulonglong wt_wait_table[WT_WAIT_STATS];
-uint32    wt_wait_stats[WT_WAIT_STATS+1];
-uint32    wt_cycle_stats[2][WT_CYCLE_STATS+1], wt_success_stats;
+/**
+  wait time distribution (log e scale)
+*/
+uint32 wt_wait_stats[WT_WAIT_STATS+1];
+/**
+  distribution of cycle lengths
+  first column tells whether this was during short or long detection
+*/
+uint32 wt_cycle_stats[2][WT_CYCLE_STATS+1];
+uint32 wt_success_stats;
 
 static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
 
+#ifdef SAFE_STATISTICS
+#define incr(VAR, LOCK)                           \
+  do {                                            \
+    my_atomic_rwlock_wrlock(&(LOCK));             \
+    my_atomic_add32(&(VAR), 1);                   \
+    my_atomic_rwlock_wrunlock(&(LOCK));           \
+  } while(0)
+#else
+#define incr(VAR,LOCK)  do { (VAR)++; } while(0)
+#endif
+
 static void increment_success_stats()
 {
-  my_atomic_rwlock_wrlock(&success_stats_lock);
-  my_atomic_add32(&wt_success_stats, 1);
-  my_atomic_rwlock_wrunlock(&success_stats_lock);
+  incr(wt_success_stats, success_stats_lock);
 }
 
 static void increment_cycle_stats(uint depth, uint slot)
 {
   if (depth >= WT_CYCLE_STATS)
     depth= WT_CYCLE_STATS;
-  my_atomic_rwlock_wrlock(&cycle_stats_lock);
-  my_atomic_add32(&wt_cycle_stats[slot][depth], 1);
-  my_atomic_rwlock_wrunlock(&cycle_stats_lock);
+  incr(wt_cycle_stats[slot][depth], cycle_stats_lock);
 }
 
 static void increment_wait_stats(ulonglong waited,int ret)
@@ -155,11 +222,88 @@ static void increment_wait_stats(ulonglong waited,int ret)
   if ((ret) == ETIMEDOUT)
     i= WT_WAIT_STATS;
   else
-    for (i=0; i < WT_WAIT_STATS && waited/10 > wt_wait_table[i]; i++) ;
-  my_atomic_rwlock_wrlock(&wait_stats_lock);
-  my_atomic_add32(wt_wait_stats+i, 1);
-  my_atomic_rwlock_wrunlock(&wait_stats_lock);
+    for (i= 0; i < WT_WAIT_STATS && waited/10 > wt_wait_table[i]; i++) ;
+  incr(wt_wait_stats[i], wait_stats_lock);
 }
+
+/*
+  'lock' protects 'owners', 'state', and 'waiter_count'
+  'id' is read-only
+
+  a resource is picked up from a hash in a lock-free manner
+  it's returned pinned, so it cannot be freed at once
+  but it may be freed right after the pin is removed
+  to free a resource it should
+    1. have no owners
+    2. have no waiters
+
+  two ways to access a resource:
+    1. find it in a hash
+       - it's returned pinned.
+        a) take a lock in exclusive mode
+        b) check the state, it should be ACTIVE to be usable
+        c) unpin
+    2. by a direct reference
+       - could only used if a resource cannot be freed
+       e.g. accessing a resource by thd->waiting_for is safe,
+       a resource cannot be freed as there's a thread waiting for it
+*/
+struct st_wt_resource {
+  WT_RESOURCE_ID  id;
+  uint            waiter_count;
+  enum { ACTIVE, FREE } state;
+#ifndef DBUG_OFF
+  pthread_mutex_t  *cond_mutex; /* a mutex for the 'cond' below */
+#endif
+  /*
+    before the 'lock' all elements are mutable, after (and including) -
+    immutable in the sense that lf_hash_insert() won't memcpy() over them.
+    See wt_init().
+  */
+#ifdef WT_RWLOCKS_USE_MUTEXES
+  /*
+    we need a special rwlock-like 'lock' to allow readers bypass
+    waiting writers, otherwise readers can deadlock. For example:
+
+      A waits on resource x, owned by B, B waits on resource y, owned
+      by A, we have a cycle (A->x->B->y->A)
+      Both A and B start deadlock detection:
+
+        A locks x                          B locks y
+        A goes deeper                      B goes deeper
+        A locks y                          B locks x
+
+      with mutexes it would deadlock. With rwlocks it won't, as long
+      as both A and B are taking read locks (and they do).
+      But other threads may take write locks. Assume there's
+      C who wants to start waiting on x, and D who wants to start
+      waiting on y.
+
+        A read-locks x                       B read-locks y
+        A goes deeper                        B goes deeper
+     => C write-locks x (to add a new edge)  D write-locks y
+     .. C is blocked                         D is blocked
+        A read-locks y                       B read-locks x
+
+      Now, if a read lock can bypass a pending wrote lock request, we're fine.
+      If it can not, we have a deadlock.
+
+    writer starvation is technically possible, but unlikely, because
+    the contention is expected to be low.
+  */
+  struct {
+    pthread_cond_t   cond;
+    pthread_mutex_t  mutex;
+    uint readers: 16;
+    uint pending_writers: 15;
+    uint write_locked: 1;
+  } lock;
+#else
+  rw_lock_t lock;
+#endif
+  pthread_cond_t   cond; /* the corresponding mutex is provided by the caller */
+  DYNAMIC_ARRAY    owners;
+};
 
 #ifdef  WT_RWLOCKS_USE_MUTEXES
 static void rc_rwlock_init(WT_RESOURCE *rc)
@@ -169,6 +313,8 @@ static void rc_rwlock_init(WT_RESOURCE *rc)
 }
 static void rc_rwlock_destroy(WT_RESOURCE *rc)
 {
+  DBUG_ASSERT(rc->lock.write_locked == 0);
+  DBUG_ASSERT(rc->lock.readers == 0);
   pthread_cond_destroy(&rc->lock.cond);
   pthread_mutex_destroy(&rc->lock.mutex);
 }
@@ -188,7 +334,7 @@ static void rc_wrlock(WT_RESOURCE *rc)
   pthread_mutex_lock(&rc->lock.mutex);
   while (rc->lock.write_locked || rc->lock.readers)
     pthread_cond_wait(&rc->lock.cond, &rc->lock.mutex);
-  rc->lock.write_locked=1;
+  rc->lock.write_locked= 1;
   pthread_mutex_unlock(&rc->lock.mutex);
   DBUG_PRINT("wt", ("LOCK resid=%ld for WRITE", (ulong)rc->id.value));
 }
@@ -198,7 +344,7 @@ static void rc_unlock(WT_RESOURCE *rc)
   pthread_mutex_lock(&rc->lock.mutex);
   if (rc->lock.write_locked)
   {
-    rc->lock.write_locked=0;
+    rc->lock.write_locked= 0;
     pthread_cond_broadcast(&rc->lock.cond);
   }
   else if (--rc->lock.readers == 0)
@@ -242,12 +388,12 @@ static LF_HASH      reshash;
 /**
   WT_RESOURCE constructor
 
-  It's called from lf_hash and takes an offset to LF_SLIST instance.
+  It's called from lf_hash and takes a pointer to an LF_SLIST instance.
   WT_RESOURCE is located at arg+sizeof(LF_SLIST)
 */
 static void wt_resource_init(uchar *arg)
 {
-  WT_RESOURCE *rc=(WT_RESOURCE*)(arg+LF_HASH_OVERHEAD);
+  WT_RESOURCE *rc= (WT_RESOURCE*)(arg+LF_HASH_OVERHEAD);
   DBUG_ENTER("wt_resource_init");
 
   bzero(rc, sizeof(*rc));
@@ -260,12 +406,12 @@ static void wt_resource_init(uchar *arg)
 /**
   WT_RESOURCE destructor
 
-  It's called from lf_hash and takes an offset to LF_SLIST instance.
+  It's called from lf_hash and takes a pointer to an LF_SLIST instance.
   WT_RESOURCE is located at arg+sizeof(LF_SLIST)
 */
 static void wt_resource_destroy(uchar *arg)
 {
-  WT_RESOURCE *rc=(WT_RESOURCE*)(arg+LF_HASH_OVERHEAD);
+  WT_RESOURCE *rc= (WT_RESOURCE*)(arg+LF_HASH_OVERHEAD);
   DBUG_ENTER("wt_resource_destroy");
 
   DBUG_ASSERT(rc->owners.elements == 0);
@@ -278,6 +424,7 @@ static void wt_resource_destroy(uchar *arg)
 void wt_init()
 {
   DBUG_ENTER("wt_init");
+  DBUG_ASSERT(reshash.alloc.constructor != wt_resource_init);
 
   lf_hash_init(&reshash, sizeof(WT_RESOURCE), LF_HASH_UNIQUE, 0,
                sizeof_WT_RESOURCE_ID, 0, 0);
@@ -293,15 +440,15 @@ void wt_init()
   reshash.element_size= offsetof(WT_RESOURCE, lock);
   bzero(wt_wait_stats, sizeof(wt_wait_stats));
   bzero(wt_cycle_stats, sizeof(wt_cycle_stats));
-  wt_success_stats=0;
-  { /* initialize wt_wait_table[]. from 1 us to 1 min, log scale */
+  wt_success_stats= 0;
+  { /* initialize wt_wait_table[]. from 1 us to 1 min, log e scale */
     int i;
-    double from=log(1);   /* 1 us */
-    double to=log(60e6);  /* 1 min */
-    for (i=0; i < WT_WAIT_STATS; i++)
+    double from= log(1);   /* 1 us */
+    double to= log(60e6);  /* 1 min */
+    for (i= 0; i < WT_WAIT_STATS; i++)
     {
-      wt_wait_table[i]=(ulonglong)exp((to-from)/(WT_WAIT_STATS-1)*i+from);
-      DBUG_ASSERT(i==0 || wt_wait_table[i-1] != wt_wait_table[i]);
+      wt_wait_table[i]= (ulonglong)exp((to-from)/(WT_WAIT_STATS-1)*i+from);
+      DBUG_ASSERT(i == 0 || wt_wait_table[i-1] != wt_wait_table[i]);
     }
   }
   my_atomic_rwlock_init(&cycle_stats_lock);
@@ -325,7 +472,7 @@ void wt_end()
 /**
   Lazy WT_THD initialization
 
-  Cheap initialization of WT_THD. Only initialized fields that don't require
+  Cheap initialization of WT_THD. Only initialize fields that don't require
   memory allocations - basically, it only does assignments. The rest of the
   WT_THD structure will be initialized on demand, on the first use.
   This allows one to initialize lazily all WT_THD structures, even if some
@@ -335,14 +482,18 @@ void wt_end()
   @param ts     a pointer to deadlock timeout short value
   @param dl     a pointer to deadlock search depth long value
   @param tl     a pointer to deadlock timeout long value
+
+  @note these are pointers to values, and WT_THD stores them as pointers.
+  It allows one later to change search depths and timeouts for existing
+  threads. It also means that the pointers must stay valid for the lifetime
+  of WT_THD.
 */
-void wt_thd_lazy_init(WT_THD *thd, ulong *ds, ulong *ts, ulong *dl, ulong *tl)
+void wt_thd_lazy_init(WT_THD *thd, const ulong *ds, const ulong *ts,
+                                   const ulong *dl, const ulong *tl)
 {
   DBUG_ENTER("wt_thd_lazy_init");
-  thd->waiting_for=0;
-  thd->my_resources.buffer= 0;
-  thd->my_resources.elements= 0;
-  thd->weight=0;
+  thd->waiting_for= 0;
+  thd->weight= 0;
   thd->deadlock_search_depth_short= ds;
   thd->timeout_short= ts;
   thd->deadlock_search_depth_long= dl;
@@ -350,7 +501,7 @@ void wt_thd_lazy_init(WT_THD *thd, ulong *ds, ulong *ts, ulong *dl, ulong *tl)
   /* dynamic array is also initialized lazily - without memory allocations */
   my_init_dynamic_array(&thd->my_resources, sizeof(WT_RESOURCE *), 0, 5);
 #ifndef DBUG_OFF
-  thd->name=my_thread_name();
+  thd->name= my_thread_name();
 #endif
   DBUG_VOID_RETURN;
 }
@@ -367,9 +518,9 @@ static int fix_thd_pins(WT_THD *thd)
 {
   if (unlikely(thd->pins == 0))
   {
-    thd->pins=lf_hash_get_pins(&reshash);
+    thd->pins= lf_hash_get_pins(&reshash);
 #ifndef DBUG_OFF
-    thd->name=my_thread_name();
+    thd->name= my_thread_name();
 #endif
   }
   return thd->pins == 0;
@@ -380,12 +531,12 @@ void wt_thd_destroy(WT_THD *thd)
   DBUG_ENTER("wt_thd_destroy");
 
   DBUG_ASSERT(thd->my_resources.elements == 0);
+  DBUG_ASSERT(thd->waiting_for == 0);
 
   if (thd->pins != 0)
     lf_hash_put_pins(thd->pins);
 
   delete_dynamic(&thd->my_resources);
-  thd->waiting_for=0;
   DBUG_VOID_RETURN;
 }
 /**
@@ -394,7 +545,7 @@ void wt_thd_destroy(WT_THD *thd)
   It can be used in WT_RESOURCE_TYPE structures where bytewise
   comparison of values is sufficient.
 */
-int wt_resource_id_memcmp(void *a, void *b)
+my_bool wt_resource_id_memcmp(const void *a, const void *b)
 {
   /* we use the fact that there's no padding in the middle of WT_RESOURCE_ID */
   compile_time_assert(offsetof(WT_RESOURCE_ID, type) == sizeof(ulonglong));
@@ -405,10 +556,10 @@ int wt_resource_id_memcmp(void *a, void *b)
   arguments for the recursive deadlock_search function
 */
 struct deadlock_arg {
-  WT_THD *thd;          /**< starting point of a search */
-  uint    max_depth;    /**< search depth limit */
-  WT_THD *victim;       /**< a thread to be killed to resolve a deadlock */
-  WT_RESOURCE *rc;      /**< see comment at the end of deadlock_search() */
+  WT_THD * const thd;          /**< starting point of a search */
+  uint const max_depth;        /**< search depth limit */
+  WT_THD *victim;              /**< a thread to be killed to resolve a deadlock */
+  WT_RESOURCE *last_locked_rc; /**< see comment at the end of deadlock_search() */
 };
 
 /**
@@ -421,10 +572,10 @@ static void change_victim(WT_THD* found, struct deadlock_arg *arg)
     if (arg->victim != arg->thd)
     {
       rc_unlock(arg->victim->waiting_for); /* release the previous victim */
-      DBUG_ASSERT(arg->rc == found->waiting_for);
+      DBUG_ASSERT(arg->last_locked_rc == found->waiting_for);
     }
     arg->victim= found;
-    arg->rc= 0;
+    arg->last_locked_rc= 0;
   }
 }
 
@@ -444,7 +595,7 @@ static int deadlock_search(struct deadlock_arg *arg, WT_THD *blocker,
 
   LF_REQUIRE_PINS(1);
 
-  arg->rc= 0;
+  arg->last_locked_rc= 0;
 
   if (depth > arg->max_depth)
   {
@@ -453,7 +604,10 @@ static int deadlock_search(struct deadlock_arg *arg, WT_THD *blocker,
   }
 
 retry:
-  /* safe dereference as explained in lf_alloc-pin.c */
+  /*
+    safe dereference as explained in lf_alloc-pin.c
+    (in short: protects against lf_alloc_free() in lf_hash_delete())
+  */
   do
   {
     rc= *shared_ptr;
@@ -469,6 +623,7 @@ retry:
   rc_rdlock(rc);
   if (rc->state != ACTIVE || *shared_ptr != rc)
   {
+    /* blocker is not waiting on this resource anymore */
     rc_unlock(rc);
     lf_unpin(arg->thd->pins, 0);
     goto retry;
@@ -480,20 +635,22 @@ retry:
     Below is not a pure depth-first search. It's a depth-first with a
     slightest hint of breadth-first. Depth-first is:
 
-      check(element):
+      check(element, X):
         foreach current in element->nodes[] do:
-          if current == element return error;
-          check(current);
+          if current == X return error;
+          check(current, X);
 
     while we do
 
-      check(element):
+      check(element, X):
         foreach current in element->nodes[] do:
-          if current == element return error;
+          if current == X return error;
         foreach current in element->nodes[] do:
-          check(current);
+          check(current, X);
+
+    preferring shorter deadlocks over longer ones.
   */
-  for (i=0; i < rc->owners.elements; i++)
+  for (i= 0; i < rc->owners.elements; i++)
   {
     cursor= *dynamic_element(&rc->owners, i, WT_THD**);
     /*
@@ -517,7 +674,7 @@ retry:
       goto end;
     }
   }
-  for (i=0; i < rc->owners.elements; i++)
+  for (i= 0; i < rc->owners.elements; i++)
   {
     cursor= *dynamic_element(&rc->owners, i, WT_THD**);
     switch (deadlock_search(arg, cursor, depth+1)) {
@@ -528,20 +685,21 @@ retry:
       break;
     case WT_DEADLOCK:
       ret= WT_DEADLOCK;
-      change_victim(cursor, arg);       /* also sets arg->rc to 0 */
+      change_victim(cursor, arg);       /* also sets arg->last_locked_rc to 0 */
       i= rc->owners.elements;           /* jump out of the loop */
       break;
     default:
       DBUG_ASSERT(0);
     }
-    if (arg->rc)
-      rc_unlock(arg->rc);
+    if (arg->last_locked_rc)
+      rc_unlock(arg->last_locked_rc);
   }
 end:
   /*
     Note that 'rc' is locked in this function, but it's never unlocked here.
-    Instead it's saved in arg->rc and the *caller* is expected to unlock it.
-    It's done to support different killing strategies. This is how it works:
+    Instead it's saved in arg->last_locked_rc and the *caller* is
+    expected to unlock it.  It's done to support different killing
+    strategies. This is how it works:
     Assuming a graph
 
       thd->A->B->C->thd
@@ -552,9 +710,9 @@ end:
     on. Goes down recursively, locks B. Goes down recursively, locks C.
     Notices that C is waiting on thd. Deadlock detected. Sets arg->victim=thd.
     Returns from the last deadlock_search() call. C stays locked!
-    Now it checks whether C is a more appropriate victim then 'thd'.
+    Now it checks whether C is a more appropriate victim than 'thd'.
     If yes - arg->victim=C, otherwise C is unlocked. Returns. B stays locked.
-    Now it checks whether B is a more appropriate victim then arg->victim.
+    Now it checks whether B is a more appropriate victim than arg->victim.
     If yes - old arg->victim is unlocked and arg->victim=B,
     otherwise B is unlocked. Return.
     And so on.
@@ -566,7 +724,7 @@ end:
     is unrolled and we are back to deadlock() function, there are only two
     locks left - on thd and on the victim.
   */
-  arg->rc= rc;
+  arg->last_locked_rc= rc;
   DBUG_PRINT("wt", ("exit: %s",
                     ret == WT_DEPTH_EXCEEDED ? "WT_DEPTH_EXCEEDED" :
                     ret ? "WT_DEADLOCK" : "OK"));
@@ -612,30 +770,31 @@ static int deadlock(WT_THD *thd, WT_THD *blocker, uint depth,
   */
   if (ret == WT_DEADLOCK && depth)
     change_victim(blocker, &arg);
-  if (arg.rc)
+  if (arg.last_locked_rc)
   {
     /*
       Special return code if there's nobody to wait for.
 
       depth == 0 means that we start the search from thd (thd == blocker).
-      ret == WT_OK means that no cycle was found and arg.rc == thd->waiting_for.
-      and arg.rc->owners.elements == 0 means that (applying the rule above)
-      thd->waiting_for->owners.elements == 0, and thd doesn't have anybody to
-      wait for.
+      ret == WT_OK means that no cycle was found and
+        arg.last_locked_rc == thd->waiting_for.
+      and arg.last_locked_rc->owners.elements == 0 means that
+        (applying the rule above) thd->waiting_for->owners.elements == 0,
+        and thd doesn't have anybody to wait for.
     */
-    if (depth == 0 && ret == WT_OK && arg.rc->owners.elements == 0)
+    if (depth == 0 && ret == WT_OK && arg.last_locked_rc->owners.elements == 0)
     {
       DBUG_ASSERT(thd == blocker);
-      DBUG_ASSERT(arg.rc == thd->waiting_for);
+      DBUG_ASSERT(arg.last_locked_rc == thd->waiting_for);
       ret= WT_FREE_TO_GO;
     }
-    rc_unlock(arg.rc);
+    rc_unlock(arg.last_locked_rc);
   }
   /* notify the victim, if appropriate */
   if (ret == WT_DEADLOCK && arg.victim != thd)
   {
     DBUG_PRINT("wt", ("killing %s", arg.victim->name));
-    arg.victim->killed=1;
+    arg.victim->killed= 1;
     pthread_cond_broadcast(&arg.victim->waiting_for->cond);
     rc_unlock(arg.victim->waiting_for);
     ret= WT_OK;
@@ -659,7 +818,7 @@ static int unlock_lock_and_free_resource(WT_THD *thd, WT_RESOURCE *rc)
 
   if (rc->owners.elements || rc->waiter_count)
   {
-    DBUG_PRINT("wt", ("nothing to do, %d owners, %d waiters",
+    DBUG_PRINT("wt", ("nothing to do, %u owners, %u waiters",
                       rc->owners.elements, rc->waiter_count));
     rc_unlock(rc);
     DBUG_RETURN(0);
@@ -683,12 +842,8 @@ static int unlock_lock_and_free_resource(WT_THD *thd, WT_RESOURCE *rc)
      2. set the state to FREE
      3. release the lock
      4. remove from the hash
-
-     I *think* it's safe to release the lock while the element is still
-     in the hash. If not, the corrected procedure should be
-     3. pin; 4; remove; 5; release; 6; unpin and it'll need pin[3].
   */
-  rc->state=FREE;
+  rc->state= FREE;
   rc_unlock(rc);
   DBUG_RETURN(lf_hash_delete(&reshash, thd->pins, key, keylen) == -1);
 }
@@ -739,15 +894,19 @@ static int stop_waiting(WT_THD *thd)
 /**
   notify the system that a thread needs to wait for another thread
 
-  called by a *waiter* to declare what resource it will wait for.
+  called by a *waiter* to declare that it (thd) will wait for another
+  thread (blocker) on a specific resource (resid).
   can be called many times, if many blockers own a blocking resource.
   but must always be called with the same resource id - a thread cannot
   wait for more than one resource at a time.
 
+  @return WT_OK or WT_DEADLOCK
+
   As a new edge is added to the wait-for graph, a deadlock detection is
   performed for this new edge.
 */
-int wt_thd_will_wait_for(WT_THD *thd, WT_THD *blocker, WT_RESOURCE_ID *resid)
+int wt_thd_will_wait_for(WT_THD *thd, WT_THD *blocker,
+                         const WT_RESOURCE_ID *resid)
 {
   uint i;
   WT_RESOURCE *rc;
@@ -822,7 +981,7 @@ retry:
 
     /*
       we can safely access the resource here, it's in the hash as it has
-      at least one owner, and non-zero waiter_count
+      non-zero waiter_count
     */
     rc= thd->waiting_for;
     rc_wrlock(rc);
@@ -835,7 +994,11 @@ retry:
       DBUG_RETURN(WT_DEADLOCK);
     }
   }
-  for (i=0; i < rc->owners.elements; i++)
+  /*
+    Another thread could be waiting on this resource for this very 'blocker'.
+    In this case we should not add it to the list for the second time.
+  */
+  for (i= 0; i < rc->owners.elements; i++)
     if (*dynamic_element(&rc->owners, i, WT_THD**) == blocker)
       break;
   if (i >= rc->owners.elements)
@@ -854,19 +1017,21 @@ retry:
   }
   rc_unlock(rc);
 
-  if (deadlock(thd, blocker, 1, *thd->deadlock_search_depth_short))
+  if (deadlock(thd, blocker, 1, *thd->deadlock_search_depth_short) != WT_OK)
   {
     stop_waiting(thd);
     DBUG_RETURN(WT_DEADLOCK);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(WT_OK);
 }
 
 /**
-  called by a *waiter* to start waiting
+  called by a *waiter* (thd) to start waiting
 
   It's supposed to be a drop-in replacement for
   pthread_cond_timedwait(), and it takes mutex as an argument.
+
+  @return one of WT_TIMEOUT, WT_DEADLOCK, WT_OK
 */
 int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
 {
@@ -878,10 +1043,10 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
   DBUG_PRINT("wt", ("enter: thd=%s, rc=%p", thd->name, rc));
 
 #ifndef DBUG_OFF
-  if (rc->mutex)
-    DBUG_ASSERT(rc->mutex == mutex);
+  if (rc->cond_mutex)
+    DBUG_ASSERT(rc->cond_mutex == mutex);
   else
-    rc->mutex= mutex;
+    rc->cond_mutex= mutex;
   safe_mutex_assert_owner(mutex);
 #endif
 
@@ -890,20 +1055,27 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
 #ifdef __WIN__
   /*
     only for the sake of Windows we distinguish between
-    'before' and 'starttime'
+    'before' and 'starttime':
+
+    my_getsystime() returns high-resolution value, that cannot be used for
+    waiting (it doesn't follow system clock changes), but is good for time
+    intervals.
+
+    GetSystemTimeAsFileTime() follows system clock, but is low-resolution
+    and will result in lousy intervals.
   */
   GetSystemTimeAsFileTime((PFILETIME)&starttime);
 #endif
 
   rc_wrlock(rc);
-  if (rc->owners.elements == 0 || thd->killed)
+  if (rc->owners.elements == 0)
     ret= WT_OK;
   rc_unlock(rc);
 
   set_timespec_time_nsec(timeout, starttime, (*thd->timeout_short)*ULL(1000));
-  if (ret == WT_TIMEOUT)
+  if (ret == WT_TIMEOUT && !thd->killed)
     ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
-  if (ret == WT_TIMEOUT)
+  if (ret == WT_TIMEOUT && !thd->killed)
   {
     int r= deadlock(thd, thd, 0, *thd->deadlock_search_depth_long);
     if (r == WT_FREE_TO_GO)
@@ -935,24 +1107,25 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
   @param resid   a resource to release. 0 to release all resources
 */
 
-void wt_thd_release(WT_THD *thd, WT_RESOURCE_ID *resid)
+void wt_thd_release(WT_THD *thd, const WT_RESOURCE_ID *resid)
 {
   uint i;
   DBUG_ENTER("wt_thd_release");
 
-  for (i=0; i < thd->my_resources.elements; i++)
+  for (i= 0; i < thd->my_resources.elements; i++)
   {
-    uint j;
     WT_RESOURCE *rc= *dynamic_element(&thd->my_resources, i, WT_RESOURCE**);
     if (!resid || (resid->type->compare(&rc->id, resid) == 0))
     {
+      uint j;
+
       rc_wrlock(rc);
       /*
         nobody's trying to free the resource now,
         as its owners[] array is not empty (at least thd must be there)
       */
       DBUG_ASSERT(rc->state == ACTIVE);
-      for (j=0; j < rc->owners.elements; j++)
+      for (j= 0; j < rc->owners.elements; j++)
         if (*dynamic_element(&rc->owners, j, WT_THD**) == thd)
           break;
       DBUG_ASSERT(j < rc->owners.elements);
@@ -961,8 +1134,8 @@ void wt_thd_release(WT_THD *thd, WT_RESOURCE_ID *resid)
       {
         pthread_cond_broadcast(&rc->cond);
 #ifndef DBUG_OFF
-        if (rc->mutex)
-          safe_mutex_assert_owner(rc->mutex);
+        if (rc->cond_mutex)
+          safe_mutex_assert_owner(rc->cond_mutex);
 #endif
       }
       unlock_lock_and_free_resource(thd, rc);

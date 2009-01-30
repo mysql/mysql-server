@@ -310,7 +310,7 @@ MARIA_KEY *_ma_ft_make_key(MARIA_HA *info, MARIA_KEY *key, uint keynr,
   convert key value to ft2
 */
 
-uint _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
+my_bool _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
 {
   MARIA_SHARE *share= info->s;
   my_off_t root;
@@ -349,11 +349,11 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
     called, but soon it will be.
   */
   if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   _ma_page_setup(&page, info, keyinfo, root, info->buff);
   if (_ma_write_keypage(&page, page_link->write_lock, DFLT_INIT_HITS))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   /* inserting the rest of key values */
   end= (uchar*) dynamic_array_ptr(da, da->elements);
@@ -365,7 +365,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
   {
     tmp_key.data= key_ptr;
     if (_ma_ck_real_write_btree(info, key, &root, SEARCH_SAME))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(1);
   }
 
   /* now, writing the word key entry */

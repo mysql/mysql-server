@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2008-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,12 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/**
+  @file
+
+  Unit tests for lock-free algorithms of mysys
+*/
 
 #include "thr_template.c"
 
@@ -47,6 +53,10 @@ pthread_handler_t test_lf_pinbox(void *arg)
   return 0;
 }
 
+/*
+  thread local data area, allocated using lf_alloc.
+  union is required to enforce the minimum required element size (sizeof(ptr))
+*/
 typedef union {
   int32 data;
   void *not_used;
