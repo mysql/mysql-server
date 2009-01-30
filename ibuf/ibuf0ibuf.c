@@ -2768,13 +2768,18 @@ ibuf_insert(
 
 	ut_a(!dict_index_is_clust(index));
 
-	switch (ibuf_use) {
+	switch (UNIV_EXPECT(ibuf_use, IBUF_USE_INSERT)) {
 	case IBUF_USE_NONE:
 		return(FALSE);
 	case IBUF_USE_INSERT:
+		goto do_insert;
+	case IBUF_USE_COUNT:
 		break;
 	}
 
+	ut_error; /* unknown value of ibuf_use */
+
+do_insert:
 	entry_size = rec_get_converted_size(index, entry, 0);
 
 	if (entry_size
