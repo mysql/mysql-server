@@ -1,0 +1,105 @@
+################## mysql-test\t\binlog_format_basic.test ######################
+#                                                                             #
+# Variable Name: binlog_format                                                #
+# Scope: Global & Session                                                     #
+# Access Type: Static                                                         #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                  #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable binlog_format             #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+###################################################################
+# BUG#39812: Make statement replication default for 5.1 (to match 5.0)
+# We just verify that the default binlog_format is STATEMENT in 5.1.
+# In 6.0, it should be MIXED.
+###################################################################
+SELECT @@GLOBAL.binlog_format;
+
+--echo '#---------------------BS_STVARS_002_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SET @start_value= @@global.binlog_format;
+
+SELECT COUNT(@@GLOBAL.binlog_format);
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.binlog_format);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_002_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.binlog_format=1;
+SELECT @@GLOBAL.binlog_format;
+
+SET @@SESSION.binlog_format=1;
+SELECT @@SESSION.binlog_format;
+
+--echo '#---------------------BS_STVARS_002_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.binlog_format = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_format';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.binlog_format);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_format';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_04----------------------#'
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+SELECT @@SESSION.binlog_format = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_format';
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.binlog_format);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_format';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_05----------------------#'
+################################################################################
+#   Check if binlog_format can be accessed with and without @@ sign            #
+################################################################################
+
+SELECT COUNT(@@binlog_format);
+--echo 1 Expected
+SELECT COUNT(@@local.binlog_format);
+--echo 1 Expected
+SELECT COUNT(@@SESSION.binlog_format);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.binlog_format);
+--echo 1 Expected
+
+SET @@global.binlog_format= @start_value;
+

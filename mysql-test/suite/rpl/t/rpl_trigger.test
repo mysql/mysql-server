@@ -300,8 +300,10 @@ STOP SLAVE;
 # Replace master's binlog.
 
 connection master;
+let $MYSQLD_DATADIR= `select @@datadir`;
 FLUSH LOGS;
-exec cp $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLD_DATADIR/master-bin.000001;
 
 # Make the slave to replay the new binlog.
 
@@ -496,6 +498,7 @@ create trigger tr
 set autocommit = 0;
 insert into t1 values ( 1 );
 rollback;
+sync_slave_with_master;
 
 let $diff_table_1=master:test.t1;
 let $diff_table_2=slave:test.t1;

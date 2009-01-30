@@ -9,8 +9,18 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+delayed_insert_limit_func             : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+event_scheduler_func                  : BUG#37962, BUG#40816 2008-07-08 sven *_func tests containing sleeps/race conditions
+interactive_timeout_func              : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+query_cache_wlock_invalidate_func     : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+rpl_init_slave_func                   : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+rpl_max_binlog_size_func              : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+slow_query_log_func                   : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+sql_low_priority_updates_func         : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+timestamp_func                        : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+innodb_max_dirty_pages_pct_func       : BUG#41018 BUG#39382 2008-12-02 sven test fails often. some failures fill up the disk, causing subsequent failures in many other tests
 federated_transactions   : Bug#29523 Transactions do not work
-slow_query_log_func      : Bug #37962: *_func tests containing sleeps/race conditions
 wait_timeout_func    : Bug #41225 joro wait_timeout_func fails
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#41098 Query Cache returns wrong result with concurrent insert
+innodb_bug39438          : BUG#42383 2009-01-28 lsoares "This fails in embedded and on windows.  Note that this test is not run on windows and on embedded in PB for main trees currently"

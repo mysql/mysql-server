@@ -84,7 +84,7 @@ drop table t1;
 drop function bug14233_1;
 drop function bug14233_2;
 drop procedure bug14233_3;
-show procedure status;
+show procedure status where db=DATABASE();
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-show function status;
+show function status where db=DATABASE();
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
