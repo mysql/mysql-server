@@ -3807,6 +3807,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     }
     DBUG_PRINT("info", ("old_part_id: %u  new_part_id: %u", old_part_id, new_part_id));
   skip_partition_pruning:
+    (void)0;
   }
 
   /*
@@ -4071,6 +4072,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       DBUG_RETURN(error);
     }
   skip_partition_pruning:
+    (void)0;
   }
 
   NdbOperation::OperationOptions options;
