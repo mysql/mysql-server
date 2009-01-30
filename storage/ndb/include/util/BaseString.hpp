@@ -129,7 +129,7 @@ public:
    * @params c character to look for
    * @returns index of character, of -1 if no character found
    */
-  ssize_t indexOf(char c);
+  ssize_t indexOf(char c) const;
 
   /**
    * Returns the index of the last occurance of the character c.
@@ -137,7 +137,7 @@ public:
    * @params c character to look for
    * @returns index of character, of -1 if no character found
    */
-  ssize_t lastIndexOf(char c);
+  ssize_t lastIndexOf(char c) const;
   
   /**
    * Returns a subset of a string
@@ -146,7 +146,7 @@ public:
    * @param stop index of last character
    * @return a new string
    */
-  BaseString substr(ssize_t start, ssize_t stop = -1);
+  BaseString substr(ssize_t start, ssize_t stop = -1) const;
 
   /**
    *  @brief Assignment operator
