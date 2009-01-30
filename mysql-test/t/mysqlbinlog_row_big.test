@@ -38,7 +38,7 @@ SET timestamp=1000000000;
 --echo #
 --echo # We need big packets.
 --echo #
-SET @@session.max_allowed_packet= 1024*1024*1024;
+SET @@global.max_allowed_packet= 1024*1024*1024;
 
 --echo #
 --echo # Delete all existing binary logs.
@@ -115,7 +115,7 @@ FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/
---exec $MYSQL_BINLOG -v -v $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/$mysqlbinlog_output
+--exec $MYSQL_BINLOG -v -v $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/$mysqlbinlog_output
 
 --echo #
 --echo # Cleanup.

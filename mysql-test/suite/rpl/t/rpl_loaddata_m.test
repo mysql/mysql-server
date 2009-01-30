@@ -17,14 +17,14 @@ connection master;
 # 'test' database should be ignored by the slave
 USE test;
 CREATE TABLE t1(a INT, b INT, UNIQUE(b));
-LOAD DATA INFILE '../std_data_ln/rpl_loaddata.dat' INTO TABLE test.t1;
+LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE test.t1;
 SELECT COUNT(*) FROM test.t1;
 
 # 'mysqltest' database should NOT be ignored by the slave
 CREATE DATABASE mysqltest;
 USE mysqltest;
 CREATE TABLE t1(a INT, b INT, UNIQUE(b));
-LOAD DATA INFILE '../std_data_ln/rpl_loaddata.dat' INTO TABLE mysqltest.t1;
+LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE mysqltest.t1;
 SELECT COUNT(*) FROM mysqltest.t1;
 
 # Now lets check the slave to see what we have :-)

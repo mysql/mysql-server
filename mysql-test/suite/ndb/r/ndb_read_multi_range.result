@@ -502,4 +502,4 @@ order by a;
 a
 3
 4
-drop table t1;
+drop table t1, t2;
