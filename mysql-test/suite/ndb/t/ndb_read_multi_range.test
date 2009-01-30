@@ -350,4 +350,4 @@ on (two.b = one.b)
 where one.a in (3, 4) 
 order by a;
 
-drop table t1;
+drop table t1, t2;

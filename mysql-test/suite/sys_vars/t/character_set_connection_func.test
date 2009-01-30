@@ -1,0 +1,105 @@
+############## mysql-test\t\character_set_connection_func.test  ###############
+#                                                                             #
+# Variable Name: character_set_connection                                     #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: utf8 (session), latin1 (global)                              #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable character_set_connection #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+--echo '#--------------------FN_DYNVARS_011_01-------------------------#'
+##########################################################################
+# Check if setting character_set_connection is changed in new connection #
+##########################################################################
+
+#save
+SET @global_character_set_connection = @@global.character_set_connection;
+SET @session_character_set_connection = @@session.character_set_connection;
+SET @session_character_set_client = @@session.character_set_client;
+SET @session_character_set_results = @@session.character_set_results;
+
+
+SET @@global.character_set_connection = utf8;
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.character_set_connection;
+SELECT @@session.character_set_connection;
+disconnect con1;
+
+--echo '#--------------------FN_DYNVARS_011_02-------------------------#'
+###############################################################
+# Begin the functionality Testing of character_set_connection #
+###############################################################
+
+--echo 'connection default'
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1(b CHAR(40) CHARACTER SET utf8);
+#==============================================================================
+--echo '--verify that character_set_connection converts character_set_client--'
+#==============================================================================
+
+SET @@session.character_set_client = utf8;
+SET @@session.character_set_results = utf8;
+
+SET @@session.character_set_connection = latin1;
+SELECT 'ЁЂЃЄ' AS utf_text;
+
+SET @@session.character_set_connection = utf8;
+SELECT 'ЁЂЃЄ' AS utf_text;
+#==============================================================================
+--echo '---now inserting utf8 string with different character_set_connection--'
+#==============================================================================
+SET @@session.character_set_connection = ascii;
+INSERT INTO t1 VALUES('ЁЂЃЄ');
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+#==============================================================================
+--echo '--now client & results charset in latin1 & connection charset in ascii-'
+#==============================================================================
+SET @@session.character_set_connection = ascii;
+SET @@session.character_set_client = latin1;
+SET @@session.character_set_results = latin1;
+INSERT INTO t1 VALUES('ЁЂЃЄ');
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+#==============================================================================
+# set names should set character sets [client,connection,results]
+#==============================================================================
+SET NAMES utf8;
+INSERT INTO t1 VALUES('ЁЂЃЄ');
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+
+# Cleanup
+SET @@global.character_set_connection = @global_character_set_connection;
+SET @@session.character_set_connection = @session_character_set_connection;
+SET @@session.character_set_client = @session_character_set_client;
+SET @@session.character_set_results = @session_character_set_results;
+
+DROP TABLE t1;
+
+#############################################################
+# End of functionality Testing for character_set_connection #
+#############################################################
+
