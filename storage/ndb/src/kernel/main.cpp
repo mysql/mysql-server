@@ -344,25 +344,27 @@ get_multithreaded_config(EmulatorData& ed)
   Uint32 mtthreads = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
   ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
-  
-  if (mtthreads > 3)
+
+  globalData.isNdbMtLqh = true;
+
+  /**
+   * TODO add config for mt-classic
+   */
   {
-    globalData.isNdbMtLqh = true;    
-  }
-  
-  // mt lqh via environment during development
-#ifdef VM_TRACE
-  {
+    Uint32 classic = 0;
+    ndb_mgm_get_int_parameter(p, CFG_NDBMT_CLASSIC, &classic);
+    if (classic)
+      globalData.isNdbMtLqh = false;
+
     const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
     if (p != 0)
     {
-      if (strchr("1Y", p[0]) != 0)
-        globalData.isNdbMtLqh = true;
-      else
+      if (strstr(p, "NOPLEASE") != 0)
         globalData.isNdbMtLqh = false;
+      else
+        globalData.isNdbMtLqh = true;
     }
   }
-#endif
 
   if (!globalData.isNdbMtLqh)
     return 0;
