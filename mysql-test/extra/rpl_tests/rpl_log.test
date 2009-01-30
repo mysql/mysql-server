@@ -9,10 +9,8 @@
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET MASTER may come too early).
-save_master_pos;
-connection slave;
-sync_with_master;
-stop slave;
+sync_slave_with_master;
+source include/stop_slave.inc;
 --source include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
@@ -25,8 +23,13 @@ connection master;
 eval create table t1(n int not null auto_increment primary key)ENGINE=$engine_type;
 insert into t1 values (NULL);
 drop table t1;
+let $LOAD_FILE= ../../std_data/words.dat;
+if (!`SELECT length(load_file('$LOAD_FILE'))`){
+  let $LOAD_FILE= ../$LOAD_FILE;
+}
 eval create table t1 (word char(20) not null)ENGINE=$engine_type;
-load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
+--replace_result $LOAD_FILE LOAD_FILE
+eval load data infile '$LOAD_FILE' into table t1 ignore 1 lines;
 select count(*) from t1;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
@@ -67,19 +70,12 @@ eval create table t3 (a int)ENGINE=$engine_type;
 connection master;
 select * from t1 order by 1 asc;
 
-save_master_pos;
-connection slave;
-# Note that the above 'slave start' will cause a 3rd rotate event (a fake one)
-# to go into the relay log (the master always sends a fake one when replication
-# starts). 
-let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000005%Yes%Yes%0%0%None%';
---source include/wait_slave_status.inc
-sync_with_master;
+sync_slave_with_master;
 #check t1 on slave to ensure whether it's identical with on master
 select * from t1 order by 1 asc;
 flush logs;
-stop slave;
---source include/wait_for_slave_to_stop.inc
+source include/stop_slave.inc;
+source include/start_slave.inc;
 connection master;
 
 # Create some entries for second log
@@ -93,11 +89,8 @@ source include/show_binlog_events.inc;
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'master-bin.000002';
 show binary logs;
-save_master_pos;
-connection slave;
-start slave;
+sync_slave_with_master;
 --source include/wait_for_slave_to_start.inc
-sync_with_master;
 show binary logs;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 --replace_column 2 # 5 #
@@ -133,9 +126,13 @@ DROP TABLE t3;
 # Bug #6880: LAST_INSERT_ID() within a statement
 #
 
+# Reset binlog so that show binlog events will not show the tests
+# above.
+source include/master-slave-reset.inc;
+connection master;
+
 create table t1(a int auto_increment primary key, b int);
 insert into t1 values (NULL, 1);
-reset master;
 set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
 source include/show_binlog_events.inc;
@@ -145,4 +142,3 @@ drop table t1;
 # End of 4.1 tests
 
 sync_slave_with_master;
-

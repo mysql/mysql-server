@@ -9,6 +9,7 @@ eval SHOW CREATE TABLE t1;
 # listing of files belonging to the table t1
 if ($ls)
 {
-   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-   --list_files $MYSQLTEST_VARDIR/master-data/test t1*
+   let $MYSQLD_DATADIR= `select @@datadir`;
+   --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+   --list_files $MYSQLD_DATADIR/test t1*
 }

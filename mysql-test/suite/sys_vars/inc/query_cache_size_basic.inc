@@ -36,7 +36,6 @@
 ############################################################################### 
 
 SET @start_value = @@global.query_cache_size;
-SELECT @start_value;
 
 --echo '#--------------------FN_DYNVARS_133_01------------------------#'
 ############################################################################### 
@@ -53,7 +52,7 @@ SELECT @@global.query_cache_size;
 ############################################### 
 
 SET @@global.query_cache_size = @start_value;
-SELECT @@global.query_cache_size = 0;
+SELECT @@global.query_cache_size = @start_value; 
 
 --echo '#--------------------FN_DYNVARS_133_03------------------------#'
 ################################################################################ 
@@ -167,7 +166,6 @@ SELECT query_cache_size = @@session.query_cache_size;
 ##############################
 
 SET @@global.query_cache_size = @start_value;
-SELECT @@global.query_cache_size;
 
 ######################################################################## 
 #              END OF query_cache_size TESTS                   #

@@ -3601,7 +3601,6 @@ show_query_type(THD::enum_binlog_query_type qtype)
   default:
     DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
   }
-
   static char buf[64];
   sprintf(buf, "UNKNOWN#%d", qtype);
   return buf;

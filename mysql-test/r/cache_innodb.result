@@ -217,5 +217,6 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	1
+Qcache_hits	2
+set GLOBAL query_cache_size=1048576;
 drop table t2;
