@@ -3533,6 +3533,8 @@ ibuf_insert(
 		case IBUF_USE_INSERT:
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
+			goto notify;
+		case IBUF_USE_COUNT:
 			break;
 		}
 		break;
@@ -3545,9 +3547,11 @@ ibuf_insert(
 		case IBUF_USE_DELETE:
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
+			ut_ad(!no_counter);
+			goto notify;
+		case IBUF_USE_COUNT:
 			break;
 		}
-		ut_ad(!no_counter);
 		break;
 	case IBUF_OP_DELETE:
 		switch (use) {
@@ -3558,14 +3562,20 @@ ibuf_insert(
 		case IBUF_USE_DELETE_MARK:
 		case IBUF_USE_DELETE:
 		case IBUF_USE_ALL:
+			ut_ad(!no_counter);
+			goto skip_notify;
+		case IBUF_USE_COUNT:
 			break;
 		}
-		ut_ad(!no_counter);
-		goto skip_notify;
-	default:
-		ut_error;
+		break;
+	case IBUF_OP_COUNT:
+		break;
 	}
 
+	/* unknown op or use */
+	ut_error;
+
+notify:
 	/* If another thread buffers an insert on a page while
 	the purge is in progress, the purge for the same page
 	must not be buffered, because it could remove a record
