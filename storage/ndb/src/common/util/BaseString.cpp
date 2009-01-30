@@ -274,7 +274,7 @@ BaseString::split(Vector<BaseString> &v,
 }
 
 ssize_t
-BaseString::indexOf(char c) {
+BaseString::indexOf(char c) const {
     char *p;
     p = strchr(m_chr, c);
     if(p == NULL)
@@ -283,7 +283,7 @@ BaseString::indexOf(char c) {
 }
 
 ssize_t
-BaseString::lastIndexOf(char c) {
+BaseString::lastIndexOf(char c) const {
     char *p;
     p = strrchr(m_chr, c);
     if(p == NULL)
@@ -292,7 +292,7 @@ BaseString::lastIndexOf(char c) {
 }
 
 BaseString
-BaseString::substr(ssize_t start, ssize_t stop) {
+BaseString::substr(ssize_t start, ssize_t stop) const {
     if(stop < 0)
 	stop = length();
     ssize_t len = stop-start;
