@@ -3783,7 +3783,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
   }
 
-  while (m_use_partition_pruning)
+  if (m_use_partition_pruning)
   {
     if (!cursor && m_read_before_write_removal_used)
     {
@@ -3796,7 +3796,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       */
       if (type == UNIQUE_INDEX ||
           type == UNIQUE_ORDERED_INDEX)
-        break;
+        goto skip_partition_pruning;
     }
     if ((error= get_parts_for_update(old_data, new_data, table->record[0],
                                      m_part_info, &old_part_id, &new_part_id,
@@ -3806,7 +3806,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       DBUG_RETURN(error);
     }
     DBUG_PRINT("info", ("old_part_id: %u  new_part_id: %u", old_part_id, new_part_id));
-    break;
+  skip_partition_pruning:
   }
 
   /*
@@ -4050,7 +4050,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
 
-  while (m_use_partition_pruning)
+  if (m_use_partition_pruning)
   {
     if (!cursor && m_read_before_write_removal_used)
     {
@@ -4063,14 +4063,14 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       */
       if (type == UNIQUE_INDEX ||
           type == UNIQUE_ORDERED_INDEX)
-        break;
+        goto skip_partition_pruning;
     }
     if ((error= get_part_for_delete(record, table->record[0], m_part_info,
                                     &part_id)))
     {
       DBUG_RETURN(error);
     }
-    break;
+  skip_partition_pruning:
   }
 
   NdbOperation::OperationOptions options;
