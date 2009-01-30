@@ -2210,7 +2210,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   const NdbRecord *key_rec;
   const uchar *key_row;
 
-  if (old_part_id != ~uint32(0))
+  if (m_user_defined_partitioning)
   {
     options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
     options.partitionId=old_part_id;
@@ -3805,6 +3805,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       m_part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
+    DBUG_PRINT("info", ("old_part_id: %u  new_part_id: %u", old_part_id, new_part_id));
     break;
   }
 
@@ -3842,7 +3843,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   options.optionsPresent=0;
 
   /* Need to set the value of any user-defined partitioning function. */
-  if (new_part_id != ~uint32(0))
+  if (m_user_defined_partitioning)
   {
     if (func_value >= INT_MAX32)
       func_value_uint32= INT_MAX32;
@@ -4114,7 +4115,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     const NdbRecord *key_rec;
     const uchar *key_row;
 
-    if (part_id != ~uint32(0))
+    if (m_user_defined_partitioning)
     {
       options.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
       options.partitionId= part_id;
