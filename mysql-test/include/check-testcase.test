@@ -1,51 +1,15 @@
+
 #
 # This test is executed twice for each test case if mysql-test-run is passed
-# the flag --check-testcase.
-# Before every testcase it's run with mysqltest in record mode and will
-# thus produce an output file
-# that can be compared to output from after the tescase.
-# In that way it's possible to check that a testcase does not have
+# the flag --check-testcase. Before every testcase it is run with mysqltest
+# in record mode and will thus produce an output file that can be compared
+# to output from after the tescase.
+# In that way its possible to check that a testcase does not have
 # any unwanted side affects.
 #
-
-#
-# Dump all global variables
-#
-SHOW GLOBAL VARIABLES WHERE variable_name != 'timestamp';
-
-#
-# Dump all databases
-#
-SHOW DATABASES;
-
-#
-# Dump the "test" database, all it's tables and their data
-#
---exec $MYSQL_DUMP --skip-comments --skip-lock-tables test
-
-#
-# Dump the "mysql" database and it's tables
-# Select data separately to add "order by"
-#
---exec $MYSQL_DUMP --skip-comments --skip-lock-tables --no-data mysql
-use mysql;
-SELECT * FROM columns_priv;
-SELECT * FROM db ORDER BY host, db, user;
-SELECT * FROM func;
-SELECT * FROM help_category;
-SELECT * FROM help_keyword;
-SELECT * FROM help_relation;
-SELECT * FROM help_relation;
-SELECT * FROM host;
-SELECT * FROM proc;
-SELECT * FROM procs_priv;
-SELECT * FROM tables_priv;
-SELECT * FROM time_zone;
-SELECT * FROM time_zone_leap_second;
-SELECT * FROM time_zone_name;
-SELECT * FROM time_zone_transition;
-SELECT * FROM time_zone_transition_type;
-SELECT * FROM user;
+--disable_query_log
+call mtr.check_testcase();
+--enable_query_log
 
 
 

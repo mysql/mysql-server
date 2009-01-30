@@ -1,0 +1,27 @@
+
+[cluster_config]
+MaxNoOfSavedMessages=          1000
+MaxNoOfConcurrentTransactions= 128
+MaxNoOfConcurrentOperations=   10000
+DataMemory=                    20M
+IndexMemory=                   1M
+Diskless=                      0
+TimeBetweenWatchDogCheck=      30000
+MaxNoOfOrderedIndexes=         32
+MaxNoOfAttributes=             2048
+TimeBetweenGlobalCheckpoints=  500
+NoOfFragmentLogFiles=          4
+FragmentLogFileSize=           12M
+DiskPageBufferMemory=          4M
+
+# O_DIRECT has issues on 2.4 whach have not been handled, Bug #29612
+#ODirect= 1
+# the following parametes just function as a small regression
+# test that the parameter exists
+InitialNoOfOpenFiles= 27
+
+# Increase timeouts for slow test-machines
+HeartbeatIntervalDbDb=         30000
+HeartbeatIntervalDbApi=        30000
+
+#TransactionDeadlockDetectionTimeout= 7500

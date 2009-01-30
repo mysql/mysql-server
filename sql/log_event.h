@@ -462,6 +462,25 @@ struct sql_ex_info
 #define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
 
 /**
+   @def LOG_EVENT_ARTIFICIAL_F
+   
+   Artificial events are created arbitarily and not written to binary
+   log
+
+   These events should not update the master log position when slave
+   SQL thread executes them.
+*/
+#define LOG_EVENT_ARTIFICIAL_F 0x20
+
+/**
+   @def LOG_EVENT_RELAY_LOG_F
+   
+   Events with this flag set are created by slave IO thread and written
+   to relay log
+*/
+#define LOG_EVENT_RELAY_LOG_F 0x40
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -984,7 +1003,10 @@ public:
 #endif
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
-  virtual bool is_artificial_event() { return 0; }
+  void set_artificial_event() { flags |= LOG_EVENT_ARTIFICIAL_F; }
+  void set_relay_log_event() { flags |= LOG_EVENT_RELAY_LOG_F; }
+  bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
+  bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
   inline bool get_cache_stmt() const { return cache_stmt; }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
@@ -2083,12 +2105,6 @@ public:
   uint16 binlog_version;
   char server_version[ST_SERVER_VER_LEN];
   /*
-    artifical_event is 1 in the case where this is a generated event that
-    should not case any cleanup actions. We handle this in the log by
-    setting log_event == 0 (for now).
-  */
-  bool artificial_event;
-  /*
     We set this to 1 if we don't want to have the created time in the log,
     which is the case when we rollover to a new log.
   */
@@ -2116,7 +2132,6 @@ public:
   {
     return START_V3_HEADER_LEN; //no variable-sized part
   }
-  virtual bool is_artificial_event() { return artificial_event; }
 
 protected:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -2538,7 +2553,8 @@ class Rotate_log_event: public Log_event
 {
 public:
   enum {
-    DUP_NAME= 2 // if constructor should dup the string argument
+    DUP_NAME= 2, // if constructor should dup the string argument
+    RELAY_LOG=4  // rotate event for relay log
   };
   const char* new_log_ident;
   ulonglong pos;

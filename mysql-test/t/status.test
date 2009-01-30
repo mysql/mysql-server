@@ -289,10 +289,14 @@ show procedure status where name ='proc37908' and 1 in (select f1 from db37908.t
 --error 1142
 show function status where name ='func37908' and 1 in (select func37908());
 
-connection root;
+connection default;
+disconnect user1;
+disconnect root;
 drop database db37908;
 drop procedure proc37908;
 drop function func37908;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+DROP USER mysqltest_1@localhost;
 
 #
 # Bug#41131 "Questions" fails to increment - ignores statements instead stored procs
@@ -321,9 +325,9 @@ let $org_queries= `SHOW STATUS LIKE 'Queries'`;
 SELECT f1();
 CALL p1();
 let $new_queries= `SHOW STATUS LIKE 'Queries'`;
---disable_log
+--disable_query_log
 let $diff= `SELECT SUBSTRING('$new_queries',9)-SUBSTRING('$org_queries',9)`;
---enable_log
+--enable_query_log
 eval SELECT $diff;
 disconnect con1;
 connection default;
