@@ -98,6 +98,15 @@ buf_pool_free(void);
 /*===============*/
 
 /************************************************************************
+Drops the adaptive hash index.  To prevent a livelock, this function
+is only to be called while holding btr_search_latch and while
+btr_search_enabled == FALSE. */
+UNIV_INTERN
+void
+buf_pool_drop_hash_index(void);
+/*==========================*/
+
+/************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
 The caller must take care of relocating bpage->list. */

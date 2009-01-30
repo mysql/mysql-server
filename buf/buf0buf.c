@@ -998,6 +998,88 @@ buf_pool_free(void)
 	buf_pool->n_chunks = 0;
 }
 
+
+/************************************************************************
+Drops the adaptive hash index.  To prevent a livelock, this function
+is only to be called while holding btr_search_latch and while
+btr_search_enabled == FALSE. */
+UNIV_INTERN
+void
+buf_pool_drop_hash_index(void)
+/*==========================*/
+{
+	ibool		released_search_latch;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!btr_search_enabled);
+
+	do {
+		buf_chunk_t*	chunks	= buf_pool->chunks;;
+		buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
+
+		released_search_latch = FALSE;
+
+		while (--chunk >= chunks) {
+			buf_block_t*	block	= chunk->blocks;
+			ulint		i	= chunk->size;
+
+			for (; i--; block++) {
+				/* block->is_hashed cannot be modified
+				when we have an x-latch on btr_search_latch;
+				see the comment in buf0buf.h */
+
+				if (!block->is_hashed) {
+					continue;
+				}
+
+				/* To follow the latching order, we
+				have to release btr_search_latch
+				before acquiring block->latch. */
+				rw_lock_x_unlock(&btr_search_latch);
+				/* When we release the search latch,
+				we must rescan all blocks, because
+				some may become hashed again. */
+				released_search_latch = TRUE;
+
+				rw_lock_x_lock(&block->lock);
+
+				/* This should be guaranteed by the
+				callers, which will be holding
+				btr_search_enabled_mutex. */
+				ut_ad(!btr_search_enabled);
+
+				/* Because we did not buffer-fix the
+				block by calling buf_block_get_gen(),
+				it is possible that the block has been
+				allocated for some other use after
+				btr_search_latch was released above.
+				We do not care which file page the
+				block is mapped to.  All we want to do
+				is to drop any hash entries referring
+				to the page. */
+
+				/* It is possible that
+				block->page.state != BUF_FILE_PAGE.
+				Even that does not matter, because
+				btr_search_drop_page_hash_index() will
+				check block->is_hashed before doing
+				anything.  block->is_hashed can only
+				be set on uncompressed file pages. */
+
+				btr_search_drop_page_hash_index(block);
+
+				rw_lock_x_unlock(&block->lock);
+
+				rw_lock_x_lock(&btr_search_latch);
+
+				ut_ad(!btr_search_enabled);
+			}
+		}
+	} while (released_search_latch);
+}
+
 /************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
