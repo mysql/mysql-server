@@ -423,7 +423,10 @@ btr_cur_search_to_nth_level(
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 	    && mode != PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
-	    && !UNIV_UNLIKELY(btr_search_disabled)
+	    /* If !has_search_latch, we do a dirty read of
+	    btr_search_enabled below, and btr_search_guess_on_hash()
+	    will have to check it again. */
+	    && UNIV_LIKELY(btr_search_enabled)
 	    && btr_search_guess_on_hash(index, info, tuple, mode,
 					latch_mode, cursor,
 					has_search_latch, mtr)) {
@@ -714,7 +717,11 @@ retry_page_get:
 		cursor->up_bytes = up_bytes;
 
 #ifdef BTR_CUR_ADAPT
-		if (!UNIV_UNLIKELY(btr_search_disabled)) {
+		/* We do a dirty read of btr_search_enabled here.  We
+		will properly check btr_search_enabled again in
+		btr_search_build_page_hash_index() before building a
+		page hash index, while holding btr_search_latch. */
+		if (UNIV_LIKELY(btr_search_enabled)) {
 
 			btr_search_info_update(index, cursor);
 		}

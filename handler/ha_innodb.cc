@@ -167,7 +167,6 @@ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
-static my_bool	innobase_adaptive_hash_index		= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -2120,8 +2119,6 @@ innobase_init(
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
-
-	btr_search_disabled = (ibool) !innobase_adaptive_hash_index;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
@@ -9373,6 +9370,28 @@ innodb_file_format_check_update(
 	}
 }
 
+/********************************************************************
+Update the system variable innodb_adaptive_hash_index using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_adaptive_hash_index_update(
+/*==============================*/
+	THD*				thd,		/* in: thread handle */
+	struct st_mysql_sys_var*	var,		/* in: pointer to
+							system variable */
+	void*				var_ptr,	/* out: where the
+							formal string goes */
+	const void*			save)		/* in: immediate result
+							from check function */
+{
+	if (*(my_bool*) save) {
+		btr_search_enable();
+	} else {
+		btr_search_disable();
+	}
+}
+
 /*****************************************************************
 Check if it is a valid value of innodb_change_buffering.  This function is
 registered as a callback with MySQL. */
@@ -9563,11 +9582,11 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
-static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
+  PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default).  "
   "Disable with --skip-innodb-adaptive-hash-index.",
-  NULL, NULL, TRUE);
+  NULL, innodb_adaptive_hash_index_update, TRUE);
 
 static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   PLUGIN_VAR_RQCMDARG,

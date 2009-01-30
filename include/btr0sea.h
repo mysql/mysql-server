@@ -165,8 +165,9 @@ btr_search_validate(void);
 /*======================*/
 				/* out: TRUE if ok */
 
-/* Flag: has the search system been disabled? */
-extern ibool btr_search_disabled;
+/* Flag: has the search system been enabled?
+Protected by btr_search_latch and btr_search_enabled_mutex. */
+extern char btr_search_enabled;
 
 /* The search info struct in an index */
 
