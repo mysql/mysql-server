@@ -89,6 +89,12 @@
 
 #define S_IROTH		S_IREAD		/* for my_lib */
 
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
+
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
 #define O_TEMPORARY	0
