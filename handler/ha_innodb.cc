@@ -9432,7 +9432,7 @@ innodb_change_buffering_update(
 {
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(ibuf_use_t*) save) <= IBUF_USE_INSERT);
+	ut_a((*(ibuf_use_t*) save) <= IBUF_USE_ALL);
 
 	ibuf_use = *(const ibuf_use_t*) save;
 
