@@ -3503,7 +3503,7 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   int loops = ctx->getNumLoops();
-  while (--loops)
+  while (--loops >= 0)
   {
     int master = res.getMasterNodeId();
     ndbout_c("master: %u", master);
