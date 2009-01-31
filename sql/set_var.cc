@@ -3263,7 +3263,8 @@ int set_var_init()
   uint count= 0;
   DBUG_ENTER("set_var_init");
   
-  for (sys_var *var=vars.first; var; var= var->next, count++);
+  for (sys_var *var=vars.first; var; var= var->next, count++)
+    ;
 
   if (hash_init(&system_variable_hash, system_charset_info, count, 0,
                 0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
@@ -4000,10 +4001,10 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if (result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
     goto end_with_read_lock;
 
-  if (result= make_global_read_lock_block_commit(thd))
+  if ((result= make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */

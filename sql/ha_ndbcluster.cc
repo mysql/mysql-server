@@ -1293,10 +1293,12 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error)
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
+    {
       if (ignore_error)
         m_index[i].index= m_index[i].unique_index= NULL;
       else
         break;
+    }
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
@@ -6261,9 +6263,10 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
-        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
+    if ((m_skip_auto_increment &&
+         ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size,
+                                    increment, offset))
     {
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError)
@@ -9914,8 +9917,10 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    if ((col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+         create_info->storage_media != HA_SM_MEMORY) ||
+        (col->getStorageType() == NDB_STORAGETYPE_DISK &&
+         create_info->storage_media != HA_SM_DISK))
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);

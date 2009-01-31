@@ -510,7 +510,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   tail=  (8-(res_length) % 8);			// 1..8 marking extra length
   res_length+=tail;
   code= ER_OUT_OF_RESOURCES;
-  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length+1))
+  if ((tail && res->append(append_str, tail)) || tmp_value.alloc(res_length+1))
     goto error;
   (*res)[res_length-1]=tail;			// save extra length
   tmp_value.length(res_length+1);

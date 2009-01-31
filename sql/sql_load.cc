@@ -719,12 +719,11 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
-      if (!read_info.enclosed &&
-	  (enclosed_length && length == 4 &&
-           !memcmp(pos, STRING_WITH_LEN("NULL"))) ||
+      if ((!read_info.enclosed &&
+           (enclosed_length && length == 4 &&
+            !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
 	  (length == 1 && read_info.found_null))
       {
-
         if (real_item->type() == Item::FIELD_ITEM)
         {
           Field *field= ((Item_field *)real_item)->field;
@@ -1120,9 +1119,10 @@ int READ_INFO::read_field()
 	}
 	// End of enclosed field if followed by field_term or line_term
 	if (chr == my_b_EOF ||
-	    chr == line_term_char && terminator(line_term_ptr,
-						line_term_length))
-	{					// Maybe unexpected linefeed
+	    (chr == line_term_char && terminator(line_term_ptr,
+                                                 line_term_length)))
+        {
+          /* Maybe unexpected linefeed */
 	  enclosed=1;
 	  found_end_of_line=1;
 	  row_start=buffer+1;

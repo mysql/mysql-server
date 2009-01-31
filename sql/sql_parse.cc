@@ -5069,7 +5069,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+    if ((!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL)) ||
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
@@ -5103,7 +5103,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~sctx->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
-      ! db && dont_check_global_grants)
+      (! db && dont_check_global_grants))
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
@@ -7670,7 +7670,7 @@ bool parse_sql(THD *thd,
   /* Check that if MYSQLparse() failed, thd->is_error() is set. */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              mysql_parse_status && thd->is_error());
+              (mysql_parse_status && thd->is_error()));
 
   /* Reset parser state. */
 

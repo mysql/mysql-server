@@ -711,7 +711,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ENTER("Event_db_repository::update_event");
 
   /* None or both must be set */
-  DBUG_ASSERT(new_dbname && new_name || new_dbname == new_name);
+  DBUG_ASSERT((new_dbname && new_name) || new_dbname == new_name);
 
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;

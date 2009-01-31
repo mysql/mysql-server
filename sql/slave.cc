@@ -773,7 +773,8 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
         up to and including newline.
       */
       int c;
-      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF));
+      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF))
+        ;
     }
     DBUG_RETURN(0);
   }
@@ -2187,7 +2188,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      else if (exec_res && !temp_err ||
+      else if ((exec_res && !temp_err) ||
                (opt_using_transactions &&
                 rli->group_relay_log_pos == rli->event_relay_log_pos))
       {

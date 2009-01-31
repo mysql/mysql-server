@@ -801,7 +801,8 @@ int MYSQLlex(void *arg, void *yythd)
           its value in a query for the binlog, the query must stay
           grammatically correct.
         */
-        if (c == '?' && lip->stmt_prepare_mode && !ident_map[lip->yyPeek()])
+        if (c == '?' && lip->stmt_prepare_mode &&
+            !ident_map[(uchar) lip->yyPeek()])
         return(PARAM_MARKER);
       }
 
@@ -869,7 +870,10 @@ int MYSQLlex(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c);
+        for (result_state= c;
+             ident_map[(uchar) (c= lip->yyGet())];
+             result_state|= c)
+          ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -881,9 +885,11 @@ int MYSQLlex(void *arg, void *yythd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet());
+        for (; state_map[(uchar) c] == MY_LEX_SKIP ; c= lip->yyGet())
+          ;
       }
-      if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
+      if (start == lip->get_ptr() && c == '.' &&
+          ident_map[(uchar) lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
@@ -926,12 +932,12 @@ int MYSQLlex(void *arg, void *yythd)
 
       return(result_state);			// IDENT or IDENT_QUOTED
 
-    case MY_LEX_IDENT_SEP:		// Found ident and now '.'
+    case MY_LEX_IDENT_SEP:                  // Found ident and now '.'
       yylval->lex_str.str= (char*) lip->get_ptr();
       yylval->lex_str.length= 1;
-      c= lip->yyGet();                  // should be '.'
-      lip->next_state= MY_LEX_IDENT_START;// Next is an ident (not a keyword)
-      if (!ident_map[lip->yyPeek()])            // Probably ` or "
+      c= lip->yyGet();                          // should be '.'
+      lip->next_state= MY_LEX_IDENT_START;      // Next is ident (not keyword)
+      if (!ident_map[(uchar) lip->yyPeek()])    // Probably ` or "
 	lip->next_state= MY_LEX_START;
       return((int) c);
 
@@ -954,7 +960,8 @@ int MYSQLlex(void *arg, void *yythd)
         }
         else if (c == 'b')
         {
-          while ((c= lip->yyGet()) == '0' || c == '1');
+          while ((c= lip->yyGet()) == '0' || c == '1')
+            ;
           if ((lip->yyLength() >= 3) && !ident_map[c])
           {
             /* Skip '0b' */
@@ -1013,11 +1020,12 @@ int MYSQLlex(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c);
+        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c)
+          ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
-      if (c == '.' && ident_map[lip->yyPeek()])
+      if (c == '.' && ident_map[(uchar) lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
       yylval->lex_str= get_token(lip, 0, lip->yyLength());
@@ -1113,7 +1121,8 @@ int MYSQLlex(void *arg, void *yythd)
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
       lip->yySkip();                  // Accept opening '
-      while ((c= lip->yyGet()) == '0' || c == '1');
+      while ((c= lip->yyGet()) == '0' || c == '1')
+        ;
       if (c != '\'')
         return(ABORT_SYM);            // Illegal hex constant
       lip->yySkip();                  // Accept closing '
@@ -1124,8 +1133,8 @@ int MYSQLlex(void *arg, void *yythd)
       return (BIN_NUM);
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
-      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
-          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
+      if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
         lip->yySkip();
       if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
       {
@@ -1136,11 +1145,11 @@ int MYSQLlex(void *arg, void *yythd)
       break;
 
     case MY_LEX_LONG_CMP_OP:		// Incomplete comparison operator
-      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
-          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
+      if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
         lip->yySkip();
-        if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP)
+        if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP)
           lip->yySkip();
       }
       if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
@@ -1351,7 +1360,7 @@ int MYSQLlex(void *arg, void *yythd)
       }
       break;
     case MY_LEX_USER_END:		// end '@' of user@hostname
-      switch (state_map[lip->yyPeek()]) {
+      switch (state_map[(uchar) lip->yyPeek()]) {
       case MY_LEX_STRING:
       case MY_LEX_USER_VARIABLE_DELIMITER:
       case MY_LEX_STRING_OR_DELIMITER:
@@ -1376,7 +1385,7 @@ int MYSQLlex(void *arg, void *yythd)
       yylval->lex_str.str=(char*) lip->get_ptr();
       yylval->lex_str.length=1;
       lip->yySkip();                                    // Skip '@'
-      lip->next_state= (state_map[lip->yyPeek()] ==
+      lip->next_state= (state_map[(uchar) lip->yyPeek()] ==
 			MY_LEX_USER_VARIABLE_DELIMITER ?
 			MY_LEX_OPERATOR_OR_IDENT :
 			MY_LEX_IDENT_OR_KEYWORD);
@@ -1388,7 +1397,8 @@ int MYSQLlex(void *arg, void *yythd)
 	[(global | local | session) .]variable_name
       */
 
-      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c);
+      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c)
+        ;
       /* If there were non-ASCII characters, mark that we must convert */
       result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
 
@@ -2002,7 +2012,7 @@ void st_select_lex::print_limit(THD *thd,
        item->substype() == Item_subselect::ALL_SUBS))
   {
     DBUG_ASSERT(!item->fixed ||
-                select_limit->val_int() == LL(1) && offset_limit == 0);
+                (select_limit->val_int() == LL(1) && offset_limit == 0));
     return;
   }
 

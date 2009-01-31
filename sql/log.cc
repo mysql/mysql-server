@@ -1546,11 +1546,11 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
   if (thd->options & OPTION_BIN_LOG)
   {
-    if (in_transaction &&
-        (all ||
-         (!trx_data->at_least_one_stmt &&
-          thd->transaction.stmt.modified_non_trans_table)) ||
-        !in_transaction && !all)
+    if ((in_transaction &&
+         (all ||
+          (!trx_data->at_least_one_stmt &&
+           thd->transaction.stmt.modified_non_trans_table))) ||
+        (!in_transaction && !all))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
       qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -1596,8 +1596,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
                        YESNO(all),
                        YESNO(thd->transaction.all.modified_non_trans_table),
                        YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (all && thd->transaction.all.modified_non_trans_table ||
-      !all && thd->transaction.stmt.modified_non_trans_table ||
+  if ((all && thd->transaction.all.modified_non_trans_table) ||
+      (!all && thd->transaction.stmt.modified_non_trans_table) ||
       (thd->options & OPTION_KEEP_LOG))
   {
     /*
@@ -1612,8 +1612,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trx_data, &qev, all);
   }
-  else if (all && !thd->transaction.all.modified_non_trans_table ||
-           !all && !thd->transaction.stmt.modified_non_trans_table)
+  else if ((all && !thd->transaction.all.modified_non_trans_table) ||
+           (!all && !thd->transaction.stmt.modified_non_trans_table))
   {
     /*
       If we have modified only transactional tables, we can truncate

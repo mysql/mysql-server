@@ -3004,7 +3004,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       if (!opt->update)
       {
         opt->update= update_func_str;
-        if (!(opt->flags & PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY))
+        if (!(opt->flags & (PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY)))
         {
           opt->flags|= PLUGIN_VAR_READONLY;
           sql_print_warning("Server variable %s of plugin %s was forced "
@@ -3109,7 +3109,8 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
   uint count= EXTRA_OPTIONS;
   DBUG_ENTER("construct_help_options");
 
-  for (opt= p->plugin->system_vars; opt && *opt; opt++, count+= 2);
+  for (opt= p->plugin->system_vars; opt && *opt; opt++, count+= 2)
+    ;
 
   if (!(opts= (my_option*) alloc_root(mem_root, sizeof(my_option) * count)))
     DBUG_RETURN(NULL);

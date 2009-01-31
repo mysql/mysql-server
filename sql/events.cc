@@ -932,7 +932,7 @@ Events::init(my_bool opt_noacl)
   }
 
   if (event_queue->init_queue(thd) || load_events_from_db(thd) ||
-      opt_event_scheduler == EVENTS_ON && scheduler->start())
+      (opt_event_scheduler == EVENTS_ON && scheduler->start()))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");
     res= TRUE; /* fatal error: request unireg_abort */

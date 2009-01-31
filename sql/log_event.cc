@@ -725,13 +725,12 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id ||
-      rli->slave_skip_counter == 1 && rli->is_in_group())
+  if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
+      (rli->slave_skip_counter == 1 && rli->is_in_group()))
     return EVENT_SKIP_IGNORE;
-  else if (rli->slave_skip_counter > 0)
+  if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
-  else
-    return EVENT_SKIP_NOT;
+  return EVENT_SKIP_NOT;
 }
 
 
@@ -6758,8 +6757,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
-              !tbl_arg && !cols && tid == ~0UL);
+  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+              (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -6951,7 +6950,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
+  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */

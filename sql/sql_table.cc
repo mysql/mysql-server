@@ -1675,13 +1675,13 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                                         FN_IS_TMP : 0);
     }
     if (drop_temporary ||
-        (table_type == NULL &&        
-         (access(path, F_OK) &&
-          ha_create_table_from_engine(thd, db, alias)) ||
+        ((table_type == NULL &&        
+          (access(path, F_OK) &&
+           ha_create_table_from_engine(thd, db, alias))) ||
          (!drop_view &&
           mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
     {
-      // Table was not found on disk and table can't be created from engine
+      /* Table was not found on disk and table can't be created from engine */
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
@@ -1758,7 +1758,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (!dont_log_query)
     {
       if (!thd->current_stmt_binlog_row_based ||
-          non_temp_tables_count > 0 && !tmp_table_deleted)
+          (non_temp_tables_count > 0 && !tmp_table_deleted))
       {
         /*
           In this case, we are either using statement-based
@@ -2467,8 +2467,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
+	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+         create_info->row_type != ROW_TYPE_FIXED))
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
@@ -2937,7 +2937,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
       {
-	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB) ||
+	if ((column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB)) ||
             sql_field->sql_type == MYSQL_TYPE_VARCHAR)
 	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
 	else
@@ -5342,9 +5342,9 @@ compare_tables(TABLE *table,
 
     /* Don't pack rows in old tables if the user has requested this. */
       if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(tmp_new_field->flags & BLOB_FLAG) ||
-	tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
-  	create_info->row_type != ROW_TYPE_FIXED)
+          (tmp_new_field->flags & BLOB_FLAG) ||
+          (tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+           create_info->row_type != ROW_TYPE_FIXED))
         create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
@@ -6958,12 +6958,12 @@ view_err:
   }
   else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
                               new_alias, FN_FROM_IS_TMP) ||
-           (new_name != table_name || new_db != db) && // we also do rename
-           (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
-            mysql_rename_table(save_old_db_type, db, table_name, new_db,
-                               new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, table_name,
-                                                  new_db, new_alias))
+           ((new_name != table_name || new_db != db) && // we also do rename
+            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
+             mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                                new_alias, NO_FRM_RENAME)) &&
+            Table_triggers_list::change_table_name(thd, db, table_name,
+                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
     error=1;

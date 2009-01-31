@@ -1361,7 +1361,7 @@ JOIN::optimize()
         join_tab[const_tables].type != JT_ALL &&
         join_tab[const_tables].type != JT_FT &&
         join_tab[const_tables].type != JT_REF_OR_NULL &&
-        (order && simple_order || group_list && simple_group))
+        ((order && simple_order) || (group_list && simple_group)))
     {
       if (add_ref_to_table_cond(thd,&join_tab[const_tables])) {
         DBUG_RETURN(1);
@@ -1879,9 +1879,9 @@ JOIN::exec()
       like SEC_TO_TIME(SUM(...)).
     */
 
-    if (curr_join->group_list && (!test_if_subpart(curr_join->group_list,
-						   curr_join->order) || 
-				  curr_join->select_distinct) ||
+    if ((curr_join->group_list && (!test_if_subpart(curr_join->group_list,
+                                                    curr_join->order) || 
+                                   curr_join->select_distinct)) ||
 	(curr_join->select_distinct &&
 	 curr_join->tmp_table_param.using_indirect_summary_function))
     {					/* Must copy to another table */
@@ -2352,9 +2352,9 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       }
       else
       {
-        if (err= join->prepare(rref_pointer_array, tables, wild_num,
-                               conds, og_num, order, group, having, proc_param,
-                               select_lex, unit))
+        if ((err= join->prepare(rref_pointer_array, tables, wild_num,
+                                conds, og_num, order, group, having,
+                                proc_param, select_lex, unit)))
 	{
 	  goto err;
 	}
@@ -2369,9 +2369,9 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
     thd->used_tables=0;                         // Updated by setup_fields
-    if (err= join->prepare(rref_pointer_array, tables, wild_num,
-                           conds, og_num, order, group, having, proc_param,
-                           select_lex, unit))
+    if ((err= join->prepare(rref_pointer_array, tables, wild_num,
+                            conds, og_num, order, group, having, proc_param,
+                            select_lex, unit)))
     {
       goto err;
     }
@@ -3824,7 +3824,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	if (use->key == prev->key && use->table == prev->table)
 	{
 	  if (prev->keypart+1 < use->keypart ||
-	      prev->keypart == use->keypart && found_eq_constant)
+	      (prev->keypart == use->keypart && found_eq_constant))
 	    continue;				/* remove */
 	}
 	else if (use->keypart != 0)		// First found must be 0
@@ -5117,8 +5117,8 @@ best_extension_by_limited_search(JOIN      *join,
       {
         if (best_record_count > current_record_count ||
             best_read_time > current_read_time ||
-            idx == join->const_tables &&  // 's' is the first table in the QEP
-            s->table == join->sort_by_table)
+            (idx == join->const_tables &&  // 's' is the first table in the QEP
+             s->table == join->sort_by_table))
         {
           if (best_record_count >= current_record_count &&
               best_read_time >= current_read_time &&
@@ -5244,7 +5244,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       double current_read_time=read_time+best;
       if (best_record_count > current_record_count ||
 	  best_read_time > current_read_time ||
-	  idx == join->const_tables && s->table == join->sort_by_table)
+	  (idx == join->const_tables && s->table == join->sort_by_table))
       {
 	if (best_record_count >= current_record_count &&
 	    best_read_time >= current_read_time &&
@@ -6197,8 +6197,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    the index if we are using limit and this is the first table
 	  */
 
-	  if (cond &&
-              (!tab->keys.is_subset(tab->const_keys) && i > 0) ||
+	  if ((cond &&
+               (!tab->keys.is_subset(tab->const_keys) && i > 0)) ||
 	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
 	       join->unit->select_limit_cnt <
 	       join->best_positions[i].records_read &&
@@ -7329,7 +7329,8 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         left_item_equal->merge(right_item_equal);
         /* Remove the merged multiple equality from the list */
         List_iterator<Item_equal> li(cond_equal->current_level);
-        while ((li++) != right_item_equal);
+        while ((li++) != right_item_equal)
+          ;
         li.remove();
       }
     }
@@ -10004,9 +10005,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     reclength=1;				// Dummy select
   /* Use packed rows if there is blobs or a lot of space to gain */
   if (blob_count ||
-      string_total_length >= STRING_TOTAL_LENGTH_TO_PACK_ROWS &&
-      (reclength / string_total_length <= RATIO_TO_PACK_ROWS ||
-       string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS))
+      (string_total_length >= STRING_TOTAL_LENGTH_TO_PACK_ROWS &&
+       (reclength / string_total_length <= RATIO_TO_PACK_ROWS ||
+        string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS)))
     use_packed_rows= 1;
 
   share->reclength= reclength;
@@ -13274,9 +13275,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (keys.is_set(nr) &&
           (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
       {
-        bool is_covering= table->covering_keys.is_set(nr) ||
-                          nr == table->s->primary_key &&
-	                  table->file->primary_key_is_clustered();
+        bool is_covering= (table->covering_keys.is_set(nr) ||
+                           (nr == table->s->primary_key &&
+                            table->file->primary_key_is_clustered()));
 	
         /* 
           Don't use an index scan with ORDER BY without limit.
@@ -13289,7 +13290,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	*/ 
         if (is_covering ||
             select_limit != HA_POS_ERROR || 
-            ref_key < 0 && (group || table->force_index))
+            (ref_key < 0 && (group || table->force_index)))
         { 
           double rec_per_key;
           double index_scan_time;
@@ -13354,12 +13355,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           index_scan_time= select_limit/rec_per_key *
 	                   min(rec_per_key, table->file->scan_time());
           if (is_covering || 
-              ref_key < 0 && (group || table->force_index) ||
+              (ref_key < 0 && (group || table->force_index)) ||
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;
-            if (is_best_covering && !is_covering ||
-                is_covering && ref_key_quick_rows < select_limit)
+            if ((is_best_covering && !is_covering) ||
+                (is_covering && ref_key_quick_rows < select_limit))
               continue;
             if (table->quick_keys.is_set(nr))
               quick_records= table->quick_rows[nr];
@@ -13567,10 +13568,11 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   */
   if ((order != join->group_list || 
        !(join->select_options & SELECT_BIG_RESULT) ||
-       select && select->quick &&
-       select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
-      test_if_skip_sort_order(tab,order,select_limit,0, 
-                              is_order_by ?  &table->keys_in_use_for_order_by :
+       (select && select->quick &&
+        select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)) &&
+      test_if_skip_sort_order(tab,order,select_limit, 0, 
+                              is_order_by ?
+                              &table->keys_in_use_for_order_by :
                               &table->keys_in_use_for_group_by))
     DBUG_RETURN(0);
   for (ORDER *ord= join->order; ord; ord= ord->next)
@@ -14390,8 +14392,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
     from_field= (Field*) not_found_field;
-    if (is_group_field &&
-        order_item_type == Item::FIELD_ITEM ||
+    if ((is_group_field && order_item_type == Item::FIELD_ITEM) ||
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
@@ -14826,7 +14827,8 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
-  for (; !(map & tables->table->map); tables= tables->next_leaf);
+  for (; !(map & tables->table->map); tables= tables->next_leaf)
+    ;
   if (map != tables->table->map)
     DBUG_RETURN(0);				// More than one table
   DBUG_PRINT("exit",("sort by table: %d",tables->table->tablenr));

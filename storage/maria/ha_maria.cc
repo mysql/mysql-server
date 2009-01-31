@@ -152,7 +152,7 @@ static MYSQL_SYSVAR_BOOL(page_checksum, maria_page_checksums, 0,
 
 /* It is only command line argument */
 static MYSQL_SYSVAR_STR(log_dir_path, maria_data_root,
-       PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG,
+       PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
        "Path to the directory where to store transactional log",
        NULL, NULL, mysql_real_data_home);
 
@@ -1370,12 +1370,13 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   }
 
   if (!do_optimize ||
-      ((share->data_file_type == BLOCK_RECORD) ?
-       (share->state.changed & STATE_NOT_OPTIMIZED_ROWS) :
-       (file->state->del || share->state.split != file->state->records)) &&
-      (!(param->testflag & T_QUICK) ||
-       (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
-                                STATE_NOT_OPTIMIZED_ROWS))))
+      (((share->data_file_type == BLOCK_RECORD) ?
+        (share->state.changed & STATE_NOT_OPTIMIZED_ROWS) :
+        (file->state->del ||
+         share->state.split != file->state->records)) &&
+       (!(param->testflag & T_QUICK) ||
+        (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
+                                 STATE_NOT_OPTIMIZED_ROWS)))))
   {
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
                         maria_get_mask_all_keys_active(share->base.keys) :

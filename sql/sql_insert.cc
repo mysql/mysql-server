@@ -413,7 +413,7 @@ void upgrade_lock_type_for_insert(THD *thd, thr_lock_type *lock_type,
                                   bool is_multi_insert)
 {
   if (duplic == DUP_UPDATE ||
-      duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT)
+      (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT))
   {
     *lock_type= TL_WRITE_DEFAULT;
     return;
@@ -882,8 +882,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       */
       query_cache_invalidate3(thd, table_list, 1);
     }
-    if (changed && error <= 0 || thd->transaction.stmt.modified_non_trans_table
-	|| was_insert_delayed)
+    if ((changed && error <= 0) ||
+        thd->transaction.stmt.modified_non_trans_table ||
+	was_insert_delayed)
     {
       if (mysql_bin_log.is_open())
       {
@@ -3187,7 +3188,7 @@ bool select_insert::send_eof()
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  if (changed= (info.copied || info.deleted || info.updated))
+  if ((changed= (info.copied || info.deleted || info.updated)))
   {
     /*
       We must invalidate the table in the query cache before binlog writing

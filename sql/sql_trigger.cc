@@ -344,7 +344,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     need second part of condition below, since check_access() function also
     checks that db is specified.
   */
-  if (!thd->lex->spname->m_db.length || create && !tables->db_length)
+  if (!thd->lex->spname->m_db.length || (create && !tables->db_length))
   {
     my_error(ER_NO_DB_ERROR, MYF(0));
     DBUG_RETURN(TRUE);
