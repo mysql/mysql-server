@@ -535,8 +535,8 @@ drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 --echo Check various include/exclude variants
 --echo **************************************
 --echo Normal full restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 use db1;
 show tables;
@@ -551,8 +551,8 @@ drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 --echo ****************
 --echo Include only db2
 --echo ****************
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases db2>> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases db2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases db2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases db2 >> $NDB_TOOLS_OUTPUT
 
 use db1;
 show tables;
@@ -566,8 +566,8 @@ drop table db2.tab1, db2.tab2;
 --echo ****************
 --echo Exclude only db2
 --echo ****************
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2>> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2>> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -582,8 +582,8 @@ drop table db1.tab1, db1.tab2;
 --echo ************
 --echo Exclude both
 --echo ************
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2,db1>> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2,db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2,db1>> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2,db1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -595,8 +595,8 @@ show tables;
 --echo Include only db1.tab1 and db2.tab2
 --echo **********************************
 
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -614,8 +614,8 @@ drop table db1.tab1, db2.tab2;
 --echo Exclude db1.tab1 and db2.tab2
 --echo *****************************
 --echo Should result in db1.tab2 and db2.tab1 being restored
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -633,8 +633,8 @@ drop table db1.tab2, db2.tab1;
 --echo *********************************
 
 --echo Should result in only db1.tab1 being restored
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --exclude-databases db1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --exclude-databases db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --exclude-databases db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --exclude-databases db1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -650,8 +650,8 @@ drop table db1.tab1;
 --echo Exclude db1.tab1, but include db1
 --echo *********************************
 --echo Should result in only db1.tab2 being restored
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --include-databases db1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --include-databases db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-databases db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-databases db1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -667,8 +667,8 @@ drop table db1.tab2;
 --echo Exclude db1.tab1, and include db1.tab1
 --echo **************************************
 --echo Should result in db1.tab1 only restored.
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -684,8 +684,8 @@ drop table db1.tab1;
 --echo Exclude db2, and include db2
 --echo ****************************
 --echo Should result in db2 only restored.
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -700,8 +700,8 @@ drop table db2.tab1, db2.tab2;
 --echo Include db1, and include db2.tab1
 --echo *********************************
 --echo Should result in db2.tab1 only restored.
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -717,8 +717,8 @@ drop table db2.tab1;
 --echo Include unknown database
 --echo ************************
 --echo Should result in nothing restored
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
 
 show databases;
 use db1;
@@ -730,8 +730,8 @@ show tables;
 --echo Exclude unknown table
 --echo *********************
 --echo Should result in everything restored
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
 
 show databases;
 
@@ -749,8 +749,8 @@ drop table db2.tab1, db2.tab2;
 --echo Check that last argument of each type is used
 --echo *********************************************
 --echo Should result in just db1.tab2 restored.
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 
 use db1;
 show tables;
