@@ -53,14 +53,13 @@ static void test_serialize(void) {
     memset(btps, 0, sizeof(btps));
     brt->h = brt_h;
     brt_h->panic = 0; brt_h->panic_string = 0;
-    brt_h->translated_blocknum_limit = 1;
-    brt_h->block_translation = btps;
-    brt_h->block_translation[20].diskoff = 4096;
-    brt_h->block_translation[20].size    = 100;
-    create_block_allocator(&brt_h->block_allocator, 4096, BLOCK_ALLOCATOR_ALIGNMENT);
+    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_debug_set_translation(brt_h->blocktable, 1, btps);
+    btps[20].diskoff = 4096;
+    btps[20].size    = 100;
     {
 	u_int64_t b;
-	block_allocator_alloc_block(brt_h->block_allocator, 100, &b);
+        toku_block_alloc(brt_h->blocktable, 100, &b);
 	assert(b==4096);
     }
     
@@ -120,9 +119,8 @@ static void test_serialize(void) {
     toku_free(sn.u.n.childinfos);
     toku_free(sn.u.n.childkeys);
 
-    block_allocator_free_block(brt_h->block_allocator, 4096);
-    destroy_block_allocator(&brt_h->block_allocator);
-    toku_free(brt_h->block_translation);
+    toku_block_free(brt_h->blocktable, 4096);
+    toku_blocktable_destroy(&brt_h->blocktable);
     toku_free(brt_h);
     toku_free(brt);
 }

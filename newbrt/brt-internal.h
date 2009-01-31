@@ -14,6 +14,7 @@
 typedef void *OMTVALUE;
 #include "omt.h"
 #include "leafentry.h"
+#include "block_table.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -113,11 +114,6 @@ struct remembered_hash {
     u_int32_t fullhash; // fullhash is the hashed value of fnum and root.
 };
 
-struct block_translation_pair {
-    DISKOFF diskoff; // When in free list, set to the next free block.  In this case it's really a BLOCKNUM.
-    DISKOFF size;    // set to 0xFFFFFFFFFFFFFFFF for free
-};
-
 // The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
 
 struct brt_header {
@@ -137,23 +133,7 @@ struct brt_header {
 
     u_int64_t root_put_counter; // the generation number of the brt
 
-    // This is the map from block numbers to offsets
-    //int n_blocks, n_blocks_array_size;
-    //struct block_descriptor *blocks;
-    BLOCKNUM free_blocks; // free list for blocks.  Use -1 to indicate that there are no free blocks
-    BLOCKNUM unused_blocks; // first unused block
-
-    u_int64_t translated_blocknum_limit;
-    struct block_translation_pair *block_translation;
-
-    // Where and how big is the block translation vector stored on disk.
-    // The size of the on_disk buffer may no longer match the max_blocknum_translated field, since blocks may have been allocated or freed.
-    // We need to remember this old information so we can free it properly.
-    u_int64_t block_translation_size_on_disk;    // the size of the block containing the translation (i.e. 8 times the number of entries)
-    u_int64_t block_translation_address_on_disk; // 0 if there is no memory allocated
-    
-    // The in-memory data structure  for block allocation
-    BLOCK_ALLOCATOR block_allocator;
+    BLOCK_TABLE blocktable;
 };
 
 struct brt {
@@ -291,12 +271,6 @@ enum brt_layout_version_e {
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string);
 int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
-
-#define BLOCK_ALLOCATOR_ALIGNMENT 4096
-// How much must be reserved at the beginning for the block?
-//  The actual header is 8+4+4+8+8_4+8+ the length of the db names + 1 pointer for each root.
-//  So 4096 should be enough.
-#define BLOCK_ALLOCATOR_HEADER_RESERVE 4096
 
 int toku_db_badformat(void);
 

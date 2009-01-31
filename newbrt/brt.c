@@ -557,10 +557,8 @@ brtheader_init(struct brt_header *h) {
 
 static void
 brtheader_partial_destroy(struct brt_header *h) {
-    toku_free(h->block_translation);
-    h->block_translation = 0;
+    toku_blocktable_destroy(&h->blocktable);
     toku_fifo_free(&h->fifo);
-    destroy_block_allocator(&h->block_allocator);
 }
 
 static void
@@ -601,62 +599,6 @@ brtheader_free(struct brt_header *h)
 void 
 toku_brtheader_free (struct brt_header *h) {
     brtheader_free(h);
-}
-
-void
-extend_block_translation (BLOCKNUM blocknum, struct brt_header *h)
-// Effect: Record a block translation.  This means extending the translation table, and setting the diskoff and size to zero in any of the unused spots.
-{
-    if (h->translated_blocknum_limit <= (u_int64_t)blocknum.b) {
-        if (h->block_translation == 0) assert(h->translated_blocknum_limit==0);
-        u_int64_t new_limit = blocknum.b + 1;
-        u_int64_t old_limit = h->translated_blocknum_limit;
-        u_int64_t j;
-        XREALLOC_N(new_limit, h->block_translation);
-        for (j=old_limit; j<new_limit; j++) {
-            h->block_translation[j].diskoff = 0;
-            h->block_translation[j].size    = 0;
-        }
-        h->translated_blocknum_limit = new_limit;
-    }
-}
-
-const DISKOFF diskoff_is_null = (DISKOFF)-1; // in a freelist, this indicates end of list
-const DISKOFF size_is_free = (DISKOFF)-1;
-
-static int
-allocate_diskblocknumber (BLOCKNUM *res, BRT brt, TOKULOGGER logger __attribute__((__unused__))) {
-    BLOCKNUM result;
-    if (brt->h->free_blocks.b == diskoff_is_null) {
-        // no blocks in the free list
-        result = brt->h->unused_blocks;
-        brt->h->unused_blocks.b++;
-    } else {
-        result = brt->h->free_blocks;
-        assert(brt->h->block_translation[result.b].size = size_is_free);
-        brt->h->block_translation[result.b].size = 0;
-        brt->h->free_blocks.b = brt->h->block_translation[result.b].diskoff; // pop the freelist
-    }
-    assert(result.b>0);
-    *res = result;
-    brt->h->dirty = 1;
-    return 0;
-}
-
-static int
-free_diskblocknumber (BLOCKNUM *b, struct brt_header *h, TOKULOGGER logger __attribute__((__unused__)))
-// Effect: Free a diskblock
-//  Watch out for the case where the disk block was never yet written to disk and is beyond the translated_blocknum_limit.
-{
-    extend_block_translation(*b, h);
-    assert((u_int64_t)b->b < h->translated_blocknum_limit); // as a "limit" it should be <
-    assert(h->block_translation[b->b].size != size_is_free);
-    h->block_translation[b->b].size = size_is_free;
-    h->block_translation[b->b].diskoff = h->free_blocks.b;
-    h->free_blocks.b = b->b;
-    b->b = 0;
-    h->dirty = 1;
-    return 0;
 }
 
 static void
@@ -712,7 +654,9 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     int new_height = nodea->height+1;
     int new_nodesize = brt->h->nodesize;
     BLOCKNUM newroot_diskoff;
-    r = allocate_diskblocknumber(&newroot_diskoff, brt, logger);
+    r = toku_allocate_diskblocknumber(brt->h->blocktable,
+                                      &newroot_diskoff,
+                                      &brt->h->dirty, logger);
     assert(r==0);
     assert(newroot);
     newroot->ever_been_written = 0;
@@ -780,7 +724,7 @@ int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logg
     TAGMALLOC(BRTNODE, n);
     int r;
     BLOCKNUM name;
-    r = allocate_diskblocknumber (&name, t, logger);
+    r = toku_allocate_diskblocknumber(t->h->blocktable, &name, &t->h->dirty, logger);
     assert(r==0);
     assert(n);
     assert(t->h->nodesize>0);
@@ -2227,15 +2171,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
         if (did_merge) {
             BLOCKNUM bn = childb->thisnodename;
             rrb = toku_cachetable_unpin_and_remove(t->cf, bn);
-            // If the block_translation indicates that the size is <=0 then there is no block allocated.
-            // The block translation might not be big enough, and that also indicates no block allocated.
-            assert(0 <= bn.b); // the blocknumber better be good
-            if ((unsigned)bn.b < t->h->translated_blocknum_limit) {
-                if (t->h->block_translation[bn.b].size > 0) {
-                    block_allocator_free_block(t->h->block_allocator, t->h->block_translation[bn.b].diskoff);
-                }
-            }
-            rrb1 = free_diskblocknumber(&bn, t->h, logger);
+            rrb1 = toku_free_diskblocknumber(t->h->blocktable, &bn,
+                                             &t->h->dirty, logger);
         } else {
             rrb = toku_unpin_brtnode(t, childb);
         }
@@ -2246,7 +2183,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
     }
     verify_local_fingerprint_nonleaf(node);
     return r;
-    }
+}
 
 static int
 brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger, BOOL *did_react) {
@@ -2315,7 +2252,8 @@ flush_this_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger, enum rea
 {
     assert(node->height>0);
     BLOCKNUM targetchild = BNC_BLOCKNUM(node, childnum);
-    assert(targetchild.b>=0 && targetchild.b<t->h->unused_blocks.b); // This assertion could fail in a concurrent setting since another process might have bumped unused memory. 
+    //TODO: #1463 This assert...
+    toku_verify_diskblocknumber_allocated(t->h->blocktable, targetchild);
     u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnum);
     BRTNODE child;
     {
@@ -2760,23 +2698,18 @@ static int brt_init_header(BRT t, TOKUTXN txn) {
     t->h->dirty=1;
     t->h->flags_array[0] = t->flags;
     t->h->nodesize=t->nodesize;
-    t->h->free_blocks = make_blocknum(-1);
-    t->h->unused_blocks=make_blocknum(2);
-    t->h->translated_blocknum_limit = 0;
-    t->h->block_translation = 0;
-    t->h->block_translation_size_on_disk = 0;
-    t->h->block_translation_address_on_disk = 0;
-    // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, t->h->translated_blocknum_limit, t->h->block_translation_address_on_disk);
-    create_block_allocator(&t->h->block_allocator, BLOCK_ALLOCATOR_HEADER_RESERVE, BLOCK_ALLOCATOR_ALIGNMENT);
+    toku_blocktable_create_new(&t->h->blocktable);
     toku_fifo_create(&t->h->fifo);
     t->h->root_put_counter = global_root_put_counter++; 
             
     {
+        BLOCKNUM free_blocks = toku_block_get_free_blocks(t->h->blocktable);
+        BLOCKNUM unused_blocks = toku_block_get_unused_blocks(t->h->blocktable);
         LOGGEDBRTHEADER lh = {.size= toku_serialize_brt_header_size(t->h),
                               .flags = t->flags,
                               .nodesize = t->h->nodesize,
-                              .free_blocks = t->h->free_blocks,
-                              .unused_blocks = t->h->unused_blocks,
+                              .free_blocks = free_blocks,
+                              .unused_blocks = unused_blocks,
                               .n_named_roots = t->h->n_named_roots };
         if (t->h->n_named_roots>=0) {
             lh.u.many.names = t->h->names;
@@ -2788,7 +2721,7 @@ static int brt_init_header(BRT t, TOKUTXN txn) {
     }
     if ((r=setup_initial_brt_root_node(t, root, toku_txn_logger(txn)))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
-    assert(t->h->free_blocks.b==-1);
+    toku_block_verify_no_free_blocks(t->h->blocktable);
     toku_cachefile_set_userdata(t->cf, t->h, toku_brtheader_close, toku_brtheader_checkpoint);
 
     return r;
@@ -2940,7 +2873,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
             t->h->n_named_roots++;
             if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
             //printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
-            r = allocate_diskblocknumber(&t->h->roots[t->h->n_named_roots-1], t, toku_txn_logger(txn));
+            r = toku_allocate_diskblocknumber(t->h->blocktable, &t->h->roots[t->h->n_named_roots-1], &t->h->dirty, toku_txn_logger(txn));
             if (r!=0) goto died_after_read_and_pin;
             t->h->dirty = 1;
             compute_and_fill_remembered_hash(t, t->h->n_named_roots-1);
@@ -3074,7 +3007,9 @@ toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
 	    int r = toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
 	    if (r) return r;
 	}
-	u_int64_t write_to = block_allocator_allocated_limit(h->block_allocator); // Must compute this after writing the header.
+        //We would want retrieving 'write_to' and writing to that point to be
+        //atomic.  This is only done during shutdown of a BRT, so we allow it.
+	u_int64_t write_to = toku_block_allocator_allocated_limit(h->blocktable); // Must compute this after writing the header.
 	//printf("%s:%d fifo written to %lu\n", __FILE__, __LINE__, write_to);
 	{
 	    int r = toku_serialize_fifo_at(toku_cachefile_fd(cachefile), write_to, h->fifo);
@@ -4360,12 +4295,7 @@ int toku_dump_brt (FILE *f, BRT brt) {
     CACHEKEY *rootp;
     assert(brt->h);
     u_int32_t fullhash;
-    u_int64_t i;
-    fprintf(f, "Block translation:");
-    for (i=0; i<brt->h->translated_blocknum_limit; i++) {
-        fprintf(f, " %"PRIu64": %"PRId64" %"PRId64"", i, brt->h->block_translation[i].diskoff, brt->h->block_translation[i].size);
-    }
-    fprintf(f, "\n");
+    toku_block_dump_translation_table(f, brt->h->blocktable);
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0, 0, 0);
 }
@@ -4396,12 +4326,14 @@ static void toku_brt_lock_init(void) {
     toku_pwrite_lock_init();
     toku_logger_lock_init();
     toku_graceful_lock_init();
+    toku_blocktable_lock_init();
 }
 
 static void toku_brt_lock_destroy(void) {
     toku_pwrite_lock_destroy();
     toku_logger_lock_destroy();
     toku_graceful_lock_destroy();
+    toku_blocktable_lock_destroy();
 }
 
 void toku_brt_init(void) {
