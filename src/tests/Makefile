@@ -65,6 +65,7 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
 	test_db_remove \
+	test_abort4 \
 #\ ends prev line
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
