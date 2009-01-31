@@ -47,7 +47,7 @@ NULL
 FLUSH STATUS;
 SHOW GLOBAL STATUS LIKE 'com_select';
 Variable_name	Value
-Com_select	112
+Com_select	117
 SHOW GLOBAL STATUS LIKE 'com_select';
 Variable_name	Value
-Com_select	112
+Com_select	117
