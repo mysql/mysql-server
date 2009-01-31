@@ -1048,7 +1048,7 @@ $col_type, id FROM t1_values';
 # SELECT LOADFILE
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval SET @my_select =
-'SELECT LOAD_FILE(''$MYSQLTEST_VARDIR/std_data_ln/funcs_1/load_file.txt'')
+'SELECT LOAD_FILE(''$MYSQLTEST_VARDIR/std_data/funcs_1/load_file.txt'')
            AS my_col,
         id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc

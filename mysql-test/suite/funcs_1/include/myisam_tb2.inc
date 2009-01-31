@@ -78,5 +78,5 @@ f117 VARBINARY(192) null
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/myisam_tb2.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
