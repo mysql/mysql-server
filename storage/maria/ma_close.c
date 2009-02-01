@@ -155,7 +155,7 @@ int maria_close(register MARIA_HA *info)
       MARIA_STATE_HISTORY_CLOSED *history;
       /*
         Here we ignore the unlikely case that we don't have memory to
-        store the case. In the worst case what happens is that any transaction
+        store the state. In the worst case what happens is that any transaction
         that tries to access this table will get a wrong status information.
       */
       if ((history= (MARIA_STATE_HISTORY_CLOSED *)
@@ -166,6 +166,8 @@ int maria_close(register MARIA_HA *info)
         if (my_hash_insert(&maria_stored_state, (uchar*) history))
           my_free(history, MYF(0));
       }
+      /* Marker for concurrent checkpoint */
+      share->state_history= 0;
     }
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
