@@ -5288,7 +5288,6 @@ int ha_partition::extra(enum ha_extra_function operation)
   case HA_EXTRA_FLUSH_CACHE:
   {
     DBUG_RETURN(loop_extra(operation));
-    break;
   }
   case HA_EXTRA_NO_READCHECK:
   {
