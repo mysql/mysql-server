@@ -354,7 +354,7 @@ sub mtr_print_line () {
 
 sub mtr_print_thick_line {
   my $char= shift || '=';
-  print $char x 60, "\n";
+  print $char x 78, "\n";
 }
 
 
