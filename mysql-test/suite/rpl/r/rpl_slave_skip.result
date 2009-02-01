@@ -166,7 +166,7 @@ BEGIN
 UPDATE t3 SET a =2, b = 'master only';
 END|
 **** On Slave ****
-STOP SLAVE;
+include/stop_slave.inc
 **** On Master ****
 UPDATE t1 SET a = 2, b = 'master only' WHERE a = 1;
 DROP TRIGGER tr1;
@@ -189,7 +189,7 @@ a	b
 3	master/slave
 *** On Slave ***
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE;
+include/start_slave.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	master/slave
@@ -209,7 +209,7 @@ CREATE TABLE t4 (a INT, b VARCHAR(20)) ENGINE=innodb;
 CREATE TABLE t5 (a INT, b VARCHAR(20)) ENGINE=innodb;
 CREATE TABLE t6 (a INT, b VARCHAR(20)) ENGINE=innodb;
 **** On Slave ****
-STOP SLAVE;
+include/stop_slave.inc
 *** On Master ***
 BEGIN;
 INSERT INTO t4 VALUES (2, 'master only');
@@ -235,7 +235,7 @@ a	b
 3	master/slave
 *** On Slave ***
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE;
+include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
 3	master/slave
@@ -246,7 +246,7 @@ SELECT * FROM t6 ORDER BY a;
 a	b
 3	master/slave
 **** On Slave ****
-STOP SLAVE;
+include/stop_slave.inc
 *** On Master ***
 BEGIN;
 INSERT INTO t4 VALUES (6, 'master only');
@@ -278,7 +278,7 @@ a	b
 7	master only
 *** On Slave ***
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=10;
-START SLAVE;
+include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
 3	master/slave
@@ -288,7 +288,7 @@ a	b
 SELECT * FROM t6 ORDER BY a;
 a	b
 3	master/slave
-STOP SLAVE;
+include/stop_slave.inc
 SET AUTOCOMMIT=0;
 INSERT INTO t4 VALUES (4, 'master only');
 INSERT INTO t5 VALUES (4, 'master only');
@@ -324,7 +324,7 @@ a	b
 7	master only
 *** On Slave ***
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE;
+include/start_slave.inc
 SELECT * FROM t4 ORDER BY a;
 a	b
 3	master/slave
@@ -342,10 +342,10 @@ DROP TABLE t4, t5, t6;
 *** On Master ***
 CREATE TABLE t10 (a INT, b VARCHAR(20)) ENGINE=myisam;
 *** On Slave ***
-STOP SLAVE;
+include/stop_slave.inc
 *** On Master ***
 SET SESSION BINLOG_FORMAT=STATEMENT;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
 SELECT * FROM t10 ORDER BY a;
 a	b
 1	master only
@@ -353,7 +353,7 @@ a	b
 3	master only
 *** On Slave ***
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE;
+include/start_slave.inc
 SELECT * FROM t10 ORDER BY a;
 a	b
 DROP TABLE t10;
