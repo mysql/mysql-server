@@ -33,7 +33,7 @@ while ($mysql_errno)
 select * from t1;
 
 --source include/show_binlog_events2.inc
-PURGE MASTER LOGS TO 'master-bin.000002';
+PURGE MASTER LOGS TO 'mysqld-bin.000002';
 
 --source include/show_binlog_events2.inc
 drop table t1;

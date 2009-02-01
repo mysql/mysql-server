@@ -1,0 +1,102 @@
+STOP SLAVE;
+STOP SLAVE;
+STOP SLAVE;
+STOP SLAVE;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+RESET MASTER;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_MYPORT,master_user='root';
+START SLAVE;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=SLAVE_MYPORT1,master_user='root';
+START SLAVE;
+
+*** Check server_id of mysqld servers ***
+SHOW VARIABLES LIKE "server_id";
+Variable_name	Value
+server_id	1
+SET auto_increment_offset = 1;
+SET auto_increment_increment = 2;
+SHOW VARIABLES LIKE "server_id";
+Variable_name	Value
+server_id	1
+SET auto_increment_offset = 1;
+SET auto_increment_increment = 2;
+SHOW VARIABLES LIKE "server_id";
+Variable_name	Value
+server_id	2
+SET auto_increment_offset = 2;
+SET auto_increment_increment = 2;
+SHOW VARIABLES LIKE "server_id";
+Variable_name	Value
+server_id	2
+SET auto_increment_offset = 2;
+SET auto_increment_increment = 2;
+
+*** Preparing data ***
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=ndb;
+
+*** Basic testing  ***
+Insert rows via all hosts
+Check data on both clusters 
+* Cluster A *
+SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 1 GROUP BY b ORDER BY b;
+COUNT(*)	SUM(a)	b
+10	190	master
+10	210	master1
+10	200	slave
+10	220	slave1
+* Cluster B *
+SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 1 GROUP BY b ORDER BY b;
+COUNT(*)	SUM(a)	b
+10	190	master
+10	210	master1
+10	200	slave
+10	220	slave1
+
+*** Transaction testing ***
+BEGIN;
+BEGIN;
+COMMIT;
+COMMIT;
+Check data on both clusters 
+* Cluster A *
+SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 2 GROUP BY b ORDER BY b;
+COUNT(*)	SUM(a)	b
+100	23900	master
+100	24100	master1
+100	24000	slave
+100	24200	slave1
+* Cluster B *
+SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 2 GROUP BY b ORDER BY b;
+COUNT(*)	SUM(a)	b
+100	23900	master
+100	24100	master1
+100	24000	slave
+100	24200	slave1
+
+BEGIN;
+BEGIN;
+ROLLBACK;
+ROLLBACK;
+Check data on both clusters 
+* Cluster A *
+SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
+COUNT(*)	SUM(a)	b
+100	64100	master1
+100	64000	slave
+* Cluster B *
+SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
+COUNT(*)	SUM(a)	b
+100	64100	master1
+100	64000	slave
+
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+

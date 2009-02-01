@@ -1,6 +1,8 @@
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
 
+SET @old_general_log= @@global.general_log;
+
 # We run with different binaries for normal and --embedded-server
 #
 # If this test fails with "command "$MYSQL_CLIENT_TEST" failed",
@@ -14,3 +16,4 @@
 # End of 4.1 tests
 echo ok;
 
+SET @@global.general_log= @old_general_log;

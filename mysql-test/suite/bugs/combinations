@@ -1,8 +1,8 @@
 [row]
---binlog-format=row
+binlog-format=row
 
 [stmt]
---binlog-format=statement
+binlog-format=statement
 
 [mix]
---binlog-format=mixed
+binlog-format=mixed

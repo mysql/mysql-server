@@ -722,7 +722,6 @@ b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
 --echo * Cleanup Section
 --echo ********************
 
---exec rm $MYSQLTEST_VARDIR/master-data/test/tmp.dat || true
 DROP TABLE t1;
 DROP TABLE ndb_show_tables_results;
 # End of 5.1 Test Case

@@ -1,3 +1,4 @@
+SET @old_general_log= @@global.general_log;
 drop table if exists t1, t2;
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
@@ -1907,3 +1908,4 @@ count(*)
 288
 drop table t1;
 End of 5.1 tests
+SET @@global.general_log= @old_general_log;
