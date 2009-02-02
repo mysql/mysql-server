@@ -419,3 +419,6 @@ select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
 drop table normal_table, zip_table;
+set global innodb_file_format=Antelope;
+set global innodb_file_per_table=0;
+set global innodb_file_format_check=Antelope;
