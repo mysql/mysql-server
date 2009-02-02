@@ -226,6 +226,9 @@ disconnect con2;
 connection default;
 
 set GLOBAL query_cache_size=0;
+
+# End of 5.0 tests
+
 SET @@global.log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 
 #

@@ -58,7 +58,7 @@ Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb3.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb3.txt'
 into table tb3;
 
 Testcase 3.5.10.1/2/3:
@@ -136,7 +136,7 @@ set @counter= 0;
 select @counter as 'Rows Loaded Before';
 Rows Loaded Before
 0
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' into table tb_load;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' into table tb_load;
 select @counter as 'Rows Loaded After';
 Rows Loaded After
 10
