@@ -18,8 +18,3 @@ loose-innodb_data_file_path=      ibdata1:10M:autoextend
 slave-net-timeout=120
 
 log-bin=mysqld-bin
-
-loose-ndb-wait-connected=20
-loose-ndb-cluster-connection-pool=1
-loose-slave-allow-batching
-loose-ndb-log-orig
