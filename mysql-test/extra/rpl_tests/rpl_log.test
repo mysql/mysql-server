@@ -71,6 +71,7 @@ connection master;
 select * from t1 order by 1 asc;
 
 sync_slave_with_master;
+
 #check t1 on slave to ensure whether it's identical with on master
 select * from t1 order by 1 asc;
 flush logs;
@@ -88,9 +89,11 @@ source include/show_binlog_events.inc;
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'master-bin.000002';
+--replace_column 2 #
 show binary logs;
 sync_slave_with_master;
 --source include/wait_for_slave_to_start.inc
+--replace_column 2 #
 show binary logs;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 --replace_column 2 # 5 #
