@@ -45,58 +45,20 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, 
 *** Basic testing  ***
 Insert rows via all hosts
 Check data on both clusters 
-* Cluster A *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 1 GROUP BY b ORDER BY b;
-COUNT(*)	SUM(a)	b
-10	190	master
-10	210	master1
-10	200	slave
-10	220	slave1
-* Cluster B *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 1 GROUP BY b ORDER BY b;
-COUNT(*)	SUM(a)	b
-10	190	master
-10	210	master1
-10	200	slave
-10	220	slave1
-
+Comparing tables master:test.t1 and slave:test.t1
 *** Transaction testing ***
 BEGIN;
 BEGIN;
 COMMIT;
 COMMIT;
 Check data on both clusters 
-* Cluster A *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 2 GROUP BY b ORDER BY b;
-COUNT(*)	SUM(a)	b
-100	23900	master
-100	24100	master1
-100	24000	slave
-100	24200	slave1
-* Cluster B *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 2 GROUP BY b ORDER BY b;
-COUNT(*)	SUM(a)	b
-100	23900	master
-100	24100	master1
-100	24000	slave
-100	24200	slave1
-
+Comparing tables master:test.t1 and slave:test.t1
 BEGIN;
 BEGIN;
 ROLLBACK;
 ROLLBACK;
 Check data on both clusters 
-* Cluster A *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
-COUNT(*)	SUM(a)	b
-100	64100	master1
-100	64000	slave
-* Cluster B *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
-COUNT(*)	SUM(a)	b
-100	64100	master1
-100	64000	slave
-
+Comparing tables master:test.t1 and slave:test.t1
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 
