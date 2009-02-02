@@ -665,10 +665,10 @@ buf_frame_get_page_zip(
 {
 	const page_zip_des_t*	page_zip;
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 	page_zip = buf_block_get_page_zip(buf_block_align(ptr));
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 	return(page_zip);
 }
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
@@ -928,7 +928,10 @@ buf_page_hash_get(
 
 	ut_ad(buf_pool);
 	//ut_ad(buf_pool_mutex_own());
-	ut_ad(mutex_own(&page_hash_mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&page_hash_latch, RW_LOCK_EX)
+	      || rw_lock_own(&page_hash_latch, RW_LOCK_SHARED));
+#endif
 
 	/* Look for the page in the hash table */
 
@@ -976,12 +979,12 @@ buf_page_peek(
 	const buf_page_t*	bpage;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	bpage = buf_page_hash_get(space, offset);
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	return(bpage != NULL);
 }

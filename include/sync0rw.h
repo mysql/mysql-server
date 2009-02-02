@@ -425,6 +425,12 @@ rw_lock_debug_print(
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
 /* This value means NOT_LOCKED */
 #define RW_LOCK_BIAS		0x00100000
+#else
+#error HAVE_GCC_ATOMIC_BUILTINS is not defined. Do you use enough new GCC or compatibles?
+#error Or do you use exact options for CFLAGS?
+#error e.g. (for x86_32): "-m32 -march=i586 -mtune=i686"
+#error e.g. (for Sparc_64): "-m64 -mcpu=v9"
+#error Otherwise, this build may be slower than normal version.
 #endif
 
 /* NOTE! The structure appears here only for the compiler to know its size.

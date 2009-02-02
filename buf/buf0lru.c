@@ -330,7 +330,7 @@ scan_again:
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
 	mutex_enter(&flush_list_mutex);
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 
 	all_freed = TRUE;
 
@@ -374,7 +374,7 @@ scan_again:
 				//buf_pool_mutex_exit();
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
-				mutex_exit(&page_hash_mutex);
+				rw_lock_x_unlock(&page_hash_latch);
 				mutex_exit(block_mutex);
 
 				/* Note that the following call will acquire
@@ -416,7 +416,7 @@ next_page:
 	//buf_pool_mutex_exit();
 	mutex_exit(&LRU_list_mutex);
 	mutex_exit(&flush_list_mutex);
-	mutex_exit(&page_hash_mutex);
+	rw_lock_x_unlock(&page_hash_latch);
 
 	if (!all_freed) {
 		os_thread_sleep(20000);
@@ -1447,7 +1447,7 @@ alloc:
 	if (!have_LRU_mutex)
 		mutex_enter(&LRU_list_mutex); /* optimistic */
 	mutex_enter(&flush_list_mutex);
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 	mutex_enter(block_mutex);
 
 	/* recheck states of block */
@@ -1460,7 +1460,7 @@ not_freed:
 		if (!have_LRU_mutex)
 			mutex_exit(&LRU_list_mutex);
 		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 		return(BUF_LRU_NOT_FREED);
 	} else if (zip || !bpage->zip.data) {
 		if (bpage->oldest_modification)
@@ -1607,7 +1607,7 @@ not_freed:
 		//buf_pool_mutex_exit();
 		mutex_exit(&LRU_list_mutex);
 		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 		mutex_exit(block_mutex);
 
 		/* Remove possible adaptive hash index on the page.
@@ -1658,9 +1658,7 @@ not_freed:
 		if (!have_LRU_mutex)
 			mutex_exit(&LRU_list_mutex);
 		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
-
-		/* It may be bug of 1.0.2 */
+		rw_lock_x_unlock(&page_hash_latch);
 	}
 
 	return(BUF_LRU_FREED);
@@ -1751,7 +1749,9 @@ buf_LRU_block_remove_hashed_page(
 	ut_ad(bpage);
 	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&LRU_list_mutex));
-	ut_ad(mutex_own(&page_hash_mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&page_hash_latch, RW_LOCK_EX));
+#endif
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
@@ -1854,7 +1854,7 @@ buf_LRU_block_remove_hashed_page(
 		mutex_exit(buf_page_get_mutex(bpage));
 		//buf_pool_mutex_exit();
 		mutex_exit(&LRU_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 		buf_print();
 		buf_LRU_print();
 		buf_validate();

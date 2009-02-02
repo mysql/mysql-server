@@ -317,7 +317,7 @@ buf_buddy_alloc_low(
 	mutex_exit(&LRU_list_mutex);
 	if (have_page_hash_mutex) {
 		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 	}
 	block = buf_LRU_get_free_block(0);
 	*lru = TRUE;
@@ -325,7 +325,7 @@ buf_buddy_alloc_low(
 	mutex_enter(&LRU_list_mutex);
 	if (have_page_hash_mutex) {
 		mutex_enter(&flush_list_mutex);
-		mutex_enter(&page_hash_mutex);
+		rw_lock_x_lock(&page_hash_latch);
 	}
 
 alloc_big:
@@ -450,7 +450,7 @@ buf_buddy_relocate(
 		if (!have_page_hash_mutex) {
 			mutex_enter(&LRU_list_mutex);
 			mutex_enter(&flush_list_mutex);
-			mutex_enter(&page_hash_mutex);
+			rw_lock_x_lock(&page_hash_latch);
 		}
 		/* The src block may be split into smaller blocks,
 		some of which may be free.  Thus, the
@@ -476,7 +476,7 @@ buf_buddy_relocate(
 				mutex_enter(&zip_free_mutex);
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
-				mutex_exit(&page_hash_mutex);
+				rw_lock_x_unlock(&page_hash_latch);
 			}
 			return(FALSE);
 		}
@@ -491,7 +491,7 @@ buf_buddy_relocate(
 				mutex_enter(&zip_free_mutex);
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
-				mutex_exit(&page_hash_mutex);
+				rw_lock_x_unlock(&page_hash_latch);
 			}
 			return(FALSE);
 		}
@@ -528,7 +528,7 @@ success:
 			if (!have_page_hash_mutex) {
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
-				mutex_exit(&page_hash_mutex);
+				rw_lock_x_unlock(&page_hash_latch);
 			}
 			return(TRUE);
 		}
@@ -536,7 +536,7 @@ success:
 		if (!have_page_hash_mutex) {
 			mutex_exit(&LRU_list_mutex);
 			mutex_exit(&flush_list_mutex);
-			mutex_exit(&page_hash_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 		}
 
 		mutex_exit(mutex);
@@ -549,7 +549,7 @@ success:
 		if (!have_page_hash_mutex) {
 			mutex_enter(&LRU_list_mutex);
 			mutex_enter(&flush_list_mutex);
-			mutex_enter(&page_hash_mutex);
+			rw_lock_x_lock(&page_hash_latch);
 		}
 
 		if (buf_buddy_relocate_block(src, dst)) {
@@ -558,7 +558,7 @@ success:
 			if (!have_page_hash_mutex) {
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
-				mutex_exit(&page_hash_mutex);
+				rw_lock_x_unlock(&page_hash_latch);
 			}
 
 			goto success;
@@ -569,7 +569,7 @@ success:
 		if (!have_page_hash_mutex) {
 			mutex_exit(&LRU_list_mutex);
 			mutex_exit(&flush_list_mutex);
-			mutex_exit(&page_hash_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 		}
 	}
 

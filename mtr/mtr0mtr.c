@@ -315,10 +315,10 @@ mtr_memo_contains_page(
 	ibool	ret;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 	ret = mtr_memo_contains(mtr, buf_block_align(ptr), type);
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 	return(ret);
 }
 

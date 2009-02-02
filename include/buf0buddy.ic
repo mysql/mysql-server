@@ -110,7 +110,7 @@ buf_buddy_free(
 	if (!have_page_hash_mutex) {
 		mutex_enter(&LRU_list_mutex);
 		mutex_enter(&flush_list_mutex);
-		mutex_enter(&page_hash_mutex);
+		rw_lock_x_lock(&page_hash_latch);
 	}
 
 	mutex_enter(&zip_free_mutex);
@@ -120,7 +120,7 @@ buf_buddy_free(
 	if (!have_page_hash_mutex) {
 		mutex_exit(&LRU_list_mutex);
 		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 	}
 }
 

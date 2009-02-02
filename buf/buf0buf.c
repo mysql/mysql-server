@@ -238,7 +238,7 @@ read-write lock in them */
 UNIV_INTERN mutex_t		buf_pool_mutex;
 UNIV_INTERN mutex_t		LRU_list_mutex;
 UNIV_INTERN mutex_t		flush_list_mutex;
-UNIV_INTERN mutex_t		page_hash_mutex;
+UNIV_INTERN rw_lock_t		page_hash_latch;
 UNIV_INTERN mutex_t		free_list_mutex;
 UNIV_INTERN mutex_t		zip_free_mutex;
 UNIV_INTERN mutex_t		zip_hash_mutex;
@@ -937,7 +937,7 @@ buf_pool_init(void)
 	mutex_create(&buf_pool_mutex, SYNC_BUF_POOL);
 	mutex_create(&LRU_list_mutex, SYNC_NO_ORDER_CHECK);
 	mutex_create(&flush_list_mutex, SYNC_NO_ORDER_CHECK);
-	mutex_create(&page_hash_mutex, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(&page_hash_latch, SYNC_NO_ORDER_CHECK);
 	mutex_create(&free_list_mutex, SYNC_NO_ORDER_CHECK);
 	mutex_create(&zip_free_mutex, SYNC_NO_ORDER_CHECK);
 	mutex_create(&zip_hash_mutex, SYNC_NO_ORDER_CHECK);
@@ -946,7 +946,7 @@ buf_pool_init(void)
 
 	mutex_enter(&LRU_list_mutex);
 	mutex_enter(&flush_list_mutex);
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 	buf_pool_mutex_enter();
 
 	buf_pool->n_chunks = 1;
@@ -985,7 +985,7 @@ buf_pool_init(void)
 
 	mutex_exit(&LRU_list_mutex);
 	mutex_exit(&flush_list_mutex);
-	mutex_exit(&page_hash_mutex);
+	rw_lock_x_unlock(&page_hash_latch);
 	buf_pool_mutex_exit();
 
 	btr_search_sys_create(buf_pool->curr_size
@@ -1038,7 +1038,9 @@ buf_relocate(
 
 	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&LRU_list_mutex));
-	ut_ad(mutex_own(&page_hash_mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&page_hash_latch, RW_LOCK_EX));
+#endif
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
@@ -1271,7 +1273,7 @@ buf_pool_page_hash_rebuild(void)
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
 	mutex_enter(&flush_list_mutex);
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 	
 
 	/* Free, create, and populate the hash table. */
@@ -1355,7 +1357,7 @@ buf_pool_page_hash_rebuild(void)
 	//buf_pool_mutex_exit();
 	mutex_exit(&LRU_list_mutex);
 	mutex_exit(&flush_list_mutex);
-	mutex_exit(&page_hash_mutex);
+	rw_lock_x_unlock(&page_hash_latch);
 }
 
 /************************************************************************
@@ -1480,7 +1482,7 @@ buf_reset_check_index_page_at_flush(
 	buf_block_t*	block;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
@@ -1489,7 +1491,7 @@ buf_reset_check_index_page_at_flush(
 	}
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 }
 
 /************************************************************************
@@ -1509,7 +1511,7 @@ buf_page_peek_if_search_hashed(
 	ibool		is_hashed;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
@@ -1520,7 +1522,7 @@ buf_page_peek_if_search_hashed(
 	}
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	return(is_hashed);
 }
@@ -1543,7 +1545,7 @@ buf_page_set_file_page_was_freed(
 	buf_page_t*	bpage;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	bpage = buf_page_hash_get(space, offset);
 
@@ -1552,7 +1554,7 @@ buf_page_set_file_page_was_freed(
 	}
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	return(bpage);
 }
@@ -1574,7 +1576,7 @@ buf_page_reset_file_page_was_freed(
 	buf_page_t*	bpage;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	bpage = buf_page_hash_get(space, offset);
 
@@ -1583,7 +1585,7 @@ buf_page_reset_file_page_was_freed(
 	}
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	return(bpage);
 }
@@ -1617,7 +1619,7 @@ buf_page_get_zip(
 
 	for (;;) {
 		//buf_pool_mutex_enter();
-		mutex_enter(&page_hash_mutex);
+		rw_lock_s_lock(&page_hash_latch);
 lookup:
 		bpage = buf_page_hash_get(space, offset);
 		if (bpage) {
@@ -1627,7 +1629,7 @@ lookup:
 		/* Page not in buf_pool: needs to be read from file */
 
 		//buf_pool_mutex_exit();
-		mutex_exit(&page_hash_mutex);
+		rw_lock_s_unlock(&page_hash_latch);
 
 		buf_read_page(space, zip_size, offset);
 
@@ -1639,14 +1641,14 @@ lookup:
 	if (UNIV_UNLIKELY(!bpage->zip.data)) {
 		/* There is no compressed page. */
 		//buf_pool_mutex_exit();
-		mutex_exit(&page_hash_mutex);
+		rw_lock_s_unlock(&page_hash_latch);
 		return(NULL);
 	}
 
 	block_mutex = buf_page_get_mutex(bpage);
 	mutex_enter(block_mutex);
 
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_NOT_USED:
@@ -1908,13 +1910,13 @@ loop:
 	}
 
 	if (block == NULL) {
-		mutex_enter(&page_hash_mutex);
+		rw_lock_s_lock(&page_hash_latch);
 		block = (buf_block_t*) buf_page_hash_get(space, offset);
 		if (block) {
 			block_mutex = buf_page_get_mutex((buf_page_t*)block);
 			mutex_enter(block_mutex);
 		}
-		mutex_exit(&page_hash_mutex);
+		rw_lock_s_unlock(&page_hash_latch);
 	}
 
 loop2:
@@ -1991,7 +1993,7 @@ wait_until_unfixed:
 		//buf_pool_mutex_enter();
 		mutex_enter(&LRU_list_mutex);
 		mutex_enter(&flush_list_mutex);
-		mutex_enter(&page_hash_mutex);
+		rw_lock_x_lock(&page_hash_latch);
 		mutex_enter(block_mutex);
 
 		{
@@ -2011,7 +2013,7 @@ wait_until_unfixed:
 					block_mutex = buf_page_get_mutex((buf_page_t*)block);
 					mutex_enter(block_mutex);
 				}
-				mutex_exit(&page_hash_mutex);
+				rw_lock_x_unlock(&page_hash_latch);
 				mutex_exit(&LRU_list_mutex);
 				mutex_exit(&flush_list_mutex);
 				goto loop2;
@@ -2030,7 +2032,7 @@ wait_until_unfixed:
 			buf_LRU_block_free_non_file_page(block, TRUE);
 			//mutex_exit(&block->mutex);
 
-			mutex_exit(&page_hash_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 			mutex_exit(&LRU_list_mutex);
 			mutex_exit(&flush_list_mutex);
 			goto wait_until_unfixed;
@@ -2043,7 +2045,7 @@ wait_until_unfixed:
 
 		buf_relocate(bpage, &block->page);
 
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 
 		buf_block_init_low(block);
 		block->lock_hash_val = lock_rec_hash(space, offset);
@@ -2459,18 +2461,18 @@ buf_page_try_get_func(
 	ulint		fix_type;
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 	block = buf_block_hash_get(space_id, page_no);
 
 	if (!block) {
 		//buf_pool_mutex_exit();
-		mutex_exit(&page_hash_mutex);
+		rw_lock_s_unlock(&page_hash_latch);
 		return(NULL);
 	}
 
 	mutex_enter(&block->mutex);
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
@@ -2586,7 +2588,9 @@ buf_page_init(
 	buf_page_t*	hash_page;
 
 	//ut_ad(buf_pool_mutex_own());
-	ut_ad(mutex_own(&page_hash_mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&page_hash_latch, RW_LOCK_EX));
+#endif
 	ut_ad(mutex_own(&(block->mutex)));
 	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
@@ -2620,7 +2624,7 @@ buf_page_init(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		mutex_exit(&block->mutex);
 		//buf_pool_mutex_exit();
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 		buf_print();
 		buf_LRU_print();
 		buf_validate();
@@ -2703,7 +2707,7 @@ buf_page_init_for_read(
 	if(!block) {
 		mutex_enter(&flush_list_mutex);
 	}
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 
 	if (buf_page_hash_get(space, offset)) {
 		/* The page is already in the buffer pool. */
@@ -2711,7 +2715,7 @@ err_exit:
 		if (block) {
 			mutex_enter(&block->mutex);
 			mutex_exit(&LRU_list_mutex);
-			mutex_exit(&page_hash_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 			buf_LRU_block_free_non_file_page(block, FALSE);
 			mutex_exit(&block->mutex);
 		}
@@ -2720,7 +2724,7 @@ err_exit2:
 		//buf_pool_mutex_exit();
 		mutex_exit(&LRU_list_mutex);
 		mutex_exit(&flush_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 		}
 
 		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
@@ -2745,7 +2749,7 @@ err_exit2:
 		mutex_enter(&block->mutex);
 		buf_page_init(space, offset, block);
 
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -2838,7 +2842,7 @@ err_exit2:
 		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 			    buf_page_address_fold(space, offset), bpage);
 
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -2893,7 +2897,7 @@ buf_page_create(
 
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 
 	block = (buf_block_t*) buf_page_hash_get(space, offset);
 
@@ -2908,7 +2912,7 @@ buf_page_create(
 		/* Page can be found in buf_pool */
 		//buf_pool_mutex_exit();
 		mutex_exit(&LRU_list_mutex);
-		mutex_exit(&page_hash_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
 
 		buf_block_free(free_block);
 
@@ -2930,7 +2934,7 @@ buf_page_create(
 	mutex_enter(&block->mutex);
 
 	buf_page_init(space, offset, block);
-	mutex_exit(&page_hash_mutex);
+	rw_lock_x_unlock(&page_hash_latch);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(&block->page, FALSE);
@@ -3297,7 +3301,7 @@ buf_validate(void)
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
 	mutex_enter(&flush_list_mutex);
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 	/* for keep the new latch order, it cannot validate correctly... */
 
 	chunk = buf_pool->chunks;
@@ -3497,7 +3501,7 @@ buf_validate(void)
 	//buf_pool_mutex_exit();
 	mutex_exit(&LRU_list_mutex);
 	mutex_exit(&flush_list_mutex);
-	mutex_exit(&page_hash_mutex);
+	rw_lock_x_unlock(&page_hash_latch);
 
 	ut_a(buf_LRU_validate());
 	ut_a(buf_flush_validate());

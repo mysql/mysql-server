@@ -818,10 +818,10 @@ btr_search_guess_on_hash(
 		ulint	space_id	= page_get_space_id(page);
 
 		//buf_pool_mutex_enter();
-		mutex_enter(&page_hash_mutex);
+		rw_lock_s_lock(&page_hash_latch);
 		block = (buf_block_t*) buf_page_hash_get(space_id, page_no);
 		//buf_pool_mutex_exit();
-		mutex_exit(&page_hash_mutex);
+		rw_lock_s_unlock(&page_hash_latch);
 	}
 
 	if (UNIV_UNLIKELY(!block)
@@ -1705,7 +1705,7 @@ btr_search_validate(void)
 
 	rw_lock_x_lock(&btr_search_latch);
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_x_lock(&page_hash_latch);
 
 	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
 
@@ -1714,12 +1714,12 @@ btr_search_validate(void)
 		give other queries a chance to run. */
 		if ((i != 0) && ((i % chunk_size) == 0)) {
 			//buf_pool_mutex_exit();
-			mutex_exit(&page_hash_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
 			//buf_pool_mutex_enter();
-			mutex_enter(&page_hash_mutex);
+			rw_lock_x_lock(&page_hash_latch);
 		}
 
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
@@ -1813,12 +1813,12 @@ btr_search_validate(void)
 		give other queries a chance to run. */
 		if (i != 0) {
 			//buf_pool_mutex_exit();
-			mutex_exit(&page_hash_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
 			//buf_pool_mutex_enter();
-			mutex_enter(&page_hash_mutex);
+			rw_lock_x_lock(&page_hash_latch);
 		}
 
 		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
@@ -1827,7 +1827,7 @@ btr_search_validate(void)
 	}
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_x_unlock(&page_hash_latch);
 	rw_lock_x_unlock(&btr_search_latch);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);

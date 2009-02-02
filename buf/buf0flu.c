@@ -777,13 +777,13 @@ buf_flush_try_page(
 	      || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	bpage = buf_page_hash_get(space, offset);
 
 	if (!bpage) {
 		//buf_pool_mutex_exit();
-		mutex_exit(&page_hash_mutex);
+		rw_lock_s_unlock(&page_hash_latch);
 		return(0);
 	}
 
@@ -792,7 +792,7 @@ buf_flush_try_page(
 
 	mutex_enter(block_mutex);
 	mutex_enter(&buf_pool_mutex);
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	if (!buf_flush_ready_for_flush(bpage, flush_type)) {
 		mutex_exit(block_mutex);
@@ -954,7 +954,7 @@ buf_flush_try_neighbors(
 	}
 
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 
 	for (i = low; i < high; i++) {
 
@@ -989,7 +989,7 @@ buf_flush_try_neighbors(
 				waiting. */
 
 				//buf_pool_mutex_exit();
-				mutex_exit(&page_hash_mutex);
+				rw_lock_s_unlock(&page_hash_latch);
 
 				mutex_exit(block_mutex);
 
@@ -1003,7 +1003,7 @@ buf_flush_try_neighbors(
 							    flush_type);
 
 				//buf_pool_mutex_enter();
-				mutex_enter(&page_hash_mutex);
+				rw_lock_s_lock(&page_hash_latch);
 			} else {
 				mutex_exit(block_mutex);
 			}
@@ -1011,7 +1011,7 @@ buf_flush_try_neighbors(
 	}
 
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	return(count);
 }

@@ -1312,7 +1312,7 @@ read-write lock in them */
 extern mutex_t	buf_pool_mutex;
 extern mutex_t	LRU_list_mutex;
 extern mutex_t	flush_list_mutex;
-extern mutex_t	page_hash_mutex;
+extern rw_lock_t	page_hash_latch;
 extern mutex_t	free_list_mutex;
 extern mutex_t	zip_free_mutex;
 extern mutex_t	zip_hash_mutex;

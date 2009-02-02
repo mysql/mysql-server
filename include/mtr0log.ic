@@ -192,11 +192,11 @@ mlog_write_initial_log_record_fast(
 
 #ifdef UNIV_DEBUG
 	//buf_pool_mutex_enter();
-	mutex_enter(&page_hash_mutex);
+	rw_lock_s_lock(&page_hash_latch);
 	/* We now assume that all x-latched pages have been modified! */
 	block = (buf_block_t*) buf_block_align(ptr);
 	//buf_pool_mutex_exit();
-	mutex_exit(&page_hash_mutex);
+	rw_lock_s_unlock(&page_hash_latch);
 
 	if (!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY)) {
 
