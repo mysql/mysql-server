@@ -35,6 +35,8 @@ DROP TABLE t1;
 
 #
 # Bug#40949 Debug version of MySQL server crashes when run OPTIMIZE on compressed table.
+# expanded with testcase for
+# BUG#41574 - REPAIR TABLE: crashes for compressed tables
 #
 --disable_warnings
 drop table if exists t1;
@@ -57,4 +59,5 @@ flush tables;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYISAMPACK $MYSQLD_DATADIR/test/t1
 optimize table t1;
+repair table t1;
 drop table t1;
