@@ -1,6 +1,4 @@
-DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
-DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
 DROP TABLE IF EXISTS federated.bug_13118_table;
 CREATE TABLE federated.bug_13118_table (
@@ -27,6 +25,6 @@ foo	bar
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_13118_table;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
+DROP DATABASE federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
+DROP DATABASE federated;
