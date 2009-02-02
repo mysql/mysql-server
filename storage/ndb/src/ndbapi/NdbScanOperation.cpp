@@ -1295,39 +1295,68 @@ NdbScanOperation::executeCursor(int nodeId)
    * Call finaliseScanOldApi() for old style scans before
    * proceeding
    */  
-  if (m_scanUsingOldApi &&
-      finaliseScanOldApi() == -1) 
-    return -1;
+  int res = 0;
+  if (m_scanUsingOldApi && finaliseScanOldApi() == -1)
+  {
+    res = -1;
+    goto done;
+  }
 
-  NdbTransaction * tCon = theNdbCon;
-  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
-  Guard guard(tp->theMutexPtr);
-
-  Uint32 seq = tCon->theNodeSequence;
-
-  if (tp->get_node_alive(nodeId) &&
-      (tp->getNodeSequence(nodeId) == seq)) {
-
-    tCon->theMagicNumber = 0x37412619;
-
-    if (doSendScan(nodeId) == -1)
-      return -1;
-
-    m_executed= true; // Mark operation as executed
-    return 0;
-  } else {
-    if (!(tp->get_node_stopping(nodeId) &&
-          (tp->getNodeSequence(nodeId) == seq))){
-      TRACE_DEBUG("The node is hard dead when attempting to start a scan");
-      setErrorCode(4029);
-      tCon->theReleaseOnClose = true;
-    } else {
-      TRACE_DEBUG("The node is stopping when attempting to start a scan");
-      setErrorCode(4030);
+  {
+    NdbTransaction * tCon = theNdbCon;
+    TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
+    Guard guard(tp->theMutexPtr);
+    
+    Uint32 seq = tCon->theNodeSequence;
+    
+    if (tp->get_node_alive(nodeId) &&
+        (tp->getNodeSequence(nodeId) == seq)) {
+      
+      tCon->theMagicNumber = 0x37412619;
+      
+      if (doSendScan(nodeId) == -1)
+      {
+        res = -1;
+        goto done;
+      }
+      
+      m_executed= true; // Mark operation as executed
+    } 
+    else
+    {
+      if (!(tp->get_node_stopping(nodeId) &&
+            (tp->getNodeSequence(nodeId) == seq)))
+      {
+        TRACE_DEBUG("The node is hard dead when attempting to start a scan");
+        setErrorCode(4029);
+        tCon->theReleaseOnClose = true;
+      } 
+      else 
+      {
+        TRACE_DEBUG("The node is stopping when attempting to start a scan");
+        setErrorCode(4030);
+      }//if
+      res = -1;
+      tCon->theCommitStatus = NdbTransaction::Aborted;
     }//if
-    tCon->theCommitStatus = NdbTransaction::Aborted;
-  }//if
-  return -1;
+  }
+
+done:
+    /**
+   * Set pointers correctly
+   *   so that nextResult will handle it correctly
+   *   even if doSendScan was never called
+   *   bug#42454
+   */
+  m_curr_row = 0;
+  m_sent_receivers_count = theParallelism;
+  if(m_ordered)
+  {
+    m_current_api_receiver = theParallelism;
+    m_api_receivers_count = theParallelism;
+  }
+  
+  return res;
 }
 
 
@@ -2046,14 +2075,6 @@ NdbScanOperation::doSendScan(int aProcessorId)
   }    
   theStatus = WaitResponse;  
 
-  m_curr_row = 0;
-  m_sent_receivers_count = theParallelism;
-  if(m_ordered)
-  {
-    m_current_api_receiver = theParallelism;
-    m_api_receivers_count = theParallelism;
-  }
-  
   return tSignalCount;
 }//NdbOperation::doSendScan()
 
