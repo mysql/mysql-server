@@ -956,8 +956,7 @@ skip_size_check:
 
 /********************************************************************
 Starts InnoDB and creates a new database if database files
-are not found and the user wants. Server parameters are
-read from a file of name "srv_init" in the ib_home directory. */
+are not found and the user wants. */
 UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void)
