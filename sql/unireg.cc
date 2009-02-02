@@ -92,8 +92,8 @@ handle_error(uint sql_errno,
     db_file		Handler to use. May be zero, in which case we use
 			create_info->db_type
   RETURN
-    0  ok
-    1  error
+    false  ok
+    true   error
 */
 
 bool mysql_create_frm(THD *thd, const char *file_name,

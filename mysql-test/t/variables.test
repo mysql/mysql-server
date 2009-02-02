@@ -35,6 +35,7 @@ set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
+set @my_max_allowed_packet        =@@global.max_allowed_packet;
 # case insensitivity tests (new in 5.0)
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -770,6 +771,7 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
+set global max_allowed_packet        =@my_max_allowed_packet;
 #
 # Bug#28580 Repeatation of status variables
 #

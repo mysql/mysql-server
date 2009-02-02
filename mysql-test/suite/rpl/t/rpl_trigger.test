@@ -265,6 +265,8 @@ while ($rnd)
   
   connection master;
   eval drop table t1$rnd;
+  sync_slave_with_master;
+  connection master;
   
   dec $rnd;
 }

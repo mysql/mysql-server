@@ -59,7 +59,7 @@ Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb3.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb3.txt'
 into table tb3;
 
 Testcase 3.5.9.1/2:
