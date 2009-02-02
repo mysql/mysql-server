@@ -9875,6 +9875,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   const Uint32 attrLen = ScanFragReq::getAttrLen(reqinfo);
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
+  const Uint32 accScan = (rangeScan == 0) && (tupScan == 0);
 
   scanptr.p->scanKeyinfoFlag = keyinfo;
   scanptr.p->scanLockHold = scanLockHold;
@@ -9890,12 +9891,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->m_max_batch_size_rows = max_rows;
   scanptr.p->m_max_batch_size_bytes = max_bytes;
 
-#if 0
-  if (! rangeScan)
-    tupScan = 1;
-#endif
-
-  if (! rangeScan && ! tupScan)
+  if (accScan)
     scanptr.p->scanBlockref = tcConnectptr.p->tcAccBlockref;
   else if (! tupScan)
     scanptr.p->scanBlockref = tcConnectptr.p->tcTuxBlockref;
@@ -9938,12 +9934,27 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
    */
-  Uint32 start = (rangeScan || tupScan) ? MAX_PARALLEL_SCANS_PER_FRAG : 1 ;
-  Uint32 stop = (rangeScan || tupScan) ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : 
-    MAX_PARALLEL_SCANS_PER_FRAG - 1;
-  stop += start;
+  Uint32 start, stop;
+  if (accScan)
+  {
+    start = 1;
+    stop = MAX_PARALLEL_SCANS_PER_FRAG - 1;
+  }
+  else if (rangeScan)
+  {
+    start = MAX_PARALLEL_SCANS_PER_FRAG;
+    stop = start + MAX_PARALLEL_INDEX_SCANS_PER_FRAG - 1;
+  }
+  else
+  {
+    ndbassert(tupScan);
+    start = MAX_PARALLEL_SCANS_PER_FRAG + MAX_PARALLEL_INDEX_SCANS_PER_FRAG;
+    stop = start + MAX_PARALLEL_INDEX_SCANS_PER_FRAG - 1;
+  }
+  ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
+             (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
   Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
-    
+  
   if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
     jam();
     
