@@ -1,3 +1,11 @@
+2009-01-30	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
+	include/btr0sea.h, include/buf0buf.h, include/sync0sync.h,
+	sync/sync0sync.c:
+	Make the configuration parameter innodb_adaptive_hash_index dynamic,
+	so it can be changed at runtime.
+
 2009-01-29	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/ibuf0ibuf.h, include/ibuf0ibuf.ic,
