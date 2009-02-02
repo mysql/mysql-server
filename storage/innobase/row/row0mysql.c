@@ -620,6 +620,7 @@ row_create_prebuilt(
 	prebuilt->ins_node = NULL;
 
 	prebuilt->ins_upd_rec_buff = NULL;
+	prebuilt->default_rec = NULL;
 
 	prebuilt->upd_node = NULL;
 	prebuilt->ins_graph = NULL;
@@ -1485,12 +1486,13 @@ row_unlock_for_mysql(
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	if (!(srv_locks_unsafe_for_binlog
-	      || trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+	if (UNIV_UNLIKELY
+	    (!srv_locks_unsafe_for_binlog
+	     && trx->isolation_level != TRX_ISO_READ_COMMITTED)) {
 
 		fprintf(stderr,
 			"InnoDB: Error: calling row_unlock_for_mysql though\n"
-			"InnoDB: srv_locks_unsafe_for_binlog is FALSE and\n"
+			"InnoDB: innodb_locks_unsafe_for_binlog is FALSE and\n"
 			"InnoDB: this session is not using"
 			" READ COMMITTED isolation level.\n");
 

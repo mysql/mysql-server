@@ -4987,6 +4987,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 				dst_path, false); /* purecov: inspected */
       goto err;     /* purecov: inspected */
     }
+    thd->thread_specific_used= TRUE;
   }
   else if (err)
   {

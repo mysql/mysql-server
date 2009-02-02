@@ -558,5 +558,5 @@ dtype_get_sql_null_size(
 	const dtype_t*	type)	/* in: type */
 {
 	return(dtype_get_fixed_size_low(type->mtype, type->prtype, type->len,
-					type->mbminlen, type->mbmaxlen) > 0);
+					type->mbminlen, type->mbmaxlen));
 }
