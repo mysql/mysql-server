@@ -1210,3 +1210,7 @@ max-time: 300
 cmd: testMgm
 args: 
 
+max-time: 300
+cmd: testScan
+args: -n Bug42545 -l 1 T1
+
