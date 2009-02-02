@@ -157,7 +157,8 @@ set global innodb_file_format=`1a`;
 set global innodb_file_format=``;
 
 #test strict mode.
---enable_errors
+# this does not work anymore, has been removed from mysqltest
+# -- enable_errors
 set global innodb_file_per_table = on;
 set global innodb_file_format = `1`;
 
