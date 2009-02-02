@@ -357,9 +357,9 @@ SELECT COUNT(*) FROM history;
 
 --echo *** DUMP MASTER & SLAVE FOR COMPARE ********
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
+--exec $MYSQL_DUMP --no-tablespaces --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
 
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+--exec $MYSQL_DUMP_SLAVE --no-tablespaces --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
 
 --echo *************** TEST 2 CLEANUP SECTION ********************
 connection master;
