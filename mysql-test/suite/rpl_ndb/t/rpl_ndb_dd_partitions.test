@@ -11,7 +11,15 @@
 
 --echo --- Doing pre test cleanup --- 
 
+connection slave;
+--disable_query_log
+set new=on;
+--enable_query_log
+
 connection master;
+--disable_query_log
+set new=on;
+--enable_query_log
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_query_log
