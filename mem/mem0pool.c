@@ -478,7 +478,9 @@ mem_area_free(
 	ulint		n;
 
 	if (srv_use_sys_malloc) {
-		return(free(ptr));
+		ut_free(ptr);
+
+		return;
 	}
 
 	/* It may be that the area was really allocated from the OS with
