@@ -54,8 +54,8 @@ check_cpu () {
         model_name=`machine`
         ;;
       *)
-        cpu_family=`uname -m`;
-        model_name=`uname -p`;
+        cpu_family=`uname -p`;
+        model_name=`uname -m`;
         ;;
     esac
   fi
@@ -144,7 +144,7 @@ check_cpu () {
       cpu_arg="itanium"
       ;;
     # Solaris Sparc
-    *sparc*sun4u*)
+    *sparc*sun4[uv]*)
       cpu_arg="sparc"
       ;;
     # Power PC
