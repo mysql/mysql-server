@@ -478,7 +478,7 @@ mem_area_free(
 	ulint		n;
 
 	if (srv_use_sys_malloc) {
-		ut_free(ptr);
+		free(ptr);
 
 		return;
 	}
