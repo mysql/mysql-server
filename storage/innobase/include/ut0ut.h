@@ -20,6 +20,9 @@ typedef time_t	ib_time_t;
 #ifdef HAVE_PAUSE_INSTRUCTION
 #define PAUSE_INSTRUCTION() {__asm__ __volatile__ ("pause");}
 #else
+#ifdef HAVE_FAKE_PAUSE_INSTRUCTION
+#define PAUSE_INSTRUCTION() {__asm__ __volatile__ ("rep; nop");}
+#else
 #ifdef UNIV_SYNC_ATOMIC
 #define PAUSE_INSTRUCTION() \
   { \
@@ -28,6 +31,7 @@ typedef time_t	ib_time_t;
   }
 #else
 #define PAUSE_INSTRUCTION()
+#endif
 #endif
 #endif
 
