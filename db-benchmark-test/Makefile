@@ -37,7 +37,8 @@ TARGET_BDB = db-benchmark-test-bdb$(BINSUF)
 SCANSCAN_BDB = scanscan-bdb$(BINSUF)
 TARGET_TDB = db-benchmark-test-tokudb$(BINSUF)
 SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
-TARGETS = $(TARGET_BDB) $(SCANSCAN_BDB) $(TARGET_TDB) $(SCANSCAN_TDB)
+SCANRACE_TDB = scanrace-tokudb$(BINSUF)
+TARGETS = $(TARGET_BDB) $(SCANSCAN_BDB) $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB)
 
 default: build
 build: $(TARGETS) 
@@ -65,7 +66,7 @@ clean:
 	rm -f $(TARGETS)
 	rm -rf $(BENCHDBS)
 
-$(TARGET_TDB) $(SCANSCAN_TDB): BIN_FROM_C_FLAGS+=-DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include -I$(TOKUROOT)include
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): BIN_FROM_C_FLAGS+=-DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include -I$(TOKUROOT)include
 
 ifneq ($(PROF),)
     USE_STATIC=1
@@ -73,7 +74,7 @@ endif
 
 # A hack to make gprof work.  See #515.
 ifneq ($(USE_STATIC),)
-$(TARGET_TDB) $(SCANSCAN_TDB): DLINK_FILES=
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): DLINK_FILES=
 
 OFILES = \
 	$(TOKUROOT)src/ydb.lib \
@@ -87,19 +88,24 @@ $(TARGET_TDB): db-benchmark-test.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
 $(SCANSCAN_TDB): scanscan.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+$(SCANRACE_TDB): scanrace.c
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+
 else
-$(TARGET_TDB) $(SCANSCAN_TDB): DLINK_FILES=$(TDB_DLINK_FILES)
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): DLINK_FILES=$(TDB_DLINK_FILES)
 ifeq ($(SOEXT),dll) #Windows does not support rpath.
 $(TOKUDB): $(TOKUROOT)lib/$(TOKUDB)
 	cp $< $@
 $(TOKUROOT)lib/$(TOKUDB):
 	cd $(@D) && $(MAKE) $(@F).install
-$(TARGET_TDB) $(SCANSCAN_TDB): $(TOKUDB)
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): $(TOKUDB)
 endif
-$(TARGET_TDB) $(SCANSCAN_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
 $(TARGET_TDB): db-benchmark-test.c
 	$(CC) $< $(BIN_FROM_C_FLAGS)
 $(SCANSCAN_TDB): scanscan.c
+	$(CC) $< $(BIN_FROM_C_FLAGS)
+$(SCANRACE_TDB): scanrace.c
 	$(CC) $< $(BIN_FROM_C_FLAGS)
 endif
 
