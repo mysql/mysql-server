@@ -17,6 +17,11 @@ static const char *pname;
 static long limitcount=-1;
 static u_int32_t cachesize = 4*1024*1024;
 
+#define STRINGIFY2(s) #s
+#define STRINGIFY(s) STRINGIFY2(s)
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+
+
 static void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
     argc--;
@@ -31,10 +36,16 @@ static void parse_args (int argc, const char *argv[]) {
             char *end;
             argv++; argc--;
             cachesize=(u_int32_t)strtol(*argv, &end, 10);
+	} else if (strcmp(*argv, "--env") == 0) {
+	    argv++; argc--;
+	    if (argc <= 0) goto print_usage;
+	    dbdir = *argv;
 	} else {
+	print_usage:
 	    fprintf(stderr, "Usage:\n%s\n", pname);
 	    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
             fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
+	    fprintf(stderr, "  --env DIR\n");
             exit(1);
 	}
 	argc--;
@@ -47,11 +58,8 @@ DB_ENV *env;
 DB *db;
 DB_TXN *tid=0;
 
-#define STRINGIFY2(s) #s
-#define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
-int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
-int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
+static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
+
 char *dbfilename = "bench.db";
 
 static void scanrace_setup (void) {
