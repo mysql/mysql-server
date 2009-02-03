@@ -2,6 +2,10 @@
 -- source include/ndb_default_cluster.inc
 -- source include/not_embedded.inc
 
+--disable_query_log
+set new=on;
+--enable_query_log
+
 --disable_warnings
 use test;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
