@@ -1,0 +1,92 @@
+############# mysql-test\t\query_prealloc_size_func.test ######################
+#                                                                             #
+# Variable Name: query_prealloc_size                                          #
+# Scope: GLOBAL & SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: integer                                                          #
+# Default Value: 8192                                                         #
+# Values: 8192-4294967295                                                     #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-22                                                   #
+# Author:  Sharique Abdullah                                                  #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable "query_prealloc_size"    #
+#              that checks behavior of this variable in the following ways    #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Cache behaviors                                              #
+#                                                                             #
+# Reference:                                                                  #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
+#                                                                             #
+###############################################################################
+
+
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+#
+# Save initial value
+#
+
+SET @start_value = @@global.query_prealloc_size;
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val TEXT(200));
+
+INSERT INTO t1 VALUES(NULL,'a');
+INSERT INTO t1 VALUES(NULL,'b');
+INSERT INTO t1 VALUES(NULL,'c');
+INSERT INTO t1 VALUES(NULL,'d');
+
+SELECT * FROM t1 ORDER BY val;
+
+SET SESSION query_prealloc_size = 8192;
+
+
+--echo '#----------------------------FN_DYNVARS_137_05-----------------#'
+#
+# Session data integrity check & GLOBAL Value check
+#
+
+SET GLOBAL query_prealloc_size = 8192;
+
+connect (con_int1,localhost,root,,);
+connection con_int1;
+
+SELECT @@SESSION.query_prealloc_size;
+--echo Expected Value : 8192;
+SET SESSION query_prealloc_size = 16384;
+
+connect (con_int2,localhost,root,,);
+connection con_int2;
+
+SELECT @@SESSION.query_prealloc_size;
+--echo Expected Value : 8192;
+
+SET SESSION query_prealloc_size = 8192;
+
+connection con_int1;
+SELECT @@SESSION.query_prealloc_size;
+--echo Expected Value : 16384;
+
+connection con_int2;
+SELECT @@SESSION.query_prealloc_size;
+--echo Expected Value : 8192;
+
+SELECT @@GLOBAL.query_prealloc_size;
+--echo Expected Value : 8192;
+
+connection default;
+disconnect con_int1;
+disconnect con_int2;
+
+DROP TABLE t1;
+
+SET @@global.query_prealloc_size = @start_value;
+

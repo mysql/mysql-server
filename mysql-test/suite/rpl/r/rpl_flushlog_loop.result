@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 show variables like 'relay_log%';
 Variable_name	Value
-relay_log	MYSQLTEST_VARDIR/master-data/relay-log
+relay_log	MYSQLD_DATADIR/relay-log
 relay_log_index	
 relay_log_info_file	relay-log.info
 relay_log_purge	ON
@@ -18,11 +18,7 @@ start slave;
 stop slave;
 change master to master_host='127.0.0.1',master_user='root',
 master_password='',master_port=SLAVE_PORT;
-start slave;
-
-let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%0%0%None%' ;
-
---source include/wait_slave_status.inc
+include/start_slave.inc
 FLUSH LOGS;
 SHOW SLAVE STATUS;
 Slave_IO_State	#

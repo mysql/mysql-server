@@ -193,7 +193,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   ulong state_diff_length;
   uint	rec_reflength;			/* rec_reflength in use now */
   uint  unique_name_length;
-  uint32 ftparsers;                     /* Number of distinct ftparsers + 1 */
+  uint32 ftkeys;                        /* Number of full-text keys + 1 */
   File	kfile;				/* Shared keyfile */
   File	data_file;			/* Shared data file */
   int	mode;				/* mode of file on open */

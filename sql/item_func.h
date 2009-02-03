@@ -1335,6 +1335,7 @@ public:
   longlong val_int_result();
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
+  bool is_null_result();
   bool update_hash(void *ptr, uint length, enum Item_result type,
   		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
@@ -1356,6 +1357,7 @@ public:
   void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
   bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
+  void cleanup();
 };
 
 

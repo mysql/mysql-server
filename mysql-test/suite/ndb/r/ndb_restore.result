@@ -134,12 +134,8 @@ create table t10 engine=myisam as select * from t10_c;
 create table t11 engine=myisam as select * from t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 ForceVarPart: 0
@@ -315,12 +311,8 @@ auto_increment
 10001
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 select count(*) from t1;
@@ -567,12 +559,8 @@ select * from t11_c) a;
 count(*)
 1
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 CREATE TABLE t11_c (
 c1 int primary key, c2 char(10), c3 varchar(10)
@@ -582,12 +570,8 @@ c1 int primary key, c2 char(10), c3 varchar(10)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
 INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 drop table t2_c,t11_c,t12_c;
 SELECT * FROM t11_c ORDER BY c1;
@@ -647,12 +631,8 @@ db2.tab2	1516475923
 ***********************
 Backing up created data
 ***********************
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM test.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 **************************************
@@ -842,6 +822,7 @@ Database
 information_schema
 db1
 db2
+mtr
 mysql
 test
 use db1;
@@ -859,6 +840,7 @@ Database
 information_schema
 db1
 db2
+mtr
 mysql
 test
 use db1;
