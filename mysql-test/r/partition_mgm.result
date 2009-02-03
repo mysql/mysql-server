@@ -5,6 +5,11 @@ PARTITION BY HASH (a)
 PARTITIONS 1;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ALTER TABLE t1 REORGANIZE PARTITION;
+ERROR HY000: REORGANISE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
+ALTER ONLINE TABLE t1 REORGANIZE PARTITION;
+ERROR HY000: REORGANISE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
+ALTER OFFLINE TABLE t1 REORGANIZE PARTITION;
+ERROR HY000: REORGANISE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
 DROP TABLE t1;
 create table t1 (a int)
 partition by range (a)
