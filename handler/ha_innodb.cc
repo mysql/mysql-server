@@ -3452,11 +3452,11 @@ ha_innobase::innobase_get_int_col_max_value(
 		break;
 	case HA_KEYTYPE_FLOAT:
 		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
-		max_value = 0x1000000;
+		max_value = 0x1000000ULL;
 		break;
 	case HA_KEYTYPE_DOUBLE:
 		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
-		max_value = 0x20000000000000;
+		max_value = 0x20000000000000ULL;
 		break;
 	default:
 		ut_error;
