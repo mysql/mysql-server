@@ -78,6 +78,8 @@ SELECT @@global.div_precision_increment;
 @@global.div_precision_increment
 30
 SET @@global.div_precision_increment = -1024;
+Warnings:
+Warning	1292	Truncated incorrect div_precision_increment value: '-1024'
 SELECT @@global.div_precision_increment;
 @@global.div_precision_increment
 0
@@ -100,6 +102,8 @@ SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
 30
 SET @@session.div_precision_increment = -2;
+Warnings:
+Warning	1292	Truncated incorrect div_precision_increment value: '-2'
 SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
 0
