@@ -1016,7 +1016,7 @@ buf_pool_drop_hash_index(void)
 	ut_ad(!btr_search_enabled);
 
 	do {
-		buf_chunk_t*	chunks	= buf_pool->chunks;;
+		buf_chunk_t*	chunks	= buf_pool->chunks;
 		buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
 
 		released_search_latch = FALSE;
