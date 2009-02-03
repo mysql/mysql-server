@@ -29,7 +29,14 @@ CREATE TABLE mysql.ndb_apply_status
                    end_pos BIGINT UNSIGNED NOT NULL,
                    PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB;
 
+-- connection master
+--disable_query_log
+set new=on;
+set storage_engine=ndbcluster;
+--enable_query_log
+
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
 
 --connection slave
+set @@global.slave_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;
