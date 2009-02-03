@@ -862,6 +862,9 @@ drop table t21,t31;
 drop table t11;
 STOP SLAVE;
 FLUSH LOGS;
+--> Stop master server
+--> Start master server
+--> Master binlog: Server ver: 5.0.16-debug-log, Binlog ver: 4
 RESET SLAVE;
 START SLAVE;
 SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;

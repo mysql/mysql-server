@@ -1,6 +1,4 @@
-DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
-DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
 create table federated.t1 (a int primary key, b varchar(64))
 engine=myisam;
@@ -22,6 +20,6 @@ a	b
 drop table federated.t1;
 drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
+DROP DATABASE federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
+DROP DATABASE federated;
