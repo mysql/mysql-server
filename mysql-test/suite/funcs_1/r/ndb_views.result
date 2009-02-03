@@ -53,7 +53,7 @@ f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) engine = ndb;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/ndb_tb2.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/ndb_tb2.txt'
 into table tb2 ;
 DROP DATABASE IF EXISTS test1;
 CREATE DATABASE test1;
@@ -112,7 +112,7 @@ f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) engine = ndb;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/ndb_tb2.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/ndb_tb2.txt'
 into table tb2 ;
 USE test;
 
@@ -21567,7 +21567,8 @@ View	Create View	character_set_client	collation_connection
 v28	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v28` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v27` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	latin1	latin1_swedish_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v28;
-ERROR HY000: Got temporary error 4006 'Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+f1	f2
+5	five
 
 The output of following EXPLAIN is deactivated, because the result
 differs on some platforms

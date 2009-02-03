@@ -1,0 +1,77 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1
+(a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(20)
+);
+SET @start_value= @@global.max_seeks_for_key;
+'#--------------------FN_DYNVARS_084_01-------------------------#'
+SELECT @@global.max_seeks_for_key = 10;
+@@global.max_seeks_for_key = 10
+0
+SELECT @@session.max_seeks_for_key = 10;
+@@session.max_seeks_for_key = 10
+0
+SET @@global.max_seeks_for_key = 20;
+SELECT @@global.max_seeks_for_key;
+@@global.max_seeks_for_key
+20
+INSERT INTO t1(b) VALUES("AREc");
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+SET @@session.max_seeks_for_key = 2;
+SELECT @@session.max_seeks_for_key;
+@@session.max_seeks_for_key
+2
+INSERT INTO t1(b) VALUES("BREc");
+INSERT INTO t1(b) VALUES("CRec");
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+'#--------------------FN_DYNVARS_084_02-------------------------#'
+SELECT @@global.max_seeks_for_key = 10;
+@@global.max_seeks_for_key = 10
+0
+SELECT @@session.max_seeks_for_key = 10;
+@@session.max_seeks_for_key = 10
+0
+SET @@global.max_seeks_for_key = 20;
+SELECT @@global.max_seeks_for_key;
+@@global.max_seeks_for_key
+20
+INSERT INTO t1(b) VALUES("AREc");
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer
+SET @@session.max_seeks_for_key = 2;
+SELECT @@session.max_seeks_for_key;
+@@session.max_seeks_for_key
+2
+INSERT INTO t1(b) VALUES("BREc");
+INSERT INTO t1(b) VALUES("CRec");
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+INSERT INTO t1 VALUES(null,"test");
+INSERT INTO t1 VALUES (null,"a"),(null,"a"),(null,"a"),
+(null,"a"),(null,"a"),(null,"a"),(null,"a"),
+(null,"a"),(null,"a"),(null,"a");
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	17	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET MAX_SEEKS_FOR_KEY=1;
+EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	17	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer
+SET MAX_SEEKS_FOR_KEY=DEFAULT;
+DROP TABLE t1;
+SET @@global.max_seeks_for_key= @start_value;

@@ -287,6 +287,10 @@ trx_free(
 		      "InnoDB: inside InnoDB.\n", stderr);
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
+
+		/* This is an error but not a fatal error. We must keep
+		the counters like srv_conc_n_threads accurate. */
+		srv_conc_force_exit_innodb(trx);
 	}
 
 	if (trx->n_mysql_tables_in_use != 0

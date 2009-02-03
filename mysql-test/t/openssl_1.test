@@ -1,7 +1,7 @@
 # Tests for SSL connections, only run if mysqld is compiled
 # with support for SSL.
 
--- source include/have_ssl.inc
+--source include/have_ssl.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -11,8 +11,8 @@ insert into t1 values (5);
 
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB/emailAddress=abstract.mysql.developer@mysql.com";
-grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB/emailAddress=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB/emailAddress=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB/emailAddress=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
 grant select on test.* to ssl_user5@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "xxx";
 flush privileges;
 
@@ -101,7 +101,7 @@ drop table t1;
 # - Apparently selecting a cipher doesn't work at all
 # - Usa a cipher that both yaSSL and OpenSSL supports
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
@@ -155,18 +155,18 @@ SET GLOBAL event_scheduler=0;
 #
 # Test to connect using a list of ciphers
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 
 # Test to connect using a specifi cipher
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 # Test to connect using an unknown cipher
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit" > $MYSQLTEST_VARDIR/tmp/test.sql
 --error 1
 --exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
@@ -201,7 +201,8 @@ DROP TABLE t1;
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC3-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=RC4-SHA
---disable_output
+--disable_query_log
+--disable_result_log
 
 # Below here caused crashes.  ################
 --error 1,0
@@ -224,7 +225,8 @@ DROP TABLE t1;
 # End of crashers.  ##########################
 
 # If this gives a result, then the bug is fixed.
---enable_output
+--enable_result_log
+--enable_query_log
 select 'is still running; no cipher request crashed the server' as result from dual;
 
 ##

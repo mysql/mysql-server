@@ -1038,6 +1038,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 					     share->table_name.str, 1,
                                              OTM_OPEN))))
       (void) rm_temporary_table(table_type, path, frm_only);
+    else
+      thd->thread_specific_used= TRUE;
+    
     free_table_share(share);
     my_free((char*) table,MYF(0));
     /*
