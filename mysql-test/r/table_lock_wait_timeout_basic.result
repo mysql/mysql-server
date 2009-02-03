@@ -37,13 +37,13 @@ SELECT @@global.table_lock_wait_timeout ;
 '#--------------------FN_DYNVARS_001_04-------------------------#'
 SET @@global.table_lock_wait_timeout = -1;
 Warnings:
-Warning	1292	Truncated incorrect table_lock_wait_timeout value: '0'
+Warning	1292	Truncated incorrect table_lock_wait_timeout value: '-1'
 SET @@global.table_lock_wait_timeout= 100000000000;
 Warnings:
 Warning	1292	Truncated incorrect table_lock_wait_timeout value: '100000000000'
 SET @@global.table_lock_wait_timeout= -1024;
 Warnings:
-Warning	1292	Truncated incorrect table_lock_wait_timeout value: '0'
+Warning	1292	Truncated incorrect table_lock_wait_timeout value: '-1024'
 SET @@global.table_lock_wait_timeout= 0;
 Warnings:
 Warning	1292	Truncated incorrect table_lock_wait_timeout value: '0'

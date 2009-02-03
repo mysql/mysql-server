@@ -803,6 +803,8 @@ select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 16382
 set global max_prepared_stmt_count=-1;
+Warnings:
+Warning	1292	Truncated incorrect max_prepared_stmt_count value: '-1'
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 0
