@@ -2371,9 +2371,24 @@ AC_TRY_RUN([
   [x86_pause_exists=no],
   [x86_pause_exists=no]  # Cross-compile, assume no PAUSE instruction
 )
+AC_TRY_RUN([
+    int main() {
+      __asm__ __volatile__ ("rep; nop");
+      return 0;
+    }
+  ],
+  [x86_fake_pause_exists=yes],
+  [x86_fake_pause_exists=no],
+  [x86_fake_pause_exists=no]  # Cross-compile, assume no x86 NOP instruction
+)
 if test "$x86_pause_exists" = "yes"
 then
   AC_DEFINE([HAVE_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
+else
+  if test "$x86_fake_pause_exists" = "yes"
+  then
+    AC_DEFINE([HAVE_FAKE_PAUSE_INSTRUCTION], [1], [Does x86 NOP instruction exist])
+  fi
 fi
 
 # Check if pthread_attr_setscope() exists
