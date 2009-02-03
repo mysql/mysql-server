@@ -142,7 +142,6 @@ my $opt_view_protocol;
 our $opt_debug;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
-our $opt_ndb_embedded_server;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -765,7 +764,6 @@ sub command_line_setup {
   GetOptions(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
-             'ndb-embedded-server'      => \$opt_ndb_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
@@ -1113,7 +1111,6 @@ sub command_line_setup {
       }
       $ENV{'PATH'}= "$ENV{'PATH'}".$separator.$lib_mysqld;
     }
-    $opt_ndb_embedded_server= 1;
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
     # Turn off use of bin log
