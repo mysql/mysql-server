@@ -1202,10 +1202,10 @@ set_cc_and_cxx_for_icc()
 set_cc_and_cxx_for_forte()
 {
   if test "x$CC" = "x" ; then
-    CC="cc-5.0"
+    CC="cc"
   fi
   if test "x$CXX" = "x" ; then
-    CXX="cc-5.0"
+    CXX="CC"
   fi
 }
 
