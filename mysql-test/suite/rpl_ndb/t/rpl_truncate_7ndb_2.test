@@ -6,6 +6,5 @@
 # Change Author:  pcrews
 # Change:  Moved test to rpl_ndb suite, updated location of --source .test file
 
---source include/have_binlog_format_mixed.inc
---source include/big_test.inc
+--source include/have_binlog_format_mixed_or_row.inc
 --source suite/rpl_ndb/t/rpl_truncate_7ndb.test
