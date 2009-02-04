@@ -1288,6 +1288,9 @@ NdbScanOperation::executeCursor(int nodeId)
    * Call finaliseScanOldApi() for old style scans before
    * proceeding
    */  
+  bool locked = false;
+  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
+
   int res = 0;
   if (m_scanUsingOldApi && finaliseScanOldApi() == -1)
   {
@@ -1296,9 +1299,9 @@ NdbScanOperation::executeCursor(int nodeId)
   }
 
   {
+    locked = true;
     NdbTransaction * tCon = theNdbCon;
-    TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
-    Guard guard(tp->theMutexPtr);
+    NdbMutex_Lock(tp->theMutexPtr);
     
     Uint32 seq = tCon->theNodeSequence;
     
@@ -1348,7 +1351,10 @@ done:
     m_current_api_receiver = theParallelism;
     m_api_receivers_count = theParallelism;
   }
-  
+
+  if (locked)
+    NdbMutex_Unlock(tp->theMutexPtr);
+
   return res;
 }
 
