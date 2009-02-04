@@ -21,6 +21,25 @@ select * from t1 where c1='b';
 c1
 a
 drop table t1;
+CREATE TABLE t1 (
+col1 varchar(100) character set utf8 collate utf8_test_ci
+);
+INSERT INTO t1 (col1) VALUES ('abcd'),('efgh'),('ijkl');
+ALTER TABLE t1 ADD FULLTEXT INDEX (col1);
+SELECT * FROM t1 where match (col1) against ('abcd');
+col1
+abcd
+SELECT * FROM t1 where match (col1) against ('abcd' IN BOOLEAN MODE);
+col1
+abcd
+ALTER TABLE t1 ADD (col2 varchar(100) character set latin1);
+UPDATE t1 SET col2=col1;
+SELECT * FROM t1 WHERE col1=col2 ORDER BY col1;
+col1	col2
+abcd	abcd
+efgh	efgh
+ijkl	ijkl
+DROP TABLE t1;
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
 ucs2_vn_ci	ucs2	242			8

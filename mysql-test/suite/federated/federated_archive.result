@@ -1,6 +1,4 @@
-DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
-DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
 DROP TABLE IF EXISTS federated.archive_table;
 CREATE TABLE federated.archive_table (
@@ -36,6 +34,6 @@ id	name
 DROP TABLE federated.t1;
 DROP TABLE federated.archive_table;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
+DROP DATABASE federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
+DROP DATABASE federated;

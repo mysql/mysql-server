@@ -11,23 +11,23 @@ CREATE DATABASE db_storedproc_1;
 USE db_storedproc;
 create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t1;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t1;
 create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t2;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t2;
 create table t3(f1 char(20),f2 char(20),f3 integer) engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' into table t3;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t3.txt' into table t3;
 create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t4;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t4;
 USE db_storedproc_1;
 create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t6;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t6;
 USE db_storedproc;
 create table t7 (f1 char(20), f2 char(25), f3 date, f4 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t7;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' into table t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -41,7 +41,7 @@ Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
 create table t8 (f1 char(20), f2 char(25), f3 date, f4 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t8;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' into table t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -54,13 +54,13 @@ Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
 create table t9(f1 int, f2 char(25), f3 int) engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' into table t9;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' into table t9;
 create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t10;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t10;
 create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t11;
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t11;
 
 Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -94,6 +94,9 @@ CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde' is too long
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 BINARY )
 LANGUAGE SQL DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -109,6 +112,9 @@ Warning	1265	Data truncated for column 'f1' at row 1
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 BLOB )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -122,6 +128,9 @@ CALL sp1( 34 );
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 INT )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -135,6 +144,9 @@ CALL sp1( 34 );
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 DECIMAL(256, 30) )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -176,6 +188,9 @@ END//
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sproc_1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW FUNCTION STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	func_1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -1419,6 +1434,9 @@ Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 SET("value1", "value1") )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1436,6 +1454,9 @@ Warning	1265	Data truncated for column 'f1' at row 1
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 ENUM("value1", "value1") )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1452,6 +1473,9 @@ Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	add_suppression	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_testcase	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mtr	check_warnings	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) LANGUAGE SQL SELECT f1;
 CALL sp1( 'abc' );

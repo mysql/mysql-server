@@ -1060,7 +1060,7 @@ sub command_line_setup {
   {
     $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
 
-    if (check_socket_path_length("$opt_tmpdir/testsocket.sock"))
+    if (check_socket_path_length("$opt_tmpdir/mysql_testsocket.sock"))
     {
       mtr_report("Too long tmpdir path '$opt_tmpdir'",
 		 " creating a shorter one...");

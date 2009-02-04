@@ -204,7 +204,7 @@ my_binary_30, id FROM t1_values';
 SET @my_select = 'SELECT LENGTH(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values';
 SET @my_select =
-'SELECT LOAD_FILE(''<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt'')
+'SELECT LOAD_FILE(''<MYSQLTEST_VARDIR>/std_data/funcs_1/load_file.txt'')
            AS my_col,
         id FROM t1_values';
 SET @my_select = 'SELECT LOCATE(''char'', my_char_30),
@@ -812,10 +812,10 @@ WHERE select_id = 157 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT LOAD_FILE('<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt')
+CREATE VIEW v1 AS SELECT LOAD_FILE('<MYSQLTEST_VARDIR>/std_data/funcs_1/load_file.txt')
            AS my_col,
         id FROM t1_values;
-SELECT LOAD_FILE('<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt')
+SELECT LOAD_FILE('<MYSQLTEST_VARDIR>/std_data/funcs_1/load_file.txt')
            AS my_col,
         id FROM t1_values
 WHERE select_id = 156 OR select_id IS NULL order by id;
@@ -832,7 +832,7 @@ Here is content from load_file
 	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select load_file('<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/load_file.txt') AS `my_col`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select load_file('<MYSQLTEST_VARDIR>/std_data/funcs_1/load_file.txt') AS `my_col`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 156 OR select_id IS NULL) order by id;
