@@ -1235,6 +1235,96 @@ runBug24447(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
+
+  int loops = ctx->getNumLoops();
+
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  const NdbDictionary::Index * pIdx = 
+    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName, 
+					    ctx->getTab()->getName());
+  
+
+  int i = 0;
+  while (pIdx && i++ < loops && !ctx->isTestStopped()) 
+  {
+    g_info << i << ": ";
+    NdbTransaction* pTrans = pNdb->startTransaction();
+    int nodeId = pTrans->getConnectedNodeId();
+    
+    {
+      Uint32 cnt = 0;
+      Vector<NdbTransaction*> translist;
+      while (cnt < 3)
+      {
+        NdbTransaction* p2 = pNdb->startTransaction();
+        translist.push_back(p2);
+        if (p2->getConnectedNodeId() == (Uint32)nodeId)
+          cnt++;
+      }
+      
+      for (size_t t = 0; t < translist.size(); t++)
+        translist[t]->close();
+      translist.clear();
+    }
+
+    NdbIndexScanOperation* 
+      pOp = pTrans->getNdbIndexScanOperation(pIdx, ctx->getTab());
+    
+    int r0 = pOp->readTuples(NdbOperation::LM_CommittedRead,
+                             NdbScanOperation::SF_OrderBy);
+
+    ndbout << "Restart node " << nodeId << endl; 
+    res.restartOneDbNode(nodeId,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nodeId, 1);
+    res.startNodes(&nodeId, 1);
+    res.waitNodesStarted(&nodeId, 1);
+
+    int r1 = pTrans->execute(NdbTransaction::NoCommit);
+
+    int r2;
+    while ((r2 = pOp->nextResult()) == 0);
+
+    ndbout_c("r0: %d r1: %d r2: %d", r0, r1, r2);
+
+    pTrans->close();
+  }
+  
+  return NDBT_OK;
+}
+
+int
+initBug42559(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int dump[] = { 7017  }; // Max LCP speed
+  NdbRestarter res;
+  res.dumpStateAllNodes(dump, 1);
+
+  return NDBT_OK;
+}
+int
+finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int dump[] = { 7017, 1  }; // Restore config value
+  NdbRestarter res;
+  res.dumpStateAllNodes(dump, 2);
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1725,6 +1815,24 @@ TESTCASE("Bug36124",
   STEP(runBug36124);
   FINALIZER(runClearTable);
 }
+TESTCASE("Bug42545", "")
+{
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug42545);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug42559", "") 
+{
+  INITIALIZER(initBug42559);
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runScanReadIndex, 70);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(finalizeBug42559);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testScan);
 
 int main(int argc, const char** argv){
@@ -1734,3 +1842,4 @@ int main(int argc, const char** argv){
 }
 
 template class Vector<Attrib*>;
+template class Vector<NdbTransaction*>;
