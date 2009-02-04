@@ -7425,6 +7425,10 @@ static void translog_force_current_buffer_to_finish()
   log_descriptor.bc.buffer->offset= new_buff_beginning;
   log_descriptor.bc.write_counter= write_counter;
   log_descriptor.bc.previous_offset= previous_offset;
+  new_buffer->prev_last_lsn= BUFFER_MAX_LSN(old_buffer);
+  DBUG_PRINT("info", ("prev_last_lsn set to (%lu,0x%lx)  buffer: 0x%lx",
+                      LSN_IN_PARTS(new_buffer->prev_last_lsn),
+                      (ulong) new_buffer));
 
   /*
     Advances this log pointer, increases writers and let other threads to
