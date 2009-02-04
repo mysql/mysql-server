@@ -4207,43 +4207,25 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     }
     if (alter_info->flags & ALTER_TABLE_REORG)
     {
-      uint new_part_no, curr_part_no;
+      DBUG_ASSERT(table->s->db_type()->partition_flags);
+      /* 'ALTER TABLE t REORG PARTITION' only allowed with auto partition */
       if (tab_part_info->part_type != HASH_PARTITION ||
-          tab_part_info->use_default_no_partitions)
+          !tab_part_info->use_default_no_partitions ||
+          (table->s->db_type()->partition_flags &&
+           !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)))
       {
         my_error(ER_REORG_NO_PARAM_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
       }
-      new_part_no= table->file->get_default_no_partitions(create_info);
-      curr_part_no= tab_part_info->no_parts;
-      if (new_part_no == curr_part_no)
-      {
-        /*
-          No change is needed, we will have the same number of partitions
-          after the change as before. Thus we can reply ok immediately
-          without any changes at all.
-        */
-        *fast_alter_partition= TRUE;
-        DBUG_RETURN(FALSE);
-      }
-      else if (new_part_no > curr_part_no)
-      {
-        /*
-          We will add more partitions, we use the ADD PARTITION without
-          setting the flag for no default number of partitions
-        */
-        alter_info->flags|= ALTER_ADD_PARTITION;
-        thd->work_part_info->no_parts= new_part_no - curr_part_no;
-      }
-      else
-      {
-        /*
-          We will remove hash partitions, we use the COALESCE PARTITION
-          without setting the flag for no default number of partitions
-        */
-        alter_info->flags|= ALTER_COALESCE_PARTITION;
-        alter_info->no_parts= curr_part_no - new_part_no;
-      }
+      DBUG_ASSERT(!alt_part_info ||
+                  alt_part_info->part_type == NOT_A_PARTITION);
+      /*
+        This is really a table operation, handled by native engines.
+        NDB can handle this fast/online. Skip the partitioning path.
+      */
+      if (alt_part_info)
+        thd->work_part_info= NULL;
+      DBUG_RETURN(FALSE);
     }
     if (table->s->db_type()->alter_partition_flags &&
         (!(flags= table->s->db_type()->alter_partition_flags())))
