@@ -45,7 +45,7 @@ build: $(TARGETS)
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-xfast check-x check-no-rolltmp check-scanrace
+check: check-default check-xfast check-x check-no-rolltmp
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
