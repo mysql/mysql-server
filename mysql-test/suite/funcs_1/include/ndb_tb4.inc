@@ -66,5 +66,5 @@ f241 char(100) unicode
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/ndb_tb4.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/ndb_tb4.txt'
 into table tb4 ;

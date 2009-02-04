@@ -75,13 +75,10 @@ let $wait_condition= SELECT COUNT(*)=40 FROM t1 WHERE c = 1;
 
 # Check data
 --echo Check data on both clusters 
---connection master
---echo * Cluster A *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 1 GROUP BY b ORDER BY b;
---connection slave
---echo * Cluster B *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 1 GROUP BY b ORDER BY b;
---echo
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+
+source include/diff_tables.inc;
 
 --echo *** Transaction testing ***
 # Start transaction for one mysqld and do mass of inserts for other.
@@ -119,13 +116,10 @@ let $wait_condition= SELECT COUNT(*)=400 FROM t1 WHERE c = 2;
 --source include/wait_condition.inc
 
 --echo Check data on both clusters 
---connection master
---echo * Cluster A *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 2 GROUP BY b ORDER BY b;
---connection slave
---echo * Cluster B *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 2 GROUP BY b ORDER BY b;
---echo
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+
+source include/diff_tables.inc;
 
 # Start transaction and then roll back
 
@@ -161,13 +155,10 @@ let $wait_condition= SELECT COUNT(*)=200 FROM t1 WHERE c = 3;
 --source include/wait_condition.inc
 
 --echo Check data on both clusters 
---connection master
---echo * Cluster A *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
---connection slave
---echo * Cluster B *
-SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
---echo
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+
+source include/diff_tables.inc;
 
 # Clean up
 --connection master
