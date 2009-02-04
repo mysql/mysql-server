@@ -1296,6 +1296,26 @@ int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+initBug42559(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int dump[] = { 7017  }; // Max LCP speed
+  NdbRestarter res;
+  res.dumpStateAllNodes(dump, 1);
+
+  return NDBT_OK;
+}
+int
+finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int dump[] = { 7017, 1  }; // Restore config value
+  NdbRestarter res;
+  res.dumpStateAllNodes(dump, 2);
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1792,6 +1812,16 @@ TESTCASE("Bug42545", "")
   INITIALIZER(runLoadTable);
   STEP(runBug42545);
   FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug42559", "") 
+{
+  INITIALIZER(initBug42559);
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runScanReadIndex, 70);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(finalizeBug42559);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
