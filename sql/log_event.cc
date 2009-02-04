@@ -51,9 +51,10 @@
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
 
-static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
+
 static const char *HA_ERR(int i)
 {
   switch (i) {
