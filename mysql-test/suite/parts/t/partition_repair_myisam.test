@@ -8,14 +8,16 @@ drop table if exists t1_will_crash;
 
 --echo # REPAIR USE_FRM is not implemented for partitioned tables.
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 --echo # test of non partitioned myisam for reference
 CREATE TABLE t1_will_crash (a INT, KEY (a)) ENGINE=MyISAM;
 INSERT INTO t1_will_crash VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
 FLUSH TABLES;
 --echo # replacing t1.MYI with a corrupt + unclosed one created by doing:
 --echo # 'create table t1 (a int key(a))' head -c1024 t1.MYI > corrupt_t1.MYI 
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash.MYI
---copy_file std_data/corrupt_t1.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash.MYI
+--copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
 CHECK TABLE t1_will_crash;
 REPAIR TABLE t1_will_crash;
 SELECT * FROM t1_will_crash;
@@ -32,16 +34,16 @@ FLUSH TABLES;
 --echo # replacing t1#P#p1.MYI with a corrupt + unclosed one created by doing:
 --echo # 'create table t1 (a int key(a)) partition by hash (a) partitions 3'
 --echo # head -c1024 t1#P#p1.MYI > corrupt_t1#P#p1.MYI 
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1.MYI
---copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
+--copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 CHECK TABLE t1_will_crash;
 REPAIR TABLE t1_will_crash;
 SELECT * FROM t1_will_crash;
 FLUSH TABLES;
 --echo # test with ALTER TABLE ... CHECK/REPAIR PARTITION
 --echo # replacing t1_will_crash#P#p1.MYI with a corrupt + unclosed one
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1.MYI
---copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
+--copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 ALTER TABLE t1_will_crash CHECK PARTITION p0, p2;
 ALTER TABLE t1_will_crash CHECK PARTITION p0, p1;
 ALTER TABLE t1_will_crash CHECK PARTITION p1, p2;
@@ -63,16 +65,16 @@ SELECT * FROM t1_will_crash;
 FLUSH TABLES;
 --echo # test with CHECK/REPAIR TABLE
 --echo # replacing t1_will_crash#P#p1#SP#p1sp0.MYI with a corrupt + unclosed one
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1#SP#p1sp0.MYI
---copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1#SP#p1sp0.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1#SP#p1sp0.MYI
+--copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1#SP#p1sp0.MYI
 CHECK TABLE t1_will_crash;
 REPAIR TABLE t1_will_crash;
 SELECT * FROM t1_will_crash;
 FLUSH TABLES;
 --echo # test with ALTER TABLE ... CHECK/REPAIR PARTITION
 --echo # replacing t1_will_crash#P#p1#SP#p1sp0.MYI with a corrupt + unclosed one
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1#SP#p1sp0.MYI
---copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1#SP#p1sp0.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1#SP#p1sp0.MYI
+--copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1#SP#p1sp0.MYI
 ALTER TABLE t1_will_crash CHECK PARTITION p0;
 ALTER TABLE t1_will_crash CHECK PARTITION all;
 ALTER TABLE t1_will_crash CHECK PARTITION p1;
@@ -94,7 +96,7 @@ PARTITIONS 7;
 # creating a longer string for for filling the records
 let $i= 3;
 let $lt= longtext;
-while ($i>0)
+while ($i)
 {
   let $lt= $lt$lt;
   dec $i;
@@ -152,22 +154,22 @@ SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partiti
 FLUSH TABLES;
 # testing p0, p1, p3, p6(1)
 --echo # truncating p0 to simulate an empty datafile (not recovered!)
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p0.MYD
---write_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p0.MYD
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p0.MYD
+--write_file $MYSQLD_DATADIR/test/t1_will_crash#P#p0.MYD
 EOF
 
 --echo # replacing p1 with only the first 1024 bytes (not recovered!)
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1.MYD
---copy_file std_data/parts/t1_will_crash#P#p1_first_1024.MYD $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p1.MYD
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYD
+--copy_file std_data/parts/t1_will_crash#P#p1_first_1024.MYD $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYD
 
 --echo # replacing p3 with a crashed one at the last row in first insert
 --echo # (crashed right after *share->write_record())
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p3.MYI
---copy_file std_data/parts/t1_will_crash#P#p3.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p3.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p3.MYI
+--copy_file std_data/parts/t1_will_crash#P#p3.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p3.MYI
 
 --echo # replacing p6 with a crashed MYD file (1) (splitted dynamic record)
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p6.MYD
---copy_file std_data/parts/t1_will_crash#P#p6.MYD $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p6.MYD
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p6.MYD
+--copy_file std_data/parts/t1_will_crash#P#p6.MYD $MYSQLD_DATADIR/test/t1_will_crash#P#p6.MYD
 ANALYZE TABLE t1_will_crash;
 OPTIMIZE TABLE t1_will_crash;
 CHECK TABLE t1_will_crash;
@@ -180,10 +182,10 @@ FLUSH TABLES;
 # testing p2, p4, p6(2, 3)
 --echo #
 --echo # replacing p2 with crashed files (after _mi_mark_changed)
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p2.MYI
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p2.MYD
---copy_file std_data/parts/t1_will_crash#P#p2.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p2.MYI
---copy_file std_data/parts/t1_will_crash#P#p2.MYD $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p2.MYD
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p2.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p2.MYD
+--copy_file std_data/parts/t1_will_crash#P#p2.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p2.MYI
+--copy_file std_data/parts/t1_will_crash#P#p2.MYD $MYSQLD_DATADIR/test/t1_will_crash#P#p2.MYD
 ALTER TABLE t1_will_crash CHECK PARTITION p2;
 --echo # crash was when index only marked as opened, no real corruption
 ALTER TABLE t1_will_crash CHECK PARTITION p2;
@@ -191,8 +193,8 @@ FLUSH TABLES;
 
 --echo #
 --echo # replacing p4 with updated but not closed index file
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p4.MYI
---copy_file std_data/parts/t1_will_crash#P#p4.MYI $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p4.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p4.MYI
+--copy_file std_data/parts/t1_will_crash#P#p4.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p4.MYI
 #SHOW TABLE STATUS like 't1_will_crash';
 #ALTER TABLE t1_will_crash ANALYZE PARTITION p4;
 #SHOW TABLE STATUS like 't1_will_crash';
@@ -206,8 +208,8 @@ FLUSH TABLES;
 
 --echo #
 --echo # replacing p6 with a crashed MYD file (2) (splitted dynamic record)
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p6.MYD
---copy_file std_data/parts/t1_will_crash#P#p6_2.MYD $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p6.MYD
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p6.MYD
+--copy_file std_data/parts/t1_will_crash#P#p6_2.MYD $MYSQLD_DATADIR/test/t1_will_crash#P#p6.MYD
 #ALTER TABLE t1_will_crash OPTIMIZE PARTITION p6;
 ALTER TABLE t1_will_crash CHECK PARTITION p6;
 ALTER TABLE t1_will_crash REPAIR PARTITION p6;
@@ -218,8 +220,8 @@ FLUSH TABLES;
 
 --echo #
 --echo # replacing p6 with a crashed MYD file (3) (splitted dynamic record)
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p6.MYD
---copy_file std_data/parts/t1_will_crash#P#p6_3.MYD $MYSQLTEST_VARDIR/master-data/test/t1_will_crash#P#p6.MYD
+--remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p6.MYD
+--copy_file std_data/parts/t1_will_crash#P#p6_3.MYD $MYSQLD_DATADIR/test/t1_will_crash#P#p6.MYD
 --echo # Different results from the corrupt table, which can lead to dropping
 --echo # of the not completely written rows when using REBUILD on a corrupt
 --echo # table, depending if one reads via index or direct on datafile.

@@ -4,6 +4,11 @@
 
 -- source include/not_embedded.inc
 
+#
+# Produce output
+#
+
+select 1;
 
 # The following fails sporadically because 'check-testcase' runs
 # queries before this test and there is no way to guarantee that any
@@ -30,6 +35,5 @@
 #--replace_column 1 number 6 time 3 localhost
 #execute stmt1;
 #deallocate prepare stmt1;
-
 
 # End of 5.1 tests

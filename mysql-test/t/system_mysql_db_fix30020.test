@@ -104,4 +104,5 @@ time_zone_transition_type, general_log, slow_log, event, ndb_binlog_index;
 # check that we dropped all system tables
 show tables;
 
+exit;
 # End of 4.1 tests

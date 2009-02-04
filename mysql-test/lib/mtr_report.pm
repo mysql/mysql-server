@@ -165,18 +165,11 @@ sub mtr_report_test ($) {
     }
     elsif ( $comment )
     {
-      if ( $tinfo->{skip_detected_by_test} )
-      {
-	mtr_report("[ skip ]. $comment");
-      }
-      else
-      {
-	mtr_report("[ skip ]  $comment");
-      }
+      mtr_report("[ skipped ]  $comment");
     }
     else
     {
-      mtr_report("[ skip ]");
+      mtr_report("[ skipped ]");
     }
   }
   elsif ($result eq 'MTR_RES_PASSED')
@@ -354,7 +347,7 @@ sub mtr_print_line () {
 
 sub mtr_print_thick_line {
   my $char= shift || '=';
-  print $char x 60, "\n";
+  print $char x 78, "\n";
 }
 
 
