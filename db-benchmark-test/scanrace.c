@@ -122,7 +122,7 @@ static void scanrace_lwc (void) {
 	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
 	long rowcounter=0;
 	while (0 == (r = dbc->c_getf_next(dbc, DB_PRELOCKED, counttotalbytes, &e))) {
-	    if (rowcounter%1024==0) { printf("."); fflush(stdout); }
+	    if (rowcounter%128==0) { printf("."); fflush(stdout); }
 	    rowcounter++;
 	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}

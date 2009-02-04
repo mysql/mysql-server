@@ -155,6 +155,12 @@ static int fetch (CACHEFILE f, CACHEKEY key, u_int32_t fullhash __attribute__((_
     return 0;
 }
 
+static void maybe_flush(CACHETABLE t) {
+#if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
+    toku_cachetable_maybe_flush_some(t);
+#endif
+}
+
 // verify that a sequence of cachetable operations causes a particular sequence of
 // callbacks
 
@@ -218,7 +224,7 @@ static void test0 (void) {
     assert(r==0);
     test_mutex_lock();
     while (expect_n_flushes != 0) {
-        test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+        test_mutex_unlock(); toku_pthread_yield(); maybe_flush(t); test_mutex_lock();
     }
     assert(expect_n_flushes==0);
     test_mutex_unlock();
@@ -228,7 +234,7 @@ static void test0 (void) {
     assert(r==0);
     test_mutex_lock();
     while (expect_n_flushes != 0) {
-        test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+        test_mutex_unlock(); toku_pthread_yield(); maybe_flush(t); test_mutex_lock();
     }
     assert(expect_n_flushes==0);
     test_mutex_unlock();
@@ -260,7 +266,7 @@ static void test0 (void) {
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
         test_mutex_lock();
         while (expect_n_flushes != 0) {
-            test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+            test_mutex_unlock(); toku_pthread_yield(); maybe_flush(t); test_mutex_lock();
         }
         assert(expect_n_flushes==0);
         test_mutex_unlock();
@@ -565,10 +571,13 @@ static void test_size_flush_callback(CACHEFILE f,
 				     BOOL rename_p __attribute__((__unused__))) {
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
     if (keep) {
-        assert(do_write != 0);
-        test_mutex_lock();
-        test_size_flush_key = key;
-        test_mutex_unlock();
+        if (do_write) {
+            test_mutex_lock();
+            test_size_flush_key = key;
+            test_mutex_unlock();
+        }
+    } else {
+        assert(!do_write);
     }
 }
 
@@ -663,7 +672,7 @@ static void test_size_flush() {
         int n_entries, hash_size; long size_current, size_limit;
         toku_cachetable_get_state(t, &n_entries, &hash_size, &size_current, &size_limit);
         while (n_entries != min2(i+1, n)) {
-            toku_pthread_yield();
+            toku_pthread_yield(); maybe_flush(t);
             toku_cachetable_get_state(t, &n_entries, 0, 0, 0);
         }
         assert(n_entries == min2(i+1, n));

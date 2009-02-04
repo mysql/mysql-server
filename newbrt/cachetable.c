@@ -14,6 +14,10 @@
 #include "cachetable-rwlock.h"
 #include "toku_worker.h"
 
+#if !defined(TOKU_CACHETABLE_DO_EVICT_FROM_WRITER)
+#error
+#endif
+
 // use worker threads 0->no 1->yes
 #define DO_WORKER_THREAD 1
 #if DO_WORKER_THREAD
@@ -51,8 +55,10 @@ struct ctpair {
     long     size;
     enum ctpair_state state;
     enum cachetable_dirty dirty;
-    char     verify_flag;         // Used in verify_cachetable()
-    BOOL     write_me;
+
+    char     verify_flag;        // Used in verify_cachetable()
+    BOOL     write_me;           // write_pair 
+    BOOL     remove_me;          // write_pair
 
     u_int32_t fullhash;
 
@@ -60,7 +66,7 @@ struct ctpair {
     CACHETABLE_FETCH_CALLBACK fetch_callback;
     void    *extraargs;
 
-    PAIR     next,prev;           // In LRU list.
+    PAIR     next,prev;          // In LRU list.
     PAIR     hash_chain;
 
     LSN      modified_lsn;       // What was the LSN when modified (undefined if not dirty)
@@ -635,7 +641,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     if (p->cq)
         workqueue_enq(p->cq, &p->asyncwork, 1);
     else
-        cachetable_complete_write_pair(ct, p, TRUE);
+        cachetable_complete_write_pair(ct, p, p->remove_me);
 }
 
 // complete the write of a pair by reseting the writing flag, adjusting the write
@@ -665,6 +671,7 @@ static void flush_and_maybe_remove (CACHETABLE ct, PAIR p, BOOL write_me) {
     p->state = CTPAIR_WRITING;
     ct->size_writing += p->size; assert(ct->size_writing >= 0);
     p->write_me = write_me;
+    p->remove_me = TRUE;
 #if DO_WORKER_THREAD
     WORKITEM wi = &p->asyncwork;
     workitem_init(wi, cachetable_writer, p);
@@ -673,6 +680,9 @@ static void flush_and_maybe_remove (CACHETABLE ct, PAIR p, BOOL write_me) {
     if (!p->write_me || (!ctpair_pinned(&p->rwlock) && !p->dirty)) {
         cachetable_write_pair(ct, p);
     } else {
+#if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
+        p->remove_me = FALSE;           // run the remove on the main thread
+#endif
         workqueue_enq(&ct->wq, wi, 0);
     }
 #else
@@ -707,6 +717,12 @@ again:
         cachetable_rehash(ct, ct->table_size/2);
 
     return r;
+}
+
+void toku_cachetable_maybe_flush_some(CACHETABLE ct) {
+    cachetable_lock(ct);
+    maybe_flush_some(ct, 0);
+    cachetable_unlock(ct);
 }
 
 static PAIR cachetable_insert_at(CACHETABLE ct, 
@@ -863,6 +879,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count = 0;
+    int r = -1;
     cachetable_lock(ct);
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
@@ -870,15 +887,14 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
 	    *value = p->value;
 	    ctpair_read_lock(&p->rwlock, ct->mutex);
 	    lru_touch(ct,p);
-            cachetable_unlock(ct);
-	    note_hash_count(count);
+            r = 0;
 	    //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
-	    return 0;
+            break;
 	}
     }
     cachetable_unlock(ct);
     note_hash_count(count);
-    return -1;
+    return r;
 }
 
 
@@ -888,6 +904,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
     //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
     int count = 0;
+    int r = -1;
     //assert(fullhash == toku_cachetable_hash(cachefile, key));
     cachetable_lock(ct);
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
@@ -903,20 +920,18 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
             }
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
-		int r;
 		if ((r=maybe_flush_some(ct, 0))) {
                     cachetable_unlock(ct);
                     return r;
                 }
 	    }
-            cachetable_unlock(ct);
-	    note_hash_count(count);
-	    return 0;
+            r = 0; // we found one
+            break;
 	}
     }
     cachetable_unlock(ct);
     note_hash_count(count);
-    return -1;
+    return r;
 }
 
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
