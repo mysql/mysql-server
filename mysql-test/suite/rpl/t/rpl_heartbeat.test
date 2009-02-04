@@ -52,7 +52,6 @@ eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master
 #
 connection slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
---warning ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.0009999;
 --query_vertical show status like 'Slave_heartbeat_period';
 

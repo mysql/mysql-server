@@ -24,7 +24,7 @@ a
 1
 [on slave]
 ---- Wait until slave stops with an error ----
-Last_SQL_Error = Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY; the event's master log master-bin.000001, end_log_pos 346 (expected "duplicate key" error)
+Last_SQL_Error = Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY; the event's master log master-bin.000001, end_log_pos 347 (expected "duplicate key" error)
 SELECT * FROM t1;
 a
 1
@@ -50,7 +50,7 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Wait until slave stops with an error ----
-Last_SQL_Error = Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_KEY_NOT_FOUND; the event's master log master-bin.000001, end_log_pos 982 (expected "can't find record" error)
+Last_SQL_Error = Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_KEY_NOT_FOUND; the event's master log master-bin.000001, end_log_pos 983 (expected "can't find record" error)
 SELECT * FROM t1;
 a
 ---- Resolve the conflict on the slave and restart SQL thread ----
