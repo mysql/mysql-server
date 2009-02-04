@@ -309,6 +309,10 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488O -l 10 T6 D1 D2 
 
+max-time: 500
+cmd: testScan
+args: -n Bug42559 T6 D1 D2 
+
 max-time: 1000
 cmd: testScan
 args: -n ScanRead488T -l 10 T6 D1 D2 

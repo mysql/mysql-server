@@ -15235,8 +15235,21 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }//if
   if (signal->theData[0] == DumpStateOrd::DihMinTimeBetweenLCP) {
     // Set time between LCP to min value
-    g_eventLogger->info("Set time between LCP to min value");
-    c_lcpState.clcpDelay = 0; // TimeBetweenLocalCheckpoints.min
+    if (signal->getLength() == 2)
+    {
+      Uint32 tmp;
+      const ndb_mgm_configuration_iterator * p = 
+	m_ctx.m_config.getOwnConfigIterator();
+      ndbrequire(p != 0);
+      ndb_mgm_get_int_parameter(p, CFG_DB_LCP_INTERVAL, &tmp);
+      g_eventLogger->info("Reset time between LCP to %u", tmp);
+      c_lcpState.clcpDelay = tmp;
+    }
+    else
+    {
+      g_eventLogger->info("Set time between LCP to min value");
+      c_lcpState.clcpDelay = 0; // TimeBetweenLocalCheckpoints.min
+    }
     return;
   }
   if (signal->theData[0] == DumpStateOrd::DihMaxTimeBetweenLCP) {
