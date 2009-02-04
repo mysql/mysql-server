@@ -1863,12 +1863,52 @@ buf_block_align(
 			buf_block_init() so that block[n].frame ==
 			block->frame + n * UNIV_PAGE_SIZE.  Check it. */
 			ut_ad(block->frame == page_align(ptr));
-			/* The space id and page number should be
-			stamped on the page. */
-			ut_ad(block->page.space
-			      == page_get_space_id(page_align(ptr)));
-			ut_ad(block->page.offset
-			      == page_get_page_no(page_align(ptr)));
+#ifdef UNIV_DEBUG
+			/* A thread that updates these fields must
+			hold buf_pool_mutex and block->mutex.  Acquire
+			only the latter. */
+			mutex_enter(&block->mutex);
+
+			switch (buf_block_get_state(block)) {
+			case BUF_BLOCK_ZIP_FREE:
+			case BUF_BLOCK_ZIP_PAGE:
+			case BUF_BLOCK_ZIP_DIRTY:
+				/* These types should only be used in
+				the compressed buffer pool, whose
+				memory is allocated from
+				buf_pool->chunks, in UNIV_PAGE_SIZE
+				blocks flagged as BUF_BLOCK_MEMORY. */
+				ut_error;
+				break;
+			case BUF_BLOCK_NOT_USED:
+			case BUF_BLOCK_READY_FOR_USE:
+			case BUF_BLOCK_MEMORY:
+				/* Some data structures contain
+				"guess" pointers to file pages.  The
+				file pages may have been freed and
+				reused.  Do not complain. */
+				break;
+			case BUF_BLOCK_REMOVE_HASH:
+				/* buf_LRU_block_remove_hashed_page()
+				will overwrite the FIL_PAGE_OFFSET and
+				FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID with
+				0xff and set the state to
+				BUF_BLOCK_REMOVE_HASH. */
+				ut_ad(page_get_space_id(page_align(ptr))
+				      == 0xffffffff);
+				ut_ad(page_get_page_no(page_align(ptr))
+				      == 0xffffffff);
+				break;
+			case BUF_BLOCK_FILE_PAGE:
+				ut_ad(block->page.space
+				      == page_get_space_id(page_align(ptr)));
+				ut_ad(block->page.offset
+				      == page_get_page_no(page_align(ptr)));
+				break;
+			}
+
+			mutex_exit(&block->mutex);
+#endif /* UNIV_DEBUG */
 
 			return(block);
 		}
