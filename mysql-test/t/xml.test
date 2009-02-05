@@ -575,5 +575,19 @@ SELECT ExtractValue(@xml, 'html/body');
 SELECT ExtractValue('<xml "xxx" "yyy">CharData</xml>', '/xml');
 SELECT ExtractValue('<xml  xxx  "yyy">CharData</xml>', '/xml');
 
+#
+# Bug#42495 updatexml: Assertion failed: xpath->context, file .\item_xmlfunc.cc, line 2507
+#
+set @x=10;
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','$@x/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','round(123.4)/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','1/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','"b"/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','(1)/a');
 
 --echo End of 5.1 tests
