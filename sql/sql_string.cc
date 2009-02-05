@@ -72,26 +72,26 @@ bool String::realloc(uint32 alloc_length)
     if (alloced)
     {
       if ((new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))
-      {
-	Ptr=new_ptr;
-	Alloced_length=len;
-      }
+        new_ptr[alloc_length]= 0;
       else
-	return TRUE;				// Signal error
+        return TRUE;				// Signal error
     }
     else if ((new_ptr= (char*) my_malloc(len,MYF(MY_WME))))
     {
+      if (str_length > len - 1)
+        str_length= 0;
       if (str_length)				// Avoid bugs in memcpy on AIX
-	memcpy(new_ptr,Ptr,str_length);
-      new_ptr[str_length]=0;
-      Ptr=new_ptr;
-      Alloced_length=len;
+        memcpy(new_ptr, Ptr, str_length);
+      new_ptr[str_length]= 0;
       alloced=1;
     }
     else
       return TRUE;			// Signal error
+    Ptr= new_ptr;
+    Alloced_length= len;
   }
-  Ptr[alloc_length]=0;			// This make other funcs shorter
+  else
+    Ptr[alloc_length]= 0;
   return FALSE;
 }
 
