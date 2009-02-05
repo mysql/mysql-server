@@ -21,6 +21,22 @@ insert into t1 values ('a');
 select * from t1 where c1='b';
 drop table t1;
 
+
+#
+# Bug#41084 full-text index added to custom UCA collation not working
+#
+CREATE TABLE t1 (
+  col1 varchar(100) character set utf8 collate utf8_test_ci
+);
+INSERT INTO t1 (col1) VALUES ('abcd'),('efgh'),('ijkl');
+ALTER TABLE t1 ADD FULLTEXT INDEX (col1);
+SELECT * FROM t1 where match (col1) against ('abcd');
+SELECT * FROM t1 where match (col1) against ('abcd' IN BOOLEAN MODE);
+ALTER TABLE t1 ADD (col2 varchar(100) character set latin1);
+UPDATE t1 SET col2=col1;
+SELECT * FROM t1 WHERE col1=col2 ORDER BY col1;
+DROP TABLE t1;
+
 #
 #  Vietnamese experimental collation
 #
