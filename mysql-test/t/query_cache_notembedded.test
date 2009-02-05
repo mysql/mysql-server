@@ -1,6 +1,10 @@
 -- source include/have_query_cache.inc
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 #
 # Tests with query cache
 #
@@ -79,7 +83,7 @@ show status like "Qcache_free_blocks";
 drop table t1, t2, t3, t11, t21;
 
 #
-# do not use QC if tables locked (BUG#12385)
+# do not use QC if tables locked (Bug#12385)
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
@@ -96,10 +100,13 @@ SELECT * FROM t1;
 connection root;
 SELECT * FROM t1;
 drop table t1;
+connection default;
+disconnect root;
+disconnect root2;
 
 #
-# query in QC from normal execution and SP (BUG#6897)
-# improved to also test BUG#3583 and BUG#12990
+# query in QC from normal execution and SP (Bug#6897)
+# improved to also test Bug#3583 and Bug#12990
 #
 flush query cache;
 reset query cache;
@@ -181,7 +188,7 @@ drop procedure f4;
 drop table t1;
 
 #
-# bug#14767: INSERT in SF + concurrent SELECT with query cache
+# Bug#14767 INSERT in SF + concurrent SELECT with query cache
 #
 reset query cache;
 --disable_warnings
@@ -223,4 +230,36 @@ connection default;
 
 set GLOBAL query_cache_size=0;
 
+#
+# Bug#40264: Aborted cached query causes query to hang indefinitely on next cache hit
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+FLUSH STATUS;
+SET GLOBAL query_cache_size=1048576;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+LOCK TABLES t1 WRITE;
+connect(con1,localhost,root,,);
+--send SELECT * FROM t1
+connection default;
+let $show_type= open tables where `table`='t1' and in_use=2;
+let $show_pattern= '%t1%2%';
+--source include/wait_show_pattern.inc
+dirty_close con1;
+UNLOCK TABLES;
+let $show_type= open tables where `table`='t1' and in_use=0;
+let $show_pattern= '%t1%0%';
+--source include/wait_show_pattern.inc
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+DROP TABLE t1;
+SET GLOBAL query_cache_size= default;
+
 # End of 5.0 tests
+
+# Wait till we reached the initial number of concurrent sessions
+#--source include/wait_until_count_sessions.inc
