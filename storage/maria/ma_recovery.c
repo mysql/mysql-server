@@ -2809,7 +2809,8 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
       cmp_translog_addr(share->lsn_of_file_id, horizon) < 0)
   {
     share->state.is_of_horizon= horizon;
-    _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
+    _ma_state_info_write_sub(share->kfile.file, &share->state,
+                             MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET);
   }
 
   /*
@@ -3364,7 +3365,9 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
       */
       if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                                 FLUSH_RELEASE, FLUSH_RELEASE) ||
-          _ma_state_info_write(share, 1|4) ||
+          _ma_state_info_write(share,
+                               MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                               MA_STATE_INFO_WRITE_LOCK) ||
           _ma_sync_table_files(info))
         DBUG_RETURN(1);
     }

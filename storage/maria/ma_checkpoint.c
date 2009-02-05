@@ -368,7 +368,9 @@ static void flush_all_tables(int what_to_flush)
                                    FLUSH_KEEP, FLUSH_KEEP);
         break;
       case 1:
-        res= _ma_state_info_write(info->s, 1|4);
+        res= _ma_state_info_write(info->s,
+                                  MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET|
+                                  MA_STATE_INFO_WRITE_LOCK);
         DBUG_PRINT("maria_flush_states",
                    ("is_of_horizon: LSN (%lu,0x%lx)",
                     LSN_IN_PARTS(info->s->state.is_of_horizon)));
@@ -1046,7 +1048,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           state_copies_horizon;
         if (kfile.file >= 0)
           sync_error|=
-            _ma_state_info_write_sub(kfile.file, &state_copy->state, 1);
+            _ma_state_info_write_sub(kfile.file, &state_copy->state,
+                                     MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET);
         /*
           We don't set share->changed=0 because it may interfere with a
           concurrent _ma_writeinfo() doing share->changed=1 (cancel its
