@@ -365,7 +365,7 @@ ErrorBundle ErrorCodes[] = {
   { 708,  DMEC, SE, "No more attribute metadata records (increase MaxNoOfAttributes)" },
   { 709,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 710,  DMEC, SE, "Internal: Get by table name not supported, use table id." },
-  { 721,  HA_ERR_TABLE_EXIST,   OE, "Table or index with given name already exists" },
+  { 721,  HA_ERR_TABLE_EXIST,   OE, "Schema object with given name already exists" },
   { 723,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 736,  DMEC, SE, "Unsupported array size" },
   { 737,  HA_WRONG_CREATE_OPTION, SE, "Attribute array size too big" },
