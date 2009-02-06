@@ -54,7 +54,7 @@ libfederated_a_LIBADD = probes_mysql.o
 libfederated_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
 DTRACEFILES = libfederated_a-ha_federated.o
-DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
