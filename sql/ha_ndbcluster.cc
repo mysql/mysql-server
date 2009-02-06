@@ -2243,7 +2243,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   const NdbRecord *key_rec;
   const uchar *key_row;
 
-  if (old_part_id != ~uint32(0))
+  if (m_user_defined_partitioning)
   {
     options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
     options.partitionId=old_part_id;
@@ -3807,7 +3807,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
   }
 
-  while (m_use_partition_pruning)
+  bool skip_partition_for_unique_index= FALSE;
+  if (m_use_partition_pruning)
   {
     if (!cursor && m_read_before_write_removal_used)
     {
@@ -3820,7 +3821,10 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       */
       if (type == UNIQUE_INDEX ||
           type == UNIQUE_ORDERED_INDEX)
-        break;
+      {
+        skip_partition_for_unique_index= TRUE;
+        goto skip_partition_pruning;
+      }
     }
     if ((error= get_parts_for_update(old_data, new_data, table->record[0],
                                      m_part_info, &old_part_id, &new_part_id,
@@ -3829,7 +3833,9 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       m_part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
-    break;
+    DBUG_PRINT("info", ("old_part_id: %u  new_part_id: %u", old_part_id, new_part_id));
+  skip_partition_pruning:
+    (void)0;
   }
 
   /*
@@ -3865,8 +3871,10 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   NdbOperation::OperationOptions options;
   options.optionsPresent=0;
 
-  /* Need to set the value of any user-defined partitioning function. */
-  if (new_part_id != ~uint32(0))
+  /* Need to set the value of any user-defined partitioning function. 
+     (excecpt for when using unique index)
+  */
+  if (m_user_defined_partitioning && !skip_partition_for_unique_index)
   {
     if (func_value >= INT_MAX32)
       func_value_uint32= INT_MAX32;
@@ -4073,7 +4081,8 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
 
-  while (m_use_partition_pruning)
+  bool skip_partition_for_unique_index= FALSE;
+  if (m_use_partition_pruning)
   {
     if (!cursor && m_read_before_write_removal_used)
     {
@@ -4086,14 +4095,18 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       */
       if (type == UNIQUE_INDEX ||
           type == UNIQUE_ORDERED_INDEX)
-        break;
+      {
+        skip_partition_for_unique_index= TRUE;
+        goto skip_partition_pruning;
+      }
     }
     if ((error= get_part_for_delete(record, table->record[0], m_part_info,
                                     &part_id)))
     {
       DBUG_RETURN(error);
     }
-    break;
+  skip_partition_pruning:
+    (void)0;
   }
 
   NdbOperation::OperationOptions options;
@@ -4138,7 +4151,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     const NdbRecord *key_rec;
     const uchar *key_row;
 
-    if (part_id != ~uint32(0))
+    if (m_user_defined_partitioning && !skip_partition_for_unique_index)
     {
       options.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
       options.partitionId= part_id;

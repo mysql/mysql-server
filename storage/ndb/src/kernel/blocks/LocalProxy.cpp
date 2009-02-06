@@ -543,34 +543,39 @@ LocalProxy::execREAD_NODESREF(Signal* signal)
 void
 LocalProxy::execNODE_FAILREP(Signal* signal)
 {
-  Ss_NODE_FAILREP& ss = ssSeize<Ss_NODE_FAILREP>(1);
+  Ss_NODE_FAILREP& ss = ssFindSeize<Ss_NODE_FAILREP>(1, 0);
   const NodeFailRep* req = (const NodeFailRep*)signal->getDataPtr();
   ss.m_req = *req;
   ndbrequire(signal->getLength() == NodeFailRep::SignalLength);
+
+  NdbNodeBitmask mask;
+  mask.assign(NdbNodeBitmask::Size, req->theNodes);
 
   // proxy itself
   NodePtr nodePtr;
   c_nodeList.first(nodePtr);
   ndbrequire(nodePtr.i != RNIL);
-  while (nodePtr.i != RNIL) {
-    if (NdbNodeBitmask::get(req->theNodes, nodePtr.p->m_nodeId)) {
+  while (nodePtr.i != RNIL)
+  {
+    if (NdbNodeBitmask::get(req->theNodes, nodePtr.p->m_nodeId))
+    {
       jam();
-      ndbrequire(nodePtr.p->m_alive);
       nodePtr.p->m_alive = false;
     }
     c_nodeList.next(nodePtr);
   }
 
   // from each worker wait for ack for each failed node
-  Uint32 i;
-  for (i = 0; i < c_workers; i++) {
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
     jam();
     NdbNodeBitmask& waitFor = ss.m_waitFor[i];
-    waitFor.assign(NdbNodeBitmask::Size, req->theNodes);
+    waitFor.bitOR(mask);
   }
 
   sendREQ(signal, ss);
-  if (ss.noReply(number())) {
+  if (ss.noReply(number()))
+  {
     jam();
     ssRelease<Ss_NODE_FAILREP>(ss);
   }
@@ -600,46 +605,40 @@ LocalProxy::sendNF_COMPLETEREP(Signal* signal, Uint32 ssId)
 {
   Ss_NODE_FAILREP& ss = ssFind<Ss_NODE_FAILREP>(ssId);
 
+  const NFCompleteRep* conf = (const NFCompleteRep*)signal->getDataPtr();
+  Uint32 node = conf->failedNodeId;
+
   {
-    const NFCompleteRep* conf = (const NFCompleteRep*)signal->getDataPtr();
-
     NdbNodeBitmask& waitFor = ss.m_waitFor[ss.m_worker];
-    ndbrequire(waitFor.get(conf->failedNodeId));
-    waitFor.clear(conf->failedNodeId);
-    
-    if (!waitFor.isclear()) {
-      // worker has not replied for all failed nodes
-      skipConf(ss);
-    }
+    ndbrequire(waitFor.get(node));
+    waitFor.clear(node);
   }
 
-  if (!lastReply(ss))
-    return;
-
-  NdbNodeBitmask theNodes;
-  theNodes.assign(NdbNodeBitmask::Size, ss.m_req.theNodes);
-
-  NodePtr nodePtr;
-  c_nodeList.first(nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  while (nodePtr.i != RNIL) {
-    if (theNodes.get(nodePtr.p->m_nodeId)) {
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    NdbNodeBitmask& waitFor = ss.m_waitFor[i];
+    if (waitFor.get(node))
+    {
       jam();
-      NFCompleteRep* conf = (NFCompleteRep*)signal->getDataPtrSend();
-      conf->blockNo = number();
-      conf->nodeId = getOwnNodeId();
-      conf->failedNodeId = nodePtr.p->m_nodeId;
-      conf->unused = 0;
-      conf->from = __LINE__;
-
-      sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP,
-                 signal, NFCompleteRep::SignalLength, JBB);
+      /**
+       * Not all threads are done with this failed node
+       */
+      return;
     }
-
-    c_nodeList.next(nodePtr);
   }
 
-  ssRelease<Ss_NODE_FAILREP>(ssId);
+  {
+    NFCompleteRep* conf = (NFCompleteRep*)signal->getDataPtrSend();
+    conf->blockNo = number();
+    conf->nodeId = getOwnNodeId();
+    conf->failedNodeId = node;
+    conf->unused = 0;
+    conf->from = __LINE__;
+
+    sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP,
+               signal, NFCompleteRep::SignalLength, JBB);
+  }
 }
 
 // GSN_INCL_NODEREQ

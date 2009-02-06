@@ -55,6 +55,8 @@ unsigned int opt_progress_frequency;
 NDB_TICKS g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
+Vector<BaseString> g_include_tables, g_exclude_tables;
+Vector<BaseString> g_include_databases, g_exclude_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
 
@@ -91,7 +93,11 @@ enum ndb_restore_options {
   OPT_APPEND,
   OPT_PROGRESS_FREQUENCY,
   OPT_NO_BINLOG,
-  OPT_VERBOSE
+  OPT_VERBOSE,
+  OPT_INCLUDE_TABLES,
+  OPT_EXCLUDE_TABLES,
+  OPT_INCLUDE_DATABASES,
+  OPT_EXCLUDE_DATABASES
 };
 static const char *opt_fields_enclosed_by= NULL;
 static const char *opt_fields_terminated_by= NULL;
@@ -100,6 +106,10 @@ static const char *opt_lines_terminated_by= NULL;
 
 static const char *tab_path= NULL;
 static int opt_append;
+static const char *opt_exclude_tables= NULL;
+static const char *opt_include_tables= NULL;
+static const char *opt_exclude_databases= NULL;
+static const char *opt_include_databases= NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -215,6 +225,23 @@ static struct my_option my_long_options[] =
     "verbosity", 
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
     GET_INT, REQUIRED_ARG, 1, 0, 255, 0, 0, 0 },
+  { "include-databases", OPT_INCLUDE_DATABASES,
+    "Comma separated list of databases to restore. Example: db1,db3",
+    (uchar**) &opt_include_databases, (uchar**) &opt_include_databases, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-databases", OPT_EXCLUDE_DATABASES,
+    "Comma separated list of databases to not restore. Example: db1,db3",
+    (uchar**) &opt_exclude_databases, (uchar**) &opt_exclude_databases, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "include-tables", OPT_INCLUDE_TABLES, "Comma separated list of tables to "
+    "restore. Table name should include database name. Example: db1.t1,db3.t1", 
+    (uchar**) &opt_include_tables, (uchar**) &opt_include_tables, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-tables", OPT_EXCLUDE_TABLES, "Comma separated list of tables to "
+    "not restore. Table name should include database name. "
+    "Example: db1.t1,db3.t1",
+    (uchar**) &opt_exclude_tables, (uchar**) &opt_exclude_tables, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -384,10 +411,71 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
+
+static const char* SCHEMA_NAME="/def/";
+static const int SCHEMA_NAME_SIZE= 5;
+
+int
+makeInternalTableName(const BaseString &externalName, 
+                      BaseString& internalName)
+{
+  // Make dbname.table1 into dbname/def/table1
+  Vector<BaseString> parts;
+
+  // Must contain a dot
+  if (externalName.indexOf('.') == -1)
+    return -1;
+  externalName.split(parts,".");
+  // .. and only 1 dot
+  if (parts.size() != 2)
+    return -1;
+  internalName.clear();
+  internalName.append(parts[0]); // db name
+  internalName.append(SCHEMA_NAME); // /def/
+  internalName.append(parts[1]); // table name
+  return 0;
+}
+
+void
+processTableList(const char* str, Vector<BaseString> &lst)
+{
+  // Process tables list like db1.t1,db2.t1 and exits when
+  // it finds problems.
+  unsigned int i;
+  /* Split passed string on comma into 2 BaseStrings in the vector */
+  BaseString(str).split(lst,",");
+  for (i=0; i < lst.size(); i++)
+  {
+    BaseString internalName;
+    if (makeInternalTableName(lst[i], internalName))
+    {
+      info << "`" << lst[i] << "` is not a valid tablename!" << endl;
+      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    }
+    lst[i].assign(internalName);
+  }
+}
+
+BaseString
+makeExternalTableName(const BaseString &internalName)
+{
+   // Make dbname/def/table1 into dbname.table1
+  int idx;
+  BaseString externalName;
+  
+  idx = internalName.indexOf('/');
+  externalName = internalName.substr(0,idx);
+  externalName.append(".");
+  externalName.append(internalName.substr(idx + SCHEMA_NAME_SIZE,
+                                          internalName.length()));
+  return externalName;
+}
+
 bool
 readArguments(int *pargc, char*** pargv) 
 {
   Uint32 i;
+  BaseString tmp;
   debug << "Load defaults" << endl;
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
@@ -536,9 +624,13 @@ o verify nodegroup mapping
   info << "backup path = " << ga_backupPath << endl;
   if (g_databases.size() > 0)
   {
+    info << "WARNING! Using deprecated syntax for selective object restoration." << endl;
+    info << "Please use --include-*/--exclude-* options in future." << endl;
     info << "Restoring only from database " << g_databases[0].c_str() << endl;
     if (g_tables.size() > 0)
-      info << "Restoring only tables:";
+    {
+        info << "Restoring tables:";
+    }
     for (unsigned i= 0; i < g_tables.size(); i++)
     {
       info << " " << g_tables[i].c_str();
@@ -546,6 +638,53 @@ o verify nodegroup mapping
     if (g_tables.size() > 0)
       info << endl;
   }
+  
+  if (opt_include_databases)
+  {
+    tmp = BaseString(opt_include_databases);
+    tmp.split(g_include_databases,",");
+    info << "Including Databases: ";
+    for (i= 0; i < g_include_databases.size(); i++)
+    {
+      info << g_include_databases[i] << " ";
+    }
+    info << endl;
+  }
+  
+  if (opt_exclude_databases)
+  {
+    tmp = BaseString(opt_exclude_databases);
+    tmp.split(g_exclude_databases,",");
+    info << "Excluding databases: ";
+    for (i= 0; i < g_exclude_databases.size(); i++)
+    {
+      info << g_exclude_databases[i] << " ";
+    }
+    info << endl;
+  }
+  
+  if (opt_include_tables)
+  {
+    processTableList(opt_include_tables, g_include_tables);
+    info << "Including tables: ";
+    for (i= 0; i < g_include_tables.size(); i++)
+    {
+      info << makeExternalTableName(g_include_tables[i]).c_str() << " ";
+    }
+    info << endl;
+  }
+  
+  if (opt_exclude_tables)
+  {
+    processTableList(opt_exclude_tables, g_exclude_tables);
+    info << "Excluding tables: ";
+    for (i= 0; i < g_exclude_tables.size(); i++)
+    {
+      info << makeExternalTableName(g_exclude_tables[i]).c_str() << " ";
+    }
+    info << endl;
+  }
+  
   /*
     the below formatting follows the formatting from mysqldump
     do not change unless to adopt to changes in mysqldump
@@ -602,15 +741,20 @@ isIndex(const TableS* table)
 }
 
 static inline bool
-checkDbAndTableName(const TableS* table)
+isInList(BaseString &needle, Vector<BaseString> &lst)
 {
-  if (g_tables.size() == 0 &&
-      g_databases.size() == 0)
-    return true;
-  if (g_databases.size() == 0)
-    g_databases.push_back("TEST_DB");
+  unsigned int i= 0;
+  for (i= 0; i < lst.size(); i++)
+  {
+    if (strcmp(needle.c_str(), lst[i].c_str()) == 0)
+      return true;
+  }
+  return false;
+}
 
-  // Filter on the main table name for indexes and blobs
+const char*
+getTableName(const TableS* table)
+{
   const char *table_name;
   if (isBlobTable(table))
     table_name= table->getMainTable()->getTableName();
@@ -619,6 +763,67 @@ checkDbAndTableName(const TableS* table)
       NdbTableImpl::getImpl(*table->m_dictTable).m_primaryTable.c_str();
   else
     table_name= table->getTableName();
+    
+  return table_name;
+}
+
+static inline bool
+checkDoRestore(const TableS* table)
+{
+  int idx;
+  bool ret = true;
+  BaseString db, tbl;
+  
+  tbl.assign(getTableName(table));
+  idx = tbl.indexOf('/');
+  db = tbl.substr(0, idx);
+  
+  /* Included tables overrides
+   * Excluded tables which overrides
+   * Included databases which overrides
+   * Excluded databases.
+   * If any databases are included, then only
+   * included databases are restored.
+   * If any tables are included, then only
+   * included tables are restored.
+   */
+
+  if (g_exclude_databases.size() != 0) {
+    if (isInList(db, g_exclude_databases))
+      ret = false;
+  }
+  if (g_include_databases.size() != 0) {
+    ret= isInList(db, g_include_databases);
+  }
+  
+  if (g_exclude_tables.size() != 0) {
+    if (isInList(tbl, g_exclude_tables))
+      ret = false;
+  }
+  if (g_include_tables.size() != 0) {
+    ret= isInList(tbl, g_include_tables);
+  }
+  
+  return ret;
+}
+
+static inline bool
+checkDbAndTableName(const TableS* table)
+{
+  // If new options are given, ignore the old format
+  if (opt_include_tables || opt_exclude_tables ||
+      opt_include_databases || opt_exclude_databases ) {
+    return (checkDoRestore(table));
+  }
+  
+  if (g_tables.size() == 0 && g_databases.size() == 0)
+    return true;
+
+  if (g_databases.size() == 0)
+    g_databases.push_back("TEST_DB");
+
+  // Filter on the main table name for indexes and blobs
+  const char *table_name= getTableName(table);
 
   unsigned i;
   for (i= 0; i < g_databases.size(); i++)
@@ -641,13 +846,11 @@ checkDbAndTableName(const TableS* table)
   while (*table_name != '/') table_name++;
   table_name++;
 
+  // Check if table should be restored
   for (i= 0; i < g_tables.size(); i++)
   {
     if (strcmp(table_name, g_tables[i].c_str()) == 0)
-    {
-      // we have a match
       return true;
-    }
   }
   return false;
 }
