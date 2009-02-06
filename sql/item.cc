@@ -321,7 +321,7 @@ int Item::save_time_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_time(&ltime))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_TIME);
 }
@@ -331,7 +331,7 @@ int Item::save_date_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
@@ -1243,13 +1243,26 @@ Item::Type Item_name_const::type() const
     valid_args guarantees value_item->basic_const_item(); if type is
     FUNC_ITEM, then we have a fudged item_func_neg() on our hands
     and return the underlying type.
+    For Item_func_set_collation()
+    e.g. NAME_CONST('name', 'value' COLLATE collation) we return its
+    'value' argument type. 
   */
-  return valid_args ?
-             (((value_item->type() == FUNC_ITEM) &&
-               (((Item_func *) value_item)->functype() == Item_func::NEG_FUNC)) ?
-             ((Item_func *) value_item)->key_item()->type() :
-             value_item->type()) :
-           NULL_ITEM;
+  if (!valid_args)
+    return NULL_ITEM;
+  Item::Type value_type= value_item->type();
+  if (value_type == FUNC_ITEM)
+  {
+    /* 
+      The second argument of NAME_CONST('name', 'value') must be 
+      a simple constant item or a NEG_FUNC/COLLATE_FUNC.
+    */
+    DBUG_ASSERT(((Item_func *) value_item)->functype() == 
+                Item_func::NEG_FUNC ||
+                ((Item_func *) value_item)->functype() == 
+                Item_func::COLLATE_FUNC);
+    return ((Item_func *) value_item)->key_item()->type();            
+  }
+  return value_type;
 }
 
 
@@ -2038,6 +2051,12 @@ bool Item_field::val_bool_result()
     DBUG_ASSERT(0);
     return 0;                                   // Shut up compiler
   }
+}
+
+
+bool Item_field::is_null_result()
+{
+  return (null_value=result_field->is_null());
 }
 
 
@@ -5629,6 +5648,15 @@ double Item_ref::val_result()
 }
 
 
+bool Item_ref::is_null_result()
+{
+  if (result_field)
+    return (null_value=result_field->is_null());
+
+  return is_null();
+}
+
+
 longlong Item_ref::val_int_result()
 {
   if (result_field)
@@ -5734,7 +5762,9 @@ String *Item_ref::val_str(String* tmp)
 bool Item_ref::is_null()
 {
   DBUG_ASSERT(fixed);
-  return (*ref)->is_null();
+  bool tmp=(*ref)->is_null_result();
+  null_value=(*ref)->null_value;
+  return tmp;
 }
 
 
