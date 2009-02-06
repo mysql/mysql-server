@@ -2048,7 +2048,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
-  pthread_key_delete pthread_rwlock_rdlock pthread_setprio pthread_setschedprio \
+  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
@@ -2068,6 +2068,15 @@ case "$target" in
 	# thread library we use conflicts with other headers.
     ;;
  *) AC_CHECK_FUNCS(clock_gettime)
+    ;;
+esac
+
+case "$mysql_cv_sys_os" in
+ OS400) # i5/OS (OS/400) emits a SIGILL (Function not implemented) when
+        # unsupported priority values are passed to pthread_setschedprio.
+        # Since the only supported value is 1, treat it as inexistent.
+    ;;
+ *) AC_CHECK_FUNCS(pthread_setschedprio)
     ;;
 esac
 
