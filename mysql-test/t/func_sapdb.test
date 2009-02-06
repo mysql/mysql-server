@@ -151,4 +151,22 @@ select timediff('2008-09-29 20:10:10','2008-09-30 20:10:10')<time('00:00:00');
 SELECT CAST(time('-73:42:12') AS DECIMAL);
 
 
+
+#
+# Bug#42525 - TIMEDIFF function
+#
+
+SELECT TIMEDIFF(TIME('17:00:00'),TIME('17:00:00'))=TIME('00:00:00') AS 1Eq,
+       TIMEDIFF(TIME('17:59:00'),TIME('17:00:00'))=TIME('00:00:00') AS 1NEq1,
+       TIMEDIFF(TIME('18:00:00'),TIME('17:00:00'))=TIME('00:00:00') AS 1NEq2,
+       TIMEDIFF(TIME('17:00:00'),TIME('17:00:00'))=     '00:00:00'  AS 2Eq,
+       TIMEDIFF(TIME('17:59:00'),TIME('17:00:00'))=     '00:00:00'  AS 2NEq1,
+       TIMEDIFF(TIME('18:00:00'),TIME('17:00:00'))=     '00:00:00'  AS 2NEq2,
+       TIMEDIFF(TIME('17:00:00'),TIME('17:00:00'))=TIME(0)          AS 3Eq,
+       TIMEDIFF(TIME('17:59:00'),TIME('17:00:00'))=TIME(0)          AS 3NEq1,
+       TIMEDIFF(TIME('18:00:00'),TIME('17:00:00'))=TIME(0)          AS 3NEq2,
+       TIME(0) AS Time0, TIME('00:00:00') AS Time00, '00:00:00' AS Literal0000,
+       TIMEDIFF(TIME('17:59:00'),TIME('17:00:00')),
+       TIMEDIFF(TIME('17:00:00'),TIME('17:59:00'));
+
 # End of 5.0 tests
