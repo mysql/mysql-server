@@ -92,8 +92,8 @@ endif
 TLRECOVER = 2 3 4 5 6 7 8 9 10
 
 EXTRA_TDB_TESTS = \
-	test_db_assoc3.tdbrun_wasbad \
 	$(patsubst %,test_log%.recover,$(TLRECOVER)) \
+#	test_db_assoc3.tdbrun_wasbad \# Obsolete right now.
 #\ ends prev line
 
 RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS)
@@ -304,11 +304,12 @@ tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 
 # test1426 is run by comparing the BDB output to the TDB output
 test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
-	./test1426.tdb -q
-	./test1426.bdb -q
-	$(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426
-	../../utils/tokudb_dump$(BINSUF) -p -h dir.test1426.c.tdb main > dump.tdb.1426
-	diff -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426
+	(./test1426.tdb -q && \
+	 ./test1426.bdb -q && \
+	 $(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426 && \
+	 ../../utils/tokudb_dump$(BINSUF) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
+	 diff -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
+	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme

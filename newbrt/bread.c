@@ -39,7 +39,7 @@ ssize_t bread_backwards(BREAD br, void *vbuf, size_t nbytes) {
 	    result             += to_copy;
 	    br->bufoff         -= to_copy;
 	}
-	if (nbytes>0) { 
+	if (nbytes>0) {
 	    assert(br->bufoff==0);
 	    u_int32_t compressed_length_n, uncompressed_length_n;
 	    assert(br->fileoff>=i4); // there better be the three lengths plus the compressed data.

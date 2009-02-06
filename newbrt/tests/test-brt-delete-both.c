@@ -29,15 +29,22 @@ doit (void) {
     r = toku_brt_delete_both(t, toku_fill_dbt(&k, "a", 2), toku_fill_dbt(&v, "y", 2), null_txn);
     assert(r==0);
 
-    r = toku_brt_lookup(t, toku_fill_dbt(&k, "a", 2), toku_init_dbt(&v));
-    assert(r==0);
-    assert(v.size==2 && strcmp(v.data, "x")==0);
+    {
+	struct check_pair pair = {len_ignore, 0, 2, "x", 0};
+	r = toku_brt_lookup(t, toku_fill_dbt(&k, "a", 2), NULL, lookup_checkf, &pair);
+	assert(r==0);
+	assert(pair.call_count==1);
+    }
 
     r = toku_brt_delete_both(t, toku_fill_dbt(&k, "a", 2), toku_fill_dbt(&v, "x", 2), null_txn);
     assert(r==0);
     
-    r = toku_brt_lookup(t, toku_fill_dbt(&k, "a", 2), toku_init_dbt(&v));
-    assert(r==DB_NOTFOUND);
+    {
+	struct check_pair pair = {0,0,0,0,0};
+	r = toku_brt_lookup(t, toku_fill_dbt(&k, "a", 2), NULL, lookup_checkf, &pair);
+	assert(r==DB_NOTFOUND);
+	assert(pair.call_count==0);
+    }
 
     r = toku_close_brt(t, 0, 0);        assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);

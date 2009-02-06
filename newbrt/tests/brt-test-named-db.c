@@ -31,10 +31,7 @@ static void test_named_db (void) {
     r = toku_open_brt(n0, "db1", 0, &t0, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
 
     {
-	r = toku_brt_lookup(t0, toku_fill_dbt(&k, "good", 5), toku_init_dbt(&v));
-	assert(r==0);
-	assert(v.size==4);
-	assert(strcmp(v.data,"day")==0);
+	brt_lookup_and_check_nodup(t0, "good", "day");
     }
 
     r = toku_close_brt(t0, 0, 0); assert(r==0);

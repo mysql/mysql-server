@@ -15,7 +15,7 @@ struct block_allocator {
     u_int64_t reserve_at_beginning; // How much to reserve at the beginning
     u_int64_t alignment;            // Block alignment
     u_int64_t n_blocks; // How many blocks
-    u_int64_t blocks_array_size; // How big is the blocks_array.  Must be >= n_blocks. 
+    u_int64_t blocks_array_size; // How big is the blocks_array.  Must be >= n_blocks.
     struct blockpair *blocks_array; // These blocks are sorted by address.
     u_int64_t next_fit_counter; // Used for the next_fit algorithm.
 };
@@ -51,7 +51,7 @@ block_allocator_print (BLOCK_ALLOCATOR ba) {
 
 void
 create_block_allocator (BLOCK_ALLOCATOR *ba, u_int64_t reserve_at_beginning, u_int64_t alignment) {
-    BLOCK_ALLOCATOR XMALLOC(result);    
+    BLOCK_ALLOCATOR XMALLOC(result);
     result->reserve_at_beginning = reserve_at_beginning;
     result->alignment = alignment;
     result->n_blocks = 0;
@@ -105,7 +105,7 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
     ba->n_blocks++;
     VALIDATE(ba);
 }
-    
+
 static inline u_int64_t
 align (u_int64_t value, BLOCK_ALLOCATOR ba) {
     return ((value+ba->alignment-1)/ba->alignment)*ba->alignment;

@@ -33,12 +33,9 @@ struct __toku_db_internal {
     int open_mode;
     BRT brt;
     FILENUM fileid;
-    struct list associated; // All the associated databases.  The primary is the head of the list.
-    DB *primary;            // For secondary (associated) databases, what is the primary?  NULL if not a secondary.
-    int(*associate_callback)(DB*, const DBT*, const DBT*, DBT*); // For secondary, the callback function for associate.  NULL if not secondary
-    int associate_is_immutable; // If this DB is a secondary then this field indicates that the index never changes due to updates.
     struct __toku_lock_tree* lt;
     toku_db_id* db_id;
+    struct simple_dbt skey, sval; // static key and value
 };
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
@@ -81,6 +78,8 @@ struct __toku_db_txn_internal {
 struct __toku_dbc_internal {
     BRT_CURSOR c;
     DB_TXN *txn;
+    struct simple_dbt skey_s,sval_s;
+    struct simple_dbt *skey,*sval;
 };
 
 

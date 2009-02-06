@@ -11,6 +11,11 @@
 #include <limits.h>
 #if defined(USE_TDB)
 #include "ydb.h"
+//TDB uses DB_NOTFOUND for c_del and DB_CURRENT errors.
+#ifdef DB_KEYEMPTY
+#error
+#endif
+#define DB_KEYEMPTY DB_NOTFOUND
 #endif
 #ifndef DB_YESOVERWRITE
 #define DB_YESOVERWRITE 0

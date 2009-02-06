@@ -138,6 +138,9 @@ test_main(int argc, const char *argv[]) {
             if (flags[j] == DB_DBT_REALLOC) {
                 ulen_should_change = (BOOL)(old_ulen < sizeof(DATA));
             }
+            else if (flags[j] == DB_DBT_MALLOC) {
+                ulen_should_change = (BOOL)(old_ulen != sizeof(DATA)*2);
+            }
 #endif
             assert(ulen_should_change == (BOOL)ulen_changed);
             assert(size_full);

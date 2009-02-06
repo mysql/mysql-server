@@ -42,6 +42,13 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
 
+static inline DBT*
+init_dbt_realloc(DBT *dbt) {
+    memset(dbt, 0, sizeof(*dbt));
+    dbt->flags = DB_DBT_REALLOC;
+    return dbt;
+}
+
 static void
 toku_ydb_init_malloc(void) {
 #if defined(TOKU_WINDOWS) && TOKU_WINDOWS
@@ -67,6 +74,11 @@ void toku_ydb_init(void) {
 void toku_ydb_destroy(void) {
     toku_brt_destroy();
     toku_ydb_lock_destroy();
+}
+
+static int
+ydb_getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
+    return 0;
 }
 
 /* the ydb reference is used to cleanup the library when there are no more references to it */
@@ -112,27 +124,34 @@ static inline int db_opened(DB *db) {
 
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
-static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags);
 static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor);
 
 /* txn methods */
 
 /* lightweight cursor methods. */
-static int toku_c_getf_first(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
+static int toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
 
-static int toku_c_getf_last(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
+static int toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
 
-static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
+static int toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
 
-static int toku_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
+static int toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
 
-static int toku_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
+static int toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
 
-static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
-                             void(*f)(DBT const *key, DBT const *value, void *extra_f, int r_h),
-                             void *extra_f,
-                             int (*h)(const DBT *key, const DBT *value, void *extra_h),
-                             void *extra_h, int direction); 
+static int toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra);
+
+static int toku_c_getf_heaviside(DBC *c, u_int32_t flags,
+                                 YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f,
+                                 YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction); 
 // There is a total order on all key/value pairs in the database.
 // In a DB_DUPSORT db, let V_i = (Key,Value) refer to the ith element (0 based indexing).
 // In a NODUP      db, let V_i = (Key)       refer to the ith element (0 based indexing).
@@ -270,16 +289,12 @@ static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
 
 /* cursor methods */
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag);
-static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag);
-static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags);
-static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag);
 static int toku_c_del(DBC *c, u_int32_t flags);
 static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags);
 static int toku_c_close(DBC * c);
 
 /* misc */
 static char *construct_full_name(const char *dir, const char *fname);
-static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary);
     
 #define DO_ENV_FILE 0
 #if DO_ENV_FILE
@@ -1227,81 +1242,7 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
     return 0;
 }
 
-static int maybe_do_associate_create (DB_TXN*txn, DB*primary, DB*secondary) {
-    DBC *dbc;
-    int r = toku_db_cursor(secondary, txn, &dbc, 0, 0);
-    if (r!=0) return r;
-    DBT key,data;
-    r = toku_c_get(dbc, &key, &data, DB_FIRST);
-    {
-	int r2=toku_c_close(dbc);
-	if (r!=DB_NOTFOUND) {
-	    return r2;
-	}
-    }
-    /* Now we know the secondary is empty. */
-    r = toku_db_cursor(primary, txn, &dbc, 0, 0);
-    if (r!=0) return r;
-    for (r = toku_c_get(dbc, &key, &data, DB_FIRST); r==0; r = toku_c_get(dbc, &key, &data, DB_NEXT)) {
-	r = do_associated_inserts(txn, &key, &data, secondary);
-	if (r!=0) {
-	    toku_c_close(dbc);
-	    return r;
-	}
-    }
-    return 0;
-}
-
-static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
-			      int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result),
-			      u_int32_t flags) {
-    HANDLE_PANICKED_DB(primary);
-    HANDLE_PANICKED_DB(secondary);
-    unsigned int brtflags;
-    
-    if (secondary->i->primary) return EINVAL; // The secondary already has a primary
-    if (primary->i->primary)   return EINVAL; // The primary already has a primary
-
-    toku_brt_get_flags(primary->i->brt, &brtflags);
-    if (brtflags & TOKU_DB_DUPSORT) return EINVAL;  //The primary may not have duplicate keys.
-    if (brtflags & TOKU_DB_DUP)     return EINVAL;  //The primary may not have duplicate keys.
-
-    if (!list_empty(&secondary->i->associated)) return EINVAL; // The secondary is in some list (or it is a primary)
-    assert(secondary->i->associate_callback==0);      // Something's wrong if this isn't null we made it this far.
-    secondary->i->associate_callback = callback;
-#ifdef DB_IMMUTABLE_KEY
-    secondary->i->associate_is_immutable = (DB_IMMUTABLE_KEY&flags)!=0;
-    flags &= ~DB_IMMUTABLE_KEY;
-#else
-    secondary->i->associate_is_immutable = 0;
-#endif
-    if (flags!=0 && flags!=DB_CREATE) return EINVAL; // after removing DB_IMMUTABLE_KEY the flags better be 0 or DB_CREATE
-    list_push(&primary->i->associated, &secondary->i->associated);
-    secondary->i->primary = primary;
-    if (flags==DB_CREATE) {
-	// To do this:  If the secondary is empty, then open a cursor on the primary.  Step through it all, doing the callbacks.
-	// Then insert each callback result into the secondary.
-	return maybe_do_associate_create(txn, primary, secondary);
-    }
-    return 0;
-}
-
-static int toku_db_close(DB * db, u_int32_t flags) {
-    if (db->i->primary==0) {
-        // It is a primary.  Unlink all the secondaries. */
-        while (!list_empty(&db->i->associated)) {
-            assert(list_struct(list_head(&db->i->associated),
-                   struct __toku_db_internal, associated)->primary==db);
-            list_remove(list_head(&db->i->associated));
-        }
-    }
-    else {
-        // It is a secondary.  Remove it from the list, (which it must be in .*/
-        if (!list_empty(&db->i->associated)) {
-            list_remove(&db->i->associated);
-        }
-    }
-    flags=flags;
+static int toku_db_close(DB * db, u_int32_t UU(flags)) {
     char *error_string = 0;
     int r1 = toku_close_brt(db->i->brt, db->dbenv->i->logger, &error_string);
     if (r1) {
@@ -1331,6 +1272,8 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     toku_free(db->i->database_name);
     toku_free(db->i->fname);
     toku_free(db->i->full_fname);
+    toku_sdbt_cleanup(&db->i->skey);
+    toku_sdbt_cleanup(&db->i->sval);
     toku_free(db->i);
     toku_free(db);
     ydb_unref();
@@ -1340,58 +1283,55 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     return 0;
 }
 
-/* Verify that an element from the secondary database is still consistent
-   with the primary.
-   \param secondary Secondary database
-   \param pkey Primary key
-   \param data Primary data
-   \param skey Secondary key to test
-   
-   \return 
-*/
-static int verify_secondary_key(DB *secondary, DBT *pkey, DBT *data, DBT *skey) {
-    int r = 0;
-    DBT idx;
-
-    assert(secondary->i->primary != 0);
-    memset(&idx, 0, sizeof(idx));
-    r = secondary->i->associate_callback(secondary, pkey, data, &idx);
-    if (r==DB_DONOTINDEX) { r = DB_SECONDARY_BAD; goto clean_up; }
-    if (r!=0) goto clean_up;
-#ifdef DB_DBT_MULTIPLE
-    if (idx.flags & DB_DBT_MULTIPLE) {
-        r = EINVAL; // We aren't ready for this
-        goto clean_up;
-    }
-#endif
-    if (secondary->i->brt->compare_fun(secondary, skey, &idx) != 0) {
-        r = DB_SECONDARY_BAD;
-        goto clean_up;
-    }
-    clean_up:
-    if (idx.flags & DB_DBT_APPMALLOC) {
-        /* This should be free because idx.data is allocated by the user */
-    	toku_free(idx.data);
-    }
-    return r; 
+//Get the main portion of a cursor flag (excluding the bitwise or'd components).
+static int get_main_cursor_flag(u_int32_t flags) {
+    return flags & DB_OPFLAGS_MASK;
 }
 
-//Get the main portion of a cursor flag (excluding the bitwise or'd components).
-static int get_main_cursor_flag(u_int32_t flag) {
-    return flag & DB_OPFLAGS_MASK;
+static int get_nonmain_cursor_flags(u_int32_t flags) {
+    return flags & ~(DB_OPFLAGS_MASK);
 }
 
 static inline BOOL toku_c_uninitialized(DBC* c) {
     return toku_brt_cursor_uninitialized(c->i->c);
 }            
 
-static int toku_c_get_current_unconditional(DBC* c, DBT* key, DBT* data) {
-    assert(!toku_c_uninitialized(c));
-    memset(key,  0, sizeof(DBT));
-    memset(data, 0, sizeof(DBT));
-    data->flags = key->flags = DB_DBT_MALLOC;
+typedef struct query_context_wrapped_t {
+    DBT               *key;
+    DBT               *val;
+    struct simple_dbt *skey;
+    struct simple_dbt *sval;
+} *QUERY_CONTEXT_WRAPPED, QUERY_CONTEXT_WRAPPED_S;
+
+static inline void
+query_context_wrapped_init(QUERY_CONTEXT_WRAPPED context, DBC *c, DBT *key, DBT *val) {
+    context->key  = key;
+    context->val  = val;
+    context->skey = c->i->skey;
+    context->sval = c->i->sval;
+}
+
+static int
+c_get_wrapper_callback(DBT const *key, DBT const *val, void *extra) {
+    QUERY_CONTEXT_WRAPPED context = extra;
+    int r;
+              r = toku_dbt_set(key->size, key->data, context->key, context->skey);
+    if (r==0) r = toku_dbt_set(val->size, val->data, context->val, context->sval);
+    return r;
+}
+
+static TOKULOGGER
+c_get_logger(DBC *c) {
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    int r = toku_brt_cursor_get(c->i->c, key, data, DB_CURRENT_BINDING, txn);
+    TOKULOGGER logger = toku_txn_logger(txn);
+    return logger;
+}
+
+static int toku_c_get_current_unconditional(DBC* c, u_int32_t flags, DBT* key, DBT* val) {
+    int r;
+    QUERY_CONTEXT_WRAPPED_S context; 
+    query_context_wrapped_init(&context, c, key, val);
+    r = toku_c_getf_current_binding(c, flags, c_get_wrapper_callback, &context);
     return r;
 }
 
@@ -1426,7 +1366,6 @@ typedef struct {
     TXNID       id_anc;
     DBT         tmp_key;            // Temporary key to protect out param
     DBT         tmp_val;            // Temporary val to protect out param
-    DBT         tmp_dat;            // Temporary data val to protect out param 
     u_int32_t   flag;               // The c_get flag
     u_int32_t   op;                 // The operation portion of the c_get flag
     u_int32_t   lock_flags;         // The prelock flags.
@@ -1435,12 +1374,9 @@ typedef struct {
     BOOL        key_is_write;
     BOOL        val_is_read;
     BOOL        val_is_write;
-    BOOL        dat_is_read;
-    BOOL        dat_is_write;
     BOOL        duplicates;
     BOOL        tmp_key_malloced;
     BOOL        tmp_val_malloced;
-    BOOL        tmp_dat_malloced;
 } C_GET_VARS;
 
 static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn) {
@@ -1451,848 +1387,1168 @@ static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn) {
     return lock_flags;
 }
 
-static void toku_c_get_fix_flags(C_GET_VARS* g) {
-    g->op = get_main_cursor_flag(g->flag);
+//Return true for NODUP database, false for DUPSORT
+static BOOL
+db_is_nodup(DB *db) {
+    unsigned int brtflags;
 
-    switch (g->op) {
-        case DB_NEXT:
-        case DB_NEXT_NODUP:
-            if (toku_c_uninitialized(g->c)) toku_swap_flag(&g->flag, &g->op, DB_FIRST);
-            else if (!g->duplicates && g->op == DB_NEXT) {
-                toku_swap_flag(&g->flag, &g->op, DB_NEXT_NODUP);
-            }
-            break;
-        case DB_PREV:
-        case DB_PREV_NODUP:
-            if (toku_c_uninitialized(g->c)) toku_swap_flag(&g->flag, &g->op, DB_LAST);
-            else if (!g->duplicates && g->op == DB_PREV) {    
-                toku_swap_flag(&g->flag, &g->op, DB_PREV_NODUP);
-            }
-            break;
-        case DB_GET_BOTH_RANGE:
-            if (!g->duplicates) {
-                toku_swap_flag(&g->flag, &g->op, DB_GET_BOTH);
-            }
-            break;
-        default:
-            break;
-    }
-    g->lock_flags = get_prelocked_flags(g->flag, g->c->i->txn);
-    g->flag &= ~g->lock_flags;
+    int r = toku_brt_get_flags(db->i->brt, &brtflags);
+    assert(r==0);
+    BOOL rval = !(brtflags&TOKU_DB_DUPSORT);
+    return rval;
 }
 
-static inline void toku_c_pget_fix_flags(C_GET_VARS* g) {
-    toku_c_get_fix_flags(g);
+static BOOL
+c_db_is_nodup(DBC *c) {
+    BOOL rval = db_is_nodup(c->dbp);
+    return rval;
 }
 
-static int toku_c_get_pre_acquire_lock_if_possible(C_GET_VARS* g, DBT* key, DBT* data) {
-    int r = ENOSYS;
-    toku_lock_tree* lt = g->db->i->lt;
+static int
+toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
+    //OW!! SCALDING!
 
-    /* We know what to lock ahead of time. */
-    if (g->op == DB_GET_BOTH ||
-        (g->op == DB_SET && !g->duplicates)) {
-        r = toku_txn_add_lt(g->txn_anc, lt);
-        if (r!=0) goto cleanup;
-        r = toku_lt_acquire_read_lock(lt, g->db, g->id_anc, key, data);
-        if (r!=0) goto cleanup;
-    }
-    r = 0;
-cleanup:
-    return r;
-}
-
-static int toku_c_get_describe_inputs(C_GET_VARS* g) { 
-    int r = ENOSYS;
-    /* Default for (key|value)_is_(read|write) is FALSE.
-     * Default for cursor_is_write is TRUE. */
-    g->cursor_is_write = TRUE;
-    switch (g->op) {
-        case DB_SET:
-            g->key_is_read  = TRUE;
-            g->val_is_write = TRUE;
-            break;
-        case DB_SET_RANGE:
-            g->key_is_read  = TRUE;
-            g->key_is_write = TRUE;
-            g->val_is_write = TRUE;
-            break;
-        case DB_GET_BOTH:
-            g->key_is_read  = TRUE;
-            g->val_is_read  = TRUE;
-            break;
-        case DB_GET_BOTH_RANGE:
-            assert(g->duplicates);
-            g->key_is_read  = TRUE;
-            g->val_is_read  = TRUE;
-            g->val_is_write = TRUE;
-            break;
-        case DB_CURRENT:
-        case DB_CURRENT_BINDING:
-            /* Cursor does not change. */
-            g->cursor_is_write = FALSE;
-            /* Break through to next case on purpose. */
-        case DB_NEXT_DUP:
-#if defined(DB_PREV_DUP)
-        case DB_PREV_DUP:
-#endif
-            if (toku_c_uninitialized(g->c)) {
-               r = EINVAL; goto cleanup;
-            }
-            /* Break through to next case on purpose. */
-        case DB_FIRST:
-        case DB_LAST:
-        case DB_NEXT:
-        case DB_NEXT_NODUP:
-        case DB_PREV:
-        case DB_PREV_NODUP:
-            g->key_is_write = TRUE;
-            g->val_is_write = TRUE;
-            break;
-        default:
-            r = EINVAL;
-            goto cleanup;
-    }
-    r = 0;
-cleanup:
-    return r;
-}
-
-static int toku_c_pget_describe_inputs(C_GET_VARS* g) {
-    int r = toku_c_get_describe_inputs(g);
-    g->dat_is_read  = FALSE;
-    g->dat_is_write = TRUE;
-    return r;
-}
-
-static int toku_c_pget_save_inputs(C_GET_VARS* g, DBT* key, DBT* val, DBT* dat) {
-    int r = ENOSYS;
-
-    /* 
-     * Readonly:  Copy original struct
-     * Writeonly: Set to 0 (already done), DB_DBT_REALLOC, copy back later.
-     * ReadWrite: Make a copy of original in new memory, copy back later
-     * */
-    if (key) {
-        assert(g->key_is_read || g->key_is_write);
-        if (g->key_is_read && !g->key_is_write) g->tmp_key = *key;
-        else {
-            /* g->key_is_write */
-            g->tmp_key.flags = DB_DBT_REALLOC;
-            if (g->key_is_read &&
-                (r = toku_brt_dbt_set(&g->tmp_key, key))) goto cleanup;
-            g->tmp_key_malloced = TRUE;
-        }
-    }
-    if (val) {
-        assert(g->val_is_read || g->val_is_write);
-        if (g->val_is_read && !g->val_is_write) g->tmp_val = *val;
-        else {
-            /* g->val_is_write */
-            g->tmp_val.flags = DB_DBT_REALLOC;
-            if (g->val_is_read &&
-                (r = toku_brt_dbt_set(&g->tmp_val, val))) goto cleanup;
-            g->tmp_val_malloced = TRUE;
-        }
-    }
-    if (dat) {
-        assert(g->dat_is_read || g->dat_is_write);
-        if (g->dat_is_read && !g->dat_is_write) g->tmp_dat = *dat;
-        else {
-            /* g->dat_is_write */
-            g->tmp_dat.flags = DB_DBT_REALLOC;
-            if (g->dat_is_read &&
-                (r = toku_brt_dbt_set(&g->tmp_dat, dat))) goto cleanup;
-            g->tmp_dat_malloced = TRUE;
-        }
-    }
-    r = 0;
-cleanup:
-    if (r!=0) {
-        /* Cleanup memory allocated if necessary. */
-        if (g->tmp_key.data && g->tmp_key_malloced) toku_free(g->tmp_key.data);
-        if (g->tmp_val.data && g->tmp_val_malloced) toku_free(g->tmp_val.data);
-        if (g->tmp_dat.data && g->tmp_dat_malloced) toku_free(g->tmp_dat.data);                
-    }
-    return r;
-}
-
-static int toku_c_get_save_inputs(C_GET_VARS* g, DBT* key, DBT* val) {
-    int r = toku_c_pget_save_inputs(g, key, val, NULL);
-    return r;
-}
-
-static int toku_c_get_post_lock(C_GET_VARS* g, BOOL found, DBT* orig_key, DBT* orig_val, DBT *prev_key, DBT *prev_val) {
-    int r = ENOSYS;
-    toku_lock_tree* lt = g->db->i->lt;
-    if (!lt) { r = 0; goto cleanup; }
-
-    BOOL lock = TRUE;
-    const DBT* key_l;
-    const DBT* key_r;
-    const DBT* val_l;
-    const DBT* val_r;
-    switch (g->op) {
-        case (DB_CURRENT):
-            /* No locking necessary. You already own a lock by virtue
-               of having a cursor pointing to this. */
-            lock = FALSE;
-            break;
-        case (DB_SET):
-            if (!g->duplicates) {
-                /* We acquired the lock before the cursor op. */
-                lock = FALSE;
-                break;
-            }
-            key_l = key_r = &g->tmp_key;
-            val_l =                       toku_lt_neg_infinity;
-            val_r = found ? &g->tmp_val : toku_lt_infinity;
-            break;
-        case (DB_GET_BOTH):
-            /* We acquired the lock before the cursor op. */
-            lock = FALSE;
-            break;
+    u_int32_t main_flag       = get_main_cursor_flag(flag);
+    u_int32_t remaining_flags = get_nonmain_cursor_flags(flag);
+    int r;
+    QUERY_CONTEXT_WRAPPED_S context;
+    //Passing in NULL for a key or val means that it is NOT an output.
+    //    Both key and val are output:
+    //        query_context_wrapped_init(&context, c, key,  val);
+    //    Val is output, key is not:
+    //            query_context_wrapped_init(&context, c, NULL, val);
+    //    Neither key nor val are output:
+    //	    query_context_wrapped_init(&context, c, NULL, NULL); // Used for DB_GET_BOTH
+    switch (main_flag) {
         case (DB_FIRST):
-            key_l = val_l =               toku_lt_neg_infinity;
-            key_r = found ? &g->tmp_key : toku_lt_infinity;
-            val_r = found ? &g->tmp_val : toku_lt_infinity;
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_first(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
         case (DB_LAST):
-            key_l = found ? &g->tmp_key : toku_lt_neg_infinity;
-            val_l = found ? &g->tmp_val : toku_lt_neg_infinity;
-            key_r = val_r =               toku_lt_infinity;
-            break;
-        case (DB_SET_RANGE):
-            key_l = orig_key;
-            val_l = toku_lt_neg_infinity;
-            key_r = found ? &g->tmp_key : toku_lt_infinity;
-            val_r = found ? &g->tmp_val : toku_lt_infinity;
-            break;
-        case (DB_GET_BOTH_RANGE):
-            key_l = key_r = &g->tmp_key;
-            val_l = orig_val;
-            val_r = found ? &g->tmp_val : toku_lt_infinity;
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_last(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
         case (DB_NEXT):
-        case (DB_NEXT_NODUP):
-            assert(!toku_c_uninitialized(g->c));
-            key_l = prev_key;
-            val_l = prev_val;
-            key_r = found ? &g->tmp_key : toku_lt_infinity;
-            val_r = found ? &g->tmp_val : toku_lt_infinity;
-            break;
-        case (DB_PREV):
-        case (DB_PREV_NODUP):
-            assert(!toku_c_uninitialized(g->c));
-            key_l = found ? &g->tmp_key : toku_lt_neg_infinity;
-            val_l = found ? &g->tmp_val : toku_lt_neg_infinity;
-            key_r = prev_key;
-            val_r = prev_val;
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_next(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
         case (DB_NEXT_DUP):
-            assert(!toku_c_uninitialized(g->c));
-            key_l = key_r = prev_key;
-            val_l = prev_val;
-            val_r = found ? &g->tmp_val : toku_lt_infinity;
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_next_dup(c, remaining_flags, c_get_wrapper_callback, &context);
+            break;
+        case (DB_NEXT_NODUP):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_next_nodup(c, remaining_flags, c_get_wrapper_callback, &context);
+            break;
+        case (DB_PREV):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_prev(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
 #ifdef DB_PREV_DUP
         case (DB_PREV_DUP):
-            assert(!toku_c_uninitialized(g->c));
-            key_l = key_r = prev_key;
-            val_l = found ? &g->tmp_val : toku_lt_neg_infinity;
-            val_r = prev_val;
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_prev_dup(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
 #endif
+        case (DB_PREV_NODUP):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_prev_nodup(c, remaining_flags, c_get_wrapper_callback, &context);
+            break;
+        case (DB_CURRENT):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_current(c, remaining_flags, c_get_wrapper_callback, &context);
+            break;
+        case (DB_CURRENT_BINDING):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_current_binding(c, remaining_flags, c_get_wrapper_callback, &context);
+            break;
+
+        case (DB_SET):
+            query_context_wrapped_init(&context, c, NULL, val);
+            r = toku_c_getf_set(c, remaining_flags, key, c_get_wrapper_callback, &context);
+            break;
+        case (DB_SET_RANGE):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_set_range(c, remaining_flags, key, c_get_wrapper_callback, &context);
+            break;
+        case (DB_GET_BOTH):
+            query_context_wrapped_init(&context, c, NULL, NULL);
+            r = toku_c_getf_get_both(c, remaining_flags, key, val, c_get_wrapper_callback, &context);
+            break;
+        case (DB_GET_BOTH_RANGE):
+            //For a nodup database, DB_GET_BOTH_RANGE is an alias for DB_GET_BOTH.
+            //DB_GET_BOTH(_RANGE) require different contexts (see case(DB_GET_BOTH)).
+            if (c_db_is_nodup(c)) query_context_wrapped_init(&context, c, NULL, NULL);
+            else                  query_context_wrapped_init(&context, c, NULL, val);
+            r = toku_c_getf_get_both_range(c, remaining_flags, key, val, c_get_wrapper_callback, &context);
+            break;
         default:
             r = EINVAL;
-            lock = FALSE;
-            goto cleanup;
-    }
-    if (lock) {
-        if ((r = toku_txn_add_lt(g->txn_anc, lt))) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, g->db, g->id_anc, key_l, val_l,
-                                                                  key_r, val_r);
-        if (r!=0) goto cleanup;
-    }
-    r = 0;
-cleanup:
-    return r;
-}
-
-static int toku_c_pget_assign_outputs(C_GET_VARS* g, DBT* key, DBT* val, DBT* dat) {
-    int r = ENOSYS;
-    DBT* write_key = g->key_is_write ? key : NULL;
-    DBT* write_val = g->val_is_write ? val : NULL;
-    DBT* write_dat = g->dat_is_write ? dat : NULL;
-    BRT primary = g->db->i->primary->i->brt;
-
-    r = toku_brt_cursor_dbts_set_with_dat(g->c->i->c, primary,
-                                          write_key, &g->tmp_key, TRUE,
-                                          write_val, &g->tmp_val, TRUE,
-                                          write_dat, &g->tmp_dat, TRUE);
-    if (r!=0) goto cleanup;
-    r = 0;
-cleanup:
-    return r;
-}
-
-static int toku_c_get_assign_outputs(C_GET_VARS* g, DBT* key, DBT* val) {
-    int r = ENOSYS;
-    DBT* write_key = g->key_is_write ? key : NULL;
-    DBT* write_val = g->val_is_write ? val : NULL;
-
-    r = toku_brt_cursor_dbts_set(g->c->i->c,
-                                 write_key, &g->tmp_key, TRUE,
-                                 write_val, &g->tmp_val, TRUE);
-    if (r!=0) goto cleanup;
-    r = 0;
-cleanup:
-    return r;
-}
-
-static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag) {
-    HANDLE_PANICKED_DB(c->dbp);
-    int r           = ENOSYS;
-    C_GET_VARS g;
-    memset(&g, 0, sizeof(g));
-    /* Initialize variables. */
-    g.c    = c;
-    g.db   = c->dbp;
-    g.flag = flag;
-    unsigned int brtflags;
-    toku_brt_get_flags(g.db->i->brt, &brtflags);
-    g.duplicates   = (BOOL)((brtflags & TOKU_DB_DUPSORT) != 0);
-
-    /* Standardize the op flag. */
-    toku_c_get_fix_flags(&g);
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-
-    if (!g.db->i->lt || g.lock_flags) {
-        r = toku_brt_cursor_get(c->i->c, key, val, g.flag, txn);
-        goto cleanup;
-    }
-    int r_cursor_op = 0;
-    if (c->i->txn) {
-        g.txn_anc = toku_txn_ancestor(c->i->txn);
-        g.id_anc  = toku_txn_get_txnid(g.txn_anc->i->tokutxn);
-    }
-
-    /* If we know what to lock before the cursor op, lock now. */
-    if ((r = toku_c_get_pre_acquire_lock_if_possible(&g, key, val))) goto cleanup;
-    /* Determine whether the key and val parameters are read, write,
-     * or both. */
-    if ((r = toku_c_get_describe_inputs(&g))) goto cleanup;
-    /* Save key and value to temporary local versions. */
-    if ((r = toku_c_get_save_inputs(&g, key, val))) goto cleanup;
-    /* Run the cursor operation on the brt. */
-    r_cursor_op = r = toku_brt_cursor_get(c->i->c, &g.tmp_key, &g.tmp_val, g.flag, txn);
-    /* Only DB_CURRENT should possibly retun DB_KEYEMPTY,
-     * and DB_CURRENT requires no locking. */
-    if (r==DB_KEYEMPTY) { assert(g.op==DB_CURRENT); goto cleanup; }
-    /* If we do not find what the query wants, a lock can still fail
-     * 'first'. */
-    if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
-    /* If we have not yet locked, lock now. */
-    BOOL found = (BOOL)(r_cursor_op==0);
-    r = toku_c_get_post_lock(&g, found, key, val,
-			     found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c),
-			     found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c));
-    if (r!=0) {
-	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
-	goto cleanup;
-    }
-    /* if found, write the outputs to the output parameters. */
-    if (found && (r = toku_c_get_assign_outputs(&g, key, val))) goto cleanup; 
-    r = r_cursor_op;
-cleanup:
-    /* Cleanup temporary keys. */
-    if (g.tmp_key.data && g.tmp_key_malloced) toku_free(g.tmp_key.data);
-    if (g.tmp_val.data && g.tmp_val_malloced) toku_free(g.tmp_val.data);
-    return r;
-}
-
-static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
-    DB* db = c->dbp;
-    HANDLE_PANICKED_DB(db);
-    if (toku_c_uninitialized(c)) return EINVAL;
-
-    u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
-    flags &= ~lock_flags;
-
-    int r;
-    if (db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE)) {
-        DBT saved_key;
-        DBT saved_data;
-        r = toku_c_get_current_unconditional(c, &saved_key, &saved_data);
-        if (r!=0) return r;
-        DB_TXN* txn_anc = toku_txn_ancestor(c->i->txn);
-        r = toku_txn_add_lt(txn_anc, db->i->lt);
-        if (r!=0) { return r; }
-        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
-        r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc,
-                                       &saved_key, &saved_data);
-        if (saved_key.data)  toku_free(saved_key.data);
-        if (saved_data.data) toku_free(saved_data.data);
-        if (r!=0) return r;
-    }
-    r = toku_brt_cursor_delete(c->i->c, flags, c->i->txn ? c->i->txn->i->tokutxn : 0);
-    return r;
-}
-
-static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) {
-    HANDLE_PANICKED_DB(c->dbp);
-    DB *pdb = c->dbp->i->primary;
-    /* c_pget does not work on a primary. */
-    if (!pdb) return EINVAL;
-
-    /* If data and primary_key are both zeroed,
-     * the temporary storage used to fill in data
-     * is different in the two cases because they
-     * come from different trees.
-     * Make sure they realy are different trees. */
-    assert(c->dbp->i->brt!=pdb->i->brt);
-    assert(c->dbp!=pdb);
-
-    int r;
-    C_GET_VARS g;
-    memset(&g, 0, sizeof(g));
-    /* Initialize variables. */
-    g.c    = c;
-    g.db   = c->dbp;
-    unsigned int brtflags;
-    toku_brt_get_flags(g.db->i->brt, &brtflags);
-    g.duplicates   = (BOOL)((brtflags & TOKU_DB_DUPSORT) != 0);
-
-    /* The 'key' from C_GET_VARS is the secondary key, and the 'val'
-     * from C_GET_VARS is the primary key.  The 'data' parameter here
-     * is ALWAYS write-only */ 
-
-    int r_cursor_op;
-
-    if (0) {
-delete_silently_and_retry:
-        /* Free all old 'saved' elements, return to pristine state. */
-        if (g.tmp_key.data && g.tmp_key_malloced) toku_free(g.tmp_key.data);                
-        memset(&g.tmp_key, 0, sizeof(g.tmp_key));
-        g.tmp_key_malloced = FALSE;
-
-        if (g.tmp_val.data && g.tmp_val_malloced) toku_free(g.tmp_val.data);                
-        memset(&g.tmp_val, 0, sizeof(g.tmp_val));
-        g.tmp_val_malloced = FALSE;
-
-        if (g.tmp_dat.data && g.tmp_dat_malloced) toku_free(g.tmp_dat.data);                
-        memset(&g.tmp_dat, 0, sizeof(g.tmp_dat));
-        g.tmp_dat_malloced = FALSE;
-        /* Silently delete and re-run. */
-        if ((r = toku_c_del_noassociate(c, 0))) goto cleanup_after_actual_get;
-	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
-    }
-
-    g.flag = flag;
-    /* Standardize the op flag. */
-    toku_c_pget_fix_flags(&g);
-    /* Determine whether the key, val, and data, parameters are read, write,
-     * or both. */
-    if ((r = toku_c_pget_describe_inputs(&g))) goto cleanup;
-
-    /* Save the inputs. */
-    if ((r = toku_c_pget_save_inputs(&g, key, pkey, data))) goto cleanup;
-
-    if ((r_cursor_op = r = toku_c_get_noassociate(c, &g.tmp_key, &g.tmp_val, g.flag))) goto cleanup;
-
-    r = toku_db_get(pdb, c->i->txn, &g.tmp_val, &g.tmp_dat, 0);
-    if (r==DB_NOTFOUND) goto delete_silently_and_retry;
-    if (r!=0) {
-    cleanup_after_actual_get:
-	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
-	goto cleanup;
-    }
-
-    r = verify_secondary_key(g.db, &g.tmp_val, &g.tmp_dat, &g.tmp_key);
-    if (r==DB_SECONDARY_BAD) goto delete_silently_and_retry;
-    if (r!=0) goto cleanup_after_actual_get;
-
-    /* Atomically assign all 3 outputs. */
-    if ((r = toku_c_pget_assign_outputs(&g, key, pkey, data))) goto cleanup_after_actual_get;
-    r = 0;
-cleanup:
-    /* Cleanup temporary keys. */
-    if (g.tmp_key.data && g.tmp_key_malloced) toku_free(g.tmp_key.data);
-    if (g.tmp_val.data && g.tmp_val_malloced) toku_free(g.tmp_val.data);
-    if (g.tmp_dat.data && g.tmp_dat_malloced) toku_free(g.tmp_dat.data);                
-    return r;
-}
-
-static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    DB *db = c->dbp;
-    HANDLE_PANICKED_DB(db);
-    int r;
-
-    if (db->i->primary==0) {
-        r = toku_c_get_noassociate(c, key, data, flag);
-    }
-    else {
-        // It's a c_get on a secondary.
-        DBT primary_key;
-        
-        /* It is an error to use the DB_GET_BOTH or DB_GET_BOTH_RANGE flag on a
-         * cursor that has been opened on a secondary index handle.
-         */
-        u_int32_t get_flag = get_main_cursor_flag(flag);
-        if ((get_flag == DB_GET_BOTH) ||
-            (get_flag == DB_GET_BOTH_RANGE)) return EINVAL;
-        memset(&primary_key, 0, sizeof(primary_key));
-        r = toku_c_pget(c, key, &primary_key, data, flag);
+            break;
     }
     return r;
 }
 
-static int locked_c_getf_first(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+static int locked_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     toku_ydb_lock();  int r = toku_c_getf_first(c, flag, f, extra); toku_ydb_unlock(); return r;
 }
 
-static int locked_c_getf_last(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+static int locked_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     toku_ydb_lock();  int r = toku_c_getf_last(c, flag, f, extra); toku_ydb_unlock(); return r;
 }
 
-static int locked_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+static int locked_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     toku_ydb_lock();  int r = toku_c_getf_next(c, flag, f, extra); toku_ydb_unlock(); return r;
 }
 
-static int locked_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
-    toku_ydb_lock();  int r = toku_c_getf_prev(c, flag, f, extra); toku_ydb_unlock(); return r;
+static int locked_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_next_nodup(c, flag, f, extra); toku_ydb_unlock(); return r;
 }
 
-static int locked_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+static int locked_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     toku_ydb_lock();  int r = toku_c_getf_next_dup(c, flag, f, extra); toku_ydb_unlock(); return r;
 }
 
-static int toku_c_getf_first(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
-    HANDLE_PANICKED_DB(c->dbp);
-    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
-    flag &= ~lock_flags;
-    assert(flag==0);
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    const DBT *pkey, *pval;
-    pkey = pval = toku_lt_infinity;
+static int locked_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_prev(c, flag, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_prev_nodup(c, flag, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_prev_dup(c, flag, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_current(c, flag, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_current_binding(c, flag, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_set(DBC *c, u_int32_t flag, DBT * key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_set(c, flag, key, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_set_range(DBC *c, u_int32_t flag, DBT * key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_set_range(c, flag, key, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_get_both(DBC *c, u_int32_t flag, DBT * key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_get_both(c, flag, key, val, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT * key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_get_both_range(c, flag, key, val, f, extra); toku_ydb_unlock(); return r;
+}
+
+typedef struct {
+    BOOL            is_read_lock;
+    DB_TXN         *txn;
+    DB             *db;
+    toku_lock_tree *lt;
+    DBT const      *left_key;
+    DBT const      *left_val;
+    DBT const      *right_key;
+    DBT const      *right_val;
+} *RANGE_LOCK_REQUEST, RANGE_LOCK_REQUEST_S;
+
+static void
+range_lock_request_init(RANGE_LOCK_REQUEST request,
+                        BOOL       is_read_lock,
+                        DB_TXN    *txn,
+                        DB        *db,
+                        DBT const *left_key,
+                        DBT const *left_val,
+                        DBT const *right_key,
+                        DBT const *right_val) {
+    request->is_read_lock = is_read_lock;
+    request->txn = txn;
+    request->db = db;
+    request->lt = db->i->lt;
+    request->left_key = left_key;
+    request->left_val = left_val;
+    request->right_key = right_key;
+    request->right_val = right_val;
+}
+
+
+static void
+read_lock_request_init(RANGE_LOCK_REQUEST request,
+                       DB_TXN    *txn,
+                       DB        *db,
+                       DBT const *left_key,
+                       DBT const *left_val,
+                       DBT const *right_key,
+                       DBT const *right_val) {
+    range_lock_request_init(request, TRUE, txn, db,
+                            left_key,  left_val,
+                            right_key, right_val);
+}
+
+static void
+write_lock_request_init(RANGE_LOCK_REQUEST request,
+                        DB_TXN    *txn,
+                        DB        *db,
+                        DBT const *left_key,
+                        DBT const *left_val,
+                        DBT const *right_key,
+                        DBT const *right_val) {
+    range_lock_request_init(request, FALSE, txn, db,
+                            left_key,  left_val,
+                            right_key, right_val);
+}
+
+static int
+grab_range_lock(RANGE_LOCK_REQUEST request) {
     int r;
-
-    DB *db=c->dbp;
-    toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
-
-    int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_FIRST, txn);
-    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    int found = c_get_result==0;
-    if (found) brt_cursor_peek_current(c->i->c, &pkey, &pval);
-    if (do_locking) {
-        DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
-        r = toku_txn_add_lt(txn_anc, lt);
-        if (r!=0) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
-                                            toku_lt_neg_infinity, toku_lt_neg_infinity,
-                                            pkey,                 pval);
-        if (r!=0) goto cleanup;
+    //TODO: (Multithreading) Grab lock protecting lock tree
+    DB_TXN *txn_anc = toku_txn_ancestor(request->txn);
+    r = toku_txn_add_lt(txn_anc, request->lt);
+    if (r==0) {
+        TXNID txn_anc_id = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        if (request->is_read_lock)
+            r = toku_lt_acquire_range_read_lock(request->lt, request->db, txn_anc_id,
+                                                request->left_key,  request->left_val,
+                                                request->right_key, request->right_val);
+        else 
+            r = toku_lt_acquire_range_write_lock(request->lt, request->db, txn_anc_id,
+                                                 request->left_key,  request->left_val,
+                                                 request->right_key, request->right_val);
     }
-    if (found) {
-	f(pkey, pval, extra);
-    }
-    r = c_get_result;
-cleanup:
+    //TODO: (Multithreading) Release lock protecting lock tree
     return r;
 }
 
-static int toku_c_getf_last(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
-    HANDLE_PANICKED_DB(c->dbp);
+//This is the user level callback function given to ydb layer functions like
+//toku_c_getf_first
+
+typedef struct query_context_base_t {
+    BRT_CURSOR  c;
+    DB_TXN     *txn;
+    DB         *db;
+    void       *f_extra;
+    BOOL        do_locking;
+    int         r_user_callback;
+} *QUERY_CONTEXT_BASE, QUERY_CONTEXT_BASE_S;
+
+typedef struct query_context_t {
+    QUERY_CONTEXT_BASE_S  base;
+    YDB_CALLBACK_FUNCTION f;
+} *QUERY_CONTEXT, QUERY_CONTEXT_S;
+
+typedef struct query_context_with_input_t {
+    QUERY_CONTEXT_BASE_S  base;
+    YDB_CALLBACK_FUNCTION f;
+    DBT                  *input_key;
+    DBT                  *input_val;
+} *QUERY_CONTEXT_WITH_INPUT, QUERY_CONTEXT_WITH_INPUT_S;
+
+
+static void
+query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, void *extra) {
+    context->c       = c->i->c;
+    context->txn     = c->i->txn;
+    context->db      = c->dbp;
+    context->f_extra = extra;
     u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    const DBT *pkey, *pval;
-    pkey = pval = toku_lt_neg_infinity;
-    int r;
-
-    DB *db=c->dbp;
-    toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
-
-    int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_LAST, txn);
-    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    int found = c_get_result==0;
-    if (found) brt_cursor_peek_current(c->i->c, &pkey, &pval);
-    if (do_locking) {
-        DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
-        r = toku_txn_add_lt(txn_anc, lt);
-        if (r!=0) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
-                                            pkey,             pval,
-                                            toku_lt_infinity, toku_lt_infinity);
-        if (r!=0) goto cleanup;
-    }
-    if (found) {
-	f(pkey, pval, extra);
-    }
-    r = c_get_result;
-cleanup:
-    return r;
+    context->do_locking = context->db->i->lt!=NULL && !lock_flags;
+    context->r_user_callback = 0;
 }
 
-static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+static void
+query_context_init(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    query_context_base_init(&context->base, c, flag, extra);
+    context->f = f;
+}
+
+static void
+query_context_with_input_init(QUERY_CONTEXT_WITH_INPUT context, DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    query_context_base_init(&context->base, c, flag, extra);
+    context->f         = f;
+    context->input_key = key;
+    context->input_val = val;
+}
+
+static int c_del_callback(DBT const *key, DBT const *val, void *extra);
+
+//Delete whatever the cursor is pointing at.
+static int
+toku_c_del(DBC * c, u_int32_t flags) {
     HANDLE_PANICKED_DB(c->dbp);
-    if (toku_c_uninitialized(c)) return toku_c_getf_first(c, flag, f, extra);
-    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
-    flag &= ~lock_flags;
-    assert(flag==0);
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    const DBT *pkey, *pval;
-    pkey = pval = toku_lt_infinity;
-    int r;
 
-    DB *db=c->dbp;
-    toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
+    u_int32_t unchecked_flags = flags;
+    //DB_DELETE_ANY means delete regardless of whether it exists in the db.
+    u_int32_t flag_for_brt = flags&DB_DELETE_ANY;
+    unchecked_flags &= ~flag_for_brt;
+    u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
+    unchecked_flags &= ~lock_flags;
+    BOOL do_locking = c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
 
-    unsigned int brtflags;
-    toku_brt_get_flags(db->i->brt, &brtflags);
-
-    int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL,
-                                          (brtflags & TOKU_DB_DUPSORT) ? DB_NEXT : DB_NEXT_NODUP,
-                                           txn);
-    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    int found = c_get_result==0;
-    if (found) brt_cursor_peek_current(c->i->c, &pkey, &pval);
-    if (do_locking) {
-
-	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
-	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c);
-
-        DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
-        r = toku_txn_add_lt(txn_anc, lt);
-        if (r!=0) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
-                                            prevkey, prevval,
-                                            pkey, pval);
-        if (r!=0) goto cleanup;
+    int r = 0;
+    if (unchecked_flags!=0) r = EINVAL;
+    else {
+        if (do_locking) {
+            QUERY_CONTEXT_S context;
+            query_context_init(&context, c, lock_flags, NULL, NULL);
+            //We do not need a read lock, we must already have it.
+            r = toku_c_getf_current_binding(c, DB_PRELOCKED, c_del_callback, &context);
+        }
+        if (r==0) {
+            //Do the actual delete.
+            TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : 0;
+            r = toku_brt_cursor_delete(c->i->c, flag_for_brt, txn);
+        }
     }
-    if (found) {
-	f(pkey, pval, extra);
-    }
-    r = c_get_result;
- cleanup:
     return r;
 }
 
-static int toku_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_del_callback(DBT const *key, DBT const *val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    assert(context->do_locking);
+    assert(key!=NULL);
+    assert(val!=NULL);
+    //Lock:
+    //  left(key,val)==right(key,val) == (key, val);
+    RANGE_LOCK_REQUEST_S request;
+    write_lock_request_init(&request, context->txn, context->db,
+                            key, val,
+                            key, val);
+    r = grab_range_lock(&request);
+
+    //Give brt-layer an error (if any) to return from toku_c_getf_current_binding
+    return r;
+}
+
+static int c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
-    if (toku_c_uninitialized(c)) return toku_c_getf_last(c, flag, f, extra);
-    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
-    flag &= ~lock_flags;
-    assert(flag==0);
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    const DBT *pkey, *pval;
-    pkey = pval = toku_lt_neg_infinity;
-    int r;
 
-    DB *db=c->dbp;
-    toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
-
-    unsigned int brtflags;
-    toku_brt_get_flags(db->i->brt, &brtflags);
-
-    int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL,
-                                          (brtflags & TOKU_DB_DUPSORT) ? DB_PREV : DB_PREV_NODUP,
-                                           txn);
-    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    int found = c_get_result==0;
-    if (found) brt_cursor_peek_current(c->i->c, &pkey, &pval);
-    if (do_locking) {
-
-	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
-	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c);
-
-        DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
-        r = toku_txn_add_lt(txn_anc, lt);
-        if (r!=0) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
-                                            pkey, pval,
-                                            prevkey, prevval);
-        if (r!=0) goto cleanup;
-    }
-    if (found) {
-	f(pkey, pval, extra);
-    }
-    r = c_get_result;
- cleanup:
+    QUERY_CONTEXT_S context; //Describes the context of this query.
+    query_context_init(&context, c, flag, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_first(c->i->c, c_getf_first_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
 
-static int toku_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                   &found_key,           &found_val);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                   toku_lt_infinity,     toku_lt_infinity);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_first
+    return r;
+}
+
+static int c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+
+    QUERY_CONTEXT_S context; //Describes the context of this query.
+    query_context_init(&context, c, flag, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_last(c->i->c, c_getf_last_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   &found_key,           &found_val,
+                                   toku_lt_infinity,     toku_lt_infinity);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                   toku_lt_infinity,     toku_lt_infinity);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_last
+    return r;
+}
+
+static int c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    int r;
+    HANDLE_PANICKED_DB(c->dbp);
+    if (c_db_is_nodup(c))             r = toku_c_getf_next_nodup(c, flag, f, extra);
+    else if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
+    else {
+        QUERY_CONTEXT_S context; //Describes the context of this query.
+        query_context_init(&context, c, flag, f, extra); 
+        TOKULOGGER logger = c_get_logger(c);
+        //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_next(c->i->c, c_getf_next_callback, &context, logger);
+        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    }
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        const DBT *prevkey;
+        const DBT *prevval;
+        const DBT *right_key = key==NULL ? toku_lt_infinity : &found_key;
+        const DBT *right_val = key==NULL ? toku_lt_infinity : &found_val;
+
+        toku_brt_cursor_peek(context->c, &prevkey, &prevval);
+        read_lock_request_init(&request, context->txn, context->db,
+                               prevkey,   prevval,
+                               right_key, right_val);
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_next
+    return r;
+}
+
+static int
+toku_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    int r;
+    HANDLE_PANICKED_DB(c->dbp);
+    if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
+    else {
+        QUERY_CONTEXT_S context; //Describes the context of this query.
+        query_context_init(&context, c, flag, f, extra); 
+        TOKULOGGER logger = c_get_logger(c);
+        //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_next_nodup(c->i->c, c_getf_next_callback, &context, logger);
+        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    }
+    return r;
+}
+
+static int c_getf_next_dup_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     if (toku_c_uninitialized(c)) return EINVAL;
-    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
-    flag &= ~lock_flags;
-    assert(flag==0);
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    const DBT *pkey, *pval;
-    pkey = pval = toku_lt_infinity;
-    int r;
 
-    DB *db=c->dbp;
-    toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
-
-    int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_NEXT_DUP, txn);
-    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    int found = c_get_result==0;
-    if (found) brt_cursor_peek_current(c->i->c, &pkey, &pval);
-    if (do_locking) {
-
-	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
-	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c);
-
-        DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
-        r = toku_txn_add_lt(txn_anc, lt);
-        if (r!=0) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
-                                            prevkey, prevval,
-                                            prevkey, pval);
-        if (r!=0) goto cleanup;
-    }
-    if (found) {
-	f(pkey, pval, extra);
-    }
-    r = c_get_result;
- cleanup:
+    QUERY_CONTEXT_S context; //Describes the context of this query.
+    query_context_init(&context, c, flag, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_next_dup will call c_getf_next_dup_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_next_dup(c->i->c, c_getf_next_dup_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
 
-static int locked_c_getf_heavi(DBC *c, u_int32_t flags,
-                               void(*f)(DBT const *key, DBT const *value, void *extra_f, int r_h),
-                               void *extra_f,
-                               int (*h)(const DBT *key, const DBT *value, void *extra_h),
-                               void *extra_h, int direction) {
-    toku_ydb_lock();  int r = toku_c_getf_heavi(c, flags, f, extra_f, h, extra_h, direction); toku_ydb_unlock(); return r;
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_next_dup_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        const DBT *prevkey;
+        const DBT *prevval;
+        const DBT *right_val = key==NULL ? toku_lt_infinity : &found_val;
+
+        toku_brt_cursor_peek(context->c, &prevkey, &prevval);
+        read_lock_request_init(&request, context->txn, context->db,
+                               prevkey,  prevval,
+                               prevkey,  right_val); //found_key is same as prevkey for this case
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_next_dup
+    return r;
 }
 
-static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
-                             void(*f)(DBT const *key, DBT const *value, void *extra_f, int r_h),
-                             void *extra_f,
-                             int (*h)(const DBT *key, const DBT *value, void *extra_h),
-                             void *extra_h, int direction) {
-    if (direction==0) return EINVAL;
-    DBC *tmp_c = NULL;
-    int r;
-    u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
-    flags &= ~lock_flags;
-    assert(flags==0);
-    struct heavi_wrapper wrapper;
-    wrapper.h       = h;
-    wrapper.extra_h = extra_h;
-    wrapper.r_h     = direction;
+static int c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
 
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    int c_get_result = toku_brt_cursor_get_heavi(c->i->c, NULL, NULL, txn, direction, &wrapper);
-    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    BOOL found = (BOOL)(c_get_result==0);
-    DB *db=c->dbp;
-    toku_lock_tree* lt = db->i->lt;
-    if (lt!=NULL && !lock_flags) {
+static int
+toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    int r;
+    HANDLE_PANICKED_DB(c->dbp);
+    if (c_db_is_nodup(c))             r = toku_c_getf_prev_nodup(c, flag, f, extra);
+    else if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
+    else {
+        QUERY_CONTEXT_S context; //Describes the context of this query.
+        query_context_init(&context, c, flag, f, extra); 
+        TOKULOGGER logger = c_get_logger(c);
+        //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_prev(c->i->c, c_getf_prev_callback, &context, logger);
+        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    }
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        const DBT *prevkey;
+        const DBT *prevval;
+        const DBT *left_key = key==NULL ? toku_lt_neg_infinity : &found_key;
+        const DBT *left_val = key==NULL ? toku_lt_neg_infinity : &found_val;
+
+        toku_brt_cursor_peek(context->c, &prevkey, &prevval);
+        read_lock_request_init(&request, context->txn, context->db,
+                               left_key, left_val,
+                               prevkey,  prevval);
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_prev
+    return r;
+}
+
+static int
+toku_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    int r;
+    HANDLE_PANICKED_DB(c->dbp);
+    if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
+    else {
+        QUERY_CONTEXT_S context; //Describes the context of this query.
+        query_context_init(&context, c, flag, f, extra); 
+        TOKULOGGER logger = c_get_logger(c);
+        //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_prev_nodup(c->i->c, c_getf_prev_callback, &context, logger);
+        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    }
+    return r;
+}
+
+static int c_getf_prev_dup_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+    if (toku_c_uninitialized(c)) return EINVAL;
+
+    QUERY_CONTEXT_S context; //Describes the context of this query.
+    query_context_init(&context, c, flag, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_prev_dup will call c_getf_prev_dup_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_prev_dup(c->i->c, c_getf_prev_dup_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_prev_dup_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        const DBT *prevkey;
+        const DBT *prevval;
+        const DBT *left_val = key==NULL ? toku_lt_neg_infinity : &found_val;
+
+        toku_brt_cursor_peek(context->c, &prevkey, &prevval);
+        read_lock_request_init(&request, context->txn, context->db,
+                               prevkey,  left_val, //found_key is same as prevkey for this case
+                               prevkey,  prevval);
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_prev_dup
+    return r;
+}
+
+static int c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+
+    QUERY_CONTEXT_S context; //Describes the context of this query.
+    query_context_init(&context, c, flag, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_current(c->i->c, DB_CURRENT, c_getf_current_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT_BASE context       = &super_context->base;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    int r=0;
+    //Call application-layer callback if found.
+    if (key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_current
+    return r;
+}
+
+static int
+toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+
+    QUERY_CONTEXT_S context; //Describes the context of this query.
+    query_context_init(&context, c, flag, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_current(c->i->c, DB_CURRENT_BINDING, c_getf_current_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+static int c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+
+    QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_set(c->i->c, key, NULL, c_getf_set_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    //Lock:
+    //  left(key,val)  = (input_key, -infinity)
+    //  right(key,val) = (input_key, found ? found_val : infinity)
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, toku_lt_neg_infinity,
+                                   super_context->input_key, &found_val);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, toku_lt_neg_infinity,
+                                   super_context->input_key, toku_lt_infinity);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_set
+    return r;
+}
+
+static int c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+
+    QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_set_range(c->i->c, key, c_getf_set_range_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    //Lock:
+    //  left(key,val)  = (input_key, -infinity)
+    //  right(key) = found ? found_key : infinity
+    //  right(val) = found ? found_val : infinity
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, toku_lt_neg_infinity,
+                                   &found_key,               &found_val);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, toku_lt_neg_infinity,
+                                   toku_lt_infinity,         toku_lt_infinity);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_set_range
+    return r;
+}
+
+static int c_getf_get_both_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+
+    QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    query_context_with_input_init(&context, c, flag, key, val, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_get_both will call c_getf_get_both_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_set(c->i->c, key, val, c_getf_get_both_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_get_both_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    //Lock:
+    //  left(key,val)  = (input_key, input_val)
+    //  right==left
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        read_lock_request_init(&request, context->txn, context->db,
+                               super_context->input_key, super_context->input_val,
+                               super_context->input_key, super_context->input_val);
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_get_both
+    return r;
+}
+
+static int c_getf_get_both_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+    int r;
+    if (c_db_is_nodup(c)) r = toku_c_getf_get_both(c, flag, key, val, f, extra);
+    else {
+        QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+        query_context_with_input_init(&context, c, flag, key, val, f, extra); 
+        TOKULOGGER logger = c_get_logger(c);
+        //toku_brt_cursor_get_both_range will call c_getf_get_both_range_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_get_both_range(c->i->c, key, val, c_getf_get_both_range_callback, &context, logger);
+        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    }
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_get_both_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    //Lock:
+    //  left(key,val)  = (input_key, input_val)
+    //  right(key,val) = (input_key, found ? found_val : infinity)
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, super_context->input_val,
+                                   super_context->input_key, &found_val);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, super_context->input_val,
+                                   super_context->input_key, toku_lt_infinity);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_get_both_range
+    return r;
+}
+
+
+static int locked_c_getf_heaviside(DBC *c, u_int32_t flags,
+                               YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f,
+                               YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction) {
+    toku_ydb_lock();  int r = toku_c_getf_heaviside(c, flags, f, extra_f, h, extra_h, direction); toku_ydb_unlock(); return r;
+}
+
+typedef struct {
+    QUERY_CONTEXT_BASE_S            base;
+    YDB_HEAVISIDE_CALLBACK_FUNCTION f;
+    HEAVI_WRAPPER                   wrapper;
+} *QUERY_CONTEXT_HEAVISIDE, QUERY_CONTEXT_HEAVISIDE_S;
+
+static void
+query_context_heaviside_init(QUERY_CONTEXT_HEAVISIDE context, DBC *c, u_int32_t flag, YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra, HEAVI_WRAPPER wrapper) {
+    query_context_base_init(&context->base, c, flag, extra);
+    context->f       = f;
+    context->wrapper = wrapper;
+}
+
+static void
+heavi_wrapper_init(HEAVI_WRAPPER wrapper, int (*h)(const DBT *key, const DBT *value, void *extra_h), void *extra_h, int direction) {
+    wrapper->h         = h;
+    wrapper->extra_h   = extra_h;
+    wrapper->r_h       = direction; //Default value of r_h (may be set to 0 later)->
+    wrapper->direction = direction;
+}
+
+static int c_getf_heaviside_callback(ITEMLEN found_keylen, bytevec found_key, ITEMLEN found_vallen, bytevec found_val,
+                                     ITEMLEN next_keylen,  bytevec next_key,  ITEMLEN next_vallen,  bytevec next_val,
+                                     void *extra);
+
+static int
+toku_c_getf_heaviside(DBC *c, u_int32_t flag,
+                      YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f,
+                      YDB_HEAVISIDE_FUNCTION h, void *extra_h,
+                      int direction) {
+    int r;
+    HANDLE_PANICKED_DB(c->dbp);
+    HEAVI_WRAPPER_S wrapper;
+    heavi_wrapper_init(&wrapper, h, extra_h, direction);
+    QUERY_CONTEXT_HEAVISIDE_S context; //Describes the context of this query.
+    query_context_heaviside_init(&context, c, flag, f, extra_f, &wrapper); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_heaviside will call c_getf_heaviside_callback(..., context) (if query is successful)
+    r = toku_brt_cursor_heaviside(c->i->c, c_getf_heaviside_callback, &context, logger, &wrapper);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+//bytevec==NULL means not found.
+static int c_getf_heaviside_callback(ITEMLEN found_keylen, bytevec found_keyvec, ITEMLEN found_vallen, bytevec found_valvec,
+                                 ITEMLEN next_keylen,  bytevec next_keyvec,  ITEMLEN next_vallen,  bytevec next_valvec,
+                                 void *extra) {
+    QUERY_CONTEXT_HEAVISIDE super_context = extra;
+    QUERY_CONTEXT_BASE      context       = &super_context->base;
+
+    int r;
+    int r2 = 0;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, found_keyvec, found_keylen);
+    toku_fill_dbt(&found_val, found_valvec, found_vallen);
+
+    if (context->do_locking) {
+        const DBT *left_key  = toku_lt_neg_infinity;
+        const DBT *left_val  = toku_lt_neg_infinity;
+        const DBT *right_key = toku_lt_infinity;
+        const DBT *right_val = toku_lt_infinity;
+        RANGE_LOCK_REQUEST_S request;
+#define BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY 1
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+        //Have cursor (base->c)
+        //Have txn    (base->txn)
+        //Have db     (base->db)
+        BOOL found = (found_keyvec != NULL);
+        DBC *tmp_cursor; //Temporary cursor to find 'next_key/next_val'
         DBT tmp_key;
         DBT tmp_val;
-        DBT *left_key, *left_val, *right_key, *right_val;
-        if (direction<0) {
-            if (!found) {
-                r = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_FIRST, txn);
-                if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
-                if (r==DB_NOTFOUND) right_key = right_val = (DBT*)toku_lt_infinity;
-                else {
-                    //Restore cursor to the 'uninitialized' state it was just in.
-                    brt_cursor_restore_state_from_prev(c->i->c);
-                    right_key = brt_cursor_peek_prev_key(c->i->c);
-                    right_val = brt_cursor_peek_prev_val(c->i->c);
+        toku_init_dbt(&tmp_key);
+        toku_init_dbt(&tmp_val);
+        r = toku_db_cursor(context->db, context->txn, &tmp_cursor, 0, 0);
+        if (r!=0) goto tmp_cleanup;
+        //Find the 'next key and next val'
+        //We will do all relevent range locking, so there is no need for any sub-queries to do locking.
+        //Pass in DB_PRELOCKED.
+        if (super_context->wrapper->direction<0) {
+            if (found) {
+                //do an 'after'
+                //call DB_GET_BOTH to set the temp cursor to the 'found' values
+                //then call 'DB_NEXT' to advance it to the values we want
+                r = toku_c_getf_get_both(tmp_cursor, DB_PRELOCKED, &found_key, &found_val, ydb_getf_do_nothing, NULL);
+                if (r==0) {
+                    r = toku_c_get(tmp_cursor, &tmp_key, &tmp_val, DB_NEXT|DB_PRELOCKED);
+                    if (r==DB_NOTFOUND) r = 0;
                 }
-                left_key = left_val = (DBT*)toku_lt_neg_infinity;
             }
             else {
-                left_key = brt_cursor_peek_current_key(c->i->c);
-                left_val = brt_cursor_peek_current_val(c->i->c);
-                //Try to find right end the fast way.
-                r = toku_brt_cursor_peek_next(c->i->c, &tmp_key, &tmp_val);
-                if (r==0) {
-                    right_key = &tmp_key;
-                    right_val = &tmp_val;
-                }
-                else {
-                    //Find the right end the slow way.
-                    if ((r = toku_db_cursor(c->dbp, c->i->txn, &tmp_c, 0, 0))) goto cleanup;
-                    r=toku_brt_cursor_after(tmp_c->i->c, left_key, left_val,
-                                                         NULL,     NULL, txn);
-                    if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
-                    if (r==DB_NOTFOUND) right_key = right_val = (DBT*)toku_lt_infinity;
-                    else {
-                        right_key = brt_cursor_peek_current_key(tmp_c->i->c);
-                        right_val = brt_cursor_peek_current_val(tmp_c->i->c);
-                    }
-                }
+                //do a 'first'
+                r = toku_c_get(tmp_cursor, &tmp_key, &tmp_val, DB_FIRST|DB_PRELOCKED);
+                if (r==DB_NOTFOUND) r = 0;
             }
         }
         else {
-            //direction>0
-            if (!found) {
-                r = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_LAST, txn);
-                if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
-                if (r==DB_NOTFOUND) left_key = left_val = (DBT*)toku_lt_neg_infinity;
-                else {
-                    //Restore cursor to the 'uninitialized' state it was just in.
-                    brt_cursor_restore_state_from_prev(c->i->c);
-                    left_key = brt_cursor_peek_prev_key(c->i->c);
-                    left_val = brt_cursor_peek_prev_val(c->i->c);
+            if (found) {
+                //do a 'before'
+                //call DB_GET_BOTH to set the temp cursor to the 'found' values
+                //then call 'DB_PREV' to advance it to the values we want
+                r = toku_c_getf_get_both(tmp_cursor, DB_PRELOCKED, &found_key, &found_val, ydb_getf_do_nothing, NULL);
+                if (r==0) {
+                    r = toku_c_get(tmp_cursor, &tmp_key, &tmp_val, DB_PREV|DB_PRELOCKED);
+                    if (r==DB_NOTFOUND) r = 0;
                 }
-                right_key = right_val = (DBT*)toku_lt_infinity;
             }
             else {
-                right_key = brt_cursor_peek_current_key(c->i->c);
-                right_val = brt_cursor_peek_current_val(c->i->c);
-                //Try to find left end the fast way.
-                r=toku_brt_cursor_peek_prev(c->i->c, &tmp_key, &tmp_val);
-                if (r==0) {
-                    left_key = &tmp_key;
-                    left_val = &tmp_val;
-                }
-                else {
-                    //Find the left end the slow way.
-                    if ((r = toku_db_cursor(c->dbp, c->i->txn, &tmp_c, 0, 0))) goto cleanup;
-                    r=toku_brt_cursor_before(tmp_c->i->c, right_key, right_val,
-                                                          NULL,      NULL, txn);
-                    if (r==DB_NOTFOUND) left_key = left_val = (DBT*)toku_lt_neg_infinity;
-                    else {
-                        left_key = brt_cursor_peek_current_key(tmp_c->i->c);
-                        left_val = brt_cursor_peek_current_val(tmp_c->i->c);
-                    }
-                }
+                //do a 'last'
+                r = toku_c_get(tmp_cursor, &tmp_key, &tmp_val, DB_LAST|DB_PRELOCKED);
+                if (r==DB_NOTFOUND) r = 0;
             }
         }
-        DB_TXN* txn_anc = toku_txn_ancestor(c->i->txn);
-        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
-        if ((r = toku_txn_add_lt(txn_anc, lt))) goto cleanup;
-        r = toku_lt_acquire_range_read_lock(lt, db, id_anc,
-                                            left_key, left_val,
-                                            right_key, right_val);
-        if (r!=0) goto cleanup;
+        if (r==0) {
+            next_keyvec = tmp_key.data;
+            next_keylen = tmp_key.size;
+            next_valvec = tmp_val.data;
+            next_vallen = tmp_val.size;
+        }
+        else goto temp_cursor_cleanup;
+#endif
+        DBT next_key;
+        DBT next_val;
+        toku_fill_dbt(&next_key, next_keyvec, next_keylen);
+        toku_fill_dbt(&next_val, next_valvec, next_vallen);
+        if (super_context->wrapper->direction<0) {
+            if (found_keyvec!=NULL) {
+                left_key  = &found_key; 
+                left_val  = &found_val; 
+            }
+            if (next_keyvec!=NULL) {
+                right_key = &next_key; 
+                right_val = &next_val; 
+            }
+        }
+        else {
+            if (next_keyvec!=NULL) {
+                left_key  = &next_key; 
+                left_val  = &next_val; 
+            }
+            if (found_keyvec!=NULL) {
+                right_key = &found_key; 
+                right_val = &found_val; 
+            }
+        }
+        read_lock_request_init(&request, context->txn, context->db,
+                               left_key,   left_val,
+                               right_key,  right_val);
+        r = grab_range_lock(&request);
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+temp_cursor_cleanup:
+        r2 = toku_c_close(tmp_cursor);
+        //cleanup cursor
+#endif
     }
-    if (found) {
-        f(brt_cursor_peek_current_key(c->i->c), brt_cursor_peek_current_val(c->i->c), extra_f, wrapper.r_h);
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && found_keyvec!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra, super_context->wrapper->r_h);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
     }
-    r = c_get_result;
-cleanup:;
-    int r2 = 0;
-    if (tmp_c) r2 = toku_c_close(tmp_c);
+
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+tmp_cleanup:
+#endif
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_heavi
     return r ? r : r2;
 }
 
 static int toku_c_close(DBC * c) {
     int r = toku_brt_cursor_close(c->i->c);
+    toku_sdbt_cleanup(&c->i->skey_s);
+    toku_sdbt_cleanup(&c->i->sval_s);
     toku_free(c->i);
     toku_free(c);
     return r;
@@ -2303,256 +2559,112 @@ static inline int keyeq(DBC *c, DBT *a, DBT *b) {
     return db->i->brt->compare_fun(db, a, b) == 0;
 }
 
-static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
+// Return the number of entries whose key matches the key currently 
+// pointed to by the brt cursor.  
+static int 
+toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     int r;
     DBC *count_cursor = 0;
-    DBT currentkey; memset(&currentkey, 0, sizeof currentkey); currentkey.flags = DB_DBT_REALLOC;
-    DBT currentval; memset(&currentval, 0, sizeof currentval); currentval.flags = DB_DBT_REALLOC;
-    DBT key; memset(&key, 0, sizeof key); key.flags = DB_DBT_REALLOC;
-    DBT val; memset(&val, 0, sizeof val); val.flags = DB_DBT_REALLOC;
+    DBT currentkey;
 
+    init_dbt_realloc(&currentkey);
+    u_int32_t lock_flags = get_prelocked_flags(flags, cursor->i->txn);
+    flags &= ~lock_flags;
     if (flags != 0) {
         r = EINVAL; goto finish;
     }
 
-    r = toku_c_get(cursor, &currentkey, &currentval, DB_CURRENT_BINDING);
+    r = toku_c_get_current_unconditional(cursor, lock_flags, &currentkey, NULL);
     if (r != 0) goto finish;
+
+    //TODO: Optimization
+    //if (do_locking) {
+    //   do a lock from currentkey,-infinity to currentkey,infinity
+    //   lock_flags |= DB_PRELOCKED
+    //}
     
-    r = toku_db_cursor(cursor->dbp, 0, &count_cursor, 0, 0);
+    r = toku_db_cursor(cursor->dbp, cursor->i->txn, &count_cursor, 0, 0);
     if (r != 0) goto finish;
 
     *count = 0;
-    r = toku_c_get(count_cursor, &currentkey, &currentval, DB_SET); 
+    r = toku_c_getf_set(count_cursor, lock_flags, &currentkey, ydb_getf_do_nothing, NULL);
     if (r != 0) {
         r = 0; goto finish; /* success, the current key must be deleted and there are no more */
     }
 
     for (;;) {
         *count += 1;
-        r = toku_c_get(count_cursor, &key, &val, DB_NEXT);
+        r = toku_c_getf_next_dup(count_cursor, lock_flags, ydb_getf_do_nothing, NULL);
         if (r != 0) break;
-        if (!keyeq(count_cursor, &currentkey, &key)) break;
     }
     r = 0; /* success, we found at least one before the end */
 finish:
-    if (key.data) toku_free(key.data);
-    if (val.data) toku_free(val.data);
     if (currentkey.data) toku_free(currentkey.data);
-    if (currentval.data) toku_free(currentval.data);
     if (count_cursor) {
         int rr = toku_c_close(count_cursor); assert(rr == 0);
     }
     return r;
 }
 
-static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    int r;
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
-    flags &= ~lock_flags;
-    if (flags!=0 && flags!=DB_GET_BOTH) return EINVAL;
 
-    DBC *dbc;
-    r = toku_db_cursor(db, txn, &dbc, 0, 1);
-    if (r!=0) return r;
-    u_int32_t c_get_flags = (flags == 0) ? DB_SET : DB_GET_BOTH;
-    r = toku_c_get_noassociate(dbc, key, data, c_get_flags | lock_flags);
-    int r2 = toku_c_close(dbc);
-    return r ? r : r2;
-}
+///////////
+//db_getf_XXX is equivalent to c_getf_XXX, without a persistent cursor
 
-static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
-    int r;
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
-    flags &= ~lock_flags;
-    if (flags!=0 && flags!=DB_DELETE_ANY) return EINVAL;
-    //DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete
-    if (!(flags & DB_DELETE_ANY)) {
-        DBT search_val; memset(&search_val, 0, sizeof search_val); 
-        search_val.flags = DB_DBT_MALLOC;
-        r = toku_db_get_noassociate(db, txn, key, &search_val, lock_flags);
-        if (r != 0)
-            return r;
-        toku_free(search_val.data);
-    } 
-    //Do the actual deleting.
-    if (db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE)) {
-        DB_TXN* txn_anc = toku_txn_ancestor(txn);
-        r = toku_txn_add_lt(txn_anc, db->i->lt);
-        if (r!=0) { return r; }
-        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
-        r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
-                                             key, toku_lt_neg_infinity,
-                                             key, toku_lt_infinity);
-        if (r!=0) return r;
+static int
+db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    DBC *c;
+    int r = toku_db_cursor(db, txn, &c, 0, 1);
+    if (r==0) {
+        r = toku_c_getf_set(c, flags, key, f, extra);
+        int r2 = toku_c_close(c);
+        if (r==0) r = r2;
     }
-    r = toku_brt_delete(db->i->brt, key, txn ? txn->i->tokutxn : 0);
     return r;
 }
 
-static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
-    u_int32_t brtflags;
-    DBT idx;
-    memset(&idx, 0, sizeof(idx));
-    int r2 = 0;
-    int r = secondary->i->associate_callback(secondary, key, data, &idx);
-    if (r==DB_DONOTINDEX) { r = 0; goto clean_up; }
-    if (r!=0) goto clean_up;
-#ifdef DB_DBT_MULTIPLE
-    if (idx.flags & DB_DBT_MULTIPLE) {
-        r = EINVAL; // We aren't ready for this
-        goto clean_up;
+static int
+db_getf_get_both(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    DBC *c;
+    int r = toku_db_cursor(db, txn, &c, 0, 1);
+    if (r==0) {
+        r = toku_c_getf_get_both(c, flags, key, val, f, extra);
+        int r2 = toku_c_close(c);
+        if (r==0) r = r2;
     }
-#endif
-    toku_brt_get_flags(secondary->i->brt, &brtflags);
-    if (brtflags & TOKU_DB_DUPSORT)
-        r = toku_db_delboth_noassociate(secondary, txn, &idx, key, DB_DELETE_ANY);
-    else 
-        r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
-    clean_up:
-    if (idx.flags & DB_DBT_APPMALLOC) {
-        /* This should be free because idx.data is allocated by the user */
-    	toku_free(idx.data);
-    }
-    if (r!=0) return r;
-    return r2;
+    return r;
 }
+////////////
 
-static int toku_c_del(DBC * c, u_int32_t flags) {
-    int r;
-    DB* db = c->dbp;
+static int
+toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
-    
-    //It is a primary with secondaries, or is a secondary.
-    if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
-        DB* pdb;
-        DBT pkey;
-        DBT data;
-        struct list *h;
-
-        memset(&pkey, 0, sizeof(pkey));
-        memset(&data, 0, sizeof(data));
-        pkey.flags = DB_DBT_REALLOC;
-        data.flags = DB_DBT_REALLOC;
-        if (db->i->primary == 0) {
-            pdb = db;
-            r = toku_c_get(c, &pkey, &data, DB_CURRENT);
-            if (r != 0) goto assoc_cleanup;
-        } else {
-            DBT skey;
-            pdb = db->i->primary;
-            memset(&skey, 0, sizeof(skey));
-            skey.flags = DB_DBT_MALLOC;
-            r = toku_c_pget(c, &skey, &pkey, &data, DB_CURRENT);
-            if (r!=0) goto assoc_cleanup;
-            if (skey.data) toku_free(skey.data);
-        }
-        
-    	for (h = list_head(&pdb->i->associated); h != &pdb->i->associated; h = h->next) {
-    	    struct __toku_db_internal *dbi = list_struct(h, struct __toku_db_internal, associated);
-    	    if (dbi->db == db) continue;  //Skip current db (if its primary or secondary)
-    	    r = do_associated_deletes(c->i->txn, &pkey, &data, dbi->db);
-    	    if (r!=0) goto assoc_cleanup;
-    	}
-    	if (db->i->primary != 0) {
-    	    //If this is a secondary, we did not delete from the primary.
-    	    //Primaries cannot have duplicates, (noncursor) del is safe.
-    	    r = toku_db_del_noassociate(pdb, c->i->txn, &pkey, DB_DELETE_ANY);
-    	    if (r!=0) goto assoc_cleanup;
-    	}
-assoc_cleanup:
-        if (pkey.data) toku_free(pkey.data);
-        if (data.data) toku_free(data.data);
-        if (r!=0) goto cleanup;
+    u_int32_t unchecked_flags = flags;
+    //DB_DELETE_ANY means delete regardless of whether it exists in the db.
+    BOOL error_if_missing = !(flags&DB_DELETE_ANY);
+    unchecked_flags &= ~DB_DELETE_ANY;
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
+    unchecked_flags &= ~lock_flags;
+    BOOL do_locking = db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
+    int r = 0;
+    if (unchecked_flags!=0) r = EINVAL;
+    if (r==0 && error_if_missing) {
+        //Check if the key exists in the db.
+        r = db_getf_set(db, txn, lock_flags, key, ydb_getf_do_nothing, NULL);
     }
-    r = toku_c_del_noassociate(c, flags);
-    if (r!=0) goto cleanup;
-    r = 0;
-cleanup:
-    return r;    
-}
-
-static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
-    DB* db = dbc->dbp;
-    HANDLE_PANICKED_DB(db);
-    unsigned int brtflags;
-    int r;
-    DBT* put_key  = key;
-    DBT* put_data = data;
-    DBT* get_key  = key;
-    DBT* get_data = data;
-    DB_TXN* txn = dbc->i->txn;
-    
-    //Cannot c_put in a secondary index.
-    if (db->i->primary!=0) return EINVAL;
-    toku_brt_get_flags(db->i->brt, &brtflags);
-    //We do not support duplicates without sorting.
-    if (!(brtflags & TOKU_DB_DUPSORT) && (brtflags & TOKU_DB_DUP)) return EINVAL;
-    
-    if (flags==DB_CURRENT) {
-        DBT key_local;
-        DBT data_local;
-        memset(&key_local, 0, sizeof(DBT));
-        memset(&data_local, 0, sizeof(DBT));
-        //Can't afford to overwrite the local storage.
-        key_local.flags = DB_DBT_MALLOC;
-        data_local.flags = DB_DBT_MALLOC;
-        r = toku_c_get(dbc, &key_local, &data_local, DB_CURRENT);
-        if (0) {
-            cleanup:
-            if (flags==DB_CURRENT) {
-                toku_free(key_local.data);
-                toku_free(data_local.data);
-            }
-            return r;
-        }
-        if (r==DB_KEYEMPTY) return DB_NOTFOUND;
-        if (r!=0) return r;
-        if (brtflags & TOKU_DB_DUPSORT) {
-            r = db->i->brt->dup_compare(db, &data_local, data);
-            if (r!=0) {r = EINVAL; goto cleanup;}
-        }
-        //Remove old pair.
-        if (db->i->lt) {
-            /* Acquire all write locks before  */
-            DB_TXN* txn_anc = toku_txn_ancestor(txn);
-            r = toku_txn_add_lt(txn_anc, db->i->lt);
-            if (r!=0) { return r; }
-            TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
-            r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc,
-                                           &key_local, &data_local);
-            if (r!=0) goto cleanup;
-            r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc,
-                                           &key_local, data);
-            if (r!=0) goto cleanup;
-        }
-        r = toku_c_del(dbc, 0);
-        if (r!=0) goto cleanup;
-        get_key = put_key  = &key_local;
-        goto finish;
+    if (r==0 && do_locking) {
+        //Do locking if necessary.
+        RANGE_LOCK_REQUEST_S request;
+        //Left end of range == right end of range (point lock)
+        write_lock_request_init(&request, txn, db,
+                                key, toku_lt_neg_infinity,
+                                key, toku_lt_infinity);
+        r = grab_range_lock(&request);
     }
-    else if (flags==DB_KEYFIRST || flags==DB_KEYLAST) {
-        goto finish;        
+    if (r==0) {
+        //Do the actual deleting.
+        r = toku_brt_delete(db->i->brt, key, txn ? txn->i->tokutxn : 0);
     }
-    else if (flags==DB_NODUPDATA) {
-        //Must support sorted duplicates.
-        if (!(brtflags & TOKU_DB_DUPSORT)) return EINVAL;
-        r = toku_c_get(dbc, key, data, DB_GET_BOTH);
-        if (r==0) return DB_KEYEXIST;
-        if (r!=DB_NOTFOUND) return r;
-        goto finish;
-    }
-    //Flags must NOT be 0.
-    else return EINVAL;
-finish:
-    //Insert new data with the key we got from c_get
-    r = toku_db_put(db, dbc->i->txn, put_key, put_data, DB_YESOVERWRITE); // when doing the put, it should do an overwrite.
-    if (r!=0) goto cleanup;
-    r = toku_c_get(dbc, get_key, get_data, DB_GET_BOTH);
-    goto cleanup;
-}
-
-static int locked_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) {
-    toku_ydb_lock(); int r = toku_c_pget(c, key, pkey, data, flag); toku_ydb_unlock(); return r;
+    return r;
 }
 
 static int locked_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
@@ -2574,10 +2686,6 @@ static int locked_c_del(DBC * c, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_c_del(c, flags); toku_ydb_unlock(); return r;
 }
 
-static int locked_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_c_put(dbc, key, data, flags); toku_ydb_unlock(); return r;
-}
-
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
     if (flags != 0)
@@ -2588,176 +2696,74 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     memset(result, 0, sizeof *result);
 #define SCRS(name) result->name = locked_ ## name
     SCRS(c_get);
-    SCRS(c_pget);
-    SCRS(c_put);
     SCRS(c_close);
     SCRS(c_del);
     SCRS(c_count);
     SCRS(c_getf_first);
     SCRS(c_getf_last);
     SCRS(c_getf_next);
-    SCRS(c_getf_prev);
+    SCRS(c_getf_next_nodup);
     SCRS(c_getf_next_dup);
-    SCRS(c_getf_heavi);
+    SCRS(c_getf_prev);
+    SCRS(c_getf_prev_nodup);
+    SCRS(c_getf_prev_dup);
+    SCRS(c_getf_current);
+    SCRS(c_getf_current_binding);
+    SCRS(c_getf_heaviside);
+    SCRS(c_getf_set);
+    SCRS(c_getf_set_range);
+    SCRS(c_getf_get_both);
+    SCRS(c_getf_get_both_range);
 #undef SCRS
     MALLOC(result->i);
     assert(result->i);
     result->dbp = db;
     result->i->txn = txn;
-    int r = toku_brt_cursor(db->i->brt, &result->i->c, is_temporary_cursor);
+    result->i->skey_s = (struct simple_dbt){0,0};
+    result->i->sval_s = (struct simple_dbt){0,0};
+    if (is_temporary_cursor) {
+	result->i->skey = &db->i->skey;
+	result->i->sval = &db->i->sval;
+    } else {
+	result->i->skey = &result->i->skey_s;
+	result->i->sval = &result->i->sval_s;
+    }
+    int r = toku_brt_cursor(db->i->brt, &result->i->c);
     assert(r == 0);
     *c = result;
     return 0;
 }
 
-static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
+static int
+toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
-    int r;
-
-    //It is a primary with secondaries, or is a secondary.
-    if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
-        DB* pdb;
-        DBT data;
-        DBT pkey;
-        DBT *pdb_key;
-        struct list *h;
-        u_int32_t brtflags;
-
-        memset(&data, 0, sizeof(data));
-        data.flags = DB_DBT_REALLOC;
-
-        toku_brt_get_flags(db->i->brt, &brtflags);
-        if (brtflags & TOKU_DB_DUPSORT) {
-            int r2;
-            DBC *dbc;
-            BOOL found = FALSE;
-            DBT tmp_key;
-            memset(&tmp_key, 0, sizeof(tmp_key));
-            tmp_key.flags = DB_DBT_REALLOC;
-
-            /* If we are deleting all copies from a secondary with duplicates,
-             * We have to make certain we cascade all the deletes. */
-
-            assert(db->i->primary!=0);    //Primary cannot have duplicates.
-            r = toku_db_cursor(db, txn, &dbc, 0, 1);
-            if (r!=0) return r;
-            r = toku_c_get_noassociate(dbc, key, &data, DB_SET);
-            while (r==0) {
-                r = toku_c_del(dbc, 0);
-                if (r==0) found = TRUE;
-                if (r!=0 && r!=DB_KEYEMPTY) break;
-                /* key is an input-only parameter.  it can have flags such as
-                 * DB_DBT_MALLOC.  If this were the case, we would clobber the
-                 * contents of key as well as possibly have a memory leak if we
-                 * pass it to toku_c_get_noassociate below.  We use a temporary
-                 * junk variable to avoid this. */
-                r = toku_c_get_noassociate(dbc, &tmp_key, &data, DB_NEXT_DUP);
-                if (r == DB_NOTFOUND) {
-                    //If we deleted at least one we're happy.  Quit out.
-                    if (found) r = 0;
-                    break;
-                }
-            }
-            if (data.data)    toku_free(data.data);
-            if (tmp_key.data) toku_free(tmp_key.data);
-
-            r2 = toku_c_close(dbc);
-            if (r != 0) return r;
-            return r2;
-        }
-
-#define cleanup() { \
-            if (data.data) toku_free(data.data); \
-            if (pkey.data) toku_free(pkey.data); \
-        }
-
-        memset(&data, 0, sizeof data); data.flags = DB_DBT_REALLOC;
-        memset(&pkey, 0, sizeof pkey); pkey.flags = DB_DBT_REALLOC;
-
-        if (db->i->primary == 0) {
-            pdb = db;
-            r = toku_db_get(db, txn, key, &data, 0);
-            pdb_key = key;
-        }
-        else {
-            pdb = db->i->primary;
-            r = toku_db_pget(db, txn, key, &pkey, &data, 0);
-            pdb_key = &pkey;
-        }
-        if (r != 0) { 
-            cleanup(); return r; 
-        }
-        
-    	for (h = list_head(&pdb->i->associated); h != &pdb->i->associated; h = h->next) {
-    	    struct __toku_db_internal *dbi = list_struct(h, struct __toku_db_internal, associated);
-    	    if (dbi->db == db) continue;                  //Skip current db (if its primary or secondary)
-    	    r = do_associated_deletes(txn, pdb_key, &data, dbi->db);
-    	    if (r!=0) { 
-                cleanup(); return r;
-            }
-    	}
-    	if (db->i->primary != 0) {
-    	    //If this is a secondary, we did not delete from the primary.
-    	    //Primaries cannot have duplicates, (noncursor) del is safe.
-    	    r = toku_db_del_noassociate(pdb, txn, pdb_key, DB_DELETE_ANY);
-    	    if (r!=0) { 
-                cleanup(); return r;
-            }
-    	}
-
-        cleanup();
-
-    	//We know for certain it was already found, so no need to return DB_NOTFOUND.
-    	flags |= DB_DELETE_ANY;
-    }
-    r = toku_db_del_noassociate(db, txn, key, flags);
-    return r;
-}
-
-static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    int r;
-
+    u_int32_t unchecked_flags = flags;
+    //DB_DELETE_ANY means delete regardless of whether it exists in the db.
+    BOOL error_if_missing = !(flags&DB_DELETE_ANY);
+    unchecked_flags &= ~DB_DELETE_ANY;
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
-    flags &= ~lock_flags;
-    u_int32_t delete_any = flags&DB_DELETE_ANY;
-    flags &= ~DB_DELETE_ANY;
-    if (flags!=0) return EINVAL;
-    //DB_DELETE_ANY supresses the DB_NOTFOUND return value indicating that the key was not found prior to the delete
-
-    if (delete_any) {
-        if (db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE)) {
-            DB_TXN* txn_anc = toku_txn_ancestor(txn);
-            if ((r = toku_txn_add_lt(txn_anc, db->i->lt))) goto any_cleanup;
-            TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
-            r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc, key, val);
-            if (r!=0) goto any_cleanup;
-        }
+    unchecked_flags &= ~lock_flags;
+    BOOL do_locking = db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
+    int r = 0;
+    if (unchecked_flags!=0) r = EINVAL;
+    if (r==0 && error_if_missing) {
+        //Check if the key exists in the db.
+        r = db_getf_get_both(db, txn, lock_flags, key, val, ydb_getf_do_nothing, NULL);
+    }
+    if (r==0 && do_locking) {
+        //Do locking if necessary.
+        RANGE_LOCK_REQUEST_S request;
+        //Left end of range == right end of range (point lock)
+        write_lock_request_init(&request, txn, db,
+                                key, val,
+                                key, val);
+        r = grab_range_lock(&request);
+    }
+    if (r==0) {
+        //Do the actual deleting.
         r = toku_brt_delete_both(db->i->brt, key, val, txn ? txn->i->tokutxn : NULL);
-any_cleanup:
-        return r;
     }
-
-    DBC *dbc;
-    if ((r = toku_db_cursor(db, txn, &dbc, 0, 0))) goto cursor_cleanup;
-    if ((r = toku_c_get_noassociate(dbc, key, val, DB_GET_BOTH))) goto cursor_cleanup;
-    r = toku_c_del_noassociate(dbc, lock_flags);
-cursor_cleanup:;
-    int r2 = toku_c_close(dbc);
-    return r ? r : r2;
-}
-
-static int toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-
-    //It is a primary with secondaries, or is a secondary.
-    if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
-        //Not yet supported.
-        return ENOSYS;
-    }
-    else {
-        return toku_db_delboth_noassociate(db, txn, key, val, flags);
-    }
+    return r;
 }
 
 static inline int db_thread_need_flags(DBT *dbt) {
@@ -2783,28 +2789,6 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);
     int r2 = toku_c_close(dbc);
     return r ? r : r2;
-}
-
-static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    int r;
-    int r2;
-    DBC *dbc;
-    if (!db->i->primary) return EINVAL; // pget doesn't work on a primary.
-    assert(flags==0); // not ready to handle all those other options
-    assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
-    assert(db!=db->i->primary);
-
-    if ((db->i->open_flags & DB_THREAD) && (db_thread_need_flags(pkey) || db_thread_need_flags(data)))
-        return EINVAL;
-
-    r = toku_db_cursor(db, txn, &dbc, 0, 1);
-    if (r!=0) return r;
-    r = toku_c_pget(dbc, key, pkey, data, DB_SET);
-    if (r==DB_KEYEMPTY) r = DB_NOTFOUND;
-    r2 = toku_c_close(dbc);
-    if (r!=0) return r;
-    return r2;    
 }
 
 #if 0
@@ -3063,112 +3047,90 @@ error_cleanup:
     return r;
 }
 
-static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+//Return 0 if proposed pair do not violate size constraints of DB
+//(insertion is legal)
+//Return non zero otherwise.
+static int
+db_put_check_size_constraints(DB *db, DBT *key, DBT *val) {
     int r;
 
-    unsigned int brtflags;
-    r = toku_brt_get_flags(db->i->brt, &brtflags); assert(r == 0);
-
-    /* limit the size of key and data */
+    BOOL dupsort = !db_is_nodup(db);
+    //Check limits on size of key and val.
     unsigned int nodesize;
     r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
-    if (brtflags & TOKU_DB_DUPSORT) {
-        unsigned int limit = nodesize / (2*BRT_FANOUT-1);
-        if (key->size + data->size >= limit)
-            return EINVAL;
-    } else {
-        unsigned int limit = nodesize / (3*BRT_FANOUT-1);
-        if (key->size >= limit || data->size >= limit)
-            return toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %u bytes", limit);
-    }
-    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
-    flags &= ~lock_flags;
+    u_int32_t limit;
 
-    if (flags == DB_YESOVERWRITE) {
-        /* tokudb does insert or replace */
-        ;
-    } else if (flags == DB_NOOVERWRITE) {
-        /* check if the key already exists */
-        DBT testfordata;
-        memset(&testfordata, 0, sizeof(testfordata));
-        testfordata.flags = DB_DBT_MALLOC;
-        r = toku_db_get_noassociate(db, txn, key, &testfordata, lock_flags);
-        if (r == 0) {
-            if (testfordata.data) toku_free(testfordata.data);
-            return DB_KEYEXIST;
-        }
-        if (r != DB_NOTFOUND) return r;
-    } else if (flags != 0) {
-        /* no other flags are currently supported */
-        return EINVAL;
+    if (dupsort) {
+        limit = nodesize / (2*BRT_FANOUT-1);
+        if (key->size + val->size >= limit)
+            r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest (key + val) item allowed is %u bytes", limit);
     } else {
-        assert(flags == 0);
-        if (brtflags & TOKU_DB_DUPSORT) {
-#ifndef TDB_EQ_BDB
-#define TDB_EQ_BDB 0
-#endif
-#if TDB_EQ_BDB
-            r = toku_db_get_noassociate(db, txn, key, data, DB_GET_BOTH | lock_flags);
-            if (r == 0)
-                return DB_KEYEXIST;
-            if (r != DB_NOTFOUND) return r;
-#else
-	    return toku_ydb_do_error(db->dbenv, EINVAL, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
-#endif
-        }
-    }
-    if (db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE)) {
-        DB_TXN* txn_anc = toku_txn_ancestor(txn);
-        r = toku_txn_add_lt(txn_anc, db->i->lt);
-        if (r!=0) { return r; }
-        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
-        r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc, key, data);
-        if (r!=0) return r;
-    }
-    r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
-    //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
-    return r;
-}
-
-static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary) {
-    DBT idx;
-    memset(&idx, 0, sizeof(idx));
-    int r = secondary->i->associate_callback(secondary, key, data, &idx);
-    if (r==DB_DONOTINDEX) { r = 0; goto clean_up; }
-    if (r != 0) goto clean_up;
-#ifdef DB_DBT_MULTIPLE
-    if (idx.flags & DB_DBT_MULTIPLE) {
-	return EINVAL; // We aren't ready for this
-    }
-#endif
-    r = toku_db_put_noassociate(secondary, txn, &idx, key, DB_YESOVERWRITE);
-    clean_up:
-    if (idx.flags & DB_DBT_APPMALLOC) {
-        /* This should be free because idx.data is allocated by the user */
-        toku_free(idx.data);
+        limit = nodesize / (3*BRT_FANOUT-1);
+        if (key->size >= limit || val->size >= limit)
+            r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or val item allowed is %u bytes", limit);
     }
     return r;
 }
 
-static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
+//Return 0 if insert is legal
+static int
+db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key, DBT *UU(val),
+                                  u_int32_t lock_flags, u_int32_t overwrite_flag) {
+    int r;
+
+    //DB_YESOVERWRITE does not impose constraints.
+    if (overwrite_flag==DB_YESOVERWRITE) r = 0;
+    else if (overwrite_flag==DB_NOOVERWRITE) {
+        //Check if (key,anything) exists in dictionary.
+        //If exists, fail.  Otherwise, do insert.
+        r = db_getf_set(db, txn, lock_flags, key, ydb_getf_do_nothing, NULL);
+        if (r==DB_NOTFOUND) r = 0;
+        else if (r==0)      r = DB_KEYEXIST;
+        //Any other error is passed through.
+    }
+    else if (overwrite_flag==0) {
+        //in a nodup db:   overwrite_flag==0 is an alias for DB_YESOVERWRITE
+        //in a dupsort db: overwrite_flag==0 is an error
+        if (db_is_nodup(db)) r = 0;
+        else {
+            r = toku_ydb_do_error(db->dbenv, EINVAL, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
+        }
+    }
+    else {
+        //Other flags are not (yet) supported.
+        r = EINVAL;
+    }
+    return r;
+}
+
+static int
+toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     int r;
 
-    //Cannot put directly into a secondary.
-    if (db->i->primary != 0) return EINVAL;
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
+    flags &= ~lock_flags;
+    BOOL do_locking = db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
 
-    r = toku_db_put_noassociate(db, txn, key, data, flags);
-    if (r!=0) return r;
-    // For each secondary add the relevant records.
-    assert(db->i->primary==0);
-    // Only do it if it is a primary.   This loop would run an unknown number of times if we tried it on a secondary.
-    struct list *h;
-    for (h=list_head(&db->i->associated); h!=&db->i->associated; h=h->next) {
-        struct __toku_db_internal *dbi=list_struct(h, struct __toku_db_internal, associated);
-        r=do_associated_inserts(txn, key, data, dbi->db);
-        if (r!=0) return r;
+    r = db_put_check_size_constraints(db, key, val);
+    if (r==0) {
+        //Do any checking required by the flags.
+        r = db_put_check_overwrite_constraint(db, txn, key, val, lock_flags, flags);
     }
-    return 0;
+    if (r==0 && do_locking) {
+        //Do locking if necessary.
+        RANGE_LOCK_REQUEST_S request;
+        //Left end of range == right end of range (point lock)
+        write_lock_request_init(&request, txn, db,
+                                key, val,
+                                key, val);
+        r = grab_range_lock(&request);
+    }
+    if (r==0) {
+        //Insert into the brt.
+        r = toku_brt_insert(db->i->brt, key, val, txn ? txn->i->tokutxn : 0);
+    }
+    return r;
 }
 
 static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
@@ -3396,20 +3358,6 @@ static inline int toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
     return r; 
 }
 
-static inline int autotxn_db_associate(DB *primary, DB_TXN *txn, DB *secondary,
-                                       int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result), u_int32_t flags) {
-    BOOL changed; int r;
-    r = toku_db_construct_autotxn(primary, &txn, &changed, FALSE);
-    if (r!=0) return r;
-    r = toku_db_associate(primary, txn, secondary, callback, flags);
-    return toku_db_destruct_autotxn(txn, r, changed);
-}
-
-static int locked_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
-                                int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result), u_int32_t flags) {
-    toku_ydb_lock(); int r = autotxn_db_associate(primary, txn, secondary, callback, flags); toku_ydb_unlock(); return r;
-}
-
 static int locked_db_close(DB * db, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_db_close(db, flags); toku_ydb_unlock(); return r;
 }
@@ -3494,9 +3442,6 @@ static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t
     // dont support sub databases (yet)
     if (db->i->database_name != 0 && strcmp(db->i->database_name, "") != 0)
         return EINVAL;
-    // dont support associated databases (yet)
-    if (!list_empty(&db->i->associated))
-        return EINVAL;
 
     // acquire a table lock
     if (txn) {
@@ -3510,19 +3455,6 @@ static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t
     r = toku_brt_truncate(db->i->brt);
 
     return r;
-}
-
-static inline int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
-                                  DBT* data, u_int32_t flags) {
-    BOOL changed; int r;
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
-    if (r!=0) return r;
-    r = toku_db_pget(db, txn, key, pkey, data, flags);
-    return toku_db_destruct_autotxn(txn, r, changed);
-}
-
-static int locked_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
-    toku_ydb_lock(); int r = autotxn_db_pget(db, txn, key, pkey, data, flags); toku_ydb_unlock(); return r;
 }
 
 static inline int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
@@ -3639,7 +3571,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->dbenv = env;
 #define SDB(name) result->name = locked_db_ ## name
     SDB(key_range64);
-    SDB(associate);
     SDB(close);
     SDB(cursor);
     SDB(del);
@@ -3647,7 +3578,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(get);
     //    SDB(key_range);
     SDB(open);
-    SDB(pget);
     SDB(put);
     SDB(remove);
     SDB(rename);
@@ -3681,9 +3611,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->i->open_flags = 0;
     result->i->open_mode = 0;
     result->i->brt = 0;
-    list_init(&result->i->associated);
-    result->i->primary = 0;
-    result->i->associate_callback = 0;
     r = toku_brt_create(&result->i->brt);
     if (r != 0) {
         toku_free(result->i);

@@ -52,7 +52,7 @@ static inline void rbuf_bytes (struct rbuf *r, bytevec *bytes, unsigned int *n_b
 }
 
 static inline unsigned long long rbuf_ulonglong (struct rbuf *r) {
-    unsigned i0 = rbuf_int(r);  
+    unsigned i0 = rbuf_int(r);
     unsigned i1 = rbuf_int(r);
     return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));
 }

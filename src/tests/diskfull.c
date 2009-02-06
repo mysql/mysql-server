@@ -22,6 +22,7 @@ do_db_work(void) {
 	if (verbose==0) {
 	    error_file = fopen(ENVDIR "/stderr", "w");                             assert(error_file);
 	}
+        else error_file = stderr;
 
 	DB_ENV *env;
 	DB_TXN *tid;
@@ -53,7 +54,7 @@ do_db_work(void) {
     shutdown1:
 	r=db->close(db, 0);                                                        DOERR(r);
 	r=env->close(env, 0);                                                      DOERR(r);
-	if (error_file) fclose(error_file);
+	if (error_file && error_file!=stderr) fclose(error_file);
 	if (did_fail) return;
     }
     {
@@ -64,6 +65,7 @@ do_db_work(void) {
 	if (verbose==0) {
 	    error_file = fopen(ENVDIR "/stderr", "w");                             assert(error_file);
 	}
+        else error_file = stderr;
 
 	DB_ENV *env;
 	DB_TXN *tid;
@@ -125,7 +127,7 @@ do_db_work(void) {
     shutdown2:
 	r=db->close(db, 0);                                                        DOERR(r);
 	r=env->close(env, 0);                                                      DOERR(r);
-	if (error_file) fclose(error_file);
+	if (error_file && error_file!=stderr) fclose(error_file);
     }
 }
 

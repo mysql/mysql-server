@@ -78,16 +78,16 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *, u_int32_t *l
 int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, struct x1764 *, u_int32_t *len);
 int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, struct x1764 *, u_int32_t *len);
 
-int toku_logprint_LSN             (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_TXNID           (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_BYTESTRING      (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_FILENUM         (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_DISKOFF         (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_BLOCKNUM        (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
+int toku_logprint_LSN             (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_TXNID           (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_BYTESTRING      (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_FILENUM         (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_DISKOFF         (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_BLOCKNUM        (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
 int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
-int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
-int toku_logprint_INTPAIRARRAY    (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
+int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
+int toku_logprint_INTPAIRARRAY    (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
 
 // Useful thing for printing a bytestring.
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data);

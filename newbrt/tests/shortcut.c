@@ -17,35 +17,40 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     int r;
     DB a_db;
     DB *db = &a_db;
-    DBT key,val;
 
     unlink_file_and_bit(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                               assert(r==0);
     r = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare, db);   assert(r==0);
-    r = toku_brt_cursor(brt, &cursor, 0);                                                        assert(r==0);
+    r = toku_brt_cursor(brt, &cursor);                                                           assert(r==0);
 
     int i;
     for (i=0; i<1000; i++) {
 	char string[100];
 	snprintf(string, sizeof(string), "%04d", i);
+	DBT key,val;
 	r = toku_brt_insert(brt, toku_fill_dbt(&key, string, 5), toku_fill_dbt(&val, string, 5), 0);       assert(r==0);
     }
 
-    r = toku_brt_cursor_get(cursor, &key, &val, DB_NEXT, null_txn);                              assert(r==0);
-    assert(strcmp(key.data, "0000")==0);
-    assert(strcmp(val.data, "0000")==0);
-
-    r = toku_brt_cursor_get(cursor, &key, &val, DB_NEXT, null_txn);                              assert(r==0);
-    assert(strcmp(key.data, "0001")==0);
-    assert(strcmp(val.data, "0001")==0);
+    {
+	struct check_pair pair = {5, "0000", 5, "0000", 0};
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);    assert(r==0); assert(pair.call_count==1);
+    }
+    {
+	struct check_pair pair = {5, "0001", 5, "0001", 0};
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);    assert(r==0); assert(pair.call_count==1);
+    }
 
     // This will invalidate due to the root counter bumping, but the OMT itself will still be valid.
-    r = toku_brt_insert(brt, toku_fill_dbt(&key, "d", 2), toku_fill_dbt(&val, "w", 2), 0);       assert(r==0);
+    {
+	DBT key, val;
+	r = toku_brt_insert(brt, toku_fill_dbt(&key, "d", 2), toku_fill_dbt(&val, "w", 2), 0);   assert(r==0);
+    }
 
-    r = toku_brt_cursor_get(cursor, &key, &val, DB_NEXT, null_txn);                              assert(r==0);
-    assert(strcmp(key.data, "0002")==0);
-    assert(strcmp(val.data, "0002")==0);
+    {
+	struct check_pair pair = {5, "0002", 5, "0002", 0};
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);    assert(r==0); assert(pair.call_count==1);
+    }
 
     r = toku_brt_cursor_close(cursor);                                                           assert(r==0);
     r = toku_close_brt(brt, 0, 0);                                                               assert(r==0);

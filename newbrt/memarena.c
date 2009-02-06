@@ -105,9 +105,9 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     if (other_bufs == 0) {
 	char **new_other_bufs;
         printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
-        printf("Z: move_counter:%d dest:%p %p %d source:%p %p %d errno:%d\n", 
-               move_counter, 
-               dest, dest->other_bufs, dest->n_other_bufs, 
+        printf("Z: move_counter:%d dest:%p %p %d source:%p %p %d errno:%d\n",
+               move_counter,
+               dest, dest->other_bufs, dest->n_other_bufs,
                source, source->other_bufs, source->n_other_bufs,
                errno);
 	new_other_bufs = toku_malloc((dest->n_other_bufs + source->n_other_bufs + 1)*sizeof (char **));

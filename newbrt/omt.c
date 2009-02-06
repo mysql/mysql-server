@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include "toku_portability.h"
@@ -96,6 +97,7 @@ void toku_omt_cursor_set_invalidate_callback(OMTCURSOR c, void (*f)(OMTCURSOR,vo
 }
 
 void toku_omt_cursor_invalidate (OMTCURSOR c) {
+    //If already invalid, do nothing.
     if (c==NULL || c->omt==NULL) return;
     if (c->invalidate) c->invalidate(c, c->invalidate_extra);
     if (c->next == c) {
@@ -144,6 +146,12 @@ static void associate (OMT omt, OMTCURSOR c)
     c->omt = omt;
 }
 
+void
+toku_omt_cursor_associate(OMT omt, OMTCURSOR c) {
+    assert(c->omt==NULL||c->omt==omt);
+    associate(omt, c);
+}
+
 static inline u_int32_t nweight(OMT omt, node_idx idx) {
     if (idx==NODE_NULL) return 0;
     else return (omt->i.t.nodes+idx)->weight;
@@ -167,7 +175,7 @@ static inline void fill_array_with_subtree_values(OMT omt, OMTVALUE *array, node
     OMT_NODE tree = omt->i.t.nodes+tree_idx;
     fill_array_with_subtree_values(omt, array, tree->left);
     array[nweight(omt, tree->left)] = tree->value;
-    fill_array_with_subtree_values(omt, array+nweight(omt, tree->left)+1, tree->right); 
+    fill_array_with_subtree_values(omt, array+nweight(omt, tree->left)+1, tree->right);
 }
 
 // Example:  numvalues=4,  halfway=2,  left side is values of size 2
@@ -187,7 +195,7 @@ static inline void rebuild_from_sorted_array(OMT omt, node_idx *n_idxp,
         node_idx newidx   = omt_node_malloc(omt);
         OMT_NODE newnode  = omt->i.t.nodes+newidx;
         newnode->weight   = numvalues;
-        newnode->value    = values[halfway]; 
+        newnode->value    = values[halfway];
         *n_idxp = newidx; // update everything before the recursive calls so the second call can be a tail call.
         rebuild_from_sorted_array(omt, &newnode->left,  values,           halfway);
         rebuild_from_sorted_array(omt, &newnode->right, values+halfway+1, numvalues-(halfway+1));
@@ -274,7 +282,7 @@ static inline void fill_array_with_subtree_idxs(OMT omt, node_idx *array, node_i
     OMT_NODE tree = omt->i.t.nodes+tree_idx;
     fill_array_with_subtree_idxs(omt, array, tree->left);
     array[nweight(omt, tree->left)] = tree_idx;
-    fill_array_with_subtree_idxs(omt, array+nweight(omt, tree->left)+1, tree->right); 
+    fill_array_with_subtree_idxs(omt, array+nweight(omt, tree->left)+1, tree->right);
 }
 
 /* Reuses existing OMT_NODE structures (used for rebalancing). */
@@ -335,7 +343,7 @@ static inline BOOL will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int
     return (BOOL)((1+weight_left < (1+1+weight_right)/2)
 		  ||
 		  (1+weight_right < (1+1+weight_left)/2));
-} 
+}
 
 static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_int32_t index, node_idx **rebalance_idx) {
     if (*n_idxp==NODE_NULL) {
@@ -475,7 +483,7 @@ static inline int find_internal_zero_array(OMT omt, int (*h)(OMTVALUE, void*extr
             min = mid+1;
         }
         else if (hv>0) {
-            best_pos  = mid; 
+            best_pos  = mid;
             limit     = mid;
         }
         else {
@@ -650,7 +658,7 @@ int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *index) {
     if (c->omt == NULL) return EINVAL;
     *index = c->index;
     return 0;
-} 
+}
 
 //TODO: Put all omt API functions here.
 int toku_omt_create (OMT *omtp) {
@@ -708,6 +716,7 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
 
 int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
     if (index>=omt_size(omt)) return EINVAL;
+    invalidate_cursors(omt);
     if (omt->is_array) {
         set_at_internal_array(omt, value, index);
     }
@@ -859,7 +868,7 @@ int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
     *newomtp = newomt;
     return 0;
 }
-    
+
 int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     int r;
     OMT newomt = 0;

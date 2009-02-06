@@ -19,7 +19,7 @@ int close_bread_without_closing_fd(BREAD);
 // Effect: Close the BREAD, but don't close the underlying fd.
 
 ssize_t bread_backwards(BREAD, void *buf, size_t nbytes);
-// Read nbytes into buf, reading backwards.  
+// Read nbytes into buf, reading backwards.
 
 int bread_has_more(BREAD);
 // Is there more to read?

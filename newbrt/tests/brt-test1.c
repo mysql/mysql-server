@@ -22,10 +22,10 @@ static void test1 (void) {
     assert(r==0);
     toku_brt_insert(t, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
     {
-	r = toku_brt_lookup(t, toku_fill_dbt(&k, "hello", 6), toku_init_dbt(&v));
+	struct check_pair pair = {6, "hello", 6, "there", 0};
+	r = toku_brt_lookup(t, toku_fill_dbt(&k, "hello", 6), NULL, lookup_checkf, &pair);
 	assert(r==0);
-	assert(strcmp(v.data, "there")==0);
-	assert(v.size==6);
+	assert(pair.call_count==1);
     }
     r = toku_close_brt(t, 0, 0);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);

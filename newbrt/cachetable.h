@@ -27,8 +27,8 @@ int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_
 // Effects: a new cachetable is created and initialized.
 // The cachetable pointer is stored into result.
 // The sum of the sizes of the memory objects is set to size_limit, in whatever
-// units make sense to the user of the cachetable. 
-// Returns: If success, returns 0 and result points to the new cachetable. Otherwise, 
+// units make sense to the user of the cachetable.
+// Returns: If success, returns 0 and result points to the new cachetable. Otherwise,
 // returns an error number.
 
 // What is the cachefile that goes with a particular filenum?
@@ -77,14 +77,14 @@ void *toku_cachefile_get_userdata(CACHEFILE);
 // Effect: Get the user data.
 
 // Put a memory object into the cachetable.
-// Effects: Lookup the key in the cachetable. If the key is not in the cachetable, 
-// then insert the pair and pin it. Otherwise return an error.  Some of the key 
+// Effects: Lookup the key in the cachetable. If the key is not in the cachetable,
+// then insert the pair and pin it. Otherwise return an error.  Some of the key
 // value pairs may be evicted from the cachetable when the cachetable gets too big.
-// Returns: 0 if the memory object is placed into the cachetable, otherwise an 
+// Returns: 0 if the memory object is placed into the cachetable, otherwise an
 // error number.
 int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 			void *value, long size,
-			CACHETABLE_FLUSH_CALLBACK flush_callback, 
+			CACHETABLE_FLUSH_CALLBACK flush_callback,
                         CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
 
 // Get and pin a memory object.
@@ -94,13 +94,13 @@ int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 // Returns: 0 if the memory object is in memory, otherwise an error number.
 int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 				void **/*value*/, long *sizep,
-				CACHETABLE_FLUSH_CALLBACK flush_callback, 
+				CACHETABLE_FLUSH_CALLBACK flush_callback,
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
 
 // Maybe get and pin a memory object.
-// Effects:  This function is identical to the get_and_pin function except that it 
+// Effects:  This function is identical to the get_and_pin function except that it
 // will not attempt to fetch a memory object that is not in the cachetable.
-// Returns: If the the item is already in memory, then return 0 and store it in the 
+// Returns: If the the item is already in memory, then return 0 and store it in the
 // void**.  If the item is not in memory, then return a nonzero error number.
 int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 
@@ -111,7 +111,7 @@ enum cachetable_dirty {
 };
 
 // Unpin a memory object
-// Effects: If the memory object is in the cachetable, then OR the dirty flag, 
+// Effects: If the memory object is in the cachetable, then OR the dirty flag,
 // update the size, and release the read lock on the memory object.
 // Returns: 0 if success, otherwise returns an error number.
 int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
@@ -136,10 +136,10 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
 
 //int cachetable_fsync_all (CACHETABLE); /* Flush everything to disk, but keep it in cache. */
 
-// Close the cachefile.  
-// Effects: All of the cached object associated with the cachefile are evicted from 
-// the cachetable.  The flush callback is called for each of these objects.  The 
-// close function does not return until all of the objects are evicted.  The cachefile 
+// Close the cachefile.
+// Effects: All of the cached object associated with the cachefile are evicted from
+// the cachetable.  The flush callback is called for each of these objects.  The
+// close function does not return until all of the objects are evicted.  The cachefile
 // object is freed.
 // Returns: 0 if success, otherwise returns an error number.
 int toku_cachefile_close (CACHEFILE*, TOKULOGGER, char **error_string);
@@ -148,20 +148,20 @@ int toku_cachefile_close (CACHEFILE*, TOKULOGGER, char **error_string);
 // Effect: Flush everything owned by the cachefile from the cachetable. All dirty
 // blocks are written.  All unpinned blocks are evicted from the cachetable.
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachefile_flush (CACHEFILE); 
+int toku_cachefile_flush (CACHEFILE);
 
 // Increment the reference count.  Use close to decrement it.
-void toku_cachefile_refup (CACHEFILE cfp); 
+void toku_cachefile_refup (CACHEFILE cfp);
 
 // Return on success (different from pread and pwrite)
 //int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, toku_off_t offset);
 //int cachefile_pread  (CACHEFILE, void *buf, size_t count, toku_off_t offset);
 
 // Get the file descriptor associated with the cachefile
-// Return the file descriptor 
+// Return the file descriptor
 int toku_cachefile_fd (CACHEFILE);
 
-// Set the cachefile's fd and fname. 
+// Set the cachefile's fd and fname.
 // Effect: Bind the cachefile to a new fd and fname. The old fd is closed.
 // Returns: 0 if success, otherwise an error number
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname);
@@ -185,26 +185,26 @@ u_int32_t toku_cachetable_hash (CACHEFILE cachefile, CACHEKEY key);
 
 u_int32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile);
 
-// debug functions 
+// debug functions
 
-// Print the contents of the cachetable. This is mainly used from gdb 
+// Print the contents of the cachetable. This is mainly used from gdb
 void toku_cachetable_print_state (CACHETABLE ct);
 
 // Get the state of the cachetable. This is used to verify the cachetable
 void toku_cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
 
 // Get the state of a cachetable entry by key. This is used to verify the cachetable
-int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf, 
+int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf,
                                   void **value_ptr,
-				  int *dirty_ptr, 
-                                  long long *pin_ptr, 
+				  int *dirty_ptr,
+                                  long long *pin_ptr,
                                   long *size_ptr);
 
 // Verify the whole cachetable that the cachefile is in.  Slow.
-void toku_cachefile_verify (CACHEFILE cf);  
+void toku_cachefile_verify (CACHEFILE cf);
 
 // Verify the cachetable. Slow.
-void toku_cachetable_verify (CACHETABLE t); 
+void toku_cachetable_verify (CACHETABLE t);
 
 // Not for use in production, but useful for testing.
 void toku_cachetable_print_hash_histogram (void) __attribute__((__visibility__("default")));

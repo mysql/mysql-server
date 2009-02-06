@@ -50,7 +50,7 @@ int le_both (TXNID xid, u_int32_t klen, void* kval, u_int32_t clen, void* cval, 
     *disksize  = 1 + 8 + 4*3 + klen + clen + plen;
     *result=(LEAFENTRY)lec;
     return 0;
-    
+
 }
 
 int

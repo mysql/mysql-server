@@ -17,7 +17,7 @@ u_int32_t x1764_memory (const void *buf, int len)
 	int i;
 	u_int64_t input=0;
 	for (i=0; i<len; i++) {
-	    input |= ((u_int64_t)(cbuf[i]))<<(8*i); 
+	    input |= ((u_int64_t)(cbuf[i]))<<(8*i);
 	}
 	c = c*17 + input;
     }
@@ -133,7 +133,7 @@ void x1764_add (struct x1764 *l, const void *vbuf, int len) {
     n_input_bytes = 0;
     u_int64_t input;
     l->n_input_bytes = len;
-    // Surprisingly, the loop is the fastest on bradley's laptop. 
+    // Surprisingly, the loop is the fastest on bradley's laptop.
     if (1) {
 	int i;
 	input=0;

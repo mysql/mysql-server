@@ -110,7 +110,7 @@ static inline int ctpair_writers(CTPAIR_RWLOCK rwlock) {
     return rwlock->writer;
 }
 
-// returns: the sum of the number of readers, pending readers, writers, and 
+// returns: the sum of the number of readers, pending readers, writers, and
 // pending writers
 
 static inline int ctpair_users(CTPAIR_RWLOCK rwlock) {

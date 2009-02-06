@@ -89,11 +89,6 @@ int Db::get(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     return the_Env->maybe_throw_error(ret);
 }
 
-int Db::pget(DbTxn *txn, Dbt *key, Dbt *pkey, Dbt *data, u_int32_t flags) {
-    int ret = the_db->pget(the_db, txn->get_DB_TXN(), key->get_DBT(), pkey->get_DBT(), data->get_DBT(), flags);
-    return the_Env->maybe_throw_error(ret);
-}
-
 int Db::put(DbTxn *txn, Dbt *key, Dbt *data, u_int32_t flags) {
     int ret = the_db->put(the_db, txn->get_DB_TXN(), key->get_DBT(), data->get_DBT(), flags);
     return the_Env->maybe_throw_error(ret);
@@ -149,26 +144,6 @@ extern "C" int toku_dup_compare_callback_c(DB *db_c, const DBT *a, const DBT *b)
 int Db::set_dup_compare(int (*dup_compare_callback)(Db *, const Dbt *, const Dbt *)) {
     dup_compare_callback_cxx = dup_compare_callback;
     int ret = the_db->set_dup_compare(the_db, toku_dup_compare_callback_c);
-    return the_Env->maybe_throw_error(ret);
-}
-
-// Q: How to convert callback types in the most simple way?
-// A: (Bradley) I see three ways to do this:  The issue is that we have a C++ callback function, and we want to pass it to a C function.
-//    The fastest way is wrong:  You cannot just pass the C++ function pointer since you cannot mix function pointers to C and C++.
-//    The "right" way is to declare an "extern C" function and do all the conversions.  Create a Dbt from a DBT, and then call the C function.  For returned data we would have do something too.  But it turns out that DBT and Dbt pointers are interchangable so that leads to
-//    The "fast" way.  Declare an "extern C" function, and then use Dbt::get_const_Dbt() to do the conversion quickly.
-
-extern "C" int toku_associate_callback_c (DB*db_c, const DBT *k, const DBT *d, DBT *result) {
-    assert(db_c!=0);
-    Db *db_cxx=Db::get_Db(db_c);
-    assert(db_cxx);
-    return (*db_cxx->associate_callback_cxx)(db_cxx, Dbt::get_const_Dbt(k), Dbt::get_const_Dbt(d), Dbt::get_Dbt(result));
-}
-
-int Db::associate(DbTxn *txnid, Db *secondary, int (*callback)(Db *secondary, const Dbt *key, const Dbt *data, Dbt *result), u_int32_t flags) {
-    // secondary->set_associate_callback(callback);
-    secondary->associate_callback_cxx = callback;
-    int ret = the_db->associate(the_db, txnid->get_DB_TXN(), secondary->get_DB(), toku_associate_callback_c, flags);
     return the_Env->maybe_throw_error(ret);
 }
 

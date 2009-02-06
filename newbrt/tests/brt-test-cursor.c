@@ -18,15 +18,14 @@ static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT 
 static void assert_cursor_notfound(BRT brt, int position) {
     BRT_CURSOR cursor=0;
     int r;
-    DBT kbt, vbt;
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
-    toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-    toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = toku_brt_cursor_get(cursor, &kbt, &vbt, position, null_txn);
+    struct check_pair pair = {0,0,0,0,0};
+    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, position, null_txn);
     assert(r == DB_NOTFOUND);
+    assert(pair.call_count==0);
 
     r = toku_brt_cursor_close(cursor);
     assert(r==0);
@@ -35,24 +34,15 @@ static void assert_cursor_notfound(BRT brt, int position) {
 static void assert_cursor_value(BRT brt, int position, long long value) {
     BRT_CURSOR cursor=0;
     int r;
-    DBT kbt, vbt;
-    long long v;
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
-    toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-    toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = toku_brt_cursor_get(cursor, &kbt, &vbt, position, null_txn);
+    struct check_pair pair = {len_ignore, 0, sizeof(value), &value, 0};
+    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, position, null_txn);
     assert(r == 0);
-    if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-    assert(vbt.size == sizeof v);
-    memcpy(&v, vbt.data, vbt.size);
-    assert(v == value);
-    toku_free(kbt.data);
-    toku_free(vbt.data);
-    if (test_cursor_debug && verbose) printf("\n");
+    assert(pair.call_count==1);
 
     r = toku_brt_cursor_close(cursor);
     assert(r==0);
@@ -61,37 +51,26 @@ static void assert_cursor_value(BRT brt, int position, long long value) {
 static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     BRT_CURSOR cursor=0;
     int r;
-    DBT kbt, vbt;
-    long long v;
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("first key: ");
-    toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-    toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, null_txn);
-    assert(r == 0);
-    if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-    assert(vbt.size == sizeof v);
-    memcpy(&v, vbt.data, vbt.size);
-    assert(v == firstv);
-    toku_free(kbt.data);
-    toku_free(vbt.data);
-    if (test_cursor_debug && verbose) printf("\n");
+    {
+	struct check_pair pair = {len_ignore, 0, sizeof(firstv), &firstv, 0};
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST, null_txn);
+	assert(r == 0);
+	assert(pair.call_count==1);
+    }
 
     if (test_cursor_debug && verbose) printf("last key:");
-    toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-    toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, null_txn);
-    assert(r == 0);
-    if (test_cursor_debug)printf("%s ", (char*)kbt.data);
-    assert(vbt.size == sizeof v);
-    memcpy(&v, vbt.data, vbt.size);
-    assert(v == lastv);
-    toku_free(kbt.data);
-    toku_free(vbt.data);
-    if (test_cursor_debug) printf("\n");
+    {
+	struct check_pair pair = {len_ignore, 0, sizeof(lastv), &lastv, 0};
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_LAST, null_txn);
+	assert(r == 0);
+	assert(pair.call_count==1);
+    }
+    if (test_cursor_debug && verbose) printf("\n");
 
     r = toku_brt_cursor_close(cursor);
     assert(r==0);
@@ -271,25 +250,19 @@ static void assert_cursor_walk(BRT brt, int n) {
     int i;
     int r;
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
     for (i=0; ; i++) {
-        DBT kbt, vbt;
-        long long v;
-
-        toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_txn);
-        if (r != 0)
+        long long v = i;
+	struct check_pair pair = {len_ignore, 0, sizeof(v), &v, 0};	
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
+        if (r != 0) {
+	    assert(pair.call_count==0);
             break;
-        if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-        assert(vbt.size == sizeof v);
-        memcpy(&v, vbt.data, vbt.size);
-        assert(v == i);
-        toku_free(kbt.data);
-        toku_free(vbt.data);
+	}
+	assert(pair.call_count==1);
     }
     if (test_cursor_debug && verbose) printf("\n");
     assert(i == n);
@@ -343,25 +316,19 @@ static void assert_cursor_rwalk(BRT brt, int n) {
     int i;
     int r;
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
     for (i=n-1; ; i--) {
-        DBT kbt, vbt;
-        long long v;
-
-        toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_PREV, null_txn);
-        if (r != 0)
+        long long v = i;
+	struct check_pair pair = {len_ignore, 0, sizeof v, &v, 0};
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_PREV, null_txn);
+        if (r != 0) {
+	    assert(pair.call_count==0);
             break;
-        if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-        assert(vbt.size == sizeof v);
-        memcpy(&v, vbt.data, vbt.size);
-        assert(v == i);
-        toku_free(kbt.data);
-        toku_free(vbt.data);
+	}
+	assert(pair.call_count==1);
     }
     if (test_cursor_debug && verbose) printf("\n");
     assert(i == -1);
@@ -410,35 +377,41 @@ static void test_brt_cursor_rwalk(int n, DB *db) {
 
 }
 
+static int
+ascending_key_string_checkf (ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void *v)
+// the keys are strings.  Verify that they keylen matches the key, that the keys are ascending.  Use (char**)v  to hold a
+// malloc'd previous string.
+{
+    if (key!=NULL) {
+	assert(keylen=1+strlen(key));
+	char **prevkeyp = v;
+	char *prevkey = *prevkeyp;
+	if (prevkey!=0) {
+	    assert(strcmp(prevkey, key)<0);
+	    toku_free(prevkey);
+	}
+	*prevkeyp = toku_strdup(key);
+    }
+    return 0;
+}
+
+// The keys are strings (null terminated)
 static void assert_cursor_walk_inorder(BRT brt, int n) {
     BRT_CURSOR cursor=0;
     int i;
     int r;
-    char *prevkey;
+    char *prevkey = 0;
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
-    prevkey = 0;
     if (test_cursor_debug && verbose) printf("key: ");
     for (i=0; ; i++) {
-        DBT kbt, vbt;
-        long long v;
-
-        toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_txn);
-        if (r != 0)
+        r = toku_brt_cursor_get(cursor, NULL, NULL, ascending_key_string_checkf, &prevkey, DB_NEXT, null_txn);
+        if (r != 0) {
             break;
-        if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-        assert(vbt.size == sizeof v);
-        memcpy(&v, vbt.data, vbt.size);
-        if (i != 0) {
-	    assert(strcmp(prevkey, kbt.data) < 0);
-	    toku_free(prevkey);
 	}
-        prevkey = kbt.data;
-        toku_free(vbt.data);
+	assert(prevkey!=0);
     }
     if (prevkey) toku_free(prevkey);
     if (test_cursor_debug && verbose) printf("\n");
@@ -475,11 +448,14 @@ static void test_brt_cursor_rand(int n, DB *db) {
 	    toku_fill_dbt(&kbt, key, strlen(key)+1);
 	    v = i;
 	    toku_fill_dbt(&vbt, &v, sizeof v);
-	    r = toku_brt_lookup(brt, &kbt, &vbt);
+	    struct check_pair pair = {kbt.size, key, len_ignore, 0, 0};
+	    r = toku_brt_lookup(brt, &kbt, &vbt, lookup_checkf, &pair);
 	    if (r == 0) {
+		assert(pair.call_count==1);
                 if (verbose) printf("dup");
                 continue;
 	    }
+	    assert(pair.call_count==0);
 	    r = toku_brt_insert(brt, &kbt, &vbt, 0);
 	    assert(r==0);
 	    break;
@@ -504,7 +480,6 @@ static void test_brt_cursor_split(int n, DB *db) {
     int r;
     int keyseqnum;
     int i;
-    DBT kbt, vbt;
 
     if (verbose) printf("test_brt_cursor_split:%d %p\n", n, db);
 
@@ -518,6 +493,7 @@ static void test_brt_cursor_split(int n, DB *db) {
 
     /* insert a bunch of kv pairs */
     for (keyseqnum=0; keyseqnum < n/2; keyseqnum++) {
+	DBT kbt, vbt;
         char key[8]; long long v;
 
         snprintf(key, sizeof key, "%4.4d", keyseqnum);
@@ -528,22 +504,20 @@ static void test_brt_cursor_split(int n, DB *db) {
         assert(r==0);
     }
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
     for (i=0; i<n/2; i++) {
-        toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_txn);
+	struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
         assert(r==0);
-        if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-        toku_free(kbt.data);
-        toku_free(vbt.data);
+	assert(pair.call_count==1);
     }
     if (test_cursor_debug && verbose) printf("\n");
 
     for (; keyseqnum<n; keyseqnum++) {
+	DBT kbt,vbt;
         char key[8]; long long v;
 
         snprintf(key, sizeof key, "%4.4d", keyseqnum);
@@ -555,15 +529,15 @@ static void test_brt_cursor_split(int n, DB *db) {
     }
 
     if (test_cursor_debug && verbose) printf("key: ");
+    // Just loop through the cursor
     for (;;) {
-        toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_txn);
-        if (r != 0)
+	struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
+        if (r != 0) {
+	    assert(pair.call_count==0);
             break;
-        if (test_cursor_debug && verbose) printf("%s ", (char*)kbt.data);
-        toku_free(kbt.data);
-        toku_free(vbt.data);
+	}
+	assert(pair.call_count==1);
     }
     if (test_cursor_debug && verbose) printf("\n");
 
@@ -595,7 +569,7 @@ static void test_multiple_brt_cursors(int n, DB *db) {
 
     int i;
     for (i=0; i<n; i++) {
-        r = toku_brt_cursor(brt, &cursors[i], 0);
+        r = toku_brt_cursor(brt, &cursors[i]);
         assert(r == 0);
     }
 
@@ -645,52 +619,48 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
     int c;
     /* create the cursors */
     for (c=0; c<ncursors; c++) {
-        r = toku_brt_cursor(brt, &cursors[c], 0);
+        r = toku_brt_cursor(brt, &cursors[c]);
         assert(r == 0);
     }
 
-    DBT key, val;
-    int k, v;
 
     /* insert keys 0, 1, 2, ... n-1 */
     int i;
     for (i=0; i<n; i++) {
-        k = toku_htonl(i);
-        v = i;
-        toku_fill_dbt(&key, &k, sizeof k);
-        toku_fill_dbt(&val, &v, sizeof v);
-        r = toku_brt_insert(brt, &key, &val, 0);
-        assert(r == 0);
+	{
+	    int k = toku_htonl(i);
+	    int v = i;
+	    DBT key, val;
+	    toku_fill_dbt(&key, &k, sizeof k);
+	    toku_fill_dbt(&val, &v, sizeof v);
+
+	    r = toku_brt_insert(brt, &key, &val, 0);
+	    assert(r == 0);
+	}
 
         /* point cursor i / cursor_gap to the current last key i */
         if ((i % cursor_gap) == 0) {
             c = i / cursor_gap;
-            toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-            toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = toku_brt_cursor_get(cursors[c], &key, &val, DB_LAST, null_txn);
+	    struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
+            r = toku_brt_cursor_get(cursors[c], NULL, NULL, lookup_checkf, &pair, DB_LAST, null_txn);
             assert(r == 0);
-            toku_free(key.data);
-            toku_free(val.data);
+	    assert(pair.call_count==1);
         }
     }
 
     /* walk the cursors by cursor_gap */
     for (i=0; i<cursor_gap; i++) {
         for (c=0; c<ncursors; c++) {
-            toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-            toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = toku_brt_cursor_get(cursors[c], &key, &val, DB_NEXT, null_txn);
+	    int vv = c*cursor_gap + i + 1;
+	    struct check_pair pair = {len_ignore, 0, sizeof vv, &vv, 0};
+            r = toku_brt_cursor_get(cursors[c], NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
             if (r == DB_NOTFOUND) {
                 /* we already consumed 1 previously */
+		assert(pair.call_count==0);
                 assert(i == cursor_gap-1);
             } else {
                 assert(r == 0);
-                int vv;
-                assert(val.size == sizeof vv);
-                memcpy(&vv, val.data, val.size);
-                assert(vv == c*cursor_gap + i + 1);
-                toku_free(key.data);
-                toku_free(val.data);
+		assert(pair.call_count==1);
             }
         }
     }
@@ -724,49 +694,49 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     assert(r==0);
 
     int i;
-    DBT key, val;
-    int k, v;
 
     /* insert keys 0, 10, 20 .. 10*(n-1) */
     for (i=0; i<n; i++) {
-        k = toku_htonl(10*i);
-        v = 10*i;
+        int k = toku_htonl(10*i);
+        int v = 10*i;
+	DBT key,val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         r = toku_brt_insert(brt, &key, &val, 0);
         assert(r == 0);
     }
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
     for (i=0; i<n; i++) {
         int vv;
 
-        v = 10*(random() % n);
-        k = toku_htonl(v);
+        int v = 10*(random() % n);
+        int k = toku_htonl(v);
+	DBT key;
         toku_fill_dbt(&key, &k, sizeof k);
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &key, &val, cursor_op, null_txn);
+	struct check_pair pair = {sizeof k, 0, sizeof vv, &v, 0};
+	if (cursor_op == DB_SET) pair.key = &k; // if it is a set operation, make sure that the result we get is the right one.
+        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, cursor_op, null_txn);
         assert(r == 0);
-        assert(val.size == sizeof vv);
-        memcpy(&vv, val.data, val.size);
-        assert(vv == v);
-        toku_free(val.data);
-        if (cursor_op == DB_SET) assert(key.data == &k);
+	assert(pair.call_count==1);
     }
 
     /* try to set cursor to keys not in the tree, all should fail */
     for (i=0; i<10*n; i++) {
         if (i % 10 == 0)
             continue;
-        k = toku_htonl(i);
-        toku_fill_dbt(&key, &k, sizeof k);
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &key, &val, DB_SET, null_txn);
-        assert(r == DB_NOTFOUND);
-        assert(key.data == &k);
+        int k = toku_htonl(i);
+        DBT key;
+	toku_fill_dbt(&key, &k, sizeof k);
+	struct check_pair pair = {0, 0, 0, 0, 0};
+        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET, null_txn);
+        CKERR2(r,DB_NOTFOUND);
+	assert(pair.call_count==0);
+        assert(key.data == &k); // make sure that no side effect happened on key
+	assert((unsigned int)k==toku_htonl(i));
     }
 
     r = toku_brt_cursor_close(cursor);
@@ -796,42 +766,40 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     assert(r==0);
 
     int i;
-    DBT key, val;
-    int k, v;
 
     /* insert keys 0, 10, 20 .. 10*(n-1) */
     int max_key = 10*(n-1);
     for (i=0; i<n; i++) {
-        k = toku_htonl(10*i);
-        v = 10*i;
+        int k = toku_htonl(10*i);
+        int v = 10*i;
+	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         r = toku_brt_insert(brt, &key, &val, 0);
         assert(r == 0);
     }
 
-    r = toku_brt_cursor(brt, &cursor, 0);
+    r = toku_brt_cursor(brt, &cursor);
     assert(r==0);
 
     /* pick random keys v in 0 <= v < 10*n, the cursor should point
        to the smallest key in the tree that is >= v */
     for (i=0; i<n; i++) {
-        int vv;
 
-        v = random() % (10*n);
-        k = toku_htonl(v);
-        toku_fill_dbt(&key, &k, sizeof k);
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = toku_brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, null_txn);
-        if (v > max_key)
+        int v = random() % (10*n);
+        int k = toku_htonl(v);
+        DBT key;
+	toku_fill_dbt(&key, &k, sizeof k);
+	int vv = ((v+9)/10)*10;
+	struct check_pair pair = {sizeof k, 0, sizeof vv, &vv, 0};
+        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET_RANGE, null_txn);
+        if (v > max_key) {
             /* there is no smallest key if v > the max key */
             assert(r == DB_NOTFOUND);
-        else {
+	    assert(pair.call_count==0);
+	} else {
             assert(r == 0);
-            assert(val.size == sizeof vv);
-            memcpy(&vv, val.data, val.size);
-            assert(vv == (((v+9)/10)*10));
-            toku_free(val.data);
+	    assert(pair.call_count==1);
         }
     }
 
@@ -861,7 +829,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     error = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare, db);
     assert(error == 0);
 
-    error = toku_brt_cursor(brt, &cursor, 0);
+    error = toku_brt_cursor(brt, &cursor);
     assert(error == 0);
 
     DBT key, val;
@@ -880,14 +848,14 @@ static void test_brt_cursor_delete(int n, DB *db) {
 
     /* walk the tree and delete under the cursor */
     for (;;) {
-        toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = toku_brt_cursor_get(cursor, &key, &val, DB_NEXT, null_txn);
-        if (error == DB_NOTFOUND)
+	struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
+        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_NEXT, null_txn);
+        if (error == DB_NOTFOUND) {
+	    assert(pair.call_count==0);
             break;
+	}
         assert(error == 0);
-        toku_free(key.data);
-        toku_free(val.data);
+	assert(pair.call_count==1);
 
         error = toku_brt_cursor_delete(cursor, 0, null_txn);
         assert(error == 0);
@@ -922,78 +890,95 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     error = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare, db);
     assert(error == 0);
 
-    error = toku_brt_cursor(brt, &cursor, 0);
+    error = toku_brt_cursor(brt, &cursor);
     assert(error == 0);
 
-    DBT key, val;
-    int k, v;
+    {
+	/* verify get_both on an empty tree fails */
+	int k = toku_htonl(n+1);
+	int v = n+1;
+	DBT key, val;
+	toku_fill_dbt(&key, &k, sizeof k);
+	toku_fill_dbt(&val, &v, sizeof v);
+	struct check_pair pair = {0,0,0,0,0};
+	error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+	assert(error == DB_NOTFOUND);
+	assert(pair.call_count==0);
+    }
 
-    /* verify get_both on an empty tree fails */
-    k = toku_htonl(n+1);
-    v = n+1;
-    toku_fill_dbt(&key, &k, sizeof k);
-    toku_fill_dbt(&val, &v, sizeof v);
-    error = toku_brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_txn);
-    assert(error == DB_NOTFOUND);
 
     int i;
     /* insert keys 0, 1, 2, .. (n-1) */
     for (i=0; i<n; i++) {
-        k = toku_htonl(i);
-        v = i;
+        int k = toku_htonl(i);
+        int v = i;
+	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
         error = toku_brt_insert(brt, &key, &val, 0);
         assert(error == 0);
     }
 
-    /* verify that keys not in the tree fail */
-    k = toku_htonl(n+1);
-    v = n-1;
-    toku_fill_dbt(&key, &k, sizeof k);
-    toku_fill_dbt(&val, &v, sizeof v);
-    error = toku_brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_txn);
-    assert(error == DB_NOTFOUND);
+    {
+	/* verify that keys not in the tree fail */
+	int k = toku_htonl(n+1);
+	int v = n-1;
+	DBT key, val;
+	toku_fill_dbt(&key, &k, sizeof k);
+	toku_fill_dbt(&val, &v, sizeof v);
+	struct check_pair pair = {0,0,0,0,0};
+	error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+	assert(error == DB_NOTFOUND);
+	assert(pair.call_count==0);
+    }
 
     /* verify that key match but data mismatch fails */
     for (i=0; i<n; i++) {
-        k = toku_htonl(i);
-        v = i+1;
+        int k = toku_htonl(i);
+        int v = i+1;
+	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
-        error = toku_brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_txn);
+	struct check_pair pair = {0,0,0,0,0};
+        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
         assert(error == DB_NOTFOUND);
+	assert(pair.call_count==0);
     }
 
     /* verify that key and data matches succeeds */
     for (i=0; i<n; i++) {
-        k = toku_htonl(i);
-        v = i;
-        toku_fill_dbt(&key, &k, sizeof k);
-        toku_fill_dbt(&val, &v, sizeof v);
-        error = toku_brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_txn);
-        assert(error == 0);
+        int k = toku_htonl(i);
+        int v = i;
+	{
+	    DBT key, val;
+	    toku_fill_dbt(&key, &k, sizeof k);
+	    toku_fill_dbt(&val, &v, sizeof v);
+	    struct check_pair pair = {len_ignore,0,len_ignore,0,0};
+	    error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+	    assert(error == 0);
+	    assert(pair.call_count==1);
+	}
 #ifdef DB_CURRENT
-        toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT, 0);
-        assert(error == 0);
-        int vv;
-        assert(val.size == sizeof vv);
-        memcpy(&vv, val.data, val.size);
-        assert(vv == i);
-        toku_free(key.data);
-        toku_free(val.data);
+	{
+	    int vv = i;
+	    struct check_pair pair = {len_ignore, 0, sizeof vv, &vv, 0};
+	    error = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT, 0);
+	    assert(error == 0);
+	    assert(pair.call_count==1);
+	}
 #endif
         error = toku_brt_cursor_delete(cursor, 0, null_txn);
         assert(error == 0);
 
         k = toku_htonl(i);
         v = i;
+	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
-        toku_fill_dbt(&val, &v, sizeof v);
-        error = toku_brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_txn);
+	toku_fill_dbt(&val, &v, sizeof v);
+	struct check_pair pair = {0,0,0,0,0};
+        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
         assert(error == DB_NOTFOUND);
+	assert(pair.call_count==0);
     }
 
     error = toku_brt_cursor_delete(cursor, 0, null_txn);

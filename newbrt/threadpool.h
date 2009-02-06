@@ -2,15 +2,15 @@
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
-// A threadpool is a limited set of threads that can be used to apply a 
+// A threadpool is a limited set of threads that can be used to apply a
 // function to work contained in a work queue.  The work queue is outside
-// of the scope of the threadpool; the threadpool merely provides 
+// of the scope of the threadpool; the threadpool merely provides
 // mechanisms to grow the number of threads in the threadpool on demand.
 
 typedef struct threadpool *THREADPOOL;
 
 // Create a new threadpool
-// Effects: a new threadpool is allocated and initialized. the number of 
+// Effects: a new threadpool is allocated and initialized. the number of
 // threads in the threadpool is limited to max_threads.  initially, there
 // are no threads in the pool.
 // Returns: if there are no errors, the threadpool is set and zero is returned.
