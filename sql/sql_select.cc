@@ -78,7 +78,6 @@ static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, char *key_buff,
 				uint maybe_null);
-static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void make_join_readinfo(JOIN *join, ulonglong options);
@@ -100,7 +99,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
                                              void *table_join_idx);
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
-static bool check_interleaving_with_nj(JOIN_TAB *last, JOIN_TAB *next);
+static bool check_interleaving_with_nj(JOIN_TAB *next);
 static void restore_prev_nj_state(JOIN_TAB *last);
 static void reset_nj_counters(List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
@@ -1608,8 +1607,13 @@ JOIN::exec()
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
         conds uses something like 'rand()'.
+        If the HAVING clause is either impossible or always true, then
+        JOIN::having is set to NULL by optimize_cond.
+        In this case JOIN::exec must check for JOIN::having_value, in the
+        same way it checks for JOIN::cond_value.
       */
       if (cond_value != Item::COND_FALSE &&
+          having_value != Item::COND_FALSE &&
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
@@ -1804,7 +1808,7 @@ JOIN::exec()
       
       /* Free first data from old join */
       curr_join->join_free();
-      if (make_simple_join(curr_join, curr_tmp_table))
+      if (curr_join->make_simple_join(this, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
       count_field_types(select_lex, &curr_join->tmp_table_param,
@@ -1924,7 +1928,7 @@ JOIN::exec()
       curr_join->select_distinct=0;
     }
     curr_tmp_table->reginfo.lock_type= TL_UNLOCK;
-    if (make_simple_join(curr_join, curr_tmp_table))
+    if (curr_join->make_simple_join(this, curr_tmp_table))
       DBUG_VOID_RETURN;
     calc_group_buffer(curr_join, curr_join->group_list);
     count_field_types(select_lex, &curr_join->tmp_table_param, 
@@ -4718,6 +4722,18 @@ greedy_search(JOIN      *join,
     */
     join->positions[idx]= best_pos;
 
+    /*
+      Update the interleaving state after extending the current partial plan
+      with a new table.
+      We are doing this here because best_extension_by_limited_search reverts
+      the interleaving state to the one of the non-extended partial plan 
+      on exit.
+    */
+    IF_DBUG(bool is_interleave_error= )
+    check_interleaving_with_nj (best_table);
+    /* This has been already checked by best_extension_by_limited_search */
+    DBUG_ASSERT(!is_interleave_error);
+
     /* find the position of 'best_table' in 'join->best_ref' */
     best_idx= idx;
     JOIN_TAB *pos= join->best_ref[best_idx];
@@ -4735,7 +4751,7 @@ greedy_search(JOIN      *join,
     --size_remain;
     ++idx;
 
-    DBUG_EXECUTE("opt", print_plan(join, join->tables,
+    DBUG_EXECUTE("opt", print_plan(join, idx,
                                    record_count, read_time, read_time,
                                    "extended"););
   } while (TRUE);
@@ -4886,7 +4902,7 @@ best_extension_by_limited_search(JOIN      *join,
     table_map real_table_bit= s->table->map;
     if ((remaining_tables & real_table_bit) && 
         !(remaining_tables & s->dependent) && 
-        (!idx || !check_interleaving_with_nj(join->positions[idx-1].table, s)))
+        (!idx || !check_interleaving_with_nj(s)))
     {
       double current_record_count, current_read_time;
 
@@ -5031,7 +5047,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   {
     table_map real_table_bit=s->table->map;
     if ((rest_tables & real_table_bit) && !(rest_tables & s->dependent) &&
-        (!idx|| !check_interleaving_with_nj(join->positions[idx-1].table, s)))
+        (!idx|| !check_interleaving_with_nj(s)))
     {
       double records, best;
       best_access_path(join, s, thd, rest_tables, idx, record_count, 
@@ -5414,48 +5430,42 @@ store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
 }
 
 
-static bool
-make_simple_join(JOIN *join,TABLE *tmp_table)
+/**
+  @details Initialize a JOIN as a query execution plan
+  that accesses a single table via a table scan.
+
+  @param  parent      contains JOIN_TAB and TABLE object buffers for this join
+  @param  tmp_table   temporary table
+
+  @retval FALSE       success
+  @retval TRUE        error occurred
+*/
+bool
+JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
 {
-  TABLE **tableptr;
-  JOIN_TAB *join_tab;
-  DBUG_ENTER("make_simple_join");
+  DBUG_ENTER("JOIN::make_simple_join");
 
   /*
     Reuse TABLE * and JOIN_TAB if already allocated by a previous call
     to this function through JOIN::exec (may happen for sub-queries).
   */
-  if (!join->table_reexec)
-  {
-    if (!(join->table_reexec= (TABLE**) join->thd->alloc(sizeof(TABLE*))))
-      DBUG_RETURN(TRUE);                        /* purecov: inspected */
-    if (join->tmp_join)
-      join->tmp_join->table_reexec= join->table_reexec;
-  }
-  if (!join->join_tab_reexec)
-  {
-    if (!(join->join_tab_reexec=
-          (JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
-      DBUG_RETURN(TRUE);                        /* purecov: inspected */
-    if (join->tmp_join)
-      join->tmp_join->join_tab_reexec= join->join_tab_reexec;
-  }
-  tableptr= join->table_reexec;
-  join_tab= join->join_tab_reexec;
+  if (!parent->join_tab_reexec &&
+      !(parent->join_tab_reexec= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
+    DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
-  join->join_tab=join_tab;
-  join->table=tableptr; tableptr[0]=tmp_table;
-  join->tables=1;
-  join->const_tables=0;
-  join->const_table_map=0;
-  join->tmp_table_param.field_count= join->tmp_table_param.sum_func_count=
-    join->tmp_table_param.func_count=0;
-  join->tmp_table_param.copy_field=join->tmp_table_param.copy_field_end=0;
-  join->first_record=join->sort_and_group=0;
-  join->send_records=(ha_rows) 0;
-  join->group=0;
-  join->row_limit=join->unit->select_limit_cnt;
-  join->do_send_rows = (join->row_limit) ? 1 : 0;
+  join_tab= parent->join_tab_reexec;
+  table= &parent->table_reexec[0]; parent->table_reexec[0]= tmp_table;
+  tables= 1;
+  const_tables= 0;
+  const_table_map= 0;
+  tmp_table_param.field_count= tmp_table_param.sum_func_count=
+    tmp_table_param.func_count= 0;
+  tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
+  first_record= sort_and_group=0;
+  send_records= (ha_rows) 0;
+  group= 0;
+  row_limit= unit->select_limit_cnt;
+  do_send_rows= row_limit ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No caching */
   join_tab->table=tmp_table;
@@ -5472,7 +5482,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->ref.key = -1;
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
-  join_tab->join=join;
+  join_tab->join= this;
   join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   tmp_table->status=0;
@@ -8403,9 +8413,6 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
 
   SYNOPSIS
     check_interleaving_with_nj()
-      join       Join being processed
-      last_tab   Last table in current partial join order (this function is
-                 not called for empty partial join orders)
       next_tab   Table we're going to extend the current partial join with
 
   DESCRIPTION
@@ -8490,10 +8497,10 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
     TRUE   Requested join order extension not allowed.
 */
 
-static bool check_interleaving_with_nj(JOIN_TAB *last_tab, JOIN_TAB *next_tab)
+static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
 {
   TABLE_LIST *next_emb= next_tab->table->pos_in_table_list->embedding;
-  JOIN *join= last_tab->join;
+  JOIN *join= next_tab->join;
 
   if (join->cur_embedding_map & ~next_tab->embedding_map)
   {
