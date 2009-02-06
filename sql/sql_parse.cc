@@ -2333,8 +2333,9 @@ void log_slow_statement(THD *thd)
   {
     thd->proc_info="logging slow query";
 
-    if ((ulong) (thd->start_time - thd->time_after_lock) >
-	thd->variables.long_query_time ||
+    if ((thd->start_time > thd->time_after_lock && 
+         (ulong) (thd->start_time - thd->time_after_lock) >
+	thd->variables.long_query_time) ||
         (thd->server_status &
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
         opt_log_queries_not_using_indexes &&
