@@ -64,10 +64,11 @@ cat <<EOF
 
   This script can be used to build MySQL Cluster Carrier Grade Edition
   based on a source code release you received from MySQL. It can also
-  be used to build many variants of MySQL.
+  be used to build many variants other variants of MySQL, in particular
+  various performance-optimised versions of MySQL.
 
   It is assumed that you are building on a computer which is of the 
-  same type as that on which you intend to run MySQL Cluster.
+  same type as that on which you intend to run MySQL/MySQL Cluster.
 
   The simplest possible way to run this script is to allow it to use the 
   built-in defaults everywhere, invoking it simply as:
@@ -79,9 +80,10 @@ cat <<EOF
       8/9/10/11, and Mac OS X are supported by this script.
     2) Detect the type of CPU being used. Currently supported processors 
       are: x86 for all supported operating systems, Itanium for Linux 
-      with GCC, and x86 + SPARC for Solaris using the Forte compiler.
+      with GCC, and x86 + SPARC for Solaris using the Forte compiler and
+      finally x86 on Linux using the Intel compiler.
     3) Invokes the GCC compiler.
-    4) Builds a set of MySQL Cluster Carrier Grade Edition binaries; for
+    4) Builds a set of MySQL/MySQL Cluster binaries; for
       more information about these, see --extended-help.
     5) Default compiler is always gcc.
   
@@ -90,13 +92,14 @@ cat <<EOF
   be run. If you have downloaded a BitKeeper tree then you should read 
   --developer-help.
 
-  If you are building MySQL Cluster Carrier Grade Edition for commercial 
+  If you are building MySQL/MySQL Cluster for commercial 
   use then you need to set the --commercial flag to ensure that the 
   commercial libraries are compiled in, rather than the GPL-only 
   libraries. The default is to build a GPL version of MySQL Cluster 
   Carrier Grade Edition.
 
-  If your building on a Solaris SPARC machine you must set 
+  If your building on a Solaris SPARC machine and you want to compile
+  using SunStudio you must set 
   --compiler=forte; if you want to build using the Intel compiler on 
   Linux, you need to set --compiler=icc.
 
@@ -161,8 +164,8 @@ Usage: $0 [options]
                           MySQL use
   --commercial            Use commercial libraries
   --gpl                   Use gpl libraries
-  --compiler=[gcc|icc|forte]                  Select compiler
-  --cpu=[x86|x86_64|sparc]                    Select CPU type
+  --compiler=[gcc|icc|forte|SunStudio]        Select compiler
+  --cpu=[x86|x86_64|sparc|itanium]            Select CPU type
                           x86 => x86 and 32-bit binary
                           x86_64 => x86 and 64 bit binary
   --warning-mode=[extra|pedantic|normal|no]   Set warning mode level
@@ -193,7 +196,8 @@ extended_usage()
   Extended help text for this script:
   -----------------------------------
   This script is intended to make it easier for customers using MySQL
-  Cluster Carrier Grade Edition to build the product from source on 
+  Cluster Carrier Grade Edition, customers using performance-optimised
+  MySQL versions and developers to build the product from source on 
   these platforms/compilers: Linux/x86 (32-bit and 64-bit) (either using
   gcc or icc), Linux Itanium, Solaris 8,9,10 and 11 x86 and SPARC using
   gcc or SunStudio and MacOSX/x86/gcc.
@@ -305,6 +309,7 @@ extended_usage()
 
   --without-example-engine: Ensure that the example engine isn't built,
     it cannot do any useful things, it's merely intended as documentation.
+    (cannot be overridden)
 
   --with-csv-storage-engine: Ensure that the CSV storage engine is
     included in all builds. Since CSV is required for log tables in
@@ -378,7 +383,7 @@ extended_usage()
   -----------------
 
   This section describes the compiler options for each of the different
-  platforms supported by thisscript.
+  platforms supported by this script.
 
   The --fast option adds -mtune=cpu_arg to the C/C++ flags (provides
   support for Nocona, K8, and other processors).
@@ -424,27 +429,59 @@ extended_usage()
   Solaris/x86/gcc
   ---------------
     All builds on Solaris are by default 64-bit, so -m64 is always used in
-    the C/C++ flags. LDFLAGS is set to -m64 -static-libgcc -O/-O2. If for
+    the C/C++ flags. LDFLAGS is set to -m64 -O/-O2/-O3. If for
     some reason a 32-bit Solaris is used it is necessary to add the flag
     --32 to the script invocation. Due to bugs in compiling with -O3 on
     Solaris only -O2 is used by default, when --fast flag is used -O3 will
     be used instead.
 
+    Sets -m64 (default) or -m32 (if specifically set) in LDFLAGS and
+    C/C++ flags.
+
   Solaris/Sparc/Forte
   -------------------
-    Uses cc as CC and CC and CC as CXX
+    Uses cc as CC and CC as CXX
     Note that SunStudio uses different binaries for C and C++ compilers.
 
     Set -m64 (default) or -m32 (if specifically set) in ASFLAGS,
     LDFLAGS and C/C++ flags.
-    Sets ASFLAGS=LDFLAGS=xarch=v9, so that we compile Sparc v9 binaries
-    C flags   = -Xa -strconst -xc99=none
+
+    Sets ASFLAGS=LDFLAGS=compiler flags=xarch=sparc, so that we compile
+    Sparc v9 binaries, also -mt is set in all those since we're always
+    building a multithreaded program.
+
+    C flags   = -xstrconst
     C++ flags = -noex
-    C/C++ flags = -mt -D_FORTEC -xarch=v9
 
-    For non-debug builds, the following flags are also used:
+    Set the following C/C++ flags:
+    -fsimple=1
+    -ftrap=%none
+    -nofstore          This flag is set only on x86
+    -xbuiltin=%all
+    -xlibmil
+    -xlibmopt
 
-    C/C++ flags = -xO2
+    Set the C++ flag:
+    -noex
+
+    When compiling with fast we set:
+    C/C++ flags: -xtarget=native -xunroll=3 -xipo
+    LDFLAGS: -xipo
+
+    When not compiling with fast we always set -xtarget=generic
+
+    When compiling with fast on SPARC we also set:
+    C/C++ flags: -xbinopt=prepare
+    LDFLAGS: -xbinopt=prepare
+
+    When compiling with fast on x86 we also set:
+    C/C++ flags: -xregs=frameptr
+
+    The optimisation level is
+    -xO         Debug builds
+    -xO2        Production build on SPARC
+    -xO3        Production build on x86
+    -xO4        Fast builds on SPARC/x86
 
   MacOSX/x86/gcc
   --------------
@@ -561,7 +598,7 @@ parse_cpu_type()
   case "$cpu_type" in
     x86 )
       cpu_type="x86"
-      m32="yes"
+      m64="no"
       ;;
     x86_64 )
       cpu_type="x86"
@@ -670,10 +707,10 @@ parse_options()
         echo "Cannot set both --32 and --64"
         exit 1
       fi
-      m32="yes"
+      m64="no"
       ;;
     --64)
-      if test "x$m32" != "x" ; then
+      if test "x$m64" != "x" ; then
         echo "Cannot set both --32 and --64"
         exit 1
       fi
@@ -780,7 +817,7 @@ set_cpu_base()
   if test "x$cpu_type" = "x" ; then
     if test "x$cpu_arg" = "x" ; then
       usage "CPU type not discovered, cannot proceed"
-      return 1
+      exit 1
     fi
     case "$cpu_arg" in
       core2 | nocona | prescott | pentium* | i*86 )
@@ -805,22 +842,18 @@ set_cpu_base()
     check_cpu_cflags=""
   fi
   if test "x$os" = "xMacOSX" ; then
-    if test "x$m64" = "xyes" ; then
-      m64="yes"
-    else
+    if test "x$m64" = "x" ; then
       m64="no"
     fi
   elif test "x$os" = "xSolaris" ; then
-    if test "x$m32" = "x" ; then
+    if test "x$m64" = "x" ; then
       m64="yes"
-    else
-      m64="no"
     fi
-  elif test "x$m32" = "x" ; then
+  elif test "x$m64" = "x" ; then
     if test "x$cpu_arg" = "xnocona" || test "x$cpu_arg" = "xcore2" || \
        test "x$cpu_arg" = "xathlon64" || test "x$cpu_arg" = "xopteron" ; then
       m64="yes"
-    elif test "x$m64" != "xyes" ; then
+    else
       m64="no"
     fi
   else
@@ -829,10 +862,8 @@ set_cpu_base()
   echo "Discovered CPU of type $cpu_base_type ($cpu_arg) on $os"
   if test "x$m64" = "xyes" ; then
     echo "Will compile 64-bit binaries"
-  elif test "x$m32" = "xyes" ; then
-    echo "Will compile 32-bit binaries"
   else
-    echo "Will compile default-sized (32 or 64 bit) binaries"
+    echo "Will compile 32-bit binaries"
   fi
   return 0
 }
@@ -1264,7 +1295,7 @@ set_linux_configs()
     set_cc_and_cxx_for_gcc
     if test "x$m64" = "xyes" ; then
       compiler_flags="$compiler_flags -m64"
-    elif test "x$m32" = "xyes" ; then
+    else
       compiler_flags="$compiler_flags -m32"
     fi
     if test "x$fast_flag" != "xno" ; then
@@ -1304,71 +1335,91 @@ set_solaris_configs()
 
       ;;
     *)
-      die "Only versions 8,9, 10 and 11 supported for Solaris"
+      usage "Only versions 8,9, 10 and 11 supported for Solaris"
+      exit 1
   esac
   if test "x$cpu_base_type" != "xx86" && \
      test "x$cpu_base_type" != "xsparc" ; then
     usage "Only x86 and Sparc CPUs supported for Solaris"
     exit 1
   fi
+  if test "x$compiler" != "xgcc" && \
+     test "x$compiler" != "xforte" ; then
+    usage "Only gcc and Forte compilers supported for Solaris"
+    exit 1
+  fi
+  if test "x$m64" = "xyes" ; then
+    compiler_flags="$compiler_flags -m64"
+    LDFLAGS="-m64"
+    ASFLAGS="$ASFLAGS -m64"
+  else
+    compiler_flags="$compiler_flags -m32"
+    LDFLAGS="-m32"
+    ASFLAGS="$ASFLAGS -m32"
+  fi
   if test "x$compiler" = "xgcc" ; then
     set_cc_and_cxx_for_gcc
     if test "x$cpu_base_type" != "xx86" ; then
-      usage "Only gcc supported for Solaris 10/11 on SPARC"
+      usage "gcc currently not supported for Solaris on SPARC"
+      exit 1
     fi
-    if test "x$m64" = "xyes" ; then
-      compiler_flags="$compiler_flags -m64"
-      LDFLAGS="-m64"
-    elif test "x$m32" = "xyes" ; then
-      compiler_flags="$compiler_flags -m32"
-      LDFLAGS="-m32"
-    fi
-    if test "x$fast_flag" != "xno" ; then
-      LDFLAGS="$LDFLAGS -O2"
-      compiler_flags="$compiler_flags -O2"
+    if test "x$fast_flag" = "xyes" ; then
+      LDFLAGS="$LDFLAGS -O3"
+      compiler_flags="$compiler_flags -O3"
     else
-      LDFLAGS="$LDFLAGS -O"
-      compiler_flags="$compiler_flags -O"
-    fi
-  elif test "x$compiler" = "xforte" ; then
-    set_cc_and_cxx_for_forte
-    if test "x$cpu_base_type" = "xx86" ; then
-      if test "x$fast_flag" != "xno" ; then
-        compiler_flags="$compiler_flags -xO2"
-      fi
-      compiler_flags="$compiler_flags -mt"
-      compiler_flags="$compiler_flags -fsimple=1"
-      compiler_flags="$compiler_flags -ftrap=%none"
-      compiler_flags="$compiler_flags -nofstore"
-      compiler_flags="$compiler_flags -xbuiltin=%all"
-      compiler_flags="$compiler_flags -xlibmil"
-      compiler_flags="$compiler_flags -xlibmopt"
-      compiler_flags="$compiler_flags -xtarget=generic"
-      base_cxxflags="$base_cxxflags -features=no%except"
-    elif test "x$cpu_base_type" != "xsparc" ; then
-      usage "Forte compiler supported for Solaris on x86 and SPARC only"
-    else
-      ASFLAGS="$ASFLAGS xarch=v9"
-      LDFLAGS="$LDFLAGS xarch=v9"
-      if test "x$m64" = "xyes" ; then
-        compiler_flags="$compiler_flags -m64"
-        ASFLAGS="$ASFLAGS -m64"
-        LDFLAGS="$LDFLAGS -m64"
-      elif test "x$m32" = "xyes" ; then
-        compiler_flags="$compiler_flags -m32"
-        ASFLAGS="$ASFLAGS -m32"
-        LDFLAGS="$LDFLAGS -m32"
-      fi
-      base_cflags="$base_cflags -Xa -xstrconst -xc99=none"
-      base_cxxflags="$base_cxxflags -noex"
-      compiler_flags="$compiler_flags -mt -D_FORTEC -xarch=v9"
-      if test "x$fast_flag" != "xno" ; then
-        compiler_flags="$compiler_flags -xO2"
+      if test "x$fast_flag" = "xgeneric" ; then
+        LDFLAGS="$LDFLAGS -O2"
+        compiler_flags="$compiler_flags -O2"
+      else
+        LDFLAGS="$LDFLAGS -O"
+        compiler_flags="$compiler_flags -O"
       fi
     fi
   else
-    usage "Only gcc and Forte compilers supported for Solaris"
-    exit 1
+#Using Forte compiler (SunStudio)
+    set_cc_and_cxx_for_forte
+    base_cflags="$base_cflags -xstrconst"
+    compiler_flags="$compiler_flags -mt"
+    LD_FLAGS="$LD_FLAGS -mt"
+    compiler_flags="$compiler_flags -fsimple=1"
+    compiler_flags="$compiler_flags -ftrap=%none"
+    compiler_flags="$compiler_flags -xbuiltin=%all"
+    compiler_flags="$compiler_flags -xlibmil"
+    compiler_flags="$compiler_flags -xlibmopt"
+    base_cxxflags="$base_cxxflags -noex"
+    if test "x$fast_flag" = "xyes" ; then
+      compiler_flags="$compiler_flags -xtarget=native"
+      compiler_flags="$compiler_flags -xipo"
+      compiler_flags="$compiler_flags -xunroll=3"
+      LD_FLAGS="$LD_FLAGS -xipo"
+    else
+      compiler_flags="$compiler_flags -xtarget=generic"
+    fi
+    if test "x$cpu_base_type" = "xx86" ; then
+      compiler_flags="$compiler_flags -nofstore"
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -xregs=frameptr"
+        compiler_flags="$compiler_flags -xO4"
+      elif test "x$fast_flag" = "xgeneric" ; then
+        compiler_flags="$compiler_flags -xO3"
+      else
+        compiler_flags="$compiler_flags -xO"
+      fi
+    else
+#Using SPARC cpu with SunStudio (Forte) compiler
+      ASFLAGS="$ASFLAGS xarch=sparc"
+      LDFLAGS="$LDFLAGS xarch=sparc"
+      compiler_flags="$compiler_flags -xarch=sparc"
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -xbinopt=prepare"
+        LDFLAGS="$LDFLAGS -xbinopt=prepare"
+        compiler_flags="$compiler_flags -xO4"
+      elif test "x$fast_flag" = "xgeneric" ; then
+        compiler_flags="$compiler_flags -xO2"
+      else
+        compiler_flags="$compiler_flags -xO"
+      fi
+    fi
   fi
 }
 
@@ -1390,10 +1441,8 @@ set_macosx_configs()
   if test "x$m64" = "xyes" ; then
     compiler_flags="$compiler_flags -m64"
     compiler_flags="$compiler_flags -arch x86_64"
-  elif test "x$m32" = "xyes" ; then
-    compiler_flags="$compiler_flags -m32"
-    compiler_flags="$compiler_flags -arch i386"
   else
+    compiler_flags="$compiler_flags -m32"
     compiler_flags="$compiler_flags -arch i386"
   fi
   if test "x$fast_flag" != "xno" ; then
@@ -1510,7 +1559,6 @@ base_cxxflags=
 base_configs=
 debug_flags=
 cxxflags=
-m32=
 m64=
 datadir=
 commands=
@@ -1542,6 +1590,7 @@ fi
 if test "x$compiler" = "x" ; then
   compiler="gcc"
 fi
+check_os
 set_cpu_base
 if test "x$?" = "x1" ; then
   exit 1
@@ -1601,7 +1650,6 @@ set_error_inject_configs
 # operating systems, and processors.
 #
 
-check_os
 if test "x$os" = "xlinux" ; then
   set_linux_configs
 elif test "x$os" = "xSolaris" ; then
