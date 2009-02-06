@@ -222,3 +222,5 @@ disconnect con2;
 connection default;
 
 set GLOBAL query_cache_size=0;
+
+# End of 5.0 tests
