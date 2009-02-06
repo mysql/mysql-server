@@ -72,14 +72,14 @@ dist-hook:
 if HAVE_DTRACE
 BUILT_SOURCES += probes_mysql_dtrace.h
 CLEANFILES += probes_mysql_dtrace.h
-DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
 
 probes_mysql_dtrace.h: $(DTRACEPROVIDER)
 	$(DTRACE) $(DTRACEFLAGS) -h -s $< -o $@
 endif
 
 probes_mysql_nodtrace.h: $(DTRACEPROVIDER)
-	$(top_srcdir)/scripts/dheadgen.pl -f $^ > $@
+	$(abs_top_srcdir)/scripts/dheadgen.pl -f $^ > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
