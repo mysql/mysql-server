@@ -106,10 +106,12 @@ struct extra_count {
     int rowcounter;
 };
 
-static void counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
+static int
+counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *e=extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
+    return 0;
 }
 
 static void scanrace_lwc (void) {
