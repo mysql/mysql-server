@@ -56,7 +56,7 @@ libheap_a_LIBADD = probes_mysql.o
 libheap_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
 DTRACEFILES = ha_heap.o
-DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
