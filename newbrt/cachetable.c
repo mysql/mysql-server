@@ -799,8 +799,8 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 		assert(p->flush_callback==flush_callback);
 		assert(p->fetch_callback==fetch_callback);
                 ctpair_read_lock(&p->rwlock, ct->mutex);
-                cachetable_unlock(ct);
 		note_hash_count(count);
+                cachetable_unlock(ct);
 		return -1; /* Already present. */
 	    }
 	}
@@ -814,8 +814,8 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, extraargs, CACHETABLE_DIRTY, ZERO_LSN);
     assert(p);
     ctpair_read_lock(&p->rwlock, ct->mutex);
-    cachetable_unlock(ct);
     note_hash_count(count);
+    cachetable_unlock(ct);
     return 0;
 }
 
@@ -841,8 +841,8 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	    lru_touch(ct,p);
 	    *value = p->value;
             if (sizep) *sizep = p->size;
-            cachetable_unlock(ct);
 	    note_hash_count(count);
+            cachetable_unlock(ct);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
 	    return 0;
 	}
@@ -892,8 +892,8 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
             break;
 	}
     }
-    cachetable_unlock(ct);
     note_hash_count(count);
+    cachetable_unlock(ct);
     return r;
 }
 
@@ -929,8 +929,8 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
             break;
 	}
     }
-    cachetable_unlock(ct);
     note_hash_count(count);
+    cachetable_unlock(ct);
     return r;
 }
 
@@ -988,8 +988,8 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
             return 0;
         }
     }
-    cachetable_unlock(ct);
     note_hash_count(count);
+    cachetable_unlock(ct);
     return -1;
 }
 
@@ -1169,8 +1169,8 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
 	}
     }
  done:
-    cachetable_unlock(ct);
     note_hash_count(count);
+    cachetable_unlock(ct);
     return r;
 }
 
@@ -1372,7 +1372,8 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
             break;
         }
     }
-    cachetable_unlock(ct);    note_hash_count(count);
+    note_hash_count(count);
+    cachetable_unlock(ct);
     return r;
 }
 
