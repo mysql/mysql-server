@@ -1665,6 +1665,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "4"
   },
   
+  {
+    CFG_NDBMT_CLASSIC,
+    "__ndbmt_classic",
+    DB_TOKEN,
+    "For ndbmtd use \"mt-classic\"",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    UNDEFINED,
+    "false",
+    "true"
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
