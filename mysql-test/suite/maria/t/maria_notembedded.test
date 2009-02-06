@@ -89,6 +89,7 @@ unlock tables;
 disconnect con_d;
 
 connection default;
+check table t1;
 drop table t1;
 
 --disable_result_log
