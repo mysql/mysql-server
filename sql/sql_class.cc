@@ -1587,11 +1587,6 @@ bool select_send::send_data(List<Item> &items)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       break;
     }
-    /*
-      Reset buffer to its original state, as it may have been altered in
-      Item::send().
-    */
-    buffer.set(buff, sizeof(buff), &my_charset_bin);
   }
   thd->sent_row_count++;
   if (thd->is_error())
