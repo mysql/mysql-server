@@ -178,8 +178,6 @@ ulint   srv_io_capacity         = ULINT_MAX;    /* Number of IO operations per
 ibool   srv_extra_dirty_writes = TRUE;  /* Write dirty pages to disk when pct
                                            dirty < max dirty pct */
 
-ulint	srv_n_file_io_threads	= ULINT_MAX;
-
 ulint	srv_n_read_io_threads	= ULINT_MAX;
 ulint	srv_n_write_io_threads	= ULINT_MAX;
 ulint	srv_max_merged_io = 64;
