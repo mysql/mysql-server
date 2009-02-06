@@ -212,7 +212,7 @@ libndb_la_DEPENDENCIES = dtrace_files dtrace_providers probes_libndb.o
 mysqld_LDADD += probes_all.o
 mysqld_DEPENDENCIES += dtrace_files dtrace_providers probes_all.o
 CLEANFILES += dtrace_files dtrace_providers probes_all.o
-DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
