@@ -383,7 +383,7 @@ ascending_key_string_checkf (ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), by
 // malloc'd previous string.
 {
     if (key!=NULL) {
-	assert(keylen=1+strlen(key));
+	assert(keylen == 1+strlen(key));
 	char **prevkeyp = v;
 	char *prevkey = *prevkeyp;
 	if (prevkey!=0) {
