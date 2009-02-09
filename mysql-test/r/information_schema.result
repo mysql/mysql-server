@@ -1027,7 +1027,7 @@ BEGIN
 SELECT 'foo' FROM DUAL;
 END |
 ERROR 42000: Unknown database 'information_schema'
-select  ROUTINE_NAME from routines;
+select ROUTINE_NAME from routines;
 ROUTINE_NAME
 grant all on information_schema.* to 'user1'@'localhost';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
