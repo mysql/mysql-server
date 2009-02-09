@@ -262,4 +262,4 @@ SET GLOBAL query_cache_size= default;
 # End of 5.0 tests
 
 # Wait till we reached the initial number of concurrent sessions
-#--source include/wait_until_count_sessions.inc
+--source include/wait_until_count_sessions.inc

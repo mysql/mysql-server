@@ -367,7 +367,7 @@ let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
 --source include/wait_condition.inc
 select * from t1;
 #
-#TODO: should be uncommented after bug 380 fix pushed
+#TODO: should be uncommented after Bug#380 fix pushed
 #INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
 #select * from t1;
 drop table t1, t2, t3;
@@ -2031,7 +2031,7 @@ DROP TABLE t1,t2,t3;
 
 
 #
-# Bug24670 subquery witout tables but with a WHERE clause
+# Bug#24670 subquery witout tables but with a WHERE clause
 #
 
 CREATE TABLE t1 (a int);
@@ -2567,7 +2567,7 @@ DROP TABLE t1;
 
 #
 # Bug#21540 Subqueries with no from and aggregate functions return
-#              wrong results
+#           wrong results
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT);
 INSERT INTO t2 values (1);
@@ -3379,7 +3379,7 @@ DROP TABLE t1,t2;
 #
 # Bug#20835 (literal string with =any values)
 #
-CREATE TABLE t1 (s1 char(1));
+CREATE TABLE t1 (s1 CHAR(1));
 INSERT INTO t1 VALUES ('a');
 SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
 DROP TABLE t1;
@@ -3409,13 +3409,13 @@ INSERT INTO t1 (id) VALUES (1);
 INSERT INTO t2 (id) VALUES (1);
 
 CREATE VIEW v1 AS
-  SELECT t2.c AS c FROM t1, t2
- WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+SELECT t2.c AS c FROM t1, t2
+WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 UPDATE v1 SET c=1;
 
 CREATE VIEW v2 (a,b) AS
-  SELECT t2.id, t2.c AS c FROM t1, t2
- WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+SELECT t2.id, t2.c AS c FROM t1, t2
+WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v2(a,b) VALUES (2,2);
@@ -3423,8 +3423,8 @@ INSERT INTO v2(a,b) VALUES (1,2);
 SELECT * FROM v1;
 
 CREATE VIEW v3 AS
-  SELECT t2.c AS c FROM t2
- WHERE 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+SELECT t2.c AS c FROM t2
+WHERE 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 
 DELETE FROM v3;
 

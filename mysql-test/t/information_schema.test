@@ -676,7 +676,7 @@ drop table t1;
 
 #
 # Bug#12636 SHOW TABLE STATUS with where condition containing a subquery
-#             over information schema
+#           over information schema
 #
 
 CREATE TABLE t1 (a int);
@@ -729,7 +729,7 @@ BEGIN
   SELECT 'foo' FROM DUAL;
 END |
 delimiter ;|
-select  ROUTINE_NAME from routines;
+select ROUTINE_NAME from routines;
 #
 # Bug#10734 Grant of privileges other than 'select' and 'create view' should fail on schema
 #
@@ -979,9 +979,6 @@ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=
 
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
-
-
-
 
 #
 # Bug#22413 EXPLAIN SELECT FROM view with ORDER BY yield server crash

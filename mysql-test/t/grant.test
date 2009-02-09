@@ -204,7 +204,7 @@ show grants for mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
 
 #
-# Bug#3403 Wrong encoding in SHOW GRANTS, EPLAIN SELECT output
+# Bug#3403 Wrong encoding in SHOW GRANTS, EXPLAIN SELECT output
 #
 SET NAMES koi8r;
 CREATE DATABASE ÂÄ;
@@ -384,7 +384,7 @@ update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
 update mysqltest_2.t1, mysqltest_1.t2 set c=100,b=200;
 --error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_1.t1, mysqltest_2.t2 set a=100,d=200;
-#lets see the result
+# lets see the result
 connection master;
 select t1.*,t2.* from mysqltest_1.t1,mysqltest_1.t2;
 select t1.*,t2.* from mysqltest_2.t1,mysqltest_2.t2;
@@ -783,7 +783,6 @@ SHOW CREATE VIEW mysqltest2.v_yy;
 
 # succeed, have SELECT and SHOW VIEW
 SHOW CREATE TABLE mysqltest2.v_yy;
-
 
 # clean-up
 connection master;
