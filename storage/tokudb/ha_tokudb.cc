@@ -451,7 +451,7 @@ typedef struct smart_dbt_ai_info {
     uchar* buf; // buffer to unpack the row
 } *SMART_DBT_AI_INFO;
 
-static void smart_dbt_ai_callback (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_ai_callback (DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_AI_INFO info = (SMART_DBT_AI_INFO)context;
     info->ha->unpack_row(info->buf,row,key, true);
     //
@@ -459,6 +459,7 @@ static void smart_dbt_ai_callback (DBT const *key, DBT  const *row, void *contex
     //
     info->prim_key->size = key->size;
     memcpy(info->prim_key->data, key->data, key->size);
+    return 0;
 }
 
 //
@@ -468,53 +469,64 @@ static void smart_dbt_ai_callback (DBT const *key, DBT  const *row, void *contex
 // want to actually do anything with the data, hence
 // callback does nothing
 //
-static void smart_dbt_opt_callback (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_opt_callback (DBT const *key, DBT  const *row, void *context) {
+  return 0;
 }
 
 
 //
 // Smart DBT callback function in case where we have a covering index
 //
-static void smart_dbt_callback_keyread(DBT const *key, DBT  const *row, void *context) {
+static int
+smart_dbt_callback_keyread(DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->extract_hidden_primary_key(info->keynr, row, key);
     info->ha->read_key_only(info->buf,info->keynr,row,key);
+    return 0;
 }
 
 //
 // Smart DBT callback function in case where we do NOT have a covering index
 //
-static void smart_dbt_callback_rowread(DBT const *key, DBT  const *row, void *context) {
+static int
+smart_dbt_callback_rowread(DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->extract_hidden_primary_key(info->keynr, row, key);
     info->ha->read_primary_key(info->buf,info->keynr,row,key);
+    return 0;
 }
 
 //
-// Smart DBT callback function in c_getf_heavi, in case where we have a covering index, 
+// Smart DBT callback function in c_getf_heaviside, in case where we have a covering index, 
 //
-static void smart_dbt_callback_keyread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
+static int
+smart_dbt_callback_keyread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->heavi_ret_val = r_h;
     smart_dbt_callback_keyread(key,row,context);
+    return 0;
 }
 
 //
-// Smart DBT callback function in c_getf_heavi, in case where we do NOT have a covering index
+// Smart DBT callback function in c_getf_heaviside, in case where we do NOT have a covering index
 //
-static void smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
+static int
+smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->heavi_ret_val = r_h;
     smart_dbt_callback_rowread(key,row,context);
+    return 0;
 }
 
 //
 // Smart DBT callback function in records_in_range
 //
-static void smart_dbt_callback_ror_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
+static int
+smart_dbt_callback_ror_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
     DBT* copied_key = (DBT *)context;
     copied_key->size = key->size;
     memcpy(copied_key->data, key->data, key->size);
+    return 0;
 }
 
 
@@ -2476,7 +2488,7 @@ int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
         table->status = STATUS_NOT_FOUND;
         cursor->c_close(cursor);
         cursor = NULL;
-        if (error == DB_NOTFOUND || error == DB_KEYEMPTY) {
+        if (error == DB_NOTFOUND) {
             error = err_to_return;
             if ((share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, 0))) {
                 cursor = NULL;             // Safety
@@ -2705,7 +2717,7 @@ int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint k
     active_index = MAX_KEY;
 
     error = share->key_file[keynr]->get(share->key_file[keynr], transaction, pack_key(&last_key, keynr, key_buff, key, key_len, COL_NEG_INF), &current_row, 0);
-    if (error == DB_NOTFOUND || error == DB_KEYEMPTY) {
+    if (error == DB_NOTFOUND) {
         error = HA_ERR_KEY_NOT_FOUND;
         goto cleanup;
     }
@@ -2868,7 +2880,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
         flags = SET_READ_FLAG(0);
-        error = cursor->c_getf_heavi(
+        error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             after_key_heavi, &heavi_info, 
@@ -2878,7 +2890,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
         flags = SET_READ_FLAG(0);
-        error = cursor->c_getf_heavi(
+        error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             before_key_heavi, &heavi_info, 
@@ -2905,7 +2917,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
         flags = SET_READ_FLAG(0);
-        error = cursor->c_getf_heavi(
+        error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             prefix_last_or_prev_heavi, &heavi_info, 
@@ -2915,7 +2927,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_PREFIX_LAST:
         flags = SET_READ_FLAG(0);
-        error = cursor->c_getf_heavi(
+        error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             prefix_last_or_prev_heavi, &heavi_info, 
@@ -3228,7 +3240,7 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     active_index = MAX_KEY;
     DBT* key = get_pos(&db_pos, pos); 
     error = share->file->get(share->file, transaction, key, &current_row, 0);
-    if (error == DB_NOTFOUND || error == DB_KEYEMPTY) {
+    if (error == DB_NOTFOUND) {
         error = HA_ERR_KEY_NOT_FOUND;
         goto cleanup;
     }    
@@ -4224,7 +4236,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
             start_rows= less;
         }
         else {
-            error = tmp_cursor->c_getf_heavi(
+            error = tmp_cursor->c_getf_heaviside(
                 tmp_cursor, 
                 0, 
                 smart_dbt_callback_ror_heavi, 
@@ -4281,7 +4293,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
             end_rows= less;
         }
         else {
-            error = tmp_cursor->c_getf_heavi(
+            error = tmp_cursor->c_getf_heaviside(
                 tmp_cursor, 
                 0, 
                 smart_dbt_callback_ror_heavi, 
