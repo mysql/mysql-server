@@ -13,7 +13,8 @@ INSERT INTO init_file.startup VALUES ( NOW() );
 SELECT * INTO @X FROM init_file.startup limit 0,1;
 SELECT * INTO @Y FROM init_file.startup limit 1,1;
 SELECT YEAR(@X)-YEAR(@Y);
-DROP DATABASE init_file;
+# Enable this DROP DATABASE only after resolving bug #42507
+# DROP DATABASE init_file;
 
 --echo ok
 --echo end of 4.1 tests
@@ -26,4 +27,5 @@ select * from t1;
 # Expected:
 #   30, 3, 11, 13
 select * from t2;
-drop table t1, t2;
+# Enable this DROP TABLE only after resolving bug #42507
+#drop table t1, t2;

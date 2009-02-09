@@ -7,6 +7,12 @@
 # check that CSV engine was compiled in
 --source include/have_csv.inc
 
+SET @old_general_log_state = @@global.general_log;
+SET @old_log_output=       @@global.log_output;
+SET @old_slow_query_log=   @@global.slow_query_log;
+SET @old_general_log=      @@global.general_log;
+SET @old_long_query_time=  @@session.long_query_time;
+
 --disable_ps_protocol
 use mysql;
 
@@ -525,7 +531,8 @@ FLUSH LOGS;
 ALTER TABLE mysql.slow_log DROP COLUMN seq;
 ALTER TABLE mysql.slow_log ENGINE = CSV;
 
-SET GLOBAL slow_query_log = @saved_slow_query_log;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL slow_query_log = @old_slow_query_log;
 
 #
 # Bug#25422 (Hang with log tables)
@@ -829,8 +836,8 @@ DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
 DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
 DROP DATABASE IF EXISTS `db_17876`;
 
-SET GLOBAL general_log = @saved_general_log;
-SET GLOBAL slow_query_log = @saved_slow_query_log;
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL slow_query_log = @old_slow_query_log;
 
 #
 # Bug#21557 entries in the general query log truncated at 1000 characters.
@@ -948,7 +955,7 @@ execute long_query using @lparam;
 set global general_log = off;
 select command_type, argument from mysql.general_log where thread_id = @thread_id;
 deallocate prepare long_query;
-set global general_log = @saved_general_log;
+set global general_log = @old_general_log;
 
 #
 # Bug#34306: Can't make copy of log tables when server binary log is enabled
@@ -1020,10 +1027,8 @@ DROP TABLE t1;
 
 TRUNCATE TABLE mysql.slow_log;
 
-# RESET altered system variables before exiting the test
-SET GLOBAL slow_query_log = @saved_slow_query_log;
-SET GLOBAL general_log=@saved_general_log;
-SET SESSION long_query_time =@saved_long_query_time;
-SET GLOBAL LOG_OUTPUT = @saved_log_output;
+SET @@session.long_query_time= @old_long_query_time;
 
-
+SET @@global.log_output=       @old_log_output;
+SET @@global.slow_query_log=   @old_slow_query_log;
+SET @@global.general_log=      @old_general_log;

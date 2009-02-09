@@ -1,0 +1,151 @@
+############## mysql-test\t\log_bin_trust_function_creators_func.test #########
+#                                                                             #
+# Variable Name: log_bin_trust_function_creators                              #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value: False                                                        #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-11                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable                          #
+#              log_bin_trust_function_creators that checks the functionality  #
+#              of this variable in the following ways                         #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system             #
+#            -variables.html#option_mysqld_log-bin-trust-function-ceators     #
+#                                                                             #
+###############################################################################
+
+source include/have_log_bin.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+
+--echo '#--------------------FN_DYNVARS_063_01-------------------------#'
+########################################################################
+#    Setting initial value of variable to 0 and verifying whether user
+#    is allowed to create function or not.
+########################################################################
+SET @start_value= @@global.log_bin_trust_function_creators;
+
+--echo ## Creating new user tt ##
+CREATE USER tt@localhost;
+
+--echo ## Setting value of variable to 0 ##
+SET @@global.log_bin_trust_function_creators = 0;
+
+--echo ## Creating new table t2 ##
+CREATE TABLE t2 (a INT);
+
+--echo ## Creating & connecting with new connection test_con1 ##
+connect (test_con1,localhost,tt,,);
+connection test_con1;
+
+SELECT @@log_bin_trust_function_creators;
+
+--echo ##  Creating new function f1 fails because no DETERMINISTIC ###
+delimiter |;
+--error ER_BINLOG_UNSAFE_ROUTINE
+CREATE FUNCTION f1(a INT) RETURNS INT
+BEGIN
+   IF (a < 3) THEN
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 1;
+END|
+delimiter ;|
+
+--echo ## Creating new function f1 fails because non-super user ##
+delimiter |;
+--error ER_BINLOG_CREATE_ROUTINE_NEED_SUPER
+CREATE FUNCTION f1(a INT) RETURNS INT DETERMINISTIC
+BEGIN
+   IF (a < 3) THEN
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 1;
+END|
+delimiter ;|
+
+connection default;
+
+--echo ## Creating new function f1 succeeds ##
+delimiter |;
+CREATE FUNCTION f1(a INT) RETURNS INT DETERMINISTIC
+BEGIN
+   IF (a < 3) THEN
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 1;
+END|
+delimiter ;|
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1 (a INT);
+
+--echo ## Inserting some records in t1 ##
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT f1(a) FROM t1;
+
+--echo ## Dropping function f1 & table t1 ##
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+--echo '#--------------------FN_DYNVARS_063_02-------------------------#'
+########################################################################
+#    Setting initial value of variable to 1 and verifying whether user
+#    is allowed to create function or not.
+########################################################################
+
+--echo ## Switching to default connection ##
+connection default;
+
+--echo ## Setting value of variable to 1 ##
+SET @@global.log_bin_trust_function_creators = 1;
+
+--echo ## Creating and connecting to new connection test_con2 ##
+connect (test_con2,localhost,tt,,);
+connection test_con2;
+
+--echo ## Verifying value of variable ##
+SELECT @@log_bin_trust_function_creators;
+SELECT @@sql_log_bin;
+
+--echo ## Creating new function f1 ##
+delimiter |;
+CREATE FUNCTION f1(a INT) RETURNS INT
+BEGIN
+   IF (a < 3) THEN
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 1;
+END|
+delimiter ;|
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1 (a INT);
+
+--echo ## Inserting values in table t1 ##
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT f1(a) FROM t1;
+
+--echo ## Dropping function f1 ##
+DROP FUNCTION f1;
+
+--echo ## Dropping table t1 & t2 ##
+DROP TABLE t1,t2;
+
+--echo ## Disconnecting test_con2##
+disconnect test_con2;
+
+connection default;
+
+DROP USER tt@localhost;
+SET @@global.log_bin_trust_function_creators= @start_value;
+

@@ -40,6 +40,8 @@ SELECT @@global.transaction_alloc_block_size;
 @@global.transaction_alloc_block_size
 59392
 SET @@global.transaction_alloc_block_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '4294967295'
 SELECT @@global.transaction_alloc_block_size;
 @@global.transaction_alloc_block_size
 4294966272
@@ -50,6 +52,8 @@ SELECT @@session.transaction_alloc_block_size;
 @@session.transaction_alloc_block_size
 1024
 SET @@session.transaction_alloc_block_size =4294967295;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '4294967295'
 SELECT @@session.transaction_alloc_block_size;
 @@session.transaction_alloc_block_size
 4294966272
@@ -146,6 +150,8 @@ WHERE VARIABLE_NAME='transaction_alloc_block_size';
 '#---------------------FN_DYNVARS_001_08----------------------#'
 SET @@transaction_alloc_block_size = 1024;
 SET @@global.transaction_alloc_block_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '4294967295'
 SELECT @@transaction_alloc_block_size = @@global.transaction_alloc_block_size;
 @@transaction_alloc_block_size = @@global.transaction_alloc_block_size
 0

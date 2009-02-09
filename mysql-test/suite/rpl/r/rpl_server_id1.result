@@ -5,7 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
-stop slave;
+include/stop_slave.inc
 change master to master_port=SLAVE_PORT;
 start slave;
 *** must be having the replicate-same-server-id IO thread error ***

@@ -1,6 +1,10 @@
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 SET NAMES binary;
 
 #
@@ -27,7 +31,7 @@ create user mysqltest_2@localhost;
 connect (user_a,localhost,mysqltest_1,,);
 connection user_a;
 grant select on `my\_1`.* to mysqltest_2@localhost;
---error 1132
+--error ER_PASSWORD_NOT_ALLOWED
 grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
 disconnect user_a;
 connection default;
@@ -61,7 +65,7 @@ connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select current_user();
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 
 #
@@ -72,7 +76,7 @@ select @@sql_mode;
 #
 # GRANT without IDENTIFIED BY does not create new users
 #
---error 1133
+--error ER_PASSWORD_NO_MATCH
 grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
 with grant option;
@@ -80,7 +84,7 @@ disconnect user1;
 connection default;
 show grants for mysqltest_1@localhost;
 show grants for mysqltest_2@localhost;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for mysqltest_3@localhost;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
@@ -95,7 +99,7 @@ connect (user2,localhost,mysqltest_1,,);
 connection user2;
 select current_user();
 show databases;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;
 disconnect user2;
 connection default;
@@ -106,8 +110,8 @@ drop database mysqltest_1;
 flush privileges;
 
 #
-# Bug #6173: One can circumvent missing UPDATE privilege if he has SELECT
-# and INSERT privilege for table with primary key
+# Bug#6173 One can circumvent missing UPDATE privilege if he has SELECT and
+#          INSERT privilege for table with primary key
 #
 create database mysqltest;
 grant INSERT, SELECT on mysqltest.* to mysqltest_1@localhost;
@@ -119,10 +123,10 @@ connect (mrbad, localhost, mysqltest_1,,mysqltest);
 connection mrbad;
 show grants for current_user();
 insert into t1 values (1, 'I can''t change it!');
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update t1 set data='I can change it!' where id = 1;
 # This should not be allowed since it too require UPDATE privilege.
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 insert into t1 values (1, 'XXX') on duplicate key update data= 'I can change it!';
 select * from t1;
 disconnect mrbad;
@@ -138,9 +142,9 @@ create table t1 (a int, b int);
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
 connect (mrugly, localhost, mysqltest_1,,mysqltest);
 connection mrugly;
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 grant select (a,b) on t1 to mysqltest_2@localhost;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 grant select on t1 to mysqltest_3@localhost;
 disconnect mrugly;
 
@@ -157,7 +161,7 @@ use test;
 
 
 #
-# Bug #15775: "drop user" command does not refresh acl_check_hosts
+# Bug#15775 "drop user" command does not refresh acl_check_hosts
 #
 
 # Create some test users
@@ -188,15 +192,15 @@ disconnect con9;
 connection default;
 
 #
-# Bug# 16180 - Setting SQL_LOG_OFF without SUPER privilege is silently ignored
+# Bug#16180 Setting SQL_LOG_OFF without SUPER privilege is silently ignored
 #
 create database mysqltest_1;
 grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
 connect (con10,localhost,mysqltest_1,,);
 connection con10;
---error 1227
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 set sql_log_off = 1;
---error 1227
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 set sql_log_bin = 0;
 disconnect con10;
 connection default;
@@ -217,7 +221,7 @@ create table t2(c1 int, c2 int);
 #
 # Three forms of CREATE USER
 create user 'mysqltest_1';
---error 1396
+--error ER_CANNOT_USER
 create user 'mysqltest_1';
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
@@ -238,7 +242,7 @@ select host,user,password from mysql.user where user like 'mysqltest_%' order by
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for 'mysqltest_1';
 #
 # Rename
@@ -249,7 +253,7 @@ select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
 show grants for 'mysqltest_1';
 drop user 'mysqltest_1', 'mysqltest_3';
---error 1396
+--error ER_CANNOT_USER
 drop user 'mysqltest_1';
 #
 # Cleanup
@@ -258,9 +262,9 @@ drop table t1, t2;
 # Add a stray record
 insert into mysql.db set user='mysqltest_1', db='%', host='%';
 flush privileges;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for 'mysqltest_1';
---error 1269
+--error ER_REVOKE_GRANTS
 revoke all privileges, grant option from 'mysqltest_1';
 drop user 'mysqltest_1';
 select host,db,user from mysql.db where user = 'mysqltest_1' order by host,db,user;
@@ -268,7 +272,7 @@ select host,db,user from mysql.db where user = 'mysqltest_1' order by host,db,us
 # Add a stray record
 insert into mysql.tables_priv set host='%', db='test', user='mysqltest_1', table_name='t1';
 flush privileges;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for 'mysqltest_1';
 drop user 'mysqltest_1';
 select host,db,user,table_name from mysql.tables_priv where user = 'mysqltest_1' order by host,db,user,table_name;
@@ -276,7 +280,7 @@ select host,db,user,table_name from mysql.tables_priv where user = 'mysqltest_1'
 # Add a stray record
 insert into mysql.columns_priv set host='%', db='test', user='mysqltest_1', table_name='t1', column_name='c1';
 flush privileges;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for 'mysqltest_1';
 drop user 'mysqltest_1';
 select host,db,user,table_name,column_name from mysql.columns_priv where user = 'mysqltest_1' order by host,db,user,table_name,column_name;
@@ -286,23 +290,23 @@ create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
---error 1396
+--error ER_CANNOT_USER
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 #
 # Let one of multiple users fail
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
---error 1396
+--error ER_CANNOT_USER
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
---error 1396
+--error ER_CANNOT_USER
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
---error 1396
+--error ER_CANNOT_USER
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
 #
 # Obsolete syntax has been dropped
 create user 'mysqltest_2' identified by 'Mysqltest-2';
---error 1064
+--error ER_PARSE_ERROR
 drop user 'mysqltest_2' identified by 'Mysqltest-2';
 drop user 'mysqltest_2';
 #
@@ -312,7 +316,7 @@ show grants for '%@b'@'b';
 grant select on mysql.* to '%@b'@'b';
 show grants for '%@b'@'b';
 rename user '%@b'@'b' to '%@a'@'a';
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for '%@b'@'b';
 show grants for '%@a'@'a';
 drop user '%@a'@'a';
@@ -323,7 +327,7 @@ create user mysqltest_2@localhost;
 grant create user on *.* to mysqltest_2@localhost;
 connect (user3,localhost,mysqltest_2,,);
 connection user3;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
@@ -338,7 +342,7 @@ grant INSERT,DELETE,UPDATE on mysql.* to mysqltest_3@localhost;
 connect (user4,localhost,mysqltest_3,,);
 connection user4;
 show grants;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 insert into mysql.user set host='%', user='mysqltest_B';
 create user mysqltest_A@'%';
@@ -349,7 +353,7 @@ disconnect user4;
 connection default;
 drop user mysqltest_3@localhost;
 #
-# Bug #3309: Test IP addresses with netmask
+# Bug#3309 Test IP addresses with netmask
 set @@sql_mode='';
 create database mysqltest_1;
 create table mysqltest_1.t1 (i int);
@@ -367,7 +371,8 @@ flush privileges;
 drop table mysqltest_1.t1;
 
 #
-# Bug #12302: 'SET PASSWORD = ...' didn't work if connecting hostname !=
+# Bug#12302 Hostname resolution preventing password changes
+# 'SET PASSWORD = ...' didn't work if connecting hostname !=
 # hostname the current user is authenticated as. Note that a test for this
 # was also added to the test above.
 #
@@ -400,7 +405,7 @@ drop database mysqltest_1;
 # But anonymous users can't change their password
 connect (n5,localhost,test,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n5;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 set password = password("changed");
 disconnect n5;
 connection default;
@@ -408,7 +413,7 @@ connection default;
 --source include/delete_anonymous_users.inc
 
 
-# Bug #12423 "Deadlock when doing FLUSH PRIVILEGES and GRANT in 
+# Bug#12423 "Deadlock when doing FLUSH PRIVILEGES and GRANT in
 # multi-threaded environment". We should be able to execute FLUSH
 # PRIVILEGES and SET PASSWORD simultaneously with other account
 # management commands (such as GRANT and REVOKE) without causing
@@ -471,12 +476,13 @@ connect (con1,localhost,mysqltest_1,password,TESTDB);
 
 # The user mysqltest_1 should only be allowed access to
 # database TESTDB, not TEStdb
-# On system with "lowercase names" we get error "1007: Can't create db..."
---error 1044, 1007
+# On system with "lowercase names" we get error "ER_DB_CREATE_EXISTS: Can't create db..."
+--error ER_DBACCESS_DENIED_ERROR, ER_DB_CREATE_EXISTS
 create database TEStdb;
 
 # Clean-up
 connection default;
+disconnect con1;
 delete from mysql.user;
 delete from mysql.db where host='%' and user='mysqltest_1' and db='TESTDB';
 insert into mysql.user select * from t1;
@@ -485,38 +491,39 @@ drop database TESTDB;
 flush privileges;
 
 #
-# BUG#13310 incorrect user parsing by SP
+# Bug#13310 incorrect user parsing by SP
 #
 
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
-grant all privileges on test.* to `a@`@localhost;
-grant execute on * to `a@`@localhost;
+GRANT ALL PRIVILEGES ON test.* TO `a@`@localhost;
+GRANT EXECUTE ON * TO `a@`@localhost;
 connect (bug13310,localhost,'a@',,test);
 connection bug13310;
-create table t2 (s1 int);
-insert into t2 values (1);
+CREATE TABLE t2 (s1 INT);
+INSERT INTO t2 VALUES (1);
 --disable_warnings
-drop function if exists f2;
+DROP FUNCTION IF EXISTS f2;
 --enable_warnings
 delimiter //;
-create function f2 () returns int
-begin declare v int; select s1 from t2 into v; return v; end//
+CREATE FUNCTION f2 () RETURNS INT
+BEGIN DECLARE v INT; SELECT s1 FROM t2 INTO v; RETURN v; END//
 delimiter ;//
-select f2();
-drop function f2;
-drop table t2;
-disconnect bug13310;
+SELECT f2();
 
+DROP FUNCTION f2;
+DROP TABLE t2;
+disconnect bug13310;
 connection default;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
-drop user `a@`@localhost;
+DROP USER `a@`@localhost;
 
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 
 #
-# Bug#25578 "CREATE TABLE LIKE does not require any privileges on source table"
+# Bug#25578 CREATE TABLE LIKE does not require any privileges on source table
 #
 --disable_warnings
 drop database if exists mysqltest_1;
@@ -535,7 +542,7 @@ create table t1 (i int);
 connect (user1,localhost,mysqltest_u1,,mysqltest_1);
 connection user1;
 # As expected error is emitted
---error ER_TABLEACCESS_DENIED_ERROR 
+--error ER_TABLEACCESS_DENIED_ERROR
 show create table mysqltest_2.t1;
 # This should emit error as well
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -550,14 +557,16 @@ create table t1 like mysqltest_2.t1;
 
 # Clean-up
 connection default;
+disconnect user1;
 use test;
 drop database mysqltest_1;
 drop database mysqltest_2;
 drop user mysqltest_u1@localhost;
 
+
 #
 # Bug#18660 Can't grant any privileges on single table in database
-#  with underscore char
+#           with underscore char
 #
 grant all on `mysqltest\_%`.* to mysqltest_1@localhost with grant option;
 grant usage on *.* to mysqltest_2@localhost;
@@ -571,7 +580,7 @@ grant create on `mysqltest\_1`.* to mysqltest_2@localhost;
 grant select on mysqltest_1.t1 to mysqltest_2@localhost;
 connect (con3,localhost,mysqltest_2,,);
 connection con3;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create database mysqltest_3;
 use mysqltest_1;
 create table t2(f1 int);
@@ -579,6 +588,9 @@ select * from t1;
 connection default;
 drop database mysqltest_1;
 
+connection default;
+disconnect con3;
+disconnect con18600_1;
 revoke all privileges, grant option from mysqltest_1@localhost;
 revoke all privileges, grant option from mysqltest_2@localhost;
 drop user mysqltest_1@localhost;
@@ -586,7 +598,7 @@ drop user mysqltest_2@localhost;
 
 
 #
-# Bug #30468: column level privileges not respected when joining tables
+# Bug#30468 column level privileges not respected when joining tables
 #
 CREATE DATABASE db1;
 
@@ -597,7 +609,7 @@ INSERT INTO t1 VALUES (1,1),(2,2);
 CREATE TABLE t2 (b INT, c INT);
 INSERT INTO t2 VALUES (1,100),(2,200);
 
-GRANT SELECT ON t1 TO mysqltest1@localhost; 
+GRANT SELECT ON t1 TO mysqltest1@localhost;
 GRANT SELECT (b) ON t2 TO mysqltest1@localhost;
 
 connect (conn1,localhost,mysqltest1,,);
@@ -612,6 +624,7 @@ SELECT * FROM t1 JOIN t2 USING (b);
 
 connection default;
 disconnect conn1;
+USE test;
 DROP TABLE db1.t1, db1.t2;
 DROP USER mysqltest1@localhost;
 DROP DATABASE db1;
@@ -619,3 +632,5 @@ DROP DATABASE db1;
 
 --echo End of 5.0 tests
 
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

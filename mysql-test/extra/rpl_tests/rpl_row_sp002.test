@@ -206,7 +206,7 @@ START TRANSACTION;
 -- disable_query_log
 -- disable_result_log
 let $n=50;
-while ($n>3)
+while ($n)
 {
   eval call test.p3($n);
   dec $n;

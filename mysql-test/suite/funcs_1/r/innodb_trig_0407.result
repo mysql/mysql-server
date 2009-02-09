@@ -92,6 +92,8 @@ drop trigger trg1;
 select trigger_schema, trigger_name, event_object_table
 from information_schema.triggers order by trigger_name;
 trigger_schema	trigger_name	event_object_table
+mtr	gs_insert	global_suppressions
+mtr	ts_insert	test_suppressions
 Insert into t1 values ('Insert no trigger 3.5.4.1');
 Select * from t1 order by f1;
 f1
@@ -152,6 +154,7 @@ Drop database db_drop4;
 Show databases;
 Database
 information_schema
+mtr
 mysql
 test
 select trigger_schema, trigger_name, event_object_table

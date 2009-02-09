@@ -51,7 +51,8 @@ echo;
 -- disable_query_log
 
 # Run the mysql_fix_privilege_tables.sql using "mysql --force"
---exec $MYSQL --force mysql < $MYSQL_FIX_PRIVILEGE_TABLES > $MYSQLTEST_VARDIR/log/fix_priv_tables.log 2>&1
+--exec $MYSQL --force mysql < $MYSQL_FIX_PRIVILEGE_TABLES > $MYSQLTEST_VARDIR/tmp/fix_priv_tables.log 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/fix_priv_tables.log
 
 -- enable_query_log
 -- enable_result_log
