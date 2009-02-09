@@ -183,7 +183,6 @@ let $message= Testcase 3.5.9.4:;
 		@tr_var_af_136, @tr_var_af_151, @tr_var_af_163;
 --enable_query_log
 
---error ER_BAD_NULL_ERROR
 	Update tb3 Set f122='Test 3.5.9.4-trig', f136=NULL, f151=DEFAULT, f163=NULL
 		 where f122='Test 3.5.9.4';
 
