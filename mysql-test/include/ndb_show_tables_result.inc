@@ -4,8 +4,9 @@ CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (id INT, type VARCH
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 --exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLD_DATADIR/test/tmp.dat
+--chmod 0777 $MYSQLD_DATADIR/test/tmp.dat
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables_results;
---exec rm $MYSQLD_DATADIR/test/tmp.dat
+--remove_file $MYSQLD_DATADIR/test/tmp.dat
 --enable_query_log
 --enable_warnings
 --echo
