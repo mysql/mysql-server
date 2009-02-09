@@ -81,9 +81,9 @@ int my_daemon_remove(const char *name);
 #define MY_DAEMON_VARS(prefix) uchar *prefix remove,* install,*prefix service
 #define MY_DAEMON_VARS0 MY_DAEMON_VARS(NONE)
 #define MY_DAEMON_LONG_OPTS_PASTE(prefix) \
-  {"install", 'i', "Install this service.", \
+  {"install", 'i', "Install this program as a service.", \
    &prefix##install, &prefix##install, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, \
-  {"remove",  'r', "Remove this service.", \
+  {"remove",  'r', "Remove this program as a service.", \
    &prefix##remove,  &prefix##remove,  0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, \
   {"service", 's', "Internal use only (for windows service)", \
    &prefix##service, &prefix##service, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

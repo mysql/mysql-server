@@ -208,7 +208,7 @@ int main(int argc, char** argv)
   if(opts.install) {
     char *svc_cmd= my_daemon_make_svc_cmd(argc_ - 1, argv_ + 1);
     if(!svc_cmd) {
-      g_eventLogger->error(my_daemon_error);
+      fprintf(stderr, my_daemon_error);
       mgmd_exit(1);
     }
     return my_daemon_install((char*)opts.install, svc_cmd);
