@@ -3775,7 +3775,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
 
         //Starting with the prev, find the first real (non-provdel) leafentry.
         while (index != limit) {
-            OMTVALUE le;
+            OMTVALUE le = NULL;
             index += direction;
             r = toku_omt_fetch(omt, index, &le, NULL);
             assert(r==0);
@@ -3805,7 +3805,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
 
 static int
 brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR brtcursor, BRTNODE* leafp) {
-    void * nodep;
+    void * nodep = NULL;
     int r = toku_cachetable_maybe_get_and_pin(brtcursor->brt->cf,
                                               brtcursor->leaf_info.blocknumber,
                                               brtcursor->leaf_info.fullhash,
