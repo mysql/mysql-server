@@ -5,6 +5,38 @@ Mutex, the basic synchronization primitive
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
+/***********************************************************************
+# Copyright (c) 2008, Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#	* Redistributions of source code must retain the above copyright
+#	  notice, this list of conditions and the following disclaimer.
+#	* Redistributions in binary form must reproduce the above
+#	  copyright notice, this list of conditions and the following
+#	  disclaimer in the documentation and/or other materials
+#	  provided with the distribution.
+#	* Neither the name of the Google Inc. nor the names of its
+#	  contributors may be used to endorse or promote products
+#	  derived from this software without specific prior written
+#	  permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Note, the BSD license applies to the new code. The old code is GPL.
+***********************************************************************/
 
 #ifndef sync0sync_h
 #define sync0sync_h
@@ -237,7 +269,7 @@ mutex_n_reserved(void);
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
 UNIV_INLINE
-ulint
+byte
 mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex);	/* in: mutex */
@@ -463,9 +495,11 @@ implementation of a mutual exclusion semaphore. */
 
 struct mutex_struct {
 	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
-	ulint	lock_word;	/* This ulint is the target of the atomic
-				test-and-set instruction in Win32 */
-#if defined WIN32 && defined UNIV_CAN_USE_X86_ASSEMBLER
+	byte	lock_word;	/* This byte is the target of the atomic
+				test-and-set instruction in Win32 and
+				x86 32/64 with GCC 4.1.0 or later version */
+#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
 #else
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
@@ -519,8 +553,7 @@ to 20 microseconds. */
 /* The number of system calls made in this module. Intended for performance
 monitoring. */
 
-extern	ulint	mutex_system_call_count;
-extern	ulint	mutex_exit_count;
+extern	ib_int64_t	mutex_exit_count;
 
 #ifdef UNIV_SYNC_DEBUG
 /* Latching order checks start when this is set TRUE */
