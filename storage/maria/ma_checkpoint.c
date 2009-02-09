@@ -653,6 +653,14 @@ pthread_handler_t ma_checkpoint_background(void *arg)
             We use FLUSH_KEEP_LAZY: if a file is already in flush, it's
             smarter to move to the next file than wait for this one to be
             completely flushed, which may take long.
+            StaleFilePointersInFlush: notice how below we use "dfile" which
+            is an OS file descriptor plus some function and MARIA_SHARE
+            pointers; this data dates from a previous checkpoint; since then,
+            the table may have been closed (so MARIA_SHARE* became stale), and
+            the file descriptor reassigned to another table which does not
+            have the same CRC-read-set callbacks: it is thus important that
+            flush_pagecache_blocks_with_filter() does not use the pointers,
+            only the OS file descriptor.
           */
           int res=
             flush_pagecache_blocks_with_filter(maria_pagecache,

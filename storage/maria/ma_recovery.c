@@ -3326,7 +3326,10 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 /**
    Re-enables logging for a table which had it temporarily disabled.
 
-   Only the thread which disabled logging is allowed to reenable it.
+   Only the thread which disabled logging is allowed to reenable it. Indeed,
+   re-enabling logging affects all open instances, one must have exclusive
+   access to the table to do that. In practice, the one which disables has
+   such access.
 
    @param  info            table
    @param  flush_pages     if function needs to flush pages first
