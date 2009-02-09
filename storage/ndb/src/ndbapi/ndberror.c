@@ -678,6 +678,7 @@ ErrorBundle ErrorCodes[] = {
   { 4290, DMEC, AE, "Missing column specification in NdbDictionary::RecordSpecification" },
   { 4291, DMEC, AE, "Duplicate column specification in NdbDictionary::RecordSpecification" },
   { 4292, DMEC, AE, "NdbRecord for tuple access is not an index key NdbRecord" },
+  { 4341, DMEC, AE, "Not all keys read when using option SF_OrderBy" },
   { 4293, DMEC, AE, "Error returned from application scanIndex() callback" },
   { 4294, DMEC, AE, "Scan filter is too large, discarded" },
   { 4295, DMEC, AE, "Column is NULL in Get/SetValueSpec structure" },

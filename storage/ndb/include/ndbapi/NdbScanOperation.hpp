@@ -54,6 +54,12 @@ public:
       each fragment, to get a single sorted result set.
     */
     SF_OrderBy = (1 << 24),
+    /**
+     * Same as order by, except that it will automatically 
+     *   add all key columns into the read-mask
+     */
+    SF_OrderByFull = (16 << 24),
+
     /* Index scan in descending order, instead of default ascending. */
     SF_Descending = (2 << 24),
     /*
