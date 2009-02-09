@@ -13,6 +13,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA */
 
+/***********************************************************************
+# Copyright (c) 2008, Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#	* Redistributions of source code must retain the above copyright
+#	  notice, this list of conditions and the following disclaimer.
+#	* Redistributions in binary form must reproduce the above
+#	  copyright notice, this list of conditions and the following
+#	  disclaimer in the documentation and/or other materials
+#	  provided with the distribution.
+#	* Neither the name of the Google Inc. nor the names of its
+#	  contributors may be used to endorse or promote products
+#	  derived from this software without specific prior written
+#	  permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Note, the BSD license applies to the new code. The old code is GPL.
+***********************************************************************/
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at trx->conc_state
   - fix savepoint functions to use savepoint storage area
@@ -462,6 +494,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"have_atomic_builtins",
+  (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"log_waits",
   (char*) &export_vars.innodb_log_waits,		  SHOW_LONG},
   {"log_write_requests",
@@ -8034,7 +8068,8 @@ innodb_mutex_show_status(
 	stat_print_fn*	stat_print)
 {
 	char buf1[IO_SIZE], buf2[IO_SIZE];
-	mutex_t*  mutex;
+	mutex_t*	mutex;
+	rw_lock_t*	lock;
 #ifdef UNIV_DEBUG
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
@@ -8105,6 +8140,29 @@ innodb_mutex_show_status(
 
 	mutex_exit(&mutex_list_mutex);
 
+	mutex_enter(&rw_lock_list_mutex);
+
+	lock = UT_LIST_GET_FIRST(rw_lock_list);
+
+	while (lock != NULL) {
+		if (lock->count_os_wait) {
+			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+                                    lock->cfile_name, (ulong) lock->cline);
+			buf2len= my_snprintf(buf2, sizeof(buf2),
+                                    "os_waits=%lu", lock->count_os_wait);
+
+			if (stat_print(thd, innobase_hton_name,
+				       hton_name_len, buf1, buf1len,
+				       buf2, buf2len)) {
+				mutex_exit(&rw_lock_list_mutex);
+				DBUG_RETURN(1);
+			}
+		}
+		lock = UT_LIST_GET_NEXT(list, lock);
+	}
+
+	mutex_exit(&rw_lock_list_mutex);
+
 #ifdef UNIV_DEBUG
 	buf2len= my_snprintf(buf2, sizeof(buf2),
 		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
@@ -8139,7 +8197,6 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 		return(FALSE);
 	}
 }
-
 
 /****************************************************************************
  Handling the shared INNOBASE_SHARE structure that is needed to provide table

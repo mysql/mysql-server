@@ -19,6 +19,38 @@ The database buffer buf_pool
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
+/***********************************************************************
+# Copyright (c) 2008, Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#	* Redistributions of source code must retain the above copyright
+#	  notice, this list of conditions and the following disclaimer.
+#	* Redistributions in binary form must reproduce the above
+#	  copyright notice, this list of conditions and the following
+#	  disclaimer in the documentation and/or other materials
+#	  provided with the distribution.
+#	* Neither the name of the Google Inc. nor the names of its
+#	  contributors may be used to endorse or promote products
+#	  derived from this software without specific prior written
+#	  permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Note, the BSD license applies to the new code. The old code is GPL.
+***********************************************************************/
 
 #include "buf0buf.h"
 
@@ -2337,8 +2369,8 @@ buf_page_optimistic_get_func(
 			   buf_block_get_page_no(block), NULL));
 
 	if (rw_latch == RW_S_LATCH) {
-		success = rw_lock_s_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_s_lock_nowait(&(block->lock),
+						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
@@ -2449,8 +2481,8 @@ buf_page_get_known_nowait(
 	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
 
 	if (rw_latch == RW_S_LATCH) {
-		success = rw_lock_s_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_s_lock_nowait(&(block->lock),
+						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
@@ -2527,7 +2559,7 @@ buf_page_try_get_func(
 	mutex_exit(&block->mutex);
 
 	fix_type = MTR_MEMO_PAGE_S_FIX;
-	success = rw_lock_s_lock_func_nowait(&block->lock, file, line);
+	success = rw_lock_s_lock_nowait(&block->lock, file, line);
 
 	if (!success) {
 		/* Let us try to get an X-latch. If the current thread
