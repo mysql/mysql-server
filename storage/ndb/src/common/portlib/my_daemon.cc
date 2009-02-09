@@ -96,10 +96,24 @@ char *my_daemon_makecmdv(int c, const char **v)
 
 char *my_daemon_make_svc_cmd(int n, char **v)
 {
-  check(!strcmp(v[0],"-i") || !strcmp(v[0],"--install"),
+  size_t size=sizeof(char*)*(n+2);
+  int i= 0,j= 0;
+  char**v1= (char**)my_malloc(size, MY_FAE);
+  int longopt= !strncmp(v[0],"--install",strlen("--install"));
+  int shortopt= !strcmp(v[0],"-i") ;
+  check(shortopt || longopt,
         0, "%s", "the install option (-i) must be the first argument\n");
-  *v= "-s";
-  return my_daemon_makecmdv(n, (const char**)v);
+  char *name= longopt ? ( *(v[0]+strlen("--install"))=='=' ? v[0]+strlen("--install=") : 0 )
+	                  : ( n>0 && v[1][0]!='-' ? v[1] : 0 );
+  if(!name)
+	  name= "MySQL Cluster Management Server";
+  memset(v1,0,size);
+  v1[i++]="-s";
+  v1[i++]=name;
+  j= longopt ? 1 : 2;
+  for(;j<n;j++)
+    v1[i++]=v[j];
+  return my_daemon_makecmdv(i, (const char**)v1);
 }
 
 int my_daemon_install(const char *name, const char *cmd)
