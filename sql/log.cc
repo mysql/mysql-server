@@ -1450,8 +1450,6 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   return 0;
 }
 
-#define YESNO(X) ((X) ? "yes" : "no")
-
 /**
   This function is called once after each statement.
 
@@ -2304,6 +2302,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
+   is_relay_log(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
   /*
@@ -2502,7 +2501,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       */
       description_event_for_queue->created= 0;
       /* Don't set log_pos in event header */
-      description_event_for_queue->artificial_event=1;
+      description_event_for_queue->set_artificial_event();
 
       if (description_event_for_queue->write(&log_file))
         goto err;
@@ -3474,7 +3473,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
         to change base names at some point.
       */
       Rotate_log_event r(new_name+dirname_length(new_name),
-                         0, LOG_EVENT_OFFSET, 0);
+                         0, LOG_EVENT_OFFSET, is_relay_log ? Rotate_log_event::RELAY_LOG : 0);
       r.write(&log_file);
       bytes_written += r.data_written;
     }

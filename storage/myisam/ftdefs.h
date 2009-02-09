@@ -146,6 +146,7 @@ void ft_boolean_close_search(FT_INFO *);
 float ft_boolean_get_relevance(FT_INFO *);
 my_off_t ft_boolean_get_docid(FT_INFO *);
 void ft_boolean_reinit_search(FT_INFO *);
+MYSQL_FTPARSER_PARAM* ftparser_alloc_param(MI_INFO *info);
 extern MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
                                                        uint keynr,
                                                        uint paramnr);

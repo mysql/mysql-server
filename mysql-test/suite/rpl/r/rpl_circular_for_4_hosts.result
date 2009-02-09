@@ -1,0 +1,298 @@
+*** Set up circular ring by schema A->B->C->D->A *** 
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+STOP SLAVE;
+RESET SLAVE;
+SET auto_increment_increment = 4;
+SET auto_increment_offset = 1;
+RESET MASTER;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_A_PORT,master_user='root',MASTER_LOG_FILE='MASTER_A_LOG_FILE';
+SET auto_increment_increment = 4;
+SET auto_increment_offset = 2;
+RESET MASTER;
+STOP SLAVE;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',MASTER_LOG_FILE='MASTER_B_LOG_FILE';
+SET auto_increment_increment = 4;
+SET auto_increment_offset = 3;
+RESET MASTER;
+STOP SLAVE;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_C_PORT,master_user='root',MASTER_LOG_FILE='MASTER_C_LOG_FILE';
+SET auto_increment_increment = 4;
+SET auto_increment_offset = 4;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_D_PORT,master_user='root',MASTER_LOG_FILE='MASTER_D_LOG_FILE';
+SHOW VARIABLES LIKE 'auto_increment_%';
+Variable_name	Value
+auto_increment_increment	4
+auto_increment_offset	1
+SHOW VARIABLES LIKE 'auto_increment_%';
+Variable_name	Value
+auto_increment_increment	4
+auto_increment_offset	2
+SHOW VARIABLES LIKE 'auto_increment_%';
+Variable_name	Value
+auto_increment_increment	4
+auto_increment_offset	3
+SHOW VARIABLES LIKE 'auto_increment_%';
+Variable_name	Value
+auto_increment_increment	4
+auto_increment_offset	4
+1
+START SLAVE;
+START SLAVE;
+START SLAVE;
+START SLAVE;
+
+*** Preparing data ***
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
+
+*** Testing schema A->B->C->D->A ***
+
+INSERT INTO t1(b,c) VALUES('A',1);
+INSERT INTO t1(b,c) VALUES('B',1);
+INSERT INTO t1(b,c) VALUES('C',1);
+INSERT INTO t1(b,c) VALUES('D',1);
+SELECT 'Master A',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+Master A	a	b
+Master A	1	A
+Master A	2	B
+Master A	3	C
+Master A	4	D
+SELECT 'Master B',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+Master B	a	b
+Master B	1	A
+Master B	2	B
+Master B	3	C
+Master B	4	D
+SELECT 'Master C',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+Master C	a	b
+Master C	1	A
+Master C	2	B
+Master C	3	C
+Master C	4	D
+SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+Master D	a	b
+Master D	1	A
+Master D	2	B
+Master D	3	C
+Master D	4	D
+
+*** Testing schema A->B->D->A if C has failure ***
+
+* Do failure for C and then make new connection B->D *
+STOP SLAVE;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+include/start_slave.inc
+INSERT INTO t1 VALUES(6,'C',2);
+INSERT INTO t1(b,c) VALUES('B',2);
+INSERT INTO t1(b,c) VALUES('A',2);
+INSERT INTO t1(b,c) VALUES('D',2);
+
+* Data on servers (C failed) *
+SELECT 'Master A',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master A	a	b
+Master A	5	A
+Master A	8	D
+SELECT 'Master B',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master B	a	b
+Master B	5	A
+Master B	6	B
+Master B	8	D
+SELECT 'Master C',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master C	a	b
+Master C	6	C
+SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master D	a	b
+Master D	8	D
+
+* Reconfigure replication to schema A->B->D->A *
+STOP SLAVE;
+STOP SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',master_log_file='LOG_FILE',master_log_pos=LOG_POS;
+include/start_slave.inc
+
+* Check data inserted before failure *
+SELECT 'Master A',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master A	a	b
+Master A	5	A
+Master A	6	B
+Master A	8	D
+SELECT 'Master B',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master B	a	b
+Master B	5	A
+Master B	6	B
+Master B	8	D
+SELECT 'Master C',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master C	a	b
+Master C	6	C
+SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+Master D	a	b
+Master D	5	A
+Master D	6	B
+Master D	8	D
+
+* Check data inserted after failure *
+INSERT INTO t1(b,c) VALUES('A',3);
+INSERT INTO t1(b,c) VALUES('B',3);
+INSERT INTO t1(b,c) VALUES('D',3);
+SELECT 'Master A',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+Master A	a	b
+Master A	9	A
+Master A	10	B
+Master A	12	D
+SELECT 'Master B',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+Master B	a	b
+Master B	9	A
+Master B	10	B
+Master B	12	D
+SELECT 'Master C',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+Master C	a	b
+SELECT 'Master D',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+Master D	a	b
+Master D	9	A
+Master D	10	B
+Master D	12	D
+
+*** Testing restoring scheme A->B->C->D->A after failure ***
+
+* Remove wrong event from C and restore B->C->D *
+include/stop_slave.inc
+DELETE FROM t1 WHERE a = 6;
+START SLAVE;
+RESET MASTER;
+RESET SLAVE;
+CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_C_PORT,master_user='root',master_log_file='LOG_FILE',master_log_pos=LOG_POS;
+START SLAVE;
+
+* Check data inserted before restoring schema A->B->C->D->A *
+SELECT 'Master A',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+Master A	a	b
+Master A	5	A
+Master A	6	B
+Master A	8	D
+Master A	9	A
+Master A	10	B
+Master A	12	D
+SELECT 'Master B',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+Master B	a	b
+Master B	5	A
+Master B	6	B
+Master B	8	D
+Master B	9	A
+Master B	10	B
+Master B	12	D
+SELECT 'Master C',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+Master C	a	b
+Master C	5	A
+Master C	6	B
+Master C	8	D
+Master C	9	A
+Master C	10	B
+Master C	12	D
+SELECT 'Master D',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+Master D	a	b
+Master D	5	A
+Master D	6	B
+Master D	8	D
+Master D	9	A
+Master D	10	B
+Master D	12	D
+
+* Check data inserted after restoring schema A->B->C->D->A *
+INSERT INTO t1(b,c) VALUES('A',4);
+INSERT INTO t1(b,c) VALUES('B',4);
+INSERT INTO t1(b,c) VALUES('C',4);
+INSERT INTO t1(b,c) VALUES('D',4);
+SELECT 'Master A',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+Master A	a	b
+Master A	13	A
+Master A	14	B
+Master A	15	C
+Master A	16	D
+SELECT 'Master B',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+Master B	a	b
+Master B	13	A
+Master B	14	B
+Master B	15	C
+Master B	16	D
+SELECT 'Master C',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+Master C	a	b
+Master C	13	A
+Master C	14	B
+Master C	15	C
+Master C	16	D
+SELECT 'Master D',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+Master D	a	b
+Master D	13	A
+Master D	14	B
+Master D	15	C
+Master D	16	D
+
+* Transactions with commits *
+BEGIN;
+BEGIN;
+SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+Master A	b	COUNT(*)
+Master A	A	100
+Master A	B	100
+Master A	C	100
+Master A	D	100
+SELECT 'Master B',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+Master B	b	COUNT(*)
+Master B	A	100
+Master B	B	100
+Master B	C	100
+Master B	D	100
+SELECT 'Master C',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+Master C	b	COUNT(*)
+Master C	A	100
+Master C	B	100
+Master C	C	100
+Master C	D	100
+SELECT 'Master D',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+Master D	b	COUNT(*)
+Master D	A	100
+Master D	B	100
+Master D	C	100
+Master D	D	100
+
+* Transactions with rollbacks *
+BEGIN;
+BEGIN;
+SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+Master A	b	COUNT(*)
+Master A	B	100
+Master A	D	100
+SELECT 'Master B',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+Master B	b	COUNT(*)
+Master B	B	100
+Master B	D	100
+SELECT 'Master C',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+Master C	b	COUNT(*)
+Master C	B	100
+Master C	D	100
+SELECT 'Master D',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+Master D	b	COUNT(*)
+Master D	B	100
+Master D	D	100
+
+*** Clean up ***
+DROP TABLE t1,t2;
+STOP SLAVE;
+RESET SLAVE;
+STOP SLAVE;
+RESET SLAVE;
+STOP SLAVE;
+RESET SLAVE;
+STOP SLAVE;
+RESET SLAVE;

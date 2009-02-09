@@ -147,7 +147,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
       error_handler_hook=fatal_error_handler_hook;
     if (MyFlags & (MY_FAE+MY_WME))
     {
-      char buff[SC_MAXWIDTH];
+      char buff[256];
       my_errno=errno;
       sprintf(buff,"Out of memory at line %d, '%s'", lineno, filename);
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));

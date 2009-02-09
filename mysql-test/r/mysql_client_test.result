@@ -1,1 +1,3 @@
+SET @old_general_log= @@global.general_log;
 ok
+SET @@global.general_log= @old_general_log;

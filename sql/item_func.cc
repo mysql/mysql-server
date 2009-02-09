@@ -3808,6 +3808,13 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 
+void Item_func_set_user_var::cleanup()
+{
+  Item_func::cleanup();
+  entry= NULL;
+}
+
+
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
   if (entry && thd->thread_id == entry_thread_id)

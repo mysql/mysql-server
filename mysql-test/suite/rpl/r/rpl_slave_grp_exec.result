@@ -1,0 +1,123 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+*** Preparing data ***
+CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(10)) ENGINE=MyISAM;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TRIGGER tr1 BEFORE UPDATE ON t1
+FOR EACH ROW BEGIN
+UPDATE t2 SET b='YY' WHERE a=NEW.a;
+END|
+CREATE TRIGGER tr2 AFTER UPDATE ON t1
+FOR EACH ROW BEGIN
+UPDATE t3 SET b='ZZ' WHERE a=NEW.a;
+END|
+
+*** Test non-transactional group w/o PK ***
+INSERT INTO t3 VALUES(1, 'AA');
+INSERT INTO t2 VALUES(1, 'AA');
+INSERT INTO t1 VALUES(1, 'AA');
+RENAME TABLE t3 TO t3_bak;
+UPDATE t1 SET b = 'XX' WHERE a = 1;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	XX
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	YY
+SELECT * FROM t3 ORDER BY a;
+a	b
+1	ZZ
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t3_bak
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	AA_for_row_or_XX_for_stmt_mixed
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	AA_for_row_or_YY_for_stmt_mixed
+include/stop_slave.inc
+RENAME TABLE t3_bak TO t3;
+include/start_slave.inc
+TRUNCATE t1;
+TRUNCATE t2;
+TRUNCATE t3;
+
+*** Test non-transactional group w/ PK ***
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+ALTER TABLE t2 ADD PRIMARY KEY (a);
+ALTER TABLE t3 ADD PRIMARY KEY (a);
+RENAME TABLE t3 TO t3_bak;
+INSERT INTO t3 VALUES(2, 'B');
+INSERT INTO t2 VALUES(2, 'B');
+INSERT INTO t1 VALUES(2, 'B');
+UPDATE t1 SET b = 'X' WHERE a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	X
+SELECT * FROM t2 ORDER BY a;
+a	b
+2	YY
+SELECT * FROM t3 ORDER BY a;
+a	b
+2	ZZ
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t3_bak
+SELECT * FROM t1 ORDER BY a;
+a	b
+SELECT * FROM t2 ORDER BY a;
+a	b
+include/stop_slave.inc
+RENAME TABLE t3_bak TO t3;
+include/start_slave.inc
+TRUNCATE t1;
+TRUNCATE t2;
+TRUNCATE t3;
+
+*** Test transactional group w/ PK ***
+ALTER TABLE t1 ENGINE=InnoDB;
+ALTER TABLE t2 ENGINE=InnoDB;
+ALTER TABLE t3 ENGINE=InnoDB;
+RENAME TABLE t3 TO t3_bak;
+BEGIN;
+INSERT INTO t1 VALUES (3, 'C'), (4, 'D');
+INSERT INTO t2 VALUES (3, 'C'), (4, 'D');
+INSERT INTO t3 VALUES (3, 'C'), (4, 'D');
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+3	C
+4	D
+SELECT * FROM t2 ORDER BY a;
+a	b
+3	C
+4	D
+SELECT * FROM t3 ORDER BY a;
+a	b
+3	C
+4	D
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t3_bak
+SELECT * FROM t1 ORDER BY a;
+a	b
+SELECT * FROM t2 ORDER BY a;
+a	b
+include/stop_slave.inc
+RENAME TABLE t3_bak TO t3;
+include/start_slave.inc
+*** Clean up ***
+DROP TABLE t1,t2,t3;
