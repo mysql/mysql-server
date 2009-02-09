@@ -788,7 +788,10 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
     return -1;
   }
 
-  if (scan_flags & NdbScanOperation::SF_OrderBy)
+  result_record->copyMask(m_read_mask, result_mask);
+
+  if (scan_flags & (NdbScanOperation::SF_OrderBy | 
+                    NdbScanOperation::SF_OrderByFull))
   {
     /**
      * For ordering, we need all keys in the result row.
@@ -796,19 +799,34 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
      * So for each key column, check that it is included in the result
      * NdbRecord.
      */
+#define MASKSZ ((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5)
+    Uint32 keymask[MASKSZ];
+    BitmaskImpl::clear(MASKSZ, keymask);
+
     for (i = 0; i < key_record->key_index_length; i++)
     {
-      const NdbRecord::Attr *key_col =
-        &key_record->columns[key_record->key_indexes[i]];
-      if (key_col->attrId >= result_record->m_attrId_indexes_length ||
-          result_record->m_attrId_indexes[key_col->attrId] < 0)
+      Uint32 attrId = key_record->columns[key_record->key_indexes[i]].attrId;
+      if (attrId >= result_record->m_attrId_indexes_length ||
+          result_record->m_attrId_indexes[attrId] < 0)
       {
         setErrorCodeAbort(4292);
         return -1;
       }
+
+      BitmaskImpl::set(MASKSZ, keymask);
+    }
+
+    if (scan_flags & NdbScanOperation::SF_OrderByFull)
+    {
+      BitmaskImpl::bitOR(MASKSZ, m_read_mask, keymask);
+    }
+    else if (!BitmaskImpl::contains(MASKSZ, m_read_mask, keymask))
+    {
+      setErrorCodeAbort(4341);
+      return -1;
     }
   }
-
+  
   if (!(key_record->flags & NdbRecord::RecIsIndex))
   {
     setErrorCodeAbort(4283);
@@ -832,8 +850,6 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
   res= processIndexScanDefs(lock_mode, scan_flags, parallel, batch);
   if (res==-1)
     return -1;
-
-  result_record->copyMask(m_read_mask, result_mask);
 
   /* Fix theStatus as set in processIndexScanDefs(). */
   theStatus= NdbOperation::UseNdbRecord;
