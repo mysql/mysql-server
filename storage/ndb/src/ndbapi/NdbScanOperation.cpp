@@ -869,10 +869,7 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
       But cannot mask pseudo columns, nor key columns in ordered scans.
     */
     attrId= col->attrId;
-    if ( result_mask &&
-         !(attrId & AttributeHeader::PSEUDO) &&
-         !( (scan_flags & NdbScanOperation::SF_OrderBy) &&
-            (col->flags & NdbRecord::IsKey) ) &&
+    if ( result_mask && !(attrId & AttributeHeader::PSEUDO) &&
          !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
     {
       continue;
@@ -1038,7 +1035,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
     tupScan = false;
   }
   
-  if (rangeScan && (scan_flags & SF_OrderBy))
+  if (rangeScan && (scan_flags & (SF_OrderBy | SF_OrderByFull)))
     parallel = fragCount; // Note we assume fragcount of base table==
                           // fragcount of index.
   
@@ -1842,7 +1839,7 @@ int NdbScanOperation::finaliseScanOldApi()
      * don't
      */
     const unsigned char * resultMask= 
-      ((m_savedScanFlagsOldApi & SF_OrderBy) !=0) ? 
+      ((m_savedScanFlagsOldApi & (SF_OrderBy | SF_OrderByFull)) !=0) ? 
       m_accessTable->m_pkMask : 
       emptyMask;
 
@@ -3033,7 +3030,7 @@ NdbIndexScanOperation::processIndexScanDefs(LockMode lm,
                                             Uint32 parallel,
                                             Uint32 batch)
 {
-  const bool order_by = scan_flags & SF_OrderBy;
+  const bool order_by = scan_flags & (SF_OrderBy | SF_OrderByFull);
   const bool order_desc = scan_flags & SF_Descending;
   const bool read_range_no = scan_flags & SF_ReadRangeNo;
   m_multi_range = scan_flags & SF_MultiRange;
