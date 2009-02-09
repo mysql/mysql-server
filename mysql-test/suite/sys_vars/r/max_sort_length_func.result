@@ -1,0 +1,300 @@
+SET @start_value= @@global.max_sort_length;
+SET @session_max_sort_length = @@Session.max_sort_length;
+DROP TABLE IF EXISTS t;
+** creating tables **
+CREATE TABLE t
+(
+id INT AUTO_INCREMENT PRIMARY KEY,
+c TEXT(30)
+);
+CREATE TABLE t1
+(
+id INT AUTO_INCREMENT PRIMARY KEY,
+c BLOB(30)
+);
+CREATE TABLE t2
+(
+id INT AUTO_INCREMENT PRIMARY KEY,
+c TEXT(30)
+);
+'#--------------------FN_DYNVARS_098_01-------------------------#'
+** Connecting test_con1 using username 'root' **
+** Connection test_con1 **
+SELECT @@global.max_sort_length = 10;
+@@global.max_sort_length = 10
+0
+SELECT @@session.max_sort_length = 10;
+@@session.max_sort_length = 10
+0
+** Setting value to 30 and inserting data **
+SET @@global.max_sort_length = 30;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+30
+INSERT INTO t set c = repeat('x',29);
+INSERT INTO t set c = concat(repeat('x',28),'r','x');
+INSERT INTO t set c = concat(repeat('x',28),'s','y');
+INSERT INTO t set c = concat(repeat('x',28),'g','w');
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+SET @@session.max_sort_length = 29;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+29
+INSERT INTO t set c = repeat('x',29);
+INSERT INTO t set c = concat(repeat('x',28),'r','x');
+INSERT INTO t set c = concat(repeat('x',28),'s','y');
+INSERT INTO t set c = concat(repeat('x',28),'g','w');
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+'#--------------------FN_DYNVARS_098_02-------------------------#'
+** Connecting test_con2 using username 'root' **
+** Connection test_con2 **
+SET @@global.max_sort_length = 30;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+30
+INSERT INTO t set c = repeat('x',29);
+INSERT INTO t set c = concat(repeat('x',28),'r','x');
+INSERT INTO t set c = concat(repeat('x',28),'s','y');
+INSERT INTO t set c = concat(repeat('x',28),'g','w');
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+SET @@session.max_sort_length = 20;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+20
+INSERT INTO t set c = repeat('x',29);
+INSERT INTO t set c = concat(repeat('x',28),'r','x');
+INSERT INTO t set c = concat(repeat('x',28),'s','y');
+INSERT INTO t set c = concat(repeat('x',28),'g','w');
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+** Results should not be sorted **
+'#--------------------FN_DYNVARS_098_03-------------------------#'
+SET max_sort_length=20;
+INSERT INTO t set c = repeat('x',29);
+INSERT INTO t set c = concat(repeat('x',28),'r','x');
+INSERT INTO t set c = concat(repeat('x',28),'s','y');
+INSERT INTO t set c = concat(repeat('x',28),'g','w');
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+** Results should not be sorted **
+RESET QUERY CACHE;
+'#--------------------FN_DYNVARS_098_04-------------------------#'
+SET max_sort_length=29;
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+'#--------------------FN_DYNVARS_098_05-------------------------#'
+SET max_sort_length=30;
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+'#--------------------FN_DYNVARS_098_06-------------------------#'
+SET max_sort_length=default;
+SELECT c from t ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+'#--------------------FN_DYNVARS_098_07-------------------------#'
+Testing type BLOB
+SET @@global.max_sort_length = 30;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+30
+INSERT INTO t1 set c = repeat('x',29);
+INSERT INTO t1 set c = concat(repeat('x',28),'r','x');
+INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
+INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
+SELECT c from t1 ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+** Results should be sorted **
+SET @@session.max_sort_length = 20;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+20
+INSERT INTO t1 set c = repeat('x',29);
+INSERT INTO t1 set c = concat(repeat('x',28),'r','x');
+INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
+INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
+SELECT c from t1 ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+** Results should not be sorted **
+'#--------------------FN_DYNVARS_098_08-------------------------#'
+Testing type CHAR
+SET @@global.max_sort_length = 30;
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+30
+INSERT INTO t2 set c = repeat('x',29);
+INSERT INTO t2 set c = concat(repeat('x',28),'r','x');
+INSERT INTO t2 set c = concat(repeat('x',28),'s','y');
+INSERT INTO t2 set c = concat(repeat('x',28),'g','w');
+SELECT c from t2 ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+** Results should not be sorted **
+SET @@session.max_sort_length = 20;
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+20
+INSERT INTO t2 set c = repeat('x',29);
+INSERT INTO t2 set c = concat(repeat('x',28),'r','x');
+INSERT INTO t2 set c = concat(repeat('x',28),'s','y');
+INSERT INTO t2 set c = concat(repeat('x',28),'g','w');
+SELECT c from t2 ORDER BY c, id;
+c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+** Results should not be sorted **
+** Connection default **
+** Disconnecting test_con1, test_con2 **
+SET @@SESSION.max_sort_length = @session_max_sort_length;
+DROP TABLE IF EXISTS t;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+SET @@global.max_sort_length= @start_value;

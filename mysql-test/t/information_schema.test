@@ -37,7 +37,11 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
-create view v1 (c) as select table_name from information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status';
+create view v1 (c) as
+ SELECT table_name FROM information_schema.TABLES
+  WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
+        table_name<>'ndb_binlog_index' AND
+        table_name<>'ndb_apply_status';
 select * from v1;
 
 select c,table_name from v1 
@@ -133,25 +137,25 @@ delimiter ;|
 # Bug#7222 information_schema: errors in "routines"
 #
 select parameter_style, sql_data_access, dtd_identifier 
-from information_schema.routines;
+from information_schema.routines where routine_schema='test';
 
 --replace_column 5 # 6 #
-show procedure status;
+show procedure status where db='test';
 --replace_column 5 # 6 #
-show function status;
+show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
 --replace_column 3 #
 explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
-mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) order by 1;
-select count(*) from information_schema.ROUTINES;
+mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
+select count(*) from information_schema.ROUTINES where routine_schema='test';
 
-create view v1 as select routine_schema, routine_name from information_schema.routines 
+create view v1 as select routine_schema, routine_name from information_schema.routines where routine_schema='test'
 order by routine_schema, routine_name;
 select * from v1;
 drop view v1;
@@ -528,7 +532,7 @@ flush privileges;
 # Bug #9404  information_schema: Weird error messages
 # with SELECT SUM() ... GROUP BY queries
 #
-SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 
 
 #
@@ -557,7 +561,7 @@ begin
 end|
 delimiter ;|
 show triggers;
-select * from information_schema.triggers;
+select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest');
 
 drop trigger trg1;
 drop trigger trg2;
@@ -727,7 +731,7 @@ BEGIN
   SELECT 'foo' FROM DUAL;
 END |
 delimiter ;|
-select  ROUTINE_NAME from routines;
+select  ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
 #
 # Bug #10734 Grant of privileges other than 'select' and 'create view' should fail on schema
 #
@@ -827,7 +831,7 @@ use mysql;
 INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
 'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
 '2006-03-02 18:40:03','','','utf8','utf8_general_ci','utf8_general_ci','n/a');
-select routine_name from information_schema.routines;
+select routine_name from information_schema.routines where ROUTINE_SCHEMA='test';
 delete from proc where name='';
 use test;
 
@@ -874,13 +878,13 @@ CREATE USER mysql_bug20230@localhost;
 GRANT EXECUTE ON PROCEDURE p1 TO mysql_bug20230@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO mysql_bug20230@localhost;
 
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
 SHOW CREATE PROCEDURE p1;
 SHOW CREATE FUNCTION f1;
 
 connect (conn1, localhost, mysql_bug20230,,);
 
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
 SHOW CREATE PROCEDURE p1;
 SHOW CREATE FUNCTION f1;
 CALL p1();
@@ -931,10 +935,10 @@ SELECT t.table_name, c1.column_name
 #            INFORMARTION_SCHEMA.TABLES 
 #
 
-SELECT MAX(table_name) FROM information_schema.tables;
+SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 SELECT table_name from information_schema.tables
   WHERE table_name=(SELECT MAX(table_name)
-                      FROM information_schema.tables);
+                      FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 #
 # Bug #23037: Bug in field "Default" of query "SHOW COLUMNS FROM table"
 #

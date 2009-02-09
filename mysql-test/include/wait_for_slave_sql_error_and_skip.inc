@@ -5,8 +5,23 @@
 #
 # ==== Usage ====
 #
-# let show_sql_error=0|1;
+# let $slave_sql_error= <ERRNO>;
 # source include/wait_for_slave_sql_error_and_skip.inc;
+#
+# Parameters:
+#
+# $slave_sql_errno
+#   The error number to wait for. This is required. (See
+#   wait_for_slave_sql_error.inc)
+#
+# $show_sql_error
+#   If set, will print the error to the query log.
+#
+# $slave_timeout
+#   See wait_for_slave_param.inc for description.
+# 
+# $master_connection
+#   See wait_for_slave_param.inc for description.
 
 echo --source include/wait_for_slave_sql_error_and_skip.inc;
 connection slave;
@@ -17,11 +32,7 @@ if ($show_sql_error)
   echo Last_SQL_Error = $error;
 }
 
-# wait for SQL thread to stop after the error
-source include/wait_for_slave_sql_to_stop.inc;
-
 # skip the erroneous statement
 set global sql_slave_skip_counter=1;
-start slave;
-source include/wait_for_slave_to_start.inc;
+source include/start_slave.inc;
 connection master;

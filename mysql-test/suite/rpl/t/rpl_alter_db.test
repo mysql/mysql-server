@@ -1,10 +1,14 @@
 source include/master-slave.inc;
-connection master;
-use mysql; # to be different from initial `test' db of mysqltest client
+
+--echo ==== Verify that alter database does not stop replication ====
+
+create database temp_db;
+use temp_db; # to be different from initial `test' db of mysqltest client
 alter database collate latin1_bin;
-save_master_pos;
 
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
-
+--echo ==== Clean up ====
+connection master;
+drop database temp_db;
+sync_slave_with_master;

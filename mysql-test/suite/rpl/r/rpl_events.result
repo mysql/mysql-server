@@ -1,10 +1,11 @@
-set global event_scheduler=1;
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET @old_event_scheduler = @@global.event_scheduler;
+set global event_scheduler=1;
 set binlog_format=row;
 DROP EVENT IF EXISTS test.justonce;
 drop table if exists t1,t2;
@@ -34,7 +35,7 @@ db	name	status	originator
 test	justonce	SLAVESIDE_DISABLED	1
 "Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
-CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
+CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
 "Checking event status on the slave for originator value = slave's server_id"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
@@ -45,7 +46,7 @@ DROP EVENT IF EXISTS test.slave_once;
 "Dropping event test.justonce on the master"
 DROP EVENT IF EXISTS test.justonce;
 "Creating event test.er on the master"
-CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
+CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
 "Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
@@ -56,7 +57,7 @@ SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND
 db	name	status	originator	body
 test	er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
 "Altering event test.er on the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO 
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
 "Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
@@ -75,7 +76,7 @@ db	name	status	originator
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
 "Creating event test.slave_terminate on the slave"
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DO 
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
 "Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
@@ -123,7 +124,7 @@ db	name	status	originator
 test	justonce	SLAVESIDE_DISABLED	1
 "Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
-CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
+CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
 "Checking event status on the slave for originator value = slave's server_id"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
@@ -134,7 +135,7 @@ DROP EVENT IF EXISTS test.slave_once;
 "Dropping event test.justonce on the master"
 DROP EVENT IF EXISTS test.justonce;
 "Creating event test.er on the master"
-CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
+CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
 "Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
@@ -145,7 +146,7 @@ SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND
 db	name	status	originator	body
 test	er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
 "Altering event test.er on the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO 
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
 "Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
@@ -164,7 +165,7 @@ db	name	status	originator
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
 "Creating event test.slave_terminate on the slave"
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DO 
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
 "Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
@@ -190,4 +191,5 @@ select * from t28953;
 END;|
 ALTER EVENT event1 RENAME TO event2;
 DROP EVENT event2;
+SET @@global.event_scheduler= @old_event_scheduler;
 DROP TABLE t28953;

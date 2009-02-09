@@ -2,7 +2,7 @@
 #
 # This auxiliary script is used in several Trigger tests.
 #
-# If the table need data than the file std_data_ln/funcs_1/memory_tb3.txt
+# If the table need data than the file std_data/funcs_1/memory_tb3.txt
 # could be used.
 #
 

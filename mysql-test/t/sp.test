@@ -703,7 +703,7 @@ drop procedure into_test4|
 --disable_warnings
 drop procedure if exists into_outfile|
 --enable_warnings
---replace_result $MYSQLTEST_VARDIR ..
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create procedure into_outfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
@@ -722,7 +722,7 @@ drop procedure into_outfile|
 --disable_warnings
 drop procedure if exists into_dumpfile|
 --enable_warnings
---replace_result $MYSQLTEST_VARDIR ..
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create procedure into_dumpfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
@@ -1540,7 +1540,7 @@ begin
 end|
 show create procedure opp|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-show procedure status like '%p%'|
+show procedure status where name like '%p%' and db='test'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
 # don't be too ambitious. ;-)
@@ -1558,7 +1558,7 @@ drop table t3|
 drop procedure opp|
 drop procedure ip|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-show procedure status like '%p%'|
+show procedure status where name like '%p%' and db='test'|
 
 
 # Fibonacci, for recursion test. (Yet Another Numerical series :)
@@ -2280,7 +2280,7 @@ drop procedure if exists bug2267_1|
 --enable_warnings
 create procedure bug2267_1()
 begin
-  show procedure status;
+  show procedure status where db='test';
 end|
 
 --disable_warnings
@@ -2288,7 +2288,7 @@ drop procedure if exists bug2267_2|
 --enable_warnings
 create procedure bug2267_2()
 begin
-  show function status;
+  show function status where db='test';
 end|
 
 --disable_warnings
@@ -5261,9 +5261,9 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
   REPAIR TABLE t1;
-  BACKUP TABLE t1 to '../tmp';
+  BACKUP TABLE t1 to '../../tmp';
   DROP TABLE t1;
-  RESTORE TABLE t1 FROM '../tmp';
+  RESTORE TABLE t1 FROM '../../tmp';
 END|
 call bug13012()|
 --enable_warnings

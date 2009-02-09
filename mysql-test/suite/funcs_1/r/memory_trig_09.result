@@ -59,7 +59,7 @@ Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb3.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb3.txt'
 into table tb3;
 
 Testcase 3.5.9.1/2:
@@ -188,7 +188,8 @@ a	NULL	Test 3.5.9.4	7	999	995.240000000000000000000000000000
 0	0	0	0	0	0
 Update tb3 Set f122='Test 3.5.9.4-trig', f136=NULL, f151=DEFAULT, f163=NULL
 where f122='Test 3.5.9.4';
-ERROR 23000: Column 'f136' cannot be null
+Warnings:
+Warning	1048	Column 'f136' cannot be null
 Update tb3 Set f122='Test 3.5.9.4-trig', f136=0, f151=DEFAULT, f163=NULL
 where f122='Test 3.5.9.4';
 select f118, f121, f122, f136, f151, f163 from tb3

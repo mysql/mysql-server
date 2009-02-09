@@ -50,7 +50,7 @@ drop table t1;
 #
 
 create table t1(a tinyint, b int not null, c date, d char(5));
-load data infile '../std_data_ln/warnings_loaddata.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
 # PS doesn't work good with @@warning_count
 --disable_ps_protocol
 select @@warning_count;
@@ -65,7 +65,6 @@ create table t1(a tinyint NOT NULL, b tinyint unsigned, c char(5));
 insert into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
 alter table t1 modify c char(4);
 alter table t1 add d char(2);
---error 1048
 update t1 set a=NULL where a=10;
 update t1 set c='mysql ab' where c='test';
 update t1 set d=c;
