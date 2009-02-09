@@ -4,9 +4,17 @@
 # swallowing them and returning an error
 --source include/not_windows.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 #
 # Check protocol handling
 #
+
+set @max_allowed_packet=@@global.max_allowed_packet;
+set @net_buffer_length=@@global.net_buffer_length;
+
 
 # setting values below minimum threshold of 1024 will cause truncating
 set global max_allowed_packet=100;
@@ -22,8 +30,10 @@ select repeat('a',2000);
 connect (con1,localhost,root,,);
 connection con1;
 select @@net_buffer_length, @@max_allowed_packet;
---error 1153
+--error ER_NET_PACKET_TOO_LARGE
 SELECT length("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") as len;
+connection default;
+disconnect con1;
 
 #
 # Reset to default values and reconnect
@@ -34,5 +44,13 @@ connect (con2,localhost,root,,);
 connection con2;
 SELECT length("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") as len;
 select length(repeat('a',2000));
+connection default;
+disconnect con2;
+
+set global max_allowed_packet=@max_allowed_packet;
+set global net_buffer_length=@net_buffer_length;
 
 # End of 4.1 tests
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

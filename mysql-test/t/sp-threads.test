@@ -5,6 +5,9 @@
 # except security/privilege tests, they go to sp-security.test
 #
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 connect (con1root,localhost,root,,);
 connect (con2root,localhost,root,,);
 connect (con3root,localhost,root,,);
@@ -17,7 +20,7 @@ drop table if exists t1;
 --enable_warnings
 create table t1 (s1 int, s2 int, s3 int);
 
-delimiter //; 
+delimiter //;
 create procedure bug4934()
 begin
    insert into t1 values (1,0,1);
@@ -38,7 +41,7 @@ drop table t1;
 create table t1 (s1 int, s2 int, s3 int);
 
 drop procedure bug4934;
-delimiter //; 
+delimiter //;
 create procedure bug4934()
 begin
 end//
@@ -58,7 +61,7 @@ drop procedure bug4934;
 
 
 #
-# BUG #9486 "Can't perform multi-update in stored procedure"
+# Bug#9486 Can't perform multi-update in stored procedure
 #
 --disable_warnings
 drop procedure if exists bug9486;
@@ -87,8 +90,9 @@ reap;
 drop procedure bug9486;
 drop table t1, t2;
 
+
 #
-# BUG#11158: Can't perform multi-delete in stored procedure
+# Bug#11158 Can't perform multi-delete in stored procedure
 #
 --disable_warnings
 drop procedure if exists bug11158;
@@ -114,8 +118,9 @@ connection con1root;
 drop procedure bug11158;
 drop table t1, t2;
 
+
 #
-# BUG#11554: Server crashes on statement indirectly using non-cached function
+# Bug#11554 Server crashes on statement indirectly using non-cached function
 #
 --disable_warnings
 drop function if exists bug11554;
@@ -134,7 +139,7 @@ drop table t1;
 drop view v1;
 
 
-# BUG#12228 
+# Bug#12228 Crash happens during calling specific SP in multithread environment
 --disable_warnings
 drop procedure if exists p1;
 drop procedure if exists p2;
@@ -168,18 +173,26 @@ connection con2root;
 unlock tables;
 
 connection con1root;
-# Crash will be here if we hit BUG#12228 
+# Crash will be here if we hit Bug#12228
 reap;
 
 drop procedure p1;
 drop procedure p2;
 drop table t1;
 
+
 #
-# BUG#NNNN: New bug synopsis
+# Bug#NNNN New bug synopsis
 #
 #--disable_warnings
 #drop procedure if exists bugNNNN;
 #--enable_warnings
 #create procedure bugNNNN...
 
+connection default;
+disconnect con1root;
+disconnect con2root;
+disconnect con3root;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
