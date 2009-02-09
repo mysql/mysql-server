@@ -813,7 +813,7 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
         return -1;
       }
 
-      BitmaskImpl::set(MASKSZ, keymask);
+      BitmaskImpl::set(MASKSZ, keymask, attrId);
     }
 
     if (scan_flags & NdbScanOperation::SF_OrderByFull)
