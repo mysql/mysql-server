@@ -193,8 +193,6 @@ mem_pool_create(
 	ulint		i;
 	ulint		used;
 
-	ut_a(size > 10000);
-
 	pool = ut_malloc(sizeof(mem_pool_t));
 
 	/* We do not set the memory to zero (FALSE) in the pool,

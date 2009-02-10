@@ -5,6 +5,13 @@
 
 2009-02-10	The InnoDB Team
 
+	* mem/mem0pool.c, mem/mem0dbg.c, mem/mem0mem.c:
+	When innodb_use_sys_malloc is set, ignore
+	innodb_additional_mem_pool_size, because nothing will
+	be allocated from mem_comm_pool.
+
+2009-02-10	The InnoDB Team
+
 	* ut/ut0mem.c:
 	Map ut_malloc_low(), ut_realloc(), and ut_free() directly to
 	malloc(), realloc(), and free() when innodb_use_sys_malloc is set.
