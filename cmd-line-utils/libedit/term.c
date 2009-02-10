@@ -50,8 +50,10 @@ static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#if 0 /* TODO: do we need this */
 #ifdef HAVE_TERMCAP_H
 #include <termcap.h>
+#endif
 #endif
 #ifdef HAVE_CURSES_H
 #include <curses.h>
