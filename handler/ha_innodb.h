@@ -27,8 +27,8 @@
 typedef struct st_innobase_share {
   THR_LOCK lock;
   pthread_mutex_t mutex;
-  const uchar *table_name;
-  uint table_name_length,use_count;
+  const char* table_name;
+  uint use_count;
   void* table_name_hash;
 } INNOBASE_SHARE;
 

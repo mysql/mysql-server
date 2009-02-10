@@ -1678,6 +1678,8 @@ fil_write_lsn_and_arch_no_to_file(
 
 	fil_write(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
+	mem_free(buf1);
+
 	return(DB_SUCCESS);
 }
 

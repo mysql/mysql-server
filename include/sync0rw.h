@@ -5,6 +5,38 @@ The read-write lock (for threads, not for database transactions)
 
 Created 9/11/1995 Heikki Tuuri
 *******************************************************/
+/***********************************************************************
+# Copyright (c) 2008, Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#	* Redistributions of source code must retain the above copyright
+#	  notice, this list of conditions and the following disclaimer.
+#	* Redistributions in binary form must reproduce the above
+#	  copyright notice, this list of conditions and the following
+#	  disclaimer in the documentation and/or other materials
+#	  provided with the distribution.
+#	* Neither the name of the Google Inc. nor the names of its
+#	  contributors may be used to endorse or promote products
+#	  derived from this software without specific prior written
+#	  permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Note, the BSD license applies to the new code. The old code is GPL.
+***********************************************************************/
 
 #ifndef sync0rw_h
 #define sync0rw_h
@@ -23,6 +55,12 @@ smaller than 30 and the order of the numerical values like below! */
 #define RW_S_LATCH	1
 #define	RW_X_LATCH	2
 #define	RW_NO_LATCH	3
+
+/* We decrement lock_word by this amount for each x_lock. It is also the
+start value for the lock_word, meaning that it limits the maximum number
+of concurrent read locks before the rw_lock breaks. The current value of
+0x00100000 allows 1,048,575 concurrent readers and 2047 recursive writers.*/
+#define X_LOCK_DECR		0x00100000
 
 typedef struct rw_lock_struct		rw_lock_t;
 #ifdef UNIV_SYNC_DEBUG
@@ -47,14 +85,14 @@ extern ibool		rw_lock_debug_waiters;	/* This is set to TRUE, if
 					there may be waiters for the event */
 #endif /* UNIV_SYNC_DEBUG */
 
-extern	ulint	rw_s_system_call_count;
-extern	ulint	rw_s_spin_wait_count;
-extern	ulint	rw_s_exit_count;
-extern	ulint	rw_s_os_wait_count;
-extern	ulint	rw_x_system_call_count;
-extern	ulint	rw_x_spin_wait_count;
-extern	ulint	rw_x_os_wait_count;
-extern	ulint	rw_x_exit_count;
+extern	ib_int64_t	rw_s_spin_wait_count;
+extern	ib_int64_t	rw_s_spin_round_count;
+extern	ib_int64_t	rw_s_exit_count;
+extern	ib_int64_t	rw_s_os_wait_count;
+extern	ib_int64_t	rw_x_spin_wait_count;
+extern	ib_int64_t	rw_x_spin_round_count;
+extern	ib_int64_t	rw_x_os_wait_count;
+extern	ib_int64_t	rw_x_exit_count;
 
 /**********************************************************************
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -127,8 +165,22 @@ corresponding function. */
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
-#define rw_lock_s_lock_nowait(M)	rw_lock_s_lock_func_nowait(\
-		(M), __FILE__, __LINE__)
+#define rw_lock_s_lock_nowait(M, F, L)    rw_lock_s_lock_low(\
+					  (M), 0, (F), (L))
+/**********************************************************************
+Low-level function which tries to lock an rw-lock in s-mode. Performs no
+spinning. */
+UNIV_INLINE
+ibool
+rw_lock_s_lock_low(
+/*===============*/
+				/* out: TRUE if success */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
+	ulint		pass __attribute__((unused)),
+				/* in: pass value; != 0, if the lock will be
+				passed to another thread to unlock */
+	const char*	file_name, /* in: file name where lock requested */
+	ulint		line);	/* in: line where requested */
 /**********************************************************************
 NOTE! Use the corresponding macro, not directly this function, except if
 you supply the file name and line number. Lock an rw-lock in shared mode
@@ -143,18 +195,6 @@ rw_lock_s_lock_func(
 	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	const char*	file_name,/* in: file name where lock requested */
-	ulint		line);	/* in: line where requested */
-/**********************************************************************
-NOTE! Use the corresponding macro, not directly this function, except if
-you supply the file name and line number. Lock an rw-lock in shared mode
-for the current thread if the lock can be acquired immediately. */
-UNIV_INLINE
-ibool
-rw_lock_s_lock_func_nowait(
-/*=======================*/
-				/* out: TRUE if success */
-	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line);	/* in: line where requested */
 /**********************************************************************
@@ -341,6 +381,41 @@ ulint
 rw_lock_get_reader_count(
 /*=====================*/
 	rw_lock_t*	lock);
+/**********************************************************************
+Decrements lock_word the specified amount if it is greater than 0.
+This is used by both s_lock and x_lock operations. */
+UNIV_INLINE
+ibool
+rw_lock_lock_word_decr(
+/*===================*/
+					/* out: TRUE if decr occurs */
+	rw_lock_t*	lock,		/* in: rw-lock */
+	ulint		amount);	/* in: amount to decrement */
+/**********************************************************************
+Increments lock_word the specified amount and returns new value. */
+UNIV_INLINE
+lint
+rw_lock_lock_word_incr(
+/*===================*/
+					/* out: TRUE if decr occurs */
+	rw_lock_t*	lock,
+	ulint		amount);	/* in: rw-lock */
+/**********************************************************************
+This function sets the lock->writer_thread and lock->recursive fields.
+For platforms where we are using atomic builtins instead of lock->mutex
+it sets the lock->writer_thread field using atomics to ensure memory
+ordering. Note that it is assumed that the caller of this function
+effectively owns the lock i.e.: nobody else is allowed to modify
+lock->writer_thread at this point in time.
+The protocol is that lock->writer_thread MUST be updated BEFORE the
+lock->recursive flag is set. */
+UNIV_INLINE
+void
+rw_lock_set_writer_id_and_recursion_flag(
+/*=====================================*/
+	rw_lock_t*	lock,		/* in/out: lock to work on */
+	ibool		recursive);	/* in: TRUE if recursion
+					allowed */
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks if the thread has locked the rw-lock in the specified mode, with
@@ -417,44 +492,37 @@ Do not use its fields directly! The structure used in the spin lock
 implementation of a read-write lock. Several threads may have a shared lock
 simultaneously in this lock, but only one writer may have an exclusive lock,
 in which case no shared locks are allowed. To prevent starving of a writer
-blocked by readers, a writer may queue for the lock by setting the writer
-field. Then no new readers are allowed in. */
+blocked by readers, a writer may queue for x-lock by decrementing lock_word:
+no new readers will be let in while the thread waits for readers to exit. */
 
 struct rw_lock_struct {
+	volatile lint	lock_word;
+				/* Holds the state of the lock. */
+	volatile ulint	waiters;/* 1: there are waiters */
+	volatile ibool	recursive;/* Default value FALSE which means the lock
+				is non-recursive. The value is typically set
+				to TRUE making normal rw_locks recursive. In
+				case of asynchronous IO, when a non-zero
+				value of 'pass' is passed then we keep the
+				lock non-recursive.
+				This flag also tells us about the state of
+				writer_thread field. If this flag is set
+				then writer_thread MUST contain the thread
+				id of the current x-holder or wait-x thread.
+				This flag must be reset in x_unlock
+				functions before incrementing the lock_word */
+	volatile os_thread_id_t	writer_thread;
+				/* Thread id of writer thread. Is only
+				guaranteed to have sane and non-stale
+				value iff recursive flag is set. */
 	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
-
-#ifdef __WIN__
-	os_event_t	wait_ex_event;	/* This windows specific event is
-				used by the thread which has set the
-				lock state to RW_LOCK_WAIT_EX. The
-				rw_lock design guarantees that this
-				thread will be the next one to proceed
-				once the current the event gets
-				signalled. See LEMMA 2 in sync0sync.c */
-#endif
-
-	ulint	reader_count;	/* Number of readers who have locked this
-				lock in the shared mode */
-	ulint	writer;		/* This field is set to RW_LOCK_EX if there
-				is a writer owning the lock (in exclusive
-				mode), RW_LOCK_WAIT_EX if a writer is
-				queueing for the lock, and
-				RW_LOCK_NOT_LOCKED, otherwise. */
-	os_thread_id_t	writer_thread;
-				/* Thread id of a possible writer thread */
-	ulint	writer_count;	/* Number of times the same thread has
-				recursively locked the lock in the exclusive
-				mode */
+	os_event_t	wait_ex_event;
+				/* Event for next-writer to wait on. A thread
+				must decrement lock_word before waiting. */
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
 	mutex_t	mutex;		/* The mutex protecting rw_lock_struct */
-	ulint	pass;		/* Default value 0. This is set to some
-				value != 0 given by the caller of an x-lock
-				operation, if the x-lock is to be passed to
-				another thread to unlock (which happens in
-				asynchronous i/o). */
-	ulint	waiters;	/* This ulint is set to 1 if there are
-				waiters (readers or writers) in the global
-				wait array, waiting for this rw_lock.
-				Otherwise, == 0. */
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+
 	UT_LIST_NODE_T(rw_lock_t) list;
 				/* All allocated rw locks are put into a
 				list */
@@ -464,7 +532,9 @@ struct rw_lock_struct {
 				info list of the lock */
 	ulint	level;		/* Level in the global latching order. */
 #endif /* UNIV_SYNC_DEBUG */
+	ulint count_os_wait;	/* Count of os_waits. May not be accurate */
 	const char*	cfile_name;/* File name where lock created */
+        /* last s-lock file/line is not guaranteed to be correct */
 	const char*	last_s_file_name;/* File name where last s-locked */
 	const char*	last_x_file_name;/* File name where last x-locked */
 	ibool		writer_is_wait_ex;
