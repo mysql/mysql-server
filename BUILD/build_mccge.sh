@@ -1401,7 +1401,7 @@ set_solaris_configs()
         compiler_flags="$compiler_flags -xregs=frameptr"
         compiler_flags="$compiler_flags -xO4"
       elif test "x$fast_flag" = "xgeneric" ; then
-        compiler_flags="$compiler_flags -xO3"
+        compiler_flags="$compiler_flags -xO2"
       else
         compiler_flags="$compiler_flags -xO"
       fi

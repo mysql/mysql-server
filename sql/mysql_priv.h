@@ -1226,7 +1226,8 @@ bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
                         List<Item> *fields, List<Item> *values,
                         COND *conds, ulonglong options,
                         enum enum_duplicates handle_duplicates, bool ignore,
-                        SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
+                        SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+                        multi_update **result);
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
