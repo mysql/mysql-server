@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.c,v 1.11 2003/08/07 16:44:33 agc Exp $	*/
+/*	$NetBSD: sig.c,v 1.12 2008/09/10 15:45:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,7 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * sig.c: Signal handling stuff.
@@ -51,15 +57,15 @@ private const int sighdl[] = {
 	- 1
 };
 
-private void sig_handler(int);
+private void el_sig_handler(int);
 
-/* sig_handler():
+/* el_sig_handler():
  *	This is the handler called for all signals
  *	XXX: we cannot pass any data so we just store the old editline
  *	state in a private variable
  */
 private void
-sig_handler(int signo)
+el_sig_handler(int signo)
 {
 	int i;
 	sigset_t nset, oset;
@@ -73,7 +79,7 @@ sig_handler(int signo)
 		tty_rawmode(sel);
 		if (ed_redisplay(sel, 0) == CC_REFRESH)
 			re_refresh(sel);
-		term__flush();
+		term__flush(sel);
 		break;
 
 	case SIGWINCH:
@@ -154,7 +160,7 @@ sig_set(EditLine *el)
 	for (i = 0; sighdl[i] != -1; i++) {
 		el_signalhandler_t s;
 		/* This could happen if we get interrupted */
-		if ((s = signal(sighdl[i], sig_handler)) != sig_handler)
+		if ((s = signal(sighdl[i], el_sig_handler)) != el_sig_handler)
 			el->el_signal[i] = s;
 	}
 	sel = el;
