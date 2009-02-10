@@ -138,6 +138,14 @@ mem_init(
 	mem_hash_initialized = TRUE;
 #endif
 
+	if (srv_use_sys_malloc) {
+		/* When innodb_use_sys_malloc is set, the
+		mem_comm_pool won't be used for any allocations.  We
+		create a dummy mem_comm_pool, because some statistics
+		and debugging code relies on it being initialized. */
+		size = 1;
+	}
+
 	mem_comm_pool = mem_pool_create(size);
 }
 
