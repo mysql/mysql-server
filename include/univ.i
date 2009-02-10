@@ -5,6 +5,38 @@ Version control for database, common definitions, and include files
 
 Created 1/20/1994 Heikki Tuuri
 ****************************************************************************/
+/***********************************************************************
+# Copyright (c) 2008, Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#	* Redistributions of source code must retain the above copyright
+#	  notice, this list of conditions and the following disclaimer.
+#	* Redistributions in binary form must reproduce the above
+#	  copyright notice, this list of conditions and the following
+#	  disclaimer in the documentation and/or other materials
+#	  provided with the distribution.
+#	* Neither the name of the Google Inc. nor the names of its
+#	  contributors may be used to endorse or promote products
+#	  derived from this software without specific prior written
+#	  permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Note, the BSD license applies to the new code. The old code is GPL.
+***********************************************************************/
 
 #ifndef univ_i
 #define univ_i
@@ -88,6 +120,13 @@ of the 32-bit x86 assembler in mutex operations. */
 
 # if defined(__WIN__) && !defined(WIN64) && !defined(_WIN64)
 #  define UNIV_CAN_USE_X86_ASSEMBLER
+# endif
+
+/* For InnoDB rw_locks to work with atomics we need the thread_id
+to be no more than machine word wide. The following enables using
+atomics for InnoDB rw_locks where these conditions are met. */
+# if defined(HAVE_GCC_ATOMIC_BUILTINS) && defined(UNIV_LINUX)
+#  define INNODB_RW_LOCKS_USE_ATOMICS
 # endif
 
 /* We only try to do explicit inlining of functions with gcc and
