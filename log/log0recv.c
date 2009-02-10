@@ -591,6 +591,7 @@ not_consistent:
 	return(DB_SUCCESS);
 }
 
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
 UNIV_INTERN
@@ -661,6 +662,7 @@ recv_read_cp_info_for_backup(
 
 	return(TRUE);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /**********************************************************
 Checks the 4-byte checksum to the trailer checksum field of a log block.
@@ -698,6 +700,7 @@ log_block_checksum_is_ok_or_old_format(
 	return(FALSE);
 }
 
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
@@ -787,6 +790,7 @@ recv_scan_log_seg_for_backup(
 		}
 	}
 }
+#endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************
 Tries to parse a single log record body and also applies it to a page if

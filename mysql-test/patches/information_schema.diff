@@ -1,7 +1,6 @@
-diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema.result
---- mysql-test/r/information_schema.result.orig	2008-08-04 09:27:49.000000000 +0300
-+++ mysql-test/r/information_schema.result	2008-10-07 11:21:51.000000000 +0300
-@@ -64,6 +64,13 @@
+--- mysql-test/r/information_schema.result.orig	2009-01-31 03:38:50.000000000 +0200
++++ mysql-test/r/information_schema.result	2009-01-31 07:51:58.000000000 +0200
+@@ -71,6 +71,13 @@
  TRIGGERS
  USER_PRIVILEGES
  VIEWS
@@ -15,7 +14,7 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
  columns_priv
  db
  event
-@@ -795,6 +802,8 @@
+@@ -799,6 +806,8 @@
  TABLES	UPDATE_TIME	datetime
  TABLES	CHECK_TIME	datetime
  TRIGGERS	CREATED	datetime
@@ -24,16 +23,16 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
  event	execute_at	datetime
  event	last_executed	datetime
  event	starts	datetime
-@@ -848,7 +857,7 @@
+@@ -852,7 +861,7 @@
  flush privileges;
- SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+ SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
  table_schema	count(*)
 -information_schema	28
 +information_schema	35
  mysql	22
  create table t1 (i int, j int);
  create trigger trg1 before insert on t1 for each row
-@@ -1263,6 +1272,13 @@
+@@ -1267,6 +1276,13 @@
  TRIGGERS	TRIGGER_SCHEMA
  USER_PRIVILEGES	GRANTEE
  VIEWS	TABLE_SCHEMA
@@ -47,7 +46,7 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
  SELECT t.table_name, c1.column_name
  FROM information_schema.tables t
  INNER JOIN
-@@ -1306,6 +1322,13 @@
+@@ -1310,6 +1326,13 @@
  TRIGGERS	TRIGGER_SCHEMA
  USER_PRIVILEGES	GRANTEE
  VIEWS	TABLE_SCHEMA
@@ -58,10 +57,10 @@ diff mysql-test/r/information_schema.result.orig mysql-test/r/information_schema
 +INNODB_CMPMEM	page_size
 +INNODB_CMP	page_size
 +INNODB_LOCKS	lock_id
- SELECT MAX(table_name) FROM information_schema.tables;
+ SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
  MAX(table_name)
  VIEWS
-@@ -1382,6 +1405,13 @@
+@@ -1386,6 +1409,13 @@
  FILES	information_schema.FILES	1
  GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
  GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1

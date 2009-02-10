@@ -17,7 +17,6 @@ Created 9/20/1997 Heikki Tuuri
 
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
-#endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
@@ -55,6 +54,7 @@ recv_scan_log_seg_for_backup(
 	ulint*		n_bytes_scanned);/* out: how much we were able to
 					scan, smaller than buf_len if log
 					data ended here */
+#endif /* UNIV_HOTBACKUP */
 /***********************************************************************
 Returns TRUE if recovery is currently running. */
 UNIV_INLINE

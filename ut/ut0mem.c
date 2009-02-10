@@ -15,6 +15,7 @@ Created 5/11/1994 Heikki Tuuri
 #include "mem0mem.h"
 #include "os0sync.h"
 #include "os0thread.h"
+#include "srv0srv.h"
 
 /* This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
@@ -68,14 +69,29 @@ ut_malloc_low(
 	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
-	ulint	retry_count	= 0;
+	ulint	retry_count;
 	void*	ret;
+
+	if (srv_use_sys_malloc) {
+		ret = malloc(n);
+		ut_a(ret || !assert_on_error);
+
+#ifdef UNIV_SET_MEM_TO_ZERO
+		if (set_to_zero) {
+			memset(ret, '\0', n);
+			UNIV_MEM_ALLOC(ret, n);
+		}
+#endif
+		return(ret);
+	}
 
 	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
 
-	if (!ut_mem_block_list_inited) {
+	if (UNIV_UNLIKELY(!ut_mem_block_list_inited)) {
 		ut_mem_block_list_init();
 	}
+
+	retry_count = 0;
 retry:
 	os_fast_mutex_lock(&ut_list_mutex);
 
@@ -239,6 +255,11 @@ ut_free(
 {
 	ut_mem_block_t* block;
 
+	if (srv_use_sys_malloc) {
+		free(ptr);
+		return;
+	}
+
 	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
 
 	os_fast_mutex_lock(&ut_list_mutex);
@@ -291,6 +312,10 @@ ut_realloc(
 	ulint		min_size;
 	void*		new_ptr;
 
+	if (srv_use_sys_malloc) {
+		return(realloc(ptr, size));
+	}
+
 	if (ptr == NULL) {
 
 		return(ut_malloc(size));
@@ -338,6 +363,11 @@ ut_free_all_mem(void)
 {
 	ut_mem_block_t* block;
 
+	if (!ut_mem_block_list_inited) {
+		return;
+	}
+
+	ut_mem_block_list_inited = FALSE;
 	os_fast_mutex_free(&ut_list_mutex);
 
 	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {

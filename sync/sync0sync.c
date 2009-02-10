@@ -5,6 +5,38 @@ Mutex, the basic synchronization primitive
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
+/***********************************************************************
+# Copyright (c) 2008, Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#	* Redistributions of source code must retain the above copyright
+#	  notice, this list of conditions and the following disclaimer.
+#	* Redistributions in binary form must reproduce the above
+#	  copyright notice, this list of conditions and the following
+#	  disclaimer in the documentation and/or other materials
+#	  provided with the distribution.
+#	* Neither the name of the Google Inc. nor the names of its
+#	  contributors may be used to endorse or promote products
+#	  derived from this software without specific prior written
+#	  permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Note, the BSD license applies to the new code. The old code is GPL.
+***********************************************************************/
 
 #include "sync0sync.h"
 #ifdef UNIV_NONINL
@@ -138,18 +170,13 @@ Therefore, this thread is guaranteed to catch the os_set_event()
 signalled unconditionally at the release of the lock.
 Q.E.D. */
 
-/* The number of system calls made in this module. Intended for performance
-monitoring. */
-
-UNIV_INTERN ulint	mutex_system_call_count		= 0;
-
 /* Number of spin waits on mutexes: for performance monitoring */
 
 /* round=one iteration of a spin loop */
-UNIV_INTERN ulint	mutex_spin_round_count		= 0;
-UNIV_INTERN ulint	mutex_spin_wait_count		= 0;
-UNIV_INTERN ulint	mutex_os_wait_count		= 0;
-UNIV_INTERN ulint	mutex_exit_count		= 0;
+UNIV_INTERN ib_int64_t	mutex_spin_round_count		= 0;
+UNIV_INTERN ib_int64_t	mutex_spin_wait_count		= 0;
+UNIV_INTERN ib_int64_t	mutex_os_wait_count		= 0;
+UNIV_INTERN ib_int64_t	mutex_exit_count		= 0;
 
 /* The global array of wait cells for implementation of the database's own
 mutexes and read-write locks */
@@ -218,6 +245,8 @@ mutex_create_func(
 	ulint		cline)		/* in: file line where created */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
+	mutex_reset_lock_word(mutex);
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
 #else
 	os_fast_mutex_init(&(mutex->os_fast_mutex));
@@ -309,7 +338,9 @@ mutex_free(
 
 	os_event_free(mutex->event);
 
-#if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER)
+#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#else
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
 #endif
 	/* If we free the mutex protecting the mutex list (freeing is
@@ -426,6 +457,12 @@ mutex_spin_wait(
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 	ut_ad(mutex);
 
+	/* This update is not thread safe, but we don't mind if the count
+	isn't exact. Moved out of ifdef that follows because we are willing
+	to sacrifice the cost of counting this as the data is valuable.
+	Count the number of calls to mutex_spin_wait. */
+	mutex_spin_wait_count++;
+
 mutex_loop:
 
 	i = 0;
@@ -438,7 +475,6 @@ mutex_loop:
 
 spin_loop:
 #if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
-	mutex_spin_wait_count++;
 	mutex->count_spin_loop++;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
@@ -503,8 +539,6 @@ spin_loop:
 	sync_array_reserve_cell(sync_primary_wait_array, mutex,
 				SYNC_MUTEX, file_name, line, &index);
 
-	mutex_system_call_count++;
-
 	/* The memory order of the array reservation and the change in the
 	waiters field is important: when we suspend a thread, we first
 	reserve the cell and then set waiters field to 1. When threads are
@@ -551,7 +585,6 @@ spin_loop:
 		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
 #endif
 
-	mutex_system_call_count++;
 	mutex_os_wait_count++;
 
 #ifndef UNIV_HOTBACKUP
@@ -1340,21 +1373,31 @@ sync_print_wait_info(
 	FILE*	file)		/* in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
-	fprintf(file, "Mutex exits %lu, rws exits %lu, rwx exits %lu\n",
+	fprintf(file, "Mutex exits %llu, rws exits %llu, rwx exits %llu\n",
 		mutex_exit_count, rw_s_exit_count, rw_x_exit_count);
 #endif
 
 	fprintf(file,
-		"Mutex spin waits %lu, rounds %lu, OS waits %lu\n"
-		"RW-shared spins %lu, OS waits %lu;"
-		" RW-excl spins %lu, OS waits %lu\n",
-		(ulong) mutex_spin_wait_count,
-		(ulong) mutex_spin_round_count,
-		(ulong) mutex_os_wait_count,
-		(ulong) rw_s_spin_wait_count,
-		(ulong) rw_s_os_wait_count,
-		(ulong) rw_x_spin_wait_count,
-		(ulong) rw_x_os_wait_count);
+		"Mutex spin waits %llu, rounds %llu, OS waits %llu\n"
+		"RW-shared spins %llu, OS waits %llu;"
+		" RW-excl spins %llu, OS waits %llu\n",
+		mutex_spin_wait_count,
+		mutex_spin_round_count,
+		mutex_os_wait_count,
+		rw_s_spin_wait_count,
+		rw_s_os_wait_count,
+		rw_x_spin_wait_count,
+		rw_x_os_wait_count);
+
+	fprintf(file,
+		"Spin rounds per wait: %.2f mutex, %.2f RW-shared, "
+		"%.2f RW-excl\n",
+		(double) mutex_spin_round_count /
+		(mutex_spin_wait_count ? mutex_spin_wait_count : 1),
+		(double) rw_s_spin_round_count /
+		(rw_s_spin_wait_count ? rw_s_spin_wait_count : 1),
+		(double) rw_x_spin_round_count /
+		(rw_x_spin_wait_count ? rw_x_spin_wait_count : 1));
 }
 
 /***********************************************************************
