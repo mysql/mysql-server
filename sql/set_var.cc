@@ -1927,7 +1927,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     char *str= (char*) value_ptr(thd, var_type, base);
     if (str)
-      tmp= new Item_string(str, strlen(str),
+      tmp= new Item_string(str, (uint) strlen(str),
                            charset(thd), DERIVATION_SYSCONST);
     else
     {
@@ -2079,7 +2079,7 @@ void sys_var_thd_date_time_format::set_default(THD *thd, enum_var_type type)
   {
     const char *format;
     if ((format= opt_date_time_formats[date_time_type]))
-      res= date_time_format_make(date_time_type, format, strlen(format));
+      res= date_time_format_make(date_time_type, format, (uint) strlen(format));
   }
   else
   {
@@ -3166,10 +3166,10 @@ static byte *get_tmpdir(THD *thd)
 
 static struct my_option *find_option(struct my_option *opt, const char *name)
 {
-  uint length=strlen(name);
+  size_t length=strlen(name);
   for (; opt->name; opt++)
   {
-    if (!getopt_compare_strings(opt->name, name, length) &&
+    if (!getopt_compare_strings(opt->name, name, (uint) length) &&
 	!opt->name[length])
     {
       /*
@@ -3210,7 +3210,7 @@ void set_var_init()
        var < end;
        var++)
   {
-    (*var)->name_length= strlen((*var)->name);
+    (*var)->name_length= (uint) strlen((*var)->name);
     (*var)->option_limits= find_option(my_long_options, (*var)->name);
     my_hash_insert(&system_variable_hash, (byte*) *var);
   }
@@ -3249,7 +3249,7 @@ sys_var *find_sys_var(const char *str, uint length)
   sys_var *var= (sys_var*) hash_search(&system_variable_hash,
 				       (byte*) str,
 				       length ? length :
-				       strlen(str));
+				       (uint) strlen(str));
   if (!var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   return var;
@@ -3479,7 +3479,7 @@ int set_var_password::check(THD *thd)
     if (*thd->security_ctx->priv_host != 0)
     {
       user->host.str= (char *) thd->security_ctx->priv_host;
-      user->host.length= strlen(thd->security_ctx->priv_host);
+      user->host.length= (uint) strlen(thd->security_ctx->priv_host);
     }
     else
     {
@@ -3495,7 +3495,7 @@ int set_var_password::check(THD *thd)
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
-                               password, strlen(password)) ? 1 : 0;
+                               password, (uint) strlen(password)) ? 1 : 0;
 #else
   return 0;
 #endif

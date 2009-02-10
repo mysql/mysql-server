@@ -268,7 +268,7 @@ append_query_string(CHARSET_INFO *csinfo,
                                   from->ptr(), from->length());
     *ptr++='\'';
   }
-  to->length(orig_len + ptr - beg);
+  to->length((uint) (orig_len + ptr - beg));
   return 0;
 }
 #endif
@@ -556,7 +556,7 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
   protocol->store(log_name, &my_charset_bin);
   protocol->store((ulonglong) pos);
   event_type = get_type_str();
-  protocol->store(event_type, strlen(event_type), &my_charset_bin);
+  protocol->store(event_type, (uint) strlen(event_type), &my_charset_bin);
   protocol->store((uint32) server_id);
   protocol->store((ulonglong) log_pos);
   pack_info(protocol);
@@ -1106,7 +1106,7 @@ void Query_log_event::pack_info(Protocol *protocol)
     memcpy(pos, query, q_len);
     pos+= q_len;
   }
-  protocol->store(buf, pos-buf, &my_charset_bin);
+  protocol->store(buf, (uint) (pos - buf), &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif
@@ -1437,7 +1437,7 @@ get_str_len_and_pointer(const Log_event::Byte **src,
   if (length > 0)
   {
     if (*src + length >= end)
-      return *src + length - end + 1;       // Number of bytes missing
+      return (int) (*src + length - end + 1);  // Number of bytes missing
     *dst= (char *)*src + 1;                    // Will be copied later
   }
   *len= length;
@@ -1908,7 +1908,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
     Thank you.
   */
   thd->catalog= catalog_len ? (char *) catalog : (char *)"";
-  thd->set_db(new_db, strlen(new_db));          /* allocates a copy of 'db' */
+  thd->set_db(new_db, (uint) strlen(new_db));          /* allocates a copy of 'db' */
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -2771,7 +2771,7 @@ void Load_log_event::pack_info(Protocol *protocol)
   if (!(buf= my_malloc(get_query_buffer_length(), MYF(MY_WME))))
     return;
   print_query(TRUE, buf, &end, 0, 0);
-  protocol->store(buf, end-buf, &my_charset_bin);
+  protocol->store(buf, (uint) (end - buf), &my_charset_bin);
   my_free(buf, MYF(0));
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -2978,7 +2978,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   fname = db + db_len + 1;
-  fname_len = strlen(fname);
+  fname_len = (uint) strlen(fname);
   // null termination is accomplished by the caller doing buf[event_len]=0
 
   DBUG_RETURN(0);
@@ -3144,7 +3144,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   const char *new_db= rewrite_db(db);
-  thd->set_db(new_db, strlen(new_db));
+  thd->set_db(new_db, (uint) strlen(new_db));
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -3237,7 +3237,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       print_query(FALSE, load_data_query, &end, (char **)&thd->lex->fname_start,
                   (char **)&thd->lex->fname_end);
       *end= 0;
-      thd->query_length= end - load_data_query;
+      thd->query_length= (uint) (end - load_data_query);
       thd->query= load_data_query;
 
       if (sql_ex.opt_flags & REPLACE_FLAG)
@@ -3857,7 +3857,7 @@ void User_var_log_event::pack_info(Protocol* protocol)
       break;
     case INT_RESULT:
       buf= my_malloc(val_offset + 22, MYF(MY_WME));
-      event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
+      event_len= (uint) (longlong10_to_str(uint8korr(val), buf + val_offset,-10) - buf);
       break;
     case DECIMAL_RESULT:
     {
@@ -3883,7 +3883,7 @@ void User_var_log_event::pack_info(Protocol* protocol)
         char *p= strxmov(buf + val_offset, "_", cs->csname, " ", NullS);
         p= str_to_hex(p, val, val_len);
         p= strxmov(p, " COLLATE ", cs->name, NullS);
-        event_len= p-buf;
+        event_len= (uint) (p - buf);
       }
       break;
     case ROW_RESULT:
@@ -4204,7 +4204,7 @@ void Slave_log_event::pack_info(Protocol *protocol)
   pos= strmov(pos, master_log);
   pos= strmov(pos, ",pos=");
   pos= longlong10_to_str(master_pos, pos, 10);
-  protocol->store(buf, pos-buf, &my_charset_bin);
+  protocol->store(buf, (uint) (pos - buf), &my_charset_bin);
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -4222,8 +4222,8 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   // TODO: re-write this better without holding both locks at the same time
   pthread_mutex_lock(&mi->data_lock);
   pthread_mutex_lock(&rli->data_lock);
-  master_host_len = strlen(mi->host);
-  master_log_len = strlen(rli->group_master_log_name);
+  master_host_len= (uint) strlen(mi->host);
+  master_log_len= (uint) strlen(rli->group_master_log_name);
   // on OOM, just do not initialize the structure and print the error
   if ((mem_pool = (char*)my_malloc(get_data_size() + 1,
 				   MYF(MY_WME))))
@@ -4292,7 +4292,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
   master_pos = uint8korr(mem_pool + SL_MASTER_POS_OFFSET);
   master_port = uint2korr(mem_pool + SL_MASTER_PORT_OFFSET);
   master_host = mem_pool + SL_MASTER_HOST_OFFSET;
-  master_host_len = strlen(master_host);
+  master_host_len= (uint) strlen(master_host);
   // safety
   master_log = master_host + master_host_len + 1;
   if (master_log > mem_pool + data_size)
@@ -4300,7 +4300,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
     master_host = 0;
     return;
   }
-  master_log_len = strlen(master_log);
+  master_log_len= (uint) strlen(master_log);
 }
 
 
@@ -5222,7 +5222,7 @@ void Execute_load_query_log_event::pack_info(Protocol *protocol)
   }
   pos= strmov(pos, " ;file_id=");
   pos= int10_to_str((long) file_id, pos, 10);
-  protocol->store(buf, pos-buf, &my_charset_bin);
+  protocol->store(buf, (uint) (pos - buf), &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 
@@ -5265,7 +5265,7 @@ Execute_load_query_log_event::exec_event(struct st_relay_log_info* rli)
   p= strmake(p, STRING_WITH_LEN(" INTO"));
   p= strmake(p, query+fn_pos_end, q_len-fn_pos_end);
 
-  error= Query_log_event::exec_event(rli, buf, p-buf);
+  error= Query_log_event::exec_event(rli, buf, (uint) (p - buf));
 
   /* Forging file name for deletion in same buffer */
   *fname_end= 0;

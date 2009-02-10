@@ -313,8 +313,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
 
     const char *password= get_field(thd->mem_root, table->field[2]);
-    uint password_len= password ? strlen(password) : 0;
-    set_user_salt(&user, password, password_len);
+    size_t password_len= password ? strlen(password) : 0;
+    set_user_salt(&user, password, (uint) password_len);
     if (user.salt_len == 0 && password_len != 0)
     {
       switch (password_len) {
@@ -1405,7 +1405,7 @@ int check_change_password(THD *thd, const char *host, const char *user,
                MYF(0));
     return(1);
   }
-  uint len=strlen(new_password);
+  size_t len= strlen(new_password);
   if (len && len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
       len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
@@ -1439,14 +1439,14 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
-  uint new_password_len= strlen(new_password);
+  size_t new_password_len= strlen(new_password);
   bool result= 1;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (check_change_password(thd, host, user, new_password, new_password_len))
+  if (check_change_password(thd, host, user, new_password, (uint) new_password_len))
     DBUG_RETURN(1);
 
   bzero((char*) &tables, sizeof(tables));
@@ -1483,12 +1483,12 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
   /* update loaded acl entry: */
-  set_user_salt(acl_user, new_password, new_password_len);
+  set_user_salt(acl_user, new_password, (uint) new_password_len);
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
 			acl_user->user ? acl_user->user : "",
-			new_password, new_password_len))
+			new_password, (uint) new_password_len))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
     goto end;
@@ -1641,11 +1641,11 @@ bool hostname_requires_resolving(const char *hostname)
   char cur;
   if (!hostname)
     return FALSE;
-  int namelen= strlen(hostname);
-  int lhlen= strlen(my_localhost);
+  size_t namelen= strlen(hostname);
+  size_t lhlen= strlen(my_localhost);
   if ((namelen == lhlen) &&
-      !my_strnncoll(system_charset_info, (const uchar *)hostname,  namelen,
-		    (const uchar *)my_localhost, strlen(my_localhost)))
+      !my_strnncoll(system_charset_info, (const uchar *)hostname, (uint) namelen,
+		    (const uchar *)my_localhost, (uint) strlen(my_localhost)))
     return FALSE;
   for (; (cur=*hostname); hostname++)
   {
@@ -1873,13 +1873,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[next_field+3]->store("", 0, &my_charset_latin1);
       if (lex->ssl_cipher)
         table->field[next_field+1]->store(lex->ssl_cipher,
-                                strlen(lex->ssl_cipher), system_charset_info);
+                                (uint) strlen(lex->ssl_cipher), system_charset_info);
       if (lex->x509_issuer)
         table->field[next_field+2]->store(lex->x509_issuer,
-                                strlen(lex->x509_issuer), system_charset_info);
+                                (uint) strlen(lex->x509_issuer), system_charset_info);
       if (lex->x509_subject)
         table->field[next_field+3]->store(lex->x509_subject,
-                                strlen(lex->x509_subject), system_charset_info);
+                                (uint) strlen(lex->x509_subject), system_charset_info);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
@@ -4186,10 +4186,10 @@ static void add_user_option(String *grant, ulong value, const char *name)
   {
     char buff[22], *p; // just as in int2str
     grant->append(' ');
-    grant->append(name, strlen(name));
+    grant->append(name, (uint) strlen(name));
     grant->append(' ');
     p=int10_to_str(value, buff, 10);
-    grant->append(buff,p-buff);
+    grant->append(buff,(uint) (p - buff));
   }
 }
 
@@ -4327,7 +4327,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       {
 	ssl_options++;
 	global.append(STRING_WITH_LEN("ISSUER \'"));
-	global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
+	global.append(acl_user->x509_issuer,(uint) strlen(acl_user->x509_issuer));
 	global.append('\'');
       }
       if (acl_user->x509_subject)
@@ -4335,7 +4335,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (ssl_options++)
 	  global.append(' ');
 	global.append(STRING_WITH_LEN("SUBJECT \'"));
-	global.append(acl_user->x509_subject,strlen(acl_user->x509_subject),
+	global.append(acl_user->x509_subject,(uint) strlen(acl_user->x509_subject),
                       system_charset_info);
 	global.append('\'');
       }
@@ -4344,7 +4344,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (ssl_options++)
 	  global.append(' ');
 	global.append(STRING_WITH_LEN("CIPHER '"));
-	global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher),
+	global.append(acl_user->ssl_cipher,(uint) strlen(acl_user->ssl_cipher),
                       system_charset_info);
 	global.append('\'');
       }
@@ -4424,13 +4424,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	  }
 	}
 	db.append (STRING_WITH_LEN(" ON "));
-	append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
+	append_identifier(thd, &db, acl_db->db, (uint) strlen(acl_db->db));
 	db.append (STRING_WITH_LEN(".* TO '"));
 	db.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
 	db.append (STRING_WITH_LEN("'@'"));
 	// host and lex_user->host are equal except for case
-	db.append(host, strlen(host), system_charset_info);
+	db.append(host, (uint) strlen(host), system_charset_info);
 	db.append ('\'');
 	if (want_access & GRANT_ACL)
 	  db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -4536,16 +4536,16 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	}
 	global.append(STRING_WITH_LEN(" ON "));
 	append_identifier(thd, &global, grant_table->db,
-			  strlen(grant_table->db));
+			  (uint) strlen(grant_table->db));
 	global.append('.');
 	append_identifier(thd, &global, grant_table->tname,
-			  strlen(grant_table->tname));
+			  (uint) strlen(grant_table->tname));
 	global.append(STRING_WITH_LEN(" TO '"));
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append(STRING_WITH_LEN("'@'"));
 	// host and lex_user->host are equal except for case
-	global.append(host, strlen(host), system_charset_info);
+	global.append(host, (uint) strlen(host), system_charset_info);
 	global.append('\'');
 	if (table_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -4642,16 +4642,16 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
         global.append(type,typelen);
         global.append(' ');
 	append_identifier(thd, &global, grant_proc->db,
-			  strlen(grant_proc->db));
+			  (uint) strlen(grant_proc->db));
 	global.append('.');
 	append_identifier(thd, &global, grant_proc->tname,
-			  strlen(grant_proc->tname));
+			  (uint) strlen(grant_proc->tname));
 	global.append(STRING_WITH_LEN(" TO '"));
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append(STRING_WITH_LEN("'@'"));
 	// host and lex_user->host are equal except for case
-	global.append(host, strlen(host), system_charset_info);
+	global.append(host, (uint) strlen(host), system_charset_info);
 	global.append('\'');
 	if (proc_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -5769,11 +5769,11 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
       {
         LEX_USER lex_user;
 	lex_user.user.str= grant_proc->user;
-	lex_user.user.length= strlen(grant_proc->user);
+	lex_user.user.length= (uint) strlen(grant_proc->user);
 	lex_user.host.str= grant_proc->host.hostname ?
 	  grant_proc->host.hostname : (char*)"";
 	lex_user.host.length= grant_proc->host.hostname ?
-	  strlen(grant_proc->host.hostname) : 0;
+	  (uint) strlen(grant_proc->host.hostname) : 0;
 	if (!replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
 				   grant_proc->db, grant_proc->tname,
                                    is_proc, ~(ulong)0, 1))
@@ -5852,8 +5852,8 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   tables->db= (char*)sp_db;
   tables->table_name= tables->alias= (char*)sp_name;
 
-  combo->host.length= strlen(combo->host.str);
-  combo->user.length= strlen(combo->user.str);
+  combo->host.length= (uint) strlen(combo->host.str);
+  combo->user.length= (uint) strlen(combo->user.str);
   combo->host.str= thd->strmake(combo->host.str,combo->host.length);
   combo->user.str= thd->strmake(combo->user.str,combo->user.length);
 

@@ -150,12 +150,12 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
     /* Search for quote in each string and replace with escaped quote */
     while(*(next_pos= strcend(cur_pos, quote_str[0])) != '\0')
     {
-      ret&= dynstr_append_mem(str, cur_pos, next_pos - cur_pos);
+      ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
       ret&= dynstr_append_mem(str ,"\\", 1);
       ret&= dynstr_append_mem(str, quote_str, quote_len);
       cur_pos= next_pos + 1;
     }
-    ret&= dynstr_append_mem(str, cur_pos, next_pos - cur_pos);
+    ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
     append= va_arg(dirty_text, char *);
   }
   va_end(dirty_text);

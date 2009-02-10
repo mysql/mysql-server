@@ -662,7 +662,7 @@ static void free_table_ent(char *key)
 byte* get_table_key(const char *entry, uint *length,
                                 my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(entry);
+  *length= (uint) strlen(entry);
   return (byte*) entry;
 }
 
@@ -778,7 +778,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_set_charset= 0;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
-                                    argument, strlen(argument),
+                                    argument, (uint) strlen(argument),
                                     &err_ptr, &err_len);
       if (err_len)
       {
@@ -791,7 +791,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         uint size_for_sql_mode= 0;
         const char **ptr;
         for (ptr= compatible_mode_names; *ptr; ptr++)
-          size_for_sql_mode+= strlen(*ptr);
+          size_for_sql_mode+= (uint) strlen(*ptr);
         size_for_sql_mode+= sizeof(compatible_mode_names)-1;
         DBUG_ASSERT(sizeof(compatible_mode_normal_str)>=size_for_sql_mode);
       }
@@ -1039,7 +1039,7 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
                             "SET SESSION character_set_results = '%s'",
                             (const char *) cs_name);
 
-  return mysql_real_query(mysql, query_buffer, query_length);
+  return mysql_real_query(mysql, query_buffer, (uint) query_length);
 }
 
 
@@ -1371,7 +1371,8 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg,
     fputs(attribute_name, xml_file);    
     fputc('\"', xml_file);
     
-    print_quoted_xml(xml_file, attribute_value, strlen(attribute_value));
+    print_quoted_xml(xml_file, attribute_value, 
+                     (uint) strlen(attribute_value));
     fputc('\"', xml_file);
 
     attribute_name= va_arg(arg_list, char *);
@@ -1411,7 +1412,7 @@ static void print_xml_null_tag(FILE * xml_file, const char* sbeg,
   fputs("<", xml_file);
   fputs(stag_atr, xml_file);
   fputs("\"", xml_file);
-  print_quoted_xml(xml_file, sval, strlen(sval));
+  print_quoted_xml(xml_file, sval, (uint) strlen(sval));
   fputs("\" xsi:nil=\"true\" />", xml_file);
   fputs(line_end, xml_file);
   check_io(xml_file);
@@ -1509,7 +1510,7 @@ static uint dump_routines_for_db(char *db)
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
+  mysql_real_escape_string(mysql, db_name_buff, db, (uint) strlen(db));
 
   /* nice comments */
   if (opt_comments)
@@ -1601,13 +1602,13 @@ static uint dump_routines_for_db(char *db)
                   Allocate memory for new query string: original string
                   from SHOW statement and version-specific comments.
                 */
-                query_str= alloc_query_str(strlen(row[2]) + 23);
+                query_str= alloc_query_str((uint) strlen(row[2]) + 23);
 
                 query_str_tail= strnmov(query_str, row[2],
-                                        definer_begin - row[2]);
+                                        (uint) (definer_begin - row[2]));
                 query_str_tail= strmov(query_str_tail, "*/ /*!50020");
                 query_str_tail= strnmov(query_str_tail, definer_begin,
-                                        definer_end - definer_begin);
+                                        (uint) (definer_end - definer_begin));
                 query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
                                         definer_end, NullS);
               }
@@ -2216,7 +2217,7 @@ static void dump_triggers_for_table(char *table,
       char       host_name_str[HOSTNAME_LENGTH + 1];
       char       quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
 
-      parse_user(row[7], strlen(row[7]), user_name_str, &user_name_len,
+      parse_user(row[7], (uint) strlen(row[7]), user_name_str, &user_name_len,
                  host_name_str, &host_name_len);
 
       fprintf(sql_file,
@@ -3054,7 +3055,7 @@ static int dump_all_tables_in_db(char *database)
   while ((table= getTableName(0)))
   {
     char *end= strmov(afterdot, table);
-    if (include_table(hash_key, end - hash_key))
+    if (include_table(hash_key, (uint) (end - hash_key)))
     {
       dump_table(table,database);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
@@ -3622,7 +3623,7 @@ static char *primary_key_fields(const char *table_name)
     do
     {
       quoted_field= quote_name(row[4], buff, 0);
-      result_length+= strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
+      result_length+= (uint) strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
     } while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1);
   }
 
@@ -3682,7 +3683,8 @@ static int replace(DYNAMIC_STRING *ds_str,
     return 1;
   init_dynamic_string_checked(&ds_tmp, "",
                       ds_str->length + replace_len, 256);
-  dynstr_append_mem_checked(&ds_tmp, ds_str->str, start - ds_str->str);
+  dynstr_append_mem_checked(&ds_tmp, ds_str->str, 
+                            (uint) (start - ds_str->str));
   dynstr_append_mem_checked(&ds_tmp, replace_str, replace_len);
   dynstr_append_checked(&ds_tmp, start + search_len);
   dynstr_set_checked(ds_str, ds_tmp.str);

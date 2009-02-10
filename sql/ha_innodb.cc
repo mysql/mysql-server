@@ -7012,7 +7012,7 @@ ha_innobase::get_error_message(int error, String *buf)
 {
 	trx_t*	    trx = check_trx_exists(current_thd);
 
-	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+	buf->copy(trx->detailed_error, (uint) strlen(trx->detailed_error),
 		system_charset_info);
 
 	return FALSE;

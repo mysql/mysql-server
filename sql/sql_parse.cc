@@ -250,7 +250,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   USER_RESOURCES *mqh)
 {
   int return_val= 0;
-  uint temp_len, user_len;
+  size_t temp_len, user_len;
   char temp_user[USER_HOST_BUFF_SIZE];
   struct  user_conn *uc;
 
@@ -261,7 +261,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
-					       (byte*) temp_user, temp_len)))
+					       (byte*) temp_user, (uint) temp_len)))
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
@@ -275,7 +275,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->host= uc->user + user_len +  1;
-    uc->len= temp_len;
+    uc->len= (uint) temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
     uc->intime= thd->thr_create_time;
@@ -328,7 +328,7 @@ int check_user(THD *thd, enum enum_server_command command,
 	       bool check_count)
 {
   DBUG_ENTER("check_user");
-  LEX_STRING db_str= { (char *) db, db ? strlen(db) : 0 };
+  LEX_STRING db_str= { (char *) db, db ? (uint) strlen(db) : 0 };
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   thd->main_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
@@ -1036,7 +1036,7 @@ static int check_connection(THD *thd)
 
   char *user= end;
   char *passwd= strend(user)+1;
-  uint user_len= passwd - user - 1;
+  size_t user_len= passwd - user - 1;
   char *db= passwd;
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
@@ -1051,10 +1051,10 @@ static int check_connection(THD *thd)
     *passwd > 127 and become 2**32-127 after casting to uint.
   */
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    (uchar)(*passwd++) : strlen(passwd);
+    (uchar)(*passwd++) : (uint) strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
-  uint db_len= db ? strlen(db) : 0;
+  size_t db_len= db ? strlen(db) : 0;
 
   if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
   {
@@ -1067,13 +1067,13 @@ static int check_connection(THD *thd)
   {
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info,
-                             db, db_len,
+                             db, (uint) db_len,
                              thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
   }
 
   user_buff[user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
-                                       system_charset_info, user, user_len,
+                                       system_charset_info, user, (uint) user_len,
                                        thd->charset(), &dummy_errors)]= '\0';
   user= user_buff;
 
@@ -1769,7 +1769,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB],
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
-			packet, strlen(packet), thd->charset());
+			packet, (uint) strlen(packet), thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
     {
       mysql_log.write(thd,command,"%s",thd->db);
@@ -1832,7 +1832,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
-    uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
+    size_t passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       (uchar)(*passwd++) : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
@@ -1846,7 +1846,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Convert database name to utf8 */
     uint dummy_errors;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
-                             system_charset_info, db, strlen(db),
+                             system_charset_info, db, (uint) strlen(db),
                              thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
 
@@ -1865,7 +1865,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Clear variables that are allocated */
     thd->user_connect= 0;
-    int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
+    int res= check_user(thd, COM_CHANGE_USER, passwd, (uint) passwd_len, db, FALSE);
 
     if (res)
     {
@@ -2011,7 +2011,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    thd->query_length= strlen(packet);       // for simplicity: don't optimize
+    thd->query_length= (uint) strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.table_name, fields);
@@ -3917,7 +3917,7 @@ end_with_restore_list:
 #endif
   case SQLCOM_CHANGE_DB:
   {
-    LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
+    LEX_STRING db_str= { (char *) select_lex->db, (uint) strlen(select_lex->db) };
 
     if (!mysql_change_db(thd, &db_str, FALSE))
       send_ok(thd);
@@ -6148,7 +6148,7 @@ void create_select_for_variable(const char *var_name)
   mysql_init_select(lex);
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
-  tmp.length=strlen(var_name);
+  tmp.length=(uint) strlen(var_name);
   bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
   /*
     We set the name of Item to @@session.var_name because that then is used
@@ -6157,7 +6157,7 @@ void create_select_for_variable(const char *var_name)
   if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
   {
     end= strxmov(buff, "@@session.", var_name, NullS);
-    var->set_name(buff, end-buff, system_charset_info);
+    var->set_name(buff, (uint) (end - buff), system_charset_info);
     add_item_to_list(thd, var);
   }
   DBUG_VOID_RETURN;
@@ -7900,10 +7900,10 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   const Security_context *sctx= thd->security_ctx;
 
   definer->user.str= (char *) sctx->priv_user;
-  definer->user.length= strlen(definer->user.str);
+  definer->user.length= (uint) strlen(definer->user.str);
 
   definer->host.str= (char *) sctx->priv_host;
-  definer->host.length= strlen(definer->host.str);
+  definer->host.length= (uint) strlen(definer->host.str);
 }
 
 
