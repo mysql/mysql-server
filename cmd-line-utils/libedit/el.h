@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.16 2003/10/18 23:48:42 christos Exp $	*/
+/*	$NetBSD: el.h,v 1.17 2006/12/15 22:13:33 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -110,6 +110,7 @@ typedef struct el_state_t {
 
 struct editline {
 	char		 *el_prog;	/* the program name		*/
+	FILE		 *el_infile;	/* Stdio stuff			*/
 	FILE		 *el_outfile;	/* Stdio stuff			*/
 	FILE		 *el_errfile;	/* Stdio stuff			*/
 	int		  el_infd;	/* Input file descriptor	*/
@@ -136,7 +137,8 @@ struct editline {
 
 protected int	el_editmode(EditLine *, int, const char **);
 
-#define el_isprint(x)  ((unsigned char) (x) < 0x80 ? isprint(x) : 1)
+/* XXXMYSQL: Bug#23097 mysql can't insert korean on mysql prompt. */
+#define el_isprint(x)	((unsigned char) (x) < 0x80 ? isprint(x) : 1)
 
 #ifdef DEBUG
 #define	EL_ABORT(a)	do { \
