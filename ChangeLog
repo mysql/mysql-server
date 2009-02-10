@@ -1,5 +1,10 @@
 2009-02-10	The InnoDB Team
 
+	* handler/ha_innodb.h, handler/ha_innodb.cc:
+	Fix Bug#41676 Table names are case insensitive in locking
+
+2009-02-10	The InnoDB Team
+
 	* ut/ut0mem.c:
 	Map ut_malloc_low(), ut_realloc(), and ut_free() directly to
 	malloc(), realloc(), and free() when innodb_use_sys_malloc is set.
