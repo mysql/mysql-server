@@ -2381,7 +2381,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         Note that we can come here without having an exclusive lock on the
         table, for example in this case:
         external_lock(F_(WR|RD)LCK); thr_lock() which fails due to lock
-        abortion; external_lock(F_UNLCK).
+        abortion; external_lock(F_UNLCK). Fortunately, the re-enabling happens
+        only if we were the thread which disabled logging.
       */
       if (_ma_reenable_logging_for_table(file, TRUE))
         DBUG_RETURN(1);
