@@ -6281,7 +6281,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
       if (check_grant_column(thd, table_grants, triggers->trigger_table->s->db,
                              triggers->trigger_table->s->table_name,
                              field_name,
-                             strlen(field_name), thd->security_ctx))
+                             (uint) strlen(field_name), thd->security_ctx))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS

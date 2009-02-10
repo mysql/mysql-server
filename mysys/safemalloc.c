@@ -173,7 +173,7 @@ gptr _mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   data[size + 3]= MAGICEND3;
   irem->filename= (my_string) filename;
   irem->linenum= lineno;
-  irem->datasize= size;
+  irem->datasize= (uint32) size;
   irem->prev=	  NULL;
 
   /* Add this remember structure to the linked list */

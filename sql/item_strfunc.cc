@@ -1743,17 +1743,17 @@ bool Item_func_user::init(const char *user, const char *host)
   if (user)
   {
     CHARSET_INFO *cs= str_value.charset();
-    uint res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
+    size_t res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
-    if (str_value.alloc(res_length))
+    if (str_value.alloc((uint) res_length))
     {
       null_value=1;
       return TRUE;
     }
 
-    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), res_length,
+    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), (uint) res_length,
                                   "%s@%s", user, host);
-    str_value.length(res_length);
+    str_value.length((uint) res_length);
     str_value.mark_as_const();
   }
   return FALSE;
@@ -2433,7 +2433,7 @@ String *Item_func_rpad::val_str(String *str)
     memcpy(to,ptr_pad,(size_t) pad_byte_length);
     to+= pad_byte_length;
   }
-  res->length(to- (char*) res->ptr());
+  res->length((uint) (to- (char*) res->ptr()));
   return (res);
 
  err:
@@ -2701,7 +2701,7 @@ String *Item_func_charset::val_str(String *str)
 
   CHARSET_INFO *cs= args[0]->collation.collation; 
   null_value= 0;
-  str->copy(cs->csname, strlen(cs->csname),
+  str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -2713,7 +2713,7 @@ String *Item_func_collation::val_str(String *str)
   CHARSET_INFO *cs= args[0]->collation.collation; 
 
   null_value= 0;
-  str->copy(cs->name, strlen(cs->name),
+  str->copy(cs->name, (uint) strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }

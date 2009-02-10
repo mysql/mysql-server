@@ -2813,7 +2813,7 @@ static bool init_global_datetime_format(timestamp_type format_type,
     */
     opt_date_time_formats[format_type]= str;
   }
-  if (!(*var_ptr= date_time_format_make(format_type, str, strlen(str))))
+  if (!(*var_ptr= date_time_format_make(format_type, str, (uint) strlen(str))))
   {
     fprintf(stderr, "Wrong date/time format specifier: %s\n", str);
     return 1;
@@ -3039,7 +3039,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
-    sys_init_slave.value_length= strlen(opt_init_slave);
+    sys_init_slave.value_length= (uint) strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
   sys_init_slave.is_os_charset= TRUE;
@@ -7334,7 +7334,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_STORAGE_ENGINE:
   {
     if ((enum db_type)((global_system_variables.table_type=
-                        ha_resolve_by_name(argument, strlen(argument)))) ==
+                        ha_resolve_by_name(argument, (uint) strlen(argument)))) ==
         DB_TYPE_UNKNOWN)
     {
       fprintf(stderr,"Unknown/unsupported table type: %s\n",argument);

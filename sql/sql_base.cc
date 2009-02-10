@@ -780,10 +780,10 @@ void close_temporary_tables(THD *thd)
           We are going to add 4 ` around the db/table names and possible more
           due to special characters in the names
         */
-        append_identifier(thd, &s_query, table->s->db, strlen(table->s->db));
+        append_identifier(thd, &s_query, table->s->db, (uint) strlen(table->s->db));
         s_query.q_append('.');
         append_identifier(thd, &s_query, table->s->table_name,
-                          strlen(table->s->table_name));
+                          (uint) strlen(table->s->table_name));
         s_query.q_append(',');
         next= table->next;
         close_temporary(table, 1);
@@ -3690,7 +3690,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 
   if (field_ptr && *field_ptr)
   {
-    *cached_field_index_ptr= field_ptr - table->field;
+    *cached_field_index_ptr= (uint) (field_ptr - table->field);
     field= *field_ptr;
   }
   else
@@ -5992,7 +5992,7 @@ my_bool mysql_rm_tmp_tables(void)
     if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
     {
       char *ext= fn_ext(file->name);
-      uint ext_len= strlen(ext);
+      size_t ext_len= strlen(ext);
       uint filePath_len= my_snprintf(filePath, sizeof(filePath),
                                      "%s%s", tmpdir, file->name);
       if (!bcmp(reg_ext, ext, ext_len))
@@ -6264,7 +6264,7 @@ open_new_frm(THD *thd, const char *path, const char *alias,
   DBUG_ENTER("open_new_frm");
 
   pathstr.str=    (char*) path;
-  pathstr.length= strlen(path);
+  pathstr.length= (uint) strlen(path);
 
   if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
   {

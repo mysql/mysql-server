@@ -67,7 +67,7 @@ int vio_read_buff(Vio *vio, gptr buf, int size)
 
   if (vio->read_pos < vio->read_end)
   {
-    rc= min(vio->read_end - vio->read_pos, size);
+    rc= min((int) (vio->read_end - vio->read_pos), size);
     memcpy(buf, vio->read_pos, rc);
     vio->read_pos+= rc;
     /*

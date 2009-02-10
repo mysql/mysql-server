@@ -673,7 +673,7 @@ int SEL_IMERGE::or_sel_tree(PARAM *param, SEL_TREE *tree)
   if (trees_next == trees_end)
   {
     const int realloc_ratio= 2;		/* Double size for next round */
-    uint old_elements= (trees_end - trees);
+    uint old_elements= (uint) (trees_end - trees);
     uint old_size= sizeof(SEL_TREE**) * old_elements;
     uint new_size= old_size * realloc_ratio;
     SEL_TREE **new_trees;
@@ -2398,7 +2398,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp= NULL;
-  uint n_child_scans= imerge->trees_next - imerge->trees;
+  uint n_child_scans= (uint) (imerge->trees_next - imerge->trees);
   TRP_RANGE **range_scans;
   TRP_RANGE **cur_child;
   TRP_RANGE **cpk_scan= NULL;
@@ -2997,7 +2997,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
         tuple_arg= tuple_arg->next_key_part;
         tuple_arg->store_min(key_part[tuple_arg->part].store_length, &key_ptr, 0);
       }
-      min_range.length= max_range.length= ((char*) key_ptr - (char*) key_val);
+      min_range.length= max_range.length= (uint) ((char*) key_ptr - (char*) key_val);
       records= (info->param->table->file->
                 records_in_range(scan->keynr, &min_range, &max_range));
       if (cur_covered)
@@ -3297,7 +3297,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                           intersect_scans_best););
 
   *are_all_covering= intersect->is_covering;
-  uint best_num= intersect_scans_best - intersect_scans;
+  uint best_num= (uint) (intersect_scans_best - intersect_scans);
   ror_intersect_cpy(intersect, intersect_best);
 
   /*
@@ -3474,7 +3474,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   TRP_ROR_INTERSECT *trp;
   if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
     DBUG_RETURN(trp);
-  uint best_num= (ror_scan_mark - tree->ror_scans);
+  uint best_num= (uint) (ror_scan_mark - tree->ror_scans);
   if (!(trp->first_scan= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      best_num)))
@@ -3594,7 +3594,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                       "ROR scans"););
   if (key_to_read)
   {
-    idx= key_to_read - tree->keys;
+    idx= (uint) (key_to_read - tree->keys);
     if ((read_plan= new (param->mem_root) TRP_RANGE(*key_to_read, idx)))
     {
       read_plan->records= best_records;
@@ -4755,7 +4755,7 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 	tree1->type= SEL_TREE::IMPOSSIBLE;
         DBUG_RETURN(tree1);
       }
-      result_keys.set_bit(key1 - tree1->keys);
+      result_keys.set_bit((uint) (key1 - tree1->keys));
 #ifdef EXTRA_DEBUG
         if (*key1 && param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
@@ -4837,7 +4837,7 @@ tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key1)
       {
         result=tree1;				// Added to tree1
-        result_keys.set_bit(key1 - tree1->keys);
+        result_keys.set_bit((uint) (key1 - tree1->keys));
 #ifdef EXTRA_DEBUG
         if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
@@ -6956,8 +6956,8 @@ int QUICK_RANGE_SELECT::get_next()
       }
     }
 
-    uint count= min(multi_range_length, ranges.elements -
-                    (cur_range - (QUICK_RANGE**) ranges.buffer));
+    uint count= min(multi_range_length, (uint) (ranges.elements -
+                    (cur_range - (QUICK_RANGE**) ranges.buffer)));
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -7047,7 +7047,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
         DBUG_RETURN(result);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    uint count= (uint) (ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer));
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -7102,7 +7102,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-    uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
+    uint count= (uint) (ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer));
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -7435,18 +7435,18 @@ void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   KEY *key_info= head->key_info + index;
   key_names->append(key_info->name);
   length= longlong2str(max_used_key_length, buf, 10) - buf;
-  used_lengths->append(buf, length);
+  used_lengths->append(buf, (uint) length);
 }
 
 void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
                                                     String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
 
@@ -7464,7 +7464,7 @@ void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
     KEY *key_info= head->key_info + quick->index;
     key_names->append(key_info->name);
     length= longlong2str(quick->max_used_key_length, buf, 10) - buf;
-    used_lengths->append(buf, length);
+    used_lengths->append(buf, (uint) length);
   }
   if (pk_quick_select)
   {
@@ -7473,7 +7473,7 @@ void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
     key_names->append(key_info->name);
     length= longlong2str(pk_quick_select->max_used_key_length, buf, 10) - buf;
     used_lengths->append(',');
-    used_lengths->append(buf, length);
+    used_lengths->append(buf, (uint) length);
   }
 }
 
@@ -7481,7 +7481,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
                                                       String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
@@ -7497,7 +7497,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
     }
     key_names->append(key_info->name);
     length= longlong2str(quick->max_used_key_length, buf, 10) - buf;
-    used_lengths->append(buf, length);
+    used_lengths->append(buf, (uint) length);
   }
 
   if (cpk_quick)
@@ -7507,7 +7507,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
     key_names->append(key_info->name);
     length= longlong2str(cpk_quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(',');
-    used_lengths->append(buf, length);
+    used_lengths->append(buf, (uint) length);
   }
 }
 
@@ -8010,7 +8010,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     }
 
     /* If we got to this point, cur_index_info passes the test. */
-    key_infix_parts= key_infix_len ?
+    key_infix_parts= key_infix_len ? (uint) 
                      (first_non_infix_part - first_non_group_part) : 0;
     used_key_parts= cur_group_key_parts + key_infix_parts;
 
@@ -8346,7 +8346,7 @@ get_field_keypart(KEY *index, Field *field)
   for (part= index->key_part, end= part + index->key_parts; part < end; part++)
   {
     if (field->eq(part->field))
-      return part - index->key_part + 1;
+      return (uint) (part - index->key_part + 1);
   }
   return 0;
 }
@@ -9601,7 +9601,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   char buf[64];
   uint length;
   key_names->append(index_info->name);
-  length= longlong2str(max_used_key_length, buf, 10) - buf;
+  length= (uint) (longlong2str(max_used_key_length, buf, 10) - buf);
   used_lengths->append(buf, length);
 }
 

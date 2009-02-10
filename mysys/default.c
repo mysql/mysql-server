@@ -182,7 +182,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     /* Handle --defaults-group-suffix= */
     uint i;
     const char **extra_groups;
-    const uint instance_len= strlen(my_defaults_group_suffix); 
+    const size_t instance_len= strlen(my_defaults_group_suffix); 
     struct handle_option_ctx *ctx= (struct handle_option_ctx*) func_ctx;
     char *ptr;
     TYPELIB *group= ctx->group;
@@ -194,11 +194,11 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     
     for (i= 0; i < group->count; i++)
     {
-      uint len;
+      size_t len;
       extra_groups[i]= group->type_names[i]; /** copy group */
       
       len= strlen(extra_groups[i]);
-      if (!(ptr= alloc_root(ctx->alloc, len+instance_len+1)))
+      if (!(ptr= alloc_root(ctx->alloc, (uint) (len+instance_len+1))))
 	goto err;
       
       extra_groups[i+group->count]= ptr;

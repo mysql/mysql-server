@@ -52,11 +52,11 @@
 
 static inline int put_to_buff(Buffer *buff, const char *str, uint *position)
 {
-  uint len= strlen(str);
-  if (buff->append(*position, str, len))
+  size_t len= strlen(str);
+  if (buff->append(*position, str, (uint) len))
     return 1;
 
-  *position+= len;
+  *position+= (uint) len;
   return 0;
 }
 
@@ -201,7 +201,7 @@ int Show_instance_status::execute(struct st_net *net,
     Instance *instance;
 
     store_to_protocol_packet(&send_buff, (char*) instance_name, &position);
-    if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
+    if (!(instance= instance_map->find(instance_name, (uint) strlen(instance_name))))
       goto err;
     if (instance->is_running())
       store_to_protocol_packet(&send_buff, (char*) "online", &position);
@@ -272,7 +272,7 @@ int Show_instance_options::execute(struct st_net *net, ulong connection_id)
   {
     Instance *instance;
 
-    if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
+    if (!(instance= instance_map->find(instance_name, (uint) strlen(instance_name))))
       goto err;
     store_to_protocol_packet(&send_buff, (char*) "instance_name", &position);
     store_to_protocol_packet(&send_buff, (char*) instance_name, &position);
@@ -452,7 +452,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
     File fd;
 
     if ((instance= instance_map->find(instance_name,
-                                      strlen(instance_name))) == NULL)
+                                      (uint) strlen(instance_name))) == NULL)
       goto err;
 
     logpath= instance->options.logs[log_type];
@@ -479,13 +479,13 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
 
       buff_size= (size - offset);
 
-      read_buff.reserve(0, buff_size);
+      read_buff.reserve(0, (uint) buff_size);
 
       /* read in one chunk */
       read_len= (int)my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
       if ((read_len= my_read(fd, (byte*) read_buff.buffer,
-                             buff_size, MYF(0))) < 0)
+                             (uint) buff_size, MYF(0))) < 0)
         return ER_READ_FILE;
       store_to_protocol_packet(&send_buff, read_buff.buffer,
                                &position, read_len);
@@ -569,7 +569,7 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
   Instance *instance;
 
   if ((instance= instance_map->
-                 find(instance_name, strlen(instance_name))) == NULL)
+                 find(instance_name, (uint) strlen(instance_name))) == NULL)
     goto err;
 
   {
