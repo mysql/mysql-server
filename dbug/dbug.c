@@ -1451,7 +1451,9 @@ next:
     {
       if (!strncmp((*cur)->str, start, len))
       {
-        if (todo == EXCLUDE)
+        if ((*cur)->flags & todo)  /* same action ? */
+          (*cur)->flags|= subdir;  /* just merge the SUBDIR flag */
+        else if (todo == EXCLUDE)
         {
           struct link *delme=*cur;
           *cur=(*cur)->next_link;
