@@ -402,8 +402,7 @@ protected:
                          Uint64 aTransId);
   int handleScanOptions(const ScanOptions *options);
   int generatePackedReadAIs(const NdbRecord *reseult_record, bool& haveBlob);
-  int scanImpl(const unsigned char* result_mask,
-               const NdbScanOperation::ScanOptions *options);
+  int scanImpl(const NdbScanOperation::ScanOptions *options);
   int scanTableImpl(const NdbRecord *result_record,
                     NdbOperation::LockMode lock_mode,
                     const unsigned char *result_mask,

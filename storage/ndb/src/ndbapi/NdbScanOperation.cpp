@@ -418,12 +418,9 @@ NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
  * types share
  */
 inline int
-NdbScanOperation::scanImpl(const unsigned char *result_mask,
-                           const NdbScanOperation::ScanOptions *options)
+NdbScanOperation::scanImpl(const NdbScanOperation::ScanOptions *options)
 {
   bool haveBlob= false;
-
-  m_attribute_record->copyMask(m_read_mask, result_mask);
 
   /* Add AttrInfos for packed read of cols in result_record */
   if (generatePackedReadAIs(m_attribute_record, haveBlob) != 0)
@@ -524,6 +521,7 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
 #endif
 
   m_attribute_record= result_record;
+  m_attribute_record->copyMask(m_read_mask, result_mask);
 
   /* Process scan definition info */
   res= processTableScanDefs(lock_mode, scan_flags, parallel, batch);
@@ -531,9 +529,8 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
     return -1;
 
   theStatus= NdbOperation::UseNdbRecord;
-
   /* Call generic scan code */
-  return scanImpl(result_mask, options);
+  return scanImpl(options);
 }
 
 
@@ -927,7 +924,7 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
   theStatus= NdbOperation::UseNdbRecord;
   
   /* Call generic scan code */
-  res= scanImpl(result_mask, options);
+  res= scanImpl(options);
 
   if (!res)
   {
