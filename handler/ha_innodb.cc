@@ -8203,40 +8203,21 @@ bool innobase_show_status(handlerton *hton, THD* thd,
  locking.
 ****************************************************************************/
 
-/****************************************************************************
-Folds a string in system_charset_info. */
-static
-ulint
-innobase_fold_name(
-/*===============*/
-				/* out: fold value of the name */
-	const uchar*	name,	/* in: string to be folded */
-	size_t		length)	/* in: length of the name in bytes */
-{
-	ulong n1 = 1, n2 = 4;
-
-	system_charset_info->coll->hash_sort(system_charset_info,
-					     name, length, &n1, &n2);
-	return((ulint) n1);
-}
-
 static INNOBASE_SHARE* get_share(const char* table_name)
 {
 	INNOBASE_SHARE *share;
 	pthread_mutex_lock(&innobase_share_mutex);
-	uint length=(uint) strlen(table_name);
 
-	ulint	fold = innobase_fold_name((const uchar*) table_name, length);
+	ulint	fold = ut_fold_string(table_name);
 
 	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
 		    INNOBASE_SHARE*, share,
 		    ut_ad(share->use_count > 0),
-		    !my_strnncoll(system_charset_info,
-				  share->table_name,
-				  share->table_name_length,
-				  (const uchar*) table_name, length));
+		    !strcmp(share->table_name, table_name));
 
 	if (!share) {
+
+		uint length = (uint) strlen(table_name);
 
 		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
 		grows too big */
@@ -8244,9 +8225,8 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 		share = (INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
 			MYF(MY_FAE | MY_ZEROFILL));
 
-		share->table_name_length = length;
-		share->table_name = (uchar*) memcpy(share + 1,
-						    table_name, length + 1);
+		share->table_name = (char*) memcpy(share + 1,
+						   table_name, length + 1);
 
 		HASH_INSERT(INNOBASE_SHARE, table_name_hash,
 			    innobase_open_tables, fold, share);
@@ -8267,24 +8247,18 @@ static void free_share(INNOBASE_SHARE* share)
 
 #ifdef UNIV_DEBUG
 	INNOBASE_SHARE* share2;
-	ulint fold = innobase_fold_name(share->table_name,
-					share->table_name_length);
+	ulint	fold = ut_fold_string(share->table_name);
 
 	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
 		    INNOBASE_SHARE*, share2,
 		    ut_ad(share->use_count > 0),
-		    !my_strnncoll(system_charset_info,
-				  share->table_name,
-				  share->table_name_length,
-				  share2->table_name,
-				  share2->table_name_length));
+		    !strcmp(share->table_name, share2->table_name));
 
 	ut_a(share2 == share);
 #endif /* UNIV_DEBUG */
 
 	if (!--share->use_count) {
-		ulint	fold = innobase_fold_name(share->table_name,
-						  share->table_name_length);
+		ulint	fold = ut_fold_string(share->table_name);
 
 		HASH_DELETE(INNOBASE_SHARE, table_name_hash,
 			    innobase_open_tables, fold, share);
