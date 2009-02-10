@@ -63,7 +63,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
-  int2store(header + FLAGS_OFFSET, 0);
+  int2store(header + FLAGS_OFFSET, LOG_EVENT_ARTIFICIAL_F);
 
   // TODO: check what problems this may cause and fix them
   int4store(header + LOG_POS_OFFSET, 0);

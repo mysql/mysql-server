@@ -1,0 +1,145 @@
+################# mysql-test\t\innodb_autoextend_increment _basic.test ###########
+#                                                                                #
+# Variable Name: innodb_autoextend_increment                                     #
+# Scope: GLOBAL                                                                  #
+# Access Type: Dynamic                                                           #
+# Data Type: Numeric                                                             #
+# Default Value: 8                                                               #
+# Range: 0,1                                                                     #
+#                                                                                #
+#                                                                                #
+# Creation Date: 2008-02-07                                                      #
+# Author:  Rizwan                                                                #
+#                                                                                #
+# Description:                                                                   #
+#    Test Cases of Dynamic System Variable innodb_autoextend_increment that      #
+#    checks the behavior of this variable in the following ways                  #
+#       * Default Value                                                          #
+#       * Valid & Invalid values                                                 #
+#       * Scope & Access method                                                  #
+#       * Data Integrity                                                         #
+#                                                                                #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html #
+#                                                                                #
+##################################################################################
+
+--source include/have_innodb.inc
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF innodb_autoextend_increment  TESTS       #
+########################################################################
+
+
+###############################################################################
+# Saving initial value of innodb_autoextend_increment in a temporary variable #
+###############################################################################
+
+
+SET @global_start_value = @@global.innodb_autoextend_increment ;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################
+#           Display the DEFAULT value of innodb_autoextend_increment   #
+########################################################################
+
+SET @@global.innodb_autoextend_increment  = 0;
+SET @@global.innodb_autoextend_increment  = DEFAULT;
+SELECT @@global.innodb_autoextend_increment ;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+####################################################################################
+#   Check if innodb_autoextend_increment  can be accessed with and without @@ sign #
+####################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_autoextend_increment  = 1;
+SELECT @@innodb_autoextend_increment ;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_autoextend_increment ;
+
+SET global innodb_autoextend_increment  = 0;
+SELECT @@global.innodb_autoextend_increment ;
+
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+##########################################################################
+#    change the value of innodb_autoextend_increment  to a valid value   #
+##########################################################################
+
+SET @@global.innodb_autoextend_increment  = 1;
+SELECT @@global.innodb_autoextend_increment ;
+SET @@global.innodb_autoextend_increment  = 1000;
+SELECT @@global.innodb_autoextend_increment ;
+
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+###########################################################################
+# Change the value of innodb_autoextend_increment  to invalid value       #
+###########################################################################
+
+SET @@global.innodb_autoextend_increment  = -1;
+SELECT @@global.innodb_autoextend_increment;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_autoextend_increment  = "T";
+SELECT @@global.innodb_autoextend_increment;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_autoextend_increment  = "Y";
+SELECT @@global.innodb_autoextend_increment;
+
+SET @@global.innodb_autoextend_increment  = 1001;
+SELECT @@global.innodb_autoextend_increment;
+
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+SELECT @@global.innodb_autoextend_increment  = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_autoextend_increment ';
+SELECT @@global.innodb_autoextend_increment ;
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_autoextend_increment ';
+
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_autoextend_increment  = OFF;
+SELECT @@global.innodb_autoextend_increment ;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_autoextend_increment  = ON;
+SELECT @@global.innodb_autoextend_increment ;
+
+
+--echo '#---------------------FN_DYNVARS_046_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+SET @@global.innodb_autoextend_increment  = TRUE;
+SELECT @@global.innodb_autoextend_increment ;
+SET @@global.innodb_autoextend_increment  = FALSE;
+SELECT @@global.innodb_autoextend_increment ;
+
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_autoextend_increment  = @global_start_value;
+
+###############################################################
+#         END OF innodb_autoextend_increment  TESTS           #
+###############################################################
+

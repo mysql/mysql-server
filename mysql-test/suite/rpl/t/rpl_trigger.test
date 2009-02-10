@@ -46,9 +46,7 @@ insert into t2 values(NULL,0),(500,0);
 select a,b, truncate(rand_value,4) from t1;
 select * from t2;
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 --disable_query_log
 select "--- On slave --" as "";
 --enable_query_log
@@ -108,9 +106,7 @@ SELECT trigger_name, definer
 FROM information_schema.triggers
 WHERE trigger_name = 't1_first';
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 --disable_query_log
 select "--- On slave --" as "";
 --enable_query_log
@@ -165,9 +161,7 @@ create database other;
 use other;
 insert into test.t1 values (1);
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 connection master;
 use test;
@@ -265,6 +259,8 @@ while ($rnd)
   
   connection master;
   eval drop table t1$rnd;
+  sync_slave_with_master;
+  connection master;
   
   dec $rnd;
 }
@@ -300,8 +296,30 @@ STOP SLAVE;
 # Replace master's binlog.
 
 connection master;
+let $MYSQLD_DATADIR= `select @@datadir`;
 FLUSH LOGS;
-exec cp $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001;
+
+# Stop master server
+--echo --> Stop master server
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Replace binlog
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLD_DATADIR/master-bin.000001;
+  
+--echo --> Start master server
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+let $binlog_version= query_get_value(SHOW BINLOG EVENTS, Info, 1);
+
+# Make the slave to replay the new binlog.
+--echo --> Master binlog: $binlog_version
 
 # Make the slave to replay the new binlog.
 
@@ -377,9 +395,7 @@ DROP TABLE IF EXISTS t2;
 --echo
 --echo ---> Synchronizing slave with master...
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 
 --echo
 --echo ---> connection: master
@@ -411,9 +427,7 @@ SELECT * FROM t2;
 --echo
 --echo ---> Synchronizing slave with master...
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 
 --echo ---> connection: master
 
@@ -435,9 +449,7 @@ SELECT * FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 --connection master
 
 #
@@ -496,6 +508,7 @@ create trigger tr
 set autocommit = 0;
 insert into t1 values ( 1 );
 rollback;
+sync_slave_with_master;
 
 let $diff_table_1=master:test.t1;
 let $diff_table_2=slave:test.t1;

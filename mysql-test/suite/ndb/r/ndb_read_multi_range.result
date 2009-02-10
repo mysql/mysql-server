@@ -491,4 +491,4 @@ select * from t2 order by id;
 id
 3
 drop trigger kaboom;
-drop table t1;
+drop table t1, t2;

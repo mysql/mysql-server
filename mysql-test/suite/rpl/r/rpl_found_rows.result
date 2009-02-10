@@ -103,10 +103,10 @@ DROP PROCEDURE just_log;
 DROP PROCEDURE calc_and_log;
 DROP FUNCTION log_rows;
 **** Resetting master and slave ****
-STOP SLAVE;
+include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
-START SLAVE;
+include/start_slave.inc
 #### 2. Using mixed mode ####
 ==== 2.1. Checking a procedure ====
 **** On Master ****

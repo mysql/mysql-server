@@ -6,8 +6,8 @@ drop database if exists `ソ十表`;
 CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;
 CREATE DATABASE `ソ十表`;
-SHOW DATABASES;
-Database
+SELECT schema_name from information_schema.schemata where schema_name <> 'mtr';
+schema_name
 information_schema
 ソ十表
 日本語

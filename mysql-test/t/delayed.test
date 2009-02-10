@@ -285,4 +285,47 @@ INSERT DELAYED INTO t2 VALUES (0,'0000-00-00');
 INSERT DELAYED INTO t2 VALUES (0,'2007-00-00');
 DROP TABLE t1,t2;
 
+#
+# Bug#40536: SELECT is blocked by INSERT DELAYED waiting on upgrading lock,
+#            even with low_priority_updates
+#
+
+set @old_delayed_updates = @@global.low_priority_updates;
+set global low_priority_updates = 1;
+select @@global.low_priority_updates;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, b int);
+insert into t1 values (1,1);
+lock table t1 read;
+connect (update,localhost,root,,);
+connection update;
+--echo connection: update
+--send insert delayed into t1 values (2,2);
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where command = "Delayed insert" and state = "upgrading lock";
+--source include/wait_condition.inc
+connect (select,localhost,root,,);
+--echo connection: select
+select * from t1;
+connection default;
+--echo connection: default
+select * from t1;
+connection default;
+disconnect update;
+disconnect select;
+unlock tables;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where command = "Delayed insert" and state = "Waiting for INSERT";
+--source include/wait_condition.inc
+select * from t1;
+drop table t1;
+
+set global low_priority_updates = @old_delayed_updates;
+
 --echo End of 5.1 tests
