@@ -1,4 +1,4 @@
-/*	$NetBSD: term.c,v 1.40 2004/05/22 23:21:28 christos Exp $	*/
+/*	$NetBSD: term.c,v 1.48 2009/02/06 20:08:13 sketch Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,7 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * term.c: Editor/termcap-curses interface
@@ -44,20 +50,25 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#ifdef HAVE_TERMCAP_H
+#include <termcap.h>
+#endif
 #ifdef HAVE_CURSES_H
-# include <curses.h>
-#elif HAVE_NCURSES_H
-# include <ncurses.h>
+#include <curses.h>
 #endif
-
+#ifdef HAVE_NCURSES_H
+#include <ncurses.h>
+#endif
 /* Solaris's term.h does horrid things. */
-#if (defined(HAVE_TERM_H) && !defined(_SUNOS))
-# include <term.h>
+#if (defined(HAVE_TERM_H) && !defined(__SunOS))
+#include <term.h>
 #endif
-
 #include <sys/types.h>
 #include <sys/ioctl.h>
+
+#ifdef _REENTRANT
+#include <pthread.h>
+#endif
 
 #include "el.h"
 
@@ -263,9 +274,13 @@ private int	term_alloc_display(EditLine *);
 private void	term_alloc(EditLine *, const struct termcapstr *, const char *);
 private void	term_init_arrow(EditLine *);
 private void	term_reset_arrow(EditLine *);
+private int	term_putc(int);
+private void	term_tputs(EditLine *, const char *, int);
 
-
-private FILE *term_outfile = NULL;	/* XXX: How do we fix that? */
+#ifdef _REENTRANT
+private pthread_mutex_t term_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+private FILE *term_outfile = NULL;
 
 
 /* term_setflags():
@@ -313,7 +328,6 @@ term_setflags(EditLine *el)
 #endif /* DEBUG_SCREEN */
 }
 
-
 /* term_init():
  *	Initialize the terminal stuff
  */
@@ -339,7 +353,6 @@ term_init(EditLine *el)
 	if (el->el_term.t_val == NULL)
 		return (-1);
 	(void) memset(el->el_term.t_val, 0, T_val * sizeof(int));
-	term_outfile = el->el_outfile;
 	(void) term_set(el, NULL);
 	term_init_arrow(el);
 	return (0);
@@ -390,7 +403,8 @@ term_alloc(EditLine *el, const struct termcapstr *t, const char *cap)
          * New string is shorter; no need to allocate space
          */
 	if (clen <= tlen) {
-		(void) strcpy(*str, cap);	/* XXX strcpy is safe */
+		if (*str)
+			(void) strcpy(*str, cap);	/* XXX strcpy is safe */
 		return;
 	}
 	/*
@@ -464,8 +478,12 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+			while (--i >= 0)
+				el_free((ptr_t) b[i]);
+			el_free((ptr_t) b);
 			return (-1);
+		}
 	}
 	b[c->v] = NULL;
 	el->el_display = b;
@@ -475,8 +493,12 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+			while (--i >= 0)
+				el_free((ptr_t) b[i]);
+			el_free((ptr_t) b);
 			return (-1);
+		}
 	}
 	b[c->v] = NULL;
 	el->el_vdisplay = b;
@@ -542,12 +564,12 @@ term_move_to_line(EditLine *el, int where)
 				del--;
 			} else {
 				if ((del > 1) && GoodStr(T_DO)) {
-					(void) tputs(tgoto(Str(T_DO), del, del),
-					    del, term__putc);
+					term_tputs(el, tgoto(Str(T_DO), del,
+					    del), del);
 					del = 0;
 				} else {
 					for (; del > 0; del--)
-						term__putc('\n');
+						term__putc(el, '\n');
 					/* because the \n will become \r\n */
 					el->el_cursor.h = 0;
 				}
@@ -555,12 +577,11 @@ term_move_to_line(EditLine *el, int where)
 		}
 	} else {		/* del < 0 */
 		if (GoodStr(T_UP) && (-del > 1 || !GoodStr(T_up)))
-			(void) tputs(tgoto(Str(T_UP), -del, -del), -del,
-			    term__putc);
+			term_tputs(el, tgoto(Str(T_UP), -del, -del), -del);
 		else {
 			if (GoodStr(T_up))
 				for (; del < 0; del++)
-					(void) tputs(Str(T_up), 1, term__putc);
+					term_tputs(el, Str(T_up), 1);
 		}
 	}
 	el->el_cursor.v = where;/* now where is here */
@@ -587,7 +608,7 @@ mc_again:
 		return;
 	}
 	if (!where) {		/* if where is first column */
-		term__putc('\r');	/* do a CR */
+		term__putc(el, '\r');	/* do a CR */
 		el->el_cursor.h = 0;
 		return;
 	}
@@ -595,12 +616,11 @@ mc_again:
 
 	if ((del < -4 || del > 4) && GoodStr(T_ch))
 		/* go there directly */
-		(void) tputs(tgoto(Str(T_ch), where, where), where, term__putc);
+		term_tputs(el, tgoto(Str(T_ch), where, where), where);
 	else {
 		if (del > 0) {	/* moving forward */
 			if ((del > 4) && GoodStr(T_RI))
-				(void) tputs(tgoto(Str(T_RI), del, del),
-				    del, term__putc);
+				term_tputs(el, tgoto(Str(T_RI), del, del), del);
 			else {
 					/* if I can do tabs, use them */
 				if (EL_CAN_TAB) {
@@ -611,7 +631,7 @@ mc_again:
 						    (el->el_cursor.h & 0370);
 						    i < (where & 0370);
 						    i += 8)
-							term__putc('\t');	
+							term__putc(el, '\t');	
 							/* then tab over */
 						el->el_cursor.h = where & 0370;
 					}
@@ -631,8 +651,8 @@ mc_again:
 			}
 		} else {	/* del < 0 := moving backward */
 			if ((-del > 4) && GoodStr(T_LE))
-				(void) tputs(tgoto(Str(T_LE), -del, -del),
-				    -del, term__putc);
+				term_tputs(el, tgoto(Str(T_LE), -del, -del),
+				    -del);
 			else {	/* can't go directly there */
 				/*
 				 * if the "cost" is greater than the "cost"
@@ -643,12 +663,12 @@ mc_again:
 				    (((unsigned int) where >> 3) +
 				     (where & 07)))
 				    : (-del > where)) {
-					term__putc('\r');	/* do a CR */
+					term__putc(el, '\r');	/* do a CR */
 					el->el_cursor.h = 0;
 					goto mc_again;	/* and try again */
 				}
 				for (i = 0; i < -del; i++)
-					term__putc('\b');
+					term__putc(el, '\b');
 			}
 		}
 	}
@@ -673,7 +693,7 @@ term_overwrite(EditLine *el, const char *cp, int n)
 		return;
 	}
 	do {
-		term__putc(*cp++);
+		term__putc(el, *cp++);
 		el->el_cursor.h++;
 	} while (--n);
 
@@ -689,7 +709,7 @@ term_overwrite(EditLine *el, const char *cp, int n)
 				    != '\0')
 					term_overwrite(el, &c, 1);
 				else
-					term__putc(' ');
+					term__putc(el, ' ');
 				el->el_cursor.h = 1;
 			}
 		} else		/* no wrap, but cursor stays on screen */
@@ -723,19 +743,18 @@ term_deletechars(EditLine *el, int num)
 	if (GoodStr(T_DC))	/* if I have multiple delete */
 		if ((num > 1) || !GoodStr(T_dc)) {	/* if dc would be more
 							 * expen. */
-			(void) tputs(tgoto(Str(T_DC), num, num),
-			    num, term__putc);
+			term_tputs(el, tgoto(Str(T_DC), num, num), num);
 			return;
 		}
 	if (GoodStr(T_dm))	/* if I have delete mode */
-		(void) tputs(Str(T_dm), 1, term__putc);
+		term_tputs(el, Str(T_dm), 1);
 
 	if (GoodStr(T_dc))	/* else do one at a time */
 		while (num--)
-			(void) tputs(Str(T_dc), 1, term__putc);
+			term_tputs(el, Str(T_dc), 1);
 
 	if (GoodStr(T_ed))	/* if I have delete mode */
-		(void) tputs(Str(T_ed), 1, term__putc);
+		term_tputs(el, Str(T_ed), 1);
 }
 
 
@@ -764,37 +783,35 @@ term_insertwrite(EditLine *el, char *cp, int num)
 	if (GoodStr(T_IC))	/* if I have multiple insert */
 		if ((num > 1) || !GoodStr(T_ic)) {
 				/* if ic would be more expensive */
-			(void) tputs(tgoto(Str(T_IC), num, num),
-			    num, term__putc);
+			term_tputs(el, tgoto(Str(T_IC), num, num), num);
 			term_overwrite(el, cp, num);
 				/* this updates el_cursor.h */
 			return;
 		}
 	if (GoodStr(T_im) && GoodStr(T_ei)) {	/* if I have insert mode */
-		(void) tputs(Str(T_im), 1, term__putc);
+		term_tputs(el, Str(T_im), 1);
 
 		el->el_cursor.h += num;
 		do
-			term__putc(*cp++);
+			term__putc(el, *cp++);
 		while (--num);
 
 		if (GoodStr(T_ip))	/* have to make num chars insert */
-			(void) tputs(Str(T_ip), 1, term__putc);
+			term_tputs(el, Str(T_ip), 1);
 
-		(void) tputs(Str(T_ei), 1, term__putc);
+		term_tputs(el, Str(T_ei), 1);
 		return;
 	}
 	do {
 		if (GoodStr(T_ic))	/* have to make num chars insert */
-			(void) tputs(Str(T_ic), 1, term__putc);
-					/* insert a char */
+			term_tputs(el, Str(T_ic), 1);
 
-		term__putc(*cp++);
+		term__putc(el, *cp++);
 
 		el->el_cursor.h++;
 
 		if (GoodStr(T_ip))	/* have to make num chars insert */
-			(void) tputs(Str(T_ip), 1, term__putc);
+			term_tputs(el, Str(T_ip), 1);
 					/* pad the inserted char */
 
 	} while (--num);
@@ -810,10 +827,10 @@ term_clear_EOL(EditLine *el, int num)
 	int i;
 
 	if (EL_CAN_CEOL && GoodStr(T_ce))
-		(void) tputs(Str(T_ce), 1, term__putc);
+		term_tputs(el, Str(T_ce), 1);
 	else {
 		for (i = 0; i < num; i++)
-			term__putc(' ');
+			term__putc(el, ' ');
 		el->el_cursor.h += num;	/* have written num spaces */
 	}
 }
@@ -828,14 +845,14 @@ term_clear_screen(EditLine *el)
 
 	if (GoodStr(T_cl))
 		/* send the clear screen code */
-		(void) tputs(Str(T_cl), Val(T_li), term__putc);
+		term_tputs(el, Str(T_cl), Val(T_li));
 	else if (GoodStr(T_ho) && GoodStr(T_cd)) {
-		(void) tputs(Str(T_ho), Val(T_li), term__putc);	/* home */
+		term_tputs(el, Str(T_ho), Val(T_li));	/* home */
 		/* clear to bottom of screen */
-		(void) tputs(Str(T_cd), Val(T_li), term__putc);
+		term_tputs(el, Str(T_cd), Val(T_li));
 	} else {
-		term__putc('\r');
-		term__putc('\n');
+		term__putc(el, '\r');
+		term__putc(el, '\n');
 	}
 }
 
@@ -848,9 +865,9 @@ term_beep(EditLine *el)
 {
 	if (GoodStr(T_bl))
 		/* what termcap says we should use */
-		(void) tputs(Str(T_bl), 1, term__putc);
+		term_tputs(el, Str(T_bl), 1);
 	else
-		term__putc('\007');	/* an ASCII bell; ^G */
+		term__putc(el, '\007');	/* an ASCII bell; ^G */
 }
 
 
@@ -862,9 +879,9 @@ protected void
 term_clear_to_bottom(EditLine *el)
 {
 	if (GoodStr(T_cd))
-		(void) tputs(Str(T_cd), Val(T_li), term__putc);
+		term_tputs(el, Str(T_cd), Val(T_li));
 	else if (GoodStr(T_ce))
-		(void) tputs(Str(T_ce), Val(T_li), term__putc);
+		term_tputs(el, Str(T_ce), Val(T_li));
 }
 #endif
 
@@ -936,7 +953,7 @@ term_set(EditLine *el, const char *term)
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
 		for (t = tstr; t->name != NULL; t++) {
-			/* XXX: some systems tgetstr needs non const */
+			/* XXX: some systems' tgetstr needs non const */
 			term_alloc(el, t, tgetstr(strchr(t->name, *t->name),
 			    &area));
 		}
@@ -1220,26 +1237,62 @@ term_bind_arrow(EditLine *el)
 	}
 }
 
+/* term_putc():
+ *	Add a character
+ */
+private int
+term_putc(int c)
+{
+
+	if (term_outfile == NULL)
+		return -1;
+	return fputc(c, term_outfile);
+}
+
+private void
+term_tputs(EditLine *el, const char *cap, int affcnt)
+{
+#ifdef _REENTRANT
+	pthread_mutex_lock(&term_mutex);
+#endif
+	term_outfile = el->el_outfile;
+	(void)tputs(cap, affcnt, term_putc);
+#ifdef _REENTRANT
+	pthread_mutex_unlock(&term_mutex);
+#endif
+}
 
 /* term__putc():
  *	Add a character
  */
 protected int
-term__putc(int c)
+term__putc(EditLine *el, int c)
 {
 
-	return (fputc(c, term_outfile));
+	return fputc(c, el->el_outfile);
 }
-
 
 /* term__flush():
  *	Flush output
  */
 protected void
-term__flush(void)
+term__flush(EditLine *el)
 {
 
-	(void) fflush(term_outfile);
+	(void) fflush(el->el_outfile);
+}
+
+/* term_writec():
+ *	Write the given character out, in a human readable form
+ */
+protected void
+term_writec(EditLine *el, int c)
+{
+	char buf[8];
+	int cnt = key__decode_char(buf, sizeof(buf), 0, c);
+	buf[cnt] = '\0';
+	term_overwrite(el, buf, cnt);
+	term__flush(el);
 }
 
 
@@ -1269,11 +1322,17 @@ term_telltc(EditLine *el, int argc __attribute__((__unused__)),
 		(void) fprintf(el->el_outfile, "\tIt %s magic margins\n",
 		    EL_HAS_MAGIC_MARGINS ? "has" : "does not have");
 
-	for (t = tstr, ts = el->el_term.t_str; t->name != NULL; t++, ts++)
+	for (t = tstr, ts = el->el_term.t_str; t->name != NULL; t++, ts++) {
+		const char *ub;
+		if (*ts && **ts) {
+		    (void) key__decode_str(*ts, upbuf, sizeof(upbuf), "");
+		    ub = upbuf;
+		} else {
+		    ub = "(empty)";
+		}
 		(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n",
-		    t->long_name,
-		    t->name, *ts && **ts ?
-		    key__decode_str(*ts, upbuf, "") : "(empty)");
+		    t->long_name, t->name, ub);
+	}
 	(void) fputc('\n', el->el_outfile);
 	return (0);
 }
@@ -1292,7 +1351,7 @@ term_settc(EditLine *el, int argc __attribute__((__unused__)),
 	const char *what, *how;
 
 	if (argv == NULL || argv[1] == NULL || argv[2] == NULL)
-		return (-1);
+		return -1;
 
 	what = argv[1];
 	how = argv[2];
@@ -1307,7 +1366,7 @@ term_settc(EditLine *el, int argc __attribute__((__unused__)),
 	if (ts->name != NULL) {
 		term_alloc(el, ts, how);
 		term_setflags(el);
-		return (0);
+		return 0;
 	}
 	/*
          * Do the numeric ones second
@@ -1316,45 +1375,99 @@ term_settc(EditLine *el, int argc __attribute__((__unused__)),
 		if (strcmp(tv->name, what) == 0)
 			break;
 
-	if (tv->name != NULL) {
-		if (tv == &tval[T_pt] || tv == &tval[T_km] ||
-		    tv == &tval[T_am] || tv == &tval[T_xn]) {
-			if (strcmp(how, "yes") == 0)
-				el->el_term.t_val[tv - tval] = 1;
-			else if (strcmp(how, "no") == 0)
-				el->el_term.t_val[tv - tval] = 0;
-			else {
-				(void) fprintf(el->el_errfile,
-				    "settc: Bad value `%s'.\n", how);
-				return (-1);
-			}
-			term_setflags(el);
-			if (term_change_size(el, Val(T_li), Val(T_co)) == -1)
-				return (-1);
-			return (0);
-		} else {
-			long i;
-			char *ep;
+	if (tv->name != NULL)
+		return -1;
 
-			i = strtol(how, &ep, 10);
-			if (*ep != '\0') {
-				(void) fprintf(el->el_errfile,
-				    "settc: Bad value `%s'.\n", how);
-				return (-1);
-			}
-			el->el_term.t_val[tv - tval] = (int) i;
-			el->el_term.t_size.v = Val(T_co);
-			el->el_term.t_size.h = Val(T_li);
-			if (tv == &tval[T_co] || tv == &tval[T_li])
-				if (term_change_size(el, Val(T_li), Val(T_co))
-				    == -1)
-					return (-1);
-			return (0);
+	if (tv == &tval[T_pt] || tv == &tval[T_km] ||
+	    tv == &tval[T_am] || tv == &tval[T_xn]) {
+		if (strcmp(how, "yes") == 0)
+			el->el_term.t_val[tv - tval] = 1;
+		else if (strcmp(how, "no") == 0)
+			el->el_term.t_val[tv - tval] = 0;
+		else {
+			(void) fprintf(el->el_errfile,
+			    "%s: Bad value `%s'.\n", argv[0], how);
+			return -1;
 		}
+		term_setflags(el);
+		if (term_change_size(el, Val(T_li), Val(T_co)) == -1)
+			return -1;
+		return 0;
+	} else {
+		long i;
+		char *ep;
+
+		i = strtol(how, &ep, 10);
+		if (*ep != '\0') {
+			(void) fprintf(el->el_errfile,
+			    "%s: Bad value `%s'.\n", argv[0], how);
+			return -1;
+		}
+		el->el_term.t_val[tv - tval] = (int) i;
+		el->el_term.t_size.v = Val(T_co);
+		el->el_term.t_size.h = Val(T_li);
+		if (tv == &tval[T_co] || tv == &tval[T_li])
+			if (term_change_size(el, Val(T_li), Val(T_co))
+			    == -1)
+				return -1;
+		return 0;
 	}
-	return (-1);
 }
 
+
+/* term_gettc():
+ *	Get the current terminal characteristics
+ */
+protected int
+/*ARGSUSED*/
+term_gettc(EditLine *el, int argc __attribute__((__unused__)), char **argv)
+{
+	const struct termcapstr *ts;
+	const struct termcapval *tv;
+	char *what;
+	void *how;
+
+	if (argv == NULL || argv[1] == NULL || argv[2] == NULL)
+		return (-1);
+
+	what = argv[1];
+	how = argv[2];
+
+	/*
+         * Do the strings first
+         */
+	for (ts = tstr; ts->name != NULL; ts++)
+		if (strcmp(ts->name, what) == 0)
+			break;
+
+	if (ts->name != NULL) {
+		*(char **)how = el->el_term.t_str[ts - tstr];
+		return 0;
+	}
+	/*
+         * Do the numeric ones second
+         */
+	for (tv = tval; tv->name != NULL; tv++)
+		if (strcmp(tv->name, what) == 0)
+			break;
+
+	if (tv->name == NULL)
+		return -1;
+
+	if (tv == &tval[T_pt] || tv == &tval[T_km] ||
+	    tv == &tval[T_am] || tv == &tval[T_xn]) {
+		static char yes[] = "yes";
+		static char no[] = "no";
+		if (el->el_term.t_val[tv - tval])
+			*(char **)how = yes;
+		else
+			*(char **)how = no;
+		return 0;
+	} else {
+		*(int *)how = el->el_term.t_val[tv - tval];
+		return 0;
+	}
+}
 
 /* term_echotc():
  *	Print the termcap string out with variable substitution
@@ -1441,7 +1554,7 @@ term_echotc(EditLine *el, int argc __attribute__((__unused__)),
 			break;
 		}
 	if (t->name == NULL) {
-		/* XXX: some systems tgetstr needs non const */
+		/* XXX: some systems' tgetstr needs non const */
 		scap = tgetstr(strchr(*argv, **argv), &area);
 	}
 	if (!scap || scap[0] == '\0') {
@@ -1494,7 +1607,7 @@ term_echotc(EditLine *el, int argc __attribute__((__unused__)),
 				    *argv);
 			return (-1);
 		}
-		(void) tputs(scap, 1, term__putc);
+		term_tputs(el, scap, 1);
 		break;
 	case 1:
 		argv++;
@@ -1522,7 +1635,7 @@ term_echotc(EditLine *el, int argc __attribute__((__unused__)),
 				    *argv);
 			return (-1);
 		}
-		(void) tputs(tgoto(scap, arg_cols, arg_rows), 1, term__putc);
+		term_tputs(el, tgoto(scap, arg_cols, arg_rows), 1);
 		break;
 	default:
 		/* This is wrong, but I will ignore it... */
@@ -1578,8 +1691,7 @@ term_echotc(EditLine *el, int argc __attribute__((__unused__)),
 				    *argv);
 			return (-1);
 		}
-		(void) tputs(tgoto(scap, arg_cols, arg_rows), arg_rows,
-		    term__putc);
+		term_tputs(el, tgoto(scap, arg_cols, arg_rows), arg_rows);
 		break;
 	}
 	return (0);

@@ -1,4 +1,4 @@
-/*	$NetBSD: vi.c,v 1.20 2004/08/13 12:10:39 mycroft Exp $	*/
+/*	$NetBSD: vi.c,v 1.28 2009/02/06 13:14:37 sketch Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,11 +32,17 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * vi.c: Vi mode commands.
@@ -64,8 +70,10 @@ cv_action(EditLine *el, int c)
 			    el->el_line.lastchar - el->el_line.buffer);
 		el->el_chared.c_vcmd.action = NOP;
 		el->el_chared.c_vcmd.pos = 0;
-		el->el_line.lastchar = el->el_line.buffer;
-		el->el_line.cursor = el->el_line.buffer;
+		if (!(c & YANK)) {
+			el->el_line.lastchar = el->el_line.buffer;
+			el->el_line.cursor = el->el_line.buffer;
+		}
 		if (c & INSERT)
 			el->el_map.current = el->el_map.key;
 
@@ -82,7 +90,6 @@ cv_action(EditLine *el, int c)
 private el_action_t
 cv_paste(EditLine *el, int c)
 {
-	char *ptr;
 	c_kill_t *k = &el->el_chared.c_kill;
 	int len = k->last - k->buf;
 
@@ -96,12 +103,12 @@ cv_paste(EditLine *el, int c)
 
 	if (!c && el->el_line.cursor < el->el_line.lastchar)
 		el->el_line.cursor++;
-	ptr = el->el_line.cursor;
 
 	c_insert(el, len);
 	if (el->el_line.cursor + len > el->el_line.lastchar)
 		return (CC_ERROR);
-	(void) memcpy(ptr, k->buf, len +0u);
+	(void) memcpy(el->el_line.cursor, k->buf, len +0u);
+
 	return (CC_REFRESH);
 }
 
@@ -592,13 +599,12 @@ vi_delete_prev_char(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_list_or_eof(EditLine *el, int c __attribute__((__unused__)))
+vi_list_or_eof(EditLine *el, int c)
 {
 
 	if (el->el_line.cursor == el->el_line.lastchar) {
 		if (el->el_line.cursor == el->el_line.buffer) {
-			term_overwrite(el, STReof, 4);	/* then do a EOF */
-			term__flush();
+			term_writec(el, c);	/* then do a EOF */
 			return (CC_EOF);
 		} else {
 			/*
@@ -888,7 +894,7 @@ vi_yank(EditLine *el, int c)
 
 /* vi_comment_out():
  *	Vi comment out current command
- *	[c]
+ *	[#]
  */
 protected el_action_t
 /*ARGSUSED*/
@@ -905,18 +911,19 @@ vi_comment_out(EditLine *el, int c)
 /* vi_alias():
  *	Vi include shell alias
  *	[@]
- * NB: posix impiles that we should enter insert mode, however
+ * NB: posix implies that we should enter insert mode, however
  * this is against historical precedent...
  */
+#ifdef __weak_reference
+extern char *get_alias_text(const char *) __weak_reference(get_alias_text);
+#endif
 protected el_action_t
 /*ARGSUSED*/
 vi_alias(EditLine *el, int c)
 {
-#ifdef __weak_extern
+#ifdef __weak_reference
 	char alias_name[3];
 	char *alias_text;
-	extern char *get_alias_text(const char *);
-	__weak_extern(get_alias_text);
 
 	if (get_alias_text == 0) {
 		return CC_ERROR;
@@ -1014,7 +1021,7 @@ vi_histedit(EditLine *el, int c)
 		return CC_ERROR;
 	case 0:
 		close(fd);
-		execlp("vi", "vi", tempfile, (char *) NULL);
+		execlp("vi", "vi", tempfile, (char *)NULL);
 		exit(0);
 		/*NOTREACHED*/
 	default:
