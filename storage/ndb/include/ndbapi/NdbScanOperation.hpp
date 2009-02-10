@@ -54,6 +54,12 @@ public:
       each fragment, to get a single sorted result set.
     */
     SF_OrderBy = (1 << 24),
+    /**
+     * Same as order by, except that it will automatically 
+     *   add all key columns into the read-mask
+     */
+    SF_OrderByFull = (16 << 24),
+
     /* Index scan in descending order, instead of default ascending. */
     SF_Descending = (2 << 24),
     /*
@@ -395,12 +401,8 @@ protected:
   int addInterpretedCode(Uint32 aTC_ConncetPtr,
                          Uint64 aTransId);
   int handleScanOptions(const ScanOptions *options);
-  int generatePackedReadAIs(const NdbRecord *reseult_record,
-                            bool needAllKeys,
-                            bool& haveBlob);
-  int scanImpl(const unsigned char* result_mask,
-               const NdbScanOperation::ScanOptions *options,
-               bool needAllKeys= false);
+  int generatePackedReadAIs(const NdbRecord *reseult_record, bool& haveBlob);
+  int scanImpl(const NdbScanOperation::ScanOptions *options);
   int scanTableImpl(const NdbRecord *result_record,
                     NdbOperation::LockMode lock_mode,
                     const unsigned char *result_mask,
