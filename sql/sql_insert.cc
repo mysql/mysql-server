@@ -1819,7 +1819,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
-      di->thd.set_db(table_list->db, strlen(table_list->db));
+      di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.query= my_strdup(table_list->table_name, MYF(MY_WME));
       if (di->thd.db == NULL || di->thd.query == NULL)
       {

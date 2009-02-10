@@ -3126,7 +3126,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
       {
         ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
-        table_count+= (file->end_table - file->open_tables);
+        table_count+= (uint) (file->end_table - file->open_tables);
       }
     }
   }
@@ -3313,7 +3313,7 @@ my_bool Query_cache::move_by_type(byte **border,
 		      *pprev = block->pprev,
 		      *pnext = block->pnext,
 		      *new_block =(Query_cache_block *) *border;
-    uint tablename_offset = block->table()->table() - block->table()->db();
+    size_t tablename_offset= block->table()->table() - block->table()->db();
     char *data = (char*) block->data();
     byte *key;
     uint key_length;
@@ -3625,7 +3625,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   filename=  tablename + dirname_length(tablename + 2) + 2;
   /* Find start of databasename */
   for (dbname= filename - 2 ; dbname[-1] != FN_LIBCHAR ; dbname--) ;
-  *db_length= (filename - dbname) - 1;
+  *db_length= (uint) ((filename - dbname) - 1);
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
   DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
@@ -3934,8 +3934,8 @@ my_bool Query_cache::check_integrity(bool locked)
       }
       else
       {
-	int idx = (((byte*)bin) - ((byte*)bins)) /
-	  sizeof(Query_cache_memory_bin);
+	int idx = (int) ((((byte*)bin) - ((byte*)bins)) /
+	  sizeof(Query_cache_memory_bin));
 	if (in_list(bins[idx].free_blocks, block, "free memory"))
 	  result = 1;
       }

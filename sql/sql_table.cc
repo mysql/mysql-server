@@ -66,8 +66,8 @@ static void set_tmp_file_path(char *buf, size_t bufsize, THD *thd);
 uint build_table_path(char *buff, size_t bufflen, const char *db,
                       const char *table, const char *ext)
 {
-  strxnmov(buff, bufflen-1, mysql_data_home, "/", db, "/", table, ext,
-           NullS);
+  strxnmov(buff, (uint) (bufflen - 1), mysql_data_home, "/", db, "/", table, 
+           ext, NullS);
   return unpack_filename(buff,buff);
 }
 
@@ -2537,7 +2537,7 @@ send_result_message:
     case HA_ADMIN_WRONG_CHECKSUM:
     {
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-      protocol->store(ER(ER_VIEW_CHECKSUM), strlen(ER(ER_VIEW_CHECKSUM)),
+      protocol->store(ER(ER_VIEW_CHECKSUM), (uint) strlen(ER(ER_VIEW_CHECKSUM)),
                       system_charset_info);
       break;
     }
@@ -4443,7 +4443,7 @@ static bool check_engine(THD *thd, const char *table_name,
 
 static void set_tmp_file_path(char *buf, size_t bufsize, THD *thd)
 {
-  char *p= strnmov(buf, mysql_tmpdir, bufsize);
+  char *p= strnmov(buf, mysql_tmpdir, (uint) bufsize);
   my_snprintf(p, bufsize - (p - buf), "%s%lx_%lx_%x%s",
               tmp_file_prefix, current_pid,
               thd->thread_id, thd->tmp_table++, reg_ext);

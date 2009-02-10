@@ -30,11 +30,11 @@ void trim_space(const char **text, uint *word_len)
     start++;
   *text= start;
 
-  int len= strlen(start);
+  size_t len= strlen(start);
   const char *end= start + len - 1;
   while (end > start && my_isspace(&my_charset_latin1, *end))
     end--;
-  *word_len= (end - start)+1;
+  *word_len= (uint) (end - start)+1;
 }
 
 /*
@@ -65,7 +65,7 @@ int parse_output_and_get_value(const char *command, const char *word,
                                uint flag)
 {
   FILE *output;
-  uint wordlen;
+  size_t wordlen;
   /* should be enough to store the string from the output */
   enum { MAX_LINE_LEN= 512 };
   char linebuf[MAX_LINE_LEN];
@@ -111,7 +111,7 @@ int parse_output_and_get_value(const char *command, const char *word,
         strmake(result, linep, found_word_len);
       }
       else         /* currently there are only two options */
-        strmake(result, linep, input_buffer_len - 1);
+        strmake(result, linep, (uint) (input_buffer_len - 1));
       rc= 0;
       break;
     }

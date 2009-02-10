@@ -215,7 +215,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
 		       dir->str, file_name->str, (ulong) base));
 
   fn_format(path, file_name->str, dir->str, 0, MY_UNPACK_FILENAME);
-  path_end= strlen(path);
+  path_end= (uint) strlen(path);
 
   // temporary file name
   path[path_end]='~';
@@ -411,7 +411,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     sign++;
   if (*sign != '\n')
     goto frm_error;
-  parser->file_type.length= sign - parser->file_type.str;
+  parser->file_type.length= (uint) (sign - parser->file_type.str);
   // EOS for file signature just for safety
   *sign= '\0';
 
@@ -456,7 +456,7 @@ parse_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
   if (eol >= end)
     return 0;
 
-  str->length= eol - ptr;
+  str->length= (uint) (eol - ptr);
 
   if (!(str->str= alloc_root(mem_root, str->length+1)))
     return 0;
@@ -521,7 +521,7 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
     else
       *write_pos= c;
   }
-  str->str[str->length= write_pos-str->str]= '\0'; // just for safety
+  str->str[str->length= (uint) (write_pos - str->str)]= '\0'; // just for safety
   return FALSE;
 }
 
@@ -548,7 +548,7 @@ parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
   char *eol= strchr(ptr, '\n');
 
   if (eol == 0 || eol >= end ||
-      !(str->str= alloc_root(mem_root, (eol - ptr) + 1)) ||
+      !(str->str= alloc_root(mem_root, (uint) ((eol - ptr) + 1))) ||
       read_escaped_string(ptr, eol, str))
     return 0;
     

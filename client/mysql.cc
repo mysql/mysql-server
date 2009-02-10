@@ -1226,7 +1226,7 @@ sig_handler mysql_sigint(int sig)
     goto err;
   /* kill_buffer is always big enough because max length of %lu is 15 */
   sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
-  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
+  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
   tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
 
@@ -3449,7 +3449,7 @@ static void print_warnings()
 
   /* Get the warnings */
   query= "show warnings";
-  mysql_real_query_for_lazy(query, strlen(query));
+  mysql_real_query_for_lazy(query, (uint) strlen(query));
   mysql_store_result_for_lazy(&result);
 
   /* Bail out when no warnings */
@@ -4329,7 +4329,8 @@ server_version_string(MYSQL *con)
       MYSQL_ROW cur = mysql_fetch_row(result);
       if (cur && cur[0])
       {
-        bufp = strxnmov(bufp, sizeof buf - (bufp - buf), " ", cur[0], NullS);
+        bufp = strxnmov(bufp, (uint) (sizeof buf - (bufp - buf)), " ", cur[0],
+                        NullS);
       }
       mysql_free_result(result);
     }
