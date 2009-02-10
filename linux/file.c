@@ -10,16 +10,13 @@ toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
 }
 
 ssize_t
-toku_os_pwrite (int fd, const void *buf, size_t len, off_t off)
-{
+toku_os_pwrite (int fd, const void *buf, size_t len, off_t off) {
     if (t_pwrite) {
 	return t_pwrite(fd, buf, len, off);
     } else {
 	return pwrite(fd, buf, len, off);
     }
 }
-
-#if 0
 
 static ssize_t (*t_write)(int, const void *, size_t) = 0;
 
@@ -29,7 +26,14 @@ toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     return 0;
 }
 
-#endif
+ssize_t
+toku_os_write (int fd, const void *buf, size_t len) {
+    if (t_pwrite) {
+	return t_write(fd, buf, len);
+    } else {
+	return write(fd, buf, len);
+    }
+}
 
 
 
