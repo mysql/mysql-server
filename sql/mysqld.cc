@@ -682,6 +682,8 @@ bool mysqld_embedded=0;
 bool mysqld_embedded=1;
 #endif
 
+static my_bool plugins_are_initialized= FALSE;
+
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
 #endif
@@ -1176,10 +1178,10 @@ extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
 
+  if (opt_help)
+    usage();
   if (exit_code)
     sql_print_error("Aborting\n");
-  else if (opt_help)
-    usage();
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   wait_for_signal_thread_to_end();
@@ -3841,12 +3843,15 @@ server.");
   if (ha_init_errors())
     DBUG_RETURN(1);
 
-  if (plugin_init(&defaults_argc, defaults_argv,
-                  (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-                  (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
-  {
-    sql_print_error("Failed to initialize plugins.");
-    unireg_abort(1);
+  { 
+    if (plugin_init(&defaults_argc, defaults_argv,
+		    (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
+		    (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
+    {
+      sql_print_error("Failed to initialize plugins.");
+      unireg_abort(1);
+    }
+    plugins_are_initialized= TRUE;  /* Don't separate from init function */
   }
 
   if (opt_help)
@@ -7378,7 +7383,8 @@ static void usage(void)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
   puts("\
-Copyright (C) 2000 MySQL AB, by Monty and others\n\
+Copyright (C) 2000-2008 MySQL AB, by Monty and others\n\
+Copyright (C) 2008 Sun Microsystems, Inc.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
 Starts the MySQL database server\n");
@@ -7407,6 +7413,13 @@ Starts the MySQL database server\n");
 
   /* Print out all the options including plugin supplied options */
   my_print_help_inc_plugins(my_long_options, sizeof(my_long_options)/sizeof(my_option));
+
+  if (! plugins_are_initialized)
+  {
+    puts("\n\
+Plugins have parameters that are not reflected in this list\n\
+because execution stopped before plugins were initialized.");
+  }
 
   puts("\n\
 To see what values a running MySQL server is using, type\n\
