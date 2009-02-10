@@ -22,10 +22,7 @@ show variables like "%character_set_ser%";
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-create table t1 (a int) ENGINE=NDB;
-drop table t1;
 
---connection master
 CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
                     `nom` char(4) default NULL,
                     `prenom` char(4) default NULL,
@@ -35,8 +32,12 @@ CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
 INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
 select * from t1 order by nid;
 
---sync_slave_with_master
+sync_slave_with_master;
 # connect to slave and ensure data it there.
---connection slave
+connection slave;
 select * from t1 order by nid;
 
+--echo ==== clean up ====
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;

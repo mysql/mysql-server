@@ -53,6 +53,8 @@
 
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
+
 static const char *HA_ERR(int i)
 {
   switch (i) {
@@ -810,9 +812,8 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   if (is_artificial_event())
   {
     /*
-      We should not do any cleanup on slave when reading this. We
-      mark this by setting log_pos to 0.  Start_log_event_v3() will
-      detect this on reading and set artificial_event=1 for the event.
+      Artificial events are automatically generated and do not exist
+      in master's binary log, so log_pos should be set to 0.
     */
     log_pos= 0;
   }
@@ -2724,11 +2725,13 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       bool need_comma= 0;
       my_b_printf(file, "SET ");
       print_set_option(file, tmp, OPTION_NO_FOREIGN_KEY_CHECKS, ~flags2,
-                   "@@session.foreign_key_checks", &need_comma);
+                       "@@session.foreign_key_checks", &need_comma);
       print_set_option(file, tmp, OPTION_AUTO_IS_NULL, flags2,
-                   "@@session.sql_auto_is_null", &need_comma);
+                       "@@session.sql_auto_is_null", &need_comma);
       print_set_option(file, tmp, OPTION_RELAXED_UNIQUE_CHECKS, ~flags2,
-                   "@@session.unique_checks", &need_comma);
+                       "@@session.unique_checks", &need_comma);
+      print_set_option(file, tmp, OPTION_NOT_AUTOCOMMIT, ~flags2,
+                       "@@session.autocommit", &need_comma);
       my_b_printf(file,"%s\n", print_event_info->delimiter);
       print_event_info->flags2= flags2;
     }
@@ -2893,7 +2896,37 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-  const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock)
+  {
+    /*
+      Cleaning-up the last statement context:
+      the terminal event of the current statement flagged with
+      STMT_END_F got filtered out in ndb circular replication.
+    */
+    int error;
+    char llbuff[22];
+    if ((error= rows_event_stmt_cleanup(const_cast<Relay_log_info*>(rli), thd)))
+    {
+      const_cast<Relay_log_info*>(rli)->report(ERROR_LEVEL, error,
+                  "Error in cleaning up after an event preceeding the commit; "
+                  "the group log file/position: %s %s",
+                  const_cast<Relay_log_info*>(rli)->group_master_log_name,
+                  llstr(const_cast<Relay_log_info*>(rli)->group_master_log_pos,
+                        llbuff));
+    }
+    /*
+      Executing a part of rli->stmt_done() logics that does not deal
+      with group position change. The part is redundant now but is 
+      future-change-proof addon, e.g if COMMIT handling will start checking
+      invariants like IN_STMT flag must be off at committing the transaction.
+    */
+    const_cast<Relay_log_info*>(rli)->inc_event_relay_log_pos();
+    const_cast<Relay_log_info*>(rli)->clear_flag(Relay_log_info::IN_STMT);
+  }
+  else
+  {
+    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  }
 
   /*
     Note:   We do not need to execute reset_one_shot_variables() if this
@@ -3196,7 +3229,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 Start_log_event_v3::Start_log_event_v3()
   :Log_event(), created(0), binlog_version(BINLOG_VERSION),
-   artificial_event(0), dont_set_created(0)
+   dont_set_created(0)
 {
   memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
 }
@@ -3244,7 +3277,7 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(&cache, "# Warning: this binlog was not closed properly. "
                   "Most probably mysqld crashed writing it.\n");
   }
-  if (!artificial_event && created)
+  if (!is_artificial_event() && created)
   {
 #ifdef WHEN_WE_HAVE_THE_RESET_CONNECTION_SQL_COMMAND
     /*
@@ -3287,8 +3320,6 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   // prevent overrun if log is corrupted on disk
   server_version[ST_SERVER_VER_LEN-1]= 0;
   created= uint4korr(buf+ST_CREATED_OFFSET);
-  /* We use log_pos to mark if this was an artificial event or not */
-  artificial_event= (log_pos == 0);
   dont_set_created= 1;
 }
 
@@ -3730,7 +3761,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     original place when it comes to us; we'll know this by checking
     log_pos ("artificial" events have log_pos == 0).
   */
-  if (!artificial_event && created && thd->transaction.all.ha_list)
+  if (!is_artificial_event() && created && thd->transaction.all.ha_list)
   {
     /* This is not an error (XA is safe), just an information */
     rli->report(INFORMATION_LEVEL, 0,
@@ -4667,6 +4698,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 #endif
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
+  if (flags & RELAY_LOG)
+    set_relay_log_event();
   DBUG_VOID_RETURN;
 }
 #endif
@@ -4738,8 +4771,6 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
   DBUG_PRINT("info", ("new_log_ident: %s", this->new_log_ident));
   DBUG_PRINT("info", ("pos: %s", llstr(this->pos, buf)));
 
-  pthread_mutex_lock(&rli->data_lock);
-  rli->event_relay_log_pos= my_b_tell(rli->cur_log);
   /*
     If we are in a transaction or in a group: the only normal case is
     when the I/O thread was copying a big transaction, then it was
@@ -4757,23 +4788,24 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     relay log, which shall not change the group positions.
   */
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
+      !is_relay_log_event() &&
       !rli->is_in_group())
   {
+    pthread_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
     rli->notify_group_master_log_name_update();
-    rli->group_master_log_pos= pos;
-    strmake(rli->group_relay_log_name, rli->event_relay_log_name,
-            sizeof(rli->group_relay_log_name) - 1);
-    rli->notify_group_relay_log_name_update();
-    rli->group_relay_log_pos= rli->event_relay_log_pos;
+    rli->inc_group_relay_log_pos(pos, TRUE /* skip_lock */);
     DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
                         "new group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
+    pthread_mutex_unlock(&rli->data_lock);
+    flush_relay_log_info(rli);
+    
     /*
       Reset thd->options and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
@@ -4787,9 +4819,9 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
   }
-  pthread_mutex_unlock(&rli->data_lock);
-  pthread_cond_broadcast(&rli->data_cond);
-  flush_relay_log_info(rli);
+  else
+    rli->inc_event_relay_log_pos();
+
 
   DBUG_RETURN(0);
 }
@@ -7403,16 +7435,20 @@ Rows_log_event::do_shall_skip(Relay_log_info *rli)
     return Log_event::do_shall_skip(rli);
 }
 
-int
-Rows_log_event::do_update_pos(Relay_log_info *rli)
+/**
+   The function is called at Rows_log_event statement commit time,
+   normally from Rows_log_event::do_update_pos() and possibly from
+   Query_log_event::do_apply_event() of the COMMIT.
+   The function commits the last statement for engines, binlog and
+   releases resources have been allocated for the statement.
+  
+   @retval  0         Ok.
+   @retval  non-zero  Error at the commit.
+ */
+
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
 {
-  DBUG_ENTER("Rows_log_event::do_update_pos");
-  int error= 0;
-
-  DBUG_PRINT("info", ("flags: %s",
-                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
-
-  if (get_flags(STMT_END_F))
+  int error;
   {
     /*
       This is the end of a statement or transaction, so close (and
@@ -7454,14 +7490,39 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
     thd->reset_current_stmt_binlog_row_based();
 
-    rli->cleanup_context(thd, 0);
-    if (error == 0)
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+  }
+  return error;
+}
+
+/**
+   The method either increments the relay log position or
+   commits the current statement and increments the master group 
+   possition if the event is STMT_END_F flagged and
+   the statement corresponds to the autocommit query (i.e replicated
+   without wrapping in BEGIN/COMMIT)
+
+   @retval 0         Success
+   @retval non-zero  Error in the statement commit
+ */
+int
+Rows_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_update_pos");
+  int error= 0;
+
+  DBUG_PRINT("info", ("flags: %s",
+                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  if (get_flags(STMT_END_F))
+  {
+    if ((error= rows_event_stmt_cleanup(rli, thd)) == 0)
     {
       /*
         Indicate that a statement is finished.
         Step the group log position if we are not in a transaction,
         otherwise increase the event log position.
-       */
+      */
       rli->stmt_done(log_pos, when);
 
       /*
@@ -7475,11 +7536,13 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
       thd->clear_error();
     }
     else
+    {
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
                   get_type_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
+    }
   }
   else
   {

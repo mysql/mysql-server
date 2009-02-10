@@ -1,0 +1,50 @@
+An approximate method to merge from upstream is:
+
+	# Fetch latest from upstream (we also include some compat stuff)
+	$ CVS_RSH=ssh; export CVS_RSH
+	$ CVSROOT="anoncvs@stripped:/cvsroot"
+	$ cvs co -d libedit -P src/lib/libedit
+	$ mkdir libedit/np
+	$ for f in src/common/lib/libc/string/strlcat.c \
+	>          src/common/lib/libc/string/strlcpy.c \
+	>          src/include/vis.h \
+	>          src/lib/libc/gen/unvis.c \
+	>          src/lib/libc/gen/vis.c \
+	>          src/tools/compat/fgetln.c
+	> do
+	>   cvs co -P ${f}
+        >   mv ${f} libedit/np
+	> done
+	$ rm -rf src
+	$ cd libedit
+
+	# Remove files we don't need/use
+	$ rm -rf CVS TEST Makefile shlib_version *.[0-9]
+	$ (cd readline; rm -rf CVS Makefile)
+
+	# Rename files to match our naming
+	$ mv makelist makelist.sh
+	$ mv term.h el_term.h
+
+	# Remove NetBSD-specific bits
+	$ for file in $(find . -type f)
+	> do
+	>   cp ${file} ${file}.orig
+	>   sed -e 's/#include "term.h"/#include "el_term.h"/g' \
+	>       -e 's/sig_handler/el_sig_handler/g' \
+	>       -e 's/isprint/el_isprint/g' \
+	>       -e '/^__RCSID/d' \
+	>       ${file}.orig >${file}
+	>   rm ${file}.orig
+	> done
+
+then merge remaining bits by hand.  All MySQL-specific changes should be
+marked with XXXMYSQL to make them easier to identify and merge.  To generate
+a 'clean' diff against upstream you can use the above commands but use
+
+	cvs co -D "2009/02/06 20:09:00" [..]
+
+to fetch the baseline of most recent merge.
+
+Please feed any fixes to Jonathan Perkin <jperkin@stripped> who will endeavour
+to merge them upstream and keep diffs minimal.

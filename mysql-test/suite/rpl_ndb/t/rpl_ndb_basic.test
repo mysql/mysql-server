@@ -184,22 +184,21 @@ set GLOBAL slave_transaction_retries=1;
 --echo **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 
+--echo **** On Slave ****
 # Wait for deadlock to be detected.
 # When detected, the slave will stop, so we just wait for it to stop.
+connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
 # Replication should have stopped, since max retries were not enough.
 # verify with show slave status
---connection slave
---echo **** On Slave ****
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 19 <Last_Errno> 20 <Last_Error> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error> 37 <Last_SQL_Errno> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS;
 
 # now set max retries high enough to succeed, and start slave again
 set GLOBAL slave_transaction_retries=10;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+source include/start_slave.inc;
 # Wait for deadlock to be detected and retried.
 # We want to wait until at least one retry has been made, but before
 # the slave stops. currently, there is no safe way to do that: we

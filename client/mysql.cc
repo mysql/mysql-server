@@ -2044,7 +2044,8 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }
 #endif
     if (!*ml_comment && inchar == '\\' &&
-        !(mysql.server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES))
+        !(*in_string && 
+          (mysql.server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)))
     {
       // Found possbile one character command like \c
 
@@ -2269,8 +2270,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(USE_NEW_READLINE_INTERFACE) 
 extern "C" char *no_completion(const char*,int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
 #endif
