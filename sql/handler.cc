@@ -429,14 +429,11 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
                                 MYF(MY_WME | MY_ZEROFILL));
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
-  if (plugin->plugin->init)
+  if (plugin->plugin->init && plugin->plugin->init(hton))
   {
-    if (plugin->plugin->init(hton))
-    {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
-      goto err;
-    }
+    sql_print_error("Plugin '%s' init function returned error.",
+                    plugin->name.str);
+    goto err;  
   }
 
   /*
@@ -463,17 +460,13 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         if (idx == (int) DB_TYPE_DEFAULT)
         {
           sql_print_warning("Too many storage engines!");
-          DBUG_RETURN(1);
+          goto err_deinit;
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
           sql_print_warning("Storage engine '%s' has conflicting typecode. "
                             "Assigning value %d.", plugin->plugin->name, idx);
         hton->db_type= (enum legacy_db_type) idx;
       }
-      installed_htons[hton->db_type]= hton;
-      tmp= hton->savepoint_offset;
-      hton->savepoint_offset= savepoint_alloc_size;
-      savepoint_alloc_size+= tmp;
 
       /*
         In case a plugin is uninstalled and re-installed later, it should
@@ -494,11 +487,14 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         {
           sql_print_error("Too many plugins loaded. Limit is %lu. "
                           "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
-          goto err;
+          goto err_deinit;
         }
         hton->slot= total_ha++;
       }
-
+      installed_htons[hton->db_type]= hton;
+      tmp= hton->savepoint_offset;
+      hton->savepoint_offset= savepoint_alloc_size;
+      savepoint_alloc_size+= tmp;
       hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
@@ -530,7 +526,18 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   };
 
   DBUG_RETURN(0);
+
+err_deinit:
+  /* 
+    Let plugin do its inner deinitialization as plugin->init() 
+    was successfully called before.
+  */
+  if (plugin->plugin->deinit)
+    (void) plugin->plugin->deinit(NULL);
+          
 err:
+  my_free((uchar*) hton, MYF(0));
+  plugin->data= NULL;
   DBUG_RETURN(1);
 }
 
