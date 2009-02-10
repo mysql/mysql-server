@@ -295,24 +295,18 @@ os_fast_mutex_free(
 
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
 /**************************************************************
-Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins. */
-UNIV_INLINE
-ibool
-os_compare_and_swap(
-/*================*/
-						/* out: true if swapped */
-	volatile lint*		ptr,		/* in: pointer to target */
-	lint			oldVal,		/* in: value to compare to */
-	lint			newVal);	/* in: value to swap in */
+Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins.
+Returns true if swapped, ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+#define os_compare_and_swap(ptr, old_val, new_val) \
+	__sync_bool_compare_and_swap(ptr, old_val, new_val)
+
 /**************************************************************
-Atomic increment for InnoDB. Currently requires GCC atomic builtins. */
-UNIV_INLINE
-lint
-os_atomic_increment(
-/*================*/
-						/* out: resulting value */
-	volatile lint*		ptr,		/* in: pointer to target */
-	lint			amount);	/* in: amount of increment */
+Atomic increment for InnoDB. Currently requires GCC atomic builtins.
+Returns the resulting value, ptr is pointer to target, amount is the
+amount of increment. */
+#define os_atomic_increment(ptr, amount) \
+	__sync_add_and_fetch(ptr, amount)
 
 #endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
