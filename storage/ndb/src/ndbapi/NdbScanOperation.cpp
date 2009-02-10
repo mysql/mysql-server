@@ -869,8 +869,8 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
       But cannot mask pseudo columns, nor key columns in ordered scans.
     */
     attrId= col->attrId;
-    if ( result_mask && !(attrId & AttributeHeader::PSEUDO) &&
-         !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
+    if ( !(attrId & AttributeHeader::PSEUDO) &&
+         !BitmaskImpl::get(MASKSZ, m_read_mask, attrId))
     {
       continue;
     }
