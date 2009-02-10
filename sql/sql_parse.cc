@@ -3046,13 +3046,31 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     }  /* unlikely */
 #endif
-    MYSQL_MULTI_UPDATE_START(thd->query);
-    res= mysql_multi_update(thd, all_tables,
-                            &select_lex->item_list,
-                            &lex->value_list,
-                            select_lex->where,
-                            select_lex->options,
-                            lex->duplicates, lex->ignore, unit, select_lex);
+    {
+      multi_update *result_obj;
+      MYSQL_MULTI_UPDATE_START(thd->query);
+      res= mysql_multi_update(thd, all_tables,
+                              &select_lex->item_list,
+                              &lex->value_list,
+                              select_lex->where,
+                              select_lex->options,
+                              lex->duplicates,
+                              lex->ignore,
+                              unit,
+                              select_lex,
+                              &result_obj);
+      if (result_obj)
+      {
+        MYSQL_MULTI_UPDATE_DONE(res, result_obj->num_found(),
+                                result_obj->num_updated());
+        res= FALSE; /* Ignore errors here */
+        delete result_obj;
+      }
+      else
+      {
+        MYSQL_MULTI_UPDATE_DONE(1, 0, 0);
+      }
+    }
     break;
   }
   case SQLCOM_REPLACE:
