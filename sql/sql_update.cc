@@ -1193,19 +1193,20 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *values,
                         COND *conds,
                         ulonglong options,
-                        enum enum_duplicates handle_duplicates, bool ignore,
-                        SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+                        enum enum_duplicates handle_duplicates,
+                        bool ignore,
+                        SELECT_LEX_UNIT *unit,
+                        SELECT_LEX *select_lex,
+                        multi_update **result)
 {
-  multi_update *result;
   bool res;
   DBUG_ENTER("mysql_multi_update");
 
-  if (!(result= new multi_update(table_list,
+  if (!(*result= new multi_update(table_list,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
 				 handle_duplicates, ignore)))
   {
-    MYSQL_MULTI_UPDATE_DONE(1, 0, 0);
     DBUG_RETURN(TRUE);
   }
 
@@ -1221,20 +1222,18 @@ bool mysql_multi_update(THD *thd,
                       (ORDER *)NULL,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
-                      result, unit, select_lex);
+                      *result, unit, select_lex);
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
                      (int) thd->is_error()));
   res|= thd->is_error();
   if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
-    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    result->abort();
+    (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    (*result)->abort();
   }
-  MYSQL_MULTI_UPDATE_DONE(res, result->num_found(), result->num_updated());
-  delete result;
   thd->abort_on_warning= 0;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(res);
 }
 
 
