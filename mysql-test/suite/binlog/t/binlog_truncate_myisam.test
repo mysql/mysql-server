@@ -1,0 +1,4 @@
+source include/have_log_bin.inc;
+
+let $engine = MyISAM;
+source extra/binlog_tests/binlog_truncate.test;
