@@ -1,11 +1,11 @@
-/*	$NetBSD: fgetln.c,v 1.2 2003/12/10 01:30:27 lukem Exp $	*/
+/*	$NetBSD: filecomplete.h,v 1.6 2008/04/29 06:53:01 martin Exp $	*/
 
 /*-
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Christos Zoulas.
+ * by Jaromir Dolecek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -35,54 +28,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _FILECOMPLETE_H_
+#define _FILECOMPLETE_H_
 
-#include <config.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
+int fn_complete(EditLine *,
+    char *(*)(const char *, int),
+    char **(*)(const char *, int, int),
+    const char *, const char *, const char *(*)(const char *), int,
+    int *, int *, int *, int *);
 
+void fn_display_match_list(EditLine *, char **, int, int);
+char *fn_tilde_expand(const char *);
+char *fn_filename_completion_function(const char *, int);
 
-char *
-fgetln(FILE *fp, size_t *len)
-{
-	static char *buf = NULL;
-	static size_t bufsiz = 0;
-	char *ptr;
-
-
-	if (buf == NULL) {
-		bufsiz = BUFSIZ;
-		if ((buf = malloc(bufsiz)) == NULL)
-			return NULL;
-	}
-
-	if (fgets(buf, bufsiz, fp) == NULL)
-		return NULL;
-	*len = 0;
-
-	while ((ptr = strchr(&buf[*len], '\n')) == NULL) {
-		size_t nbufsiz = bufsiz + BUFSIZ;
-		char *nbuf = realloc(buf, nbufsiz);
-
-		if (nbuf == NULL) {
-			int oerrno = errno;
-			free(buf);
-			errno = oerrno;
-			buf = NULL;
-			return NULL;
-		} else
-			buf = nbuf;
-
-		*len = bufsiz;
-		if (fgets(&buf[bufsiz], BUFSIZ, fp) == NULL)
-			return buf;
-
-		bufsiz = nbufsiz;
-	}
-
-	*len = (ptr - buf) + 1;
-	return buf;
-}
-
+#endif

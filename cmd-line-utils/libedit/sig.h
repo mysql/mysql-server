@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.h,v 1.5 2003/08/07 16:44:33 agc Exp $	*/
+/*	$NetBSD: sig.h,v 1.6 2008/07/12 15:27:14 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -51,7 +51,6 @@
 #define	ALLSIGS		\
 	_DO(SIGINT)	\
 	_DO(SIGTSTP)	\
-	_DO(SIGSTOP)	\
 	_DO(SIGQUIT)	\
 	_DO(SIGHUP)	\
 	_DO(SIGTERM)	\

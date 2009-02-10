@@ -2247,8 +2247,10 @@ static char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(USE_NEW_READLINE_INTERFACE) 
 char *no_completion(const char*,int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+int no_completion(const char*,int)
 #else
 char *no_completion()
 #endif

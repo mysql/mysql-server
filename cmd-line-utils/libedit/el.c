@@ -1,4 +1,4 @@
-/*	$NetBSD: el.c,v 1.39 2004/07/08 00:51:36 christos Exp $	*/
+/*	$NetBSD: el.c,v 1.47 2009/01/18 12:17:24 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,7 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * el.c: EditLine interface functions
@@ -58,9 +64,12 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 
 	memset(el, 0, sizeof(EditLine));
 
-	el->el_infd = fileno(fin);
+	el->el_infile = fin;
 	el->el_outfile = fout;
 	el->el_errfile = ferr;
+
+	el->el_infd = fileno(fin);
+
 	if ((el->el_prog = el_strdup(prog)) == NULL) {
 		el_free(el);
 		return NULL;
@@ -126,7 +135,7 @@ el_reset(EditLine *el)
 {
 
 	tty_cookedmode(el);
-	ch_reset(el);		/* XXX: Do we want that? */
+	ch_reset(el, 0);		/* XXX: Do we want that? */
 }
 
 
@@ -136,29 +145,29 @@ el_reset(EditLine *el)
 public int
 el_set(EditLine *el, int op, ...)
 {
-	va_list va;
+	va_list ap;
 	int rv = 0;
 
 	if (el == NULL)
 		return (-1);
-	va_start(va, op);
+	va_start(ap, op);
 
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
-		rv = prompt_set(el, va_arg(va, el_pfunc_t), op);
+		rv = prompt_set(el, va_arg(ap, el_pfunc_t), op);
 		break;
 
 	case EL_TERMINAL:
-		rv = term_set(el, va_arg(va, char *));
+		rv = term_set(el, va_arg(ap, char *));
 		break;
 
 	case EL_EDITOR:
-		rv = map_set_editor(el, va_arg(va, char *));
+		rv = map_set_editor(el, va_arg(ap, char *));
 		break;
 
 	case EL_SIGNAL:
-		if (va_arg(va, int))
+		if (va_arg(ap, int))
 			el->el_flags |= HANDLE_SIGNALS;
 		else
 			el->el_flags &= ~HANDLE_SIGNALS;
@@ -167,6 +176,7 @@ el_set(EditLine *el, int op, ...)
 	case EL_BIND:
 	case EL_TELLTC:
 	case EL_SETTC:
+	case EL_GETTC:
 	case EL_ECHOTC:
 	case EL_SETTY:
 	{
@@ -174,7 +184,7 @@ el_set(EditLine *el, int op, ...)
 		int i;
 
 		for (i = 1; i < 20; i++)
-			if ((argv[i] = va_arg(va, char *)) == NULL)
+			if ((argv[i] = va_arg(ap, char *)) == NULL)
 				break;
 
 		switch (op) {
@@ -213,9 +223,9 @@ el_set(EditLine *el, int op, ...)
 
 	case EL_ADDFN:
 	{
-		char *name = va_arg(va, char *);
-		char *help = va_arg(va, char *);
-		el_func_t func = va_arg(va, el_func_t);
+		char *name = va_arg(ap, char *);
+		char *help = va_arg(ap, char *);
+		el_func_t func = va_arg(ap, el_func_t);
 
 		rv = map_addfunc(el, name, help, func);
 		break;
@@ -223,15 +233,15 @@ el_set(EditLine *el, int op, ...)
 
 	case EL_HIST:
 	{
-		hist_fun_t func = va_arg(va, hist_fun_t);
-		ptr_t ptr = va_arg(va, char *);
+		hist_fun_t func = va_arg(ap, hist_fun_t);
+		ptr_t ptr = va_arg(ap, char *);
 
 		rv = hist_set(el, func, ptr);
 		break;
 	}
 
 	case EL_EDITMODE:
-		if (va_arg(va, int))
+		if (va_arg(ap, int))
 			el->el_flags &= ~EDIT_DISABLED;
 		else
 			el->el_flags |= EDIT_DISABLED;
@@ -240,17 +250,17 @@ el_set(EditLine *el, int op, ...)
 
 	case EL_GETCFN:
 	{
-		el_rfunc_t rc = va_arg(va, el_rfunc_t);
+		el_rfunc_t rc = va_arg(ap, el_rfunc_t);
 		rv = el_read_setfn(el, rc);
 		break;
 	}
 
 	case EL_CLIENTDATA:
-		el->el_data = va_arg(va, void *);
+		el->el_data = va_arg(ap, void *);
 		break;
 
 	case EL_UNBUFFERED:
-		rv = va_arg(va, int);
+		rv = va_arg(ap, int);
 		if (rv && !(el->el_flags & UNBUFFERED)) {
 			el->el_flags |= UNBUFFERED;
 			read_prepare(el);
@@ -262,7 +272,7 @@ el_set(EditLine *el, int op, ...)
 		break;
 
 	case EL_PREP_TERM:
-		rv = va_arg(va, int);
+		rv = va_arg(ap, int);
 		if (rv)
 			(void) tty_rawmode(el);
 		else
@@ -270,12 +280,45 @@ el_set(EditLine *el, int op, ...)
 		rv = 0;
 		break;
 
+	case EL_SETFP:
+	{
+		FILE *fp;
+		int what;
+
+		what = va_arg(ap, int);
+		fp = va_arg(ap, FILE *);
+
+		rv = 0;
+		switch (what) {
+		case 0:
+			el->el_infile = fp;
+			el->el_infd = fileno(fp);
+			break;
+		case 1:
+			el->el_outfile = fp;
+			break;
+		case 2:
+			el->el_errfile = fp;
+			break;
+		default:
+			rv = -1;
+			break;
+		}
+		break;
+	}
+
+	case EL_REFRESH:
+		re_clear_display(el);
+		re_refresh(el);
+		term__flush(el);
+		break;
+
 	default:
 		rv = -1;
 		break;
 	}
 
-	va_end(va);
+	va_end(ap);
 	return (rv);
 }
 
@@ -284,90 +327,71 @@ el_set(EditLine *el, int op, ...)
  *	retrieve the editline parameters
  */
 public int
-el_get(EditLine *el, int op, void *ret)
+el_get(EditLine *el, int op, ...)
 {
+	va_list ap;
 	int rv;
 
-	if (el == NULL || ret == NULL)
-		return (-1);
+	if (el == NULL)
+		return -1;
+
+	va_start(ap, op);
+
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
-		rv = prompt_get(el, (void *) &ret, op);
+		rv = prompt_get(el, va_arg(ap, el_pfunc_t *), op);
 		break;
 
 	case EL_EDITOR:
-		rv = map_get_editor(el, (void *) &ret);
+		rv = map_get_editor(el, va_arg(ap, const char **));
 		break;
 
 	case EL_SIGNAL:
-		*((int *) ret) = (el->el_flags & HANDLE_SIGNALS);
+		*va_arg(ap, int *) = (el->el_flags & HANDLE_SIGNALS);
 		rv = 0;
 		break;
 
 	case EL_EDITMODE:
-		*((int *) ret) = (!(el->el_flags & EDIT_DISABLED));
+		*va_arg(ap, int *) = !(el->el_flags & EDIT_DISABLED);
 		rv = 0;
 		break;
 
 	case EL_TERMINAL:
-		term_get(el, (const char **)ret);
+		term_get(el, va_arg(ap, const char **));
 		rv = 0;
 		break;
 
-#if 0				/* XXX */
-	case EL_BIND:
-	case EL_TELLTC:
-	case EL_SETTC:
-	case EL_ECHOTC:
-	case EL_SETTY:
+	case EL_GETTC:
 	{
-		const char *argv[20];
+		static char name[] = "gettc";
+		char *argv[20];
 		int i;
 
- 		for (i = 1; i < sizeof(argv) / sizeof(argv[0]); i++)
-			if ((argv[i] = va_arg(va, char *)) == NULL)
+ 		for (i = 1; i < (int)(sizeof(argv) / sizeof(argv[0])); i++)
+			if ((argv[i] = va_arg(ap, char *)) == NULL)
 				break;
 
 		switch (op) {
-		case EL_BIND:
-			argv[0] = "bind";
-			rv = map_bind(el, i, argv);
-			break;
-
-		case EL_TELLTC:
-			argv[0] = "telltc";
-			rv = term_telltc(el, i, argv);
-			break;
-
-		case EL_SETTC:
-			argv[0] = "settc";
-			rv = term_settc(el, i, argv);
-			break;
-
-		case EL_ECHOTC:
-			argv[0] = "echotc";
-			rv = term_echotc(el, i, argv);
-			break;
-
-		case EL_SETTY:
-			argv[0] = "setty";
-			rv = tty_stty(el, i, argv);
+		case EL_GETTC:
+			argv[0] = name;
+			rv = term_gettc(el, i, argv);
 			break;
 
 		default:
 			rv = -1;
-			EL_ABORT((el->errfile, "Bad op %d\n", op));
+			EL_ABORT((el->el_errfile, "Bad op %d\n", op));
 			break;
 		}
 		break;
 	}
 
+#if 0 /* XXX */
 	case EL_ADDFN:
 	{
-		char *name = va_arg(va, char *);
-		char *help = va_arg(va, char *);
-		el_func_t func = va_arg(va, el_func_t);
+		char *name = va_arg(ap, char *);
+		char *help = va_arg(ap, char *);
+		el_func_t func = va_arg(ap, el_func_t);
 
 		rv = map_addfunc(el, name, help, func);
 		break;
@@ -375,31 +399,57 @@ el_get(EditLine *el, int op, void *ret)
 
 	case EL_HIST:
 		{
-			hist_fun_t func = va_arg(va, hist_fun_t);
-			ptr_t ptr = va_arg(va, char *);
+			hist_fun_t func = va_arg(ap, hist_fun_t);
+			ptr_t ptr = va_arg(ap, char *);
 			rv = hist_set(el, func, ptr);
 		}
 		break;
 #endif /* XXX */
 
 	case EL_GETCFN:
-		*((el_rfunc_t *)ret) = el_read_getfn(el);
+		*va_arg(ap, el_rfunc_t *) = el_read_getfn(el);
 		rv = 0;
 		break;
 
 	case EL_CLIENTDATA:
-		*((void **)ret) = el->el_data;
+		*va_arg(ap, void **) = el->el_data;
 		rv = 0;
 		break;
 
 	case EL_UNBUFFERED:
-		*((int *) ret) = (!(el->el_flags & UNBUFFERED));
+		*va_arg(ap, int *) = (!(el->el_flags & UNBUFFERED));
 		rv = 0;
 		break;
 
+	case EL_GETFP:
+	{
+		int what;
+		FILE **fpp;
+
+		what = va_arg(ap, int);
+		fpp = va_arg(ap, FILE **);
+		rv = 0;
+		switch (what) {
+		case 0:
+			*fpp = el->el_infile;
+			break;
+		case 1:
+			*fpp = el->el_outfile;
+			break;
+		case 2:
+			*fpp = el->el_errfile;
+			break;
+		default:
+			rv = -1;
+			break;
+		}
+		break;
+	}
 	default:
 		rv = -1;
+		break;
 	}
+	va_end(ap);
 
 	return (rv);
 }
@@ -428,17 +478,17 @@ el_source(EditLine *el, const char *fname)
 
 	fp = NULL;
 	if (fname == NULL) {
+#ifdef HAVE_ISSETUGID
 		static const char elpath[] = "/.editrc";
+/* XXXMYSQL: Portability fix (for which platforms?) */
 #ifdef MAXPATHLEN
 		char path[MAXPATHLEN];
 #else
 		char path[4096];
 #endif
 
-#ifdef HAVE_ISSETUGID
 		if (issetugid())
 			return (-1);
-#endif
 		if ((ptr = getenv("HOME")) == NULL)
 			return (-1);
 		if (strlcpy(path, ptr, sizeof(path)) >= sizeof(path))
@@ -446,6 +496,14 @@ el_source(EditLine *el, const char *fname)
 		if (strlcat(path, elpath, sizeof(path)) >= sizeof(path))
 			return (-1);
 		fname = path;
+#else
+		/*
+		 * If issetugid() is missing, always return an error, in order
+		 * to keep from inadvertently opening up the user to a security
+		 * hole.
+		 */
+		return (-1);
+#endif
 	}
 	if (fp == NULL)
 		fp = fopen(fname, "r");
