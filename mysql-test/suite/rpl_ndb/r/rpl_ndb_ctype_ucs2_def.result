@@ -11,8 +11,6 @@ show variables like "%character_set_ser%";
 Variable_name	Value
 character_set_server	ucs2
 DROP TABLE IF EXISTS t1;
-create table t1 (a int) ENGINE=NDB;
-drop table t1;
 CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
 `nom` char(4) default NULL,
 `prenom` char(4) default NULL,
@@ -25,3 +23,5 @@ nid	nom	prenom
 select * from t1 order by nid;
 nid	nom	prenom
 1	XYZ1	ABC1
+==== clean up ====
+DROP TABLE t1;

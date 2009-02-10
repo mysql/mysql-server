@@ -10,7 +10,7 @@ USE test;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/memory_tb3.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/memory_tb3.txt'
 into table tb3;
 
 
@@ -109,7 +109,7 @@ let $message= Testcase 3.5.10.4:;
 	set @counter= 0;
 	select @counter as 'Rows Loaded Before';
 	--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
-	eval load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t9.txt' into table tb_load;
+	eval load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/t9.txt' into table tb_load;
 
 	select @counter as 'Rows Loaded After';
 	Select * from tb_load order by f1 limit 10;

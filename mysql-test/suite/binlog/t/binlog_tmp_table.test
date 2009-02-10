@@ -1,0 +1,83 @@
+# ==== Purpose ====
+#
+# Test if statements used temporary tables are binlogged correctly
+#
+# ==== Method ====
+#
+# Use two connections, use temporary tables on both of them, and by
+# switching connections between statements, the test can check if the
+# statements are logged with the correct thread id.
+# 
+# The statements current tested include:
+#   CREATE TEMPORARY TABLE
+#   CREATE TEMPORARY TABLE LIKE
+#   INSERT
+#   REPLACE
+#   UPDATE
+#   INSERT SELECT
+#   TRUNCATE
+#
+# Note: When adding new query statements, please add them between the
+# two 'flush logs'. And aslo please make sure the connection is
+# switched between each statement.
+#
+# ==== Related bugs ====
+#
+# BUG#35583 mysqlbinlog replay fails with ERROR 1146 when temp tables are used
+#
+source include/have_log_bin.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+create table foo (a int);
+
+flush logs;
+
+connection master;
+create temporary table tmp1_foo like foo;
+connection master1;
+create temporary table tmp2_foo (a int);
+
+connection master;
+insert into tmp1_foo values (1), (2), (3), (4);
+connection master1;
+replace into tmp2_foo values (1), (2), (3), (4);
+
+connection master;
+update tmp1_foo set a=2*a-1;
+connection master1;
+update tmp2_foo set a=2*a;
+
+connection master;
+delete from tmp1_foo where a < 5;
+connection master1;
+delete from tmp2_foo where a < 5;
+
+connection master;
+insert into foo select * from tmp1_foo;
+connection master1;
+insert into foo select * from tmp2_foo;
+
+connection master;
+truncate table tmp1_foo;
+connection master1;
+truncate table tmp2_foo;
+
+flush logs;
+
+connection default;
+select * from foo;
+
+# prepare for the replay
+drop table foo;
+create table foo (a int);
+
+# replay from binary log
+let $MYSQLD_DATADIR= `select @@datadir`;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000002 | $MYSQL;
+select * from foo;
+
+# clean up
+drop table foo;

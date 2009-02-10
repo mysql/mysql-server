@@ -1,0 +1,39 @@
+# NOTE:  Keep any include/ files that will kill / skip a test BEFORE any others
+# having federated.inc before have_innodb.inc allows for an orphaned database
+# that can cause other tests to fail.
+# See Bug #40645 Test main.federated_innodb does not always clean up after itself
+
+source include/have_innodb.inc;
+source federated.inc;
+
+#
+# Bug#25513 Federated transaction failures
+#
+connection slave;
+create table federated.t1 (a int primary key, b varchar(64))
+  engine=myisam;
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t1 (a int primary key, b varchar(64))
+  engine=federated
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+--error ER_DUP_KEY
+insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
+select * from federated.t1;
+
+connection slave;
+truncate federated.t1;
+alter table federated.t1 engine=innodb;
+connection master;
+
+--error ER_DUP_KEY
+insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
+select * from federated.t1;
+
+drop table federated.t1;
+connection slave;
+drop table federated.t1;
+
+
+source federated_cleanup.inc;

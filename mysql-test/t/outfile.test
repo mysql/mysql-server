@@ -1,9 +1,13 @@
 disable_query_log;
 -- source include/test_outfile.inc
-# Server are started in "var/master-data", so "../tmp" will be "var/tmp"
-eval set @tmpdir="../tmp";
+# Server are started in "var/master-data", so "../../tmp" will be "var/tmp"
+eval set @tmpdir="../../tmp";
 enable_query_log;
 -- source include/have_outfile.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 
 #
 # test of into outfile|dumpfile
@@ -16,15 +20,15 @@ drop table if exists t1;
 create table t1 (`a` blob);
 insert into t1 values("hello world"),("Hello mars"),(NULL);
 disable_query_log;
-eval select * into outfile "../tmp/outfile-test.1" from t1;
+eval select * into outfile "../../tmp/outfile-test.1" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.1"));
 disable_query_log;
-eval select * into dumpfile "../tmp/outfile-test.2" from t1 limit 1;
+eval select * into dumpfile "../../tmp/outfile-test.2" from t1 limit 1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.2"));
 disable_query_log;
-eval select * into dumpfile "../tmp/outfile-test.3" from t1 where a is null;
+eval select * into dumpfile "../../tmp/outfile-test.3" from t1 where a is null;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.3"));
 
@@ -32,13 +36,13 @@ select load_file(concat(@tmpdir,"/outfile-test.3"));
 
 disable_query_log;
 --error ER_FILE_EXISTS_ERROR
-eval select * into outfile "../tmp/outfile-test.1" from t1;
+eval select * into outfile "../../tmp/outfile-test.1" from t1;
 
 --error ER_FILE_EXISTS_ERROR
-eval select * into dumpfile "../tmp/outfile-test.2" from t1;
+eval select * into dumpfile "../../tmp/outfile-test.2" from t1;
 
 --error ER_FILE_EXISTS_ERROR
-eval select * into dumpfile "../tmp/outfile-test.3" from t1;
+eval select * into dumpfile "../../tmp/outfile-test.3" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.1
@@ -46,19 +50,19 @@ select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.3
 drop table t1;
 
-# Bug#8191
+# Bug#8191 SELECT INTO OUTFILE insists on FROM clause
 disable_query_log;
-eval select 1 into outfile "../tmp/outfile-test.4";
+eval select 1 into outfile "../../tmp/outfile-test.4";
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.4"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 #
-# Bug #5382: 'explain select into outfile' crashes the server
+# Bug#5382 'explain select into outfile' crashes the server
 #
 
 CREATE TABLE t1 (a INT);
-EXPLAIN 
+EXPLAIN
   SELECT *
   INTO OUTFILE '/tmp/t1.txt'
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LINES TERMINATED BY '\r\n'
@@ -68,10 +72,10 @@ DROP TABLE t1;
 # End of 4.1 tests
 
 #
-# Bug#13202  SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
+# Bug#13202 SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
 #
 disable_query_log;
-eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
+eval SELECT * INTO OUTFILE "../../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM information_schema.schemata LIMIT 0, 5;
 # enable_query_log;
@@ -79,7 +83,7 @@ FROM information_schema.schemata LIMIT 0, 5;
 
 use information_schema;
 # disable_query_log;
-eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
+eval SELECT * INTO OUTFILE "../../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM schemata LIMIT 0, 5;
 enable_query_log;
@@ -107,27 +111,31 @@ connect (con28181_1,localhost,user_1,,mysqltest);
 
 --error ER_DBACCESS_DENIED_ERROR
 eval select schema_name
-into outfile "../tmp/outfile-test.4"
+into outfile "../../tmp/outfile-test.4"
 fields terminated by ',' optionally enclosed by '"'
  lines terminated by '\n'
 from information_schema.schemata
 where schema_name like 'mysqltest';
 
 connection default;
+disconnect con28181_1;
 grant file on *.* to user_1@localhost;
 
 connect (con28181_2,localhost,user_1,,mysqltest);
 eval select schema_name
-into outfile "../tmp/outfile-test.4"
+into outfile "../../tmp/outfile-test.4"
 fields terminated by ',' optionally enclosed by '"'
  lines terminated by '\n'
 from information_schema.schemata
 where schema_name like 'mysqltest';
 
 connection default;
+disconnect con28181_2;
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 use test;
 revoke all privileges on *.* from user_1@localhost;
 drop user user_1@localhost;
 drop database mysqltest;
 
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

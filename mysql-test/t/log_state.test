@@ -24,6 +24,7 @@ SET @old_slow_query_log_file= @@global.slow_query_log_file;
 
 
 --disable_ps_protocol
+
 set global general_log= OFF;
 truncate table mysql.general_log;
 truncate table mysql.slow_log;
@@ -287,7 +288,6 @@ if(!$fixed_bug38124)
    --enable_query_log
 }
 
-
 ###########################################################################
 
 --echo
@@ -372,6 +372,9 @@ if(!$fixed_bug38124)
 # Disconnect must be done last to avoid delayed 'Quit' message in general log
 --echo # Close connection con1
 disconnect con1;
+# set back the saved default values
+connection default;
+
 # Reset global system variables to initial values if forgotten somewhere above.
 SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
@@ -389,5 +392,5 @@ if(!$fixed_bug38124)
 
 # Remove the log files that was created in the "default location"
 # i.e var/run
---remove_file $MYSQLTEST_VARDIR/run/master.log
+--remove_file $MYSQLTEST_VARDIR/run/mysqld.log
 --remove_file $MYSQLTEST_VARDIR/tmp/log.master

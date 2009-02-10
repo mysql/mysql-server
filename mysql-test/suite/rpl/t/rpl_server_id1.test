@@ -9,7 +9,7 @@ connection slave;
 reset master;
 
 # replicate ourselves
-stop slave;
+source include/stop_slave.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
 start slave;

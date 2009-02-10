@@ -1,7 +1,7 @@
 SET @start_value = @@global.max_binlog_cache_size;
 SELECT @start_value;
 @start_value
-4294967295
+4294963200
 '#--------------------FN_DYNVARS_072_01------------------------#'
 SET @@global.max_binlog_cache_size = 5000;
 SET @@global.max_binlog_cache_size = DEFAULT;
