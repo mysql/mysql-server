@@ -1,10 +1,34 @@
+2009-02-10	The InnoDB Team
+
+	* ut/ut0mem.c:
+	Map ut_malloc_low(), ut_realloc(), and ut_free() directly to
+	malloc(), realloc(), and free() when innodb_use_sys_malloc is set.
+	As a side effect, ut_total_allocated_memory ("Total memory allocated"
+	in the "BUFFER POOL AND MEMORY" section of SHOW ENGINE INNODB STATUS)
+	will exclude any memory allocated by these functions when
+	innodb_use_sys_malloc is set.
+
+2009-02-10	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
+	include/buf0buf.ic, include/os0sync.h, include/os0sync.ic,
+	include/srv0srv.h, include/sync0rw.h, include/sync0rw.ic,
+	include/sync0sync.h, include/sync0sync.ic, include/univ.i,
+	row/row0sel.c, srv/srv0srv.c, srv/srv0start.c,
+	sync/sync0arr.c, sync/sync0rw.c, sync/sync0sync.c:
+	On those platforms that support it, implement the synchronization
+	primitives of InnoDB mutexes and read/write locks with GCC atomic
+	builtins instead of Pthreads mutexes and InnoDB mutexes.  These
+	changes are based on a patch supplied by Mark Callaghan of Google
+	under a BSD license.
+
 2009-01-30	The InnoDB Team
 
 	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
 	include/btr0sea.h, include/buf0buf.h, include/sync0sync.h,
 	sync/sync0sync.c:
 	Make the configuration parameter innodb_adaptive_hash_index dynamic,
-	so it can be changed at runtime.
+	so that it can be changed at runtime.
 
 2009-01-29	The InnoDB Team
 
@@ -115,7 +139,10 @@
 	mysql-test/innodb-use-sys-malloc.test:
 	Implement the configuration parameter innodb_use_sys_malloc
 	(false by default), for disabling InnoDB's internal memory allocator
-	and using system malloc/free instead.
+	and using system malloc/free instead.  The "BUFFER POOL AND MEMORY"
+	section of SHOW ENGINE INNODB STATUS will report
+	"in additional pool allocated allocated 0" when
+	innodb_use_sys_malloc is set.
 
 2008-12-30	The InnoDB Team
 
