@@ -739,7 +739,7 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
-	buf = ut_malloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	buf = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
