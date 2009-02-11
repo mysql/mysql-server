@@ -93,7 +93,6 @@ SELECT * FROM t1;
 UPDATE t1 set b = 'new_value' where a = 0;
 --enable_warnings
 SELECT * FROM t1;
---error ER_BAD_NULL_ERROR
 UPDATE t1 set b = NULL where b = 'new_value';
 SELECT * FROM t1;
 

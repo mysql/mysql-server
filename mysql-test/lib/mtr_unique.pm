@@ -28,7 +28,17 @@ sub msg {
  # print "### unique($$) - ", join(" ", @_), "\n";
 }
 
-my $file= "/tmp/mysql-test-ports";
+my $file;
+
+if(!IS_WINDOWS)
+{
+  $file= "/tmp/mysql-test-ports";
+}
+else
+{
+  $file= $ENV{'TEMP'}."/mysql-test-ports";
+}
+  
 
 my %mtr_unique_ids;
 
