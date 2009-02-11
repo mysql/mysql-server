@@ -1,3 +1,11 @@
+2009-02-11	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make innodb_thread_concurrency=0 the default.  The old default
+	value was 8.  A non-zero setting may be useful when InnoDB is
+	showing severe scalability problems under multiple concurrent
+	connections.
+
 2009-02-10	The InnoDB Team
 
 	* handler/ha_innodb.h, handler/ha_innodb.cc:
