@@ -45,6 +45,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <my_net.h>
+#include <my_socket.h>
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
@@ -139,7 +140,8 @@ my_bool my_net_init(NET *net, Vio* vio)
 
   if (vio != 0)					/* If real connection */
   {
-    net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
+    /* Return native socket type in net->fd as is part of ABI */
+    net->fd  = MY_SOCKET_FORMAT_VALUE(vio_fd(vio));	/* For perl DBI/DBD */
 #if defined(MYSQL_SERVER) && !defined(__WIN__)
     if (!(test_flags & TEST_BLOCKING))
     {
@@ -225,7 +227,7 @@ static int net_data_is_ready(my_socket sd)
   struct pollfd ufds;
   int res;
 
-  ufds.fd= sd;
+  ufds.fd= sd.fd;
   ufds.events= POLLIN | POLLPRI;
   if (!(res= poll(&ufds, 1, 0)))
     return 0;
@@ -245,14 +247,14 @@ static int net_data_is_ready(my_socket sd)
 #endif
 
   FD_ZERO(&sfds);
-  FD_SET(sd, &sfds);
+  my_FD_SET(sd, &sfds);
 
   tv.tv_sec= tv.tv_usec= 0;
 
-  if ((res= select(sd+1, &sfds, NULL, NULL, &tv)) < 0)
+  if ((res= select(my_socket_nfds(sd,0)+1, &sfds, NULL, NULL, &tv)) < 0)
     return 0;
   else
-    return test(res ? FD_ISSET(sd, &sfds) : 0);
+    return test(res ? my_FD_ISSET(sd, &sfds) : 0);
 #endif /* HAVE_POLL */
 }
 

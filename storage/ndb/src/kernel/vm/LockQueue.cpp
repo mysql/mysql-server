@@ -15,9 +15,11 @@
 
 
 #include "LockQueue.hpp"
+#include "SimulatedBlock.hpp"
 
 Uint32
-LockQueue::lock(Pool & thePool, 
+LockQueue::lock(SimulatedBlock* block,
+                Pool & thePool, 
                 const UtilLockReq* req, const UtilLockReq** lockOwner)
 {
   const bool exclusive = ! (req->requestInfo & UtilLockReq::SharedLock);
@@ -30,35 +32,35 @@ LockQueue::lock(Pool & thePool,
   Ptr<LockQueueElement> lockEPtr;
   if (queue.last(lockEPtr))
   {
-    jam();
+    jamBlock(block);
     if (! (lockEPtr.p->m_req.requestInfo & UtilLockReq::SharedLock))
     {
-      jam();
+      jamBlock(block);
       grant = false;
     }
     else if (exclusive)
     {
-      jam();
+      jamBlock(block);
       grant = false;
     }
     else if (lockEPtr.p->m_req.requestInfo & UtilLockReq::Granted)
     {
-      jam();
+      jamBlock(block);
       grant = true;
     }
     else
     {
-      jam();
+      jamBlock(block);
       grant = false;
     }
   }
   
   if(trylock && grant == false)
   {
-    jam();
+    jamBlock(block);
     if (notify && lockOwner)
     {
-      jam();
+      jamBlock(block);
       queue.first(lockEPtr);
       * lockOwner = &lockEPtr.p->m_req;
     }
@@ -67,7 +69,7 @@ LockQueue::lock(Pool & thePool,
   
   if(!thePool.seize(lockEPtr))
   {
-    jam();
+    jamBlock(block);
     return UtilLockRef::OutOfLockRecords;
   }
   
@@ -76,19 +78,20 @@ LockQueue::lock(Pool & thePool,
   
   if(grant)
   {
-    jam();
+    jamBlock(block);
     lockEPtr.p->m_req.requestInfo |= UtilLockReq::Granted;
     return UtilLockRef::OK;
   }
   else
   {
-    jam();
+    jamBlock(block);
     return UtilLockRef::InLockQueue;
   }
 }
 
 Uint32
-LockQueue::unlock(Pool & thePool, 
+LockQueue::unlock(SimulatedBlock* block,
+                  Pool & thePool, 
                   const UtilUnlockReq* req)
 {
   const Uint32 senderRef = req->senderRef;
@@ -99,21 +102,21 @@ LockQueue::unlock(Pool & thePool,
   
   for (queue.first(lockEPtr); !lockEPtr.isNull(); queue.next(lockEPtr))
   {
-    jam();
+    jamBlock(block);
     if (lockEPtr.p->m_req.senderData == senderData &&
         lockEPtr.p->m_req.senderRef == senderRef)
     {
-      jam();
+      jamBlock(block);
       
       Uint32 res;
       if (lockEPtr.p->m_req.requestInfo & UtilLockReq::Granted)
       {
-        jam();
+        jamBlock(block);
         res = UtilUnlockRef::OK;
       }
       else
       {
-        jam();
+        jamBlock(block);
         res = UtilUnlockRef::NotLockOwner;
       }
       queue.release(lockEPtr);
@@ -125,11 +128,13 @@ LockQueue::unlock(Pool & thePool,
 }
 
 bool
-LockQueue::first(Pool& thePool, Iterator & iter)
+LockQueue::first(SimulatedBlock* block,
+                 Pool& thePool, Iterator & iter)
 {
   LocalDLFifoList<LockQueueElement> queue(thePool, m_queue);
   if (queue.first(iter.m_curr))
   {
+    iter.m_block = block;
     iter.m_prev.setNull();
     iter.thePool = &thePool;
     return true;
@@ -148,17 +153,18 @@ LockQueue::next(Iterator& iter)
 int
 LockQueue::checkLockGrant(Iterator& iter, UtilLockReq* req)
 {
+  SimulatedBlock* block = iter.m_block;
   LocalDLFifoList<LockQueueElement> queue(*iter.thePool, m_queue);
   if (iter.m_prev.isNull())
   {
     if (iter.m_curr.p->m_req.requestInfo & UtilLockReq::Granted)
     {
-      jam();
+      jamBlock(block);
       return 1;
     }
     else
     {
-      jam();
+      jamBlock(block);
       * req = iter.m_curr.p->m_req;
       iter.m_curr.p->m_req.requestInfo |= UtilLockReq::Granted;
       return 2;
@@ -166,25 +172,25 @@ LockQueue::checkLockGrant(Iterator& iter, UtilLockReq* req)
   }
   else
   {
-    jam();
+    jamBlock(block);
     /**
      * Prev is granted...
      */
     assert(iter.m_prev.p->m_req.requestInfo & UtilLockReq::Granted);
     if (iter.m_prev.p->m_req.requestInfo & UtilLockReq::SharedLock)
     {
-      jam();
+      jamBlock(block);
       if (iter.m_curr.p->m_req.requestInfo & UtilLockReq::SharedLock)
       {
-        jam();
+        jamBlock(block);
         if (iter.m_curr.p->m_req.requestInfo & UtilLockReq::Granted)
         {
-          jam();
+          jamBlock(block);
           return 1;
         }
         else
         {
-          jam();
+          jamBlock(block);
           * req = iter.m_curr.p->m_req;
           iter.m_curr.p->m_req.requestInfo |= UtilLockReq::Granted;
           return 2;
@@ -212,7 +218,7 @@ LockQueue::dump_queue(Pool& thePool, SimulatedBlock* block)
 
   for (queue.first(ptr); !ptr.isNull(); queue.next(ptr))
   {
-    jam();
+    jamBlock(block);
     block->infoEvent("- sender: 0x%x data: %u %s %s extra: %u",
                      ptr.p->m_req.senderRef,
                      ptr.p->m_req.senderData,

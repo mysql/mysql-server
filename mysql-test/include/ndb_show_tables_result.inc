@@ -3,7 +3,7 @@
 CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (id INT, type VARCHAR(20), state VARCHAR(20), logging VARCHAR(20), _database VARCHAR(255), _schema VARCHAR(20), name VARCHAR(255));
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLD_DATADIR/test/tmp.dat
+--exec $NDB_SHOW_TABLES --p |sed -e 's/\r\n/\n/' > $MYSQLD_DATADIR/test/tmp.dat
 --chmod 0777 $MYSQLD_DATADIR/test/tmp.dat
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables_results;
 --remove_file $MYSQLD_DATADIR/test/tmp.dat

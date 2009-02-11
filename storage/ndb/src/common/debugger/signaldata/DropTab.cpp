@@ -16,34 +16,40 @@
 #include <signaldata/DropTab.hpp>
 
 bool 
-printDROP_TAB_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+printDROP_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTabReq * const sig = (DropTabReq *) theData;
-  
-  fprintf(output, 
-	  " senderRef: %x senderData: %d TableId: %d requestType: %d\n",
-	  sig->senderRef, sig->senderData, sig->tableId, sig->requestType);
+  const DropTabReq* sig = (const DropTabReq*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " senderData: %u", sig->senderData);
+  fprintf(output, " requestType: %u", sig->requestType);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, "\n");
   return true;
 }
 
-bool printDROP_TAB_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTabConf * const sig = (DropTabConf *) theData;
-
-  fprintf(output, 
-	  " senderRef: %x senderData: %d TableId: %d\n",
-	  sig->senderRef, sig->senderData, sig->tableId);
-  
+  const DropTabConf* sig = (const DropTabConf*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " senderData: %u", sig->senderData);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, "\n");
   return true;
 }
 
-bool printDROP_TAB_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTabRef * const sig = (DropTabRef *) theData;
-
-  fprintf(output, 
-	  " senderRef: %x senderData: %d TableId: %d errorCode: %d\n",
-	  sig->senderRef, sig->senderData, sig->tableId, sig->errorCode);
-  
+  const DropTabRef* sig = (const DropTabRef*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " senderData: %u", sig->senderData);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, "\n");
   return true;
 }

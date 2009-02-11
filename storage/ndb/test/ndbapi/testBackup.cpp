@@ -287,8 +287,8 @@ int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank(ctx->m_cluster_connection);
-  int overWriteExisting = true;
-  if (bank.createAndLoadBank(overWriteExisting, 10) != NDBT_OK)
+  bool overWriteExisting = true;
+  if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK)
     return NDBT_FAILED;
   return NDBT_OK;
 }
@@ -472,6 +472,155 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   
   return result;
 }
+int runBackupUndoWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  unsigned backupId = 0;
+  int undoError = 10041;
+  NdbRestarter restarter;
+
+  if(restarter.waitClusterStarted(60)){
+    g_err << "waitClusterStarted failed"<< endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.insertErrorInAllNodes(undoError) != 0) {
+    g_err << "Error insert failed" << endl;
+    return NDBT_FAILED;
+  } 
+  // start backup wait started
+  if (backup.start(backupId, 1, 0, 1) == -1){
+    return NDBT_FAILED;
+  }
+  ndbout << "Started backup " << backupId << endl;
+  ctx->setProperty("BackupId", backupId);
+
+  return NDBT_OK;
+}
+int runChangeUndoDataDuringBackup(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb= GETNDB(step);
+
+  int records = ctx->getNumRecords();
+  int num = 5;
+  if (records - 5 < 0)
+    num = 1;
+  
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  //update all rows
+  if(hugoTrans.pkUpdateRecords(pNdb, records) != 0) {
+    g_err << "Can't update all the records" << endl;
+    return NDBT_FAILED;
+  }
+
+  //delete first 10 rows
+  if(hugoTrans.pkDelRecords(pNdb, num*2) != 0) {
+    g_err << "Can't delete first 5 rows" << endl;
+    return NDBT_FAILED;
+  }
+
+  //add 5 new rows at the first(0 ~ 4)
+  NdbTransaction *pTransaction= pNdb->startTransaction();
+  if (pTransaction == NULL) {
+    g_err << "Can't get transaction pointer" << endl;
+    return NDBT_FAILED;
+  }
+  if(hugoTrans.setTransaction(pTransaction) != 0) {
+    g_err << "Set transaction error" << endl;
+    pNdb->closeTransaction(pTransaction);
+    return NDBT_FAILED;
+  }
+  if(hugoTrans.pkInsertRecord(pNdb, 0, num, 2) != 0) {
+    g_err << "pkInsertRecord error" << endl;
+    pNdb->closeTransaction(pTransaction);
+    return NDBT_FAILED;
+  }   
+  if(pTransaction->execute(Commit ) != 0) {
+    g_err << "Can't commit transaction delete" << endl;
+    return NDBT_FAILED;
+  }
+  hugoTrans.closeTransaction(pNdb);
+
+  // make sure backup have finish
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+
+  // start log event
+  if(backup.startLogEvent() != 0) {
+    g_err << "Can't create log event" << endl;
+    return NDBT_FAILED;
+  }
+  NdbSleep_SecSleep(15);
+  int i = 0;
+  while (1) {
+    if (backup.checkBackupStatus() == 2) //complete
+      break;
+    else if (i == 15) {
+      g_err << "Backup timeout" << endl;
+      return NDBT_FAILED;
+    } else
+      NdbSleep_SecSleep(2);
+    i++;
+  }
+
+  return NDBT_OK;
+}
+
+int runVerifyUndoData(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  int count = 0;
+  int num = 5;
+  if (records - 5 < 0)
+    num = 1;
+
+  const NdbDictionary::Table* tab = 
+    GETNDB(step)->getDictionary()->getTable(ctx->getTab()->getName());
+
+  if(tab == 0) {
+    g_err << " Can't find table" << endl;
+    return NDBT_FAILED;
+  }
+  
+  UtilTransactions utilTrans(* tab);
+  HugoTransactions hugoTrans(* tab);
+
+  // Check that there are as many records as we expected
+  if(utilTrans.selectCount(pNdb, 64, &count) != 0) {
+    g_err << "Can't get records count" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "count = " << count;
+  g_err << " records = " << records;
+  g_err << endl;
+
+  if (count != records) {
+    g_err << "The records count is not correct" << endl;
+    return NDBT_FAILED;
+  }
+
+  // make sure all the update data is there
+  NdbTransaction *pTransaction= pNdb->startTransaction();
+  if (pTransaction == NULL) {
+    g_err << "Can't get transaction pointer" << endl;
+    return NDBT_FAILED;
+  }
+  if(hugoTrans.setTransaction(pTransaction) != 0) {
+    g_err << "Set transaction error" << endl;
+    pNdb->closeTransaction(pTransaction);
+    return NDBT_FAILED;
+  }
+   if(hugoTrans.pkReadRecord(pNdb, 0, records, NdbOperation::LM_Read) != 0) {
+      g_err << "Can't read record" << endl;
+      return NDBT_FAILED;
+    }
+  if(hugoTrans.verifyUpdatesValue(0, records) != 0) {
+    g_err << "The records restored with undo log is not correct" << endl;
+    return NDBT_FAILED;
+  }
+  hugoTrans.closeTransaction(pNdb);
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
@@ -539,6 +688,23 @@ TESTCASE("BackupBank",
   VERIFIER(runRestoreBankAndVerify);
   //  FINALIZER(runDropBank);
 }
+TESTCASE("BackupUndoLog", 
+	 "Test for backup happen at start time\n"
+	 "1. Load table\n"
+	 "2. Start backup with wait started\n"
+	 "3. Insert, delete, update data during backup\n"
+	 "4. Drop tables and restart \n"
+	 "5. Restore\n"
+	 "6. Verify records of table\n"
+	 "7. Clear tables\n"){
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBackupUndoWaitStarted);
+  INITIALIZER(runChangeUndoDataDuringBackup);
+  INITIALIZER(runDropTablesRestart);
+  INITIALIZER(runRestoreOne);
+  VERIFIER(runVerifyUndoData);
+  FINALIZER(runClearTable);
+}
 TESTCASE("NFMaster", 
 	 "Test that backup behaves during node failiure\n"){
   INITIALIZER(setMaster);
@@ -579,6 +745,7 @@ NDBT_TESTSUITE_END(testBackup);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testBackup);
   return testBackup.execute(argc, argv);
 }
 

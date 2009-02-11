@@ -32,7 +32,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
 #include <signaldata/TupFrag.hpp>
-#include <signaldata/AlterIndx.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AccScan.hpp>
@@ -101,8 +101,9 @@
 class Configuration;
 
 class Dbtux : public SimulatedBlock {
+  friend class DbtuxProxy;
 public:
-  Dbtux(Block_context& ctx);
+  Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
   // pointer to TUP instance in this thread
@@ -562,10 +563,12 @@ private:
   /*
    * DbtuxMeta.cpp
    */
+  void execCREATE_TAB_REQ(Signal*);
   void execTUXFRAGREQ(Signal* signal);
   void execTUX_ADD_ATTRREQ(Signal* signal);
-  void execALTER_INDX_REQ(Signal* signal);
+  void execALTER_INDX_IMPL_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
+  void execDROP_FRAG_REQ(Signal* signal);
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);
   void abortAddFragOp(Signal* signal);
@@ -706,6 +709,8 @@ private:
   STATIC_CONST( DataFillByte = 0xa2 );
   STATIC_CONST( NodeFillByte = 0xa4 );
 #endif
+
+  void execDBINFO_SCANREQ(Signal* signal);
 
   // start up info
   Uint32 c_internalStartPhase;

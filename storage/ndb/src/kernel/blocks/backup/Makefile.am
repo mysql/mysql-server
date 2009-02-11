@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+EXTRA_DIST = CMakeLists.txt
+
 ndbtools_PROGRAMS = ndb_print_backup_file
 ndb_print_backup_file_SOURCES = read.cpp
 ndb_print_backup_file_LDFLAGS = @ndb_bin_am_ldflags@ \

@@ -39,7 +39,7 @@ public:
 			    const char* problemData,
                             const char* objRef);
   
-  static void formatMessage(int faultID, 
+  static void formatMessage(Uint32 num_threads, int faultID,
 			    const char* problemData,
                             const char* objRef, 
 			    const char* theNameOfTheTraceFile,

@@ -163,7 +163,7 @@ statReport(enum StartType st, int ops)
     nodeid = p == 0 ? 0 : atoi(p);
     if ((statSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
       if (statState != statError) {
-	ndbout_c("stat: create socket failed: %s", strerror(errno));
+	ndbout_c("stat: create socket failed: %s", strerror(socket_errno));
 	statState = statError;
       }
       (void)NdbMutex_Unlock(&statMutex);
@@ -184,7 +184,7 @@ statReport(enum StartType st, int ops)
     }
     if (connect(statSock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
       if (statState != statError) {
-	ndbout_c("stat: connect failed: %s", strerror(errno));
+	ndbout_c("stat: connect failed: %s", strerror(socket_errno));
 	statState = statError;
       }
       (void)close(statSock);
@@ -222,9 +222,9 @@ statReport(enum StartType st, int ops)
   sprintf(buf, "%d %s %d\n", nodeid, text, ops);
   int len = strlen(buf);
   // assume SIGPIPE already ignored
-  if (write(statSock, buf, len) != len) {
+  if (send(statSock, buf, len, 0) != len) {
     if (statState != statError) {
-      ndbout_c("stat: write failed: %s", strerror(errno));
+      ndbout_c("stat: write failed: %s", strerror(socket_errno));
       statState = statError;
     }
     (void)close(statSock);
@@ -283,7 +283,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
 {
   ndb_init();
   ThreadData*           pThreadsData;
-  int                   tLoops = 0, i;
+  int                   tLoops = 0;
   int                   returnValue = NDBT_OK;
     
   if (readArguments(argc, argv) != 0){
@@ -364,7 +364,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
      ****************************************************************/
     resetThreads(pThreadsData);
     
-    for (i = 0; i < tNoOfThreads; i++){  
+    for (Uint32 i = 0; i < tNoOfThreads; i++){  
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
@@ -540,7 +540,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
     waitForThreads(pThreadsData);
 
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(Uint32 i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(pThreadsData[i].threadLife, &tmp);
       NdbThread_Destroy(&pThreadsData[i].threadLife);
     }
@@ -549,7 +549,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
   if (useLongKeys == true) {
     // Only free these areas if they have been allocated
     // Otherwise cores will happen
-    for (i = 0; i < tNoOfLongPK; i++)
+    for (Uint32 i = 0; i < tNoOfLongPK; i++)
       free(longKeyAttrName[i]);
     free(longKeyAttrName);
   } // if
@@ -771,7 +771,7 @@ static void* flexBenchThread(void* pArg)
     // Calculate offset value before going into the next loop
     nRefOpOffset = tAttributeSize*tNoOfAttributes*(ops-1) ; 
     for(Uint32 a = 0 ; a < tNoOfAttributes ; a++)
-      for(Uint32 b= 0; b<tAttributeSize; b++)
+      for(int b= 0; b<tAttributeSize; b++)
         attrRefValue[nRefOpOffset + tAttributeSize*a + b] = 
           (int)(threadBase + ops + a) ;
   }
@@ -1196,14 +1196,13 @@ static void sleepBeforeStartingTest(int seconds){
 
 static int
 createTables(Ndb* pMyNdb){
-  int i;
-  for (i = 0; i < tNoOfAttributes; i++){
+  for (Uint32 i = 0; i < tNoOfAttributes; i++){
     BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 
   // Note! Uses only uppercase letters in table name's
   // so that we can look at the tables with SQL
-  for (i = 0; i < tNoOfTables; i++){
+  for (Uint32 i = 0; i < tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
       BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
@@ -1212,7 +1211,7 @@ createTables(Ndb* pMyNdb){
     }
   }
   
-  for(i = 0; i < tNoOfTables; i++){
+  for(Uint32 i = 0; i < tNoOfTables; i++){
     ndbout << "Creating " << tableName[i] << "... ";
     
     NdbDictionary::Table tmpTable(tableName[i]);

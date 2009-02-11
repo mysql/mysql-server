@@ -29,6 +29,7 @@ class PrepDropTabReq {
    */
   friend class Dbtc;
   friend class Dblqh;
+  friend class DblqhProxy;
   friend class Dbdih;
 
   friend bool printPREP_DROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
@@ -48,6 +49,7 @@ class PrepDropTabConf {
    */
   friend class Dbtc;
   friend class Dblqh;
+  friend class DblqhProxy;
   friend class Dbdih;
 
   /**
@@ -71,6 +73,7 @@ class PrepDropTabRef {
    */
   friend class Dbtc;
   friend class Dblqh;
+  friend class DblqhProxy;
   friend class Dbdih;
 
   /**
@@ -96,76 +99,6 @@ private:
   Uint32 senderData;
   Uint32 tableId;
   Uint32 errorCode;
-};
-
-class WaitDropTabReq {
-  /**
-   * Sender
-   */
-  friend class Dbtc;
-  friend class Dbdih;
-
-  /**
-   * Receiver(s)
-   */
-  friend class Dblqh;
-
-  friend bool printWAIT_DROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 2 );
-  
-  Uint32 tableId;
-  Uint32 senderRef;
-};
-
-class WaitDropTabRef {
-  /**
-   * Sender
-   */
-  friend class Dblqh;
-
-  /**
-   * Receiver(s)
-   */
-  friend class Dbtc;
-  friend class Dbdih;
-
-  friend bool printWAIT_DROP_TAB_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 4 );
-  
-  enum ErrorCode {
-    NoSuchTable = 1,
-    IllegalTableState = 2,
-    DropInProgress = 3,
-    NF_FakeErrorREF = 4
-  };
-  
-  Uint32 tableId;
-  Uint32 senderRef;
-  Uint32 errorCode;
-  Uint32 tableStatus;
-};
-
-
-class WaitDropTabConf {
-  /**
-   * Sender
-   */
-  friend class Dblqh;
-
-  /**
-   * Receiver(s)
-   */
-  friend class Dbtc;
-  friend class Dbdih;
-
-  friend bool printWAIT_DROP_TAB_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 2 );
-
-  Uint32 tableId;
-  Uint32 senderRef;
 };
 
 #endif

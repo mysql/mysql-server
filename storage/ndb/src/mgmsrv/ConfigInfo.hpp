@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,16 +53,53 @@ public:
    *   Entry for one configuration parameter
    */
   struct ParamInfo {
+    /**
+     * Internal id used to identify configuration parameter when accessing
+     * config.
+     */
     Uint32         _paramId;
+    /* External name, as given in text in config file. */
     const char*    _fname;   
+    /**
+     * Name (as it appears in config file text) of section that this extry
+     * belongs to.
+     *
+     * Each section alsa has one entry with the section name stored in both
+     * _fname and _section.
+     */
     const char*    _section;
+    /* Short textual description/documentation for entry. */
     const char*    _description;
     Status         _status;
     bool           _updateable;    
     Type           _type;          
-    const char*    _default;
+    /**
+     * Default value, minimum value (if any), and maximum value (if any).
+     *
+     * Stored as pointers to char * representation of default (eg "10k").
+     *
+     * For section entries, instead the _default member gives the internal id
+     * of that kind of section (CONNECTION_TYPE_TCP, NODE_TYPE_MGM, etc.)
+     */
+    union {
+      const char*  _default;
+      UintPtr      _section_type; // if _type = CI_SECTION
+      /** NOTE must be UintPtr to be of same size as _default */
+    };
     const char*    _min;
     const char*    _max;
+  };
+
+  class ParamInfoIter {
+    const ConfigInfo& m_info;
+    const char* m_section_name;
+    int m_curr_param;
+  public:
+    ParamInfoIter(const ConfigInfo& info,
+                  Uint32 section,
+                  Uint32 section_type = ~0);
+
+    const ParamInfo* next(void);
   };
 
 #ifndef NDB_MGMAPI
@@ -127,6 +164,8 @@ public:
   void print() const;
   void print(const char* section) const;
   void print(const Properties * section, const char* parameter) const;
+
+  const char* sectionName(Uint32 section, Uint32 type) const;
 
 private:
   Properties               m_info;

@@ -65,6 +65,7 @@ private:
    * Backup flags
    */
   /* & 0x3 - waitCompleted
+   * & 0x4 - Use undo log
    */
   Uint32 flags;
 };

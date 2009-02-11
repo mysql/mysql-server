@@ -29,7 +29,6 @@ class ClusterMgr;
 class ArbitMgr;
 class IPCConfig;
 struct ndb_mgm_configuration;
-class ConfigRetriever;
 
 class Ndb;
 class NdbApiSignal;
@@ -44,7 +43,7 @@ extern "C" {
   void atexit_stop_instance();
 }
 
-class TransporterFacade
+class TransporterFacade : public TransporterCallback
 {
 public:
   /**
@@ -54,16 +53,23 @@ public:
   STATIC_CONST( MAX_NO_THREADS = 4711 );
   TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
-  bool init(Uint32, const ndb_mgm_configuration *);
 
-  int start_instance(int, const ndb_mgm_configuration*);
+  int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
-  
+
+  /*
+    (Re)configure the TransporterFacade
+    to a specific configuration
+  */
+  bool configure(NodeId, const ndb_mgm_configuration *);
+
   /**
    * Register this block for sending/receiving signals
+   * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open(void* objRef, ExecuteFunction, NodeStatusFunction);
+  int open(void* objRef, ExecuteFunction, NodeStatusFunction,
+           int blockNo = -1);
   
   // Close this block number
   int close(BlockNumber blockNumber, Uint64 trans_id);
@@ -73,8 +79,12 @@ public:
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
   int sendSignal(NdbApiSignal*, NodeId, 
 		 LinearSectionPtr ptr[3], Uint32 secs);
+  int sendSignal(NdbApiSignal*, NodeId,
+                 GenericSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, NodeId, 
 			   LinearSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, NodeId,
+                           GenericSectionPtr ptr[3], Uint32 secs);
 
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
@@ -150,6 +160,37 @@ public:
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
 
+  /* TransporterCallback interface. */
+  void deliver_signal(SignalHeader * const header,
+                      Uint8 prio,
+                      Uint32 * const signalData,
+                      LinearSectionPtr ptr[3]);
+  int checkJobBuffer();
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportConnect(NodeId nodeId);
+  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+  void reportError(NodeId nodeId, TransporterError errorCode,
+                   const char *info = 0);
+  void transporter_recv_from(NodeId node);
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  {
+    return theTransporterRegistry->get_bytes_to_send_iovec(node, dst, max);
+  }
+  Uint32 bytes_sent(NodeId node, Uint32 bytes)
+  {
+    return theTransporterRegistry->bytes_sent(node, bytes);
+  }
+  bool has_data_to_send(NodeId node)
+  {
+    return theTransporterRegistry->has_data_to_send(node);
+  }
+  void reset_send_buffer(NodeId node)
+  {
+    theTransporterRegistry->reset_send_buffer(node);
+  }
+
+
 private:
   void init_cond_wait_queue();
   struct CondWaitQueueElement {
@@ -186,8 +227,7 @@ private:
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;
-  int theOwnId;
-
+  NodeId theOwnId;
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
@@ -215,6 +255,8 @@ private:
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
   friend void atexit_stop_instance();
+
+  bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
   /**
    * Block number handling
@@ -267,17 +309,11 @@ private:
       return (m_statusNext[index] & (1 << 16)) != 0;
     }
   } m_threads;
-  
+
+  Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
   Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 
-  /**
-   * execute function
-   */
-  friend void execute(void * callbackObj, SignalHeader * const header, 
-                      Uint8 prio, 
-                      Uint32 * const theData, LinearSectionPtr ptr[3]);
-  
 public:
   NdbMutex* theMutexPtr;
 
@@ -371,9 +407,10 @@ inline
 bool
 TransporterFacade::get_node_stopping(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
+  assert(node.m_info.getType() == NodeInfo::DB);
   return (!node.m_state.getSingleUserMode() &&
-          (node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
-          (node.m_state.startLevel == NodeState::SL_STOPPING_2));
+          ((node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
+           (node.m_state.startLevel == NodeState::SL_STOPPING_2)));
 }
 
 inline
@@ -381,18 +418,11 @@ bool
 TransporterFacade::getIsNodeSendable(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   const Uint32 startLevel = node.m_state.startLevel;
+  assert(node.m_info.getType() == NodeInfo::DB);
 
-  if (node.m_info.m_type == NodeInfo::DB) {
-    return node.compatible && (startLevel == NodeState::SL_STARTED ||
-                               startLevel == NodeState::SL_STOPPING_1 ||
-                               node.m_state.getSingleUserMode());
-  } else {
-    ndbout_c("TransporterFacade::getIsNodeSendable: Illegal node type: "
-             "%d of node: %d", 
-             node.m_info.m_type, n);
-    abort();
-    return false; // to remove compiler warning
-  }
+  return node.compatible && (startLevel == NodeState::SL_STARTED ||
+                             startLevel == NodeState::SL_STOPPING_1 ||
+                             node.m_state.getSingleUserMode());
 }
 
 inline
@@ -419,6 +449,83 @@ TransporterFacade::get_batch_size() {
   return m_batch_size;
 }
 
+/** 
+ * LinearSectionIterator
+ *
+ * This is an implementation of GenericSectionIterator 
+ * that iterates over one linear section of memory.
+ * The iterator is used by the transporter at signal
+ * send time to obtain all of the relevant words for the
+ * signal section
+ */
+class LinearSectionIterator: public GenericSectionIterator
+{
+private :
+  Uint32* data;
+  Uint32 len;
+  bool read;
+public :
+  LinearSectionIterator(Uint32* _data, Uint32 _len)
+  {
+    data= (_len == 0)? NULL:_data;
+    len= _len;
+    read= false;
+  }
 
+  ~LinearSectionIterator()
+  {};
+  
+  void reset()
+  {
+    /* Reset iterator */
+    read= false;
+  }
+
+  Uint32* getNextWords(Uint32& sz)
+  {
+    if (likely(!read))
+    {
+      read= true;
+      sz= len;
+      return data;
+    }
+    sz= 0;
+    return NULL;
+  }
+};
+
+
+/** 
+ * SignalSectionIterator
+ *
+ * This is an implementation of GenericSectionIterator 
+ * that uses chained NdbApiSignal objects to store a 
+ * signal section.
+ * The iterator is used by the transporter at signal
+ * send time to obtain all of the relevant words for the
+ * signal section
+ */
+class SignalSectionIterator: public GenericSectionIterator
+{
+private :
+  NdbApiSignal* firstSignal;
+  NdbApiSignal* currentSignal;
+public :
+  SignalSectionIterator(NdbApiSignal* signal)
+  {
+    firstSignal= currentSignal= signal;
+  }
+
+  ~SignalSectionIterator()
+  {};
+  
+  void reset()
+  {
+    /* Reset iterator */
+    currentSignal= firstSignal;
+  }
+
+  Uint32* getNextWords(Uint32& sz);
+};
 
 #endif // TransporterFacade_H

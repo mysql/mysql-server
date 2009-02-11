@@ -291,6 +291,7 @@ main(int argc, const char** argv){
       break;
     }
   } 
+  NDBT_TESTSUITE_INSTANCE(testSRBank);
   return testSRBank.execute(argc, argv);
 }
 

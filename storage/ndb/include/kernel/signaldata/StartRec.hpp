@@ -28,6 +28,7 @@ class StartRecReq {
    * Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   friend bool printSTART_REC_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
@@ -48,6 +49,7 @@ class StartRecConf {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   /**
    * Receiver(s)
    */

@@ -86,8 +86,8 @@ void Dbacc::initRecords()
 				ctablesize);
 }//Dbacc::initRecords()
 
-Dbacc::Dbacc(Block_context& ctx):
-  SimulatedBlock(DBACC, ctx),
+Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBACC, ctx, instanceNumber),
   c_tup(0)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
@@ -116,6 +116,9 @@ Dbacc::Dbacc(Block_context& ctx):
   addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
 
   initData();
 

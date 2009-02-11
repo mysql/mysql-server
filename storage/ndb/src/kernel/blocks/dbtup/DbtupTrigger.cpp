@@ -25,6 +25,9 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TuxMaint.hpp>
 
 /* **************************************************************** */
@@ -64,6 +67,7 @@ Dbtup::findTriggerList(Tablerec* table,
     }
     break;
   case TriggerType::SECONDARY_INDEX:
+  case TriggerType::REORG_TRIGGER:
     switch (tevent) {
     case TriggerEvent::TE_INSERT:
       jam();
@@ -114,103 +118,104 @@ Dbtup::findTriggerList(Tablerec* table,
 
 // Trigger signals
 void
-Dbtup::execCREATE_TRIG_REQ(Signal* signal)
+Dbtup::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  BlockReference senderRef = signal->getSendersBlockRef();
-  const CreateTrigReq reqCopy = *(const CreateTrigReq*)signal->getDataPtr();
-  const CreateTrigReq* const req = &reqCopy;
-  CreateTrigRef::ErrorCode error= CreateTrigRef::NoError;
+  const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+  const Uint32 tableId = req->tableId;
+  const Uint32 triggerId = req->triggerId;
+  const Uint32 triggerInfo = req->triggerInfo;
+
+  CreateTrigRef::ErrorCode error = CreateTrigRef::NoError;
 
   // Find table
   TablerecPtr tabPtr;
-  tabPtr.i = req->getTableId();
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   if (tabPtr.p->tableStatus != DEFINED )
   {
     jam();
-    error= CreateTrigRef::InvalidTable;
+    error = CreateTrigRef::InvalidTable;
   }
   // Create trigger and associate it with the table
   else if (createTrigger(tabPtr.p, req))
   {
     jam();
     // Send conf
-    CreateTrigConf* const conf = (CreateTrigConf*)signal->getDataPtrSend();
-    conf->setUserRef(reference());
-    conf->setConnectionPtr(req->getConnectionPtr());
-    conf->setRequestType(req->getRequestType());
-    conf->setTableId(req->getTableId());
-    conf->setIndexId(req->getIndexId());
-    conf->setTriggerId(req->getTriggerId());
-    conf->setTriggerInfo(req->getTriggerInfo());
-    sendSignal(senderRef, GSN_CREATE_TRIG_CONF, 
-               signal, CreateTrigConf::SignalLength, JBB);
+    CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->tableId = tableId;
+    conf->triggerId = triggerId;
+    conf->triggerInfo = triggerInfo;
+
+    sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
+               signal, CreateTrigImplConf::SignalLength, JBB);
     return;
   }
   else
   {
     jam();
-    error= CreateTrigRef::TooManyTriggers;
+    error = CreateTrigRef::TooManyTriggers;
   }
+
   ndbassert(error != CreateTrigRef::NoError);
   // Send ref
-  CreateTrigRef* const ref = (CreateTrigRef*)signal->getDataPtrSend();
-  ref->setUserRef(reference());
-  ref->setConnectionPtr(req->getConnectionPtr());
-  ref->setRequestType(req->getRequestType());
-  ref->setTableId(req->getTableId());
-  ref->setIndexId(req->getIndexId());
-  ref->setTriggerId(req->getTriggerId());
-  ref->setTriggerInfo(req->getTriggerInfo());
-  ref->setErrorCode(error);
-  sendSignal(senderRef, GSN_CREATE_TRIG_REF, 
-	     signal, CreateTrigRef::SignalLength, JBB);
-}//Dbtup::execCREATE_TRIG_REQ()
+  CreateTrigImplRef* ref = (CreateTrigImplRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->senderData = senderData;
+  ref->tableId = tableId;
+  ref->triggerId = triggerId;
+  ref->triggerInfo = triggerInfo;
+  ref->errorCode = error;
+
+  sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_REF, 
+	     signal, CreateTrigImplRef::SignalLength, JBB);
+}
 
 void
-Dbtup::execDROP_TRIG_REQ(Signal* signal)
+Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  BlockReference senderRef = signal->getSendersBlockRef();
-  const DropTrigReq reqCopy = *(const DropTrigReq*)signal->getDataPtr();
-  const DropTrigReq* const req = &reqCopy;
+  const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+  const Uint32 tableId = req->tableId;
+  const Uint32 triggerId = req->triggerId;
+  const Uint32 receiverRef = req->receiverRef;
 
   // Find table
   TablerecPtr tabPtr;
-  tabPtr.i = req->getTableId();
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   // Drop trigger
-  Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(senderRef));
+  Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(receiverRef));
   if (r == 0){
     // Send conf
-    DropTrigConf* const conf = (DropTrigConf*)signal->getDataPtrSend();
-    conf->setUserRef(senderRef);
-    conf->setConnectionPtr(req->getConnectionPtr());
-    conf->setRequestType(req->getRequestType());
-    conf->setTableId(req->getTableId());
-    conf->setIndexId(req->getIndexId());
-    conf->setTriggerId(req->getTriggerId());
-    sendSignal(senderRef, GSN_DROP_TRIG_CONF, 
-	       signal, DropTrigConf::SignalLength, JBB);
+    DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->tableId = tableId;
+    conf->triggerId = triggerId;
+
+    sendSignal(senderRef, GSN_DROP_TRIG_IMPL_CONF, 
+	       signal, DropTrigImplConf::SignalLength, JBB);
   } else {
     // Send ref
-    DropTrigRef* const ref = (DropTrigRef*)signal->getDataPtrSend();
-    ref->setUserRef(senderRef);
-    ref->setConnectionPtr(req->getConnectionPtr());
-    ref->setRequestType(req->getRequestType());
-    ref->setTableId(req->getTableId());
-    ref->setIndexId(req->getIndexId());
-    ref->setTriggerId(req->getTriggerId());
-    ref->setErrorCode((DropTrigRef::ErrorCode)r);
-    ref->setErrorLine(__LINE__);
-    ref->setErrorNode(refToNode(reference()));
-    sendSignal(senderRef, GSN_DROP_TRIG_REF, 
-	       signal, DropTrigRef::SignalLength, JBB);
+    DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->tableId = tableId;
+    ref->triggerId = triggerId;
+    ref->errorCode = r;
+    sendSignal(senderRef, GSN_DROP_TRIG_IMPL_REF, 
+	       signal, DropTrigImplRef::SignalLength, JBB);
   }
-}//Dbtup::DROP_TRIG_REQ()
+}
 
 /* ---------------------------------------------------------------- */
 /* ------------------------- createTrigger ------------------------ */
@@ -226,75 +231,122 @@ Dbtup::execDROP_TRIG_REQ(Signal* signal)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 bool
-Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
+Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
 {
   if (ERROR_INSERTED(4003)) {
     CLEAR_ERROR_INSERT_VALUE;
     return false;
   }
-  TriggerType::Value ttype = req->getTriggerType();
-  TriggerActionTime::Value ttime = req->getTriggerActionTime();
-  TriggerEvent::Value tevent = req->getTriggerEvent();
+  const Uint32 tinfo = req->triggerInfo;
+  TriggerType::Value ttype = TriggerInfo::getTriggerType(tinfo);
+  TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
+  TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
-  DLList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
-  ndbrequire(tlist != NULL);
+  int cnt;
+  struct {
+    TriggerEvent::Value event;
+    DLList<TupTriggerData> * list;
+    TriggerPtr ptr;
+  } tmp[3];
 
-  TriggerPtr tptr;
-  if (!tlist->seize(tptr))
-    return false;
-
-  // Set trigger id
-  tptr.p->triggerId = req->getTriggerId();
-
-  //  ndbout_c("Create TupTrigger %u = %u %u %u %u", tptr.p->triggerId, table, ttype, ttime, tevent);
-
-  // Set index id
-  tptr.p->indexId = req->getIndexId();
-
-  // Set trigger type etc
-  tptr.p->triggerType = ttype;
-  tptr.p->triggerActionTime = ttime;
-  tptr.p->triggerEvent = tevent;
-
-  tptr.p->sendBeforeValues = true;
-  if ((tptr.p->triggerType == TriggerType::SUBSCRIPTION) &&
-      ((tptr.p->triggerEvent == TriggerEvent::TE_UPDATE) ||
-       (tptr.p->triggerEvent == TriggerEvent::TE_DELETE))) {
-    jam();
-    tptr.p->sendBeforeValues = false;
-  }
-  /*
-  tptr.p->sendOnlyChangedAttributes = false;
-  if (((tptr.p->triggerType == TriggerType::SUBSCRIPTION) ||
-      (tptr.p->triggerType == TriggerType::SUBSCRIPTION_BEFORE)) &&
-      (tptr.p->triggerEvent == TriggerEvent::TE_UPDATE)) {
-    jam();
-    tptr.p->sendOnlyChangedAttributes = true;
-  }
-  */
-  tptr.p->sendOnlyChangedAttributes = !req->getReportAllMonitoredAttributes();
-  // Set monitor all
-  tptr.p->monitorAllAttributes = req->getMonitorAllAttributes();
-  tptr.p->monitorReplicas = req->getMonitorReplicas();
-  tptr.p->m_receiverBlock = refToBlock(req->getReceiverRef());
-
-  if (tptr.p->monitorAllAttributes)
+  if (ttype == TriggerType::SECONDARY_INDEX ||
+      ttype == TriggerType::REORG_TRIGGER)
   {
     jam();
-    // Set all non-pk attributes
-    tptr.p->attributeMask.set();
-    for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
-      if (primaryKey(table, i))
-        tptr.p->attributeMask.clear(i);
-    }
+    cnt = 3;
+    tmp[0].event = TriggerEvent::TE_INSERT;
+    tmp[1].event = TriggerEvent::TE_UPDATE;
+    tmp[2].event = TriggerEvent::TE_DELETE;
   }
   else
   {
     jam();
-    // Set attribute mask
-    tptr.p->attributeMask = req->getAttributeMask();
+    cnt = 1;
+    tmp[0].event = tevent;
+  }
+
+  int i = 0;
+  for (i = 0; i<cnt; i++)
+  {
+    tmp[i].list = findTriggerList(table, ttype, ttime, tmp[i].event);
+    ndbrequire(tmp[i].list != NULL);
+
+    TriggerPtr tptr;
+    if (!tmp[i].list->seize(tptr))
+    {
+      jam();
+      goto err;
+    }
+
+    tmp[i].ptr = tptr;
+
+    // Set trigger id
+    tptr.p->triggerId = req->triggerId;
+
+    // Set index id
+    tptr.p->indexId = req->indexId;
+
+    // Set trigger type etc
+    tptr.p->triggerType = ttype;
+    tptr.p->triggerActionTime = ttime;
+    tptr.p->triggerEvent = tevent;
+
+    tptr.p->sendBeforeValues = true;
+    if ((tptr.p->triggerType == TriggerType::SUBSCRIPTION) &&
+	((tptr.p->triggerEvent == TriggerEvent::TE_UPDATE) ||
+	 (tptr.p->triggerEvent == TriggerEvent::TE_DELETE))) {
+      jam();
+      tptr.p->sendBeforeValues = false;
+    }
+
+    if (ttype == TriggerType::REORG_TRIGGER)
+    {
+      jam();
+      tptr.p->sendBeforeValues = false;
+    }
+
+    /*
+      tptr.p->sendOnlyChangedAttributes = false;
+      if (((tptr.p->triggerType == TriggerType::SUBSCRIPTION) ||
+      (tptr.p->triggerType == TriggerType::SUBSCRIPTION_BEFORE)) &&
+      (tptr.p->triggerEvent == TriggerEvent::TE_UPDATE)) {
+      jam();
+      tptr.p->sendOnlyChangedAttributes = true;
+      }
+    */
+    tptr.p->sendOnlyChangedAttributes =
+      !TriggerInfo::getReportAllMonitoredAttributes(tinfo);
+
+    tptr.p->monitorAllAttributes = TriggerInfo::getMonitorAllAttributes(tinfo);
+    tptr.p->monitorReplicas = TriggerInfo::getMonitorReplicas(tinfo);
+    tptr.p->m_receiverRef = req->receiverRef;
+
+    if (tptr.p->monitorAllAttributes)
+    {
+      jam();
+      // Set all non-pk attributes
+      tptr.p->attributeMask.set();
+      for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
+	if (primaryKey(table, i))
+	  tptr.p->attributeMask.clear(i);
+      }
+    }
+    else
+    {
+      jam();
+      // Set attribute mask
+      tptr.p->attributeMask = req->attributeMask;
+    }
   }
   return true;
+
+err:
+  for (--i; i >= 0; i--)
+  {
+    jam();
+    tmp[i].list->release(tmp[i].ptr);
+  }
+  return false;
 }//Dbtup::createTrigger()
 
 bool
@@ -317,46 +369,88 @@ Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 Uint32
-Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req, BlockNumber sender)
+Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber receiver)
 {
   if (ERROR_INSERTED(4004)) {
     CLEAR_ERROR_INSERT_VALUE;
     return 9999;
   }
-  Uint32 triggerId = req->getTriggerId();
+  Uint32 triggerId = req->triggerId;
 
-  TriggerType::Value ttype = req->getTriggerType();
-  TriggerActionTime::Value ttime = req->getTriggerActionTime();
-  TriggerEvent::Value tevent = req->getTriggerEvent();
+  const Uint32 tinfo = req->triggerInfo;
+  TriggerType::Value ttype = TriggerInfo::getTriggerType(tinfo);
+  TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
+  TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
   //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
 
-  DLList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
-  ndbrequire(tlist != NULL);
+  int cnt;
+  struct {
+    TriggerEvent::Value event;
+    DLList<TupTriggerData> * list;
+    TriggerPtr ptr;
+  } tmp[3];
 
-  Ptr<TupTriggerData> ptr;
-  for (tlist->first(ptr); !ptr.isNull(); tlist->next(ptr)) {
+  if (ttype == TriggerType::SECONDARY_INDEX ||
+      ttype == TriggerType::REORG_TRIGGER)
+  {
     jam();
-    if (ptr.p->triggerId == triggerId) {
-      if(ttype==TriggerType::SUBSCRIPTION && sender != ptr.p->m_receiverBlock)
-      {
-	/**
-	 * You can only drop your own triggers for subscription triggers.
-	 * Trigger IDs are private for each block.
-	 *
-	 * SUMA encodes information in the triggerId
-	 *
-	 * Backup doesn't really care about the Ids though.
-	 */
-	jam();
-	continue;
-      }
+    cnt = 3;
+    tmp[0].event = TriggerEvent::TE_INSERT;
+    tmp[1].event = TriggerEvent::TE_UPDATE;
+    tmp[2].event = TriggerEvent::TE_DELETE;
+  }
+  else
+  {
+    jam();
+    cnt = 1;
+    tmp[0].event = tevent;
+  }
+
+  int i = 0;
+  for (i = 0; i<cnt; i++)
+  {
+    tmp[i].list = findTriggerList(table, ttype, ttime, tmp[i].event);
+    ndbrequire(tmp[i].list != NULL);
+
+    Ptr<TupTriggerData> ptr;
+    tmp[i].ptr.setNull();
+    for (tmp[i].list->first(ptr); !ptr.isNull(); tmp[i].list->next(ptr))
+    {
       jam();
-      tlist->release(ptr.i);
-      return 0;
+      if (ptr.p->triggerId == triggerId)
+      {
+	if(ttype==TriggerType::SUBSCRIPTION &&
+	   receiver != refToBlock(ptr.p->m_receiverRef))
+	{
+	  /**
+	   * You can only drop your own triggers for subscription triggers.
+	   * Trigger IDs are private for each block.
+	   *
+	   * SUMA encodes information in the triggerId
+	   *
+	   * Backup doesn't really care about the Ids though.
+	   */
+	  jam();
+	  continue;
+	}
+	jam();
+	tmp[i].ptr = ptr;
+      }
+    }
+    if (tmp[i].ptr.isNull())
+    {
+      jam();
+      return DropTrigRef::TriggerNotFound;
     }
   }
-  return DropTrigRef::TriggerNotFound;
+
+  for (i = 0; i<cnt; i++)
+  {
+    jam();
+    tmp[i].list->release(tmp[i].ptr);
+  }
+  return 0;
 }//Dbtup::dropTrigger()
 
 /* ---------------------------------------------------------------- */
@@ -610,7 +704,7 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   /**
    * Set disk page
    */
-  req_struct->m_disk_page_ptr.i = m_pgman.m_ptr.i;
+  req_struct->m_disk_page_ptr.i = m_pgman_ptr.i;
   
   ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);
@@ -648,6 +742,108 @@ void Dbtup::executeTriggers(KeyReqStruct *req_struct,
   }
 }
 
+bool
+Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
+                          const TupTriggerData* trigPtrP,
+                          const KeyReqStruct * req_struct,
+                          const Operationrec * regOperPtr) const
+{
+  jam();
+
+  if (trigPtrP->triggerType == TriggerType::SUBSCRIPTION_BEFORE)
+  {
+    if (!check_fire_suma(req_struct, regOperPtr, fragPtrP))
+      return false;
+    return true;
+  }
+
+  switch(fragPtrP->fragStatus){
+  case Fragrecord::FS_REORG_NEW:
+    jam();
+    return false;
+  case Fragrecord::FS_REORG_COMMIT:
+  case Fragrecord::FS_REORG_COMPLETE:
+    return req_struct->m_reorg == 0;
+  default:
+    return true;
+  }
+}
+
+bool
+Dbtup::check_fire_reorg(const KeyReqStruct *req_struct,
+                        Fragrecord::FragState state) const
+{
+  Uint32 flag = req_struct->m_reorg;
+  switch(state){
+  case Fragrecord::FS_ONLINE:
+  case Fragrecord::FS_REORG_COMMIT_NEW:
+  case Fragrecord::FS_REORG_COMPLETE_NEW:
+    jam();
+    if (flag == 2)
+    {
+      jam();
+      return true;
+    }
+    return false;
+  case Fragrecord::FS_REORG_NEW:
+  case Fragrecord::FS_REORG_COMMIT:
+  case Fragrecord::FS_REORG_COMPLETE:
+  default:
+    jam();
+    return false;
+  }
+}
+
+bool
+Dbtup::check_fire_suma(const KeyReqStruct *req_struct,
+                       const Operationrec* opPtrP,
+                       const Fragrecord* regFragPtrP) const
+{
+  Ptr<Tablerec> tablePtr;
+  tablePtr.i = regFragPtrP->fragTableId;
+  Fragrecord::FragState state = regFragPtrP->fragStatus;
+  Uint32 gci_hi = req_struct->gci_hi;
+  Uint32 flag = opPtrP->op_struct.m_reorg;
+
+  switch(state){
+  case Fragrecord::FS_FREE:
+    ndbassert(false);
+    return false;
+  case Fragrecord::FS_ONLINE:
+    jam();
+    return true;
+  case Fragrecord::FS_REORG_NEW:
+    jam();
+    return false;
+  case Fragrecord::FS_REORG_COMMIT_NEW:
+    jam();
+    return false;
+  case Fragrecord::FS_REORG_COMPLETE_NEW:
+    jam();
+    return true;
+  case Fragrecord::FS_REORG_COMMIT:
+    jam();
+    return true;
+  case Fragrecord::FS_REORG_COMPLETE:
+    jam();
+    if (flag != 1)
+    {
+      jam();
+      return true;
+    }
+    break;
+  }
+
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  if (gci_hi < tablePtr.p->m_reorg_suma_filter.m_gci_hi)
+  {
+    jam();
+    return true;
+  }
+
+  return false;
+}
+
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
                            Operationrec* const regOperPtr,
@@ -679,18 +875,26 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
       }
   */
   Signal* signal= req_struct->signal;
-  BlockReference ref = trigPtr->m_receiverBlock;
+  BlockReference ref = trigPtr->m_receiverRef;
   Uint32* const keyBuffer = &cinBuffer[0];
   Uint32* const afterBuffer = &coutBuffer[0];
   Uint32* const beforeBuffer = &clogMemBuffer[0];
-  
+  Uint32 triggerType = trigPtr->triggerType;
+
   Uint32 noPrimKey, noAfterWords, noBeforeWords;
   FragrecordPtr regFragPtr;
   regFragPtr.i= regOperPtr->fragmentPtr;
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+  Fragrecord::FragState fragstatus = regFragPtr.p->fragStatus;
 
-  if (ref == BACKUP) {
+  if (refToMain(ref) == BACKUP)
+  {
     jam();
+    if (isNdbMtLqh())
+    {
+      goto out;
+    }
+
     /*
     In order for the implementation of BACKUP to work even when changing
     primaries in the middle of the backup we need to set the trigger on
@@ -708,7 +912,20 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
       jam();
       return;
     }
+out:
+    (void)1;
   }
+  else if (unlikely(triggerType == TriggerType::REORG_TRIGGER))
+  {
+    if (!check_fire_reorg(req_struct, fragstatus))
+      return;
+  }
+  else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE))
+  {
+    if (!check_fire_trigger(regFragPtr.p, trigPtr, req_struct, regOperPtr))
+      return;
+  }
+
   if (!readTriggerInfo(trigPtr,
                        regOperPtr,
                        req_struct,
@@ -730,12 +947,14 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
 // We start by setting common header info for all TRIG_ATTRINFO signals.
 //--------------------------------------------------------------------
   bool executeDirect;
+  bool longsignal = false;
   TrigAttrInfo* const trigAttrInfo = (TrigAttrInfo *)signal->getDataPtrSend();
   trigAttrInfo->setConnectionPtr(req_struct->TC_index);
   trigAttrInfo->setTriggerId(trigPtr->triggerId);
 
-  switch(trigPtr->triggerType) {
+  switch(triggerType) {
   case (TriggerType::SECONDARY_INDEX):
+  case (TriggerType::REORG_TRIGGER):
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
@@ -744,8 +963,13 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   case (TriggerType::SUBSCRIPTION_BEFORE):
     jam();
     // Since only backup uses subscription triggers we send to backup directly for now
-    ref = trigPtr->m_receiverBlock;
-    executeDirect = true;
+    ref = trigPtr->m_receiverRef;
+    // executeDirect = !isNdbMtLqh() || (refToMain(ref) != SUMA);
+    executeDirect = refToInstance(ref) == instance();
+
+    // If we can do execute direct, lets do that, else do long signal (only local node)
+    longsignal = !executeDirect;
+    ndbassert(refToNode(ref) == 0 || refToNode(ref) == getOwnNodeId());
     break;
   case (TriggerType::READ_ONLY_CONSTRAINT):
     terrorCode = ZREAD_ONLY_CONSTRAINT_VIOLATION;
@@ -758,44 +982,147 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
 
   req_struct->no_fired_triggers++;
 
-  trigAttrInfo->setAttrInfoType(TrigAttrInfo::PRIMARY_KEY);
-  sendTrigAttrInfo(signal, keyBuffer, noPrimKey, executeDirect, ref);
+  if (longsignal == false)
+  {
+    jam();
+
+    trigAttrInfo->setAttrInfoType(TrigAttrInfo::PRIMARY_KEY);
+    sendTrigAttrInfo(signal, keyBuffer, noPrimKey, executeDirect, ref);
+
+    switch(regOperPtr->op_struct.op_type) {
+    case(ZINSERT):
+      jam();
+      // Send AttrInfo signals with new attribute values
+      trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
+      sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
+      break;
+    case(ZDELETE):
+      if (trigPtr->sendBeforeValues) {
+        jam();
+        trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
+        sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
+      }
+      break;
+    case(ZUPDATE):
+      jam();
+      if (trigPtr->sendBeforeValues) {
+        jam();
+        trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
+        sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
+      }
+      trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
+      sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
+      break;
+    default:
+      ndbrequire(false);
+    }
+  }
+
+  /**
+   * sendFireTrigOrd
+   */
+  FireTrigOrd* const fireTrigOrd = (FireTrigOrd *)signal->getDataPtrSend();
+
+  fireTrigOrd->setConnectionPtr(req_struct->TC_index);
+  fireTrigOrd->setTriggerId(trigPtr->triggerId);
+  fireTrigOrd->fragId= regFragPtr.p->fragmentId;
 
   switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
     jam();
-    // Send AttrInfo signals with new attribute values
-    trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
-    sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;
     break;
   case(ZDELETE):
-    if (trigPtr->sendBeforeValues) {
-      jam();
-      trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
-      sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
-    }
+    jam();
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
     break;
   case(ZUPDATE):
     jam();
-    if (trigPtr->sendBeforeValues) {
-      jam();
-      trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
-      sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
-    }
-    trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
-    sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_UPDATE;
     break;
   default:
     ndbrequire(false);
+    break;
   }
-  sendFireTrigOrd(signal,
-                  req_struct,
-                  regOperPtr,
-                  trigPtr,
-		  regFragPtr.p->fragmentId,
-                  noPrimKey,
-                  noBeforeWords,
-                  noAfterWords);
+
+  fireTrigOrd->setNoOfPrimaryKeyWords(noPrimKey);
+  fireTrigOrd->setNoOfBeforeValueWords(noBeforeWords);
+  fireTrigOrd->setNoOfAfterValueWords(noAfterWords);
+
+  switch(trigPtr->triggerType) {
+  case (TriggerType::SECONDARY_INDEX):
+  case (TriggerType::REORG_TRIGGER):
+    jam();
+    fireTrigOrd->m_triggerType = trigPtr->triggerType;
+    fireTrigOrd->m_transId1 = req_struct->trans_id1;
+    fireTrigOrd->m_transId2 = req_struct->trans_id2;
+    sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
+               signal, FireTrigOrd::SignalLength, JBB);
+    break;
+  case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
+    jam();
+    fireTrigOrd->setGCI(req_struct->gci_hi);
+    fireTrigOrd->setHashValue(req_struct->hash_value);
+    fireTrigOrd->m_any_value = regOperPtr->m_any_value;
+    fireTrigOrd->m_gci_lo = req_struct->gci_lo;
+    if (executeDirect)
+    {
+      jam();
+      EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
+                     GSN_FIRE_TRIG_ORD,
+                     signal,
+                     FireTrigOrd::SignalLengthSuma);
+      jamEntry();
+    }
+    else
+    {
+      ndbassert(longsignal);
+      LinearSectionPtr ptr[3];
+      ptr[0].p = keyBuffer;
+      ptr[0].sz = noPrimKey;
+      ptr[1].p = beforeBuffer;
+      ptr[1].sz = noBeforeWords;
+      ptr[2].p = afterBuffer;
+      ptr[2].sz = noAfterWords;
+      sendSignal(trigPtr->m_receiverRef, GSN_FIRE_TRIG_ORD,
+                 signal, FireTrigOrd::SignalLengthSuma, JBB, ptr, 3);
+    }
+    break;
+  case (TriggerType::SUBSCRIPTION):
+    jam();
+    // Since only backup uses subscription triggers we
+    // send to backup directly for now
+    fireTrigOrd->setGCI(req_struct->gci_hi);
+
+    if (executeDirect)
+    {
+      jam();
+      EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
+                     GSN_FIRE_TRIG_ORD,
+                     signal,
+                     FireTrigOrd::SignalWithGCILength);
+      jamEntry();
+    }
+    else
+    {
+      jam();
+      // Todo send onlu before/after depending on BACKUP REDO/UNDO
+      ndbassert(longsignal);
+      LinearSectionPtr ptr[3];
+      ptr[0].p = keyBuffer;
+      ptr[0].sz = noPrimKey;
+      ptr[1].p = beforeBuffer;
+      ptr[1].sz = noBeforeWords;
+      ptr[2].p = afterBuffer;
+      ptr[2].sz = noAfterWords;
+      sendSignal(trigPtr->m_receiverRef, GSN_FIRE_TRIG_ORD,
+                 signal, FireTrigOrd::SignalWithGCILength, JBB, ptr, 3);
+    }
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 }
 
 Uint32 Dbtup::setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask, 
@@ -965,7 +1292,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     req_struct->m_tuple_ptr= save;
     ndbrequire(ret != -1);
     noBeforeWords = ret;
-    if (trigPtr->m_receiverBlock != SUMA &&
+    if (refToMain(trigPtr->m_receiverRef) != SUMA &&
         (noAfterWords == noBeforeWords) &&
         (memcmp(afterBuffer, beforeBuffer, noAfterWords << 2) == 0)) {
 //--------------------------------------------------------------------
@@ -1000,7 +1327,7 @@ void Dbtup::sendTrigAttrInfo(Signal* signal,
                      sigLen);
     if (executeDirect) {
       jam();
-      EXECUTE_DIRECT(receiverReference, 
+      EXECUTE_DIRECT(refToMain(receiverReference), 
                      GSN_TRIG_ATTRINFO,
                      signal,
 		     TrigAttrInfo::StaticLength + sigLen);
@@ -1026,67 +1353,6 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
                             Uint32 noBeforeValueWords, 
                             Uint32 noAfterValueWords)
 {
-  FireTrigOrd* const fireTrigOrd = (FireTrigOrd *)signal->getDataPtrSend();
-  
-  fireTrigOrd->setConnectionPtr(req_struct->TC_index);
-  fireTrigOrd->setTriggerId(trigPtr->triggerId);
-  fireTrigOrd->fragId= fragmentId;
-
-  switch(regOperPtr->op_struct.op_type) {
-  case(ZINSERT):
-    jam();
-    fireTrigOrd->setTriggerEvent(TriggerEvent::TE_INSERT);
-    break;
-  case(ZDELETE):
-    jam();
-    fireTrigOrd->setTriggerEvent(TriggerEvent::TE_DELETE);
-    break;
-  case(ZUPDATE):
-    jam();
-    fireTrigOrd->setTriggerEvent(TriggerEvent::TE_UPDATE);
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }
-
-  fireTrigOrd->setNoOfPrimaryKeyWords(noPrimKeyWords);
-  fireTrigOrd->setNoOfBeforeValueWords(noBeforeValueWords);
-  fireTrigOrd->setNoOfAfterValueWords(noAfterValueWords);
-
-  switch(trigPtr->triggerType) {
-  case (TriggerType::SECONDARY_INDEX):
-    jam();
-    sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD, 
-               signal, FireTrigOrd::SignalLength, JBB);
-    break;
-  case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
-    jam();
-    // Since only backup uses subscription triggers we 
-    // send to backup directly for now
-    fireTrigOrd->setGCI(req_struct->gci_hi);
-    fireTrigOrd->setHashValue(req_struct->hash_value);
-    fireTrigOrd->m_any_value = regOperPtr->m_any_value;
-    fireTrigOrd->m_gci_lo = req_struct->gci_lo;
-    EXECUTE_DIRECT(trigPtr->m_receiverBlock,
-                   GSN_FIRE_TRIG_ORD,
-                   signal,
-		   FireTrigOrd::SignalLengthSuma);
-    break;
-  case (TriggerType::SUBSCRIPTION):
-    jam();
-    // Since only backup uses subscription triggers we 
-    // send to backup directly for now
-    fireTrigOrd->setGCI(req_struct->gci_hi);
-    EXECUTE_DIRECT(trigPtr->m_receiverBlock,
-                   GSN_FIRE_TRIG_ORD,
-                   signal,
-		   FireTrigOrd::SignalWithGCILength);
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }
 }
 
 /*

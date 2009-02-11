@@ -26,14 +26,14 @@
 #include <signaldata/LqhKey.hpp>
 #include <AttributeHeader.hpp>
 #include <md5_hash.hpp>
-#include <Dblqh.hpp>
+#include <dblqh/Dblqh.hpp>
 #include <dbtup/Dbtup.hpp>
 #include <KeyDescriptor.hpp>
 
 #define PAGES LCP_RESTORE_BUFFER
 
-Restore::Restore(Block_context& ctx) :
-  SimulatedBlock(RESTORE, ctx),
+Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(RESTORE, ctx, instanceNumber),
   m_file_list(m_file_pool),
   m_file_hash(m_file_pool)
 {
@@ -71,8 +71,9 @@ Restore::execSTTOR(Signal* signal)
 {
   jamEntry();                            
 
-  c_lqh = (Dblqh*)globalData.getBlock(DBLQH);
-  c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+  c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
+  c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+  ndbrequire(c_lqh != 0 && c_tup != 0);
   sendSTTORRY(signal);
   
   return;
@@ -190,7 +191,8 @@ Restore::sendSTTORRY(Signal* signal){
   signal->theData[3] = 1;
   signal->theData[4] = 3;
   signal->theData[5] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : RESTORE_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
 }
 
 void
@@ -512,7 +514,8 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	(file_ptr.p->m_current_page_index + 1) % page_count;
       
       Uint32 first = (GLOBAL_PAGE_SIZE_WORDS - pos);
-      memcpy(page_ptr.p, page_ptr.p->data+pos, 4 * first);
+      // wl4391_todo removing valgrind overlap warning for now
+      memmove(page_ptr.p, page_ptr.p->data+pos, 4 * first);
       memcpy(page_ptr.p->data+first, next_page_ptr.p, 4 * (len - first));
       data= page_ptr.p->data;
     } 
@@ -1194,7 +1197,7 @@ Restore::execLQHKEYCONF(Signal* signal)
 {
   FilePtr file_ptr;
   LqhKeyConf * conf = (LqhKeyConf *)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->connectPtr);
+  m_file_pool.getPtr(file_ptr, conf->opPtr);
   
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;

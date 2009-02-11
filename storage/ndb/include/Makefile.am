@@ -19,7 +19,8 @@ ndbinclude_HEADERS = \
 ndb_constants.h \
 ndb_init.h \
 ndb_types.h \
-ndb_version.h
+ndb_version.h \
+ndbinfo.h
 
 ndbapiinclude_HEADERS = \
 ndbapi/ndbapi_limits.h \
@@ -58,12 +59,10 @@ ndb_global.h \
 ndb_net.h
 
 EXTRA_DIST = debugger editline kernel logger mgmcommon \
-portlib transporter util
+portlib transporter util CMakeLists.txt
 
 dist-hook:
 	-rm -rf `find $(distdir) -type d -name SCCS`
-
-windoze-dsp:
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

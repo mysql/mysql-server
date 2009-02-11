@@ -1,0 +1,109 @@
+Transporter.
+
+Common code in TransporterRegistry class and sources in
+src/common/transporter/.
+
+NDB API specific code in src/ndbapi/TransporterFacade.[ch]pp.
+
+NDB kernel code in TransporterCallback.cpp. Also some multi-threading specific
+code in mt.cpp.
+
+
+Connect and disconnect
+----------------------
+
+Connect and disconnect is done asynchroneously, using extra threads to do the
+actual (blocking) socket connect() call.
+
+One thread is the TransporterRegistry::start_clients_thread(). This thread has
+the responsibility to periodically try to connect to relevant nodes until
+successful.
+
+Another thread (kernel only) is the ServerSocket thread, which handles
+accept() of incoming connections.
+
+To communicate with these threads, a pair of message queues are used.
+
+TransporterRegistry::m_in_queue is used to send connect and disconnect
+requests to start_clients_thread.
+
+TransporterRegistry::m_out_queue is used to send connect/disconnect reports
+from both start_clients_thread and the ServerSocket thread. It is also used to
+send error reports from various places in the code.
+
+The m_out_queue is read by TransporterRegistry::update_connections(). In the
+kernel, update_connections() is called perodically from the receive loop.
+
+The sequence for getting a transporter into the CONNECTED state in the kernel
+is this:
+  1. CMVMI calls TransporterRegistry::do_connect() when it decides to
+     initiate a connection.
+  2. do_connect() sets the performStates[node] entry to CONNECTING as
+     a flag for start_clients_thread.
+  3. The thread running in start_clients_thread() notices the change of
+     state, and does the actual socket connect and initial connection
+     setup. It then sets Transporter::m_connected to true as a flag for
+     update_connections().
+  4. update_connections() notices the flag m_connected set to true, and
+     this causes it to call TransporterRegistry::report_connect().
+  5. TransporterRegistry::report_connect() sets performStates[node] to
+     CONNECTED, and invokes TransporterCallback::reportConnect().
+  6. TransporterCallback::reportConnect() sends the signal CONNECT_REP to
+     the CMVMI block, completing the connection process.
+
+The sequence for disconnect is this:
+  1. CMVMI calls TransporterRegistry::do_disconnect() when it decides to
+     initiate disconnection. The TCP transporter may also call
+     do_disconnect() if an I/O error occurs on the socket.
+  2. do_disconnect() sets the performStates[node] entry to DISCONNECTING
+     as a flag for start_clients_thread.
+  3. The thread running in start_clients_thread() notices the change of
+     state, closes the socket, and sets Transporter::m_connected to false
+     as a flag for update_connections().
+  4. update_connections() notices the flag m_connect set to false, and
+     this causes it to call TransporterRegistry::report_disconnect().
+  5. TransporterRegistry::report_disconnect() sets performStates[node] to
+     DISCONNECTED, and invokes TransporterCallback::reportDisconnect().
+  6. TransporterCallback::reportDisconnect() sends the signal DISCONNECT_REP
+     to the CMVMI block, completing the disconnection.
+
+Locking
+-------
+
+Certain parts of the traporters must be protected for multi-threaded use
+cases.
+
+The TransporterRegistry::performReceive() function must be protected by a
+global mutex.
+
+The TransporterRegistry::performSend() must be protected by a per-transporter
+mutex. So two threads can run performSend() simultaneously for two different
+transporters, but not for the same transporter.
+
+TransporterRegistry::prepareSend() is multi-thread safe, provided the
+passed-in TransporterSendBufferHandle is thread-safe. Ie. for multi-threaded
+NDB kernel this is achieved by having per-thread per-node send buffers, and
+passing different TransporterSendBufferHandle into prepareSend from different
+threads.
+
+TransporterRegistry::update_connections() and TransporterRegistry::setIOState()
+must only be called from one thread (at a time).
+
+Generally, upper layer is responsible for implementing any necessary locking.
+
+Upper layer is responsible for not having two different threads executing
+pollReceive() + performReceive() at the same time.
+
+Upper layer is responsible for not having two different threads executing
+performSend() on the same node at the same time.
+
+Upper layer may have several threads executing prepareSend() at the same time,
+but is responsible for ensuring that the passed-in TransporterSendBufferHandle
+pointers are thread-safe with respect to this and also with respect to any
+simultaneous performSend() on the node that may call get_bytes_to_send_iovec()
+and bytes_sent().
+
+Upper layer must provide in TransporterCallback lock_transporter() and
+unlock_transporter() which can be used to synchronise connect/disconnect with
+pollReceive(), performReceive(), and performSend(), ie. a lock to make sure
+that connect/disconnect code does not run simultaneously with these.

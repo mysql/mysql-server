@@ -59,7 +59,12 @@ public:
   virtual ~MgmApiSession();
   void runSession();
 
+  static const unsigned SOCKET_TIMEOUT = 30000;
+
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig(Parser_t::Context &ctx, const class Properties &args);
+  void showConfig(Parser_t::Context &ctx, const class Properties &args);
+  void reloadConfig(Parser_t::Context &ctx, const class Properties &args);
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
@@ -115,24 +120,37 @@ public:
 
   void getSessionId(Parser_t::Context &ctx, Properties const &args);
   void getSession(Parser_t::Context &ctx, Properties const &args);
+
+  void getNdbInfo(Parser_t::Context &ctx, Properties const &args);
+
+  void create_nodegroup(Parser_t::Context &ctx, Properties const &args);
+  void drop_nodegroup(Parser_t::Context &ctx, Properties const &args);
+
+  void show_variables(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {
-  class MgmtSrvr * m_mgmsrv;
+  MgmtSrvr& m_mgmsrv;
   Uint64 m_next_session_id; // Protected by m_sessions mutex it SocketServer
 public:
-  MgmApiService(){
-    m_mgmsrv = 0;
-    m_next_session_id= 1;
-  }
-  
-  void setMgm(class MgmtSrvr * mgmsrv){
-    m_mgmsrv = mgmsrv;
-  }
-  
+  MgmApiService(MgmtSrvr& mgm):
+    m_mgmsrv(mgm),
+    m_next_session_id(1) {}
+
   SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
-    return new MgmApiSession(* m_mgmsrv, socket, m_next_session_id++);
+    return new MgmApiSession(m_mgmsrv, socket, m_next_session_id++);
   }
 };
+
+static const char* str_null(const char* str)
+{
+  return (str ? str : "(null)");
+}
+
+static const char* yes_no(bool value)
+{
+  return (value ? "yes" : "no");
+}
+
 
 #endif

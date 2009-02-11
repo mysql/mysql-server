@@ -10,13 +10,13 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.32-ndb-6.3.23)
+AM_INIT_AUTOMAKE(mysql, 5.1.32-ndb-6.4.3)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=6
-NDB_VERSION_MINOR=3
-NDB_VERSION_BUILD=23
-NDB_VERSION_STATUS="-GA"
+NDB_VERSION_MINOR=4
+NDB_VERSION_BUILD=3
+NDB_VERSION_STATUS="-beta"
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
@@ -2065,7 +2065,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   backtrace backtrace_symbols backtrace_symbols_fd \
-  posix_fallocate posix_memalign memalign directio)
+  posix_fallocate posix_memalign memalign sysconf directio)
 
 #
 #
@@ -2390,6 +2390,59 @@ then
   AC_DEFINE([HAVE_BROKEN_NETINET_INCLUDES], [1], [Can netinet be included])
 fi
 AC_MSG_RESULT("$netinet_inc")
+
+#checking for Linux futex support
+AC_MSG_CHECKING(for Linux futex support)
+AC_TRY_LINK(
+  [#ifndef _GNU_SOURCE
+   #define _GNU_SOURCE
+   #endif
+   #include <sys/types.h>
+   #include <unistd.h>
+   #include <errno.h>
+   #include <sys/syscall.h>],
+   #define FUTEX_WAIT        0
+   #define FUTEX_WAKE        1
+   #define FUTEX_FD          2
+   #define FUTEX_REQUEUE     3
+   #define FUTEX_CMP_REQUEUE 4
+   #define FUTEX_WAKE_OP     5
+  [
+   int a = 0; int * addr = &a;
+   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
+  ],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
+  AC_MSG_RESULT(no))
+
+#checking for asm needed for ndbmtd
+AC_CACHE_CHECK([assembler needed for ndbmtd],
+               [have_ndbmtd_asm], [AC_TRY_RUN([
+    #include "storage/ndb/src/kernel/vm/mt-asm.h"
+    int main()
+    {
+      unsigned int a = 0;
+      volatile unsigned int *ap = (volatile unsigned int*)&a;
+      #ifdef NDB_HAVE_XCNG
+      a = xcng(ap, 1);
+      cpu_pause();
+      #endif
+      mb();
+      * ap = 2;
+      rmb();
+      * ap = 1;
+      wmb();
+      * ap = 0;
+      read_barrier_depends();
+      return a;
+   }
+], [have_ndbmtd_asm=yes],
+   [have_ndbmtd_asm=no],
+   [have_ndbmtd_asm=no])])
+if test "x$have_ndbmtd_asm" = xyes; then
+  AC_DEFINE(HAVE_NDBMTD_ASM, 1,
+            [Define to 1 if assmbler needed to run ndbmtd is present.])
+fi
 
 AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
 [AC_TRY_LINK([],[
@@ -2852,6 +2905,8 @@ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > st
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
+
+AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
 
 AC_OUTPUT
 

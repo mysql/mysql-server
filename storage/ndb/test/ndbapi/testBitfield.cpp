@@ -10,10 +10,7 @@
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
 
-
-NDB_STD_OPTS_VARS;
-
-static struct my_option my_long_options[] =
+struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}

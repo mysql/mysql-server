@@ -15,7 +15,5 @@
 
 SUBDIRS = cpcd
 
-windoze-dsp:
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%

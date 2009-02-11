@@ -893,7 +893,29 @@ void getTextRestoreCompleted(QQQQ)
                        "Restore completed: backup %u from node %u",
                        theData[1], theData[2]);
 }
-
+void getTextLogFileInitStatus(QQQQ) {
+  if (theData[2])
+    BaseString::snprintf(m_text, m_text_len,
+                         "Local redo log file initialization status:\n"
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
+//                         refToNode(theData[1]),
+                         theData[2], theData[3],
+                         theData[4], theData[5]);
+  else
+    BaseString::snprintf(m_text, m_text_len,
+                         "Node %u: Log file initializtion completed",
+                          refToNode(theData[1]));
+}
+void getTextLogFileInitCompStatus(QQQQ) {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Local redo log file initialization completed:\n"
+                         "#Total files: %u, Completed: %u\n"
+                         "#Total MBytes: %u, Completed: %u",
+//                         refToNode(theData[1]),
+                         theData[2], theData[3],
+                         theData[4], theData[5]);
+}
 void getTextSingleUser(QQQQ) {
   switch (theData[1])
   {
@@ -998,6 +1020,13 @@ void getTextStartReport(QQQQ) {
        mask1, mask2, mask3, mask4);
   }
 }
+void getTextMTSignalStatistics(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Signals delivered from thread %u: "
+                       "prio A %u (%u bytes) prio B %u (%u bytes)",
+		       theData[1],
+                       theData[2], theData[3], theData[4], theData[5]);
+}
 
 void getTextSubscriptionStatus(QQQQ)
 {
@@ -1070,6 +1099,8 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
+  ROW(LogFileInitStatus,       LogLevel::llStartUp,     7, Logger::LL_INFO),
+  ROW(LogFileInitCompStatus,   LogLevel::llStartUp,     7, Logger::LL_INFO),
   
   // NODERESTART
   ROW(NR_CopyDict,             LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
@@ -1096,6 +1127,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(SendBytesStatistic,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(ReceiveBytesStatistic,   LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),
+  ROW(MTSignalStatistics,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
 
   // ERROR
   ROW(TransporterError,        LogLevel::llError,  2, Logger::LL_ERROR   ),
@@ -1129,7 +1161,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 const Uint32 EventLoggerBase::matrixSize=
 sizeof(EventLoggerBase::matrix)/sizeof(EventRepLogLevelMatrix);
 
-EventLogger::EventLogger() : m_filterLevel(15)
+EventLogger::EventLogger()
 {
   setCategory("EventLogger");
   enable(Logger::LL_INFO, Logger::LL_ALERT); 
@@ -1251,19 +1283,6 @@ EventLogger::log(int eventType, const Uint32* theData, Uint32 len,
   } // if (..
   DBUG_VOID_RETURN;
 }
-
-int
-EventLogger::getFilterLevel() const
-{
-  return m_filterLevel;
-}
-
-void 
-EventLogger::setFilterLevel(int filterLevel)
-{
-  m_filterLevel = filterLevel;
-}
-
 
 EventLogger*
 create_event_logger()

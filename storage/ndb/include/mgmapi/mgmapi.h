@@ -960,7 +960,11 @@ extern "C" {
    *
    * @return fd    filedescriptor to read events from
    */
+#ifdef NDB_WIN
+  SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+#else
   int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -1006,7 +1010,11 @@ extern "C" {
    *
    * @return       filedescriptor, -1 on failure.
    */
+#ifdef NDB_WIN
+  SOCKET ndb_logevent_get_fd(const NdbLogEventHandle);
+#else
   int ndb_logevent_get_fd(const NdbLogEventHandle);
+#endif
 
   /**
    * Attempt to retrieve next log event and will fill in the supplied
@@ -1079,6 +1087,27 @@ extern "C" {
 			   unsigned int* backup_id,
 			   struct ndb_mgm_reply* reply,
 			   unsigned int input_backupId);
+
+  /**
+   * Start backup
+   *
+   * @param   handle          NDB management handle.
+   * @param   wait_completed  0:  Don't wait for confirmation<br>
+   *                          1:  Wait for backup to be started<br>
+   *                          2:  Wait for backup to be completed
+   * @param   backup_id       Backup ID is returned from function.
+   * @param   reply           Reply message.
+   * @param   input_backupId  run as backupId and set next backup id to input_backupId+1.
+   * @param   backuppoint     Backup happen at start time(1) or complete time(0).
+   * @return                  -1 on error.
+   * @note                    backup_id will not be returned if
+   *                          wait_completed == 0
+   */
+  int ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+			   unsigned int* backup_id,
+			   struct ndb_mgm_reply* reply,
+			   unsigned int input_backupId,
+			   unsigned int backuppoint);
 
   /**
    * Abort backup
@@ -1165,6 +1194,7 @@ extern "C" {
    * ndb_mgm_get_fd
    *
    * get the file descriptor of the handle.
+   * On Win32, returns SOCKET.
    * INTERNAL ONLY.
    * USE FOR TESTING. OTHER USES ARE NOT A GOOD IDEA.
    *
@@ -1172,7 +1202,11 @@ extern "C" {
    * @return handle->socket
    *
    */
+#ifdef NDB_WIN
+  SOCKET ndb_mgm_get_fd(NdbMgmHandle handle);
+#else
   int ndb_mgm_get_fd(NdbMgmHandle handle);
+#endif
 
   /**
    * Get the node id of the mgm server we're connected to
@@ -1188,6 +1222,28 @@ extern "C" {
                           int *major, int *minor, int* build,
                           int len, char* str);
 
+  /**
+   * Query NDB$INFO.
+   * On success, returns number of rows.
+   * ndb_mgm_ndbinfo_getrow() *MUST* be called that many times.
+   */
+  int ndb_mgm_ndbinfo(NdbMgmHandle handle, const char *query, int *rows);
+
+  /**
+   * Gets the column names for NDBINFO query
+   *
+   * Must be called after successful ndb_mgm_ndbinfo() but BEFORE
+   * ndb_mgm_getrows.
+   */
+  int ndb_mgm_ndbinfo_colcount(NdbMgmHandle h);
+  int ndb_mgm_ndbinfo_getcolums(NdbMgmHandle h, int n, int l, char** c);
+  char* ndb_mgm_ndbinfo_nextcolumn(char* row, int *len);
+
+  /**
+   * returns zero on success.
+   * Must be called after ndb_mgm_ndbinfo and after ndb_mgm_ndbinfo_getcolumns
+   */
+  int ndb_mgm_ndbinfo_getrow(NdbMgmHandle h, char* row, int len);
 
   /**
    * Config iterator
@@ -1223,6 +1279,15 @@ extern "C" {
   int ndb_mgm_get_db_parameter_info(Uint32 paramId, struct ndb_mgm_param_info * info, 
              size_t * size);
 #endif
+
+  int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
+                               int * nodes,
+                               int * ng,
+                               struct ndb_mgm_reply* mgmreply);
+
+  int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
+                             int ng,
+                             struct ndb_mgm_reply* mgmreply);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   enum ndb_mgm_clusterlog_level {

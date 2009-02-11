@@ -146,30 +146,12 @@ public:
 			     EventTextFunction textF,
 			     const Uint32* theData, Uint32 len, 
 			     NodeId nodeId = 0);
-  
-  /**
-   * Returns the log level that is used to filter an event. The event will not
-   * be logged unless its event category's log level is <= levelFilter.
-   *
-   * @return the log level filter that is used for all event categories.
-   */
-  int getFilterLevel() const;
-
-  /**
-   * Sets log level filter. The event will be logged if 
-   * the event category's log level is <= 'filterLevel'.
-   *
-   * @param level the log level to filter.
-   */
-  void setFilterLevel(int filterLevel);
 
 private:
   /** Prohibit */
   EventLogger(const EventLogger&);
   EventLogger operator = (const EventLogger&);
   bool operator == (const EventLogger&);
-
-  Uint32 m_filterLevel;
 
   STATIC_CONST(MAX_TEXT_LENGTH = 256);
 };

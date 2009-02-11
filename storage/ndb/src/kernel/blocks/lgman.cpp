@@ -26,7 +26,6 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/LgmanContinueB.hpp>
 #include <signaldata/GetTabInfo.hpp>
-#include "ndbfs/Ndbfs.hpp"
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -53,8 +52,10 @@ extern EventLogger * g_eventLogger;
 
 Lgman::Lgman(Block_context & ctx) :
   SimulatedBlock(LGMAN, ctx),
+  m_tup(0),
   m_logfile_group_list(m_logfile_group_pool),
-  m_logfile_group_hash(m_logfile_group_pool)
+  m_logfile_group_hash(m_logfile_group_pool),
+  m_client_mutex("lgman-client", 2, true)
 {
   BLOCK_CONSTRUCTOR(Lgman);
   
@@ -64,11 +65,13 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Lgman::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &Lgman::execCONTINUEB);
 
-  addRecSignal(GSN_CREATE_FILE_REQ, &Lgman::execCREATE_FILE_REQ);
-  addRecSignal(GSN_CREATE_FILEGROUP_REQ, &Lgman::execCREATE_FILEGROUP_REQ);
+  addRecSignal(GSN_CREATE_FILE_IMPL_REQ, &Lgman::execCREATE_FILE_IMPL_REQ);
+  addRecSignal(GSN_CREATE_FILEGROUP_IMPL_REQ,
+               &Lgman::execCREATE_FILEGROUP_IMPL_REQ);
 
-  addRecSignal(GSN_DROP_FILE_REQ, &Lgman::execDROP_FILE_REQ);
-  addRecSignal(GSN_DROP_FILEGROUP_REQ, &Lgman::execDROP_FILEGROUP_REQ);
+  addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Lgman::execDROP_FILE_IMPL_REQ);
+  addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ,
+               &Lgman::execDROP_FILEGROUP_IMPL_REQ);
 
   addRecSignal(GSN_FSWRITEREQ, &Lgman::execFSWRITEREQ);
   addRecSignal(GSN_FSWRITEREF, &Lgman::execFSWRITEREF, true);
@@ -93,10 +96,57 @@ Lgman::Lgman(Block_context & ctx) :
 
   m_last_lsn = 1;
   m_logfile_group_hash.setSize(10);
+
+  if (isNdbMtLqh()) {
+    jam();
+    int ret = m_client_mutex.create();
+    ndbrequire(ret == 0);
+  }
+
+  {
+    CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
+    ce.m_function = TheNULLCallback.m_callbackFunction;
+    ce.m_flags = 0;
+  }
+  {
+    CallbackEntry& ce = m_callbackEntry[ENDLCP_CALLBACK];
+    ce.m_function = safe_cast(&Lgman::endlcp_callback);
+    ce.m_flags = 0;
+  }
+  {
+    CallbackTable& ct = m_callbackTable;
+    ct.m_count = COUNT_CALLBACKS;
+    ct.m_entry = m_callbackEntry;
+    m_callbackTableAddr = &ct;
+  }
 }
   
 Lgman::~Lgman()
 {
+  if (isNdbMtLqh()) {
+    (void)m_client_mutex.destroy();
+  }
+}
+
+void
+Lgman::client_lock(BlockNumber block, int line)
+{
+  if (isNdbMtLqh()) {
+    D("try lock" << hex << V(block) << dec << V(line));
+    int ret = m_client_mutex.lock();
+    ndbrequire(ret == 0);
+    D("got lock" << hex << V(block) << dec << V(line));
+  }
+}
+
+void
+Lgman::client_unlock(BlockNumber block, int line)
+{
+  if (isNdbMtLqh()) {
+    D("unlock" << hex << V(block) << dec << V(line));
+    int ret = m_client_mutex.unlock();
+    ndbrequire(ret == 0);
+  }
 }
 
 BLOCK_FUNCTIONS(Lgman)
@@ -133,10 +183,15 @@ void
 Lgman::execSTTOR(Signal* signal) 
 {
   jamEntry();                            
+  Uint32 startPhase = signal->theData[1];
+  switch (startPhase) {
+  case 1:
+    m_tup = globalData.getBlock(DBTUP);
+    ndbrequire(m_tup != 0);
+    break;
+  }
   sendSTTORRY(signal);
-  
-  return;
-}//Lgman::execNDB_STTOR()
+}
 
 void
 Lgman::sendSTTORRY(Signal* signal)
@@ -158,6 +213,7 @@ Lgman::execCONTINUEB(Signal* signal){
 
   Uint32 type= signal->theData[0];
   Uint32 ptrI = signal->theData[1];
+  client_lock(number(), __LINE__);
   switch(type){
   case LgmanContinueB::FILTER_LOG:
     jam();
@@ -168,7 +224,7 @@ Lgman::execCONTINUEB(Signal* signal){
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
     cut_log_tail(signal, ptr);
-    return;
+    break;
   }
   case LgmanContinueB::FLUSH_LOG:
   {
@@ -176,7 +232,7 @@ Lgman::execCONTINUEB(Signal* signal){
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
     flush_log(signal, ptr, signal->theData[2]);
-    return;
+    break;
   }
   case LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS:
   {
@@ -184,7 +240,7 @@ Lgman::execCONTINUEB(Signal* signal){
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
     process_log_buffer_waiters(signal, ptr);
-    return;
+    break;
   }
   case LgmanContinueB::FIND_LOG_HEAD:
     jam();
@@ -198,22 +254,22 @@ Lgman::execCONTINUEB(Signal* signal){
     {
       init_run_undo_log(signal);
     }
-    return;
+    break;
   case LgmanContinueB::EXECUTE_UNDO_RECORD:
     jam();
     execute_undo_record(signal);
-    return;
+    break;
   case LgmanContinueB::STOP_UNDO_LOG:
     jam();
     stop_run_undo_log(signal);
-    return;
+    break;
   case LgmanContinueB::READ_UNDO_LOG:
   {
     jam();
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
     read_undo_log(signal, ptr);
-    return;
+    break;
   }
   case LgmanContinueB::PROCESS_LOG_SYNC_WAITERS:
   {
@@ -221,7 +277,7 @@ Lgman::execCONTINUEB(Signal* signal){
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
     process_log_sync_waiters(signal, ptr);
-    return;
+    break;
   }
   case LgmanContinueB::FORCE_LOG_SYNC:
   {
@@ -229,7 +285,7 @@ Lgman::execCONTINUEB(Signal* signal){
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
     force_log_sync(signal, ptr, signal->theData[2], signal->theData[3]);
-    return;
+    break;
   }
   case LgmanContinueB::DROP_FILEGROUP:
   {
@@ -241,14 +297,15 @@ Lgman::execCONTINUEB(Signal* signal){
       jam();
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 
 			  signal->length());
-      return;
+      break;
     }
     Uint32 ref = signal->theData[2];
     Uint32 data = signal->theData[3];
     drop_filegroup_drop_files(signal, ptr, ref, data);
-    return;
+    break;
   }
   }
+  client_unlock(number(), __LINE__);
 }
 
 void
@@ -303,7 +360,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 }
 
 void
-Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
+Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
   CreateFilegroupImplReq* req= (CreateFilegroupImplReq*)signal->getDataPtr();
 
@@ -357,7 +414,7 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
       (CreateFilegroupImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_CONF, signal,
 	       CreateFilegroupImplConf::SignalLength, JBB);
     
     return;
@@ -367,12 +424,12 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_REF, signal,
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
 
 void
-Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
+Lgman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
@@ -419,7 +476,7 @@ Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
     ref->senderRef = reference();
     ref->senderData = req.senderData;
     ref->errorCode = errorCode;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_REF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_REF, signal,
 	       DropFilegroupImplRef::SignalLength, JBB);
   }
   else
@@ -428,7 +485,7 @@ Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
       (DropFilegroupImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req.senderData;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_CONF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	       DropFilegroupImplConf::SignalLength, JBB);
   }
 }
@@ -472,12 +529,12 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
   DropFilegroupImplConf *conf = (DropFilegroupImplConf*)signal->getDataPtr();  
   conf->senderData = data;
   conf->senderRef = reference();
-  sendSignal(ref, GSN_DROP_FILEGROUP_CONF, signal, 
+  sendSignal(ref, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	     DropFilegroupImplConf::SignalLength, JBB);
 }
 
 void
-Lgman::execCREATE_FILE_REQ(Signal* signal)
+Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
@@ -532,7 +589,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
         jam();
 	conf->senderData = senderData;
 	conf->senderRef = reference();
-	sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+	sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 		   CreateFileImplConf::SignalLength, JBB);
       }
       return;
@@ -563,7 +620,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
       ref->senderData = senderData;
       ref->senderRef = reference();
       ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
-      sendSignal(senderRef, GSN_CREATE_FILE_REF, signal,
+      sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
                  CreateFileImplRef::SignalLength, JBB);
       return;
     }
@@ -582,7 +639,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILE_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
 }
 
@@ -623,8 +680,8 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr,
 
   req->page_size = File_formats::NDB_PAGE_SIZE;
   Uint64 size = (Uint64)ptr.p->m_file_size * (Uint64)File_formats::NDB_PAGE_SIZE;
-  req->file_size_hi = size >> 32;
-  req->file_size_lo = size & 0xFFFFFFFF;
+  req->file_size_hi = (Uint32)(size >> 32);
+  req->file_size_lo = (Uint32)(size & 0xFFFFFFFF);
 
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);
@@ -648,7 +705,7 @@ Lgman::execFSWRITEREQ(Signal* signal)
     page->m_page_header.init(File_formats::FT_Undofile, 
 			     getOwnNodeId(),
 			     ndbGetOwnVersion(),
-			     time(0));
+			     (Uint32)time(0));
     page->m_file_id = ptr.p->m_file_id;
     page->m_logfile_group_id = ptr.p->m_create.m_logfile_group_id;
     page->m_logfile_group_version = ptr.p->m_create.m_logfile_group_version;
@@ -687,7 +744,8 @@ Lgman::execFSOPENREF(Signal* signal)
     ref->errorCode = CreateFileImplRef::FileError;
     ref->fsErrCode = errCode;
     ref->osErrCode = osErrCode;
-    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_REF, signal, 
+
+    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	       CreateFileImplRef::SignalLength, JBB);
   }
 
@@ -718,7 +776,7 @@ Lgman::execFSOPENCONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
   }
 }
@@ -811,7 +869,7 @@ Lgman::create_file_commit(Signal* signal,
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
   conf->senderRef = reference();
-  sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	     CreateFileImplConf::SignalLength, JBB);
 }
 
@@ -869,13 +927,13 @@ Lgman::execFSCLOSECONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
   }
 }
 
 void
-Lgman::execDROP_FILE_REQ(Signal* signal)
+Lgman::execDROP_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(false);
@@ -1066,11 +1124,25 @@ Lgman::Undofile::Undofile(const struct CreateFileImplReq* req, Uint32 ptrI)
 }
 
 Logfile_client::Logfile_client(SimulatedBlock* block, 
-			       Lgman* lgman, Uint32 logfile_group_id)
+			       Lgman* lgman, Uint32 logfile_group_id,
+                               bool lock)
 {
-  m_block= block->number();
+  Uint32 bno = block->number();
+  Uint32 ino = block->instance();
+  m_block= numberToBlock(bno, ino);
   m_lgman= lgman;
+  m_lock = lock;
   m_logfile_group_id= logfile_group_id;
+  D("client ctor" << hex << V(m_block));
+  if (m_lock)
+    m_lgman->client_lock(m_block, 0);
+}
+
+Logfile_client::~Logfile_client()
+{
+  D("client dtor" << hex << V(m_block));
+  if (m_lock)
+    m_lgman->client_unlock(m_block, 0);
 }
 
 int
@@ -1098,7 +1170,7 @@ Logfile_client::sync_lsn(Signal* signal,
       wait.p->m_block= m_block;
       wait.p->m_sync_lsn= lsn;
       memcpy(&wait.p->m_callback, &req->m_callback, 
-	     sizeof(SimulatedBlock::Callback));
+	     sizeof(SimulatedBlock::CallbackPtr));
 
       ptr.p->m_max_sync_req_lsn = lsn > ptr.p->m_max_sync_req_lsn ?
 	lsn : ptr.p->m_max_sync_req_lsn;
@@ -1110,8 +1182,8 @@ Logfile_client::sync_lsn(Signal* signal,
       ptr.p->m_state |= Lgman::Logfile_group::LG_FORCE_SYNC_THREAD;
       signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
       signal->theData[1] = ptr.i;
-      signal->theData[2] = lsn >> 32;
-      signal->theData[3] = lsn & 0xFFFFFFFF;
+      signal->theData[2] = (Uint32)(lsn >> 32);
+      signal->theData[3] = (Uint32)(lsn & 0xFFFFFFFF);
       m_lgman->sendSignalWithDelay(m_lgman->reference(), 
 				   GSN_CONTINUEB, signal, 10, 4);
     }
@@ -1143,8 +1215,8 @@ Lgman::force_log_sync(Signal* signal,
       
       File_formats::Undofile::Undo_page* undo= 
 	(File_formats::Undofile::Undo_page*)page;
-      undo->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-      undo->m_page_header.m_page_lsn_hi = lsn >> 32;
+      undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
+      undo->m_page_header.m_page_lsn_hi = (Uint32)(lsn >> 32);
       undo->m_words_used= File_formats::UNDO_PAGE_WORDS - free;
       
       /**
@@ -1171,8 +1243,8 @@ Lgman::force_log_sync(Signal* signal,
     ndbrequire(ptr.p->m_state & Lgman::Logfile_group::LG_FORCE_SYNC_THREAD);
     signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
     signal->theData[1] = ptr.i;
-    signal->theData[2] = max_req_lsn >> 32;
-    signal->theData[3] = max_req_lsn & 0xFFFFFFFF;    
+    signal->theData[2] = (Uint32)(max_req_lsn >> 32);
+    signal->theData[3] = (Uint32)(max_req_lsn & 0xFFFFFFFF);
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
   }
   else
@@ -1201,8 +1273,8 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   {
     removed= true;
     Uint32 block = waiter.p->m_block;
-    SimulatedBlock* b = globalData.getBlock(block);
-    b->execute(signal, waiter.p->m_callback, logfile_group_id);
+    CallbackPtr & callback = waiter.p->m_callback;
+    sendCallbackConf(signal, block, callback, logfile_group_id);
     
     list.releaseFirst(waiter);
   }
@@ -1248,8 +1320,8 @@ next:
   Uint64 lsn= ptr.p->m_last_lsn - 1;
   File_formats::Undofile::Undo_page* undo= 
     (File_formats::Undofile::Undo_page*)page;
-  undo->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-  undo->m_page_header.m_page_lsn_hi = lsn >> 32;
+  undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
+  undo->m_page_header.m_page_lsn_hi = (Uint32)(lsn >> 32);
   undo->m_words_used= File_formats::UNDO_PAGE_WORDS - free;
   
   /**
@@ -1303,7 +1375,7 @@ Lgman::next_page(Logfile_group* ptrP, Uint32 i)
 
 int
 Logfile_client::get_log_buffer(Signal* signal, Uint32 sz, 
-			       SimulatedBlock::Callback* callback)
+			       SimulatedBlock::CallbackPtr* callback)
 {
   sz += 2; // lsn
   Lgman::Logfile_group key;
@@ -1331,7 +1403,7 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
 
       wait.p->m_size= sz;
       wait.p->m_block= m_block;
-      memcpy(&wait.p->m_callback, callback,sizeof(SimulatedBlock::Callback));
+      memcpy(&wait.p->m_callback, callback,sizeof(SimulatedBlock::CallbackPtr));
     }
 
     return 0;
@@ -1415,8 +1487,8 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	
 	File_formats::Undofile::Undo_page* undo= 
 	  (File_formats::Undofile::Undo_page*)page;
-	undo->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-	undo->m_page_header.m_page_lsn_hi = lsn >> 32;
+	undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
+	undo->m_page_header.m_page_lsn_hi = (Uint32)(lsn >> 32);
 	undo->m_words_used= File_formats::UNDO_PAGE_WORDS - free;
 	
 	/**
@@ -1576,8 +1648,8 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   {
     removed= true;
     Uint32 block = waiter.p->m_block;
-    SimulatedBlock* b = globalData.getBlock(block);
-    b->execute(signal, waiter.p->m_callback, logfile_group_id);
+    CallbackPtr & callback = waiter.p->m_callback;
+    sendCallbackConf(signal, block, callback, logfile_group_id);
 
     list.releaseFirst(waiter);
   }
@@ -1723,6 +1795,7 @@ void
 Lgman::execFSWRITECONF(Signal* signal)
 {
   jamEntry();
+  client_lock(number(), __LINE__);
   FsConf * conf = (FsConf*)signal->getDataPtr();
   Ptr<Undofile> ptr;
   m_file_pool.getPtr(ptr, conf->userPointer);
@@ -1779,6 +1852,7 @@ Lgman::execFSWRITECONF(Signal* signal)
   {
     ndbout_c("miss matched writes");
   }
+  client_unlock(number(), __LINE__);
   
   return;
 }
@@ -1787,6 +1861,7 @@ void
 Lgman::execLCP_FRAG_ORD(Signal* signal)
 {
   jamEntry();
+  client_lock(number(), __LINE__);
 
   LcpFragOrd * ord = (LcpFragOrd *)signal->getDataPtr();
   Uint32 lcp_id= ord->lcpId;
@@ -1831,8 +1906,8 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
     else
     {
       Uint32 *dst= get_log_buffer(ptr, (sizeof(undo) >> 2) + 2);      
-      * dst++ = last_lsn >> 32;
-      * dst++ = last_lsn & 0xFFFFFFFF;
+      * dst++ = (Uint32)(last_lsn >> 32);
+      * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
       memcpy(dst, undo, sizeof(undo));
       ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
       ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
@@ -1869,6 +1944,7 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
   }
   
   m_latest_lcp = lcp_id;
+  client_unlock(number(), __LINE__);
 }
 
 void
@@ -1876,6 +1952,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
 {
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   ndbrequire(m_latest_lcp == req->backupId);
+  m_end_lcp_senderdata = req->senderData;
 
   Ptr<Logfile_group> ptr;
   m_logfile_group_list.first(ptr);
@@ -1888,10 +1965,11 @@ Lgman::execEND_LCP_REQ(Signal* signal)
       wait= true;
       if(signal->getSendersBlockRef() != reference())
       {
+        D("Logfile_client - execEND_LCP_REQ");
 	Logfile_client tmp(this, this, ptr.p->m_logfile_group_id);
 	Logfile_client::Request req;
 	req.m_callback.m_callbackData = ptr.i;
-	req.m_callback.m_callbackFunction = safe_cast(&Lgman::endlcp_callback);
+	req.m_callback.m_callbackIndex = ENDLCP_CALLBACK;
 	ndbrequire(tmp.sync_lsn(signal, lcp_lsn, &req, 0) == 0);
       }
     }
@@ -1907,8 +1985,11 @@ Lgman::execEND_LCP_REQ(Signal* signal)
     return;
   }
 
-  signal->theData[0] = 0;
-  sendSignal(DBLQH_REF, GSN_END_LCP_CONF, signal, 1, JBB);
+  EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
+  conf->senderData = m_end_lcp_senderdata;
+  conf->senderRef = reference();
+  sendSignal(DBLQH_REF, GSN_END_LCP_CONF,
+             signal, EndLcpConf::SignalLength, JBB);
 }
 
 void
@@ -1916,6 +1997,7 @@ Lgman::endlcp_callback(Signal* signal, Uint32 ptr, Uint32 res)
 {
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->backupId = m_latest_lcp;
+  req->senderData = m_end_lcp_senderdata;
   execEND_LCP_REQ(signal);
 }
 
@@ -2082,8 +2164,8 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
       else
       {
 	dst= m_lgman->get_log_buffer(ptr, tot + 2);
-	* dst++ = last_lsn >> 32;
-	* dst++ = last_lsn & 0xFFFFFFFF;
+	* dst++ = (Uint32)(last_lsn >> 32);
+	* dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
 	for(i= 0; i<cnt; i++)
 	{
 	  memcpy(dst, src[i].ptr, 4*src[i].len);
@@ -2221,6 +2303,7 @@ void
 Lgman::execFSREADCONF(Signal* signal)
 {
   jamEntry();
+  client_lock(number(), __LINE__);
 
   Ptr<Undofile> ptr;  
   Ptr<Logfile_group> lg_ptr;
@@ -2261,6 +2344,7 @@ Lgman::execFSREADCONF(Signal* signal)
       lg_ptr.p->m_pos[PRODUCER].m_current_pos.m_idx += tot;
       lg_ptr.p->m_next_reply_ptr_i = ptr.i;
     }
+    client_unlock(number(), __LINE__);
     return;
   }
   
@@ -2284,6 +2368,7 @@ Lgman::execFSREADCONF(Signal* signal)
   case Undofile::FS_SEARCHING:
     jam();
     find_log_head_in_file(signal, lg_ptr, ptr, lsn);
+    client_unlock(number(), __LINE__);
     return;
   default:
   case Undofile::FS_EXECUTING:
@@ -2332,6 +2417,7 @@ Lgman::execFSREADCONF(Signal* signal)
     }
   }
   find_log_head(signal, lg_ptr);
+  client_unlock(number(), __LINE__);
 }
   
 void
@@ -2719,7 +2805,6 @@ Lgman::execute_undo_record(Signal* signal)
 {
   Uint64 lsn;
   const Uint32* ptr;
-  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
   if((ptr = get_next_undo_record(&lsn)))
   {
     Uint32 len= (* ptr) & 0xFFFF;
@@ -2764,7 +2849,11 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_TUP_DROP:
     case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
     case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
-      tup->disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
+      {
+        Dbtup_client tup(this, m_tup);
+        tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
+        jamEntry();
+      }
       return;
     default:
       ndbrequire(false);
@@ -3002,8 +3091,10 @@ Lgman::stop_run_undo_log(Signal* signal)
 	}
       }
       
+      client_lock(number(), __LINE__);
       ptr.p->m_free_file_words = (Uint64)File_formats::UNDO_PAGE_WORDS * 
 	(Uint64)compute_free_file_pages(ptr);
+      client_unlock(number(), __LINE__);
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
       
       ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
@@ -3062,7 +3153,9 @@ Lgman::stop_run_undo_log(Signal* signal)
 	     LcpFragOrd::SignalLength, JBB);
   
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
+  req->senderData = 0;
   req->senderRef = reference();
+  req->backupId = m_latest_lcp;
   sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 }
@@ -3070,8 +3163,11 @@ Lgman::stop_run_undo_log(Signal* signal)
 void
 Lgman::execEND_LCP_CONF(Signal* signal)
 {
-  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
-  tup->disk_restart_undo(signal, 0, File_formats::Undofile::UNDO_END, 0, 0);
+  {
+    Dbtup_client tup(this, m_tup);
+    tup.disk_restart_undo(signal, 0, File_formats::Undofile::UNDO_END, 0, 0);
+    jamEntry();
+  }
   
   /**
    * pgman has completed flushing all pages
@@ -3103,8 +3199,8 @@ Lgman::execEND_LCP_CONF(Signal* signal)
   else
   {
     Uint32 *dst= get_log_buffer(ptr, (sizeof(undo) >> 2) + 2);      
-    * dst++ = last_lsn >> 32;
-    * dst++ = last_lsn & 0xFFFFFFFF;
+    * dst++ = (Uint32)(last_lsn >> 32);
+    * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
     memcpy(dst, undo, sizeof(undo));
     ndbrequire(ptr.p->m_free_file_words >= ((sizeof(undo) >> 2) + 2));
     ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
@@ -3199,8 +3295,8 @@ void Lgman::execGET_TABINFOREQ(Signal* signal)
 
   conf->senderData= senderData;
   conf->tableId= tableId;
-  conf->freeWordsHi= ptr.p->m_free_file_words >> 32;
-  conf->freeWordsLo= ptr.p->m_free_file_words & 0xFFFFFFFF;
+  conf->freeWordsHi= (Uint32)(ptr.p->m_free_file_words >> 32);
+  conf->freeWordsLo= (Uint32)(ptr.p->m_free_file_words & 0xFFFFFFFF);
   conf->tableType= DictTabInfo::LogfileGroup;
   conf->senderRef= reference();
   sendSignal(retRef, GSN_GET_TABINFO_CONF, signal,

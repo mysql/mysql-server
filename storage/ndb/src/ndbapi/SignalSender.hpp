@@ -43,29 +43,49 @@ private:
 
 class SignalSender {
 public:
-  SignalSender(TransporterFacade *facade);
+  SignalSender(TransporterFacade *facade, int blockNo = -1);
+  SignalSender(Ndb_cluster_connection* connection);
   virtual ~SignalSender();
   
   int lock();
   int unlock();
 
   Uint32 getOwnRef() const;
-  Uint32 getAliveNode() const;
   const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
+  /*
+    Return bitmask of all defined nodes of a certain type
+    returns all defined nodes by default.
+   */
+  void getNodes(NodeBitmask& mask,
+                NodeInfo::NodeType type = NodeInfo::INVALID);
+
+  NodeId find_confirmed_node(const NodeBitmask& mask);
+  NodeId find_connected_node(const NodeBitmask& mask);
+  NodeId find_alive_node(const NodeBitmask& mask);
+
   SendStatus sendSignal(Uint16 nodeId, const SimpleSignal *);
-  
+  SendStatus sendSignal(Uint16 nodeId, SimpleSignal& sig,
+                        Uint16 recBlock, Uint16 gsn, Uint32 len);
+  NodeBitmask broadcastSignal(NodeBitmask mask, SimpleSignal& sig,
+                              Uint16 recBlock, Uint16 gsn, Uint32 len);
+
   SimpleSignal * waitFor(Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint16 gsn, Uint32 timeOutMillis = 0);  
+
+  Uint32 get_an_alive_node() const { return theFacade->get_an_alive_node(); }
+  Uint32 getAliveNode() const { return get_an_alive_node(); }
+  bool get_node_alive(NodeId n) const { return theFacade->get_node_alive(n); }
+
 private:
   int m_blockNo;
   TransporterFacade * theFacade;
   
   static void execSignal(void* signalSender, 
 			 NdbApiSignal* signal, 
-			 class LinearSectionPtr ptr[3]);
+			 struct LinearSectionPtr ptr[3]);
   
   static void execNodeStatus(void* signalSender, Uint32 nodeId, 
 			     bool alive, bool nfCompleted);
@@ -77,6 +97,9 @@ private:
 
   template<class T>
   SimpleSignal * waitFor(Uint32 timeOutMillis, T & t);
+
+  template<class T>
+  NodeId find_node(const NodeBitmask& mask, T & t);
 };
 
 #endif

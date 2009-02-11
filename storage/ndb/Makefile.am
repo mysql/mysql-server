@@ -15,7 +15,7 @@
 
 SUBDIRS = src tools . include swig @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs swig
-EXTRA_DIST = config ndbapi-examples plug.in
+EXTRA_DIST = config ndbapi-examples plug.in CMakeLists.txt
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
@@ -33,17 +33,6 @@ dist-hook:
 	    done; \
 	  fi; \
 	done
-
-windoze:
-	for i in `find . -name 'old_dirs' -prune -o -name 'Makefile.am' -print`; \
-	do make -C `dirname $$i` windoze-dsp; done
-
-windoze-dsp:
-
-all-windoze-dsp: windoze
-	find . -name '*.dsp' | grep -v SCCS | xargs unix2dos
-	$(top_srcdir)/storage/ndb/config/make-win-dsw.sh | unix2dos > ndb.dsw
-	tar cvfz ndb-win-dsp.tar.gz ndb.dsw `find . -name '*.dsp' | grep -v SCCS`
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

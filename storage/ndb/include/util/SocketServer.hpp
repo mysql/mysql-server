@@ -42,20 +42,20 @@ public:
     friend void* sessionThread_C(void*);
     Session(NDB_SOCKET_TYPE sock) :
       m_stop(false),
-      m_stopped(false),
       m_socket(sock),
-      m_refCount(0)
+      m_refCount(0),
+      m_thread_stopped(false)
       {
 	DBUG_ENTER("SocketServer::Session");
-	DBUG_PRINT("enter",("NDB_SOCKET: %d", m_socket));
+	DBUG_PRINT("enter",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                            MY_SOCKET_FORMAT_VALUE(m_socket)));
 	DBUG_VOID_RETURN;
       }
-    
     bool m_stop;    // Has the session been ordered to stop?
-    bool m_stopped; // Has the session stopped?
-    
     NDB_SOCKET_TYPE m_socket;
     unsigned m_refCount;
+  private:
+    bool m_thread_stopped; // Has the session thread stopped?
   };
   
   /**
@@ -98,15 +98,23 @@ public:
   /**
    * start/stop the server
    */
-  void startServer();
+  struct NdbThread* startServer();
   void stopServer();
   
   /**
    * stop sessions
    *
-   * Note: Implies stopServer
+   * Note: Implies previous stopServer
+   *
+   * wait, wait until all sessions has stopped if true
+   * wait_timeout - wait, but abort wait after this
+   *                time(in milliseconds)
+   *                0 = infinite
+   *
+   * returns false if wait was abandoned
+   *
    */
-  void stopSessions(bool wait = false);
+  bool stopSessions(bool wait = false, unsigned wait_timeout = 0);
   
   void foreachSession(void (*f)(Session*, void*), void *data);
   void checkSessions();

@@ -26,6 +26,7 @@
 #include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
+#include <NdbConfig.h>
 
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters_debug.h>
@@ -54,7 +55,6 @@ enum ndbd_options {
   OPT_INITIAL_START
 };
 
-NDB_STD_OPTS_VARS;
 // XXX should be my_bool ???
 static int _daemon, _no_daemon, _foreground,  _initial, _no_start;
 static int _initialstart;
@@ -68,7 +68,7 @@ const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
 
 /**
  * Arguments to NDB process
- */ 
+ */
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbd"),
@@ -107,23 +107,21 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS]\n", my_progname);
+  ndb_short_usage_sub(my_progname, NULL);
 }
+
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 bool
 Configuration::init(int argc, char** argv)
-{  
+{
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;
@@ -190,7 +188,7 @@ Configuration::init(int argc, char** argv)
       exit(-1);
     }
   }
-
+  
   if (_initialstart)
   {
     _initialStart = true;
@@ -333,6 +331,13 @@ Configuration::fetch_configuration(){
 	      "StopOnError missing");
   }
 
+  const char * datadir;
+  if(iter.get(CFG_NODE_DATADIR, &datadir)){
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
+	      "DataDir missing");
+  }
+  NdbConfig_SetPath(datadir);
+
   m_mgmds.clear();
   for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
   {
@@ -404,14 +409,20 @@ Configuration::setupConfiguration(){
   /**
    * Configure transporters
    */
-  {  
-    int res = IPCConfig::configureTransporters(globalData.ownId,
-					       * p, 
-					       globalTransporterRegistry);
-    if(res <= 0){
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
-		"No transporters configured");
-    }
+  if (!globalTransporterRegistry.init(globalData.ownId))
+  {
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+              "Invalid configuration fetched",
+              "Could not init transporter registry");
+  }
+
+  if (!IPCConfig::configureTransporters(globalData.ownId,
+                                        * p,
+                                        globalTransporterRegistry))
+  {
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+              "Invalid configuration fetched",
+              "Could not configure transporters");
   }
 
   /**
@@ -427,6 +438,10 @@ Configuration::setupConfiguration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
 	      "I'm wrong type of node");
   }
+
+  Uint32 total_send_buffer = 0;
+  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
+  globalTransporterRegistry.allocate_send_buffers(total_send_buffer);
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
@@ -452,10 +467,16 @@ Configuration::setupConfiguration(){
   _realtimeScheduler = 0;
   iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
-  _executeLockCPU = 65535;
-  iter.get(CFG_DB_EXECUTE_LOCK_CPU, &_executeLockCPU);
+  const char * mask;
+  if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
+  {
+    if (_executeLockCPU.parseMask(mask) < 0)
+    {
+      _executeLockCPU.clear();
+    }
+  }
 
-  _maintLockCPU = 65535;
+  _maintLockCPU = NO_LOCK_CPU;
   iter.get(CFG_DB_MAINT_LOCK_CPU, &_maintLockCPU);
 
   if(iter.get(CFG_DB_WATCHDOG_INTERVAL_INITIAL, 
@@ -549,16 +570,38 @@ Configuration::realtimeScheduler(bool realtime_on)
 Uint32
 Configuration::executeLockCPU() const
 {
-  return _executeLockCPU;
+  unsigned res = _executeLockCPU.find(0);
+  if (res == _executeLockCPU.NotFound)
+    return NO_LOCK_CPU;
+  else
+    return res;
 }
 
 void
 Configuration::executeLockCPU(Uint32 value)
 {
-  Uint32 old_value = _executeLockCPU;
-  _executeLockCPU = value;
-  if (value != old_value)
+  if (value >= NDB_CPU_MASK_SZ)
+  {
+    value = NO_LOCK_CPU;
+  }
+
+  bool changed = false;
+  if (value == NO_LOCK_CPU)
+  {
+    changed = _executeLockCPU.count() > 0;
+    _executeLockCPU.clear();
+  }
+  else
+  {
+    changed = _executeLockCPU.get(value) == false;
+    _executeLockCPU.clear();
+    _executeLockCPU.set(value);
+  }
+
+  if (changed)
+  {
     setAllLockCPU(TRUE);
+  }
 }
 
 Uint32
@@ -797,8 +840,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
   Uint32 noOfMetaTablesDict= noOfMetaTables;
-  if (noOfMetaTablesDict > MAX_TABLES)
-    noOfMetaTablesDict= MAX_TABLES;
+  if (noOfMetaTablesDict > NDB_MAX_TABLES)
+    noOfMetaTablesDict= NDB_MAX_TABLES;
 
   {
     /**
@@ -993,7 +1036,7 @@ Configuration::setAllRealtimeScheduler()
   {
     if (threadInfo[i].type != NotInUse)
     {
-      if (setRealtimeScheduler(threadInfo[i].threadHandle,
+      if (setRealtimeScheduler(threadInfo[i].pThread,
                                threadInfo[i].type,
                                _realtimeScheduler,
                                FALSE))
@@ -1010,7 +1053,7 @@ Configuration::setAllLockCPU(bool exec_thread)
   {
     if (threadInfo[i].type != NotInUse)
     {
-      if (setLockCPU(threadInfo[i].threadId,
+      if (setLockCPU(threadInfo[i].pThread,
                      threadInfo[i].type,
                      exec_thread,
                      FALSE))
@@ -1020,7 +1063,7 @@ Configuration::setAllLockCPU(bool exec_thread)
 }
 
 int
-Configuration::setRealtimeScheduler(NDB_THAND_TYPE threadHandle,
+Configuration::setRealtimeScheduler(NdbThread* pThread,
                                     enum ThreadTypes type,
                                     bool real_time,
                                     bool init)
@@ -1029,12 +1072,10 @@ Configuration::setRealtimeScheduler(NDB_THAND_TYPE threadHandle,
     We ignore thread characteristics on platforms where we cannot
     determine the thread id.
   */
-  if (!threadHandle)
-    return 0; 
   if (!init || real_time)
   {
     int error_no;
-    if ((error_no = NdbThread_SetScheduler(threadHandle, real_time,
+    if ((error_no = NdbThread_SetScheduler(pThread, real_time,
                                            (type != MainThread))))
     {
       //Warning, no permission to set scheduler
@@ -1045,34 +1086,36 @@ Configuration::setRealtimeScheduler(NDB_THAND_TYPE threadHandle,
 }
 
 int
-Configuration::setLockCPU(NDB_TID_TYPE threadId,
+Configuration::setLockCPU(NdbThread * pThread,
                           enum ThreadTypes type,
                           bool exec_thread,
                           bool init)
 {
+  (void)init;
   Uint32 cpu_id;
+  int tid = NdbThread_GetTid(pThread);
+  if (tid == -1)
+    return 0;
   /*
     We ignore thread characteristics on platforms where we cannot
     determine the thread id.
     We only set new lock CPU characteristics for the threads for which
     it has changed
   */
-  if (!threadId)
-    return 0;
   if ((exec_thread && type != MainThread) ||
       (!exec_thread && type == MainThread))
     return 0;
   if (type == MainThread)
-    cpu_id = _executeLockCPU;
+    cpu_id = executeLockCPU();
   else
     cpu_id = _maintLockCPU;
-  if (!init ||
-      cpu_id != NO_LOCK_CPU)
+
+  if (cpu_id != NO_LOCK_CPU)
   {
     int error_no;
-    ndbout << "Lock threadId = " << (unsigned)threadId;
+    ndbout << "Lock threadId = " << tid;
     ndbout << " to CPU id = " << cpu_id << endl;
-    if ((error_no = NdbThread_LockCPU(threadId, cpu_id)))
+    if ((error_no = NdbThread_LockCPU(pThread, cpu_id)))
     {
       ndbout << "Failed to lock CPU, error_no = " << error_no << endl;
       ;//Warning, no permission to lock thread to CPU
@@ -1082,42 +1125,9 @@ Configuration::setLockCPU(NDB_TID_TYPE threadId,
   return 0;
 }
 
-void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
+Uint32
+Configuration::addThread(struct NdbThread* pThread, enum ThreadTypes type)
 {
-  struct ThreadContainer container;
-
-  memset((char*)&container, sizeof(container), 0);
-  container.conf = globalEmulatorData.theConfiguration;
-  container.type = server ? SocketServerThread : SocketClientThread;
-  memcpy((char*)param, (char*)&container, sizeof(container));
-  *len = sizeof(container);
-}
-
-void*
-ndb_thread_add_thread_id(void *param)
-{
-  struct ThreadContainer container;
-
-  memcpy((char*)&container, param, sizeof(struct ThreadContainer));
-  container.index = container.conf->addThreadId(container.type);
-  memcpy(param, (char*)&container, sizeof(struct ThreadContainer));
-  return NULL;
-}
-
-void*
-ndb_thread_remove_thread_id(void *param)
-{
-  struct ThreadContainer container;
-
-  memcpy((char*)&container, param, sizeof(struct ThreadContainer));
-  container.conf->removeThreadId(container.index);
-  return NULL;
-}
-
-Uint32 Configuration::addThreadId(enum ThreadTypes type)
-{
-  NDB_TID_TYPE threadId;
-  NDB_THAND_TYPE threadHandle;
   Uint32 i;
   NdbMutex_Lock(threadIdMutex);
   for (i = 0; i < threadInfo.size(); i++)
@@ -1130,14 +1140,18 @@ Uint32 Configuration::addThreadId(enum ThreadTypes type)
     struct ThreadInfo tmp;
     threadInfo.push_back(tmp);
   }
-  threadHandle = NdbThread_getThreadHandle();
-  threadInfo[i].threadHandle = threadHandle;
-  threadId = NdbThread_getThreadId();
-  threadInfo[i].threadId = threadId;
+  threadInfo[i].pThread = pThread;
   threadInfo[i].type = type;
   NdbMutex_Unlock(threadIdMutex);
-  setRealtimeScheduler(threadHandle, type, _realtimeScheduler, TRUE);
-  setLockCPU(threadId, type, (type == MainThread), TRUE);
+  setRealtimeScheduler(pThread, type, _realtimeScheduler, TRUE);
+  if (type != MainThread)
+  {
+    /**
+     * main threads are set in ThreadConfig::ipControlLoop
+     * as it's handled differently with mt
+     */
+    setLockCPU(pThread, type, (type == MainThread), TRUE);
+  }
   return i;
 }
 
@@ -1145,8 +1159,7 @@ void
 Configuration::removeThreadId(Uint32 index)
 {
   NdbMutex_Lock(threadIdMutex);
-  threadInfo[index].threadId = 0;
-  threadInfo[index].threadHandle = 0;
+  threadInfo[index].pThread = 0;
   threadInfo[index].type = NotInUse;
   NdbMutex_Unlock(threadIdMutex);
 }
@@ -1157,12 +1170,12 @@ Configuration::yield_main(Uint32 index, bool start)
   if (_realtimeScheduler)
   {
     if (start)
-      setRealtimeScheduler(threadInfo[index].threadHandle,
+      setRealtimeScheduler(threadInfo[index].pThread,
                            threadInfo[index].type,
                            FALSE,
                            FALSE);
     else
-      setRealtimeScheduler(threadInfo[index].threadHandle,
+      setRealtimeScheduler(threadInfo[index].pThread,
                            threadInfo[index].type,
                            TRUE,
                            FALSE);
@@ -1175,8 +1188,7 @@ Configuration::initThreadArray()
   NdbMutex_Lock(threadIdMutex);
   for (Uint32 i = 0; i < threadInfo.size(); i++)
   {
-    threadInfo[i].threadId = 0;
-    threadInfo[i].threadHandle = 0;
+    threadInfo[i].pThread = 0;
     threadInfo[i].type = NotInUse;
   }
   NdbMutex_Unlock(threadIdMutex);

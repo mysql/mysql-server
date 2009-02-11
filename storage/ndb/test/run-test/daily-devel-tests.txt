@@ -26,7 +26,7 @@ args: -n BackupBank T6
 # MGMAPI AND MGSRV
 #
 max-time: 1800
-cmd: testMgm
+cmd: testSingleUserMode
 args: -n SingleUserMode T1 
 
 #
@@ -186,10 +186,6 @@ max-time: 500
 cmd: testIndex
 args: -n MixedTransaction T1 
 
-max-time: 2500
-cmd: testDict
-args: -n NF1 T1 T6 T13 
-
 #
 max-time: 1500
 cmd: testSystemRestart
@@ -256,3 +252,7 @@ max-time: 600
 cmd: testBasic
 args: -n PkRead T1
 
+# dict trans
+max-time: 1800
+cmd: testDict
+args: -n SchemaTrans -l 1

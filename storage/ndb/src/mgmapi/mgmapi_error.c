@@ -15,8 +15,7 @@
 
 #include <mgmapi_error.h>
 
-const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = 
-{
+const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = {
   { NDB_MGM_NO_ERROR, "No error" },
   
   /* Request for service errors */
@@ -43,6 +42,10 @@ const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] =
     "Could not enter single user mode" },
   { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE,
     "Could not exit single user mode" },
+  
+  /* Service errors - Configuration change */
+  { NDB_MGM_CONFIG_CHANGE_FAILED,
+    "Failed to complete configuration change" },
   
   /* Usage errors */
   { NDB_MGM_USAGE_ERROR,

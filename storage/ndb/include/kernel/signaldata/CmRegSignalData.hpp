@@ -161,7 +161,7 @@ class CmNodeInfoReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   /**
@@ -171,6 +171,7 @@ private:
   Uint32 dynamicId;
   Uint32 version;
   Uint32 mysql_version;
+  Uint32 lqh_workers;   // added in telco-6.4
 };
 
 class CmNodeInfoRef {
@@ -198,20 +199,14 @@ class CmNodeInfoConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   Uint32 nodeId;
   Uint32 dynamicId;
   Uint32 version;
   Uint32 mysql_version;
+  Uint32 lqh_workers;   // added in telco-6.4
 };
 
 #endif
-
-
-
-
-
-
-

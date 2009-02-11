@@ -52,15 +52,13 @@ const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
 unsigned int opt_progress_frequency;
-unsigned int g_report_next;
+NDB_TICKS g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 Vector<BaseString> g_include_tables, g_exclude_tables;
 Vector<BaseString> g_include_databases, g_exclude_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
-
-NDB_STD_OPTS_VARS;
 
 /**
  * print and restore flags
@@ -284,7 +282,7 @@ static char* analyse_one_map(char *map_str, uint16 *source, uint16 *dest)
   map_str++;
 
   number= strtol(map_str, &end_ptr, 10);
-  if (!end_ptr || number < 0 || number >= UNDEF_NODEGROUP)
+  if (!end_ptr || number < 0 || number >= NDB_UNDEF_NODEGROUP)
   {
     DBUG_RETURN(NULL);
   }
@@ -324,7 +322,7 @@ static void init_nodegroup_map()
   {
     ng_map[i].no_maps= 0;
     for (j= 0; j < MAX_MAPS_PER_NODE_GROUP; j++)
-      ng_map[i].map_array[j]= UNDEF_NODEGROUP;
+      ng_map[i].map_array[j]= NDB_UNDEF_NODEGROUP;
   }
 }
 
@@ -358,17 +356,13 @@ static bool analyse_nodegroup_map(const char *ng_map_str,
 
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS] [<path to backup files>]\n", my_progname);
+  ndb_short_usage_sub(my_progname,"[<path to backup files>]");
 }
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
+
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
@@ -488,6 +482,9 @@ readArguments(int *pargc, char*** pargv)
   init_nodegroup_map();
   load_defaults("my",load_default_groups,pargc,pargv);
   debug << "handle_options" << endl;
+
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
@@ -886,7 +883,7 @@ static int check_progress()
   if (!opt_progress_frequency)
     return 0;
 
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  NDB_TICKS now = NdbTick_CurrentMillisecond() / 1000;
   
   if (now  >= g_report_next)
   {

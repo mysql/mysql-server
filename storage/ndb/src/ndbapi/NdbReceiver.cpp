@@ -132,6 +132,8 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 
   Hm, there are some magic overhead numbers (4 bytes/attr, 32 bytes/row) here,
   would be nice with some explanation on how these numbers were derived.
+
+  TODO : Check whether these numbers need to be revised w.r.t. read packed
 */
 void
 NdbReceiver::calculate_batch_size(Uint32 key_size,
@@ -303,7 +305,7 @@ handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
 
   /* Convert char* to aligned Uint32* and some byte offset */
   UintPtr uiPtr= UintPtr((Uint32*)_dst);
-  Uint32 dstByteOffset= uiPtr & 3;
+  Uint32 dstByteOffset= Uint32(uiPtr) & 3;
   Uint32* dst= (Uint32*) (uiPtr - dstByteOffset); 
 
   BitmaskImpl::copyField(dst, dstByteOffset << 3,
@@ -386,6 +388,7 @@ NdbReceiver::receive_packed_recattr(NdbRecAttr** recAttr,
 
 err:
   abort();
+  return 0;
 }
 
 

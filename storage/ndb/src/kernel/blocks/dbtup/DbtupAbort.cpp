@@ -20,42 +20,6 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 
-void Dbtup::freeAllAttrBuffers(Operationrec*  const regOperPtr)
-{
-  if (regOperPtr->storedProcedureId == RNIL) {
-    jam();
-    freeAttrinbufrec(regOperPtr->firstAttrinbufrec);
-  } else {
-    jam();
-    StoredProcPtr storedPtr;
-    c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcedureId);
-    ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
-    storedPtr.p->storedCounter--;
-    regOperPtr->storedProcedureId = ZNIL;
-  }//if
-  regOperPtr->firstAttrinbufrec = RNIL;
-  regOperPtr->lastAttrinbufrec = RNIL;
-  regOperPtr->m_any_value = 0;
-}//Dbtup::freeAllAttrBuffers()
-
-void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf) 
-{
-  Uint32 Ttemp;
-  AttrbufrecPtr localAttrBufPtr;
-  Uint32 RnoFree = cnoFreeAttrbufrec;
-  localAttrBufPtr.i = anAttrBuf;
-  while (localAttrBufPtr.i != RNIL) {
-    jam();
-    ptrCheckGuard(localAttrBufPtr, cnoOfAttrbufrec, attrbufrec);
-    Ttemp = localAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    localAttrBufPtr.p->attrbuf[ZBUF_NEXT] = cfirstfreeAttrbufrec;
-    cfirstfreeAttrbufrec = localAttrBufPtr.i;
-    localAttrBufPtr.i = Ttemp;
-    RnoFree++;
-  }//if
-  cnoFreeAttrbufrec = RnoFree;
-}//Dbtup::freeAttrinbufrec()
-
 /**
  * Abort abort this operation and all after (nextActiveOp's)
  */
@@ -80,7 +44,6 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
              (trans_state == TRANS_IDLE));
   if (regOperPtr.p->op_struct.op_type == ZREAD) {
     jam();
-    freeAllAttrBuffers(regOperPtr.p);
     initOpConnection(regOperPtr.p);
     return;
   }//if
@@ -219,8 +182,12 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   if(regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
   {
     if (regOperPtr.p->m_undo_buffer_space)
-      c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
-			      regOperPtr.p->m_undo_buffer_space);
+    {
+      jam();
+      D("Logfile_client - do_tup_abortreq");
+      Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
+      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
+    }
   }
 
   removeActiveOpList(regOperPtr.p, tuple_ptr);
@@ -383,8 +350,10 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
   if (regOperPtr->m_undo_buffer_space &&
       (regOperPtr->is_first_operation() && regOperPtr->is_last_operation()))
   {
-    c_lgman->free_log_space(fragPtr.p->m_logfile_group_id, 
-			    regOperPtr->m_undo_buffer_space);
+    jam();
+    D("Logfile_client - tupkeyErrorLab");
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    lgman.free_log_space(regOperPtr->m_undo_buffer_space);
   }
 
   Uint32 *ptr = 0;
@@ -406,7 +375,8 @@ void Dbtup::send_TUPKEYREF(Signal* signal,
   TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtrSend();  
   tupKeyRef->userRef = regOperPtr->userpointer;
   tupKeyRef->errorCode = terrorCode;
-  sendSignal(DBLQH_REF, GSN_TUPKEYREF, signal, 
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+  sendSignal(lqhRef, GSN_TUPKEYREF, signal, 
              TupKeyRef::SignalLength, JBB);
 }
 

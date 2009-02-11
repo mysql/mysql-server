@@ -64,7 +64,7 @@ SocketOutputStream::print(const char * fmt, ...){
 
   if(ret >= 0)
     m_timeout_remain-=time;
-  if((ret < 0 && errno==ETIMEDOUT) || m_timeout_remain<=0)
+  if((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
   {
     m_timedout= true;
     ret= -1;
@@ -86,7 +86,7 @@ SocketOutputStream::println(const char * fmt, ...){
 
   if(ret >= 0)
     m_timeout_remain-=time;
-  if ((ret < 0 && errno==ETIMEDOUT) || m_timeout_remain<=0)
+  if ((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
   {
     m_timedout= true;
     ret= -1;
@@ -122,14 +122,22 @@ BufferedSockOutputStream::print(const char * fmt, ...){
   len = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
-  // Grow buffer so it can hold the string
-  if ((pos= (char*)m_buffer.append(len+1)) == 0)
+  // Allocate a temp buffer for the string
+  UtilBuffer tmp;
+  if (tmp.append(len+1) == 0)
     return -1;
 
-  // Print string to buffer
+  // Print to temp buffer
   va_start(ap, fmt);
-  len = BaseString::vsnprintf((char*)pos, len+1, fmt, ap);
+  len = BaseString::vsnprintf((char*)tmp.get_data(), len+1, fmt, ap);
   va_end(ap);
+
+  // Grow real buffer so it can hold the string
+  if ((pos= (char*)m_buffer.append(len)) == 0)
+    return -1;
+
+  // Move everything except ending 0 to real buffer
+  memcpy(pos, tmp.get_data(), tmp.length()-1);
 
   return 0;
 }

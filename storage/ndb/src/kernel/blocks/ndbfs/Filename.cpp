@@ -83,7 +83,7 @@ Filename::set(Filename::NameSpec& spec,
     }
     
     {
-      const char* blockName = getBlockName( refToBlock(blockReference) );
+      const char* blockName = getBlockName( refToMain(blockReference) );
       if (blockName == NULL){
 	ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"","No Block Name");
 	return;
@@ -149,7 +149,7 @@ Filename::set(Filename::NameSpec& spec,
     Uint32 tableId = FsOpenReq::v5_getTableId(filenumber);
     Uint32 lcpNo = FsOpenReq::v5_getLcpNo(filenumber);
     Uint32 fragId = FsOpenReq::v5_getFragmentId(filenumber);
-    BaseString::snprintf(buf, sizeof(buf), "LCP/%d/T%dF%d", lcpNo, tableId, fragId);
+    BaseString::snprintf(buf, sizeof(buf), "LCP%s%d%sT%dF%d", DIR_SEPARATOR, lcpNo, DIR_SEPARATOR, tableId, fragId);
     strcat(theName, buf);
     break;
   }
@@ -183,9 +183,17 @@ Filename::set(Filename::NameSpec& spec,
     strncpy(theName, buf, PATH_MAX);
     m_base_name = theName;
   }
-  else 
+  else
   {
-    snprintf(theName, sizeof(theName), "%s%s", spec.fs_path.c_str(), buf);
+#ifdef NDB_WIN32
+    char* b= buf;
+    while((b= strchr(b, '/')) && b)
+    {
+      *b= '\\';
+    }
+#endif
+    BaseString::snprintf(theName, sizeof(theName), "%s%s",
+                         spec.fs_path.c_str(), buf);
     m_base_name = theName + spec.fs_path.length();
   }
 }

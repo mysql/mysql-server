@@ -30,6 +30,7 @@
 #include <Ndb.hpp>
 #include "NdbWaiter.hpp"
 #include "DictCache.hpp"
+#include <signaldata/DictSignal.hpp>
 
 class ListTablesReq;
 
@@ -143,11 +144,6 @@ public:
 
   // Get total length in bytes, used by NdbOperation
   bool get_var_length(const void* value, Uint32& len) const;
-
-  // Get significant and send length in bytes, accounting for bug39645 
-  bool get_var_length_bug39645(const void* value, 
-                               Uint32& sigLen, 
-                               Uint32& sendLen) const;
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
@@ -164,17 +160,13 @@ public:
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
-  int setFragmentData(const void* data, Uint32 len);
-  const void * getFragmentData() const;
+
+  int setFragmentData(const Uint32* data, Uint32 cnt);
+  const Uint32 * getFragmentData() const;
   Uint32 getFragmentDataLen() const;
-  int setTablespaceNames(const void* data, Uint32 len);
-  Uint32 getTablespaceNamesLen() const;
-  const void * getTablespaceNames() const;
-  int setTablespaceData(const void* data, Uint32 len);
-  const void * getTablespaceData() const;
-  Uint32 getTablespaceDataLen() const;
-  int setRangeListData(const void* data, Uint32 len);
-  const void * getRangeListData() const;
+
+  int setRangeListData(const Int32* data, Uint32 cnt);
+  const Int32 * getRangeListData() const;
   Uint32 getRangeListDataLen() const;
 
   const char * getMysqlName() const;
@@ -188,10 +180,8 @@ public:
   BaseString m_externalName;
   BaseString m_mysqlName;
   UtilBuffer m_frm; 
-  UtilBuffer m_ts_name;      //Tablespace Names
-  UtilBuffer m_ts;           //TablespaceData
-  UtilBuffer m_fd;           //FragmentData
-  UtilBuffer m_range;        //Range Or List Array
+  Vector<Uint32> m_fd;
+  Vector<Int32> m_range;
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**
@@ -215,6 +205,7 @@ public:
   Uint32 m_hashValueMask;
   Uint32 m_hashpointerValue;
   Vector<Uint16> m_fragments;
+  Vector<Uint8> m_hash_map;
 
   Uint64 m_max_rows;
   Uint64 m_min_rows;
@@ -287,6 +278,9 @@ public:
   BaseString m_tablespace_name;
   Uint32 m_tablespace_id;
   Uint32 m_tablespace_version;
+
+  Uint32 m_hash_map_id;
+  Uint32 m_hash_map_version;
 };
 
 class NdbIndexImpl : public NdbDictionary::Index, public NdbDictObjectImpl {
@@ -526,9 +520,62 @@ public:
   NdbDictionary::Undofile * m_facade;
 };
 
+class NdbHashMapImpl : public NdbDictionary::HashMap, public NdbDictObjectImpl
+{
+public:
+  NdbHashMapImpl();
+  NdbHashMapImpl(NdbDictionary::HashMap &);
+  ~NdbHashMapImpl();
+
+  int assign(const NdbHashMapImpl& src);
+
+  BaseString m_name;
+  Vector<Uint32> m_map;
+  NdbDictionary::HashMap * m_facade;
+
+  static NdbHashMapImpl & getImpl(NdbDictionary::HashMap & t){
+    return t.m_impl;
+  }
+
+  static const NdbHashMapImpl & getImpl(const NdbDictionary::HashMap & t){
+    return t.m_impl;
+  }
+
+
+};
+
 class NdbDictInterface {
 public:
-  NdbDictInterface(NdbError& err) : m_error(err) {
+  // one transaction per Dictionary instance is supported
+  struct Tx {
+    // api-side schema op, currently only for alter table
+    struct Op {
+      Uint32 m_gsn;
+      NdbTableImpl* m_impl;
+    };
+    bool m_transOn;
+    Uint32 m_transId;   // API
+    Uint32 m_transKey;  // DICT
+    Vector<Op> m_op;
+    Tx() :
+      m_transOn(false),
+      m_transId(0),
+      m_transKey(0)
+    {}
+    Uint32 transId() const {
+      return m_transOn ? m_transId : 0;
+    }
+    Uint32 transKey() const {
+      return m_transOn ? m_transKey : 0;
+    }
+    Uint32 requestFlags() const {
+      Uint32 flags = 0;
+      // not yet supported in DICT
+      return flags;
+    }
+  };
+
+  NdbDictInterface(Tx& tx, NdbError& err) : m_tx(tx), m_error(err) {
     m_reference = 0;
     m_masterNodeId = 0;
     m_transporter= NULL;
@@ -571,7 +618,7 @@ public:
   int dropEvent(const NdbEventImpl &);
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
-  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
+  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &, Uint32&);
   int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   
   int listObjects(NdbDictionary::Dictionary::List& list,
@@ -602,6 +649,9 @@ public:
   static int parseFilegroupInfo(NdbFilegroupImpl &dst,
 				const Uint32 * data, Uint32 len);
   
+  static int parseHashMapInfo(NdbHashMapImpl& dst,
+                              const Uint32 * data, Uint32 len);
+
   int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, 
 		  bool overwrite, NdbDictObjectImpl*);
   int drop_file(const NdbFileImpl &);
@@ -616,7 +666,15 @@ public:
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
-  
+
+  int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*);
+  int get_hashmap(NdbHashMapImpl&, Uint32 id);
+  int get_hashmap(NdbHashMapImpl&, const char * name);
+
+  int beginSchemaTrans();
+  int endSchemaTrans(Uint32 flags);
+  Tx & m_tx; // shared with NdbDictionaryImpl
+
   const NdbError &getNdbError() const;  
   NdbError & m_error;
 private:
@@ -672,9 +730,18 @@ private:
   
   void execDROP_FILEGROUP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_FILEGROUP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  
+
+  void execSCHEMA_TRANS_BEGIN_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_REP(NdbApiSignal *, LinearSectionPtr ptr[3]);
+
   void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+
+  void execCREATE_HASH_MAP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execCREATE_HASH_MAP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
@@ -682,6 +749,10 @@ private:
   Uint32 m_noOfTables;
   UtilBuffer m_tableData;
   UtilBuffer m_tableNames;
+
+  struct {
+    Uint32 m_buckets;
+  } m_sub_start_conf;
 };
 
 class NdbDictionaryImpl;
@@ -737,7 +808,7 @@ public:
   int dropBlobEvents(const NdbEventImpl &);
   int listEvents(List& list);
 
-  int executeSubscribeEvent(NdbEventOperationImpl &);
+  int executeSubscribeEvent(NdbEventOperationImpl &, Uint32 & buckets);
   int stopSubscribeEvent(NdbEventOperationImpl &);
 
   int forceGCPWait();
@@ -780,7 +851,12 @@ public:
 
   int createLogfileGroup(const NdbLogfileGroupImpl &, NdbDictObjectImpl*);
   int dropLogfileGroup(const NdbLogfileGroupImpl &);
-  
+
+  int beginSchemaTrans();
+  int endSchemaTrans(Uint32 flags);
+  bool hasSchemaTrans() const { return m_tx.m_transOn; }
+  NdbDictInterface::Tx m_tx;
+
   const NdbError & getNdbError() const;
   NdbError m_error;
   Uint32 m_local_table_data_size;
@@ -938,7 +1014,6 @@ NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
 {
   DBUG_ENTER("NdbColumnImpl::get_var_length");
   Uint32 max_len = m_attrSize * m_arraySize;
-
   switch (m_arrayType) {
   case NDB_ARRAYTYPE_SHORT_VAR:
     len = 1 + *((Uint8*)value);
@@ -955,70 +1030,6 @@ NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
   }
   DBUG_RETURN(len <= max_len);
 }
-
-// Useful until 6.4 where WL4499 removes the need.
-inline
-bool
-NdbColumnImpl::get_var_length_bug39645(const void* value, 
-                                       Uint32& sigLen,
-                                       Uint32& sendLen) const
-{
-  DBUG_ENTER("NdbColumnImpl::get_var_length_bug39645");
-  Uint32 max_len = m_attrSize * m_arraySize;
-  
-  sendLen= max_len;
-
-  /* Special code for bug 39645 to help avoid copying too much
-   * from user space (and potentially reading bad memory
-   * Not needed when true VARCHAR to disk is implemented (WL4499)
-   */
-  if (unlikely(m_storageType == NDB_STORAGETYPE_DISK))
-  {
-    /* Disk VARCHAR/BINARY have arrayType of NDB_ARRAYTYPE_FIXED,
-     * but we should treat as VAR types w.r.t. determining 
-     * actual data length
-     */
-    DBUG_PRINT("info", ("DISK based : type=%u", m_type));
-
-    switch (m_type) {
-    case NDB_TYPE_VARCHAR: // Fall through
-    case NDB_TYPE_VARBINARY:
-      sigLen = 1 + *((Uint8*)value);
-      DBUG_PRINT("info", ("SHORT_VAR_DISK: sigLen=%u max_len=%u", sigLen, max_len));
-      DBUG_RETURN(sigLen <= max_len);
-
-    case NDB_TYPE_LONGVARCHAR: // Fall through
-    case NDB_TYPE_LONGVARBINARY:
-      sigLen = 2 + uint2korr((char*)value);
-      DBUG_PRINT("info", ("MEDIUM_VAR: sigLen=%u max_len=%u", sigLen, max_len));
-      DBUG_RETURN(sigLen <= max_len);
-    default:
-      // Fixed size disk type - fall through 
-      // to normal processing below
-      ;
-    }
-  }
-
-  /* Normal path */
-  switch (m_arrayType) {
-  case NDB_ARRAYTYPE_SHORT_VAR:
-    sigLen = 1 + *((Uint8*)value);
-    DBUG_PRINT("info", ("SHORT_VAR: sigLen=%u max_len=%u", sigLen, max_len));
-    break;
-  case NDB_ARRAYTYPE_MEDIUM_VAR:
-    sigLen = 2 + uint2korr((char*)value);
-    DBUG_PRINT("info", ("MEDIUM_VAR: sigLen=%u max_len=%u", sigLen, max_len));
-    break;
-  default:
-    sigLen = max_len;
-    DBUG_PRINT("info", ("FIXED: sigLen=%u max_len=%u", sigLen, max_len));
-    DBUG_RETURN(true);
-  }
-
-  sendLen= sigLen;
-  DBUG_RETURN(sigLen <= max_len);
-}
-
 
 inline
 NdbTableImpl &
@@ -1052,7 +1063,7 @@ inline
 Uint32
 Hash( const char* str ){
   Uint32 h = 0;
-  Uint32 len = strlen(str);
+  size_t len = strlen(str);
   while(len >= 4){
     h = (h << 5) + h + str[0];
     h = (h << 5) + h + str[1];

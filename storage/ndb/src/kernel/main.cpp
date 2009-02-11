@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+ /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 
 #include <LogLevel.hpp>
 #include <EventLogger.hpp>
+#include <NdbEnv.h>
 
 #include <NdbAutoPtr.hpp>
 
@@ -100,7 +101,9 @@ void childAbort(int code, Uint32 currentStartPhase)
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
-  signal(6, SIG_DFL);
+#ifndef NDB_WIN32
+  signal(SIGABRT, SIG_DFL);
+#endif
   abort();
 }
 
@@ -226,6 +229,193 @@ do_next:
   return 0;
 }
 
+static int
+init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
+{
+  const ndb_mgm_configuration_iterator * p =
+    ed.theConfiguration->getOwnConfigIterator();
+  if (p == 0)
+  {
+    abort();
+  }
+
+  Uint64 shared_mem = 8*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
+  shared_mem /= GLOBAL_PAGE_SIZE;
+
+  Uint32 tupmem = 0;
+  if (ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem))
+  {
+    g_eventLogger->alert("Failed to get CFG_TUP_PAGE parameter from "
+                        "config, exiting.");
+    return -1;
+  }
+
+  if (tupmem)
+  {
+    Resource_limit rl;
+    rl.m_min = tupmem;
+    rl.m_max = tupmem;
+    rl.m_resource_id = RG_DATAMEM;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 maxopen = 4 * 4; // 4 redo parts, max 4 files per part
+  Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
+  Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
+
+  if (filepages)
+  {
+    Resource_limit rl;
+    rl.m_min = filepages;
+    rl.m_max = filepages;
+    rl.m_resource_id = RG_FILE_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 jbpages = compute_jb_pages(&ed);;
+  if (jbpages)
+  {
+    Resource_limit rl;
+    rl.m_min = jbpages;
+    rl.m_max = jbpages;
+    rl.m_resource_id = RG_JOBBUFFER;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 sbpages = 0;
+  if (globalTransporterRegistry.get_using_default_send_buffer() == false)
+  {
+    Uint64 mem = globalTransporterRegistry.get_total_max_send_buffer();
+    sbpages = (mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+    Resource_limit rl;
+    rl.m_min = sbpages;
+    rl.m_max = sbpages;
+    rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (shared_mem + tupmem + filepages + jbpages + sbpages)
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = shared_mem + tupmem + filepages + jbpages + sbpages;
+    rl.m_resource_id = 0;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (!ed.m_mem_manager->init(watchCounter))
+  {
+    struct ndb_mgm_param_info dm;
+    struct ndb_mgm_param_info sga;
+    size_t size;
+
+    size = sizeof(ndb_mgm_param_info);
+    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
+    size = sizeof(ndb_mgm_param_info);
+    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
+
+    g_eventLogger->alert("Malloc (%lld bytes) for %s and %s failed, exiting",
+                         Uint64(shared_mem + tupmem) * GLOBAL_PAGE_SIZE,
+                         dm.m_name, sga.m_name);
+    return -1;
+  }
+
+  return 0;                     // Success
+}
+
+static int
+get_multithreaded_config(EmulatorData& ed)
+{
+  // multithreaded is compiled in ndbd/ndbmtd for now
+  globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
+  if (!globalData.isNdbMt) {
+    ndbout << "NDBMT: non-mt" << endl;
+    return 0;
+  }
+
+  const ndb_mgm_configuration_iterator * p =
+    ed.theConfiguration->getOwnConfigIterator();
+  if (p == 0)
+  {
+    abort();
+  }
+
+  Uint32 mtthreads = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
+  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
+
+  globalData.isNdbMtLqh = true;
+
+  /**
+   * TODO add config for mt-classic
+   */
+  {
+    Uint32 classic = 0;
+    ndb_mgm_get_int_parameter(p, CFG_NDBMT_CLASSIC, &classic);
+    if (classic)
+      globalData.isNdbMtLqh = false;
+
+    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+    if (p != 0)
+    {
+      if (strstr(p, "NOPLEASE") != 0)
+        globalData.isNdbMtLqh = false;
+      else
+        globalData.isNdbMtLqh = true;
+    }
+  }
+
+  if (!globalData.isNdbMtLqh)
+    return 0;
+
+  Uint32 threads = 0;
+  switch(mtthreads){
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+    threads = 1; // TC + receiver + SUMA + LQH
+    break;
+  case 4:
+  case 5:
+  case 6:
+    threads = 2; // TC + receiver + SUMA + 2 * LQH
+    break;
+  default:
+    threads = 4; // TC + receiver + SUMA + 4 * LQH
+  }
+
+  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads);
+  Uint32 workers = threads;
+  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers);
+
+#ifdef VM_TRACE
+  // testing
+  {
+    const char* p;
+    p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
+    if (p != 0)
+      workers = atoi(p);
+    p = NdbEnv_GetEnv("NDBMT_LQH_THREADS", (char*)0, 0);
+    if (p != 0)
+      threads = atoi(p);
+  }
+#endif
+
+  ndbout << "NDBMT: workers=" << workers
+         << " threads=" << threads << endl;
+  
+  assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
+  assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
+  assert(workers % threads == 0);
+  
+  globalData.ndbMtLqhWorkers = workers;
+  globalData.ndbMtLqhThreads = threads;
+  return 0;
+}
+
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -262,10 +452,13 @@ int main(int argc, char** argv)
     char *logfile=  NdbConfig_StdoutFileName(globalData.ownId);
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
-    if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
+#ifndef NDB_WIN32
+    if (NdbDaemon_Make(lockfile, logfile, 0) == -1)
+    {
       ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
       return 1;
     }
+#endif
   }
 
 #ifndef NDB_WIN32
@@ -404,26 +597,57 @@ int main(int argc, char** argv)
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
-    // Load blocks
+  NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
+
+  if (get_multithreaded_config(globalEmulatorData))
+    return -1;
+
+  {
+    /*
+     * Memory allocation can take a long time for large memory.
+     *
+     * So we want the watchdog to monitor the process of initial allocation.
+     */
+    Uint32 watchCounter;
+    watchCounter = 9;           //  Means "doing allocation"
+    globalEmulatorData.theWatchDog->registerWatchedThread(&watchCounter, 0);
+    if (init_global_memory_manager(globalEmulatorData, &watchCounter))
+      return 1;
+    globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
+  }
+
+  globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
+  
+#ifdef VM_TRACE
+  // Create a signal logger before block constructors
+  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr(buf);
+  FILE * signalLog = fopen(buf, "a");
+  globalSignalLoggers.setOwnNodeId(globalData.ownId);
+  globalSignalLoggers.setOutputStream(signalLog);
+#if 1 // to log startup
+  { const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG", (char*)0, 0);
+    if (p != 0) {
+      char buf[200];
+      BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
+      for (char* q = buf; *q != 0; q++) *q = toupper(toascii(*q));
+      globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
+      globalData.testOn = 1;
+      assert(signalLog != 0);
+      fprintf(signalLog, "START\n");
+      fflush(signalLog);
+    }
+  }
+#endif
+#endif
+
+  // Load blocks (both main and workers)
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
     
   // Set thread concurrency for Solaris' light weight processes
   int status;
   status = NdbThread_SetConcurrencyLevel(30);
   assert(status == 0);
-  
-#ifdef VM_TRACE
-  // Create a signal logger
-  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
-  NdbAutoPtr<char> tmp_aptr(buf);
-  FILE * signalLog = fopen(buf, "a");
-  globalSignalLoggers.setOwnNodeId(globalData.ownId);
-  globalSignalLoggers.setOutputStream(signalLog);
-#if 0 // to log startup
-  globalSignalLoggers.log(SignalLoggerManager::LogInOut, "BLOCK=DBDICT,DBDIH");
-  globalData.testOn = 1;
-#endif
-#endif
   
   catchsigs(false);
    
@@ -459,19 +683,25 @@ int main(int argc, char** argv)
 		"Connection to mgmd terminated before setup was complete", 
 		"StopOnError missing");
 
-  if (!globalTransporterRegistry.start_clients()){
+  NdbThread* pTrp = globalTransporterRegistry.start_clients();
+  if (pTrp == 0)
+  {
     ndbout_c("globalTransporterRegistry.start_clients() failed");
     exit(-1);
   }
 
-  globalEmulatorData.theWatchDog->doStart();
-  
-  globalEmulatorData.m_socket_server->startServer();
+  NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();
+
+  globalEmulatorData.theConfiguration->addThread(pTrp, SocketClientThread);
+  globalEmulatorData.theConfiguration->addThread(pWatchdog, WatchDogThread);
+  globalEmulatorData.theConfiguration->addThread(pSockServ, SocketServerThread);
 
   //  theConfig->closeConfiguration();
   {
-    Uint32 inx = globalEmulatorData.theConfiguration->addThreadId(MainThread);
-    globalEmulatorData.theThreadConfig->ipControlLoop(inx);
+    NdbThread *pThis = NdbThread_CreateObject(0);
+    Uint32 inx = globalEmulatorData.theConfiguration->addThread(pThis,
+                                                                MainThread);
+    globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
     globalEmulatorData.theConfiguration->removeThreadId(inx);
   }
   NdbShutdown(NST_Normal);

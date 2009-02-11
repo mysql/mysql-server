@@ -70,6 +70,7 @@ public:
  
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
+   STATIC_CONST(        MaxSignalWords = 25);
 
   NodeId                get_sender_node();
 
@@ -87,22 +88,18 @@ public:
   }
   
 private:
-  friend void execute(void * callbackObj, 
-		      struct SignalHeader * const header, 
-		      Uint8 prio, Uint32 * const theData, 
-		      LinearSectionPtr ptr[3]);
-   
   void setDataPtr(Uint32 *);
   
   friend class NdbTransaction;
   friend class NdbScanReceiver;
   friend class Table;
+  friend class TransporterFacade;
   void copyFrom(const NdbApiSignal * src);
 
   /**
    * Only used when creating a signal in the api
    */
-  Uint32 theData[25];
+  Uint32 theData[MaxSignalWords];
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
 };

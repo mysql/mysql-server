@@ -40,4 +40,5 @@ enable_warnings;
 enable_query_log;
 enable_result_log;
 
+--let NDB_BACKUPS=$NDB_BACKUP_DIR/BACKUP/BACKUP
 

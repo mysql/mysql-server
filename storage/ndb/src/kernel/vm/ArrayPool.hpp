@@ -26,7 +26,11 @@
 #include <Bitmask.hpp>
 #include <mgmapi.h>
 
+#include <NdbMutex.h>
+
 template <class T> class Array;
+
+//#define ARRAY_CHUNK_GUARD
 
 /**
  * Template class used for implementing an
@@ -122,6 +126,43 @@ public:
   }
 #endif
 
+  /**
+   * Cache+LockFun is used to make thread-local caches for ndbmtd
+   *   I.e each thread has one cache-instance, and can seize/release on this
+   *       wo/ locks
+   */
+  struct Cache
+  {
+    Cache(Uint32 a0 = 512, Uint32 a1 = 256) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    Uint32 m_first_free;
+    Uint32 m_free_cnt;
+    Uint32 m_alloc_cnt;
+    Uint32 m_max_free_cnt;
+  };
+
+  struct LockFun
+  {
+    void (* lock)(void);
+    void (* unlock)(void);
+  };
+
+  bool load(LockFun, Cache&, Uint32 n);
+  bool seize(LockFun, Cache&, Ptr<T> &);
+  void release(LockFun, Cache&, Uint32 i);
+  void release(LockFun, Cache&, Ptr<T> &);
+  void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
+
+  void setChunkSize(Uint32 sz);
+#ifdef ARRAY_CHUNK_GUARD
+  void checkChunks();
+#endif
+
+protected:
+  void releaseChunk(LockFun, Cache&, Uint32 n);
+
+  bool seizeChunk(Uint32 & n, Ptr<T> &);
+  void releaseChunk(Uint32 n, Uint32 first, Uint32 last);
+
 protected:
   friend class Array<T>;
 
@@ -179,10 +220,13 @@ protected:
   Uint32 firstFree;
   Uint32 size;
   Uint32 noOfFree;
+  Uint32 bitmaskSz;
   T * theArray;
   void * alloc_ptr;
-  Uint32 bitmaskSz;
   Uint32 *theAllocatedBitmask;
+#ifdef ARRAY_GUARD
+  bool chunk;
+#endif
 };
 
 template <class T>
@@ -195,6 +239,7 @@ ArrayPool<T>::ArrayPool(){
   alloc_ptr = 0;
 #ifdef ARRAY_GUARD
   theAllocatedBitmask = 0;
+  chunk = false;
 #endif
 }
 
@@ -293,6 +338,32 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
 
   ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
   return false; // not reached
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::setChunkSize(Uint32 sz)
+{
+  Uint32 i;
+  for (i = 0; i + sz < size; i += sz)
+  {
+    theArray[i].chunkSize = sz;
+    theArray[i].lastChunk = i + sz - 1;
+    theArray[i].nextChunk = i + sz;
+  }
+
+  theArray[i].chunkSize = size - i;
+  theArray[i].lastChunk = size - 1;
+  theArray[i].nextChunk = RNIL;
+
+#ifdef ARRAY_GUARD
+  chunk = true;
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
 }
 
 template <class T>
@@ -615,6 +686,10 @@ template <class T>
 inline
 bool
 ArrayPool<T>::seize(Ptr<T> & ptr){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 ff = firstFree;
   if(ff != RNIL){
     firstFree = theArray[ff].nextPool;
@@ -649,6 +724,10 @@ template <class T>
 inline
 bool
 ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 ff = firstFree;
   Uint32 prev = RNIL;
   while(ff != i && ff != RNIL){
@@ -704,6 +783,10 @@ ArrayPool<T>::findId(Uint32 i) const {
 template<class T>
 Uint32
 ArrayPool<T>::seizeN(Uint32 n){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 curr = firstFree;
   Uint32 prev = RNIL;
   Uint32 sz = 0;
@@ -750,6 +833,10 @@ template<class T>
 inline
 void 
 ArrayPool<T>::releaseN(Uint32 base, Uint32 n){
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 curr = firstFree;
   Uint32 prev = RNIL;
   while(curr < base){
@@ -788,6 +875,12 @@ inline
 void 
 ArrayPool<T>::releaseList(Uint32 n, Uint32 first, Uint32 last){
 
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
+  assert( n != 0 );
+
   if(first < size && last < size){
     Uint32 ff = firstFree;
     firstFree = first;
@@ -825,6 +918,11 @@ template <class T>
 inline
 void
 ArrayPool<T>::release(Uint32 _i){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   const Uint32 i = _i;
   if(likely(i < size)){
     Uint32 ff = firstFree;
@@ -858,6 +956,11 @@ template <class T>
 inline
 void
 ArrayPool<T>::release(Ptr<T> & ptr){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
   Uint32 i = ptr.i;
   if(likely(i < size)){
     Uint32 ff = firstFree;
@@ -883,6 +986,267 @@ ArrayPool<T>::release(Ptr<T> & ptr){
     return;
   }
   ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+}
+
+#if 0
+#define DUMP(a,b) do { printf("%s c.m_first_free: %u c.m_free_cnt: %u %s", a, c.m_first_free, c.m_free_cnt, b); fflush(stdout); } while(0)
+#else
+#define DUMP(a,b)
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+template <class T>
+inline
+void
+ArrayPool<T>::checkChunks()
+{
+#ifdef ARRAY_GUARD
+  assert(chunk == true);
+#endif
+
+  Uint32 ff = firstFree;
+  Uint32 sum = 0;
+  while (ff != RNIL)
+  {
+    sum += theArray[ff].chunkSize;
+    Uint32 last = theArray[ff].lastChunk;
+    assert(theArray[last].nextPool == theArray[ff].nextChunk);
+    if (theAllocatedBitmask)
+    {
+      Uint32 tmp = ff;
+      while(tmp != last)
+      {
+        assert(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp));
+        tmp = theArray[tmp].nextPool;
+      }
+      assert(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp));
+    }
+
+    ff = theArray[ff].nextChunk;
+  }
+  assert(sum == noOfFree);
+}
+#endif
+
+template <class T>
+inline
+bool
+ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
+{
+#ifdef ARRAY_GUARD
+  assert(chunk == true);
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+
+  Uint32 save = cnt;
+  int tmp = save;
+  Uint32 ff = firstFree;
+  ptr.i = ff;
+  ptr.p = theArray + ff;
+
+  if (ff != RNIL)
+  {
+    Uint32 prev;
+    do 
+    {
+      if (0)
+        ndbout_c("seizeChunk(%u) ff: %u tmp: %d chunkSize: %u lastChunk: %u nextChunk: %u",
+                 save, ff, tmp, 
+                 theArray[ff].chunkSize, 
+                 theArray[ff].lastChunk,
+                 theArray[ff].nextChunk);
+      
+      tmp -= theArray[ff].chunkSize;
+      prev = theArray[ff].lastChunk;
+      assert(theArray[ff].nextChunk == theArray[prev].nextPool);
+      ff = theArray[ff].nextChunk;
+    } while (tmp > 0 && ff != RNIL);
+    
+    cnt = (save - tmp);
+    noOfFree -= (save - tmp);
+    firstFree = ff;
+    theArray[prev].nextPool = RNIL;
+    
+#ifdef ARRAY_GUARD
+    if (theAllocatedBitmask)
+    {
+      Uint32 tmpI = ptr.i;
+      for(Uint32 i = 0; i<cnt; i++){
+        if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmpI)){
+          /**
+           * Seizing an already seized element
+           */
+          ErrorReporter::handleAssert("ArrayPool<T>::seizeChunk", 
+                                      __FILE__, __LINE__);
+        } else {
+          BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, tmpI);
+        }
+        tmpI = theArray[tmpI].nextPool;
+      }
+    }
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+    checkChunks();
+#endif
+
+    return true;
+  }
+
+  return false;
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
+{
+#ifdef ARRAY_GUARD
+  assert(chunk == true);
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+
+  Uint32 ff = firstFree;
+  firstFree = first;
+  theArray[first].nextChunk = ff;
+  theArray[last].nextPool = ff;
+  noOfFree += cnt;
+
+  assert(theArray[first].chunkSize == cnt);
+  assert(theArray[first].lastChunk == last);
+  
+#ifdef ARRAY_GUARD
+  if (theAllocatedBitmask)
+  {
+    Uint32 tmp = first;
+    for(Uint32 i = 0; i<cnt; i++){
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp)){
+        BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, tmp);
+      } else {
+        /**
+         * Relesing a already released element
+         */
+        ErrorReporter::handleAssert("ArrayPool<T>::releaseList", 
+                                    __FILE__, __LINE__);
+        return;
+      }
+      tmp = theArray[tmp].nextPool;
+    }
+  }
+#endif
+
+#ifdef ARRAY_CHUNK_GUARD
+  checkChunks();
+#endif
+}
+
+
+template <class T>
+inline
+bool
+ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
+{
+  DUMP("seize", "-> ");
+
+  Uint32 ff = c.m_first_free;
+  if (ff != RNIL)
+  {
+    c.m_first_free = theArray[ff].nextPool;
+    c.m_free_cnt--;
+    p.i = ff;
+    p.p = theArray + ff;
+    DUMP("LOCAL ", "\n");
+    return true;
+  }
+
+  Uint32 tmp = c.m_alloc_cnt;
+  l.lock();
+  bool ret = seizeChunk(tmp, p);
+  l.unlock();
+
+  if (ret)
+  {
+    c.m_first_free = theArray[p.i].nextPool;
+    c.m_free_cnt = tmp - 1;
+    DUMP("LOCKED", "\n");
+    return true;
+  }
+  return false;
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::release(LockFun l, Cache& c, Uint32 i)
+{
+  Ptr<T> tmp;
+  getPtr(tmp, i);
+  release(l, c, tmp);
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
+{
+  p.p->nextPool = c.m_first_free;
+  c.m_first_free = p.i;
+  c.m_free_cnt ++;
+
+  if (c.m_free_cnt > 2 * c.m_max_free_cnt)
+  {
+    releaseChunk(l, c, c.m_alloc_cnt);
+  }
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseList(LockFun l, Cache& c,
+                          Uint32 n, Uint32 first, Uint32 last)
+{
+  theArray[last].nextPool = c.m_first_free;
+  c.m_first_free = first;
+  c.m_free_cnt += n;
+
+  if (c.m_free_cnt > 2 * c.m_max_free_cnt)
+  {
+    releaseChunk(l, c, c.m_alloc_cnt);
+  }
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseChunk(LockFun l, Cache& c, Uint32 n)
+{
+  DUMP("releaseListImpl", "-> ");
+  Uint32 ff = c.m_first_free;
+  Uint32 prev = ff;
+  Uint32 curr = ff;
+  Uint32 i;
+  for (i = 0; i < n && curr != RNIL; i++)
+  {
+    prev = curr;
+    curr = theArray[curr].nextPool;
+  }
+  c.m_first_free = curr;
+  c.m_free_cnt -= i;
+
+  DUMP("", "\n");
+
+  theArray[ff].chunkSize = i;
+  theArray[ff].lastChunk = prev;
+
+  l.lock();
+  releaseChunk(i, ff, prev);
+  l.unlock();
 }
 
 template <class T>
@@ -980,5 +1344,98 @@ UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
   }
 }
 
+// SafeArrayPool
+
+template <class T>
+class SafeArrayPool : public ArrayPool<T> {
+public:
+  SafeArrayPool(NdbMutex* mutex = 0);
+  ~SafeArrayPool();
+  int lock();
+  int unlock();
+  bool seize(Ptr<T>&);
+  void release(Uint32 i);
+  void release(Ptr<T>&);
+
+private:
+  NdbMutex* m_mutex;
+  bool m_mutex_owner;
+
+  bool seizeId(Ptr<T>&);
+  bool findId(Uint32) const;
+};
+
+template <class T>
+inline
+SafeArrayPool<T>::SafeArrayPool(NdbMutex* mutex)
+{
+  if (mutex != 0) {
+    m_mutex = mutex;
+    m_mutex_owner = false;
+  } else {
+    m_mutex = NdbMutex_Create();
+    assert(m_mutex != 0);
+    m_mutex_owner = true;
+  }
+}
+
+template <class T>
+inline
+SafeArrayPool<T>::~SafeArrayPool()
+{
+  if (m_mutex_owner)
+    NdbMutex_Destroy(m_mutex);
+}
+
+template <class T>
+inline
+int
+SafeArrayPool<T>::lock()
+{
+  return NdbMutex_Lock(m_mutex);
+}
+
+template <class T>
+inline
+int
+SafeArrayPool<T>::unlock()
+{
+  return NdbMutex_Unlock(m_mutex);
+}
+
+template <class T>
+inline
+bool
+SafeArrayPool<T>::seize(Ptr<T>& ptr)
+{
+  bool ok = false;
+  if (lock() == 0) {
+    ok = ArrayPool<T>::seize(ptr);
+    unlock();
+  }
+  return ok;
+}
+
+template <class T>
+inline
+void
+SafeArrayPool<T>::release(Uint32 i)
+{
+  int ret = lock();
+  assert(ret == 0);
+  ArrayPool<T>::release(i);
+  unlock();
+}
+
+template <class T>
+inline
+void
+SafeArrayPool<T>::release(Ptr<T>& ptr)
+{
+  int ret = lock();
+  assert(ret == 0);
+  ArrayPool<T>::release(ptr);
+  unlock();
+}
 
 #endif

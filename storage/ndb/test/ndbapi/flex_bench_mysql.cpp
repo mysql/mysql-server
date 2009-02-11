@@ -250,7 +250,7 @@ statReport(enum StartType st, int ops)
   sprintf(buf, "%d %s %d\n", nodeid, text, ops);
   int len = strlen(buf);
   // assume SIGPIPE already ignored
-  if (write(statSock, buf, len) != len) {
+  if (send(statSock, buf, len, 0) != len) {
     if (statState != statError) {
       ndbout_c("stat: write failed: %s", strerror(errno));
       statState = statError;

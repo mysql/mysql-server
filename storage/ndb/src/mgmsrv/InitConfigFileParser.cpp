@@ -17,7 +17,6 @@
 
 #include "InitConfigFileParser.hpp"
 #include "Config.hpp"
-#include "MgmtErrorReporter.hpp"
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 #include <m_string.h>
@@ -171,6 +170,7 @@ InitConfigFileParser::run_config_rules(Context& ctx)
 {
   for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
     ctx.type             = InitConfigFileParser::Undefined;
+    ctx.m_info           = m_info;
     ctx.m_currentSection = 0;
     ctx.m_userDefaults   = 0;
     ctx.m_currentInfo    = 0;
@@ -212,11 +212,8 @@ InitConfigFileParser::run_config_rules(Context& ctx)
   strncat(tmpLine, system, MAX_LINE_LENGTH);
   strncat(tmpLine, ":NoOfConnections", MAX_LINE_LENGTH);
   ctx.m_config->put(tmpLine, nExtConnections);
-  
-  Config * ret = new Config();
-  ret->m_configValues = (struct ndb_mgm_configuration*)ctx.m_configValues.getConfigValues();
-  ret->m_oldConfig = ctx.m_config; ctx.m_config = 0;
-  return ret;
+
+  return new Config(ctx.m_configValues.getConfigValues());
 }
 
 //****************************************************************************
@@ -320,7 +317,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       ctx.reportError("Illegal boolean value for parameter %s", fname);
       return false;
     }
-    MGM_REQUIRE(ctx.m_currentSection->put(pname, value_bool));
+    require(ctx.m_currentSection->put(pname, value_bool));
     break;
   }
   case ConfigInfo::CI_INT:
@@ -338,14 +335,14 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       return false;
     }
     if(type == ConfigInfo::CI_INT){
-      MGM_REQUIRE(ctx.m_currentSection->put(pname, (Uint32)value_int));
+      require(ctx.m_currentSection->put(pname, (Uint32)value_int));
     } else {
-      MGM_REQUIRE(ctx.m_currentSection->put64(pname, value_int));
+      require(ctx.m_currentSection->put64(pname, value_int));
     }
     break;
   }
   case ConfigInfo::CI_STRING:
-    MGM_REQUIRE(ctx.m_currentSection->put(pname, value));
+    require(ctx.m_currentSection->put(pname, value));
     break;
   case ConfigInfo::CI_SECTION:
     abort();
@@ -727,7 +724,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
 
   char ** tmp = (char**)argv;
   int ret = load_defaults("my", groups, &argc, &tmp);
-  
+
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;
   my_defaults_group_suffix = save_group_suffix;

@@ -1482,7 +1482,6 @@ runBug26481(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug26450(NDBT_Context* ctx, NDBT_Step* step)
 {
-  Uint32 i;
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
   
@@ -1510,7 +1509,7 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
   if (runClearTable(ctx, step))
     return NDBT_FAILED;
 
-  for (i = 0; i < 2; i++)
+  for (int i = 0; i < 2; i++)
   {
     if (res.restartAll(false, true, i > 0))
       return NDBT_FAILED;
@@ -2441,7 +2440,7 @@ runBug32922(NDBT_Context* ctx, NDBT_Step* step)
     int master = res.getMasterNodeId();    
 
     int victim = 32768;
-    for (Uint32 i = 0; i<res.getNumDbNodes(); i++)
+    for (int i = 0; i<res.getNumDbNodes(); i++)
     {
       int node = res.getDbNodeId(i);
       if (node != master && node < victim)
@@ -4034,6 +4033,7 @@ NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testNodeRestart);
 #if 0
   // It might be interesting to have longer defaults for num
   // loops in this test

@@ -30,8 +30,10 @@ class FsOpenReq {
   friend class Ndbfs;         // Reciver
   friend class AsyncFile;     // Uses FsOpenReq to decode file open flags
   friend class PosixAsyncFile; // FIXME
+  friend class Win32AsyncFile; // FIXME
   friend class Filename;
   friend class VoidFs;
+  friend class AsyncIoThread;
 
   /**
    * Sender(s)
@@ -89,6 +91,8 @@ private:
   STATIC_CONST( OM_CHECK_SIZE     = 0x2000 );
   STATIC_CONST( OM_DIRECT         = 0x4000 );
   STATIC_CONST( OM_GZ             = 0x8000 );
+  STATIC_CONST( OM_THREAD_POOL    = 0x10000 );
+  STATIC_CONST( OM_WRITE_BUFFER   = 0x20000 );
   
   enum Suffixes {
     S_DATA = 0,

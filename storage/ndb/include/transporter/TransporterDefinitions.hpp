@@ -40,6 +40,12 @@ enum SendStatus {
   SEND_UNKNOWN_NODE = 5
 };
 
+enum TransporterType {
+  tt_TCP_TRANSPORTER = 1,
+  tt_SCI_TRANSPORTER = 2,
+  tt_SHM_TRANSPORTER = 3
+};
+
 /**
  * Maximum message sizes
  * ---------------------
@@ -49,14 +55,15 @@ enum SendStatus {
  * upgrade
  * Maximum received size increased in :
  *   mysql-5.1-telco-6.3.18 from 16516 bytes to 32768
- * The maximum send size can be increased in a future
- * release to match the maximum receive size.  That
- * release will be unable to send messages to a release
- * lower than mysql-5.1-telco-6.3.18.
+ * Maximum send size increased in :
+ *   mysql-5.1-telco-6.4.0 from 16516 bytes to 32768
+ *
+ * Therefore mysql-5.1-telco-6.4.0 cannot safely communicate 
+ * with nodes at versions lower than mysql-5.1-telco-6.3.18 
  * 
  */
 const Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
-const Uint32 MAX_SEND_MESSAGE_BYTESIZE = 16516;
+const Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
 
 /**
  * TransporterConfiguration
@@ -74,6 +81,7 @@ struct TransporterConfiguration {
   bool checksum;
   bool signalId;
   bool isMgmConnection; // is a mgm connection, requires transforming
+  TransporterType type;
 
   union { // Transporter specific configuration information
 
@@ -83,6 +91,7 @@ struct TransporterConfiguration {
       Uint32 tcpSndBufSize;
       Uint32 tcpRcvBufSize;
       Uint32 tcpMaxsegSize;
+      Uint32 tcpOverloadLimit;
     } tcp;
     
     struct {
@@ -90,11 +99,6 @@ struct TransporterConfiguration {
       Uint32 shmSize;
       int    signum;
     } shm;
-    
-    struct {
-      Uint32 prioASignalSize;
-      Uint32 prioBSignalSize;
-    } ose;
 
     struct {
       Uint32 sendLimit;        // Packet size
@@ -137,6 +141,20 @@ struct SegmentedSectionPtr {
   {}
   void setNull() { p = 0;}
   bool isNull() const { return p == 0;}
+};
+
+/* Abstract interface for iterating over
+ * words in a section
+ */
+struct GenericSectionIterator {
+  virtual ~GenericSectionIterator() {};
+  virtual void reset()=0;
+  virtual Uint32* getNextWords(Uint32& sz)=0;
+};
+
+struct GenericSectionPtr {
+  Uint32 sz;
+  GenericSectionIterator* sectionIter;
 };
 
 class NdbOut & operator <<(class NdbOut & out, SignalHeader & sh);

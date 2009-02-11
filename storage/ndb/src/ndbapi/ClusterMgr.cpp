@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_pthread.h>
 #include <ndb_limits.h>
 #include <util/version.h>
 
@@ -55,19 +54,19 @@ extern "C" {
 }
 ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   theStop(0),
-  theFacade(_facade)
+  theFacade(_facade),
+  m_connect_count(0),
+  m_max_api_reg_req_interval(~0),
+  noOfAliveNodes(0),
+  noOfConnectedNodes(0),
+  theClusterMgrThread(NULL),
+  waitingForHB(false),
+  m_cluster_state(CS_waiting_for_clean_cache)
 {
   DBUG_ENTER("ClusterMgr::ClusterMgr");
   ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
   waitForHBCond= NdbCondition_Create();
-  waitingForHB= false;
-  m_max_api_reg_req_interval= 0xFFFFFFFF; // MAX_INT
-  noOfAliveNodes= 0;
-  noOfConnectedNodes= 0;
-  theClusterMgrThread= 0;
-  m_connect_count = 0;
-  m_cluster_state = CS_waiting_for_clean_cache;
   DBUG_VOID_RETURN;
 }
 
@@ -81,18 +80,16 @@ ClusterMgr::~ClusterMgr()
 }
 
 void
-ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
+ClusterMgr::configure(const ndb_mgm_configuration* config){
+  ndb_mgm_configuration_iterator iter(* config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()){
-    Uint32 tmp = 0;
-    if(iter.get(CFG_NODE_ID, &tmp))
+    Uint32 nodeId = 0;
+    if(iter.get(CFG_NODE_ID, &nodeId))
       continue;
 
-    theNodes[tmp].defined = true;
-#if 0
-    ndbout << "--------------------------------------" << endl;
-    ndbout << "--------------------------------------" << endl;
-    ndbout_c("ClusterMgr: Node %d defined as %s", tmp, config.getNodeType(tmp));
-#endif
+    // Check array bounds + don't allow node 0 to be touched
+    assert(nodeId > 0 && nodeId < MAX_NODES);
+    theNodes[nodeId].defined = true;
 
     unsigned type;
     if(iter.get(CFG_TYPE_OF_SECTION, &type))
@@ -100,52 +97,66 @@ ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
 
     switch(type){
     case NODE_TYPE_DB:
-      theNodes[tmp].m_info.m_type = NodeInfo::DB;
+      theNodes[nodeId].m_info.m_type = NodeInfo::DB;
       break;
     case NODE_TYPE_API:
-      theNodes[tmp].m_info.m_type = NodeInfo::API;
+      theNodes[nodeId].m_info.m_type = NodeInfo::API;
       break;
     case NODE_TYPE_MGM:
-      theNodes[tmp].m_info.m_type = NodeInfo::MGM;
+      theNodes[nodeId].m_info.m_type = NodeInfo::MGM;
       break;
     default:
       type = type;
-#if 0
-      ndbout_c("ClusterMgr: Unknown node type: %d", type);
-#endif
+      break;
     }
   }
+
+  /* Mark all non existing nodes as not defined */
+  for(Uint32 i = 0; i<MAX_NODES; i++) {
+    if (iter.first())
+      continue;
+
+    if (iter.find(CFG_NODE_ID, i))
+      theNodes[i]= Node();
+  }
+
+  /* Init own node info */
+  Node &node= theNodes[theFacade.ownId()];
+  assert(node.defined);
+  node.m_api_reg_conf= true;
+
+#if 0
+  print_nodes("init");
+#endif
+
 }
 
 void
 ClusterMgr::startThread() {
-  NdbMutex_Lock(clusterMgrThreadMutex);
-  
+  Guard g(clusterMgrThreadMutex);
+
   theStop = 0;
-  
   theClusterMgrThread = NdbThread_Create(runClusterMgr_C,
                                          (void**)this,
                                          32768,
                                          "ndb_clustermgr",
                                          NDB_THREAD_PRIO_LOW);
-  NdbMutex_Unlock(clusterMgrThreadMutex);
 }
 
 void
 ClusterMgr::doStop( ){
   DBUG_ENTER("ClusterMgr::doStop");
-  NdbMutex_Lock(clusterMgrThreadMutex);
-  if(theStop){
-    NdbMutex_Unlock(clusterMgrThreadMutex);
+  Guard g(clusterMgrThreadMutex);
+  if(theStop)
     DBUG_VOID_RETURN;
-  }
+
   void *status;
   theStop = 1;
   if (theClusterMgrThread) {
     NdbThread_WaitFor(theClusterMgrThread, &status);  
     NdbThread_Destroy(&theClusterMgrThread);
   }
-  NdbMutex_Unlock(clusterMgrThreadMutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -166,14 +177,14 @@ ClusterMgr::forceHB()
     NodeBitmask ndb_nodes;
     ndb_nodes.clear();
     waitForHBFromNodes.clear();
-    for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
+    for(Uint32 i = 1; i < MAX_NDB_NODES; i++)
     {
-      if(!theNodes[i].defined)
+      const Node &node= getNodeInfo(i);
+      if(!node.defined)
         continue;
-      if(theNodes[i].m_info.m_type == NodeInfo::DB)
+      if(node.m_info.getType() == NodeInfo::DB)
       {
         ndb_nodes.set(i);
-        const ClusterMgr::Node &node= getNodeInfo(i);
         waitForHBFromNodes.bitOR(node.m_state.m_connected_nodes);
       }
     }
@@ -222,7 +233,6 @@ ClusterMgr::threadMain( ){
   NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
   
   signal.theVerId_signalNumber   = GSN_API_REGREQ;
-  signal.theReceiversBlockNumber = QMGR;
   signal.theTrace                = 0;
   signal.theLength               = ApiRegReq::SignalLength;
 
@@ -231,13 +241,17 @@ ClusterMgr::threadMain( ){
   req->version = NDB_VERSION;
   req->mysql_version = NDB_MYSQL_VERSION_D;
   
-  Uint32 timeSlept = 100;
-  Uint64 now = NdbTick_CurrentMillisecond();
+  NDB_TICKS timeSlept = 100;
+  NDB_TICKS now = NdbTick_CurrentMillisecond();
 
   while(!theStop){
-    /**
-     * Start of Secure area for use of Transporter
-     */
+
+    /* Sleep at least 100ms between each heartbet check */
+    NDB_TICKS before = now;
+    NdbSleep_MilliSleep(100);
+    now = NdbTick_CurrentMillisecond();
+    timeSlept = (now - before);
+
     if (m_cluster_state == CS_waiting_for_clean_cache &&
         theFacade.m_globalDictCache)
     {
@@ -247,18 +261,20 @@ ClusterMgr::threadMain( ){
         unsigned sz= theFacade.m_globalDictCache->get_size();
         theFacade.m_globalDictCache->unlock();
         if (sz)
-          goto next;
+          continue;
       }
       m_cluster_state = CS_waiting_for_first_connect;
     }
 
     theFacade.lock_mutex();
-    for (int i = 1; i < MAX_NDB_NODES; i++){
+    for (int i = 1; i < MAX_NODES; i++){
       /**
        * Send register request (heartbeat) to all available nodes 
        * at specified timing intervals
        */
       const NodeId nodeId = i;
+      // Check array bounds + don't allow node 0 to be touched
+      assert(nodeId > 0 && nodeId < MAX_NODES);
       Node & theNode = theNodes[nodeId];
       
       if (!theNode.defined)
@@ -273,7 +289,7 @@ ClusterMgr::threadMain( ){
 	continue;
       }
       
-      theNode.hbCounter += timeSlept;
+      theNode.hbCounter += (Uint32)timeSlept;
       if (theNode.hbCounter >= m_max_api_reg_req_interval ||
           theNode.hbCounter >= theNode.hbFrequency) {
 	/**
@@ -283,6 +299,11 @@ ClusterMgr::threadMain( ){
 	  theNode.m_info.m_heartbeat_cnt++;
 	  theNode.hbCounter = 0;
 	}
+
+        if(theNode.m_info.m_type == NodeInfo::MGM)
+          signal.theReceiversBlockNumber = API_CLUSTERMGR;
+        else
+          signal.theReceiversBlockNumber = QMGR;
 
 #ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
@@ -294,32 +315,10 @@ ClusterMgr::threadMain( ){
 	reportNodeFailed(i);
       }//if
     }
-    
-    /**
-     * End of secure area. Let other threads in
-     */
     theFacade.unlock_mutex();
-    
-next:
-    // Sleep for 100 ms between each Registration Heartbeat
-    Uint64 before = now;
-    NdbSleep_MilliSleep(100); 
-    now = NdbTick_CurrentMillisecond();
-    timeSlept = (now - before);
   }
 }
 
-#if 0
-void
-ClusterMgr::showState(NodeId nodeId){
-  ndbout << "-- ClusterMgr - NodeId = " << nodeId << endl;
-  ndbout << "theNodeList      = " << theNodeList[nodeId] << endl;
-  ndbout << "theNodeState     = " << theNodeState[nodeId] << endl;
-  ndbout << "theNodeCount     = " << theNodeCount[nodeId] << endl;
-  ndbout << "theNodeStopDelay = " << theNodeStopDelay[nodeId] << endl;
-  ndbout << "theNodeSendDelay = " << theNodeSendDelay[nodeId] << endl;
-}
-#endif
 
 ClusterMgr::Node::Node()
   : m_state(NodeState::SL_NOTHING) { 
@@ -369,7 +368,12 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->version = NDB_VERSION;
   conf->mysql_version = NDB_MYSQL_VERSION_D;
   conf->apiHeartbeatFrequency = node.hbFrequency;
-  theFacade.sendSignalUnCond(&signal, nodeId);
+
+  conf->minDbVersion= 0;
+  conf->nodeState= node.m_state;
+
+  if (theFacade.sendSignalUnCond(&signal, nodeId) == SEND_OK)
+    node.m_api_reg_conf= true;
 }
 
 void
@@ -381,7 +385,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
 
-  assert(nodeId > 0 && nodeId < MAX_NDB_NODES);
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   
   Node & node = theNodes[nodeId];
   assert(node.defined == true);
@@ -424,6 +428,15 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   node.m_info.m_heartbeat_cnt = 0;
   node.hbCounter = 0;
 
+  check_wait_for_hb(nodeId);
+
+  node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
+}
+
+
+void
+ClusterMgr::check_wait_for_hb(NodeId nodeId)
+{
   if(waitingForHB)
   {
     waitForHBFromNodes.clear(nodeId);
@@ -434,8 +447,9 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
       NdbCondition_Broadcast(waitForHBCond);
     }
   }
-  node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
+  return;
 }
+
 
 void
 ClusterMgr::execAPI_REGREF(const Uint32 * theData){
@@ -443,12 +457,14 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
   ApiRegRef * ref = (ApiRegRef*)theData;
   
   const NodeId nodeId = refToNode(ref->ref);
-  
-  assert(nodeId > 0 && nodeId < MAX_NDB_NODES);
-  
+
+  assert(nodeId > 0 && nodeId < MAX_NODES);
+
   Node & node = theNodes[nodeId];
   assert(node.connected == true);
   assert(node.defined == true);
+  /* Only DB nodes will send API_REGREF */
+  assert(node.m_info.getType() == NodeInfo::DB);
 
   node.compatible = false;
   set_node_alive(node, false);
@@ -464,15 +480,14 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
     break;
   }
 
-  waitForHBFromNodes.clear(nodeId);
-  if(waitForHBFromNodes.isclear())
-    NdbCondition_Signal(waitForHBCond);
+  check_wait_for_hb(nodeId);
 }
+
 
 void
 ClusterMgr::execNODE_FAILREP(const Uint32 * theData){
-  NodeFailRep * const nodeFail = (NodeFailRep *)&theData[0];
-  for(int i = 1; i<MAX_NDB_NODES; i++){
+  const NodeFailRep * const nodeFail = (NodeFailRep *)&theData[0];
+  for(int i = 1; i < MAX_NDB_NODES; i++){
     if(NdbNodeBitmask::get(nodeFail->theNodes, i)){
       reportNodeFailed(i);
     }
@@ -481,15 +496,16 @@ ClusterMgr::execNODE_FAILREP(const Uint32 * theData){
 
 void
 ClusterMgr::execNF_COMPLETEREP(const Uint32 * theData){
-  NFCompleteRep * const nfComp = (NFCompleteRep *)theData;
+  const NFCompleteRep * const nfComp = (NFCompleteRep *)theData;
 
   const NodeId nodeId = nfComp->failedNodeId;
-  assert(nodeId > 0 && nodeId < MAX_NDB_NODES);
-  
-  if (theNodes[nodeId].nfCompleteRep == false)
+  assert(nodeId > 0 && nodeId < MAX_NODES);
+
+  Node & node = theNodes[nodeId];
+  if (node.nfCompleteRep == false)
   {
     theFacade.ReportNodeFailureComplete(nodeId);
-    theNodes[nodeId].nfCompleteRep = true;
+    node.nfCompleteRep = true;
   }
 }
 
@@ -502,7 +518,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
    * until we have got the first reply from NDB providing
    * us with the real time-out period to use.
    */
-  assert(nodeId > 0 && nodeId < MAX_NDB_NODES);
+  assert(nodeId > 0 && nodeId < MAX_NODES);
 
   noOfConnectedNodes++;
 
@@ -528,7 +544,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
 
 void
 ClusterMgr::reportDisconnected(NodeId nodeId){
-  assert(nodeId > 0 && nodeId < MAX_NDB_NODES);
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   assert(noOfConnectedNodes > 0);
 
   noOfConnectedNodes--;
@@ -542,6 +558,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 void
 ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
 
+  // Check array bounds + don't allow node 0 to be touched
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   Node & theNode = theNodes[nodeId];
  
   set_node_alive(theNode, false);
@@ -576,7 +594,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
   if(noOfAliveNodes == 0)
   {
     NFCompleteRep rep;
-    for(Uint32 i = 1; i<MAX_NDB_NODES; i++){
+    for(Uint32 i = 1; i < MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){
 	rep.failedNodeId = i;
 	execNF_COMPLETEREP((Uint32*)&rep);
@@ -584,6 +602,32 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
     }
   }
 }
+
+
+void
+ClusterMgr::print_nodes(const char* where, NdbOut& out)
+{
+  out << where << " >>" << endl;
+  for (NodeId n = 1; n < MAX_NODES ; n++)
+  {
+    const Node node = getNodeInfo(n);
+    if (!node.defined)
+      continue;
+    out << "node: " << n << endl;
+    out << " -";
+    out << " connected: " << node.connected;
+    out << ", compatible: " << node.compatible;
+    out << ", nf_complete_rep: " << node.nfCompleteRep;
+    out << ", alive: " << node.m_alive;
+    out << ", api_reg_conf: " << node.m_api_reg_conf;
+    out << endl;
+
+    out << " - " << node.m_info << endl;
+    out << " - " << node.m_state << endl;
+  }
+  out << "<<" << endl;
+}
+
 
 /******************************************************************************
  * Arbitrator

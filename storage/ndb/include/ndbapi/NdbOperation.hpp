@@ -1063,8 +1063,7 @@ public:
 
 
 protected:
-  int handle_distribution_key(const NdbColumnImpl*, const Uint64 *, Uint32 len);
-protected:
+
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
  *****************************************************************************/
@@ -1182,6 +1181,9 @@ protected:
   virtual void	    release();			// Release all operations 
                                                 // connected to
 					      	// the operations object.      
+  void              postExecuteRelease();       // Release resources
+                                                // no longer needed after
+                                                // exceute 
   void		    setStartIndicator();
 
   /* Utility method to 'add' operation options to an NdbOperation
@@ -1203,6 +1205,7 @@ protected:
  *****************************************************************************/
 
   int    doSend(int ProcessorId, Uint32 lastFlag);
+  int    doSendNdbRecord(int aNodeId);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId,
 			     AbortOption);
@@ -1241,28 +1244,14 @@ protected:
   Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                          Uint32 connectPtr,
                          Uint64 transId);
-  int    allocKeyInfo(Uint32 connectPtr, Uint64 transId,
-                      Uint32 **dstPtr, Uint32 *remain);
-  int    allocAttrInfo(Uint32 connectPtr, Uint64 transId,
-                       Uint32 **dstPtr, Uint32 *remain);
-  int    insertKEYINFO_NdbRecord(Uint32 connectPtr,
-                                 Uint64 transId,
-                                 const char *value,
-                                 Uint32 size,
-                                 Uint32 **dstPtr,
-                                 Uint32 *remain);
-  int    insertATTRINFOHdr_NdbRecord(Uint32 connectPtr,
-                                     Uint64 transId,
-                                     Uint32 attrId,
-                                     Uint32 attrLen,
-                                     Uint32 **dstPtr,
-                                     Uint32 *remain);
-  int    insertATTRINFOData_NdbRecord(Uint32 connectPtr,
-                                      Uint64 transId,
-                                      const char *value,
-                                      Uint32 size,
-                                      Uint32 **dstPtr,
-                                      Uint32 *remain);
+  int    allocKeyInfo();
+  int    allocAttrInfo();
+  int    insertKEYINFO_NdbRecord(const char *value,
+                                 Uint32 byteSize);
+  int    insertATTRINFOHdr_NdbRecord(Uint32 attrId,
+                                     Uint32 attrLen);
+  int    insertATTRINFOData_NdbRecord(const char *value,
+                                      Uint32 size);
 
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
@@ -1342,6 +1331,7 @@ protected:
   union {
     NdbApiSignal* theTCREQ;		// The TC[KEY/INDX]REQ signal object
     NdbApiSignal* theSCAN_TABREQ;
+    NdbApiSignal* theRequest;
   };
 
   NdbApiSignal*	   theFirstATTRINFO;	// The first ATTRINFO signal object 
@@ -1364,7 +1354,9 @@ protected:
   Uint32	    theNoOfSubroutines;
 
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
+  Uint32            keyInfoRemain;       // KeyInfo space in current signal
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
+  Uint32            attrInfoRemain;      // AttrInfo space in current signal
 
   /* 
      The table object for the table to read or modify (for index operations,

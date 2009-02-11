@@ -21,63 +21,34 @@
  */
 
 #include <kernel_types.h>
+#include "AsyncFile.hpp"
 #include "MemoryChannel.hpp"
 #include "Filename.hpp"
-
-#include <azlib.h>
-
-const int ERR_ReadUnderflow = 1000;
-
-const int WRITECHUNK = 262144;
-
-class AsyncFile;
 
 class Win32AsyncFile : public AsyncFile
 {
   friend class Ndbfs;
 public:
   Win32AsyncFile(SimulatedBlock& fs);
-  ~Win32AsyncFile();
+  virtual ~Win32AsyncFile();
 
-  void reportTo( MemoryChannel<Request> *reportTo );
+  virtual int init();
+  virtual bool isOpen();
+  virtual void openReq(Request *request);
+  virtual void closeReq(Request *request);
+  virtual void syncReq(Request *request);
+  virtual void removeReq(Request *request);
+  virtual void appendReq(Request *request);
+  virtual void rmrfReq(Request *request, const char * path, bool removePath);
 
-  void execute( Request* request );
+  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset);
+  virtual int writeBuffer(const char * buf, size_t size, off_t offset);
 
-  void doStart();
-  // its a thread so its always running
-  void run();
-
-  bool isOpen();
-
-  Filename theFileName;
-  Request *m_current_request, *m_last_request;
 private:
-
-  void openReq(Request *request);
-  void readReq(Request *request);
-  void readvReq(Request *request);
-  void writeReq(Request *request);
-  void writevReq(Request *request);
-
-  void closeReq(Request *request);
-  void syncReq(Request *request);
-  void removeReq(Request *request);
-  void appendReq(Request *request);
-  void rmrfReq(Request *request, char * path, bool removePath);
-
-  int readBuffer(Request*, char * buf, size_t size, off_t offset);
-  int writeBuffer(const char * buf, size_t size, off_t offset,
-		  size_t chunk_size = WRITECHUNK);
-
   int extendfile(Request* request);
   void createDirectories();
 
   HANDLE hFile;
-
-  Uint32 m_open_flags; // OM_ flags from request to open file
-
-  size_t m_write_wo_sync;  // Writes wo/ sync
-  size_t m_auto_sync_freq; // Auto sync freq in bytes
 };
 
 #endif

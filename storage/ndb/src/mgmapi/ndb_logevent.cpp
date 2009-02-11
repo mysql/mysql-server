@@ -28,7 +28,7 @@
 #include "ndb_logevent.hpp"
 
 extern
-int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int);
+int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int, my_socket*);
 
 struct ndb_logevent_error_msg {
   enum ndb_logevent_handle_error code;
@@ -54,25 +54,32 @@ NdbLogEventHandle
 ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 			       const int filter[])
 {
-  int fd= ndb_mgm_listen_event_internal(mh, filter, 1);
-
-  if (fd == -1)
+  my_socket sock;
+  if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock) < 0)
     return 0;
 
   NdbLogEventHandle h=
     (NdbLogEventHandle)my_malloc(sizeof(ndb_logevent_handle),MYF(MY_WME));
 
-  h->socket= fd;
+  h->socket= sock;
 
   return h;
 }
 
 extern "C"
+#ifdef NDB_WIN
+SOCKET
+ndb_logevent_get_fd(const NdbLogEventHandle h)
+{
+  return h->socket.s;
+}
+#else
 int
 ndb_logevent_get_fd(const NdbLogEventHandle h)
 {
-  return h->socket;
+  return h->socket.fd;
 }
+#endif
 
 extern "C"
 void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
@@ -81,7 +88,7 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
     return;
 
   if ( *h )
-    close((*h)->socket);
+    my_socket_close((*h)->socket);
 
   my_free((char*)* h,MYF(MY_ALLOW_ZERO_PTR));
   * h = 0;
@@ -262,6 +269,12 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( MemoryUsage, "pages_total",  4, pages_total),
   ROW( MemoryUsage, "block",        5, block),
 
+  ROW( MTSignalStatistics, "mt_deliver_thread", 1, thr_no),
+  ROW( MTSignalStatistics, "mt_prioa_count", 2, prioa_count),
+  ROW( MTSignalStatistics, "mt_prioa_size", 3, prioa_size),
+  ROW( MTSignalStatistics, "mt_priob_count", 4, priob_count),
+  ROW( MTSignalStatistics, "mt_priob_size", 5, priob_size),
+
       /* ERROR */
   ROW( TransporterError, "to_node", 1, to_node),
   ROW( TransporterError, "code",    2, code),
@@ -358,6 +371,13 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
 
   ROW( SingleUser,          "type",	     1, type),
   ROW( SingleUser,          "node_id",	     2, node_id),
+
+  ROW( LogFileInitStatus,   "node_id",       1, node_id ),
+  ROW( LogFileInitStatus,   "total_files",   2, total_files),
+  ROW( LogFileInitStatus,   "file_done",     3, file_done),
+  ROW( LogFileInitStatus,   "total_mbytes",  4, total_mbytes),
+  ROW( LogFileInitStatus,   "mbytes_done",   5, mbytes_done),
+
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 

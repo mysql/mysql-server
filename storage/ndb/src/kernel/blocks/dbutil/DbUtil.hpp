@@ -74,6 +74,7 @@ protected:
   void execSTTOR(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
   /**
@@ -146,7 +147,12 @@ public:
    * @brief   For storing SimpleProperties objects and similar temporary data
    */
   struct Page32 {
-    Uint32  data[UTIL_WORDS_PER_PAGE];
+    union {
+      Uint32 data[UTIL_WORDS_PER_PAGE];
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
     Uint32  nextPool;                  // Note: This used as data when seized
   };
 
@@ -164,6 +170,7 @@ public:
     /*** Client info ***/
     Uint32 clientRef;
     Uint32 clientData;
+    Uint32 schemaTransId;
 
     /** 
      * SimpleProp sent in UTIL_PREPARE_REQ 
@@ -292,6 +299,7 @@ public:
     
     Uint32 transPtrI;
     
+    Uint32 m_scanTakeOver;
     Uint32 rsRecv;
     Uint32 rsExpect;
     inline bool complete() const { return rsRecv == rsExpect; }
@@ -344,6 +352,8 @@ public:
 
     Uint32 errorCode;
     Uint32 noOfRetries;
+    Uint32 gci_hi;
+    Uint32 gci_lo;
     Uint32 sent;        // No of operations sent
     Uint32 recv;        // No of completed operations received
     inline bool complete() const { return sent == recv; };
@@ -414,7 +424,7 @@ public:
   void reportSequence(Signal*, const Transaction *);
   void readPrepareProps(Signal* signal, 
 			SimpleProperties::Reader* reader, 
-			Uint32 senderData);
+			PreparePtr);
   void prepareOperation(Signal*, PreparePtr, SegmentedSectionPtr);
   void sendUtilPrepareRef(Signal*, UtilPrepareRef::ErrorCode, Uint32, Uint32);
   void sendUtilExecuteRef(Signal*, UtilExecuteRef::ErrorCode, 

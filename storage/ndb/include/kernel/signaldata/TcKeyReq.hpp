@@ -24,6 +24,21 @@
  *
  * - SENDER:    API, NDBCNTR
  * - RECEIVER:  TC
+ *
+ * Short TCKEYREQ
+ * Prior to NDB 6.4.0, TCKEYREQ was always sent as a short signal train with 
+ * up to 8 words of KeyInfo and 5 words of AttrInfo in the TCKEYREQ signal, and 
+ * all other Key and AttrInfo sent in separate signal trains.  This format is 
+ * supported for non NdbRecord operations, backwards compatibility, and for 
+ * internal TCKEYREQ signals received from non-API clients.
+ * 
+ * Long TCKEYREQ
+ * From NDB 6.4.0, for NdbRecord operations the API nodes send long TCKEYREQ 
+ * signals with all KeyInfo and AttrInfo in long sections sent with the 
+ * TCKEYREQ signal.  As each section has a section length, and no Key/AttrInfo 
+ * is sent in the TCKEYREQ signal itself, the KeyLength, AttrInfoLen and 
+ * AIInTcKeyReq fields of the header are no longer required, and their bits 
+ * can be reused in future.
  */
 class TcKeyReq {
   /**
@@ -40,6 +55,7 @@ class TcKeyReq {
   friend class NdbScanOperation;
   friend class NdbBlob;
   friend class DbUtil;
+  friend class Trix;
 
   /**
    * For printing
@@ -56,6 +72,12 @@ public:
   STATIC_CONST( MaxKeyInfo = 8 );
   STATIC_CONST( MaxAttrInfo = 5 );
   STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
+
+  /**
+   * Long signal variant of TCKEYREQ
+   */
+  STATIC_CONST( KeyInfoSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );
 
 private:
 
@@ -79,11 +101,19 @@ private:
     UintR apiOperationPtr;      // DATA 1
   };
   /**
-   * ATTRIBUTE INFO (attrinfo) LENGTH
-   * This is the total length of all attribute info that is sent from
-   * the application as part of this operation. 
-   * It includes all attribute info sent in possible attrinfo 
-   * signals as well as the attribute info sent in TCKEYREQ.
+   * Short TCKEYREQ only : 
+   *   ATTRIBUTE INFO (attrinfo) LENGTH
+   *   This is the total length of all attribute info that is sent from
+   *   the application as part of this operation. 
+   *   It includes all attribute info sent in possible attrinfo 
+   *   signals as well as the attribute info sent in TCKEYREQ.
+   *
+   *   (APIVERSION << 16 | ATTRINFOLEN)
+   *
+   * Long TCKEYREQ
+   *   (APIVERSION << 16)
+   *   Get AttrInfoLength from length of section 1, if present.
+   *
    */
   UintR attrLen;              // DATA 2   (also stores API Version)
   UintR tableId;              // DATA 3
@@ -134,7 +164,6 @@ private:
 
   static Uint16 getKeyLength(const UintR & requestInfo);
   static Uint8  getAIInTcKeyReq(const UintR & requestInfo);
-  static Uint8  getExecutingTrigger(const UintR & requestInfo);
   static UintR  getNoDiskFlag(const UintR & requestInfo);
 
   /**
@@ -162,9 +191,10 @@ private:
   
   static void setKeyLength(UintR & requestInfo, Uint32 len);
   static void setAIInTcKeyReq(UintR & requestInfo, Uint32 len);
-  static void setExecutingTrigger(UintR & requestInfo, Uint32 flag);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
 
+  static void setReorgFlag(UintR & requestInfo, UintR val);
+  static UintR getReorgFlag(const UintR & requestInfo);
   /**
    * Set:ers for scanInfo
    */
@@ -177,23 +207,27 @@ private:
  * Request Info
  *
  a = Attr Info in TCKEYREQ - 3  Bits -> Max 7 (Bit 16-18)
+     (Short TCKEYREQ only, for long req a == 0)
  b = Distribution Key Ind  - 1  Bit 2
  c = Commit Indicator      - 1  Bit 4
  d = Dirty Indicator       - 1  Bit 0
  e = Scan Indicator        - 1  Bit 14
- f = Execute fired trigger - 1  Bit 19 
  i = Interpreted Indicator - 1  Bit 15
  k = Key length            - 12 Bits -> Max 4095 (Bit 20 - 31)
+     (Short TCKEYREQ only, for long req use length of
+      section 0)
  o = Operation Type        - 3  Bits -> Max 7 (Bit 5-7)
  l = Execute               - 1  Bit 10
  p = Simple Indicator      - 1  Bit 8
  s = Start Indicator       - 1  Bit 11
  y = Commit Type           - 2  Bit 12-13
  n = No disk flag          - 1  Bit 1
+ r = reorg flag            - 1  Bit 19
 
            1111111111222222222233
  01234567890123456789012345678901
- dnb cooop lsyyeiaaafkkkkkkkkkkkk
+ dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
+ dnb cooop lsyyei   r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -218,7 +252,7 @@ private:
 #define COMMIT_TYPE_SHIFT  (12)
 #define COMMIT_TYPE_MASK   (3)
 
-#define EXECUTING_TRIGGER_SHIFT (19)
+#define TC_REORG_SHIFT     (19)
 
 /**
  * Scan Info
@@ -252,12 +286,13 @@ private:
 /**
  * Attr Len
  *
- n = Attrinfo length(words)   - 16 Bits -> max 65535
+ n = Attrinfo length(words)   - 16 Bits -> max 65535 (Short TCKEYREQ only)
  a = API version no           - 16 Bits -> max 65535
 
            1111111111222222222233
  01234567890123456789012345678901
- aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn
+ aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn   (Short TCKEYREQ)
+ aaaaaaaaaaaaaaaa                   (Long TCKEYREQ)
 */
 
 #define API_VER_NO_SHIFT     (16)
@@ -336,12 +371,6 @@ inline
 Uint8
 TcKeyReq::getAIInTcKeyReq(const UintR & requestInfo){
   return (Uint8)((requestInfo >> AINFO_SHIFT) & AINFO_MASK);
-}
-
-inline
-Uint8
-TcKeyReq::getExecutingTrigger(const UintR & requestInfo){
-  return (Uint8)((requestInfo >> EXECUTING_TRIGGER_SHIFT) & 1);
 }
 
 inline
@@ -447,14 +476,6 @@ TcKeyReq::setAIInTcKeyReq(UintR & requestInfo, Uint32 len){
 }
 
 inline
-void 
-TcKeyReq::setExecutingTrigger(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setExecutingTrigger");
-  requestInfo &= ~(1 << EXECUTING_TRIGGER_SHIFT);
-  requestInfo |= (flag << EXECUTING_TRIGGER_SHIFT);
-}
-
-inline
 Uint8 
 TcKeyReq::getTakeOverScanFlag(const UintR & scanInfo){
   return (Uint8)((scanInfo >> TAKE_OVER_SHIFT) & 1);
@@ -533,6 +554,19 @@ TcKeyReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
   requestInfo &= ~(1 << TCKEY_NODISK_SHIFT);
   requestInfo |= (flag << TCKEY_NODISK_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getReorgFlag(const UintR & requestInfo){
+  return (requestInfo >> TC_REORG_SHIFT) & 1;
+}
+
+inline
+void
+TcKeyReq::setReorgFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  requestInfo |= (flag << TC_REORG_SHIFT);
 }
 
 #endif

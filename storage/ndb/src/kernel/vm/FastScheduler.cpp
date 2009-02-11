@@ -99,7 +99,8 @@ FastScheduler::doJob()
       // signal->garbage_register(); 
       // To ensure we find bugs quickly
       register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
-      register BlockNumber reg_bnr = gsnbnr & 0xFFF;
+      // also strip any instance bits since this is non-MT code
+      register BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
       register GlobalSignalNumber reg_gsn = gsnbnr >> 16;
       globalData.incrementWatchDogCounter(1);
       if (reg_bnr > 0) {
@@ -370,13 +371,16 @@ APZJobBuffer::clear()
  */
 void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
 
-void FastScheduler::dumpSignalMemory(FILE * output)
+void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
 {
   SignalT<25> signalT;
   Signal &signal= *(Signal*)&signalT;
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
+
+  /* Single threaded ndbd scheduler, no threads. */
+  assert(thr_no == 0);
 
   fprintf(output, "\n");
  
@@ -408,6 +412,8 @@ void FastScheduler::dumpSignalMemory(FILE * output)
       ReadPtr[tLevel]--;
     
     theJobBuffers[tLevel].retrieveDump(&signal, ReadPtr[tLevel]);
+    // strip instance bits since this in non-MT code
+    signal.header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
     print_restart(output, &signal, tLevel);
     
     if (tJob == 0)
@@ -453,6 +459,41 @@ print_restart(FILE * output, Signal* signal, Uint32 aLevel)
 					 signal->header,
 					 &signal->theData[0]);
 }
+
+void
+FastScheduler::traceDumpPrepare(NdbShutdownType&)
+{
+  /* No-operation in single-threaded ndbd. */
+}
+
+Uint32
+FastScheduler::traceDumpGetNumThreads()
+{
+  return 1;                     // Single-threaded ndbd scheduler
+}
+
+bool
+FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
+                               const Uint32 * & thrdTheEmulatedJam,
+                               Uint32 & thrdTheEmulatedJamIndex)
+{
+  /* Single threaded ndbd scheduler, no threads. */
+  assert(thr_no == 0);
+
+#ifdef NO_EMULATED_JAM
+  jamBlockNumber = 0;
+  thrdTheEmulatedJam = NULL;
+  thrdTheEmulatedJamIndex = 0;
+#else
+  const EmulatedJamBuffer *jamBuffer =
+    (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
+  thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
+  thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
+  jamBlockNumber = jamBuffer->theEmulatedJamBlockNumber;
+#endif
+  return true;
+}
+
 
 /**
  * This method used to be a Cmvmi member function
@@ -510,3 +551,13 @@ FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
   execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }
 
+/* Dummy functions for single-threaded ndbd. */
+void
+mt_mem_manager_lock()
+{
+}
+
+void
+mt_mem_manager_unlock()
+{
+}

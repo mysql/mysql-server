@@ -243,6 +243,17 @@ CREATE TABLE City (
 tablespace ts2
 storage disk;
 
+create table t1 (a int primary key, b int)
+engine = ndbcluster tablespace ts2 storage disk;
+insert into t1 values (1,1);
+
+--error ER_ALTER_FILEGROUP_FAILED
+alter tablespace ts2
+drop datafile 'datafile2_1.dat'
+engine ndb;
+
+drop table t1;
+
 alter tablespace ts2
 drop datafile 'datafile2_1.dat'
 engine ndb;

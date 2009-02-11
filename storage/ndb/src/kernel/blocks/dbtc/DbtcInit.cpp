@@ -25,11 +25,9 @@
 
 void Dbtc::initData() 
 {
-  cattrbufFilesize = ZATTRBUF_FILESIZE;
   capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
   ccacheFilesize = ZAPI_CONNECT_FILESIZE;
   chostFilesize = MAX_NODES;
-  cdatabufFilesize = ZDATABUF_FILESIZE;
   cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   cscanFragrecFileSize = ZSCAN_FRAGREC_FILE_SIZE;
@@ -97,7 +95,7 @@ void Dbtc::initRecords()
   TcIndexOperationPtr ioptr;
   while(indexOps.seize(ioptr) == true) {
     p= ioptr.p;
-    new (p) TcIndexOperation(c_theAttributeBufferPool);
+    new (p) TcIndexOperation(); // TODO : Modify alloc size of c_theAttributeBufferPool
   }
   indexOps.release();
 
@@ -141,19 +139,36 @@ void Dbtc::initRecords()
 
   indexOps.release();
   
-  databufRecord = (DatabufRecord*)allocRecord("DatabufRecord",
-					      sizeof(DatabufRecord),
-					      cdatabufFilesize);
-
-  attrbufRecord = (AttrbufRecord*)allocRecord("AttrbufRecord",
-					      sizeof(AttrbufRecord),
-					      cattrbufFilesize);
-
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
 				      cgcpFilesize);
   
 }//Dbtc::initRecords()
+
+bool
+Dbtc::getParam(const char* name, Uint32* count)
+{
+  if (name != NULL && count != NULL)
+  {
+    /* FragmentInfoPool
+     * We increase the size of the fragment info pool
+     * to handle fragmented SCANTABREQ signals from 
+     * the API
+     */
+    if (strcmp(name, "FragmentInfoPool") == 0)
+    {
+      /* Worst case is each API node sending a 
+       * single fragmented request concurrently
+       * This could change in future if APIs can
+       * interleave fragments from different 
+       * requests
+       */
+      *count= MAX_NODES + 10;
+      return true;
+    }
+  }
+  return false;
+}
 
 Dbtc::Dbtc(Block_context& ctx):
   SimulatedBlock(DBTC, ctx),
@@ -208,16 +223,17 @@ Dbtc::Dbtc(Block_context& ctx):
   // Received signals
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtc::execDUMP_STATE_ORD);
-  addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbtc::execDBINFO_SCANREQ);
+  addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED, true);
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);
-  addRecSignal(GSN_DIGETPRIMCONF, &Dbtc::execDIGETPRIMCONF);
-  addRecSignal(GSN_DIGETPRIMREF, &Dbtc::execDIGETPRIMREF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Dbtc::execDIH_SCAN_GET_NODES_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_REF, &Dbtc::execDIH_SCAN_GET_NODES_REF);
   addRecSignal(GSN_DISEIZECONF, &Dbtc::execDISEIZECONF);
   addRecSignal(GSN_DIVERIFYCONF, &Dbtc::execDIVERIFYCONF);
-  addRecSignal(GSN_DI_FCOUNTCONF, &Dbtc::execDI_FCOUNTCONF);
-  addRecSignal(GSN_DI_FCOUNTREF, &Dbtc::execDI_FCOUNTREF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Dbtc::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Dbtc::execDIH_SCAN_TAB_REF);
   addRecSignal(GSN_GCP_NOMORETRANS, &Dbtc::execGCP_NOMORETRANS);
   addRecSignal(GSN_LQHKEYCONF, &Dbtc::execLQHKEYCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbtc::execNDB_STTOR);
@@ -233,6 +249,7 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_TCROLLBACKREQ, &Dbtc::execTCROLLBACKREQ);
   addRecSignal(GSN_TC_HBREP, &Dbtc::execTC_HBREP);
   addRecSignal(GSN_TC_SCHVERREQ, &Dbtc::execTC_SCHVERREQ);
+  addRecSignal(GSN_TAB_COMMITREQ, &Dbtc::execTAB_COMMITREQ);
   addRecSignal(GSN_SCAN_TABREQ, &Dbtc::execSCAN_TABREQ);
   addRecSignal(GSN_SCAN_FRAGCONF, &Dbtc::execSCAN_FRAGCONF);
   addRecSignal(GSN_SCAN_FRAGREF, &Dbtc::execSCAN_FRAGREF);
@@ -249,20 +266,21 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_TC_COMMIT_ACK, &Dbtc::execTC_COMMIT_ACK);
   addRecSignal(GSN_ABORT_ALL_REQ, &Dbtc::execABORT_ALL_REQ);
 
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dbtc::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_REQ, &Dbtc::execDROP_TRIG_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtc::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dbtc::execDROP_TRIG_IMPL_REQ);
   addRecSignal(GSN_FIRE_TRIG_ORD, &Dbtc::execFIRE_TRIG_ORD);
   addRecSignal(GSN_TRIG_ATTRINFO, &Dbtc::execTRIG_ATTRINFO);
   
-  addRecSignal(GSN_CREATE_INDX_REQ, &Dbtc::execCREATE_INDX_REQ);
-  addRecSignal(GSN_DROP_INDX_REQ, &Dbtc::execDROP_INDX_REQ);
+  addRecSignal(GSN_CREATE_INDX_IMPL_REQ, &Dbtc::execCREATE_INDX_IMPL_REQ);
+  addRecSignal(GSN_DROP_INDX_IMPL_REQ, &Dbtc::execDROP_INDX_IMPL_REQ);
   addRecSignal(GSN_TCINDXREQ, &Dbtc::execTCINDXREQ);
   addRecSignal(GSN_INDXKEYINFO, &Dbtc::execINDXKEYINFO);
   addRecSignal(GSN_INDXATTRINFO, &Dbtc::execINDXATTRINFO);
-  addRecSignal(GSN_ALTER_INDX_REQ, &Dbtc::execALTER_INDX_REQ);
+  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtc::execALTER_INDX_IMPL_REQ);
 
   addRecSignal(GSN_TRANSID_AI_R, &Dbtc::execTRANSID_AI_R);
   addRecSignal(GSN_KEYINFO20_R, &Dbtc::execKEYINFO20_R);
+  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dbtc::execSIGNAL_DROPPED_REP, true);
 
   // Index table lookup
   addRecSignal(GSN_TCKEYCONF, &Dbtc::execTCKEYCONF);
@@ -273,8 +291,6 @@ Dbtc::Dbtc(Block_context& ctx):
   //addRecSignal(GSN_CREATE_TAB_REQ, &Dbtc::execCREATE_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtc::execDROP_TAB_REQ);
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbtc::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbtc::execWAIT_DROP_TAB_REF);
-  addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbtc::execWAIT_DROP_TAB_CONF);
   
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
   addRecSignal(GSN_ROUTE_ORD, &Dbtc::execROUTE_ORD);
@@ -286,25 +302,21 @@ Dbtc::Dbtc(Block_context& ctx):
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  databufRecord = 0;
-  attrbufRecord = 0;
   gcpRecord = 0;
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
+  cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
 #ifdef VM_TRACE
   {
     void* tmp[] = { &apiConnectptr, 
-                    &tcConnectptr,
-                    &cachePtr,
-                    &attrbufptr,
-                    &hostptr,
-                    &timeOutptr,
-                    &scanFragptr,
-                    &databufptr,
-                    &tmpDatabufptr, 
+		    &tcConnectptr,
+		    &cachePtr,
+		    &hostptr,
+		    &timeOutptr,
+		    &scanFragptr, 
                     &tcNodeFailptr }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
@@ -315,12 +327,12 @@ Dbtc::Dbtc(Block_context& ctx):
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  databufRecord = 0;
-  attrbufRecord = 0;
   gcpRecord = 0;
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
+
+  errorInsertHoardedSegments= RNIL;
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 
@@ -350,14 +362,6 @@ Dbtc::~Dbtc()
 		sizeof(ScanRecord),
 		cscanrecFileSize);
     
-  deallocRecord((void **)&databufRecord, "DatabufRecord",
-		sizeof(DatabufRecord),
-		cdatabufFilesize);
-  
-  deallocRecord((void **)&attrbufRecord, "AttrbufRecord",
-		sizeof(AttrbufRecord),
-		cattrbufFilesize);
-  
   deallocRecord((void **)&gcpRecord, "GcpRecord",
 		sizeof(GcpRecord), 
 		cgcpFilesize);

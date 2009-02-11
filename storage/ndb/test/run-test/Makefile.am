@@ -27,7 +27,7 @@ test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-upgrade.cnf upgrade-tests.txt
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
-          atrt-clear-result.sh autotest-run.sh atrt-backtrace.sh
+          autotest-run.sh atrt-backtrace.sh
 
 atrt_SOURCES = main.cpp setup.cpp files.cpp db.cpp command.cpp
 
@@ -42,7 +42,6 @@ LDADD_LOC = $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \
                       -I$(top_srcdir)/ndb/src/mgmsrv \
                       -I$(top_srcdir)/ndb/include/mgmcommon \
-                      -DMYSQLCLUSTERDIR="\"\"" \
                  -DDEFAULT_PREFIX="\"$(prefix)\""
 
 atrt_LDFLAGS = -static @ndb_bin_am_ldflags@
@@ -54,5 +53,3 @@ EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-windoze-dsp:

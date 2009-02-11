@@ -24,17 +24,19 @@
 #include <Bitmask.hpp>
 #include <signaldata/TupKey.hpp>
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
-#include <signaldata/BuildIndx.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
 #include "Undo_buffer.hpp"
 #include "tuppage.hpp"
 #include <DynArr256.hpp>
-#include <../pgman.hpp>
-#include <../tsman.hpp>
+#include "../pgman.hpp"
+#include "../tsman.hpp"
 
 // jams
 #undef jam
@@ -122,7 +124,6 @@ inline const char* dbgmask(const Uint32 bm[2]) {
 #endif
 
 #define ZWORDS_ON_PAGE 8192          /* NUMBER OF WORDS ON A PAGE.      */
-#define ZATTRBUF_SIZE 32             /* SIZE OF ATTRIBUTE RECORD BUFFER */
 #define ZMIN_PAGE_LIMIT_TUPKEYREQ 5
 #define ZTUP_VERSION_BITS 15
 #define ZTUP_VERSION_MASK ((1 << ZTUP_VERSION_BITS) - 1)
@@ -176,7 +177,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 /* ---------------------------------------------------------------- */
 /*       S I Z E              O F               R E C O R D S       */
 /* ---------------------------------------------------------------- */
-#define ZNO_OF_ATTRBUFREC 10000             /* SIZE   OF ATTRIBUTE INFO FILE   */
 #define ZNO_OF_CONCURRENT_OPEN_OP 40        /* NUMBER OF CONCURRENT OPENS      */
 #define ZNO_OF_CONCURRENT_WRITE_OP 80       /* NUMBER OF CONCURRENT DISK WRITES*/
 #define ZNO_OF_FRAGOPREC 20                 /* NUMBER OF CONCURRENT ADD FRAG.  */
@@ -300,13 +300,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZLEAF 1
 #define ZNON_LEAF 2
 
-          /* ATTRINBUFREC VARIABLE POSITIONS. */
-#define ZBUF_PREV 29                      /* POSITION OF 'PREV'-VARIABLE (USED BY INTERPRETED EXEC) */
-#define ZBUF_DATA_LEN 30                  /* POSITION OF 'DATA LENGTH'-VARIABLE. */
-#define ZBUF_NEXT 31                      /* POSITION OF 'NEXT'-VARIABLE.        */
-#define ZSAVE_BUF_NEXT 28
-#define ZSAVE_BUF_DATA_LEN 27
-
           /* RETURN POINTS. */
           /* RESTART PHASES */
 #define ZSTARTPHASE1 1
@@ -330,6 +323,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZFREE_VAR_PAGES 13
 #define ZFREE_PAGES 14
 #define ZREBUILD_FREE_PAGE_LIST 15
+#define ZDISK_RESTART_UNDO 16
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -342,6 +336,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #endif
 
 class Dbtup: public SimulatedBlock {
+friend class DbtupProxy;
 friend class Suma;
 public:
 struct KeyReqStruct;
@@ -362,12 +357,28 @@ public:
   class Dblqh *c_lqh;
   Tsman* c_tsman;
   Lgman* c_lgman;
-  Page_cache_client m_pgman;
+  Pgman* c_pgman;
+  // copy of pgman.m_ptr set after each get_page
+  Ptr<GlobalPage> m_pgman_ptr;
+
+  enum CallbackIndex {
+    // lgman
+    UNDO_CREATETABLE_LOGSYNC_CALLBACK = 1,
+    DROP_TABLE_LOGSYNC_CALLBACK = 2,
+    UNDO_CREATETABLE_CALLBACK = 3,
+    DROP_TABLE_LOG_BUFFER_CALLBACK = 4,
+    DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK = 5,
+    NR_DELETE_LOG_BUFFER_CALLBACK = 6,
+    DISK_PAGE_LOG_BUFFER_CALLBACK = 7,
+    COUNT_CALLBACKS = 8
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
 
 enum TransState {
   TRANS_IDLE = 0,
   TRANS_STARTED = 1,
-  TRANS_WAIT_STORED_PROCEDURE_ATTR_INFO = 2,
+  TRANS_NOT_USED_STATE = 2, // No longer used.
   TRANS_ERROR_WAIT_STORED_PROCREQ = 3,
   TRANS_ERROR_WAIT_TUPKEYREQ = 4,
   TRANS_TOO_MUCH_AI = 5,
@@ -391,17 +402,6 @@ enum State {
   DEFINING = 65,
   DROPPING = 68
 };
-
-// Records
-/* ************** ATTRIBUTE INFO BUFFER RECORD ****************** */
-/* THIS RECORD IS USED AS A BUFFER FOR INCOMING AND OUTGOING DATA */
-/* ************************************************************** */
-struct Attrbufrec {
-  Uint32 attrbuf[ZATTRBUF_SIZE];
-}; /* p2c: size = 128 bytes */
-
-typedef Ptr<Attrbufrec> AttrbufrecPtr;
-
 
 
 struct Fragoperrec {
@@ -427,6 +427,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
+    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); };
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
     Uint32 newNoOfCharsets;
@@ -715,7 +716,15 @@ struct Fragrecord {
   Uint32 m_lcp_scan_op;
   Uint32 m_lcp_keep_list;
 
-  State fragStatus;
+  enum FragState
+  { FS_FREE
+    ,FS_ONLINE           // Ordinary fragment
+    ,FS_REORG_NEW        // A new (not yet "online" fragment)
+    ,FS_REORG_COMMIT     // An ordinary fragment which has been split
+    ,FS_REORG_COMMIT_NEW // An new fragment which is online
+    ,FS_REORG_COMPLETE     // An ordinary fragment which has been split
+    ,FS_REORG_COMPLETE_NEW // An new fragment which is online
+  } fragStatus;
   Uint32 fragTableId;
   Uint32 fragmentId;
   Uint32 nextfreefrag;
@@ -736,52 +745,21 @@ typedef Ptr<Fragrecord> FragrecordPtr;
 
 struct Operationrec {
   /*
-   * To handle Attrinfo signals and buffer them up we need to
-   * a simple list with first and last and we also need to keep track
-   * of how much we received for security check.
-   * Will most likely disappear with introduction of long signals.
-   * These variables are used before TUPKEYREQ is received and not
-   * thereafter and is disposed with after calling copyAttrinfo
-   * which is called before putting the operation into its lists.
-   * Thus we can use union declarations for these variables.
-   */
-
-  /*
-   * Used by scans to find the Attrinfo buffers.
-   * This is only until returning from copyAttrinfo and
-   * can thus reuse the same memory as needed by the
-   * active operation list variables.
-   */
-
-  /*
    * Doubly linked list with anchor on tuple.
    * This is to handle multiple updates on the same tuple
    * by the same transaction.
    */
-  union {
-    Uint32 prevActiveOp;
-    Uint32 storedProcedureId; //Used until copyAttrinfo
-  };
-  union {
-    Uint32 nextActiveOp;
-    Uint32 currentAttrinbufLen; //Used until copyAttrinfo
-  };
+  Uint32 prevActiveOp;
+  Uint32 nextActiveOp;
 
   Operationrec() {}
   bool is_first_operation() const { return prevActiveOp == RNIL;}
   bool is_last_operation() const { return nextActiveOp == RNIL;}
 
   Uint32 m_undo_buffer_space; // In words
-  union {
-    Uint32 firstAttrinbufrec; //Used until copyAttrinfo
-  };
+
   Uint32 m_any_value;
-  union {
-    Uint32 lastAttrinbufrec; //Used until copyAttrinfo
-    Uint32 nextPool;
-  };
-  Uint32 attrinbufLen; //only used during STORED_PROCDEF phase
-  Uint32 storedProcPtr; //only used during STORED_PROCDEF phase
+  Uint32 nextPool;
   
   /*
    * From fragment i-value we can find fragment and table record
@@ -833,7 +811,7 @@ struct Operationrec {
     unsigned int op_type : 3;
     unsigned int delete_insert_flag : 1;
     unsigned int primary_replica : 1;
-    unsigned int unused : 2;
+    unsigned int m_reorg : 2;
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
@@ -885,9 +863,9 @@ struct TupTriggerData {
   TriggerActionTime::Value triggerActionTime;
   TriggerEvent::Value triggerEvent;
   /**
-   * Receiver block
+   * Receiver block reference
    */
-  Uint32 m_receiverBlock;
+  Uint32 m_receiverRef;
   
   /**
    * Monitor all replicas, i.e. trigger will fire on all nodes where tuples
@@ -1096,12 +1074,21 @@ ArrayPool<TupTriggerData> c_triggerPool;
     Uint32 fragid[MAX_FRAG_PER_NODE];
     Uint32 fragrec[MAX_FRAG_PER_NODE];
 
-    struct {
-      Uint32 tabUserPtr;
-      Uint32 tabUserRef;
-      Uint32 m_lcpno;
-      Uint32 m_fragPtrI;
-    } m_dropTable;
+    union {
+      struct {
+        Uint32 tabUserPtr;
+        Uint32 tabUserRef;
+        Uint32 m_lcpno;
+        Uint32 m_fragPtrI;
+      } m_dropTable;
+      struct {
+        Uint32 m_fragOpPtrI;
+      } m_createTable;
+      struct {
+        Uint32 m_gci_hi;
+      } m_reorg_suma_filter;
+    };
+
     State tableStatus;
   };  
 
@@ -1187,13 +1174,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
   typedef Ptr<Tablerec> TablerecPtr;
 
   struct storedProc {
-    Uint32 storedLinkFirst;
-    Uint32 storedLinkLast;
-    Uint32 storedCounter;
+    Uint32 storedProcIVal;
     Uint32 nextPool;
     Uint16 storedCode;
-    Uint16 storedProcLength;
-};
+  };
 
 typedef Ptr<storedProc> StoredProcPtr;
 
@@ -1311,15 +1295,14 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    * Build index operation record.
    */
   struct BuildIndexRec {
-    // request cannot use signal class due to extra members
-    Uint32 m_request[BuildIndxReq::SignalLength];
+    BuildIndxImplReq m_request;
     Uint8  m_build_vs;          // varsize pages
     Uint32 m_indexId;           // the index
     Uint32 m_fragNo;            // fragment number under Tablerec
     Uint32 m_pageId;            // logical fragment page id
     Uint32 m_tupleNo;           // tuple number on page
     Uint32 m_buildRef;          // Where to send tuples
-    BuildIndxRef::ErrorCode m_errorCode;
+    BuildIndxImplRef::ErrorCode m_errorCode;
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -1419,6 +1402,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
     STATIC_CONST( FREE        = 0x02800000 ); // Is free
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
+    STATIC_CONST( REORG_MOVE  = 0x08000000 );
 
     Tuple_header() {}
     Uint32 get_tuple_version() const { 
@@ -1577,6 +1561,7 @@ struct KeyReqStruct {
   bool            interpreted_exec;
   bool            last_row;
   bool            m_use_rowid;
+  Uint8           m_reorg;
 
   Signal*         signal;
   Uint32 no_fired_triggers;
@@ -1604,7 +1589,7 @@ struct KeyReqStruct {
   OperationrecPtr prevOpPtr;
 };
 
-  friend class Undo_buffer;
+  friend struct Undo_buffer;
   Undo_buffer c_undo_buffer;
   
 /*
@@ -1631,7 +1616,7 @@ struct TupHeadInfo {
   Uint32          terrorCode;
 
 public:
-  Dbtup(Block_context&, Pgman*);
+  Dbtup(Block_context&, Uint32 instanceNumber = 0);
   virtual ~Dbtup();
 
   /*
@@ -1713,8 +1698,10 @@ private:
   void execTUPSEIZEREQ(Signal* signal);
   void execTUPRELEASEREQ(Signal* signal);
   void execSTORED_PROCREQ(Signal* signal);
-  void execTUPFRAGREQ(Signal* signal);
+
+  void execCREATE_TAB_REQ(Signal*);
   void execTUP_ADD_ATTRREQ(Signal* signal);
+  void execTUPFRAGREQ(Signal* signal);
   void execTUP_COMMITREQ(Signal* signal);
   void execTUP_ABORTREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
@@ -1724,8 +1711,10 @@ private:
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
 
+  void execDROP_FRAG_REQ(Signal*);
+
   // Ordered index related
-  void execBUILDINDXREQ(Signal* signal);
+  void execBUILD_INDX_IMPL_REQ(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
 
@@ -1741,7 +1730,9 @@ private:
   // Drop table
   void execFSREMOVEREF(Signal*);
   void execFSREMOVECONF(Signal*);
-  
+
+  void execDBINFO_SCANREQ(Signal*);
+
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 // Methods to handle execution of TUPKEYREQ + ATTRINFO.
@@ -1782,16 +1773,12 @@ private:
 // In Signals:
 // -----------
 //
-// Logically there is one request TUPKEYREQ which requests to read/write data
-// of one tuple in the database. Since the definition of what to read and write
-// can be bigger than the maximum signal size we segment the signal. The definition
-// of what to read/write/interpreted program is sent before the TUPKEYREQ signal.
-//
-// ---> ATTRINFO
-// ...
-// ---> ATTRINFO
 // ---> TUPKEYREQ
-// The number of ATTRINFO signals can be anything between 0 and upwards.
+// A single TUPKEYREQ is received.  The TUPKEYREQ can contain an I-value
+// for a long section containing AttrInfo words.  Delete requests usually
+// contain no AttrInfo, and requests referencing a stored procedure (e.g.
+// scan originated requests) do not contain AttrInfo.
+// 
 // The total size of the ATTRINFO is not allowed to be more than 16384 words.
 // There is always one and only one TUPKEYREQ.
 //
@@ -1926,31 +1913,16 @@ private:
   void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
   void disk_page_load_scan_callback(Signal*, Uint32 op, Uint32 page);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void execATTRINFO(Signal* signal);
-public:
-  void receive_attrinfo(Signal*, Uint32 op, const Uint32* data, Uint32 len);
 private:
 
 // Trigger signals
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execCREATE_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execDROP_TRIG_REQ(Signal* signal);
-
-// *****************************************************************
-// Support methods for ATTRINFO.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void handleATTRINFOforTUPKEYREQ(Signal* signal,
-				  const Uint32* data,
-                                  Uint32 length,
-                                  Operationrec * regOperPtr);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
 
 // *****************************************************************
 // Setting up the environment for reads, inserts, updates and deletes.
@@ -2007,6 +1979,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
+  Uint32 brancher(Uint32, Uint32);
   int interpreterNextLab(Signal* signal,
                          KeyReqStruct *req_struct,
                          Uint32* logMemory,
@@ -2029,9 +2002,9 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void sendLogAttrinfo(Signal* signal,
-                       Uint32 TlogSize,
-                       Operationrec * regOperPtr);
+  int sendLogAttrinfo(Signal* signal,
+                      Uint32 TlogSize,
+                      Operationrec * regOperPtr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2379,11 +2352,24 @@ private:
 				 KeyReqStruct *req_struct,
 				 AttributeHeader* ahOut,
 				 Uint32  attrDes2);
+
+  bool readDiskVarAsFixedSizeNotNULL(Uint8* outBuffer,
+				KeyReqStruct *req_struct,
+				AttributeHeader* ahOut,
+				Uint32  attrDes2);
+  
+  bool readDiskVarAsFixedSizeNULLable(Uint8* outBuffer,
+				 KeyReqStruct *req_struct,
+				 AttributeHeader* ahOut,
+				 Uint32  attrDes2);
   bool readDiskVarSizeNULLable(Uint8*, KeyReqStruct*, AttributeHeader*,Uint32);
   bool readDiskVarSizeNotNULL(Uint8*, KeyReqStruct*, AttributeHeader*, Uint32);
 
   bool updateDiskFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
   bool updateDiskFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
+
+  bool updateDiskVarAsFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
+  bool updateDiskVarAsFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
 
   bool updateDiskVarSizeNULLable(Uint32*, KeyReqStruct *, Uint32);
   bool updateDiskVarSizeNotNULL(Uint32*, KeyReqStruct *, Uint32);
@@ -2395,15 +2381,13 @@ private:
 
 
   /* Alter table methods. */
-  void handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr);
-  void sendAlterTabRef(Signal *signal, AlterTabReq *req, Uint32 errorCode);
-  void sendAlterTabConf(Signal *, AlterTabReq *, Uint32 clientData=RNIL);
-  void handleAlterTableCommit(Signal *signal,
-                              AlterTabOperationPtr regAlterTabOpPtr,
-                              Tablerec *regTabPtr);
-  void handleAlterTableAbort(Signal *signal,
-                             AlterTabOperationPtr regAlterTabOpPtr,
-                             Tablerec *regTabPtr);
+  void handleAlterTablePrepare(Signal *, const AlterTabReq *, const Tablerec *);
+  void handleAlterTableCommit(Signal *, const AlterTabReq *, Tablerec *);
+  void handleAlterTableComplete(Signal *, const AlterTabReq *, Tablerec *);
+  void handleAlterTableAbort(Signal *, const AlterTabReq *, const Tablerec *);
+  void sendAlterTabRef(Signal *signal, Uint32 errorCode);
+  void sendAlterTabConf(Signal *, Uint32 clientData=RNIL);
+
   void handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
                         Uint32 noOfCharsets,
                         Uint32 & charsetIndex, Uint32 & attrDes2);
@@ -2427,7 +2411,7 @@ public:
 private:
 
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
-  static inline uint32_t count_bits(uint32_t x)
+  static inline Uint32 count_bits(Uint32 x)
   {
     x= x - ((x>>1) & 0x55555555);
     x= (x & 0x33333333) + ((x>>2) & 0x33333333);
@@ -2461,7 +2445,8 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void copyAttrinfo(Operationrec * regOperPtr, Uint32*  inBuffer);
+  void copyAttrinfo(Operationrec * regOperPtr, Uint32*  inBuffer, 
+                    Uint32 expectedLen, Uint32 attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2473,9 +2458,9 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  int initStoredOperationrec(Operationrec* regOperPtr,
-                             KeyReqStruct* req_struct,
-                             Uint32 storedId);
+  int getStoredProcAttrInfo(Uint32 storedId,
+                            KeyReqStruct* req_struct,
+                            Uint32& attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2497,10 +2482,10 @@ private:
                   TriggerActionTime::Value ttime,
                   TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec* table, const CreateTrigReq* req);
+  bool createTrigger(Tablerec* table, const CreateTrigImplReq* req);
 
   Uint32 dropTrigger(Tablerec* table,
-		     const DropTrigReq* req,
+		     const DropTrigImplReq* req,
 		     BlockNumber sender);
 
   void
@@ -2554,6 +2539,16 @@ private:
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
                       bool disk);
+
+  bool check_fire_trigger(const Fragrecord*,
+                          const TupTriggerData*,
+                          const KeyReqStruct*,
+                          const Operationrec*) const;
+
+  bool check_fire_reorg(const KeyReqStruct *, Fragrecord::FragState) const;
+  bool check_fire_suma(const KeyReqStruct *,
+                       const Operationrec*,
+                       const Fragrecord*) const;
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
@@ -2763,8 +2758,6 @@ private:
   void setTupleStateOnPreviousOps(Uint32 prevOpIndex);
   void copyMem(Signal* signal, Uint32 sourceIndex, Uint32 destIndex);
 
-  void freeAllAttrBuffers(Operationrec*  const regOperPtr);
-  void freeAttrinbufrec(Uint32 anAttrBufRec);
   void removeActiveOpList(Operationrec*  const regOperPtr, Tuple_header*);
 
   void updatePackedList(Signal* signal, Uint16 ahostIndex);
@@ -2783,7 +2776,6 @@ private:
   void getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* regTabPtr);
 
   void initialiseRecordsLab(Signal* signal, Uint32 switchData, Uint32, Uint32);
-  void initializeAttrbufrec();
   void initializeCheckpointInfoRec();
   void initializeDiskBufferSegmentRecord();
   void initializeFragoperrec();
@@ -2836,20 +2828,21 @@ private:
   void initRecords();
 
   void deleteScanProcedure(Signal* signal, Operationrec* regOperPtr);
+  void allocCopyProcedure();
+  void freeCopyProcedure();
+  void prepareCopyProcedure(Uint32 numAttrs);
+  void releaseCopyProcedure();
   void copyProcedure(Signal* signal,
                      TablerecPtr regTabPtr,
                      Operationrec* regOperPtr);
   void scanProcedure(Signal* signal,
                      Operationrec* regOperPtr,
-                     Uint32 lenAttrInfo);
-  void storedSeizeAttrinbufrecErrorLab(Signal* signal,
-                                       Operationrec* regOperPtr,
-                                       Uint32 errorCode);
-  bool storedProcedureAttrInfo(Signal* signal,
-                               Operationrec* regOperPtr,
-			       const Uint32* data,
-                               Uint32 length,
-                               bool copyProc);
+                     SectionHandle* handle,
+                     bool isCopy);
+  void storedProcBufferSeizeErrorLab(Signal* signal,
+                                     Operationrec* regOperPtr,
+                                     Uint32 storedProcPtr,
+                                     Uint32 errorCode);
 
 //-----------------------------------------------------------------------------
 // Table Descriptor Memory Manager
@@ -2986,11 +2979,6 @@ private:
 //------------------------------------------------------------------------------------------------------
 // Common stored variables. Variables that have a valid value always.
 //------------------------------------------------------------------------------------------------------
-  Attrbufrec *attrbufrec;
-  Uint32 cfirstfreeAttrbufrec;
-  Uint32 cnoOfAttrbufrec;
-  Uint32 cnoFreeAttrbufrec;
-
   Fragoperrec *fragoperrec;
   Uint32 cfirstfreeFragopr;
   Uint32 cnoOfFragoprec;
@@ -3043,6 +3031,8 @@ private:
   BlockReference cownref;
   Uint32 cownNodeId;
   Uint32 czero;
+  Uint32 cCopyProcedure;
+  Uint32 cCopyLastSeg;
 
  // A little bit bigger to cover overwrites in copy algorithms (16384 real size).
 #define ZATTR_BUFFER_SIZE 16384
@@ -3188,11 +3178,17 @@ public:
     Ptr<Page> m_page_ptr;
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
+    Apply_undo();
   };
 
   void disk_restart_lcp_id(Uint32 table, Uint32 frag, Uint32 lcpId);
   
 private:
+  // these 2 were file-static before mt-lqh
+  bool f_undo_done;
+  Dbtup::Apply_undo f_undo;
+  Uint32 c_proxy_undo_data[MAX_TUPLE_SIZE_IN_WORDS];
+
   void disk_restart_undo_next(Signal*);
   void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
@@ -3416,5 +3412,32 @@ Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   memcpy(dst, src, 4*len);
 }
+
+// Dbtup_client provides proxying similar to Page_cache_client
+
+class Dbtup_client
+{
+  friend class DbtupProxy;
+  Uint32 m_block;
+  class DbtupProxy* m_dbtup_proxy; // set if we go via proxy
+  Dbtup* m_dbtup;
+  DEBUG_OUT_DEFINES(DBTUP);
+
+public:
+  Dbtup_client(SimulatedBlock* block, SimulatedBlock* dbtup);
+
+  // LGMAN
+
+  void disk_restart_undo(Signal* signal, Uint64 lsn,
+                         Uint32 type, const Uint32 * ptr, Uint32 len);
+
+  // TSMAN
+
+  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
+				const Local_key* key, Uint32 pages);
+
+  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
+			      const Local_key* key, Uint32 bits);
+};
 
 #endif

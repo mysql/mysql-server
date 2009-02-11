@@ -16,180 +16,39 @@
 #ifndef AsyncFile_H
 #define AsyncFile_H
 
-/**
-   AsyncFile
-
-   All file operations executed in thread-per-file, away from the DB threads.
- */
-
-
-// void execute(Request *request);
-// Description:
-//   performens the requered action.
-// Parameters:
-//    request: request to be called when open is finished.
-//       action= open|close|read|write|sync
-//          if action is open then:
-//             par.open.flags= UNIX open flags, see man open
-//             par.open.name= name of the file to open
-//          if action is read or write then:
-//             par.readWrite.buf= user provided buffer to read/write 
-//             the data from/to
-//             par.readWrite.size= how many bytes must be read/written
-//             par.readWrite.offset= absolute offset in file in bytes
-// return:
-//    return values are stored in the request error field:
-//       error= return state of the action, UNIX error see man open/errno
-//       userData= is untouched can be used be user.
-
-
-
-// void reportTo( MemoryChannel<Request> *reportTo );
-// Description:
-//   set the channel where the file must report the result of the 
-//    actions back to.
-// Parameters:
-//    reportTo: the memory channel to use use MemoryChannelMultipleWriter 
-//              if more 
-//              than one file uses this channel to report back.
-
 #include <kernel_types.h>
-#include "MemoryChannel.hpp"
+#include "AsyncIoThread.hpp"
 #include "Filename.hpp"
-
-// Use this define if you want printouts from AsyncFile class
-//#define DEBUG_ASYNCFILE
-
-#ifdef DEBUG_ASYNCFILE
-#include <NdbOut.hpp>
-#define DEBUG(x) x
-#define PRINT_ERRORANDFLAGS(f) printErrorAndFlags(f)
-void printErrorAndFlags(Uint32 used_flags);
-#else
-#define DEBUG(x)
-#define PRINT_ERRORANDFLAGS(f)
-#endif
-
-// Define the size of the write buffer (for each thread)
-#define WRITEBUFFERSIZE 262144
-
-const int ERR_ReadUnderflow = 1000;
-
-const int WRITECHUNK = 262144;
-
-class AsyncFile;
-
-class Request
-{
-public:
-  Request() {}
-
-  enum Action {
-    open,
-    close,
-    closeRemove,
-    read,   // Allways leave readv directly after 
-            // read because SimblockAsyncFileSystem depends on it
-    readv,
-    write,// Allways leave writev directly after 
-	        // write because SimblockAsyncFileSystem depends on it
-    writev,
-    writeSync,// Allways leave writevSync directly after 
-    // writeSync because SimblockAsyncFileSystem depends on it
-    writevSync,
-    sync,
-    end,
-    append,
-    append_synch,
-    rmrf,
-    readPartial
-  };
-  Action action;
-  union {
-    struct {
-      Uint32 flags;
-      Uint32 page_size;
-      Uint64 file_size;
-      Uint32 auto_sync_size;
-    } open;
-    struct {
-      int numberOfPages;
-      struct{
-	char *buf;
-	size_t size;
-	off_t offset;
-      } pages[16];
-    } readWrite;
-    struct {
-      const char * buf;
-      size_t size;
-    } append;
-    struct {
-      bool directory;
-      bool own_directory;
-    } rmrf;
-  } par;
-  int error;
-  
-  void set(BlockReference userReference, 
-	   Uint32 userPointer,
-	   Uint16 filePointer);
-  BlockReference theUserReference;
-  Uint32 theUserPointer;
-  Uint16 theFilePointer;
-   // Information for open, needed if the first open action fails.
-  AsyncFile* file;
-  Uint32 theTrace;
-};
-
-NdbOut& operator <<(NdbOut&, const Request&);
-
-inline
-void 
-Request::set(BlockReference userReference, 
-	     Uint32 userPointer, Uint16 filePointer) 
-{
-  theUserReference= userReference;
-  theUserPointer= userPointer;
-  theFilePointer= filePointer;
-}
 
 class AsyncFile
 {
   friend class Ndbfs;
+  friend class AsyncIoThread;
+
 public:
   AsyncFile(SimulatedBlock& fs);
   virtual ~AsyncFile() {};
 
+  virtual int init() = 0;
+
   void reportTo( MemoryChannel<Request> *reportTo );
-
-  void execute( Request* request );
-
-  virtual void doStart();
-
-  virtual void shutdown();
-
-  // its a thread so its always running
-  virtual void run();
 
   virtual bool isOpen() = 0;
 
   Filename theFileName;
   Request *m_current_request, *m_last_request;
+
+  void set_buffer(Ptr<GlobalPage> ptr, Uint32 cnt);
+  bool has_buffer() const;
+  void clear_buffer(Ptr<GlobalPage> & ptr, Uint32 & cnt);
+
+  AsyncIoThread* getThread() const { return m_thread;}
 private:
 
   /**
    * Implementers of AsyncFile interface
    * should implement the following
    */
-
-  /**
-   * init()
-   *
-   * Initialise buffers etc. After init(), ready to execute()
-   * Called with theStartMutexPtr held.
-   */
-  virtual int init();
 
   /**
    * openReq() - open a file.
@@ -204,15 +63,13 @@ private:
   /**
    * writeBuffer() - write into file
    */
-  virtual int writeBuffer(const char * buf, size_t size, off_t offset,
-		  size_t chunk_size = WRITECHUNK)=0;
-
+  virtual int writeBuffer(const char * buf, size_t size, off_t offset)=0;
 
   virtual void closeReq(Request *request)=0;
   virtual void syncReq(Request *request)=0;
   virtual void removeReq(Request *request)=0;
   virtual void appendReq(Request *request)=0;
-  virtual void rmrfReq(Request *request, char * path, bool removePath)=0;
+  virtual void rmrfReq(Request *request, const char * path, bool removePath)=0;
   virtual void createDirectories()=0;
 
   /**
@@ -229,38 +86,60 @@ protected:
   virtual void writeReq(Request *request);
   virtual void writevReq(Request *request);
 
-  /**
-   * endReq()
-   *
-   * Inverse to ::init(). Cleans up thread before it exits.
-   */
-  virtual void endReq();
-
 private:
-  /**
-   * (end of what implementors need)
-   */
+  void attach(AsyncIoThread* thr);
+  void detach(AsyncIoThread* thr);
 
-  MemoryChannel<Request> *theReportTo;
-  MemoryChannel<Request>* theMemoryChannelPtr;
-
-  struct NdbThread* theThreadPtr;
-  NdbMutex* theStartMutexPtr;
-  NdbCondition* theStartConditionPtr;
-  bool   theStartFlag;
+  AsyncIoThread* m_thread; // For bound files
 
 protected:
-  int theWriteBufferSize;
-  char* theWriteBuffer;
-
   size_t m_write_wo_sync;  // Writes wo/ sync
   size_t m_auto_sync_freq; // Auto sync freq in bytes
+  Uint32 m_open_flags;
+
+  /**
+   * file buffers
+   */
+  Uint32 m_page_cnt;
+  Ptr<GlobalPage> m_page_ptr;
+
+  char* theWriteBuffer;
+  Uint32 theWriteBufferSize;
 
 public:
   SimulatedBlock& m_fs;
-
-  Uint32 m_page_cnt;
-  Ptr<GlobalPage> m_page_ptr;
 };
+
+inline
+void
+AsyncFile::set_buffer(Ptr<GlobalPage> ptr, Uint32 cnt)
+{
+  assert(!has_buffer());
+  m_page_ptr = ptr;
+  m_page_cnt = cnt;
+  theWriteBuffer = (char*)ptr.p;
+  theWriteBufferSize = cnt * sizeof(GlobalPage);
+}
+
+inline
+bool
+AsyncFile::has_buffer() const
+{
+  return m_page_cnt > 0;
+}
+
+inline
+void
+AsyncFile::clear_buffer(Ptr<GlobalPage> & ptr, Uint32 & cnt)
+{
+  assert(has_buffer());
+  ptr = m_page_ptr;
+  cnt = m_page_cnt;
+  m_page_cnt = 0;
+  m_page_ptr.setNull();
+  theWriteBuffer = 0;
+  theWriteBufferSize = 0;
+}
+
 
 #endif

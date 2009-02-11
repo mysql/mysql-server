@@ -16,6 +16,7 @@
 /* thread safe version of some common functions */
 
 #include "mysys_priv.h"
+#include <my_net.h>
 #include <m_string.h>
 
 /* for thread safe my_inet_ntoa */

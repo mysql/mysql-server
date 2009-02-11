@@ -18,6 +18,7 @@
 
 #include <NdbOut.hpp>
 #include <mgmapi_config_parameters.h>
+#include <ndb_version.h>
 
 class NodeInfo {
 public:
@@ -36,6 +37,7 @@ public:
   
   Uint32 m_version;       ///< Ndb version
   Uint32 m_mysql_version; ///< MySQL version
+  Uint32 m_lqh_workers;   ///< LQH workers
   Uint32 m_type;          ///< Node type
   Uint32 m_connectCount;  ///< No of times connected
   bool   m_connected;     ///< Node is connected
@@ -49,6 +51,7 @@ inline
 NodeInfo::NodeInfo(){
   m_version = 0;
   m_mysql_version = 0;
+  m_lqh_workers = 0;
   m_type = INVALID;
   m_connectCount = 0;
   m_heartbeat_cnt= 0;
@@ -59,6 +62,27 @@ NodeInfo::NodeType
 NodeInfo::getType() const {
   return (NodeType)m_type;
 }
+
+
+class NdbVersion {
+  Uint32 m_ver;
+public:
+  NdbVersion(Uint32 ver) : m_ver(ver) {};
+
+  friend NdbOut& operator<<(NdbOut&, const NdbVersion&);
+};
+
+
+inline
+NdbOut&
+operator<<(NdbOut& ndbout, const NdbVersion& ver){
+  ndbout.print("%d.%d.%d",
+               ndbGetMajor(ver.m_ver),
+               ndbGetMinor(ver.m_ver),
+               ndbGetBuild(ver.m_ver));
+  return ndbout;
+}
+
 
 inline
 NdbOut &
@@ -82,8 +106,8 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
     break;
   }
 
-  ndbout << " ndb version: " << info.m_version
-	 << " mysql version; " << info.m_mysql_version
+  ndbout << " ndb version: " << NdbVersion(info.m_version)
+	 << " mysql version: " << NdbVersion(info.m_mysql_version)
 	 << " connect count: " << info.m_connectCount
 	 << "]";
   return ndbout;

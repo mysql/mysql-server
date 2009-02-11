@@ -214,6 +214,26 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
 void
 NdbOperation::release()
 {
+  NdbBlob* tBlob;
+  NdbBlob* tSaveBlob;
+
+  /* In case we didn't execute... */
+  postExecuteRelease();
+
+  tBlob = theBlobList;
+  while (tBlob != NULL)
+  {
+    tSaveBlob = tBlob;
+    tBlob = tBlob->theNext;
+    theNdb->releaseNdbBlob(tSaveBlob);
+  }
+  theBlobList = NULL;
+  theReceiver.release();
+}
+
+void
+NdbOperation::postExecuteRelease()
+{
   NdbApiSignal* tSignal;
   NdbApiSignal* tSaveSignal;
   NdbBranch*	tBranch;
@@ -224,17 +244,15 @@ NdbOperation::release()
   NdbCall*	tSaveCall;
   NdbSubroutine* tSubroutine;
   NdbSubroutine* tSaveSubroutine;
-  NdbBlob* tBlob;
-  NdbBlob* tSaveBlob;
 
-  tSignal = theTCREQ;
+  tSignal = theRequest; /* TCKEYREQ/TCINDXREQ/SCANTABREQ */
   while (tSignal != NULL)
   {
     tSaveSignal = tSignal;
     tSignal = tSignal->next();
     theNdb->releaseSignal(tSaveSignal);
   }				
-  theTCREQ = NULL;
+  theRequest = NULL;
   theLastKEYINFO = NULL;
 
   tSignal = theFirstATTRINFO;
@@ -278,15 +296,6 @@ NdbOperation::release()
       theNdb->releaseNdbSubroutine(tSaveSubroutine);
     }
   }
-  tBlob = theBlobList;
-  while (tBlob != NULL)
-  {
-    tSaveBlob = tBlob;
-    tBlob = tBlob->theNext;
-    theNdb->releaseNdbBlob(tSaveBlob);
-  }
-  theBlobList = NULL;
-  theReceiver.release();
 }
 
 NdbRecAttr*

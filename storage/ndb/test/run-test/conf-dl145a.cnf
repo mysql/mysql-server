@@ -2,6 +2,7 @@
 basedir = CHOOSE_dir
 baseport = 14000
 clusters = .2node
+mt = 1
 
 [ndb_mgmd]
 

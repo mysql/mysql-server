@@ -37,15 +37,21 @@ public:
     Uint32 output;
   };
 
-  Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
+  union {
+    Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
+    Uint32 extraNodeGroups;    // For GetDefaultFragments
+  };
   NdbNodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
         			   * output for GetNodeGroupMembers
 				   */
+  Uint32 senderData;            // Sender data, kept in return signal
+
   enum RequestType {
     Direct              = 0x1,
     ArbitCheck          = 0x2,
     GetNodeGroup        = 0x4,
-    GetNodeGroupMembers = 0x8
+    GetNodeGroupMembers = 0x8,
+    GetDefaultFragments = 0x10
   };
 
   enum Output {
@@ -54,7 +60,7 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
 };
 
 #endif

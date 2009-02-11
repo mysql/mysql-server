@@ -111,6 +111,7 @@ static unsigned int             tNoOfOpsPerTrans = 1;
 static unsigned int             tLoadFactor = 80;
 static bool                     tempTable = false;
 static bool                     startTransGuess = true;
+static int                      tExtraReadLoop = 0;
 
 //Program Flags
 static int                              theTestFlag = 0;
@@ -119,6 +120,7 @@ static int                              theDirtyFlag = 0;
 static int                              theWriteFlag = 0;
 static int                              theStdTableNameFlag = 0;
 static int                              theTableCreateFlag = 0;
+static int                              tConnections = 1;
 
 #define START_REAL_TIME
 #define STOP_REAL_TIME
@@ -171,7 +173,7 @@ tellThreads(StartType what)
     ThreadStart[i] = what;
 }
 
-static Ndb_cluster_connection *g_cluster_connection= 0;
+static Ndb_cluster_connection * g_cluster_connection = 0;
 
 NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
@@ -179,7 +181,6 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   ThreadNdb*            pThreadData;
   int                   tLoops=0;
   int                   returnValue = NDBT_OK;
-  unsigned i;
 
   flexAsynchErrorData = new ErrorData;
   flexAsynchErrorData->resetErrorCounters();
@@ -231,14 +232,24 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   setAttrNames();
   setTableNames();
 
-  Ndb_cluster_connection con;
-  if(con.connect(12, 5, 1) != 0)
+  g_cluster_connection = new Ndb_cluster_connection [tConnections];
+  if (tConnections > 1)
   {
-    return NDBT_ProgramExit(NDBT_FAILED);
+    printf("Creating %u connections...", tConnections);
+    fflush(stdout);
   }
-  g_cluster_connection= &con;
-
-  Ndb * pNdb = new Ndb(g_cluster_connection, "TEST_DB");      
+  for (int i = 0; i < tConnections; i++)
+  {
+    if(g_cluster_connection[i].connect(12, 5, 1) != 0)
+      return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  if (tConnections > 1)
+  {
+    printf("\n");
+    fflush(stdout);
+  }
+  
+  Ndb * pNdb = new Ndb(g_cluster_connection+0, "TEST_DB");      
   pNdb->init();
   tNodeId = pNdb->getNodeId();
 
@@ -274,7 +285,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
      *  Create NDB objects.                                   *
      ****************************************************************/
     resetThreads();
-    for (i = 0; i < tNoOfThreads ; i++) {
+    for (Uint32 i = 0; i < tNoOfThreads ; i++) {
       pThreadData[i].ThreadNo = i
 ;
       threadLife[i] = NdbThread_Create(threadLoop,
@@ -307,7 +318,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("insert", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int ci = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!" 
@@ -338,14 +349,17 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       
       failed = 0 ;
 
-      START_TIMER;
-      execute(stRead);
-      STOP_TIMER;
-      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
-      PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      for (int ll = 0; ll < 1 + tExtraReadLoop; ll++)
+      {
+        START_TIMER;
+        execute(stRead);
+        STOP_TIMER;
+        a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+        PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      }
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cr = 1;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<<endl ;
@@ -383,7 +397,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("update", noOfTransacts, tNoOfOpsPerTrans) ;
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cu = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<<endl ;
@@ -413,14 +427,17 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       
       failed = 0 ;
           
-      START_TIMER;
-      execute(stRead);
-      STOP_TIMER;
-      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
-      PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      for (int ll = 0; ll < 1 + tExtraReadLoop; ll++)
+      {
+        START_TIMER;
+        execute(stRead);
+        STOP_TIMER;
+        a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+        PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      }        
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cr2 = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<<endl ;
@@ -458,7 +475,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("delete", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cd = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<< endl ;
@@ -493,7 +510,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     
     execute(stStop);
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(Uint32 i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(threadLife[i], &tmp);
       NdbThread_Destroy(&threadLife[i]);
     }
@@ -527,7 +544,7 @@ threadLoop(void* ThreadData)
   StartType tType;
   ThreadNdb* tabThread = (ThreadNdb*)ThreadData;
   int threadNo = tabThread->ThreadNo;
-  localNdb = new Ndb(g_cluster_connection, "TEST_DB");
+  localNdb = new Ndb(g_cluster_connection+(threadNo % tConnections), "TEST_DB");
   localNdb->init(1024);
   localNdb->waitUntilReady(10000);
   unsigned int threadBase = (threadNo << 16) + tNodeId ;
@@ -560,7 +577,7 @@ static
 bool
 executeThread(ThreadNdb* pThread, 
 	      StartType aType, Ndb* aNdbObject, unsigned int threadBase) {
-  unsigned i, j, k;
+
   NdbConnection* tConArray[1024];
   unsigned int tBase;
   unsigned int tBase2;
@@ -569,14 +586,14 @@ executeThread(ThreadNdb* pThread,
 
   for (unsigned int ex= 0; ex < (1 + extraLoops); ex++)
   {
-    for (i = 0; i < tNoOfTransactions; i++) {
+    for (unsigned int i = 0; i < tNoOfTransactions; i++) {
       if (tLocal == false) {
         tBase = i * tNoOfParallelTrans * tNoOfOpsPerTrans;
       } else {
         tBase = i * tNoOfParallelTrans * MAX_SEEK;
       }//if
       START_REAL_TIME;
-      for (j = 0; j < tNoOfParallelTrans; j++) {
+      for (unsigned int j = 0; j < tNoOfParallelTrans; j++) {
         if (tLocal == false) {
           tBase2 = tBase + (j * tNoOfOpsPerTrans);
         } else {
@@ -600,7 +617,7 @@ executeThread(ThreadNdb* pThread,
           return false;
         }//if
         
-        for (k = 0; k < tNoOfOpsPerTrans; k++) {
+        for (unsigned int k = 0; k < tNoOfOpsPerTrans; k++) {
           //-------------------------------------------------------
           // Define the operation, but do not execute it yet.
           //-------------------------------------------------------
@@ -623,7 +640,7 @@ executeThread(ThreadNdb* pThread,
         int TlocalComp = aNdbObject->pollNdb(3000, 0);
         Tcomp += TlocalComp;
       }//while
-      for (j = 0 ; j < tNoOfParallelTrans ; j++) {
+      for (unsigned int j = 0 ; j < tNoOfParallelTrans ; j++) {
         aNdbObject->closeTransaction(tConArray[j]);
       }//for
     }//for
@@ -810,7 +827,7 @@ defineNdbRecordOperation(ThreadNdb* pThread,
     break;
   }//case
   case stRead: {     // Read Case
-    op = pTrans->readTuple(g_record[0],record,g_record[0],record);
+    op = pTrans->readTuple(g_record[0],record,g_record[0],record, NdbOperation::LM_CommittedRead);
     break;
   }//case
   case stUpdate:{    // Update Case
@@ -852,8 +869,8 @@ static void setTableNames()
   int i;
   for (i = 0; i < MAXTABLES ; i++){
     if (theStdTableNameFlag==0){
-      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
-               (int)(NdbTick_CurrentMillisecond()/1000));
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", i, 
+               (unsigned)(NdbTick_CurrentMillisecond()+rand()));
     } else {
       BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     }
@@ -1081,6 +1098,10 @@ readArguments(int argc, const char** argv){
       tNdbRecord = true;
       argc++;
       i--;
+    } else if (strcmp(argv[i], "-r") == 0){
+      tExtraReadLoop = atoi(argv[i+1]);
+    } else if (strcmp(argv[i], "-con") == 0){
+      tConnections = atoi(argv[i+1]);
     } else {
       return -1;
     }

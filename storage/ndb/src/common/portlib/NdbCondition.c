@@ -20,12 +20,16 @@
 #include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbMem.h>
-
+#ifdef NDB_WIN
+#include <my_pthread.h>
+#endif
 struct NdbCondition
 {
   pthread_cond_t cond;
 };
 
+
+static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
 static int clock_id = CLOCK_REALTIME;
 #endif
@@ -33,6 +37,7 @@ static int clock_id = CLOCK_REALTIME;
 void
 NdbCondition_Init()
 {
+  init = 1;
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
     defined CLOCK_MONOTONIC
   
@@ -78,6 +83,7 @@ NdbCondition_Create(void)
   struct NdbCondition* tmpCond;
   int result;
   
+  assert(init);
   tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
   
   if (tmpCond == NULL)
@@ -124,22 +130,27 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
 int 
 NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
                          NdbMutex* p_mutex,
-                         int msecs){
-  int result;
+                         int msecs)
+{
   struct timespec abstime; 
+
+  NdbCondition_ComputeAbsTime(&abstime, msecs);
+  return NdbCondition_WaitTimeoutAbs(p_cond, p_mutex, &abstime);
+}
+
+void
+NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
+{
   int secs = 0;
-  
-  if (p_cond == NULL || p_mutex == NULL)
-    return 1;
-  
+#ifndef NDB_WIN
 #ifdef HAVE_CLOCK_GETTIME
-  clock_gettime(clock_id, &abstime);
+  clock_gettime(clock_id, abstime);
 #else
   {
     struct timeval tick_time;
     gettimeofday(&tick_time, 0);
-    abstime.tv_sec  = tick_time.tv_sec;
-    abstime.tv_nsec = tick_time.tv_usec * 1000;
+    abstime->tv_sec  = tick_time.tv_sec;
+    abstime->tv_nsec = tick_time.tv_usec * 1000;
   }
 #endif
 
@@ -148,16 +159,26 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
     msecs = msecs % 1000;
   }
 
-  abstime.tv_sec  += secs;
-  abstime.tv_nsec += msecs * 1000000;
-  if (abstime.tv_nsec >= 1000000000) {
-    abstime.tv_sec  += 1;
-    abstime.tv_nsec -= 1000000000;
+  abstime->tv_sec  += secs;
+  abstime->tv_nsec += msecs * 1000000;
+  if (abstime->tv_nsec >= 1000000000) {
+    abstime->tv_sec  += 1;
+    abstime->tv_nsec -= 1000000000;
   }
-    
-  result = pthread_cond_timedwait(&p_cond->cond, p_mutex, &abstime);
-  
-  return result;
+#else
+  set_timespec_nsec(*abstime,msecs*1000000ULL);
+#endif
+}
+
+int
+NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
+                            NdbMutex* p_mutex,
+                            const struct timespec * abstime)
+{
+  if (p_cond == NULL || p_mutex == NULL)
+    return 1;
+
+  return pthread_cond_timedwait(&p_cond->cond, p_mutex, abstime);
 }
 
 int 

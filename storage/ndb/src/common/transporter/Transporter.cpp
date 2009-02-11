@@ -36,10 +36,12 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 NodeId rNodeId,
 			 NodeId serverNodeId,
 			 int _byteorder, 
-			 bool _compression, bool _checksum, bool _signalId)
+			 bool _compression, bool _checksum, bool _signalId,
+                         Uint32 max_send_buffer)
   : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId==serverNodeId),
-    m_packer(_signalId, _checksum),  isMgmConnection(_isMgmConnection),
+    m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
+    m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
     m_type(_type),
     m_transporter_registry(t_reg)
 {
@@ -86,13 +88,42 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 
     m_socket_client->set_connect_timeout((m_timeOutMillis+999)/1000);
   }
+
+  m_os_max_iovec = 16;
+#if defined (_SC_IOV_MAX) && defined (HAVE_SYSCONF)
+  long res = sysconf(_SC_IOV_MAX);
+  if (res != (long)-1)
+  {
+    m_os_max_iovec = (Uint32)res;
+  }
+#endif
+  
   DBUG_VOID_RETURN;
 }
 
 Transporter::~Transporter(){
-  if (m_socket_client)
-    delete m_socket_client;
+  delete m_socket_client;
 }
+
+
+bool
+Transporter::configure(const TransporterConfiguration* conf)
+{
+  if (configure_derived(conf) &&
+      conf->s_port == m_s_port &&
+      strcmp(conf->remoteHostName, remoteHostName) == 0 &&
+      strcmp(conf->localHostName, localHostName) == 0 &&
+      conf->remoteNodeId == remoteNodeId &&
+      conf->localNodeId == localNodeId &&
+      (conf->serverNodeId == conf->localNodeId) == isServer &&
+      conf->checksum == checksumUsed &&
+      conf->signalId == signalIdUsed &&
+      conf->isMgmConnection == isMgmConnection &&
+      conf->type == m_type)
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
@@ -104,12 +135,9 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
     DBUG_RETURN(false); // TODO assert(0);
   }
   
-  {
-    struct sockaddr_in addr;
-    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    getpeername(sockfd, (struct sockaddr*)&addr, &addrlen);
-    m_connect_address= (&addr)->sin_addr;
-  }
+  get_callback_obj()->reset_send_buffer(remoteNodeId);
+
+  my_socket_connect_address(sockfd, &m_connect_address);
 
   bool res = connect_server_impl(sockfd);
   if(res){
@@ -120,12 +148,14 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   DBUG_RETURN(res);
 }
 
+
 bool
 Transporter::connect_client() {
   NDB_SOCKET_TYPE sockfd;
+  DBUG_ENTER("Transporter::connect_client");
 
   if(m_connected)
-    return true;
+    DBUG_RETURN(true);
 
   if(isMgmConnection)
   {
@@ -134,53 +164,70 @@ Transporter::connect_client() {
   else
   {
     if (!m_socket_client->init())
-    {
-      return false;
-    }
+      DBUG_RETURN(false);
+
     if (pre_connect_options(m_socket_client->m_sockfd) != 0)
-    {
-      return false;
-    }
+      DBUG_RETURN(false);
+
     if (strlen(localHostName) > 0)
     {
       if (m_socket_client->bind(localHostName, 0) != 0)
-	return false;
+        DBUG_RETURN(false);
     }
     sockfd= m_socket_client->connect();
   }
 
-  return connect_client(sockfd);
+  DBUG_RETURN(connect_client(sockfd));
 }
+
 
 bool
 Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
 
+  DBUG_ENTER("Transporter::connect_client(sockfd)");
+
   if(m_connected)
-    return true;
+  {
+    DBUG_PRINT("error", ("Already connected"));
+    DBUG_RETURN(true);
+  }
 
-  if (sockfd == NDB_INVALID_SOCKET)
-    return false;
+  if (!my_socket_valid(sockfd))
+  {
+    DBUG_PRINT("error", ("Socket " MY_SOCKET_FORMAT " is not valid",
+                         MY_SOCKET_FORMAT_VALUE(sockfd)));
+    DBUG_RETURN(false);
+  }
 
-  DBUG_ENTER("Transporter::connect_client");
+  DBUG_PRINT("info",("server port: %d, isMgmConnection: %d",
+                     m_s_port, isMgmConnection));
 
-  DBUG_PRINT("info",("port %d isMgmConnection=%d",m_s_port,isMgmConnection));
+  get_callback_obj()->reset_send_buffer(remoteNodeId);
 
+  // Send "hello"
+  DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
+                      localNodeId, m_type));
   SocketOutputStream s_output(sockfd);
-  SocketInputStream s_input(sockfd);
-
-  // send info about own id
-  // send info about own transporter type
-
-  s_output.println("%d %d", localNodeId, m_type);
-  // get remote id
-  int nodeId, remote_transporter_type= -1;
-
-  char buf[256];
-  if (s_input.gets(buf, 256) == 0) {
+  if (s_output.println("%d %d", localNodeId, m_type) < 0)
+  {
+    DBUG_PRINT("error", ("Send of 'hello' failed"));
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(false);
   }
 
+  // Read reply
+  DBUG_PRINT("info", ("Reading reply"));
+  char buf[256];
+  SocketInputStream s_input(sockfd);
+  if (s_input.gets(buf, 256) == 0)
+  {
+    DBUG_PRINT("error", ("Failed to read reply"));
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+
+  // Parse reply
+  int nodeId, remote_transporter_type= -1;
   int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
   switch (r) {
   case 2:
@@ -190,39 +237,40 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     // ok, but with no checks on transporter configuration compatability
     break;
   default:
+    DBUG_PRINT("error", ("Failed to parse reply"));
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
+  DBUG_PRINT("info", ("Reply, nodeId: %d, transporter type: %d",
 		      nodeId, remote_transporter_type));
 
-  if (remote_transporter_type != -1)
+  // Check nodeid
+  if (nodeId != remoteNodeId)
   {
-    if (remote_transporter_type != m_type)
-    {
-      DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
-			   m_type, remote_transporter_type));
-      NDB_CLOSE_SOCKET(sockfd);
-      g_eventLogger->error("Incompatible configuration: transporter type "
-                           "mismatch with node %d", nodeId);
-      DBUG_RETURN(false);
-    }
-  }
-  else if (m_type == tt_SHM_TRANSPORTER)
-  {
-    g_eventLogger->warning("Unable to verify transporter compatability with node %d", nodeId);
+    g_eventLogger->error("Connected to wrong nodeid: %d, expected: %d",
+                         nodeId, remoteNodeId);
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
   }
 
+  // Check transporter type
+  if (remote_transporter_type != -1 &&
+      remote_transporter_type != m_type)
   {
-    struct sockaddr_in addr;
-    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    getpeername(sockfd, (struct sockaddr*)&addr, &addrlen);
-    m_connect_address= (&addr)->sin_addr;
+    g_eventLogger->error("Connection to node: %d uses different transporter "
+                         "type: %d, expected type: %d",
+                         nodeId, remote_transporter_type, m_type);
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
   }
+
+  // Cache the connect address
+  my_socket_connect_address(sockfd, &m_connect_address);
 
   bool res = connect_client_impl(sockfd);
-  if(res){
+  if (res)
+  {
     m_connected  = true;
     m_errorCount = 0;
   }
@@ -236,5 +284,7 @@ Transporter::doDisconnect() {
     return; //assert(0); TODO will fail
 
   m_connected= false;
+
+  get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
 }

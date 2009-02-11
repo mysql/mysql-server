@@ -166,7 +166,7 @@ File_class::readChar(char* buf, long start, long length) const
 int 
 File_class::readChar(char* buf)
 {
-  return readChar(buf, 0, strlen(buf));
+  return readChar(buf, 0, (long)strlen(buf));
 }
 
 int 
@@ -184,7 +184,7 @@ File_class::writeChar(const char* buf, long start, long length)
 int 
 File_class::writeChar(const char* buf)
 {
-  return writeChar(buf, 0, ::strlen(buf));
+  return writeChar(buf, 0, (long)::strlen(buf));
 }
 
 off_t

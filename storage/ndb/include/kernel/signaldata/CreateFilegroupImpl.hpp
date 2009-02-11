@@ -31,13 +31,15 @@ struct CreateFilegroupImplReq {
    */
   friend bool printCREATE_FILEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( TablespaceLength = 6 );
-  STATIC_CONST( LogfileGroupLength = 5 );
+  STATIC_CONST( SignalLength = 5 ); // DICT2DICT
+  STATIC_CONST( TablespaceLength = 7 );
+  STATIC_CONST( LogfileGroupLength = 6 );
   
   Uint32 senderData;
   Uint32 senderRef;  
   Uint32 filegroup_id;
   Uint32 filegroup_version;
+  Uint32 requestType;
   
   union {
     struct {
@@ -109,11 +111,12 @@ struct CreateFileImplReq {
    * For printing
    */
   friend bool printCREATE_FILE_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
-  STATIC_CONST( DatafileLength = 9 );
-  STATIC_CONST( UndofileLength = 8 );
-  STATIC_CONST( CommitLength = 6 );
-  STATIC_CONST( AbortLength = 6 );
+
+  STATIC_CONST( SignalLength = 11 ); // DICT2DICT
+  STATIC_CONST( DatafileLength = 10 );
+  STATIC_CONST( UndofileLength = 9 );
+  STATIC_CONST( CommitLength = 7 );
+  STATIC_CONST( AbortLength = 7 );
   SECTION( FILENAME = 0 );
   
   enum RequestInfo {
@@ -126,9 +129,9 @@ struct CreateFileImplReq {
   
   Uint32 senderData;
   Uint32 senderRef;
-
   Uint32 requestInfo;
   Uint32 file_id;
+  Uint32 file_version;
   Uint32 filegroup_id;
   Uint32 filegroup_version;
   Uint32 file_size_hi;
@@ -139,6 +142,7 @@ struct CreateFileImplReq {
       Uint32 extent_size;
     } tablespace;
   };
+  Uint32 requestType;
 };
 
 struct CreateFileImplRef {

@@ -36,7 +36,10 @@
 #include <mgmapi_configuration.hpp>
 
 int 
-NdbBackup::start(unsigned int & _backup_id){
+NdbBackup::start(unsigned int & _backup_id,
+		 int flags,
+		 unsigned int user_backup_id,
+		 unsigned int logtype){
 
   
   if (!isConnected())
@@ -46,10 +49,12 @@ NdbBackup::start(unsigned int & _backup_id){
   reply.return_code = 0;
 
 loop:
-  if (ndb_mgm_start_backup(handle,
-			   2, // wait until completed
+  if (ndb_mgm_start_backup3(handle,
+			   flags,
 			   &_backup_id,
-			   &reply) == -1) {
+			   &reply,
+			   user_backup_id,
+			   logtype) == -1) {
 
     if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
         strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists"))
@@ -69,6 +74,50 @@ loop:
     return reply.return_code;
   }
   return 0;
+}
+
+int
+NdbBackup::startLogEvent(){
+
+  if (!isConnected())
+    return -1;
+  log_handle= NULL;
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0, 0 };
+  log_handle = ndb_mgm_create_logevent_handle(handle, filter);
+  if (!log_handle) {
+    g_err << "Can't create log event" << endl;
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbBackup::checkBackupStatus(){
+
+  struct ndb_logevent log_event;
+  int result = 0;
+  int res;
+  if(!log_handle) {
+    return -1;
+  }
+  if ((res= ndb_logevent_get_next(log_handle, &log_event, 3000)) > 0)
+  {
+    switch (log_event.type) {
+      case NDB_LE_BackupStarted:
+	result = 1;
+	break;
+      case NDB_LE_BackupCompleted:
+	result = 2;
+        break;
+      case NDB_LE_BackupAborted:
+	result = 3;
+        break;
+      default:
+        break;
+    }
+  }
+  ndb_mgm_destroy_logevent_handle(&log_handle);
+  return result;
 }
 
 
@@ -287,7 +336,7 @@ NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz,
   CHECK(_restarter.waitClusterStarted() == 0,
 	"waitClusterStarted failed");
   
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   for(int i = 0; i<sz; i++){
 
@@ -387,7 +436,8 @@ FailM_codes[] = {
   10031,
   10033,
   10035,
-  10037
+  10037,
+  10038
 };
 
 int 
@@ -416,7 +466,7 @@ NdbBackup::Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool on
 
   int nNodes = _restarter.getNumDbNodes();
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   for(int i = 0; i<sz; i++){
     int error = Fail_codes[i];

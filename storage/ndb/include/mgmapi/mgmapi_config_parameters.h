@@ -26,7 +26,7 @@
 #define CFG_NODE_HOST                 5
 #define CFG_NODE_SYSTEM               6
 #define CFG_NODE_DATADIR              7
-#define CFG_9                         9         /* used in later version */
+#define CFG_TOTAL_SEND_BUFFER_MEMORY  9
 
 /**
  * DB config parameters
@@ -139,14 +139,24 @@
 #define CFG_DB_MAX_BUFFERED_EPOCHS    182
 #define CFG_DB_SUMA_HANDOVER_TIMEOUT  183
 
+#define CFG_DB_STARTUP_REPORT_FREQUENCY 184
+
+#define CFG_DB_NODEGROUP              185
+#define CFG_DB_MT_THREADS             186
+#define CFG_NDBMT_LQH_THREADS         187
+#define CFG_NDBMT_LQH_WORKERS         188
+
 #define CFG_DB_INIT_REDO              189
+#define CFG_DB_THREAD_POOL            190
+
+#define CFG_NDBMT_CLASSIC             191
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
-#define CFG_202                       202       /* used in later version */
+#define CFG_RESERVED_SEND_BUFFER_MEMORY 202
 
 #define CFG_MIN_LOGLEVEL          250
 #define CFG_LOGLEVEL_STARTUP      250
@@ -176,7 +186,7 @@
 #define CFG_CONNECTION_HOSTNAME_2     408
 #define CFG_CONNECTION_GROUP          409
 #define CFG_CONNECTION_NODE_ID_SERVER 410
-#define CFG_411                       411       /* used in later version */
+#define CFG_CONNECTION_OVERLOAD       411
 
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454

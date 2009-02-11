@@ -1,14 +1,14 @@
 -- source include/have_ndb.inc
 
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_dd >> $NDB_TOOLS_OUTPUT
 
 # (priviliges differ on embedded and server so replace)
 --replace_column 18 #
 select * from information_schema.columns
 where table_name = "t1";
 show create table t1;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 select * from t1 order by a1;
 drop table t1;
 

@@ -17,8 +17,6 @@
 #define DBTUP_DISK_ALLOC_CPP
 #include "Dbtup.hpp"
 
-static bool f_undo_done = true;
-
 static
 NdbOut&
 operator<<(NdbOut& out, const Ptr<Dbtup::Page> & ptr)
@@ -139,7 +137,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   }
 }
 
-#if defined VM_TRACE || true
+#if defined VM_TRACE || 1
 #define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbrequire(false); } } while(0)
 #else
 #define ddassert(x)
@@ -314,7 +312,8 @@ Dbtup::restart_setup_page(Disk_alloc_info& alloc, PagePtr pagePtr)
     page.m_file_no = pagePtr.p->m_file_no;
     page.m_page_no = pagePtr.p->m_page_no;
 
-    Tablespace_client tsman(0, c_tsman,
+    D("Tablespace_client - restart_setup_page");
+    Tablespace_client tsman(0, this, c_tsman,
 			    0, 0, 0);
     unsigned uncommitted, committed;
     uncommitted = committed = ~(unsigned)0;
@@ -349,7 +348,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
   Fragrecord* fragPtrP = fragPtr.p; 
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
   Uint32 idx= alloc.calc_page_free_bits(sz);
-  Tablespace_client tsman(signal, c_tsman,
+  D("Tablespace_client - disk_page_prealloc");
+  Tablespace_client tsman(signal, this, c_tsman,
 			  fragPtrP->fragTableId,
 			  fragPtrP->fragmentId,
 			  fragPtrP->m_tablespace_id);
@@ -613,7 +613,9 @@ Dbtup::disk_page_prealloc(Signal* signal,
       safe_cast(&Dbtup::disk_page_prealloc_initial_callback);
   }
   
-  int res= m_pgman.get_page(signal, preq, flags);
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, preq, flags);
+  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -735,6 +737,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
 
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
+    D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
     restart_setup_page(fragPtr.p->m_disk_alloc_info, pagePtr);
   }
 
@@ -898,6 +901,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   Uint32 used = pagePtr.p->uncommitted_used_space;
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
+    D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
     restart_setup_page(alloc, pagePtr);
     idx = alloc.calc_page_free_bits(free);
     used = 0;
@@ -910,7 +914,8 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   
   ddassert(free >= used);
   
-  Tablespace_client tsman(0, c_tsman,
+  D("Tablespace_client - disk_page_set_dirty");
+  Tablespace_client tsman(0, this, c_tsman,
 			  fragPtr.p->fragTableId,
 			  fragPtr.p->fragmentId,
 			  fragPtr.p->m_tablespace_id);
@@ -942,6 +947,7 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
 	       f_undo_done == false))
   {
     jam();
+    D("disk_page_unmap_callback" << V(type) << V(f_undo_done));
     return ;
   }
 
@@ -994,7 +1000,8 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
       ddassert(free >= used);
       ddassert(alloc.calc_page_free_bits(free - used) == idx);
       
-      Tablespace_client tsman(0, c_tsman,
+      D("Tablespace_client - disk_page_unmap_callback");
+      Tablespace_client tsman(0, this, c_tsman,
 			      fragPtr.p->fragTableId,
 			      fragPtr.p->fragmentId,
 			      fragPtr.p->m_tablespace_id);
@@ -1025,7 +1032,8 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
     LocalDLList<Page> list(*pool, alloc.m_unmap_pages);
     list.remove(pagePtr);
 
-    Tablespace_client tsman(0, c_tsman,
+    D("Tablespace_client - disk_page_unmap_callback");
+    Tablespace_client tsman(0, this, c_tsman,
 			    fragPtr.p->fragTableId,
 			    fragPtr.p->fragmentId,
 			    fragPtr.p->m_tablespace_id);
@@ -1163,7 +1171,9 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
   int flags= Page_cache_client::DIRTY_REQ;
   memcpy(&req.m_page, key, sizeof(Local_key));
 
-  int res= m_pgman.get_page(signal, req, flags);
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, req, flags);
+  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1309,6 +1319,7 @@ Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
 			    Uint32 sz, Uint32 gci, Uint32 logfile_group_id)
 {
   jam();
+  D("Logfile_client - disk_page_undo_alloc");
   Logfile_client lgman(this, c_lgman, logfile_group_id);
   
   Disk_undo::Alloc alloc;
@@ -1319,7 +1330,8 @@ Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
   Logfile_client::Change c[1] = {{ &alloc, sizeof(alloc) >> 2 } };
   
   Uint64 lsn= lgman.add_entry(c, 1);
-  m_pgman.update_lsn(* key, lsn);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.update_lsn(* key, lsn);
   jamEntry();
 
   return lsn;
@@ -1331,6 +1343,7 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
 			     Uint32 gci, Uint32 logfile_group_id)
 {
   jam();
+  D("Logfile_client - disk_page_undo_update");
   Logfile_client lgman(this, c_lgman, logfile_group_id);
 
   Disk_undo::Update update;
@@ -1350,7 +1363,8 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
   ndbassert(4*(3 + sz + 1) == (sizeof(update) + 4*sz - 4));
     
   Uint64 lsn= lgman.add_entry(c, 3);
-  m_pgman.update_lsn(* key, lsn);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.update_lsn(* key, lsn);
   jamEntry();
 
   return lsn;
@@ -1362,6 +1376,7 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
 			   Uint32 gci, Uint32 logfile_group_id)
 {
   jam();
+  D("Logfile_client - disk_page_undo_free");
   Logfile_client lgman(this, c_lgman, logfile_group_id);
 
   Disk_undo::Free free;
@@ -1381,15 +1396,14 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
   ndbassert(4*(3 + sz + 1) == (sizeof(free) + 4*sz - 4));
   
   Uint64 lsn= lgman.add_entry(c, 3);
-  m_pgman.update_lsn(* key, lsn);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.update_lsn(* key, lsn);
   jamEntry();
 
   return lsn;
 }
   
 #include <signaldata/LgmanContinueB.hpp>
-
-static Dbtup::Apply_undo f_undo;
 
 #define DBG_UNDO 0
 
@@ -1414,7 +1428,8 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     Uint32 tableId = ptr[1] >> 16;
     Uint32 fragId = ptr[1] & 0xFFFF;
     disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_LCP, lcp);
-    disk_restart_undo_next(signal);
+    if (!isNdbMtLqh())
+      disk_restart_undo_next(signal);
     
     if (DBG_UNDO)
     {
@@ -1463,7 +1478,8 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
       if (tabPtr.p->fragrec[i] != RNIL)
 	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
 			      Fragrecord::UC_CREATE, 0);
-    disk_restart_undo_next(signal);
+    if (!isNdbMtLqh())
+      disk_restart_undo_next(signal);
 
     if (DBG_UNDO)
     {
@@ -1482,7 +1498,8 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
       if (tabPtr.p->fragrec[i] != RNIL)
 	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
 			      Fragrecord::UC_CREATE, 0);
-    disk_restart_undo_next(signal);
+    if (!isNdbMtLqh())
+      disk_restart_undo_next(signal);
 
     if (DBG_UNDO)
     {
@@ -1510,7 +1527,9 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     safe_cast(&Dbtup::disk_restart_undo_callback);
   
   int flags = 0;
-  int res= m_pgman.get_page(signal, preq, flags);
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, preq, flags);
+  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1721,7 +1740,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     
     lsn = undo->m_lsn - 1; // make sure undo isn't run again...
     
-    m_pgman.update_lsn(undo->m_key, lsn);
+    Page_cache_client pgman(this, c_pgman);
+    pgman.update_lsn(undo->m_key, lsn);
     jamEntry();
 
     disk_restart_undo_page_bits(signal, undo);
@@ -1808,7 +1828,8 @@ Dbtup::disk_restart_undo_page_bits(Signal* signal, Apply_undo* undo)
   Uint32 new_bits = alloc.calc_page_free_bits(free);
   pageP->list_index = 0x8000 | new_bits;
 
-  Tablespace_client tsman(signal, c_tsman,
+  D("Tablespace_client - disk_restart_undo_page_bits");
+  Tablespace_client tsman(signal, this, c_tsman,
 			  fragPtrP->fragTableId,
 			  fragPtrP->fragmentId,
 			  fragPtrP->m_tablespace_id);

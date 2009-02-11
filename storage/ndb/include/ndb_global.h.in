@@ -16,23 +16,26 @@
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
-#include <my_config.h>
+#include <my_global.h>
 #include <ndb_types.h>
+
+/* NAME_LEN */
+#include <mysql_com.h>
 
 #define NDB_PORT "@ndb_port@"
 #define NDB_TCP_BASE_PORT "@ndb_port_base@"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
-#define NDB_WIN32
-#include <winsock2.h>
+#define NDB_WIN32 1
+#define NDB_WIN 1
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
 #define MYSQLCLUSTERDIR "c:\\mysql\\mysql-cluster"
 #define HAVE_STRCASECMP
-#define strcasecmp _strcmpi
 #pragma warning(disable: 4503 4786)
 #else
 #undef NDB_WIN32
+#undef NDB_WIN
 #define DIR_SEPARATOR "/"
 #endif
 
@@ -145,5 +148,18 @@ extern "C" {
 #endif
 
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
+
+#ifndef STATIC_ASSERT
+#if defined VM_TRACE
+// Compile-time assert for use from procedure body
+// Zero length array not allowed in C
+// Add use of array to avoid compiler warning
+#define STATIC_ASSERT(expr) { char static_assert[(expr)? 1 : 0] = {'\0'}; if (static_assert[0]) {}; }
+#else
+#define STATIC_ASSERT(expr)
+#endif
+#endif
+
+#define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 #endif

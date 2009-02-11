@@ -4,6 +4,9 @@
 #include <my_getopt.h>
 #include <NdbOut.hpp>
 
+extern int g_mt;
+extern int g_mt_rr;
+
 static atrt_host * find(const char * hostname, Vector<atrt_host*>&);
 static bool load_process(atrt_config&, atrt_cluster&, atrt_process::Type, 
 			 size_t idx, const char * hostname);
@@ -215,10 +218,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_type = type;
   proc.m_host = host_ptr;
   proc.m_save.m_saved = false;
-  if (g_fix_nodeid)
-    proc.m_nodeid= cluster.m_next_nodeid++;
-  else
-    proc.m_nodeid= -1;
+  proc.m_nodeid= cluster.m_next_nodeid++;
   proc.m_cluster = &cluster;
   proc.m_options.m_features = 0;
   proc.m_rep_src = 0;
@@ -297,17 +297,25 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
 			      cluster.m_name.c_str());
     proc.m_proc.m_args.append(" --nodaemon --mycnf");
-    if (g_fix_nodeid)
-      proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
+    proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_args.appfmt(" --configdir=%s", proc.m_proc.m_cwd.c_str());
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
     break;
   } 
   case atrt_process::AP_NDBD:
   {
+    if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0))
+    {
+      proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbd");
+    }
+    else
+    {
+      proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbmtd");
+    }
+    
     proc.m_proc.m_name.assfmt("%d-%s", proc_no, "ndbd");
-    proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbd");
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
@@ -364,15 +372,6 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   case atrt_process::AP_CLUSTER:
     g_logger.critical("Unhandled process type: %d", proc.m_type);
     return false;
-  }
-  
-  if (proc.m_proc.m_path.length())
-  {
-    proc.m_proc.m_env.appfmt(" CMD=\"%s", proc.m_proc.m_path.c_str());
-    if (proc.m_proc.m_args.length())
-      proc.m_proc.m_env.append(" ");
-    proc.m_proc.m_env.append(proc.m_proc.m_args);
-    proc.m_proc.m_env.append("\" ");
   }
   
   if (type == atrt_process::AP_MYSQLD)

@@ -294,7 +294,7 @@ int get_rand_op_ch(char *ch)
   static unsigned int num = 0;
   if(++num == 0) 
     num = 1;
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   *ch = op_string[rand() % op_len];
   return 1;
 }
@@ -308,9 +308,9 @@ void change_col_order()
   char temp;
   for (int i = 0; i < 10; i++)  //exchange for 10 times
   {
-    srand(time(NULL)/(i+1));
+    srand((unsigned int)time(NULL)/(i+1));
     pos1 = rand() % col_len;
-    srand((i+1)*time(NULL));
+    srand((i+1)*(unsigned int)time(NULL));
     pos2 = rand() % col_len;
     if (pos1 == pos2)
       continue;
@@ -329,10 +329,10 @@ int get_rand_col_str(char *str)
   static unsigned int num = 0;
   if(++num == 0) 
     num = 1;
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   len = rand() % col_len + 1;
   change_col_order();
-  snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
+  BaseString::snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
   return len;
 }
 
@@ -348,7 +348,7 @@ int get_rand_op_str(char *str)
   len2 = get_rand_col_str(temp+len1);
   len = len1 + len2;
   temp[len] = 'x';
-  snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
+  BaseString::snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
   return len+1;
 }
 
@@ -362,10 +362,10 @@ int get_rand_op_str(char *str)
 int replace_a_to_str(char *source, int pos, char *newstr)
 {
   char temp[MAX_STR_LEN];
-  snprintf(temp, pos+1, "%s", source);
-  snprintf(temp+pos, strlen(newstr)+1, "%s", newstr);
-  snprintf(temp+pos+strlen(newstr), strlen(source)-pos, "%s", source+pos+1);
-  snprintf(source, strlen(temp)+1, "%s", temp); 
+  BaseString::snprintf(temp, pos+1, "%s", source);
+  BaseString::snprintf(temp+pos, strlen(newstr)+1, "%s", newstr);
+  BaseString::snprintf(temp+pos+strlen(newstr), strlen(source)-pos, "%s", source+pos+1);
+  BaseString::snprintf(source, strlen(temp)+1, "%s", temp);
   return strlen(source);
 }
 
@@ -438,7 +438,7 @@ int get_rand_replace_pos(char *str, int len)
   }
   else
   {
-    srand(num*time(NULL));
+    srand(num*(unsigned int)time(NULL));
     pos_col = pos_op + rand() % span + 1;
   }
   return pos_col;
@@ -485,7 +485,7 @@ void get_rand_op_str_compound(char *str)
   if(++num == 0)
     num = 1;
 
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   level = 1 + rand() % RECURSIVE_LEVEL;
  
   get_rand_op_str(str);
@@ -744,13 +744,14 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     ERR_EXIT(dict, "Can't get table"TABLE_NAME);
 	
 	const NdbDictionary::Column *col[COL_LEN];
-  for(int i = 0; i < COL_LEN; i++)
+
+  for(int ii = 0; ii < COL_LEN; ii++)
   {
     char tmp[128];
-    col[i] = table->getColumn(COL_NAME[i]);
-	  if(!col[i]) 
+    col[ii] = table->getColumn(COL_NAME[ii]);
+	  if(!col[ii]) 
     {
-      snprintf(tmp, 128, "Can't get column %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get column %s", COL_NAME[ii]);
       ERR_EXIT(dict, tmp);
     }
   }
@@ -771,13 +772,13 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     ERR_EXIT(scan, "Can't set up read");
   
   NdbRecAttr *rec[COL_LEN];
-  for(int i = 0; i < COL_LEN; i++)
+  for(int ii = 0; ii < COL_LEN; ii++)
   {
     char tmp[128];
-    rec[i] = scan->getValue(COL_NAME[i]);
-	  if(!rec[i]) 
+    rec[ii] = scan->getValue(COL_NAME[ii]);
+	  if(!rec[ii]) 
     {
-      snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[ii]);
       ERR_EXIT(scan, tmp);
     }
   }
@@ -1668,6 +1669,7 @@ int main(int argc, const char** argv)
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
+  NDBT_TESTSUITE_INSTANCE(testScanFilter);
   return testScanFilter.execute(argc, argv);
 }

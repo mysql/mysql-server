@@ -63,7 +63,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
 select * from t1;
 n
@@ -110,7 +110,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=746;
 select * from t2;
 n
@@ -155,7 +155,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 start slave;
 [on master]
 [on slave]
@@ -200,7 +200,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 ==== Test various error conditions ====
 start slave until master_log_file='master-bin', master_log_pos=561;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL

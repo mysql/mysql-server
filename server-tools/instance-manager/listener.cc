@@ -35,24 +35,11 @@
 #include "priv.h"
 #include "thread_registry.h"
 
-
-static void set_non_blocking(int socket)
+static void set_no_inherit(my_socket socket)
 {
 #ifndef __WIN__
-  int flags= fcntl(socket, F_GETFL, 0);
-  fcntl(socket, F_SETFL, flags | O_NONBLOCK);
-#else
-  u_long arg= 1;
-  ioctlsocket(socket, FIONBIO, &arg);
-#endif
-}
-
-
-static void set_no_inherit(int socket)
-{
-#ifndef __WIN__
-  int flags= fcntl(socket, F_GETFD, 0);
-  fcntl(socket, F_SETFD, flags | FD_CLOEXEC);
+  int flags= fcntl(socket.fd, F_GETFD, 0);
+  fcntl(socket.fd, F_SETFD, flags | FD_CLOEXEC);
 #endif
 }
 
@@ -103,7 +90,7 @@ void Listener::run()
 
   /* II. Listen sockets and spawn childs */
   for (i= 0; i < num_sockets; i++)
-    n= max(n, sockets[i]);
+    n= my_socket_nfds(sockets[i], n);
   n++;
 
   timeval tv;
@@ -136,11 +123,11 @@ void Listener::run()
     for (int socket_index= 0; socket_index < num_sockets; socket_index++)
     {
       /* Assuming that rc > 0 as we asked to wait forever */
-      if (FD_ISSET(sockets[socket_index], &read_fds_arg))
+      if (my_FD_ISSET(sockets[socket_index], &read_fds_arg))
       {
-        int client_fd= accept(sockets[socket_index], 0, 0);
+        my_socket client_fd= my_accept(sockets[socket_index], 0, 0);
         /* accept may return -1 (failure or spurious wakeup) */
-        if (client_fd >= 0)                    // connection established
+        if (my_socket_valid(client_fd)) // connection established
         {
           set_no_inherit(client_fd);
 
@@ -153,8 +140,8 @@ void Listener::run()
             handle_new_mysql_connection(vio);
           else
           {
-            shutdown(client_fd, SHUT_RDWR);
-            closesocket(client_fd);
+            my_shutdown(client_fd, SHUT_RDWR);
+            my_socket_close(client_fd);
           }
         }
       }
@@ -166,7 +153,7 @@ void Listener::run()
   log_info("Listener: shutdown requested, exiting...");
 
   for (i= 0; i < num_sockets; i++)
-    closesocket(sockets[i]);
+    my_socket_close(sockets[i]);
 
 #ifndef __WIN__
   unlink(unix_socket_address.sun_path);
@@ -182,7 +169,7 @@ err:
 
   // we have to close the ip sockets in case of error
   for (i= 0; i < num_sockets; i++)
-    closesocket(sockets[i]);
+    my_socket_close(sockets[i]);
 
   thread_registry->set_error_status();
   thread_registry->unregister_thread(&thread_info);
@@ -192,11 +179,8 @@ err:
 
 int Listener::create_tcp_socket()
 {
-  /* value to be set by setsockopt */
-  int arg= 1;
-
-  int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
-  if (ip_socket == INVALID_SOCKET)
+  my_socket ip_socket= my_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!my_socket_valid(ip_socket))
   {
     log_error("Listener: socket(AF_INET) failed: %s.",
               (const char *) strerror(errno));
@@ -225,31 +209,29 @@ int Listener::create_tcp_socket()
   ip_socket_address.sin_port= (unsigned short)
     htons((unsigned short) im_port);
 
-  setsockopt(ip_socket, SOL_SOCKET, SO_REUSEADDR, (char*) &arg, sizeof(arg));
-  if (bind(ip_socket, (struct sockaddr *) &ip_socket_address,
-           sizeof(ip_socket_address)))
+  my_socket_reuseaddr(ip_socket, true);
+  if (my_bind_inet(ip_socket, &ip_socket_address))
   {
     log_error("Listener: bind(ip socket) failed: %s.",
               (const char *) strerror(errno));
-    closesocket(ip_socket);
+    my_socket_close(ip_socket);
     return -1;
   }
 
-  if (listen(ip_socket, LISTEN_BACK_LOG_SIZE))
+  if (my_listen(ip_socket, LISTEN_BACK_LOG_SIZE))
   {
     log_error("Listener: listen(ip socket) failed: %s.",
               (const char *) strerror(errno));
-    closesocket(ip_socket);
+    my_socket_close(ip_socket);
     return -1;
   }
 
-  /* set the socket nonblocking */
-  set_non_blocking(ip_socket);
+  my_socket_nonblock(ip_socket, true);
 
   /* make sure that instances won't be listening our sockets */
   set_no_inherit(ip_socket);
 
-  FD_SET(ip_socket, &read_fds);
+  my_FD_SET(ip_socket, &read_fds);
   sockets[num_sockets++]= ip_socket;
   log_info("Listener: accepting connections on ip socket (port: %d)...",
            (int) im_port);
@@ -260,8 +242,8 @@ int Listener::create_tcp_socket()
 int Listener::
 create_unix_socket(struct sockaddr_un &unix_socket_address)
 {
-  int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
-  if (unix_socket == INVALID_SOCKET)
+  my_socket unix_socket= my_socket_create(AF_UNIX, SOCK_STREAM, 0);
+  if (!my_socket_valid(unix_socket))
   {
     log_error("Listener: socket(AF_UNIX) failed: %s.",
               (const char *) strerror(errno));
@@ -280,28 +262,27 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
     to be 0777. We need everybody to have access to the socket.
   */
   mode_t old_mask= umask(0);
-  if (bind(unix_socket, (struct sockaddr *) &unix_socket_address,
+  if (my_bind(unix_socket, (struct sockaddr *) &unix_socket_address,
            sizeof(unix_socket_address)))
   {
     log_error("Listener: bind(unix socket) failed for '%s': %s.",
               (const char *) unix_socket_address.sun_path,
               (const char *) strerror(errno));
-    close(unix_socket);
+    my_socket_close(unix_socket);
     return -1;
   }
 
   umask(old_mask);
 
-  if (listen(unix_socket, LISTEN_BACK_LOG_SIZE))
+  if (my_listen(unix_socket, LISTEN_BACK_LOG_SIZE))
   {
     log_error("Listener: listen(unix socket) failed: %s.",
               (const char *) strerror(errno));
-    close(unix_socket);
+    my_socket_close(unix_socket);
     return -1;
   }
 
-  /* set the socket nonblocking */
-  set_non_blocking(unix_socket);
+  my_socket_nonblock(unix_socket, true);
 
   /* make sure that instances won't be listening our sockets */
   set_no_inherit(unix_socket);
@@ -309,7 +290,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   log_info("Listener: accepting connections on unix socket '%s'...",
            (const char *) unix_socket_address.sun_path);
   sockets[num_sockets++]= unix_socket;
-  FD_SET(unix_socket, &read_fds);
+  my_FD_SET(unix_socket, &read_fds);
   return 0;
 }
 #endif

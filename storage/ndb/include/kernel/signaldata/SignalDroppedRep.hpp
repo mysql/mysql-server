@@ -21,15 +21,17 @@
 class SignalDroppedRep {
 
   /**
-   * Reciver(s)
+   * Receiver(s)
    */
   friend class SimulatedBlock;
+  friend class Dbtc;
+  friend class Dblqh;
 
   /**
    * Sender (TransporterCallback.cpp)
    */
-  friend void execute(void * , struct SignalHeader* const, Uint8, 
-		      Uint32* const, struct LinearSectionPtr ptr[3]);
+  friend class TransporterFacade;
+  friend class TransporterCallbackKernel;
 
   friend bool printSIGNAL_DROPPED_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 public:

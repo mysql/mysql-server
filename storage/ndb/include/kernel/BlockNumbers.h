@@ -19,7 +19,7 @@
 #include <kernel_types.h>
 #include <RefConvert.hpp>
 
-/* 240 */
+/* 32768 */
 #define MIN_API_BLOCK_NO  0x8000
 
 /* 2047 */
@@ -27,6 +27,14 @@
 
 /* 4002 */
 #define API_CLUSTERMGR 0x0FA2
+
+/* Fixed block numbers in API */
+#define NO_API_FIXED_BLOCKS    1
+#define MIN_API_FIXED_BLOCK_NO (API_CLUSTERMGR+1)
+#define MGM_CONFIG_MAN MIN_API_FIXED_BLOCK_NO
+
+#define MAX_API_FIXED_BLOCK_NO (MIN_API_FIXED_BLOCK_NO + NO_API_FIXED_BLOCKS)
+
 
 #define BACKUP      0xF4
 #define DBTC        0xF5
@@ -48,6 +56,7 @@
 #define LGMAN      0x104
 #define PGMAN      0x105
 #define RESTORE    0x106
+#define DBINFO     0x107
 
 const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
 const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
@@ -68,9 +77,10 @@ const BlockReference TSMAN_REF   = numberToRef(TSMAN, 0);
 const BlockReference LGMAN_REF   = numberToRef(LGMAN, 0);
 const BlockReference PGMAN_REF   = numberToRef(PGMAN, 0);
 const BlockReference RESTORE_REF = numberToRef(RESTORE, 0);
+const BlockReference DBINFO_REF  = numberToRef(DBINFO, 0);
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;
-const BlockNumber MAX_BLOCK_NO = RESTORE;
+const BlockNumber MAX_BLOCK_NO = DBINFO;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
 
 /**

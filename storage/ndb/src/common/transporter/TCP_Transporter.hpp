@@ -17,7 +17,6 @@
 #define TCP_TRANSPORTER_HPP
 
 #include "Transporter.hpp"
-#include "SendBuffer.hpp"
 
 #include <NdbTCP.h>
 
@@ -46,26 +45,22 @@ class TCP_Transporter : public Transporter {
 private:
   // Initialize member variables
   TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
-  
+
   // Disconnect, delete send buffers and receive buffer
   virtual ~TCP_Transporter();
+
+  virtual bool configure_derived(const TransporterConfiguration* conf);
 
   /**
    * Allocate buffers for sending and receiving
    */
   bool initTransporter();
 
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio);
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio);
-  
-  bool hasDataToSend() const ;
-
   /**
-   * Retrieves the contents of the send buffers and writes it on 
-   * the external TCP/IP interface until the send buffers are empty
-   * and as long as write is possible.
+   * Retrieves the contents of the send buffers and writes it on
+   * the external TCP/IP interface.
    */
-  bool doSend();
+  int doSend();
   
   /**
    * It reads the external TCP/IP interface once 
@@ -91,8 +86,6 @@ private:
    */
   virtual void updateReceiveDataPtr(Uint32 bytesRead);
 
-  virtual Uint32 get_free_buffer() const;
-
   inline bool hasReceiveData () const {
     return receiveBuffer.sizeOfData > 0;
   }
@@ -108,16 +101,11 @@ protected:
   bool connect_common(NDB_SOCKET_TYPE sockfd);
   
   /**
-   * Disconnects a TCP/IP node. Empty send and receivebuffer.
+   * Disconnects a TCP/IP node. Empty receivebuffer.
    */
   virtual void disconnectImpl();
   
 private:
-  /**
-   * Send buffers
-   */
-  SendBuffer m_sendBuffer;
-  
   // Sending/Receiving socket used by both client and server
   NDB_SOCKET_TYPE theSocket;   
   
@@ -131,7 +119,7 @@ private:
   int sockOptNodelay;
   int sockOptTcpMaxSeg;
 
-  void setSocketOptions();
+  void setSocketOptions(NDB_SOCKET_TYPE socket);
 
   static bool setSocketNonBlocking(NDB_SOCKET_TYPE aSocket);
   virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
@@ -149,11 +137,8 @@ private:
 
   ReceiveBuffer receiveBuffer;
 
-  /**
-   * SendBuffer throttle.
-   */
-  Uint32 overloadedPct;
-  void update_status_overloaded();
+  bool send_limit_reached(int bufsize) { return bufsize > TCP_SEND_LIMIT; }
+  bool send_is_possible(struct timeval *tv) { return sendIsPossible(tv); }
 };
 
 inline
@@ -177,21 +162,6 @@ TCP_Transporter::updateReceiveDataPtr(Uint32 bytesRead){
   receiveBuffer.readPtr = (Uint32*)ptr;
   receiveBuffer.sizeOfData -= bytesRead;
   receiveBuffer.incompleteMessage();
-}
-
-inline
-bool
-TCP_Transporter::hasDataToSend() const {
-  return m_sendBuffer.dataSize > 0;
-}
-
-inline
-void
-TCP_Transporter::update_status_overloaded() {
-  const Uint32 used = m_sendBuffer.dataSize;
-  const Uint32 total = m_sendBuffer.sizeOfBuffer;
-  const bool val = (100 * used > overloadedPct * total);
-  set_status_overloaded(val);
 }
 
 inline

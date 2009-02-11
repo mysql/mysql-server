@@ -50,6 +50,9 @@ public:
 
     /* This NdbRecord is a default NdbRecord */
     RecIsDefaultRec= 0x20
+
+    /* The table has user defined partitioning */
+    ,RecHasUserDefinedPartitioning = 0x40
   };
 
   /* Flag bits for individual columns in the NdbRecord. */
@@ -151,7 +154,10 @@ public:
       const char *p= row + offset;
       Uint32 len= uint2korr(p);
       if (len >= SHRINK_VARCHAR_BUFFSIZE || len >= maxSize)
+      {
+        out_len = 0;
         return false;
+      }
       buf[0]= (unsigned char)len;
       memcpy(buf+1, p+2, len);
       out_len= len + 1;

@@ -1374,7 +1374,10 @@ public:
   NdbTransaction* startTransaction(const NdbDictionary::Table *table,
 				   const struct Key_part_ptr * keyData,
 				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbTransaction* startTransaction(const NdbRecord *keyRec, const char *keyData,
+				   void* xfrmbuf, Uint32 xfrmbuflen);
+#endif
   /**
    * Start a transaction, specifying table+partition as hint for
    *  TC-selection
@@ -1406,7 +1409,11 @@ public:
                          const NdbDictionary::Table*, 
                          const struct Key_part_ptr * keyData,
                          void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
-  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  static int computeHash(Uint32* hashvalueptr,
+                         const NdbRecord *keyRec, const char *keyData,
+                         void* xfrmbuf, Uint32 xfrmbuflen);
+#endif
   /**
    * Close a transaction.
    *
@@ -1817,6 +1824,9 @@ private:
   NdbTransaction*     void2con     (void* val);
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
+
+
+  Uint64 allocate_transaction_id();
 
 /******************************************************************************
  *	These are the private variables in this class.	

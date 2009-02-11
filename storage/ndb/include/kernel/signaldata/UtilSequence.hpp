@@ -29,6 +29,7 @@ class UtilSequenceReq {
    * Sender
    */
   friend class Backup;
+  friend class BackupProxy;
   friend class Suma;
 
   friend bool printUTIL_SEQUENCE_REQ(FILE *, const Uint32 *, Uint32, Uint16);

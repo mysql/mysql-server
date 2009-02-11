@@ -149,7 +149,7 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
   if (cur_pos >= no_db_nodes())
     return 0;
 
-  Ndb_cluster_connection_impl::Node *nodes= m_impl.m_all_nodes.getBase();
+  Ndb_cluster_connection_impl::Node *nodes= m_all_nodes.getBase();
   Ndb_cluster_connection_impl::Node &node=  nodes[cur_pos];
 
   if (iter.scan_state != (Uint8)~0)
@@ -594,52 +594,52 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
       break;
     }
     }
-    if (m_impl.m_all_nodes.push_back(Node(group,remoteNodeId)))
+    if (m_all_nodes.push_back(Node(group,remoteNodeId)))
     {
       DBUG_RETURN(-1);
     }
     DBUG_PRINT("info",("saved %d %d", group,remoteNodeId));
-    for (int i= m_impl.m_all_nodes.size()-2;
-	 i >= 0 && m_impl.m_all_nodes[i].group > m_impl.m_all_nodes[i+1].group;
+    for (int i= m_all_nodes.size()-2;
+	 i >= 0 && m_all_nodes[i].group > m_all_nodes[i+1].group;
 	 i--)
     {
-      Node tmp= m_impl.m_all_nodes[i];
-      m_impl.m_all_nodes[i]= m_impl.m_all_nodes[i+1];
-      m_impl.m_all_nodes[i+1]= tmp;
+      Node tmp= m_all_nodes[i];
+      m_all_nodes[i]= m_all_nodes[i+1];
+      m_all_nodes[i+1]= tmp;
     }
   }
 
   int i;
   Uint32 cur_group, i_group= 0;
   cur_group= ~0;
-  for (i= (int)m_impl.m_all_nodes.size()-1; i >= 0; i--)
+  for (i= (int)m_all_nodes.size()-1; i >= 0; i--)
   {
-    if (m_impl.m_all_nodes[i].group != cur_group)
+    if (m_all_nodes[i].group != cur_group)
     {
-      cur_group= m_impl.m_all_nodes[i].group;
+      cur_group= m_all_nodes[i].group;
       i_group= i+1;
     }
-    m_impl.m_all_nodes[i].next_group= i_group;
+    m_all_nodes[i].next_group= i_group;
   }
   cur_group= ~0;
-  for (i= 0; i < (int)m_impl.m_all_nodes.size(); i++)
+  for (i= 0; i < (int)m_all_nodes.size(); i++)
   {
-    if (m_impl.m_all_nodes[i].group != cur_group)
+    if (m_all_nodes[i].group != cur_group)
     {
-      cur_group= m_impl.m_all_nodes[i].group;
+      cur_group= m_all_nodes[i].group;
       i_group= i;
     }
-    m_impl.m_all_nodes[i].this_group= i_group;
+    m_all_nodes[i].this_group= i_group;
   }
 #if 0
-  for (i= 0; i < (int)m_impl.m_all_nodes.size(); i++)
+  for (i= 0; i < (int)m_all_nodes.size(); i++)
   {
     fprintf(stderr, "[%d] %d %d %d %d\n",
 	   i,
-	   m_impl.m_all_nodes[i].id,
-	   m_impl.m_all_nodes[i].group,
-	   m_impl.m_all_nodes[i].this_group,
-	   m_impl.m_all_nodes[i].next_group);
+	   m_all_nodes[i].id,
+	   m_all_nodes[i].group,
+	   m_all_nodes[i].this_group,
+	   m_all_nodes[i].next_group);
   }
 
   do_test();
@@ -704,84 +704,86 @@ void Ndb_cluster_connection::set_name(const char *name)
   m_impl.set_name(name);
 }
 
-int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
-				    int verbose)
+int Ndb_cluster_connection_impl::connect(int no_retries,
+                                         int retry_delay_in_seconds,
+                                         int verbose)
 {
   struct ndb_mgm_reply mgm_reply;
 
   DBUG_ENTER("Ndb_cluster_connection::connect");
   do {
-    if (m_impl.m_config_retriever == 0)
+    if (m_config_retriever == 0)
     {
-      if (!m_impl.m_latest_error)
+      if (!m_latest_error)
       {
-        m_impl.m_latest_error= 1;
-        m_impl.m_latest_error_msg.assign
-          ("Ndb_cluster_connection init error: m_impl.m_config_retriever==0");
+        m_latest_error = 1;
+        m_latest_error_msg.assign("Ndb_cluster_connection init "
+                                  "error: m_config_retriever==0");
       }
-      DBUG_PRINT("exit", ("no m_impl.m_config_retriever, ret: -1"));
+      DBUG_PRINT("exit", ("no m_config_retriever, ret: -1"));
       DBUG_RETURN(-1);
     }
-    if (m_impl.m_config_retriever->do_connect(no_retries,
-					      retry_delay_in_seconds,
-					      verbose))
+    if (m_config_retriever->do_connect(no_retries,
+                                       retry_delay_in_seconds,
+                                       verbose))
     {
       char buf[1024];
-      m_impl.m_latest_error= 1;
-      m_impl.m_latest_error_msg.assfmt
-        ("Connect using '%s' timed out", get_connectstring(buf, sizeof(buf)));
+      m_latest_error = 1;
+      m_latest_error_msg.assfmt("Connect using '%s' timed out",
+                                get_connectstring(buf, sizeof(buf)));
       DBUG_PRINT("exit", ("mgmt server not up yet, ret: 1"));
       DBUG_RETURN(1); // mgmt server not up yet
     }
 
-    Uint32 nodeId = m_impl.m_config_retriever->allocNodeId(4/*retries*/,
-							   3/*delay*/);
+    Uint32 nodeId = m_config_retriever->allocNodeId(4/*retries*/,
+                                                    3/*delay*/);
     if(nodeId == 0)
       break;
-    ndb_mgm_configuration * props = m_impl.m_config_retriever->getConfig();
+    ndb_mgm_configuration * props = m_config_retriever->getConfig();
     if(props == 0)
       break;
 
-    m_impl.m_transporter_facade->start_instance(nodeId, props);
-    if (m_impl.init_nodes_vector(nodeId, *props))
+    if (m_transporter_facade->start_instance(nodeId, props) < 0)
     {
-      ndbout_c("Ndb_cluster_connection::connect: malloc failure");
+      ndb_mgm_destroy_configuration(props);
+      DBUG_RETURN(-1);
+    }
+
+    if (init_nodes_vector(nodeId, *props))
+    {
+      ndb_mgm_destroy_configuration(props);
       DBUG_PRINT("exit", ("malloc failure, ret: -1"));
       DBUG_RETURN(-1);
     }
 
-    for(unsigned i=0;
-	i<m_impl.m_transporter_facade->get_registry()->m_transporter_interface.size();
-	i++)
-      ndb_mgm_set_connection_int_parameter(m_impl.m_config_retriever->get_mgmHandle(),
-					   nodeId,
-					   m_impl.m_transporter_facade->get_registry()
-					     ->m_transporter_interface[i]
-					     .m_remote_nodeId,
-					   CFG_CONNECTION_SERVER_PORT,
-					   m_impl.m_transporter_facade->get_registry()
-					     ->m_transporter_interface[i]
-					     .m_s_service_port,
-					   &mgm_reply);
-
     ndb_mgm_destroy_configuration(props);
-    m_impl.m_transporter_facade->connected();
-    m_impl.m_latest_error= 0;
-    m_impl.m_latest_error_msg.assign("");
+    m_transporter_facade->connected();
+    m_latest_error = 0;
+    m_latest_error_msg.assign("");
     DBUG_PRINT("exit", ("connect ok, ret: 0"));
     DBUG_RETURN(0);
   } while(0);
-  
-  const char* erString = m_impl.m_config_retriever->getErrorString();
+
+  const char* erString = m_config_retriever->getErrorString();
   if (erString == 0) {
     erString = "No error specified!";
   }
-  m_impl.m_latest_error= 1;
-  m_impl.m_latest_error_msg.assfmt("Configuration error: %s", erString);
+  m_latest_error = 1;
+  m_latest_error_msg.assfmt("Configuration error: %s", erString);
   ndbout << get_latest_error_msg() << endl;
   DBUG_PRINT("exit", ("connect failed, '%s' ret: -1", erString));
   DBUG_RETURN(-1);
 }
+
+
+int
+Ndb_cluster_connection::connect(int no_retries,
+                                int retry_delay_in_seconds,
+                                int verbose)
+{
+  return m_impl.connect(no_retries, retry_delay_in_seconds, verbose);
+}
+
 
 void Ndb_cluster_connection_impl::connect_thread()
 {

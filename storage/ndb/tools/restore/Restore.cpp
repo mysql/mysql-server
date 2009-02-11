@@ -277,6 +277,20 @@ RestoreMetaData::readMetaTableDesc() {
 	   << dec << dst->getObjectId() << " " << dst->getPath() << endl;
     break;
   }
+  case DictTabInfo::HashMap:
+  {
+    NdbDictionary::HashMap * dst = new NdbDictionary::HashMap;
+    errcode =
+      NdbDictInterface::parseHashMapInfo(NdbHashMapImpl::getImpl(* dst),
+                                         (Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+
+    m_objects.push(obj, 0); // Put first
+    return true;
+    break;
+  }
   default:
     err << "Unsupported table type!! " << sectionInfo[2] << endl;
     return false;
@@ -1106,6 +1120,7 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 
   m_file_size = 0;
   m_file_pos = 0;
+  m_is_undolog = false;
 }
 
 BackupFile::~BackupFile(){
@@ -1130,6 +1145,9 @@ BackupFile::openFile(){
   info.setLevel(254);
   info << "Opening file '" << m_fileName << "'\n";
   int r= azopen(&m_file,m_fileName, O_RDONLY);
+
+  if(m_file.file < 0)
+    r= -1;
 
   if (r==0)
   {
@@ -1159,21 +1177,104 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
       (*free_data_callback)();
 
     reset_buffers();
-    memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
 
-    int error;
-    size_t r = azread(&m_file,
-                      ((char *)m_buffer) + m_buffer_data_left,
-                      m_buffer_sz - m_buffer_data_left, &error);
-    m_file_pos += r;
-    m_buffer_data_left += r;
-    m_buffer_ptr = m_buffer;
+    if (m_is_undolog)
+    {
+      /* move the left data to the end of buffer
+       */
+      size_t r = 0;
+      int error;
+      /* move the left data to the end of buffer
+       * m_buffer_ptr point the end of the left data. buffer_data_start point the start of left data
+       * m_buffer_data_left is the length of left data.
+       */
+      Uint64 file_left_entry_data = 0;
+      Uint32 buffer_free_space = m_buffer_sz - m_buffer_data_left;
+      void * buffer_end = (char *)m_buffer + m_buffer_sz;
+      void * buffer_data_start = (char *)m_buffer_ptr - m_buffer_data_left;
+
+      memmove((char *)buffer_end - m_buffer_data_left, buffer_data_start, m_buffer_data_left);
+      buffer_data_start = (char *)buffer_end - m_buffer_data_left;
+      /*
+       * For undo log file we should read log entris backwards from log file.
+       *   That mean the first entries should start at sizeof(m_fileHeader).
+       *   The end of the last entries should be the end of log file(EOF-1).
+       * If ther are entries left in log file to read.
+       *   m_file_pos should bigger than sizeof(m_fileHeader).
+       * If the length of left log entries less than the residual length of buffer,
+       *   we just need to read all the left entries from log file into the buffer.
+       *   and all the left entries in log file should been read into buffer. Or
+       * If the length of left entries is bigger than the residual length of buffer,
+       *   we should fill the buffer because the current buffer can't contain
+           all the left log entries, we should read more times.
+       * 
+       */
+      if (m_file_pos > sizeof(m_fileHeader))
+      {
+        /*
+         * We read(consume) data from the end of the buffer.
+         * If the left data is not enough for next read in buffer,
+         *   we move the residual data to the end of buffer.
+         *   Then we will fill the start of buffer with new data from log file.
+         * eg. If the buffer length is 10. "+" denotes useless content.
+         *                          top        end
+         *   Bytes in file        abcdefgh0123456789
+         *   Byte in buffer       0123456789             --after first read
+         *   Consume datas...     (6789) (2345)
+         *   Bytes in buffer      01++++++++             --after several consumes
+         *   Move data to end     ++++++++01
+         *   Bytes in buffer      abcdefgh01             --after second read
+         */
+	file_left_entry_data = m_file_pos - sizeof(m_fileHeader);
+        if (file_left_entry_data <= buffer_free_space)
+        {
+          /* All remaining data fits in space available in buffer. 
+	   * Read data into buffer before existing data.
+	   */
+          // Move to the start of data to be read
+          azseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
+          r = azread(&m_file, (char *)buffer_data_start - file_left_entry_data, file_left_entry_data, &error);
+          //move back
+          azseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
+        }
+        else
+        {
+	  // Fill remaing space at start of buffer with data from file.
+          azseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
+          r = azread(&m_file, ((char *)m_buffer), buffer_free_space, &error);
+          azseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
+        }
+      }
+      m_file_pos -= r;
+      m_buffer_data_left += r;
+      //move to the end of buffer
+      m_buffer_ptr = buffer_end;
+    }
+    else
+    {
+      memmove(m_buffer, m_buffer_ptr, m_buffer_data_left);
+      int error;
+      size_t r = azread(&m_file,
+                        ((char *)m_buffer) + m_buffer_data_left,
+                        m_buffer_sz - m_buffer_data_left, &error);
+      m_file_pos += r;
+      m_buffer_data_left += r;
+      m_buffer_ptr = m_buffer;
+    }
 
     if (sz > m_buffer_data_left)
       sz = size * (m_buffer_data_left / size);
   }
 
-  *p_buf_ptr = m_buffer_ptr;
+  /*
+   * For undolog, the m_buffer_ptr points to the end of the left data.
+   * After we get data from the end of buffer, the data-end move forward.
+   *   So we should move m_buffer_ptr to the right place.
+   */
+  if(m_is_undolog)
+    *p_buf_ptr = (char *)m_buffer_ptr - sz;
+  else
+    *p_buf_ptr = m_buffer_ptr;
 
   return sz/size;
 }
@@ -1181,8 +1282,19 @@ Uint32 BackupFile::buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
 {
   Uint32 r = buffer_get_ptr_ahead(p_buf_ptr, size, nmemb);
 
-  m_buffer_ptr = ((char*)m_buffer_ptr)+(r*size);
-  m_buffer_data_left -= (r*size);
+  if(m_is_undolog)
+  {
+    /* we read from end of buffer to start of buffer.
+     * m_buffer_ptr keep at the end of real data in buffer.
+     */
+    m_buffer_ptr = ((char*)m_buffer_ptr)-(r*size);
+    m_buffer_data_left -= (r*size);
+  }
+  else
+  {
+    m_buffer_ptr = ((char*)m_buffer_ptr)+(r*size);
+    m_buffer_data_left -= (r*size);
+  }
 
   return r;
 }
@@ -1244,10 +1356,10 @@ void
 BackupFile::setName(const char * p, const char * n){
   const Uint32 sz = sizeof(m_path);
   if(p != 0 && strlen(p) > 0){
-    if(p[strlen(p)-1] == '/'){
+    if(p[strlen(p)-1] == DIR_SEPARATOR[0]){
       BaseString::snprintf(m_path, sz, "%s", p);
     } else {
-      BaseString::snprintf(m_path, sz, "%s%s", p, "/");
+      BaseString::snprintf(m_path, sz, "%s%s", p, DIR_SEPARATOR);
     }
   } else {
     m_path[0] = 0;
@@ -1316,10 +1428,30 @@ BackupFile::readHeader(){
   debug << "ByteOrder is " << m_fileHeader.ByteOrder << endl;
   debug << "magicByteOrder is " << magicByteOrder << endl;
   
-  if (m_fileHeader.FileType != m_expectedFileHeader.FileType){
+
+  if (m_fileHeader.FileType != m_expectedFileHeader.FileType &&
+      !(m_expectedFileHeader.FileType == BackupFormat::LOG_FILE &&
+      m_fileHeader.FileType == BackupFormat::UNDO_FILE)){
+    // UNDO_FILE will do in case where we expect LOG_FILE
     abort();
   }
   
+  if(m_fileHeader.FileType == BackupFormat::UNDO_FILE){
+      m_is_undolog = true;
+      /* move pointer to end of data part. 
+         move 4 bytes from the end of file 
+         because footer contain 4 bytes 0 at the end of file.
+         we discard the remain data stored in m_buffer.
+      */
+      struct stat buf;
+      if (fstat(m_file.file, &buf) == 0)
+        m_file_size = (Uint64)buf.st_size;
+      azseek(&m_file, 4, SEEK_END);  
+      m_file_pos = m_file_size - 4;
+      m_buffer_data_left = 0;
+      m_buffer_ptr = m_buffer;
+  }
+
   // Check for BackupFormat::FileHeader::ByteOrder if swapping is needed
   if (m_fileHeader.ByteOrder == magicByteOrder) {
     m_hostByteOrder = true;
@@ -1541,9 +1673,24 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   do {
     Uint32 len;
     Uint32 *logEntryPtr;
-    if (buffer_read_ahead(&len, sizeof(Uint32), 1) != 1){
-      res= -1;
-      return 0;
+    if(m_is_undolog){
+      int read_result = 0;
+      read_result = buffer_read(&len, sizeof(Uint32), 1);
+      //no more log data to read
+      if (read_result == 0 ) {
+        res = 0;
+        return 0;
+      }
+      if (read_result != 1) {
+        res= -1;
+        return 0;
+      }
+    }
+    else{
+      if (buffer_read_ahead(&len, sizeof(Uint32), 1) != 1){
+        res= -1;
+        return 0;
+      }
     }
     len= ntohl(len);
 
@@ -1598,15 +1745,27 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   } while(m_last_gci > stopGCP + 1);
 
   m_logEntry.m_table = m_metaData.getTable(tableId);
+  /* We should 'invert' the operation type when we restore an Undo log.
+   *   To undo an insert operation, a delete is required.
+   *   To undo a delete operation, an insert is required.
+   * The backup have collected 'before values' for undoing 'delete+update' to make this work.
+   * To undo insert, we only need primary key.
+   */
   switch(triggerEvent){
   case TriggerEvent::TE_INSERT:
-    m_logEntry.m_type = LogEntry::LE_INSERT;
+    if(m_is_undolog)
+      m_logEntry.m_type = LogEntry::LE_DELETE;
+    else
+      m_logEntry.m_type = LogEntry::LE_INSERT;
     break;
   case TriggerEvent::TE_UPDATE:
     m_logEntry.m_type = LogEntry::LE_UPDATE;
     break;
   case TriggerEvent::TE_DELETE:
-    m_logEntry.m_type = LogEntry::LE_DELETE;
+    if(m_is_undolog)
+      m_logEntry.m_type = LogEntry::LE_INSERT;
+    else
+      m_logEntry.m_type = LogEntry::LE_DELETE;
     break;
   default:
     res = -1;

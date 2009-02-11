@@ -704,8 +704,15 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_DROP_FILE_CONF:
   case GSN_DROP_FILEGROUP_REF:
   case GSN_DROP_FILEGROUP_CONF:
+  case GSN_SCHEMA_TRANS_BEGIN_CONF:
+  case GSN_SCHEMA_TRANS_BEGIN_REF:
+  case GSN_SCHEMA_TRANS_END_CONF:
+  case GSN_SCHEMA_TRANS_END_REF:
+  case GSN_SCHEMA_TRANS_END_REP:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
+  case GSN_CREATE_HASH_MAP_REF:
+  case GSN_CREATE_HASH_MAP_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;
@@ -899,10 +906,14 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
     return;
   } 
+  case GSN_API_REGCONF:{
+    return; // Ignore
+  }
   case GSN_TAKE_OVERTCCONF:
     abortTransactionsAfterNodeFailure(tFirstData); // theData[0]
     break;
   default:
+    tFirstDataPtr = NULL;
     goto InvalidSignal;
   }//swich
 
@@ -1079,7 +1090,7 @@ Ndb::check_send_timeout()
       {
 #ifdef VM_TRACE
         a_con->printState();
-	Uint32 t1 = a_con->theTransactionId;
+	Uint32 t1 = (Uint32) a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
 	ndbout_c("4012 [%.8x %.8x]", t1, t2);
 	//abort();

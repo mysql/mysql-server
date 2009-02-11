@@ -54,7 +54,7 @@ unsigned __stdcall test_thread(void *arg __attribute__((unused)))
     perror("");
     goto end;
   }
-  mysql.reconnect= 1;
+  mysql->reconnect= 1;
   if (verbose) { putchar('*'); fflush(stdout); }
   for (count=0 ; count < number_of_tests ; count++)
   {

@@ -20,6 +20,8 @@
 #include <my_sys.h>
 #include <ndb_version.h>
 
+#include <ndb_rand.h>
+
 // version >= 5.1 required
 
 #if !defined(min) || !defined(max)
@@ -113,7 +115,7 @@ static NdbBlob* g_bh = 0;
 static uint
 urandom()
 {
-  uint r = (uint)random();
+  uint r = (uint)ndb_rand();
   return r;
 }
 
@@ -1023,8 +1025,7 @@ checkop(const Op* op, Uint32& pk1)
         const Data& d = op->data[j];
         if (d.ind[i] == 0) {
           const Data::Txt& txt = *d.ptr[i].txt;
-          int k;
-          for (k = 0; k < txt.len; k++) {
+          for (unsigned int k = 0; k < txt.len; k++) {
             chkrc(strchr(g_charval, txt.val[k]) != 0);
           }
         }
@@ -1682,9 +1683,9 @@ runops()
   ll1("runops");
   Op* gci_op[g_maxtab][g_maxpk];
   uint left = 0; // number of table pks with ops
-  int i;
   Uint32 pk1;
-  for (i = 0; i < maxrun(); i++) {
+  unsigned int i;
+  for (unsigned int i = 0; i < maxrun(); i++) {
     Run& r = run(i);
     for (pk1 = 0; pk1 < g_opts.maxpk; pk1++) {
       gci_op[i][pk1] = 0;
@@ -1702,8 +1703,9 @@ runops()
       left++;
     }
   }
+
   while (left != 0) {
-    i = urandom(maxrun());
+    unsigned int i = urandom(maxrun());
     pk1 = urandom(g_opts.maxpk);
     if (gci_op[i][pk1] == 0)
       continue;
@@ -1841,9 +1843,9 @@ static void
 geteventdata(Run& r)
 {
   Data (&d)[2] = g_rec_ev->data;
-  int i, j;
+  int j;
   for (j = 0; j < 2; j++) {
-    for (i = 0; i < ncol(); i++) {
+    for (unsigned int i = 0; i < ncol(); i++) {
       const Col& c = getcol(i);
       int ind, ret;
       if (! c.isblob()) {
@@ -2193,7 +2195,7 @@ setseed(int n)
     seed = n;
   }
   ll0("seed=" << seed);
-  srandom(seed);
+  ndb_srand(seed);
 }
 
 static int
@@ -2232,8 +2234,6 @@ runtest()
   deleteops();
   return 0;
 }
-
-NDB_STD_OPTS_VARS;
 
 static struct my_option
 my_long_options[] =
@@ -2371,9 +2371,8 @@ main(int argc, char** argv)
   ndb_init();
   const char* progname =
     strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
-  uint i;
   ndbout << progname;
-  for (i = 1; i < argc; i++)
+  for (int i = 1; i < argc; i++)
     ndbout << " " << argv[i];
   ndbout << endl;
   int ret;

@@ -32,8 +32,9 @@ class DisconnectRep {
    * Senders
    */
   friend class Dbtc;
-  friend void reportDisconnect(void * , NodeId, Uint32); // TransporterCallback
-  
+  friend class TransporterFacade;
+  friend class TransporterCallbackKernel;
+
   /**
    * For printing
    */

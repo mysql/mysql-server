@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+EXTRA_DIST = CMakeLists.txt
+
 ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect
 
 # transproxy 
@@ -45,5 +47,3 @@ ndb_cpcc_LDFLAGS = -static
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-windoze-dsp:

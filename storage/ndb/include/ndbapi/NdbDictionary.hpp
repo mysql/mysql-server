@@ -118,7 +118,9 @@ public:
       Tablespace = 20,        ///< Tablespace
       LogfileGroup = 21,      ///< Logfile group
       Datafile = 22,          ///< Datafile
-      Undofile = 23           ///< Undofile
+      Undofile = 23,          ///< Undofile
+      ReorgTrigger = 19,
+      HashMap = 24
     };
 
     /**
@@ -162,7 +164,8 @@ public:
       FragAllLarge = 4,       ///< Four fragments per node.
       DistrKeyHash = 5,
       DistrKeyLin = 6,
-      UserDefined = 7
+      UserDefined = 7,
+      HashMapPartition = 9
     };
   };
 
@@ -193,6 +196,7 @@ public:
   
   class Table; // forward declaration
   class Tablespace; // forward declaration
+  class HashMap; // Forward
 //  class NdbEventOperation; // forward declaration
 
   /**
@@ -748,24 +752,6 @@ public:
     Uint32 getFrmLength() const;
 
     /**
-     * Get Fragment Data (id, state and node group)
-     */
-    const void *getFragmentData() const;
-    Uint32 getFragmentDataLen() const;
-
-    /**
-     * Get Range or List Array (value, partition)
-     */
-    const void *getRangeListData() const;
-    Uint32 getRangeListDataLen() const;
-
-    /**
-     * Get Tablespace Data (id, version)
-     */
-    const void *getTablespaceData() const;
-    Uint32 getTablespaceDataLen() const;
-
-    /**
      * Get default NdbRecord object for this table
      * This NdbRecord object becomes invalid at the same time as
      * the table object - when the ndb_cluster_connection is closed.
@@ -871,6 +857,9 @@ public:
     int setTablespace(const class Tablespace &);
     bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
 
+    bool getHashMap(Uint32* id = 0, Uint32* version = 0) const;
+    int setHashMap(const class HashMap &);
+
     /**
      * Get table object type
      */
@@ -904,34 +893,35 @@ public:
     int setFrm(const void* data, Uint32 len);
 
     /**
-     * Set array of fragment information containing
-     * Fragment Identity
-     * Node group identity
-     * Fragment State
+     * Set fragmentation
+     *   One Uint32 per fragment, containing nodegroup of fragment
+     *   nodegroups[0] - correspondce to fragment 0
+     *
+     * Note: This calls also modifies <em>setFragmentCount</em>
+     *
      */
-    int setFragmentData(const void* data, Uint32 len);
+    int setFragmentData(const Uint32 * nodegroups, Uint32 cnt);
 
     /**
-     * Set/Get tablespace names per fragment
+     * Get Fragment Data (array of node groups)
      */
-    int setTablespaceNames(const void* data, Uint32 len);
-    const void *getTablespaceNames();
-    Uint32 getTablespaceNamesLen() const;
-
-    /**
-     * Set tablespace information per fragment
-     * Contains a tablespace id and a tablespace version
-     */
-    int setTablespaceData(const void* data, Uint32 len);
+    const Uint32 *getFragmentData() const;
+    Uint32 getFragmentDataLen() const;
 
     /**
      * Set array of information mapping range values and list values
-     * to fragments. This is essentially a sorted map consisting of
-     * pairs of value, fragment identity. For range partitions there is
-     * one pair per fragment. For list partitions it could be any number
-     * of pairs, at least as many as there are fragments.
+     * to fragments.
+     *
+     * For range, this is a sorted list of range values
+     * For list, this is a list of pairs { value, partition }
      */
-    int setRangeListData(const void* data, Uint32 len);
+    int setRangeListData(const Int32* data, Uint32 cnt);
+
+    /**
+     * Get Range or List Array (value, partition)
+     */
+    const Int32 *getRangeListData() const;
+    Uint32 getRangeListDataLen() const;
 
     /**
      * Set table object type
@@ -981,7 +971,7 @@ public:
 
     int getReplicaCount() const ;
 
-    bool getTemporary();
+    bool getTemporary() const;
     void setTemporary(bool); 
 
     /**
@@ -1235,7 +1225,7 @@ public:
     void setStoredIndex(bool x) { setLogging(x); }
     bool getStoredIndex() const { return getLogging(); }
 
-    bool getTemporary();
+    bool getTemporary() const;
     void setTemporary(bool); 
 #endif
     
@@ -1916,6 +1906,51 @@ public:
   };
 
   /**
+   * @class HashMap
+   * @brief Represents a HashMap in an NDB Cluster
+   *
+   */
+  class HashMap : public Object {
+  public:
+    HashMap();
+    HashMap(const HashMap&);
+    virtual ~HashMap();
+
+    void setName(const char *);
+    const char * getName() const;
+
+    void setMap(const Uint32* values, Uint32 len);
+    Uint32 getMapLen() const;
+    int getMapValues(Uint32* dst, Uint32 len) const;
+
+    /**
+     * equal
+     *   compares *values* only
+     */
+    bool equal(const HashMap&) const;
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
+
+  private:
+    friend class NdbHashMapImpl;
+    class NdbHashMapImpl & m_impl;
+    HashMap(NdbHashMapImpl&);
+  };
+
+  /**
    * @class Dictionary
    * @brief Dictionary for defining and retreiving meta data
    */
@@ -2240,8 +2275,124 @@ public:
     int dropUndofile(const Undofile&);
     Undofile getUndofile(Uint32 node, const char * path);
     
+
     /** @} *******************************************************************/
-    
+    /**
+     * @name HashMap
+     * @{
+     */
+
+    /**
+     * Create a HashMap in database
+     */
+    int createHashMap(const HashMap&, ObjectId* = 0);
+
+    /**
+     * Get a HashMap by name
+     */
+    int getHashMap(HashMap& dst, const char* name);
+
+    /**
+     * Get a HashMap for a table
+     */
+    int getHashMap(HashMap& dst, const Table* table);
+
+    /**
+     * Get default HashMap
+     */
+    int getDefaultHashMap(HashMap& dst, Uint32 fragments);
+
+
+    /**
+     * Init a default HashMap
+     */
+    int initDefaultHashMap(HashMap& dst, Uint32 fragments);
+
+    /**
+     * create (or retreive) a HashMap suitable for alter
+     * NOTE: Requires a started schema transaction
+     */
+    int prepareHashMap(const Table& oldTable, Table& newTable);
+
+    /** @} *******************************************************************/
+
+    /**
+     * @name Schema transactions
+     *
+     * Metadata operations are create, alter, and drop of objects of
+     * various types.  An operation may create additional sub-operations
+     * in the kernel.
+     *
+     * By default, each user operation is executed separately.  That is,
+     * a schema transaction is started implicitly, the operation and its
+     * suboperations are executed, and the transaction is closed.
+     *
+     * The Ndb object and its associated Dictionary support one schema
+     * transaction at a time.
+     *
+     * Using begin and end transaction explicitly it is possible to
+     * execute a set of user defined operations atomically i.e. either
+     * all operations succeed or all are aborted (rolled back).
+     *
+     * The steps are 1) beginSchemaTrans 2) submit operations such as
+     * createTable 3) endSchemaTrans.
+     *
+     * Each operation is sent to the kernel which parses and saves it.
+     * Parse failure does rollback to previous user operation before
+     * returning.  The user can continue or abort entire transaction.
+     *
+     * After all operations have been submitted, endSchemaTrans with
+     * flags 0 (the default) processes and commits them.  On error
+     * return the transaction is already aborted.
+     *
+     * If the user exits before calling endSchemaTrans, the kernel
+     * aborts the transaction.  If the user exits before the call to
+     * endSchemaTrans returns, the kernel continues with the request.
+     * Completion status is reported in cluster log.
+     */
+
+    //@{
+    /**
+     * Begin schema transaction.  Returns error if a transaction is
+     * already active or if the kernel metadata is locked.
+     *
+     * @return 0 on success, -1 on error
+     */
+    int beginSchemaTrans();
+
+    /**
+     * End schema transaction, with commit or with abort.  Combines
+     * execute and close which do not exist separately.  May be called
+     * and succeeds even if no transaction is active.
+     *
+     * @note Like any method, may overwrite current error code.
+     *       First save error code from any failed operation.
+     *
+     * @param flags
+     *        Bitmask of options.
+     *        Default 0 commits the transaction.
+     *        Including option 1 aborts the transaction.
+     *        See SchemaTransFlag for others.
+     * @return 0 on success, -1 on error
+     */
+    int endSchemaTrans(Uint32 flags = 0);
+
+    /**
+     * Flags for endSchemaTrans, or-ed together.
+     */
+    enum SchemaTransFlag {
+      // abort transaction
+      SchemaTransAbort = 1,
+      // do not wait for reply, status is reported in cluster log
+      SchemaTransBackground = 2
+    };
+
+    /**
+     * Check if a schema transaction exists currently.
+     */
+    bool hasSchemaTrans() const;
+    //@}
+
   protected:
     Dictionary(Ndb & ndb);
     ~Dictionary();
