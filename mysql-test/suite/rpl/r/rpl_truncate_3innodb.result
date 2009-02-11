@@ -5,10 +5,10 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 **** Resetting master and slave ****
-STOP SLAVE;
+include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
-START SLAVE;
+include/start_slave.inc
 **** On Master ****
 CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -25,10 +25,10 @@ TRUNCATE TABLE t1;
 Comparing tables master:test.t2 and slave:test.t2
 DROP TABLE t1,t2;
 **** Resetting master and slave ****
-STOP SLAVE;
+include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
-START SLAVE;
+include/start_slave.inc
 **** On Master ****
 CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
