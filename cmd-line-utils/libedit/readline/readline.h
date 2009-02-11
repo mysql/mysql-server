@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.12 2004/09/08 18:15:37 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.24 2009/02/05 19:15:26 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -45,14 +38,14 @@
 /* typedefs */
 typedef int	  Function(const char *, int);
 typedef void	  VFunction(void);
+typedef void	  VCPFunction(char *);
 typedef char	 *CPFunction(const char *, int);
 typedef char	**CPPFunction(const char *, int, int);
-
-typedef void *histdata_t;
+typedef char     *rl_compentry_func_t(const char *, int);
 
 typedef struct _hist_entry {
 	const char	*line;
-	histdata_t	*data;
+	const char	*data;
 } HIST_ENTRY;
 
 typedef struct _keymap_entry {
@@ -73,7 +66,7 @@ typedef KEYMAP_ENTRY *Keymap;
 
 #ifndef CTRL
 #include <sys/ioctl.h>
-#if defined(__GLIBC__) || defined(__MWERKS__)
+#if !defined(__sun__) && !defined(__hpux__)
 #include <sys/ttydefaults.h>
 #endif
 #ifndef CTRL
@@ -102,8 +95,9 @@ extern int		 max_input_history;
 extern char		*rl_basic_word_break_characters;
 extern char		*rl_completer_word_break_characters;
 extern char		*rl_completer_quote_characters;
-extern CPFunction	*rl_completion_entry_function;
+extern Function		*rl_completion_entry_function;
 extern CPPFunction	*rl_attempted_completion_function;
+extern int		 rl_attempted_completion_over;
 extern int		rl_completion_type;
 extern int		rl_completion_query_items;
 extern char		*rl_special_prefixes;
@@ -122,11 +116,13 @@ extern KEYMAP_ENTRY_ARRAY emacs_standard_keymap,
 			emacs_ctlx_keymap;
 extern int		rl_filename_completion_desired;
 extern int		rl_ignore_completion_duplicates;
-extern Function		*rl_getc_function;
+extern int		(*rl_getc_function)(FILE *);
 extern VFunction	*rl_redisplay_function;
 extern VFunction	*rl_completion_display_matches_hook;
 extern VFunction	*rl_prep_term_function;
 extern VFunction	*rl_deprep_term_function;
+extern int		readline_echoing_p;
+extern int		_rl_print_completions_horizontally;
 
 /* supported functions */
 char		*readline(const char *);
@@ -141,6 +137,7 @@ int		 history_is_stifled(void);
 int		 where_history(void);
 HIST_ENTRY	*current_history(void);
 HIST_ENTRY	*history_get(int);
+HIST_ENTRY	*remove_history(int);
 int		 history_total_bytes(void);
 int		 history_set_pos(int);
 HIST_ENTRY	*previous_history(void);
@@ -168,7 +165,7 @@ void		 rl_reset_terminal(const char *);
 int		 rl_bind_key(int, int (*)(int, int));
 int		 rl_newline(int, int);
 void		 rl_callback_read_char(void);
-void		 rl_callback_handler_install(const char *, VFunction *);
+void		 rl_callback_handler_install(const char *, VCPFunction *);
 void		 rl_callback_handler_remove(void);
 void		 rl_redisplay(void);
 int		 rl_get_previous_history(int, int);
@@ -176,13 +173,24 @@ void		 rl_prep_terminal(int);
 void		 rl_deprep_terminal(void);
 int		 rl_read_init_file(const char *);
 int		 rl_parse_and_bind(const char *);
+int		 rl_variable_bind(const char *, const char *);
 void		 rl_stuff_char(int);
 int		 rl_add_defun(const char *, Function *, int);
+void		 rl_get_screen_size(int *, int *);
+void		 rl_set_screen_size(int, int);
+char 		*rl_filename_completion_function (const char *, int);
+int		 _rl_abort_internal(void);
+int		 _rl_qsort_string_compare(char **, char **);
+char 	       **rl_completion_matches(const char *, rl_compentry_func_t *);
+void		 rl_forced_update_display(void);
+int		 rl_set_prompt(const char *);
 
 /*
  * The following are not implemented
  */
+int		 rl_kill_text(int, int);
 Keymap		 rl_get_keymap(void);
+void		 rl_set_keymap(Keymap);
 Keymap		 rl_make_bare_keymap(void);
 int		 rl_generic_bind(int, const char *, const char *, Keymap);
 int		 rl_bind_key_in_map(int, Function *, Keymap);
