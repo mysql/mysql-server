@@ -9621,7 +9621,9 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    if (!check_ndb_in_thd(thd))
+      DBUG_RETURN(FALSE);
+   Thd_ndb *thd_ndb= get_thd_ndb(thd);
     if (!thd_ndb->changed_tables.is_empty())
     {
       NDB_SHARE* share;
