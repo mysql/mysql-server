@@ -1,5 +1,5 @@
 reset master;
-call mtr.add_suppression("Failed during slave.*thread initialization");
+call mtr.add_suppression("Failed during slave thread initialization");
 stop slave;
 reset slave;
 SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
@@ -23,8 +23,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
+Last_Errno	#
+Last_Error	Failed during slave thread initialization
 Skip_Counter	0
 Exec_Master_Log_Pos	0
 Relay_Log_Space	#
@@ -41,6 +41,6 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	0
-Last_SQL_Error	
+Last_SQL_Errno	#
+Last_SQL_Error	Failed during slave thread initialization
 SET GLOBAL debug="";
