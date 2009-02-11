@@ -2544,6 +2544,8 @@ i_s_innodb_rseg_fill(
 	int	status	= 0;
 	trx_rseg_t*	rseg;
 
+	DBUG_ENTER("i_s_innodb_rseg_fill");
+
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
 

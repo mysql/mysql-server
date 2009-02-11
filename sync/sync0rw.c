@@ -352,6 +352,13 @@ spin_loop:
 				return; /* Success */
 			}
 		}
+
+		/* If wait_ex_waiter stalls, wakes it. */
+		if (lock->wait_ex_waiters && lock->lock_word == RW_LOCK_BIAS) {
+			rw_lock_set_wx_waiters(lock, 0);
+			os_event_set(lock->wait_ex_event);
+			sync_array_object_signalled(sync_primary_wait_array);
+		}
 #else
 		mutex_exit(rw_lock_get_mutex(lock));
 #endif
@@ -447,32 +454,32 @@ rw_lock_x_lock_low(
 	switch(rw_lock_get_writer(lock)) {
 	    case RW_LOCK_WAIT_EX:
 		/* have right to try x-lock */
-		if (lock->lock_word == RW_LOCK_BIAS) {
-			/* try x-lock */
-			if(__sync_sub_and_fetch(&(lock->lock_word),
-					RW_LOCK_BIAS) == 0) {
-				/* success */
-				lock->pass = pass;
-				lock->writer_is_wait_ex = FALSE;
-				__sync_fetch_and_add(&(lock->writer_count),1);
+retry_x_lock:
+		/* try x-lock */
+		if(__sync_sub_and_fetch(&(lock->lock_word),
+				RW_LOCK_BIAS) == 0) {
+			/* success */
+			lock->pass = pass;
+			lock->writer_is_wait_ex = FALSE;
+			__sync_fetch_and_add(&(lock->writer_count),1);
 
 #ifdef UNIV_SYNC_DEBUG
-				rw_lock_remove_debug_info(lock, pass, RW_LOCK_WAIT_EX);
-				rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
-							file_name, line);
+			rw_lock_remove_debug_info(lock, pass, RW_LOCK_WAIT_EX);
+			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
+						file_name, line);
 #endif
 
-				lock->last_x_file_name = file_name;
-				lock->last_x_line = line;
+			lock->last_x_file_name = file_name;
+			lock->last_x_line = line;
 
-				/* Locking succeeded, we may return */
-				return(RW_LOCK_EX);
-			} else {
-				/* fail */
-				__sync_fetch_and_add(&(lock->lock_word),
-					RW_LOCK_BIAS);
-			}
+			/* Locking succeeded, we may return */
+			return(RW_LOCK_EX);
+		} else if(__sync_fetch_and_add(&(lock->lock_word),
+				RW_LOCK_BIAS) == 0) {
+			/* retry x-lock */
+			goto retry_x_lock;
 		}
+
 		/* There are readers, we have to wait */
 		return(RW_LOCK_WAIT_EX);
 
