@@ -334,22 +334,24 @@ get_multithreaded_config(EmulatorData& ed)
     return 0;
   }
 
-  const ndb_mgm_configuration_iterator * p =
-    ed.theConfiguration->getOwnConfigIterator();
-  if (p == 0)
+  ndb_mgm_configuration * conf = ed.theConfiguration->getClusterConfig();
+  if (conf == 0)
   {
     abort();
   }
-
+  
+  ndb_mgm_configuration_iterator * p = ndb_mgm_create_configuration_iterator(conf, CFG_SECTION_NODE);
+  if (ndb_mgm_find(p, CFG_NODE_ID, globalData.ownId))
+  {
+    abort();
+  }
+  
   Uint32 mtthreads = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
   ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
 
   globalData.isNdbMtLqh = true;
 
-  /**
-   * TODO add config for mt-classic
-   */
   {
     Uint32 classic = 0;
     ndb_mgm_get_int_parameter(p, CFG_NDBMT_CLASSIC, &classic);
@@ -594,13 +596,14 @@ int main(int argc, char** argv)
 #else
   g_eventLogger->info("Ndb started");
 #endif
+  
+  if (get_multithreaded_config(globalEmulatorData))
+    return -1;
+  
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
-
-  if (get_multithreaded_config(globalEmulatorData))
-    return -1;
 
   {
     /*

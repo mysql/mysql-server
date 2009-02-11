@@ -132,6 +132,8 @@ public:
   class LogLevel * m_logLevel;
   ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
 
+  ndb_mgm_configuration* getClusterConfig() const { return m_clusterConfig; }
+
 private:
   friend class Cmvmi;
   friend class Qmgr;
