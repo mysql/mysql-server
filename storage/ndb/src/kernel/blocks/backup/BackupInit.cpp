@@ -26,8 +26,8 @@
 
 //extern const unsigned Ndbcntr::g_sysTableCount;
 
-Backup::Backup(Block_context& ctx) :
-  SimulatedBlock(BACKUP, ctx),
+Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(BACKUP, ctx, instanceNumber),
   c_nodes(c_nodePool),
   c_backups(c_backupPool)
 {
@@ -58,14 +58,15 @@ Backup::Backup(Block_context& ctx) :
   addRecSignal(GSN_GET_TABINFOREF, &Backup::execGET_TABINFOREF);
   addRecSignal(GSN_GET_TABINFO_CONF, &Backup::execGET_TABINFO_CONF);
 
-  addRecSignal(GSN_CREATE_TRIG_REF, &Backup::execCREATE_TRIG_REF);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Backup::execCREATE_TRIG_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Backup::execCREATE_TRIG_IMPL_REF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Backup::execCREATE_TRIG_IMPL_CONF);
 
-  addRecSignal(GSN_DROP_TRIG_REF, &Backup::execDROP_TRIG_REF);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Backup::execDROP_TRIG_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Backup::execDROP_TRIG_IMPL_REF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Backup::execDROP_TRIG_IMPL_CONF);
 
-  addRecSignal(GSN_DI_FCOUNTCONF, &Backup::execDI_FCOUNTCONF);
-  addRecSignal(GSN_DIGETPRIMCONF, &Backup::execDIGETPRIMCONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Backup::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF,
+               &Backup::execDIH_SCAN_GET_NODES_CONF);
 
   addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Backup::execFSOPENCONF);
@@ -110,6 +111,8 @@ Backup::Backup(Block_context& ctx) :
 
   addRecSignal(GSN_WAIT_GCP_REF, &Backup::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Backup::execWAIT_GCP_CONF);
+  addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
+  addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
 
   /**
    * Testing
@@ -121,6 +124,8 @@ Backup::Backup(Block_context& ctx) :
   
   addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
   addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Backup::execDBINFO_SCANREQ);
 }
   
 Backup::~Backup()

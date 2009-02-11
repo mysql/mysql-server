@@ -33,7 +33,6 @@
 static const char progname[] = "ndb_atrt";
 static const char * g_gather_progname = "atrt-gather-result.sh";
 static const char * g_analyze_progname = "atrt-analyze-result.sh";
-static const char * g_clear_progname = "atrt-clear-result.sh";
 static const char * g_setup_progname = "atrt-setup.sh";
 
 static const char * g_log_filename = 0;
@@ -59,6 +58,8 @@ int          g_baseport = 10000;
 int          g_fqpn = 0;
 int          g_fix_nodeid= 0;
 int          g_default_ports = 0;
+int          g_mt = 0;
+int          g_mt_rr = 0;
 
 const char * g_cwd = 0;
 const char * g_basedir = 0;
@@ -142,8 +143,11 @@ static struct my_option g_options[] =
     (uchar **) &g_mode, (uchar **) &g_mode,
     0, GET_INT, REQUIRED_ARG, g_mode, 0, 0, 0, 0, 0 },
   { "quit", 256, "Quit before starting tests",
-    (uchar **) &g_mode, (uchar **) &g_do_quit,
+    (uchar **) &g_do_quit, (uchar **) &g_do_quit,
     0, GET_BOOL, NO_ARG, g_do_quit, 0, 0, 0, 0, 0 },
+  { "mt", 256, "Use ndbmtd (0 = never, 1 = round-robin, 2 = only)",
+    (uchar **) &g_mt, (uchar **) &g_mt,
+    0, GET_INT, REQUIRED_ARG, g_mt, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -177,13 +181,13 @@ main(int argc, char ** argv)
   if (!configure(g_config, g_do_setup))
     goto end;
   
-  g_logger.info("Setting up directories");
+  g_logger.info("Setting up directories...");
   if (!setup_directories(g_config, g_do_setup))
     goto end;
 
   if (g_do_setup)
   {
-    g_logger.info("Setting up files");
+    g_logger.info("Setting up files...");
     if (!setup_files(g_config, g_do_setup, g_do_sshx))
       goto end;
   }
@@ -221,7 +225,7 @@ main(int argc, char ** argv)
     goto end;
   }
  
-  g_logger.info("Connecting to hosts");
+  g_logger.info("Connecting to hosts...");
   if(!connect_hosts(g_config))
     goto end;
 
@@ -262,7 +266,8 @@ main(int argc, char ** argv)
     if(restart)
     {
       restart = false;
-      g_logger.info("(Re)starting server processes");
+      g_logger.info("(Re)starting server processes...");
+
       if(!stop_processes(g_config, ~0))
 	goto end;
       
@@ -480,7 +485,9 @@ parse_args(int argc, char** argv)
     mycnf.append("my.cnf");
     if (lstat(mycnf.c_str(), &sbuf) != 0)
     {
-      g_logger.error("Unable to stat %s", mycnf.c_str());
+      g_logger.error("Could not find out which config file to use! "
+                     "Pass it as last argument to atrt: 'atrt <config file>' "
+                     "(default: '%s')", mycnf.c_str());
       return false;
     }
   }
@@ -636,6 +643,10 @@ parse_args(int argc, char** argv)
       return false;
     }
   }
+  else {
+    g_logger.info("No test case file given with -f <test file>, "
+                  "running in interactive mode from stdin");
+  }
   
   if (g_do_setup == 0)
   {
@@ -645,7 +656,9 @@ parse_args(int argc, char** argv)
     tmp.append("my.cnf");
     if (lstat(tmp.c_str(), &sbuf) != 0)
     {
-      g_logger.error("Unable to stat %s", tmp.c_str());
+      g_logger.error("Could not find a my.cnf file in the basedir '%s', "
+                     "you probably need to configure it with "
+                     "'atrt --configure=1 <config_file>'", g_basedir);
       return false;
     }
 
@@ -1063,7 +1076,10 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
   Properties p;
   int elements = 0;
   char buf[1024];
+
   while(!feof(file)){
+    if (file == stdin)
+      printf("atrt> ");
     if(!fgets(buf, 1024, file))
       break;
 
@@ -1136,13 +1152,13 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
 
 bool
 setup_test_case(atrt_config& config, const atrt_testcase& tc){
-  g_logger.debug("system(%s)", g_clear_progname);
-  const int r1 = system(g_clear_progname);
-  if(r1 != 0){
-    g_logger.critical("Failed to clear result");
+
+  if (!remove_dir("result", true))
+  {
+    g_logger.critical("setup_test_case: Failed to clear result");
     return false;
   }
-  
+
   size_t i = 0;
   for(; i<config.m_processes.size(); i++)
   {
@@ -1217,10 +1233,9 @@ gather_result(atrt_config& config, int * result){
 
 bool
 setup_hosts(atrt_config& config){
-  g_logger.debug("system(%s)", g_clear_progname);
-  const int r1 = system(g_clear_progname);
-  if(r1 != 0){
-    g_logger.critical("Failed to clear result");
+  if (!remove_dir("result", true))
+  {
+    g_logger.critical("setup_hosts: Failed to clear result");
     return false;
   }
 

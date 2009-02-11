@@ -221,13 +221,9 @@ NdbTransaction::restart(){
   DBUG_ENTER("NdbTransaction::restart");
   if(theCompletionStatus == CompletedSuccess){
     releaseCompletedOperations();
-    Uint64 tTransid = theNdb->theFirstTransId;
-    theTransactionId = tTransid;
-    if ((tTransid & 0xFFFFFFFF) == 0xFFFFFFFF) {
-      theNdb->theFirstTransId = (tTransid >> 32) << 32;
-    } else {
-      theNdb->theFirstTransId = tTransid + 1;
-    }
+
+    theTransactionId = theNdb->allocate_transaction_id();
+
     theCommitStatus = Started;
     theCompletionStatus = NotCompleted;
     theTransactionIsStarted = false;
@@ -639,6 +635,8 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
       if (tReturnCode == -1) {
         DBUG_VOID_RETURN;
       }//if
+      tcOp->postExecuteRelease(); // Release unneeded resources
+                                  // outside TP mutex
       tcOp = (NdbScanOperation*)tcOp->next();
     } // while
     m_theLastScanOperation->next(m_firstExecutedScanOp);

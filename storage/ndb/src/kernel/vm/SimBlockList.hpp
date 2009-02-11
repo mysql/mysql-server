@@ -18,7 +18,7 @@
 
 #include <SimulatedBlock.hpp>
 
-class EmulatorData;
+struct EmulatorData;
 
 class SimBlockList 
 {

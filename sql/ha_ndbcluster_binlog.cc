@@ -767,6 +767,7 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
   sql_print_error("NDB: programming error, no lock taken while running "
                   "query %s. Message: %s", thd->query, msg);
   abort();
+  return -1;
 }
 
 #include "ha_ndbcluster_lock_ext.h"
@@ -1510,19 +1511,19 @@ static void ndbcluster_get_schema(Ndb_event_data *event_data,
   }
   /* node_id */
   field++;
-  s->node_id= ((Field_long *)*field)->val_int();
+  s->node_id= (Uint32)((Field_long *)*field)->val_int();
   /* epoch */
   field++;
   s->epoch= ((Field_long *)*field)->val_int();
   /* id */
   field++;
-  s->id= ((Field_long *)*field)->val_int();
+  s->id= (Uint32)((Field_long *)*field)->val_int();
   /* version */
   field++;
-  s->version= ((Field_long *)*field)->val_int();
+  s->version= (Uint32)((Field_long *)*field)->val_int();
   /* type */
   field++;
-  s->type= ((Field_long *)*field)->val_int();
+  s->type= (Uint32)((Field_long *)*field)->val_int();
   /* free blobs buffer */
   my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
   dbug_tmp_restore_column_map(table->read_set, old_map);
@@ -2348,7 +2349,6 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                 "event '%s' from node %d. ",
                                 schema->db, schema->name, schema->query,
                                 schema->node_id);
-          
           errmsg[end]= '\0';
         }
         // fall through
@@ -3074,7 +3074,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
   */
-  ulong saved_options= thd->options;
+  ulonglong saved_options= thd->options;
   thd->options&= ~(OPTION_BIN_LOG);
 
 
@@ -3094,11 +3094,11 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     uint orig_server_id= 0;
     empty_record(ndb_binlog_index);
 
-    ndb_binlog_index->field[0]->store(first->master_log_pos);
+    ndb_binlog_index->field[0]->store(first->master_log_pos, true);
     ndb_binlog_index->field[1]->store(first->master_log_file,
                                       strlen(first->master_log_file),
                                       &my_charset_bin);
-    ndb_binlog_index->field[2]->store(epoch= first->epoch);
+    ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
     {
       ndb_binlog_index->field[3]->store(row->n_inserts);
@@ -3106,7 +3106,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
       ndb_binlog_index->field[5]->store(row->n_deletes);
       ndb_binlog_index->field[6]->store(row->n_schemaops);
       ndb_binlog_index->field[7]->store(orig_server_id= row->orig_server_id);
-      ndb_binlog_index->field[8]->store(orig_epoch= row->orig_epoch);
+      ndb_binlog_index->field[8]->store(orig_epoch= row->orig_epoch, true);
       ndb_binlog_index->field[9]->store(first->gci);
       row= row->next;
     }
@@ -3119,10 +3119,10 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
         first->n_deletes+= row->n_deletes;
         first->n_schemaops+= row->n_schemaops;
       }
-      ndb_binlog_index->field[3]->store((ulonglong)first->n_inserts);
-      ndb_binlog_index->field[4]->store((ulonglong)first->n_updates);
-      ndb_binlog_index->field[5]->store((ulonglong)first->n_deletes);
-      ndb_binlog_index->field[6]->store((ulonglong)first->n_schemaops);
+      ndb_binlog_index->field[3]->store((ulonglong)first->n_inserts, true);
+      ndb_binlog_index->field[4]->store((ulonglong)first->n_updates, true);
+      ndb_binlog_index->field[5]->store((ulonglong)first->n_deletes, true);
+      ndb_binlog_index->field[6]->store((ulonglong)first->n_schemaops, true);
     }
 
     if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
@@ -3211,6 +3211,20 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
   else
     event_name->set_ascii("REPL$", 5);
   event_name->append(db);
+#ifdef NDB_WIN32
+  /*
+   * Some bright spark decided that we should sometimes have backslashes.
+   * This causes us pain as the event is db/table and not db\table so trying
+   * to drop db\table when we meant db/table ends in the event lying around
+   * after drop table, leading to all sorts of pain.
+  */
+  String backslash_sep(1);
+  backslash_sep.set_ascii("\\",1);
+
+  int bsloc;
+  if((bsloc= event_name->strstr(backslash_sep,0))!=-1)
+	  event_name->replace(bsloc, 1, "/", 1);
+#endif
   if (tbl)
   {
     event_name->append('/');
@@ -3577,7 +3591,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
                                fn.type, table))
       {
         /* wrong data type */
-        snprintf(msg, msg_len,
+        my_snprintf(msg, msg_len,
                  "column '%s' has wrong datatype",
                  table->s->field[args[0].fieldno]->field_name);
         DBUG_PRINT("info", (msg));
@@ -3596,7 +3610,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(0);
   }
   /* parse error */
-  snprintf(msg, msg_len, "%s, %s at '%s'",
+  my_snprintf(msg, msg_len, "%s, %s at '%s'",
            conflict_fn, error_str, ptr);
   DBUG_PRINT("info", (msg));
   DBUG_RETURN(-1);
@@ -3812,11 +3826,11 @@ err:
     switch (error)
     {
       case -1:
-        snprintf(msg, sizeof(msg),
+        my_snprintf(msg, sizeof(msg),
                  "Missing or wrong type for column '%s'", error_str);
         break;
       case -2:
-        snprintf(msg, sizeof(msg), error_str);
+        my_snprintf(msg, sizeof(msg), error_str);
         break;
       default:
         abort();
@@ -3829,8 +3843,8 @@ err:
   else
   {
     char msg[FN_REFLEN];
-    snprintf(tmp_buf, sizeof(tmp_buf), "ndberror %u", ndberror.code);
-    snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
+    my_snprintf(tmp_buf, sizeof(tmp_buf), "ndberror %u", ndberror.code);
+    my_snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
              "conflict resolution may not function as intended (%s)",
              ndb_rep_db, ndb_replication_table, tmp_buf);
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -5022,7 +5036,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
         /* store */
         ndb_binlog_index_row *row= ndb_find_binlog_index_row
-          (rows, ((Field_long *)table->field[0])->val_int(), 1);
+          (rows, (uint)((Field_long *)table->field[0])->val_int(), 1);
         row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
         break;
       }
@@ -5838,7 +5852,7 @@ restart_cluster_failure:
         */
         empty_record(apply_status_table);
 
-        apply_status_table->field[0]->store((longlong)::server_id);
+        apply_status_table->field[0]->store((longlong)::server_id, true);
         /*
           gci is added later, just before writing to binlog as gci
           is unknown here
@@ -5970,7 +5984,7 @@ restart_cluster_failure:
             my_ptrdiff_t row_offset=
               (my_ptrdiff_t) (apply_status_buf - apply_status_table->record[0]);
             field->move_field_offset(row_offset);
-            field->store((longlong)gci);
+            field->store((longlong)gci, true);
             field->move_field_offset(-row_offset);
 
             trans.write_row(::server_id,
@@ -6097,7 +6111,7 @@ restart_cluster_failure:
                             r);
             /* TODO: Further handling? */
           }
-          rows->gci= (gci >> 32); // Expose gci hi/lo
+          rows->gci= (Uint32)(gci >> 32); // Expose gci hi/lo
           rows->epoch= gci;
           rows->master_log_file= start.file_name();
           rows->master_log_pos= start.file_pos();

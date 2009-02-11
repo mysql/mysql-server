@@ -32,7 +32,7 @@ int Bank::init(){
   if (m_initialized == true)
     return NDBT_OK;
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   m_ndb.init();   
   if (m_ndb.waitUntilReady(30) != 0)
@@ -708,7 +708,7 @@ int Bank::findLastGL(Uint64 &lastTime){
 }
 
 
-int Bank::performMakeGL(int time){
+int Bank::performMakeGL(Uint64 time){
   g_info << "performMakeGL: " << time << endl;
   /**
    *  Create one GL record for each account type.

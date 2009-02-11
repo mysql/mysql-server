@@ -19,7 +19,7 @@
 #endif
 #include <stdio.h>
 #include <basestring_vsnprintf.h>
-#include <my_config.h>
+#include <my_global.h>
 
 #ifdef _WINDOWS
 #define SNPRINTF_RETURN_TRUNC

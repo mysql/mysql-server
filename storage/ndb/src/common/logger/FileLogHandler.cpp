@@ -144,6 +144,11 @@ FileLogHandler::isTimeForNewFile()
   return (m_pLogFile->size() >= m_maxFileSize); 
 }
 
+off_t FileLogHandler::getCurrentSize()
+{
+  return m_pLogFile->size();
+}
+
 bool
 FileLogHandler::createNewFile()
 {
@@ -201,6 +206,15 @@ FileLogHandler::setParam(const BaseString &param, const BaseString &value){
     return setMaxFiles(value);
   setErrorStr("Invalid parameter");
   return false;
+}
+
+bool FileLogHandler::getParams(BaseString &config)
+{
+  config.assfmt("FILE:filename=%s,maxsize=%lu,maxfiles=%u",
+                m_pLogFile->getName(),
+                m_maxFileSize,
+                m_maxNoFiles);
+  return true;
 }
 
 bool

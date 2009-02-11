@@ -235,12 +235,13 @@
 class Pgman : public SimulatedBlock
 {
 public:
-  Pgman(Block_context& ctx);
+  Pgman(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Pgman();
   BLOCK_DEFINES(Pgman);
 
 private:
   friend class Page_cache_client;
+  friend class PgmanProxy;
 
   struct Page_entry; // CC
   friend struct Page_entry;
@@ -260,7 +261,7 @@ private:
 #endif
     };
     
-    Uint16 m_block;
+    Uint16 m_block; // includes instance
     Uint16 m_flags;
     SimulatedBlock::Callback m_callback;
 
@@ -367,7 +368,7 @@ private:
   typedef DLCFifoList<Page_entry, Page_entry_sublist_ptr> Page_sublist;
 
   class Dbtup *c_tup;
-  Logfile_client m_lgman;
+  class Lgman *c_lgman;
 
   // loop status
   bool m_stats_loop_on;
@@ -420,6 +421,14 @@ private:
     Uint32 m_current_io_waits;
   } m_stats;
 
+  enum CallbackIndex {
+    // lgman
+    LOGSYNC_CALLBACK = 1,
+    COUNT_CALLBACKS = 2
+  };
+  CallbackEntry m_callbackEntry[COUNT_CALLBACKS];
+  CallbackTable m_callbackTable;
+
 protected:
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
@@ -428,6 +437,7 @@ protected:
 
   void execLCP_FRAG_ORD(Signal*);
   void execEND_LCP_REQ(Signal*);
+  void execRELEASE_PAGES_REQ(Signal*);
   
   void execFSREADCONF(Signal*);
   void execFSREADREF(Signal*);
@@ -435,6 +445,8 @@ protected:
   void execFSWRITEREF(Signal*);
 
   void execDUMP_STATE_ORD(Signal* signal);
+
+  void execDATA_FILE_ORD(Signal*);
 
 private:
   static Uint32 get_sublist_no(Page_state state);
@@ -488,13 +500,10 @@ private:
   int drop_page(Ptr<Page_entry>);
   
 #ifdef VM_TRACE
-  NdbOut debugOut;
-  bool debugFlag;
   void verify_page_entry(Ptr<Page_entry> ptr);
   void verify_page_lists();
   void verify_all();
   bool dump_page_lists(Uint32 ptrI = RNIL);
-  void open_debug_file(Uint32 flag);
 #endif
   static const char* get_sublist_name(Uint32 list_no);
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_request>);
@@ -506,11 +515,14 @@ class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_entry>);
 
 class Page_cache_client
 {
-  Uint32 m_block;
+  friend class PgmanProxy;
+  Uint32 m_block; // includes instance
+  class PgmanProxy* m_pgman_proxy; // set if we go via proxy
   Pgman* m_pgman;
+  DEBUG_OUT_DEFINES(PGMAN);
 
 public:
-  Page_cache_client(SimulatedBlock* block, Pgman*);
+  Page_cache_client(SimulatedBlock* block, SimulatedBlock* pgman);
 
   struct Request {
     Local_key m_page;
@@ -560,122 +572,22 @@ public:
   /**
    * Create file record
    */
-  Uint32 create_data_file();
+  Uint32 create_data_file(Signal*);
 
   /**
    * Alloc datafile record
    */
-  Uint32 alloc_data_file(Uint32 file_no);
+  Uint32 alloc_data_file(Signal*, Uint32 file_no);
 
   /**
    * Map file_no to m_fd
    */
-  void map_file_no(Uint32 m_file_no, Uint32 m_fd);
+  void map_file_no(Signal*, Uint32 m_file_no, Uint32 m_fd);
 
   /**
    * Free file
    */
-  void free_data_file(Uint32 file_no, Uint32 fd = RNIL);
+  void free_data_file(Signal*, Uint32 file_no, Uint32 fd = RNIL);
 };
-
-inline int
-Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
-{
-  Ptr<Pgman::Page_entry> entry_ptr;
-  Uint32 file_no = req.m_page.m_file_no;
-  Uint32 page_no = req.m_page.m_page_no;
-
-#ifdef VM_TRACE
-  m_pgman->debugOut
-    << "PGCLI: get_page " << file_no << "," << page_no
-    << " flags=" << hex << flags << endl;
-#endif
-
-  // find or seize
-  bool ok = m_pgman->get_page_entry(entry_ptr, file_no, page_no);
-  if (! ok)
-  {
-    return -1;
-  }
-
-  Pgman::Page_request page_req;
-  page_req.m_block = m_block;
-  page_req.m_flags = flags;
-  page_req.m_callback = req.m_callback;
-#ifdef ERROR_INSERT
-  page_req.m_delay_until_time = req.m_delay_until_time;
-#endif
-  
-  int i = m_pgman->get_page(signal, entry_ptr, page_req);
-  if (i > 0)
-  {
-    // TODO remove
-    m_pgman->m_global_page_pool.getPtr(m_ptr, (Uint32)i);
-  }
-  return i;
-}
-
-inline void
-Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
-{
-  Ptr<Pgman::Page_entry> entry_ptr;
-  Uint32 file_no = key.m_file_no;
-  Uint32 page_no = key.m_page_no;
-
-#ifdef VM_TRACE
-  m_pgman->debugOut
-    << "PGCLI: update_lsn " << file_no << "," << page_no
-    << " lsn=" << lsn << endl;
-#endif
-
-  bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  assert(found);
-
-  m_pgman->update_lsn(entry_ptr, m_block, lsn);
-}
-
-inline 
-int
-Page_cache_client::drop_page(Local_key key, Uint32 page_id)
-{
-  Ptr<Pgman::Page_entry> entry_ptr;
-  Uint32 file_no = key.m_file_no;
-  Uint32 page_no = key.m_page_no;
-
-#ifdef VM_TRACE
-  m_pgman->debugOut
-    << "PGCLI: drop_page " << file_no << "," << page_no << endl;
-#endif
-
-  bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  assert(found);
-  assert(entry_ptr.p->m_real_page_i == page_id);
-
-  return m_pgman->drop_page(entry_ptr);
-}
-
-inline Uint32
-Page_cache_client::create_data_file()
-{
-  return m_pgman->create_data_file();
-}
-
-inline Uint32
-Page_cache_client::alloc_data_file(Uint32 file_no)
-{
-  return m_pgman->alloc_data_file(file_no);
-}
-
-inline void
-Page_cache_client::map_file_no(Uint32 file_no, Uint32 fd)
-{
-  m_pgman->map_file_no(file_no, fd);
-}
-
-inline void
-Page_cache_client::free_data_file(Uint32 file_no, Uint32 fd)
-{
-  m_pgman->free_data_file(file_no, fd);
-}
 
 #endif

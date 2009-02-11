@@ -25,6 +25,7 @@ printSUB_CREATE_REQ(FILE * output, const Uint32 * theData,
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " subscriptionType: %x\n", sig->subscriptionType);
   fprintf(output, " tableId: %x\n", sig->tableId);
+  fprintf(output, " schemaTransId: %x\n", sig->schemaTransId);
   return false;
 }
 

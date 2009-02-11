@@ -213,8 +213,8 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
     
     if(handler == NULL)
     {
-      snprintf(errStr,len,"Could not create log destination: %s",
-               logdest[i].c_str());
+      BaseString::snprintf(errStr,len,"Could not create log destination: %s",
+                           logdest[i].c_str());
       DBUG_RETURN(false);
     }
     if(!handler->parseParams(params))
@@ -241,6 +241,13 @@ Logger::removeHandler(LogHandler* pHandler)
   int rc = false;
   if (pHandler != NULL)
   {
+    if (pHandler == m_pConsoleHandler)
+      m_pConsoleHandler= NULL;
+    if (pHandler == m_pFileHandler)
+      m_pFileHandler= NULL;
+    if (pHandler == m_pSyslogHandler)
+      m_pSyslogHandler= NULL;
+
     rc = m_pHandlerList->remove(pHandler);
   }
 
@@ -252,6 +259,10 @@ Logger::removeAllHandlers()
 {
   Guard g(m_mutex);
   m_pHandlerList->removeAll();
+
+  m_pConsoleHandler= NULL;
+  m_pFileHandler= NULL;
+  m_pSyslogHandler= NULL;
 }
 
 bool
@@ -369,6 +380,30 @@ Logger::debug(const char* pMsg, ...) const
   va_start(ap, pMsg);
   log(LL_DEBUG, pMsg, ap);
   va_end(ap);
+}
+
+
+
+int Logger::getHandlerCount() {
+  int r=0;
+  if(m_pConsoleHandler) r++;
+  if(m_pFileHandler) r++;
+  if(m_pSyslogHandler) r++;
+  r+=m_pHandlerList->size();
+  return r;
+}
+
+
+LogHandler* Logger::getHandler(int i) {
+  if(i==0) return m_pConsoleHandler;
+  if(i==1) return m_pFileHandler;
+  if(i==2) return m_pSyslogHandler;
+  LogHandler *r=NULL;
+  while(i-- > 2)
+    r= m_pHandlerList->next();
+  while(m_pHandlerList->next()!=NULL)
+    m_pHandlerList->next();
+  return r;
 }
 
 //

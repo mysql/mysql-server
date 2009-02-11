@@ -19,8 +19,6 @@
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
 
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
-
 
 /**
  * TODO 
@@ -1120,7 +1118,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   
   const NdbDictionary::Table * tab = ctx->getTab();
-  Uint32 i;
+  int i;
   int bits = TupError::TE_MULTI_OP;
   for(i = 0; i<tab->getNoOfColumns(); i++)
   {
@@ -1443,13 +1441,12 @@ template class Vector<Uint64>;
 int
 runBug20535(NDBT_Context* ctx, NDBT_Step* step)
 {
-  Uint32 i;
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table * tab = ctx->getTab();
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
   bool null = false;
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (int i = 0; i<tab->getNoOfColumns(); i++)
   {
     if (tab->getColumn(i)->getNullable())
     {
@@ -1474,7 +1471,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp = pTrans->getNdbOperation(tab->getName());
   pOp->insertTuple();
   hugoTrans.equalForRow(pOp, 0);
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (int i = 0; i<tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
         !tab->getColumn(i)->getNullable())
@@ -1493,7 +1490,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp->readTuple();
   hugoTrans.equalForRow(pOp, 0);
   Vector<NdbRecAttr*> values;
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (int i = 0; i<tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
         tab->getColumn(i)->getNullable())
@@ -1506,7 +1503,7 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
 
   null = true;
-  for (i = 0; i<values.size(); i++)
+  for (unsigned int i = 0; i<values.size(); i++)
   {
     if (!values[i]->isNULL())
     {
@@ -1840,6 +1837,7 @@ TESTCASE("Fill",
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testBasic);
   return testBasic.execute(argc, argv);
 }
 

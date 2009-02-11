@@ -48,6 +48,13 @@ public:
   STATIC_CONST( StaticLength = 11 );
   STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
 
+  /**
+   * Long section nums
+   */
+  STATIC_CONST( ReceiverIdSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );    /* Long SCANTABREQ only */
+  STATIC_CONST( KeyInfoSectionNum = 2 );     /* Long SCANTABREQ only */
+
 private:
 
   // Type definitions
@@ -56,7 +63,10 @@ private:
    * DATA VARIABLES
    */
   UintR apiConnectPtr;        // DATA 0
-  UintR attrLenKeyLen;        // DATA 1
+  union {
+    UintR attrLenKeyLen;      // DATA 1 : Short SCANTABREQ (Versions < 6.4.0)
+    UintR spare;              // DATA 1 : Long SCANTABREQ 
+  };
   UintR requestInfo;          // DATA 2
   /*
     Table ID. Note that for a range scan of a table using an ordered index,

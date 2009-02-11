@@ -73,6 +73,23 @@ public:
     assert(ret == 0);
   }
 
+  NDBT_Table(const char* name, 
+	     int noOfAttributes,
+	     NdbDictionary::Column* attributePtrs[])
+    : NdbDictionary::Table(name)
+  {
+    assert(name != 0);
+    
+    //setStoredTable(stored);
+    for(int i = 0; i<noOfAttributes; i++)
+      addColumn(*attributePtrs[i]);
+    
+    // validate() might cause initialization order problem with charset
+    NdbError error;
+    int ret = aggregate(error);
+    assert(ret == 0);
+  }
+  
   static const NdbDictionary::Table * discoverTableFromDb(Ndb* ndb,
 							  const char * name);
 };

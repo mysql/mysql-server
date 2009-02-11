@@ -554,7 +554,7 @@ getarg(struct getargs *args, size_t num_args,
     int i;
     int ret = 0;
 
-    srand (time(NULL));
+    srand ((unsigned int)time(NULL));
     (*optind)++;
     for(i = *optind; i < argc; i++) {
 	if(argv[i][0] != '-')

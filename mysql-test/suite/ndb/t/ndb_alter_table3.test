@@ -55,10 +55,9 @@ insert into t6 values(1,12), (2,12);
 alter table t6 add unique key ui_t(b);
 delete from t6;
 --disable_result_log
---error 1022
 insert into t6 values(1,12), (2,12);
 --enable_result_log
---error 1296
+--error 1169
 alter table t6 add unique key ui_t(b);
 delete from t6;
 drop table t6;

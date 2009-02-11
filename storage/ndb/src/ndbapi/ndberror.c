@@ -191,6 +191,9 @@ ErrorBundle ErrorCodes[] = {
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
   {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
+  {  780, DMEC, TR, "Too many schema transactions" },
+  {  783, DMEC, TR, "Too many schema operations" },
+  {  785, DMEC, TR, "Schema object is busy with another schema transaction" },
   {  291, DMEC, TR, "Out of scanfrag records in TC (increase MaxNoOfLocalScans)" },
 
   /**
@@ -234,6 +237,7 @@ ErrorBundle ErrorCodes[] = {
    * Internal Temporary
    */
   { 702,  DMEC, IT, "Request to non-master" },
+  { 787,  DMEC, IT, "Schema transaction aborted" },
   
   /**
    * Internal errors
@@ -256,9 +260,15 @@ ErrorBundle ErrorCodes[] = {
   { 278,  DMEC, IE, "278" },
   { 287,  DMEC, IE, "Index corrupted" },
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
+  { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
+  { 292,  DMEC, IE, "Inconsistent index state in TC block" },
   { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
+  { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
+  { 782,  DMEC, IE, "Invalid schema transaction id from NDB API" },
+  { 784,  DMEC, TR, "Invalid schema transaction state" },
+  { 788,  DMEC, TR, "Missing schema operation at takeover of schema transaction" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
   { 829,  DMEC, IE, "829" },
@@ -309,6 +319,11 @@ ErrorBundle ErrorCodes[] = {
   { 892,  DMEC, AE, "Unsupported type in scan filter" },
   { 4256, DMEC, AE, "Must call Ndb::init() before this function" },
   { 4257, DMEC, AE, "Tried to read too much - too many getValue calls" },
+  { 320,  DMEC, AE, "Invalid no of nodes specified for new nodegroup" },
+  { 321,  DMEC, AE, "Invalid nodegroup id" },
+  { 322,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node already in nodegroup" },
+  { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
+  { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
 
   /** 
    * Scan application errors
@@ -438,6 +453,7 @@ ErrorBundle ErrorCodes[] = {
   { 776,  DMEC, AE, "Index created on temporary table must itself be temporary" },
   { 777,  DMEC, AE, "Cannot create a temporary index on a non-temporary table" },
   { 778,  DMEC, AE, "A temporary table or index must be specified as not logging" },
+  { 786,  DMEC, NR, "Schema transaction aborted due to node-failure" },
   
   /**
    * FunctionNotImplemented
@@ -557,6 +573,7 @@ ErrorBundle ErrorCodes[] = {
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
+  { 4410, DMEC, AE, "Schema transaction is already started" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },

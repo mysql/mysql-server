@@ -42,7 +42,8 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   Transporter(t_reg, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
-	      0, false, checksum, signalId),
+	      0, false, checksum, signalId, 
+              4096 + MAX_SEND_MESSAGE_BYTESIZE),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -62,6 +63,18 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 #endif
   m_signal_threshold = 4096;
 }
+
+
+bool
+SHM_Transporter::configure_derived(const TransporterConfiguration* conf)
+{
+  if ((key_t)conf->shm.shmKey == shmKey &&
+      (int)conf->shm.shmSize == shmSize &&
+      conf->shm.signum == g_ndb_shm_signum)
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
 
 SHM_Transporter::~SHM_Transporter(){
   doDisconnect();
@@ -130,19 +143,19 @@ SHM_Transporter::setupBuffers(){
 
 #ifdef DEBUG_TRANSPORTER 
     printf("-- (%d - %d) - Server -\n", localNodeId, remoteNodeId);
-    printf("Reader at: %d (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
-    printf("sharedReadIndex1 at %d (%p) = %d\n", 
+    printf("Reader at: %ld (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
+    printf("sharedReadIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex1-shmBuf, 
 	   sharedReadIndex1, *sharedReadIndex1);
-    printf("sharedWriteIndex1 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex1-shmBuf, 
 	   sharedWriteIndex1, *sharedWriteIndex1);
 
-    printf("Writer at: %d (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
-    printf("sharedReadIndex2 at %d (%p) = %d\n", 
+    printf("Writer at: %ld (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
+    printf("sharedReadIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex2-shmBuf, 
 	   sharedReadIndex2, *sharedReadIndex2);
-    printf("sharedWriteIndex2 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex2-shmBuf, 
 	   sharedWriteIndex2, *sharedWriteIndex2);
 
@@ -170,19 +183,19 @@ SHM_Transporter::setupBuffers(){
     * clientStatusFlag = 1;
 #ifdef DEBUG_TRANSPORTER
     printf("-- (%d - %d) - Client -\n", localNodeId, remoteNodeId);
-    printf("Reader at: %d (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
-    printf("sharedReadIndex2 at %d (%p) = %d\n", 
+    printf("Reader at: %ld (%p)\n", startOfBuf2 - shmBuf, startOfBuf2);
+    printf("sharedReadIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex2-shmBuf, 
 	   sharedReadIndex2, *sharedReadIndex2);
-    printf("sharedWriteIndex2 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex2 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex2-shmBuf, 
 	   sharedWriteIndex2, *sharedWriteIndex2);
 
-    printf("Writer at: %d (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
-    printf("sharedReadIndex1 at %d (%p) = %d\n", 
+    printf("Writer at: %ld (%p)\n", startOfBuf1 - shmBuf, startOfBuf1);
+    printf("sharedReadIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedReadIndex1-shmBuf, 
 	   sharedReadIndex1, *sharedReadIndex1);
-    printf("sharedWriteIndex1 at %d (%p) = %d\n", 
+    printf("sharedWriteIndex1 at %ld (%p) = %d\n", 
 	   (char*)sharedWriteIndex1-shmBuf, 
 	   sharedWriteIndex1, *sharedWriteIndex1);
     
@@ -349,10 +362,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   {
     NdbSleep_MilliSleep(m_timeOutMillis);
     if(*serverStatusFlag == 1 && *clientStatusFlag == 1)
-    {
-      m_last_signal = 0;
       return true;
-    }
   }
 
   DBUG_PRINT("error", ("Failed to set up buffers to node %d",
@@ -360,18 +370,37 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
-void
+int
 SHM_Transporter::doSend()
 {
-  if(m_last_signal)
-  {
-    m_last_signal = 0;
-    kill(m_remote_pid, g_ndb_shm_signum);
-  }
-}
+  struct iovec iov[64];
+  Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
-Uint32
-SHM_Transporter::get_free_buffer() const 
-{
-  return writer->get_free_buffer();
+  if (cnt == 0)
+  {
+    return 0;
+  }
+
+  Uint32 sum = 0;
+  for(Uint32 i = 0; i<cnt; i++)
+  {
+    assert(iov[i].iov_len);
+    sum += iov[i].iov_len;
+  }
+
+  int nBytesSent = writer->writev(iov, cnt);
+
+  if (nBytesSent > 0)
+  {
+    kill(m_remote_pid, g_ndb_shm_signum);
+    iovec_data_sent(nBytesSent);
+
+    if (Uint32(nBytesSent) == sum && (cnt != NDB_ARRAY_SIZE(iov)))
+    {
+      return 0;
+    }
+    return 1;
+  }
+
+  return 1;
 }

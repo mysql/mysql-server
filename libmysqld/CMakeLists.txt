@@ -16,12 +16,6 @@
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
-# Need to set USE_TLS, since __declspec(thread) approach to thread local
-# storage does not work properly in DLLs.
-IF(WIN32)
-  ADD_DEFINITIONS(-DUSE_TLS)
-ENDIF(WIN32)
-
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DHAVE_DLOPEN)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
@@ -50,12 +44,6 @@ FOREACH(rpath ${ZLIB_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
 ENDFOREACH(rpath)
 
-# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
-# not set during configure time.
-INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
-FOREACH(rpath ${DBUG_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
-ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
 FOREACH(rpath ${TAOCRYPT_SOURCES})
@@ -67,19 +55,9 @@ FOREACH(rpath ${YASSL_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
 ENDFOREACH(rpath)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/strings/CMakeLists.txt)
-FOREACH(rpath ${STRINGS_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../strings/${rpath})
-ENDFOREACH(rpath)
-
 INCLUDE(${CMAKE_SOURCE_DIR}/regex/CMakeLists.txt)
 FOREACH(rpath ${REGEX_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../regex/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/mysys/CMakeLists.txt)
-FOREACH(rpath ${MYSYS_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../mysys/${rpath})
 ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/vio/CMakeLists.txt)
@@ -145,6 +123,12 @@ IF(WITH_CSV_STORAGE_ENGINE)
   ENDFOREACH(rpath)
 ENDIF(WITH_CSV_STORAGE_ENGINE)
 
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  FOREACH(rpath ${NDB_HANDLER_SRC})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../sql/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+
 SET(SOURCE_SUBLIBS FALSE)
                             
 SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
@@ -201,6 +185,15 @@ ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
 TARGET_LINK_LIBRARIES(mysqlserver)
 
+ADD_DEPENDENCIES(mysqlserver mysys)
+TARGET_LINK_LIBRARIES(mysqlserver mysys)
+
 ADD_LIBRARY(libmysqld MODULE cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
+
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  ADD_DEPENDENCIES(libmysqld ndbclient)
+  TARGET_LINK_LIBRARIES(libmysqld ndbclient)
+  INCLUDE_DIRECTORIES(${NDB_CLIENT_INCLUDES})
+ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)

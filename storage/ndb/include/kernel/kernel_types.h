@@ -16,12 +16,13 @@
 #ifndef NDB_KERNEL_TYPES_H
 #define NDB_KERNEL_TYPES_H
 
-#include <my_config.h>
+#include <my_global.h>
 #include <ndb_types.h>
 #include "ndb_limits.h"
 
 typedef Uint16 NodeId; 
 typedef Uint16 BlockNumber;
+typedef Uint16 BlockInstance;
 typedef Uint32 BlockReference;
 typedef Uint16 GlobalSignalNumber;
 

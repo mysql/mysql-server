@@ -27,7 +27,6 @@
 #include <NdbSleep.h>
 
 #include "API.hpp"
-#include <ConfigRetriever.hpp>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>
@@ -59,25 +58,9 @@ static int indexToNumber(int index)
 /*****************************************************************************
  * Call back functions
  *****************************************************************************/
-
-void* ndb_thread_add_thread_id(void *param)
-{
-  return NULL;
-}
-
-void *ndb_thread_remove_thread_id(void *param)
-{
-  return NULL;
-}
-
-void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
-{
-  *len = 0;
-}
-
 void
-reportError(void * callbackObj, NodeId nodeId,
-	    TransporterError errorCode, const char *info)
+TransporterFacade::reportError(NodeId nodeId,
+                               TransporterError errorCode, const char *info)
 {
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s", 
@@ -86,7 +69,7 @@ reportError(void * callbackObj, NodeId nodeId,
   if(errorCode & TE_DO_DISCONNECT) {
     ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
 	     info ? info : "");
-    ((TransporterFacade*)(callbackObj))->doDisconnect(nodeId);
+    doDisconnect(nodeId);
   }
 }
 
@@ -94,7 +77,8 @@ reportError(void * callbackObj, NodeId nodeId,
  * Report average send length in bytes (4096 last sends)
  */
 void
-reportSendLen(void * callbackObj, NodeId nodeId, Uint32 count, Uint64 bytes){
+TransporterFacade::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+{
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", 
 	   (int)nodeId, (Uint32)(bytes/count));
@@ -108,8 +92,8 @@ reportSendLen(void * callbackObj, NodeId nodeId, Uint32 count, Uint64 bytes){
  * Report average receive length in bytes (4096 last receives)
  */
 void
-reportReceiveLen(void * callbackObj, 
-		 NodeId nodeId, Uint32 count, Uint64 bytes){
+TransporterFacade::reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+{
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)", 
 	   (int)nodeId, (Uint32)(bytes/count));
@@ -123,27 +107,29 @@ reportReceiveLen(void * callbackObj,
  * Report connection established
  */
 void
-reportConnect(void * callbackObj, NodeId nodeId){
+TransporterFacade::reportConnect(NodeId nodeId)
+{
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
-  ((TransporterFacade*)(callbackObj))->reportConnected(nodeId);
+  reportConnected(nodeId);
 }
 
 /**
  * Report connection broken
  */
 void
-reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 error){
+TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
-  ((TransporterFacade*)(callbackObj))->reportDisconnected(nodeId);
+  reportDisconnected(nodeId);
 }
 
 void
-transporter_recv_from(void * callbackObj, NodeId nodeId){
-  ((TransporterFacade*)(callbackObj))->hb_received(nodeId);
+TransporterFacade::transporter_recv_from(NodeId nodeId)
+{
+  hb_received(nodeId);
 }
 
 /****************************************************************************
@@ -153,7 +139,9 @@ transporter_recv_from(void * callbackObj, NodeId nodeId){
 /**
  * Report connection broken
  */
-int checkJobBuffer() {
+int
+TransporterFacade::checkJobBuffer()
+{
   return 0;
 }
 
@@ -200,10 +188,10 @@ TRACE_GSN(Uint32 gsn)
   case GSN_API_REGCONF:
     return false;
 #endif
-#if 0
+#if 1
   case GSN_SUB_GCP_COMPLETE_REP:
   case GSN_SUB_GCP_COMPLETE_ACK:
-    return true;
+    return false;
 #endif
   default:
     return true;
@@ -215,11 +203,11 @@ TRACE_GSN(Uint32 gsn)
  * The execute function : Handle received signal
  */
 void
-execute(void * callbackObj, SignalHeader * const header, 
-	Uint8 prio, Uint32 * const theData,
-	LinearSectionPtr ptr[3]){
+TransporterFacade::deliver_signal(SignalHeader * const header,
+                                  Uint8 prio, Uint32 * const theData,
+                                  LinearSectionPtr ptr[3])
+{
 
-  TransporterFacade * theFacade = (TransporterFacade*)callbackObj;
   TransporterFacade::ThreadData::Object_Execute oe; 
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
   
@@ -228,14 +216,14 @@ execute(void * callbackObj, SignalHeader * const header,
     signalLogger.executeSignal(* header, 
 			       prio,
                                theData,
-			       theFacade->ownId(), 
+			       ownId(),
                                ptr, header->m_noOfSections);
     signalLogger.flushSignalLog();
   }
 #endif  
 
   if (tRecBlockNo >= MIN_API_BLOCK_NO) {
-    oe = theFacade->m_threads.get(tRecBlockNo);
+    oe = m_threads.get(tRecBlockNo);
     if (oe.m_object != 0 && oe.m_executeFunction != 0) {
       /**
        * Handle received signal immediately to avoid any unnecessary
@@ -282,7 +270,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	  Uint32* tDataPtr = &theData[Tsent];
 	  Tsent += TpacketLen;
 	  if (tRecBlockNo >= MIN_API_BLOCK_NO) {
-	    oe = theFacade->m_threads.get(tRecBlockNo);
+	    oe = m_threads.get(tRecBlockNo);
 	    if(oe.m_object != 0 && oe.m_executeFunction != 0){
 	      NdbApiSignal tmpSignal(*header);
 	      NdbApiSignal * tSignal = &tmpSignal;
@@ -299,7 +287,7 @@ execute(void * callbackObj, SignalHeader * const header,
       * The signal was aimed for the Cluster Manager. 
       * We handle it immediately here.
       */     
-     ClusterMgr * clusterMgr = theFacade->theClusterMgr;
+     ClusterMgr * clusterMgr = theClusterMgr;
      const Uint32 gsn = header->theVerId_signalNumber;
 
      switch (gsn){
@@ -308,9 +296,16 @@ execute(void * callbackObj, SignalHeader * const header,
        break;
 
      case GSN_API_REGCONF:
+     {
        clusterMgr->execAPI_REGCONF(theData);
+
+       // Distribute signal to all threads/blocks
+       NdbApiSignal tSignal(* header);
+       tSignal.setDataPtr(theData);
+       for_each(&tSignal, ptr);
        break;
-     
+     }
+
      case GSN_API_REGREF:
        clusterMgr->execAPI_REGREF(theData);
        break;
@@ -324,32 +319,32 @@ execute(void * callbackObj, SignalHeader * const header,
        break;
 
      case GSN_ARBIT_STARTREQ:
-       if (theFacade->theArbitMgr != NULL)
-	 theFacade->theArbitMgr->doStart(theData);
+       if (theArbitMgr != NULL)
+	 theArbitMgr->doStart(theData);
        break;
        
      case GSN_ARBIT_CHOOSEREQ:
-       if (theFacade->theArbitMgr != NULL)
-	 theFacade->theArbitMgr->doChoose(theData);
+       if (theArbitMgr != NULL)
+	 theArbitMgr->doChoose(theData);
        break;
        
      case GSN_ARBIT_STOPORD:
-       if(theFacade->theArbitMgr != NULL)
-	 theFacade->theArbitMgr->doStop(theData);
+       if(theArbitMgr != NULL)
+	 theArbitMgr->doStop(theData);
        break;
 
      case GSN_ALTER_TABLE_REP:
      {
-       if (theFacade->m_globalDictCache == NULL)
+       if (m_globalDictCache == NULL)
          break;
        const AlterTableRep* rep = (const AlterTableRep*)theData;
-       theFacade->m_globalDictCache->lock();
-       theFacade->m_globalDictCache->
+       m_globalDictCache->lock();
+       m_globalDictCache->
 	 alter_table_rep((const char*)ptr[0].p, 
 			 rep->tableId,
 			 rep->tableVersion,
 			 rep->changeType == AlterTableRep::CT_ALTERED);
-       theFacade->m_globalDictCache->unlock();
+       m_globalDictCache->unlock();
        break;
      }
      case GSN_SUB_GCP_COMPLETE_REP:
@@ -359,7 +354,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	*/
        NdbApiSignal tSignal(* header);
        tSignal.setDataPtr(theData);
-       theFacade->for_each(&tSignal, ptr);
+       for_each(&tSignal, ptr);
 
        /**
 	* Reply
@@ -368,12 +363,12 @@ execute(void * callbackObj, SignalHeader * const header,
 	 Uint32* send= tSignal.getDataPtrSend();
 	 memcpy(send, theData, tSignal.getLength() << 2);
 	 ((SubGcpCompleteAck*)send)->rep.senderRef = 
-	   numberToRef(API_CLUSTERMGR, theFacade->theOwnId);
+	   numberToRef(API_CLUSTERMGR, theOwnId);
 	 Uint32 ref= header->theSendersBlockRef;
 	 Uint32 aNodeId= refToNode(ref);
 	 tSignal.theReceiversBlockNumber= refToBlock(ref);
 	 tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-	 theFacade->sendSignalUnCond(&tSignal, aNodeId);
+	 sendSignalUnCond(&tSignal, aNodeId);
        }
        break;
      }
@@ -384,7 +379,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	*/
        NdbApiSignal tSignal(* header);
        tSignal.setDataPtr(theData);
-       theFacade->for_each(&tSignal, ptr);
+       for_each(&tSignal, ptr);
        return;
      }
      default:
@@ -392,9 +387,19 @@ execute(void * callbackObj, SignalHeader * const header,
        
      }
      return;
+  } else if (tRecBlockNo >= MIN_API_FIXED_BLOCK_NO &&
+             tRecBlockNo <= MAX_API_FIXED_BLOCK_NO) {
+    Uint32 dynamic= m_fixed2dynamic[tRecBlockNo - MIN_API_FIXED_BLOCK_NO];
+    oe = m_threads.get(dynamic);
+    if (oe.m_object != 0 && oe.m_executeFunction != 0) {
+      NdbApiSignal tmpSignal(*header);
+      NdbApiSignal * tSignal = &tmpSignal;
+      tSignal->setDataPtr(theData);
+      (* oe.m_executeFunction) (oe.m_object, tSignal, ptr);
+    }//if   
   } else {
     ; // Ignore all other block numbers.
-    if(header->theVerId_signalNumber!=3) {
+    if(header->theVerId_signalNumber != GSN_API_REGREQ) {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
 	     << header->theVerId_signalNumber  << endl;
@@ -418,20 +423,50 @@ copy(Uint32 * & insertPtr,
 }
 
 /**
- * Note that this function need no locking since its
+ * Note that this function needs no locking since it is
  * only called from the constructor of Ndb (the NdbObject)
  * 
  * Which is protected by a mutex
  */
 
 int
-TransporterFacade::start_instance(int nodeId, 
-				  const ndb_mgm_configuration* props)
+TransporterFacade::start_instance(NodeId nodeId,
+                                  const ndb_mgm_configuration* conf)
 {
-  if (! init(nodeId, props)) {
+  assert(theOwnId == 0);
+  theOwnId = nodeId;
+
+  theTransporterRegistry = new TransporterRegistry(this);
+  if (theTransporterRegistry == NULL)
     return -1;
-  }
-  
+
+  if (!theTransporterRegistry->init(nodeId))
+    return -1;
+
+  theClusterMgr = new ClusterMgr(*this);
+  if (theClusterMgr == NULL)
+    return -1;
+
+  if (!configure(nodeId, conf))
+    return -1;
+
+  if (!theTransporterRegistry->start_service(m_socket_server))
+    return -1;
+
+  theReceiveThread = NdbThread_Create(runReceiveResponse_C,
+                                      (void**)this,
+                                      32768,
+                                      "ndb_receive",
+                                      NDB_THREAD_PRIO_LOW);
+
+  theSendThread = NdbThread_Create(runSendRequest_C,
+                                   (void**)this,
+                                   32768,
+                                   "ndb_send",
+                                   NDB_THREAD_PRIO_LOW);
+
+  theClusterMgr->startThread();
+
   /**
    * Install signal handler for SIGPIPE
    *
@@ -495,7 +530,7 @@ runSendRequest_C(void * me)
 void TransporterFacade::threadMainSend(void)
 {
   theTransporterRegistry->startSending();
-  if (!theTransporterRegistry->start_clients()){
+  if (theTransporterRegistry->start_clients() == 0){
     ndbout_c("Unable to start theTransporterRegistry->start_clients");
     exit(0);
   }
@@ -684,30 +719,30 @@ void TransporterFacade::init_cond_wait_queue()
 
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theTransporterRegistry(0),
+  theOwnId(0),
+  theStartNodeId(1),
+  theClusterMgr(NULL),
+  theArbitMgr(NULL),
+  checkCounter(4),
+  currentSendLimit(1),
+  m_scan_batch_size(MAX_SCAN_BATCH_SIZE),
+  m_batch_byte_size(SCAN_BATCH_SIZE),
+  m_batch_size(DEF_BATCH_SIZE),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
+  m_max_trans_id(0),
   m_fragmented_signal_id(0),
   m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   init_cond_wait_queue();
   poll_owner = NULL;
-  theOwnId = 0;
   theMutexPtr = NdbMutex_Create();
   sendPerformedLastInterval = 0;
 
-  checkCounter = 4;
-  currentSendLimit = 1;
-  theClusterMgr = NULL;
-  theArbitMgr = NULL;
-  theStartNodeId = 1;
-  m_scan_batch_size= MAX_SCAN_BATCH_SIZE;
-  m_batch_byte_size= SCAN_BATCH_SIZE;
-  m_batch_size= DEF_BATCH_SIZE;
-  m_max_trans_id = 0;
-
-  theClusterMgr = new ClusterMgr(* this);
+  for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
+    m_fixed2dynamic[i]= RNIL;
 
 #ifdef API_TRACE
   apiSignalLog = 0;
@@ -715,40 +750,107 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   DBUG_VOID_RETURN;
 }
 
-bool
-TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
+
+/* Return true if node with "nodeId" is a MGM node */
+static bool is_mgmd(Uint32 nodeId,
+                    const ndb_mgm_configuration * conf)
 {
-  DBUG_ENTER("TransporterFacade::init");
+  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, nodeId))
+    abort();
+  Uint32 type;
+  if(iter.get(CFG_TYPE_OF_SECTION, &type))
+    abort();
 
-  theOwnId = nodeId;
-  theTransporterRegistry = new TransporterRegistry(this);
+  return (type == NODE_TYPE_MGM);
+}
 
-  const int res = IPCConfig::configureTransporters(nodeId, 
-						   * props, 
-						   * theTransporterRegistry);
-  if(res <= 0){
-    TRP_DEBUG( "configureTransporters returned 0 or less" );
-    DBUG_RETURN(false);
+
+bool
+TransporterFacade::do_connect_mgm(NodeId nodeId,
+                                  const ndb_mgm_configuration* conf)
+{
+  // Allow other MGM nodes to connect
+  DBUG_ENTER("TransporterFacade::do_connect_mgm");
+  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_CONNECTION);
+  for(iter.first(); iter.valid(); iter.next())
+  {
+    Uint32 nodeId1, nodeId2, remoteNodeId;
+    if (iter.get(CFG_CONNECTION_NODE_1, &nodeId1) ||
+        iter.get(CFG_CONNECTION_NODE_2, &nodeId2))
+      DBUG_RETURN(false);
+
+    // Skip connections where this node is not involved
+    if (nodeId1 != nodeId && nodeId2 != nodeId)
+      continue;
+
+    // If both sides are MGM, open connection
+    if(is_mgmd(nodeId1, conf) && is_mgmd(nodeId2, conf))
+    {
+      Uint32 remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
+      DBUG_PRINT("info", ("opening connection to node %d", remoteNodeId));
+      doConnect(remoteNodeId);
+    }
   }
-  
-  ndb_mgm_configuration_iterator iter(* props, CFG_SECTION_NODE);
-  iter.first();
-  theClusterMgr->init(iter);
-  
-  iter.first();
-  if(iter.find(CFG_NODE_ID, nodeId)){
-    TRP_DEBUG( "Node info missing from config." );
+  DBUG_RETURN(true);
+}
+
+
+bool
+TransporterFacade::configure(NodeId nodeId,
+                             const ndb_mgm_configuration* conf)
+{
+  DBUG_ENTER("TransporterFacade::configure");
+
+  assert(theOwnId == nodeId);
+  assert(theTransporterRegistry);
+  assert(theClusterMgr);
+
+  // Configure transporters
+  if (!IPCConfig::configureTransporters(nodeId,
+                                        * conf,
+                                        * theTransporterRegistry))
     DBUG_RETURN(false);
-  }
-  
+
+  // Open connection between MGM servers
+  if (!do_connect_mgm(nodeId, conf))
+    DBUG_RETURN(false);
+
+  // Configure cluster manager
+  theClusterMgr->configure(conf);
+
+  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
+  if(iter.find(CFG_NODE_ID, nodeId))
+    DBUG_RETURN(false);
+
+  // Configure send buffers
+  Uint32 total_send_buffer = 0;
+  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
+  theTransporterRegistry->allocate_send_buffers(total_send_buffer);
+
+  // Configure arbitrator
   Uint32 rank = 0;
-  if(!iter.get(CFG_NODE_ARBIT_RANK, &rank) && rank>0){
-    theArbitMgr = new ArbitMgr(* this);
+  iter.get(CFG_NODE_ARBIT_RANK, &rank);
+  if (rank > 0)
+  {
+    // The arbitrator should be active
+    if (!theArbitMgr)
+      theArbitMgr = new ArbitMgr(* this);
     theArbitMgr->setRank(rank);
+
     Uint32 delay = 0;
     iter.get(CFG_NODE_ARBIT_DELAY, &delay);
     theArbitMgr->setDelay(delay);
   }
+  else if (theArbitMgr)
+  {
+    // No arbitrator should be started
+    theArbitMgr->doStop(NULL);
+    delete theArbitMgr;
+    theArbitMgr= NULL;
+  }
+
+  // Configure scan settings
   Uint32 scan_batch_size= 0;
   if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
     m_scan_batch_size= scan_batch_size;
@@ -761,9 +863,9 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
     m_batch_size= batch_size;
   }
-  
+
+  // Configure timeouts
   Uint32 timeout = 120000;
-  iter.first();
   for (iter.first(); iter.valid(); iter.next())
   {
     Uint32 tmp1 = 0, tmp2 = 0;
@@ -775,24 +877,6 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   }
   m_waitfor_timeout = timeout;
   
-  if (!theTransporterRegistry->start_service(m_socket_server)){
-    ndbout_c("Unable to start theTransporterRegistry->start_service");
-    DBUG_RETURN(false);
-  }
-
-  theReceiveThread = NdbThread_Create(runReceiveResponse_C,
-                                      (void**)this,
-                                      32768,
-                                      "ndb_receive",
-                                      NDB_THREAD_PRIO_LOW);
-
-  theSendThread = NdbThread_Create(runSendRequest_C,
-                                   (void**)this,
-                                   32768,
-                                   "ndb_send",
-                                   NDB_THREAD_PRIO_LOW);
-  theClusterMgr->startThread();
-  
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif
@@ -803,7 +887,6 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 void
 TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 {
-  DBUG_ENTER("TransporterFacade::for_each");
   Uint32 sz = m_threads.m_statusNext.size();
   TransporterFacade::ThreadData::Object_Execute oe; 
   for (Uint32 i = 0; i < sz ; i ++) 
@@ -814,7 +897,6 @@ TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       (* oe.m_executeFunction) (oe.m_object, aSignal, ptr);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 void
@@ -923,12 +1005,24 @@ TransporterFacade::close_local(BlockNumber blockNumber){
 int
 TransporterFacade::open(void* objRef, 
                         ExecuteFunction fun, 
-                        NodeStatusFunction statusFun)
+                        NodeStatusFunction statusFun,
+                        int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
   int r= m_threads.open(objRef, fun, statusFun);
   if (r < 0)
     DBUG_RETURN(r);
+
+  if (unlikely(blockNo != -1)){
+    // Using fixed block number, add fixed->dymamic mapping
+    Uint32 fixed_index= blockNo - MIN_API_FIXED_BLOCK_NO;
+
+    assert(blockNo >= MIN_API_FIXED_BLOCK_NO &&
+           fixed_index <= NO_API_FIXED_BLOCKS);
+
+    m_fixed2dynamic[fixed_index]= r;
+  }
+
 #if 1
   if (theOwnId > 0) {
     (*statusFun)(objRef, numberToRef(r, theOwnId), true, true);
@@ -1042,7 +1136,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 							  1, // JBB
 							  tDataPtr, 
 							  aNode, 
-							  0);
+							  (LinearSectionPtr*)0);
       //if (ss != SEND_OK) ndbout << ss << endl;
       return (ss == SEND_OK ? 0 : -1);
     } else {
@@ -1082,19 +1176,252 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal,
 						      prio, 
 						      tDataPtr,
 						      aNode, 
-						      0);
+						      (LinearSectionPtr*)0);
   
   return (ss == SEND_OK ? 0 : -1);
 }
 
-#define CHUNK_SZ NDB_SECTION_SEGMENT_SZ*64 // related to MAX_MESSAGE_SIZE
+/**
+ * FragmentedSectionIterator
+ * -------------------------
+ * This class acts as an adapter to a GenericSectionIterator
+ * instance, providing a sub-range iterator interface.
+ * It is used when long sections of a signal are fragmented
+ * across multiple actual signals - the user-supplied
+ * GenericSectionIterator is then adapted into a
+ * GenericSectionIterator that only returns a subset of
+ * the contained words for each signal fragment.
+ */
+class FragmentedSectionIterator: public GenericSectionIterator
+{
+private :
+  GenericSectionIterator* realIterator; /* Real underlying iterator */
+  Uint32 realIterWords;                 /* Total size of underlying */
+  Uint32 realCurrPos;                   /* Current pos in underlying */
+  Uint32 rangeStart;                    /* Sub range start in underlying */
+  Uint32 rangeLen;                      /* Sub range len in underlying */
+  Uint32 rangeRemain;                   /* Remaining words in underlying */
+  Uint32* lastReadPtr;                  /* Ptr to last chunk obtained from
+                                         * underlying */
+  Uint32 lastReadPtrLen;                /* Remaining words in last chunk
+                                         * obtained from underlying */
+public:
+  /* Constructor
+   * The instance is constructed with the sub-range set to be the
+   * full range of the underlying iterator
+   */
+  FragmentedSectionIterator(GenericSectionPtr ptr)
+  {
+    realIterator= ptr.sectionIter;
+    realIterWords= ptr.sz;
+    realCurrPos= 0;
+    rangeStart= 0;
+    rangeLen= rangeRemain= realIterWords;
+    lastReadPtr= NULL;
+    lastReadPtrLen= 0;
+    moveToPos(0);
+
+    assert(checkInvariants());
+  }
+
+private:
+  /** 
+   * checkInvariants
+   * These class invariants must hold true at all stable states
+   * of the iterator
+   */
+  bool checkInvariants()
+  {
+    assert( (realIterator != NULL) || (realIterWords == 0) );
+    assert( realCurrPos <= realIterWords );
+    assert( rangeStart <= realIterWords );
+    assert( (rangeStart+rangeLen) <= realIterWords);
+    assert( rangeRemain <= rangeLen );
+    
+    /* Can only have a null readptr if nothing is left */
+    assert( (lastReadPtr != NULL) || (rangeRemain == 0));
+
+    /* If we have a non-null readptr and some remaining 
+     * words the readptr must have some words
+     */
+    assert( (lastReadPtr == NULL) || 
+            ((rangeRemain == 0) || (lastReadPtrLen != 0)));
+    return true;
+  }
+
+  /**
+   * moveToPos
+   * This method is used when the iterator is reset(), to move
+   * to the start of the current sub-range.
+   * If the iterator is already in-position then this is efficient
+   * Otherwise, it has to reset() the underling iterator and
+   * advance it until the start position is reached.
+   */
+  void moveToPos(Uint32 pos)
+  {
+    assert(pos <= realIterWords);
+
+    if (pos < realCurrPos)
+    {
+      /* Need to reset, and advance from the start */
+      realIterator->reset();
+      realCurrPos= 0;
+      lastReadPtr= NULL;
+      lastReadPtrLen= 0;
+    }
+
+    if ((lastReadPtr == NULL) && 
+        (realIterWords != 0) &&
+        (pos != realIterWords))
+      lastReadPtr= realIterator->getNextWords(lastReadPtrLen);
+    
+    if (pos == realCurrPos)
+      return;
+
+    /* Advance until we get a chunk which contains the pos */
+    while (pos >= realCurrPos + lastReadPtrLen)
+    {
+      realCurrPos+= lastReadPtrLen;
+      lastReadPtr= realIterator->getNextWords(lastReadPtrLen);
+      assert(lastReadPtr != NULL);
+    }
+
+    const Uint32 chunkOffset= pos - realCurrPos;
+    lastReadPtr+= chunkOffset;
+    lastReadPtrLen-= chunkOffset;
+    realCurrPos= pos;
+  }
+
+public:
+  /**
+   * setRange
+   * Set the sub-range of the iterator.  Must be within the
+   * bounds of the underlying iterator
+   * After the range is set, the iterator is reset() to the
+   * start of the supplied subrange
+   */
+  bool setRange(Uint32 start, Uint32 len)
+  {
+    assert(checkInvariants());
+    if (start+len > realIterWords)
+      return false;
+    moveToPos(start);
+    
+    rangeStart= start;
+    rangeLen= rangeRemain= len;
+
+    assert(checkInvariants());
+    return true;
+  }
+
+  /**
+   * reset
+   * (GenericSectionIterator)
+   * Reset the iterator to the start of the current sub-range
+   * Avoid calling as it could be expensive.
+   */
+  void reset()
+  {
+    /* Reset iterator to last specified range */
+    assert(checkInvariants());
+    moveToPos(rangeStart);
+    rangeRemain= rangeLen;
+    assert(checkInvariants());
+  }
+
+  /**
+   * getNextWords
+   * (GenericSectionIterator)
+   * Get ptr and size of next contiguous words in subrange
+   */
+  Uint32* getNextWords(Uint32& sz)
+  {
+    assert(checkInvariants());
+    Uint32* currPtr= NULL;
+
+    if (rangeRemain)
+    {
+      assert(lastReadPtr != NULL);
+      assert(lastReadPtrLen != 0);
+      currPtr= lastReadPtr;
+      
+      sz= MIN(rangeRemain, lastReadPtrLen);
+      
+      if (sz == lastReadPtrLen)
+        /* Will return everything in this chunk, move iterator to 
+         * next
+         */
+        lastReadPtr= realIterator->getNextWords(lastReadPtrLen);
+      else
+      {
+        /* Not returning all of this chunk, just advance within it */
+        lastReadPtr+= sz;
+        lastReadPtrLen-= sz;
+      }
+      realCurrPos+= sz;
+      rangeRemain-= sz;
+    }
+    else
+    {
+      sz= 0;
+    }
+    
+    assert(checkInvariants());
+    return currPtr;
+  }
+};
+
+/* Max fragmented signal chunk size (words) is max round number 
+ * of NDB_SECTION_SEGMENT_SZ words with some slack left for 'main'
+ * part of signal etc.
+ */
+#define CHUNK_SZ ((((MAX_SEND_MESSAGE_BYTESIZE >> 2) / NDB_SECTION_SEGMENT_SZ) - 2 ) \
+                  * NDB_SECTION_SEGMENT_SZ)
+
+/**
+ * sendFragmentedSignal (GenericSectionPtr variant)
+ * ------------------------------------------------
+ * This method will send a signal with attached long sections.  If 
+ * the signal is longer than CHUNK_SZ, the signal will be split into
+ * multiple CHUNK_SZ fragments.
+ * 
+ * This is done by sending two or more long signals(fragments), with the
+ * original GSN, but different signal data and with as much of the long 
+ * sections as will fit in each.
+ *
+ * Non-final fragment signals contain a fraginfo value in the header
+ * (1= first fragment, 2= intermediate fragment, 3= final fragment)
+ * 
+ * Fragment signals contain additional words in their signals :
+ *   1..n words Mapping section numbers in fragment signal to original 
+ *              signal section numbers
+ *   1 word     Fragmented signal unique id.
+ * 
+ * Non final fragments (fraginfo=1/2) only have this data in them.  Final
+ * fragments have this data in addition to the normal signal data.
+ * 
+ * Each fragment signal can transport one or more long sections, starting 
+ * with section 0.  Sections are always split on NDB_SECTION_SEGMENT_SZ word
+ * boundaries to simplify reassembly in the kernel.
+ */
 int
 TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode, 
-					LinearSectionPtr ptr[3], Uint32 secs)
+					GenericSectionPtr ptr[3], Uint32 secs)
 {
+  unsigned i;
+  Uint32 totalSectionLength= 0;
+  for (i= 0; i < secs; i++)
+    totalSectionLength+= ptr[i].sz;
+  
+  /* If there's no need to fragment, send normally */
+  if (totalSectionLength <= CHUNK_SZ)
+    return sendSignal(aSignal, aNode, ptr, secs);
+  
+  /* We will fragment */
   if(getIsNodeSendable(aNode) != true)
     return -1;
 
+  // TODO : Consider tracing fragment signals?
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
@@ -1105,42 +1432,91 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 			    aNode,
 			    ptr, secs);
     aSignal->theSendersBlockRef = tmp;
+    /* Reset section iterators */
+    for(Uint32 s=0; s < secs; s++)
+      ptr[s].sectionIter->reset();
   }
 #endif
 
   NdbApiSignal tmp_signal(*(SignalHeader*)aSignal);
-  LinearSectionPtr tmp_ptr[3];
+  GenericSectionPtr tmp_ptr[3];
+  GenericSectionPtr empty= {0, NULL};
   Uint32 unique_id= m_fragmented_signal_id++; // next unique id
-  unsigned i;
-  for (i= 0; i < secs; i++)
-    tmp_ptr[i]= ptr[i];
+  
+  /* Init tmp_ptr array from ptr[] array, make sure we have
+   * 0 length for missing sections
+   */
+  for (i= 0; i < 3; i++)
+    tmp_ptr[i]= (i < secs)? ptr[i] : empty;
+
+  /* Create our section iterator adapters */
+  FragmentedSectionIterator sec0(tmp_ptr[0]);
+  FragmentedSectionIterator sec1(tmp_ptr[1]);
+  FragmentedSectionIterator sec2(tmp_ptr[2]);
+
+  /* Replace caller's iterators with ours */
+  tmp_ptr[0].sectionIter= &sec0;
+  tmp_ptr[1].sectionIter= &sec1;
+  tmp_ptr[2].sectionIter= &sec2;
 
   unsigned start_i= 0;
-  unsigned chunk_sz= 0;
+  unsigned this_chunk_sz= 0;
   unsigned fragment_info= 0;
-  Uint32 *tmp_data= tmp_signal.getDataPtrSend();
+  Uint32 *tmp_signal_data= tmp_signal.getDataPtrSend();
   for (i= 0; i < secs;) {
-    unsigned save_sz= tmp_ptr[i].sz;
-    tmp_data[i-start_i]= i;
-    if (chunk_sz + save_sz > CHUNK_SZ) {
-      // truncate
-      unsigned send_sz= CHUNK_SZ - chunk_sz;
-      if (i != start_i) // first piece of a new section has to be a multiple of NDB_SECTION_SEGMENT_SZ
+    unsigned remaining_sec_sz= tmp_ptr[i].sz;
+    tmp_signal_data[i-start_i]= i;
+    if (this_chunk_sz + remaining_sec_sz <= CHUNK_SZ)
+    {
+      /* This section fits whole, move onto next */
+      this_chunk_sz+= remaining_sec_sz;
+      i++;
+    }
+    else
+    {
+      /* This section doesn't fit, truncate it */
+      unsigned send_sz= CHUNK_SZ - this_chunk_sz;
+      if (i != start_i)
       {
+        /* We ensure that the first piece of a new section which is
+         * being truncated is a multiple of NDB_SECTION_SEGMENT_SZ
+         * (to simplify reassembly).  Subsequent non-truncated pieces
+         * will be CHUNK_SZ which is a multiple of NDB_SECTION_SEGMENT_SZ
+         * The final piece does not need to be a multiple of
+         * NDB_SECTION_SEGMENT_SZ
+         * 
+         * Note that this can push this_chunk_sz above CHUNK_SZ
+         * Should probably round-down, but need to be careful of
+         * 'can't fit any' cases.  Instead, CHUNK_SZ is defined
+         * with some slack below MAX_SENT_MESSAGE_BYTESIZE
+         */
 	send_sz=
 	  NDB_SECTION_SEGMENT_SZ
-	  *(send_sz+NDB_SECTION_SEGMENT_SZ-1)
-	  /NDB_SECTION_SEGMENT_SZ;
-	if (send_sz > save_sz)
-	  send_sz= save_sz;
+	  *((send_sz+NDB_SECTION_SEGMENT_SZ-1)
+            /NDB_SECTION_SEGMENT_SZ);
+        if (send_sz > remaining_sec_sz)
+	  send_sz= remaining_sec_sz;
       }
+
+      /* Modify tmp generic section ptr to describe truncated
+       * section
+       */
       tmp_ptr[i].sz= send_sz;
+      FragmentedSectionIterator* fragIter= 
+        (FragmentedSectionIterator*) tmp_ptr[i].sectionIter;
+      const Uint32 total_sec_sz= ptr[i].sz;
+      const Uint32 start= (total_sec_sz - remaining_sec_sz);
+      bool ok= fragIter->setRange(start, send_sz);
+      assert(ok);
+      if (!ok)
+        return -1;
       
-      if (fragment_info < 2) // 1 = first fragment, 2 = middle fragments
+      if (fragment_info < 2) // 1 = first fragment signal
+                             // 2 = middle fragments
 	fragment_info++;
 
       // send tmp_signal
-      tmp_data[i-start_i+1]= unique_id;
+      tmp_signal_data[i-start_i+1]= unique_id;
       tmp_signal.setLength(i-start_i+2);
       tmp_signal.m_fragmentInfo= fragment_info;
       tmp_signal.m_noOfSections= i-start_i+1;
@@ -1149,7 +1525,7 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 	SendStatus ss = theTransporterRegistry->prepareSend
 	  (&tmp_signal, 
 	   1, /*JBB*/
-	   tmp_data,
+	   tmp_signal_data,
 	   aNode, 
 	   &tmp_ptr[start_i]);
 	assert(ss != SEND_MESSAGE_TOO_BIG);
@@ -1157,16 +1533,19 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
       }
       // setup variables for next signal
       start_i= i;
-      chunk_sz= 0;
-      tmp_ptr[i].sz= save_sz-send_sz;
-      tmp_ptr[i].p+= send_sz;
-      if (tmp_ptr[i].sz == 0)
+      this_chunk_sz= 0;
+      assert(remaining_sec_sz >= send_sz);
+      Uint32 remaining= remaining_sec_sz - send_sz;
+      tmp_ptr[i].sz= remaining;
+      /* Set sub-range iterator to cover remaining words */
+      ok= fragIter->setRange(start+send_sz, remaining);
+      assert(ok);
+      if (!ok)
+        return -1;
+      
+      if (remaining == 0)
+        /* This section's done, move onto the next */
 	i++;
-    }
-    else
-    {
-      chunk_sz+=save_sz;
-      i++;
     }
   }
 
@@ -1177,7 +1556,7 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
     Uint32 *a_data= aSignal->getDataPtrSend();
     unsigned tmp_sz= i-start_i;
     memcpy(a_data+a_sz,
-	   tmp_data,
+	   tmp_signal_data,
 	   tmp_sz*sizeof(Uint32));
     a_data[a_sz+tmp_sz]= unique_id;
     aSignal->setLength(a_sz+tmp_sz+1);
@@ -1208,6 +1587,35 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 }
 
 int
+TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode, 
+					LinearSectionPtr ptr[3], Uint32 secs)
+{
+  /* Use the GenericSection variant of sendFragmentedSignal */
+  GenericSectionPtr tmpPtr[3];
+  LinearSectionPtr linCopy[3];
+  const LinearSectionPtr empty= {0, NULL};
+  
+  /* Make sure all of linCopy is initialised */
+  for (Uint32 j=0; j<3; j++)
+    linCopy[j]= (j < secs)? ptr[j] : empty;
+  
+  LinearSectionIterator zero (linCopy[0].p, linCopy[0].sz);
+  LinearSectionIterator one  (linCopy[1].p, linCopy[1].sz);
+  LinearSectionIterator two  (linCopy[2].p, linCopy[2].sz);
+
+  /* Build GenericSectionPtr array using iterators */
+  tmpPtr[0].sz= linCopy[0].sz;
+  tmpPtr[0].sectionIter= &zero;
+  tmpPtr[1].sz= linCopy[1].sz;
+  tmpPtr[1].sectionIter= &one;
+  tmpPtr[2].sz= linCopy[2].sz;
+  tmpPtr[2].sectionIter= &two;
+
+  return sendFragmentedSignal(aSignal, aNode, tmpPtr, secs);
+}
+  
+
+int
 TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode, 
 			      LinearSectionPtr ptr[3], Uint32 secs){
   aSignal->m_noOfSections = secs;
@@ -1224,6 +1632,41 @@ TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
       signalLogger.flushSignalLog();
       aSignal->theSendersBlockRef = tmp;
     }
+#endif
+    SendStatus ss = theTransporterRegistry->prepareSend
+      (aSignal, 
+       1, // JBB
+       aSignal->getDataPtrSend(),
+       aNode, 
+       ptr);
+    assert(ss != SEND_MESSAGE_TOO_BIG);
+    aSignal->m_noOfSections = 0;
+    return (ss == SEND_OK ? 0 : -1);
+  }
+  aSignal->m_noOfSections = 0;
+  return -1;
+}
+
+int
+TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
+                              GenericSectionPtr ptr[3], Uint32 secs){
+  aSignal->m_noOfSections = secs;
+  if(getIsNodeSendable(aNode) == true){
+#ifdef API_TRACE
+    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+      Uint32 tmp = aSignal->theSendersBlockRef;
+      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
+      signalLogger.sendSignal(* aSignal,
+			      1,
+			      aSignal->getDataPtrSend(),
+			      aNode,
+                              ptr, secs);
+      signalLogger.flushSignalLog();
+      aSignal->theSendersBlockRef = tmp;
+    }
+    /* Reset section iterators */
+    for(Uint32 s=0; s < secs; s++)
+      ptr[s].sectionIter->reset();
 #endif
     SendStatus ss = theTransporterRegistry->prepareSend
       (aSignal, 
@@ -1341,15 +1784,15 @@ TransporterFacade::ThreadData::open(void* objRef,
   if(m_statusNext.size() >= MAX_NO_THREADS && nextFree == END_OF_LIST){
     return -1;
   }
-  
+
   if(nextFree == END_OF_LIST){
     expand(10);
     nextFree = m_firstFree;
   }
-  
+
   m_use_cnt++;
   m_firstFree = m_statusNext[nextFree];
-  
+
   Object_Execute oe = { objRef , fun };
 
   m_statusNext[nextFree] = INACTIVE;
@@ -1453,7 +1896,7 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 #endif
       continue;
     }
-    wait_time= max_time - NdbTick_CurrentMillisecond();
+    wait_time= int(max_time - NdbTick_CurrentMillisecond());
     if (wait_time <= 0)
     {
 #ifdef VM_TRACE
@@ -1572,6 +2015,18 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
     signalLogger.flushSignalLog();
   }
 #endif
+
+  if (nodeId == theFacade->ownId())
+  {
+    SignalHeader tmp= s->header;
+    tmp.theSendersBlockRef = getOwnRef();
+    theFacade->deliver_signal(&tmp,
+                              1, // JBB
+                              (Uint32*)&s->theData[0],
+                              (LinearSectionPtr*)&s->ptr[0]);
+    return SEND_OK;
+  }
+
   assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
          s->readSignalNumber() == GSN_API_REGREQ);
   
@@ -1589,3 +2044,272 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
 
   return ss;
 }
+
+
+Uint32*
+SignalSectionIterator::getNextWords(Uint32& sz)
+{
+  if (likely(currentSignal != NULL))
+  {
+    NdbApiSignal* signal= currentSignal;
+    currentSignal= currentSignal->next();
+    sz= signal->getLength();
+    return signal->getDataPtrSend();
+  }
+  sz= 0;
+  return NULL;
+}
+
+#ifdef UNIT_TEST
+
+// Unit test code starts
+#include <random.h>
+
+#define VERIFY(x) if ((x) == 0) { printf("VERIFY failed at Line %u : %s\n",__LINE__, #x);  return -1; }
+
+/* Verify that word[n] == bias + n */
+int
+verifyIteratorContents(GenericSectionIterator& gsi, int dataWords, int bias)
+{
+  int pos= 0;
+
+  while (pos < dataWords)
+  {
+    Uint32* readPtr=NULL;
+    Uint32 len= 0;
+
+    readPtr= gsi.getNextWords(len);
+    
+    VERIFY(readPtr != NULL);
+    VERIFY(len != 0);
+    VERIFY(len <= (Uint32) (dataWords - pos));
+    
+    for (int j=0; j < (int) len; j++)
+      VERIFY(readPtr[j] == (Uint32) (bias ++));
+
+    pos += len;
+  }
+
+  return 0;
+}
+
+int
+checkGenericSectionIterator(GenericSectionIterator& iter, int size, int bias)
+{
+  /* Verify contents */
+  VERIFY(verifyIteratorContents(iter, size, bias) == 0);
+  
+  Uint32 sz;
+  
+  /* Check that iterator is empty now */
+  VERIFY(iter.getNextWords(sz) == NULL);
+  VERIFY(sz == 0);
+    
+  VERIFY(iter.getNextWords(sz) == NULL);
+  VERIFY(sz == 0);
+  
+  iter.reset();
+  
+  /* Verify reset put us back to the start */
+  VERIFY(verifyIteratorContents(iter, size, bias) == 0);
+  
+  /* Verify no more words available */
+  VERIFY(iter.getNextWords(sz) == NULL);
+  VERIFY(sz == 0);  
+  
+  return 0;
+}
+
+int
+checkIterator(GenericSectionIterator& iter, int size, int bias)
+{
+  /* Test iterator itself, and then FragmentedSectionIterator
+   * adaptation
+   */
+  VERIFY(checkGenericSectionIterator(iter, size, bias) == 0);
+  
+  /* Now we'll test the FragmentedSectionIterator on the iterator
+   * we were passed
+   */
+  const int subranges= 20;
+  
+  iter.reset();
+  GenericSectionPtr ptr;
+  ptr.sz= size;
+  ptr.sectionIter= &iter;
+  FragmentedSectionIterator fsi(ptr);
+
+  for (int s=0; s< subranges; s++)
+  {
+    Uint32 start= 0;
+    Uint32 len= 0;
+    if (size > 0)
+    {
+      start= (Uint32) myRandom48(size);
+      if (0 != (size-start)) 
+        len= (Uint32) myRandom48(size-start);
+    }
+    
+    /*
+      printf("Range (0-%u) = (%u + %u)\n",
+              size, start, len);
+    */
+    fsi.setRange(start, len);
+    VERIFY(checkGenericSectionIterator(fsi, len, bias + start) == 0);
+  }
+  
+  return 0;
+}
+
+
+
+int
+testLinearSectionIterator()
+{
+  /* Test Linear section iterator of various
+   * lengths with section[n] == bias + n
+   */
+  const int totalSize= 200000;
+  const int bias= 13;
+
+  Uint32 data[totalSize];
+  for (int i=0; i<totalSize; i++)
+    data[i]= bias + i;
+
+  for (int len= 0; len < 50000; len++)
+  {
+    LinearSectionIterator something(data, len);
+
+    VERIFY(checkIterator(something, len, bias) == 0);
+  }
+
+  return 0;
+}
+
+NdbApiSignal*
+createSignalChain(NdbApiSignal*& poolHead, int length, int bias)
+{
+  /* Create signal chain, with word[n] == bias+n */
+  NdbApiSignal* chainHead= NULL;
+  NdbApiSignal* chainTail= NULL;
+  int pos= 0;
+  int signals= 0;
+
+  while (pos < length)
+  {
+    int offset= pos % NdbApiSignal::MaxSignalWords;
+    
+    if (offset == 0)
+    {
+      if (poolHead == NULL)
+        return 0;
+
+      NdbApiSignal* newSig= poolHead;
+      poolHead= poolHead->next();
+      signals++;
+
+      newSig->next(NULL);
+
+      if (chainHead == NULL)
+      {
+        chainHead= chainTail= newSig;
+      }
+      else
+      {
+        chainTail->next(newSig);
+        chainTail= newSig;
+      }
+    }
+    
+    chainTail->getDataPtrSend()[offset]= (bias + pos);
+    chainTail->setLength(offset + 1);
+    pos ++;
+  }
+
+  return chainHead;
+}
+    
+int
+testSignalSectionIterator()
+{
+  /* Create a pool of signals, build
+   * signal chains from it, test
+   * the iterator against the signal chains
+   */
+  const int totalNumSignals= 1000;
+  NdbApiSignal* poolHead= NULL;
+
+  /* Allocate some signals */
+  for (int i=0; i < totalNumSignals; i++)
+  {
+    NdbApiSignal* sig= new NdbApiSignal((BlockReference) 0);
+
+    if (poolHead == NULL)
+    {
+      poolHead= sig;
+      sig->next(NULL);
+    }
+    else
+    {
+      sig->next(poolHead);
+      poolHead= sig;
+    }
+  }
+
+  const int bias= 7;
+  for (int dataWords= 1; 
+       dataWords <= (int)(totalNumSignals * 
+                          NdbApiSignal::MaxSignalWords); 
+       dataWords ++)
+  {
+    NdbApiSignal* signalChain= NULL;
+    
+    VERIFY((signalChain= createSignalChain(poolHead, dataWords, bias)) != NULL );
+    
+    SignalSectionIterator ssi(signalChain);
+    
+    VERIFY(checkIterator(ssi, dataWords, bias) == 0);
+    
+    /* Now return the signals to the pool */
+    while (signalChain != NULL)
+    {
+      NdbApiSignal* sig= signalChain;
+      signalChain= signalChain->next();
+      
+      sig->next(poolHead);
+      poolHead= sig;
+    }
+  }
+  
+  /* Free signals from pool */
+  while (poolHead != NULL)
+  {
+    NdbApiSignal* sig= poolHead;
+    poolHead= sig->next();
+    delete(sig);
+  }
+  
+  return 0;
+}
+
+int main(int arg, char** argv)
+{
+  /* Test Section Iterators
+   * ----------------------
+   * To run this code : 
+   *   cd storage/ndb/src/ndbapi
+   *   make testSectionIterators
+   *   ./testSectionIterators
+   *
+   * Will print "OK" in success case
+   */
+  
+
+  VERIFY(testLinearSectionIterator() == 0);
+  VERIFY(testSignalSectionIterator() == 0);
+  
+  printf("OK\n");
+
+  return 0;
+}
+#endif

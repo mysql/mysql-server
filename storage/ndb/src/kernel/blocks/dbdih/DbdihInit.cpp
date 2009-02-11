@@ -124,7 +124,8 @@ Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
   c_activeTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
-  c_waitGCPMasterList(waitGCPMasterPool)
+  c_waitGCPMasterList(waitGCPMasterPool),
+  c_waitEpochMasterList(waitGCPMasterPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
 
@@ -200,8 +201,10 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DIRELEASEREQ, &Dbdih::execDIRELEASEREQ);
   addRecSignal(GSN_DISEIZEREQ, &Dbdih::execDISEIZEREQ);
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
-  addRecSignal(GSN_DI_FCOUNTREQ, &Dbdih::execDI_FCOUNTREQ);
-  addRecSignal(GSN_DIGETPRIMREQ, &Dbdih::execDIGETPRIMREQ);
+  addRecSignal(GSN_DIH_SCAN_TAB_REQ, &Dbdih::execDIH_SCAN_TAB_REQ);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_REQ, &Dbdih::execDIH_SCAN_GET_NODES_REQ);
+  addRecSignal(GSN_DIH_SCAN_TAB_COMPLETE_REP,
+               &Dbdih::execDIH_SCAN_TAB_COMPLETE_REP);
   addRecSignal(GSN_GCP_TCFINISHED, &Dbdih::execGCP_TCFINISHED);
   addRecSignal(GSN_READ_NODESCONF, &Dbdih::execREAD_NODESCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbdih::execNDB_STTOR);
@@ -213,6 +216,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGCONF, &Dbdih::execADD_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGREF, &Dbdih::execADD_FRAGREF);
+  addRecSignal(GSN_DROP_FRAG_REF, &Dbdih::execDROP_FRAG_REF);
+  addRecSignal(GSN_DROP_FRAG_CONF, &Dbdih::execDROP_FRAG_CONF);
   addRecSignal(GSN_FSOPENCONF, &Dbdih::execFSOPENCONF);
   addRecSignal(GSN_FSOPENREF, &Dbdih::execFSOPENREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Dbdih::execFSCLOSECONF);
@@ -258,8 +263,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_WAIT_GCP_CONF, &Dbdih::execWAIT_GCP_CONF);
 
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbdih::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbdih::execWAIT_DROP_TAB_REF);
-  addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbdih::execWAIT_DROP_TAB_CONF);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbdih::execDROP_TAB_REQ);
 
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbdih::execALTER_TAB_REQ);
@@ -282,6 +285,12 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_UPGRADE_PROTOCOL_ORD,
 	       &Dbdih::execUPGRADE_PROTOCOL_ORD);
 
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ,
+               &Dbdih::execCREATE_NODEGROUP_IMPL_REQ);
+
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
+               &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
+
   apiConnectRecord = 0;
   connectRecord = 0;
   fileRecord = 0;
@@ -293,6 +302,9 @@ Dbdih::Dbdih(Block_context& ctx):
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
+  c_fragments_per_node = 1;
+  bzero(c_node_groups, sizeof(c_node_groups));
+
 }//Dbdih::Dbdih()
 
 Dbdih::~Dbdih() 

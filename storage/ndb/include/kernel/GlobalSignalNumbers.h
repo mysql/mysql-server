@@ -22,7 +22,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 730;
+const GlobalSignalNumber MAX_GSN = 768;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -92,19 +92,23 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_TCKEY_FAILREFCONF_R         40
 
-/* 41 unused */
-/* 42 unused */
-/* 43 unused */
-/* 44 unused */
-/* 45 unused */
-/* 46 unused */
-/* 47 unused */
-/* 48 unused */
-/* 49 unused */
-/* 50 unused */
-/* 51 unused */
-/* 52 unused */
-/* 53 unused */
+#define GSN_DBINFO_SCANREQ              41
+#define GSN_DBINFO_SCANCONF             42
+#define GSN_DBINFO_SCANREF              43
+#define GSN_DBINFO_TRANSID_AI           44
+
+#define GSN_CONFIG_CHANGE_REQ           45
+#define GSN_CONFIG_CHANGE_REF           46
+#define GSN_CONFIG_CHANGE_CONF          47
+
+#define GSN_CONFIG_CHANGE_IMPL_REQ      48
+#define GSN_CONFIG_CHANGE_IMPL_REF      49
+#define GSN_CONFIG_CHANGE_IMPL_CONF     50
+
+#define GSN_CONFIG_CHECK_REQ            51
+#define GSN_CONFIG_CHECK_REF            52
+#define GSN_CONFIG_CHECK_CONF           53
+
 /* 54 unused */
 /* 55 unused */
 /* 56 unused */
@@ -190,7 +194,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CLOSE_COMCONF               126 /* local */
 #define GSN_CLOSE_COMREQ                127 /* local */
 #define GSN_CM_ACKADD                   128 /* distr. */
-/* 129 unused */
+#define GSN_ENABLE_COMCONF              129 /* local */
 #define GSN_CM_ADD                      130 /* distr. */
 /* 131 unused */
 /* 132 not unused */
@@ -207,13 +211,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CM_REGCONF                  141 /* distr. */
 #define GSN_CM_REGREF                   142 /* distr. */
 #define GSN_CM_REGREQ                   143 /* distr. */
-/* 144 unused */
-/* 145 unused */
-/* 146 unused */
+/* 144 not unused */
+/* 145 not unused */
+/* 146 not unused */
 #define GSN_CM_ADD_REP                  147 /* local */
-/* 148 unused  */
-/* 149 unused  */
-/* 150 unused  */
+/* 148 not unused  */
+/* 149 not unused  */
+/* 150 not unused  */
 #define GSN_CNTR_WAITREP                151 /* distr. */
 #define GSN_COMMIT                      152
 #define GSN_COMMIT_FAILCONF             153
@@ -244,9 +248,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CREATE_FRAGREF              179
 #define GSN_CREATE_FRAGREQ              180
 #define GSN_DEBUG_SIG                   181
-#define GSN_DI_FCOUNTCONF               182
-#define GSN_DI_FCOUNTREF                183
-#define GSN_DI_FCOUNTREQ                184
+#define GSN_DIH_SCAN_TAB_REQ            182
+#define GSN_DIH_SCAN_TAB_REF            183
+#define GSN_DIH_SCAN_TAB_CONF           184
+#define GSN_DIH_SCAN_TAB_COMPLETE_REP   287
 #define GSN_DIADDTABCONF                185
 #define GSN_DIADDTABREF                 186
 #define GSN_DIADDTABREQ                 187
@@ -287,9 +292,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_TAB_REF                203
 #define GSN_DROP_TAB_CONF               204
 
-#define GSN_WAIT_DROP_TAB_REQ           208
-#define GSN_WAIT_DROP_TAB_REF           209
-#define GSN_WAIT_DROP_TAB_CONF          216
+#define GSN_208
+#define GSN_209
+#define GSN_216
 
 /*****************************************/
 
@@ -300,9 +305,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIGETNODESCONF              210
 #define GSN_DIGETNODESREF               211
 #define GSN_DIGETNODESREQ               212
-#define GSN_DIGETPRIMCONF               213
-#define GSN_DIGETPRIMREF                214
-#define GSN_DIGETPRIMREQ                215
+#define GSN_DIH_SCAN_GET_NODES_REQ      213
+#define GSN_DIH_SCAN_GET_NODES_REF      215
+#define GSN_DIH_SCAN_GET_NODES_CONF     214
 
 #define GSN_DIH_RESTARTCONF             217
 #define GSN_DIH_RESTARTREF              218
@@ -335,7 +340,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIVERIFYCONF                239
 #define GSN_DIVERIFYREF                 240
 #define GSN_DIVERIFYREQ                 241
-#define GSN_ENABLE_COMORD               242
+#define GSN_ENABLE_COMREQ               242 /* local */
 #define GSN_END_LCPCONF                 243
 #define GSN_END_LCP_CONF                243
 #define GSN_END_LCPREQ                  244
@@ -385,7 +390,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_UPGRADE_PROTOCOL_ORD        285
 
 /* 286 not unused */
-/* 287 unused */
+/* 287 not unused */
 #define GSN_GETGCICONF                  288
 #define GSN_GETGCIREQ                   289
 #define GSN_HOT_SPAREREP                290
@@ -397,9 +402,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LCP_PREPARE_REF             295
 #define GSN_LCP_PREPARE_CONF            294
 
-/* 297 unused */
-/* 298 unused */
-/* 299 unused */
+#define GSN_CREATE_HASH_MAP_REQ         297
+#define GSN_CREATE_HASH_MAP_REF         298
+#define GSN_CREATE_HASH_MAP_CONF        299
+
 #define GSN_SHRINKCHECK2                301
 #define GSN_GET_SCHEMA_INFOREQ          302
 /* 303 not unused */
@@ -438,9 +444,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_READ_CONFIG_REQ             334 /* new name for sizealt, local */
 #define GSN_READ_CONFIG_CONF            335 /* new name for sizealt, local */
 
-/* 336 unused */
-/* 337 unused */
-/* 338 unused */
+#define GSN_COPY_DATA_REQ               336
+#define GSN_COPY_DATA_REF               337
+#define GSN_COPY_DATA_CONF              338
+
 #define GSN_OPEN_COMCONF                339
 #define GSN_OPEN_COMREF                 340
 #define GSN_OPEN_COMREQ                 341
@@ -534,13 +541,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 /* 421 not unused */
 /* 422 not unused */
-/* 423 unused */
+#define GSN_COPY_DATA_IMPL_REQ          423 /* local */
+#define GSN_COPY_DATA_IMPL_REF          424 /* local */
+#define GSN_COPY_DATA_IMPL_CONF         425 /* local */
 
-/* 424 unused */
-/* 425 unused */
-/* 426 unused */
-/* 427 unused */
-/* 428 unused */
+#define GSN_DROP_FRAG_REQ               426 /* local */
+#define GSN_DROP_FRAG_REF               427 /* local */
+#define GSN_DROP_FRAG_CONF              428 /* local */
 /* 429 unused */
 /* 430 unused */
 #define GSN_TUPFRAGCONF                 431
@@ -560,16 +567,16 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_ABORT_ALL_REF               446
 #define GSN_ABORT_ALL_CONF              447
 
-/* 448 unused - formerly GSN_STATISTICS_REQ */
+/* 448 not unused - formerly GSN_STATISTICS_REQ */
 #define GSN_STOP_ORD                    449
 #define GSN_TAMPER_ORD                  450
-/* 451 unused - formerly GSN_SET_VAR_REQ  */
-/* 452 unused - formerly GSN_SET_VAR_CONF */
-/* 453 unused - formerly GSN_SET_VAR_REF  */
-/* 454 unused - formerly GSN_STATISTICS_CONF */
+/* 451 not unused - formerly GSN_SET_VAR_REQ  */
+/* 452 not unused - formerly GSN_SET_VAR_CONF */
+/* 453 not unused - formerly GSN_SET_VAR_REF  */
+/* 454 not unused - formerly GSN_STATISTICS_CONF */
 
 #define GSN_START_ORD                   455
-/* 457 unused */
+/* 457 not unused */
 
 #define GSN_EVENT_SUBSCRIBE_REQ         458
 #define GSN_EVENT_SUBSCRIBE_CONF        459
@@ -742,6 +749,17 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CONTINUE_FRAGMENTED         568
 
 /**
+ * In multithreaded ndbd, sent from crashing thread to other threads to make
+ * them stop prior to generating trace dump files.
+ */
+#define GSN_STOP_FOR_CRASH              761
+
+/* Sent from BACKUP to DICT to lock a table during backup. */
+#define GSN_BACKUP_LOCK_TAB_REQ         762
+#define GSN_BACKUP_LOCK_TAB_CONF        763
+#define GSN_BACKUP_LOCK_TAB_REF         764
+
+/**
  * Suma participant interface
  */
 #define GSN_SUB_REMOVE_REQ              569
@@ -893,9 +911,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_CONF              678
 #define GSN_TUX_MAINT_REF               679
 
-/* not used                             680 */
-/* not used                             681 */
-
 /**
  * from mgmtsrvr to  NDBCNTR
  */
@@ -924,12 +939,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* used 694 */
 /* used 695 */
 /* used 696 */
-
-#define GSN_706
-#define GSN_707
-#define GSN_708
-#define GSN_709
-
 
 /*
  * EVENT Signals
@@ -968,29 +977,95 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_FILE_REF               723
 #define GSN_DROP_FILE_CONF              724
 
-#define GSN_CREATE_OBJ_REQ              725
-#define GSN_CREATE_OBJ_REF              726
-#define GSN_CREATE_OBJ_CONF             727
+#define GSN_CREATE_FILEGROUP_IMPL_REQ   725
+#define GSN_CREATE_FILEGROUP_IMPL_REF   726
+#define GSN_CREATE_FILEGROUP_IMPL_CONF  727
 
-#define GSN_DROP_OBJ_REQ                728
-#define GSN_DROP_OBJ_REF                729
-#define GSN_DROP_OBJ_CONF               730
+#define GSN_CREATE_FILE_IMPL_REQ        728
+#define GSN_CREATE_FILE_IMPL_REF        729
+#define GSN_CREATE_FILE_IMPL_CONF       730
 
 #define GSN_ALLOC_EXTENT_REQ             68
 #define GSN_FREE_EXTENT_REQ              69
 
-#define GSN_DICT_COMMIT_REQ             664
-#define GSN_DICT_COMMIT_REF             665
-#define GSN_DICT_COMMIT_CONF            666
+#define GSN_DROP_FILEGROUP_IMPL_REQ     664
+#define GSN_DROP_FILEGROUP_IMPL_REF     665
+#define GSN_DROP_FILEGROUP_IMPL_CONF    666
 
-#define GSN_DICT_ABORT_REQ              667
-#define GSN_DICT_ABORT_REF              668
-#define GSN_DICT_ABORT_CONF             669
+#define GSN_DROP_FILE_IMPL_REQ          667
+#define GSN_DROP_FILE_IMPL_REF          668
+#define GSN_DROP_FILE_IMPL_CONF         669
+
+/* DICT master takeover signals */
+#define GSN_DICT_TAKEOVER_REQ           765
+#define GSN_DICT_TAKEOVER_REF           766
+#define GSN_DICT_TAKEOVER_CONF          767
+
 
 /* DICT LOCK signals */
 #define GSN_DICT_LOCK_REQ               410
 #define GSN_DICT_LOCK_CONF              411
 #define GSN_DICT_LOCK_REF               412
 #define GSN_DICT_UNLOCK_ORD             420
+
+#define GSN_SCHEMA_TRANS_BEGIN_REQ      731
+#define GSN_SCHEMA_TRANS_BEGIN_CONF     732
+#define GSN_SCHEMA_TRANS_BEGIN_REF      733
+#define GSN_SCHEMA_TRANS_END_REQ        734
+#define GSN_SCHEMA_TRANS_END_CONF       735
+#define GSN_SCHEMA_TRANS_END_REF        736
+#define GSN_SCHEMA_TRANS_END_REP        768
+#define GSN_SCHEMA_TRANS_IMPL_REQ       737
+#define GSN_SCHEMA_TRANS_IMPL_CONF      738
+#define GSN_SCHEMA_TRANS_IMPL_REF       739
+
+#define GSN_CREATE_TRIG_IMPL_REQ        740
+#define GSN_CREATE_TRIG_IMPL_CONF       741
+#define GSN_CREATE_TRIG_IMPL_REF        742
+#define GSN_DROP_TRIG_IMPL_REQ          743
+#define GSN_DROP_TRIG_IMPL_CONF         744
+#define GSN_DROP_TRIG_IMPL_REF          745
+#define GSN_ALTER_TRIG_IMPL_REQ         746
+#define GSN_ALTER_TRIG_IMPL_CONF        747
+#define GSN_ALTER_TRIG_IMPL_REF         748
+
+#define GSN_CREATE_INDX_IMPL_REQ        749
+#define GSN_CREATE_INDX_IMPL_CONF       750
+#define GSN_CREATE_INDX_IMPL_REF        751
+#define GSN_DROP_INDX_IMPL_REQ          752
+#define GSN_DROP_INDX_IMPL_CONF         753
+#define GSN_DROP_INDX_IMPL_REF          754
+#define GSN_ALTER_INDX_IMPL_REQ         755
+#define GSN_ALTER_INDX_IMPL_CONF        756
+#define GSN_ALTER_INDX_IMPL_REF         757
+
+#define GSN_BUILD_INDX_IMPL_REQ         758
+#define GSN_BUILD_INDX_IMPL_CONF        759
+#define GSN_BUILD_INDX_IMPL_REF         760
+
+#define GSN_CREATE_NODEGROUP_REQ        144
+#define GSN_CREATE_NODEGROUP_REF        145
+#define GSN_CREATE_NODEGROUP_CONF       146
+
+#define GSN_CREATE_NODEGROUP_IMPL_REQ   148
+#define GSN_CREATE_NODEGROUP_IMPL_REF   149
+#define GSN_CREATE_NODEGROUP_IMPL_CONF  150
+
+#define GSN_DROP_NODEGROUP_REQ          451
+#define GSN_DROP_NODEGROUP_REF          452
+#define GSN_DROP_NODEGROUP_CONF         453
+
+#define GSN_DROP_NODEGROUP_IMPL_REQ     454
+#define GSN_DROP_NODEGROUP_IMPL_REF     457
+#define GSN_DROP_NODEGROUP_IMPL_CONF    448
+
+#define GSN_DATA_FILE_ORD               706
+
+#define GSN_CALLBACK_REQ                707 /*reserved*/
+#define GSN_CALLBACK_CONF               708
+#define GSN_CALLBACK_ACK                709
+
+#define GSN_RELEASE_PAGES_REQ           680
+#define GSN_RELEASE_PAGES_CONF          681
 
 #endif

@@ -36,6 +36,7 @@ class FsReadWriteReq {
   friend class VoidFs;
   friend class AsyncFile;
   friend class PosixAsyncFile; // FIXME
+  friend class Win32AsyncFile;
 
   /**
    * Sender(s)

@@ -558,7 +558,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
     } else {
-      Uint32 blockNo = refToBlock(scan.m_userRef);
+      Uint32 blockNo = refToMain(scan.m_userRef);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     }
     // next time look for next entry

@@ -18,49 +18,56 @@
 #DIRS += testLongSig
 #endif
 
-noinst_LIBRARIES = libkernel.a
+noinst_LIBRARIES = libkernel.a libsched.a
+EXTRA_LIBRARIES= libsched_mt.a
+
+if BUILD_NDBMTD
+noinst_LIBRARIES += libsched_mt.a
+endif
 
 libkernel_a_SOURCES = \
-	SimulatedBlock.cpp	\
-	FastScheduler.cpp		\
-	TimeQueue.cpp		\
 	VMSignal.cpp		\
-	ThreadConfig.cpp          \
-	TransporterCallback.cpp \
 	Emulator.cpp		\
 	Configuration.cpp		\
 	WatchDog.cpp \
-        SimplePropertiesSection.cpp \
         SectionReader.cpp \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
-	ndbd_malloc.cpp ndbd_malloc_impl.cpp \
-        Pool.cpp WOPool.cpp RWPool.cpp \
-        DynArr256.cpp LockQueue.cpp
+        ndbd_malloc.cpp \
+	ndbd_malloc_impl.cpp \
+	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
+	GlobalData.cpp \
+	SafeMutex.cpp
+
+libsched_a_SOURCES = TimeQueue.cpp		\
+                     ThreadConfig.cpp \
+                     FastScheduler.cpp \
+                     TransporterCallback_nonmt.cpp \
+                     SimulatedBlock_nonmt.cpp \
+                     LongSignal_nonmt.cpp \
+                     SimplePropertiesSection_nonmt.cpp \
+		     dummy_nonmt.cpp
+
+libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
+                        TransporterCallback_mt.cpp \
+                        LongSignal_mt.cpp \
+                        SimplePropertiesSection_mt.cpp \
+                        mt.cpp \
+                        dummy_mt.cpp
+
+EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt LongSignal.cpp SimplePropertiesSection.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
+
+LDADD_LOC = $(top_builddir)/storage/ndb/src/common/util/libgeneral.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256 \
+                 testSectionReader testLongSignals \
+		 testSafeMutex
 
-windoze-dsp: libkernel.dsp
-
-libkernel.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libkernel_a_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
-
-EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256
 ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
 ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
 ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
@@ -85,4 +92,31 @@ testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la
+
+testSectionReader_CXXFLAGS = -DUNIT_TEST
+testSectionReader_SOURCES = SectionReader.cpp
+testSectionReader_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
+
+testLongSignals_CXXFLAGS = -DUNIT_TEST
+testLongSignals_SOURCES = testLongSig/testLongSig.cpp
+testLongSignals_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la \
+  @readline_link@ @TERMCAP_LIB@
+
+testSafeMutex_CXXFLAGS = -DUNIT_TEST
+testSafeMutex_SOURCES = SafeMutex.cpp
+testSafeMutex_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la \
+  @readline_link@ @TERMCAP_LIB@
+
 

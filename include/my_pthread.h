@@ -36,6 +36,7 @@ typedef struct thread_attr {
     DWORD dwStackSize ;
     DWORD dwCreatingFlag ;
     int priority ;
+    BOOL detached;
 } pthread_attr_t ;
 
 typedef struct { int dummy; } pthread_condattr_t;
@@ -100,8 +101,6 @@ struct timespec {
 }
 
 void win_pthread_init(void);
-int win_pthread_setspecific(void *A,void *B,uint length);
-int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
@@ -113,7 +112,12 @@ int pthread_cond_destroy(pthread_cond_t *cond);
 int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
 int pthread_attr_setprio(pthread_attr_t *connect_att,int priority);
+#define PTHREAD_CREATE_JOINABLE 1
+#define PTHREAD_CREATE_DETACHED 2
+int pthread_attr_setdetachstate(pthread_attr_t *connect_att,int state);
+int pthread_attr_getdetachstate(pthread_attr_t *connect_att,int*state);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
+int pthread_join(pthread_t thread, void **value_ptr);
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
@@ -126,47 +130,79 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
-/*
-  Windows has two ways to use thread local storage. The most efficient
-  is using __declspec(thread), but that does not work properly when
-  used in a .dll that is loaded at runtime, after program load. So for
-  libmysql.dll and libmysqld.dll we define USE_TLS in order to use the
-  TlsXxx() API instead, which works in all cases.
-*/
-#ifdef USE_TLS					/* For LIBMYSQL.DLL */
-#undef SAFE_MUTEX				/* This will cause conflicts */
-#define pthread_key(T,V)  DWORD V
-#define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
-#define pthread_key_delete(A) TlsFree(A)
-#define pthread_getspecific(A) (TlsGetValue(A))
-#define my_pthread_getspecific(T,A) ((T) TlsGetValue(A))
-#define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(V))
-#define my_pthread_setspecific_ptr(T,V) (!TlsSetValue((T),(V)))
-#define pthread_setspecific(A,B) (!TlsSetValue((A),(B)))
-#else
-#define pthread_key(T,V) __declspec(thread) T V
-#define pthread_key_create(A,B) pthread_dummy(0)
-#define pthread_key_delete(A) pthread_dummy(0)
-#define pthread_getspecific(A) (&(A))
-#define my_pthread_getspecific(T,A) (&(A))
-#define my_pthread_getspecific_ptr(T,V) (V)
-#define my_pthread_setspecific_ptr(T,V) ((T)=(V),0)
-#define pthread_setspecific(A,B) win_pthread_setspecific(&(A),(B),sizeof(A))
-#endif /* USE_TLS */
 
-#define pthread_equal(A,B) ((A) == (B))
-#define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
-#define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
-#define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
-#define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
-#define pthread_mutex_destroy(A) DeleteCriticalSection(A)
+#undef SAFE_MUTEX				/* This will cause conflicts */
+typedef DWORD pthread_key_t;
+#define pthread_key(T,V)  DWORD V
+
+static inline int pthread_key_create(pthread_key_t *key, void (*destr_function)(void*))
+{
+  *key= TlsAlloc();
+  if(*key == TLS_OUT_OF_INDEXES)
+    return EAGAIN;
+  return 0;
+}
+
+static inline int pthread_key_delete(pthread_key_t key)
+{
+  if(TlsFree(key))
+    return 0;
+  return 1;
+}
+
+#define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,V)
+
+static inline int pthread_setspecific(pthread_key_t key, const void *pointer)
+{
+  if(TlsSetValue(key, (void*)pointer))
+    return 0;
+  return 1;
+}
+
+static inline void* pthread_getspecific(pthread_key_t key)
+{
+  return TlsGetValue(key);
+}
+
+#define my_pthread_getspecific(T,A) ((T) pthread_getspecific(A))
+#define my_pthread_getspecific_ptr(T,V) ((T) pthread_getspecific(V))
+
+static inline int pthread_equal(pthread_t thread1, pthread_t thread2)
+{
+  return thread1 == thread2;
+}
+
+typedef void pthread_mutex_attr_t;
+static inline int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutex_attr_t *mutex_attr)
+{
+  InitializeCriticalSection(mutex);
+  return 0;
+}
+
+static inline int pthread_mutex_lock(pthread_mutex_t *mutex)
+{
+  EnterCriticalSection(mutex);
+  return 0;
+}
+
+int pthread_mutex_trylock(pthread_mutex_t *mutex);
+
+static inline int pthread_mutex_unlock(pthread_mutex_t *mutex)
+{
+  LeaveCriticalSection(mutex);
+  return 0;
+}
+
+static inline int pthread_mutex_destroy(pthread_mutex_t *mutex)
+{
+  DeleteCriticalSection(mutex);
+  return 0;
+}
+
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
-#define pthread_join(A,B) (WaitForSingleObject((A), INFINITE) != WAIT_OBJECT_0)
-
 /* Dummy defines for easier code */
-#define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define my_pthread_attr_setprio(A,B) pthread_attr_setprio(A,B)
 #define pthread_attr_setscope(A,B)
 #define pthread_detach_this_thread()

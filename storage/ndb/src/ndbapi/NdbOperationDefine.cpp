@@ -575,24 +575,20 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     }//if
   }//if
   
-  Uint32 sigLen = 0;  // Length of significant part
-  Uint32 sendLen = 0; // Length of data to send.  Normally sigLen == sendLen
-
-  if (! tAttrInfo->get_var_length_bug39645(aValue, sigLen, sendLen)) {
+  Uint32 len;
+  if (! tAttrInfo->get_var_length(aValue, len)) {
     setErrorCodeAbort(4209);
     DBUG_RETURN(-1);
   }
-  
-  const Uint32 sizeInBytes = sendLen;
+
+  const Uint32 sizeInBytes = len;
   const Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
   
   const int attributeSize = sizeInBytes;
   const int slack = sizeInBytes & 3;
   
-  if (((UintPtr)aValue & 3) != 0 || // Alignment 
-      (slack != 0) ||               // Slack bits
-      (sigLen != sendLen)){         // Bug39645
-    memcpy(&tempData[0], aValue, sigLen);
+  if (((UintPtr)aValue & 3) != 0 || (slack != 0)){
+    memcpy(&tempData[0], aValue, attributeSize);
     aValue = (char*)&tempData[0];
     if(slack != 0) {
       char * tmp = (char*)&tempData[0];

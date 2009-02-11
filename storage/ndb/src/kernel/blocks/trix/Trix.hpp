@@ -41,8 +41,10 @@ public:
   // Subscription data, when communicating with SUMA
 
   enum RequestType {
-    TABLE_REORG = 0,
-    INDEX_BUILD = 1
+    REORG_COPY = 0
+    ,REORG_DELETE = 1
+    ,INDEX_BUILD = 2
+    //ALTER_TABLE
   };
   typedef DataBuffer<11> AttrOrderBuffer;
 
@@ -100,10 +102,15 @@ private:
     SubscriptionRecord(AttrOrderBuffer::DataBufferPool & aop):
       attributeOrder(aop)
     {}
+    enum RequestFlags {
+      RF_WAIT_GCP = 0x1
+    };
+    Uint32 m_flags;
     RequestType requestType;
     BlockReference userReference; // For user
     Uint32 connectionPtr; // For user
     Uint32 subscriptionId; // For Suma
+    Uint32 schemaTransId;
     Uint32 subscriptionKey; // For Suma
     Uint32 prepareId; // For DbUtil
     Uint32 indexType;
@@ -113,11 +120,14 @@ private:
     Uint32 noOfIndexColumns;
     Uint32 noOfKeyColumns;
     Uint32 parallelism;
+    Uint32 fragCount;
     Uint32 syncPtr;
     BuildIndxRef::ErrorCode errorCode;
     bool subscriptionCreated;
     bool pendingSubSyncContinueConf;
     Uint32 expectedConf; // Count in n UTIL_EXECUTE_CONF + 1 SUB_SYNC_CONF
+    Uint64 m_rows_processed;
+    Uint64 m_gci;
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -151,10 +161,14 @@ private:
   // Debugging
   void execDUMP_STATE_ORD(Signal* signal);
 
+  void execDBINFO_SCANREQ(Signal* signal);
+
   // Build index
-  void execBUILDINDXREQ(Signal* signal);
-  void execBUILDINDXCONF(Signal* signal);
-  void execBUILDINDXREF(Signal* signal);
+  void execBUILD_INDX_IMPL_REQ(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
+
+  void execCOPY_DATA_IMPL_REQ(Signal* signal);
 
   void execUTIL_PREPARE_CONF(Signal* signal);
   void execUTIL_PREPARE_REF(Signal* signal);
@@ -173,14 +187,18 @@ private:
   void execSUB_SYNC_CONTINUE_REQ(Signal* signal);
   void execSUB_TABLE_DATA(Signal* signal);
 
+  // GCP
+  void execWAIT_GCP_REF(Signal*);
+  void execWAIT_GCP_CONF(Signal*);
+
   // Utility functions
   void setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr);
   void startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
-  void executeInsertTransaction(Signal* signal, SubscriptionRecPtr subRecPtr,
-				SegmentedSectionPtr headerPtr,
-				SegmentedSectionPtr dataPtr);
+  void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
+  void executeReorgTransaction(Signal*, SubscriptionRecPtr, Uint32);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
+  void wait_gcp(Signal*, SubscriptionRecPtr subRecPtr, Uint32 delay = 0);
   void buildFailed(Signal* signal, 
 		   SubscriptionRecPtr subRecPtr, 
 		   BuildIndxRef::ErrorCode);

@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #SUBDIRS = signal-sender
+EXTRA_DIST = CMakeLists.txt
 
 noinst_PROGRAMS = ndberror_check
 
@@ -76,16 +77,9 @@ ndberror_check_LDFLAGS = \
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-windoze-dsp: libndbapi.dsp
+EXTRA_PROGRAMS = testSectionIterators
 
-libndbapi.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libndbapi_la_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
+testSectionIterators_CXXFLAGS = -DUNIT_TEST
+testSectionIterators_SOURCES = TransporterFacade.cpp
+testSectionIterators_LDFLAGS = @ndb_bin_am_ldflags@	 \
+  $(top_builddir)/storage/ndb/src/libndbclient.la

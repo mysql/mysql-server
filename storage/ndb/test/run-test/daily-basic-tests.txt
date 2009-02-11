@@ -325,7 +325,7 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488Timeout -l 10 T6 D1 D2
 
-max-time: 600
+max-time: 1200
 cmd: testScan
 args: -n ScanRead40 -l 100 T6 D1 D2 
 
@@ -340,10 +340,6 @@ args: -n ScanRead40 -l 100 T1 D1 D2
 max-time: 1800
 cmd: testScan
 args: -n ScanRead40RandomTable -l 100 T1 
-
-max-time: 3600
-cmd: testScan
-args: -n ScanRead40RandomTable -l 1000 T6 
 
 max-time: 500
 cmd: testScan
@@ -633,7 +629,7 @@ args: -n CreateAndDropDuring T6 D1 D2
 
 max-time: 1500
 cmd: testDict
-args: -n CreateInvalidTables 
+args: -n CreateInvalidTables T1 
 
 max-time: 1500
 cmd: testDict
@@ -958,38 +954,6 @@ cmd: DbAsyncGenerator
 args: -time 60 -p 1 -proc 25
 type: bench
 
-max-time: 120
-cmd: testMgm
-args: -n ApiSessionFailure T1
-
-max-time: 15
-cmd: testMgm
-args: -n ApiConnectTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiTimeoutBasic T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiSessionFailure T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiGetStatusTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiGetConfigTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiMgmEventTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiMgmStructEventTimeout T1
-
 max-time: 5000
 cmd: testNodeRestart
 args: -n GCP T1
@@ -1175,12 +1139,44 @@ cmd: testDict
 args: -l 1 -n FailAddFragment
 
 # EOF 2008-05-29
+# 2008-05-30
+max-time: 1200
+cmd: testDict
+args: -l 1 -n FailCreateHashmap T1
+
+# EOF 2008-05-30
 # 2008-06-03
 max-time: 1200
 cmd: testNdbApi
 args: -l 100 -n Bug37158
 
 # EOF 2008-06-03
+# 2008-06-05
+max-time: 1200
+cmd: testDict
+args: -n FailAddPartition T1 I3
+
+# EOF 2008-06-05
+# Test data buffering for TCKEYREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionPk WIDE_2COL
+
+# Test data buffering for TCINDXREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionIx WIDE_2COL_IX
+
+# Run some tests on max size / max num cols tables
+max-time: 500
+cmd: testBasic
+args: -n PkRead WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+max-time: 500
+cmd: testBasic
+args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+# EOF 2008-06-30
 max-time: 500
 cmd: test_event
 args: -n bug37672 T1
@@ -1196,6 +1192,12 @@ cmd: test_event
 args: -r 5000 -n Bug30780 T1
 
 #EOF 2008-08-11
+# Test data buffering for SCANTABREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionScan WIDE_2COL
+
+#EOF 2008-08-20
 max-time: 1200
 cmd: testNodeRestart
 args: -n Bug41295 T1
@@ -1203,6 +1205,14 @@ args: -n Bug41295 T1
 max-time: 1200
 cmd: testNodeRestart
 args: -n Bug42422 -l 1 T1
+
+max-time: 500
+cmd: testLimits
+args: -n DropSignalFragments T1
+
+max-time: 300 
+cmd: testMgm
+args: 
 
 max-time: 300
 cmd: testScan

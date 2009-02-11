@@ -16,7 +16,6 @@
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
-#include <strings.h>
 #include <NdbOperation.hpp>
 
 class NdbBlob;
@@ -398,8 +397,7 @@ protected:
   NdbRecAttr* getValue_NdbRecAttr_scan(const NdbColumnImpl*, char* aValue);
 
   int handleScanGetValuesOldApi();
-  int addInterpretedCode(Uint32 aTC_ConncetPtr,
-                         Uint64 aTransId);
+  int addInterpretedCode();
   int handleScanOptions(const ScanOptions *options);
   int generatePackedReadAIs(const NdbRecord *reseult_record, bool& haveBlob);
   int scanImpl(const NdbScanOperation::ScanOptions *options);
@@ -607,27 +605,6 @@ NdbScanOperation::deleteCurrentTuple(NdbTransaction * takeOverTrans){
   if(res == 0)
     return -1;
   return 0;
-}
-
-inline
-const NdbOperation *
-NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
-                                   const NdbRecord *result_rec,
-                                   char *result_row,
-                                   const unsigned char *result_mask,
-                                   const NdbOperation::OperationOptions *opts,
-                                   Uint32 sizeOfOptions)
-{
-  unsigned char empty_mask[NDB_MAX_ATTRIBUTES_IN_TABLE>>3];
-  /* Default is to not read any attributes, just take over the lock. */
-  if (!result_row)
-  {
-    bzero(empty_mask, sizeof(empty_mask));
-    result_mask= &empty_mask[0];
-  }
-  return takeOverScanOpNdbRecord(NdbOperation::ReadRequest, takeOverTrans,
-                                 result_rec, result_row, 
-                                 result_mask, opts, sizeOfOptions);
 }
 
 inline

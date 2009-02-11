@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+EXTRA_DIST = CMakeLists.txt
+
 noinst_LTLIBRARIES = libsignaldataprint.la
 
 libsignaldataprint_la_SOURCES = \
@@ -25,7 +27,7 @@ libsignaldataprint_la_SOURCES = \
           CloseComReqConf.cpp PackedSignal.cpp PrepFailReqRef.cpp \
 	  GCP.cpp DictTabInfo.cpp \
 	  AlterTable.cpp AlterTab.cpp \
-	  CreateTrig.cpp AlterTrig.cpp DropTrig.cpp \
+	  CreateTrig.cpp DropTrig.cpp \
 	  FireTrigOrd.cpp TrigAttrInfo.cpp \
 	  CreateIndx.cpp AlterIndx.cpp DropIndx.cpp TcIndx.cpp \
 	  IndxKeyInfo.cpp IndxAttrInfo.cpp \
@@ -38,24 +40,15 @@ libsignaldataprint_la_SOURCES = \
           SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp \
 	  UtilLock.cpp TuxMaint.cpp AccLock.cpp \
           LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp \
-          ScanFrag.cpp
+          ScanFrag.cpp \
+	  SchemaTrans.cpp SchemaTransImpl.cpp GetTabInfo.cpp \
+ 	  CreateTab.cpp CreateTable.cpp DropTable.cpp \
+  	  CreateTrigImpl.cpp DropTrigImpl.cpp \
+ 	  CreateIndxImpl.cpp DropIndxImpl.cpp AlterIndxImpl.cpp \
+ 	  BuildIndx.cpp BuildIndxImpl.cpp ApiVersion.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-windoze-dsp: libsignaldataprint.dsp
-
-libsignaldataprint.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libsignaldataprint_la_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)

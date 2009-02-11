@@ -1764,9 +1764,40 @@ sub environment_setup {
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
-    $ENV{'NDB_TOOLS_DIR'}=
-      my_find_dir($basedir,
-		  ["storage/ndb/tools", "bin"]);
+    $ENV{'NDB_WAITER'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_waiter");
+
+    $ENV{'NDB_RESTORE'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_restore");
+
+    $ENV{'NDB_CONFIG'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_config");
+
+    $ENV{'NDB_SELECT_ALL'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_select_all");
+
+    $ENV{'NDB_DROP_TABLE'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_drop_table");
+
+    $ENV{'NDB_DESC'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_desc");
+
+    $ENV{'NDB_SHOW_TABLES'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_show_tables");
 
     $ENV{'NDB_EXAMPLES_DIR'}=
       my_find_dir($basedir,
@@ -2251,6 +2282,7 @@ sub ndb_mgmd_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
+  mtr_add_arg($args, "--configdir=%s", "$dir");
 
   my $path_ndb_mgmd_log= "$dir/ndb_mgmd.log";
 

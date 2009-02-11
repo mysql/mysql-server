@@ -67,28 +67,41 @@ struct GlobalData {
   
   Uint32     sendPackedActivated;
   Uint32     activateSendPacked;
+
+  bool       isNdbMt;    // ndbd multithreaded, no workers
+  bool       isNdbMtLqh; // ndbd multithreaded, LQH workers
+  Uint32     ndbMtLqhWorkers;
+  Uint32     ndbMtLqhThreads;
   
   GlobalData(){ 
     theSignalId = 0; 
     theStartLevel = NodeState::SL_NOTHING;
     theRestartFlag = perform_start;
+    isNdbMt = false;
+    isNdbMtLqh = false;
+    ndbMtLqhWorkers = 0;
+    ndbMtLqhThreads = 0;
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif
   }
-  ~GlobalData(){}
+  ~GlobalData() { m_global_page_pool.clear(); m_shared_page_pool.clear();}
   
   void             setBlock(BlockNumber blockNo, SimulatedBlock * block);
   SimulatedBlock * getBlock(BlockNumber blockNo);
+  SimulatedBlock * getBlock(BlockNumber blockNo, Uint32 instanceNo);
+  SimulatedBlock * getBlockInstance(BlockNumber fullBlockNo) {
+    return getBlock(blockToMain(fullBlockNo), blockToInstance(fullBlockNo));
+  }
   
   void           incrementWatchDogCounter(Uint32 place);
-  const Uint32 * getWatchDogPtr();
+  Uint32 * getWatchDogPtr();
   
 private:
   Uint32     watchDog;
   SimulatedBlock* blockTable[NO_OF_BLOCKS]; // Owned by Dispatcher::
 public:
-  ArrayPool<GlobalPage> m_global_page_pool;
+  SafeArrayPool<GlobalPage> m_global_page_pool;
   ArrayPool<GlobalPage> m_shared_page_pool;
 
 #ifdef GCP_TIMER_HACK
@@ -136,7 +149,7 @@ GlobalData::incrementWatchDogCounter(Uint32 place){
 }
 
 inline
-const Uint32 *
+Uint32 *
 GlobalData::getWatchDogPtr(){
   return &watchDog;
 }

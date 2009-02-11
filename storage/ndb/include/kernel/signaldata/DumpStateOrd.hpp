@@ -61,6 +61,10 @@ public:
     _TCMin       = 101000,
     _TCMax       = 101999,
 
+    _LQHMin = 102000,
+    LQHLogFileInitStatus = 102000,
+    _LQHMax = 102999,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
@@ -165,6 +169,11 @@ public:
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,
     DumpBackupSetCompressedLCP = 13002,
+
+    DumpDbinfo = 14000,
+    DbinfoListTables = 14001,
+    DbinfoListColumns = 14002,
+    DbinfoScanTable = 14003,
 
     SchemaResourceSnapshot = 4000, // Save resource consumption
     SchemaResourceCheckLeak = 4001 // check same as snapshot

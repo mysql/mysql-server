@@ -17,6 +17,7 @@
 #include <NdbConfig.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
+#include <NdbHost.h>
 #include <basestring_vsnprintf.h>
 
 static const char *datadir_path= 0;
@@ -79,7 +80,8 @@ char *get_prefix_buf(int len, int node_id)
   if (node_id > 0)
     basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_%u", node_id);
   else
-    basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u", getpid());
+    basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u",
+                        NdbHost_GetProcessId());
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
   buf= NdbConfig_AllocHomePath(len+strlen(tmp_buf));

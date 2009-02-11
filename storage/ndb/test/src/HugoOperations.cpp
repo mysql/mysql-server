@@ -296,7 +296,6 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
 				  int recordNo,
 				  int numRecords,
 				  int updatesValue){
-  
   int a, check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
@@ -397,7 +396,7 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
     return err.code;
   }
 
-  for(int i = 0; i<m_result_sets.size(); i++){
+  for(unsigned int i = 0; i<m_result_sets.size(); i++){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
@@ -449,7 +448,7 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
     return err.code;
   }
 
-  for(int i = 0; i<m_result_sets.size(); i++){
+  for(unsigned int i = 0; i<m_result_sets.size(); i++){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
@@ -603,7 +602,7 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
   }
   
   int len = attr->getSizeInBytes();
-  char buf[8000];
+  char buf[NDB_MAX_TUPLE_SIZE];
   memset(buf, 0, sizeof(buf));
   Uint32 real_len;
   const char * value = calc.calcValue(rowId, attrId, 0, buf, len, &real_len);
@@ -618,7 +617,7 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
   
   int len = attr->getSizeInBytes();
-  char buf[8000];
+  char buf[NDB_MAX_TUPLE_SIZE];
   memset(buf, 0, sizeof(buf));
   Uint32 real_len;
   const char * value = calc.calcValue(rowId, attrId, 

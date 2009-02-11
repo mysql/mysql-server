@@ -215,6 +215,7 @@ NDBT_TESTSUITE_END(testRestartGci);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testRestartGci);
   return testRestartGci.execute(argc, argv);
 }
 

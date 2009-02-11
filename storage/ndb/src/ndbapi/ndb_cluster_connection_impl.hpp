@@ -26,8 +26,8 @@ extern NdbMutex *g_ndb_connection_mutex;
 
 class TransporterFacade;
 class ConfigRetriever;
-class NdbThread;
-class ndb_mgm_configuration;
+struct NdbThread;
+struct ndb_mgm_configuration;
 class Ndb;
 
 extern "C" {
@@ -55,6 +55,7 @@ private:
   friend void* run_ndb_cluster_connection_connect_thread(void*);
   friend class Ndb_cluster_connection;
   friend class NdbEventBuffer;
+  friend class SignalSender;
   
   struct Node
   {
@@ -72,7 +73,11 @@ private:
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
-  
+
+  int connect(int no_retries,
+              int retry_delay_in_seconds,
+              int verbose);
+
   Ndb_cluster_connection *m_main_connection;
   GlobalDictCache *m_globalDictCache;
   TransporterFacade *m_transporter_facade;

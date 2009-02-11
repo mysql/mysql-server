@@ -41,6 +41,6 @@ ERROR 23000: Can't write, because of unique constraint, to table 't6'
 delete from t6;
 insert into t6 values(1,12), (2,12);
 alter table t6 add unique key ui_t(b);
-ERROR HY000: Got error 156 'Unknown error code' from NDBCLUSTER
+ERROR 23000: Can't write, because of unique constraint, to table 't6'
 delete from t6;
 drop table t6;

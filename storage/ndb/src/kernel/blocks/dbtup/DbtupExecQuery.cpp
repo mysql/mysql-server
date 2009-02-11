@@ -15,7 +15,7 @@
 
 
 #define DBTUP_C
-#include <Dblqh.hpp>
+#include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -55,23 +55,31 @@ dump_hex(const Uint32 *p, Uint32 len)
   }
 }
 
-/* ----------------------------------------------------------------- */
-/* -----------       INIT_STORED_OPERATIONREC         -------------- */
-/* ----------------------------------------------------------------- */
-int Dbtup::initStoredOperationrec(Operationrec* regOperPtr,
-                                  KeyReqStruct* req_struct,
-                                  Uint32 storedId) 
+/**
+ * getStoredProcAttrInfo
+ *
+ * Get the I-Val of the supplied stored procedure's 
+ * AttrInfo section
+ * Initialise the AttrInfo length in the request
+ */
+int Dbtup::getStoredProcAttrInfo(Uint32 storedId,
+                                 KeyReqStruct* req_struct,
+                                 Uint32& attrInfoIVal) 
 {
   jam();
   StoredProcPtr storedPtr;
   c_storedProcPool.getPtr(storedPtr, storedId);
   if (storedPtr.i != RNIL) {
-    if (storedPtr.p->storedCode == ZSCAN_PROCEDURE) {
-      storedPtr.p->storedCounter++;
-      regOperPtr->firstAttrinbufrec= storedPtr.p->storedLinkFirst;
-      regOperPtr->lastAttrinbufrec= storedPtr.p->storedLinkLast;
-      regOperPtr->currentAttrinbufLen= storedPtr.p->storedProcLength;
-      req_struct->attrinfo_len= storedPtr.p->storedProcLength;
+    if ((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
+        (storedPtr.p->storedCode == ZCOPY_PROCEDURE)) {
+      /* Setup OperationRec with stored procedure AttrInfo section */
+      SegmentedSectionPtr sectionPtr;
+      getSection(sectionPtr, storedPtr.p->storedProcIVal);
+      Uint32 storedProcLen= sectionPtr.sz;
+
+      ndbassert( attrInfoIVal == RNIL );
+      attrInfoIVal= storedPtr.p->storedProcIVal;
+      req_struct->attrinfo_len= storedProcLen;
       return ZOK;
     }
   }
@@ -80,160 +88,32 @@ int Dbtup::initStoredOperationrec(Operationrec* regOperPtr,
 }
 
 void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
-                         Uint32* inBuffer)
+                         Uint32* inBuffer,
+                         Uint32 expectedLen,
+                         Uint32 attrInfoIVal)
 {
-  AttrbufrecPtr copyAttrBufPtr;
-  Uint32 RnoOfAttrBufrec= cnoOfAttrbufrec;
-  int RbufLen;
-  Uint32 RinBufIndex= 0;
-  Uint32 Rnext;
-  Uint32 Rfirst;
-  Uint32 TstoredProcedure= (regOperPtr->storedProcedureId != ZNIL);
-  Uint32 RnoFree= cnoFreeAttrbufrec;
+  ndbassert( expectedLen > 0 || attrInfoIVal == RNIL );
 
-//-------------------------------------------------------------------------
-// As a prelude to the execution of the TUPKEYREQ we will copy the program
-// into the inBuffer to enable easy execution without any complex jumping
-// between the buffers. In particular this will make the interpreter less
-// complex. Hopefully it does also improve performance.
-//-------------------------------------------------------------------------
-  copyAttrBufPtr.i= regOperPtr->firstAttrinbufrec;
-  while (copyAttrBufPtr.i != RNIL) {
-    jam();
-    ndbrequire(copyAttrBufPtr.i < RnoOfAttrBufrec);
-    ptrAss(copyAttrBufPtr, attrbufrec);
-    RbufLen = copyAttrBufPtr.p->attrbuf[ZBUF_DATA_LEN];
-    Rnext = copyAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    Rfirst = cfirstfreeAttrbufrec;
-    /*
-     * ATTRINFO comes from 2 mutually exclusive places:
-     * 1) TUPKEYREQ (also interpreted part)
-     * 2) STORED_PROCREQ before scan start
-     * Assert here that both have a check for overflow.
-     * The "<" instead of "<=" is intentional.
-     */
-    ndbrequire(RinBufIndex + RbufLen < ZATTR_BUFFER_SIZE);
-    MEMCOPY_NO_WORDS(&inBuffer[RinBufIndex],
-                     &copyAttrBufPtr.p->attrbuf[0],
-                     RbufLen);
-    RinBufIndex += RbufLen;
-    if (!TstoredProcedure) {
-      copyAttrBufPtr.p->attrbuf[ZBUF_NEXT]= Rfirst;
-      cfirstfreeAttrbufrec= copyAttrBufPtr.i;
-      RnoFree++;
-    }
-    copyAttrBufPtr.i= Rnext;
-  }
-  cnoFreeAttrbufrec= RnoFree;
-  if (TstoredProcedure) {
-    jam();
-    StoredProcPtr storedPtr;
-    c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcedureId);
-    ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
-    storedPtr.p->storedCounter--;
-  }
-  // Release the ATTRINFO buffers
-  regOperPtr->storedProcedureId= RNIL;
-  regOperPtr->firstAttrinbufrec= RNIL;
-  regOperPtr->lastAttrinbufrec= RNIL;
-  regOperPtr->m_any_value= 0;
-}
-
-void Dbtup::handleATTRINFOforTUPKEYREQ(Signal* signal,
-                                       const Uint32 *data,
-				       Uint32 len,
-                                       Operationrec * regOperPtr) 
-{
-  while(len)
+  if (expectedLen > 0)
   {
-    Uint32 length = len > AttrInfo::DataLength ? AttrInfo::DataLength : len;
-
-    AttrbufrecPtr TAttrinbufptr;
-    TAttrinbufptr.i= cfirstfreeAttrbufrec;
-    if ((cfirstfreeAttrbufrec < cnoOfAttrbufrec) &&
-	(cnoFreeAttrbufrec > MIN_ATTRBUF)) {
-      ptrAss(TAttrinbufptr, attrbufrec);
-      MEMCOPY_NO_WORDS(&TAttrinbufptr.p->attrbuf[0],
-		       data,
-		       length);
-      Uint32 RnoFree= cnoFreeAttrbufrec;
-      Uint32 Rnext= TAttrinbufptr.p->attrbuf[ZBUF_NEXT];
-      TAttrinbufptr.p->attrbuf[ZBUF_DATA_LEN]= length;
-      TAttrinbufptr.p->attrbuf[ZBUF_NEXT]= RNIL;
-      
-      AttrbufrecPtr locAttrinbufptr;
-      Uint32 RnewLen= regOperPtr->currentAttrinbufLen;
-      
-      locAttrinbufptr.i= regOperPtr->lastAttrinbufrec;
-      cfirstfreeAttrbufrec= Rnext;
-      cnoFreeAttrbufrec= RnoFree - 1;
-      RnewLen += length;
-      regOperPtr->lastAttrinbufrec= TAttrinbufptr.i;
-      regOperPtr->currentAttrinbufLen= RnewLen;
-      if (locAttrinbufptr.i == RNIL) {
-	regOperPtr->firstAttrinbufrec= TAttrinbufptr.i;
-      } else {
-	jam();
-	ptrCheckGuard(locAttrinbufptr, cnoOfAttrbufrec, attrbufrec);
-	locAttrinbufptr.p->attrbuf[ZBUF_NEXT]= TAttrinbufptr.i;
-      }
-      if (RnewLen < ZATTR_BUFFER_SIZE) {
-      } else {
-	jam();
-	set_trans_state(regOperPtr, TRANS_TOO_MUCH_AI);
-	return;
-      }
-    } else if (cnoFreeAttrbufrec <= MIN_ATTRBUF) {
-      jam();
-      set_trans_state(regOperPtr, TRANS_ERROR_WAIT_TUPKEYREQ);
-    } else {
-      ndbrequire(false);
-    }
+    ndbassert( attrInfoIVal != RNIL );
     
-    len -= length;
-    data += length;    
+    /* Check length in section is as we expect */
+    SegmentedSectionPtr sectionPtr;
+    getSection(sectionPtr, attrInfoIVal);
+    
+    ndbrequire(sectionPtr.sz == expectedLen);
+    ndbrequire(sectionPtr.sz < ZATTR_BUFFER_SIZE);
+    
+    /* Copy attrInfo data into linear buffer */
+    // TODO : Consider operating TUP out of first segment where
+    // appropriate
+    copy(inBuffer, attrInfoIVal);
   }
-}
 
-void Dbtup::execATTRINFO(Signal* signal) 
-{
-  Uint32 Rsig0= signal->theData[0];
-  Uint32 Rlen= signal->length();
-  jamEntry();
-
-  receive_attrinfo(signal, Rsig0, signal->theData+3, Rlen-3);
-}
- 
-void
-Dbtup::receive_attrinfo(Signal* signal, Uint32 op, 
-			const Uint32* data, Uint32 Rlen)
-{ 
-  OperationrecPtr regOpPtr;
-  regOpPtr.i= op;
-  c_operation_pool.getPtr(regOpPtr, op);
-  TransState trans_state= get_trans_state(regOpPtr.p);
-  if (trans_state == TRANS_IDLE) {
-    handleATTRINFOforTUPKEYREQ(signal, data, Rlen, regOpPtr.p);
-    return;
-  } else if (trans_state == TRANS_WAIT_STORED_PROCEDURE_ATTR_INFO) {
-    storedProcedureAttrInfo(signal, regOpPtr.p, data, Rlen, false);
-    return;
-  }
-  switch (trans_state) {
-  case TRANS_ERROR_WAIT_STORED_PROCREQ:
-    jam();
-  case TRANS_TOO_MUCH_AI:
-    jam();
-  case TRANS_ERROR_WAIT_TUPKEYREQ:
-    jam();
-    return;	/* IGNORE ATTRINFO IN THOSE STATES, WAITING FOR ABORT SIGNAL */
-  case TRANS_DISCONNECTED:
-    jam();
-  case TRANS_STARTED:
-    jam();
-  default:
-    ndbrequire(false);
-  }
+  regOperPtr->m_any_value= 0;
+  
+  return;
 }
 
 void
@@ -359,6 +239,18 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 {
   OperationrecPtr currOpPtr;
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
+  Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
+
+  if (unlikely(req_struct->m_reorg))
+  {
+    Uint32 moved = bits & Tuple_header::REORG_MOVE;
+    if (! ((req_struct->m_reorg == 1 && moved == 0) ||
+           (req_struct->m_reorg == 2 && moved != 0)))
+    {
+      terrorCode= ZTUPLE_DELETED_ERROR;
+      return false;
+    }
+  }
   if (currOpPtr.i == RNIL)
   {
     if (regTabPtr->need_expand(disk))
@@ -481,7 +373,10 @@ Dbtup::load_diskpage(Signal* signal,
     }
 #endif
     
-    if((res= m_pgman.get_page(signal, req, flags)) > 0)
+    Page_cache_client pgman(this, c_pgman);
+    res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
+    if(res > 0)
     {
       //ndbout_c("in cache");
       // In cache
@@ -557,7 +452,10 @@ Dbtup::load_diskpage_scan(Signal* signal,
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
-    if((res= m_pgman.get_page(signal, req, flags)) > 0)
+    Page_cache_client pgman(this, c_pgman);
+    res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
+    if(res > 0)
     {
       // ndbout_c("in cache");
       // In cache
@@ -639,7 +537,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    regOperPtr->fragmentPtr= Rfragptr;
    regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0xf;
    regOperPtr->op_struct.delete_insert_flag = false;
-   regOperPtr->storedProcedureId= Rstoredid;
+   regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
@@ -662,6 +560,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.TC_ref= sig3;
    Uint32 pageid = req_struct.frag_page_id= sig4;
    req_struct.m_use_rowid = (TrequestInfo >> 11) & 1;
+   req_struct.m_reorg = (TrequestInfo >> 12) & 3;
 
    sig1= tupKeyReq->attrBufLen;
    sig2= tupKeyReq->applRef;
@@ -682,16 +581,32 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
    req_struct.m_row_id.m_page_no = sig1;
    req_struct.m_row_id.m_page_idx = sig2;
+
+   /* Get AttrInfo section if this is a long TUPKEYREQ */
+   Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
+
+   /* If we have AttrInfo, check we expected it, and
+    * that we don't have AttrInfo by another means
+    */
+   ndbassert( (attrInfoIVal == RNIL) ||  
+              (tupKeyReq->attrBufLen > 0));
    
    Uint32 Roptype = regOperPtr->op_struct.op_type;
 
    if (Rstoredid != ZNIL) {
-     ndbrequire(initStoredOperationrec(regOperPtr,
-				       &req_struct,
-				       Rstoredid) == ZOK);
+     /* This is part of a scan, get attrInfoIVal for 
+      * given stored procedure
+      */
+     ndbrequire(getStoredProcAttrInfo(Rstoredid,
+                                      &req_struct,
+                                      attrInfoIVal) == ZOK);
    }
 
-   copyAttrinfo(regOperPtr, &cinBuffer[0]);
+   /* Copy AttrInfo from section into linear in-buffer */
+   copyAttrinfo(regOperPtr, 
+                &cinBuffer[0], 
+                req_struct.attrinfo_len,
+                attrInfoIVal);
    
    Uint32 localkey = (pageid << MAX_TUPLES_BITS) + pageidx;
    if (Roptype == ZINSERT && localkey == ~ (Uint32) 0)
@@ -730,7 +645,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 	 // that they are waiting for the Commit or Abort decision.
 	 /* ---------------------------------------------------------------- */
 	 set_trans_state(regOperPtr, TRANS_IDLE);
-	 regOperPtr->currentAttrinbufLen= 0;
        }
        return;
      }
@@ -973,6 +887,33 @@ int Dbtup::handleReadReq(Signal* signal,
   return -1;
 }
 
+static
+void
+handle_reorg(Dbtup::KeyReqStruct * req_struct,
+             Dbtup::Fragrecord::FragState state)
+{
+  Uint32 reorg = req_struct->m_reorg;
+  switch(state){
+  case Dbtup::Fragrecord::FS_FREE:
+  case Dbtup::Fragrecord::FS_REORG_NEW:
+  case Dbtup::Fragrecord::FS_REORG_COMMIT_NEW:
+  case Dbtup::Fragrecord::FS_REORG_COMPLETE_NEW:
+    return;
+  case Dbtup::Fragrecord::FS_REORG_COMMIT:
+  case Dbtup::Fragrecord::FS_REORG_COMPLETE:
+    if (reorg != 1)
+      return;
+    break;
+  case Dbtup::Fragrecord::FS_ONLINE:
+    if (reorg != 2)
+      return;
+    break;
+  default:
+    return;
+  }
+  req_struct->m_tuple_ptr->m_header_bits |= Dbtup::Tuple_header::REORG_MOVE;
+}
+
 /* ---------------------------------------------------------------- */
 /* ---------------------------- UPDATE ---------------------------- */
 /* ---------------------------------------------------------------- */
@@ -1039,8 +980,9 @@ int Dbtup::handleUpdateReq(Signal* signal,
       Uint32 sz= operPtrP->m_undo_buffer_space= 
 	(sizeof(Dbtup::Disk_undo::Update) >> 2) + sizes[DD] - 1;
       
-      terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-					   sz);
+      D("Logfile_client - handleUpdateReq");
+      Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      terrorCode= lgman.alloc_log_space(sz);
       if(unlikely(terrorCode))
       {
 	operPtrP->m_undo_buffer_space= 0;
@@ -1104,6 +1046,11 @@ int Dbtup::handleUpdateReq(Signal* signal,
 							    sizes)) {
       goto error;
     }
+  }
+
+  if (req_struct->m_reorg)
+  {
+    handle_reorg(req_struct, regFragPtr->fragStatus);
   }
   
   req_struct->m_tuple_ptr->set_tuple_version(tup_version);
@@ -1432,8 +1379,9 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto log_space_error;
     }
 
-    res= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-				  regOperPtr.p->m_undo_buffer_space);
+    D("Logfile_client - handleInsertReq");
+    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+    res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space);
     if(unlikely(res))
     {
       terrorCode= res;
@@ -1632,6 +1580,11 @@ int Dbtup::handleInsertReq(Signal* signal,
     disk_ptr->m_header_bits = 0;
     disk_ptr->m_base_record_ref= ref.ref();
   }
+
+  if (req_struct->m_reorg)
+  {
+    handle_reorg(req_struct, regFragPtr->fragStatus);
+  }
   
   if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
   {
@@ -1727,8 +1680,9 @@ int Dbtup::handleDeleteReq(Signal* signal,
       (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       regTabPtr->m_offsets[DD].m_fix_header_size - 1;
     
-    terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-                                         sz);
+    D("Logfile_client - handleDeleteReq");
+    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+    terrorCode= lgman.alloc_log_space(sz);
     if(unlikely(terrorCode))
     {
       regOperPtr->m_undo_buffer_space= 0;
@@ -1989,7 +1943,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     req_struct->read_length= RattroutCounter;
     sendReadAttrinfo(signal, req_struct, RattroutCounter, regOperPtr);
     if (RlogSize > 0) {
-      sendLogAttrinfo(signal, RlogSize, regOperPtr);
+      return sendLogAttrinfo(signal, RlogSize, regOperPtr);
     }
     return 0;
   } else {
@@ -2005,30 +1959,46 @@ int Dbtup::interpreterStartLab(Signal* signal,
 /*               TLOG_START              FIRST INDEX TO LOG         */
 /*               TLOG_END                LAST INDEX + 1 TO LOG      */
 /* ---------------------------------------------------------------- */
-void Dbtup::sendLogAttrinfo(Signal* signal,
-                            Uint32 TlogSize,
-                            Operationrec *  const regOperPtr)
+int Dbtup::sendLogAttrinfo(Signal* signal,
+                           Uint32 TlogSize,
+                           Operationrec *  const regOperPtr)
 
 {
-  Uint32 TbufferIndex= 0;
-  signal->theData[0]= regOperPtr->userpointer;
-  while (TlogSize > 22) {
-    MEMCOPY_NO_WORDS(&signal->theData[3],
-                     &clogMemBuffer[TbufferIndex],
-                     22);
-    EXECUTE_DIRECT(DBLQH, GSN_TUP_ATTRINFO, signal, 25);
-    TbufferIndex += 22;
-    TlogSize -= 22;
+  /* Copy from Log buffer to segmented section,
+   * then attach to ATTRINFO and execute direct
+   * to LQH
+   */
+  ndbrequire( TlogSize > 0 );
+  Uint32 longSectionIVal= RNIL;
+  bool ok= appendToSection(longSectionIVal, 
+                           &clogMemBuffer[0],
+                           TlogSize);
+  if (unlikely(!ok))
+  {
+    /* Resource error, abort transaction */
+    terrorCode = ZSEIZE_ATTRINBUFREC_ERROR;
+    tupkeyErrorLab(signal);
+    return -1;
   }
-  MEMCOPY_NO_WORDS(&signal->theData[3],
-                   &clogMemBuffer[TbufferIndex],
-                   TlogSize);
-  EXECUTE_DIRECT(DBLQH, GSN_TUP_ATTRINFO, signal, 3 + TlogSize);
+  
+  /* Send a TUP_ATTRINFO signal to LQH, which contains
+   * the relevant user pointer and the attrinfo section's
+   * IVAL
+   */
+  signal->theData[0]= regOperPtr->userpointer;
+  signal->theData[1]= TlogSize;
+  signal->theData[2]= longSectionIVal;
+
+  EXECUTE_DIRECT(DBLQH, 
+                 GSN_TUP_ATTRINFO, 
+                 signal, 
+                 3);
+  return 0;
 }
 
 inline
 Uint32 
-brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
+Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
 {         
   Uint32 TbranchDirection= TheInstruction >> 31;
   Uint32 TbranchLength= (TheInstruction >> 16) & 0x7fff;
@@ -2965,8 +2935,6 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
   Uint32 fix_len;
   const Uint32 *var_p;
   Uint32 var_len;
-  const Uint32 *disk_p;
-  Uint32 disk_len;
   const char *typ;
 
   fix_p= tuple_words;
@@ -3761,7 +3729,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
     
-    int res = c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
+    D("Logfile_client - nr_delete");
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    int res = lgman.alloc_log_space(sz);
     ndbrequire(res == 0);
     
     /**
@@ -3805,7 +3775,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     }
 #endif
     
-    res = m_pgman.get_page(signal, preq, flags);
+    Page_cache_client pgman(this, c_pgman);
+    res = pgman.get_page(signal, preq, flags);
+    m_pgman_ptr = pgman.m_ptr;
     if (res == 0)
     {
       goto timeslice;
@@ -3815,13 +3787,13 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       return -1;
     }
 
-    PagePtr disk_page = *(PagePtr*)&m_pgman.m_ptr;
+    PagePtr disk_page = *(PagePtr*)&m_pgman_ptr;
     disk_page_set_dirty(disk_page);
 
-    preq.m_callback.m_callbackFunction =
-      safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
-    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    res= lgman.get_log_buffer(signal, sz, &preq.m_callback);
+    CallbackPtr cptr;
+    cptr.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
+    cptr.m_callbackData = senderData;
+    res= lgman.get_log_buffer(signal, sz, &cptr);
     switch(res){
     case 0:
       signal->theData[2] = disk_page.i;
@@ -3846,7 +3818,7 @@ timeslice:
 
 void
 Dbtup::nr_delete_page_callback(Signal* signal, 
-			       Uint32 userpointer, Uint32 page_id)
+			       Uint32 userpointer, Uint32 page_id)//unused
 {
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
@@ -3869,10 +3841,10 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
     tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
   
-  Callback cb;
+  CallbackPtr cb;
   cb.m_callbackData = userpointer;
-  cb.m_callbackFunction =
-    safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
+  cb.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
+  D("Logfile_client - nr_delete_page_callback");
   Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
   int res= lgman.get_log_buffer(signal, sz, &cb);
   switch(res){

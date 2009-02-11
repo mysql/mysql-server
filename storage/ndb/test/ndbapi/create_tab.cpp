@@ -53,11 +53,13 @@ int main(int argc, const char** argv){
   const char* _connectstr = NULL;
   int _diskbased = 0;
   const char* _tsname = NULL;
+  int _trans = false;
 
   struct getargs args[] = {
     { "all", 'a', arg_flag, &_all, "Create/print all tables", 0 },
     { "print", 'p', arg_flag, &_print, "Print table(s) instead of creating it", 0},
     { "temp", 't', arg_flag, &_temp, "Temporary table", 0 },
+    { "trans", 'x', arg_flag, &_trans, "Use single schema trans", 0 },
     { "connstr", 'c', arg_string, &_connectstr, "Connect string", "cs" }, 
     { "diskbased", 0, arg_flag, &_diskbased, "Store attrs on disk if possible", 0 },
     { "tsname", 0, arg_string, &_tsname, "Tablespace name", "ts" },
@@ -116,7 +118,16 @@ int main(int argc, const char** argv){
     
     while(MyNdb.waitUntilReady() != 0)
       ndbout << "Waiting for ndb to become ready..." << endl;
+
+    NdbDictionary::Dictionary* MyDic = MyNdb.getDictionary();
     
+    if (_trans) {
+      if (MyDic->beginSchemaTrans() == -1) {
+        ERR(MyDic->getNdbError());
+        return NDBT_ProgramExit(NDBT_FAILED);
+      }
+    }
+
     if(_all){
       res = NDBT_Tables::createAllTables(&MyNdb, _temp);
     } else {
@@ -128,6 +139,13 @@ int main(int argc, const char** argv){
 	  res = tmp;
       }
     } 
+    
+    if (_trans) {
+      if (MyDic->endSchemaTrans() == -1) {
+        ERR(MyDic->getNdbError());
+        return NDBT_ProgramExit(NDBT_FAILED);
+      }
+    }
   }
   
   if(res != 0)

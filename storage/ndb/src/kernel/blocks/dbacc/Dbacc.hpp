@@ -268,6 +268,8 @@ ElementHeader::clearScanBit(Uint32 header, Uint32 scanBit){
 
 
 class Dbacc: public SimulatedBlock {
+  friend class DbaccProxy;
+
 public:
 // State values
 enum State {
@@ -625,7 +627,7 @@ struct Tabrec {
   typedef Ptr<Tabrec> TabrecPtr;
 
 public:
-  Dbacc(Block_context&);
+  Dbacc(Block_context&, Uint32 instanceNumber = 0);
   virtual ~Dbacc();
 
   // pointer to TUP instance in this thread
@@ -662,6 +664,10 @@ private:
   void execDROP_TAB_REQ(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
+
+  void execDROP_FRAG_REQ(Signal*);
+
+  void execDBINFO_SCANREQ(Signal *signal);
 
   // Statement blocks
   void ACCKEY_error(Uint32 fromWhere);

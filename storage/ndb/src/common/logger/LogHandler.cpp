@@ -126,11 +126,7 @@ char*
 LogHandler::getTimeAsString(char* pStr) const 
 {
   struct tm* tm_now;
-#ifdef NDB_WIN32
-  tm_now = localtime(&m_now);
-#else
   tm_now = ::localtime(&m_now); //uses the "current" timezone
-#endif
 
   BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
 	     m_pDateTimeFormat, 

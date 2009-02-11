@@ -20,14 +20,17 @@
 extern "C" {
 #endif
 
-/**
- * Sleep for some time
- *
- * returnvalue: true = time is up, false = failed
- */
-int NdbSleep_MicroSleep(int microseconds);
-int NdbSleep_MilliSleep(int milliseconds);
-int NdbSleep_SecSleep(int seconds);
+#include <ndb_global.h>
+#include <my_sys.h>
+
+static inline void NdbSleep_MilliSleep(int milliseconds)
+{
+  my_sleep(ulong(milliseconds)*1000UL);
+}
+static inline void NdbSleep_SecSleep(int seconds)
+{
+  NdbSleep_MilliSleep(seconds*1000);
+}
 
 #ifdef	__cplusplus
 }

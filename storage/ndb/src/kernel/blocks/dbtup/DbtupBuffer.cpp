@@ -196,6 +196,18 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       }
       
       /**
+       * Send long signal to DBUTIL.
+       */
+      if (block == DBUTIL && !old_dest) {
+	jam();
+	LinearSectionPtr ptr[3];
+	ptr[0].p= &signal->theData[25];
+	ptr[0].sz= ToutBufIndex;
+	sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+	return;
+      }
+
+      /**
        * short sig + api -> buffer
        */
 #ifndef NDB_NO_DROPPED_SIGNAL
@@ -227,8 +239,41 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       }
       return;
     }
-    EXECUTE_DIRECT(block, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
-    jamEntry();
+
+    /**
+     * BACKUP/SUMA/LQH run in our thread, so we can EXECUTE_DIRECT().
+     *
+     * The UTIL/TC blocks are in another thread (in multi-threaded ndbd), so
+     * must use sendSignal().
+     *
+     * In MT LQH only LQH and BACKUP are in same thread, and BACKUP only
+     * in LCP case since user-backup uses single worker.
+     */
+    BlockNumber blockMain = blockToMain(block);
+    const bool sameInstance = blockToInstance(block) == instance();
+    if (blockMain == DBLQH)
+    {
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
+      jamEntry();
+    }
+    else if (blockMain == SUMA && sameInstance)
+    {
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
+      jamEntry();
+    }
+    else if (blockMain == BACKUP && sameInstance)
+    {
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
+      jamEntry();
+    }
+    else
+    {
+      jam();
+      LinearSectionPtr ptr[3];
+      ptr[0].p= &signal->theData[3];
+      ptr[0].sz= ToutBufIndex;
+      sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+    }
     return;
   }
 

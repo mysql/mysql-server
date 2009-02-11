@@ -40,8 +40,10 @@
  */
 class Backup : public SimulatedBlock
 {
+  friend class BackupProxy;
+
 public:
-  Backup(Block_context& ctx);
+  Backup(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Backup();
   BLOCK_DEFINES(Backup);
   
@@ -96,16 +98,16 @@ protected:
   void execLIST_TABLES_CONF(Signal* signal);
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
 
   /**
    * DIH signals
    */
-  void execDI_FCOUNTCONF(Signal* signal);
-  void execDIGETPRIMCONF(Signal* signal);
+  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
 
   /**
    * FS signals
@@ -147,10 +149,15 @@ protected:
 
   void execWAIT_GCP_REF(Signal* signal);
   void execWAIT_GCP_CONF(Signal* signal);
-  
+  void execBACKUP_LOCK_TAB_CONF(Signal *signal);
+  void execBACKUP_LOCK_TAB_REF(Signal *signal);
+
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
   void execEND_LCPREQ(Signal* signal);
+
+  void execDBINFO_SCANREQ(Signal *signal);
+
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
@@ -166,7 +173,12 @@ public:
 
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
-    Uint32 data[BACKUP_WORDS_PER_PAGE];
+    union {
+      Uint32 data[BACKUP_WORDS_PER_PAGE];
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
     Uint32 nextPool;
   };
   typedef Ptr<Page32> Page32Ptr;
@@ -176,10 +188,16 @@ public:
     Uint32 tableId;
     Uint16 node;
     Uint16 fragmentId;
+    Uint8 lqhInstanceKey;
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
-    Uint32 nextPool;
+    union {
+      Uint32 nextPool;
+      Uint32 chunkSize;
+      Uint32 nextChunk;
+      Uint32 lastChunk;
+    };
   };
   typedef Ptr<Fragment> FragmentPtr;
 
@@ -191,6 +209,7 @@ public:
     Uint32 tableId;
     Uint32 schemaVersion;
     Uint32 tableType;
+    Uint32 m_scan_cookie;
     Uint32 triggerIds[3];
     bool   triggerAllocated[3];
     Uint32 maxRecordSize;
@@ -270,6 +289,7 @@ public:
 
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -362,6 +382,7 @@ public:
     void forceState(State s);
     
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -494,6 +515,7 @@ public:
 
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -651,6 +673,20 @@ public:
   void read_lcp_descriptor(Signal*, BackupRecordPtr, TablePtr);
 
   bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
+
+  void afterGetTabinfoLockTab(Signal *signal,
+                              BackupRecordPtr ptr, TablePtr tabPtr);
+  void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
+
+  BackupFormat::LogFile::LogEntry* get_log_buffer(Signal*,TriggerPtr, Uint32);
+
+  /*
+   * MT LQH.  LCP runs separately in each instance number.
+   * BACKUP uses instance key 1 (real instance 0 or 1).
+  */
+  Uint32 instanceKey(BackupRecordPtr ptr) {
+    return ptr.p->is_lcp() ? instance() : 1;
+  }
 };
 
 inline

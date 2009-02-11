@@ -42,7 +42,8 @@ enum WaitSignalType {
   WAIT_ALTER_TAB_REQ = 14,
   WAIT_CREATE_INDX_REQ = 15,
   WAIT_DROP_INDX_REQ = 16,
-  WAIT_LIST_TABLES_CONF = 17
+  WAIT_LIST_TABLES_CONF = 17,
+  WAIT_SCHEMA_TRANS = 18
 };
 
 class NdbWaiter {
@@ -50,7 +51,7 @@ public:
   NdbWaiter();
   ~NdbWaiter();
 
-  void wait(int waitTime);
+  void wait(NDB_TICKS waitTime);
   void nodeFail(Uint32 node);
   void signal(Uint32 state);
   void cond_signal();
@@ -71,10 +72,10 @@ public:
 
 inline
 void
-NdbWaiter::wait(int waitTime)
+NdbWaiter::wait(NDB_TICKS waitTime)
 {
   assert(!m_poll_owner);
-  NdbCondition_WaitTimeout(m_condition, m_mutex, waitTime);
+  NdbCondition_WaitTimeout(m_condition, m_mutex, (int)waitTime);
 }
 
 inline

@@ -24,16 +24,12 @@
 
 #include <NdbTCP.h>
 #include <NdbEnv.h>
-#include "MgmtErrorReporter.hpp"
 
 #include <uucode.h>
 #include <Properties.hpp>
 
 #include <socket_io.h>
-#include <NdbConfig.h>
 
-#include <NdbAutoPtr.hpp>
- 
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
@@ -49,6 +45,9 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
                                  int timeout_ms)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
+  DBUG_PRINT("enter", ("connect_string: '%s'", _connect_string));
+  DBUG_PRINT("enter", ("version: %d, node_type: %d, bind: %s, timeout: %d",
+                       version, node_type,_bindaddress, timeout_ms));
 
   m_version = version;
   m_node_type = node_type;
@@ -89,9 +88,11 @@ ConfigRetriever::~ConfigRetriever()
 {
   DBUG_ENTER("ConfigRetriever::~ConfigRetriever");
   if (m_handle) {
-    if(m_end_session)
-      ndb_mgm_end_session(m_handle);
-    ndb_mgm_disconnect(m_handle);
+    if (ndb_mgm_is_connected(m_handle)) {
+      if(m_end_session)
+        ndb_mgm_end_session(m_handle);
+      ndb_mgm_disconnect(m_handle);
+    }
     ndb_mgm_destroy_handle(&m_handle);
   }
   DBUG_VOID_RETURN;
@@ -136,6 +137,12 @@ ConfigRetriever::disconnect()
   return ndb_mgm_disconnect(m_handle);
 }
 
+bool
+ConfigRetriever::is_connected(void)
+{
+  return (ndb_mgm_is_connected(m_handle) != 0);
+}
+
 //****************************************************************************
 //****************************************************************************
 //****************************************************************************
@@ -160,15 +167,15 @@ ConfigRetriever::getConfig() {
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(NdbMgmHandle m_handle_arg)
+ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 {
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle_arg,
+  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(mgm_handle,
                                                            m_version);
   if(conf == 0)
   {
-    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle_arg));
+    BaseString tmp(ndb_mgm_get_latest_error_msg(mgm_handle));
     tmp.append(" : ");
-    tmp.append(ndb_mgm_get_latest_error_desc(m_handle_arg));
+    tmp.append(ndb_mgm_get_latest_error_desc(mgm_handle));
     setError(CR_ERROR, tmp.c_str());
     return 0;
   }
@@ -176,49 +183,45 @@ ConfigRetriever::getConfig(NdbMgmHandle m_handle_arg)
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(const char * filename){
-#ifndef NDB_WIN32	
+ConfigRetriever::getConfig(const char * filename)
+{
+  if (access(filename, F_OK))
+  {
+    BaseString err;
+    err.assfmt("Could not find file: '%s'", filename);
+    setError(CR_ERROR, err);
+    return 0;
+  }
 
-  struct stat sbuf;
-  const int res = stat(filename, &sbuf);
-  if(res != 0){
-    char buf[255];
-    BaseString::snprintf(buf, sizeof(buf), "Could not find file: \"%s\"", filename);
-    setError(CR_ERROR, buf);
-    return 0;
-  }
-  const Uint32 bytes = sbuf.st_size;
-  
-  Uint32 * buf2 = new Uint32[bytes/4+1];
-  
   FILE * f = fopen(filename, "rb");
-  if(f == 0){
+  if(f == 0)
+  {
     setError(CR_ERROR, "Failed to open file");
-    delete []buf2;
     return 0;
   }
-  Uint32 sz = fread(buf2, 1, bytes, f);
+
+  size_t read_sz;
+  char read_buf[512];
+  UtilBuffer config_buf;
+  while ((read_sz = fread(read_buf, 1, sizeof(read_buf), f)) != 0)
+  {
+    if (config_buf.append(read_buf, read_sz) != 0)
+    {
+      setError(CR_ERROR, "Out of memory when appending read data");
+      fclose(f);
+      return 0;
+    }
+  }
   fclose(f);
-  if(sz != bytes){
-    setError(CR_ERROR, "Failed to read file");
-    delete []buf2;
-    return 0;
-  }
-  
+
   ConfigValuesFactory cvf;
-  if(!cvf.unpack(buf2, bytes)){
-    char buf[255];
-    BaseString::snprintf(buf, sizeof(buf), "Error while unpacking"); 
-    setError(CR_ERROR, buf);
-    delete []buf2;
+  if(!cvf.unpack(config_buf))
+  {
+    setError(CR_ERROR,  "Error while unpacking");
     return 0;
   }
-  delete [] buf2;
-  return (ndb_mgm_configuration*)cvf.m_cfg;
-#else
-  return 0;
-#endif
-}			   
+  return (ndb_mgm_configuration*)cvf.getConfigValues();
+}
 
 void
 ConfigRetriever::setError(ErrorType et, const char * s){
@@ -226,6 +229,11 @@ ConfigRetriever::setError(ErrorType et, const char * s){
   latestErrorType = et;
   DBUG_PRINT("info", ("latestErrorType: %u, '%s'",
                       latestErrorType, errorString.c_str()));
+}
+
+void
+ConfigRetriever::setError(ErrorType et, BaseString err){
+  setError(et, err.c_str());
 }
 
 void
@@ -244,65 +252,59 @@ ConfigRetriever::getErrorString(){
   return errorString.c_str();
 }
 
+
 bool
-ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 nodeid){
-
+ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
+                              Uint32 nodeid)
+{
   char buf[255];
-  ndb_mgm_configuration_iterator * it;
-  it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf,
-					     CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator it(* conf, CFG_SECTION_NODE);
 
-  if(it == 0){
-    BaseString::snprintf(buf, 255, "Unable to create config iterator");
-    setError(CR_ERROR, buf);
-    return false;
-    
-  }
-  NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
-  
-  if(ndb_mgm_find(it, CFG_NODE_ID, nodeid) != 0){
+  if(it.find(CFG_NODE_ID, nodeid)){
     BaseString::snprintf(buf, 255, "Unable to find node with id: %d", nodeid);
     setError(CR_ERROR, buf);
     return false;
   }
-     
+
   const char * hostname;
-  if(ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &hostname)){
-    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",CFG_NODE_HOST);
+  if(it.get(CFG_NODE_HOST, &hostname)){
+    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",
+                         CFG_NODE_HOST);
     setError(CR_ERROR, buf);
     return false;
   }
 
-  const char * datadir;
-  if(!ndb_mgm_get_string_parameter(it, CFG_NODE_DATADIR, &datadir)){
-    NdbConfig_SetPath(datadir);
-  }
-
   if (hostname && hostname[0] != 0 &&
       !SocketServer::tryBind(0,hostname)) {
-    BaseString::snprintf(buf, 255, "Config hostname(%s) don't match a local interface,"
-	     " tried to bind, error = %d - %s",
-	     hostname, errno, strerror(errno));
+    BaseString::snprintf(buf, 255,
+                         "The hostname this node should have according "
+                         "to the configuration does not match a local "
+                         "interface. Attempt to bind '%s' "
+                         "failed with error: %d '%s'",
+                         hostname, errno, strerror(errno));
     setError(CR_ERROR, buf);
     return false;
   }
 
   unsigned int _type;
-  if(ndb_mgm_get_int_parameter(it, CFG_TYPE_OF_SECTION, &_type)){
+  if(it.get(CFG_TYPE_OF_SECTION, &_type)){
     BaseString::snprintf(buf, 255, "Unable to get type of node(%d) from config",
-	     CFG_TYPE_OF_SECTION);
+                         CFG_TYPE_OF_SECTION);
     setError(CR_ERROR, buf);
     return false;
   }
-  
+
   if(_type != m_node_type){
     const char *type_s, *alias_s, *type_s2, *alias_s2;
-    alias_s= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
-						&type_s);
-    alias_s2= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)_type,
-						 &type_s2);
-    BaseString::snprintf(buf, 255, "This node type %s(%s) and config "
-			 "node type %s(%s) don't match for nodeid %d", 
+    alias_s=
+      ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
+                                         &type_s);
+    alias_s2=
+      ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)_type,
+                                         &type_s2);
+    BaseString::snprintf(buf, 255,
+                         "This node type %s(%s) and config "
+			 "node type %s(%s) don't match for nodeid %d",
 			 alias_s, type_s, alias_s2, type_s2, nodeid);
     setError(CR_ERROR, buf);
     return false;
@@ -348,6 +350,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
       }
     }
   }
+
   return true;
 }
 

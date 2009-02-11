@@ -84,8 +84,10 @@ public:
 
   public:
     FILE * m_errstream;
-    void reportError(const char * msg, ...);
-    void reportWarning(const char * msg, ...);
+    void reportError(const char * msg, ...)
+      ATTRIBUTE_FORMAT(printf, 2, 3);
+    void reportWarning(const char * msg, ...)
+      ATTRIBUTE_FORMAT(printf, 2, 3);
   };
 
   static bool convertStringToUint64(const char* s, Uint64& val, Uint32 log10base = 0);

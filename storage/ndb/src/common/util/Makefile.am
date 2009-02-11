@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+EXTRA_DIST = CMakeLists.txt
+
 noinst_LTLIBRARIES = libgeneral.la libndbazio.la
 
 libgeneral_la_SOURCES = \
@@ -21,11 +23,12 @@ libgeneral_la_SOURCES = \
             SocketServer.cpp SocketClient.cpp SocketAuthenticator.cpp\
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp \
 	    NdbSqlUtil.cpp new.cpp \
-            uucode.c random.c version.c \
+            uucode.c random.c version.c ndb_opts.c \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \
-	    ndb_rand.c
+	    ndb_rand.c \
+	    ndbinfo.c
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 
@@ -42,17 +45,3 @@ BaseString_t_LDADD = \
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
-
-windoze-dsp: libgeneral.dsp
-
-libgeneral.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libgeneral_la_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)

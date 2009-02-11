@@ -134,6 +134,11 @@ public:
 
   void executeCpc(char * parameters);
 
+  int executeCreateNodeGroup(char* parameters);
+  int executeDropNodeGroup(char* parameters);
+
+  int executeNdbInfo(const char* parameters);
+
 public:
   bool connect(bool interactive);
   bool disconnect();
@@ -229,7 +234,6 @@ extern "C" {
 #include <NdbMem.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
-#include "MgmtErrorReporter.hpp"
 #include <Parser.hpp>
 #include <SocketServer.hpp>
 #include <util/InputStream.hpp>
@@ -264,8 +268,12 @@ static const char* helpText =
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
 #endif
+"CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
+"DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
+"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "START BACKUP [<backup id>] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
-"                                       Start backup (default WAIT COMPLETED)\n"
+"START BACKUP [<backup id>] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"                                       Start backup (default WAIT COMPLETED,SNAPSHOTEND)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster\n"
 "CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
@@ -329,7 +337,7 @@ static const char* helpTextStartBackup =
 " NDB Cluster -- Management Client -- Help for START BACKUP command\n"
 "---------------------------------------------------------------------------\n"
 "START BACKUP  Start a cluster backup\n\n"
-"START BACKUP [<backup id>] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"START BACKUP [<backup id>] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                   Start a backup for the cluster.\n"
 "                   Each backup gets an ID number that is reported to the\n"
 "                   user. This ID number can help you find the backup on the\n"
@@ -338,6 +346,10 @@ static const char* helpTextStartBackup =
 "                   You can also start specified backup using START BACKUP <backup id> \n\n"
 "                   <backup id> \n"
 "                     Start a specified backup using <backup id> as bakcup ID number.\n" 
+"                   SNAPSHOTSTART \n"
+"                     Backup snapshot is taken around the time the backup is started.\n" 
+"                   SNAPSHOTEND \n"
+"                     Backup snapshot is taken around the time the backup is completed.\n" 
 "                   NOWAIT \n"
 "                     Start a cluster backup and return immediately.\n"
 "                     The management client will return control directly\n"
@@ -718,13 +730,16 @@ emptyString(const char* s)
 void
 CommandInterpreter::printError() 
 {
-  ndbout_c("* %5d: %s", 
-	   ndb_mgm_get_latest_error(m_mgmsrv),
-	   ndb_mgm_get_latest_error_msg(m_mgmsrv));
-  ndbout_c("*        %s", ndb_mgm_get_latest_error_desc(m_mgmsrv));
-  if (ndb_mgm_check_connection(m_mgmsrv))
+  if (m_mgmsrv)
   {
-    disconnect();
+    ndbout_c("* %5d: %s", 
+             ndb_mgm_get_latest_error(m_mgmsrv),
+             ndb_mgm_get_latest_error_msg(m_mgmsrv));
+    ndbout_c("*        %s", ndb_mgm_get_latest_error_desc(m_mgmsrv));
+    if (ndb_mgm_check_connection(m_mgmsrv))
+    {
+      disconnect();
+    }
   }
 }
 
@@ -889,7 +904,7 @@ printLogEvent(struct ndb_logevent* event)
 //*****************************************************************************
 //*****************************************************************************
 
-static int do_event_thread;
+static int do_event_thread= 0;
 static void*
 event_thread_run(void* p)
 {
@@ -925,7 +940,7 @@ event_thread_run(void* p)
   }
   else
   {
-    do_event_thread= -1;
+    do_event_thread= 0;
   }
 
   DBUG_RETURN(NULL);
@@ -1145,8 +1160,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   }
   else if (strcasecmp(firstToken, "SLEEP") == 0) {
     if (allAfterFirstToken)
-      if (sleep(atoi(allAfterFirstToken)) != 0 )
-        m_error = -1;
+      NdbSleep_SecSleep(atoi(allAfterFirstToken));
     DBUG_RETURN(true);
   }
   else if((strcasecmp(firstToken, "QUIT") == 0 ||
@@ -1209,6 +1223,30 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
 	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     m_error = executeExitSingleUser(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if(strcasecmp(firstToken, "CREATE") == 0 &&
+	  allAfterFirstToken != NULL &&
+	  strncasecmp(allAfterFirstToken, "NODEGROUP",
+                      sizeof("NODEGROUP") - 1) == 0){
+    m_error = executeCreateNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if(strcasecmp(firstToken, "DROP") == 0 &&
+	  allAfterFirstToken != NULL &&
+	  strncasecmp(allAfterFirstToken, "NODEGROUP",
+                      sizeof("NODEGROUP") - 1) == 0){
+    m_error = executeDropNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if(strcasecmp(firstToken, "NDBINFO")==0)
+  {
+    const char *q=NULL;
+    if(allAfterFirstToken==NULL)
+      q= "SELECT * FROM NDB$INFO.TABLES";
+    else
+      q= allAfterFirstToken;
+    m_error = executeNdbInfo(q);
     DBUG_RETURN(true);
   }
   else if (strcasecmp(firstToken, "ALL") == 0) {
@@ -1632,12 +1670,17 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  if (node_state->node_status != NDB_MGM_NODE_STATUS_STARTED) {
 	    ndbout << ", " << status_string(node_state->node_status);
 	  }
-	  if (node_state->node_group >= 0) {
+	  if (node_state->node_group >= 0 && node_state->node_group != (int)RNIL) {
 	    ndbout << ", Nodegroup: " << node_state->node_group;
+          }
+          else if (node_state->node_group == (int)RNIL)
+          {
+            ndbout << ", no nodegroup";
+          }
+          if (node_state->node_group >= 0 || node_state->node_group == (int)RNIL)
 	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", Master";
-	  }
-	}
+        }
 	ndbout << ")" << endl;
       } else {
 	ndb_mgm_first(it);
@@ -2481,6 +2524,45 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
   return -1;
 }
 
+int
+CommandInterpreter::executeNdbInfo(const char* parameters)
+{
+  int rows;
+  int r= ndb_mgm_ndbinfo(m_mgmsrv,parameters, &rows);
+
+  if(r)
+  {
+    ndbout_c("Error displaying NDBINFO: %d",r);
+    return -1;
+  }
+
+  int ncol= ndb_mgm_ndbinfo_colcount(m_mgmsrv);
+
+  char **cols= (char**)malloc(ncol*sizeof(char*));
+  for(int i=0;i<ncol;i++)
+    cols[i]= (char*) malloc(100*sizeof(char));
+
+  ndb_mgm_ndbinfo_getcolums(m_mgmsrv,ncol,100,cols);
+
+  for(int i=0;i<ncol;i++)
+  {
+    ndbout << cols[i] << "\t";
+    free(cols[i]);
+  }
+  ndbout << endl;
+
+  while(rows--)
+  {
+    char c[1024];
+    ndb_mgm_ndbinfo_getrow(m_mgmsrv, c, 1024);
+    c[strlen(c)-1]='\0';
+    ndbout_c(c);
+  }
+
+  free(cols);
+  return 0;
+}
+
 static void helpTextReportFn()
 {
   ndbout_c("<report type specifier> =");
@@ -2881,50 +2963,95 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 
   int result;
   int flags = 2;
-  if (sz == 2 && args[1] == "NOWAIT")
+  //1,snapshot at start time. 0 snapshot at end time
+  unsigned int backuppoint = 0;
+  bool b_log = false;
+  bool b_nowait = false;
+  bool b_wait_completed = false;
+  bool b_wait_started = false;
+
+  /*
+   All the commands list as follow:
+   start backup <backupid> nowait | start backup <backupid> snapshotstart/snapshotend nowati | start backup <backupid> nowait snapshotstart/snapshotend
+   start backup <backupid> | start backup <backupid> wait completed | start backup <backupid> snapshotstart/snapshotend
+   start backup <backupid> snapshotstart/snapshotend wait completed | start backup <backupid> wait completed snapshotstart/snapshotend
+   start backup <backupid> wait started | start backup <backupid> snapshotstart/snapshotend wait started
+   start backup <backupid> wait started snapshotstart/snapshotend
+  */
+  for (int i= 1; i < sz; i++)
   {
-    flags = 0;
-  }
-  else if (sz == 1 || (sz == 3 && args[1] == "WAIT" && args[2] == "COMPLETED"))
-  {
-    flags = 2;
-    ndbout_c("Waiting for completed, this may take several minutes");
-  }
-  else if (sz == 3 && args[1] == "WAIT" && args[2] == "STARTED")
-  {
-    ndbout_c("Waiting for started, this may take several minutes");
-    flags = 1;
-  }
-  else if (sscanf(args[1].c_str(), "%u", &input_backupId) == 1 && input_backupId > 0 && input_backupId < MAX_BACKUPS)
-  {
-    // start backup n nowait
-    if (sz == 3 && args[2] == "NOWAIT")
-    {
+    if (i == 1 && sscanf(args[1].c_str(), "%u", &input_backupId) == 1) {
+      if (input_backupId > 0 && input_backupId < MAX_BACKUPS)
+        continue;
+      else {
+        invalid_command(parameters);
+        return -1;
+      }
+    }
+
+    if (args[i] == "SNAPSHOTEND") {
+      if (b_log ==true) {
+        invalid_command(parameters);
+        return -1;
+      }
+      b_log = true;
+      backuppoint = 0;
+      continue;
+    }
+    if (args[i] == "SNAPSHOTSTART") {
+      if (b_log ==true) {
+        invalid_command(parameters);
+        return -1;
+      }
+      b_log = true;
+      backuppoint = 1;
+      continue;
+    }
+    if (args[i] == "NOWAIT") {
+      if (b_nowait == true || b_wait_completed == true || b_wait_started ==true) {
+        invalid_command(parameters);
+        return -1;
+      }
+      b_nowait = true;
       flags = 0;
+      continue;
     }
-    // start backup n; start backup n wait complete
-    else if ( sz == 2 || (sz == 4 && args[2] == "WAIT" && args[3] =="COMPLETED"))
-    {
-      flags = 2;
-      ndbout_c("Waiting for completed, this may take several minutes");
+    if (args[i] == "WAIT") {
+      if (b_nowait == true || b_wait_completed == true || b_wait_started ==true) {
+        invalid_command(parameters);
+        return -1;
+      }
+      if (i+1 < sz) {
+        if (args[i+1] == "COMPLETED") {
+          b_wait_completed = true;
+          flags = 2; 
+          i++;
+        }
+        else if (args[i+1] == "STARTED") {
+          b_wait_started = true;
+          flags = 1;
+          i++;
+        }
+        else {
+          invalid_command(parameters);
+          return -1;
+        }
+      }
+      else {
+        invalid_command(parameters);
+        return -1;
+      }
+      continue;
     }
-    //start backup n wait started
-    else if (sz == 4 && args[2] == "WAIT" && args[3] == "STARTED")
-    {
-      ndbout_c("Waiting for started, this may take several minutes");
-      flags = 1;
-    }
-    else
-    {
-      invalid_command(parameters);
-      return -1;
-    }
-  }
-  else
-  {
     invalid_command(parameters);
     return -1;
   }
+
+  //print message
+  if (flags == 2)
+    ndbout_c("Waiting for completed, this may take several minutes");
+  if (flags == 1)
+    ndbout_c("Waiting for started, this may take several minutes");
 
   NdbLogEventHandle log_handle= NULL;
   struct ndb_logevent log_event;
@@ -2939,8 +3066,11 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
       return -1;
     }
   }
-  if (input_backupId > 0)
-    result = ndb_mgm_start_backup2(m_mgmsrv, flags, &backupId, &reply, input_backupId);
+
+  //start backup N | start backup snapshotstart/snapshotend
+  if (input_backupId > 0 || b_log == true)
+    result = ndb_mgm_start_backup3(m_mgmsrv, flags, &backupId, &reply, input_backupId, backuppoint);
+  //start backup
   else
     result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
 
@@ -3030,6 +3160,74 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   return 0;
  executeAbortBackupError1:
   ndbout << "Invalid arguments: expected <BackupId>" << endl;
+  return -1;
+}
+
+int
+CommandInterpreter::executeCreateNodeGroup(char* parameters)
+{
+  int result;
+  int ng;
+  struct ndb_mgm_reply reply;
+  char *id= strchr(parameters, ' ');
+  if (emptyString(id))
+    goto err;
+
+  {
+    Vector<int> nodes;
+    BaseString args(id);
+    Vector<BaseString> nodelist;
+    args.split(nodelist, ",");
+
+    for (Uint32 i = 0; i<nodelist.size(); i++)
+    {
+      nodes.push_back(atoi(nodelist[i].c_str()));
+    }
+    nodes.push_back(0);
+
+    result= ndb_mgm_create_nodegroup(m_mgmsrv, nodes.getBase(), &ng, &reply);
+
+    if (result != 0) {
+      printError();
+      return -1;
+    } else {
+      ndbout << "Nodegroup " << ng << " created" << endl;
+    }
+
+  }
+
+  return 0;
+err:
+  ndbout << "Invalid arguments: expected <id>,<id>..." << endl;
+  return -1;
+}
+
+int
+CommandInterpreter::executeDropNodeGroup(char* parameters)
+{
+  int ng = -1;
+  struct ndb_mgm_reply reply;
+  if (emptyString(parameters))
+    goto err;
+
+  {
+    char* id = strchr(parameters, ' ');
+    if(id == 0 || sscanf(id, "%d", &ng) != 1)
+      goto err;
+  }
+
+  {
+    int result= ndb_mgm_drop_nodegroup(m_mgmsrv, ng, &reply);
+    if (result != 0) {
+      printError();
+      return -1;
+    } else {
+      ndbout << "Drop Node Group " << ng << " done" << endl;
+    }
+  }
+  return 0;
+err:
+  ndbout << "Invalid arguments: expected <NG>" << endl;
   return -1;
 }
 

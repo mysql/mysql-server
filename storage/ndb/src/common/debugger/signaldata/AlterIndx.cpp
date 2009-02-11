@@ -14,21 +14,60 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <signaldata/AlterIndx.hpp>
+#include <signaldata/DictSignal.hpp>
 
-bool printALTER_INDX_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const AlterIndxReq * const sig = (AlterIndxReq *) theData;
-  return false;
+  const AlterIndxReq* sig = (const AlterIndxReq*)theData;
+  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " transKey: %u", sig->transKey);
+  fprintf(output, "\n");
+  fprintf(output, " requestInfo: type: %u extra: %u flags: [%s]",
+                  DictSignal::getRequestType(sig->requestInfo),
+                  DictSignal::getRequestExtra(sig->requestInfo),
+                  DictSignal::getRequestFlagsText(sig->requestInfo));
+  fprintf(output, "\n");
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printALTER_INDX_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const AlterIndxConf * const sig = (AlterIndxConf *) theData;
-  return false;
+  const AlterIndxConf* sig = (const AlterIndxConf*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printALTER_INDX_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_INDX_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const AlterIndxRef * const sig = (AlterIndxRef *) theData;
-  return false;
+  const AlterIndxRef* sig = (const AlterIndxRef*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, "\n");
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig->errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");
+  return true;
 }

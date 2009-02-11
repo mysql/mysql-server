@@ -37,14 +37,15 @@
 
 #define DBG_UNDO 0
 
-Tsman::Tsman(Block_context& ctx,
-	     class Pgman* pg, class Lgman* lg) :
+Tsman::Tsman(Block_context& ctx) :
   SimulatedBlock(TSMAN, ctx),
   m_file_hash(m_file_pool),
   m_tablespace_list(m_tablespace_pool),
   m_tablespace_hash(m_tablespace_pool),
-  m_page_cache_client(this, pg),
-  m_lgman(lg)
+  m_pgman(0),
+  m_lgman(0),
+  m_tup(0),
+  m_client_mutex("tsman-client", 2, true)
 {
   BLOCK_CONSTRUCTOR(Tsman);
 
@@ -58,11 +59,11 @@ Tsman::Tsman(Block_context& ctx,
   addRecSignal(GSN_DUMP_STATE_ORD, &Tsman::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &Tsman::execCONTINUEB);
 
-  addRecSignal(GSN_CREATE_FILE_REQ, &Tsman::execCREATE_FILE_REQ);
-  addRecSignal(GSN_CREATE_FILEGROUP_REQ, &Tsman::execCREATE_FILEGROUP_REQ);
+  addRecSignal(GSN_CREATE_FILE_IMPL_REQ, &Tsman::execCREATE_FILE_IMPL_REQ);
+  addRecSignal(GSN_CREATE_FILEGROUP_IMPL_REQ, &Tsman::execCREATE_FILEGROUP_IMPL_REQ);
 
-  addRecSignal(GSN_DROP_FILE_REQ, &Tsman::execDROP_FILE_REQ);
-  addRecSignal(GSN_DROP_FILEGROUP_REQ, &Tsman::execDROP_FILEGROUP_REQ);
+  addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Tsman::execDROP_FILE_IMPL_REQ);
+  addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ, &Tsman::execDROP_FILEGROUP_IMPL_REQ);
 
   addRecSignal(GSN_FSWRITEREQ, &Tsman::execFSWRITEREQ);
 
@@ -86,10 +87,40 @@ Tsman::Tsman(Block_context& ctx,
   m_tablespace_hash.setSize(10);
   m_file_hash.setSize(10);
   m_lcp_ongoing = false;
+
+  if (isNdbMtLqh()) {
+    jam();
+    int ret = m_client_mutex.create();
+    ndbrequire(ret == 0);
+  }
 }
   
 Tsman::~Tsman()
 {
+  if (isNdbMtLqh()) {
+    (void)m_client_mutex.destroy();
+  }
+}
+
+void
+Tsman::client_lock(BlockNumber block, int line)
+{
+  if (isNdbMtLqh()) {
+    D("try lock" << hex << V(block) << dec << V(line));
+    int ret = m_client_mutex.lock();
+    ndbrequire(ret == 0);
+    D("got lock" << hex << V(block) << dec << V(line));
+  }
+}
+
+void
+Tsman::client_unlock(BlockNumber block, int line)
+{
+  if (isNdbMtLqh()) {
+    D("unlock" << hex << V(block) << dec << V(line));
+    int ret = m_client_mutex.unlock();
+    ndbrequire(ret == 0);
+  }
 }
 
 BLOCK_FUNCTIONS(Tsman)
@@ -125,10 +156,16 @@ void
 Tsman::execSTTOR(Signal* signal) 
 {
   jamEntry();                            
-
+  Uint32 startPhase = signal->theData[1];
+  switch (startPhase) {
+  case 1:
+    m_pgman = globalData.getBlock(PGMAN);
+    m_lgman = (Lgman*)globalData.getBlock(LGMAN);
+    m_tup = globalData.getBlock(DBTUP);
+    ndbrequire(m_pgman != 0 && m_lgman != 0 && m_tup != 0);
+    break;
+  }
   sendSTTORRY(signal);
-  
-  return;
 }
 
 void
@@ -318,7 +355,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal){
 }
 
 void
-Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
+Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
   CreateFilegroupImplReq* req= (CreateFilegroupImplReq*)signal->getDataPtr();
 
@@ -342,7 +379,7 @@ Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
       break;
     }
 
-    new (ptr.p) Tablespace(this, m_lgman, req);
+    new (ptr.p) Tablespace(this, req);
     m_tablespace_hash.add(ptr);
     m_tablespace_list.add(ptr);
 
@@ -352,7 +389,7 @@ Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
       (CreateFilegroupImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_CONF, signal,
 	       CreateFilegroupImplConf::SignalLength, JBB);
     return;
   } while(0);
@@ -361,7 +398,7 @@ Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_REF, signal,
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
 
@@ -380,7 +417,7 @@ operator<<(NdbOut& out, const File_formats::Datafile::Extent_header & obj)
 }
 
 void
-Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
+Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
 
   Uint32 errorCode = 0;
@@ -430,7 +467,7 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
     ref->senderRef = reference();
     ref->senderData = req.senderData;
     ref->errorCode = errorCode;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_REF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_REF, signal,
 	       DropFilegroupImplRef::SignalLength, JBB);
   }
   else
@@ -439,7 +476,7 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
       (DropFilegroupImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req.senderData;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_CONF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	       DropFilegroupImplConf::SignalLength, JBB);
   }
 }
@@ -457,7 +494,7 @@ Tsman::find_file_by_id(Ptr<Datafile>& ptr,
 }
 
 void
-Tsman::execCREATE_FILE_REQ(Signal* signal){
+Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal){
   jamEntry();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
   
@@ -498,7 +535,8 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
       file_ptr.p->m_create.m_senderData = req->senderData;
       file_ptr.p->m_create.m_requestInfo = req->requestInfo;
       
-      m_page_cache_client.map_file_no(file_ptr.p->m_file_no, file_ptr.p->m_fd);
+      Page_cache_client pgman(this, m_pgman);
+      pgman.map_file_no(signal, file_ptr.p->m_file_no, file_ptr.p->m_fd);
       file_ptr.p->m_create.m_loading_extent_page = 1;
       load_extent_pages(signal, file_ptr);
       return;
@@ -520,7 +558,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
 	CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
 	conf->senderData = senderData;
 	conf->senderRef = reference();
-	sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+	sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 		   CreateFileImplConf::SignalLength, JBB);
 	return;
       }
@@ -552,7 +590,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
       ref->senderData = senderData;
       ref->senderRef = reference();
       ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
-      sendSignal(senderRef, GSN_CREATE_FILE_REF, signal,
+      sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
                  CreateFileImplRef::SignalLength, JBB);
       return;
     }
@@ -577,7 +615,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILE_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
 }
 
@@ -599,7 +637,8 @@ Tsman::release_extent_pages(Signal* signal, Ptr<Datafile> ptr)
     
     int page_id;
     int flags = Page_cache_client::UNLOCK_PAGE;
-    if((page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+    Page_cache_client pgman(this, m_pgman);
+    if((page_id = pgman.get_page(signal, preq, flags)) > 0)
     {
       execute(signal, preq.m_callback, page_id);
     } 
@@ -619,7 +658,8 @@ Tsman::release_extent_pages_callback(Signal* signal,
   Local_key key;
   key.m_file_no = ptr.p->m_file_no;
   key.m_page_no = ptr.p->m_create.m_extent_pages;
-  ndbrequire(m_page_cache_client.drop_page(key, page_id));
+  Page_cache_client pgman(this, m_pgman);
+  ndbrequire(pgman.drop_page(key, page_id));
   ptr.p->m_create.m_extent_pages--;
   
   signal->theData[0] = TsmanContinueB::RELEASE_EXTENT_PAGES;
@@ -662,21 +702,23 @@ Tsman::execFSCLOSECONF(Signal* signal)
   
   if (ptr.p->m_state == Datafile::FS_CREATING)
   {
-    m_page_cache_client.free_data_file(ptr.p->m_file_no);  
+    Page_cache_client pgman(this, m_pgman);
+    pgman.free_data_file(signal, ptr.p->m_file_no);  
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
   }
   else if(ptr.p->m_state == Datafile::FS_DROPPING)
   {
     m_file_hash.remove(ptr);
-    m_page_cache_client.free_data_file(ptr.p->m_file_no, ptr.p->m_fd);
+    Page_cache_client pgman(this, m_pgman);
+    pgman.free_data_file(signal, ptr.p->m_file_no, ptr.p->m_fd);
     DropFileImplConf* conf= (DropFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_DROP_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_DROP_FILE_IMPL_CONF, signal,
 	       DropFileImplConf::SignalLength, JBB);
 
   }
@@ -706,7 +748,8 @@ Tsman::open_file(Signal* signal,
   if(requestInfo == CreateFileImplReq::Create || 
      requestInfo == CreateFileImplReq::CreateForce){
     jam();
-    Uint32 file_no = m_page_cache_client.create_data_file();
+    Page_cache_client pgman(this, m_pgman);
+    Uint32 file_no = pgman.create_data_file(signal);
     if(file_no == RNIL)
     {
       return CreateFileImplRef::OutOfFileRecords;
@@ -724,6 +767,7 @@ Tsman::open_file(Signal* signal,
   req->fileFlags = 0;
   req->fileFlags |= FsOpenReq::OM_READWRITE;
   req->fileFlags |= FsOpenReq::OM_DIRECT;
+  req->fileFlags |= FsOpenReq::OM_THREAD_POOL;
   switch(requestInfo){
   case CreateFileImplReq::Create:
     req->fileFlags |= FsOpenReq::OM_CREATE_IF_NONE;
@@ -763,8 +807,8 @@ Tsman::open_file(Signal* signal,
    */
   pages = 1 + extent_pages + data_pages;
   Uint64 bytes = pages * File_formats::NDB_PAGE_SIZE;
-  hi = bytes >> 32;
-  lo = bytes & 0xFFFFFFFF;
+  hi = (Uint32)(bytes >> 32);
+  lo = (Uint32)(bytes & 0xFFFFFFFF);
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 
@@ -809,7 +853,7 @@ Tsman::execFSWRITEREQ(Signal* signal)
     page->m_page_header.init(File_formats::FT_Datafile, 
 			     getOwnNodeId(),
 			     ndbGetOwnVersion(),
-			     time(0));
+			     (Uint32)time(0));
     page->m_file_no = ptr.p->m_file_no;
     page->m_file_id = ptr.p->m_file_id;
     page->m_tablespace_id = lg_ptr.p->m_tablespace_id;
@@ -870,7 +914,7 @@ Tsman::create_file_ref(Signal* signal,
   ref->errorCode = (CreateFileImplRef::ErrorCode)error;
   ref->fsErrCode = fsError;
   ref->osErrCode = osError;
-  sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_REF, signal, 
+  sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
   
   Local_datafile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
@@ -918,7 +962,7 @@ Tsman::execFSOPENCONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
     conf->senderRef = reference();
-    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
     return;
   }
@@ -986,7 +1030,7 @@ Tsman::execFSREADCONF(Signal* signal){
     fsError = page->m_page_header.validate(File_formats::FT_Datafile, 
 					   getOwnNodeId(),
 					   ndbGetOwnVersion(),
-					   time(0));
+					   (Uint32)time(0));
     if(fsError)
       break;
 
@@ -1037,7 +1081,8 @@ Tsman::execFSREADCONF(Signal* signal){
 
     osError = 11;
     ptr.p->m_file_no = page->m_file_no;
-    if(m_page_cache_client.alloc_data_file(ptr.p->m_file_no) == RNIL)
+    Page_cache_client pgman(this, m_pgman);
+    if(pgman.alloc_data_file(signal, ptr.p->m_file_no) == RNIL)
     {
       jam();
       break;
@@ -1051,7 +1096,7 @@ Tsman::execFSREADCONF(Signal* signal){
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
     conf->senderRef = reference();
-    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);    
     return;
   } while(0);
@@ -1092,7 +1137,8 @@ Tsman::load_extent_pages(Signal* signal, Ptr<Datafile> ptr)
   
   int page_id;
   int flags = Page_cache_client::LOCK_PAGE;
-  if((page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if((page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
     load_extent_page_callback(signal, ptr.i, (Uint32)page_id);
   }
@@ -1155,7 +1201,7 @@ Tsman::load_extent_page_callback(Signal* signal,
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
   conf->senderRef = reference();
-  sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	     CreateFileImplConf::SignalLength, JBB);
 }
 
@@ -1223,8 +1269,6 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   Uint32 per_page = ptr.p->m_online.m_extent_headers_per_extent_page;
   Uint32 pages= ptr.p->m_online.m_offset_data_pages - 1;
   Uint32 datapages= ptr.p->m_online.m_data_pages;
-  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
-  ndbrequire(tup != 0);
   for(Uint32 i = 0; i < pages; i++)
   {
     Uint32 page_no = pages - i;
@@ -1233,11 +1277,13 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
     preq.m_page.m_file_no = ptr.p->m_file_no;
     
     int flags = Page_cache_client::DIRTY_REQ;
-    int real_page_id = m_page_cache_client.get_page(signal, preq, flags);
+    Page_cache_client pgman(this, m_pgman);
+    int real_page_id = pgman.get_page(signal, preq, flags);
     ndbrequire(real_page_id > 0);
+    D("scan_extent_headers" << V(pages) << V(page_no) << V(real_page_id));
 
     File_formats::Datafile::Extent_page* page = 
-      (File_formats::Datafile::Extent_page*)m_page_cache_client.m_ptr.p;
+      (File_formats::Datafile::Extent_page*)pgman.m_ptr.p;
     
     Uint32 extents= per_page;
     if(page_no == pages)
@@ -1255,6 +1301,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 	page->get_header(extent_no, size);
       if (header->m_table == RNIL)
       {
+        D("extent free" << V(j));
 	header->m_next_free_extent = firstFree;
 	firstFree = page_no * per_page + extent_no;
       }
@@ -1262,26 +1309,29 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
       {
 	Uint32 tableId= header->m_table;
 	Uint32 fragmentId= header->m_fragment_id;
+        Dbtup_client tup(this, m_tup);
 	Local_key key;
 	key.m_file_no = ptr.p->m_file_no;
 	key.m_page_no = 
 	  pages + 1 + size * (page_no * per_page + extent_no - per_page);
 	key.m_page_idx = page_no * per_page + extent_no;
-	if(!tup->disk_restart_alloc_extent(tableId, fragmentId, &key, size))
+	if(!tup.disk_restart_alloc_extent(tableId, fragmentId, &key, size))
 	{
 	  ptr.p->m_online.m_used_extent_cnt++;
 	  for(Uint32 i = 0; i<size; i++, key.m_page_no++)
 	  {
 	    Uint32 bits= header->get_free_bits(i) & COMMITTED_MASK;
 	    header->update_free_bits(i, bits | (bits << UNCOMMITTED_SHIFT));
-	    tup->disk_restart_page_bits(tableId, fragmentId, &key, bits);
+	    tup.disk_restart_page_bits(tableId, fragmentId, &key, bits);
 	  }
+          D("extent used" << V(j) << V(tableId) << V(fragmentId) << V(key));
 	}
 	else
 	{
 	  header->m_table = RNIL;
 	  header->m_next_free_extent = firstFree;
 	  firstFree = page_no * per_page + extent_no;
+          D("extent free" << V(j) << V(tableId) << V(fragmentId) << V(key));
 	}
       }
     }
@@ -1311,7 +1361,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 }
 
 void
-Tsman::execDROP_FILE_REQ(Signal* signal)
+Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
   DropFileImplReq req = *(DropFileImplReq*)signal->getDataPtr();
@@ -1406,7 +1456,7 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
     ref->senderRef = reference();
     ref->senderData = req.senderData;
     ref->errorCode = errorCode;
-    sendSignal(req.senderRef, GSN_DROP_FILE_REF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILE_IMPL_REF, signal,
 	       DropFileImplRef::SignalLength, JBB);
   }
   else
@@ -1414,15 +1464,15 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
     DropFileImplConf* conf = (DropFileImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req.senderData;
-    sendSignal(req.senderRef, GSN_DROP_FILE_CONF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILE_IMPL_CONF, signal,
 	       DropFileImplConf::SignalLength, JBB);
   }
 }
 
-Tsman::Tablespace::Tablespace(Tsman* ts, Lgman* lg, 
-			      const CreateFilegroupImplReq* req)
-  : m_logfile_client(ts, lg, req->tablespace.logfile_group_id)
+Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
 {
+  m_tsman = ts;
+  m_logfile_group_id = req->tablespace.logfile_group_id;
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   
@@ -1472,9 +1522,10 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
      */
     int flags = Page_cache_client::DIRTY_REQ;
     int real_page_id;
-    if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+    Page_cache_client pgman(this, m_pgman);
+    if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
     {
-      GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+      GlobalPage* ptr_p = pgman.m_ptr.p;
       
       File_formats::Datafile::Extent_page* page = 
 	(File_formats::Datafile::Extent_page*)ptr_p;
@@ -1571,9 +1622,10 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
    */
   int flags = Page_cache_client::DIRTY_REQ;
   int real_page_id;
-  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    GlobalPage* ptr_p = pgman.m_ptr.p;
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
@@ -1654,9 +1706,10 @@ Tsman::update_page_free_bits(Signal* signal,
    */
   int flags = Page_cache_client::COMMIT_REQ;
   int real_page_id;
-  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    GlobalPage* ptr_p = pgman.m_ptr.p;
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
@@ -1686,7 +1739,7 @@ Tsman::update_page_free_bits(Signal* signal,
     Uint32 src = header->get_free_bits(page_no_in_extent) & UNCOMMITTED_MASK;
     header->update_free_bits(page_no_in_extent, src | committed_bits);
     
-    m_page_cache_client.update_lsn(preq.m_page, 0);
+    pgman.update_lsn(preq.m_page, 0);
 
     return 0;
   }
@@ -1717,9 +1770,10 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
    */
   int flags = 0;
   int real_page_id;
-  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    GlobalPage* ptr_p = pgman.m_ptr.p;
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
@@ -1765,9 +1819,10 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
    */
   int flags = 0;
   int real_page_id;
-  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    GlobalPage* ptr_p = pgman.m_ptr.p;
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
@@ -1826,9 +1881,10 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
    */
   int flags = Page_cache_client::DIRTY_REQ;
   int real_page_id;
-  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    GlobalPage* ptr_p = pgman.m_ptr.p;
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
@@ -1913,9 +1969,10 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   Uint32 page_no;
   Uint32 src_bits;
   File_formats::Datafile::Extent_header* header; 
-  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  Page_cache_client pgman(this, m_pgman);
+  if ((real_page_id = pgman.get_page(signal, preq, flags)) > 0)
   {
-    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    GlobalPage* ptr_p = pgman.m_ptr.p;
     
     File_formats::Datafile::Extent_page* page = 
       (File_formats::Datafile::Extent_page*)ptr_p;
@@ -2108,10 +2165,10 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       
       int flags = Page_cache_client::DIRTY_REQ;
       int real_page_id;
-      ndbrequire((real_page_id = m_page_cache_client.get_page(signal, preq, 
-							      flags)) > 0);
+      Page_cache_client pgman(this, m_pgman);
+      ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
       
-      GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+      GlobalPage* ptr_p = pgman.m_ptr.p;
       
       File_formats::Datafile::Extent_page* page = 
 	(File_formats::Datafile::Extent_page*)ptr_p;
@@ -2160,9 +2217,12 @@ Tablespace_client::get_tablespace_info(CreateFilegroupImplReq* rep)
   Ptr<Tsman::Tablespace> ts_ptr;  
   if(m_tsman->m_tablespace_hash.find(ts_ptr, m_tablespace_id))
   {
+    Uint32 logfile_group_id = ts_ptr.p->m_logfile_group_id;
+    // ctor is used here only for logging
+    D("Logfile_client - get_tablespace_info");
+    Logfile_client lgman(m_tsman, m_tsman->m_lgman, logfile_group_id, false);
     rep->tablespace.extent_size = ts_ptr.p->m_extent_size;
-    rep->tablespace.logfile_group_id = 
-      ts_ptr.p->m_logfile_client.m_logfile_group_id;
+    rep->tablespace.logfile_group_id = lgman.m_logfile_group_id;
     return 0;
   }
   return -1;
@@ -2195,7 +2255,11 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
   }
 
   Datafile_hash::Iterator iter;
-  ndbrequire(m_file_hash.first(iter));
+  if (!m_file_hash.first(iter))
+  {
+    ndbrequire(false);
+    return;                                     // Silence compiler warning
+  }
 
   while(iter.curr.p->m_file_id != tableId && m_file_hash.next(iter))
     ;

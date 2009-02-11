@@ -22,7 +22,8 @@ Suma::Suma(Block_context& ctx) :
   SimulatedBlock(SUMA, ctx),
   c_tables(c_tablePool),
   c_subscriptions(c_subscriptionPool),
-  c_gcp_list(c_gcp_pool)
+  c_gcp_list(c_gcp_pool),
+  m_current_gci(~(Uint64)0)
 {
   BLOCK_CONSTRUCTOR(Suma);
 
@@ -31,6 +32,7 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_STTOR, &Suma::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &Suma::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &Suma::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Suma::execDBINFO_SCANREQ);
   addRecSignal(GSN_READ_NODESCONF, &Suma::execREAD_NODESCONF);
   addRecSignal(GSN_API_START_REP, &Suma::execAPI_START_REP, true);
   addRecSignal(GSN_API_FAILREQ,  &Suma::execAPI_FAILREQ);
@@ -84,15 +86,18 @@ Suma::Suma(Block_context& ctx) :
   /**
    * Dih interface
    */
-  addRecSignal(GSN_DI_FCOUNTCONF, &Suma::execDI_FCOUNTCONF);
-  addRecSignal(GSN_DI_FCOUNTREF, &Suma::execDI_FCOUNTREF);
-  addRecSignal(GSN_DIGETPRIMCONF, &Suma::execDIGETPRIMCONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Suma::execDIH_SCAN_TAB_REF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Suma::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Suma::execDIH_SCAN_GET_NODES_CONF);
+  addRecSignal(GSN_CHECKNODEGROUPSCONF, &Suma::execCHECKNODEGROUPSCONF);
+  addRecSignal(GSN_GCP_PREPARE, &Suma::execGCP_PREPARE);
 
   /**
    * Scan interface
    */
   addRecSignal(GSN_SCAN_HBREP, &Suma::execSCAN_HBREP);
   addRecSignal(GSN_TRANSID_AI, &Suma::execTRANSID_AI);
+  addRecSignal(GSN_KEYINFO20, &Suma::execKEYINFO20);
   addRecSignal(GSN_SCAN_FRAGREF, &Suma::execSCAN_FRAGREF);
   addRecSignal(GSN_SCAN_FRAGCONF, &Suma::execSCAN_FRAGCONF);
 #if 0
@@ -108,13 +113,19 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_TRIG_ATTRINFO, &Suma::execTRIG_ATTRINFO);
   addRecSignal(GSN_FIRE_TRIG_ORD, &Suma::execFIRE_TRIG_ORD);
 
-  addRecSignal(GSN_CREATE_TRIG_REF, &Suma::execCREATE_TRIG_REF);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Suma::execCREATE_TRIG_CONF);
-  addRecSignal(GSN_DROP_TRIG_REF, &Suma::execDROP_TRIG_REF);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Suma::execDROP_TRIG_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Suma::execCREATE_TRIG_IMPL_REF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Suma::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Suma::execDROP_TRIG_IMPL_REF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Suma::execDROP_TRIG_IMPL_CONF);
   
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
 	       &Suma::execSUB_GCP_COMPLETE_REP);
+
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ,
+               &Suma::execCREATE_NODEGROUP_IMPL_REQ);
+
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
+               &Suma::execDROP_NODEGROUP_IMPL_REQ);
 
   c_current_seq = 0;
   c_restart.m_ref = 0;
@@ -125,10 +136,16 @@ Suma::Suma(Block_context& ctx) :
 #endif
   m_missing_data = false;
   bzero(c_subscriber_per_node, sizeof(c_subscriber_per_node));
+
+  m_gcp_rep_cnt = getLqhWorkers();
+  m_min_gcp_rep_counter_index = 0;
+  m_max_gcp_rep_counter_index = 0;
+  bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
 }
 
 Suma::~Suma()
 {
+  c_page_pool.clear();
 }
 
 BLOCK_FUNCTIONS(Suma)

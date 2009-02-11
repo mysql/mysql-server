@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+EXTRA_DIST = CMakeLists.txt
+
 noinst_LIBRARIES = libNDBT.a
 
 libNDBT_a_SOURCES = \
@@ -22,9 +24,10 @@ libNDBT_a_SOURCES = \
 	HugoOperations.cpp HugoTransactions.cpp \
 	HugoAsynchTransactions.cpp UtilTransactions.cpp \
 	NdbRestarter.cpp NdbRestarts.cpp NDBT_Output.cpp \
-	NdbBackup.cpp  NdbConfig.cpp NdbGrep.cpp NDBT_Table.cpp \
+	NdbBackup.cpp  NdbConfig.cpp NDBT_Table.cpp \
 	NdbSchemaCon.cpp NdbSchemaOp.cpp getarg.c AtrtClient.cpp \
-	CpcClient.cpp NdbMixRestarter.cpp NDBT_Thread.cpp DbUtil.cpp
+	CpcClient.cpp NdbMixRestarter.cpp NDBT_Thread.cpp DbUtil.cpp \
+	SocketInputStream2.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/common/mgmcommon -I$(top_srcdir)/storage/ndb/include/mgmcommon -I$(top_srcdir)/storage/ndb/include/kernel -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/include
 
@@ -33,17 +36,3 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-windoze-dsp: libNDBT.dsp
-
-libNDBT.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libNDBT_a_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB

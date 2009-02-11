@@ -18,6 +18,8 @@
 #include <my_net.h>
 #include <NdbTCP.h>
 
+
+
 extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
@@ -55,9 +57,10 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
 
 #ifndef DBUG_OFF
 extern "C"
-int NDB_CLOSE_SOCKET(int fd)
+int NDB_CLOSE_SOCKET(my_socket fd)
 {
-  DBUG_PRINT("info", ("NDB_CLOSE_SOCKET(%d)", fd));
+  DBUG_PRINT("info", ("NDB_CLOSE_SOCKET(" MY_SOCKET_FORMAT ")",
+                      MY_SOCKET_FORMAT_VALUE(fd)));
   return _NDB_CLOSE_SOCKET(fd);
 }
 #endif
@@ -89,7 +92,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   struct pollfd pfd[1];
   int r;
 
-  pfd[0].fd= sock;
+  pfd[0].fd= sock.fd; // FIXME: THIS IS A BUG
   pfd[0].events= POLLHUP | POLLIN | POLLOUT | POLLNVAL;
   pfd[0].revents= 0;
   r= poll(pfd,1,0);
@@ -107,18 +110,18 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   FD_ZERO(&writefds);
   FD_ZERO(&errorfds);
 
-  FD_SET(sock, &readfds);
-  FD_SET(sock, &writefds);
-  FD_SET(sock, &errorfds);
+  my_FD_SET(sock, &readfds);
+  my_FD_SET(sock, &writefds);
+  my_FD_SET(sock, &errorfds);
 
-  if(select(1, &readfds, &writefds, &errorfds, &tv)<0)
+  if(select(my_socket_nfds(sock,0)+1, &readfds, &writefds, &errorfds, &tv)<0)
     return 1;
 
-  if(FD_ISSET(sock,&errorfds))
+  if(my_FD_ISSET(sock,&errorfds))
     return 1;
 
   s_err=0;
-  if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+  if (my_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
     return(1);
 
   if (s_err)

@@ -65,7 +65,7 @@ SimpleProperties::Writer::add(Uint16 key, const char * value){
   head += key;
   if(!putWord(htonl(head)))
     return false;
-  Uint32 strLen = strlen(value) + 1; // Including NULL-byte
+  Uint32 strLen = Uint32(strlen(value) + 1); // Including NULL-byte
   if(!putWord(htonl(strLen)))
     return false;
 

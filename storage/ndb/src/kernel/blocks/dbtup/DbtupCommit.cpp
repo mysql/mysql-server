@@ -107,7 +107,6 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 {
   set_tuple_state(regOperPtr, TUPLE_ALREADY_ABORTED);
   set_trans_state(regOperPtr, TRANS_IDLE);
-  regOperPtr->currentAttrinbufLen= 0;
   regOperPtr->op_struct.op_type= ZREAD;
   regOperPtr->op_struct.m_disk_preallocated= 0;
   regOperPtr->op_struct.m_load_diskpage_on_commit= 0;
@@ -145,8 +144,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     Local_key disk;
     memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
     PagePtr tmpptr;
-    tmpptr.i = m_pgman.m_ptr.i;
-    tmpptr.p = reinterpret_cast<Page*>(m_pgman.m_ptr.p);
+    tmpptr.i = m_pgman_ptr.i;
+    tmpptr.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
     disk_page_free(signal, regTabPtr, regFragPtr, 
 		   &disk, tmpptr, gci);
   }
@@ -177,7 +176,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     * ptr->get_mm_gci(regTabPtr) = gci;
   }
 }
-
+#if 0
 static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 {
   char buf[3001];
@@ -195,6 +194,8 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
   }
   ndbout_c("%8p: %s", p, buf);
 }
+#endif
+
 void
 Dbtup::commit_operation(Signal* signal,
 			Uint32 gci,
@@ -301,7 +302,7 @@ Dbtup::commit_operation(Signal* signal,
     memcpy(&key, copy->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
     Uint32 logfile_group_id= regFragPtr->m_logfile_group_id;
 
-    PagePtr diskPagePtr = *(PagePtr*)&m_pgman.m_ptr;
+    PagePtr diskPagePtr = *(PagePtr*)&m_pgman_ptr;
     ndbassert(diskPagePtr.p->m_page_no == key.m_page_no);
     ndbassert(diskPagePtr.p->m_file_no == key.m_file_no);
     Uint32 sz, *dst;
@@ -397,12 +398,12 @@ Dbtup::disk_page_commit_callback(Signal* signal,
 
   regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
   regOperPtr.p->m_commit_disk_callback_page= page_id;
-  m_global_page_pool.getPtr(m_pgman.m_ptr, page_id);
+  m_global_page_pool.getPtr(m_pgman_ptr, page_id);
   
   {
     PagePtr tmp;
-    tmp.i = m_pgman.m_ptr.i;
-    tmp.p = reinterpret_cast<Page*>(m_pgman.m_ptr.p);
+    tmp.i = m_pgman_ptr.i;
+    tmp.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
     disk_page_set_dirty(tmp);
   }
   
@@ -439,7 +440,7 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
 
   ndbassert(regOperPtr.p->op_struct.m_load_diskpage_on_commit == 0);
   regOperPtr.p->op_struct.m_wait_log_buffer= 0;
-  m_global_page_pool.getPtr(m_pgman.m_ptr, page);
+  m_global_page_pool.getPtr(m_pgman_ptr, page);
   
   execTUP_COMMITREQ(signal);
   ndbassert(signal->theData[0] == 0);
@@ -507,8 +508,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 #ifdef VM_TRACE
   if (tupCommitReq->diskpage == RNIL)
   {
-    m_pgman.m_ptr.i = RNIL;
-    m_pgman.m_ptr.p = 0;
+    m_pgman_ptr.i = RNIL;
+    m_pgman_ptr.p = 0;
     req_struct.m_disk_page_ptr.i = RNIL;
     req_struct.m_disk_page_ptr.p = 0;
   }
@@ -594,8 +595,9 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
         disk_page_abort_prealloc(signal, regFragPtr.p, 
 				 &req.m_page, req.m_page.m_page_idx);
         
-        c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
-				regOperPtr.p->m_undo_buffer_space);
+        D("Logfile_client - execTUP_COMMITREQ");
+        Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
+        lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
 	goto skip_disk;
         if (0) ndbout_c("insert+delete");
         jamEntry();
@@ -622,7 +624,9 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
      */
     int flags= regOperPtr.p->op_struct.op_type |
       Page_cache_client::COMMIT_REQ | Page_cache_client::CORR_REQ;
-    int res= m_pgman.get_page(signal, req, flags);
+    Page_cache_client pgman(this, c_pgman);
+    int res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
     switch(res){
     case 0:
       /**
@@ -641,8 +645,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
     {
       PagePtr tmpptr;
-      tmpptr.i = m_pgman.m_ptr.i;
-      tmpptr.p = reinterpret_cast<Page*>(m_pgman.m_ptr.p);
+      tmpptr.i = m_pgman_ptr.i;
+      tmpptr.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
       disk_page_set_dirty(tmpptr);
     }
     
@@ -659,12 +663,12 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
      */
     ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
     
-    Callback cb;
+    CallbackPtr cb;
     cb.m_callbackData= regOperPtr.i;
-    cb.m_callbackFunction = 
-      safe_cast(&Dbtup::disk_page_log_buffer_callback);
+    cb.m_callbackIndex = DISK_PAGE_LOG_BUFFER_CALLBACK;
     Uint32 sz= regOperPtr.p->m_undo_buffer_space;
     
+    D("Logfile_client - execTUP_COMMITREQ");
     Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
     jamEntry();

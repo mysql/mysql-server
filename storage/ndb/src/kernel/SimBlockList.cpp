@@ -35,7 +35,17 @@
 #include <lgman.hpp>
 #include <pgman.hpp>
 #include <restore.hpp>
+#include <Dbinfo.hpp>
 #include <NdbEnv.h>
+#include <LocalProxy.hpp>
+#include <DblqhProxy.hpp>
+#include <DbaccProxy.hpp>
+#include <DbtupProxy.hpp>
+#include <DbtuxProxy.hpp>
+#include <BackupProxy.hpp>
+#include <RestoreProxy.hpp>
+#include <PgmanProxy.hpp>
+#include <mt.hpp>
 
 #ifndef VM_TRACE
 #define NEW_BLOCK(B) new B
@@ -72,11 +82,6 @@ void
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
-  Dbdict* dbdict = 0;
-  Dbdih* dbdih = 0;
-  Pgman* pg = 0;
-  Lgman* lg = 0;
-  Tsman* ts = 0;
 
   Block_context ctx(*data.theConfiguration, *data.m_mem_manager);
   
@@ -91,27 +96,60 @@ SimBlockList::load(EmulatorData& data){
       fs = NEW_BLOCK(Ndbfs)(ctx);
     }
   }
-  
-  theList[0]  = pg = NEW_BLOCK(Pgman)(ctx);
-  theList[1]  = lg = NEW_BLOCK(Lgman)(ctx);
-  theList[2]  = ts = NEW_BLOCK(Tsman)(ctx, pg, lg);
-  theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+
+  const bool mtLqh = globalData.isNdbMtLqh;
+
+  if (!mtLqh)
+    theList[0] = NEW_BLOCK(Pgman)(ctx);
+  else
+    theList[0] = NEW_BLOCK(PgmanProxy)(ctx);
+  theList[1]  = NEW_BLOCK(Lgman)(ctx);
+  theList[2]  = NEW_BLOCK(Tsman)(ctx);
+  if (!mtLqh)
+    theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+  else
+    theList[3]  = NEW_BLOCK(DbaccProxy)(ctx);
   theList[4]  = NEW_BLOCK(Cmvmi)(ctx);
   theList[5]  = fs;
-  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(ctx);
-  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(ctx);
-  theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  theList[6]  = NEW_BLOCK(Dbdict)(ctx);
+  theList[7]  = NEW_BLOCK(Dbdih)(ctx);
+  if (!mtLqh)
+    theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  else
+    theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
   theList[9]  = NEW_BLOCK(Dbtc)(ctx);
-  theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+  if (!mtLqh)
+    theList[10] = NEW_BLOCK(Dbtup)(ctx);
+  else
+    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);
   theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
   theList[12] = NEW_BLOCK(Qmgr)(ctx);
   theList[13] = NEW_BLOCK(Trix)(ctx);
-  theList[14] = NEW_BLOCK(Backup)(ctx);
+  if (!mtLqh)
+    theList[14] = NEW_BLOCK(Backup)(ctx);
+  else
+    theList[14] = NEW_BLOCK(BackupProxy)(ctx);
   theList[15] = NEW_BLOCK(DbUtil)(ctx);
   theList[16] = NEW_BLOCK(Suma)(ctx);
-  theList[17] = NEW_BLOCK(Dbtux)(ctx);
-  theList[18] = NEW_BLOCK(Restore)(ctx);
-  assert(NO_OF_BLOCKS == 19);
+  if (!mtLqh)
+    theList[17] = NEW_BLOCK(Dbtux)(ctx);
+  else
+    theList[17] = NEW_BLOCK(DbtuxProxy)(ctx);
+  if (!mtLqh)
+    theList[18] = NEW_BLOCK(Restore)(ctx);
+  else
+    theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
+  theList[19] = NEW_BLOCK(Dbinfo)(ctx);
+  assert(NO_OF_BLOCKS == 20);
+
+  if (globalData.isNdbMt) {
+    add_main_thr_map();
+    if (globalData.isNdbMtLqh) {
+      Uint32 i;
+      for (i = 0; i < NO_OF_BLOCKS; i++)
+        theList[i]->loadWorkers();
+    }
+  }
 }
 
 void

@@ -92,6 +92,8 @@ class LcpFragOrd {
    * Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
+  friend class PgmanProxy;
 
   friend bool printLCP_FRAG_ORD(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
@@ -117,6 +119,7 @@ class LcpFragRep {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   friend bool printLCP_FRAG_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
@@ -142,6 +145,7 @@ class LcpCompleteRep {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   friend bool printLCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
@@ -194,6 +198,8 @@ struct EndLcpReq
   Uint32 senderRef;
   Uint32 backupPtr;
   Uint32 backupId;
+  // extra word for LQH worker to proxy
+  Uint32 proxyBlockNo;
 
   STATIC_CONST( SignalLength = 4 );
 };

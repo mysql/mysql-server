@@ -34,7 +34,8 @@ public:
 
   int do_connect(int no_retries, int retry_delay_in_seconds, int verbose);
   int disconnect();
-  
+  bool is_connected();
+
   /**
    * Get configuration for current node.
    * 
@@ -90,9 +91,10 @@ private:
     CR_RETRY = 2
   };
   ErrorType latestErrorType;
-  
+
   void setError(ErrorType, const char * errorMsg);
-  
+  void setError(ErrorType, BaseString err);
+
   Uint32      _ownNodeId;
   bool m_end_session;
 

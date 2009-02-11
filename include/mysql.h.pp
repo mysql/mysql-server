@@ -1,6 +1,5 @@
 #include <sys/types.h>
 typedef char my_bool;
-typedef int my_socket;
 #include "mysql_version.h"
 #include "mysql_com.h"
 enum enum_server_command
@@ -19,7 +18,7 @@ typedef struct st_vio Vio;
 typedef struct st_net {
   Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
-  my_socket fd;
+  int fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
   unsigned long max_packet,max_packet_size;
   unsigned int pkt_nr,compress_pkt_nr;
@@ -42,25 +41,25 @@ typedef struct st_net {
   void *extension;
 } NET;
 enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-   MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
-   MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
-   MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
-   MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-   MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
-   MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-   MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-   MYSQL_TYPE_BIT,
+                        MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
+                        MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
+                        MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
+                        MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
+                        MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
+                        MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
+                        MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
+                        MYSQL_TYPE_BIT,
                         MYSQL_TYPE_NEWDECIMAL=246,
-   MYSQL_TYPE_ENUM=247,
-   MYSQL_TYPE_SET=248,
-   MYSQL_TYPE_TINY_BLOB=249,
-   MYSQL_TYPE_MEDIUM_BLOB=250,
-   MYSQL_TYPE_LONG_BLOB=251,
-   MYSQL_TYPE_BLOB=252,
-   MYSQL_TYPE_VAR_STRING=253,
-   MYSQL_TYPE_STRING=254,
-   MYSQL_TYPE_GEOMETRY=255,
-   MAX_NO_FIELD_TYPES
+                        MYSQL_TYPE_ENUM=247,
+                        MYSQL_TYPE_SET=248,
+                        MYSQL_TYPE_TINY_BLOB=249,
+                        MYSQL_TYPE_MEDIUM_BLOB=250,
+                        MYSQL_TYPE_LONG_BLOB=251,
+                        MYSQL_TYPE_BLOB=252,
+                        MYSQL_TYPE_VAR_STRING=253,
+                        MYSQL_TYPE_STRING=254,
+                        MYSQL_TYPE_GEOMETRY=255,
+                        MAX_NO_FIELD_TYPES
 };
 enum mysql_enum_shutdown_level {
   SHUTDOWN_DEFAULT = 0,
@@ -97,7 +96,7 @@ my_bool net_write_command(NET *net,unsigned char command,
 int net_real_write(NET *net,const unsigned char *packet, size_t len);
 unsigned long my_net_read(NET *net);
 struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
+int my_connect(int s, const struct sockaddr *name, unsigned int namelen,
         unsigned int timeout);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

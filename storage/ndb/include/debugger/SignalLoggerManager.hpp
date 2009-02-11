@@ -26,6 +26,7 @@
 #include <kernel_types.h>
 #include <BlockNumbers.h>
 #include <TransporterDefinitions.hpp>
+#include <RefConvert.hpp>
 
 class SignalLoggerManager
 {
@@ -84,6 +85,10 @@ public:
   void sendSignal(const SignalHeader&, Uint8 prio, 
 		  const Uint32 * theData, Uint32 node,
                   const LinearSectionPtr ptr[3], Uint32 secs);
+
+  void sendSignal(const SignalHeader&, Uint8 prio,
+                  const Uint32 * theData, Uint32 node,
+                  const GenericSectionPtr ptr[3], Uint32 secs);
   
   /**
    * For output signals
@@ -162,6 +167,14 @@ public:
                                     unsigned i);
 
   /**
+   * Print generic section.
+   */
+  static void printGenericSection(FILE * output,
+                                  const SignalHeader & sh,
+                                  const GenericSectionPtr ptr[3],
+                                  unsigned i);
+
+  /**
    * Print data word in hex.  Adds line break before the word
    * when pos > 0 && pos % 7 == 0.  Increments pos.
    */
@@ -176,10 +189,18 @@ private:
   
   Uint32        traceId;
   Uint8         logModes[NO_OF_BLOCKS];
-  
+
+  NdbMutex* m_mutex;
+
+public:
+  void lock() { if (m_mutex != 0) NdbMutex_Lock(m_mutex); }
+  void unlock() { if (m_mutex != 0) NdbMutex_Unlock(m_mutex); }
+ 
   inline bool
   logMatch(BlockNumber bno, LogMode mask)
   {
+    // extract main block number
+    bno = blockToMain(bno);
     // avoid addressing outside logModes
     return
       bno < MIN_BLOCK_NO || bno > MAX_BLOCK_NO ||

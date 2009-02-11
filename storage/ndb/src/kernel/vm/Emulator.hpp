@@ -37,16 +37,16 @@ extern class SignalLoggerManager globalSignalLoggers;
 #endif
 
 #ifndef NO_EMULATED_JAM
-  #define EMULATED_JAM_SIZE 1024
-  #define JAM_MASK ((EMULATED_JAM_SIZE * 4) - 1)
+/* EMULATED_JAM_SIZE must be a power of two, so JAM_MASK will work. */
+#define EMULATED_JAM_SIZE 1024
+#define JAM_MASK (EMULATED_JAM_SIZE - 1)
 
-  extern Uint8 theEmulatedJam[];
-  extern Uint32 theEmulatedJamIndex;
+struct EmulatedJamBuffer {
+  Uint32 theEmulatedJamIndex;
   // last block entry, used in dumpJam() if jam contains no block entries
-  extern Uint32 theEmulatedJamBlockNumber;
-#else
-  const Uint8 theEmulatedJam[]=0;
-  const Uint32 theEmulatedJamIndex=0;
+  Uint32 theEmulatedJamBlockNumber;
+  Uint32 theEmulatedJam[EMULATED_JAM_SIZE];
+};
 #endif
 
 struct EmulatorData {
@@ -104,5 +104,10 @@ enum NdbRestartType {
 void 
 NdbShutdown(NdbShutdownType type, 
 	    NdbRestartType restartType = NRT_Default);
+
+/**
+ * Compute no of pages to be used as job-buffer
+ */
+Uint32 compute_jb_pages(struct EmulatorData* ed);
 
 #endif 

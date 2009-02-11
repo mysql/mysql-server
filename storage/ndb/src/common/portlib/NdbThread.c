@@ -18,18 +18,18 @@
 #include <NdbThread.h>
 #include <my_pthread.h>
 #include <NdbMem.h>
+#include <NdbMutex.h>
+#include <NdbCondition.h>
 
 #ifdef HAVE_LINUX_SCHEDULING
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 #include <sys/types.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 #include <sched.h>
-#endif
-
-#ifdef HAVE_SOLARIS_AFFINITY
+#include <sys/syscall.h>
+#elif defined HAVE_SOLARIS_AFFINITY
 #include <sys/types.h>
 #include <sys/lwp.h>
 #include <sys/processor.h>
@@ -42,7 +42,8 @@ int g_min_prio = 0;
 int g_max_prio = 0;
 int g_prio = 0;
 
-/*#define USE_PTHREAD_EXTRAS*/
+static NdbMutex *g_ndb_thread_mutex = 0;
+static struct NdbCondition * g_ndb_thread_condition = 0;
 
 #ifdef NDB_SHM_TRANSPORTER
 int g_ndb_shm_signum= 0;
@@ -50,15 +51,16 @@ int g_ndb_shm_signum= 0;
 
 struct NdbThread 
 { 
+  volatile int inited;
   pthread_t thread;
+#if defined HAVE_SOLARIS_AFFINITY
+  id_t tid;
+#elif defined HAVE_LINUX_SCHEDULING
+  pid_t tid;
+#endif
   char thread_name[MAX_THREAD_NAME];
   NDB_THREAD_FUNC * func;
   void * object;
-  NDB_THREAD_FUNC *start_func;
-  NDB_THREAD_FUNC *end_func;
-  my_bool same_start_end_object;
-  char start_object[THREAD_CONTAINER_SIZE];
-  char end_object[THREAD_CONTAINER_SIZE];
 };
 
 #ifdef NDB_SHM_TRANSPORTER
@@ -79,6 +81,36 @@ void NdbThread_set_shm_sigmask(my_bool block)
 }
 #endif
 
+static
+void
+settid(struct NdbThread * thr)
+{
+#if defined HAVE_SOLARIS_AFFINITY
+  thr->tid = _lwp_self();
+#elif defined HAVE_LINUX_SCHEDULING
+  thr->tid = syscall(SYS_gettid);
+  if (thr->tid == (pid_t)-1)
+  {
+    /*
+      This extra check is from suggestion by Kristian Nielsen
+      to handle cases when running binaries on LinuxThreads
+      compiled with NPTL threads
+    */
+    thr->tid = getpid();
+  }
+#endif
+}
+
+int
+NdbThread_GetTid(struct NdbThread* thr)
+{
+#if defined HAVE_SOLARIS_AFFINITY
+  return (int)thr->tid;
+#elif defined HAVE_LINUX_SCHEDULING
+  return (int)thr->tid;
+#endif
+  return -1;
+}
 
 static
 void*
@@ -89,6 +121,8 @@ ndb_thread_wrapper(void* _ss){
 #ifdef NDB_SHM_TRANSPORTER
     NdbThread_set_shm_sigmask(TRUE);
 #endif
+
+#ifdef HAVE_PTHREAD_SIGMASK
     {
       /**
        * Block all signals to thread by default
@@ -98,20 +132,17 @@ ndb_thread_wrapper(void* _ss){
       sigfillset(&mask);
       pthread_sigmask(SIG_BLOCK, &mask, 0);
     }      
-    
+#endif
+
     {
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
-      if (ss->start_func)
-        (*ss->start_func)(ss->start_object);
+      settid(ss);
+      NdbMutex_Lock(g_ndb_thread_mutex);
+      ss->inited = 1;
+      NdbCondition_Signal(g_ndb_thread_condition);
+      NdbMutex_Unlock(g_ndb_thread_mutex);
       ret= (* ss->func)(ss->object);
-      if (ss->end_func)
-      {
-        if (ss->same_start_end_object)
-          (*ss->end_func)(ss->start_object);
-        else
-          (*ss->end_func)(ss->end_object);
-      }
       DBUG_POP();
       NdbThread_Exit(ret);
     }
@@ -121,33 +152,48 @@ ndb_thread_wrapper(void* _ss){
 }
 
 
-struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
-                      NDB_THREAD_ARG *p_thread_arg,
-  		      const NDB_THREAD_STACKSIZE _thread_stack_size,
-		      const char* p_thread_name,
-                      NDB_THREAD_PRIO thread_prio)
+struct NdbThread*
+NdbThread_CreateObject(const char * name)
 {
-  return NdbThread_CreateWithFunc(p_thread_func, p_thread_arg, _thread_stack_size,
-                                  p_thread_name, thread_prio,
-                                  NULL, NULL, 0, NULL, NULL, 0);
+  struct NdbThread* tmpThread;
+  DBUG_ENTER("NdbThread_Create");
+
+  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  if (tmpThread == NULL)
+    DBUG_RETURN(NULL);
+
+  bzero(tmpThread, sizeof(* tmpThread));
+  if (name)
+  {
+    strnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
+  }
+  else
+  {
+    strnmov(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name));
+  }
+
+#ifdef HAVE_PTHREAD_SELF
+  tmpThread->thread = pthread_self();
+#elif defined HAVE_GETPID
+  tmpThread->thread = getpid();
+#endif
+  settid(tmpThread);
+  tmpThread->inited = 1;
+
+  return tmpThread;
 }
-                      
-struct NdbThread* NdbThread_CreateWithFunc(NDB_THREAD_FUNC *p_thread_func,
-                      NDB_THREAD_ARG *p_thread_arg,
-  		      const NDB_THREAD_STACKSIZE _thread_stack_size,
-		      const char* p_thread_name,
-                      NDB_THREAD_PRIO thread_prio,
-                      NDB_THREAD_FUNC *start_func,
-                      NDB_THREAD_ARG start_obj,
-                      size_t start_obj_len,
-                      NDB_THREAD_FUNC *end_func,
-                      NDB_THREAD_ARG end_obj,
-                      size_t end_obj_len)
+
+struct NdbThread*
+NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
+                 NDB_THREAD_ARG *p_thread_arg,
+                 const NDB_THREAD_STACKSIZE _stack_size,
+                 const char* p_thread_name,
+                 NDB_THREAD_PRIO thread_prio)
 {
   struct NdbThread* tmpThread;
   int result;
   pthread_attr_t thread_attr;
-  NDB_THREAD_STACKSIZE thread_stack_size= _thread_stack_size * SIZEOF_CHARP/4;
+  NDB_THREAD_STACKSIZE thread_stack_size= _stack_size * SIZEOF_CHARP/4;
 
   DBUG_ENTER("NdbThread_Create");
 
@@ -164,15 +210,6 @@ struct NdbThread* NdbThread_CreateWithFunc(NDB_THREAD_FUNC *p_thread_func,
 
   strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
-  tmpThread->start_func = start_func;
-  memcpy(tmpThread->start_object, start_obj, start_obj_len);
-  tmpThread->end_func = end_func;
-  memcpy(tmpThread->end_object, end_obj, end_obj_len);
-  if (start_obj == end_obj)
-    tmpThread->same_start_end_object = TRUE;
-  else
-    tmpThread->same_start_end_object = FALSE;
-
   pthread_attr_init(&thread_attr);
 #ifdef PTHREAD_STACK_MIN
   if (thread_stack_size < PTHREAD_STACK_MIN)
@@ -187,19 +224,32 @@ struct NdbThread* NdbThread_CreateWithFunc(NDB_THREAD_FUNC *p_thread_func,
 #ifdef PTHREAD_CREATE_JOINABLE /* needed on SCO */
   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
 #endif
+  tmpThread->inited = 0;
   tmpThread->func= p_thread_func;
   tmpThread->object= p_thread_arg;
+
+  NdbMutex_Lock(g_ndb_thread_mutex);
   result = pthread_create(&tmpThread->thread, 
 			  &thread_attr,
   		          ndb_thread_wrapper,
   		          tmpThread);
+
+  pthread_attr_destroy(&thread_attr);
+
   if (result != 0)
   {
     NdbMem_Free((char *)tmpThread);
-    tmpThread = 0;
+    NdbMutex_Unlock(g_ndb_thread_mutex);
+    return 0;
   }
 
-  pthread_attr_destroy(&thread_attr);
+  do
+  {
+    NdbCondition_WaitTimeout(g_ndb_thread_condition, g_ndb_thread_mutex, 100);
+  } while (tmpThread->inited == 0);
+
+  NdbMutex_Unlock(g_ndb_thread_mutex);
+
   DBUG_PRINT("exit",("ret: 0x%lx", (long) tmpThread));
   DBUG_RETURN(tmpThread);
 }
@@ -247,49 +297,6 @@ int NdbThread_SetConcurrencyLevel(int level)
 #else
   (void)level; /* remove warning for unused parameter */
   return 0;
-#endif
-}
-
-NDB_TID_TYPE
-NdbThread_getThreadId()
-{
-#ifdef HAVE_LINUX_SCHEDULING
-  pid_t tid = syscall(SYS_gettid);
-  if (tid == (pid_t)-1)
-  {
-    /*
-      This extra check is from suggestion by Kristian Nielsen
-      to handle cases when running binaries on LinuxThreads
-      compiled with NPTL threads
-    */
-    tid = getpid();
-  }
-  return tid;
-#else
-#ifdef HAVE_SOLARIS_AFFINITY
-  id_t tid;
-  tid = _lwp_self();
-  return tid;
-#else
-  return 0;
-#endif
-#endif
-}
-
-NDB_THAND_TYPE
-NdbThread_getThreadHandle()
-{
-#ifdef HAVE_LINUX_SCHEDULING
-  pid_t tid = syscall(SYS_gettid);
-  if (tid == (pid_t)-1)
-    tid = getpid();
-  return tid;
-#else
-#ifdef HAVE_PTHREAD_SELF
-  return pthread_self();
-#else
-  return 0;
-#endif
 #endif
 }
 
@@ -350,11 +357,12 @@ get_prio(my_bool rt_prio, my_bool high_prio, int policy)
 }
 
 int
-NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
+NdbThread_SetScheduler(struct NdbThread* pThread,
+                       my_bool rt_prio,
                        my_bool high_prio)
 {
   int policy, prio, error_no= 0;
-#ifdef HAVE_LINUX_SCHEDULING
+#if defined HAVE_LINUX_SCHEDULING
   int ret;
   struct sched_param loc_sched_param;
   if (rt_prio)
@@ -367,13 +375,12 @@ NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  memset((char*)&loc_sched_param, sizeof(loc_sched_param), 0);
+  bzero(&loc_sched_param, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
-  ret= sched_setscheduler(threadHandle, policy, &loc_sched_param);
+  ret= sched_setscheduler(pThread->tid, policy, &loc_sched_param);
   if (ret)
     error_no= errno;
-#else
-#ifdef HAVE_PTHREAD_SET_SCHEDPARAM
+#elif defined HAVE_PTHREAD_SET_SCHEDPARAM
   /*
     This variant is POSIX compliant so should be useful on most
     Operating Systems supporting real-time scheduling.
@@ -390,21 +397,24 @@ NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  memset((char*)&loc_sched_param, sizeof(loc_sched_param), 0);
+  bzero(&loc_sched_param, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
-  ret= pthread_setschedparam(threadHandle, policy, &loc_sched_param);
+  ret= pthread_setschedparam(pThread->thread, policy, &loc_sched_param);
   if (ret)
     error_no= errno;
+#else
+  error_no = ENOSYS;
 #endif
-#endif
+
   return error_no;
 }
 
 int
-NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id)
+NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
 {
-  int error_no= 0;
-#ifdef HAVE_LINUX_SCHEDULING
+  int error_no = 0;
+#if defined HAVE_LINUX_SCHEDULING
+
   /*
     On recent Linux versions the ability to set processor
     affinity is available through the sched_setaffinity call.
@@ -419,12 +429,10 @@ NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id)
   cpu_set_t cpu_set;
   CPU_ZERO(&cpu_set);
   CPU_SET(cpu_id, &cpu_set);
-  ret= sched_setaffinity(threadId, sizeof(ulong),
-                         (const cpu_set_t *)&cpu_set);
+  ret= sched_setaffinity(pThread->tid, sizeof(cpu_set), &cpu_set);
   if (ret)
-    error_no= errno;
-#else
-#ifdef HAVE_SOLARIS_AFFINITY
+    error_no = errno;
+#elif defined HAVE_SOLARIS_AFFINITY
   /*
     Solaris have a number of versions to lock threads to CPU's.
     We'll use the processor_bind interface since we only work
@@ -433,22 +441,48 @@ NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id)
     is the LWP id.
   */
   int ret;
-  ret= processor_bind(P_LWPID, threadId, cpu_id, NULL); 
+  ret= processor_bind(P_LWPID, pThread->tid, cpu_id, NULL);
   if (ret)
     error_no= errno;
 #else
-#ifdef WIN32
-  /*
-    Windows can currently as far I found out only lock processes
-    to CPU's, thus it cannot be used to support the desirable
-    feture here. So we ignore the call on Windows for the moment.
-  */
-  return error_no;
-#else
-  return error_no;
-#endif
-#endif
+  error_no = ENOSYS;
 #endif
   return error_no;
+}
+
+static pthread_key_t tls_keys[NDB_THREAD_TLS_MAX];
+
+void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
+{
+  return pthread_getspecific(tls_keys[key]);
+}
+
+void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value)
+{
+  pthread_setspecific(tls_keys[key], value);
+}
+
+int
+NdbThread_Init()
+{ 
+  g_ndb_thread_mutex = NdbMutex_Create();
+  g_ndb_thread_condition = NdbCondition_Create();
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+  return 0;
+}
+
+void
+NdbThread_End()
+{
+  if (g_ndb_thread_mutex)
+  {
+    NdbMutex_Destroy(g_ndb_thread_mutex);
+  }
+  
+  if (g_ndb_thread_condition)
+  {
+    NdbCondition_Destroy(g_ndb_thread_condition);
+  }
 }
 

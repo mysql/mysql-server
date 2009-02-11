@@ -18,7 +18,12 @@
 
 #include "SignalData.hpp"
 
-struct GCPPrepare // Distr. DIH-DIH
+/**
+ * Sent as a distributed signal DIH-DIH.
+ *
+ * Also sent locally from DIH to SUMA.
+ */
+struct GCPPrepare
 {
   STATIC_CONST( SignalLength = 3 );
 
@@ -86,6 +91,7 @@ class GCPSaveReq // Distr. DIH-LQH
    * Reciver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   friend bool printGCPSaveReq(FILE * output, const Uint32 * theData, 
 			      Uint32 len, Uint16 receiverBlockNo);
@@ -104,6 +110,7 @@ class GCPSaveRef // Distr. LQH-DIH
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   /**
    * Reciver(s)
@@ -134,6 +141,7 @@ class GCPSaveConf // Distr. LQH-DIH
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   /**
    * Reciver(s)

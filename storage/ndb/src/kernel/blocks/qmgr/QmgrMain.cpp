@@ -34,6 +34,7 @@
 #include <signaldata/DisconnectRep.hpp>
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/Upgrade.hpp>
+#include <signaldata/EnableCom.hpp>
 
 #include <ndb_version.h>
 
@@ -990,6 +991,9 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   c_clusterNodes.assign(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
 
   myNodePtr.p->ndynamicId = TdynamicId;
+
+  // set own MT config here or in REF, and others in CM_NODEINFOREQ/CONF
+  setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
   
 /*--------------------------------------------------------------*/
 // Send this as an EVENT REPORT to inform about hearing about
@@ -1115,6 +1119,7 @@ Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
   req->dynamicId = self->ndynamicId;
   req->version = getNodeInfo(getOwnNodeId()).m_version;
   req->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
+  req->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
   const Uint32 ref = calcQmgrBlockRef(nodeId);
   sendSignal(ref,GSN_CM_NODEINFOREQ, signal, CmNodeInfoReq::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOREQ, nodeId, "");
@@ -1220,6 +1225,9 @@ void Qmgr::execCM_REGREF(Signal* signal)
 
   skip_nodes.bitAND(c_definedNodes);
   c_start.m_skip_nodes.bitOR(skip_nodes);
+
+  // set own MT config here or in CONF, and others in CM_NODEINFOREQ/CONF
+  setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
   
   char buf[100];
   switch (TrefuseReason) {
@@ -1667,10 +1675,16 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 dynamicId = conf->dynamicId;
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
+  Uint32 lqh_workers = conf->lqh_workers;
   if (version < NDBD_SPLIT_VERSION)
   {
     jam();
     mysql_version = 0;
+  }
+  if (version < NDBD_MT_LQH_VERSION)
+  {
+    jam();
+    lqh_workers = 0;
   }
 
   NodeRecPtr nodePtr;  
@@ -1690,6 +1704,7 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   replyNodePtr.p->blockRef = signal->getSendersBlockRef();
   setNodeInfo(replyNodePtr.i).m_version = version;
   setNodeInfo(replyNodePtr.i).m_mysql_version = mysql_version;
+  setNodeInfo(replyNodePtr.i).m_lqh_workers = lqh_workers;
 
   recompute_version_info(NodeInfo::DB, version);
   
@@ -1747,8 +1762,13 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   Uint32 mysql_version = req->mysql_version;
   if (req->version < NDBD_SPLIT_VERSION)
     mysql_version = 0;
-  
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
+
+  Uint32 lqh_workers = req->lqh_workers;
+  if (req->version < NDBD_MT_LQH_VERSION)
+    lqh_workers = 0;
+  setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
+
   c_maxDynamicId = req->dynamicId;
 
   cmAddPrepare(signal, addNodePtr, nodePtr.p);
@@ -1805,6 +1825,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   conf->dynamicId = self->ndynamicId;
   conf->version = getNodeInfo(getOwnNodeId()).m_version;
   conf->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
+  conf->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
   sendSignal(nodePtr.p->blockRef, GSN_CM_NODEINFOCONF, signal,
 	     CmNodeInfoConf::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOCONF, refToNode(nodePtr.p->blockRef), "");
@@ -1932,14 +1953,13 @@ void Qmgr::execCM_ADD(Signal* signal)
     /**
      *  ENABLE COMMUNICATION WITH ALL BLOCKS WITH THE NEWLY ADDED NODE
      */
-    signal->theData[0] = addNodePtr.i;
-    sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
-
-    sendCmAckAdd(signal, addNodePtr.i, CmAdd::AddCommit);
-    if(getOwnNodeId() != cpresident){
-      jam();
-      c_start.reset();
-    }
+    EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+    enableComReq->m_senderRef = reference();
+    enableComReq->m_senderData = ENABLE_COM_CM_ADD_COMMIT;
+    NodeBitmask::clear(enableComReq->m_nodeIds);
+    NodeBitmask::set(enableComReq->m_nodeIds, addNodePtr.i);
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
     break;
   }
   case CmAdd::CommitNew:
@@ -1948,6 +1968,57 @@ void Qmgr::execCM_ADD(Signal* signal)
   }
 
 }//Qmgr::execCM_ADD()
+
+void
+Qmgr::handleEnableComAddCommit(Signal *signal, Uint32 node)
+{
+  sendCmAckAdd(signal, node, CmAdd::AddCommit);
+  if(getOwnNodeId() != cpresident){
+    jam();
+    c_start.reset();
+  }
+}
+
+void
+Qmgr::execENABLE_COMCONF(Signal *signal)
+{
+  const EnableComConf *enableComConf =
+    (const EnableComConf *)signal->getDataPtr();
+  Uint32 state = enableComConf->m_senderData;
+  Uint32 node = NodeBitmask::find(enableComConf->m_nodeIds, 0);
+
+  jamEntry();
+
+  switch (state)
+  {
+    case ENABLE_COM_CM_ADD_COMMIT:
+      jam();
+      /* Only exactly one node possible here. */
+      ndbrequire(node != NodeBitmask::NotFound);
+      ndbrequire(NodeBitmask::find(enableComConf->m_nodeIds, node + 1) ==
+                 NodeBitmask::NotFound);
+      handleEnableComAddCommit(signal, node);
+      break;
+
+    case ENABLE_COM_CM_COMMIT_NEW:
+      jam();
+      handleEnableComCommitNew(signal);
+      break;
+
+    case ENABLE_COM_API_REGREQ:
+      jam();
+      /* Only exactly one node possible here. */
+      ndbrequire(node != NodeBitmask::NotFound);
+      ndbrequire(NodeBitmask::find(enableComConf->m_nodeIds, node + 1) ==
+                 NodeBitmask::NotFound);
+      handleEnableComApiRegreq(signal, node);
+      break;
+
+    default:
+      jam();
+      ndbrequire(false);
+  }
+}
 
 void
 Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
@@ -1972,6 +2043,10 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    * ENABLE COMMUNICATION WITH ALL BLOCKS IN THE CURRENT CLUSTER AND SET 
    * THE NODES IN THE CLUSTER TO BE RUNNING. 
    */
+  EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+  enableComReq->m_senderRef = reference();
+  enableComReq->m_senderData = ENABLE_COM_CM_COMMIT_NEW;
+  NodeBitmask::clear(enableComReq->m_nodeIds);
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     ptrAss(nodePtr, nodeRec);
@@ -1981,11 +2056,25 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
       // to open communication to ourself.
       /*-------------------------------------------------------------------*/
       jam();
-      signal->theData[0] = nodePtr.i;
-      sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
+      NodeBitmask::set(enableComReq->m_nodeIds, nodePtr.i);
     }//if
   }//for
-  
+
+  if (!NodeBitmask::isclear(enableComReq->m_nodeIds))
+  {
+    jam();
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
+  }
+  else
+  {
+    handleEnableComCommitNew(signal);
+  }
+}
+
+void
+Qmgr::handleEnableComCommitNew(Signal *signal)
+{
   sendSttorryLab(signal);
   
   sendCmAckAdd(signal, getOwnNodeId(), CmAdd::CommitNew);
@@ -3047,12 +3136,70 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   setNodeInfo(apiNodePtr.i).m_mysql_version = mysql_version;
   setNodeInfo(apiNodePtr.i).m_heartbeat_cnt= 0;
 
+  NodeState state = getNodeState();
+  if (apiNodePtr.p->phase == ZAPI_INACTIVE)
+  {
+    apiNodePtr.p->blockRef = ref;
+    if ((state.startLevel == NodeState::SL_STARTED ||
+         state.getSingleUserMode() ||
+         (state.startLevel == NodeState::SL_STARTING &&
+          state.starting.startPhase >= 100)))
+    {
+      jam();
+      /**----------------------------------------------------------------------
+       * THE API NODE IS REGISTERING. WE WILL ACCEPT IT BY CHANGING STATE AND
+       * SENDING A CONFIRM.
+       *----------------------------------------------------------------------*/
+      apiNodePtr.p->phase = ZAPI_ACTIVE;
+      EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+      enableComReq->m_senderRef = reference();
+      enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
+      NodeBitmask::clear(enableComReq->m_nodeIds);
+      NodeBitmask::set(enableComReq->m_nodeIds, apiNodePtr.i);
+      sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+                 EnableComReq::SignalLength, JBA);
+      return;
+    }
+  }
+
+  sendApiRegConf(signal, apiNodePtr.i);
+}//Qmgr::execAPI_REGREQ()
+
+void
+Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
+{
+  NodeInfo::NodeType type = getNodeInfo(node).getType();
+  Uint32 version = getNodeInfo(node).m_version;
+  recompute_version_info(type, version);
+
+  signal->theData[0] = node;
+  signal->theData[1] = version;
+  NodeReceiverGroup rg(QMGR, c_clusterNodes);
+  rg.m_nodes.clear(getOwnNodeId());
+  sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB,
+                  NDBD_NODE_VERSION_REP);
+
+  signal->theData[0] = node;
+  EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
+
+  sendApiRegConf(signal, node);
+}
+
+void
+Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
+{
+  NodeRecPtr apiNodePtr;
+  apiNodePtr.i = node;
+  ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
+  const BlockReference ref = apiNodePtr.p->blockRef;
+  ndbassert(ref != 0);
+
   ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
   apiRegConf->qmgrRef = reference();
   apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
   apiRegConf->version = NDB_VERSION;
   apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
-  NodeState state= apiRegConf->nodeState = getNodeState();
+  apiRegConf->nodeState = getNodeState();
   {
     NodeRecPtr nodePtr;
     nodePtr.i = getOwnNodeId();
@@ -3070,37 +3217,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
   apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
-
-  if (apiNodePtr.p->phase == ZAPI_INACTIVE &&
-      (state.startLevel == NodeState::SL_STARTED ||
-       state.getSingleUserMode() ||
-       (state.startLevel == NodeState::SL_STARTING && 
-	state.starting.startPhase >= 100)))
-  {       
-    jam();
-    /**----------------------------------------------------------------------
-     * THE API NODE IS REGISTERING. WE WILL ACCEPT IT BY CHANGING STATE AND 
-     * SENDING A CONFIRM. 
-     *----------------------------------------------------------------------*/
-    apiNodePtr.p->phase = ZAPI_ACTIVE;
-    apiNodePtr.p->blockRef = ref;
-    signal->theData[0] = apiNodePtr.i;
-    sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
-    
-    recompute_version_info(type, version);
-    
-    signal->theData[0] = apiNodePtr.i;
-    signal->theData[1] = version;
-    NodeReceiverGroup rg(QMGR, c_clusterNodes);
-    rg.m_nodes.clear(getOwnNodeId());
-    sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB, 
-		    NDBD_NODE_VERSION_REP);
-    
-    signal->theData[0] = apiNodePtr.i;
-    EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
-  }
-  return;
-}//Qmgr::execAPI_REGREQ()
+}
 
 void
 Qmgr::sendVersionedDb(NodeReceiverGroup rg,
@@ -3838,6 +3955,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
                  NodeFailRep::SignalLength, JBB);
     }
+
     guard0 = cnoCommitFailedNodes - 1;
     arrGuard(guard0, MAX_NDB_NODES);
     /**--------------------------------------------------------------------
@@ -5527,9 +5645,9 @@ Qmgr::check_multi_node_shutdown(Signal* signal)
       jam();
       StartOrd * startOrd = (StartOrd *)&signal->theData[0];
       startOrd->restartInfo = c_stopReq.requestInfo;
-      EXECUTE_DIRECT(CMVMI, GSN_START_ORD, signal, 2);
+      sendSignal(CMVMI_REF, GSN_START_ORD, signal, 2, JBA);
     } else {
-      EXECUTE_DIRECT(CMVMI, GSN_STOP_ORD, signal, 1);
+      sendSignal(CMVMI_REF, GSN_STOP_ORD, signal, 1, JBA);
     }
     return true;
   }

@@ -2,7 +2,7 @@
 -- source include/have_binlog_format_mixed_or_row.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --disable_query_log
 set ndb_table_temporary=0;
 --enable_query_log
@@ -11,12 +11,16 @@ set ndb_table_temporary=0;
 #
 # Bug #14516 Restart of cluster can cause NDB API replication failure
 #
-create table t1 (a int key) engine=ndb;
+create table t2 (a int key) engine=ndb;
+#
+# Unreported bug, online altered table causes system restart to fail
+#
+alter table t2 rename t1;
 reset master;
 --exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --not-started > /dev/null
+--exec $NDB_WAITER --no-defaults --not-started > /dev/null
 --exec $NDB_MGM --no-defaults -e "all start" > /dev/null
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
+--exec $NDB_WAITER --no-defaults > /dev/null
 
 --disable_query_log
 let $mysql_errno= 1;

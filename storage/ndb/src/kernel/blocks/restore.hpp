@@ -28,8 +28,10 @@
 
 class Restore : public SimulatedBlock
 {
+  friend class RestoreProxy;
+
 public:
-  Restore(Block_context& ctx);
+  Restore(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Restore();
   BLOCK_DEFINES(Restore);
   

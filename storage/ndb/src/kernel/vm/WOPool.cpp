@@ -90,7 +90,7 @@ WOPool::handle_invalid_release(Ptr<void> ptr)
   Uint32 * record_ptr_i = (m_memroot+pageI)->m_data + pos;
   
   Uint32 magic = * (record_ptr_p + m_record_info.m_offset_magic);
-  snprintf(buf, sizeof(buf), 
+  BaseString::snprintf(buf, sizeof(buf),
 	   "Invalid memory release: ptr (%x %p %p) magic: (%.8x %.8x) memroot: %p page: %x",
 	   ptr.i, ptr.p, record_ptr_i, magic, m_record_info.m_type_id,
 	   m_memroot,
@@ -109,7 +109,7 @@ WOPool::handle_invalid_get_ptr(Uint32 ptrI)
   Uint32 * record_ptr_i = (m_memroot+pageI)->m_data + pos;
   
   Uint32 magic = * (record_ptr_i + m_record_info.m_offset_magic);
-  snprintf(buf, sizeof(buf), 
+  BaseString::snprintf(buf, sizeof(buf),
 	   "Invalid memory access: ptr (%x %p) magic: (%.8x %.8x) memroot: %p page: %x",
 	   ptrI, record_ptr_i, magic, m_record_info.m_type_id,
 	   m_memroot,
@@ -128,7 +128,7 @@ WOPool::handle_inconsistent_release(Ptr<void> ptr)
 
   char buf[255];
   
-  snprintf(buf, sizeof(buf), 
+  BaseString::snprintf(buf, sizeof(buf),
 	   "Memory corruption: ptr (%x %p) page (%d %x %x)",
 	   ptr.i, ptr.p, cnt, type, ri_type);
   

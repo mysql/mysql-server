@@ -14,12 +14,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SUBDIRS = vm error blocks
+EXTRA_DIST = CMakeLists.txt
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
 ndbbin_PROGRAMS = ndbd
+EXTRA_PROGRAMS = ndbmtd
+
+if BUILD_NDBMTD
+ndbbin_PROGRAMS += ndbmtd
+endif
 
 ndbd_SOURCES = main.cpp SimBlockList.cpp
+ndbmtd_SOURCES = main.cpp SimBlockList.cpp
 
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
@@ -39,9 +46,10 @@ INCLUDES += \
 	-I$(srcdir)/blocks/dbutil \
 	-I$(srcdir)/blocks/suma \
 	-I$(srcdir)/blocks/dbtux \
+	-I$(srcdir)/blocks/dbinfo \
 	-I$(srcdir)/blocks
 
-LDADD +=  \
+LIBS= \
               blocks/libblocks.a \
               vm/libkernel.a	\
               error/liberror.a \
@@ -59,19 +67,8 @@ LDADD +=  \
               $(top_builddir)/strings/libmystringslt.la \
               $(top_builddir)/zlib/libzlt.la @NDB_SCI_LIBS@ 
 
-windoze-dsp: ndbd.dsp
-
-storage/ndbd.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(ndbbin_PROGRAMS)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndbd_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
+ndbd_LDADD = $(LIBS) vm/libsched.a
+ndbmtd_LDADD = $(LIBS) vm/libsched_mt.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

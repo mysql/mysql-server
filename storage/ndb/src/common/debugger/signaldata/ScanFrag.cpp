@@ -26,7 +26,31 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " resultRef: %x\n", sig->resultRef);
   fprintf(output, " savePointId: %x\n", sig->savePointId);
-  fprintf(output, " requestInfo: %x\n", sig->requestInfo);
+
+  fprintf(output, " flags: ");
+  if (ScanFragReq::getLockMode(sig->requestInfo))
+    fprintf(output, "X");
+  if (ScanFragReq::getHoldLockFlag(sig->requestInfo))
+    fprintf(output, "h");
+  if (ScanFragReq::getKeyinfoFlag(sig->requestInfo))
+    fprintf(output, "k");
+  if (ScanFragReq::getReadCommittedFlag(sig->requestInfo))
+    fprintf(output, "d");
+  if (ScanFragReq::getRangeScanFlag(sig->requestInfo))
+    fprintf(output, "r");
+  if (ScanFragReq::getDescendingFlag(sig->requestInfo))
+    fprintf(output, "(desc)");
+  if (ScanFragReq::getTupScanFlag(sig->requestInfo))
+    fprintf(output, "t");
+  if (ScanFragReq::getNoDiskFlag(sig->requestInfo))
+    fprintf(output, "(nodisk)");
+  fprintf(output, " attrLen: %u",
+          ScanFragReq::getAttrLen(sig->requestInfo));
+  fprintf(output, " reorg: %u",
+          ScanFragReq::getReorgFlag(sig->requestInfo));
+  fprintf(output, " prio: %u\n",
+          ScanFragReq::getScanPrio(sig->requestInfo));
+
   fprintf(output, " tableId: %x\n", sig->tableId);
   fprintf(output, " fragmentNo: %x\n", sig->fragmentNoKeyLen & 0xFFFF);
   fprintf(output, " keyLen: %x\n", sig->fragmentNoKeyLen >> 16);

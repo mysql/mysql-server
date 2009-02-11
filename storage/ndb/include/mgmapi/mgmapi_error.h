@@ -72,6 +72,10 @@ extern "C" {
     /** Unable to exit single user mode */
     NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002,
 
+    /* Service errors - Configuration change */
+    /** Unable to start config change */
+    NDB_MGM_CONFIG_CHANGE_FAILED = 4011,
+
     /* Usage errors */
     /** Usage error */
     NDB_MGM_USAGE_ERROR = 5001
@@ -81,6 +85,7 @@ extern "C" {
     enum ndb_mgm_error  code;
     const char *        msg;
   };
+
   extern const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[];
   extern const int ndb_mgm_noOfErrorMsgs;
 #endif

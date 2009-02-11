@@ -18,8 +18,8 @@
 
 #include <signaldata/NodeStateSignalData.hpp>
 
-Dbtux::Dbtux(Block_context& ctx) :
-  SimulatedBlock(DBTUX, ctx),
+Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(DBTUX, ctx, instanceNumber),
   c_tup(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
@@ -48,9 +48,10 @@ Dbtux::Dbtux(Block_context& ctx) :
   /*
    * DbtuxMeta.cpp
    */
+  addRecSignal(GSN_CREATE_TAB_REQ, &Dbtux::execCREATE_TAB_REQ);
   addRecSignal(GSN_TUXFRAGREQ, &Dbtux::execTUXFRAGREQ);
   addRecSignal(GSN_TUX_ADD_ATTRREQ, &Dbtux::execTUX_ADD_ATTRREQ);
-  addRecSignal(GSN_ALTER_INDX_REQ, &Dbtux::execALTER_INDX_REQ);
+  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtux::execALTER_INDX_IMPL_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtux::execDROP_TAB_REQ);
   /*
    * DbtuxMaint.cpp
@@ -75,7 +76,11 @@ Dbtux::Dbtux(Block_context& ctx) :
    */
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
 
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
+
   addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
+
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbtux::execDROP_FRAG_REQ);
 }
 
 Dbtux::~Dbtux()
@@ -129,7 +134,7 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     ndbrequire(c_tup != 0);
     break;
   case 3:
@@ -149,7 +154,8 @@ Dbtux::execSTTOR(Signal* signal)
   signal->theData[4] = 3;       // for c_typeOfStart
   signal->theData[5] = 7;       // for c_internalStartPhase
   signal->theData[6] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUX_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
 }
 
 void

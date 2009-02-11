@@ -69,9 +69,10 @@ struct BackupFormat {
    */
   enum FileType {
     CTL_FILE = 1,
-    LOG_FILE = 2,
+    LOG_FILE = 2, //redo log file for backup.
     DATA_FILE = 3,
-    LCP_FILE = 4
+    LCP_FILE = 4,
+    UNDO_FILE = 5 //undo log for backup.
   };
   
   /**

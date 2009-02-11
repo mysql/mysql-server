@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SUBDIRS = common mgmapi ndbapi . kernel mgmclient mgmsrv cw
+EXTRA_DIST = CMakeLists.txt
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
@@ -36,21 +37,6 @@ libndbclient_la_LIBADD =  \
               common/logger/liblogger.la       \
               common/portlib/libportlib.la      \
               common/util/libgeneral.la  @ZLIB_LIBS@
-
-windoze-dsp: libndbclient.dsp
-
-libndbclient.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(ndblib_LTLIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ dummy.cpp
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(libndbclient_la_LIBADD)
-	@touch dummy.cpp
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

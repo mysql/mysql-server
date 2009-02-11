@@ -18,21 +18,22 @@
 #define DBLQH_C
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
+#include "DblqhCommon.hpp"
 
 #define DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
 void Dblqh::initData() 
 {
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
-  cattrinbufFileSize = ZATTRINBUF_FILE_SIZE;
-  c_no_attrinbuf_recs= ZATTRINBUF_FILE_SIZE;
-  cdatabufFileSize = ZDATABUF_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clfoFileSize = 0;
   clogFileFileSize = 0;
-  clogPartFileSize = ZLOG_PART_FILE_SIZE;
+
+  NdbLogPartInfo lpinfo(instance());
+  clogPartFileSize = lpinfo.partCount;
+
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
   cscanrecFileSize = 0;
   ctabrecFileSize = 0;
@@ -40,8 +41,6 @@ void Dblqh::initData()
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
 
   addFragRecord = 0;
-  attrbuf = 0;
-  databuf = 0;
   gcpRecord = 0;
   hostRecord = 0;
   lcpRecord = 0;
@@ -60,10 +59,18 @@ void Dblqh::initData()
   cLqhTimeOutCount = 0;
   cLqhTimeOutCheckCount = 0;
   cbookedAccOps = 0;
+  cpackedListIndex = 0;
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
 
+   totalLogFiles = 0;
+   logFileInitDone = 0;
+   totallogMBytes = 0;
+   logMBytesInitDone = 0;
+   m_startup_report_frequency = 0;
+
+  c_active_add_frag_ptr_i = RNIL;
   for (Uint32 i = 0; i < 1024; i++) {
     ctransidHash[i] = RNIL;
   }//for
@@ -75,13 +82,6 @@ void Dblqh::initRecords()
   addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
 					      sizeof(AddFragRecord), 
 					      caddfragrecFileSize);
-  attrbuf = (Attrbuf*)allocRecord("Attrbuf",
-				  sizeof(Attrbuf), 
-				  cattrinbufFileSize);
-
-  databuf = (Databuf*)allocRecord("Databuf",
-				  sizeof(Databuf), 
-				  cdatabufFileSize);
 
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
@@ -167,8 +167,34 @@ void Dblqh::initRecords()
   bat[1].bits.v = 5;
 }//Dblqh::initRecords()
 
-Dblqh::Dblqh(Block_context& ctx):
-  SimulatedBlock(DBLQH, ctx),
+bool
+Dblqh::getParam(const char* name, Uint32* count)
+{
+  if (name != NULL && count != NULL)
+  {
+    /* FragmentInfoPool
+     * We increase the size of the fragment info pool
+     * to handle fragmented SCANFRAGREQ signals from 
+     * TC
+     */
+    if (strcmp(name, "FragmentInfoPool") == 0)
+    {
+      /* Worst case is every TC block sending
+       * a single fragmented request concurrently
+       * This could change in future if TCs can
+       * interleave fragments from different 
+       * requests
+       */
+      const Uint32 TC_BLOCKS_PER_NODE = 1;
+      *count= ((MAX_NDB_NODES -1) * TC_BLOCKS_PER_NODE) + 10;
+      return true;
+    }
+  }
+  return false;
+}
+
+Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBLQH, ctx, instanceNumber),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
@@ -202,19 +228,21 @@ Dblqh::Dblqh(Block_context& ctx):
 
   addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
 
-  // Trigger signals, transit to from TUP
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dblqh::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Dblqh::execCREATE_TRIG_CONF);
-  addRecSignal(GSN_CREATE_TRIG_REF, &Dblqh::execCREATE_TRIG_REF);
+  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
 
-  addRecSignal(GSN_DROP_TRIG_REQ, &Dblqh::execDROP_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Dblqh::execDROP_TRIG_CONF);
-  addRecSignal(GSN_DROP_TRIG_REF, &Dblqh::execDROP_TRIG_REF);
+  // Trigger signals, transit to from TUP
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dblqh::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dblqh::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Dblqh::execCREATE_TRIG_IMPL_REF);
+
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dblqh::execDROP_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dblqh::execDROP_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dblqh::execDROP_TRIG_IMPL_REF);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
-  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED);
+  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
   addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
@@ -281,9 +309,11 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
   addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
 
-  //addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
+  addRecSignal(GSN_CREATE_TAB_REQ, &Dblqh::execCREATE_TAB_REQ);
+  addRecSignal(GSN_CREATE_TAB_REF, &Dblqh::execCREATE_TAB_REF);
+  addRecSignal(GSN_CREATE_TAB_CONF, &Dblqh::execCREATE_TAB_CONF);
+
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REQ, &Dblqh::execWAIT_DROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
 
   addRecSignal(GSN_LQH_ALLOCREQ, &Dblqh::execLQH_ALLOCREQ);
@@ -313,7 +343,11 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
 	       &Dblqh::execPREPARE_COPY_FRAG_REQ);
   
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dblqh::execDROP_FRAG_REQ);
+  addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
+  addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
 
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
   addRecSignal(GSN_FSWRITEREQ,
                &Dblqh::execFSWRITEREQ);
 
@@ -323,8 +357,6 @@ Dblqh::Dblqh(Block_context& ctx):
   {
     void* tmp[] = { 
       &addfragptr,
-      &attrinbufptr,
-      &databufptr,
       &fragptr,
       &gcpPtr,
       &lcpPtr,
@@ -350,16 +382,6 @@ Dblqh::~Dblqh()
   deallocRecord((void **)&addFragRecord, "AddFragRecord",
 		sizeof(AddFragRecord), 
 		caddfragrecFileSize);
-
-  deallocRecord((void**)&attrbuf,
-		"Attrbuf",
-		sizeof(Attrbuf), 
-		cattrinbufFileSize);
-
-  deallocRecord((void**)&databuf,
-		"Databuf",
-		sizeof(Databuf), 
-		cdatabufFileSize);
 
   deallocRecord((void**)&gcpRecord,
 		"GcpRecord",

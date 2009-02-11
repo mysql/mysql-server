@@ -98,12 +98,11 @@ public:
     ,NS_ActiveMissed_1         = 1
     ,NS_ActiveMissed_2         = 2
     ,NS_ActiveMissed_3         = 3
-    ,NS_HotSpare               = 4
     ,NS_NotActive_NotTakenOver = 5
     ,NS_TakeOver               = 6
     ,NS_NotActive_TakenOver    = 7
     ,NS_NotDefined             = 8
-    ,NS_Standby                = 9
+    ,NS_Configured             = 9
   };
   STATIC_CONST( NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) );
   Uint32 nodeStatus[NODE_STATUS_SIZE];

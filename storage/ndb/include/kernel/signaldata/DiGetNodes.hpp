@@ -22,7 +22,7 @@
 /**
  * 
  */
-class DiGetNodesConf {
+struct DiGetNodesConf {
   /**
    * Receiver(s)
    */
@@ -31,13 +31,14 @@ class DiGetNodesConf {
    * Sender(s)
    */
   friend class Dbdih;
-public:
+
   STATIC_CONST( SignalLength = 3 + MAX_REPLICAS );
-private:  
+  STATIC_CONST( REORG_MOVING = 0x80000000);
+
   Uint32 zero;
   Uint32 fragId;
   Uint32 reqinfo;
-  Uint32 nodes[MAX_REPLICAS];
+  Uint32 nodes[MAX_REPLICAS]; //+1
 };
 /**
  * 

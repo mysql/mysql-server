@@ -17,14 +17,9 @@
 
 #define BIG_TABLES
 
-#ifdef __WIN2000__
-/* We have to do this define before including windows.h to get the AWE API
-functions */
+/* We have to do this define before including windows.h to get the
+   AWE API functions.  this #define means we target W2K (NT5) and newer */
 #define _WIN32_WINNT     0x0500
-#else
-/* Get NT 4.0 functions */
-#define _WIN32_WINNT     0x0400
-#endif
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
@@ -33,6 +28,7 @@ functions */
 
 #include <sys/locking.h>
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <math.h>			/* Because of rint() */
 #include <fcntl.h>
 #include <io.h>
@@ -92,6 +88,12 @@ functions */
 #define W_OK		2
 
 #define S_IROTH		S_IREAD		/* for my_lib */
+
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
 
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
@@ -156,8 +158,14 @@ typedef unsigned int size_t;
 typedef uint rf_SetTimer;
 #endif
 
+#define ssize_t SSIZE_T
+
 #define Socket_defined
-#define my_socket SOCKET
+#ifndef __cplusplus
+#define bool BOOL
+#define true ((BOOL)1)
+#define false ((BOOL)0)
+#endif
 #define SIGPIPE SIGINT
 #define RETQSORTTYPE void
 #define QSORT_TYPE_IS_VOID
@@ -289,6 +297,7 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_ALLOCA
 #define HAVE_STRPBRK
 #define HAVE_STRSTR
+#define HAVE_STRDUP
 #define HAVE_COMPRESS
 #define HAVE_CREATESEMAPHORE
 #define HAVE_ISNAN
@@ -316,11 +325,22 @@ inline ulonglong double2ulonglong(double d)
 #define _snprintf snprintf
 #endif
 
+#if _MSC_VER >= 1500   /* VS9 (2008) has vsnprintf */
+#ifndef HAVE_VSNPRINTF
+#define HAVE_VSNPRINTF
+#endif
+#endif
+#ifndef HAVE_STRTOUL
+#define HAVE_STRTOUL
+#endif
+
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
 #define HAVE_ANSI_INCLUDE
 #define HAVE_SYS_UTIME_H
+#ifndef HAVE_STRTOUL
 #define HAVE_STRTOUL
+#endif
 #endif
 #define my_reinterpret_cast(A) reinterpret_cast <A>
 #define my_const_cast(A) const_cast<A>
@@ -426,3 +446,13 @@ inline ulonglong double2ulonglong(double d)
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
+
+/* Windows doesn't define ENOTSUP, define it as the same as Solaris */
+#ifndef ENOTSUP
+#define ENOTSUP 48
+#endif
+
+#if _MSC_VER >= 1400   /* strtok_s is like strtok_r, but is new */
+#define HAVE_STRTOK_R
+#define strtok_r(A, B, C) strtok_s((A), (B), (C))
+#endif

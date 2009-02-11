@@ -104,7 +104,8 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   if (!passwd)
     passwd="";
 
-  if ((sock=(my_socket)socket(AF_INET,SOCK_STREAM,0)) == INVALID_SOCKET)
+  sock= my_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!my_socket_valid(sock))
   {
     con->last_errno=errno;
     strmov(con->last_error,"Cannot create socket");
@@ -142,7 +143,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     my_gethostbyname_r_free();
   }
   sock_addr.sin_port = (ushort) htons((ushort) port);
-  if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
+  if (my_connect(MY_SOCKET_FORMAT_VALUE(sock),(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 0))
   {
     con->last_errno=errno;

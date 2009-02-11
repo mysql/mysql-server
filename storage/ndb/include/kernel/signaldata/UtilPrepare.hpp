@@ -67,11 +67,13 @@ public:
     TableName          = 3,  ///< String
     AttributeName      = 4,  ///< String
     TableId	       = 5,
-    AttributeId	       = 6
+    AttributeId	       = 6,
+    ScanTakeOverInd    = 7,
+    ReorgInd           = 8
   };
 
   // Signal constants
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
   STATIC_CONST( PROPERTIES_SECTION = 0 );
   STATIC_CONST( NoOfSections = 1 );
 
@@ -80,6 +82,7 @@ public:
 private:  
   Uint32 senderData; // MUST be no 1!
   Uint32 senderRef;
+  Uint32 schemaTransId;
 };
 
 /**

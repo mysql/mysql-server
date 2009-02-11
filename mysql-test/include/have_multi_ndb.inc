@@ -69,3 +69,5 @@ enable_query_log;
 
 # Set the default connection
 connection server1;
+
+--let NDB_BACKUPS=$NDB_BACKUP_DIR/BACKUP/BACKUP

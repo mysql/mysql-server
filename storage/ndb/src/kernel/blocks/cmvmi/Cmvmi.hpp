@@ -50,7 +50,7 @@ private:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCLOSE_COMREQ(Signal* signal);
-  void execENABLE_COMORD(Signal* signal);
+  void execENABLE_COMREQ(Signal* signal);
   void execOPEN_COMREQ(Signal* signal);
   void execSIZEALT_ACK(Signal* signal);
   void execTEST_ORD(Signal* signal);

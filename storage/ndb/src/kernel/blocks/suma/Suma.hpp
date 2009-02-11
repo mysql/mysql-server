@@ -75,6 +75,7 @@ public:
   void execSCAN_FRAGREF(Signal* signal);
   void execSCAN_FRAGCONF(Signal* signal);
   void execTRANSID_AI(Signal* signal);
+  void execKEYINFO20(Signal* signal);
   void execSUB_SYNC_CONTINUE_REF(Signal* signal);
   void execSUB_SYNC_CONTINUE_CONF(Signal* signal);
   
@@ -88,33 +89,37 @@ public:
   /**
    * DIH signals
    */
-  void execDI_FCOUNTREF(Signal* signal);
-  void execDI_FCOUNTCONF(Signal* signal);
-  void execDIGETPRIMREF(Signal* signal);
-  void execDIGETPRIMCONF(Signal* signal);
+  void execDIH_SCAN_TAB_REF(Signal* signal);
+  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
+  void execCHECKNODEGROUPSCONF(Signal *signal);
+  void execGCP_PREPARE(Signal *signal);
 
   /**
    * Trigger administration
    */
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
   
   /**
    * continueb
    */
   void execCONTINUEB(Signal* signal);
 
+  void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
+  void execDROP_NODEGROUP_IMPL_REQ(Signal*);
 public:
 
   void suma_ndbrequire(bool v);
 
-  typedef DataBuffer<15> TableList;
-  
+  // wl4391_todo big enough for now
   union FragmentDescriptor { 
     struct  {
-      Uint16 m_fragmentNo;
+      Uint8 m_fragmentNo;
+      Uint8 m_lqhInstanceKey;
       Uint16 m_nodeId;
     } m_fragDesc;
     Uint32 m_dummy;
@@ -140,13 +145,13 @@ public:
   };
   typedef Ptr<Subscriber> SubscriberPtr;
 
-  class Table;
-  friend class Table;
+  struct Table;
+  friend struct Table;
   typedef Ptr<Table> TablePtr;
 
   struct SyncRecord {
     SyncRecord(Suma& s, DataBuffer<15>::DataBufferPool & p)
-      : m_tableList(p), suma(s)
+      : suma(s)
 #ifdef ERROR_INSERT
 	, cerrorInsert(s.cerrorInsert)
 #endif
@@ -159,20 +164,24 @@ public:
 
     Uint32 m_subscriptionPtrI;
     Uint32 m_error;
-    Uint32 m_currentTable;
-    TableList m_tableList;    // Tables to sync
-    TableList::DataBufferIterator m_tableList_it;
+    Uint32 m_requestInfo;
+
+    Uint32 m_frag_cnt; // only scan this many fragments...
+    Uint32 m_tableId;  // redundant...
+
+    /**
+     * Fragments
+     */
+    Uint32 m_scan_cookie;
+    DataBuffer<15>::Head m_fragments;  // Fragment descriptors
 
     /**
      * Sync data
      */
     Uint32 m_currentFragment;       // Index in tabPtr.p->m_fragments
-    DataBuffer<15>::Head m_attributeList; // Attribute if other than default
-    DataBuffer<15>::Head m_tabList; // tables if other than default
-    
-    Uint32 m_currentTableId;        // Current table
     Uint32 m_currentNoOfAttributes; // No of attributes for current table
-
+    DataBuffer<15>::Head m_attributeList; // Attribute if other than default
+    
     void startScan(Signal*);
     void nextScan(Signal*);
     bool getNextFragment(TablePtr * tab, FragmentDescriptor * fd);
@@ -183,6 +192,7 @@ public:
     UintR &cerrorInsert;
 #endif
     BlockNumber number() const { return suma.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       suma.progError(line, cause, extra); 
     }
@@ -224,6 +234,7 @@ public:
     Uint32 m_subscriptionId;
     Uint32 m_subscriptionKey;
     Uint32 m_subscriptionType;
+    Uint32 m_schemaTransId;
     Uint16 m_options;
 
     enum Options {
@@ -308,12 +319,6 @@ public:
 
     Uint32 m_error;
     
-    /**
-     * Fragments
-     */
-    Uint32 m_fragCount;
-    DataBuffer<15>::Head m_fragments;  // Fragment descriptors
-    
     Uint32 m_noOfAttributes;
 
     /**
@@ -327,6 +332,9 @@ public:
     bool equal(const Table& rec) const {
       return m_tableId == rec.m_tableId;
     }
+
+    // copy from Subscription
+    Uint32 m_schemaTransId;
   };
 
   /**
@@ -414,13 +422,13 @@ public:
    */
 
   void getNodeGroupMembers(Signal* signal);
-
   void execREAD_CONFIG_REQ(Signal* signal);
 
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
   void execNDB_STTOR(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
@@ -521,7 +529,8 @@ private:
   Uint32 c_nodesInGroup[MAX_REPLICAS];
   NdbNodeBitmask c_nodes_in_nodegroup_mask;  // NodeId's of nodes in nodegroup
 
-  void send_dict_lock_req(Signal* signal);
+  void send_dict_lock_req(Signal* signal, Uint32 state);
+  void send_dict_unlock_ord(Signal* signal, Uint32 state);
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
   void send_handover_req(Signal* signal);
@@ -529,6 +538,8 @@ private:
   Uint32 get_responsible_node(Uint32 B) const;
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
   bool check_switchover(Uint32 bucket, Uint64 gci);
+
+  void fix_nodegroup();
 
 public:  
   struct Page_pos
@@ -547,6 +558,8 @@ private:
       ,BUCKET_HANDOVER = 0x2 // On running node
       ,BUCKET_TAKEOVER = 0x4 // On takeing over node
       ,BUCKET_RESEND   = 0x8 // On takeing over node
+      ,BUCKET_CREATED  = 0x10 // New nodegroup (me)
+      ,BUCKET_DROPPED  = 0x20 // New nodegroup (me) uses hi 8 bit for cnt
     };
     Uint16 m_state;
     Uint16 m_switchover_node;
@@ -585,7 +598,6 @@ private:
   Bucket_mask m_active_buckets;
   Bucket_mask m_switchover_buckets;  
   
-  class Dbtup* m_tup;
   void init_buffers();
   Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz);
   Uint32 seize_page();
@@ -637,13 +649,31 @@ private:
 
   Uint32 m_first_free_page;
   ArrayPool<Page_chunk> c_page_chunk_pool;
+  ArrayPool<Buffer_page> c_page_pool;
 
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;
 #endif
 
+  struct SubGcpCompleteCounter
+  {
+    Uint64 m_gci;
+    Uint32 m_cnt;
+  };
+
+  Uint32 m_gcp_rep_cnt;
+  Uint32 m_min_gcp_rep_counter_index;
+  Uint32 m_max_gcp_rep_counter_index;
+  struct SubGcpCompleteCounter m_gcp_rep_counter[10];
+
+  /* Buffer used in Suma::execALTER_TAB_REQ(). */
+  Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint64 m_current_gci;
+
   Uint32 m_startphase;
   Uint32 m_typeOfStart;
+
+  void sendScanSubTableData(Signal* signal, Ptr<SyncRecord>, Uint32);
 };
 
 #endif

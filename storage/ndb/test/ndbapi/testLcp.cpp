@@ -108,7 +108,7 @@ main(int argc, char ** argv){
     size_t test_case = 0;
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Performing all ops wo/ inteference of LCP" << endl;
 	
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
@@ -116,7 +116,7 @@ main(int argc, char ** argv){
 	  " finished before SAVE_PAGES" << endl;
 	require(!load_table());
 	require(!pause_lcp(5900));
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5900));
@@ -129,13 +129,13 @@ main(int argc, char ** argv){
     
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
 	g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished after SAVE_PAGES"
 	       << endl;
 	require(!load_table());
 	require(!pause_lcp(5901));
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5901));
@@ -148,11 +148,11 @@ main(int argc, char ** argv){
 
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Testing pre LCP operations, undo-ed at commit" << endl;
 	require(!load_table());
 	require(!pause_lcp(5902));
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5902));
@@ -166,11 +166,11 @@ main(int argc, char ** argv){
     
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(int tl = 0; tl<g_case_loop; tl++){
 	g_info << "Testing prepared during LCP and committed after" << endl;
 	require(!load_table());
 	require(!pause_lcp(5904));    // Start LCP, but don't save pages
-	for(size_t j = 0; j<g_rows; j++){
+	for(int j = 0; j<g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5904)); // Start ACC save pages
@@ -330,7 +330,7 @@ static int load_table()
   size_t rows = 0;
   size_t uncommitted = 0;
   bool prepared = false;
-  for(size_t i = 0; i<g_rows; i++){
+  for(int i = 0; i<g_rows; i++){
     for(op %= OP_COUNT; !((1 << op) & g_use_ops); op = (op + 1) % OP_COUNT);
     g_ops[i] = g_op_types[op++];
     if(g_ops[i].start_row){
@@ -362,15 +362,24 @@ static int pause_lcp(int error)
   int nodes = g_restarter.getNumDbNodes();
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
+
+  my_socket my_fd;
+#ifdef NDB_WIN
+  SOCKET fd= ndb_mgm_listen_event(g_restarter.handle, filter);
+  my_fd.s= fd;
+#else
   int fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-  require(fd >= 0);
+  my_fd.fd= fd;
+#endif
+
+  require(my_socket_valid(my_fd));
   require(!g_restarter.insertErrorInAllNodes(error));
   int dump[] = { DumpStateOrd::DihStartLcpImmediately };
   require(!g_restarter.dumpStateAllNodes(dump, 1));
   
   char *tmp;
   char buf[1024];
-  SocketInputStream in(fd, 1000);
+  SocketInputStream in(my_fd, 1000);
   int count = 0;
   do {
     tmp = in.gets(buf, 1024);
@@ -453,10 +462,22 @@ static int do_op(int row)
 static int continue_lcp(int error)
 {
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
-  int fd = -1;
+  my_socket my_fd;
+  my_socket_invalidate(&my_fd);
+#ifdef NDB_WIN
+  SOCKET fd;
+#else
+  int fd;
+#endif
+
   if(error){
     fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-    require(fd >= 0);
+#ifdef NDB_WIN
+    my_fd.s= fd;
+#else
+    my_fd.fd= fd;
+#endif
+    require(my_socket_valid(my_fd));
   }
 
   int args[] = { DumpStateOrd::LCPContinue };
@@ -466,7 +487,7 @@ static int continue_lcp(int error)
   if(error){
     char *tmp;
     char buf[1024];
-    SocketInputStream in(fd, 1000);
+    SocketInputStream in(my_fd, 1000);
     int count = 0;
     int nodes = g_restarter.getNumDbNodes();
     do {
@@ -518,7 +539,7 @@ static int restart()
 static int validate()
 {
   HugoOperations ops(* g_table);
-  for(size_t i = 0; i<g_rows; i++){
+  for(int i = 0; i<g_rows; i++){
     require(g_ops[i].curr_row == g_ops[i].end_row);
     require(!ops.startTransaction(g_ndb));
     ops.pkReadRecord(g_ndb, i, 1);

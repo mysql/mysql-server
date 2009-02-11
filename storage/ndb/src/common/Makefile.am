@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SUBDIRS =	portlib debugger util logger transporter mgmcommon
+EXTRA_DIST = CMakeLists.txt
 
 noinst_LTLIBRARIES = libcommon.la
 
@@ -26,8 +27,6 @@ libcommon_la_LIBADD = \
               portlib/libportlib.la      \
               logger/liblogger.la       \
               util/libgeneral.la 
-
-windoze-dsp:
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

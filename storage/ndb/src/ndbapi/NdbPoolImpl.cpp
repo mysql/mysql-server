@@ -416,8 +416,8 @@ NdbPool::get_hint_ndb(Uint32 hint_id, Uint32 hash_entry)
 void
 NdbPool::remove_free_list(Uint32 id)
 {
-  Uint8 next_free_entry = m_pool_reference[id].next_free_object;
-  Uint8 prev_free_entry = m_pool_reference[id].prev_free_object;
+  Uint16 next_free_entry = m_pool_reference[id].next_free_object;
+  Uint16 prev_free_entry = m_pool_reference[id].prev_free_object;
   if (prev_free_entry == (Uint8)NULL_POOL) {
     m_first_free = next_free_entry;
   } else {
@@ -436,10 +436,10 @@ NdbPool::remove_free_list(Uint32 id)
 void
 NdbPool::remove_db_hash(Uint32 id, Uint32 hash_entry)
 {
-  Uint8 next_free_entry = m_pool_reference[id].next_db_object;
-  Uint8 prev_free_entry = m_pool_reference[id].prev_db_object;
+  Uint16 next_free_entry = m_pool_reference[id].next_db_object;
+  Uint16 prev_free_entry = m_pool_reference[id].prev_db_object;
   if (prev_free_entry == (Uint8)NULL_HASH) {
-    m_hash_entry[hash_entry] = next_free_entry;
+    m_hash_entry[hash_entry] = (Uint8)next_free_entry;
   } else {
     m_pool_reference[prev_free_entry].next_db_object = next_free_entry;
   }
@@ -516,7 +516,7 @@ void
 NdbPool::switch_condition_queue()
 {
   m_signal_count = m_input_queue;
-  Uint8 move_queue = m_input_queue;
+  Uint16 move_queue = m_input_queue;
   m_input_queue = m_output_queue;
   m_output_queue = move_queue;
 

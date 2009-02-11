@@ -184,6 +184,19 @@ int pthread_attr_init(pthread_attr_t *connect_att)
   connect_att->dwStackSize	= 0;
   connect_att->dwCreatingFlag	= 0;
   connect_att->priority		= 0;
+  connect_att->detached         = 0;
+  return 0;
+}
+
+int pthread_attr_setdetachstate(pthread_attr_t *connect_att,int state)
+{
+  connect_att->detached= state==PTHREAD_CREATE_DETACHED;
+  return 0;
+}
+
+int pthread_attr_getdetachstate(pthread_attr_t *connect_att,int*state)
+{
+  *state=connect_att->detached?PTHREAD_CREATE_DETACHED:PTHREAD_CREATE_JOINABLE;
   return 0;
 }
 

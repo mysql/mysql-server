@@ -29,7 +29,12 @@
 #include <signaldata/DropTab.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
+
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
 
 // TO_DO_RONM is a label for comments on what needs to be improved in future versions
 // when more time is given.
@@ -231,8 +236,8 @@ void Dbacc::execSTTOR(Signal* signal)
   switch (tstartphase) {
   case 1:
     jam();
-    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP)) != 0);
-    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH)) != 0);
+    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance())) != 0);
+    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     break;
   }
   tuserblockref = signal->theData[3];
@@ -247,7 +252,7 @@ void Dbacc::execSTTOR(Signal* signal)
 void Dbacc::ndbrestart1Lab(Signal* signal) 
 {
   cmynodeid = globalData.ownId;
-  cownBlockref = numberToRef(DBACC, cmynodeid);
+  cownBlockref = calcInstanceBlockRef(DBACC);
   czero = 0;
   cminusOne = czero - 1;
   ctest = 0;
@@ -384,7 +389,8 @@ void Dbacc::sttorrysignalLab(Signal* signal)
   /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSPH1;
   signal->theData[4] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBACC_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
   /* END OF START PHASES */
   return;
 }//Dbacc::sttorrysignalLab()
@@ -697,14 +703,23 @@ Dbacc::execDROP_TAB_REQ(Signal* signal){
   sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
 }
 
-void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
-{
+void
+Dbacc::execDROP_FRAG_REQ(Signal* signal){
+  jamEntry();
+  DropFragReq* req = (DropFragReq*)signal->getDataPtr();
+
   TabrecPtr tabPtr;
-  tabPtr.i = tableId;
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+
+  tabPtr.p->tabUserRef = req->senderRef;
+  tabPtr.p->tabUserPtr = req->senderData;
+
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  {
     jam();
-    if (tabPtr.p->fragholder[i] != RNIL) {
+    if (tabPtr.p->fragholder[i] == req->fragId)
+    {
       jam();
       tabPtr.p->fragholder[i] = RNIL;
       releaseFragResources(signal, tabPtr.p->fragptrholder[i]);
@@ -712,16 +727,50 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
     }//if
   }//for
   
-  /**
-   * Finished...
-   */
+  releaseRootFragResources(signal, req->tableId);
+}
 
-  DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
-  dropConf->senderRef = reference();
-  dropConf->senderData = tabPtr.p->tabUserPtr;
-  dropConf->tableId = tabPtr.i;
-  sendSignal(tabPtr.p->tabUserRef, GSN_DROP_TAB_CONF,
-             signal, DropTabConf::SignalLength, JBB);
+void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
+{
+  TabrecPtr tabPtr;
+  tabPtr.i = tableId;
+  ptrCheckGuard(tabPtr, ctablesize, tabrec);
+
+  const BlockNumber dictBlock = !isNdbMtLqh() ? DBDICT : DBACC;
+  if (refToBlock(tabPtr.p->tabUserRef) == dictBlock)
+  {
+    jam();
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+      jam();
+      if (tabPtr.p->fragholder[i] != RNIL) {
+        jam();
+        tabPtr.p->fragholder[i] = RNIL;
+        releaseFragResources(signal, tabPtr.p->fragptrholder[i]);
+        return;
+      }//if
+    }//for
+
+    /**
+     * Finished...
+     */
+    DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
+    dropConf->senderRef = reference();
+    dropConf->senderData = tabPtr.p->tabUserPtr;
+    dropConf->tableId = tabPtr.i;
+    sendSignal(tabPtr.p->tabUserRef, GSN_DROP_TAB_CONF,
+               signal, DropTabConf::SignalLength, JBB);
+  }
+  else
+  {
+    ndbrequire(refToMain(tabPtr.p->tabUserRef) == DBLQH);
+
+    DropFragConf * conf = (DropFragConf *)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = tabPtr.p->tabUserPtr;
+    conf->tableId = tabPtr.i;
+    sendSignal(tabPtr.p->tabUserRef, GSN_DROP_FRAG_CONF,
+               signal, DropFragConf::SignalLength, JBB);
+  }
   
   tabPtr.p->tabUserPtr = RNIL;
   tabPtr.p->tabUserRef = 0;
@@ -6353,7 +6402,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     if (tscanNextFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
       signal->theData[0] = scanPtr.p->scanUserptr;
-      Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
+      Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 1);
       return;
     }//if
@@ -7352,7 +7401,7 @@ bool Dbacc::searchScanContainer(Signal* signal)
 void Dbacc::sendNextScanConf(Signal* signal) 
 {
   scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
-  Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
+  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
   jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
@@ -8242,6 +8291,38 @@ Dbacc::reportMemoryUsage(Signal* signal, int gth){
   signal->theData[4] = cpagesize;
   signal->theData[5] = DBACC;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+}
+
+void Dbacc::execDBINFO_SCANREQ(Signal *signal)
+{
+  jamEntry();
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+
+  char buf[512];
+  struct dbinfo_ratelimit rl;
+  struct dbinfo_row r;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  if(req.tableId == NDBINFO_MEMUSAGE_TABLEID)
+  {
+    dbinfo_write_row_init(&r, buf, sizeof(buf));
+    const char *imstr= "IndexMemory";
+    dbinfo_write_row_column(&r, "IndexMemory", 11);
+    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+    Uint32 page_size_kb= sizeof(*rpPageptr.p);;
+    dbinfo_write_row_column(&r, (char*)&page_size_kb, 4); // 8kb
+    dbinfo_write_row_column_uint32(&r, cnoOfAllocatedPages); // alloced pages
+    dbinfo_write_row_column_uint32(&r, cpagesize); // number of pages
+    dbinfo_write_row_column(&r, "DBACC", strlen("DBACC"));
+    dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 void

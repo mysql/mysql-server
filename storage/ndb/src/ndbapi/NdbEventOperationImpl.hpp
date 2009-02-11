@@ -332,6 +332,7 @@ struct Gci_container
   {
     GC_COMPLETE     = 0x1, // GCI is complete, but waiting for out of order
     GC_INCONSISTENT = 0x2  // GCI might be missing event data
+    ,GC_CHANGE_CNT  = 0x4  // Change m_total_buckets
   };
 
   
@@ -498,8 +499,7 @@ public:
   NdbEventBuffer(Ndb*);
   ~NdbEventBuffer();
 
-  const Uint32 &m_system_nodes;
-
+  Uint32 m_total_buckets;
   Uint16 m_min_gci_index;
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
@@ -648,7 +648,7 @@ private:
   NdbMutex *m_add_drop_mutex;
 
   inline Gci_container* find_bucket(Uint64 gci){
-    Uint32 pos = (gci & ACTIVE_GCI_MASK);
+    Uint32 pos = (Uint32)(gci & ACTIVE_GCI_MASK);
     Gci_container *bucket= ((Gci_container*)(m_active_gci.getBase())) + pos;
     if(likely(gci == bucket->m_gci))
       return bucket;
@@ -665,6 +665,11 @@ private:
   void resize_known_gci();
 
   Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_alive_node_bit_mask;
+
+  void handle_change_nodegroup(const SubGcpCompleteRep*);
+
+public:
+  void set_total_buckets(Uint32);
 };
 
 inline

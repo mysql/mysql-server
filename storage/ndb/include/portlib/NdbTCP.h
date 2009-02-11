@@ -18,36 +18,10 @@
 
 #include <ndb_global.h>
 #include <ndb_net.h>
+#include <my_socket.h>
 
-#if defined NDB_WIN32
-
-/**
- * Include files needed
- */
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#define InetErrno WSAGetLastError()
-#define EWOULDBLOCK WSAEWOULDBLOCK
-#define NDB_SOCKET_TYPE SOCKET
-#define NDB_INVALID_SOCKET INVALID_SOCKET
-#define _NDB_CLOSE_SOCKET(x) closesocket(x)
-
-#else
-
-/**
- * Include files needed
- */
-#include <netdb.h>
-
-#define NDB_NONBLOCK O_NONBLOCK
-#define NDB_SOCKET_TYPE int
-#define NDB_INVALID_SOCKET -1
-#define _NDB_CLOSE_SOCKET(x) ::close(x)
-
-#define InetErrno errno
-
-#endif
+#define NDB_SOCKET_TYPE my_socket
+#define _NDB_CLOSE_SOCKET(x) my_socket_close(x)
 
 #define NDB_SOCKLEN_T SOCKET_SIZE_TYPE
 
@@ -71,10 +45,17 @@ int Ndb_getInAddr(struct in_addr * dst, const char *address);
 #ifdef DBUG_OFF
 #define NDB_CLOSE_SOCKET(fd) _NDB_CLOSE_SOCKET(fd)
 #else
-int NDB_CLOSE_SOCKET(int fd);
+int NDB_CLOSE_SOCKET(my_socket fd);
 #endif
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
+
+#ifdef NDB_WIN
+#define NONBLOCKERR(E) (E!=SOCKET_EAGAIN && E!=SOCKET_EWOULDBLOCK)
+#else
+#define NONBLOCKERR(E) (E!=EINPROGRESS)
+#endif
+
 
 #ifdef	__cplusplus
 }

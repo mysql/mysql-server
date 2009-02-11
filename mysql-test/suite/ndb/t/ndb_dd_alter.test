@@ -60,7 +60,7 @@ DROP TABLE IF EXISTS test.t2;
  CREATE TABLESPACE ts
  ADD DATAFILE './table_space/datafile.dat'
  USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
+ INITIAL_SIZE 36M
  ENGINE NDB;
 
 #### Try to ALTER from InnoDB to Cluster Disk Data
@@ -93,7 +93,7 @@ SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 SELECT * FROM test.t1 ORDER BY a1;
 DROP TABLE test.t1;
 
@@ -127,7 +127,7 @@ SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 SELECT * FROM test.t1 ORDER BY a1;
 
 #### Try to ALTER from Cluster Disk Data to InnoDB
@@ -138,7 +138,7 @@ SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 #### Try to ALTER from Cluster Disk Data to MyISAM
 
@@ -195,7 +195,7 @@ SELECT a1,a2,a3,hex(a4), a5,a6,a7,a8 FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 ADD a9 DATETIME, ADD a10 TINYTEXT, ADD a11 MEDIUMTEXT, ADD a12 LONGTEXT, ADD a13 TEXT, ADD a14 BLOB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 disable_query_log;
 set @d2 = 'dd2';
@@ -225,21 +225,21 @@ ALTER TABLE test.t1 ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 ALTER TABLE test.t1 DROP INDEX a2_i;
 
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 TRUNCATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 #### Try to ALTER DD Tables and drop columns
 
@@ -258,7 +258,7 @@ ALTER TABLE test.t1 DROP PRIMARY KEY;
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+--exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
 
 DROP TABLE test.t1;
 

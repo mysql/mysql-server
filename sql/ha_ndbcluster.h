@@ -29,6 +29,7 @@
 
 #include <NdbApi.hpp>
 #include <ndbapi_limits.h>
+#include <kernel/ndb_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 #define NDB_DEFAULT_AUTO_PREFETCH 32
@@ -161,7 +162,7 @@ typedef struct st_ndbcluster_conflict_fn_share {
 struct Ndb_statistics {
   Uint64 row_count;
   Uint64 commit_count;
-  Uint64 row_size;
+  ulong row_size;
   Uint64 fragment_memory;
 };
 
@@ -313,7 +314,7 @@ class Thd_ndb
   bool m_force_send;
 
   int m_error_code;
-  uint32 m_query_id; /* query id whn m_error_code was set */
+  query_id_t m_query_id; /* query id whn m_error_code was set */
   uint32 options;
   uint32 trans_options;
   List<NDB_SHARE> changed_tables;
@@ -335,6 +336,9 @@ class Thd_ndb
   uint m_max_violation_count;
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
+
+  uint m_transaction_no_hint_count[MAX_NDB_NODES];
+  uint m_transaction_hint_count[MAX_NDB_NODES];
 
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
@@ -610,7 +614,7 @@ private:
   int ndb_pk_update_row(THD *thd, 
                         const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
-  int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 part_id);
+  int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 *part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
                          bool sorted, bool descending, uchar* buf,
@@ -724,6 +728,13 @@ private:
     return start_transaction(error);
   }
 
+  NdbTransaction *start_transaction_row(const NdbRecord *ndb_record,
+                                        const uchar *record,
+                                        int &error);
+  NdbTransaction *start_transaction_key(uint index,
+                                        const uchar *key_data,
+                                        int &error);
+
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,
                                                    const NdbOperation*,
@@ -810,7 +821,7 @@ private:
   
   // memory for blobs in one tuple
   uchar *m_blobs_buffer;
-  uint32 m_blobs_buffer_size;
+  Uint64 m_blobs_buffer_size;
   uint m_dupkey;
   // set from thread variables at external lock
   ha_rows m_autoincrement_prefetch;

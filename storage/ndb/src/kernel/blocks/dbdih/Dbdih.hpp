@@ -134,11 +134,22 @@ public:
     enum ConnectState {
       INUSE = 0,
       FREE = 1,
-      STARTED = 2
+      STARTED = 2,
+      ALTER_TABLE = 3,
+      ALTER_TABLE_ABORT = 4, // "local" abort
+      ALTER_TABLE_REVERT = 5
     };
-    Uint32 nodes[MAX_REPLICAS];
+    union {
+      Uint32 nodes[MAX_REPLICAS];
+      struct {
+        Uint32 m_changeMask;
+        Uint32 m_totalfragments;
+        Uint32 m_org_totalfragments;
+        Uint32 m_new_map_ptr_i;
+      } m_alter;
+    };
     ConnectState connectState;
-    Uint32 nfConnect;
+    Uint32 nextPool;
     Uint32 table;
     Uint32 userpointer;
     BlockReference userblockref;
@@ -160,7 +171,6 @@ public:
     Uint16 logNodeId[MAX_LOG_EXEC];
     Uint32 createLcpId;
 
-    bool hotSpareUse;
     Uint32 replicaRec;
     Uint16 dataNodeId;
     Uint16 lcpNo;
@@ -250,6 +260,9 @@ public:
     Uint32 nextReplicaNode;
     Uint32 nodeCount;
     Uint32 activeTakeOver; // Which node...
+    Uint32 m_next_log_part;
+    Uint32 nodegroupIndex;
+    Uint32 m_ref_count;
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
   /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
@@ -460,7 +473,8 @@ public:
       LINEAR_HASH = 0,
       NOTDEFINED = 1,
       NORMAL_HASH = 2,
-      USER_DEFINED = 3
+      USER_DEFINED = 3,
+      HASH_MAP = 4
     };
     enum Storage {
       ST_NOLOGGING = 0,         // Table is not logged, but survives SR
@@ -483,13 +497,21 @@ public:
 
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
-    Uint32 hashpointer;
-    Uint32 mask;
+    union {
+      Uint32 hashpointer;
+      Uint32 m_new_map_ptr_i;
+    };
+    union {
+      Uint32 mask;
+      Uint32 m_map_ptr_i;
+    };
     Uint32 noOfWords;
     Uint32 schemaVersion;
     Uint32 tabRemoveNode;
     Uint32 totalfragments;
     Uint32 noOfFragChunks;
+    Uint32 m_scan_count[2];
+    Uint32 m_scan_reorg_flag;
     Uint32 tabErrorCode;
     struct {
       Uint32 tabUserRef;
@@ -507,6 +529,9 @@ public:
     Uint8 noPages;
     Uint16 tableType;
     Uint16 primaryTableId;
+
+    // set in local protocol during prepare until commit
+    Uint32 schemaTransId;
   };
   typedef Ptr<TabRecord> TabRecordPtr;
 
@@ -612,6 +637,7 @@ public:
   };
   
 private:
+  friend class SimulatedBlock;
   BLOCK_DEFINES(Dbdih);
   
   void execDUMP_STATE_ORD(Signal *);
@@ -720,8 +746,9 @@ private:
   void execDIRELEASEREQ(Signal *);
   void execDISEIZEREQ(Signal *);
   void execSTTOR(Signal *);
-  void execDI_FCOUNTREQ(Signal *);
-  void execDIGETPRIMREQ(Signal *);
+  void execDIH_SCAN_TAB_REQ(Signal *);
+  void execDIH_SCAN_GET_NODES_REQ(Signal *);
+  void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);
   void execREAD_NODESCONF(Signal *);
@@ -735,6 +762,8 @@ private:
   void execSTART_FRAGCONF(Signal *);
   void execADD_FRAGCONF(Signal *);
   void execADD_FRAGREF(Signal *);
+  void execDROP_FRAG_REF(Signal *);
+  void execDROP_FRAG_CONF(Signal *);
   void execFSOPENCONF(Signal *);
   void execFSOPENREF(Signal *);
   void execFSCLOSECONF(Signal *);
@@ -752,8 +781,6 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execPREP_DROP_TAB_REQ(Signal* signal);
-  void execWAIT_DROP_TAB_REF(Signal* signal);
-  void execWAIT_DROP_TAB_CONF(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
 
   void execALTER_TAB_REQ(Signal* signal);
@@ -762,12 +789,14 @@ private:
   
   void waitDropTabWritingToFile(Signal *, TabRecordPtr tabPtr);
   void checkPrepDropTabComplete(Signal *, TabRecordPtr tabPtr);
-  void checkWaitDropTabFailedLqh(Signal *, Uint32 nodeId, Uint32 tableId);
 
   void execDICT_LOCK_CONF(Signal* signal);
   void execDICT_LOCK_REF(Signal* signal);
 
   void execUPGRADE_PROTOCOL_ORD(Signal* signal);
+
+  void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
+  void execDROP_NODEGROUP_IMPL_REQ(Signal*);
 
   // Statement blocks
 //------------------------------------
@@ -813,7 +842,6 @@ private:
   void sendStartFragreq(Signal *,
                         TabRecordPtr regTabPtr,
                         Uint32 fragId);
-  void sendHOT_SPAREREP(Signal *);
   void sendAddFragreq(Signal *,
                       TabRecordPtr regTabPtr,
                       Uint32 fragId,
@@ -883,7 +911,6 @@ private:
   void writeInitGcpErrorLab(Signal *, FileRecordPtr regFilePtr);
 
 
-  void calculateHotSpare();
   void checkEscalation();
   void clearRestartInfoBits(Signal *);
   void invalidateLcpInfoAfterSr();
@@ -892,11 +919,14 @@ private:
   bool isActiveMaster();
 
   void emptyverificbuffer(Signal *, bool aContintueB);
-  Uint32 findHotSpare();
   void handleGcpStateInMaster(Signal *, NodeRecordPtr failedNodeptr);
   void initRestartInfo(Signal*);
   void initRestorableGciFiles();
   void makeNodeGroups(Uint32 nodeArray[]);
+  void add_nodegroup(NodeGroupRecordPtr);
+  void inc_ng_refcount(Uint32 ng);
+  void dec_ng_refcount(Uint32 ng);
+
   void makePrnList(class ReadNodesConf * readNodes, Uint32 nodeArray[]);
   void nodeResetStart(Signal* signal);
   void releaseTabPages(Uint32 tableId);
@@ -904,7 +934,6 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void selectMasterCandidateAndSend(Signal *);
-  void setInitialActiveStatus();
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
   void setNodeActiveStatus();
@@ -1109,6 +1138,15 @@ private:
   void getFragstore(TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
   void initialiseFragstore();
 
+  void wait_old_scan(Signal*);
+  Uint32 add_fragments_to_table(Ptr<TabRecord>, const Uint16 buf[]);
+  Uint32 add_fragment_to_table(Ptr<TabRecord>, Uint32, Ptr<Fragmentstore>&);
+
+  void drop_fragments(Signal*, ConnectRecordPtr, Uint32 last);
+  void release_fragment_from_table(Ptr<TabRecord>, Uint32 fragId);
+  void send_alter_tab_ref(Signal*, Ptr<ConnectRecord>, Uint32);
+  void send_alter_tab_conf(Signal*, Ptr<ConnectRecord>);
+
 //------------------------------------
 // Page Record specific methods
 //------------------------------------
@@ -1141,8 +1179,6 @@ private:
 //------------------------------------
   void changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver);
   void endTakeOver(Uint32 takeOverPtr);
-  void initStartTakeOver(const class StartToReq *, 
-			 TakeOverRecordPtr regTakeOverPtr);
   
   void systemRestartTakeOverLab(Signal *);
   void startTakeOver(Signal *,
@@ -1176,6 +1212,7 @@ private:
   void setAllowNodeStart(Uint32 nodeId, bool newState);
   bool getNodeCopyCompleted(Uint32 nodeId);
   void setNodeCopyCompleted(Uint32 nodeId, bool newState);
+  Uint32 getNodeGroup(Uint32 nodeId) const;
   bool checkNodeAlive(Uint32 nodeId);
 
   void nr_start_fragments(Signal*, TakeOverRecordPtr);
@@ -1205,11 +1242,12 @@ private:
   Fragmentstore *fragmentstore;
   Uint32 cfirstfragstore;
   Uint32 cfragstoreFileSize;
+  RSS_OP_SNAPSHOT(cremainingfrags);
 
   Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
-  Uint32 c_nextLogPart;
-  
+  RSS_OP_SNAPSHOT(cnghash);
+
   NodeRecord *nodeRecord;
 
   PageRecord *pageRecord;
@@ -1514,7 +1552,6 @@ private:
   } c_lcpMasterTakeOverState;
   
   Uint16 cmasterNodeId;
-  Uint8 cnoHotSpare;
 
   struct NodeStartMasterRecord {
     NodeStartMasterRecord() {}
@@ -1543,9 +1580,13 @@ private:
   Uint32 cnoReplicas;
 
   bool cwaitLcpSr;
+  /**
+   * Available nodegroups (ids) (length == cnoOfNodeGroups)
+   *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
+   */
+  Uint32 c_node_groups[MAX_NDB_NODES];
   Uint32 cnoOfNodeGroups;
   Uint32 crestartGci;      /* VALUE OF GCI WHEN SYSTEM RESTARTED OR STARTED */
-  Uint32 cminHotSpareNodes;
   
   /**
    * Counter variables keeping track of the number of outstanding signals
@@ -1657,11 +1698,13 @@ private:
    * Pool/list of WaitGCPMasterRecord record
    */
   ArrayPool<WaitGCPMasterRecord> waitGCPMasterPool;
-  DLList<WaitGCPMasterRecord> c_waitGCPMasterList;
+  typedef DLList<WaitGCPMasterRecord> WaitGCPList;
+  WaitGCPList c_waitGCPMasterList;
+  WaitGCPList c_waitEpochMasterList;
 
   void checkWaitGCPProxy(Signal*, NodeId failedNodeId);
   void checkWaitGCPMaster(Signal*, NodeId failedNodeId);
-  void emptyWaitGCPMasterQueue(Signal*);
+  void emptyWaitGCPMasterQueue(Signal*, Uint64, WaitGCPList&);
   
   /**
    * Stop me
@@ -1747,6 +1790,16 @@ private:
   NdbNodeBitmask m_to_nodes;
 
   void startme_copygci_conf(Signal*);
+
+  // MT LQH
+  Uint32 c_fragments_per_node;
+  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
+    ndbrequire(!tFragPtr.isNull());
+    Uint32 log_part_id = tFragPtr.p->m_log_part_id;
+    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_LQH_WORKERS;
+    return instanceKey;
+  }
+  Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
