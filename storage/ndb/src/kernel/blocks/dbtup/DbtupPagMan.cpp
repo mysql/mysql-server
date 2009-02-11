@@ -114,7 +114,6 @@ Uint32 Dbtup::nextHigherTwoLog(Uint32 input)
 
 void Dbtup::initializePage() 
 {
-  cnoOfAllocatedPages = 0;
 }//Dbtup::initializePage()
 
 void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
@@ -129,7 +128,6 @@ void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
 
   m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef, 
 			 &noOfPagesToAllocate, 1);
-  cnoOfAllocatedPages += noOfPagesToAllocate;
   noOfPagesAllocated = noOfPagesToAllocate;
   return;
 }//allocConsPages()
@@ -137,6 +135,5 @@ void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
 void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo) 
 {
   m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo);
-  cnoOfAllocatedPages -= retNo;
 }//Dbtup::returnCommonArea()
 

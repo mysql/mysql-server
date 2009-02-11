@@ -43,6 +43,8 @@
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
 
+#define ZREPORT_MEMORY_USAGE 1000
+
 // Used here only to print event reports on stdout/console.
 extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
@@ -99,6 +101,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
+
+  addRecSignal(GSN_CONTINUEB, &Cmvmi::execCONTINUEB);
   
   subscriberPool.setSize(5);
   
@@ -136,6 +140,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   setNodeInfo(getOwnNodeId()).m_connected = true;
   setNodeInfo(getOwnNodeId()).m_version = ndbGetOwnVersion();
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
+
+  c_memusage_report_frequency = 0;
 }
 
 Cmvmi::~Cmvmi()
@@ -377,12 +383,21 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
-  
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
   sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
 	     ReadConfigConf::SignalLength, JBB);
+
+  c_memusage_report_frequency = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
+                            &c_memusage_report_frequency);
+  
+  signal->theData[0] = ZREPORT_MEMORY_USAGE;
+  signal->theData[1] = 0;
+  signal->theData[2] = 3;
+  execCONTINUEB(signal);
 }
 
 void Cmvmi::execSTTOR(Signal* signal)
@@ -1046,6 +1061,8 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       signal->theData[1] = 0;
       signal->theData[2] = ~0;
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+
+      reportDMUsage(signal, 0);
       return;
     }
     Uint32 id = signal->theData[1];
@@ -1615,4 +1632,71 @@ Cmvmi::sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode){
 	delete[] g_test[i].p;
     }
   }
+}
+
+void
+Cmvmi::execCONTINUEB(Signal* signal)
+{
+  switch(signal->theData[0]){
+  case ZREPORT_MEMORY_USAGE:
+  {
+    jam();
+    Uint32 cnt = signal->theData[1];
+    Uint32 usedLast = signal->theData[2];
+
+    Resource_limit rl;
+    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+
+    Uint32 tmp = rl.m_min;
+    Uint32 now = tmp ? (rl.m_curr * 100)/tmp : 0;
+    static const Uint32 thresholds[] = { 100, 90, 80, 0 };
+    
+    Uint32 i = 0;
+    const Uint32 sz = sizeof(thresholds)/sizeof(thresholds[0]);
+    for(i = 0; i<sz; i++)
+    {
+      if(now >= thresholds[i])
+      {
+	now = thresholds[i];
+	break;
+      }
+    }
+    
+    if(now != usedLast || 
+       (c_memusage_report_frequency && cnt + 1 == c_memusage_report_frequency))
+    {
+      jam();
+      reportDMUsage(signal, 
+                    now > usedLast ? 1 : 
+                    now < usedLast ? -1 : 0);
+      cnt = 0;
+      usedLast = 0;
+    } 
+    else
+    {
+      jam();
+      cnt++;
+    }
+    signal->theData[0] = ZREPORT_MEMORY_USAGE;
+    signal->theData[1] = cnt; // seconds since last report
+    signal->theData[2] = usedLast; // last threshold
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 3);
+    return;
+  }
+  }
+}
+
+void
+Cmvmi::reportDMUsage(Signal* signal, int incDec)
+{
+  Resource_limit rl;
+  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+  
+  signal->theData[0] = NDB_LE_MemoryUsage;
+  signal->theData[1] = incDec;
+  signal->theData[2] = sizeof(GlobalPage);
+  signal->theData[3] = rl.m_curr;
+  signal->theData[4] = rl.m_min;
+  signal->theData[5] = DBTUP;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 }

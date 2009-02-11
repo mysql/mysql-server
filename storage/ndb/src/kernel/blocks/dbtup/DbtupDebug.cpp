@@ -69,29 +69,11 @@ struct Chunk {
   Uint32 pageCount;
 };
 
-void
-Dbtup::reportMemoryUsage(Signal* signal, int incDec){
-  signal->theData[0] = NDB_LE_MemoryUsage;
-  signal->theData[1] = incDec;
-  signal->theData[2] = sizeof(Page);
-  signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = c_no_of_pages;
-  signal->theData[5] = DBTUP;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
-}
-
 void Dbtup::execDBINFO_SCANREQ(Signal* signal)
 {
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
   const Uint32 reqlength= signal->getLength();
-
-  const Uint32 tableId= req.tableId;
-
-  const Uint32 senderRef= req.senderRef;
-  const Uint32 apiTxnId= req.apiTxnId;
-  const Uint32 colBitmapLo= req.colBitmapLo;
-  const Uint32 colBitmapHi= req.colBitmapHi;
 
   char buf[1024];
   struct dbinfo_row r;
@@ -99,20 +81,7 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
 
   dbinfo_ratelimit_init(&rl, &req);
 
-  if(tableId == NDBINFO_MEMUSAGE_TABLEID)
-  {
-    jam();
-    dbinfo_write_row_init(&r, buf, sizeof(buf));
-    dbinfo_write_row_column(&r, "DataMemory", 10);
-    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-    Uint32 page_size_kb= sizeof(Page);;
-    dbinfo_write_row_column(&r, (char*)&page_size_kb, 4); // 8kb
-    dbinfo_write_row_column_uint32(&r, cnoOfAllocatedPages); // alloced pages
-    dbinfo_write_row_column_uint32(&r, c_no_of_pages); // number of pages
-    dbinfo_write_row_column(&r, "DBTUP", 5);
-    dbinfo_send_row(signal,r,rl,apiTxnId,senderRef);
-  }
-  else if(req.tableId == NDBINFO_POOLS_TABLEID)
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
   {
     struct {
       const char* poolname;
@@ -173,10 +142,6 @@ void
 Dbtup::execDUMP_STATE_ORD(Signal* signal)
 {
   Uint32 type = signal->theData[0];
-  if(type == DumpStateOrd::DumpPageMemory && signal->getLength() == 1){
-    reportMemoryUsage(signal, 0);
-    return;
-  }
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
 
 #if 0
@@ -268,7 +233,9 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
       // Case
       Uint32 c = (rand() % 3);
-      const Uint32 free = c_no_of_pages - cnoOfAllocatedPages;
+      Resource_limit rl;
+      m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+      const Uint32 free = rl.m_max - rl.m_curr;
       
       Uint32 alloc = 0;
       if(free <= 1){
