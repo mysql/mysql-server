@@ -2270,8 +2270,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(USE_NEW_READLINE_INTERFACE) 
 extern "C" char *no_completion(const char*,int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
 #endif
