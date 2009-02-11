@@ -1025,7 +1025,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
     tupScan = false;
   }
   
-  if (rangeScan && (scan_flags & SF_OrderBy | SF_OrderByFull))
+  if (rangeScan && (scan_flags & (SF_OrderBy | SF_OrderByFull)))
     parallel = fragCount; /* Frag count of ordered index ==
                            * Frag count of base table
                            */
