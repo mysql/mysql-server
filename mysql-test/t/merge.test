@@ -1418,8 +1418,6 @@ TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
 
 DROP TABLE tm1;
 
---echo End of 5.1 tests
-
 #
 # Bug#36006 - Optimizer does table scan for select count(*)
 #
@@ -1434,5 +1432,55 @@ INSERT INTO t3 VALUES (3,1), (3,2),(3,3), (3,4);
 EXPLAIN SELECT COUNT(*) FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t4;
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #40675 MySQL 5.1 crash with index merge algorithm and Merge tables
+--echo #
+
+--echo # create MYISAM table t1 and insert values into it
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+
+--echo # create MYISAM table t2 and insert values into it
+CREATE TABLE t2(a INT, b INT, dummy CHAR(16) DEFAULT '', KEY(a), KEY(b));
+INSERT INTO t2(a,b) VALUES
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(1,2);
+
+--echo # Create the merge table t3
+CREATE TABLE t3(a INT, b INT, dummy CHAR(16) DEFAULT '', KEY(a), KEY(b))
+ENGINE=MERGE UNION=(t2) INSERT_METHOD=FIRST;
+
+--echo # Lock tables t1 and t3 for write
+LOCK TABLES t1 WRITE, t3 WRITE;
+
+--echo # Insert values into the merge table t3
+INSERT INTO t3(a,b) VALUES(1,2);
+
+--echo # select from the join of t2 and t3 (The merge table)
+SELECT t3.a FROM t1,t3 WHERE t3.b=2 AND t3.a=1;
+
+--echo # Unlock the tables
+UNLOCK TABLES;
+
+--echo # drop the created tables
+DROP TABLE t1, t2, t3;
 
 --echo End of 5.1 tests
