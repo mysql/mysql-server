@@ -3803,6 +3803,12 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
     return r;
 }
 
+//TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
+#ifndef TOKU_MULTIPLE_MAIN_THREADS
+#define TOKU_MULTIPLE_MAIN_THREADS 0
+#endif
+
+#if TOKU_MULTIPLE_MAIN_THREADS
 static int
 brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR brtcursor, BRTNODE* leafp) {
     void * nodep = NULL;
@@ -3824,6 +3830,16 @@ brt_cursor_unpin_leaf(BRT_CURSOR brtcursor, BRTNODE leaf) {
     int r = toku_unpin_brtnode(brtcursor->brt, leaf);
     return r;
 }
+#else
+static int
+brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR UU(brtcursor), BRTNODE* UU(leafp)) {
+    return 0;
+}
+static int
+brt_cursor_unpin_leaf(BRT_CURSOR UU(brtcursor), BRTNODE UU(leaf)) {
+    return 0;
+}
+#endif
 
 
 static int
