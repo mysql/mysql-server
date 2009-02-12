@@ -1,5 +1,5 @@
---- mysql-test/r/innodb_thread_concurrency_basic.result.orig	2008-12-04 18:45:52 -06:00
-+++ mysql-test/r/innodb_thread_concurrency_basic.result	2009-02-12 02:05:48 -06:00
+--- mysql-test/suite/sys_vars/r/innodb_thread_concurrency_basic.result.orig	2008-12-04 18:45:52 -06:00
++++ mysql-test/suite/sys_vars/r/innodb_thread_concurrency_basic.result	2009-02-12 02:05:48 -06:00
 @@ -1,19 +1,19 @@
  SET @global_start_value = @@global.innodb_thread_concurrency;
  SELECT @global_start_value;
