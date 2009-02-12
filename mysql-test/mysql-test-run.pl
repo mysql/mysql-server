@@ -118,6 +118,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,maria";
 
 our $opt_usage;
+our $opt_list_options;
 our $opt_suites;
 our $opt_suites_default= "main,backup,backup_engines,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
@@ -770,7 +771,7 @@ sub command_line_setup {
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
   Getopt::Long::Configure("pass_through");
-  GetOptions(
+  my %options=(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
@@ -891,9 +892,13 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+             'list-options'             => \$opt_list_options,
+            );
+
+  GetOptions(%options) or usage("Can't read options");
 
   usage("") if $opt_usage;
+  list_options(\%options) if $opt_list_options;
 
   # --------------------------------------------------------------------------
   # Setup verbosity
@@ -5125,3 +5130,15 @@ HERE
 
 }
 
+
+sub list_options ($) {
+  my $hash= shift;
+
+  for (keys %$hash) {
+    s/(=.*|!)$//;
+    s/\|/\n--/g;
+    print "--$_\n";
+  }
+
+  exit(1);
+}
