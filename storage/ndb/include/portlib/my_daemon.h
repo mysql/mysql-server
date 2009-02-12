@@ -82,16 +82,16 @@ int my_daemon_remove(const char *name);
 #define MY_DAEMON_VARS0 MY_DAEMON_VARS(NONE)
 #define MY_DAEMON_LONG_OPTS_PASTE(prefix) \
   {"install", 'i', "Install this program as a service.", \
-   &prefix##install, &prefix##install, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, \
+   &prefix##install, &prefix##install, 0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
   {"remove",  'r', "Remove this program as a service.", \
-   &prefix##remove,  &prefix##remove,  0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, \
+   &prefix##remove,  &prefix##remove,  0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
   {"service", 's', "Internal use only (for windows service)", \
    &prefix##service, &prefix##service, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #define MY_DAEMON_LONG_OPTS(prefix) \
-  {"install", 'i', "Install this service.", \
-   &prefix install, &prefix install, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, \
-  {"remove",  'r', "Remove this service.", \
-   &prefix remove,  &prefix remove,  0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, \
+  {"install", 'i', "Install this program as a service.", \
+   &prefix install, &prefix install, 0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
+  {"remove",  'r', "Remove this program as a service.", \
+   &prefix remove,  &prefix remove,  0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
   {"service", 's', "Internal use only (for windows service)", \
    &prefix service, &prefix service, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 
