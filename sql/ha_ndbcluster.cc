@@ -11984,6 +11984,16 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
        /*
          Check that we are only adding columns
        */
+       /*
+         HA_COLUMN_STORAGE & HA_COLUMN_FORMAT
+         are set if they are specified in an later cmd
+         even if they're no change. This is probably a bug
+         conclusion: add them to add_column-mask, so that we silently "accept" them
+         In case of someone trying to change a column, the HA_CHANGE_COLUMN would be set
+         which we don't support, so we will still return HA_ALTER_NOT_SUPPORTED in those cases
+       */
+       add_column.set_bit(HA_COLUMN_STORAGE);
+       add_column.set_bit(HA_COLUMN_FORMAT);
        if ((*alter_flags & ~add_column).is_set())
        {
          DBUG_PRINT("info", ("Only add column exclusively can be performed on-line"));
@@ -12070,6 +12080,22 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     const NDBCOL *col= tab->getColumn(i);
 
     create_ndb_column(0, new_col, field, create_info);
+
+    /**
+     * This is a "copy" of code in ::create()
+     *   that "auto-converts" columns with keys into memory
+     *   (unless storage disk is explicitly added)
+     * This is needed to check if getStorageType() == getStorageType() further down
+     */
+    if (field->flags & (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))
+    {
+      if (field->field_storage_type() == HA_SM_DISK)
+      {
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+      }
+      new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+    }
+
     if (col->getStorageType() != new_col.getStorageType())
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
