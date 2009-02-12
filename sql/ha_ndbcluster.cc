@@ -5189,8 +5189,11 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* Since NDB does not currently have table locks
        this is treated as a ordinary lock */
 
+    const bool in_lock_tables = thd_in_lock_tables(thd);
+    const uint sql_command = thd_sql_command(thd);
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd->in_lock_tables)      
+         lock_type <= TL_WRITE) &&
+        !(in_lock_tables && sql_command == SQLCOM_LOCK_TABLES))
       lock_type= TL_WRITE_ALLOW_WRITE;
     
     /* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
