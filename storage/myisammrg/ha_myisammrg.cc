@@ -116,7 +116,7 @@ static handler *myisammrg_create_handler(handlerton *hton,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg), file(0)
+  :handler(hton, table_arg), file(0), is_cloned(0)
 {}
 
 
@@ -413,7 +413,28 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
 
   /* retrieve children table list. */
   my_errno= 0;
-  if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
+  if (is_cloned)
+  {
+    /*
+      Open and attaches the MyISAM tables,that are under the MERGE table 
+      parent, on the MyISAM storage engine interface directly within the
+      MERGE engine. The new MyISAM table instances, as well as the MERGE 
+      clone itself, are not visible in the table cache. This is not a 
+      problem because all locking is handled by the original MERGE table
+      from which this is cloned of.
+    */
+    if (!(file= myrg_open(table->s->normalized_path.str, table->db_stat, 
+                                       HA_OPEN_IGNORE_IF_LOCKED)))
+    {
+      DBUG_PRINT("error", ("my_errno %d", my_errno));
+      DBUG_RETURN(my_errno ? my_errno : -1); 
+    }
+
+    file->children_attached= TRUE;
+
+    info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+  }
+  else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
   {
     DBUG_PRINT("error", ("my_errno %d", my_errno));
     DBUG_RETURN(my_errno ? my_errno : -1);
@@ -421,6 +442,55 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
   DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx", (long) file));
   DBUG_RETURN(0);
 }
+
+/**
+   Returns a cloned instance of the current handler.
+
+   @return A cloned handler instance.
+ */
+handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
+{
+  MYRG_TABLE    *u_table,*newu_table;
+  ha_myisammrg *new_handler= 
+    (ha_myisammrg*) get_new_handler(table->s, mem_root, table->s->db_type());
+  if (!new_handler)
+    return NULL;
+  
+  /* Inform ha_myisammrg::open() that it is a cloned handler */
+  new_handler->is_cloned= TRUE;
+  /*
+    Allocate handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
+  {
+    delete new_handler;
+    return NULL;
+  }
+
+  if (new_handler->ha_open(table, table->s->normalized_path.str, table->db_stat,
+                            HA_OPEN_IGNORE_IF_LOCKED))
+  {
+    delete new_handler;
+    return NULL;
+  }
+ 
+  /*
+    Iterate through the original child tables and
+    copy the state into the cloned child tables.
+    We need to do this because all the child tables
+    can be involved in delete.
+  */
+  newu_table= new_handler->file->open_tables;
+  for (u_table= file->open_tables; u_table < file->end_table; u_table++)
+  {
+    newu_table->table->state= u_table->table->state;
+    newu_table++;
+  }
+
+  return new_handler;
+ }
 
 
 /**
@@ -613,9 +683,10 @@ int ha_myisammrg::close(void)
   DBUG_ENTER("ha_myisammrg::close");
   /*
     Children must not be attached here. Unless the MERGE table has no
-    children. In this case children_attached is always true.
+    children or the handler instance has been cloned. In these cases 
+    children_attached is always true. 
   */
-  DBUG_ASSERT(!this->file->children_attached || !this->file->tables);
+  DBUG_ASSERT(!this->file->children_attached || !this->file->tables || this->is_cloned);
   rc= myrg_close(file);
   file= 0;
   DBUG_RETURN(rc);
