@@ -191,7 +191,7 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
   uint16 maxlength;                     /* max length of (packed) key (auto) */
   uint32 write_comp_flag;		/* compare flag for write key (auto) */
   uint32 version;                       /* For concurrent read/write */
-  uint32 ftparser_nr;                   /* distinct ftparser number */
+  uint32 ftkey_nr;                      /* full-text index number */
 
   HA_KEYSEG *seg, *end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */

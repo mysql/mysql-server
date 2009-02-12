@@ -537,6 +537,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->block_size= share->base.block_size;   /* Convenience */
     {
       HA_KEYSEG *pos=share->keyparts;
+      uint32 ftkey_nr= 1;
       for (i=0 ; i < keys ; i++)
       {
         share->keyinfo[i].share= share;
@@ -609,6 +610,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
             share->ft2_keyinfo.end=pos;
             setup_key_functions(& share->ft2_keyinfo);
           }
+          share->keyinfo[i].ftkey_nr= ftkey_nr++;
 	}
         setup_key_functions(share->keyinfo+i);
 	share->keyinfo[i].end=pos;
@@ -646,7 +648,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	pos->flag=0;
 	pos++;
       }
-      share->ftparsers= 0;
+      share->ftkeys= ftkey_nr;
     }
     share->data_file_type= share->state.header.data_file_type;
     share->base_length= (BASE_ROW_HEADER_SIZE +
@@ -1527,7 +1529,7 @@ uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;
-   keydef->ftparser_nr  = 0;
+   keydef->ftkey_nr     = 0;
    return ptr;
 }
 

@@ -348,7 +348,7 @@ typedef struct st_maria_share
   ulong state_diff_length;
   uint rec_reflength;			/* rec_reflength in use now */
   uint keypage_header;
-  uint32 ftparsers;			/* Number of distinct ftparsers
+  uint32 ftkeys;			/* Number of distinct full-text keys
 						   + 1 */
   PAGECACHE_FILE kfile;			/* Shared keyfile */
   File data_file;			/* Shared data file */
