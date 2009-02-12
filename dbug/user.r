@@ -941,6 +941,9 @@ a complete log file in case of crashes. This mode is implicit in
 multi-threaded environment.
 .LI d[,keywords]
 Enable output from macros with specified keywords.
+Every keyword can be a
+.I glob(7)
+pattern.
 An empty list of keywords implies that all keywords are selected.
 .LI D[,time]
 Delay for specified time after each output line, to let output drain.
@@ -948,6 +951,9 @@ Time is given in tenths of a second (value of 10 is one second).
 Default is zero.
 .LI f[,functions]
 Limit debugger actions to the specified list of functions.
+Every function can be a
+.I glob(7)
+pattern.
 An empty list of functions implies that all functions are selected.
 Every function in the list may optionally be followed by a '/' -
 this will implicitly select all the functions down the call stack.
@@ -966,6 +972,9 @@ Mark each debugger output line with the PID (or thread ID) of the
 current process.
 .LI g,[functions]
 Enable profiling for the specified list of functions.
+Every function can be a
+.I glob(7)
+pattern.
 An empty list of functions enables profiling for all functions.
 See
 .B PROFILING\ WITH\ DBUG
@@ -984,7 +993,11 @@ Like 'a[,file]' but overwrite old file, do not append.
 .LI O[,file]
 Like 'A[,file]' but overwrite old file, do not append.
 .LI p[,processes]
-Limit debugger actions to the specified processes.  An empty list
+Limit debugger actions to the specified processes.
+Every name can be a
+.I glob(7)
+pattern.
+An empty list
 implies all processes.  This is useful for processes which run child
 processes.  Note that each debugger output line can be marked with the
 name of the current process via the 'P' flag.  The process name must
