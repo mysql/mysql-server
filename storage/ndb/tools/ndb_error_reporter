@@ -75,12 +75,12 @@ my $outfile;
 if($r==0)
 {
     $outfile= "$reportdir.tar.bz2";
-    system "tar c $reportdir|bzip2 > $outfile";
+    system "tar cf - $reportdir|bzip2 > $outfile";
 }
 else
 {
     $outfile= "$reportdir.tar.gz";
-    system "tar c $reportdir|gzip > $outfile";
+    system "tar cf - $reportdir|gzip > $outfile";
 }
 
 system "rm -rf $reportdir";
