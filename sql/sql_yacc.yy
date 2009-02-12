@@ -9256,9 +9256,16 @@ drop:
             lex->drop_if_exists=$3;
             lex->name= $4;
           }
-        | DROP FUNCTION_SYM if_exists sp_name
+        | DROP FUNCTION_SYM if_exists ident '.' ident
           {
-            LEX *lex=Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            sp_name *spname;
+            if ($4.str && check_db_name(&$4))
+            {
+               my_error(ER_WRONG_DB_NAME, MYF(0), $4.str);
+               MYSQL_YYABORT;
+            }
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
@@ -9266,7 +9273,32 @@ drop:
             }
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            lex->spname= $4;
+            spname= new sp_name($4, $6, true);
+            if (spname == NULL)
+              MYSQL_YYABORT;
+            spname->init_qname(thd);
+            lex->spname= spname;
+          }
+        | DROP FUNCTION_SYM if_exists ident
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            LEX_STRING db= {0, 0};
+            sp_name *spname;
+            if (lex->sphead)
+            {
+              my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
+              MYSQL_YYABORT;
+            }
+            if (thd->db && lex->copy_db_to(&db.str, &db.length))
+              MYSQL_YYABORT;
+            lex->sql_command = SQLCOM_DROP_FUNCTION;
+            lex->drop_if_exists= $3;
+            spname= new sp_name(db, $4, false);
+            if (spname == NULL)
+              MYSQL_YYABORT;
+            spname->init_qname(thd);
+            lex->spname= spname;
           }
         | DROP PROCEDURE if_exists sp_name
           {
