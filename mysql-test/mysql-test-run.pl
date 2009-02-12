@@ -107,6 +107,17 @@ our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
+my $opt_tmpdir_pid;
+
+END {
+  if (defined $opt_tmpdir_pid and
+      $opt_tmpdir_pid == $$){
+    # Remove the tempdir this process has created
+    mtr_verbose("Removing tmpdir '$opt_tmpdir");
+    rmtree($opt_tmpdir);
+  }
+}
+
 my $path_config_file;           # The generated config file, var/my.cnf
 
 # Visual Studio produces executables in different sub-directories based on the
@@ -1066,8 +1077,11 @@ sub command_line_setup {
 		 " creating a shorter one...");
 
       # Create temporary directory in standard location for temporary files
-      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 1 );
+      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 0 );
       mtr_report(" - using tmpdir: '$opt_tmpdir'\n");
+
+      # Remember pid that created dir so it's removed by correct process
+      $opt_tmpdir_pid= $$;
     }
   }
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
