@@ -4074,3 +4074,4 @@ insert into t2(a,b) values ('mozkakabudlebgqdozmskoznveytfekierfwfretwuirnxwdbhx
 ;
 }
 enable_query_log;
+drop table t2;

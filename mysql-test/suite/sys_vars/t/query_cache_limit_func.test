@@ -1,0 +1,177 @@
+############# mysql-test\t\Query_cache_limit_func.test ########################
+#                                                                             #
+# Variable Name: Query_cache_limit                                            #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: NUMERIC                                                          #
+# Default Value: 1048576                                                      #
+# Min Value:       0                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-02                                                   #
+# Author:  Sharique Abdullah                                                  #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable "Query_cache_limit"      #
+#              that checks behavior of this variable in the following ways    #
+#              * Functionality based on different values                      #
+#                                                                             #
+# Reference:                                                                  #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
+#                                                                             #
+###############################################################################
+
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+SET @global_query_cache_limit = @@global.query_cache_limit;
+SET @global_query_cache_size = @@global.query_cache_size;
+SET @global_query_cache_type = @@global.query_cache_type;
+
+--echo ** warnings **
+--disable_warnings
+DROP TABLE IF EXISTS t;
+
+--enable_warnings
+#creating table#
+
+--echo ** creating table **
+
+CREATE TABLE t
+(
+id INT AUTO_INCREMENT PRIMARY KEY,
+c TEXT(30)
+);
+
+#inserting value#
+
+--echo **inserting value **
+
+INSERT INTO t set c = repeat('x',29);
+INSERT INTO t set c = concat(repeat('x',28),'r','x');
+INSERT INTO t set c = concat(repeat('x',28),'s','y');
+INSERT INTO t set c = concat(repeat('x',28),'g','w');
+
+# Reset cache & flush status
+--echo ** Reset cache values **
+FLUSH STATUS;
+RESET QUERY CACHE;
+
+# set query cache type value to on and allocating cache size
+--echo ** On query_cache_type **
+SET GLOBAL query_cache_type = ON;
+
+--echo ** Allocating cache size **
+SET GLOBAL query_cache_size = 131072;
+
+# reset values
+--echo ** Reset values
+SET GLOBAL query_cache_size = 0;
+SET GLOBAL query_cache_size = 131072;
+SET GLOBAL query_cache_type = ON;
+
+--echo '#---------------------FN_DYNVARS_132_01----------------------#'
+#
+#Check if results are cacheing on default value #
+#
+
+# Reset cache & flush status
+--echo ** Reset cache values **
+FLUSH STATUS;
+RESET QUERY CACHE;
+
+
+#fetching results#
+--echo ** fetching results **
+SELECT * FROM t;
+
+# Check status
+--echo ** check status on not setting query_cache_limit value **
+
+SHOW STATUS LIKE 'Qcache_not_cached';
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+
+
+--echo '#---------------------FN_DYNVARS_132_02----------------------#'
+#
+#Check if results are cacheing on setting value to 0 i.e. no caching#
+#
+
+# Reset cache & flush status
+--echo ** Reset cache values **
+FLUSH STATUS;
+RESET QUERY CACHE;
+
+#set cache limit
+--echo ** set cache limit **
+SET @@GLOBAL.query_cache_limit = 0;
+
+#fetching results#
+--echo ** fetching results **
+SELECT * FROM t;
+
+# Check status after setting value#
+--echo ** Check status after setting value **
+SHOW STATUS LIKE 'Qcache_not_cached';
+--echo 1 Expected
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+--echo 0 Expected
+
+
+--echo '#---------------------FN_DYNVARS_132_03----------------------#'
+#
+# Check if setting to 0 makes any difference to the cache or not #
+#
+
+#set cache limit to default
+--echo ** set cache limit **
+SET @@GLOBAL.query_cache_limit = DEFAULT;
+
+# Reset cache & flush status
+--echo ** Reset cache values **
+FLUSH STATUS;
+RESET QUERY CACHE;
+
+#fetching results#
+--echo ** fetching results **
+SELECT * FROM t;
+
+SHOW STATUS LIKE 'Qcache_not_cached';
+--echo 0 Expected
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+--echo 1 Expected
+
+SET @@GLOBAL.query_cache_limit = 0;
+
+SHOW STATUS LIKE 'Qcache_not_cached';
+--echo 0 Expected
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+--echo 1 Expected
+
+#fetching results#
+--echo ** fetching results **
+SELECT * FROM t;
+
+# Check status after setting value#
+--echo ** Check status after setting value **
+
+SHOW STATUS LIKE 'Qcache_not_cached';
+--echo 0 Expected
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+--echo 1 Expected
+
+#
+# Cleanup
+#
+
+SET @@GLOBAL.query_cache_limit = @global_query_cache_limit;
+SET GLOBAL query_cache_size = @global_query_cache_size;
+SET GLOBAL query_cache_type = @global_query_cache_type;
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+

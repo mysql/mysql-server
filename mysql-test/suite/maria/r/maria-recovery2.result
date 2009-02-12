@@ -1,3 +1,5 @@
+call mtr.add_suppression("File '.*maria_log.000.*' not found \\(Errcode: 2\\)");
+call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted1' is crashed, skipping it. Please repair it with maria_chk -r");
 set global maria_log_file_size=4294967295;
 drop database if exists mysqltest;
 create database mysqltest;

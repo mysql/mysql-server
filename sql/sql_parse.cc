@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -979,8 +979,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= global_query_id;
-  if (command != COM_STATISTICS && command != COM_PING)
+
+  switch( command ) {
+  /* Ignore these statements. */
+  case COM_STATISTICS:
+  case COM_PING:
+    break;
+  /* Only increase id on these statements but don't count them. */
+  case COM_STMT_PREPARE: 
+  case COM_STMT_CLOSE:
+  case COM_STMT_RESET:
     next_query_id();
+    break;
+  /* Increase id and count all other statements. */
+  default:
+    statistic_increment(thd->status_var.questions, &LOCK_status);
+    next_query_id();
+  }
+
   thread_running++;
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1241,6 +1257,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= beginning_of_next_stmt;
+      /*
+        Count each statement from the client.
+      */
+      statistic_increment(thd->status_var.questions, &LOCK_status);
       thd->query_id= next_query_id();
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */

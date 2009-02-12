@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -325,7 +325,7 @@ int Item::save_time_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_time(&ltime))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_TIME);
 }
@@ -335,7 +335,7 @@ int Item::save_date_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
@@ -2086,6 +2086,12 @@ bool Item_field::val_bool_result()
 }
 
 
+bool Item_field::is_null_result()
+{
+  return (null_value=result_field->is_null());
+}
+
+
 bool Item_field::eq(const Item *item, bool binary_cmp) const
 {
   Item *real_item= ((Item *) item)->real_item();
@@ -2624,7 +2630,7 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   if (value.time.year > 9999 || value.time.month > 12 ||
       value.time.day > 31 ||
-      time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
+      (time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23) ||
       value.time.minute > 59 || value.time.second > 59)
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
@@ -4836,8 +4842,8 @@ int Item::save_in_field(Field *field, bool no_conversions)
 {
   int error;
   if (result_type() == STRING_RESULT ||
-      result_type() == REAL_RESULT &&
-      field->result_type() == STRING_RESULT)
+      (result_type() == REAL_RESULT &&
+       field->result_type() == STRING_RESULT))
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;
@@ -5110,6 +5116,9 @@ int Item_hex_string::save_in_field(Field *field, bool no_conversions)
 
   ulonglong nr;
   uint32 length= str_value.length();
+  if (!length)
+    return 1;
+
   if (length > 8)
   {
     nr= field->flags & UNSIGNED_FLAG ? ULONGLONG_MAX : LONGLONG_MAX;
@@ -5793,6 +5802,15 @@ double Item_ref::val_result()
 }
 
 
+bool Item_ref::is_null_result()
+{
+  if (result_field)
+    return (null_value=result_field->is_null());
+
+  return is_null();
+}
+
+
 longlong Item_ref::val_int_result()
 {
   if (result_field)
@@ -5898,7 +5916,9 @@ String *Item_ref::val_str(String* tmp)
 bool Item_ref::is_null()
 {
   DBUG_ASSERT(fixed);
-  return (*ref)->is_null();
+  bool tmp=(*ref)->is_null_result();
+  null_value=(*ref)->null_value;
+  return tmp;
 }
 
 

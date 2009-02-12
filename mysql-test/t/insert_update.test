@@ -76,7 +76,7 @@ INSERT t1 SELECT a,b,c FROM t2 WHERE d=1 ON DUPLICATE KEY UPDATE c=t1.c+100;
 SELECT * FROM t1;
 INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0;
 SELECT * FROM t1;
---error 1052
+--error ER_NON_UNIQ_ERROR
 INSERT t1 SELECT a,b,c FROM t2 WHERE d=2 ON DUPLICATE KEY UPDATE c=c+VALUES(a);
 INSERT t1 SELECT a,b,c FROM t2 WHERE d=2 ON DUPLICATE KEY UPDATE c=t1.c+VALUES(t1.a);
 SELECT *, VALUES(a) FROM t1;
@@ -95,9 +95,9 @@ insert ignore into t1 select a from t1 as t2 on duplicate key update a=t1.a+1 ;
 select * from t1;
 insert into t1 select 1 on duplicate key update a=2;
 select * from t1;
---error 1052
+--error ER_NON_UNIQ_ERROR
 insert into t1 select a from t1 on duplicate key update a=a+1 ;
---error 1052
+--error ER_NON_UNIQ_ERROR
 insert ignore into t1 select a from t1 on duplicate key update a=t1.a+1 ;
 drop table t1;
 
@@ -171,13 +171,13 @@ SET SQL_MODE = 'TRADITIONAL';
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT NOT NULL);
 
---error 1364
+--error ER_NO_DEFAULT_FOR_FIELD
 INSERT INTO t1 (a) VALUES (1);
 
---error 1364
+--error ER_NO_DEFAULT_FOR_FIELD
 INSERT INTO t1 (a) VALUES (1) ON DUPLICATE KEY UPDATE a = b;
 
---error 1364
+--error ER_NO_DEFAULT_FOR_FIELD
 INSERT INTO t1 (a) VALUES (1) ON DUPLICATE KEY UPDATE b = b;
 
 SELECT * FROM t1;
@@ -278,7 +278,7 @@ INSERT INTO t1 (id,c1) VALUES (1,10);
 SELECT * FROM t1;
 CREATE TABLE t2 (id INT, c1 INT);
 INSERT INTO t2 VALUES (1,NULL), (2,2);
---error 1048
+--error ER_BAD_NULL_ERROR
 INSERT INTO t1 (id,c1) SELECT 1,NULL
   ON DUPLICATE KEY UPDATE c1=NULL;
 SELECT * FROM t1;
@@ -290,6 +290,7 @@ INSERT IGNORE INTO t1 (id,c1) SELECT * FROM t2
 SELECT * FROM t1;
 
 DROP TABLE t1;
+DROP TABLE t2;
 
 #
 # Bug#28904: INSERT .. ON DUPLICATE was silently updating rows when it

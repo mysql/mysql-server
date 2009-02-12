@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ public:
     memcpy(ptr, ptr + l_offset, pack_length());
     if (null_ptr)
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
-		  null_ptr[l_offset] & null_bit);
+		  (null_ptr[l_offset] & null_bit));
   }
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }

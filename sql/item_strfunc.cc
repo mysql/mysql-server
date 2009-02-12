@@ -1782,6 +1782,12 @@ Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
   Item_string *conv;
   uint conv_errors;
   String tmp, cstr, *ostr= val_str(&tmp);
+  if (null_value)
+  {
+    Item *null_item= new Item_null((char *) fully_qualified_func_name());
+    null_item->collation.set (tocs);
+    return null_item;
+  }
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
   if (conv_errors ||
       !(conv= new Item_static_string_func(fully_qualified_func_name(),
@@ -2033,10 +2039,11 @@ Item_func_format::Item_func_format(Item *org, Item *dec)
 
 void Item_func_format::fix_length_and_dec()
 {
-  collation.set(default_charset());
   uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
-  max_length= ((char_length + (char_length-args[0]->decimals)/3) *
-               collation.collation->mbmaxlen);
+  uint max_sep_count= char_length/3 + (decimals ? 1 : 0) + /*sign*/1;
+  collation.set(default_charset());
+  max_length= (char_length + max_sep_count + decimals) *
+    collation.collation->mbmaxlen;
 }
 
 

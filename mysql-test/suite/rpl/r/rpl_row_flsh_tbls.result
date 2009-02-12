@@ -30,4 +30,5 @@ flush tables with read lock;
 start slave;
 stop slave;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
 drop table t3, t4, t5;

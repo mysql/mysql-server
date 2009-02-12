@@ -20,11 +20,11 @@ let $mms_compare_physically_save=$mms_compare_physically;
 let $mms_compare_physically=0;
 
 # warn mtr that mysqld is going to die and should not be restarted immediately
-#append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
+#append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 #wait-maria_verify_recovery.inc
 #EOF
 # todo: remove this "system" and uncomment above when BUG#32296 is fixed
-system echo wait-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/master0.expect;
+system echo wait-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 # flush page cache and log, only log, or nothing, and kill mysqld with
 # abort().
@@ -56,16 +56,16 @@ if ($mvr_restore_old_snapshot)
   # also copy back control file, to force recovery to start from an early
   # point, ignoring further checkpoints.
   -- error 0,1
-  remove_file $MYSQLTEST_VARDIR/master-data/$MARIA_LOG/maria_log_control;
-  copy_file $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control $MYSQLTEST_VARDIR/master-data/$MARIA_LOG/maria_log_control;
+  remove_file $MYSQLD_DATADIR/$MARIA_LOG/maria_log_control;
+  copy_file $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control $MYSQLD_DATADIR/$MARIA_LOG/maria_log_control;
 }
 
 --echo * recovery happens
 # let mtr restart mysqld (and thus execute the maria log)
-#append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
+#append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 #restart-maria_verify_recovery.inc
 #EOF
-system echo restart-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/master0.expect;
+system echo restart-maria_verify_recovery.inc >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --source include/wait_until_connected_again.inc
 

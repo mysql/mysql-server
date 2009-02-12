@@ -32,6 +32,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
+#include "ha_prototypes.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -2596,6 +2597,7 @@ row_sel_store_mysql_rec(
 	ulint			i;
 
 	ut_ad(prebuilt->mysql_template);
+	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
@@ -2682,58 +2684,14 @@ row_sel_store_mysql_rec(
 					&= ~(byte) templ->mysql_null_bit_mask;
 			}
 		} else {
-			/* MySQL seems to assume the field for an SQL NULL
-			value is set to zero or space. Not taking this into
-			account caused seg faults with NULL BLOB fields, and
-			bug number 154 in the MySQL bug database: GROUP BY
-			and DISTINCT could treat NULL values inequal. */
-			int	pad_char;
+			/* MySQL assumes that the field for an SQL
+			NULL value is set to the default value. */
 
 			mysql_rec[templ->mysql_null_byte_offset]
 				|= (byte) templ->mysql_null_bit_mask;
-			switch (templ->type) {
-			case DATA_VARCHAR:
-			case DATA_BINARY:
-			case DATA_VARMYSQL:
-				if (templ->mysql_type
-				    == DATA_MYSQL_TRUE_VARCHAR) {
-					/* This is a >= 5.0.3 type
-					true VARCHAR.  Zero the field. */
-					pad_char = 0x00;
-					break;
-				}
-				/* Fall through */
-			case DATA_CHAR:
-			case DATA_FIXBINARY:
-			case DATA_MYSQL:
-				/* MySQL pads all string types (except
-				BLOB, TEXT and true VARCHAR) with space. */
-				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
-					/* Treat UCS2 as a special case. */
-					data = mysql_rec
-						+ templ->mysql_col_offset;
-					len = templ->mysql_col_len;
-					/* There are two UCS2 bytes per char,
-					so the length has to be even. */
-					ut_a(!(len & 1));
-					/* Pad with 0x0020. */
-					while (len) {
-						*data++ = 0x00;
-						*data++ = 0x20;
-						len -= 2;
-					}
-					continue;
-				}
-				pad_char = 0x20;
-				break;
-			default:
-				pad_char = 0x00;
-				break;
-			}
-
-			ut_ad(!pad_char || templ->mbminlen == 1);
-			memset(mysql_rec + templ->mysql_col_offset,
-			       pad_char, templ->mysql_col_len);
+			memcpy(mysql_rec + templ->mysql_col_offset,
+			       prebuilt->default_rec + templ->mysql_col_offset,
+			       templ->mysql_col_len);
 		}
 	}
 
@@ -3577,20 +3535,12 @@ shortcut_fails_too_big_rec:
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
-	    && trx->mysql_query_str != NULL
-	    && *trx->mysql_query_str != NULL
-	    && trx->mysql_thd != NULL) {
+	    && trx->mysql_thd != NULL
+	    && thd_is_select(trx->mysql_thd)) {
+		/* It is a plain locking SELECT and the isolation
+		level is low: do not lock gaps */
 
-		/* Scan the MySQL query string; check if SELECT is the first
-		word there */
-
-		if (dict_str_starts_with_keyword(
-			    trx->mysql_thd, *trx->mysql_query_str, "SELECT")) {
-			/* It is a plain locking SELECT and the isolation
-			level is low: do not lock gaps */
-
-			set_also_gap_locks = FALSE;
-		}
+		set_also_gap_locks = FALSE;
 	}
 
 	/* Note that if the search mode was GE or G, then the cursor

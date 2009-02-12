@@ -68,6 +68,7 @@ test	latin1_swedish_ci
 DROP DATABASE mysqltest1;
 
 use test;
+DROP TABLE t1;
 
 
 # Connection: slave

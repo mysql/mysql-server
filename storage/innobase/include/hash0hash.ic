@@ -58,7 +58,8 @@ hash_get_mutex_no(
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold)	/* in: fold */
 {
-	return(ut_2pow_remainder(fold, table->n_mutexes));
+	return(ut_2pow_remainder(hash_calc_hash(fold, table),
+				 table->n_mutexes));
 }
 
 /****************************************************************

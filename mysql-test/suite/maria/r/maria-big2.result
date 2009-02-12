@@ -3,3 +3,4 @@ Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
+drop table t2;

@@ -77,7 +77,7 @@ t1	CREATE TABLE `t1` (
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -85,7 +85,7 @@ t2	CREATE TABLE `t2` (
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 ******************** DDL for indexes ********************
 ALTER TABLE t2 ADD COLUMN d datetime;
@@ -120,7 +120,7 @@ t1	CREATE TABLE `t1` (
   `b` char(254) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `index1` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -131,7 +131,7 @@ t2	CREATE TABLE `t2` (
   KEY `index1` (`b`),
   KEY `index2` (`d`),
   KEY `index3` (`a`,`d`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t2 DROP COLUMN d;
 
 

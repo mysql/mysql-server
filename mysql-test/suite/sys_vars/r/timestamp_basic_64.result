@@ -35,11 +35,6 @@ ERROR 42000: Incorrect argument type to variable 'timestamp'
 SET @@timestamp = 9999999999999999999999;
 ERROR 42000: Incorrect argument type to variable 'timestamp'
 '#----------------------FN_DYNVARS_001_06------------------------#'
-SELECT @@timestamp = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='timestamp';
-@@timestamp = VARIABLE_VALUE
-1
 '#---------------------FN_DYNVARS_001_08-------------------------#'
 SET @@timestamp = OFF;
 ERROR 42000: Incorrect argument type to variable 'timestamp'

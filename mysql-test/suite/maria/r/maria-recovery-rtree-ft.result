@@ -156,4 +156,6 @@ mysqltest.t1	check	status	OK
 Checksum-check
 ok
 use mysqltest;
-drop table t1,t2;
+drop database mysqltest_for_feeding_recovery;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

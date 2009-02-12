@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.31-maria-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.1.32-maria-alpha)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -375,7 +375,7 @@ fi
 MYSQL_PROG_AR
 
 # libmysqlclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
+if $LD --version 2>/dev/null| grep GNU >/dev/null 2>&1; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
@@ -447,11 +447,11 @@ AC_SUBST(PERL5)
 
 # Enable the abi_check rule only if gcc is available
 
-if expr "$CC" : ".*gcc.*"
+if test "$GCC" != "yes" || expr "$CC" : ".*icc.*"
 then
-  ABI_CHECK="abi_check"
-else
   ABI_CHECK=""
+else
+  ABI_CHECK="abi_check"
 fi
 
 AC_SUBST(ABI_CHECK)
@@ -2805,8 +2805,8 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
  cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
- mysql-test/Makefile dnl
- mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
+ mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
+ netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)

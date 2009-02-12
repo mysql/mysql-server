@@ -1,0 +1,223 @@
+** Setup **
+
+** Connecting to con0 using root **
+** Connection con0 **
+SET @start_global_value = @@GLOBAL.query_cache_type;
+SET @start_session_value = @@SESSION.query_cache_type;
+SET @start_query_cache_size= @@global.query_cache_size;
+CREATE TABLE t1(id int, value varchar(10));
+INSERT INTO t1 VALUES(1, 'val1');
+INSERT INTO t1 VALUES(2, 'val2');
+INSERT INTO t1 VALUES(3, 'val3');
+SET @@GLOBAL.query_cache_size = 65536;
+FLUSHING CACHE
+SET @@GLOBAL.query_cache_size = 0;
+SET @@GLOBAL.query_cache_size = 65536;
+** TESTING SESSION SCOPE **
+'#--------------------FN_DYNVARS_135_01-------------------------#'
+SET @@query_cache_type = DEFAULT;
+SELECT @@query_cache_type;
+@@query_cache_type
+ON
+ON Expected
+'#--------------------FN_DYNVARS_135_02-------------------------#'
+SET @@query_cache_type = NULL;
+ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'NULL'
+Expected error: Wrong value for variable
+SET @@query_cache_type = ON;
+SELECT @@query_cache_type;
+@@query_cache_type
+ON
+ON Expected
+SET @@query_cache_type = OFF;
+SELECT @@query_cache_type;
+@@query_cache_type
+OFF
+OFF Expected
+SET @@query_cache_type = DEMAND;
+SELECT @@query_cache_type;
+@@query_cache_type
+DEMAND
+DEMAND Expected
+SET @@query_cache_type = XYZ;
+ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'XYZ'
+Expected error: Wrong value for variable
+** Turning cache to ON **
+SET @@query_cache_type = ON;
+'#--------------------FN_DYNVARS_135_03-------------------------#'
+** CACHE ADDITION **
+
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+0 Expected
+SELECT * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+1 Expected
+SELECT value FROM t1;
+value
+val1
+val2
+val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	2
+2 Expected
+'#--------------------FN_DYNVARS_135_04-------------------------#'
+** CACHE HIT **
+SELECT * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	2
+2 Expected
+SELECT SQL_CACHE value FROM t1;
+value
+val1
+val2
+val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	3
+3 Expected
+SELECT SQL_NO_CACHE value FROM t1;
+value
+val1
+val2
+val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	3
+3 Expected
+'#--------------------FN_DYNVARS_135_05-------------------------#'
+Testing with store procedure
+CREATE PROCEDURE testProcHit()
+BEGIN
+SELECT * FROM t1;
+SELECT SQL_CACHE value FROM t1;
+END|
+CALL testProcHit();
+id	value
+1	val1
+2	val2
+3	val3
+value
+val1
+val2
+val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	5
+Expected value : 3
+==================
+Bug#35388: Stored procedure execution causes improper behavior of query cache.
+'#--------------------FN_DYNVARS_135_06-------------------------#'
+FLUSHING CACHE
+SET @@GLOBAL.query_cache_size = 0;
+SET @@GLOBAL.query_cache_size = 65536;
+** Turning cache to OFF **
+SET @@query_cache_type = OFF;
+SELECT @@query_cache_type;
+@@query_cache_type
+OFF
+SELECT id FROM t1;
+id
+1
+2
+3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+0 Expected
+'#--------------------FN_DYNVARS_135_07-------------------------#'
+SELECT SQL_CACHE id FROM t1;
+id
+1
+2
+3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+0 Expected
+SELECT SQL_CACHE * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+0 Expected
+'#--------------------FN_DYNVARS_135_08-------------------------#'
+FLUSHING CACHE
+SET @@GLOBAL.query_cache_size = 0;
+SET @@GLOBAL.query_cache_size = 65536;
+** Turning cache to DEMAND **
+SET @@query_cache_type = DEMAND;
+SELECT @@query_cache_type;
+@@query_cache_type
+DEMAND
+'#--------------------FN_DYNVARS_135_09-------------------------#'
+SELECT value,id FROM t1;
+value	id
+val1	1
+val2	2
+val3	3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+0 Expected
+SELECT SQL_CACHE * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+0 Expected
+** TESTING GLOBAL SCOPE **
+'#--------------------FN_DYNVARS_135_10-------------------------#'
+SET @@GLOBAL.query_cache_type = OFF;
+** Connecting con1 using root **
+** Connection con1 **
+SELECT @@query_cache_type;
+@@query_cache_type
+OFF
+OFF Expected
+'#--------------------FN_DYNVARS_135_11-------------------------#'
+SET @@GLOBAL.query_cache_type = DEMAND;
+** Connecting con2 using root **
+** Connection con2 **
+SELECT @@query_cache_type;
+@@query_cache_type
+DEMAND
+DEMAND Expected
+'#--------------------FN_DYNVARS_135_12-------------------------#'
+SET @@GLOBAL.query_cache_type = ON;
+** Connecting con3 using root **
+** Connection con3 **
+SELECT @@query_cache_type;
+@@query_cache_type
+ON
+ON Expected
+
+** Cleanup **
+
+Disconnecting con1,con2,con3
+** Connection con0 **
+SET @@GLOBAL.query_cache_type = @start_global_value;
+SET @@SESSION.query_cache_type = @start_session_value;
+SET GLOBAL query_cache_size = @start_query_cache_size;
+DROP TABLE t1;
+DROP PROCEDURE testProcHit;
+Disconnecting con0

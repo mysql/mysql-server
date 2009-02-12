@@ -18,21 +18,21 @@
 if ($mms_copy)
 {
   --echo * copied $mms_tname$mms_table_to_use for $mms_purpose
-  copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAD $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD;
-  copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAI $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI;
-  copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.frm $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.frm;
+  copy_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAD $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD;
+  copy_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAI $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI;
+  copy_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.frm $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.frm;
 }
 
 if ($mms_reverse_copy)
 {
   # do not call this without flushing target table first!
   --echo * copied $mms_tname$mms_table_to_use back for $mms_purpose
- -- error 0,1
-  remove_file $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAD;
-  copy_file $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAD;
   -- error 0,1
-  remove_file $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAI;
-  copy_file $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAI;
+  remove_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAD;
+  copy_file $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAD;
+  -- error 0,1
+  remove_file $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAI;
+  copy_file $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAI;
 }
 
 if ($mms_compare_physically)
@@ -43,7 +43,7 @@ if ($mms_compare_physically)
   # If UNDO phase, we nevertheless compare checksums
   # (see maria_verify_recovery.inc).
   --echo * compared $mms_tname$mms_table_to_use to old version
-  diff_files $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAD $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD;
+  diff_files $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAD $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAD;
 # index file not yet recovered
-#  diff_files $MYSQLTEST_VARDIR/master-data/mysqltest/$mms_tname$mms_table_to_use.MAI $MYSQLTEST_VARDIR/master-data/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI;
+#  diff_files $MYSQLD_DATADIR/mysqltest/$mms_tname$mms_table_to_use.MAI $MYSQLD_DATADIR/mysqltest_for_$mms_purpose/$mms_tname$mms_table_to_use.MAI;
 }

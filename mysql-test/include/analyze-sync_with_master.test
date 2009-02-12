@@ -1,0 +1,6 @@
+SHOW PROCESSLIST;
+
+let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
+eval SHOW BINLOG EVENTS IN '$binlog_name';
+
+exit;

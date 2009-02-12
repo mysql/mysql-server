@@ -64,19 +64,19 @@ insert into t1 select * from t2;
 set global maria_log_file_size=16777216;
 # force a checkpoint to allow log purge
 eval set global maria_checkpoint_interval=$def_checkinterval;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 
 insert into t2 select * from t1;
 insert into t1 select * from t2;
 
 eval set global maria_checkpoint_interval=$def_checkinterval;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 set global maria_log_file_size=16777216;
 select @@global.maria_log_file_size;
 eval set global maria_checkpoint_interval=$def_checkinterval;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 set global maria_log_file_size=8388608;
 select @@global.maria_log_file_size;
@@ -84,26 +84,26 @@ select @@global.maria_log_file_size;
 set global maria_log_purge_type=at_flush;
 insert into t1 select * from t2;
 eval set global maria_checkpoint_interval=$def_checkinterval;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 flush logs;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 
 set global maria_log_file_size=16777216;
 set global maria_log_purge_type=external;
 insert into t1 select * from t2;
 eval set global maria_checkpoint_interval=$def_checkinterval;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 flush logs;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 
 set global maria_log_purge_type=immediate;
 insert into t1 select * from t2;
 eval set global maria_checkpoint_interval=$def_checkinterval;
---replace_regex /Size +[0-9]+ ; .+master-data/master-data/
+--replace_regex /Size +[0-9]+ ; .+maria_log/maria_log/
 SHOW ENGINE maria logs;
 
 drop table t1, t2;
