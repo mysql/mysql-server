@@ -5371,7 +5371,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     if (item->type() == Item::REF_ITEM)
       args[i]= item= *((Item_ref *)item)->ref;
     if (item->type() != Item::FIELD_ITEM)
-      key=NO_SUCH_KEY;
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
+      return TRUE;
+    }
   }
   /*
     Check that all columns come from the same table.
