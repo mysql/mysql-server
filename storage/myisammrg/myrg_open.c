@@ -33,7 +33,6 @@
         myrg_attach_children(). Please duplicate changes in these
         functions or make common sub-functions.
 */
-/* purecov: begin deadcode */ /* not used in MySQL server */
 
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
@@ -198,7 +197,6 @@ err:
   my_errno=save_errno;
   DBUG_RETURN (NULL);
 }
-/* purecov: end */
 
 
 /**
