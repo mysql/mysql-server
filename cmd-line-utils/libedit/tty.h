@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.h,v 1.10 2003/08/07 16:44:34 agc Exp $	*/
+/*	$NetBSD: tty.h,v 1.11 2005/06/01 11:37:52 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -450,8 +450,8 @@
 
 typedef struct {
 	const char	*t_name;
-	u_int	 t_setmask;
-	u_int	 t_clrmask;
+	unsigned int	 t_setmask;
+	unsigned int	 t_clrmask;
 } ttyperm_t[NN_IO][MD_NN];
 
 typedef unsigned char ttychar_t[NN_IO][C_NCC];
