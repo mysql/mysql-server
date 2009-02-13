@@ -9261,6 +9261,11 @@ drop:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_name *spname;
+            if ($4.str && check_db_name(&$4))
+            {
+               my_error(ER_WRONG_DB_NAME, MYF(0), $4.str);
+               MYSQL_YYABORT;
+            }
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");

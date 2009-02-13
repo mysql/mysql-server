@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$NetBSD: makelist,v 1.8 2003/03/10 21:21:10 christos Exp $
+#	$NetBSD: makelist,v 1.11 2005/10/22 16:45:03 christos Exp $
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -15,11 +15,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 3. All advertising materials mentioning features or use of this software
-#    must display the following acknowledgement:
-#	This product includes software developed by the University of
-#	California, Berkeley and its contributors.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -68,6 +64,7 @@ case $FLAG in
 	/\(\):/ {
 	    pr = substr($2, 1, 2);
 	    if (pr == "vi" || pr == "em" || pr == "ed") {
+		# XXXMYSQL: support CRLF
 		name = substr($2, 1, index($2,"(") - 1);
 #
 # XXX:	need a space between name and prototype so that -fc and -fh
@@ -87,7 +84,7 @@ case $FLAG in
     cat $FILES | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
-	    printf("#include \"config.h\"\n#include \"el.h\"\n");
+	    printf("#include \"sys.h\"\n#include \"el.h\"\n");
 	    printf("private const struct el_bindings_t el_func_help[] = {\n");
 	    low = "abcdefghijklmnopqrstuvwxyz_";
 	    high = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_";
@@ -97,6 +94,7 @@ case $FLAG in
 	/\(\):/ {
 	    pr = substr($2, 1, 2);
 	    if (pr == "vi" || pr == "em" || pr == "ed") {
+		# XXXMYSQL: support CRLF
 		name = substr($2, 1, index($2,"(") - 1);
 		uname = "";
 		fname = "";
@@ -117,13 +115,13 @@ case $FLAG in
 		printf("      \"");
 		for (i = 2; i < NF; i++)
 		    printf("%s ", $i);
-                sub("\r", "", $i);
+		# XXXMYSQL: support CRLF
+		sub("\r", "", $i);
 		printf("%s\" },\n", $i);
 		ok = 0;
 	    }
 	}
 	END {
-	    printf("    { NULL, 0, NULL }\n");
 	    printf("};\n");
 	    printf("\nprotected const el_bindings_t* help__get()");
 	    printf("{ return el_func_help; }\n");
@@ -144,6 +142,7 @@ case $FLAG in
 
 #	generate fcns.h from various .h files
 #
+# XXXMYSQL: use portable tr syntax
 -fh)
     cat $FILES | $AWK '/el_action_t/ { print $3 }' | \
     sort | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ | $AWK '
@@ -170,7 +169,7 @@ case $FLAG in
     cat $FILES | $AWK '/el_action_t/ { print $3 }' | sort | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
-	    printf("#include \"config.h\"\n#include \"el.h\"\n");
+	    printf("#include \"sys.h\"\n#include \"el.h\"\n");
 	    printf("private const el_func_t el_func[] = {");
 	    maxlen = 80;
 	    needn = 1;
@@ -220,6 +219,7 @@ case $FLAG in
 	/\(\):/ {
 	    pr = substr($2, 1, 2);
 	    if (pr == "vi" || pr == "em" || pr == "ed") {
+		# XXXMYSQL: support CRLF
 		name = substr($2, 1, index($2, "(") - 1);
 		fname = "";
 		for (i = 1; i <= length(name); i++) {
