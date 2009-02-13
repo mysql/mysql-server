@@ -2519,4 +2519,10 @@ def					format(a, 2)	253	49	4	Y	0	31	8
 format(a, 2)
 1.33
 drop table t1;
+CREATE TABLE t1 (c DATE, aa VARCHAR(30));
+INSERT INTO t1 VALUES ('2008-12-31','aaaaaa');
+SELECT DATE_FORMAT(c, GET_FORMAT(DATE, 'eur')) h, CONCAT(UPPER(aa),', ', aa) i FROM t1;
+h	i
+31.12.2008	AAAAAA, aaaaaa
+DROP TABLE t1;
 End of 5.0 tests

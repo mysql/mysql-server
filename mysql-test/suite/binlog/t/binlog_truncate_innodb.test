@@ -1,0 +1,29 @@
+source include/have_log_bin.inc;
+source include/have_innodb.inc;
+
+# It is necessary to reset the master since otherwise the binlog test
+# might show the wrong binary log. The default for SHOW BINLOG EVENTS
+# is to show the first binary log, not the current one (which is
+# actually a better idea).
+
+RESET MASTER;
+
+let $engine = InnoDB;
+source extra/binlog_tests/binlog_truncate.test;
+
+# Under transaction isolation level READ UNCOMMITTED and READ
+# COMMITTED, InnoDB does not permit statement-based replication of
+# row-deleting statement. In these cases, TRUNCATE TABLE should still
+# be replicated as a statement.
+
+let $before_truncate = SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+source extra/binlog_tests/binlog_truncate.test;
+
+let $before_truncate = SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+source extra/binlog_tests/binlog_truncate.test;
+
+let $before_truncate = SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+source extra/binlog_tests/binlog_truncate.test;
+
+let $before_truncate = SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+source extra/binlog_tests/binlog_truncate.test;
