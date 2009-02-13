@@ -736,6 +736,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     }
   }
 
+  Uint32 lqhInstances = 1;
+  if (globalData.isNdbMtLqh)
+  {
+    lqhInstances = globalData.ndbMtLqhWorkers;
+  }
+
   Uint64 indexMem = 0, dataMem = 0;
   ndb_mgm_get_int64_parameter(&db, CFG_DB_DATA_MEM, &dataMem);
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
@@ -749,8 +755,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
   }
 
+#define DO_DIV(x,y) (((x) + (y - 1)) / (y))
+
   noOfDataPages = (dataMem / 32768);
   noOfIndexPages = (indexMem / 8192);
+  noOfIndexPages = DO_DIV(noOfIndexPages, lqhInstances);
 
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 tmp;
@@ -861,7 +870,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   if (noOfLocalOperations == 0) {
     noOfLocalOperations= (11 * noOfOperations) / 10;
   }
+
   Uint32 noOfTCScanRecords = noOfScanRecords;
+  Uint32 noOfTCLocalScanRecords = noOfLocalScanRecords;
+
+  noOfLocalOperations = DO_DIV(noOfLocalOperations, lqhInstances);
+  noOfLocalScanRecords = DO_DIV(noOfLocalScanRecords, lqhInstances);
 
   {
     Uint32 noOfAccTables= noOfMetaTables/*noOfTables+noOfUniqueHashIndexes*/;
@@ -969,7 +983,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
     
     cfg.put(CFG_TC_LOCAL_SCAN, 
-	    noOfLocalScanRecords);
+	    noOfTCLocalScanRecords);
     
     cfg.put(CFG_TC_SCAN, 
 	    noOfTCScanRecords);

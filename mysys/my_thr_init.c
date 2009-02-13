@@ -344,9 +344,7 @@ void my_thread_end(void)
 
 struct st_my_thread_var *_my_thread_var(void)
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
-  return tmp;
+  return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 }
 
 

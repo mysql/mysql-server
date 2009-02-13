@@ -11,16 +11,33 @@ test -f Makefile && make maintainer-clean
 path=`dirname $0`
 . $path/autorun.sh
 
+gmake=
+for x in gmake gnumake make; do
+  if $x --version 2>/dev/null | grep GNU > /dev/null; then
+    gmake=$x
+    break;
+  fi
+done
+
+if [ -z "$gmake" ]; then
+  # Our build may not depend on GNU make, but I wouldn't count on it
+  echo "Please install GNU make, and ensure it is in your path as gnumake, gmake, or make" >&2
+  exit 2
+fi
+
 # Default to gcc for CC and CXX
 if test -z "$CXX" ; then
+  export CXX
   CXX=gcc
   # Set some required compile options
   if test -z "$CXXFLAGS" ; then
+    export CXXFLAGS
     CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti"
   fi
 fi
 
 if test -z "$CC" ; then
+  export CC
   CC=gcc
 fi
 
@@ -28,36 +45,22 @@ fi
 # Use ccache, if available
 if ccache -V > /dev/null 2>&1
 then
-  if echo "$CC" | grep "ccache" > /dev/null
+  if echo "$CC" | grep -v ccache > /dev/null
   then
-    :
-  else
+    export CC
     CC="ccache $CC"
   fi
-  if echo "$CXX" | grep "ccache" > /dev/null
+  if echo "$CXX" | grep -v ccache > /dev/null
   then
-    :
-  else
+    export CXX
     CXX="ccache $CXX"
   fi
 fi
-
-if test -z "$MAKE"
-then
-  if gmake -v > /dev/null 2>&1
-  then
-    MAKE="gmake"
-  else
-    MAKE="make"
-  fi
-fi
-
-export CC CXX MAKE
 
 # Make sure to enable all features that affect "make dist"
 # Remember that configure restricts the man pages to the configured features !
 ./configure \
   --with-embedded-server \
   --with-ndbcluster
-$MAKE
+$gmake
 

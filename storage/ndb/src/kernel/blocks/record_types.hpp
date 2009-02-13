@@ -50,10 +50,15 @@
 #define RG_FILE_BUFFERS         5
 
 /**
+ * Transporter buffers
+ */
+#define RG_TRANSPORTER_BUFFERS  6
+
+/**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                5
+#define RG_COUNT                6
 
 /**
  * Record types

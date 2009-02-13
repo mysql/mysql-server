@@ -1,33 +1,25 @@
-** Setup **
-
-** Connecting con0 using root **
 ** Connecting con1 using root **
-'#-----------------------------FN_DYNVARS_179_01------------------#'
-** Connection con0 **
-SET @ts_old = @@SESSION.timestamp;
-waiting 1 sec
-SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
-Timestamp Difference
+SELECT date(now()) = date(sysdate());
+date(now()) = date(sysdate())
 1
-1 means >=1 expected is true
+SET @@session.timestamp = 1100000000;
+SELECT date(now()) != date(sysdate());
+date(now()) != date(sysdate())
+1
+** Connecting con0 using root **
+SELECT @@session.timestamp != 1100000000;
+@@session.timestamp != 1100000000
+1
+SET @@session.timestamp = 1000000000;
+SELECT date(now()) != date(sysdate());
+date(now()) != date(sysdate())
+1
 ** Connection con1 **
-SET @ts_old = @@SESSION.timestamp;
-waiting 4 sec
-SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old >= 4 AS 'Timestamp Difference';
-Timestamp Difference
+SELECT @@session.timestamp != 1000000000;
+@@session.timestamp != 1000000000
 1
-1 means >=4 expected is true
-'#-----------------------------FN_DYNVARS_179_02---------------------#'
-SET @ts_old = @@SESSION.timestamp;
-Changing time zone
-SET time_zone = 'MET';
-SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
-Timestamp Difference
+SELECT @@session.timestamp = 1100000000;
+@@session.timestamp = 1100000000
 1
-1 means >=1 expected is true
-** Cleanup **
 ** Connection default **
 Disconnecting Connections con0, con1

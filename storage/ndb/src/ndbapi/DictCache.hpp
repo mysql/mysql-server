@@ -76,6 +76,15 @@ public:
 
   unsigned get_size();
   void invalidate_all();
+
+  // update reference count by +1 or -1
+  int inc_ref_count(const NdbTableImpl * impl) {
+    return chg_ref_count(impl, +1);
+  }
+  int dec_ref_count(const NdbTableImpl * impl) {
+    return chg_ref_count(impl, -1);
+  }
+
 public:
   enum Status {
     OK = 0,
@@ -85,6 +94,7 @@ public:
   
 private:
   void printCache();
+  int chg_ref_count(const NdbTableImpl *, int value);
 
   struct TableVersion {
     Uint32 m_version;

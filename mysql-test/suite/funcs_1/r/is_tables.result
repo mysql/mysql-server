@@ -45,7 +45,7 @@ AUTO_INCREMENT	bigint(21) unsigned	YES		NULL
 CREATE_TIME	datetime	YES		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
-TABLE_COLLATION	varchar(64)	YES		NULL	
+TABLE_COLLATION	varchar(32)	YES		NULL	
 CHECKSUM	bigint(21) unsigned	YES		NULL	
 CREATE_OPTIONS	varchar(255)	YES		NULL	
 TABLE_COMMENT	varchar(80)	NO			
@@ -69,7 +69,7 @@ TABLES	CREATE TEMPORARY TABLE `TABLES` (
   `CREATE_TIME` datetime DEFAULT NULL,
   `UPDATE_TIME` datetime DEFAULT NULL,
   `CHECK_TIME` datetime DEFAULT NULL,
-  `TABLE_COLLATION` varchar(64) DEFAULT NULL,
+  `TABLE_COLLATION` varchar(32) DEFAULT NULL,
   `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
   `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
   `TABLE_COMMENT` varchar(80) NOT NULL DEFAULT ''
@@ -93,7 +93,7 @@ AUTO_INCREMENT	bigint(21) unsigned	YES		NULL
 CREATE_TIME	datetime	YES		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
-TABLE_COLLATION	varchar(64)	YES		NULL	
+TABLE_COLLATION	varchar(32)	YES		NULL	
 CHECKSUM	bigint(21) unsigned	YES		NULL	
 CREATE_OPTIONS	varchar(255)	YES		NULL	
 TABLE_COMMENT	varchar(80)	NO			
@@ -310,6 +310,7 @@ SELECT UPDATE_TIME, checksum INTO @UPDATE_TIME, @checksum
 FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
+FLUSH TABLES;
 SELECT UPDATE_TIME > @UPDATE_TIME
 AS "Is current UPDATE_TIME bigger than before last INSERT?"
 FROM information_schema.tables

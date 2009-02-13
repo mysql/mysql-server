@@ -999,6 +999,40 @@ static bool ok(const Properties& reply)
   return false;
 }
 
+static bool failed(const Properties& reply)
+{
+  BaseString result(get_result(reply));
+  if (result == "Failed")
+    return true;
+  return false;
+}
+
+static const char*
+get_message(const Properties& reply)
+{
+  const char* message;
+  if (!reply.get("message", &message)){
+    ndbout_c("message: no 'message' found in reply");
+    return NULL;
+  }
+  return message;
+}
+
+
+static bool message_contains(const Properties& reply,
+                            const char* expected_message)
+{
+  BaseString message(get_message(reply));
+  if (strstr(message.c_str(), expected_message) == NULL){
+    ndbout_c("message_contains: message string '%s' "
+             "didn't contain expected message '%s'",
+             message.c_str(), expected_message);
+    return false;
+  }
+  g_info << " message: " << message << endl;
+  return true;
+}
+
 
 static bool get_nodeid_result_contains(NdbMgmd& mgmd,
                                        const Properties& args,
@@ -1290,6 +1324,92 @@ int runTestGetVersionUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
     ;
   return result;
 }
+
+
+
+static bool
+check_connection(NdbMgmd& mgmd)
+{
+  Properties args, reply;
+  mgmd.verbose(false); // Verbose off
+  bool result= mgmd.call("check connection", args,
+                         "check connection reply", reply);
+  mgmd.verbose(); // Verbose on
+  return result;
+}
+
+
+static bool
+check_transporter_connect(NdbMgmd& mgmd, const char * hello)
+{
+  SocketOutputStream out(mgmd.socket());
+
+  // Call 'transporter connect'
+  if (out.println("transporter connect") ||
+      out.println(""))
+  {
+    g_err << "Send failed" << endl;
+    return false;
+  }
+
+  // Send the 'hello'
+  g_info << "Client hello: '" << hello << "'" << endl;
+  if (out.println(hello))
+  {
+    g_err << "Send hello '" << hello << "' failed" << endl;
+    return false;
+  }
+
+  // Should not be possible to read a reply now, socket
+  // should have been closed
+  if (check_connection(mgmd)){
+    g_err << "not disconnected" << endl;
+    return false;
+  }
+
+  // disconnect and connect again
+  if (!mgmd.disconnect())
+    return false;
+  if (!mgmd.connect())
+    return false;
+
+  return true;
+}
+
+
+int runTestTransporterConnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result = NDBT_FAILED;
+  if (
+      // Junk hello strings
+      check_transporter_connect(mgmd, "hello") &&
+      check_transporter_connect(mgmd, "hello again") &&
+
+      // "Blow" the buffer
+      check_transporter_connect(mgmd, "string_longer_than_buf_1234567890") &&
+
+      // Out of range nodeid
+      check_transporter_connect(mgmd, "-1") &&
+      check_transporter_connect(mgmd, "-2 2") &&
+      check_transporter_connect(mgmd, "10000") &&
+      check_transporter_connect(mgmd, "99999 8") &&
+
+      // Valid nodeid, invalid transporter type
+      // Valid nodeid and transporter type, state != CONNECTING
+      // ^These are only possible to test by finding an existing
+      //  NDB node that are not started and use its setting(s)
+
+      true)
+   result = NDBT_OK;
+
+  return result;
+}
+
 
 static bool
 show_config(NdbMgmd& mgmd,
@@ -1815,6 +1935,256 @@ int runTestSetConfigParallelUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+
+static bool
+get_connection_parameter(NdbMgmd& mgmd,
+                         const Properties& args,
+                         Properties& reply)
+{
+
+  // Fill in default values of other args
+  Properties call_args(args);
+  if (!call_args.contains("node1"))
+    call_args.put("node1", 1);
+  if (!call_args.contains("node2"))
+    call_args.put("node2", 1);
+  if (!call_args.contains("param"))
+    call_args.put("param", CFG_CONNECTION_SERVER_PORT);
+
+  if (!mgmd.call("get connection parameter", call_args,
+                 "get connection parameter reply", reply))
+  {
+    g_err << "get_connection_parameter: mgmd.call failed" << endl;
+    return false;
+  }
+  return true;
+}
+
+
+static bool
+set_connection_parameter(NdbMgmd& mgmd,
+                         const Properties& args,
+                         Properties& reply)
+{
+
+  // Fill in default values of other args
+  Properties call_args(args);
+  if (!call_args.contains("node1"))
+    call_args.put("node1", 1);
+  if (!call_args.contains("node2"))
+    call_args.put("node2", 1);
+  if (!call_args.contains("param"))
+    call_args.put("param", CFG_CONNECTION_SERVER_PORT);
+ if (!call_args.contains("value"))
+    call_args.put("value", 37);
+
+  if (!mgmd.call("set connection parameter", call_args,
+                 "set connection parameter reply", reply))
+  {
+    g_err << "set_connection_parameter: mgmd.call failed" << endl;
+    return false;
+  }
+  return true;
+}
+
+
+static bool
+check_connection_parameter_invalid_nodeid(NdbMgmd& mgmd)
+{
+  for (int nodeId = MAX_NODES; nodeId < MAX_NODES+2; nodeId++){
+    g_info << "Testing invalid node " << nodeId << endl;;
+
+    Properties args;
+    args.put("node1", nodeId);
+    args.put("node2", nodeId);
+
+    Properties get_result;
+    if (!get_connection_parameter(mgmd, args, get_result))
+      return false;
+
+    if (!result_contains(get_result,
+                         "Unable to find connection between nodes"))
+        return false;
+
+    Properties set_result;
+    if (!set_connection_parameter(mgmd, args, set_result))
+      return false;
+
+    if (!failed(set_result))
+        return false;
+
+    if (!message_contains(set_result,
+                          "Unable to find connection between nodes"))
+        return false;
+  }
+  return true;
+}
+
+
+static bool
+check_connection_parameter(NdbMgmd& mgmd)
+{
+  NodeId otherNodeId = 0;
+  BaseString original_value;
+
+  // Get current value of first connection between mgmd and other node
+  for (int nodeId = 1; nodeId < MAX_NODES; nodeId++){
+
+    g_info << "Checking if connection between " << mgmd.nodeid()
+           << " and " << nodeId << " exists" << endl;
+
+    Properties args;
+    args.put("node1", mgmd.nodeid());
+    args.put("node2", nodeId);
+
+    Properties result;
+    if (!get_connection_parameter(mgmd, args, result))
+      return false;
+
+    if (!ok(result))
+      continue;
+
+    result.print();
+    // Get the nodeid
+    otherNodeId = nodeId;
+
+    // Get original value
+    if (!result.get("value", original_value))
+    {
+      g_err << "Failed to get original value" << endl;
+      return false;
+    }
+    break; // Done with the loop
+  }
+
+  if (otherNodeId == 0)
+  {
+    g_err << "Could not find a suitable connection for test" << endl;
+    return false;
+  }
+
+  Properties get_args;
+  get_args.put("node1", mgmd.nodeid());
+  get_args.put("node2", otherNodeId);
+
+  {
+    g_info <<  "Set new value(37 by default)" << endl;
+
+    Properties set_args(get_args);
+    Properties set_result;
+    if (!set_connection_parameter(mgmd, set_args, set_result))
+      return false;
+
+    if (!ok(set_result))
+      return false;
+  }
+
+  {
+    g_info << "Check new value" << endl;
+
+    Properties get_result;
+    if (!get_connection_parameter(mgmd, get_args, get_result))
+      return false;
+
+    if (!ok(get_result))
+      return false;
+
+    BaseString new_value;
+    if (!get_result.get("value", new_value))
+    {
+      g_err << "Failed to get new value" << endl;
+      return false;
+    }
+
+    g_info << "new_value: " << new_value << endl;
+    if (new_value != "37")
+    {
+      g_err << "New value was not correct, expected 37, got "
+            << new_value << endl;
+      return false;
+    }
+  }
+
+  {
+    g_info << "Restore old value" << endl;
+
+    Properties set_args(get_args);
+    if (!set_args.put("value", original_value.c_str()))
+    {
+      g_err << "Failed to put original_value" << endl;
+      return false;
+    }
+
+    Properties set_result;
+    if (!set_connection_parameter(mgmd, set_args, set_result))
+      return false;
+
+    if (!ok(set_result))
+      return false;
+  }
+
+  {
+    g_info << "Check restored value" << endl;
+    Properties get_result;
+    if (!get_connection_parameter(mgmd, get_args, get_result))
+      return false;
+
+    if (!ok(get_result))
+      return false;
+
+    BaseString restored_value;
+    if (!get_result.get("value", restored_value))
+    {
+      g_err << "Failed to get restored value" << endl;
+      return false;
+    }
+
+    if (restored_value != original_value)
+    {
+      g_err << "Restored value was not correct, expected "
+            << original_value << ", got "
+            << restored_value << endl;
+      return false;
+    }
+    g_info << "restored_value: " << restored_value << endl;
+  }
+
+  return true;
+
+}
+
+
+int runTestConnectionParameter(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int result= NDBT_FAILED;
+  if (
+      check_connection_parameter(mgmd) &&
+      check_connection_parameter_invalid_nodeid(mgmd) &&
+      true)
+    result= NDBT_OK;
+
+  if (!mgmd.end_session())
+    result= NDBT_FAILED;
+
+  return result;
+}
+
+
+int runTestConnectionParameterUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runTestConnectionParameter(ctx, step)) == NDBT_OK)
+    ;
+  return result;
+}
+
+
 #ifdef NOT_YET
 static bool
 check_restart_connected(NdbMgmd& mgmd)
@@ -1844,6 +2214,53 @@ int runTestRestartMgmd(NDBT_Context* ctx, NDBT_Step* step)
 }
 #endif
 
+
+int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {
+    15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+    1, NDB_MGM_EVENT_CATEGORY_STARTUP,
+    0
+  };
+  NdbLogEventHandle le_handle =
+    ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+  if (!le_handle)
+    return NDBT_FAILED;
+
+  g_info << "Calling ndb_log_event_get_next" << endl;
+
+  struct ndb_logevent le_event;
+  int r = ndb_logevent_get_next(le_handle,
+                                &le_event,
+                                2000);
+  g_info << "ndb_log_event_get_next returned " << r << endl;
+
+  int result = NDBT_FAILED;
+  if (r == 0)
+  {
+    // Got timeout
+    g_info << "ndb_logevent_get_next returned timeout" << endl;
+    result = NDBT_OK;
+  }
+  else
+  {
+    if(r>0)
+      g_err << "ERROR: Receieved unexpected event: "
+            << le_event.type << endl;
+    if(r<0)
+      g_err << "ERROR: ndb_logevent_get_next returned error: "
+            << r << endl;
+  }
+
+  ndb_mgm_destroy_logevent_handle(&le_handle);
+
+  return result;
+}
 
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
@@ -1931,12 +2348,25 @@ TESTCASE("TestGetVersion",
 	 "Test 'get version'"){
   INITIALIZER(runTestGetVersion);
 }
+TESTCASE("TestTransporterConnect",
+	 "Test 'transporter connect'"){
+  INITIALIZER(runTestTransporterConnect);
+}
+TESTCASE("TestConnectionParameter",
+	 "Test 'get/set connection parameter'"){
+  INITIALIZER(runTestConnectionParameter);
+}
 #ifdef NOT_YET
 TESTCASE("TestRestartMgmd",
         "Test restart of ndb_mgmd(s)"){
   INITIALIZER(runTestRestartMgmd);
 }
 #endif
+TESTCASE("Bug40922",
+	 "Make sure that ndb_logevent_get_next returns when "
+         "called with a timeout"){
+  INITIALIZER(runTestBug40922);
+}
 TESTCASE("Stress",
 	 "Run everything while changing config"){
   STEP(runTestGetNodeIdUntilStopped);

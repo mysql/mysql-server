@@ -105,4 +105,9 @@ void
 NdbShutdown(NdbShutdownType type, 
 	    NdbRestartType restartType = NRT_Default);
 
+/**
+ * Compute no of pages to be used as job-buffer
+ */
+Uint32 compute_jb_pages(struct EmulatorData* ed);
+
 #endif 

@@ -89,6 +89,12 @@
 
 #define S_IROTH		S_IREAD		/* for my_lib */
 
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
+
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
 #define O_TEMPORARY	0
@@ -251,6 +257,15 @@ inline double ulonglong2double(ulonglong value)
 }
 #define my_off_t2double(A) ulonglong2double(A)
 #endif /* _WIN64 */
+
+inline ulonglong double2ulonglong(double d)
+{
+  double t= d - (double) 0x8000000000000000ULL;
+
+  if (t >= 0)
+    return  ((ulonglong) t) + 0x8000000000000000ULL;
+  return (ulonglong) d;
+}
 
 #if SIZEOF_OFF_T > 4
 #define lseek(A,B,C) _lseeki64((A),(longlong) (B),(C))

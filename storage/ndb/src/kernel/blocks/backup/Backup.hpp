@@ -480,6 +480,9 @@ public:
       SignalCounter sendCounter;
       Uint32 errorCode;
       union {
+        struct {
+          Uint32 retriesLeft;
+        } sequence;
 	struct {
 	  Uint32 startBackup;
 	} waitGCP;
@@ -648,6 +651,8 @@ public:
   void abort_scan(Signal*, BackupRecordPtr ptr);
   void removeBackup(Signal*, BackupRecordPtr ptr);
 
+  void sendUtilSequenceReq(Signal*, BackupRecordPtr ptr, Uint32 delay = 0);
+
   /*
     For periodic backup status reporting and explicit backup status reporting
   */
@@ -674,6 +679,14 @@ public:
   void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
 
   BackupFormat::LogFile::LogEntry* get_log_buffer(Signal*,TriggerPtr, Uint32);
+
+  /*
+   * MT LQH.  LCP runs separately in each instance number.
+   * BACKUP uses instance key 1 (real instance 0 or 1).
+  */
+  Uint32 instanceKey(BackupRecordPtr ptr) {
+    return ptr.p->is_lcp() ? instance() : 1;
+  }
 };
 
 inline

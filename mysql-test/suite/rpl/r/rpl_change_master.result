@@ -50,7 +50,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 change master to master_user='root';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -91,7 +91,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 start slave;
 select * from t1;
 n
@@ -139,7 +139,7 @@ Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	0.0.0.0
+Master_Bind	
 change master to master_bind='127.0.0.1';
 show slave status;;
 Slave_IO_State	#

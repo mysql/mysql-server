@@ -751,6 +751,51 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
 }
 
 
+/* Return true if node with "nodeId" is a MGM node */
+static bool is_mgmd(Uint32 nodeId,
+                    const ndb_mgm_configuration * conf)
+{
+  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, nodeId))
+    abort();
+  Uint32 type;
+  if(iter.get(CFG_TYPE_OF_SECTION, &type))
+    abort();
+
+  return (type == NODE_TYPE_MGM);
+}
+
+
+bool
+TransporterFacade::do_connect_mgm(NodeId nodeId,
+                                  const ndb_mgm_configuration* conf)
+{
+  // Allow other MGM nodes to connect
+  DBUG_ENTER("TransporterFacade::do_connect_mgm");
+  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_CONNECTION);
+  for(iter.first(); iter.valid(); iter.next())
+  {
+    Uint32 nodeId1, nodeId2, remoteNodeId;
+    if (iter.get(CFG_CONNECTION_NODE_1, &nodeId1) ||
+        iter.get(CFG_CONNECTION_NODE_2, &nodeId2))
+      DBUG_RETURN(false);
+
+    // Skip connections where this node is not involved
+    if (nodeId1 != nodeId && nodeId2 != nodeId)
+      continue;
+
+    // If both sides are MGM, open connection
+    if(is_mgmd(nodeId1, conf) && is_mgmd(nodeId2, conf))
+    {
+      Uint32 remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
+      DBUG_PRINT("info", ("opening connection to node %d", remoteNodeId));
+      doConnect(remoteNodeId);
+    }
+  }
+  DBUG_RETURN(true);
+}
+
+
 bool
 TransporterFacade::configure(NodeId nodeId,
                              const ndb_mgm_configuration* conf)
@@ -765,6 +810,10 @@ TransporterFacade::configure(NodeId nodeId,
   if (!IPCConfig::configureTransporters(nodeId,
                                         * conf,
                                         * theTransporterRegistry))
+    DBUG_RETURN(false);
+
+  // Open connection between MGM servers
+  if (!do_connect_mgm(nodeId, conf))
     DBUG_RETURN(false);
 
   // Configure cluster manager
@@ -838,7 +887,6 @@ TransporterFacade::configure(NodeId nodeId,
 void
 TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 {
-  DBUG_ENTER("TransporterFacade::for_each");
   Uint32 sz = m_threads.m_statusNext.size();
   TransporterFacade::ThreadData::Object_Execute oe; 
   for (Uint32 i = 0; i < sz ; i ++) 
@@ -849,7 +897,6 @@ TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       (* oe.m_executeFunction) (oe.m_object, aSignal, ptr);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 void

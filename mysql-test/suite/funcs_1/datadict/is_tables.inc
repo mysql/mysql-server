@@ -346,6 +346,7 @@ WHERE table_name = 't1_my_tablex';
 #   Enforce a time difference bigger than the smallest unit (1 second).
 --real_sleep 1.1
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
+FLUSH TABLES;
 SELECT UPDATE_TIME > @UPDATE_TIME
     AS "Is current UPDATE_TIME bigger than before last INSERT?"
 FROM information_schema.tables

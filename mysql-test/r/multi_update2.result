@@ -1,0 +1,25 @@
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL) ;
+# The protocolling of many inserts into t1 is suppressed.
+ALTER TABLE t1 ADD INDEX i1(a);
+DELETE FROM t1 WHERE a > 2000000;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT 't2 rows before small delete', COUNT(*) FROM t1;
+t2 rows before small delete	COUNT(*)
+t2 rows before small delete	2000000
+DELETE t1,t2 FROM t1,t2 WHERE t1.b=t2.a AND t1.a < 2;
+SELECT 't2 rows after small delete', COUNT(*) FROM t2;
+t2 rows after small delete	COUNT(*)
+t2 rows after small delete	1999999
+SELECT 't1 rows after small delete', COUNT(*) FROM t1;
+t1 rows after small delete	COUNT(*)
+t1 rows after small delete	1999999
+DELETE t1,t2 FROM t1,t2 WHERE t1.b=t2.a AND t1.a < 100*1000;
+SELECT 't2 rows after big delete', COUNT(*) FROM t2;
+t2 rows after big delete	COUNT(*)
+t2 rows after big delete	1900001
+SELECT 't1 rows after big delete', COUNT(*) FROM t1;
+t1 rows after big delete	COUNT(*)
+t1 rows after big delete	1900001
+DROP TABLE t1,t2;

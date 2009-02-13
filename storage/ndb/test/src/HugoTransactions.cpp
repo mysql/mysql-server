@@ -51,8 +51,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
   while (true){
 
     if (retryAttempt >= m_retryMax){
-      g_err << "ERROR: has retried this operation " << retryAttempt 
-	    << " times, failing!" << endl;
+      g_err << __LINE__ << " ERROR: has retried this operation " 
+            << retryAttempt << " times, failing!" << endl;
       return NDBT_FAILED;
     }
 
@@ -154,6 +154,18 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 	  // Too many active scans, no limit on number of retry attempts
 	  break;
 	default:
+          if (err.classification == NdbError::TimeoutExpired)
+          {
+            if (retryAttempt >= (m_retryMax / 10) && 
+                (parallelism == 0 || parallelism > 1))
+            {
+              /**
+               * decrease parallelism
+               */
+              parallelism = 1;
+              ndbout_c("decrease parallelism");
+            }
+          }
 	  retryAttempt++;
 	}
 	continue;
@@ -195,8 +207,10 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
   while (true){
 
     if (retryAttempt >= m_retryMax){
-      g_err << "ERROR: has retried this operation " << retryAttempt 
-	    << " times, failing!" << endl;
+      g_err << __LINE__ << " ERROR: has retried this operation " 
+            << retryAttempt  << " times, failing!" << endl;
+      g_err << "lm: " << Uint32(lm) << " flags: H'" << hex << scan_flags
+            << endl;
       return NDBT_FAILED;
     }
 
@@ -298,6 +312,18 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 	  // Too many active scans, no limit on number of retry attempts
 	  break;
 	default:
+          if (err.classification == NdbError::TimeoutExpired)
+          {
+            if (retryAttempt >= (m_retryMax / 10) && 
+                (parallelism == 0 || parallelism > 1))
+            {
+              /**
+               * decrease parallelism
+               */
+              parallelism = 1;
+              ndbout_c("decrease parallelism");
+            }
+          }
 	  retryAttempt++;
 	}
 	continue;

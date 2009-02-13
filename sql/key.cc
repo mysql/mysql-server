@@ -448,84 +448,104 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
 }
 
 
-/*
-  Compare two records in index order
-  SYNOPSIS
-    key_rec_cmp()
-    key                         Index information
-    rec0                        Pointer to table->record[0]
-    first_rec                   Pointer to record compare with
-    second_rec                  Pointer to record compare against first_rec
+/**
+  Compare two records in index order.
 
-  DESCRIPTION
-    This method is set-up such that it can be called directly from the
-    priority queue and it is attempted to be optimised as much as possible
-    since this will be called O(N * log N) times while performing a merge
-    sort in various places in the code.
+  This method is set-up such that it can be called directly from the
+  priority queue and it is attempted to be optimised as much as possible
+  since this will be called O(N * log N) times while performing a merge
+  sort in various places in the code.
 
-    We retrieve the pointer to table->record[0] using the fact that key_parts
-    have an offset making it possible to calculate the start of the record.
-    We need to get the diff to the compared record since none of the records
-    being compared are stored in table->record[0].
+  We retrieve the pointer to table->record[0] using the fact that key_parts
+  have an offset making it possible to calculate the start of the record.
+  We need to get the diff to the compared record since none of the records
+  being compared are stored in table->record[0].
 
-    We first check for NULL values, if there are no NULL values we use
-    a compare method that gets two field pointers and a max length
-    and return the result of the comparison.
+  We first check for NULL values, if there are no NULL values we use
+  a compare method that gets two field pointers and a max length
+  and return the result of the comparison.
+
+  key is a null terminated array, since in some cases (clustered
+  primary key) it must compare more than one index.
+
+  @param key                    Null terminated array of index information
+  @param first_rec              Pointer to record compare with
+  @param second_rec             Pointer to record compare against first_rec
+
+  @return Return value is SIGN(first_rec - second_rec)
+    @retval  0                  Keys are equal
+    @retval -1                  second_rec is greater than first_rec
+    @retval +1                  first_rec is greater than second_rec
 */
 
-int key_rec_cmp(void *key, uchar *first_rec, uchar *second_rec)
+int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
 {
-  KEY *key_info= (KEY*)key;
-  uint key_parts= key_info->key_parts, i= 0;
+  KEY **key= (KEY**) key_p;
+  KEY *key_info= *(key++);                     // Start with first key
+  uint key_parts, key_part_num;
   KEY_PART_INFO *key_part= key_info->key_part;
   uchar *rec0= key_part->field->ptr - key_part->offset;
   my_ptrdiff_t first_diff= first_rec - rec0, sec_diff= second_rec - rec0;
   int result= 0;
+  Field *field;
   DBUG_ENTER("key_rec_cmp");
 
+  /* loop over all given keys */
   do
   {
-    Field *field= key_part->field;
+    key_parts= key_info->key_parts;
+    key_part= key_info->key_part;
+    key_part_num= 0;
 
-    if (key_part->null_bit)
+    /* loop over every key part */
+    do
     {
-      /* The key_part can contain NULL values */
-      bool first_is_null= field->is_null_in_record_with_offset(first_diff);
-      bool sec_is_null= field->is_null_in_record_with_offset(sec_diff);
-      /*
-        NULL is smaller then everything so if first is NULL and the other
-        not then we know that we should return -1 and for the opposite
-        we should return +1. If both are NULL then we call it equality
-        although it is a strange form of equality, we have equally little
-        information of the real value.
-      */
-      if (!first_is_null)
+      field= key_part->field;
+
+      if (key_part->null_bit)
       {
-        if (!sec_is_null)
-          ; /* Fall through, no NULL fields */
-        else
+        /* The key_part can contain NULL values */
+        bool first_is_null= field->is_null_in_record_with_offset(first_diff);
+        bool sec_is_null= field->is_null_in_record_with_offset(sec_diff);
+        /*
+          NULL is smaller then everything so if first is NULL and the other
+          not then we know that we should return -1 and for the opposite
+          we should return +1. If both are NULL then we call it equality
+          although it is a strange form of equality, we have equally little
+          information of the real value.
+        */
+        if (!first_is_null)
         {
-          DBUG_RETURN(+1);
+          if (!sec_is_null)
+            ; /* Fall through, no NULL fields */
+          else
+          {
+            DBUG_RETURN(+1);
+          }
         }
+        else if (!sec_is_null)
+        {
+          DBUG_RETURN(-1);
+        }
+        else
+          goto next_loop; /* Both were NULL */
       }
-      else if (!sec_is_null)
-      {
-        DBUG_RETURN(-1);
-      }
-      else
-        goto next_loop; /* Both were NULL */
-    }
-    /*
-      No null values in the fields
-      We use the virtual method cmp_max with a max length parameter.
-      For most field types this translates into a cmp without
-      max length. The exceptions are the BLOB and VARCHAR field types
-      that take the max length into account.
-    */
-    result= field->cmp_max(field->ptr+first_diff, field->ptr+sec_diff,
-                           key_part->length);
+      /*
+        No null values in the fields
+        We use the virtual method cmp_max with a max length parameter.
+        For most field types this translates into a cmp without
+        max length. The exceptions are the BLOB and VARCHAR field types
+        that take the max length into account.
+      */
+      if ((result= field->cmp_max(field->ptr+first_diff, field->ptr+sec_diff,
+                             key_part->length)))
+        DBUG_RETURN(result);
 next_loop:
-    key_part++;
-  } while (!result && ++i < key_parts);
-  DBUG_RETURN(result);
+      key_part++;
+      key_part_num++;
+    } while (key_part_num < key_parts); /* this key is done */
+
+    key_info= *(key++);
+  } while (key_info); /* no more keys to test */
+  DBUG_RETURN(0);
 }

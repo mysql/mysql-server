@@ -73,7 +73,11 @@ private:
   int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
-  
+
+  int connect(int no_retries,
+              int retry_delay_in_seconds,
+              int verbose);
+
   Ndb_cluster_connection *m_main_connection;
   GlobalDictCache *m_globalDictCache;
   TransporterFacade *m_transporter_facade;

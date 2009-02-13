@@ -236,22 +236,22 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
   MGM_CMD("set parameter", &MgmApiSession::setParameter, ""),
-    MGM_ARG("node", String, Mandatory, "Node"),
-    MGM_ARG("parameter", String, Mandatory, "Parameter"),
+    MGM_ARG("node", Int, Mandatory, "Node"),
+    MGM_ARG("parameter", Int, Mandatory, "Parameter"),
     MGM_ARG("value", String, Mandatory, "Value"),
 
   MGM_CMD("set connection parameter",
 	  &MgmApiSession::setConnectionParameter, ""),
-    MGM_ARG("node1", String, Mandatory, "Node1 ID"),
-    MGM_ARG("node2", String, Mandatory, "Node2 ID"),
-    MGM_ARG("param", String, Mandatory, "Parameter"),
-    MGM_ARG("value", String, Mandatory, "Value"),
+    MGM_ARG("node1", Int, Mandatory, "Node1 ID"),
+    MGM_ARG("node2", Int, Mandatory, "Node2 ID"),
+    MGM_ARG("param", Int, Mandatory, "Parameter"),
+    MGM_ARG("value", Int, Mandatory, "Value"),
 
   MGM_CMD("get connection parameter",
 	  &MgmApiSession::getConnectionParameter, ""),
-    MGM_ARG("node1", String, Mandatory, "Node1 ID"),
-    MGM_ARG("node2", String, Mandatory, "Node2 ID"),
-    MGM_ARG("param", String, Mandatory, "Parameter"),
+    MGM_ARG("node1", Int, Mandatory, "Node1 ID"),
+    MGM_ARG("node2", Int, Mandatory, "Node2 ID"),
+    MGM_ARG("param", Int, Mandatory, "Parameter"),
 
   MGM_CMD("listen event", &MgmApiSession::listen_event, ""),
     MGM_ARG("node", Int, Optional, "Node"),  
@@ -321,11 +321,11 @@ extern int g_errorInsert;
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
-  : SocketServer::Session(sock), m_mgmsrv(mgm)
+  : SocketServer::Session(sock), m_mgmsrv(mgm), m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
-  m_input = new SocketInputStream(sock, 30000);
-  m_output = new BufferedSockOutputStream(sock, 30000);
+  m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
+  m_output = new BufferedSockOutputStream(sock, SOCKET_TIMEOUT);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;
@@ -336,8 +336,9 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
 
   struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  my_getpeername(sock, (struct sockaddr*)&addr, &addrlen);
-  m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  if (my_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
+    m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
 
   DBUG_VOID_RETURN;
 }
@@ -385,11 +386,12 @@ MgmApiSession::runSession()
 
     if (m_parser->run(ctx, *this))
     {
-      stop= m_stop;
+      stop= m_stop; // Has session been stopped
       assert(ctx.m_status == Parser_t::Ok);
     }
     else
     {
+      stop= m_stop; // Has session been stopped
       const char* msg= NULL;
       switch(ctx.m_status) {
       case Parser_t::Eof:    // Client disconnected
@@ -1504,18 +1506,20 @@ Ndb_mgmd_event_service::stop_sessions(){
 
 void
 MgmApiSession::setParameter(Parser_t::Context &,
-			    Properties const &args) {
-  BaseString node, param, value;
-  args.get("node", node);
-  args.get("parameter", param);
+			    Properties const &args)
+{
+  Uint32 node, param;
+  BaseString value;
+  args.get("node", &node);
+  args.get("parameter", &param);
   args.get("value", value);
-  
+
   BaseString result;
-  int ret = m_mgmsrv.setDbParameter(atoi(node.c_str()), 
-				    atoi(param.c_str()),
+  int ret = m_mgmsrv.setDbParameter(node,
+				    param,
 				    value.c_str(),
 				    result);
-  
+
   m_output->println("set parameter reply");
   m_output->println("message: %s", result.c_str());
   m_output->println("result: %d", ret);
@@ -1524,20 +1528,21 @@ MgmApiSession::setParameter(Parser_t::Context &,
 
 void
 MgmApiSession::setConnectionParameter(Parser_t::Context &ctx,
-				      Properties const &args) {
-  BaseString node1, node2, param, value;
-  args.get("node1", node1);
-  args.get("node2", node2);
-  args.get("param", param);
-  args.get("value", value);
-  
+				      Properties const &args)
+{
+  Uint32 node1, node2, param, value;
+  args.get("node1", &node1);
+  args.get("node2", &node2);
+  args.get("param", &param);
+  args.get("value", &value);
+
   BaseString result;
-  int ret = m_mgmsrv.setConnectionDbParameter(atoi(node1.c_str()),
-					      atoi(node2.c_str()),
-					      atoi(param.c_str()),
-					      atoi(value.c_str()),
+  int ret = m_mgmsrv.setConnectionDbParameter(node1,
+					      node2,
+					      param,
+					      value,
 					      result);
-  
+
   m_output->println("set connection parameter reply");
   m_output->println("message: %s", result.c_str());
   m_output->println("result: %s", (ret>0)?"Ok":"Failed");
@@ -1546,21 +1551,22 @@ MgmApiSession::setConnectionParameter(Parser_t::Context &ctx,
 
 void
 MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
-				      Properties const &args) {
-  BaseString node1, node2, param;
+				      Properties const &args)
+{
+  Uint32 node1, node2, param;
   int value = 0;
 
-  args.get("node1", node1);
-  args.get("node2", node2);
-  args.get("param", param);
-  
+  args.get("node1", &node1);
+  args.get("node2", &node2);
+  args.get("param", &param);
+
   BaseString result;
-  int ret = m_mgmsrv.getConnectionDbParameter(atoi(node1.c_str()),
-					      atoi(node2.c_str()),
-					      atoi(param.c_str()),
+  int ret = m_mgmsrv.getConnectionDbParameter(node1,
+					      node2,
+					      param,
 					      &value,
 					      result);
-  
+
   m_output->println("get connection parameter reply");
   m_output->println("value: %d", value);
   m_output->println("result: %s", (ret>0)?"Ok":result.c_str());
@@ -1702,11 +1708,27 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
-  m_mgmsrv.transporter_connect(m_socket);
+  if (!m_mgmsrv.transporter_connect(m_socket))
+  {
+    // Connection not allowed or failed
+    g_eventLogger->warning("Failed to convert connection "
+                           "from '%s' to transporter",
+                           name());
 
-  m_stop= true;
-  m_stopped= true; // force a stop (no closing socket)
-  my_socket_invalidate(&m_socket);   // so nobody closes it
+    // Close the socket to indicate failure to other side
+  }
+  else
+  {
+    /*
+      Conversion to transporter suceeded
+      Stop this session thread and release resources
+      but don't close the socket, it's been taken over
+      by the transporter
+    */
+    my_socket_invalidate(&m_socket);   // so nobody closes it
+  }
+
+  m_stop= true; // Stop the session
 }
 
 void
@@ -1959,7 +1981,8 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     int r = 0;
     size_t start = 0;
     do {
-      if((r= read_socket(m_socket,30000,
+      if((r= read_socket(m_socket,
+                         SOCKET_TIMEOUT,
                          &buf64[start],
                          len64-start)) < 1)
       {
@@ -2085,6 +2108,7 @@ MgmApiSession::show_variables(Parser_t::Context &,
   m_output->println("");
 
 }
+
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

@@ -10264,6 +10264,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
   Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
+  const Uint32 accScan = (rangeScan == 0) && (tupScan == 0);
 
   scanptr.p->scanKeyinfoFlag = keyinfo;
   scanptr.p->scanLockHold = scanLockHold;
@@ -10279,12 +10280,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanptr.p->m_max_batch_size_rows = max_rows;
   scanptr.p->m_max_batch_size_bytes = max_bytes;
 
-#if 0
-  if (! rangeScan)
-    tupScan = 1;
-#endif
-
-  if (! rangeScan && ! tupScan)
+  if (accScan)
     scanptr.p->scanBlockref = tcConnectptr.p->tcAccBlockref;
   else if (! tupScan)
     scanptr.p->scanBlockref = tcConnectptr.p->tcTuxBlockref;
@@ -10327,13 +10323,27 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
    */
-  tupScan = 0; // Make sure that close tup scan does not start acc scan incorrectly
-  Uint32 start = (rangeScan || tupScan) ? MAX_PARALLEL_SCANS_PER_FRAG : 1 ;
-  Uint32 stop = (rangeScan || tupScan) ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : 
-    MAX_PARALLEL_SCANS_PER_FRAG - 1;
-  stop += start;
+  Uint32 start, stop;
+  if (accScan)
+  {
+    start = 1;
+    stop = MAX_PARALLEL_SCANS_PER_FRAG - 1;
+  }
+  else if (rangeScan)
+  {
+    start = MAX_PARALLEL_SCANS_PER_FRAG;
+    stop = start + MAX_PARALLEL_INDEX_SCANS_PER_FRAG - 1;
+  }
+  else
+  {
+    ndbassert(tupScan);
+    start = MAX_PARALLEL_SCANS_PER_FRAG + MAX_PARALLEL_INDEX_SCANS_PER_FRAG;
+    stop = start + MAX_PARALLEL_INDEX_SCANS_PER_FRAG - 1;
+  }
+  ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
+             (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
   Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
-    
+  
   if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
     jam();
     
@@ -10347,7 +10357,9 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
      */
     scanptr.p->scanState = ScanRecord::IN_QUEUE;
     LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-				      fragptr.p->m_queuedScans);
+				      tupScan == 0 ? 
+                                      fragptr.p->m_queuedScans :
+                                      fragptr.p->m_queuedTupScans);
     queue.add(scanptr);
     return ZOK;
   }
@@ -10427,8 +10439,11 @@ void Dblqh::finishScanrec(Signal* signal)
 {
   release_acc_ptr_list(scanptr.p);
 
+  Uint32 tupScan = scanptr.p->tupScan;
   LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-				    fragptr.p->m_queuedScans);
+                                    tupScan == 0 ? 
+                                    fragptr.p->m_queuedScans :
+                                    fragptr.p->m_queuedTupScans);
   
   if(scanptr.p->scanState == ScanRecord::IN_QUEUE){
     jam();

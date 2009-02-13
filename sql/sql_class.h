@@ -462,8 +462,15 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
-
   /*
+    Number of statements sent from the client
+  */
+  ulong questions;
+  /*
+    IMPORTANT!
+    SEE last_system_status_var DEFINITION BELOW.
+    Below 'last_system_status_var' are all variables which doesn't make any
+    sense to add to the /global/ status variable counter.
     Status variables which it does not make sense to add to
     global status variable counter
   */
@@ -476,7 +483,7 @@ typedef struct system_status_var
   counter
 */
 
-#define last_system_status_var com_stmt_close
+#define last_system_status_var questions
 
 void mark_transaction_to_rollback(THD *thd, bool all);
 
@@ -1260,7 +1267,6 @@ public:
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
-  struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars

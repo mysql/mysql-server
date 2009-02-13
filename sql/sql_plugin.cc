@@ -751,21 +751,22 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
-      if (!test_plugin_options(tmp_root, &tmp, argc, argv, true))
+      if (test_plugin_options(tmp_root, &tmp, argc, argv, true))
+        tmp.state= PLUGIN_IS_DISABLED;
+
+      if ((tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
       {
-        if ((tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
+        plugin_array_version++;
+        if (!my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
         {
-          plugin_array_version++;
-          if (!my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
-          {
-            init_alloc_root(&tmp_plugin_ptr->mem_root, 4096, 4096);
-            DBUG_RETURN(FALSE);
-          }
-          tmp_plugin_ptr->state= PLUGIN_IS_FREED;
+          init_alloc_root(&tmp_plugin_ptr->mem_root, 4096, 4096);
+          DBUG_RETURN(FALSE);
         }
-        mysql_del_sys_var_chain(tmp.system_vars);
-        goto err;
+        tmp_plugin_ptr->state= PLUGIN_IS_FREED;
       }
+      mysql_del_sys_var_chain(tmp.system_vars);
+      goto err;
+
       /* plugin was disabled */
       plugin_dl_del(dl);
       DBUG_RETURN(FALSE);
@@ -1145,11 +1146,12 @@ int plugin_init(int *argc, char **argv, int flags)
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
-
+      tmp.state= 0;
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv, def_enabled))
-        continue;
-
+        tmp.state= PLUGIN_IS_DISABLED;
+      else
+        tmp.state= PLUGIN_IS_UNINITIALIZED;
       if (register_builtin(plugin, &tmp, &plugin_ptr))
         goto err_unlock;
 
@@ -1159,7 +1161,8 @@ int plugin_init(int *argc, char **argv, int flags)
           my_strcasecmp(&my_charset_latin1, plugin->name, "CSV"))
         continue;
 
-      if (plugin_initialize(plugin_ptr))
+      if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED &&
+          plugin_initialize(plugin_ptr))
         goto err_unlock;
 
       /*
@@ -1246,8 +1249,6 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
                              struct st_plugin_int **ptr)
 {
   DBUG_ENTER("register_builtin");
-
-  tmp->state= PLUGIN_IS_UNINITIALIZED;
   tmp->ref_count= 0;
   tmp->plugin_dl= 0;
 
@@ -1296,7 +1297,7 @@ bool plugin_register_builtin(THD *thd, struct st_mysql_plugin *plugin)
 
   if (test_plugin_options(thd->mem_root, &tmp, &dummy_argc, NULL, true))
     goto end;
-
+  tmp.state= PLUGIN_IS_UNINITIALIZED;
   if ((result= register_builtin(plugin, &tmp, &ptr)))
     mysql_del_sys_var_chain(tmp.system_vars);
 
@@ -1555,7 +1556,8 @@ void plugin_shutdown(void)
       We loop through all plugins and call deinit() if they have one.
     */
     for (i= 0; i < count; i++)
-      if (!(plugins[i]->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_FREED)))
+      if (!(plugins[i]->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_FREED |
+                                 PLUGIN_IS_DISABLED)))
       {
         sql_print_information("Plugin '%s' will be forced to shutdown",
                               plugins[i]->name.str);
@@ -1715,16 +1717,16 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   }
   if (!plugin->plugin_dl)
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                 "Built-in plugins cannot be deleted,.");
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_PLUGIN_DELETE_BUILTIN, ER(WARN_PLUGIN_DELETE_BUILTIN));
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     goto err;
   }
 
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                 "Plugin is busy and will be uninstalled on shutdown");
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_PLUGIN_BUSY, ER(WARN_PLUGIN_BUSY));
   else
     reap_needed= true;
   reap_plugins();

@@ -67,7 +67,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 2  */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (f_int1)
+PARTITIONS 2 */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -521,7 +523,10 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION part1 ENGINE = ndbcluster, PARTITION part2 ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (f_int1)
+(PARTITION part1 ENGINE = ndbcluster,
+ PARTITION part2 ENGINE = ndbcluster) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -976,7 +981,15 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = ndbcluster, SUBPARTITION subpart22 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (10)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster),
+ PARTITION part2 VALUES LESS THAN (2147483646)
+ (SUBPARTITION subpart21 ENGINE = ndbcluster,
+  SUBPARTITION subpart22 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1492,7 +1505,15 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = ndbcluster, SUBPARTITION subpart22 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (10)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster),
+ PARTITION part2 VALUES LESS THAN (2147483646)
+ (SUBPARTITION subpart21 ENGINE = ndbcluster,
+  SUBPARTITION subpart22 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1984,7 +2005,15 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = ndbcluster, SUBPARTITION subpart22 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (10)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster),
+ PARTITION part2 VALUES LESS THAN (2147483646)
+ (SUBPARTITION subpart21 ENGINE = ndbcluster,
+  SUBPARTITION subpart22 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2437,7 +2466,15 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = ndbcluster, SUBPARTITION subpart22 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (10)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster),
+ PARTITION part2 VALUES LESS THAN (2147483646)
+ (SUBPARTITION subpart21 ENGINE = ndbcluster,
+  SUBPARTITION subpart22 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2890,7 +2927,10 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION part1 ENGINE = ndbcluster, PARTITION part2 ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (f_int1)
+(PARTITION part1 ENGINE = ndbcluster,
+ PARTITION part2 ENGINE = ndbcluster) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3345,7 +3385,15 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = ndbcluster, SUBPARTITION subpart22 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (10)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster),
+ PARTITION part2 VALUES LESS THAN (2147483646)
+ (SUBPARTITION subpart21 ENGINE = ndbcluster,
+  SUBPARTITION subpart22 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3801,7 +3849,15 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = ndbcluster, SUBPARTITION subpart22 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (10)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster),
+ PARTITION part2 VALUES LESS THAN (2147483646)
+ (SUBPARTITION subpart21 ENGINE = ndbcluster,
+  SUBPARTITION subpart22 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4250,7 +4306,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION part1 ENGINE = ndbcluster) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (f_int1)
+(PARTITION part1 ENGINE = ndbcluster) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4703,7 +4761,12 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (1000) (SUBPARTITION subpart11 ENGINE = ndbcluster, SUBPARTITION subpart12 ENGINE = ndbcluster)) */
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (f_int1)
+SUBPARTITION BY HASH (f_int1)
+(PARTITION part1 VALUES LESS THAN (1000)
+ (SUBPARTITION subpart11 ENGINE = ndbcluster,
+  SUBPARTITION subpart12 ENGINE = ndbcluster)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1

@@ -1537,7 +1537,20 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
   if (initAutoIncrement() == -1)
     goto error_handler;
 
+/*
+  Fix for
+  Bug #39268 No transaction hints used to update SYSTAB_0 for autoincrement and PK-less table
+  causes crash in 6.4
+ */
+#if 0
+  // Start transaction with table id as hint
+  tConnection = this->startTransaction(table,
+                                       (const char *) &aTableId,
+                                       sizeof(Uint32));
+#else
   tConnection = this->startTransaction();
+#endif
+
   if (tConnection == NULL)
     goto error_handler;
 

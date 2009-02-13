@@ -1263,4 +1263,14 @@ CREATE VIEW v1 AS SELECT CHAR(0x414243) as c1;
 SELECT HEX(c1) from v1;
 DROP VIEW v1;
 
+#
+# Bug #35558 Wrong server metadata blows up the client
+#
+create table t1(a float);
+insert into t1 values (1.33);
+--enable_metadata
+select format(a, 2) from t1;
+--disable_metadata
+drop table t1;
+
 --echo End of 5.0 tests

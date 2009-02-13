@@ -149,6 +149,8 @@
 #define CFG_DB_INIT_REDO              189
 #define CFG_DB_THREAD_POOL            190
 
+#define CFG_NDBMT_CLASSIC             191
+
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 

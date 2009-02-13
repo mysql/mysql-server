@@ -70,6 +70,14 @@ public:
     return m_handle;
   }
 
+  NDB_SOCKET_TYPE socket(void) const {
+    return _ndb_mgm_get_socket(m_handle);
+  }
+
+  NodeId nodeid(void) const {
+    return m_nodeid;
+  }
+
   const char* getConnectString() const {
     return m_connect_str.c_str();
   }
@@ -125,6 +133,18 @@ public:
     return true;
   }
 
+  bool disconnect(void) {
+    if (ndb_mgm_disconnect(m_handle) != 0){
+      error("disconnect: ndb_mgm_disconnect failed");
+      return false;
+    }
+
+    ndb_mgm_destroy_handle(&m_handle);
+    m_handle = NULL;
+
+    return true;
+  }
+
   bool restart(bool abort = false) {
     if (!is_connected()){
       error("restart: not connected");
@@ -159,7 +179,7 @@ public:
       return false;
     }
 
-    SocketOutputStream out(_ndb_mgm_get_socket(m_handle));
+    SocketOutputStream out(socket());
 
     if (out.println(cmd)){
       error("call: println failed at line %d", __LINE__);
@@ -218,7 +238,7 @@ public:
     }
 
     BaseString buf;
-    SocketInputStream2 in(_ndb_mgm_get_socket(m_handle));
+    SocketInputStream2 in(socket());
     if (cmd_reply)
     {
       // Read the reply header and compare against "cmd_reply"
