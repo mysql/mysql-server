@@ -163,7 +163,7 @@ static bool start_process(Instance_options *instance_options,
 
   int cmdlen= 0;
   for (int i= 0; instance_options->argv[i] != 0; i++)
-    cmdlen+= strlen(instance_options->argv[i]) + 3;
+    cmdlen+= (uint) strlen(instance_options->argv[i]) + 3;
   cmdlen++;   /* make room for the null */
 
   char *cmdline= new char[cmdlen];

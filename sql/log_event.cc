@@ -1280,7 +1280,7 @@ void Log_event::print_header(IO_CACHE* file,
       char emit_buf[256];               // Enough for storing one line
       my_b_printf(file, "# Position  Timestamp   Type   Master ID        "
                   "Size      Master Pos    Flags \n");
-      int const bytes_written=
+      size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %02x %02x %02x %02x   %02x   "
                     "%02x %02x %02x %02x   %02x %02x %02x %02x   "
@@ -1315,7 +1315,7 @@ void Log_event::print_header(IO_CACHE* file,
           TODO: Rewrite my_b_printf() to support full printf() syntax.
          */
         char emit_buf[256];
-        int const bytes_written=
+        size_t const bytes_written=
           my_snprintf(emit_buf, sizeof(emit_buf),
                       "# %8.8lx %-48.48s |%16s|\n",
                       (unsigned long) (hexdump_from + (i & 0xfffffff0)),
@@ -1335,7 +1335,7 @@ void Log_event::print_header(IO_CACHE* file,
     if (hex_string[0])
     {
       char emit_buf[256];
-      int const bytes_written=
+      size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
                     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
@@ -1628,7 +1628,7 @@ beg:
 
   case MYSQL_TYPE_DATETIME:
     {
-      uint d, t;
+      size_t d, t;
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
       d= i64 / 1000000;
       t= i64 % 1000000;
@@ -4198,7 +4198,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   fname = db + db_len + 1;
-  fname_len = strlen(fname);
+  fname_len = (uint) strlen(fname);
   // null termination is accomplished by the caller doing buf[event_len]=0
 
   DBUG_RETURN(0);
@@ -5697,7 +5697,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
   master_pos = uint8korr(mem_pool + SL_MASTER_POS_OFFSET);
   master_port = uint2korr(mem_pool + SL_MASTER_PORT_OFFSET);
   master_host = mem_pool + SL_MASTER_HOST_OFFSET;
-  master_host_len = strlen(master_host);
+  master_host_len = (uint) strlen(master_host);
   // safety
   master_log = master_host + master_host_len + 1;
   if (master_log > mem_pool + data_size)
@@ -5705,7 +5705,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
     master_host = 0;
     return;
   }
-  master_log_len = strlen(master_log);
+  master_log_len = (uint) strlen(master_log);
 }
 
 
@@ -6995,12 +6995,12 @@ int Rows_log_event::get_data_size()
                   (m_rows_cur - m_rows_buf););
   int data_size= ROWS_HEADER_LEN;
   data_size+= no_bytes_in_map(&m_cols);
-  data_size+= end - buf;
+  data_size+= (uint) (end - buf);
 
   if (type_code == UPDATE_ROWS_EVENT)
     data_size+= no_bytes_in_map(&m_cols_ai);
 
-  data_size+= (m_rows_cur - m_rows_buf);
+  data_size+= (uint) (m_rows_cur - m_rows_buf);
   return data_size; 
 }
 
@@ -7893,7 +7893,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
 
     ptr_after_colcnt= ptr_after_colcnt + m_colcnt;
-    bytes_read= ptr_after_colcnt - (uchar *)buf;
+    bytes_read= (uint) (ptr_after_colcnt - (uchar *)buf);
     DBUG_PRINT("info", ("Bytes read: %d.\n", bytes_read));
     if (bytes_read < event_len)
     {
@@ -9268,7 +9268,7 @@ bool
 Incident_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Incident_log_event::write_data_body");
-  DBUG_RETURN(write_str(file, m_message.str, m_message.length));
+  DBUG_RETURN(write_str(file, m_message.str, (uint) m_message.length));
 }
 
 

@@ -534,8 +534,8 @@ static bool write_execute_load_query_log_event(THD *thd,
 {
   Execute_load_query_log_event
     e(thd, thd->query, thd->query_length,
-      (char*)thd->lex->fname_start - (char*)thd->query,
-      (char*)thd->lex->fname_end - (char*)thd->query,
+      (uint) ((char*)thd->lex->fname_start - (char*)thd->query),
+      (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, killed_err_arg);

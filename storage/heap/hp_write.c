@@ -69,7 +69,7 @@ int heap_write(HP_INFO *info, const uchar *record)
 err:
   if (my_errno == HA_ERR_FOUND_DUPP_KEY)
     DBUG_PRINT("info",("Duplicate key: %d", (int) (keydef - share->keydef)));
-  info->errkey= keydef - share->keydef;
+  info->errkey= (int) (keydef - share->keydef);
   /*
     We don't need to delete non-inserted key from rb-tree.  Also, if
     we got ENOMEM, the key wasn't inserted, so don't try to delete it
