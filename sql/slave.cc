@@ -49,6 +49,7 @@
 #define MAX_SLAVE_RETRY_PAUSE 5
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
+char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 
@@ -275,6 +276,64 @@ err:
 }
 
 
+/**
+  Convert slave skip errors bitmap into a printable string.
+*/
+
+static void print_slave_skip_errors(void)
+{
+  /*
+    To be safe, we want 10 characters of room in the buffer for a number
+    plus terminators. Also, we need some space for constant strings.
+    10 characters must be sufficient for a number plus {',' | '...'}
+    plus a NUL terminator. That is a max 6 digit number.
+  */
+  const size_t MIN_ROOM= 10;
+  DBUG_ENTER("print_slave_skip_errors");
+  DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
+  DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
+
+  if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
+  {
+    /* purecov: begin tested */
+    memcpy(slave_skip_error_names, STRING_WITH_LEN("OFF"));
+    /* purecov: end */
+  }
+  else if (bitmap_is_set_all(&slave_error_mask))
+  {
+    /* purecov: begin tested */
+    memcpy(slave_skip_error_names, STRING_WITH_LEN("ALL"));
+    /* purecov: end */
+  }
+  else
+  {
+    char *buff= slave_skip_error_names;
+    char *bend= buff + sizeof(slave_skip_error_names);
+    int  errnum;
+
+    for (errnum= 1; errnum < MAX_SLAVE_ERROR; errnum++)
+    {
+      if (bitmap_is_set(&slave_error_mask, errnum))
+      {
+        if (buff + MIN_ROOM >= bend)
+          break; /* purecov: tested */
+        buff= int10_to_str(errnum, buff, 10);
+        *buff++= ',';
+      }
+    }
+    if (buff != slave_skip_error_names)
+      buff--; // Remove last ','
+    if (errnum < MAX_SLAVE_ERROR)
+    {
+      /* Couldn't show all errors */
+      buff= strmov(buff, "..."); /* purecov: tested */
+    }
+    *buff=0;
+  }
+  DBUG_PRINT("init", ("error_names: '%s'", slave_skip_error_names));
+  DBUG_VOID_RETURN;
+}
+
 /*
   Init function to set up array for errors that should be skipped for slave
 
@@ -314,6 +373,8 @@ void init_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
+  /* Convert slave skip errors bitmap into a printable string. */
+  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
 
@@ -1343,6 +1404,17 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
 }
 
 
+/**
+  Execute a SHOW SLAVE STATUS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object for the IO thread.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
 bool show_master_info(THD* thd, Master_info* mi)
 {
   // TODO: fix this for multi-master
@@ -2051,7 +2123,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
      fewer times, 0 is returned.
 
    - init_master_info or init_relay_log_pos failed. (These are called
-     if a failure occurs when applying the event.)</li>
+     if a failure occurs when applying the event.)
 
    - An error occurred when updating the binlog position.
 
@@ -2296,8 +2368,14 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 }
 
 
-/* Slave I/O Thread entry point */
+/**
+  Slave IO thread entry point.
 
+  @param arg Pointer to Master_info struct that holds information for
+  the IO thread.
+
+  @return Always 0.
+*/
 pthread_handler_t handle_slave_io(void *arg)
 {
   THD *thd; // needs to be first for thread_stack
@@ -2601,8 +2679,14 @@ err:
 }
 
 
-/* Slave SQL Thread entry point */
+/**
+  Slave SQL thread entry point.
 
+  @param arg Pointer to Relay_log_info object that holds information
+  for the SQL thread.
+
+  @return Always 0.
+*/
 pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
@@ -3760,6 +3844,16 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
 }
 
 
+/**
+  Reads next event from the relay log.  Should be called from the
+  slave IO thread.
+
+  @param rli Relay_log_info structure for the slave IO thread.
+
+  @return The event read, or NULL on error.  If an error occurs, the
+  error is reported through the sql_print_information() or
+  sql_print_error() functions.
+*/
 static Log_event* next_event(Relay_log_info* rli)
 {
   Log_event* ev;

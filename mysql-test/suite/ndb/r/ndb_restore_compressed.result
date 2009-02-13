@@ -607,3 +607,294 @@ epoch
 select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 epoch > (1 << 32)
 1
+*************************************
+Creating various databases and tables
+************************************* 
+create database db1;
+create database db2;
+use db1;
+create table tab1 (a int primary key) engine=ndb;
+create table tab2 (a int primary key, 
+b varchar(20), 
+c int, 
+d text, 
+unique(c)) engine=ndb;
+insert into tab1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+insert into tab2 values (1, "Donnington", 1, repeat("O", 1000)), 
+(2, "Basingstoke", 2, repeat("P", 1000)), 
+(3, "George", 3, repeat("Q", 1000)),
+(4, "Spottiswoode", 4, repeat("R", 1000)),
+(5, "Sciennes", 5, repeat("S", 1000)),
+(6, "Cairns", 6, repeat("T", 1000)),
+(7, "Highlea", 7, repeat("U", 1000));
+checksum table tab1;
+Table	Checksum
+db1.tab1	994088853
+checksum table tab2;
+Table	Checksum
+db1.tab2	1516475923
+use db2;
+create table tab1 (a int primary key) engine=ndb;
+create table tab2 (a int primary key, b varchar(20), c int, unique(c), d text) engine=ndb;
+insert into tab1 select * from db1.tab1;
+insert into tab2 select * from db1.tab2;
+checksum table tab1;
+Table	Checksum
+db2.tab1	994088853
+checksum table tab2;
+Table	Checksum
+db2.tab2	1516475923
+***********************
+Backing up created data
+***********************
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+DELETE FROM test.backup_info;
+LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+SELECT @the_backup_id:=backup_id FROM test.backup_info;
+@the_backup_id:=backup_id
+<the_backup_id>
+DROP TABLE test.backup_info;
+drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
+**************************************
+Check various include/exclude variants
+**************************************
+Normal full restore
+use db1;
+show tables;
+Tables_in_db1
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db1.tab1	994088853
+db1.tab2	1516475923
+use db2;
+show tables;
+Tables_in_db2
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db2.tab1	994088853
+db2.tab2	1516475923
+drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
+****************
+Include only db2
+****************
+use db1;
+show tables;
+Tables_in_db1
+use db2;
+show tables;
+Tables_in_db2
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db2.tab1	994088853
+db2.tab2	1516475923
+drop table db2.tab1, db2.tab2;
+****************
+Exclude only db2
+****************
+use db1;
+show tables;
+Tables_in_db1
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db1.tab1	994088853
+db1.tab2	1516475923
+use db2;
+show tables;
+Tables_in_db2
+drop table db1.tab1, db1.tab2;
+************
+Exclude both
+************
+use db1;
+show tables;
+Tables_in_db1
+use db2;
+show tables;
+Tables_in_db2
+**********************************
+Include only db1.tab1 and db2.tab2
+**********************************
+use db1;
+show tables;
+Tables_in_db1
+tab1
+checksum table tab1;
+Table	Checksum
+db1.tab1	994088853
+use db2;
+show tables;
+Tables_in_db2
+tab2
+checksum table tab2;
+Table	Checksum
+db2.tab2	1516475923
+drop table db1.tab1, db2.tab2;
+*****************************
+Exclude db1.tab1 and db2.tab2
+*****************************
+Should result in db1.tab2 and db2.tab1 being restored
+use db1;
+show tables;
+Tables_in_db1
+tab2
+checksum table tab2;
+Table	Checksum
+db1.tab2	1516475923
+use db2;
+show tables;
+Tables_in_db2
+tab1
+checksum table tab1;
+Table	Checksum
+db2.tab1	994088853
+drop table db1.tab2, db2.tab1;
+********************************* 
+Include db1.tab1, but exclude db1
+*********************************
+Should result in only db1.tab1 being restored
+use db1;
+show tables;
+Tables_in_db1
+tab1
+checksum table tab1;
+Table	Checksum
+db1.tab1	994088853
+use db2;
+show tables;
+Tables_in_db2
+drop table db1.tab1;
+*********************************
+Exclude db1.tab1, but include db1
+*********************************
+Should result in only db1.tab2 being restored
+use db1;
+show tables;
+Tables_in_db1
+tab2
+checksum table tab2;
+Table	Checksum
+db1.tab2	1516475923
+use db2;
+show tables;
+Tables_in_db2
+drop table db1.tab2;
+**************************************
+Exclude db1.tab1, and include db1.tab1
+**************************************
+Should result in db1.tab1 only restored.
+use db1;
+show tables;
+Tables_in_db1
+tab1
+checksum table tab1;
+Table	Checksum
+db1.tab1	994088853
+use db2;
+show tables;
+Tables_in_db2
+drop table db1.tab1;
+****************************
+Exclude db2, and include db2
+****************************
+Should result in db2 only restored.
+use db1;
+show tables;
+Tables_in_db1
+use db2;
+show tables;
+Tables_in_db2
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db2.tab1	994088853
+db2.tab2	1516475923
+drop table db2.tab1, db2.tab2;
+*********************************
+Include db1, and include db2.tab1
+*********************************
+Should result in db2.tab1 only restored.
+use db1;
+show tables;
+Tables_in_db1
+use db2;
+show tables;
+Tables_in_db2
+tab1
+checksum table tab1;
+Table	Checksum
+db2.tab1	994088853
+drop table db2.tab1;
+************************
+Include unknown database
+************************
+Should result in nothing restored
+show databases;
+Database
+information_schema
+db1
+db2
+mysql
+test
+use db1;
+show tables;
+Tables_in_db1
+use db2;
+show tables;
+Tables_in_db2
+*********************
+Exclude unknown table
+*********************
+Should result in everything restored
+show databases;
+Database
+information_schema
+db1
+db2
+mysql
+test
+use db1;
+show tables;
+Tables_in_db1
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db1.tab1	994088853
+db1.tab2	1516475923
+use db2;
+show tables;
+Tables_in_db2
+tab2
+tab1
+checksum table tab1, tab2;
+Table	Checksum
+db2.tab1	994088853
+db2.tab2	1516475923
+drop table db1.tab1, db1.tab2;
+drop table db2.tab1, db2.tab2;
+*********************************************
+Check that last argument of each type is used
+*********************************************
+Should result in just db1.tab2 restored.
+use db1;
+show tables;
+Tables_in_db1
+tab2
+checksum table tab2;
+Table	Checksum
+db1.tab2	1516475923
+use db2;
+show tables;
+Tables_in_db2
+drop table db1.tab2;
+drop database db1;
+drop database db2;

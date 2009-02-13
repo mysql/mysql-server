@@ -467,4 +467,64 @@ GlobalDictCache::alter_table_rep(const char * name,
   DBUG_VOID_RETURN;
 }
 
+int
+GlobalDictCache::chg_ref_count(const NdbTableImpl * impl, int value)
+{
+  DBUG_ENTER("GlobalDictCache::chg_ref_count");
+  const char * name = impl->m_internalName.c_str();
+  assert(! is_ndb_blob_table(name));
+
+  const Uint32 tableId = impl->m_id;
+  const Uint32 tableVersion = impl->m_version;
+
+  const Uint32 len = (Uint32)strlen(name);
+  Vector<TableVersion> * vers = 
+    m_tableHash.getData(name, len);
+  
+  if(vers == 0)
+  {
+    DBUG_RETURN(-1);
+  }
+
+  const Uint32 sz = vers->size();
+  if(sz == 0)
+  {
+    DBUG_RETURN(-1);
+  }
+  
+  for(Uint32 i = 0; i < sz; i++)
+  {
+    TableVersion & ver = (* vers)[i];
+    if(ver.m_version == tableVersion && ver.m_impl && 
+       (Uint32) ver.m_impl->m_id == tableId)
+    {
+      if (ver.m_impl != impl)
+        abort();
+      if (value == +1)
+      {
+        DBUG_PRINT("info", ("%s id=%u ver=0x%x: inc old ref count %u",
+                            name, tableId, tableVersion, ver.m_refCount));
+        ver.m_refCount++;
+      }
+      else if (value == -1)
+      {
+        DBUG_PRINT("info", ("%s id=%u ver=0x%x: dec old ref count %u",
+                            name, tableId, tableVersion, ver.m_refCount));
+        if (ver.m_refCount == 0)
+          abort();
+        ver.m_refCount--;
+        if (ver.m_refCount == 0)
+        {
+          delete ver.m_impl;
+          vers->erase(i);
+        }
+      }
+      else
+        abort();
+      DBUG_RETURN(0);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
 template class Vector<GlobalDictCache::TableVersion>;

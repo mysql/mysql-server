@@ -288,18 +288,20 @@ TransporterRegistry::init(NodeId nodeId) {
 }
 
 bool
-TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
+TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
 {
-  DBUG_ENTER("TransporterRegistry::connect_server");
+  DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
-  // read node id and transporter type from client
-  int nodeId, remote_transporter_type= -1;
+  // Read "hello" that consists of node id and transporter
+  // type from client
   SocketInputStream s_input(sockfd);
   char buf[11+1+11+1]; // <int> <int>
   if (s_input.gets(buf, sizeof(buf)) == 0) {
-    DBUG_PRINT("error", ("Could not get node id from client"));
+    DBUG_PRINT("error", ("Failed to read 'hello' from client"));
     DBUG_RETURN(false);
   }
+
+  int nodeId, remote_transporter_type= -1;
   int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
   switch (r) {
   case 2:
@@ -309,67 +311,65 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
     // ok, but with no checks on transporter configuration compatability
     break;
   default:
-    DBUG_PRINT("error", ("Error in node id from client"));
+    DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
+                         (int)sizeof(buf), buf));
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
-		      nodeId,remote_transporter_type));
+  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d",
+		      nodeId, remote_transporter_type));
 
-  //check that nodeid is valid and that there is an allocated transporter
-  if ( nodeId < 0 || nodeId >= (int)maxTransporters) {
-    DBUG_PRINT("error", ("Node id out of range from client"));
-    DBUG_RETURN(false);
-  }
-  if (theTransporters[nodeId] == 0) {
-      DBUG_PRINT("error", ("No transporter for this node id from client"));
-      DBUG_RETURN(false);
-  }
 
-  //check that the transporter should be connected
-  if (performStates[nodeId] != TransporterRegistry::CONNECTING) {
-    DBUG_PRINT("error", ("Transporter in wrong state for this node id from client"));
+  // Check that nodeid is in range before accessing the arrays
+  if (nodeId < 0 ||
+      nodeId >= (int)maxTransporters)
+  {
+    DBUG_PRINT("error", ("Out of range nodeId: %d from client",
+                         nodeId));
     DBUG_RETURN(false);
   }
 
+  // Check that transporter is allocated
   Transporter *t= theTransporters[nodeId];
+  if (t == 0)
+  {
+    DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
+    DBUG_RETURN(false);
+  }
 
-  // send info about own id (just as response to acknowledge connection)
-  // send info on own transporter type
+  // Check that the transporter should be connecting
+  if (performStates[nodeId] != TransporterRegistry::CONNECTING)
+  {
+    DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
+                         nodeId));
+    DBUG_RETURN(false);
+  }
+
+  // Check transporter type
+  if (remote_transporter_type != -1 &&
+      remote_transporter_type != t->m_type)
+  {
+    g_eventLogger->error("Connection from node: %d uses different transporter "
+                         "type: %d, expected type: %d",
+                         nodeId, remote_transporter_type, t->m_type);
+    DBUG_RETURN(false);
+  }
+
+  // Send reply to client
   SocketOutputStream s_output(sockfd);
-  s_output.println("%d %d", t->getLocalNodeId(), t->m_type);
-
-  if (remote_transporter_type != -1)
+  if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
-    if (remote_transporter_type != t->m_type)
-    {
-      DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
-			   t->m_type, remote_transporter_type));
-      g_eventLogger->error("Incompatible configuration: Transporter type "
-                           "mismatch with node %d", nodeId);
-
-      // wait for socket close for 1 second to let message arrive at client
-      {
-	fd_set a_set;
-	FD_ZERO(&a_set);
-	my_FD_SET(sockfd, &a_set);
-	struct timeval timeout;
-	timeout.tv_sec  = 1; timeout.tv_usec = 0;
-	select(my_socket_nfds(sockfd,0)+1, &a_set, 0, 0, &timeout);
-      }
-      DBUG_RETURN(false);
-    }
-  }
-  else if (t->m_type == tt_SHM_TRANSPORTER)
-  {
-    g_eventLogger->warning("Unable to verify transporter compatability with node %d", nodeId);
+    DBUG_PRINT("error", ("Send of reply failed"));
+    DBUG_RETURN(false);
   }
 
-  // setup transporter (transporter responsible for closing sockfd)
+  // Setup transporter (transporter responsible for closing sockfd)
   bool res = t->connect_server(sockfd);
 
   if (res && performStates[nodeId] != TransporterRegistry::CONNECTING)
   {
+    // Connection suceeded, but not connecting anymore, return
+    // false to close the connection
     DBUG_RETURN(false);
   }
 
@@ -1492,7 +1492,11 @@ TransporterRegistry::start_clients_thread()
 	   * First, we try to connect (if we have a port number).
 	   */
 	  if (t->get_s_port())
+          {
+            DBUG_PRINT("info", ("connecting to node %d using port %d",
+                                nodeId, t->get_s_port()));
 	    connected= t->connect_client();
+          }
 
 	  /**
 	   * If dynamic, get the port for connecting from the management server
@@ -1501,11 +1505,18 @@ TransporterRegistry::start_clients_thread()
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
 
+            DBUG_PRINT("info", ("connection to node %d should use "
+                                "dynamic port",
+                                nodeId));
+
 	    if(!ndb_mgm_is_connected(m_mgm_handle))
 	      ndb_mgm_connect(m_mgm_handle, 0, 0, 0);
-	    
+
 	    if(ndb_mgm_is_connected(m_mgm_handle))
 	    {
+              DBUG_PRINT("info", ("asking mgmd which port to use for node %d",
+                                  nodeId));
+
 	      int res=
 		ndb_mgm_get_connection_int_parameter(m_mgm_handle,
 						     t->getRemoteNodeId(),
@@ -1518,6 +1529,8 @@ TransporterRegistry::start_clients_thread()
 				 t->getLocalNodeId(),res));
 	      if( res >= 0 )
 	      {
+                DBUG_PRINT("info", ("got port %d to use for connection to %d",
+                                    server_port, nodeId));
 		/**
 		 * Server_port == 0 just means that that a mgmt server
 		 * has not received a new port yet. Keep the old.
@@ -1527,11 +1540,15 @@ TransporterRegistry::start_clients_thread()
 	      }
 	      else if(ndb_mgm_is_connected(m_mgm_handle))
 	      {
-                g_eventLogger->info("Failed to get dynamic port to connect to: %d", res);
+                DBUG_PRINT("info", ("Failed to get dynamic port, res: %d",
+                                    res));
+                g_eventLogger->info("Failed to get dynamic port, res: %d",
+                                    res);
 		ndb_mgm_disconnect(m_mgm_handle);
 	      }
 	      else
 	      {
+                DBUG_PRINT("info", ("mgmd close connection early"));
                 g_eventLogger->info
                   ("Management server closed connection early. "
                    "It is probably being shut down (or has problems). "
@@ -1713,7 +1730,8 @@ TransporterRegistry::startReceiving()
     sa.sa_handler = shm_sig_handler;
     sa.sa_flags = 0;
     int ret;
-    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR);
+    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR)
+      ;
     if(ret != 0)
     {
       DBUG_PRINT("error",("Install failed"));
@@ -1762,6 +1780,7 @@ TransporterRegistry::get_transporter(NodeId nodeId) {
   return theTransporters[nodeId];
 }
 
+
 bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 {
   DBUG_ENTER("TransporterRegistry::connect_client(NdbMgmHandle)");
@@ -1788,6 +1807,8 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   DBUG_RETURN(res);
 }
 
+
+
 /**
  * Given a connected NdbMgmHandle, turns it into a transporter
  * and returns the socket.
@@ -1796,46 +1817,58 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
   struct ndb_mgm_reply mgm_reply;
   my_socket sockfd;
-
   my_socket_invalidate(&sockfd);
+
+  DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
 
   if ( h==NULL || *h == NULL )
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
-    return sockfd;
+    DBUG_RETURN(sockfd);
   }
 
   for(unsigned int i=0;i < m_transporter_interface.size();i++)
-    if (m_transporter_interface[i].m_s_service_port < 0
-	&& ndb_mgm_set_connection_int_parameter(*h,
-				   localNodeId,
+  {
+    if (m_transporter_interface[i].m_s_service_port >= 0)
+      continue;
+
+    DBUG_PRINT("info", ("Setting dynamic port %d for connection from node %d",
+                        m_transporter_interface[i].m_s_service_port,
+                        m_transporter_interface[i].m_remote_nodeId));
+
+    if (ndb_mgm_set_connection_int_parameter(*h,
+                                   localNodeId,
 				   m_transporter_interface[i].m_remote_nodeId,
 				   CFG_CONNECTION_SERVER_PORT,
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply) < 0)
     {
+      DBUG_PRINT("error", ("Failed to set dynamic port"));
       g_eventLogger->error("Error: %s: %d",
                            ndb_mgm_get_latest_error_desc(*h),
                            ndb_mgm_get_latest_error(*h));
       g_eventLogger->error("%s: %d", __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
-      return sockfd;
+      DBUG_RETURN(sockfd);
     }
+  }
 
   /**
    * convert_to_transporter also disposes of the handle (i.e. we don't leak
    * memory here.
    */
+  DBUG_PRINT("info", ("Converting handle to transporter"));
   sockfd= ndb_mgm_convert_to_transporter(h);
   if (!my_socket_valid(sockfd))
   {
+    DBUG_PRINT("error", ("Failed to convert to transporter"));
     g_eventLogger->error("Error: %s: %d",
                          ndb_mgm_get_latest_error_desc(*h),
                          ndb_mgm_get_latest_error(*h));
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
-  return sockfd;
+  DBUG_RETURN(sockfd);
 }
 
 /**
@@ -1848,9 +1881,11 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
   my_socket s;
   my_socket_invalidate(&s);
 
+  DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
+
   if ( h == NULL )
   {
-    return s;
+    DBUG_RETURN(s);
   }
 
   /**
@@ -1864,11 +1899,12 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
   {
+    DBUG_PRINT("info", ("connection to mgmd failed"));
     ndb_mgm_destroy_handle(&h);
-    return s;
+    DBUG_RETURN(s);
   }
 
-  return connect_ndb_mgmd(&h);
+  DBUG_RETURN(connect_ndb_mgmd(&h));
 }
 
 /**

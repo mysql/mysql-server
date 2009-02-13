@@ -35,11 +35,15 @@
 #endif
 
 extern my_bool opt_ndb_log_orig;
+extern my_bool opt_ndb_log_bin;
+extern my_bool opt_ndb_log_empty_epochs;
 
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 
 extern my_bool ndbcluster_silent;
+
+extern my_bool ndb_log_binlog_index;
 
 /*
   defines for cluster replication table names
@@ -3086,21 +3090,23 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   */
   do
   {
+    ulonglong epoch= 0, orig_epoch= 0;
+    uint orig_server_id= 0;
     empty_record(ndb_binlog_index);
 
     ndb_binlog_index->field[0]->store(first->master_log_pos, true);
     ndb_binlog_index->field[1]->store(first->master_log_file,
                                       strlen(first->master_log_file),
                                       &my_charset_bin);
-    ndb_binlog_index->field[2]->store(first->epoch, true);
+    ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
     {
       ndb_binlog_index->field[3]->store(row->n_inserts);
       ndb_binlog_index->field[4]->store(row->n_updates);
       ndb_binlog_index->field[5]->store(row->n_deletes);
       ndb_binlog_index->field[6]->store(row->n_schemaops);
-      ndb_binlog_index->field[7]->store(row->orig_server_id);
-      ndb_binlog_index->field[8]->store(row->orig_epoch, true);
+      ndb_binlog_index->field[7]->store(orig_server_id= row->orig_server_id);
+      ndb_binlog_index->field[8]->store(orig_epoch= row->orig_epoch, true);
       ndb_binlog_index->field[9]->store(first->gci);
       row= row->next;
     }
@@ -3121,7 +3127,17 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
 
     if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
     {
-      sql_print_error("NDB Binlog: Writing row to ndb_binlog_index: %d", error);
+      char tmp[128];
+      if (ndb_binlog_index->s->fields > 7)
+        my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
+                    uint(epoch >> 32), uint(epoch),
+                    orig_server_id,
+                    uint(orig_epoch >> 32), uint(orig_epoch));
+
+      else
+        my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
+      sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index: %d",
+                      tmp, error);
       error= -1;
       goto add_ndb_binlog_index_err;
     }
@@ -3627,7 +3643,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
   const NDBTAB *reptab= ndbtab_g.get_table();
   if (reptab == NULL &&
-      dict->getNdbError().classification == NdbError::SchemaError)
+      (dict->getNdbError().classification == NdbError::SchemaError ||
+       dict->getNdbError().code == 4009))
   {
     DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
     if (do_set_binlog_flags)
@@ -3794,6 +3811,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   }
 
 err:
+  DBUG_PRINT("info", ("error %d, error_str %s, ndberror.code %u",
+                      error, error_str, ndberror.code));
   if (error > 0)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -5379,7 +5398,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Ndb *i_ndb= 0;
   Ndb *s_ndb= 0;
   Thd_ndb *thd_ndb=0;
-  int ndb_update_ndb_binlog_index= 1;
   injector *inj= injector::instance();
   uint incident_id= 0;
   Binlog_thread_state do_ndbcluster_binlog_close_connection;
@@ -5480,7 +5498,7 @@ restart_cluster_failure:
   injector_ndb= i_ndb;
   schema_ndb= s_ndb;
 
-  if (opt_bin_log)
+  if (opt_bin_log && opt_ndb_log_bin)
   {
     ndb_binlog_running= TRUE;
   }
@@ -5508,7 +5526,6 @@ restart_cluster_failure:
     }
   }
   pthread_mutex_unlock(&LOCK_server_started);
- restart:
   /*
     Main NDB Injector loop
   */
@@ -6073,7 +6090,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
-          if (trans_row_count == 0)
+          if ((trans_row_count == 0) && !opt_ndb_log_empty_epochs)
           {
             /* nothing to commit, rollback instead */
             if (int r= trans.rollback())
@@ -6100,7 +6117,7 @@ restart_cluster_failure:
           rows->master_log_pos= start.file_pos();
 
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
-          if (ndb_update_ndb_binlog_index)
+          if (ndb_log_binlog_index)
           {
             ndb_add_ndb_binlog_index(thd, rows);
           }
@@ -6142,11 +6159,6 @@ restart_cluster_failure:
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
-  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
-  {
-    ndb_binlog_tables_inited= FALSE;
-    goto restart;
-  }
  err:
   if (do_ndbcluster_binlog_close_connection != BCCC_restart)
   {
@@ -6168,6 +6180,13 @@ restart_cluster_failure:
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
 
+  /*
+    This will cause the util thread to start to try to initialize again
+    via ndbcluster_setup_binlog_table_shares.  But since injector_ndb is
+    set to NULL it will not succeed until injector_ndb is reinitialized.
+  */
+  ndb_binlog_tables_inited= FALSE;
+
   if (ndb_apply_status_share)
   {
     /* ndb_share reference binlog extra free */
@@ -6176,7 +6195,6 @@ restart_cluster_failure:
                              ndb_apply_status_share->use_count));
     free_share(&ndb_apply_status_share);
     ndb_apply_status_share= 0;
-    ndb_binlog_tables_inited= FALSE;
   }
   if (ndb_schema_share)
   {
@@ -6188,7 +6206,6 @@ restart_cluster_failure:
                              ndb_schema_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
-    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
   }
@@ -6218,7 +6235,6 @@ restart_cluster_failure:
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
   {
-    ndb_binlog_tables_inited= FALSE;
     pthread_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
   }

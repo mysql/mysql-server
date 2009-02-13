@@ -17,10 +17,11 @@ ENGINE = NDB
 partition by key(a);
 CREATE TABLE t2 (a int unsigned not null,
 b int unsigned not null,
-c int unsigned not null storage DISK,
+c int unsigned not null,
 primary key(a,b),
 unique (b))
 ENGINE = NDB
+STORAGE DISK
 TABLESPACE ts1
 partition by key(a);
 INSERT INTO t1 VALUES

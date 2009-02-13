@@ -66,6 +66,8 @@ private:
 
   void execTESTSIG(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+
+  void execCONTINUEB(Signal* signal);
   
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
@@ -112,6 +114,9 @@ private:
   void operator = (const Cmvmi &);
 
   void sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode);
+
+  Uint32 c_memusage_report_frequency;
+  void reportDMUsage(Signal* signal, int incDec);
 };
 
 #endif

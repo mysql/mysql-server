@@ -34,7 +34,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-#include <netdb.h>
 #include <sys/utsname.h>
 #endif // __WIN__
 #ifdef	__cplusplus
@@ -45,7 +44,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 class host_entry :public hash_filo_element
 {
 public:
-  char	 ip[sizeof(((struct in_addr *) 0)->s_addr)];
+  char	 ip[sizeof(struct sockaddr_storage)];
   uint	 errors;
   char	 *hostname;
 };
@@ -63,7 +62,7 @@ bool hostname_cache_init()
   host_entry tmp;
   uint offset= (uint) ((char*) (&tmp.ip) - (char*) &tmp);
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,
-				     sizeof(struct in_addr),NULL,
+				     sizeof(struct sockaddr_storage),NULL,
 				     (hash_free_key) free,
 				     &my_charset_bin)))
     return 1;
@@ -83,20 +82,20 @@ void hostname_cache_free()
 }
 
 
-static void add_hostname(struct in_addr *in,const char *name)
+static void add_hostname(struct sockaddr_storage *in,const char *name)
 {
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
     VOID(pthread_mutex_lock(&hostname_cache->lock));
     host_entry *entry;
-    if (!(entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
+    if (!(entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     {
       uint length=name ? (uint) strlen(name) : 0;
 
       if ((entry=(host_entry*) malloc(sizeof(host_entry)+length+1)))
       {
 	char *new_name;
-	memcpy_fixed(&entry->ip, &in->s_addr, sizeof(in->s_addr));
+	memcpy_fixed(&entry->ip, in, sizeof(struct sockaddr_storage));
 	if (length)
 	  memcpy(new_name= (char *) (entry+1), name, length+1);
 	else
@@ -111,56 +110,79 @@ static void add_hostname(struct in_addr *in,const char *name)
 }
 
 
-inline void add_wrong_ip(struct in_addr *in)
+inline void add_wrong_ip(struct sockaddr_storage *in)
 {
-  add_hostname(in,NullS);
+  add_hostname(in, NullS);
 }
 
-void inc_host_errors(struct in_addr *in)
+void inc_host_errors(struct sockaddr_storage *in)
 {
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   host_entry *entry;
-  if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
+  if ((entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     entry->errors++;
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
 }
 
-void reset_host_errors(struct in_addr *in)
+void reset_host_errors(struct sockaddr_storage *in)
 {
   VOID(pthread_mutex_lock(&hostname_cache->lock));
   host_entry *entry;
-  if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
+  if ((entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     entry->errors=0;
   VOID(pthread_mutex_unlock(&hostname_cache->lock));
 }
 
-/* Deal with systems that don't defined INADDR_LOOPBACK */
-#ifndef INADDR_LOOPBACK
-#define INADDR_LOOPBACK 0x7f000001UL
-#endif
 
-char * ip_to_hostname(struct in_addr *in, uint *errors)
+char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors)
 {
-  uint i;
+  char *name= NULL;
+
+  struct addrinfo hints,*res_lst= NULL,*t_res;
+  int gxi_error;
+  char hostname_buff[NI_MAXHOST];
+
   host_entry *entry;
   DBUG_ENTER("ip_to_hostname");
   *errors=0;
 
-  /* We always treat the loopback address as "localhost". */
-  if (in->s_addr == htonl(INADDR_LOOPBACK))   // is expanded inline by gcc
+  /* Historical comparison for 127.0.0.1 */
+  gxi_error= getnameinfo((struct sockaddr *)in, addrLen,
+                         hostname_buff, NI_MAXHOST,
+                         NULL, 0, NI_NUMERICHOST);
+  if (gxi_error)
+  {
+    DBUG_PRINT("error",("getnameinfo returned %d", gxi_error));
+    DBUG_RETURN(0);
+  }
+  DBUG_PRINT("info",("resolved: %s", hostname_buff));
+ 
+  /* The next three compares are to solve historical solutions with localhost */  
+  if (!memcmp(hostname_buff, "127.0.0.1", sizeof("127.0.0.1")))
+  {
     DBUG_RETURN((char *)my_localhost);
-
+  }
+  if (!memcmp(hostname_buff, "::ffff:127.0.0.1", sizeof("::ffff:127.0.0.1")))
+  {
+    DBUG_RETURN((char *)my_localhost);
+  }
+  if (!memcmp(hostname_buff, "::1", sizeof("::1")))
+  {
+    DBUG_RETURN((char *)my_localhost);
+  }
+  
   /* Check first if we have name in cache */
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
     VOID(pthread_mutex_lock(&hostname_cache->lock));
-    if ((entry=(host_entry*) hostname_cache->search((uchar*) &in->s_addr,0)))
+    if ((entry=(host_entry*) hostname_cache->search((uchar*) in,0)))
     {
-      char *name;
-      if (!entry->hostname)
-	name=0;					// Don't allow connection
-      else
+      if (entry->hostname)
 	name=my_strdup(entry->hostname,MYF(0));
+      else
+        name= NULL;
+
+      DBUG_PRINT("info",("cached data %s", name ? name : "null" ));
       *errors= entry->errors;
       VOID(pthread_mutex_unlock(&hostname_cache->lock));
       DBUG_RETURN(name);
@@ -168,83 +190,11 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
     VOID(pthread_mutex_unlock(&hostname_cache->lock));
   }
 
-  struct hostent *hp, *check;
-  char *name;
-  LINT_INIT(check);
-#if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
-  char buff[GETHOSTBYADDR_BUFF_SIZE],buff2[GETHOSTBYNAME_BUFF_SIZE];
-  int tmp_errno;
-  struct hostent tmp_hostent, tmp_hostent2;
-#ifdef HAVE_purify
-  bzero(buff,sizeof(buff));		// Bug in purify
-#endif
-  if (!(hp=gethostbyaddr_r((char*) in,sizeof(*in),
-			   AF_INET,
-			   &tmp_hostent,buff,sizeof(buff),&tmp_errno)))
+  if (!(name= my_strdup(hostname_buff,MYF(0))))
   {
-    DBUG_PRINT("error",("gethostbyaddr_r returned %d",tmp_errno));
-    return 0;
-  }
-  if (!(check=my_gethostbyname_r(hp->h_name,&tmp_hostent2,buff2,sizeof(buff2),
-				 &tmp_errno)))
-  {
-    DBUG_PRINT("error",("gethostbyname_r returned %d",tmp_errno));
-    /*
-      Don't cache responses when the DSN server is down, as otherwise
-      transient DNS failure may leave any number of clients (those
-      that attempted to connect during the outage) unable to connect
-      indefinitely.
-    */
-    if (tmp_errno == HOST_NOT_FOUND || tmp_errno == NO_DATA)
-      add_wrong_ip(in);
-    my_gethostbyname_r_free();
+    DBUG_PRINT("error",("out of memory"));
     DBUG_RETURN(0);
   }
-  if (!hp->h_name[0])
-  {
-    DBUG_PRINT("error",("Got an empty hostname"));
-    add_wrong_ip(in);
-    my_gethostbyname_r_free();
-    DBUG_RETURN(0);				// Don't allow empty hostnames
-  }
-  if (!(name=my_strdup(hp->h_name,MYF(0))))
-  {
-    my_gethostbyname_r_free();
-    DBUG_RETURN(0);				// out of memory
-  }
-  my_gethostbyname_r_free();
-#else
-  VOID(pthread_mutex_lock(&LOCK_hostname));
-  if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))
-  {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
-    DBUG_PRINT("error",("gethostbyaddr returned %d",errno));
-
-    if (errno == HOST_NOT_FOUND || errno == NO_DATA)
-      goto add_wrong_ip_and_return;
-    /* Failure, don't cache responce */
-    DBUG_RETURN(0);
-  }
-  if (!hp->h_name[0])				// Don't allow empty hostnames
-  {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
-    DBUG_PRINT("error",("Got an empty hostname"));
-    goto add_wrong_ip_and_return;
-  }
-  if (!(name=my_strdup(hp->h_name,MYF(0))))
-  {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
-    DBUG_RETURN(0);				// out of memory
-  }
-  check=gethostbyname(name);
-  VOID(pthread_mutex_unlock(&LOCK_hostname));
-  if (!check)
-  {
-    DBUG_PRINT("error",("gethostbyname returned %d",errno));
-    my_free(name,MYF(0));
-    DBUG_RETURN(0);
-  }
-#endif
 
   /* Don't accept hostnames that starts with digits because they may be
      false ip:s */
@@ -255,24 +205,57 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
     if (*pos == '.')
     {
       DBUG_PRINT("error",("mysqld doesn't accept hostnames that starts with a number followed by a '.'"));
-      my_free(name,MYF(0));
       goto add_wrong_ip_and_return;
     }
   }
+  DBUG_PRINT("info",("resolved: %s",name));
+  
+  bzero(&hints, sizeof (struct addrinfo));
+  hints.ai_flags= AI_PASSIVE;
+  hints.ai_socktype= SOCK_STREAM;  
+  hints.ai_family= AF_UNSPEC;
 
-  /* Check that 'gethostbyname' returned the used ip */
-  for (i=0; check->h_addr_list[i]; i++)
+  gxi_error= getaddrinfo(hostname_buff, NULL, &hints, &res_lst);
+  if (gxi_error != 0)
   {
-    if (*(uint32*)(check->h_addr_list)[i] == in->s_addr)
+    /*
+      Don't cache responses when the DNS server is down, as otherwise
+      transient DNS failure may leave any number of clients (those
+      that attempted to connect during the outage) unable to connect
+      indefinitely.
+    */
+    DBUG_PRINT("error",("getaddrinfo returned %d", gxi_error));
+#ifdef EAI_NODATA
+    if (gxi_error == EAI_NODATA )
+#else
+    if (gxi_error == EAI_NONAME )
+#endif
+      add_wrong_ip(in);
+
+    if (res_lst)
+      freeaddrinfo(res_lst);
+
+    my_free(name, MYF(0));
+    DBUG_RETURN(0);
+  }
+
+  /* Check that 'getaddrinfo' returned the used ip */
+  for (t_res= res_lst; t_res; t_res=t_res->ai_next)
+  {
+    if (!memcmp(&(t_res->ai_addr), in,
+                sizeof(struct sockaddr_storage) ) )
     {
       add_hostname(in,name);
+      freeaddrinfo(res_lst);
       DBUG_RETURN(name);
     }
   }
-  DBUG_PRINT("error",("Couldn't verify hostname with gethostbyname"));
-  my_free(name,MYF(0));
+  
+  freeaddrinfo(res_lst);
+  DBUG_PRINT("error",("Couldn't verify hostname with getaddrinfo"));
 
 add_wrong_ip_and_return:
+  my_free(name,MYF(0));
   add_wrong_ip(in);
   DBUG_RETURN(0);
 }

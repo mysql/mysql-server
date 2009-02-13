@@ -175,7 +175,7 @@ t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1)
 master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
@@ -197,7 +197,7 @@ reset master;
 create table t2 like t1;;
 drop table t1;
 drop table t2;
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
@@ -213,7 +213,7 @@ drop table t2;
 create table t2 like t1;;
 drop table t1;
 drop table t2;
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
 master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)
@@ -234,7 +234,7 @@ drop table t2;
 create table t2 like t1;;
 drop table t1;
 drop table t2;
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
 master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)

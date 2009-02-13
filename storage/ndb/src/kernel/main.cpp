@@ -273,11 +273,33 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (shared_mem + tupmem + filepages)
+  Uint32 jbpages = compute_jb_pages(&ed);;
+  if (jbpages)
+  {
+    Resource_limit rl;
+    rl.m_min = jbpages;
+    rl.m_max = jbpages;
+    rl.m_resource_id = RG_JOBBUFFER;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 sbpages = 0;
+  if (globalTransporterRegistry.get_using_default_send_buffer() == false)
+  {
+    Uint64 mem = globalTransporterRegistry.get_total_max_send_buffer();
+    sbpages = (mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+    Resource_limit rl;
+    rl.m_min = sbpages;
+    rl.m_max = sbpages;
+    rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (shared_mem + tupmem + filepages + jbpages + sbpages)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem + tupmem + filepages;
+    rl.m_max = shared_mem + tupmem + filepages + jbpages + sbpages;
     rl.m_resource_id = 0;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -312,35 +334,39 @@ get_multithreaded_config(EmulatorData& ed)
     return 0;
   }
 
-  const ndb_mgm_configuration_iterator * p =
-    ed.theConfiguration->getOwnConfigIterator();
-  if (p == 0)
+  ndb_mgm_configuration * conf = ed.theConfiguration->getClusterConfig();
+  if (conf == 0)
   {
     abort();
   }
-
+  
+  ndb_mgm_configuration_iterator * p = ndb_mgm_create_configuration_iterator(conf, CFG_SECTION_NODE);
+  if (ndb_mgm_find(p, CFG_NODE_ID, globalData.ownId))
+  {
+    abort();
+  }
+  
   Uint32 mtthreads = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
   ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
-  
-  if (mtthreads > 3)
+
+  globalData.isNdbMtLqh = true;
+
   {
-    globalData.isNdbMtLqh = true;    
-  }
-  
-  // mt lqh via environment during development
-#ifdef VM_TRACE
-  {
+    Uint32 classic = 0;
+    ndb_mgm_get_int_parameter(p, CFG_NDBMT_CLASSIC, &classic);
+    if (classic)
+      globalData.isNdbMtLqh = false;
+
     const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
     if (p != 0)
     {
-      if (strchr("1Y", p[0]) != 0)
-        globalData.isNdbMtLqh = true;
-      else
+      if (strstr(p, "NOPLEASE") != 0)
         globalData.isNdbMtLqh = false;
+      else
+        globalData.isNdbMtLqh = true;
     }
   }
-#endif
 
   if (!globalData.isNdbMtLqh)
     return 0;
@@ -570,6 +596,10 @@ int main(int argc, char** argv)
 #else
   g_eventLogger->info("Ndb started");
 #endif
+  
+  if (get_multithreaded_config(globalEmulatorData))
+    return -1;
+  
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
@@ -588,9 +618,6 @@ int main(int argc, char** argv)
       return 1;
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
-
-  if (get_multithreaded_config(globalEmulatorData))
-    return -1;
 
   globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
   

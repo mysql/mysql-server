@@ -240,7 +240,6 @@ protected:
 
   template <class Ss>
   Ss& ssFind(Uint32 ssId) {
-    SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(ssId != 0);
     Ss* ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
@@ -254,14 +253,15 @@ protected:
    */
   template <class Ss>
   Ss& ssFindSeize(Uint32 ssId, bool* found) {
-    SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(ssId != 0);
     Ss* ssptr = ssSearch<Ss>(ssId);
     if (ssptr != 0) {
-      *found = true;
+      if (found)
+        *found = true;
       return *ssptr;
     }
-    *found = false;
+    if (found)
+      *found = false;
     return ssSeize<Ss>(ssId);
   }
 

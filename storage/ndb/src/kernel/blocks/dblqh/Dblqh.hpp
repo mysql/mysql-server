@@ -675,10 +675,12 @@ public:
      *       fragment operations on the fragment. 
      *       A maximum of four concurrently active is allowed.
      */
-    typedef Bitmask<4> ScanNumberMask;
+
+    typedef Bitmask<8> ScanNumberMask; // Max 255 KeyInfo20::ScanNo
     ScanNumberMask m_scanNumberMask;
     DLList<ScanRecord>::Head m_activeScans;
     DLFifoList<ScanRecord>::Head m_queuedScans;
+    DLFifoList<ScanRecord>::Head m_queuedTupScans;
 
     Uint16 srLqhLognode[4];
     /**

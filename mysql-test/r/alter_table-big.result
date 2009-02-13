@@ -12,7 +12,7 @@ alter table t1 enable keys;;
 insert into t2 values (1);
 insert into t1 values (1, 1, 1);
 set session debug="-d,sleep_alter_enable_indexes";
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)
 master-bin.000001	#	Query	1	#	use `test`; alter table t1 enable keys
@@ -41,7 +41,7 @@ alter table t2 change c vc varchar(100) default 'Test2', rename to t1;;
 rename table t1 to t3;
 drop table t3;
 set session debug="-d,sleep_alter_before_main_binlog";
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; alter table t1 change i c char(10) default 'Test1'
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values ()

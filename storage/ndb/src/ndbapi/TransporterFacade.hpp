@@ -256,6 +256,8 @@ private:
   friend void* runReceiveResponse_C(void*);
   friend void atexit_stop_instance();
 
+  bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
+
   /**
    * Block number handling
    */
@@ -357,7 +359,9 @@ TransporterFacade::unlock_mutex()
 inline
 unsigned Ndb_cluster_connection_impl::get_connect_count() const
 {
-  return m_transporter_facade->theClusterMgr->m_connect_count;
+  if (m_transporter_facade->theClusterMgr)
+    return m_transporter_facade->theClusterMgr->m_connect_count;
+  return 0;
 }
 
 inline
@@ -385,8 +389,12 @@ TransporterFacade::getNodeGrp(NodeId n) const {
 inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
-  const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
-  return node.m_alive;
+  if (theClusterMgr)
+  {
+    const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
+    return node.m_alive;
+  }
+  return 0;
 }
 
 inline

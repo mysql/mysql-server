@@ -1024,6 +1024,13 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   c_start.m_gsn = GSN_CM_NODEINFOREQ;
   c_start.m_nodes = c_clusterNodes;
 
+  if (ERROR_INSERTED(937))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 500, 1);
+  }
+
   return;
 }//Qmgr::execCM_REGCONF()
 
@@ -2946,7 +2953,13 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     jam();
     return;
   case ZSTARTING:
-    c_start.reset();
+    /**
+     * bug#42422
+     *   Force "real" failure handling
+     */
+    failedNodePtr.p->phase = ZRUNNING;
+    failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE);
+    return;
     // Fall-through
   default:
     jam();
@@ -3536,6 +3549,8 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
 {
   NodeRecPtr myNodePtr;
   jamEntry();
+  
+  c_start.reset();
   
   if (check_multi_node_shutdown(signal))
   {
