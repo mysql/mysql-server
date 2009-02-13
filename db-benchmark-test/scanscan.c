@@ -11,6 +11,8 @@
 #include <unistd.h>
 #ifdef TOKUDB
 #include "key.h"
+#include "cachetable.h"
+#include "trace_mem.h"
 #endif
 
 const char *pname;
@@ -199,9 +201,9 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     e->rowcounter++;
     if (do_mysql && 0) {
         static uint64_t expect_key = 0;
-        uint64_t k = mysql_get_bigint(key->data+1);
+        uint64_t k = mysql_get_bigint((unsigned char*)key->data+1);
         if (k != expect_key)
-            printf("%s:%d %"PRId64" %"PRId64"\n", __FUNCTION__, __LINE__, k, expect_key);
+            printf("%s:%d %"PRIu64" %"PRIu64"\n", __FUNCTION__, __LINE__, k, expect_key);
         expect_key = k + 1;
     }
     return 0;
@@ -399,14 +401,12 @@ int main (int argc, const char *argv[]) {
 
 #if defined(TOKUDB)
     if (1) {
-	extern void toku_cachetable_print_hash_histogram (void);
 	toku_cachetable_print_hash_histogram();
     }
 
     // if tokudb has tracing enabled (see trace_mem.h) then this will dump
     // the trace data
     if (0) {
-        extern void toku_print_trace_mem();
         toku_print_trace_mem();
     }
 #endif
