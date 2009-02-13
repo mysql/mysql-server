@@ -182,7 +182,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     /* Handle --defaults-group-suffix= */
     uint i;
     const char **extra_groups;
-    const uint instance_len= strlen(my_defaults_group_suffix); 
+    const size_t instance_len= strlen(my_defaults_group_suffix); 
     struct handle_option_ctx *ctx= (struct handle_option_ctx*) func_ctx;
     char *ptr;
     TYPELIB *group= ctx->group;
@@ -194,11 +194,11 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     
     for (i= 0; i < group->count; i++)
     {
-      uint len;
+      size_t len;
       extra_groups[i]= group->type_names[i]; /** copy group */
       
       len= strlen(extra_groups[i]);
-      if (!(ptr= alloc_root(ctx->alloc, len+instance_len+1)))
+      if (!(ptr= alloc_root(ctx->alloc, (uint) (len+instance_len+1))))
 	goto err;
       
       extra_groups[i+group->count]= ptr;
@@ -970,7 +970,7 @@ void print_defaults(const char *conf_file, const char **groups)
 static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
 {
   char buf[FN_REFLEN];
-  uint len;
+  size_t len;
   char *p;
   my_bool err __attribute__((unused));
 
@@ -1004,14 +1004,14 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size)
                                              "GetSystemWindowsDirectoryA");
 
   if (func_ptr)
-    return func_ptr(buffer, size);
+    return func_ptr(buffer, (uint) size);
 
   /*
     Windows NT 4.0 Terminal Server Edition:  
     To retrieve the shared Windows directory, call GetSystemDirectory and
     trim the "System32" element from the end of the returned path.
   */
-  count= GetSystemDirectory(buffer, size);
+  count= GetSystemDirectory(buffer, (uint) size);
   if (count > 8 && stricmp(buffer+(count-8), "\\System32") == 0)
   {
     count-= 8;

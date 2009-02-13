@@ -527,8 +527,8 @@ Event_parse_data::init_definer(THD *thd)
 
   const char *definer_user= thd->lex->definer->user.str;
   const char *definer_host= thd->lex->definer->host.str;
-  int definer_user_len= thd->lex->definer->user.length;
-  int definer_host_len= thd->lex->definer->host.length;
+  size_t  definer_user_len= thd->lex->definer->user.length;
+  size_t  definer_host_len= thd->lex->definer->host.length;
 
   DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
                      "definer_user: 0x%lx", (long) thd->mem_root,

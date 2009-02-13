@@ -1361,7 +1361,7 @@ public:
   /** Get the utf8-body length. */
   uint get_body_utf8_length()
   {
-    return m_body_utf8_ptr - m_body_utf8;
+    return (uint) (m_body_utf8_ptr - m_body_utf8);
   }
 
   void body_utf8_start(THD *thd, const char *begin_ptr);
