@@ -6506,7 +6506,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	    f_key_info.referenced_key_name = thd_make_lex_string(
 		    thd, f_key_info.referenced_key_name,
 		    foreign->referenced_index->name,
-		    strlen(foreign->referenced_index->name), 1);
+		    (uint) strlen(foreign->referenced_index->name), 1);
           }
           else
             f_key_info.referenced_key_name= 0;
@@ -7119,7 +7119,7 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton_name, strlen(innobase_hton_name),
+	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
@@ -7149,7 +7149,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
+	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
 	mutex_enter_noninline(&mutex_list_mutex);
@@ -7193,9 +7193,9 @@ innodb_mutex_show_status(
 			rw_lock_wait_time += mutex->lspent_time;
 		}
 #else /* UNIV_DEBUG */
-		buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
-		buf2len= my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
@@ -7708,7 +7708,7 @@ ha_innobase::get_error_message(int error, String *buf)
 {
 	trx_t*	trx = check_trx_exists(ha_thd());
 
-	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+	buf->copy(trx->detailed_error, (uint) strlen(trx->detailed_error),
 		system_charset_info);
 
 	return FALSE;

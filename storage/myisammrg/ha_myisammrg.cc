@@ -218,7 +218,7 @@ static int myisammrg_parent_open_callback(void *callback_param,
   TABLE_LIST    *child_l;
   const char    *db;
   const char    *table_name;
-  uint          dirlen;
+  size_t        dirlen;
   char          dir_path[FN_REFLEN];
   DBUG_ENTER("myisammrg_parent_open_callback");
 
@@ -961,7 +961,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name)
 {
-  uint dir_length, prefix_length;
+  size_t dir_length, prefix_length;
   char buff[FN_REFLEN];
 
   db->length= 0;
@@ -1034,7 +1034,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   const char **table_names, **pos;
   TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
   THD *thd= current_thd;
-  uint dirlgt= dirname_length(name);
+  size_t dirlgt= dirname_length(name);
   DBUG_ENTER("ha_myisammrg::create");
 
   /* Allocate a table_names array in thread mem_root. */
@@ -1093,7 +1093,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 void ha_myisammrg::append_create_info(String *packet)
 {
   const char *current_db;
-  uint db_length;
+  size_t db_length;
   THD *thd= current_thd;
   MYRG_TABLE *open_table, *first;
 

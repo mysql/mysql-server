@@ -468,7 +468,7 @@ bool String::append(const char *s,uint32 arg_length)
 
 bool String::append(const char *s)
 {
-  return append(s, strlen(s));
+  return append(s, (uint) strlen(s));
 }
 
 
