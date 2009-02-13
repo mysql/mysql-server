@@ -11,7 +11,7 @@
 #
 
 --source include/have_log_bin.inc
---source include/not_windows.inc
+
 #
 # Bug#31240 load data infile replication between (4.0 or 4.1) and 5.1 fails
 #

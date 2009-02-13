@@ -1,3 +1,6 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
@@ -21,16 +24,18 @@ connection con2;
 insert into t1 values (200000);
 connection con1;
 reap;
+connection default;
+disconnect con1;
+disconnect con2;
 drop table t1;
+
 
 # End of 4.1 tests
 
 #
-# Bug #9897  Views: 'Check Table' crashes MySQL, with a view and a table 
-# in the statement
+# Bug#9897 Views: 'Check Table' crashes MySQL, with a view and a table
+#          in the statement
 #
-
-connection default;
 Create table t1(f1 int);
 Create table t2(f1 int);
 Create view v1 as Select * from t1;
@@ -38,11 +43,15 @@ Check Table v1,t2;
 drop view v1;
 drop table t1, t2;
 
+
 #
-# BUG#26325 - TEMPORARY TABLE "corrupt" after first read, according to CHECK
-#             TABLE
+# Bug#26325 TEMPORARY TABLE "corrupt" after first read, according to CHECK TABLE
 #
 CREATE TEMPORARY TABLE t1(a INT);
 CHECK TABLE t1;
 REPAIR TABLE t1;
 DROP TABLE t1;
+
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

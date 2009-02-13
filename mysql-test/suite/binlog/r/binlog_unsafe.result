@@ -220,3 +220,10 @@ Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 DROP PROCEDURE p1;
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a VARCHAR(100), b VARCHAR(100));
+INSERT INTO t1 VALUES ('a','b');
+UPDATE t1 SET b = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' WHERE a = 'a' LIMIT 1;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+DROP TABLE t1;
