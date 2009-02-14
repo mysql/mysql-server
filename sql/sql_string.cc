@@ -122,7 +122,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
+    uint32 len= my_sprintf(buff,(buff, "%.15g",num));// Enough for a DATETIME
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
 #ifdef HAVE_FCONVERT
@@ -674,7 +674,7 @@ void String::qs_append(const char *str, uint32 len)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  str_length+= my_sprintf(buff, (buff, "%.14g", d));
+  str_length+= my_sprintf(buff, (buff, "%.15g", d));
 }
 
 void String::qs_append(double *d)
