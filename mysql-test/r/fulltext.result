@@ -530,3 +530,12 @@ select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-0
 drop table t1;
 show warnings;
 Level	Code	Message
+CREATE TABLE t1(a CHAR(10));
+INSERT INTO t1 VALUES('aaa15');
+SELECT MATCH(a) AGAINST('aaa1* aaa14 aaa16' IN BOOLEAN MODE) FROM t1;
+MATCH(a) AGAINST('aaa1* aaa14 aaa16' IN BOOLEAN MODE)
+1
+SELECT MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE) FROM t1;
+MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE)
+2
+DROP TABLE t1;

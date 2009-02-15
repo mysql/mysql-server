@@ -19,7 +19,11 @@
 #if defined(TARGET_OS_LINUX) && !defined (__USE_UNIX98)
 #define __USE_UNIX98			/* To get rw locks under Linux */
 #endif
-#if defined(THREAD) && defined(SAFE_MUTEX)
+#ifdef SAFE_MUTEX
+#define SAFE_MUTEX_DEFINED
+#endif
+
+#if defined(THREAD)
 #undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
 #include "mysys_priv.h"
 #include "my_static.h"
@@ -41,6 +45,13 @@
 #endif
 #endif /* DO_NOT_REMOVE_THREAD_WRAPPERS */
 
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+pthread_mutexattr_t my_fast_mutexattr;
+#endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+pthread_mutexattr_t my_errorcheck_mutexattr;
+#endif
+#ifdef SAFE_MUTEX_DEFINED
 static pthread_mutex_t THR_LOCK_mutex;
 static ulong safe_mutex_count= 0;		/* Number of mutexes created */
 static ulong safe_mutex_id= 0;
@@ -60,7 +71,58 @@ static my_bool remove_from_used_mutex(safe_mutex_deadlock_t *locked_mutex,
                                       safe_mutex_t *mutex);
 static void print_deadlock_warning(safe_mutex_t *new_mutex,
                                    safe_mutex_t *conflicting_mutex);
+#endif
 
+
+/* Initialize all mutex handling */
+
+void my_mutex_init()
+{
+  /* Initialize mutex attributes */
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "fast" a.k.a "adaptive"
+
+    In this case the thread may steal the mutex from some other thread
+    that is waiting for the same mutex.  This will save us some
+    context switches but may cause a thread to 'starve forever' while
+    waiting for the mutex (not likely if the code within the mutex is
+    short).
+  */
+  pthread_mutexattr_init(&my_fast_mutexattr);
+  pthread_mutexattr_settype(&my_fast_mutexattr,
+                            PTHREAD_MUTEX_ADAPTIVE_NP);
+#endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "errorcheck"
+  */
+  pthread_mutexattr_init(&my_errorcheck_mutexattr);
+  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
+                            PTHREAD_MUTEX_ERRORCHECK);
+#endif
+
+#if defined(SAFE_MUTEX_DEFINED)
+  safe_mutex_global_init();
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  fastmutex_global_init();
+#endif
+}
+
+void my_mutex_end()
+{
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+  pthread_mutexattr_destroy(&my_fast_mutexattr);
+#endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+  pthread_mutexattr_destroy(&my_errorcheck_mutexattr);
+#endif
+}
+
+
+/* Initialize safe_mutex handling */
+
+#ifdef SAFE_MUTEX_DEFINED
 void safe_mutex_global_init(void)
 {
   pthread_mutex_init(&THR_LOCK_mutex,MY_MUTEX_INIT_FAST);
@@ -865,4 +927,5 @@ void fastmutex_global_init(void)
 #endif
 }
   
-#endif /* defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 
+#endif /* SAFE_MUTEX_DEFINED */
+#endif /* THREAD */

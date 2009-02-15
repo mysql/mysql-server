@@ -28,9 +28,9 @@ insert into t1 select concat(a,'b') from t1 limit 1;
 # a specific name to do specific detection (don't want to ignore
 # any corruption messages of other tests using "t2" as table).
 
-copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.frm $MYSQLTEST_VARDIR/master-data/mysqltest/t_corrupted2.frm;
-copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.MAD $MYSQLTEST_VARDIR/master-data/mysqltest/t_corrupted2.MAD;
-copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.MAI $MYSQLTEST_VARDIR/master-data/mysqltest/t_corrupted2.MAI;
+copy_file $MYSQLTEST_VARDIR/mysqld.1/data/mysqltest/t1.frm $MYSQLTEST_VARDIR/mysqld.1/data/mysqltest/t_corrupted2.frm;
+copy_file $MYSQLTEST_VARDIR/mysqld.1/data/mysqltest/t1.MAD $MYSQLTEST_VARDIR/mysqld.1/data/mysqltest/t_corrupted2.MAD;
+copy_file $MYSQLTEST_VARDIR/mysqld.1/data/mysqltest/t1.MAI $MYSQLTEST_VARDIR/mysqld.1/data/mysqltest/t_corrupted2.MAI;
 
 # Ruin the index file.
 # If maria-block-size is smaller than the default, the corruption
@@ -38,7 +38,7 @@ copy_file $MYSQLTEST_VARDIR/master-data/mysqltest/t1.MAI $MYSQLTEST_VARDIR/maste
 perl;
     use strict;
     use warnings;
-    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/master-data/mysqltest/t_corrupted2.MAI";
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/mysqld.1/data/mysqltest/t_corrupted2.MAI";
     open(FILE, "+<", $fname) or die;
     my $whatever= ("\xAB" x 100);
     sysseek (FILE, 8192, 0) or die;
@@ -54,3 +54,4 @@ enable_ps_protocol;
 select * from t_corrupted2; # should show just rows
 
 drop database mysqltest;
+set @@global.maria_recover=BACKUP;

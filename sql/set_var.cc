@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1540,14 +1540,14 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   ulonglong tmp= var->save_result.ulonglong_value;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if ((ulong) tmp > max_system_variables.*offset)
+  if (tmp > max_system_variables.*offset)
   {
     throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp);
     tmp= max_system_variables.*offset;
   }
 
   if (option_limits)
-    tmp= (ulong) fix_unsigned(thd, tmp, option_limits);
+    tmp= fix_unsigned(thd, tmp, option_limits);
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
   else if (tmp > ULONG_MAX)
   {
@@ -1556,6 +1556,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   }
 #endif
 
+  DBUG_ASSERT(tmp <= ULONG_MAX);
   if (var->type == OPT_GLOBAL)
     global_system_variables.*offset= (ulong) tmp;
   else
@@ -3554,6 +3555,7 @@ int set_var_password::check(THD *thd)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
   {
+    DBUG_ASSERT(thd->security_ctx->priv_host);
     if (*thd->security_ctx->priv_host != 0)
     {
       user->host.str= (char *) thd->security_ctx->priv_host;
@@ -3564,6 +3566,12 @@ int set_var_password::check(THD *thd)
       user->host.str= (char *)"%";
       user->host.length= 1;
     }
+  }
+  if (!user->user.str)
+  {
+    DBUG_ASSERT(thd->security_ctx->priv_user);
+    user->user.str= (char *) thd->security_ctx->priv_user;
+    user->user.length= strlen(thd->security_ctx->priv_user);
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,

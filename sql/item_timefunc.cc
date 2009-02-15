@@ -1034,12 +1034,25 @@ longlong Item_func_month::val_int()
 }
 
 
+void Item_func_monthname::fix_length_and_dec()
+{
+  THD* thd= current_thd;
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= my_charset_repertoire(cs);
+  locale= thd->variables.lc_time_names;  
+  collation.set(cs, DERIVATION_COERCIBLE, repertoire);
+  decimals=0;
+  max_length= locale->max_month_name_length * collation.collation->mbmaxlen;
+  maybe_null=1; 
+}
+
+
 String* Item_func_monthname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
-  uint   month= (uint) val_int();
-  THD *thd= current_thd;
+  uint month= (uint) val_int();
+  uint err;
 
   if (null_value || !month)
   {
@@ -1047,8 +1060,9 @@ String* Item_func_monthname::val_str(String* str)
     return (String*) 0;
   }
   null_value=0;
-  month_name= thd->variables.lc_time_names->month_names->type_names[month-1];
-  str->set(month_name, strlen(month_name), system_charset_info);
+  month_name= locale->month_names->type_names[month-1];
+  str->copy(month_name, strlen(month_name), &my_charset_utf8_bin,
+	    collation.collation, &err);
   return str;
 }
 
@@ -1173,19 +1187,32 @@ longlong Item_func_weekday::val_int()
                                  odbc_type) + test(odbc_type);
 }
 
+void Item_func_dayname::fix_length_and_dec()
+{
+  THD* thd= current_thd;
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= my_charset_repertoire(cs);
+  locale= thd->variables.lc_time_names;  
+  collation.set(cs, DERIVATION_COERCIBLE, repertoire);
+  decimals=0;
+  max_length= locale->max_day_name_length * collation.collation->mbmaxlen;
+  maybe_null=1; 
+}
+
 
 String* Item_func_dayname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
   const char *day_name;
-  THD *thd= current_thd;
+  uint err;
 
   if (null_value)
     return (String*) 0;
   
-  day_name= thd->variables.lc_time_names->day_names->type_names[weekday];
-  str->set(day_name, strlen(day_name), system_charset_info);
+  day_name= locale->day_names->type_names[weekday];
+  str->copy(day_name, strlen(day_name), &my_charset_utf8_bin,
+	    collation.collation, &err);
   return str;
 }
 

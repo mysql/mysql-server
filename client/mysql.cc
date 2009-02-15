@@ -1539,7 +1539,7 @@ static void usage(int version)
   if (version)
     return;
   printf("\
-Copyright (C) 2000-2008 MySQL AB\n\
+Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
@@ -2028,7 +2028,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     if (!preserve_comments)
     {
-      // Skip spaces at the beggining of a statement
+      // Skip spaces at the beginning of a statement
       if (my_isspace(charset_info,inchar) && (out == line) &&
           buffer.is_empty())
         continue;
@@ -2111,37 +2111,6 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	continue;
       }
     }
-    else if (!*ml_comment && !*in_string &&
-             (end_of_line - pos) >= 10 &&
-             !my_strnncoll(charset_info, (uchar*) pos, 10,
-                           (const uchar*) "delimiter ", 10))
-    {
-      // Flush previously accepted characters
-      if (out != line)
-      {
-        buffer.append(line, (uint32) (out - line));
-        out= line;
-      }
-
-      // Flush possible comments in the buffer
-      if (!buffer.is_empty())
-      {
-        if (com_go(&buffer, 0) > 0) // < 0 is not fatal
-          DBUG_RETURN(1);
-        buffer.length(0);
-      }
-
-      /*
-        Delimiter wants the get rest of the given line as argument to
-        allow one to change ';' to ';;' and back
-      */
-      buffer.append(pos);
-      if (com_delimiter(&buffer, pos) > 0)
-        DBUG_RETURN(1);
-
-      buffer.length(0);
-      break;
-    }
     else if (!*ml_comment && !*in_string && is_prefix(pos, delimiter))
     {
       // Found a statement. Continue parsing after the delimiter
@@ -2206,7 +2175,23 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
       // comment to end of line
       if (preserve_comments)
+      {
+        bool started_with_nothing= !buffer.length();
+
         buffer.append(pos);
+
+        /*
+          A single-line comment by itself gets sent immediately so that
+          client commands (delimiter, status, etc) will be interpreted on
+          the next line.
+        */
+        if (started_with_nothing)
+        {
+          if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
+            DBUG_RETURN(1);
+          buffer.length(0);
+        }
+      }
 
       break;
     }

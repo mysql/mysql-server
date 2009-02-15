@@ -64,3 +64,11 @@ select a,length(b) from t1;
 check table t1;
 
 drop table t1;
+
+# Set defaults back
+--disable_result_log
+--disable_query_log
+set global maria_log_file_size=default;
+set global max_allowed_packet=default;
+--enable_result_log
+--enable_query_log

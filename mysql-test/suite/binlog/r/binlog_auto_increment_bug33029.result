@@ -1,3 +1,4 @@
+SET @old_relay_log_purge= @@global.relay_log_purge;
 change master to
 MASTER_HOST='dummy.localdomain',
 RELAY_LOG_FILE='slave-relay-bin.000001',
@@ -37,3 +38,4 @@ DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
 stop slave sql_thread;
+SET @@global.relay_log_purge= @old_relay_log_purge;

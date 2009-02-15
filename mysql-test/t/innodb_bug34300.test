@@ -30,3 +30,10 @@ ALTER TABLE bug34300 ADD COLUMN (f10 INT);
 SELECT f4, f8 FROM bug34300;
 
 DROP TABLE bug34300;
+
+--disable_result_log
+--disable_query_log
+SET @@global.max_allowed_packet=default;
+--enable_result_log
+--enable_query_log
+

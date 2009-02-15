@@ -208,4 +208,10 @@ select count(*) from t2;
 }
 
 -- source include/maria_verify_recovery.inc
-drop table t1,t2;
+
+let $mms_purpose=comparison;
+eval drop database mysqltest_for_$mms_purpose;
+let $mms_purpose=feeding_recovery;
+eval drop database mysqltest_for_$mms_purpose;
+drop database mysqltest;
+

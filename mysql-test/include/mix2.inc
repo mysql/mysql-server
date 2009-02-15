@@ -1222,7 +1222,7 @@ drop table t2;
 
 # Clean up filename -- embedded server reports whole path without .frm,
 # regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
+--replace_result \\ / $MYSQL_TEST_DIR . /var/mysqld.1/data/ / t2.frm t2
 --error 1005
 eval create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = $engine_type;
 
@@ -1467,7 +1467,7 @@ source include/varchar.inc;
 
 # Clean up filename -- embedded server reports whole path without .frm,
 # regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
+--replace_result \\ / $MYSQL_TEST_DIR . /var/mysqld.1/data/ / t1.frm t1
 create table t1 (v varchar(65530), key(v));
 drop table t1;
 create table t1 (v varchar(65536));
@@ -1778,7 +1778,7 @@ if ($test_foreign_keys)
 
 set foreign_key_checks=0;
 eval create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = $engine_type;
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1005
 eval create table t1(a char(10) primary key, b varchar(20)) engine = $engine_type;
 set foreign_key_checks=1;
@@ -1789,7 +1789,7 @@ drop table t2;
 
 set foreign_key_checks=0;
 eval create table t1(a varchar(10) primary key) engine = $engine_type DEFAULT CHARSET=latin1;
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1005
 eval create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = $engine_type DEFAULT CHARSET=utf8;
 set foreign_key_checks=1;
@@ -1819,7 +1819,7 @@ drop table t2,t1;
 set foreign_key_checks=0;
 eval create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = $engine_type DEFAULT CHARSET=latin1;
 eval create table t3(a varchar(10) primary key) engine = $engine_type DEFAULT CHARSET=utf8;
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1025
 rename table t3 to t1;
 set foreign_key_checks=1;

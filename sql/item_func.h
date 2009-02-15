@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -362,7 +362,10 @@ public:
   Item_func_unsigned(Item *a) :Item_func_signed(a) {}
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
-  { max_length=args[0]->max_length; unsigned_flag=1; }
+  {
+    max_length= min(args[0]->max_length, DECIMAL_MAX_PRECISION + 2);
+    unsigned_flag=1;
+  }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
 };

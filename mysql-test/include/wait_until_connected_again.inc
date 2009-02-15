@@ -11,7 +11,10 @@ let $counter= 5000;
 let $mysql_errno= 1;
 while ($mysql_errno)
 {
-  --error 0,2002,2003,2006,1053
+  # Strangely enough, the server might return "Too many connections"
+  # while being shutdown, thus 1040 is an "allowed" error
+  # See BUG#36228
+  --error 0,1040,1053,2002,2003,2006,2013
   show status;
 
   dec $counter;

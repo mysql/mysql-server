@@ -161,11 +161,11 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
 
 static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
-  /* ORDER BY word DESC, ndepth DESC */
-  int i= ha_compare_text(cs, (uchar*) (*b)->word+1,(*b)->len-1,
-                             (uchar*) (*a)->word+1,(*a)->len-1,0,0);
+  /* ORDER BY word, ndepth */
+  int i= ha_compare_text(cs, (uchar*) (*a)->word + 1, (*a)->len - 1,
+                             (uchar*) (*b)->word + 1, (*b)->len - 1, 0, 0);
   if (!i)
-    i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
+    i= CMP_NUM((*a)->ndepth, (*b)->ndepth);
   return i;
 }
 
@@ -865,23 +865,49 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
   FT_INFO *ftb= ftb_param->ftb;
   FTB_WORD *ftbw;
   int a, b, c;
+  /*
+    Find right-most element in the array of query words matching this
+    word from a document.
+  */
   for (a= 0, b= ftb->queue.elements, c= (a+b)/2; b-a>1; c= (a+b)/2)
   {
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word+1, ftbw->len-1,
-                        (my_bool)(ftbw->flags&FTB_FLAG_TRUNC), 0) > 0)
+                        (my_bool) (ftbw->flags & FTB_FLAG_TRUNC), 0) < 0)
       b= c;
     else
       a= c;
   }
+  /*
+    If there were no words with truncation operator, we iterate to the
+    beginning of an array until array element is equal to the word from
+    a document. This is done mainly because the same word may be
+    mentioned twice (or more) in the query.
+
+    In case query has words with truncation operator we must iterate
+    to the beginning of the array. There may be non-matching query words
+    between matching word with truncation operator and the right-most
+    matching element. E.g., if we're looking for 'aaa15' in an array of
+    'aaa1* aaa14 aaa15 aaa16'.
+
+    Worse of that there still may be match even if the binary search
+    above didn't find matching element. E.g., if we're looking for
+    'aaa15' in an array of 'aaa1* aaa14 aaa16'. The binary search will
+    stop at 'aaa16'.
+  */
   for (; c >= 0; c--)
   {
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word + 1,ftbw->len - 1,
                         (my_bool)(ftbw->flags & FTB_FLAG_TRUNC), 0))
-      break;
+    {
+      if (ftb->with_scan & FTB_FLAG_TRUNC)
+        continue;
+      else
+        break;
+    }
     if (ftbw->docid[1] == ftb->info->lastpos)
       continue;
     ftbw->docid[1]= ftb->info->lastpos;

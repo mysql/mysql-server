@@ -18,7 +18,7 @@ connection default;
 
 connection default;
 
-remove_file $MYSQLTEST_VARDIR/master-data/$MARIA_LOG/maria_log.00000001;
+remove_file $MYSQLTEST_VARDIR/mysqld.1/data/$MARIA_LOG/maria_log.00000001;
 --replace_regex /Size unknown ; .*maria_log.00000001/Size unknown ; maria_log.00000001/
 show engine maria logs;
 

@@ -38,5 +38,6 @@ set binlog_format=default;
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default;
+set global maria_log_file_size=default;
 --enable_result_log
 --enable_query_log

@@ -748,6 +748,7 @@ mysql-test/.DS_Store
 mysql-test/funcs_1.log
 mysql-test/funcs_1.tar
 mysql-test/install_test_db
+mysql-test/lib/My/SafeProcess/my_safe_process
 mysql-test/lib/init_db.sql
 mysql-test/linux_sys_vars.inc
 mysql-test/load_sysvars.inc
@@ -1221,9 +1222,12 @@ sql/*.ds?
 sql/*.vcproj
 sql/.gdbinit
 sql/client.c
+sql/Doxyfile
 sql/f.c
 sql/gen_lex_hash
 sql/handlerton.cc
+sql/html
+sql/latex
 sql/lex_hash.h
 sql/link_sources
 sql/max/*
@@ -1897,3 +1901,4 @@ sql/share/slovak
 sql/share/spanish
 sql/share/swedish
 sql/share/ukrainian
+libmysqld/examples/mysqltest.cc

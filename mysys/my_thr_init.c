@@ -40,12 +40,6 @@ pthread_mutex_t LOCK_localtime_r;
 #ifndef HAVE_GETHOSTBYNAME_R
 pthread_mutex_t LOCK_gethostbyname_r;
 #endif
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_fast_mutexattr;
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_errorcheck_mutexattr;
-#endif
 
 #ifdef TARGET_OS_LINUX
 
@@ -123,29 +117,6 @@ my_bool my_thread_global_init(void)
 
   if (my_thread_init())
     return 1;
-
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "fast" a.k.a "adaptive"
-
-    In this case the thread may steal the mutex from some other thread
-    that is waiting for the same mutex.  This will save us some
-    context switches but may cause a thread to 'starve forever' while
-    waiting for the mutex (not likely if the code within the mutex is
-    short).
-  */
-  pthread_mutexattr_init(&my_fast_mutexattr);
-  pthread_mutexattr_settype(&my_fast_mutexattr,
-                            PTHREAD_MUTEX_ADAPTIVE_NP);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "errorcheck"
-  */
-  pthread_mutexattr_init(&my_errorcheck_mutexattr);
-  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
-                            PTHREAD_MUTEX_ERRORCHECK);
-#endif
 
   /* Mutex uses by mysys */
   pthread_mutex_init(&THR_LOCK_open,MY_MUTEX_INIT_FAST);
@@ -226,12 +197,6 @@ void my_thread_global_end(void)
   }
 
   pthread_key_delete(THR_KEY_mysys);
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_fast_mutexattr);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_errorcheck_mutexattr);
-#endif
   if (all_threads_killed)
   {
     pthread_mutex_destroy(&THR_LOCK_threads);

@@ -679,6 +679,8 @@ extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_no_free(void *);
 extern int pthread_dummy(int);
+extern void my_mutex_init();
+extern void my_mutex_end();
 
 /* All thread specific variables are in the following struct */
 

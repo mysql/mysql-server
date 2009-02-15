@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5110,6 +5110,9 @@ int Item_hex_string::save_in_field(Field *field, bool no_conversions)
 
   ulonglong nr;
   uint32 length= str_value.length();
+  if (!length)
+    return 1;
+
   if (length > 8)
   {
     nr= field->flags & UNSIGNED_FLAG ? ULONGLONG_MAX : LONGLONG_MAX;

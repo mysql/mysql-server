@@ -1651,7 +1651,7 @@ FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
 --echo # Cleanup.
@@ -1731,7 +1731,7 @@ FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
 --echo # Cleanup.
@@ -1854,7 +1854,7 @@ FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
 --echo # Cleanup.
@@ -1887,7 +1887,7 @@ eval CREATE TABLE t1 (
 --echo #
 --echo # Load data.
 --echo #
-LOAD DATA INFILE '../std_data_ln/loaddata5.dat'
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
   INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1,c2)
   SET c3 = 'Wow';
 
@@ -1912,7 +1912,7 @@ FLUSH LOGS;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
 
 --echo #
 --echo # Cleanup.

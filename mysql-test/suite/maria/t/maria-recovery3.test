@@ -6,7 +6,7 @@
 --source include/have_maria.inc
 
 set global maria_log_file_size=4294967295;
-let $MARIA_LOG=../tmp;
+let $MARIA_LOG=../../tmp;
 
 --disable_warnings
 drop database if exists mysqltest;
@@ -112,5 +112,7 @@ drop table t1;
 
 # clean up everything
 let $mms_purpose=comparison;
+eval drop database mysqltest_for_$mms_purpose;
+let $mms_purpose=feeding_recovery;
 eval drop database mysqltest_for_$mms_purpose;
 drop database mysqltest;

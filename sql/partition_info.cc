@@ -867,6 +867,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
 
     if (part_type != HASH_PARTITION || !list_of_part_fields)
     {
+      DBUG_ASSERT(part_expr);
       err= part_expr->walk(&Item::check_partition_func_processor, 0,
                            NULL);
       if (!err && is_sub_partitioned() && !list_of_subpart_fields)

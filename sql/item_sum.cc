@@ -654,8 +654,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     return TRUE;
 
   // 'item' can be changed during fix_fields
-  if ((!item->fixed &&
-       item->fix_fields(thd, args)) ||
+  if ((!item->fixed && item->fix_fields(thd, args)) ||
       (item= args[0])->check_cols(1))
     return TRUE;
   decimals=item->decimals;

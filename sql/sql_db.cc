@@ -907,7 +907,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
-    
     error= -1;
     /*
       We temporarily disable the binary log while dropping the objects

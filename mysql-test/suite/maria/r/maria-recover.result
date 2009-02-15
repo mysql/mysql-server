@@ -32,3 +32,4 @@ select * from t_corrupted2;
 a
 ThursdayMorningsMarket
 drop database mysqltest;
+set @@global.maria_recover=BACKUP;

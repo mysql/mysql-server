@@ -1075,9 +1075,9 @@ SHOW TABLE STATUS LIKE 't1';
 ALTER TABLE t1 ENABLE KEYS;
 --replace_column 6 # 7 # 8 # 10 # 11 # 12 # 13 # 14 # 15 # 16 #
 SHOW TABLE STATUS LIKE 't1';
-#--exec ls -log var/master-data/test/t1
-#--exec maria_chk -dvv var/master-data/test/t1
-#--exec maria_chk -iev var/master-data/test/t1
+#--exec ls -log var/mysqld.1/data/test/t1
+#--exec maria_chk -dvv var/mysqld.1/data/test/t1
+#--exec maria_chk -iev var/mysqld.1/data/test/t1
 --echo # Enable keys with parallel repair
 SET @@maria_repair_threads=2;
 ALTER TABLE t1 DISABLE KEYS;
@@ -1406,7 +1406,7 @@ CREATE TABLE t1 (
   KEY (c2)
 ) ENGINE=maria DEFAULT CHARSET=utf8 PACK_KEYS=0;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MARIA_CHK -d $MYSQLTEST_VARDIR/master-data/test/t1
+--exec $MARIA_CHK -d $MYSQLTEST_VARDIR/mysqld.1/data/test/t1
 DROP TABLE t1;
 
 # Test warnings with transactional=1 with MyISAM
@@ -1874,5 +1874,6 @@ drop table t1;
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
+set global maria_log_file_size=default;
 --enable_result_log
 --enable_query_log

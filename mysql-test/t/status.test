@@ -238,6 +238,8 @@ let $tmp_table2 = `show global status like 'Created_tmp_tables'`;
 --disable_query_log
 eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9,-1) as rnd_diff, substring_index('$tmp_table2',0x9,-1)-substring_index('$tmp_table',0x9,-1) as tmp_table_diff;
 --enable_query_log
+disconnect con1;
+connection default;
 
 # 
 # Bug#30252 Com_create_function is not incremented.
@@ -287,10 +289,51 @@ show procedure status where name ='proc37908' and 1 in (select f1 from db37908.t
 --error 1142
 show function status where name ='func37908' and 1 in (select func37908());
 
-connection root;
+connection default;
+disconnect user1;
+disconnect root;
 drop database db37908;
 drop procedure proc37908;
 drop function func37908;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+DROP USER mysqltest_1@localhost;
+
+#
+# Bug#41131 "Questions" fails to increment - ignores statements instead stored procs
+#
+connect (con1,localhost,root,,);
+connection con1;
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+DELIMITER $$;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  DECLARE foo INTEGER;
+  DECLARE bar INTEGER;
+  SET foo=1;
+  SET bar=2;
+  RETURN foo;
+END $$
+CREATE PROCEDURE p1()
+  BEGIN
+  SELECT 1;
+END $$
+DELIMITER ;$$
+let $org_queries= `SHOW STATUS LIKE 'Queries'`;
+SELECT f1();
+CALL p1();
+let $new_queries= `SHOW STATUS LIKE 'Queries'`;
+--disable_query_log
+let $diff= `SELECT SUBSTRING('$new_queries',9)-SUBSTRING('$org_queries',9)`;
+--enable_query_log
+eval SELECT $diff;
+disconnect con1;
+connection default;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+
 # End of 5.1 tests
 
 # Restore global concurrent_insert value. Keep in the end of the test file.

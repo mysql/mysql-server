@@ -9,6 +9,7 @@ CREATE DATABASE test_ignore;
 SHOW DATABASES;
 Database
 information_schema
+mtr
 mysql
 test
 test_ignore
@@ -35,6 +36,7 @@ master-bin.000001	#	Query	#	#	use `test`; COMMIT
 SHOW DATABASES;
 Database
 information_schema
+mtr
 mysql
 test
 USE test;
