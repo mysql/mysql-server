@@ -231,6 +231,15 @@ toku_block_get_size(BLOCK_TABLE bt, BLOCKNUM b) {
     return r;
 }
 
+void
+toku_block_get_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF *size) {
+    lock_for_blocktable();
+    verify(bt, b);
+    *offset = bt->block_translation[b.b].diskoff;
+    *size = bt->block_translation[b.b].size;
+    unlock_for_blocktable();
+}
+
 int
 toku_allocate_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *res, int *dirty, TOKULOGGER UU(logger)) {
     lock_for_blocktable();

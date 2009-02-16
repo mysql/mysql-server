@@ -385,7 +385,8 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
     if (h->panic) return h->panic;
-    DISKOFF offset = toku_block_get_offset(h->blocktable, blocknum);
+    DISKOFF offset, size;
+    toku_block_get_offset_size(h->blocktable, blocknum, &offset, &size);
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -396,36 +397,20 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	return r;
     }
     result->ever_been_written = 1;
-    char uncompressed_header[uncompressed_magic_len + compression_header_len];
-    u_int32_t compressed_size;
-    u_int32_t uncompressed_size;
-    {
-	// get the compressed size
-	r = pread(fd, uncompressed_header, sizeof(uncompressed_header), offset);
-	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, toku_ntohl(datasize_n));
-	if (r!=(int)sizeof(uncompressed_header)) {
-	    if (r==-1) r=errno;
-	    else r = toku_db_badformat();
-	    goto died0;
-	}
-	compressed_size   = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
-	if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
-	uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
-	if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
-	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
-    }
 
-    //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, uncompressed_size);
+    unsigned char *MALLOC_N(size, compressed_block);
 
-    unsigned char *MALLOC_N(compressed_size, compressed_data);
-    assert(compressed_data);
+    ssize_t rlen = pread(fd, compressed_block, size, offset);
+    assert((DISKOFF)rlen == size);
 
-    {
-	ssize_t rlen=pread(fd, compressed_data, compressed_size, offset+uncompressed_magic_len + compression_header_len);
-	//printf("%s:%d pread->%d offset=%ld datasize=%d\n", __FILE__, __LINE__, r, offset, compressed_size + uncompressed_magic_len + compression_header_len);
-	assert((size_t)rlen==compressed_size);
-	//printf("Got %d %d %d %d\n", rc.buf[0], rc.buf[1], rc.buf[2], rc.buf[3]);
-    }
+    unsigned char *uncompressed_header = compressed_block;
+    u_int32_t compressed_size   = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
+    if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
+    u_int32_t uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
+    if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
+    if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
+
+    unsigned char *compressed_data = compressed_block + uncompressed_magic_len + compression_header_len;
 
     rc.size= uncompressed_size + uncompressed_magic_len;
     assert(rc.size>0);
@@ -445,7 +430,8 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 		  rc.buf[uncompressed_magic_len],   rc.buf[uncompressed_magic_len+1],
 		  rc.buf[uncompressed_magic_len+2], rc.buf[uncompressed_magic_len+3]);
 
-    toku_free(compressed_data);
+    toku_free(compressed_block);
+
     rc.ndone=0;
     //printf("Deserializing %lld datasize=%d\n", off, datasize);
     {
