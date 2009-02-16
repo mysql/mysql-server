@@ -5189,8 +5189,11 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* Since NDB does not currently have table locks
        this is treated as a ordinary lock */
 
+    const bool in_lock_tables = thd_in_lock_tables(thd);
+    const uint sql_command = thd_sql_command(thd);
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd->in_lock_tables)      
+         lock_type <= TL_WRITE) &&
+        !(in_lock_tables && sql_command == SQLCOM_LOCK_TABLES))
       lock_type= TL_WRITE_ALLOW_WRITE;
     
     /* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
@@ -9466,7 +9469,9 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   {
     /* Don't allow qc to be used if table has been previously
        modified in transaction */
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    if (!check_ndb_in_thd(thd))
+      DBUG_RETURN(FALSE);
+   Thd_ndb *thd_ndb= get_thd_ndb(thd);
     if (!thd_ndb->changed_tables.is_empty())
     {
       NDB_SHARE* share;
@@ -11791,6 +11796,16 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      /*
         Check that we are only adding columns
      */
+     /*
+       HA_COLUMN_STORAGE & HA_COLUMN_FORMAT
+       are set if they are specified in an later cmd
+       even if they're no change. This is probably a bug
+       conclusion: add them to add_column-mask, so that we silently "accept" them
+       In case of someone trying to change a column, the HA_CHANGE_COLUMN would be set
+       which we don't support, so we will still return HA_ALTER_NOT_SUPPORTED in those cases
+     */
+     add_column.set_bit(HA_COLUMN_STORAGE);
+     add_column.set_bit(HA_COLUMN_FORMAT);     
      if ((*alter_flags & ~add_column).is_set())
      {
        DBUG_PRINT("info", ("Only add column exclusively can be performed on-line"));
@@ -11865,6 +11880,22 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     const NDBCOL *col= tab->getColumn(i);
 
     create_ndb_column(0, new_col, field, create_info);
+
+    /**
+     * This is a "copy" of code in ::create()
+     *   that "auto-converts" columns with keys into memory
+     *   (unless storage disk is explicitly added)
+     * This is needed to check if getStorageType() == getStorageType() further down
+     */
+    if (field->flags & (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))
+    {
+      if (field->field_storage_type() == HA_SM_DISK)
+      {
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+      }
+      new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+    }
+
     if (col->getStorageType() != new_col.getStorageType())
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
