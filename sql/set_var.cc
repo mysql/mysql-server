@@ -275,6 +275,11 @@ static sys_var_const    sys_ft_query_expansion_limit(&vars,
 static sys_var_const    sys_ft_stopword_file(&vars, "ft_stopword_file",
                                              OPT_GLOBAL, SHOW_CHAR_PTR,
                                              (uchar*) &ft_stopword_file);
+
+static sys_var_const    sys_ignore_builtin_innodb(&vars, "ignore_builtin_innodb",
+                                                  OPT_GLOBAL, SHOW_BOOL,
+                                                  (uchar*) &opt_ignore_builtin_innodb);
+
 sys_var_str             sys_init_connect(&vars, "init_connect", 0,
                                          sys_update_init_connect,
                                          sys_default_init_connect,0);

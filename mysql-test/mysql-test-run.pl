@@ -45,8 +45,8 @@ BEGIN {
     print "=======================================================\n";
     print "  WARNING: Using mysql-test-run.pl version 1!  \n";
     print "=======================================================\n";
-    require "lib/v1/mysql-test-run.pl";
-    exit(1);
+    # Should use exec() here on *nix but this appears not to work on Windows
+    exit(system($^X, "lib/v1/mysql-test-run.pl", @ARGV) >> 8);
   }
   elsif ( $version == 2 )
   {
@@ -107,6 +107,17 @@ our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
+my $opt_tmpdir_pid;
+
+END {
+  if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
+  {
+    # Remove the tempdir this process has created
+    mtr_verbose("Removing tmpdir '$opt_tmpdir");
+    rmtree($opt_tmpdir);
+  }
+}
+
 my $path_config_file;           # The generated config file, var/my.cnf
 
 # Visual Studio produces executables in different sub-directories based on the
@@ -132,7 +143,7 @@ our @opt_extra_mysqld_opt;
 
 my $opt_compress;
 my $opt_ssl;
-my $opt_skip_ssl = 1; # Until bug#42366 has been fixed
+my $opt_skip_ssl;
 my $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -1067,8 +1078,11 @@ sub command_line_setup {
 		 " creating a shorter one...");
 
       # Create temporary directory in standard location for temporary files
-      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 1 );
+      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 0 );
       mtr_report(" - using tmpdir: '$opt_tmpdir'\n");
+
+      # Remember pid that created dir so it's removed by correct process
+      $opt_tmpdir_pid= $$;
     }
   }
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
@@ -1528,8 +1542,8 @@ sub mysql_fix_arguments () {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
 
-  mtr_add_arg($args, "--basedir=", $basedir);
-  mtr_add_arg($args, "--bindir=", $path_client_bindir);
+  mtr_add_arg($args, "--basedir=%s", $basedir);
+  mtr_add_arg($args, "--bindir=%s", $path_client_bindir);
   mtr_add_arg($args, "--verbose");
   return mtr_args2str($exe, @$args);
 }
