@@ -107,6 +107,17 @@ our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
+my $opt_tmpdir_pid;
+
+END {
+  if (defined $opt_tmpdir_pid and
+      $opt_tmpdir_pid == $$){
+    # Remove the tempdir this process has created
+    mtr_verbose("Removing tmpdir '$opt_tmpdir");
+    rmtree($opt_tmpdir);
+  }
+}
+
 my $path_config_file;           # The generated config file, var/my.cnf
 
 # Visual Studio produces executables in different sub-directories based on the
@@ -1066,8 +1077,11 @@ sub command_line_setup {
 		 " creating a shorter one...");
 
       # Create temporary directory in standard location for temporary files
-      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 1 );
+      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 0 );
       mtr_report(" - using tmpdir: '$opt_tmpdir'\n");
+
+      # Remember pid that created dir so it's removed by correct process
+      $opt_tmpdir_pid= $$;
     }
   }
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
@@ -2860,9 +2874,6 @@ test case was executed:\n";
 	  $result= 2;
 	}
 
-	# Remove the .err file the check generated
-	unlink($err_file);
-
 	# Remove the .result file the check generated
 	unlink("$base_file.result");
 
@@ -3480,6 +3491,7 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
+  mtr_add_arg($args, "--verbose");
 
   if ( $opt_embedded_server )
   {
@@ -3569,10 +3581,9 @@ sub check_warnings ($) {
 
 	if ( $res == 62 ) {
 	  # Test case was ok and called "skip"
-	  ;
+	  # Remove the .err file the check generated
+	  unlink($err_file);
 	}
-	# Remove the .err file the check generated
-	unlink($err_file);
 
 	if ( keys(%started) == 0){
 	  # All checks completed
@@ -3594,8 +3605,6 @@ sub check_warnings ($) {
 
 	$result= 2;
       }
-      # Remove the .err file the check generated
-      unlink($err_file);
     }
     elsif ( $proc eq $timeout_proc ) {
       $tinfo->{comment}.= "Timeout $timeout_proc for ".
@@ -4479,6 +4488,7 @@ sub start_check_testcase ($$$) {
 
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
+  mtr_add_arg($args, "--verbose");
 
   if ( $mode eq "before" )
   {
@@ -4648,8 +4658,7 @@ sub start_mysqltest ($) {
   elsif ( $opt_client_debugger )
   {
     debugger_arguments(\$args, \$exe, "client");
- }
-
+  }
 
   my $proc= My::SafeProcess->new
     (
