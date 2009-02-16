@@ -6,7 +6,7 @@
 
 # there is no neat way to find the backupid, this is a hack to find it...
 let $dump_file= $MYSQLTEST_VARDIR/tmp/tmp.dat;
---exec $NDB_SELECT_ALL --ndb-connectstring="$NDB_CONNECTSTRING" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $dump_file
+--exec $NDB_SELECT_ALL --ndb-connectstring="$NDB_CONNECTSTRING" -d sys --delimiter=, SYSTAB_0 | grep 520093696 > $dump_file
 
 CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 
