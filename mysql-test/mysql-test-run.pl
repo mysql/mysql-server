@@ -132,7 +132,7 @@ our @opt_extra_mysqld_opt;
 
 my $opt_compress;
 my $opt_ssl;
-my $opt_skip_ssl = 1; # Until bug#42366 has been fixed
+my $opt_skip_ssl;
 my $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -1528,8 +1528,8 @@ sub mysql_fix_arguments () {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
 
-  mtr_add_arg($args, "--basedir=", $basedir);
-  mtr_add_arg($args, "--bindir=", $path_client_bindir);
+  mtr_add_arg($args, "--basedir=%s", $basedir);
+  mtr_add_arg($args, "--bindir=%s", $path_client_bindir);
   mtr_add_arg($args, "--verbose");
   return mtr_args2str($exe, @$args);
 }

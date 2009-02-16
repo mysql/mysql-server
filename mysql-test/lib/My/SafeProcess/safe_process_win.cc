@@ -237,12 +237,19 @@ int main(int argc, const char** argv )
   /*
     Create the process suspended to make sure it's assigned to the
     Job before it creates any process of it's own
+
+    Allow the new process to break away from any job that this
+    process is part of so that it can be assigned to the new JobObject
+    we just created. This is safe since the new JobObject is created with
+    the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE flag, making sure it will be
+    terminated when the last handle to it is closed(which is owned by
+    this process).
   */
   if (CreateProcess(NULL, (LPSTR)child_args,
                     NULL,
                     NULL,
                     TRUE, /* inherit handles */
-                    CREATE_SUSPENDED,
+                    CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB,
                     NULL,
                     NULL,
                     &si,
