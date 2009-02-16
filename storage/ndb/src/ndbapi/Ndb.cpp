@@ -1408,7 +1408,10 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
   if (initAutoIncrement() == -1)
     goto error_handler;
 
-  tConnection = this->startTransaction();
+  // Start transaction with table id as hint
+  tConnection = this->startTransaction(table,
+                                       (const char *) &aTableId,
+                                       sizeof(Uint32));
   if (tConnection == NULL)
     goto error_handler;
 
