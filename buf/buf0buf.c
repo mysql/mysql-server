@@ -1619,8 +1619,8 @@ buf_page_get_zip(
 
 	for (;;) {
 		//buf_pool_mutex_enter();
-		rw_lock_s_lock(&page_hash_latch);
 lookup:
+		rw_lock_s_lock(&page_hash_latch);
 		bpage = buf_page_hash_get(space, offset);
 		if (bpage) {
 			break;
