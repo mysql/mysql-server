@@ -1760,55 +1760,55 @@ sub environment_setup {
   if ( ! $opt_skip_ndbcluster )
   {
     $ENV{'NDB_MGM'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/src/mgmclient", "bin"],
-		  "ndb_mgm");
+		  "ndb_mgm"));
 
     $ENV{'NDB_WAITER'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_waiter");
+		  "ndb_waiter"));
 
     $ENV{'NDB_RESTORE'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_restore");
+		  "ndb_restore"));
 
     $ENV{'NDB_CONFIG'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_config");
+		  "ndb_config"));
 
     $ENV{'NDB_SELECT_ALL'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_select_all");
+		  "ndb_select_all"));
 
     $ENV{'NDB_DROP_TABLE'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_drop_table");
+		  "ndb_drop_table"));
 
     $ENV{'NDB_DESC'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_desc");
+		  "ndb_desc"));
 
     $ENV{'NDB_SHOW_TABLES'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
-		  "ndb_show_tables");
+		  "ndb_show_tables"));
 
     $ENV{'NDB_EXAMPLES_DIR'}=
-      my_find_dir($basedir,
-		  ["storage/ndb/ndbapi-examples", "bin"]);
+      native_path(my_find_dir($basedir,
+		  ["storage/ndb/ndbapi-examples", "bin"]));
 
     $ENV{'NDB_EXAMPLES_BINARY'}=
-      my_find_bin($basedir,
+      native_path(my_find_bin($basedir,
 		  ["storage/ndb/ndbapi-examples/ndbapi_simple", "bin"],
-		  "ndbapi_simple", NOT_REQUIRED);
+		  "ndbapi_simple", NOT_REQUIRED));
 
-    my $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
+    my $path_ndb_testrun_log= native_path("$opt_vardir/log/ndb_testrun.log");
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
     $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
   }
