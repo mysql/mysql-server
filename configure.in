@@ -2055,7 +2055,8 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
-  pthread_key_delete pthread_rwlock_rdlock pthread_setprio pthread_setschedprio \
+  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
+  pthread_setschedprio \
   pthread_self sched_get_priority_min sched_get_priority_max \
   sched_setaffinity processor_bind sched_setscheduler \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
@@ -2116,6 +2117,15 @@ AC_TRY_LINK(
   AC_MSG_RESULT(yes)
   AC_DEFINE(HAVE_SOLARIS_AFFINITY, [1], [Solaris affinity function]),
   AC_MSG_RESULT(no))
+
+case "$mysql_cv_sys_os" in
+ OS400) # i5/OS (OS/400) emits a SIGILL (Function not implemented) when
+        # unsupported priority values are passed to pthread_setschedprio.
+        # Since the only supported value is 1, treat it as inexistent.
+    ;;
+ *) AC_CHECK_FUNCS(pthread_setschedprio)
+    ;;
+esac
 
 # Check that isinf() is available in math.h and can be used in both C and C++ 
 # code
