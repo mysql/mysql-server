@@ -1,4 +1,4 @@
-/*	$NetBSD: term.h,v 1.15 2003/09/14 21:48:55 christos Exp $	*/
+/*	$NetBSD: term.h,v 1.19 2008/09/10 15:45:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -81,25 +81,6 @@ typedef struct {
 #define	A_K_EN		5
 #define	A_K_NKEYS	6
 
-#ifdef _SUNOS
-extern int tgetent(char *, const char *);
-extern int tgetflag(char *);
-extern int tgetnum(char *);
-extern int tputs(const char *, int, int (*)(int));
-extern char* tgoto(const char*, int, int);
-extern char* tgetstr(char*, char**);
-#endif
-
-
-#if !HAVE_DECL_TGOTO
-/*
-  'tgoto' is not declared in the system header files, this causes
-  problems on 64-bit systems. The function returns a 64 bit pointer
-  but caller see it as "int" and it's thus truncated to 32-bit
-*/
-extern char* tgoto(const char*, int, int);
-#endif
-
 protected void	term_move_to_line(EditLine *, int);
 protected void	term_move_to_char(EditLine *, int);
 protected void	term_clear_EOL(EditLine *, int);
@@ -119,10 +100,12 @@ protected void	term_end(EditLine *);
 protected void	term_get(EditLine *, const char **);
 protected int	term_set(EditLine *, const char *);
 protected int	term_settc(EditLine *, int, const char **);
+protected int	term_gettc(EditLine *, int, char **);
 protected int	term_telltc(EditLine *, int, const char **);
 protected int	term_echotc(EditLine *, int, const char **);
-protected int	term__putc(int);
-protected void	term__flush(void);
+protected void	term_writec(EditLine *, int);
+protected int	term__putc(EditLine *, int);
+protected void	term__flush(EditLine *);
 
 /*
  * Easy access macros
@@ -134,6 +117,7 @@ protected void	term__flush(void);
 #define	EL_CAN_CEOL		(EL_FLAGS & TERM_CAN_CEOL)
 #define	EL_CAN_TAB		(EL_FLAGS & TERM_CAN_TAB)
 #define	EL_CAN_ME		(EL_FLAGS & TERM_CAN_ME)
+#define EL_CAN_UP		(EL_FLAGS & TERM_CAN_UP)
 #define	EL_HAS_META		(EL_FLAGS & TERM_HAS_META)
 #define	EL_HAS_AUTO_MARGINS	(EL_FLAGS & TERM_HAS_AUTO_MARGINS)
 #define	EL_HAS_MAGIC_MARGINS	(EL_FLAGS & TERM_HAS_MAGIC_MARGINS)
