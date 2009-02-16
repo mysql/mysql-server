@@ -121,8 +121,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   tablerec = 0;
   tableDescriptor = 0;
   totNoOfPagesAllocated = 0;
-  cnoOfAllocatedPages = 0;
-  c_no_of_pages = 0;
   
   initData();
   CLEAR_ERROR_INSERT_VALUE;
@@ -243,41 +241,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
     jam();
     releaseFragment(signal, dataPtr, signal->theData[2]);
     break;
-  case ZREPORT_MEMORY_USAGE:{
-    jam();
-    static int c_currentMemUsed = 0;
-    Uint32 cnt = signal->theData[1];
-    Uint32 tmp = c_no_of_pages;
-    int now = tmp ? (cnoOfAllocatedPages * 100)/tmp : 0;
-    const int thresholds[] = { 100, 90, 80, 0 };
-    
-    Uint32 i = 0;
-    const Uint32 sz = sizeof(thresholds)/sizeof(thresholds[0]);
-    for(i = 0; i<sz; i++){
-      if(now >= thresholds[i]){
-	now = thresholds[i];
-	break;
-      }
-    }
-
-    if(now != c_currentMemUsed || 
-       (c_memusage_report_frequency && cnt + 1 == c_memusage_report_frequency))
-    {
-      reportMemoryUsage(signal, 
-			now > c_currentMemUsed ? 1 : 
-			now < c_currentMemUsed ? -1 : 0);
-      cnt = 0;
-      c_currentMemUsed = now;
-    } 
-    else
-    {
-      cnt++;
-    }
-    signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    signal->theData[1] = cnt;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
-    return;
-  }
   case ZBUILD_INDEX:
     jam();
     buildIndex(signal, dataPtr);
@@ -476,10 +439,6 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   clastBitMask = 1;
   clastBitMask = clastBitMask << 31;
 
-  c_memusage_report_frequency = 0;
-  ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
-			    &c_memusage_report_frequency);
-  
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()
 
@@ -492,12 +451,9 @@ void Dbtup::initRecords()
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
-
   // Records with dynamic sizes
   void* ptr = m_ctx.m_mm.get_memroot();
   c_page_pool.set((Page*)ptr, (Uint32)~0);
-  c_no_of_pages = tmp;
 
   fragoperrec = (Fragoperrec*)allocRecord("Fragoperrec",
 					  sizeof(Fragoperrec),
@@ -635,14 +591,6 @@ void Dbtup::execNDB_STTOR(Signal* signal)
     break;
   case ZSTARTPHASE6:
     jam();
-/*****************************************/
-/*       NOW SET THE DISK WRITE SPEED TO */
-/*       PAGES PER TICK AFTER SYSTEM     */
-/*       RESTART.                        */
-/*****************************************/
-    signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    signal->theData[1] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
     break;
   default:
     jam();
