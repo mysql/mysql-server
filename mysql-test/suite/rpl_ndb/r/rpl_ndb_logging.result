@@ -70,3 +70,4 @@ a	b	c
 1	updated t2.b from master	t2.c from slave
 drop table t1;
 drop table t2;
+drop table mysql.ndb_replication;

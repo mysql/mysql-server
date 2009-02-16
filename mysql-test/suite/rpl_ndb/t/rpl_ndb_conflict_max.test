@@ -38,7 +38,7 @@ create table `test`.`t1$EX`
 --connection master
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 --let col_type = int unsigned
---source suite/rpl_ndb/t/rpl_ndb_conflict_1.test
+--source suite/rpl_ndb/t/rpl_ndb_conflict_1.inc
 
 --echo *** Test 2 ********************************************************
 --echo * test native NDB\$MAX() conflict resolution
@@ -49,7 +49,7 @@ insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 set global ndb_log_update_as_write=1;
 update mysql.ndb_replication set binlog_type=4;
 --let col_type = bigint unsigned
---source suite/rpl_ndb/t/rpl_ndb_conflict_1.test
+--source suite/rpl_ndb/t/rpl_ndb_conflict_1.inc
 
 --echo *** Test 3 ***********************************************************
 --echo * test that setting binlog type really also sets the "USE_UPDATE" flag
@@ -60,13 +60,14 @@ update mysql.ndb_replication set binlog_type=4;
 set global ndb_log_update_as_write=0;
 update mysql.ndb_replication set binlog_type=2;
 --let col_type = int unsigned
---source suite/rpl_ndb/t/rpl_ndb_conflict_1.test
+--source suite/rpl_ndb/t/rpl_ndb_conflict_1.inc
 
 --echo *** test cleanup
 --disable_query_log
 --connection slave
 stop slave;
 drop table mysql.ndb_replication;
+drop table `test`.`t1$EX`;
 --connection master
 drop table mysql.ndb_replication;
 drop table `test`.`t1$EX`;
