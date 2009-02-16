@@ -371,18 +371,33 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   while (first)
   {
     const NdbError &err= first->getNdbError();
-    if (err.classification != NdbError::NoError &&
-        err.classification != NdbError::ConstraintViolation &&
-        err.classification != NdbError::NoDataFound)
+    if (err.classification != NdbError::NoError
+#ifndef HAVE_NDB_BINLOG
+        && err.classification != NdbError::ConstraintViolation
+        && err.classification != NdbError::NoDataFound
+#endif
+        )
     {
 #ifdef HAVE_NDB_BINLOG
       DBUG_PRINT("info", ("ndb error: %d", err.code));
       if (err.code == (int) error_conflict_fn_max_violation)
       {
+        DBUG_PRINT("info", ("err.code == (int) error_conflict_fn_max_violation"));
         thd_ndb->m_max_violation_count++;
       }
-      else if (err.code == (int) error_conflict_fn_old_violation)
+      else if (err.code == (int) error_conflict_fn_old_violation ||
+               err.classification == NdbError::ConstraintViolation ||
+               err.classification == NdbError::NoDataFound)
       {
+        DBUG_PRINT("info",
+                   ("err.code %s (int) error_conflict_fn_old_violation, "
+                    "err.classification %s",
+                    err.code == (int) error_conflict_fn_old_violation ? "==" : "!=",
+                    err.classification
+                    == NdbError::ConstraintViolation
+                    ? "== NdbError::ConstraintViolation"
+                    : (err.classification == NdbError::NoDataFound
+                       ? "== NdbError::NoDataFound" : "!=")));
         thd_ndb->m_old_violation_count++;
         const void* buffer= first->getCustomData();
         if (buffer != NULL)
@@ -442,7 +457,10 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
       }
       else
 #endif
+      {
+        DBUG_PRINT("info", ("err.code == %u", err.code));
         DBUG_RETURN(err.code);
+      }
     }
     if (err.classification != NdbError::NoError)
       ignores++;
@@ -3292,6 +3310,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   options.optionsPresent=0;
   
   eventSetAnyValue(thd, &options); 
+  bool need_flush= add_row_check_if_batch_full(thd_ndb);
 
   if (m_user_defined_partitioning)
   {
@@ -3321,8 +3340,15 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
 
   const MY_BITMAP *user_cols_written_bitmap;
+  uchar* ex_data_buffer= NULL;
   
-  if (m_use_write)
+  if (m_use_write
+#ifdef HAVE_NDB_BINLOG
+      && !(thd->slave_thread &&
+           m_share->m_cfn_share &&
+           m_share->m_cfn_share->m_resolve_cft != CFT_NDB_UNDEF)
+#endif
+      )
   {
     uchar *mask;
 
@@ -3340,10 +3366,52 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
         SQL thread -> use the write_set for writeTuple().
         otherwise (REPLACE INTO) -> do not use write_set.
     */
+
+#if 0 /* NOT YET, interpeted function not supported for write */
+    /*
+      Room for 10 instruction words, two labels (@ 2words/label)
+      + 2 extra words for the case of resolve_size == 8
+    */
+    Uint32 buffer[16];
+    NdbInterpretedCode code(m_table, buffer,
+                            sizeof(buffer)/sizeof(buffer[0]));
+#endif
     if (thd->slave_thread)
     {
       user_cols_written_bitmap= table->write_set;
       mask= (uchar *)(user_cols_written_bitmap->bitmap);
+#if 0 /* NOT YET, interpeted function not supported for write */
+      /* Conflict resolution in slave thread. */
+      enum_conflict_fn_type cft= m_share->m_cfn_share ? m_share->m_cfn_share->m_resolve_cft : CFT_NDB_UNDEF;
+      if (cft != CFT_NDB_UNDEF)
+      {
+        if (!write_row_conflict_fn(cft, record, &code))
+        {
+          options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
+          options.interpretedCode= &code;
+          thd_ndb->m_conflict_fn_usage_count++;
+        }
+
+        Ndb_exceptions_data ex_data;
+        ex_data.share= m_share;
+        /*
+          We need to save the row data for possible conflict resolution after
+          execute().
+        */
+        ex_data.row= copy_row_to_buffer(thd_ndb, record);
+        ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
+        if (ex_data.row == NULL || ex_data_buffer == NULL)
+        {
+          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+        }
+        memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
+
+        options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
+        options.customData= (void*)ex_data_buffer;
+        if (options.optionsPresent != 0)
+          poptions=&options;
+      }
+#endif
     }
     else
 #endif
@@ -3351,13 +3419,36 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       user_cols_written_bitmap= NULL;
       mask= NULL;
     }
-
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
                           (char *)record, mask,
                           poptions, sizeof(NdbOperation::OperationOptions));
   }
   else
   {
+#ifdef HAVE_NDB_BINLOG
+    if (m_use_write)
+    {
+      thd_ndb->m_conflict_fn_usage_count++;
+
+      Ndb_exceptions_data ex_data;
+      ex_data.share= m_share;
+      /*
+        We need to save the row data for possible conflict resolution after
+        execute().
+      */
+      ex_data.row= copy_row_to_buffer(thd_ndb, record);
+      ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
+      if (ex_data.row == NULL || ex_data_buffer == NULL)
+      {
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      }
+      memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
+
+      options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
+      options.customData= (void*)ex_data_buffer;
+      poptions=&options;
+    }
+#endif
     /* Using insert, we write all user visible columns */
     user_cols_written_bitmap= NULL;
     op= trans->insertTuple(key_rec, (const char *)key_row, m_ndb_record,
@@ -3367,7 +3458,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (!(op))
     ERR_RETURN(trans->getNdbError());
 
-  bool need_flush= add_row_check_if_batch_full(thd_ndb);
   bool do_batch= !need_flush &&
     (batched_update || (thd->options & OPTION_ALLOW_BATCH));
   uint blob_count= 0;
@@ -3470,9 +3560,8 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 */
 
 int
-ha_ndbcluster::update_row_conflict_fn_max(const uchar *old_data,
-                                          uchar *new_data,
-                                          NdbInterpretedCode *code)
+ha_ndbcluster::row_conflict_fn_max(const uchar *new_data,
+                                   NdbInterpretedCode *code)
 {
   uint32 resolve_column= m_share->m_cfn_share->m_resolve_column;
   uint32 resolve_size= m_share->m_cfn_share->m_resolve_size;
@@ -3485,7 +3574,7 @@ ha_ndbcluster::update_row_conflict_fn_max(const uchar *old_data,
   if (!bitmap_is_set(table->write_set, resolve_column))
   {
     sql_print_information("NDB Slave: missing data for NDB_MAX");
-    return 0;
+    return 1;
   }
 
   const uint label_0= 0;
@@ -3556,9 +3645,8 @@ ha_ndbcluster::update_row_conflict_fn_max(const uchar *old_data,
 */
 
 int
-ha_ndbcluster::update_row_conflict_fn_old(const uchar *old_data,
-                                          uchar *new_data,
-                                          NdbInterpretedCode *code)
+ha_ndbcluster::row_conflict_fn_old(const uchar *old_data,
+                                   NdbInterpretedCode *code)
 {
   uint32 resolve_column= m_share->m_cfn_share->m_resolve_column;
   uint32 resolve_size= m_share->m_cfn_share->m_resolve_size;
@@ -3571,7 +3659,7 @@ ha_ndbcluster::update_row_conflict_fn_old(const uchar *old_data,
   if (!bitmap_is_set(table->write_set, resolve_column))
   {
     sql_print_information("NDB Slave: missing data for NDB_OLD");
-    return 0;
+    return -1;
   }
 
   const uint label_0= 0;
@@ -3636,13 +3724,58 @@ ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
   DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
-    return update_row_conflict_fn_max(old_data, new_data, code);
+    return row_conflict_fn_max(new_data, code);
   case CFT_NDB_OLD:
-    return update_row_conflict_fn_old(old_data, new_data, code);
+    return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
-  return 0;
+  return 1;
+}
+
+#if 0 /* NOT YET, interpeted function not supported for write */
+int
+ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
+                                     uchar *data,
+                                     NdbInterpretedCode *code)
+{
+  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
+  switch (cft) {
+  case CFT_NDB_MAX:
+    return row_conflict_fn_max(data, code);
+  case CFT_NDB_OLD:
+    /*
+      No conflict function here, instead detect if tuple
+      already exists
+     */
+    return 1;
+  case CFT_NDB_UNDEF:
+    abort();
+  }
+  return 1;
+}
+#endif
+
+int
+ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
+                                      const uchar *old_data,
+                                      NdbInterpretedCode *code)
+{
+  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
+  switch (cft) {
+  case CFT_NDB_MAX:
+    /*
+      As we do not have a timestamp for the actual delete,
+      the best we can do is to detect a possible conflict
+      on the old data.
+    */
+    return row_conflict_fn_old(old_data, code);
+  case CFT_NDB_OLD:
+    return row_conflict_fn_old(old_data, code);
+  case CFT_NDB_UNDEF:
+    abort();
+  }
+  return 1;
 }
 #endif /* HAVE_NDB_BINLOG */
 
@@ -3906,28 +4039,24 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 
 #ifdef HAVE_NDB_BINLOG
     uchar* ex_data_buffer= NULL;
+    /*
+      Room for 10 instruction words, two labels (@ 2words/label)
+      + 2 extra words for the case of resolve_size == 8
+    */
+    Uint32 buffer[16];
+    NdbInterpretedCode code(m_table, buffer,
+                            sizeof(buffer)/sizeof(buffer[0]));
     if (thd->slave_thread && m_share->m_cfn_share &&
         (m_share->m_cfn_share->m_resolve_cft != CFT_NDB_UNDEF))
     {
       /* Conflict resolution in slave thread. */
-
-      /*
-        Room for 10 instruction words, two labels (@ 2words/label)
-        + 2 extra words for the case of resolve_size == 8
-      */
-      Uint32 buffer[16];
-      NdbInterpretedCode code(m_table, buffer,
-                              sizeof(buffer)/sizeof(buffer[0]));
       enum_conflict_fn_type cft= m_share->m_cfn_share->m_resolve_cft;
-      if (update_row_conflict_fn(cft, old_data, new_data, &code))
+      if (!update_row_conflict_fn(cft, old_data, new_data, &code))
       {
-        /* ToDo error handling */
-        abort();
+        options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
+        options.interpretedCode= &code;
+        thd_ndb->m_conflict_fn_usage_count++;
       }
-      options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
-      options.interpretedCode= &code;
-
-      thd_ndb->m_conflict_fn_usage_count++;
 
       Ndb_exceptions_data ex_data;
       ex_data.share= m_share;
@@ -4091,6 +4220,12 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
   eventSetAnyValue(thd, &options);
 
+  /*
+    Poor approx. let delete ~ tabsize / 4
+  */
+  uint delete_size= 12 + (m_bytes_per_write >> 2);
+  bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
+
   if (cursor)
   {
     if (options.optionsPresent != 0)
@@ -4133,11 +4268,51 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       options.partitionId= part_id;
     }
 
+    setup_key_ref_for_ndb_record(&key_rec, &key_row, record,
+				 m_read_before_write_removal_used);
+
+#ifdef HAVE_NDB_BINLOG
+    uchar* ex_data_buffer= NULL;
+    /*
+      Room for 10 instruction words, two labels (@ 2words/label)
+      + 2 extra words for the case of resolve_size == 8
+    */
+    Uint32 buffer[16];
+    NdbInterpretedCode code(m_table, buffer,
+                            sizeof(buffer)/sizeof(buffer[0]));
+    if (thd->slave_thread && m_share->m_cfn_share &&
+        (m_share->m_cfn_share->m_resolve_cft != CFT_NDB_UNDEF))
+    {
+      /* Conflict resolution in slave thread. */
+      enum_conflict_fn_type cft= m_share->m_cfn_share->m_resolve_cft;
+      if (!delete_row_conflict_fn(cft, record, &code))
+      {
+        options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
+        options.interpretedCode= &code;
+        thd_ndb->m_conflict_fn_usage_count++;
+      }
+
+      Ndb_exceptions_data ex_data;
+      ex_data.share= m_share;
+      /*
+        We need to save the row data for possible conflict resolution after
+        execute().
+      */
+      ex_data.row= copy_row_to_buffer(thd_ndb, record);
+      ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
+      if (ex_data.row == NULL || ex_data_buffer == NULL)
+      {
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      }
+      memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
+
+      options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
+      options.customData= (void*)ex_data_buffer;
+    }
+#endif /* HAVE_NDB_BINLOG */
     if (options.optionsPresent != 0)
       poptions= &options;
 
-    setup_key_ref_for_ndb_record(&key_rec, &key_row, record,
-				 m_read_before_write_removal_used);
     if (!(op=trans->deleteTuple(key_rec, (const char *)key_row,
                                 m_ndb_record,
                                 NULL, // row
@@ -4169,11 +4344,6 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
           been aborted.
     */
 
-    /*
-      Poor approx. let delete ~ tabsize / 4
-    */
-    uint delete_size= 12 + (m_bytes_per_write >> 2);
-    bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
     if ( allow_batch &&
 	 table_share->primary_key != MAX_KEY &&
 	 !primary_key_update &&
