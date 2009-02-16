@@ -39,8 +39,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
 #define MY_INIT(name);		{ my_progname= name; my_init(); }
 
-#define ERRMSGSIZE	(SC_MAXWIDTH)	/* Max length of a error message */
-#define NRERRBUFFS	(2)	/* Buffers for parameters */
 #define MY_FILE_ERROR	((size_t) -1)
 
 	/* General bitmaps for my_func's */
@@ -208,7 +206,6 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 extern int errno;			/* declare errno */
 #endif
 #endif					/* #ifndef errno */
-extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
 extern char NEAR curr_dir[];		/* Current directory for user */

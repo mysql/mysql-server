@@ -177,7 +177,7 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...)
 {
   va_list args;
-  char    warning[ERRMSGSIZE+20];
+  char    warning[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("push_warning_printf");
   DBUG_PRINT("enter",("warning: %u", code));
 
