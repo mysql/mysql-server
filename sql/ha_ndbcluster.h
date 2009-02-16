@@ -234,21 +234,39 @@ struct Ndb_tuple_id_range_guard {
 #define NSF_BINLOG_USE_UPDATE 16u  /* table update should be binlogged using
                                      update log event */
 inline void set_binlog_logging(NDB_SHARE *share)
-{ share->flags&= ~NSF_NO_BINLOG; }
+{
+  DBUG_PRINT("info", ("set_binlog_logging"));
+  share->flags&= ~NSF_NO_BINLOG;
+}
 inline void set_binlog_nologging(NDB_SHARE *share)
-{ share->flags|= NSF_NO_BINLOG; }
+{
+  DBUG_PRINT("info", ("set_binlog_nologging"));
+  share->flags|= NSF_NO_BINLOG;
+}
 inline my_bool get_binlog_nologging(NDB_SHARE *share)
 { return (share->flags & NSF_NO_BINLOG) != 0; }
 inline void set_binlog_updated_only(NDB_SHARE *share)
-{ share->flags&= ~NSF_BINLOG_FULL; }
+{
+  DBUG_PRINT("info", ("set_binlog_updated_only"));
+  share->flags&= ~NSF_BINLOG_FULL;
+}
 inline void set_binlog_full(NDB_SHARE *share)
-{ share->flags|= NSF_BINLOG_FULL; }
+{
+  DBUG_PRINT("info", ("set_binlog_full"));
+  share->flags|= NSF_BINLOG_FULL;
+}
 inline my_bool get_binlog_full(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_FULL) != 0; }
 inline void set_binlog_use_write(NDB_SHARE *share)
-{ share->flags&= ~NSF_BINLOG_USE_UPDATE; }
+{
+  DBUG_PRINT("info", ("set_binlog_use_write"));
+  share->flags&= ~NSF_BINLOG_USE_UPDATE;
+}
 inline void set_binlog_use_update(NDB_SHARE *share)
-{ share->flags|= NSF_BINLOG_USE_UPDATE; }
+{
+  DBUG_PRINT("info", ("set_binlog_use_update"));
+  share->flags|= NSF_BINLOG_USE_UPDATE;
+}
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
@@ -550,16 +568,20 @@ static void set_tabname(const char *pathname, char *tabname);
 
 private:
 #ifdef HAVE_NDB_BINLOG
+  int delete_row_conflict_fn(enum_conflict_fn_type cft,
+                             const uchar *old_data,
+                             NdbInterpretedCode *);
+  int write_row_conflict_fn(enum_conflict_fn_type cft,
+                            uchar *data,
+                            NdbInterpretedCode *);
   int update_row_conflict_fn(enum_conflict_fn_type cft,
                              const uchar *old_data,
                              uchar *new_data,
                              NdbInterpretedCode *);
-  int update_row_conflict_fn_max(const uchar *old_data,
-                                 uchar *new_data,
-                                 NdbInterpretedCode *);
-  int update_row_conflict_fn_old(const uchar *old_data,
-                                 uchar *new_data,
-                                 NdbInterpretedCode *);
+  int row_conflict_fn_max(const uchar *new_data,
+                          NdbInterpretedCode *);
+  int row_conflict_fn_old(const uchar *old_data,
+                          NdbInterpretedCode *);
 #endif
   void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,

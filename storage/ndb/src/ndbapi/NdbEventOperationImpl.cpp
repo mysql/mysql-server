@@ -860,7 +860,7 @@ NdbEventOperationImpl::receive_event()
   DBUG_PRINT_EVENT("info",("sdata->operation %u  this: %p", operation, this));
   // now move the data into the RecAttrs
     
-  int is_update= operation == NdbDictionary::Event::_TE_UPDATE;
+  int is_insert= operation == NdbDictionary::Event::_TE_INSERT;
 
   Uint32 *aAttrPtr = m_data_item->ptr[0].p;
   Uint32 *aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
@@ -883,7 +883,7 @@ NdbEventOperationImpl::receive_event()
       assert(tAttr->attrId() ==
 	     AttributeHeader(*aAttrPtr).getAttributeId());
       receive_data(tAttr, aDataPtr, tDataSz);
-      if (is_update)
+      if (!is_insert)
 	receive_data(tAttr1, aDataPtr, tDataSz);
       else
         tAttr1->setUNDEFINED(); // do not leave unspecified
@@ -900,7 +900,7 @@ NdbEventOperationImpl::receive_event()
   Uint32 tRecAttrId;
   Uint32 tAttrId;
   Uint32 tDataSz;
-  int hasSomeData=0;
+  int hasSomeData= (operation != NdbDictionary::Event::_TE_UPDATE);
   while ((aAttrPtr < aAttrEndPtr) && (tWorkingRecAttr != NULL)) {
     tRecAttrId = tWorkingRecAttr->attrId();
     tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
@@ -919,7 +919,7 @@ NdbEventOperationImpl::receive_event()
       break;
     
     if (tAttrId == tRecAttrId) {
-      hasSomeData++;
+      hasSomeData=1;
       
       DBUG_PRINT_EVENT("info",("set [%u] %u 0x%x [%u] 0x%x",
                                tAttrId, tDataSz, *aDataPtr, tRecAttrId, aDataPtr));
@@ -958,7 +958,7 @@ NdbEventOperationImpl::receive_event()
       break;
     if (tAttrId == tRecAttrId) {
       assert(!m_eventImpl->m_tableImpl->getColumn(tRecAttrId)->getPrimaryKey());
-      hasSomeData++;
+      hasSomeData=1;
       
       receive_data(tWorkingRecAttr, aDataPtr, tDataSz);
       tWorkingRecAttr = tWorkingRecAttr->next();
@@ -970,7 +970,7 @@ NdbEventOperationImpl::receive_event()
     tWorkingRecAttr = tWorkingRecAttr->next();
   }
   
-  if (hasSomeData || !is_update)
+  if (hasSomeData)
   {
     DBUG_RETURN_EVENT(1);
   }

@@ -73,7 +73,6 @@ int ndb_binlog_thread_running= 0;
 my_bool ndb_binlog_running= FALSE;
 my_bool ndb_binlog_tables_inited= FALSE;
 my_bool ndb_binlog_is_ready= FALSE;
-
 /*
   Global reference to the ndb injector thread THD oject
 
@@ -3224,40 +3223,57 @@ static void
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
 {
+  DBUG_ENTER("set_binlog_flags");
   switch (ndb_binlog_type)
   {
   case NBT_NO_LOGGING:
+    DBUG_PRINT("info", ("NBT_NO_LOGGING"));
     set_binlog_nologging(share);
-    return;
+    DBUG_VOID_RETURN;
   case NBT_DEFAULT:
+    DBUG_PRINT("info", ("NBT_DEFAULT"));
     if (opt_ndb_log_updated_only)
+    {
       set_binlog_updated_only(share);
+    }
     else
+    {
       set_binlog_full(share);
+    }
     if (opt_ndb_log_update_as_write)
+    {
       set_binlog_use_write(share);
+    }
     else
+    {
       set_binlog_use_update(share);
+    }
     break;
   case NBT_UPDATED_ONLY:
+    DBUG_PRINT("info", ("NBT_UPDATED_ONLY"));
     set_binlog_updated_only(share);
     set_binlog_use_write(share);
     break;
   case NBT_USE_UPDATE:
+    DBUG_PRINT("info", ("NBT_USE_UPDATE"));
   case NBT_UPDATED_ONLY_USE_UPDATE:
+    DBUG_PRINT("info", ("NBT_UPDATED_ONLY_USE_UPDATE"));
     set_binlog_updated_only(share);
     set_binlog_use_update(share);
     break;
   case NBT_FULL:
+    DBUG_PRINT("info", ("NBT_FULL"));
     set_binlog_full(share);
     set_binlog_use_write(share);
     break;
   case NBT_FULL_USE_UPDATE:
+    DBUG_PRINT("info", ("NBT_FULL_USE_UPDATE"));
     set_binlog_full(share);
     set_binlog_use_update(share);
     break;
   }
   set_binlog_logging(share);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3838,7 +3854,8 @@ err:
                         ER(ER_ILLEGAL_HA_CREATE_OPTION),
                         ndbcluster_hton_name, msg);  
   }
-  set_binlog_flags(share, NBT_DEFAULT);
+  if (do_set_binlog_flags)
+    set_binlog_flags(share, NBT_DEFAULT);
   if (ndberror.code && ndb_extra_logging)
   {
     List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
@@ -5123,7 +5140,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         since we do not have an after image
       */
       int n;
-      if (table->s->primary_key != MAX_KEY)
+      if (!get_binlog_full(share) && table->s->primary_key != MAX_KEY)
         n= 0; /*
                 use the primary key only as it save time and space and
                 it is the only thing needed to log the delete
