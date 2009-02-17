@@ -18458,6 +18458,31 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     return;
   }
 
+  /**
+   * auto-connect
+   */
+  if (f.FilegroupId == RNIL && f.FilegroupVersion == RNIL)
+  {
+    jam();
+    Filegroup_hash::Iterator it;
+    c_filegroup_hash.first(it);
+    while (!it.isNull())
+    {
+      jam();
+      if ((f.FileType == DictTabInfo::Undofile &&
+           it.curr.p->m_type == DictTabInfo::LogfileGroup) ||
+          (f.FileType == DictTabInfo::Datafile &&
+           it.curr.p->m_type == DictTabInfo::Tablespace))
+      {
+        jam();
+        f.FilegroupId = it.curr.p->key;
+        f.FilegroupVersion = it.curr.p->m_version;
+        break;
+      }
+      c_filegroup_hash.next(it);
+    }
+  }
+
   // Get Filegroup
   FilegroupPtr fg_ptr;
   if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId))
@@ -19119,6 +19144,21 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
       jam();
       setError(error, CreateFilegroupRef::InvalidExtentSize, __LINE__);
       return;
+    }
+
+    /**
+     * auto-connect
+     */
+    if (fg.TS_LogfileGroupId == RNIL && fg.TS_LogfileGroupVersion == RNIL)
+    {
+      jam();
+      Filegroup_hash::Iterator it;
+      if (c_filegroup_hash.first(it))
+      {
+        jam();
+        fg.TS_LogfileGroupId = it.curr.p->key;
+        fg.TS_LogfileGroupVersion = it.curr.p->m_version;
+      }
     }
   }
   else if(fg.FilegroupType == DictTabInfo::LogfileGroup)
