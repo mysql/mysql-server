@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.31-pv-0.2.1)
+AM_INIT_AUTOMAKE(mysql, 5.1.33-pv-0.2.1)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -378,7 +378,7 @@ fi
 MYSQL_PROG_AR
 
 # libmysqlclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
+if $LD --version 2>/dev/null| grep GNU >/dev/null 2>&1; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
@@ -450,11 +450,11 @@ AC_SUBST(PERL5)
 
 # Enable the abi_check rule only if gcc is available
 
-if expr "$CC" : ".*gcc.*"
+if test "$GCC" != "yes" || expr "$CC" : ".*icc.*"
 then
-  ABI_CHECK="abi_check"
-else
   ABI_CHECK=""
+else
+  ABI_CHECK="abi_check"
 fi
 
 AC_SUBST(ABI_CHECK)
@@ -2091,7 +2091,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
-  pthread_key_delete pthread_rwlock_rdlock pthread_setprio pthread_setschedprio \
+  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
@@ -2111,6 +2111,15 @@ case "$target" in
 	# thread library we use conflicts with other headers.
     ;;
  *) AC_CHECK_FUNCS(clock_gettime)
+    ;;
+esac
+
+case "$mysql_cv_sys_os" in
+ OS400) # i5/OS (OS/400) emits a SIGILL (Function not implemented) when
+        # unsupported priority values are passed to pthread_setschedprio.
+        # Since the only supported value is 1, treat it as inexistent.
+    ;;
+ *) AC_CHECK_FUNCS(pthread_setschedprio)
     ;;
 esac
 
@@ -2863,8 +2872,8 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl
  cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
- mysql-test/Makefile dnl
- mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
+ mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
+ netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)

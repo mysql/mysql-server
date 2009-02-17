@@ -801,3 +801,4 @@ eta	tipo	c
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 ** connection default
 drop table t1;
+drop user mysqltest@localhost;

@@ -64,4 +64,9 @@ sync_slave_with_master;
 connection slave;
 SELECT * FROM t1 ORDER BY c3;
 
+--echo ==== clean up ====
+connection server2;
+DROP TABLE t1;
+sync_slave_with_master;
+
 STOP SLAVE;

@@ -62,7 +62,7 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb2.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 DROP DATABASE IF EXISTS test1;
 CREATE DATABASE test1;
@@ -129,7 +129,7 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb2.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 USE test;
 

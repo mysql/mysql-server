@@ -212,6 +212,8 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
   to->max_sort_char= from->max_sort_char;
   to->mbminlen= from->mbminlen;
   to->mbmaxlen= from->mbmaxlen;
+  to->state|= MY_CS_AVAILABLE | MY_CS_LOADED |
+              MY_CS_STRNXFRM  | MY_CS_UNICODE;
 }
 
 
@@ -246,14 +248,12 @@ static int add_collation(CHARSET_INFO *cs)
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_ucs2_unicode_ci);
-        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
 #endif        
       }
       else if (!strcmp(cs->csname, "utf8"))
       {
 #if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
-        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
 #endif
       }
       else

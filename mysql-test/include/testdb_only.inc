@@ -19,12 +19,6 @@
 #                                                                 #
 ###################################################################
 
---disable_query_log
-eval set @USE_RUNNING_SERVER= '$USE_RUNNING_SERVER';
---require r/testdb_only.require
-SELECT 'use extern server'
-         AS "Variable_name    ",
-         IF(@USE_RUNNING_SERVER= '1','YES',
-            IF(@USE_RUNNING_SERVER= '0','NO','UNEXPECTED'))
-         AS "Value" ;
---enable_query_log
+if ($USE_RUNNING_SERVER){
+  skip Not with extern server;
+}

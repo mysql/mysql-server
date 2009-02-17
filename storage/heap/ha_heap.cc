@@ -92,7 +92,7 @@ const char **ha_heap::bas_ext() const
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
   if ((test_if_locked & HA_OPEN_INTERNAL_TABLE) ||
-      !(file= heap_open(name, mode)) && my_errno == ENOENT)
+      (!(file= heap_open(name, mode)) && my_errno == ENOENT))
   {
     HA_CREATE_INFO create_info;
     internal_table= test(test_if_locked & HA_OPEN_INTERNAL_TABLE);

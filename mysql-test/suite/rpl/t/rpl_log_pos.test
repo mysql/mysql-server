@@ -13,20 +13,14 @@
 source include/master-slave.inc;
 source include/show_master_status.inc;
 sync_slave_with_master;
-stop slave;
---source include/wait_for_slave_to_stop.inc
+source include/stop_slave.inc;
 
 change master to master_log_pos=75;
 source include/show_slave_status2.inc;
 start slave;
-let $slave_param= Slave_SQL_Running;
-let $slave_param_value= Yes;
---source include/wait_for_slave_param.inc
-let $slave_param= Slave_IO_Running;
-let $slave_param_value= No;
---source include/wait_for_slave_param.inc
-stop slave;
---source include/wait_for_slave_to_stop.inc
+source include/wait_for_slave_sql_to_start.inc;
+source include/wait_for_slave_io_to_stop.inc;
+source include/stop_slave.inc;
 
 source include/show_slave_status.inc;
 connection master;

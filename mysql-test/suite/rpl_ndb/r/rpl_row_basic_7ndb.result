@@ -423,10 +423,10 @@ a	b	c
 **** On Master ****
 DELETE FROM t1;
 **** Resetting master and slave ****
-STOP SLAVE;
+include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
-START SLAVE;
+include/start_slave.inc
 **** On Master ****
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 **** On Master ****
