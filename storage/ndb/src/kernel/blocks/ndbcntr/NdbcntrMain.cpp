@@ -1940,6 +1940,7 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     req->senderRef = reference();
     req->senderData = index;
     req->objType = entry->type;
+    req->requestInfo = CreateFileReq::ForceCreateFile;
     sendSignal(DBDICT_REF, GSN_CREATE_FILE_REQ, signal,
                CreateFileReq::SignalLength, JBB, ptr, 1);
     return;
