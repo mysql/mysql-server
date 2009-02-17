@@ -506,7 +506,7 @@ NdbTableImpl::init(){
   m_min_rows = 0;
   m_max_rows = 0;
   m_tablespace_name.clear();
-  m_tablespace_id = ~0;
+  m_tablespace_id = RNIL;
   m_tablespace_version = ~0;
   m_single_user_mode = 0;
 }
