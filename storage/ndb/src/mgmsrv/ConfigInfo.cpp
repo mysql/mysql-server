@@ -1075,7 +1075,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_DB_THREAD_POOL,
-    "ThreadPool",
+    "DiskIOThreadPool",
     DB_TOKEN,
     "No of unbound threads for file access (currently only for DD)",
     ConfigInfo::CI_USED,
