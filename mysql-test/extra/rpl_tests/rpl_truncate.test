@@ -9,27 +9,8 @@
 
 --source include/master-slave.inc
 
-let $format = STATEMENT;
-let $stmt   = TRUNCATE TABLE;
+let $trunc_stmt = TRUNCATE TABLE;
 --source extra/rpl_tests/rpl_truncate_helper.test
 
-let $format = MIXED;
-let $stmt   = TRUNCATE TABLE;
+let $trunc_stmt   = DELETE FROM;
 --source extra/rpl_tests/rpl_truncate_helper.test
-
-let $format = ROW;
-let $stmt   = TRUNCATE TABLE;
---source extra/rpl_tests/rpl_truncate_helper.test
-
-let $format = STATEMENT;
-let $stmt   = DELETE FROM;
---source extra/rpl_tests/rpl_truncate_helper.test
-
-let $format = MIXED;
-let $stmt   = DELETE FROM;
---source extra/rpl_tests/rpl_truncate_helper.test
-
-let $format = ROW;
-let $stmt   = DELETE FROM;
---source extra/rpl_tests/rpl_truncate_helper.test
-

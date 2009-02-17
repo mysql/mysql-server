@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,15 +148,20 @@ typedef struct my_locale_st
   TYPELIB *ab_month_names;
   TYPELIB *day_names;
   TYPELIB *ab_day_names;
+  uint max_month_name_length;
+  uint max_day_name_length;
 #ifdef __cplusplus 
   my_locale_st(uint number_par,
                const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
-               TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
+               TYPELIB *day_names_par, TYPELIB *ab_day_names_par,
+               uint max_month_name_length_par, uint max_day_name_length_par) : 
     number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
-    day_names(day_names_par), ab_day_names(ab_day_names_par)
+    day_names(day_names_par), ab_day_names(ab_day_names_par),
+    max_month_name_length(max_month_name_length_par),
+    max_day_name_length(max_day_name_length_par)
   {}
 #endif
 } MY_LOCALE;
@@ -857,6 +862,8 @@ struct Query_cache_query_flags
   unsigned int client_protocol_41:1;
   unsigned int result_in_binary_protocol:1;
   unsigned int more_results_exists:1;
+  unsigned int in_trans:1;
+  unsigned int autocommit:1;
   unsigned int pkt_nr;
   uint character_set_client_num;
   uint character_set_results_num;
@@ -1948,6 +1955,7 @@ extern my_bool opt_log, opt_slow_log;
 extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
+extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
 extern uint volatile thread_count, thread_running, global_read_lock;
@@ -2227,6 +2235,7 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,

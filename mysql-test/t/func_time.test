@@ -304,6 +304,15 @@ select unix_timestamp('1970-01-01 03:00:01');
 # check bad date, close to the boundary (we cut them off in the very end)
 select unix_timestamp('2038-01-19 07:14:07');
 
+#
+# Bug #28759: DAYNAME() and MONTHNAME() return binary string
+#
+
+SELECT CHARSET(DAYNAME(19700101));
+SELECT CHARSET(MONTHNAME(19700101));
+SELECT LOWER(DAYNAME(19700101));
+SELECT LOWER(MONTHNAME(19700101));
+SELECT COERCIBILITY(MONTHNAME('1970-01-01')),COERCIBILITY(DAYNAME('1970-01-01'));
 
 #
 # Test types from + INTERVAL
@@ -606,6 +615,7 @@ select time_format('100:00:00', '%H %k %h %I %l');
 # Bug #12562: Make SYSDATE behave like it does in Oracle: always the current
 #             time, regardless of magic to make NOW() always the same for the
 #             entirety of a statement.
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
 create table t1 (a timestamp default '2005-05-05 01:01:01',
@@ -656,6 +666,7 @@ end;
 delimiter ;//
 call t_sysdate();
 drop procedure t_sysdate;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 #
 # Bug #13534: timestampdiff() returned incorrect results across leap years

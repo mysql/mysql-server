@@ -116,7 +116,8 @@ show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
 GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
 set global slave_exec_mode='IDEMPOTENT';
-drop table t1, t4, mysqltest2.t2;
+drop table t1, mysqltest2.t2;
+drop table t4;
 drop database mysqltest2;
 delete from mysql.user where user like "mysqltest%";
 delete from mysql.db where user like "mysqltest%";

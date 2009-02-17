@@ -1,0 +1,324 @@
+#############################################################
+# Author: Serge Kozlov <skozlov@mysql.com>
+# Date:   03/12/2008
+# Purpose: Testing circular replication based on schema 
+# A->B->C->D->A with using AUTO_INCREMENT_INCREMENT,
+# AUTO_INCREMENT_OFFSET variables and failover
+#############################################################
+--source include/have_innodb.inc
+
+# Set up circular ring and new names for servers
+--echo *** Set up circular ring by schema A->B->C->D->A *** 
+--source include/circular_rpl_for_4_hosts_init.inc
+--echo
+
+# Preparing data.
+--echo *** Preparing data ***
+--connection master_a
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
+--source include/circular_rpl_for_4_hosts_sync.inc
+--connection master_d
+--echo
+
+#
+# Testing
+#
+
+--echo *** Testing schema A->B->C->D->A ***
+--echo
+# insert data via all hosts
+--connection master_a
+INSERT INTO t1(b,c) VALUES('A',1);
+--sync_slave_with_master master_b
+INSERT INTO t1(b,c) VALUES('B',1);
+--sync_slave_with_master master_c
+INSERT INTO t1(b,c) VALUES('C',1);
+--sync_slave_with_master master_d
+INSERT INTO t1(b,c) VALUES('D',1);
+
+--source include/circular_rpl_for_4_hosts_sync.inc
+
+--connection master_a
+SELECT 'Master A',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+--connection master_b
+SELECT 'Master B',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+--connection master_c
+SELECT 'Master C',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+--connection master_d
+SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
+--echo
+
+--echo *** Testing schema A->B->D->A if C has failure ***
+--echo 
+--echo * Do failure for C and then make new connection B->D *
+# Do not replicate next event from C
+--connection master_d
+connect(slave,127.0.0.1,root,,test,$SLAVE_MYPORT2);
+STOP SLAVE;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+source include/start_slave.inc;
+disconnect slave;
+--connection master_c
+INSERT INTO t1 VALUES(6,'C',2);
+--save_master_pos
+--connection master_b
+INSERT INTO t1(b,c) VALUES('B',2);
+# Wait while C will stop.
+--connection master_c
+source include/wait_for_slave_sql_to_stop.inc;
+--connection master_a
+INSERT INTO t1(b,c) VALUES('A',2);
+--connection master_d
+INSERT INTO t1(b,c) VALUES('D',2);
+
+
+# Sync all servers except C
+--connection master_b
+let $wait_condition= SELECT COUNT(*)=3 FROM t1 WHERE a > 4;
+--source include/wait_condition.inc
+
+--echo
+--echo * Data on servers (C failed) *
+# Masters C,D shouldn't have correct data
+--connection master_a
+SELECT 'Master A',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--connection master_b
+SELECT 'Master B',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--connection master_c
+SELECT 'Master C',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--connection master_d
+SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--echo
+
+--echo * Reconfigure replication to schema A->B->D->A *
+# Exclude Master C 
+--connection master_c
+STOP SLAVE;
+--let $pos_c= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+--let $file_c= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
+--connection master_d
+STOP SLAVE;
+--replace_result $SLAVE_MYPORT MASTER_B_PORT $file_c LOG_FILE $pos_c LOG_POS 
+--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SLAVE_MYPORT,master_user='root',master_log_file='$file_c',master_log_pos=$pos_c
+connect(slave,127.0.0.1,root,,test,$SLAVE_MYPORT2);
+source include/start_slave.inc;
+disconnect slave;
+--connection master_b
+--sync_slave_with_master master_d
+--sync_slave_with_master master_a
+--echo
+
+--echo * Check data inserted before failure *
+--connection master_a
+SELECT 'Master A',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--connection master_b
+SELECT 'Master B',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--connection master_c
+SELECT 'Master C',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--connection master_d
+SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
+--echo
+
+--echo * Check data inserted after failure *
+--connection master_a
+INSERT INTO t1(b,c) VALUES('A',3);
+--connection master_b
+INSERT INTO t1(b,c) VALUES('B',3);
+--connection master_d
+INSERT INTO t1(b,c) VALUES('D',3);
+connection master_a;
+
+--sync_slave_with_master master_b
+--sync_slave_with_master master_d
+--sync_slave_with_master master_a
+--sync_slave_with_master master_b
+
+--connection master_a
+SELECT 'Master A',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+--connection master_b
+SELECT 'Master B',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+--connection master_c
+SELECT 'Master C',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+--connection master_d
+SELECT 'Master D',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
+--connection master_a
+--echo
+
+--echo *** Testing restoring scheme A->B->C->D->A after failure ***
+--echo
+# Master D will ignore a next event from C so that event will not be 
+# distributed to other servers
+--echo * Remove wrong event from C and restore B->C->D *
+--connection master_d
+source include/stop_slave.inc;
+--connection master_c
+DELETE FROM t1 WHERE a = 6;
+START SLAVE;
+--connection master_b
+--sync_slave_with_master master_c
+RESET MASTER;
+--let $file_d= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $pos_d= query_get_value(SHOW MASTER STATUS, Position, 1)
+--connection master_d
+RESET SLAVE;
+--replace_result $SLAVE_MYPORT1 MASTER_C_PORT $file_d LOG_FILE $pos_d LOG_POS 
+--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SLAVE_MYPORT1,master_user='root',master_log_file='$file_d',master_log_pos=$pos_d
+START SLAVE;
+--connection master_c
+--sync_slave_with_master master_d
+--source include/circular_rpl_for_4_hosts_sync.inc
+
+--echo
+--echo * Check data inserted before restoring schema A->B->C->D->A *
+--connection master_a
+SELECT 'Master A',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+--sync_slave_with_master master_b
+SELECT 'Master B',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+--sync_slave_with_master master_c
+SELECT 'Master C',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+--sync_slave_with_master master_d
+SELECT 'Master D',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
+--sync_slave_with_master master_a
+--echo
+
+--echo * Check data inserted after restoring schema A->B->C->D->A *
+--connection master_a
+INSERT INTO t1(b,c) VALUES('A',4);
+--connection master_b
+INSERT INTO t1(b,c) VALUES('B',4);
+--connection master_c
+INSERT INTO t1(b,c) VALUES('C',4);
+--connection master_d
+INSERT INTO t1(b,c) VALUES('D',4);
+--connection master_a
+
+--source include/circular_rpl_for_4_hosts_sync.inc
+
+--connection master_a
+SELECT 'Master A',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+--connection master_b
+SELECT 'Master B',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+--connection master_c
+SELECT 'Master C',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+--connection master_d
+SELECT 'Master D',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
+--connection master_a
+--echo
+
+--echo * Transactions with commits *
+# Testing mixing of transactions and regular inserts
+--connection master_a
+BEGIN;
+--connection master_c
+BEGIN;
+let $counter= 100;
+--connection master_a
+--disable_query_log
+while ($counter) {
+ --connection master_a
+ INSERT INTO t2(b,c) VALUES('A',1);
+ --connection master_b
+ INSERT INTO t2(b,c) VALUES('B',1);
+ --connection master_c
+ INSERT INTO t2(b,c) VALUES('C',1);
+ --connection master_d
+ INSERT INTO t2(b,c) VALUES('D',1);
+ dec $counter;
+}
+--connection master_a
+COMMIT;
+--connection master_c
+COMMIT;
+--connection master_a
+--enable_query_log
+
+
+--let $wait_condition= SELECT COUNT(*)=400 FROM t2 WHERE c = 1
+--connection master_a
+--source include/wait_condition.inc
+--connection master_b
+--source include/wait_condition.inc
+--connection master_c
+--source include/wait_condition.inc
+--connection master_d
+--source include/wait_condition.inc
+
+--connection master_a
+SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+--connection master_b
+SELECT 'Master B',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+--connection master_c
+SELECT 'Master C',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+--connection master_d
+SELECT 'Master D',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
+--connection master_a
+--echo
+
+--echo * Transactions with rollbacks *
+# Testing mixing of transactions with rollback and regular inserts
+--connection master_a
+BEGIN;
+--connection master_c
+BEGIN;
+let $counter= 100;
+--connection master_a
+--disable_query_log
+while ($counter) {
+ --connection master_a
+ INSERT INTO t2(b,c) VALUES('A',2);
+ --connection master_b
+ INSERT INTO t2(b,c) VALUES('B',2);
+ --connection master_c
+ INSERT INTO t2(b,c) VALUES('C',2);
+ --connection master_d
+ INSERT INTO t2(b,c) VALUES('D',2);
+ dec $counter;
+}
+--connection master_a
+ROLLBACK;
+--connection master_c
+ROLLBACK;
+--connection master_a
+--enable_query_log
+
+--let $wait_condition= SELECT COUNT(*)=200 FROM t2 WHERE c = 2
+--connection master_a
+--source include/wait_condition.inc
+--connection master_b
+--source include/wait_condition.inc
+--connection master_c
+--source include/wait_condition.inc
+--connection master_d
+--source include/wait_condition.inc
+
+--connection master_a
+SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+--connection master_b
+SELECT 'Master B',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+--connection master_c
+SELECT 'Master C',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+--connection master_d
+SELECT 'Master D',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
+--connection master_a
+
+--echo
+
+# Clean up
+--echo *** Clean up ***
+--connection master_a
+DROP TABLE t1,t2;
+--source include/circular_rpl_for_4_hosts_sync.inc
+
+--connection master_a
+STOP SLAVE;
+RESET SLAVE;
+--connection master_b
+STOP SLAVE;
+RESET SLAVE;
+--connection master_c
+STOP SLAVE;
+RESET SLAVE;
+--connection master_d
+STOP SLAVE;
+RESET SLAVE;

@@ -47,6 +47,7 @@ create database mysqltest;
 show databases;
 Database
 information_schema
+mtr
 mysql
 mysqltest
 test
@@ -58,6 +59,7 @@ drop database mysqltest;
 show databases;
 Database
 information_schema
+mtr
 mysql
 test
 drop database mysqltest;

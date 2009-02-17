@@ -23,39 +23,36 @@
 --echo ==== Create new replication user ====
 --echo [on master]
 connection master;
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
 
 --echo [on slave]
 sync_slave_with_master;
-stop slave;
-source include/wait_for_slave_to_stop.inc;
-change master to master_user='rpl',master_password='rpl';
-start slave;
-source include/wait_for_slave_to_start.inc;
+source include/stop_slave.inc;
+CHANGE MASTER TO master_user='rpl', master_password='rpl';
+source include/start_slave.inc;
 
 --echo ==== Do replication as new user ====
 --echo [on master]
 connection master;
-create table t1 (n int);
-insert into t1 values (1);
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1);
 --echo [on slave]
 sync_slave_with_master;
-select * from t1;
+SELECT * FROM t1;
 
 --echo ==== Delete new replication user ====
 --echo [on master]
 connection master;
-drop user rpl@127.0.0.1;
-flush privileges;
+DROP USER rpl@127.0.0.1;
+FLUSH PRIVILEGES;
 
 --echo [on slave]
 sync_slave_with_master;
 
 --echo ==== Restart slave without privileges =====
 # (slave.err will contain access denied error for this START SLAVE command)
-stop slave;
-source include/wait_for_slave_to_stop.inc;
-start slave;
+source include/stop_slave.inc;
+START SLAVE;
 source include/wait_for_slave_sql_to_start.inc;
 
 --echo ==== Verify that Slave_IO_Running = No ====
@@ -63,11 +60,10 @@ let $result= query_get_value("SHOW SLAVE STATUS", Slave_IO_Running, 1);
 --echo Slave_IO_Running = $result (should be No)
 
 --echo ==== Cleanup (Note that slave IO thread is not running) ====
-drop table t1;
-delete from mysql.user where user='rpl';
+DROP TABLE t1;
 # cleanup: slave io thread has been stopped "irrecoverably"
 # so we clean up mess manually
 
 --echo [on master]
 connection master;
-drop table t1;
+DROP TABLE t1;

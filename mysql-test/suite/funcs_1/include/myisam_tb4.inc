@@ -86,5 +86,5 @@ f242 bit(30)
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/myisam_tb4.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/myisam_tb4.txt'
 into table tb4;
