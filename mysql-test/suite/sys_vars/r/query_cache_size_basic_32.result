@@ -1,7 +1,4 @@
 SET @start_value = @@global.query_cache_size;
-SELECT @start_value;
-@start_value
-0
 '#--------------------FN_DYNVARS_133_01------------------------#'
 SET @@global.query_cache_size = 99;
 SET @@global.query_cache_size = DEFAULT;
@@ -10,8 +7,8 @@ SELECT @@global.query_cache_size;
 0
 '#---------------------FN_DYNVARS_133_02-------------------------#'
 SET @@global.query_cache_size = @start_value;
-SELECT @@global.query_cache_size = 0;
-@@global.query_cache_size = 0
+SELECT @@global.query_cache_size = @start_value;
+@@global.query_cache_size = @start_value
 1
 '#--------------------FN_DYNVARS_133_03------------------------#'
 SET @@global.query_cache_size = 0;
@@ -133,6 +130,3 @@ ERROR 42S02: Unknown table 'global' in field list
 SELECT query_cache_size = @@session.query_cache_size;
 ERROR 42S22: Unknown column 'query_cache_size' in 'field list'
 SET @@global.query_cache_size = @start_value;
-SELECT @@global.query_cache_size;
-@@global.query_cache_size
-0

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3808,6 +3808,13 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 
+void Item_func_set_user_var::cleanup()
+{
+  Item_func::cleanup();
+  entry= NULL;
+}
+
+
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
   if (entry && thd->thread_id == entry_thread_id)
@@ -4304,6 +4311,15 @@ my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
   check(TRUE);
   update();					// Store expression
   return entry->val_decimal(&null_value, val);
+}
+
+
+bool Item_func_set_user_var::is_null_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return is_null();
 }
 
 

@@ -284,4 +284,30 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'f1' at row 1
 INSERT DELAYED INTO t2 VALUES (0,'2007-00-00');
 ERROR 22007: Incorrect date value: '2007-00-00' for column 'f1' at row 1
 DROP TABLE t1,t2;
+set @old_delayed_updates = @@global.low_priority_updates;
+set global low_priority_updates = 1;
+select @@global.low_priority_updates;
+@@global.low_priority_updates
+1
+drop table if exists t1;
+create table t1 (a int, b int);
+insert into t1 values (1,1);
+lock table t1 read;
+connection: update
+insert delayed into t1 values (2,2);;
+connection: select
+select * from t1;
+a	b
+1	1
+connection: default
+select * from t1;
+a	b
+1	1
+unlock tables;
+select * from t1;
+a	b
+1	1
+2	2
+drop table t1;
+set global low_priority_updates = @old_delayed_updates;
 End of 5.1 tests

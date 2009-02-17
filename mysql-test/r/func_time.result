@@ -592,6 +592,21 @@ unix_timestamp('1970-01-01 03:00:01')
 select unix_timestamp('2038-01-19 07:14:07');
 unix_timestamp('2038-01-19 07:14:07')
 0
+SELECT CHARSET(DAYNAME(19700101));
+CHARSET(DAYNAME(19700101))
+latin1
+SELECT CHARSET(MONTHNAME(19700101));
+CHARSET(MONTHNAME(19700101))
+latin1
+SELECT LOWER(DAYNAME(19700101));
+LOWER(DAYNAME(19700101))
+thursday
+SELECT LOWER(MONTHNAME(19700101));
+LOWER(MONTHNAME(19700101))
+january
+SELECT COERCIBILITY(MONTHNAME('1970-01-01')),COERCIBILITY(DAYNAME('1970-01-01'));
+COERCIBILITY(MONTHNAME('1970-01-01'))	COERCIBILITY(DAYNAME('1970-01-01'))
+4	4
 CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
 INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
 SELECT * from t1;
@@ -1078,6 +1093,7 @@ Note	1003	select timestampdiff(WEEK,'2001-02-01','2001-05-01') AS `a1`,timestamp
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (a timestamp default '2005-05-05 01:01:01',
 b timestamp default '2005-05-05 01:01:01');
@@ -1121,6 +1137,7 @@ call t_sysdate();
 @a != @b
 1
 drop procedure t_sysdate;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 select timestampdiff(month,'2004-09-11','2004-09-11');
 timestampdiff(month,'2004-09-11','2004-09-11')
 0

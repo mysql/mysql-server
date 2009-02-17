@@ -669,7 +669,7 @@ word
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-load data infile 'MYSQLTEST_VARDIR/std_data_ln/words.dat' into table t1;
+load data infile 'MYSQLTEST_VARDIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -1116,12 +1116,13 @@ create procedure `p1`()
 begin
 select a, f1() from t1;
 end//
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 call p1()//
 a	f1()
 1	2
 2	2
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET GLOBAL log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 drop procedure p1//
 drop function f1//
 drop table t1//
@@ -1615,41 +1616,6 @@ id
 DROP PROCEDURE proc29856;
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
-Bug#28249 Query Cache returns wrong result with concurrent insert/ certain lock
-set GLOBAL query_cache_type=1;
-set GLOBAL query_cache_limit=10000;
-set GLOBAL query_cache_min_res_unit=0;
-set GLOBAL query_cache_size= 100000;
-flush tables;
-drop table if exists t1, t2;
-create table t1 (a int);
-create table t2 (a int);
-insert into t1 values (1),(2),(3);
-Locking table T2 with a write lock.
-lock table t2 write;
-Select blocked by write lock.
-select *, (select count(*) from t2) from t1;;
-Sleeing is ok, because selecting should be done very fast.
-Inserting into table T1.
-insert into t1 values (4);
-Unlocking the tables.
-unlock tables;
-Collecting result from previously blocked select.
-Next select should contain 4 rows, as the insert is long finished.
-select *, (select count(*) from t2) from t1;
-a	(select count(*) from t2)
-1	0
-2	0
-3	0
-4	0
-reset query cache;
-select *, (select count(*) from t2) from t1;
-a	(select count(*) from t2)
-1	0
-2	0
-3	0
-4	0
-drop table t1,t2;
 #
 # Bug#25132 disabled query cache: Qcache_free_blocks = 1
 #
@@ -1689,6 +1655,57 @@ Variable_name	Value
 Qcache_hits	1
 DROP TABLE t1;
 SET GLOBAL concurrent_insert= @save_concurrent_insert;
+SET GLOBAL query_cache_size= default;
+DROP TABLE IF EXISTS t1;
+FLUSH STATUS;
+SET GLOBAL query_cache_size=1048576;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+BEGIN;
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+COMMIT;
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	2
+SHOW STATUS LIKE "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+BEGIN;
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+COMMIT;
+SHOW STATUS LIKE "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 End of 5.0 tests
 CREATE TABLE t1 (a ENUM('rainbow'));

@@ -724,7 +724,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define UNSINT32		/* unsigned int32 */
 
 	/* General constants */
-#define SC_MAXWIDTH	256	/* Max width of screen (for error messages) */
 #define FN_LEN		256	/* Max file name len */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
@@ -788,6 +787,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
+#endif
+#ifndef double2ulonglong
+#define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
 #endif
 
@@ -1129,6 +1131,9 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #else
 #define dbug_volatile
 #endif
+
+/* Some helper macros */
+#define YESNO(X) ((X) ? "yes" : "no")
 
 /* Defines for time function */
 #define SCALE_SEC	100

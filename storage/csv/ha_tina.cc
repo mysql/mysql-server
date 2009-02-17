@@ -1456,6 +1456,17 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
     a file, which descriptor is still open. EACCES will be returned
     when trying to delete the "to"-file in my_rename().
   */
+  if (share->tina_write_opened)
+  {
+    /*
+      Data file might be opened twice, on table opening stage and
+      during write_row execution. We need to close both instances
+      to satisfy Win.
+    */
+    if (my_close(share->tina_write_filedes, MYF(0)))
+      DBUG_RETURN(my_errno ? my_errno : -1);
+    share->tina_write_opened= FALSE;
+  }
   if (my_close(data_file,MYF(0)) || my_close(repair_file, MYF(0)) ||
       my_rename(repaired_fname, share->data_file_name, MYF(0)))
     DBUG_RETURN(-1);

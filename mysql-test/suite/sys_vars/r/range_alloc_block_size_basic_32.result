@@ -39,10 +39,14 @@ SELECT @@global.range_alloc_block_size;
 4096
 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.range_alloc_block_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967295'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4294966272
 SET @@global.range_alloc_block_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967294'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4294966272
@@ -55,10 +59,14 @@ SELECT @@session.range_alloc_block_size;
 @@session.range_alloc_block_size
 4096
 SET @@session.range_alloc_block_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967295'
 SELECT @@session.range_alloc_block_size;
 @@session.range_alloc_block_size
 4294966272
 SET @@session.range_alloc_block_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967294'
 SELECT @@session.range_alloc_block_size;
 @@session.range_alloc_block_size
 4294966272

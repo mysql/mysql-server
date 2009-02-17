@@ -501,4 +501,30 @@ SELECT b,a from t1 WHERE (b!='c' AND b!='f' && b!='h') OR
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#40974: Incorrect query results when using clause evaluated using range check
+--echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (a int);
+insert into t1 values (1),(2);
+create table t2(a int, b int);
+insert into t2 values (1,1), (2, 1000);
+create table t3 (a int, b int, filler char(100), key(a), key(b));
+
+insert into t3 select 1000, 1000,'filler' from t0 A, t0 B, t0 C; 
+insert into t3 values (1,1,'data');
+insert into t3 values (1,1,'data');
+-- echo The plan should be ALL/ALL/ALL(Range checked for each record (index map: 0x3)
+explain select * from t1 
+where exists (select 1 from t2, t3 
+              where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
+
+select * from t1 
+where exists (select 1 from t2, t3 
+              where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
+
+drop table t0, t1, t2, t3;
+
 --echo End of 5.0 tests

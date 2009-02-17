@@ -1409,7 +1409,8 @@ DROP TABLE test_repair_table;
 #
 
 CREATE TABLE test_repair_table2 ( val integer not null ) ENGINE = CSV;
---remove_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/test/test_repair_table2.CSM
 
 # Should give a warning and perform autorepair. We also disable ps-protocol
 # here, as mysql-test eats up warnings in ps-protocol mode
@@ -1420,15 +1421,15 @@ SELECT * from test_repair_table2;
 # this should work ok, as the table is already repaired
 SELECT * from test_repair_table2;
 # check that the metafile appeared again.
---file_exists $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
+--file_exists $MYSQLD_DATADIR/test/test_repair_table2.CSM
 CHECK TABLE test_repair_table2;
 DROP TABLE test_repair_table2;
 
 
 # Corrupt csv file and see if we can repair it
 CREATE TABLE test_repair_table3 ( val integer not null ) ENGINE = CSV;
---remove_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
---write_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
+--remove_file $MYSQLD_DATADIR/test/test_repair_table3.CSV
+--write_file $MYSQLD_DATADIR/test/test_repair_table3.CSV
 "1"
 "4"
 "3
@@ -1447,7 +1448,7 @@ CREATE TABLE test_repair_table4 (
   founded char(4) DEFAULT '' NOT NULL
 ) ENGINE = CSV;
 
---remove_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table4.CSM
+--remove_file $MYSQLD_DATADIR/test/test_repair_table4.CSM
 --disable_ps_protocol
 SELECT * FROM test_repair_table4;
 --enable_ps_protocol
@@ -1480,8 +1481,8 @@ CREATE TABLE test_repair_table5 (
 ) ENGINE = CSV;
 
 # Corrupt a table -- put a file with wrong # of columns
---remove_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
---write_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--remove_file $MYSQLD_DATADIR/test/test_repair_table5.CSV
+--write_file $MYSQLD_DATADIR/test/test_repair_table5.CSV
 "1","101","IBM"
 EOF
 
@@ -1492,7 +1493,7 @@ INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT", 1876);
 SELECT * FROM test_repair_table5;
 
 # Corrupt a table -- put a row with wrong # of columns at end of file
---append_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--append_file $MYSQLD_DATADIR/test/test_repair_table5.CSV
 "1","101","IBM"
 EOF
 
@@ -1505,7 +1506,7 @@ INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT2", 1876);
 SELECT * FROM test_repair_table5;
 
 # Corrupt table again -- put a row with wrong # of columns at end of file
---append_file $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--append_file $MYSQLD_DATADIR/test/test_repair_table5.CSV
 "1","101","IBM"
 EOF
 
@@ -1588,14 +1589,14 @@ drop table t1;
 
 create table bug15205 (val int(11) not null) engine=csv;
 create table bug15205_2 (val int(11) not null) engine=csv;
---remove_file $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+--remove_file $MYSQLD_DATADIR/test/bug15205.CSV
 # system error (can't open the datafile)
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error 13
 select * from bug15205;
 select * from bug15205_2;
 # Create empty file
---write_file $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+--write_file $MYSQLD_DATADIR/test/bug15205.CSV
 EOF
 select * from bug15205;
 drop table bug15205;
@@ -1634,16 +1635,16 @@ insert into bug22080_1 values(2,'string');
 insert into bug22080_1 values(3,'string');
 
 # Create first corrupt file as described in bug report
---remove_file $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
---write_file $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
+--remove_file $MYSQLD_DATADIR/test/bug22080_2.CSV
+--write_file $MYSQLD_DATADIR/test/bug22080_2.CSV
 1,"string"
 2","string"
 3,"string"
 EOF
 
 # Create second corrupt file as described in bug report
---remove_file $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
---write_file $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
+--remove_file $MYSQLD_DATADIR/test/bug22080_3.CSV
+--write_file $MYSQLD_DATADIR/test/bug22080_3.CSV
 1,"string"
 "2",string"
 3,"string"
@@ -1703,8 +1704,8 @@ check table t1;
 drop table t1;
 
 create table t1(a int not null, b int not null) engine=csv;
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1.CSV
---write_file $MYSQLTEST_VARDIR/master-data/test/t1.CSV
+--remove_file $MYSQLD_DATADIR/test/t1.CSV
+--write_file $MYSQLD_DATADIR/test/t1.CSV
 1, 1E-2
 -2E2, .9
 -10E-1, -.9
@@ -1794,8 +1795,8 @@ create table t1 (a int not null) engine=csv;
 lock tables t1 read;
 connect (con1,localhost,root,,);
 --connection con1
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1.CSV
---replace_result $MYSQLTEST_VARDIR . master-data/ '' 13 2
+--remove_file $MYSQLD_DATADIR/test/t1.CSV
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/ ./ MYSQLD_DATADIR/ 13 2
 # EE_FILENOTFOUND 29
 --error 29
 select * from t1;
@@ -1803,5 +1804,18 @@ connection default;
 unlock tables;
 drop table t1;
 --disconnect con1
+
+#
+# Bug#41441 repair csv table crashes debug server
+#
+# Note: The test should be removed after Bug#33717 is fixed
+
+create table t1(a enum ('a') not null) engine=csv;
+insert into t1 values (2);
+--error ER_CRASHED_ON_USAGE
+select * from t1 limit 1;
+repair table t1;
+select * from t1 limit 1;
+drop table t1;
 
 --echo End of 5.1 tests

@@ -637,7 +637,7 @@ drop table t1;
 --echo ** connection default
 connection default;
 drop table t1;
-
+drop user mysqltest@localhost;
 
 disconnect thread1;
 disconnect thread2;
