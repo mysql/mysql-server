@@ -551,4 +551,43 @@ INSERT INTO t1 VALUES (0), (0);
 SELECT 1 FROM t1 ORDER BY(UPDATEXML(a, '1', '1'));
 DROP TABLE t1;
 
+#
+# BUG#38227 EXTRACTVALUE doesn't work with DTD declarations 
+#
+# Check that quoted strings work fine in DOCTYPE declaration.
+#
+
+SET @xml=
+'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html> 
+ <head>
+  <title> Title - document with document declaration</title>
+ </head> 
+  <body> Hi, Im a webpage with document a declaration </body> 
+</html>';
+
+SELECT ExtractValue(@xml, 'html/head/title');
+SELECT ExtractValue(@xml, 'html/body');
+
+# These two documents will fail. 
+# Quoted strings are not allowed in regular tags
+#
+SELECT ExtractValue('<xml "xxx" "yyy">CharData</xml>', '/xml');
+SELECT ExtractValue('<xml  xxx  "yyy">CharData</xml>', '/xml');
+
+#
+# Bug#42495 updatexml: Assertion failed: xpath->context, file .\item_xmlfunc.cc, line 2507
+#
+set @x=10;
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','$@x/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','round(123.4)/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','1/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','"b"/a');
+--error ER_UNKNOWN_ERROR
+select extractvalue('<a></a>','(1)/a');
+
 --echo End of 5.1 tests

@@ -16,8 +16,9 @@ reset master;
 create table t1 (a int);
 insert into t1 values (1);
 
+let $MYSQLD_DATADIR= `select @@datadir`;
 flush logs;
---exec $MYSQL_BINLOG  $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/bug36099.sql
+--exec $MYSQL_BINLOG  $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/bug36099.sql
 
 drop table t1;
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/bug36099.sql"

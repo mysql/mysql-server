@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,6 +114,30 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 }
 
 
+/**
+  Check if given string begins with "#mysql50#" prefix, cut it if so.
+  
+  @param   from          string to check and cut 
+  @param   to[out]       buffer for result string
+  @param   to_length     its size
+  
+  @retval
+    0      no prefix found
+  @retval
+    non-0  result string length
+*/
+
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
+{
+  if (from[0] == '#' && 
+      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
+               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+    return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+                           to_length - 1) - to);
+  return 0;
+}
+
+
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -133,11 +157,8 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   DBUG_ENTER("tablename_to_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if (from[0] == '#' && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-    DBUG_RETURN((uint) (strmake(to, from+MYSQL50_TABLE_NAME_PREFIX_LENGTH,
-                                to_length-1) -
-                        (from + MYSQL50_TABLE_NAME_PREFIX_LENGTH)));
+  if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
+    DBUG_RETURN(length);
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
@@ -3111,10 +3132,12 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
   }
-    
+
   if ((sql_field->flags & BLOB_FLAG) && sql_field->length)
   {
-    if (sql_field->sql_type == MYSQL_TYPE_BLOB)
+    if (sql_field->sql_type == FIELD_TYPE_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB)
     {
       /* The user has given a length to the blob column */
       sql_field->sql_type= get_blob_type_from_length(sql_field->length);
@@ -3425,14 +3448,6 @@ bool mysql_create_table_no_lock(THD *thd,
   }
   else  
   {
- #ifdef FN_DEVCHAR
-    /* check if the table name contains FN_DEVCHAR when defined */
-    if (strchr(alias, FN_DEVCHAR))
-    {
-      my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
-      DBUG_RETURN(TRUE);
-    }
-#endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
                                       internal_tmp_table ? FN_IS_TMP : 0);
   }
@@ -4319,6 +4334,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
+      thd->main_da.reset_diagnostics_area();
       continue;
       /* purecov: end */
     }
@@ -4419,8 +4435,8 @@ send_result_message:
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
-	char buf[ERRMSGSIZE+20];
-	uint length=my_snprintf(buf, ERRMSGSIZE,
+       char buf[MYSQL_ERRMSG_SIZE];
+       uint length=my_snprintf(buf, sizeof(buf),
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
 	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
 	protocol->store(buf, length, system_charset_info);
@@ -4429,8 +4445,8 @@ send_result_message:
 
     case HA_ADMIN_NOT_BASE_TABLE:
       {
-        char buf[ERRMSGSIZE+20];
-        uint length= my_snprintf(buf, ERRMSGSIZE,
+        char buf[MYSQL_ERRMSG_SIZE];
+        uint length= my_snprintf(buf, sizeof(buf),
                                  ER(ER_BAD_TABLE_ERROR), table_name);
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
@@ -4557,11 +4573,12 @@ send_result_message:
     case HA_ADMIN_NEEDS_UPGRADE:
     case HA_ADMIN_NEEDS_ALTER:
     {
-      char buf[ERRMSGSIZE];
+      char buf[MYSQL_ERRMSG_SIZE];
       uint length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length=my_snprintf(buf, ERRMSGSIZE, ER(ER_TABLE_NEEDS_UPGRADE), table->table_name);
+      length=my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
+                         table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
       break;
@@ -4569,8 +4586,8 @@ send_result_message:
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
-        char buf[ERRMSGSIZE+20];
-        uint length=my_snprintf(buf, ERRMSGSIZE,
+        char buf[MYSQL_ERRMSG_SIZE];
+        uint length=my_snprintf(buf, sizeof(buf),
                                 "Unknown - internal error %d during operation",
                                 result_code);
         protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -4967,6 +4984,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 				dst_path); /* purecov: inspected */
       goto err;     /* purecov: inspected */
     }
+    thd->thread_specific_used= TRUE;
   }
   else if (err)
   {
@@ -5867,7 +5885,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
-        key_create_info.parser_name= *key_info->parser_name;
+        key_create_info.parser_name= *plugin_name(key_info->parser);
 
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;

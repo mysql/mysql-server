@@ -86,6 +86,7 @@ class Materialized_cursor: public Server_side_cursor
   List<Item> item_list;
   ulong fetch_limit;
   ulong fetch_count;
+  bool is_rnd_inited;
 public:
   Materialized_cursor(select_result *result, TABLE *table);
 
@@ -197,7 +198,11 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
       such command is SHOW VARIABLES or SHOW STATUS.
   */
   if (rc)
+  {
+    if (result_materialize->materialized_cursor)
+      delete result_materialize->materialized_cursor;
     goto err_open;
+  }
 
   if (sensitive_cursor->is_open())
   {
@@ -549,7 +554,8 @@ Materialized_cursor::Materialized_cursor(select_result *result_arg,
   :Server_side_cursor(&table_arg->mem_root, result_arg),
   table(table_arg),
   fetch_limit(0),
-  fetch_count(0)
+  fetch_count(0),
+  is_rnd_inited(0)
 {
   fake_unit.init_query();
   fake_unit.thd= table->in_use;
@@ -606,11 +612,12 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   THD *thd= fake_unit.thd;
   int rc;
   Query_arena backup_arena;
-
   thd->set_n_backup_active_arena(this, &backup_arena);
   /* Create a list of fields and start sequential scan */
-  rc= (result->prepare(item_list, &fake_unit) ||
-       table->file->ha_rnd_init(TRUE));
+  rc= result->prepare(item_list, &fake_unit);
+  if (!rc && !(rc= table->file->ha_rnd_init(TRUE)))
+    is_rnd_inited= 1;
+
   thd->restore_active_arena(this, &backup_arena);
   if (rc == 0)
   {
@@ -685,7 +692,8 @@ void Materialized_cursor::close()
 {
   /* Free item_list items */
   free_items();
-  (void) table->file->ha_rnd_end();
+  if (is_rnd_inited)
+    (void) table->file->ha_rnd_end();
   /*
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory.

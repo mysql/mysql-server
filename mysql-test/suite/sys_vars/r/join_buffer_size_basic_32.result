@@ -42,6 +42,8 @@ SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 65536
 SET @@global.join_buffer_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967295'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 4294963200
@@ -58,6 +60,8 @@ SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
 65536
 SET @@session.join_buffer_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967295'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
 4294963200

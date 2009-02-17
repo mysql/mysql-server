@@ -1,20 +1,33 @@
-select 0;
-0
-0
-flush status;
-select 1;
+SET @@global.wait_timeout= 2;
+disconnect default;
+connection wait_con;
+connection default;
+--disable_reconnect;
+SELECT 1;
 1
 1
-select 2;
+connection wait_con;
+connection default;
+SELECT 2;
 Got one of the listed errors
-select 3;
+--enable_reconnect;
+SELECT 3;
 3
 3
-select 1;
+disconnection default;
+connection wait_con;
+connection con1;
+--disable_reconnect;
+SELECT 1;
 1
 1
-select 2;
+connection wait_con;
+connection con1;
+SELECT 2;
 Got one of the listed errors
-select 3;
+--enable_reconnect;
+SELECT 3;
 3
 3
+SET @@global.wait_timeout= <start_value>;
+disconnection con1;

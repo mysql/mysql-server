@@ -566,10 +566,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (quick_select)
     {
       if ((error= select->quick->get_next()))
-      {
-        error= HA_ERR_END_OF_FILE;
         break;
-      }
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }

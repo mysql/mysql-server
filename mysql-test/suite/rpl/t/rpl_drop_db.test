@@ -47,15 +47,15 @@ use test;
 select * from t1;
 
 #cleanup
-connection slave;
-stop slave;
-drop database mysqltest1;
-
 connection master;
+
 # Remove the "extra" file created above
---remove_file $MYSQLTEST_VARDIR/master-data/mysqltest1/f1.txt
-drop database mysqltest1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/mysqltest1/f1.txt;
 
 use test;
 drop table t1;
+drop database mysqltest1;
 
+sync_slave_with_master;
+source include/stop_slave.inc;

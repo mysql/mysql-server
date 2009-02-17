@@ -1,0 +1,11 @@
+source include/have_log_bin.inc;
+
+# It is necessary to reset the master since otherwise the binlog test
+# might show the wrong binary log. The default for SHOW BINLOG EVENTS
+# is to show the first binary log, not the current one (which is
+# actually a better idea).
+
+RESET MASTER;
+
+let $engine = MyISAM;
+source extra/binlog_tests/binlog_truncate.test;

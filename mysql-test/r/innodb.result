@@ -1781,6 +1781,7 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
+SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	0
@@ -1798,6 +1799,7 @@ set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	16
+SET @@global.innodb_thread_concurrency= @old_innodb_thread_concurrency;
 show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	500
@@ -3295,3 +3297,11 @@ info: Records: 5  Duplicates: 0  Warnings: 0
 TRUNCATE TABLE t1;
 affected rows: 0
 DROP TABLE t1;
+Variable_name	Value
+Handler_update	0
+Variable_name	Value
+Handler_delete	0
+Variable_name	Value
+Handler_update	1
+Variable_name	Value
+Handler_delete	1

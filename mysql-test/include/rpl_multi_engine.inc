@@ -9,7 +9,7 @@ select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 sync_slave_with_master;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 connection master;
-DELETE FROM mysqltest1.t1 WHERE id = 42;
+DELETE FROM t1 WHERE id = 42;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 sync_slave_with_master;
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;

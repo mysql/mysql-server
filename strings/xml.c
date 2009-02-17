@@ -328,7 +328,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, size_t len)
       }
       
       while ((MY_XML_IDENT == (lex=my_xml_scan(p,&a))) ||
-             (MY_XML_STRING == lex))
+             ((MY_XML_STRING == lex && exclam)))
       {
         MY_XML_ATTR b;
         if (MY_XML_EQ == (lex=my_xml_scan(p,&b)))
@@ -349,12 +349,21 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, size_t len)
             return MY_XML_ERROR;
           }
         }
-        else if ((MY_XML_STRING == lex) || (MY_XML_IDENT == lex))
+        else if (MY_XML_IDENT == lex)
         {
           p->current_node_type= MY_XML_NODE_ATTR;
           if ((MY_XML_OK != my_xml_enter(p,a.beg,(size_t) (a.end-a.beg))) ||
               (MY_XML_OK != my_xml_leave(p,a.beg,(size_t) (a.end-a.beg))))
            return MY_XML_ERROR;
+        }
+        else if ((MY_XML_STRING == lex) && exclam)
+        {
+          /*
+            We are in <!DOCTYPE>, e.g.
+            <!DOCTYPE name SYSTEM "SystemLiteral">
+            <!DOCTYPE name PUBLIC "PublidLiteral" "SystemLiteral">
+            Just skip "SystemLiteral" and "PublicidLiteral"
+          */
         }
         else
           break;
