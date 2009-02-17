@@ -11,3 +11,4 @@
 ##############################################################################
 
 ndb_views:		Bug #40860 funcs_1.ndb_views fail
+charset_collation_1:	wrong result
