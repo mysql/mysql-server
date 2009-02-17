@@ -2709,15 +2709,19 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         if (ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE %s.%s", schema->db, schema->name);
         log_query= 1;
-        pthread_mutex_lock(&LOCK_open);
-        ndbcluster_rename_share(thd, share);
-        pthread_mutex_unlock(&LOCK_open);
+        if (share)
+        {
+          pthread_mutex_lock(&LOCK_open);
+          ndbcluster_rename_share(thd, share);
+          pthread_mutex_unlock(&LOCK_open);
+        }
         break;
       case SOT_RENAME_TABLE_PREPARE:
         if (ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE_PREPARE %s.%s -> %s",
                                 schema->db, schema->name, schema->query);
-        if (schema->node_id != g_ndb_cluster_connection->node_id())
+        if (share &&
+            schema->node_id != g_ndb_cluster_connection->node_id())
           ndbcluster_prepare_rename_share(share, schema->query);
         break;
       case SOT_ALTER_TABLE_COMMIT:
