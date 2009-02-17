@@ -1,21 +1,23 @@
-/*   Innobase relational database engine; Copyright (C) 2001 Innobase Oy
+/*****************************************************************************
 
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License 2
-     as published by the Free Software Foundation in June 1991.
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
 
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
 
-     You should have received a copy of the GNU General Public License 2
-     along with this program (in file COPYING); if not, write to the Free
-     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer pool high-level routines
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
