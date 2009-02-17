@@ -24,3 +24,6 @@ SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
 FragmentLogFileSize = 64M
 
+SharedGlobalMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:128M
+InitialTablespace=datafile01.dat:128M;datafile02.dat:64M
