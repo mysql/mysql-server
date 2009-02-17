@@ -30,9 +30,6 @@ public:
   virtual ~AsyncFile() {};
 
   virtual int init() = 0;
-
-  void reportTo( MemoryChannel<Request> *reportTo );
-
   virtual bool isOpen() = 0;
 
   Filename theFileName;

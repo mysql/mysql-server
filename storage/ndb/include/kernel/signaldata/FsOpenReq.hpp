@@ -105,6 +105,15 @@ private:
     S_LOG = 7,
     S_CTL = 8
   };
+
+  enum BasePathSpec
+  {
+    BP_FS = 0,     // FileSystemPath
+    BP_BACKUP = 1, // BackupDataDir
+    BP_DD_DF = 2,  // FileSystemPathDataFiles
+    BP_DD_UF = 3,  // FileSystemPathUndoFiles
+    BP_MAX = 4
+  };
   
   static Uint32 getVersion(const Uint32 fileNumber[]);
   static Uint32 getSuffix(const Uint32 fileNumber[]);
