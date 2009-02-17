@@ -90,8 +90,12 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
+    DISKOFF disksize, diskoffset;
+    toku_block_get_offset_size(h->blocktable, blocknum, &diskoffset, &disksize);
+    printf(" diskoffset  =%" PRId64 "\n", diskoffset);
+    printf(" disksize    =%" PRId64 "\n", disksize);
     printf(" nodesize    =%u\n", n->nodesize);
-    printf(" sizeonddisk =%u\n", toku_serialize_brtnode_size(n));
+    printf(" serialize_size =%u\n", toku_serialize_brtnode_size(n));
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);
     printf(" disk_lsn    =%" PRIu64 "\n", n->disk_lsn.lsn);
