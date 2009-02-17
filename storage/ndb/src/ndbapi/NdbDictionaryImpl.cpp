@@ -506,7 +506,7 @@ NdbTableImpl::init(){
   m_min_rows = 0;
   m_max_rows = 0;
   m_tablespace_name.clear();
-  m_tablespace_id = ~0;
+  m_tablespace_id = RNIL;
   m_tablespace_version = ~0;
   m_single_user_mode = 0;
   m_hash_map_id = RNIL;
@@ -645,11 +645,9 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
 
   if(m_tablespace_id != obj.m_tablespace_id)
   {
-#if wl3600_todo // diff for no ts, check later
     DBUG_PRINT("info",("m_tablespace_id %d != %d",m_tablespace_id,
                         obj.m_tablespace_id));
     DBUG_RETURN(false);
-#endif
   }
 
   if(m_tablespace_version != obj.m_tablespace_version)
