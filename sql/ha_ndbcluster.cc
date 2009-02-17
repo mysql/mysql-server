@@ -3340,7 +3340,9 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
 
   const MY_BITMAP *user_cols_written_bitmap;
+#ifdef HAVE_NDB_BINLOG
   uchar* ex_data_buffer= NULL;
+#endif
   
   if (m_use_write
 #ifdef HAVE_NDB_BINLOG
