@@ -1678,6 +1678,61 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"
   },
 
+  {
+    CFG_DB_DD_FILESYSTEM_PATH,
+    "FileSystemPathDD",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data/undo-files",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_DATAFILE_PATH,
+    "FileSystemPathDataFiles",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data-files",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_UNDOFILE_PATH,
+    "FileSystemPathUndoFiles",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-undo-files",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_LOGFILEGROUP_SPEC,
+    "InitialLogfileGroup",
+    DB_TOKEN,
+    "Logfile group that will be created during initial start",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_TABLEPACE_SPEC,
+    "InitialTablespace",
+    DB_TOKEN,
+    "Tablespace that will be created during initial start",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
   /***************************************************************************
    * API
    ***************************************************************************/
