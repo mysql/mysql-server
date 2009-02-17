@@ -2801,7 +2801,6 @@ Slave SQL thread aborted. Can't execute init_slave query");
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
 
-    sql_print_information("new_mode %u", thd->variables.new_mode);
     if (exec_relay_log_event(thd,rli))
     {
       DBUG_PRINT("info", ("exec_relay_log_event() failed"));
