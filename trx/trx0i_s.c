@@ -1,3 +1,21 @@
+/*****************************************************************************
+
+Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 INFORMATION SCHEMA innodb_trx, innodb_locks and
 innodb_lock_waits tables fetch code.
@@ -5,8 +23,6 @@ innodb_lock_waits tables fetch code.
 The code below fetches information needed to fill those
 3 dynamic tables and uploads it into a "transactions
 table cache" for later retrieval.
-
-(c) 2007 Innobase Oy
 
 Created July 17, 2007 Vasil Dimov
 *******************************************************/
