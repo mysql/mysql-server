@@ -16530,9 +16530,22 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
     {
       //fg.TS_DataGrow = group.m_grow_spec;
       fg_ptr.p->m_tablespace.m_extent_size = fg.TS_ExtentSize;
-      fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
 
       Ptr<Filegroup> lg_ptr;
+      if (fg.TS_LogfileGroupId == RNIL && fg.TS_LogfileGroupVersion == RNIL)
+      {
+        jam();
+        Filegroup_hash::Iterator it;
+        if (c_filegroup_hash.first(it))
+        {
+          jam();
+          fg.TS_LogfileGroupId = it.curr.p->key;
+          fg.TS_LogfileGroupVersion = it.curr.p->m_version;
+        }
+      }
+
+      fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
+
       if (!c_filegroup_hash.find(lg_ptr, fg.TS_LogfileGroupId))
       {
         jam();
@@ -16719,6 +16732,28 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
 
     // Get Filegroup
     FilegroupPtr fg_ptr;
+    if (f.FilegroupId == RNIL && f.FilegroupVersion == RNIL)
+    {
+      jam();
+      Filegroup_hash::Iterator it;
+      c_filegroup_hash.first(it);
+      while (!it.isNull())
+      {
+        jam();
+        if ((f.FileType == DictTabInfo::Undofile &&
+             it.curr.p->m_type == DictTabInfo::LogfileGroup) ||
+            (f.FileType == DictTabInfo::Datafile &&
+             it.curr.p->m_type == DictTabInfo::Tablespace))
+        {
+          jam();
+          f.FilegroupId = it.curr.p->key;
+          f.FilegroupVersion = it.curr.p->m_version;
+          break;
+        }
+        c_filegroup_hash.next(it);
+      }
+    }
+
     if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId)){
       jam();
       op->m_errorCode = CreateFileRef::NoSuchFilegroup;

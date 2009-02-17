@@ -189,6 +189,10 @@ private:
   void execDIH_RESTARTREF(Signal* signal);
   void execCREATE_TABLE_REF(Signal* signal);
   void execCREATE_TABLE_CONF(Signal* signal);
+  void execCREATE_FILEGROUP_REF(Signal* signal);
+  void execCREATE_FILEGROUP_CONF(Signal* signal);
+  void execCREATE_FILE_REF(Signal* signal);
+  void execCREATE_FILE_CONF(Signal* signal);
   void execNDB_STTORRY(Signal* signal);
   void execNDB_STARTCONF(Signal* signal);
   void execREAD_NODESREQ(Signal* signal);
@@ -230,6 +234,7 @@ private:
   void systemErrorLab(Signal* signal, int line);
 
   void createSystableLab(Signal* signal, unsigned index);
+  void createDDObjects(Signal*, unsigned index);
   void crSystab7Lab(Signal* signal);
   void crSystab8Lab(Signal* signal);
   void crSystab9Lab(Signal* signal);

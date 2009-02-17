@@ -88,6 +88,53 @@ Ndbfs::~Ndbfs()
     delete theRequestPool;
 }
 
+static
+bool
+do_mkdir(const char * path)
+{
+#ifdef NDB_WIN32
+  return CreateDirectory(path, 0);
+#else
+  return ::mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP) == 0;
+#endif
+}
+
+static
+void
+add_path(BaseString& dst, const char * add)
+{
+  const char * tmp = dst.c_str();
+  unsigned len = dst.length();
+  unsigned dslen = (unsigned)strlen(DIR_SEPARATOR);
+
+  if (len > dslen && strcmp(tmp+(len - dslen), DIR_SEPARATOR) != 0)
+    dst.append(DIR_SEPARATOR);
+  dst.append(add);
+}
+
+static
+bool
+validate_path(BaseString & dst,
+              const char * path)
+{
+  char buf2[PATH_MAX];
+  memset(buf2, 0,sizeof(buf2));
+#ifdef NDB_WIN32
+  CreateDirectory(path, 0);
+  char* szFilePart;
+  if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
+     (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY))
+    return false;
+#else
+  if (::realpath(path, buf2) == NULL ||
+      ::access(buf2, W_OK) != 0)
+    return false;
+#endif
+  dst.assign(buf2);
+  add_path(dst, "");
+  return true;
+}
+
 void 
 Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -99,11 +146,66 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
-  theFileSystemPath.assfmt("%sndb_%u_fs%s", m_ctx.m_config.fileSystemPath(),
-			   getOwnNodeId(), DIR_SEPARATOR);
-  theBackupFilePath.assign(m_ctx.m_config.backupFilePath());
+  BaseString tmp;
+  tmp.assfmt("ndb_%u_fs%s", getOwnNodeId(), DIR_SEPARATOR);
+  m_base_path[FsOpenReq::BP_FS].assfmt("%s%s",
+                                       m_ctx.m_config.fileSystemPath(),
+                                       tmp.c_str());
+  m_base_path[FsOpenReq::BP_BACKUP].assign(m_ctx.m_config.backupFilePath());
 
   theRequestPool = new Pool<Request>;
+
+  const char * ddpath = 0;
+  ndb_mgm_get_string_parameter(p, CFG_DB_DD_FILESYSTEM_PATH, &ddpath);
+
+  {
+    const char * datapath = 0;
+    ndb_mgm_get_string_parameter(p, CFG_DB_DD_DATAFILE_PATH, &datapath);
+    if (datapath == 0)
+    {
+      if (ddpath)
+        datapath = ddpath;
+      else
+        datapath = m_ctx.m_config.fileSystemPath();
+    }
+
+    BaseString path;
+    add_path(path, datapath);
+    do_mkdir(path.c_str());
+    add_path(path, tmp.c_str());
+    do_mkdir(path.c_str());
+    if (!validate_path(m_base_path[FsOpenReq::BP_DD_DF], path.c_str()))
+    {
+      ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
+                m_base_path[FsOpenReq::BP_DD_DF].c_str(),
+                "FileSystemPathDataFiles");
+    }
+  }
+
+  {
+    const char * undopath = 0;
+    ndb_mgm_get_string_parameter(p, CFG_DB_DD_UNDOFILE_PATH, &undopath);
+    if (undopath == 0)
+    {
+      if (ddpath)
+        undopath = ddpath;
+      else
+        undopath = m_ctx.m_config.fileSystemPath();
+    }
+
+    BaseString path;
+    add_path(path, undopath);
+    do_mkdir(path.c_str());
+    add_path(path, tmp.c_str());
+    do_mkdir(path.c_str());
+
+    if (!validate_path(m_base_path[FsOpenReq::BP_DD_UF], path.c_str()))
+    {
+      ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
+                m_base_path[FsOpenReq::BP_DD_UF].c_str(),
+                "FileSystemPathUndoFiles");
+    }
+  }
 
   m_maxFiles = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
@@ -141,14 +243,7 @@ Ndbfs::execSTTOR(Signal* signal)
   if(signal->theData[1] == 0){ // StartPhase 0
     jam();
     
-    {
-#ifdef NDB_WIN32
-      CreateDirectory(theFileSystemPath.c_str(), 0);
-#else
-      mkdir(theFileSystemPath.c_str(),
-	    S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
-#endif
-    }      
+    do_mkdir(m_base_path[FsOpenReq::BP_FS].c_str());
     
     cownref = NDBFS_REF;
     // close all open files
@@ -182,7 +277,6 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   const BlockReference userRef = fsOpenReq->userReference;
   AsyncFile* file = getIdleFile();
   ndbrequire(file != NULL);
-  Filename::NameSpec spec(theFileSystemPath, theBackupFilePath);
 
   Uint32 userPointer = fsOpenReq->userPointer;
   
@@ -208,12 +302,28 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   
   if(signal->getNoOfSections() == 0){
     jam();
-    file->theFileName.set(spec, userRef, fsOpenReq->fileNumber);
+    file->theFileName.set(m_base_path, userRef, fsOpenReq->fileNumber);
   } else {
     jam();
     SegmentedSectionPtr ptr;
     signal->getSection(ptr, FsOpenReq::FILENAME);
-    file->theFileName.set(spec, ptr, g_sectionSegmentPool);
+    // QOD, should be arg to FSOPEN
+    if (refToMain(userRef) == TSMAN)
+    {
+      file->theFileName.set(m_base_path[FsOpenReq::BP_DD_DF],
+                            ptr, g_sectionSegmentPool);
+    }
+    else if (refToMain(userRef) == LGMAN)
+    {
+      file->theFileName.set(m_base_path[FsOpenReq::BP_DD_UF],
+                            ptr, g_sectionSegmentPool);
+    }
+    else
+    {
+      file->theFileName.set(m_base_path[FsOpenReq::BP_FS],
+                            ptr, g_sectionSegmentPool);
+    }
+
     releaseSections(signal);
   }
   file->reportTo(&theFromThreads);
@@ -245,10 +355,11 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   AsyncFile* file = getIdleFile();
   ndbrequire(file != NULL);
 
-  Filename::NameSpec spec(theFileSystemPath, theBackupFilePath);
-  file->theFileName.set(spec, userRef, req->fileNumber, req->directory);
+  Uint32 version = FsOpenReq::getVersion(req->fileNumber);
+  Uint32 bp = FsOpenReq::v5_getLcpNo(req->fileNumber);
+  file->theFileName.set(m_base_path, userRef, req->fileNumber, req->directory);
   file->reportTo(&theFromThreads);
-  
+
   Request* request = theRequestPool->get();
   request->action = Request::rmrf;
   request->par.rmrf.directory = req->directory;
@@ -258,7 +369,16 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   request->file = file;
   request->theTrace = signal->getTrace();
   
+  if (version == 6)
+  {
+    if (m_base_path[FsOpenReq::BP_FS] == m_base_path[bp])
+      goto ignore;
+  }
+
   ndbrequire(forward(file, request));
+  return;
+ignore:
+  report(request, signal);
 }
 
 /*

@@ -27,6 +27,14 @@ BlockNumber refToBlock(BlockReference ref){
 }
 
 /**
+ * For allowing to write merge safe code
+ */
+inline
+BlockNumber refToMain(BlockReference ref){
+  return (BlockNumber)(ref >> 16);
+}
+
+/**
  * Convert BlockReference to NodeId
  */
 inline
