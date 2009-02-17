@@ -50,12 +50,7 @@ if (!$skip_update)
   UPDATE t1 SET c1 = 40 WHERE c1 = 50;
   SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
-  -- error 0, ER_BAD_NULL_ERROR
   UPDATE t1 SET c1 = NULL WHERE c1 = 4;
-if (!$mysql_errno)
-{
-  echo # ERROR (only OK if Blackhole) should give ER_DUP_KEY or ER_DUP_ENTRY;
-}
   INSERT INTO t1 VALUES (NULL);
   INSERT INTO t1 VALUES (NULL);
 }
@@ -203,12 +198,7 @@ if (!$skip_update)
   UPDATE t1 SET c1 = 140 WHERE c1 = 150;
   SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
-  -- error 0, ER_BAD_NULL_ERROR
   UPDATE t1 SET c1 = NULL WHERE c1 = 4;
-if (!$mysql_errno)
-{
-  echo # ERROR (only OK if Blackhole) should give ER_DUP_KEY or ER_DUP_ENTRY;
-}
   INSERT INTO t1 VALUES (NULL);
   INSERT INTO t1 VALUES (NULL);
 }

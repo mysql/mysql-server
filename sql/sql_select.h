@@ -285,7 +285,11 @@ public:
     fetching data from a cursor
   */
   bool     resume_nested_loop;
-  table_map const_table_map,found_const_table_map,outer_join;
+  table_map const_table_map,found_const_table_map;
+  /*
+     Bitmap of all inner tables from outer joins
+  */
+  table_map outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
   /**
     Used to fetch no more than given amount of rows per one
@@ -398,9 +402,12 @@ public:
     cleared only at the end of the execution of the whole query and not caching
     allocations that occur in repetition at execution time will result in 
     excessive memory usage.
+    Note: make_simple_join always creates an execution plan that accesses
+    a single table, thus it is sufficient to have a one-element array for
+    table_reexec.
   */  
   SORT_FIELD *sortorder;                        // make_unireg_sortorder()
-  TABLE **table_reexec;                         // make_simple_join()
+  TABLE *table_reexec[1];                       // make_simple_join()
   JOIN_TAB *join_tab_reexec;                    // make_simple_join()
   /* end of allocation caching storage */
 
@@ -430,7 +437,7 @@ public:
     exec_tmp_table1= 0;
     exec_tmp_table2= 0;
     sortorder= 0;
-    table_reexec= 0;
+    table_reexec[0]= 0;
     join_tab_reexec= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
@@ -522,6 +529,8 @@ public:
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
   }
+private:
+  bool make_simple_join(JOIN *join, TABLE *tmp_table);
 };
 
 

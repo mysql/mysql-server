@@ -1029,4 +1029,39 @@ SELECT 1 FROM t1 ORDER BY(UPDATEXML(a, '1', '1'));
 1
 1
 DROP TABLE t1;
+SET @xml=
+'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html> 
+ <head>
+  <title> Title - document with document declaration</title>
+ </head> 
+  <body> Hi, Im a webpage with document a declaration </body> 
+</html>';
+SELECT ExtractValue(@xml, 'html/head/title');
+ExtractValue(@xml, 'html/head/title')
+ Title - document with document declaration
+SELECT ExtractValue(@xml, 'html/body');
+ExtractValue(@xml, 'html/body')
+ Hi, Im a webpage with document a declaration 
+SELECT ExtractValue('<xml "xxx" "yyy">CharData</xml>', '/xml');
+ExtractValue('<xml "xxx" "yyy">CharData</xml>', '/xml')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 11: STRING unexpected ('>' wanted)'
+SELECT ExtractValue('<xml  xxx  "yyy">CharData</xml>', '/xml');
+ExtractValue('<xml  xxx  "yyy">CharData</xml>', '/xml')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 17: STRING unexpected ('>' wanted)'
+set @x=10;
+select extractvalue('<a></a>','$@x/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','round(123.4)/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','1/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','"b"/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','(1)/a');
+ERROR HY000: XPATH syntax error: '/a'
 End of 5.1 tests

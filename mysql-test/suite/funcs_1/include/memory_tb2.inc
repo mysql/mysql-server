@@ -59,5 +59,5 @@ f109 set("1set","2set") not null default "1set"
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/memory_tb2.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/memory_tb2.txt'
 into table tb2 ;

@@ -653,11 +653,11 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 (fruit_id INT NOT NULL, fruit_name varchar(20)
 default NULL);
 SELECT DISTINCT fruit_id, fruit_name INTO OUTFILE 
-'../tmp/data1.tmp' FROM t1 WHERE fruit_name = 'APPLE';
-LOAD DATA INFILE '../tmp/data1.tmp' INTO TABLE t2;
+'../../tmp/data1.tmp' FROM t1 WHERE fruit_name = 'APPLE';
+LOAD DATA INFILE '../../tmp/data1.tmp' INTO TABLE t2;
 SELECT DISTINCT @v19:= fruit_id, @v20:= fruit_name INTO OUTFILE 
-'../tmp/data2.tmp' FROM t1 WHERE fruit_name = 'APPLE';
-LOAD DATA INFILE '../tmp/data2.tmp' INTO TABLE t2;
+'../../tmp/data2.tmp' FROM t1 WHERE fruit_name = 'APPLE';
+LOAD DATA INFILE '../../tmp/data2.tmp' INTO TABLE t2;
 SELECT @v19, @v20;
 @v19	@v20
 2	APPLE

@@ -1,0 +1,30 @@
+create table foo (a int);
+flush logs;
+create temporary table tmp1_foo like foo;
+create temporary table tmp2_foo (a int);
+insert into tmp1_foo values (1), (2), (3), (4);
+replace into tmp2_foo values (1), (2), (3), (4);
+update tmp1_foo set a=2*a-1;
+update tmp2_foo set a=2*a;
+delete from tmp1_foo where a < 5;
+delete from tmp2_foo where a < 5;
+insert into foo select * from tmp1_foo;
+insert into foo select * from tmp2_foo;
+truncate table tmp1_foo;
+truncate table tmp2_foo;
+flush logs;
+select * from foo;
+a
+5
+7
+6
+8
+drop table foo;
+create table foo (a int);
+select * from foo;
+a
+5
+7
+6
+8
+drop table foo;

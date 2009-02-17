@@ -49,7 +49,9 @@ MY_LOCALE my_locale_ar_AE
   &my_locale_typelib_month_names_ar_AE,
   &my_locale_typelib_ab_month_names_ar_AE,
   &my_locale_typelib_day_names_ar_AE,
-  &my_locale_typelib_ab_day_names_ar_AE
+  &my_locale_typelib_ab_day_names_ar_AE,
+  6,
+  8
 );
 /***** LOCALE END ar_AE *****/
 
@@ -79,7 +81,9 @@ MY_LOCALE my_locale_ar_BH
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_BH *****/
 
@@ -109,7 +113,9 @@ MY_LOCALE my_locale_ar_JO
   &my_locale_typelib_month_names_ar_JO,
   &my_locale_typelib_ab_month_names_ar_JO,
   &my_locale_typelib_day_names_ar_JO,
-  &my_locale_typelib_ab_day_names_ar_JO
+  &my_locale_typelib_ab_day_names_ar_JO,
+  12,
+  8
 );
 /***** LOCALE END ar_JO *****/
 
@@ -139,7 +145,9 @@ MY_LOCALE my_locale_ar_SA
   &my_locale_typelib_month_names_ar_SA,
   &my_locale_typelib_ab_month_names_ar_SA,
   &my_locale_typelib_day_names_ar_SA,
-  &my_locale_typelib_ab_day_names_ar_SA
+  &my_locale_typelib_ab_day_names_ar_SA,
+  12,
+  8
 );
 /***** LOCALE END ar_SA *****/
 
@@ -169,7 +177,9 @@ MY_LOCALE my_locale_ar_SY
   &my_locale_typelib_month_names_ar_SY,
   &my_locale_typelib_ab_month_names_ar_SY,
   &my_locale_typelib_day_names_ar_SY,
-  &my_locale_typelib_ab_day_names_ar_SY
+  &my_locale_typelib_ab_day_names_ar_SY,
+  12,
+  8
 );
 /***** LOCALE END ar_SY *****/
 
@@ -199,7 +209,9 @@ MY_LOCALE my_locale_be_BY
   &my_locale_typelib_month_names_be_BY,
   &my_locale_typelib_ab_month_names_be_BY,
   &my_locale_typelib_day_names_be_BY,
-  &my_locale_typelib_ab_day_names_be_BY
+  &my_locale_typelib_ab_day_names_be_BY,
+  10,
+  10
 );
 /***** LOCALE END be_BY *****/
 
@@ -229,7 +241,9 @@ MY_LOCALE my_locale_bg_BG
   &my_locale_typelib_month_names_bg_BG,
   &my_locale_typelib_ab_month_names_bg_BG,
   &my_locale_typelib_day_names_bg_BG,
-  &my_locale_typelib_ab_day_names_bg_BG
+  &my_locale_typelib_ab_day_names_bg_BG,
+  9,
+  10
 );
 /***** LOCALE END bg_BG *****/
 
@@ -259,7 +273,9 @@ MY_LOCALE my_locale_ca_ES
   &my_locale_typelib_month_names_ca_ES,
   &my_locale_typelib_ab_month_names_ca_ES,
   &my_locale_typelib_day_names_ca_ES,
-  &my_locale_typelib_ab_day_names_ca_ES
+  &my_locale_typelib_ab_day_names_ca_ES,
+  8,
+  9
 );
 /***** LOCALE END ca_ES *****/
 
@@ -289,7 +305,9 @@ MY_LOCALE my_locale_cs_CZ
   &my_locale_typelib_month_names_cs_CZ,
   &my_locale_typelib_ab_month_names_cs_CZ,
   &my_locale_typelib_day_names_cs_CZ,
-  &my_locale_typelib_ab_day_names_cs_CZ
+  &my_locale_typelib_ab_day_names_cs_CZ,
+  8,
+  7
 );
 /***** LOCALE END cs_CZ *****/
 
@@ -319,7 +337,9 @@ MY_LOCALE my_locale_da_DK
   &my_locale_typelib_month_names_da_DK,
   &my_locale_typelib_ab_month_names_da_DK,
   &my_locale_typelib_day_names_da_DK,
-  &my_locale_typelib_ab_day_names_da_DK
+  &my_locale_typelib_ab_day_names_da_DK,
+  9,
+  7
 );
 /***** LOCALE END da_DK *****/
 
@@ -349,7 +369,9 @@ MY_LOCALE my_locale_de_AT
   &my_locale_typelib_month_names_de_AT,
   &my_locale_typelib_ab_month_names_de_AT,
   &my_locale_typelib_day_names_de_AT,
-  &my_locale_typelib_ab_day_names_de_AT
+  &my_locale_typelib_ab_day_names_de_AT,
+  9,
+  10
 );
 /***** LOCALE END de_AT *****/
 
@@ -379,7 +401,9 @@ MY_LOCALE my_locale_de_DE
   &my_locale_typelib_month_names_de_DE,
   &my_locale_typelib_ab_month_names_de_DE,
   &my_locale_typelib_day_names_de_DE,
-  &my_locale_typelib_ab_day_names_de_DE
+  &my_locale_typelib_ab_day_names_de_DE,
+  9,
+  10
 );
 /***** LOCALE END de_DE *****/
 
@@ -409,7 +433,9 @@ MY_LOCALE my_locale_en_US
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_US *****/
 
@@ -439,7 +465,9 @@ MY_LOCALE my_locale_es_ES
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_ES *****/
 
@@ -469,7 +497,9 @@ MY_LOCALE my_locale_et_EE
   &my_locale_typelib_month_names_et_EE,
   &my_locale_typelib_ab_month_names_et_EE,
   &my_locale_typelib_day_names_et_EE,
-  &my_locale_typelib_ab_day_names_et_EE
+  &my_locale_typelib_ab_day_names_et_EE,
+  9,
+  9
 );
 /***** LOCALE END et_EE *****/
 
@@ -499,7 +529,9 @@ MY_LOCALE my_locale_eu_ES
   &my_locale_typelib_month_names_eu_ES,
   &my_locale_typelib_ab_month_names_eu_ES,
   &my_locale_typelib_day_names_eu_ES,
-  &my_locale_typelib_ab_day_names_eu_ES
+  &my_locale_typelib_ab_day_names_eu_ES,
+  9,
+  10
 );
 /***** LOCALE END eu_ES *****/
 
@@ -529,7 +561,9 @@ MY_LOCALE my_locale_fi_FI
   &my_locale_typelib_month_names_fi_FI,
   &my_locale_typelib_ab_month_names_fi_FI,
   &my_locale_typelib_day_names_fi_FI,
-  &my_locale_typelib_ab_day_names_fi_FI
+  &my_locale_typelib_ab_day_names_fi_FI,
+  9,
+  11
 );
 /***** LOCALE END fi_FI *****/
 
@@ -559,7 +593,9 @@ MY_LOCALE my_locale_fo_FO
   &my_locale_typelib_month_names_fo_FO,
   &my_locale_typelib_ab_month_names_fo_FO,
   &my_locale_typelib_day_names_fo_FO,
-  &my_locale_typelib_ab_day_names_fo_FO
+  &my_locale_typelib_ab_day_names_fo_FO,
+  9,
+  12
 );
 /***** LOCALE END fo_FO *****/
 
@@ -589,7 +625,9 @@ MY_LOCALE my_locale_fr_FR
   &my_locale_typelib_month_names_fr_FR,
   &my_locale_typelib_ab_month_names_fr_FR,
   &my_locale_typelib_day_names_fr_FR,
-  &my_locale_typelib_ab_day_names_fr_FR
+  &my_locale_typelib_ab_day_names_fr_FR,
+  9,
+  8
 );
 /***** LOCALE END fr_FR *****/
 
@@ -619,7 +657,9 @@ MY_LOCALE my_locale_gl_ES
   &my_locale_typelib_month_names_gl_ES,
   &my_locale_typelib_ab_month_names_gl_ES,
   &my_locale_typelib_day_names_gl_ES,
-  &my_locale_typelib_ab_day_names_gl_ES
+  &my_locale_typelib_ab_day_names_gl_ES,
+  8,
+  8
 );
 /***** LOCALE END gl_ES *****/
 
@@ -649,7 +689,9 @@ MY_LOCALE my_locale_gu_IN
   &my_locale_typelib_month_names_gu_IN,
   &my_locale_typelib_ab_month_names_gu_IN,
   &my_locale_typelib_day_names_gu_IN,
-  &my_locale_typelib_ab_day_names_gu_IN
+  &my_locale_typelib_ab_day_names_gu_IN,
+  10,
+  8
 );
 /***** LOCALE END gu_IN *****/
 
@@ -679,7 +721,9 @@ MY_LOCALE my_locale_he_IL
   &my_locale_typelib_month_names_he_IL,
   &my_locale_typelib_ab_month_names_he_IL,
   &my_locale_typelib_day_names_he_IL,
-  &my_locale_typelib_ab_day_names_he_IL
+  &my_locale_typelib_ab_day_names_he_IL,
+  7,
+  5
 );
 /***** LOCALE END he_IL *****/
 
@@ -709,7 +753,9 @@ MY_LOCALE my_locale_hi_IN
   &my_locale_typelib_month_names_hi_IN,
   &my_locale_typelib_ab_month_names_hi_IN,
   &my_locale_typelib_day_names_hi_IN,
-  &my_locale_typelib_ab_day_names_hi_IN
+  &my_locale_typelib_ab_day_names_hi_IN,
+  7,
+  9
 );
 /***** LOCALE END hi_IN *****/
 
@@ -739,7 +785,9 @@ MY_LOCALE my_locale_hr_HR
   &my_locale_typelib_month_names_hr_HR,
   &my_locale_typelib_ab_month_names_hr_HR,
   &my_locale_typelib_day_names_hr_HR,
-  &my_locale_typelib_ab_day_names_hr_HR
+  &my_locale_typelib_ab_day_names_hr_HR,
+  8,
+  11
 );
 /***** LOCALE END hr_HR *****/
 
@@ -769,7 +817,9 @@ MY_LOCALE my_locale_hu_HU
   &my_locale_typelib_month_names_hu_HU,
   &my_locale_typelib_ab_month_names_hu_HU,
   &my_locale_typelib_day_names_hu_HU,
-  &my_locale_typelib_ab_day_names_hu_HU
+  &my_locale_typelib_ab_day_names_hu_HU,
+  10,
+  9
 );
 /***** LOCALE END hu_HU *****/
 
@@ -799,7 +849,9 @@ MY_LOCALE my_locale_id_ID
   &my_locale_typelib_month_names_id_ID,
   &my_locale_typelib_ab_month_names_id_ID,
   &my_locale_typelib_day_names_id_ID,
-  &my_locale_typelib_ab_day_names_id_ID
+  &my_locale_typelib_ab_day_names_id_ID,
+  9,
+  6
 );
 /***** LOCALE END id_ID *****/
 
@@ -829,7 +881,9 @@ MY_LOCALE my_locale_is_IS
   &my_locale_typelib_month_names_is_IS,
   &my_locale_typelib_ab_month_names_is_IS,
   &my_locale_typelib_day_names_is_IS,
-  &my_locale_typelib_ab_day_names_is_IS
+  &my_locale_typelib_ab_day_names_is_IS,
+  9,
+  12
 );
 /***** LOCALE END is_IS *****/
 
@@ -859,7 +913,9 @@ MY_LOCALE my_locale_it_CH
   &my_locale_typelib_month_names_it_CH,
   &my_locale_typelib_ab_month_names_it_CH,
   &my_locale_typelib_day_names_it_CH,
-  &my_locale_typelib_ab_day_names_it_CH
+  &my_locale_typelib_ab_day_names_it_CH,
+  9,
+  9
 );
 /***** LOCALE END it_CH *****/
 
@@ -889,7 +945,9 @@ MY_LOCALE my_locale_ja_JP
   &my_locale_typelib_month_names_ja_JP,
   &my_locale_typelib_ab_month_names_ja_JP,
   &my_locale_typelib_day_names_ja_JP,
-  &my_locale_typelib_ab_day_names_ja_JP
+  &my_locale_typelib_ab_day_names_ja_JP,
+  3,
+  3
 );
 /***** LOCALE END ja_JP *****/
 
@@ -919,7 +977,9 @@ MY_LOCALE my_locale_ko_KR
   &my_locale_typelib_month_names_ko_KR,
   &my_locale_typelib_ab_month_names_ko_KR,
   &my_locale_typelib_day_names_ko_KR,
-  &my_locale_typelib_ab_day_names_ko_KR
+  &my_locale_typelib_ab_day_names_ko_KR,
+  3,
+  3
 );
 /***** LOCALE END ko_KR *****/
 
@@ -949,7 +1009,9 @@ MY_LOCALE my_locale_lt_LT
   &my_locale_typelib_month_names_lt_LT,
   &my_locale_typelib_ab_month_names_lt_LT,
   &my_locale_typelib_day_names_lt_LT,
-  &my_locale_typelib_ab_day_names_lt_LT
+  &my_locale_typelib_ab_day_names_lt_LT,
+  9,
+  14
 );
 /***** LOCALE END lt_LT *****/
 
@@ -979,7 +1041,9 @@ MY_LOCALE my_locale_lv_LV
   &my_locale_typelib_month_names_lv_LV,
   &my_locale_typelib_ab_month_names_lv_LV,
   &my_locale_typelib_day_names_lv_LV,
-  &my_locale_typelib_ab_day_names_lv_LV
+  &my_locale_typelib_ab_day_names_lv_LV,
+  10,
+  11
 );
 /***** LOCALE END lv_LV *****/
 
@@ -1009,7 +1073,9 @@ MY_LOCALE my_locale_mk_MK
   &my_locale_typelib_month_names_mk_MK,
   &my_locale_typelib_ab_month_names_mk_MK,
   &my_locale_typelib_day_names_mk_MK,
-  &my_locale_typelib_ab_day_names_mk_MK
+  &my_locale_typelib_ab_day_names_mk_MK,
+  9,
+  10
 );
 /***** LOCALE END mk_MK *****/
 
@@ -1039,7 +1105,9 @@ MY_LOCALE my_locale_mn_MN
   &my_locale_typelib_month_names_mn_MN,
   &my_locale_typelib_ab_month_names_mn_MN,
   &my_locale_typelib_day_names_mn_MN,
-  &my_locale_typelib_ab_day_names_mn_MN
+  &my_locale_typelib_ab_day_names_mn_MN,
+  18,
+  6
 );
 /***** LOCALE END mn_MN *****/
 
@@ -1069,7 +1137,9 @@ MY_LOCALE my_locale_ms_MY
   &my_locale_typelib_month_names_ms_MY,
   &my_locale_typelib_ab_month_names_ms_MY,
   &my_locale_typelib_day_names_ms_MY,
-  &my_locale_typelib_ab_day_names_ms_MY
+  &my_locale_typelib_ab_day_names_ms_MY,
+  9,
+  6
 );
 /***** LOCALE END ms_MY *****/
 
@@ -1099,7 +1169,9 @@ MY_LOCALE my_locale_nb_NO
   &my_locale_typelib_month_names_nb_NO,
   &my_locale_typelib_ab_month_names_nb_NO,
   &my_locale_typelib_day_names_nb_NO,
-  &my_locale_typelib_ab_day_names_nb_NO
+  &my_locale_typelib_ab_day_names_nb_NO,
+  9,
+  7
 );
 /***** LOCALE END nb_NO *****/
 
@@ -1129,7 +1201,9 @@ MY_LOCALE my_locale_nl_NL
   &my_locale_typelib_month_names_nl_NL,
   &my_locale_typelib_ab_month_names_nl_NL,
   &my_locale_typelib_day_names_nl_NL,
-  &my_locale_typelib_ab_day_names_nl_NL
+  &my_locale_typelib_ab_day_names_nl_NL,
+  9,
+  9
 );
 /***** LOCALE END nl_NL *****/
 
@@ -1159,7 +1233,9 @@ MY_LOCALE my_locale_pl_PL
   &my_locale_typelib_month_names_pl_PL,
   &my_locale_typelib_ab_month_names_pl_PL,
   &my_locale_typelib_day_names_pl_PL,
-  &my_locale_typelib_ab_day_names_pl_PL
+  &my_locale_typelib_ab_day_names_pl_PL,
+  11,
+  12
 );
 /***** LOCALE END pl_PL *****/
 
@@ -1189,7 +1265,9 @@ MY_LOCALE my_locale_pt_BR
   &my_locale_typelib_month_names_pt_BR,
   &my_locale_typelib_ab_month_names_pt_BR,
   &my_locale_typelib_day_names_pt_BR,
-  &my_locale_typelib_ab_day_names_pt_BR
+  &my_locale_typelib_ab_day_names_pt_BR,
+  9,
+  7
 );
 /***** LOCALE END pt_BR *****/
 
@@ -1219,7 +1297,9 @@ MY_LOCALE my_locale_pt_PT
   &my_locale_typelib_month_names_pt_PT,
   &my_locale_typelib_ab_month_names_pt_PT,
   &my_locale_typelib_day_names_pt_PT,
-  &my_locale_typelib_ab_day_names_pt_PT
+  &my_locale_typelib_ab_day_names_pt_PT,
+  9,
+  7
 );
 /***** LOCALE END pt_PT *****/
 
@@ -1249,7 +1329,9 @@ MY_LOCALE my_locale_ro_RO
   &my_locale_typelib_month_names_ro_RO,
   &my_locale_typelib_ab_month_names_ro_RO,
   &my_locale_typelib_day_names_ro_RO,
-  &my_locale_typelib_ab_day_names_ro_RO
+  &my_locale_typelib_ab_day_names_ro_RO,
+  10,
+  8
 );
 /***** LOCALE END ro_RO *****/
 
@@ -1279,7 +1361,9 @@ MY_LOCALE my_locale_ru_RU
   &my_locale_typelib_month_names_ru_RU,
   &my_locale_typelib_ab_month_names_ru_RU,
   &my_locale_typelib_day_names_ru_RU,
-  &my_locale_typelib_ab_day_names_ru_RU
+  &my_locale_typelib_ab_day_names_ru_RU,
+  8,
+  11
 );
 /***** LOCALE END ru_RU *****/
 
@@ -1309,7 +1393,9 @@ MY_LOCALE my_locale_ru_UA
   &my_locale_typelib_month_names_ru_UA,
   &my_locale_typelib_ab_month_names_ru_UA,
   &my_locale_typelib_day_names_ru_UA,
-  &my_locale_typelib_ab_day_names_ru_UA
+  &my_locale_typelib_ab_day_names_ru_UA,
+  8,
+  11
 );
 /***** LOCALE END ru_UA *****/
 
@@ -1339,7 +1425,9 @@ MY_LOCALE my_locale_sk_SK
   &my_locale_typelib_month_names_sk_SK,
   &my_locale_typelib_ab_month_names_sk_SK,
   &my_locale_typelib_day_names_sk_SK,
-  &my_locale_typelib_ab_day_names_sk_SK
+  &my_locale_typelib_ab_day_names_sk_SK,
+  9,
+  8
 );
 /***** LOCALE END sk_SK *****/
 
@@ -1369,7 +1457,9 @@ MY_LOCALE my_locale_sl_SI
   &my_locale_typelib_month_names_sl_SI,
   &my_locale_typelib_ab_month_names_sl_SI,
   &my_locale_typelib_day_names_sl_SI,
-  &my_locale_typelib_ab_day_names_sl_SI
+  &my_locale_typelib_ab_day_names_sl_SI,
+  9,
+  10
 );
 /***** LOCALE END sl_SI *****/
 
@@ -1399,7 +1489,9 @@ MY_LOCALE my_locale_sq_AL
   &my_locale_typelib_month_names_sq_AL,
   &my_locale_typelib_ab_month_names_sq_AL,
   &my_locale_typelib_day_names_sq_AL,
-  &my_locale_typelib_ab_day_names_sq_AL
+  &my_locale_typelib_ab_day_names_sq_AL,
+  7,
+  10
 );
 /***** LOCALE END sq_AL *****/
 
@@ -1429,7 +1521,9 @@ MY_LOCALE my_locale_sr_YU
   &my_locale_typelib_month_names_sr_YU,
   &my_locale_typelib_ab_month_names_sr_YU,
   &my_locale_typelib_day_names_sr_YU,
-  &my_locale_typelib_ab_day_names_sr_YU
+  &my_locale_typelib_ab_day_names_sr_YU,
+  9,
+  10
 );
 /***** LOCALE END sr_YU *****/
 
@@ -1459,7 +1553,9 @@ MY_LOCALE my_locale_sv_SE
   &my_locale_typelib_month_names_sv_SE,
   &my_locale_typelib_ab_month_names_sv_SE,
   &my_locale_typelib_day_names_sv_SE,
-  &my_locale_typelib_ab_day_names_sv_SE
+  &my_locale_typelib_ab_day_names_sv_SE,
+  9,
+  7
 );
 /***** LOCALE END sv_SE *****/
 
@@ -1489,7 +1585,9 @@ MY_LOCALE my_locale_ta_IN
   &my_locale_typelib_month_names_ta_IN,
   &my_locale_typelib_ab_month_names_ta_IN,
   &my_locale_typelib_day_names_ta_IN,
-  &my_locale_typelib_ab_day_names_ta_IN
+  &my_locale_typelib_ab_day_names_ta_IN,
+  10,
+  8
 );
 /***** LOCALE END ta_IN *****/
 
@@ -1519,7 +1617,9 @@ MY_LOCALE my_locale_te_IN
   &my_locale_typelib_month_names_te_IN,
   &my_locale_typelib_ab_month_names_te_IN,
   &my_locale_typelib_day_names_te_IN,
-  &my_locale_typelib_ab_day_names_te_IN
+  &my_locale_typelib_ab_day_names_te_IN,
+  10,
+  9
 );
 /***** LOCALE END te_IN *****/
 
@@ -1549,7 +1649,9 @@ MY_LOCALE my_locale_th_TH
   &my_locale_typelib_month_names_th_TH,
   &my_locale_typelib_ab_month_names_th_TH,
   &my_locale_typelib_day_names_th_TH,
-  &my_locale_typelib_ab_day_names_th_TH
+  &my_locale_typelib_ab_day_names_th_TH,
+  10,
+  8
 );
 /***** LOCALE END th_TH *****/
 
@@ -1579,7 +1681,9 @@ MY_LOCALE my_locale_tr_TR
   &my_locale_typelib_month_names_tr_TR,
   &my_locale_typelib_ab_month_names_tr_TR,
   &my_locale_typelib_day_names_tr_TR,
-  &my_locale_typelib_ab_day_names_tr_TR
+  &my_locale_typelib_ab_day_names_tr_TR,
+  7,
+  9
 );
 /***** LOCALE END tr_TR *****/
 
@@ -1609,7 +1713,9 @@ MY_LOCALE my_locale_uk_UA
   &my_locale_typelib_month_names_uk_UA,
   &my_locale_typelib_ab_month_names_uk_UA,
   &my_locale_typelib_day_names_uk_UA,
-  &my_locale_typelib_ab_day_names_uk_UA
+  &my_locale_typelib_ab_day_names_uk_UA,
+  8,
+  9
 );
 /***** LOCALE END uk_UA *****/
 
@@ -1639,7 +1745,9 @@ MY_LOCALE my_locale_ur_PK
   &my_locale_typelib_month_names_ur_PK,
   &my_locale_typelib_ab_month_names_ur_PK,
   &my_locale_typelib_day_names_ur_PK,
-  &my_locale_typelib_ab_day_names_ur_PK
+  &my_locale_typelib_ab_day_names_ur_PK,
+  6,
+  6
 );
 /***** LOCALE END ur_PK *****/
 
@@ -1669,7 +1777,9 @@ MY_LOCALE my_locale_vi_VN
   &my_locale_typelib_month_names_vi_VN,
   &my_locale_typelib_ab_month_names_vi_VN,
   &my_locale_typelib_day_names_vi_VN,
-  &my_locale_typelib_ab_day_names_vi_VN
+  &my_locale_typelib_ab_day_names_vi_VN,
+  16,
+  11
 );
 /***** LOCALE END vi_VN *****/
 
@@ -1699,7 +1809,9 @@ MY_LOCALE my_locale_zh_CN
   &my_locale_typelib_month_names_zh_CN,
   &my_locale_typelib_ab_month_names_zh_CN,
   &my_locale_typelib_day_names_zh_CN,
-  &my_locale_typelib_ab_day_names_zh_CN
+  &my_locale_typelib_ab_day_names_zh_CN,
+  3,
+  3
 );
 /***** LOCALE END zh_CN *****/
 
@@ -1729,7 +1841,9 @@ MY_LOCALE my_locale_zh_TW
   &my_locale_typelib_month_names_zh_TW,
   &my_locale_typelib_ab_month_names_zh_TW,
   &my_locale_typelib_day_names_zh_TW,
-  &my_locale_typelib_ab_day_names_zh_TW
+  &my_locale_typelib_ab_day_names_zh_TW,
+  3,
+  2
 );
 /***** LOCALE END zh_TW *****/
 
@@ -1743,7 +1857,9 @@ MY_LOCALE my_locale_ar_DZ
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_DZ *****/
 
@@ -1757,7 +1873,9 @@ MY_LOCALE my_locale_ar_EG
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_EG *****/
 
@@ -1771,7 +1889,9 @@ MY_LOCALE my_locale_ar_IN
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_IN *****/
 
@@ -1785,7 +1905,9 @@ MY_LOCALE my_locale_ar_IQ
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_IQ *****/
 
@@ -1799,7 +1921,9 @@ MY_LOCALE my_locale_ar_KW
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_KW *****/
 
@@ -1813,7 +1937,9 @@ MY_LOCALE my_locale_ar_LB
   &my_locale_typelib_month_names_ar_JO,
   &my_locale_typelib_ab_month_names_ar_JO,
   &my_locale_typelib_day_names_ar_JO,
-  &my_locale_typelib_ab_day_names_ar_JO
+  &my_locale_typelib_ab_day_names_ar_JO,
+  12,
+  8
 );
 /***** LOCALE END ar_LB *****/
 
@@ -1827,7 +1953,9 @@ MY_LOCALE my_locale_ar_LY
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_LY *****/
 
@@ -1841,7 +1969,9 @@ MY_LOCALE my_locale_ar_MA
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_MA *****/
 
@@ -1855,7 +1985,9 @@ MY_LOCALE my_locale_ar_OM
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_OM *****/
 
@@ -1869,7 +2001,9 @@ MY_LOCALE my_locale_ar_QA
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_QA *****/
 
@@ -1883,7 +2017,9 @@ MY_LOCALE my_locale_ar_SD
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_SD *****/
 
@@ -1897,7 +2033,9 @@ MY_LOCALE my_locale_ar_TN
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_TN *****/
 
@@ -1911,7 +2049,9 @@ MY_LOCALE my_locale_ar_YE
   &my_locale_typelib_month_names_ar_BH,
   &my_locale_typelib_ab_month_names_ar_BH,
   &my_locale_typelib_day_names_ar_BH,
-  &my_locale_typelib_ab_day_names_ar_BH
+  &my_locale_typelib_ab_day_names_ar_BH,
+  6,
+  8
 );
 /***** LOCALE END ar_YE *****/
 
@@ -1925,7 +2065,9 @@ MY_LOCALE my_locale_de_BE
   &my_locale_typelib_month_names_de_DE,
   &my_locale_typelib_ab_month_names_de_DE,
   &my_locale_typelib_day_names_de_DE,
-  &my_locale_typelib_ab_day_names_de_DE
+  &my_locale_typelib_ab_day_names_de_DE,
+  9,
+  10
 );
 /***** LOCALE END de_BE *****/
 
@@ -1939,7 +2081,9 @@ MY_LOCALE my_locale_de_CH
   &my_locale_typelib_month_names_de_DE,
   &my_locale_typelib_ab_month_names_de_DE,
   &my_locale_typelib_day_names_de_DE,
-  &my_locale_typelib_ab_day_names_de_DE
+  &my_locale_typelib_ab_day_names_de_DE,
+  9,
+  10
 );
 /***** LOCALE END de_CH *****/
 
@@ -1953,7 +2097,9 @@ MY_LOCALE my_locale_de_LU
   &my_locale_typelib_month_names_de_DE,
   &my_locale_typelib_ab_month_names_de_DE,
   &my_locale_typelib_day_names_de_DE,
-  &my_locale_typelib_ab_day_names_de_DE
+  &my_locale_typelib_ab_day_names_de_DE,
+  9,
+  10
 );
 /***** LOCALE END de_LU *****/
 
@@ -1967,7 +2113,9 @@ MY_LOCALE my_locale_en_AU
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_AU *****/
 
@@ -1981,7 +2129,9 @@ MY_LOCALE my_locale_en_CA
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_CA *****/
 
@@ -1995,7 +2145,9 @@ MY_LOCALE my_locale_en_GB
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_GB *****/
 
@@ -2009,7 +2161,9 @@ MY_LOCALE my_locale_en_IN
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_IN *****/
 
@@ -2023,7 +2177,9 @@ MY_LOCALE my_locale_en_NZ
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_NZ *****/
 
@@ -2037,7 +2193,9 @@ MY_LOCALE my_locale_en_PH
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_PH *****/
 
@@ -2051,7 +2209,9 @@ MY_LOCALE my_locale_en_ZA
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_ZA *****/
 
@@ -2065,7 +2225,9 @@ MY_LOCALE my_locale_en_ZW
   &my_locale_typelib_month_names_en_US,
   &my_locale_typelib_ab_month_names_en_US,
   &my_locale_typelib_day_names_en_US,
-  &my_locale_typelib_ab_day_names_en_US
+  &my_locale_typelib_ab_day_names_en_US,
+  9,
+  9
 );
 /***** LOCALE END en_ZW *****/
 
@@ -2079,7 +2241,9 @@ MY_LOCALE my_locale_es_AR
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_AR *****/
 
@@ -2093,7 +2257,9 @@ MY_LOCALE my_locale_es_BO
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_BO *****/
 
@@ -2107,7 +2273,9 @@ MY_LOCALE my_locale_es_CL
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_CL *****/
 
@@ -2121,7 +2289,9 @@ MY_LOCALE my_locale_es_CO
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_CO *****/
 
@@ -2135,7 +2305,9 @@ MY_LOCALE my_locale_es_CR
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_CR *****/
 
@@ -2149,7 +2321,9 @@ MY_LOCALE my_locale_es_DO
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_DO *****/
 
@@ -2163,7 +2337,9 @@ MY_LOCALE my_locale_es_EC
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_EC *****/
 
@@ -2177,7 +2353,9 @@ MY_LOCALE my_locale_es_GT
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_GT *****/
 
@@ -2191,7 +2369,9 @@ MY_LOCALE my_locale_es_HN
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_HN *****/
 
@@ -2205,7 +2385,9 @@ MY_LOCALE my_locale_es_MX
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_MX *****/
 
@@ -2219,7 +2401,9 @@ MY_LOCALE my_locale_es_NI
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_NI *****/
 
@@ -2233,7 +2417,9 @@ MY_LOCALE my_locale_es_PA
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_PA *****/
 
@@ -2247,7 +2433,9 @@ MY_LOCALE my_locale_es_PE
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_PE *****/
 
@@ -2261,7 +2449,9 @@ MY_LOCALE my_locale_es_PR
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_PR *****/
 
@@ -2275,7 +2465,9 @@ MY_LOCALE my_locale_es_PY
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_PY *****/
 
@@ -2289,7 +2481,9 @@ MY_LOCALE my_locale_es_SV
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_SV *****/
 
@@ -2303,7 +2497,9 @@ MY_LOCALE my_locale_es_US
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_US *****/
 
@@ -2317,7 +2513,9 @@ MY_LOCALE my_locale_es_UY
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_UY *****/
 
@@ -2331,7 +2529,9 @@ MY_LOCALE my_locale_es_VE
   &my_locale_typelib_month_names_es_ES,
   &my_locale_typelib_ab_month_names_es_ES,
   &my_locale_typelib_day_names_es_ES,
-  &my_locale_typelib_ab_day_names_es_ES
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9
 );
 /***** LOCALE END es_VE *****/
 
@@ -2345,7 +2545,9 @@ MY_LOCALE my_locale_fr_BE
   &my_locale_typelib_month_names_fr_FR,
   &my_locale_typelib_ab_month_names_fr_FR,
   &my_locale_typelib_day_names_fr_FR,
-  &my_locale_typelib_ab_day_names_fr_FR
+  &my_locale_typelib_ab_day_names_fr_FR,
+  9,
+  8
 );
 /***** LOCALE END fr_BE *****/
 
@@ -2359,7 +2561,9 @@ MY_LOCALE my_locale_fr_CA
   &my_locale_typelib_month_names_fr_FR,
   &my_locale_typelib_ab_month_names_fr_FR,
   &my_locale_typelib_day_names_fr_FR,
-  &my_locale_typelib_ab_day_names_fr_FR
+  &my_locale_typelib_ab_day_names_fr_FR,
+  9,
+  8
 );
 /***** LOCALE END fr_CA *****/
 
@@ -2373,7 +2577,9 @@ MY_LOCALE my_locale_fr_CH
   &my_locale_typelib_month_names_fr_FR,
   &my_locale_typelib_ab_month_names_fr_FR,
   &my_locale_typelib_day_names_fr_FR,
-  &my_locale_typelib_ab_day_names_fr_FR
+  &my_locale_typelib_ab_day_names_fr_FR,
+  9,
+  8
 );
 /***** LOCALE END fr_CH *****/
 
@@ -2387,7 +2593,9 @@ MY_LOCALE my_locale_fr_LU
   &my_locale_typelib_month_names_fr_FR,
   &my_locale_typelib_ab_month_names_fr_FR,
   &my_locale_typelib_day_names_fr_FR,
-  &my_locale_typelib_ab_day_names_fr_FR
+  &my_locale_typelib_ab_day_names_fr_FR,
+  9,
+  8
 );
 /***** LOCALE END fr_LU *****/
 
@@ -2401,7 +2609,9 @@ MY_LOCALE my_locale_it_IT
   &my_locale_typelib_month_names_it_CH,
   &my_locale_typelib_ab_month_names_it_CH,
   &my_locale_typelib_day_names_it_CH,
-  &my_locale_typelib_ab_day_names_it_CH
+  &my_locale_typelib_ab_day_names_it_CH,
+  9,
+  9
 );
 /***** LOCALE END it_IT *****/
 
@@ -2415,7 +2625,9 @@ MY_LOCALE my_locale_nl_BE
   &my_locale_typelib_month_names_nl_NL,
   &my_locale_typelib_ab_month_names_nl_NL,
   &my_locale_typelib_day_names_nl_NL,
-  &my_locale_typelib_ab_day_names_nl_NL
+  &my_locale_typelib_ab_day_names_nl_NL,
+  9,
+  9
 );
 /***** LOCALE END nl_BE *****/
 
@@ -2429,7 +2641,9 @@ MY_LOCALE my_locale_no_NO
   &my_locale_typelib_month_names_nb_NO,
   &my_locale_typelib_ab_month_names_nb_NO,
   &my_locale_typelib_day_names_nb_NO,
-  &my_locale_typelib_ab_day_names_nb_NO
+  &my_locale_typelib_ab_day_names_nb_NO,
+  9,
+  7
 );
 /***** LOCALE END no_NO *****/
 
@@ -2443,7 +2657,9 @@ MY_LOCALE my_locale_sv_FI
   &my_locale_typelib_month_names_sv_SE,
   &my_locale_typelib_ab_month_names_sv_SE,
   &my_locale_typelib_day_names_sv_SE,
-  &my_locale_typelib_ab_day_names_sv_SE
+  &my_locale_typelib_ab_day_names_sv_SE,
+  9,
+  7
 );
 /***** LOCALE END sv_FI *****/
 
@@ -2457,7 +2673,9 @@ MY_LOCALE my_locale_zh_HK
   &my_locale_typelib_month_names_zh_CN,
   &my_locale_typelib_ab_month_names_zh_CN,
   &my_locale_typelib_day_names_zh_CN,
-  &my_locale_typelib_ab_day_names_zh_CN
+  &my_locale_typelib_ab_day_names_zh_CN,
+  3,
+  3
 );
 /***** LOCALE END zh_HK *****/
 

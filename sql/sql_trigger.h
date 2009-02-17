@@ -146,11 +146,13 @@ public:
 
 private:
   bool prepare_record1_accessors(TABLE *table);
-  LEX_STRING* change_table_name_in_trignames(const char *db_name,
+  LEX_STRING* change_table_name_in_trignames(const char *old_db_name,
+                                             const char *new_db_name,
                                              LEX_STRING *new_table_name,
                                              LEX_STRING *stopper);
   bool change_table_name_in_triggers(THD *thd,
-                                     const char *db_name,
+                                     const char *old_db_name,
+                                     const char *new_db_name,
                                      LEX_STRING *old_table_name,
                                      LEX_STRING *new_table_name);
 };

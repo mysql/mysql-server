@@ -620,6 +620,20 @@ static int run_mysqlcheck_upgrade(void)
 }
 
 
+static int run_mysqlcheck_fixnames(void)
+{
+  verbose("Running 'mysqlcheck'...");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--all-databases",
+                  "--fix-db-names",
+                  "--fix-table-names",
+                  NULL);
+}
+
+
 static const char *expected_errors[]=
 {
   "ERROR 1060", /* Duplicate column name */
@@ -782,7 +796,8 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if (run_mysqlcheck_upgrade() ||
+  if (run_mysqlcheck_fixnames() ||
+      run_mysqlcheck_upgrade() ||
       run_sql_fix_privilege_tables())
   {
     /*

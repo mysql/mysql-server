@@ -35,6 +35,9 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 --mkdir $MYSQLTEST_VARDIR/mysql-test-data-dir
 --mkdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -49,17 +52,17 @@ PARTITION BY HASH (c1)
  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-idx-dir'
 );
 --echo # Verifying .frm and .par files
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
+--file_exists $MYSQLD_DATADIR/test/t1.frm
+--file_exists $MYSQLD_DATADIR/test/t1.par
 --echo # Verifying that there are no MyISAM files
 --error 1
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYD
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
 --error 1
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYI
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
 --error 1
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYD
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYD
 --error 1
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYI
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYI
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p0.MYD
 --error 1
@@ -73,12 +76,12 @@ FLUSH TABLES;
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ENGINE = MyISAM;
 --echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYI
+--file_exists $MYSQLD_DATADIR/test/t1.frm
+--file_exists $MYSQLD_DATADIR/test/t1.par
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYD
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYI
 --file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p0.MYD
 --file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p0.MYI
 --file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p1.MYD

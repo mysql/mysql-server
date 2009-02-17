@@ -13,7 +13,8 @@ create table t4 (f text character set cp932);
 --exec $MYSQL --default-character-set=cp932 test -e "insert into t4 values(_cp932'ƒ\');"
 flush logs;
 rename table t3 to t03, t4 to t04;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000002 | $MYSQL --default-character-set=utf8
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000002 | $MYSQL --default-character-set=utf8
 # original and recovered data must be equal
 select HEX(f) from t03;
 select HEX(f) from t3;

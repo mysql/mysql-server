@@ -233,6 +233,13 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   pthread_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
+  /*
+    purge_temp is a temp file used in purge_logs so that the index file
+    can be updated before deleting files from disk, yielding better crash
+    recovery. It is created on demand the first time purge_logs is called
+    and then reused for subsequent calls. It is cleaned up in cleanup().
+  */
+  IO_CACHE purge_temp;
   char index_file_name[FN_REFLEN];
   /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary
@@ -274,6 +281,10 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 public:
   MYSQL_LOG::generate_name;
   MYSQL_LOG::is_open;
+
+  /* This is relay log */
+  bool is_relay_log;
+
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
