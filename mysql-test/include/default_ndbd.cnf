@@ -28,3 +28,4 @@ HeartbeatIntervalDbDb=         30000
 HeartbeatIntervalDbApi=        30000
 
 #TransactionDeadlockDetectionTimeout= 7500
+DiskIOThreadPool=1
