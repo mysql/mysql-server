@@ -166,6 +166,10 @@ HGRIND=valgrind --quiet --tool=helgrind --error-exitcode=1
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
+ifeq ($(WINDBG),)
+    WINDBG=0
+endif
+
 ifeq ($(CC),icc)
     #icc only:
     OPT_OPTFLAGS = -O3 -ip -ipo1
@@ -197,7 +201,11 @@ ifneq ($(CYGWIN),)
     WRONGBINSUF=#empty
     ALWAYS_LINK=$(LIBPORTABILITY) /usr/lib/libz.a
     SRCPATH_DIRS = `find $(TOKUROOT) -type d | grep -v '/\.[^.]' | grep -F -v "$(TOKUROOT)$(OS_NOTCHOICE)" | tr '\n' ';'` 
-    VGRIND   = windbg -Q -c "ddddddddd;g" -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
+    ifeq ($(WINDBG),1)
+	VGRIND = windbg -Q -c "ddddddddd;g" -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
+    else
+    	VGRIND =
+    endif
     HGRIND   =#No Hgrind in cygwin
     FPICFLAGS=#FPIC is default and not allowed as an option.
     VISIBILITY=#Not supported
