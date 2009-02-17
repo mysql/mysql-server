@@ -320,7 +320,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     }
     else
     {
-      file->theFileName.set(m_base_path[FsOpenReq::BP_DD_UF],
+      file->theFileName.set(m_base_path[FsOpenReq::BP_FS],
                             ptr, g_sectionSegmentPool);
     }
 
