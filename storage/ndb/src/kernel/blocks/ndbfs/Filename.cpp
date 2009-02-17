@@ -46,7 +46,7 @@ Filename::~Filename(){
 }
 
 void 
-Filename::set(Filename::NameSpec& spec,
+Filename::set(const BaseString basepath[],
 	      BlockReference blockReference, 
 	      const Uint32 filenumber[4], bool dir) 
 {
@@ -59,14 +59,14 @@ Filename::set(Filename::NameSpec& spec,
   if (version == 2)
   {
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
-         spec.backup_path.c_str());
-    m_base_name = theName + spec.backup_path.length();
+                              basepath[FsOpenReq::BP_BACKUP].c_str());
+    m_base_name = theName + basepath[FsOpenReq::BP_BACKUP].length();
   }
   else
   {
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
-         spec.fs_path.c_str());
-    m_base_name = theName + spec.fs_path.length();
+                              basepath[FsOpenReq::BP_FS].c_str());
+    m_base_name = theName + basepath[FsOpenReq::BP_FS].length();
   }
   
   switch(version){
@@ -153,6 +153,13 @@ Filename::set(Filename::NameSpec& spec,
     strcat(theName, buf);
     break;
   }
+  case 6:
+  {
+    Uint32 bp = FsOpenReq::v5_getLcpNo(filenumber);
+    sz = BaseString::snprintf(theName, sizeof(theName), "%s",
+                              basepath[bp].c_str());
+    break;
+  }
   default:
     ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"","Wrong version");
   }
@@ -173,7 +180,7 @@ Filename::set(Filename::NameSpec& spec,
 }
 
 void 
-Filename::set(Filename::NameSpec& spec,
+Filename::set(const BaseString & basepath,
 	      SegmentedSectionPtr ptr, class SectionSegmentPool& pool)
 {
   char buf[PATH_MAX];
@@ -185,7 +192,8 @@ Filename::set(Filename::NameSpec& spec,
   }
   else 
   {
-    snprintf(theName, sizeof(theName), "%s%s", spec.fs_path.c_str(), buf);
-    m_base_name = theName + spec.fs_path.length();
+    snprintf(theName, sizeof(theName), "%s%s",
+             basepath.c_str(), buf);
+    m_base_name = theName + basepath.length();
   }
 }

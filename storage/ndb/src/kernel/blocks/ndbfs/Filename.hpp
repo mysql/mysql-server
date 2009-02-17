@@ -62,19 +62,12 @@ public:
   Filename();
   ~Filename();
 
-  struct NameSpec {
-    NameSpec(BaseString& f, BaseString&b) :
-      fs_path(f), backup_path(b) {}
-    BaseString& fs_path;
-    BaseString& backup_path;
-  };
-  
-  void set(NameSpec& spec, 
+  void set(const BaseString basepath[],
 	   BlockReference, const Uint32 fileno[4], bool = false);
-  void set(NameSpec& spec, 
+  void set(const BaseString & basepath,
 	   SegmentedSectionPtr ptr, class SectionSegmentPool&);
   
-  const char* c_str() const;     // Complete name including dirname
+  const char* c_str() const;         // Complete name including dirname
   const char* get_base_name() const; // Exclude fs (or backup) path
 private:
   char theName[PATH_MAX];
