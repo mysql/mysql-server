@@ -72,7 +72,7 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 
 SET @@global.innodb_max_dirty_pages_pct = 1;
 SELECT @@global.innodb_max_dirty_pages_pct;
-SET @@global.innodb_max_dirty_pages_pct = 100;
+SET @@global.innodb_max_dirty_pages_pct = 99;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
 --echo '#--------------------FN_DYNVARS_046_04-------------------------#'
