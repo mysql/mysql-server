@@ -21,7 +21,7 @@
 #include "Pool.hpp"
 #include "AsyncFile.hpp"
 #include "OpenFiles.hpp"
-
+#include <signaldata/FsOpenReq.hpp>
 
 
 // Because one NDB Signal request can result in multiple requests to
@@ -81,8 +81,7 @@ private:
   Vector<AsyncFile*> theIdleFiles; // List of idle AsyncFiles
   OpenFiles theOpenFiles;          // List of open AsyncFiles
 
-  BaseString theFileSystemPath;
-  BaseString theBackupFilePath;
+  BaseString m_base_path[FsOpenReq::BP_MAX];
   
   // Statistics variables
   Uint32 m_maxOpenedFiles;
