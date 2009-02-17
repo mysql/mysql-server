@@ -78,6 +78,10 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_DIH_RESTARTREF, &Ndbcntr::execDIH_RESTARTREF);
   addRecSignal(GSN_CREATE_TABLE_REF, &Ndbcntr::execCREATE_TABLE_REF);
   addRecSignal(GSN_CREATE_TABLE_CONF, &Ndbcntr::execCREATE_TABLE_CONF);
+  addRecSignal(GSN_CREATE_FILEGROUP_REF, &Ndbcntr::execCREATE_FILEGROUP_REF);
+  addRecSignal(GSN_CREATE_FILEGROUP_CONF, &Ndbcntr::execCREATE_FILEGROUP_CONF);
+  addRecSignal(GSN_CREATE_FILE_REF, &Ndbcntr::execCREATE_FILE_REF);
+  addRecSignal(GSN_CREATE_FILE_CONF, &Ndbcntr::execCREATE_FILE_CONF);
   addRecSignal(GSN_NDB_STTORRY, &Ndbcntr::execNDB_STTORRY);
   addRecSignal(GSN_NDB_STARTCONF, &Ndbcntr::execNDB_STARTCONF);
   addRecSignal(GSN_READ_NODESREQ, &Ndbcntr::execREAD_NODESREQ);
