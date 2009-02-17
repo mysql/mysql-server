@@ -276,14 +276,19 @@ rw_lock_set_writer_id_and_recursion_flag(
 {
 	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
 
-	ut_ad(lock);
-
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	os_thread_id_t	local_thread;
+	ibool		success;
 
-	os_thread_id_t	local_thread = lock->writer_thread;
-	ibool success = os_compare_and_swap(&lock->writer_thread,
-					    local_thread,
-					    curr_thread);
+	/* Prevent Valgrind warnings about writer_thread being
+	uninitialized.  It does not matter if writer_thread is
+	uninitialized, because we are comparing writer_thread against
+	itself, and the operation should always succeed. */
+	UNIV_MEM_VALID(&lock->writer_thread, sizeof lock->writer_thread);
+
+	local_thread = lock->writer_thread;
+	success = os_compare_and_swap(&lock->writer_thread,
+				      local_thread, curr_thread);
 	ut_a(success);
 	lock->recursive = recursive;
 
@@ -458,8 +463,8 @@ rw_lock_x_lock_func_nowait(
 	if (success) {
 		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 
-	} else if (lock->recursive &&
-		   os_thread_eq(lock->writer_thread, curr_thread)) {
+	} else if (lock->recursive
+		   && os_thread_eq(lock->writer_thread, curr_thread)) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */

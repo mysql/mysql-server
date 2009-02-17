@@ -857,7 +857,7 @@ sync_array_object_signalled(
 	sync_array_t*	arr)	/* in: wait array */
 {
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
-	os_atomic_increment(&arr->sg_count, 1);
+	(void) os_atomic_increment(&arr->sg_count, 1);
 #else
 	sync_array_enter(arr);
 

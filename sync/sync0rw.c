@@ -238,15 +238,15 @@ rw_lock_create_func(
 	lock->mutex.cfile_name = cfile_name;
 	lock->mutex.cline = cline;
 
-#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
+# if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	lock->mutex.cmutex_name = cmutex_name;
 	lock->mutex.mutex_type = 1;
-#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
+# endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 	UT_NOT_USED(cmutex_name);
-#endif
+# endif
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	lock->lock_word = X_LOCK_DECR;
@@ -563,8 +563,8 @@ rw_lock_x_lock_low(
 
 	} else {
 		/* Decrement failed: relock or failed lock */
-		if (!pass && lock->recursive &&
-                   os_thread_eq(lock->writer_thread, curr_thread)) {
+		if (!pass && lock->recursive
+		    && os_thread_eq(lock->writer_thread, curr_thread)) {
 			/* Relock */
                         lock->lock_word -= X_LOCK_DECR;
 		} else {
