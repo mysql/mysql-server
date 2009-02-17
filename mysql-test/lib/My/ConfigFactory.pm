@@ -240,6 +240,20 @@ sub fix_cluster_backup_dir {
 }
 
 
+sub fix_cluster_undo_file_dir {
+  my ($self, $config, $group_name, $group)= @_;
+  my $dir= $group->value('DataDir');
+  return "$dir/uf";
+}
+
+
+sub fix_cluster_data_file_dir {
+  my ($self, $config, $group_name, $group)= @_;
+  my $dir= $group->value('DataDir');
+  return "$dir/df";
+}
+
+
 #
 # Rules to run for each ndb_mgmd in the config
 #  - will be run in order listed here
@@ -260,6 +274,8 @@ my @ndbd_rules=
  { 'HostName' => \&fix_host },
  { 'DataDir' => \&fix_cluster_dir },
  { 'BackupDataDir' => \&fix_cluster_backup_dir },
+ { 'FileSystemPathDD' => \&fix_cluster_undo_file_dir },
+ { 'FileSystemPathDataFiles' => \&fix_cluster_data_file_dir },
 );
 
 
