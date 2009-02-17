@@ -28,7 +28,9 @@
 ####################################################################
 #   Displaying default value                                       #
 ####################################################################
-SELECT COUNT(@@GLOBAL.innodb_file_io_threads);
+SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
 --echo 1 Expected
 
 
@@ -38,10 +40,17 @@ SELECT COUNT(@@GLOBAL.innodb_file_io_threads);
 ####################################################################
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.innodb_file_io_threads=1;
+SET @@GLOBAL.innodb_read_io_threads=1;
 --echo Expected error 'Read only variable'
 
-SELECT COUNT(@@GLOBAL.innodb_file_io_threads);
+SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
+--echo 1 Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_write_io_threads=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
 --echo 1 Expected
 
 
@@ -52,51 +61,84 @@ SELECT COUNT(@@GLOBAL.innodb_file_io_threads);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
-SELECT @@GLOBAL.innodb_file_io_threads = VARIABLE_VALUE
+SELECT @@GLOBAL.innodb_read_io_threads = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='innodb_file_io_threads';
+WHERE VARIABLE_NAME='innodb_read_io_threads';
 --echo 1 Expected
 
-SELECT COUNT(@@GLOBAL.innodb_file_io_threads);
+SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='innodb_file_io_threads';
+WHERE VARIABLE_NAME='innodb_read_io_threads';
 --echo 1 Expected
 
+SELECT @@GLOBAL.innodb_write_io_threads = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_write_io_threads';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_write_io_threads';
+--echo 1 Expected
 
 
 --echo '#---------------------BS_STVARS_027_04----------------------#'
 ################################################################################
 #  Check if accessing variable with and without GLOBAL point to same variable  #
 ################################################################################
-SELECT @@innodb_file_io_threads = @@GLOBAL.innodb_file_io_threads;
+SELECT @@innodb_read_io_threads = @@GLOBAL.innodb_read_io_threads;
 --echo 1 Expected
 
+SELECT @@innodb_write_io_threads = @@GLOBAL.innodb_write_io_threads;
+--echo 1 Expected
 
 
 --echo '#---------------------BS_STVARS_027_05----------------------#'
 ################################################################################
-#   Check if innodb_file_io_threads can be accessed with and without @@ sign   #
+#   Check if innodb_read_io_threads can be accessed with and without @@ sign   #
+#   Check if innodb_write_io_threads can be accessed with and without @@ sign  #
 ################################################################################
 
-SELECT COUNT(@@innodb_file_io_threads);
+SELECT COUNT(@@innodb_read_io_threads);
 --echo 1 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT COUNT(@@local.innodb_file_io_threads);
+SELECT COUNT(@@local.innodb_read_io_threads);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT COUNT(@@SESSION.innodb_file_io_threads);
+SELECT COUNT(@@SESSION.innodb_read_io_threads);
 --echo Expected error 'Variable is a GLOBAL variable'
 
-SELECT COUNT(@@GLOBAL.innodb_file_io_threads);
+SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_file_io_threads = @@SESSION.innodb_file_io_threads;
+SELECT innodb_read_io_threads = @@SESSION.innodb_read_io_threads;
+--echo Expected error 'Readonly variable'
+
+SELECT COUNT(@@innodb_write_io_threads);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_write_io_threads);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_write_io_threads);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_write_io_threads = @@SESSION.innodb_write_io_threads;
 --echo Expected error 'Readonly variable'
 
 
