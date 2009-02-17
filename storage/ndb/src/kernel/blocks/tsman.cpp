@@ -1188,6 +1188,8 @@ Tsman::load_extent_page_callback(Signal* signal,
   Ptr<Tablespace> ts_ptr;
   m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
   if (getNodeState().startLevel >= NodeState::SL_STARTED ||
+      (getNodeState().startLevel == NodeState::SL_STARTING &&
+       getNodeState().starting.restartType == NodeState::ST_INITIAL_START) ||
       (getNodeState().getNodeRestartInProgress() &&
        getNodeState().starting.restartType == NodeState::ST_INITIAL_NODE_RESTART))
   {
