@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1111,6 +1111,27 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
       */
       if (table->child_l || table->parent)
         detach_merge_children(table, TRUE);
+      /*
+        Reset temporary table lock type to it's default value (TL_WRITE).
+
+        Statements such as INSERT INTO .. SELECT FROM tmp, CREATE TABLE
+        .. SELECT FROM tmp and UPDATE may under some circumstances modify
+        the lock type of the tables participating in the statement. This
+        isn't a problem for non-temporary tables since their lock type is
+        reset at every open, but the same does not occur for temporary
+        tables for historical reasons.
+
+        Furthermore, the lock type of temporary tables is not really that
+        important because they can only be used by one query at a time and
+        not even twice in a query -- a temporary table is represented by
+        only one TABLE object. Nonetheless, it's safer from a maintenance
+        point of view to reset the lock type of this singleton TABLE object
+        as to not cause problems when the table is reused.
+
+        Even under LOCK TABLES mode its okay to reset the lock type as
+        LOCK TABLES is allowed (but ignored) for a temporary table.
+      */
+      table->reginfo.lock_type= TL_WRITE;
     }
   }
 }
@@ -4681,7 +4702,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       else if (tables->lock_type == TL_READ_DEFAULT)
         tables->table->reginfo.lock_type=
           read_lock_type_for_table(thd, tables->table);
-      else if (tables->table->s->tmp_table == NO_TMP_TABLE)
+      else
         tables->table->reginfo.lock_type= tables->lock_type;
     }
     tables->table->grant= tables->grant;
@@ -5082,8 +5103,15 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
   if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
   {
-    handler::Table_flags flags_some_set= handler::Table_flags();
-    handler::Table_flags flags_all_set= ~handler::Table_flags();
+    /*
+      Compute the starting vectors for the computations by creating a
+      set with all the capabilities bits set and one with no
+      capabilities bits set.
+     */
+    handler::Table_flags flags_some_set= 0;
+    handler::Table_flags flags_all_set=
+      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
+
     my_bool multi_engine= FALSE;
     void* prev_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)

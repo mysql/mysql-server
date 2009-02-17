@@ -51,6 +51,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_delete");
 
+  THD::enum_binlog_query_type query_type=
+    thd->lex->sql_command == SQLCOM_TRUNCATE ?
+    THD::STMT_QUERY_TYPE :
+    THD::ROW_QUERY_TYPE;
+
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (!(table= table_list->table))
@@ -135,6 +140,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_PRINT("debug", ("Trying to use delete_all_rows()"));
     if (!(error=table->file->ha_delete_all_rows()))
     {
+      /*
+        If delete_all_rows() is used, it is not possible to log the
+        query in row format, so we have to log it in statement format.
+      */
+      query_type= THD::STMT_QUERY_TYPE;
       error= -1;				// ok
       deleted= maybe_deleted;
       goto cleanup;
@@ -374,6 +384,11 @@ cleanup:
   {
     if (mysql_bin_log.is_open())
     {
+      bool const is_trans=
+        thd->lex->sql_command == SQLCOM_TRUNCATE ?
+        FALSE :
+        transactional_table;
+
       if (error < 0)
         thd->clear_error();
       /*
@@ -381,10 +396,13 @@ cleanup:
         storage engine does not inject the rows itself, we replicate
         statement-based; otherwise, 'ha_delete_row()' was used to
         delete specific rows which we might log row-based.
+
+        Note that TRUNCATE TABLE is not transactional and should
+        therefore be treated as a DDL.
       */
-      int log_result= thd->binlog_query(THD::ROW_QUERY_TYPE,
+      int log_result= thd->binlog_query(query_type,
                                         thd->query, thd->query_length,
-                                        transactional_table, FALSE, killed_status);
+                                        is_trans, FALSE, killed_status);
 
       if (log_result && transactional_table)
       {
@@ -951,6 +969,26 @@ bool multi_delete::send_eof()
 ****************************************************************************/
 
 /*
+  Row-by-row truncation if the engine does not support table recreation.
+  Probably a InnoDB table.
+*/
+
+static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
+{
+  bool error, save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  DBUG_ENTER("mysql_truncate_by_delete");
+  table_list->lock_type= TL_WRITE;
+  mysql_init_select(thd->lex);
+  thd->clear_current_stmt_binlog_row_based();
+  error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
+  ha_autocommit_or_rollback(thd, error);
+  end_trans(thd, error ? ROLLBACK : COMMIT);
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_RETURN(error);
+}
+
+
+/*
   Optimize delete of all rows by doing a full generate of the table
   This will work even if the .ISM and .ISD tables are destroyed
 
@@ -990,6 +1028,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                                              share->db.str,
 					     share->table_name.str, 1))))
       (void) rm_temporary_table(table_type, path);
+    else
+      thd->thread_specific_used= TRUE;
+    
     free_table_share(share);
     my_free((char*) table,MYF(0));
     /*
@@ -1055,24 +1096,6 @@ end:
   DBUG_RETURN(error);
 
 trunc_by_del:
-  /* Probably InnoDB table */
-  ulonglong save_options= thd->options;
-  table_list->lock_type= TL_WRITE;
-  thd->options&= ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
-  ha_enable_transaction(thd, FALSE);
-  mysql_init_select(thd->lex);
-  bool save_binlog_row_based= thd->current_stmt_binlog_row_based;
-  thd->clear_current_stmt_binlog_row_based();
-  error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-                      HA_POS_ERROR, LL(0), TRUE);
-  ha_enable_transaction(thd, TRUE);
-  /*
-    Safety, in case the engine ignored ha_enable_transaction(FALSE)
-    above. Also clears thd->transaction.*.
-  */
-  error= ha_autocommit_or_rollback(thd, error);
-  ha_commit(thd);
-  thd->options= save_options;
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  error= mysql_truncate_by_delete(thd, table_list);
   DBUG_RETURN(error);
 }

@@ -11,6 +11,6 @@ eval SET @@global.sort_buffer_size = $save;
 --enable_query_log
 if (!$mach32)
 {
-  skip Need a 32 bit machine;
+  skip Need a 32 bit machine/binary;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2002,7 +2002,7 @@ void st_select_lex::print_limit(THD *thd,
        item->substype() == Item_subselect::ALL_SUBS))
   {
     DBUG_ASSERT(!item->fixed ||
-                select_limit->val_int() == LL(1) && offset_limit == 0);
+                (select_limit->val_int() == LL(1) && offset_limit == 0));
     return;
   }
 

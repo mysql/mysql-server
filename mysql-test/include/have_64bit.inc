@@ -9,6 +9,6 @@ eval SET @@session.sort_buffer_size = $save;
 --enable_query_log
 if (!$mach64)
 {
-  skip Need a 64 bit machine;
+  skip Need a 64 binary ;
 }
 

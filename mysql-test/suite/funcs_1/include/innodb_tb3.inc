@@ -66,5 +66,5 @@ f175 numeric (64)
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/innodb_tb3.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/innodb_tb3.txt'
 into table tb3;

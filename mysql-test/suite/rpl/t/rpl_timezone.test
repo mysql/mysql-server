@@ -67,7 +67,7 @@ connection master;
 connection master;
 delete from t1;
 set time_zone='UTC';
-load data infile '../std_data_ln/rpl_timezone2.dat' into table t1;
+load data infile '../../std_data/rpl_timezone2.dat' into table t1;
 SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
 set time_zone='UTC';

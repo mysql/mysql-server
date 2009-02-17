@@ -51,9 +51,8 @@ DELETE FROM t2 WHERE a = 2;
 
 --echo
 --echo ******************** LOAD DATA INFILE ********************
---copy_file ./suite/rpl/data/rpl_mixed.dat $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
-LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
 SELECT * FROM t1 ORDER BY a;
 --source suite/rpl/include/rpl_mixed_check_select.inc
 --source suite/rpl/include/rpl_mixed_clear_tables.inc
@@ -329,6 +328,7 @@ DROP VIEW v2;
 --echo ******************** SHOW BINLOG EVENTS ********************
 --replace_column 2 # 5 #
 --replace_regex /Server ver: .+/Server ver: #/ /table_id: [0-9]+/table_id: #/ /COMMIT.+xid=[0-9]+.+/#/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 show binlog events from 1;
 sync_slave_with_master;
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
@@ -344,4 +344,4 @@ sync_slave_with_master;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching
 
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql

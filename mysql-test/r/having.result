@@ -424,3 +424,10 @@ select f1 from t1 group by f1 having max(f1)=f1;
 f1
 set session sql_mode='';
 drop table t1;
+CREATE TABLE t1 ( a INT, b INT);
+INSERT INTO t1 VALUES (1, 1), (2,2), (3, NULL);
+SELECT b, COUNT(DISTINCT a) FROM t1 GROUP BY b HAVING b is NULL;
+b	COUNT(DISTINCT a)
+NULL	1
+DROP TABLE t1;
+End of 5.0 tests

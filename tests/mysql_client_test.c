@@ -16552,6 +16552,61 @@ static void test_change_user()
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_SPATIAL
+/**
+  Bug#37956 memory leak and / or crash with geometry and prepared statements! 
+*/
+
+static void test_bug37956(void)
+{
+  const char *query="select point(?,?)";
+  MYSQL_STMT *stmt=NULL;
+  ulong val=0;
+  MYSQL_BIND bind_param[2];
+  unsigned char buff[2]= { 134, 211 };
+  DBUG_ENTER("test_bug37956");
+  myheader("test_bug37956");
+
+  stmt= mysql_simple_prepare(mysql, query);
+  check_stmt(stmt);
+
+  val=1;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void *)&val);
+  val=CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&val);
+  val=0;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_PREFETCH_ROWS, (void *)&val);
+
+  memset(bind_param, 0, sizeof(bind_param));
+  bind_param[0].buffer_type=MYSQL_TYPE_TINY;
+  bind_param[0].buffer= (void *)buff;
+  bind_param[0].is_null=NULL;
+  bind_param[0].error=NULL;
+  bind_param[0].is_unsigned=1;
+  bind_param[1].buffer_type=MYSQL_TYPE_TINY;
+  bind_param[1].buffer= (void *)(buff+1);
+  bind_param[1].is_null=NULL;
+  bind_param[1].error=NULL;
+  bind_param[1].is_unsigned=1;
+
+  if (mysql_stmt_bind_param(stmt, bind_param))
+  {
+    mysql_stmt_close(stmt);
+    DIE_UNLESS(0);
+  }
+
+  if (mysql_stmt_execute(stmt))
+  {
+    mysql_stmt_close(stmt);
+    DBUG_VOID_RETURN;
+  }
+  /* Should never reach here: execution returns an error. */
+  mysql_stmt_close(stmt);
+  DIE_UNLESS(0);
+  DBUG_VOID_RETURN;
+}
+#endif
+
 /*
   Bug#27592 (stack overrun when storing datetime value using prepared statements)
 */
@@ -17657,6 +17712,63 @@ static void test_bug40365(void)
 
   DBUG_VOID_RETURN;
 }
+
+
+/**
+  Bug#36326: nested transaction and select
+*/
+
+#ifdef HAVE_QUERY_CACHE
+
+static void test_bug36326()
+{
+  int rc;
+
+  DBUG_ENTER("test_bug36326");
+  myheader("test_bug36326");
+
+  rc= mysql_autocommit(mysql, TRUE);
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE  TABLE t1 (a INTEGER)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+  myquery(rc);
+  rc= mysql_query(mysql, "SET GLOBAL query_cache_type = 1");
+  myquery(rc);
+  rc= mysql_query(mysql, "SET GLOBAL query_cache_size = 1048576");
+  myquery(rc);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS));
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_AUTOCOMMIT);
+  rc= mysql_query(mysql, "BEGIN");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  rc= mysql_query(mysql, "SELECT * FROM t1");
+  myquery(rc);
+  rc= my_process_result(mysql);
+  DIE_UNLESS(rc == 1);
+  rc= mysql_rollback(mysql);
+  myquery(rc);
+  rc= mysql_query(mysql, "ROLLBACK");
+  myquery(rc);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS));
+  rc= mysql_query(mysql, "SELECT * FROM t1");
+  myquery(rc);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS));
+  rc= my_process_result(mysql);
+  DIE_UNLESS(rc == 1);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "SET GLOBAL query_cache_size = 0");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+#endif
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -17967,6 +18079,12 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_2", test_wl4166_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
+#ifdef HAVE_SPATIAL
+  { "test_bug37956", test_bug37956 },
+#endif
+#ifdef HAVE_QUERY_CACHE
+  { "test_bug36326", test_bug36326 },
+#endif
   { 0, 0 }
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -362,7 +362,10 @@ public:
   Item_func_unsigned(Item *a) :Item_func_signed(a) {}
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
-  { max_length=args[0]->max_length; unsigned_flag=1; }
+  {
+    max_length= min(args[0]->max_length, DECIMAL_MAX_PRECISION + 2);
+    unsigned_flag=1;
+  }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -1332,6 +1335,7 @@ public:
   longlong val_int_result();
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
+  bool is_null_result();
   bool update_hash(void *ptr, uint length, enum Item_result type,
   		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
@@ -1353,6 +1357,7 @@ public:
   void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
   bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
+  void cleanup();
 };
 
 

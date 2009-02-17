@@ -346,9 +346,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (3,3)
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,4)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (5,5)
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t2
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (6,6)
@@ -356,9 +354,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE t2 (a int, b in
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (7,7)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (9,9)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
@@ -611,7 +607,7 @@ delete from t1;
 create table t4 (a int default 0, b int primary key) engine=innodb;
 insert into t4 values (0, 17);
 reset master;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
 ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
 select * from t4;
 a	b
@@ -625,7 +621,7 @@ master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=#
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 /* the output must denote there is the query */;
 drop trigger trg_del_t2;
@@ -845,7 +841,7 @@ delete from t1;
 create table t4 (a int default 0, b int primary key) engine=innodb;
 insert into t4 values (0, 17);
 reset master;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
 ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
 select * from t4;
 a	b
@@ -861,7 +857,7 @@ master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=#
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;

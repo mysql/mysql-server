@@ -976,24 +976,26 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     *((my_bool*) variable)= (my_bool) value;
     break;
   case GET_INT:
-    *((int*) variable)= (int) value;
+    *((int*) variable)= (int) getopt_ll_limit_value((int) value, option, NULL);
     break;
-  case GET_UINT:
   case GET_ENUM:
     *((uint*) variable)= (uint) value;
     break;
+  case GET_UINT:
+    *((uint*) variable)= (uint) getopt_ull_limit_value((uint) value, option, NULL);
+    break;
   case GET_LONG:
-    *((long*) variable)= (long) value;
+    *((long*) variable)= (long) getopt_ll_limit_value((long) value, option, NULL);
     break;
   case GET_ULONG:
-    *((ulong*) variable)= (ulong) value;
+    *((ulong*) variable)= (ulong) getopt_ull_limit_value((ulong) value, option, NULL);
     break;
   case GET_LL:
-    *((longlong*) variable)= (longlong) value;
+    *((longlong*) variable)= (longlong) getopt_ll_limit_value((longlong) value, option, NULL);
     break;
   case GET_ULL:
   case GET_SET:
-    *((ulonglong*) variable)=  (ulonglong) value;
+    *((ulonglong*) variable)= (ulonglong) getopt_ull_limit_value((ulonglong) value, option, NULL);
     break;
   case GET_DOUBLE:
     *((double*) variable)=  (double) value;
