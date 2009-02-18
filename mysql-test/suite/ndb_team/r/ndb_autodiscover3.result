@@ -13,6 +13,9 @@ a	b
 1	1
 2	1
 3	1
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+DROP TABLE test.backup_info;
 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 show tables like 't2';
@@ -31,6 +34,9 @@ a
 2
 3
 reset master;
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+DROP TABLE test.backup_info;
 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 show tables like 't2';
