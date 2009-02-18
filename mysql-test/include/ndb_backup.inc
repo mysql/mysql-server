@@ -4,4 +4,4 @@
 ######################################################
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup" >> $NDB_TOOLS_OUTPUT
 
---souce include/ndb_backup_id.inc
+--source include/ndb_backup_id.inc
