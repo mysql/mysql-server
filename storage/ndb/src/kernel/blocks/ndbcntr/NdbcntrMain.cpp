@@ -350,7 +350,7 @@ parse_spec(Vector<ddentry> & dst,
        */
       struct ddentry entry;
       const char * path = list[i].c_str();
-      char * sizeptr = strchr(path, ':');
+      char * sizeptr = const_cast<char*>(strchr(path, ':'));
       if (sizeptr == 0)
       {
         return -1;
