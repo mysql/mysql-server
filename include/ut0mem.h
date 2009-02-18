@@ -26,11 +26,16 @@ Created 5/30/1994 Heikki Tuuri
 #define ut0mem_h
 
 #include "univ.i"
+#include "os0sync.h"
 #include <string.h>
-#include <stdlib.h>
 
-/* The total amount of memory currently allocated from the OS with malloc */
-extern ulint	ut_total_allocated_memory;
+/* The total amount of memory currently allocated from the operating
+system with os_mem_alloc_large() or malloc().  Does not count malloc()
+if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
+extern ulint		ut_total_allocated_memory;
+
+/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+extern os_fast_mutex_t	ut_list_mutex;
 
 UNIV_INLINE
 void*
