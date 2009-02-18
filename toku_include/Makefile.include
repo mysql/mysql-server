@@ -313,6 +313,7 @@ clean-default:
 	rm -f *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -f *.exe *.obj *.pdb *.ilk
 	rm -f *.exe.manifest *.dll.manifest
+	rm -rf *.bundle
 
 #Prevent using the wrong extensions/target types (Otherwise prereqs get confused).
 %$(WRONGBINSUF): %.c
