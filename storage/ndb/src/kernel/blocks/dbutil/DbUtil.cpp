@@ -1654,9 +1654,9 @@ DbUtil::hardcodedPrepare() {
 
     Uint32 * attrInfo = &ptr.p->tckey.distrGroupHashValue;
     attrInfo[0] = 0; // IntialReadSize
-    attrInfo[1] = 3; // InterpretedSize
+    attrInfo[1] = 4; // InterpretedSize
     attrInfo[2] = 0; // FinalUpdateSize
-    attrInfo[3] = 1; // FinalReadSize
+    attrInfo[3] = 0; // FinalReadSize
     attrInfo[4] = 0; // SubroutineSize
   }
 }
@@ -1740,14 +1740,13 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     ndbrequire(opPtr.p->attrInfo.seize(4));
     AttrInfoBuffer::DataBufferIterator it;
     opPtr.p->attrInfo.first(it);
-    * it.data = Interpreter::LoadConst16(7, req->value);
+    * it.data = Interpreter::LoadConst32(7);
+    ndbrequire(opPtr.p->attrInfo.next(it));
+    * it.data = req->value;
     ndbrequire(opPtr.p->attrInfo.next(it));
     * it.data = Interpreter::Write(1, 7);
     ndbrequire(opPtr.p->attrInfo.next(it))
     * it.data = Interpreter::ExitOK();
-
-    ndbrequire(opPtr.p->attrInfo.next(it));
-    AttributeHeader::init(it.data, 1, 0);
   }
  
   transPtr.p->noOfRetries = 3;
@@ -1830,7 +1829,6 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
     }
     case UtilSequenceReq::SetVal:
       ok = true;
-      break;
     case UtilSequenceReq::Create:
       ok = true;
       ret->sequenceValue[0] = 0;
