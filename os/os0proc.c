@@ -127,10 +127,13 @@ os_mem_alloc_large(
 
 	if (ptr) {
 		*n = size;
+		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
+		os_fast_mutex_unlock(&ut_list_mutex);
 # ifdef UNIV_SET_MEM_TO_ZERO
 		memset(ptr, '\0', size);
 # endif
+		UNIV_MEM_ALLOC(ptr, size);
 		return(ptr);
 	}
 
@@ -156,7 +159,10 @@ skip:
 			" Windows error %lu\n",
 			(ulong) size, (ulong) GetLastError());
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_ALLOC(ptr, size);
 	}
 #elif defined __NETWARE__ || !defined OS_MAP_ANON
 	size = *n;
@@ -178,7 +184,10 @@ skip:
 			(ulong) size, (ulong) errno);
 		ptr = NULL;
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_ALLOC(ptr, size);
 	}
 #endif
 	return(ptr);
@@ -195,11 +204,17 @@ os_mem_free_large(
 	ulint	size)			/* in: size returned by
 					os_mem_alloc_large() */
 {
+	os_fast_mutex_lock(&ut_list_mutex);
 	ut_a(ut_total_allocated_memory >= size);
+	os_fast_mutex_unlock(&ut_list_mutex);
 
 #if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
 	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
+		os_fast_mutex_lock(&ut_list_mutex);
+		ut_a(ut_total_allocated_memory >= size);
 		ut_total_allocated_memory -= size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_FREE(ptr, size);
 		return;
 	}
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
@@ -211,7 +226,11 @@ os_mem_free_large(
 			" Windows error %lu\n",
 			ptr, (ulong) size, (ulong) GetLastError());
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
+		ut_a(ut_total_allocated_memory >= size);
 		ut_total_allocated_memory -= size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_FREE(ptr, size);
 	}
 #elif defined __NETWARE__ || !defined OS_MAP_ANON
 	ut_free(ptr);
@@ -221,7 +240,11 @@ os_mem_free_large(
 			" errno %lu\n",
 			ptr, (ulong) size, (ulong) errno);
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
+		ut_a(ut_total_allocated_memory >= size);
 		ut_total_allocated_memory -= size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_FREE(ptr, size);
 	}
 #endif
 }
