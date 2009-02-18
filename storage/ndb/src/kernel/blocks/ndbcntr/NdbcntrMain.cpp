@@ -3278,6 +3278,7 @@ Ndbcntr::clearFilesystem(Signal* signal)
   }
   else if (c_fsRemoveCount < DD)
   {
+    req->ownDirectory  = 0;
     FsOpenReq::setVersion(req->fileNumber, 6);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
     FsOpenReq::v5_setLcpNo(req->fileNumber,
