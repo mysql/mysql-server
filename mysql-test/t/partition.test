@@ -15,6 +15,29 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# Bug#39338: Fieldnames in INFORMATIONSCHEMA.PARTITIONS.PARTITION_EXPRESSION
+#            become unescaped
+# NOTE: the partition expression is saved as a string, so changing from
+#       normal quotes to ansi quotes does not change the expression, only
+#       for partition by KEY.
+CREATE TABLE t1 (
+    ID int(11) NOT NULL,
+    `aaaa,aaaaa` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    ddddddddd int(11) NOT NULL DEFAULT '0',
+    new_field0 varchar(50),
+    PRIMARY KEY(ID, `aaaa,aaaaa`, ddddddddd))
+PARTITION BY RANGE(ID)
+PARTITIONS 3
+SUBPARTITION BY LINEAR KEY(ID,`aaaa,aaaaa`)
+SUBPARTITIONS 2 (
+    PARTITION p01 VALUES LESS THAN(100),
+    PARTITION p11 VALUES LESS THAN(200),
+    PARTITION p21 VALUES LESS THAN MAXVALUE);
+SELECT PARTITION_EXPRESSION, SUBPARTITION_EXPRESSION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+show create table t1;
+drop table t1;
+
+#
 # Bug#40954: Crash if range search and order by.
 #
 CREATE TABLE t1 (
