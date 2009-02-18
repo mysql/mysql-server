@@ -4743,7 +4743,8 @@ static int get_schema_key_column_usage_record(THD *thd,
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-static void collect_partition_expr(List<char> &field_list, String *str)
+static void collect_partition_expr(THD *thd, List<char> &field_list,
+                                   String *str)
 {
   List_iterator<char> part_it(field_list);
   ulong no_fields= field_list.elements;
@@ -4751,7 +4752,7 @@ static void collect_partition_expr(List<char> &field_list, String *str)
   str->length(0);
   while ((field_str= part_it++))
   {
-    str->append(field_str);
+    append_identifier(thd, str, field_str, strlen(field_str));
     if (--no_fields != 0)
       str->append(",");
   }
@@ -4915,7 +4916,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     }
     else if (part_info->list_of_part_fields)
     {
-      collect_partition_expr(part_info->part_field_list, &tmp_str);
+      collect_partition_expr(thd, part_info->part_field_list, &tmp_str);
       table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
     }
     table->field[9]->set_notnull();
@@ -4944,7 +4945,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       }
       else if (part_info->list_of_subpart_fields)
       {
-        collect_partition_expr(part_info->subpart_field_list, &tmp_str);
+        collect_partition_expr(thd, part_info->subpart_field_list, &tmp_str);
         table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
       }
       table->field[10]->set_notnull();
