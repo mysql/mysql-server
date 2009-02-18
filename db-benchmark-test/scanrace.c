@@ -15,7 +15,7 @@
 
 static const char *pname;
 static long limitcount=-1;
-static u_int32_t cachesize = 4*1024*1024;
+static u_int32_t cachesize = 16*1024*1024;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -116,23 +116,20 @@ counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
 
 static void scanrace_lwc (void) {
     int r;
-    int counter=0;
-    for (counter=0; counter<2; counter++) {
-	struct extra_count e = {0,0};
-	double prevtime = gettime();
-	DBC *dbc;
-	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
-	long rowcounter=0;
-	while (0 == (r = dbc->c_getf_next(dbc, DB_PRELOCKED, counttotalbytes, &e))) {
-	    if (rowcounter%128==0) { printf("."); fflush(stdout); }
-	    rowcounter++;
-	    if (limitcount>0 && rowcounter>=limitcount) break;
-	}
-	r = dbc->c_close(dbc);                                      assert(r==0);
-	double thistime = gettime();
-	double tdiff = thistime-prevtime;
-	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
+    struct extra_count e = {0,0};
+    double prevtime = gettime();
+    DBC *dbc;
+    r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+    long rowcounter=0;
+    while (0 == (r = dbc->c_getf_next(dbc, DB_PRELOCKED, counttotalbytes, &e))) {
+	//if (rowcounter%128==0) { printf("."); fflush(stdout); }
+	rowcounter++;
+	if (limitcount>0 && rowcounter>=limitcount) break;
     }
+    r = dbc->c_close(dbc);                                      assert(r==0);
+    double thistime = gettime();
+    double tdiff = thistime-prevtime;
+    printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
 }
   
 int main (int argc, const char *argv[]) {
