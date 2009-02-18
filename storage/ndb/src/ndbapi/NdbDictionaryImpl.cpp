@@ -3187,7 +3187,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 
   const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:
-  if(impl.m_tablespace_id != ~(Uint32)0)
+  if(impl.m_tablespace_version != ~(Uint32)0)
   {
     tmpTab->TablespaceId = impl.m_tablespace_id;
     tmpTab->TablespaceVersion = impl.m_tablespace_version;
@@ -5476,7 +5476,7 @@ NdbFilegroupImpl::NdbFilegroupImpl(NdbDictionary::Object::Type t)
 {
   m_extent_size = 0;
   m_undo_buffer_size = 0;
-  m_logfile_group_id = ~0;
+  m_logfile_group_id = RNIL;
   m_logfile_group_version = ~0;
 }
 
@@ -5557,7 +5557,7 @@ NdbFileImpl::NdbFileImpl(NdbDictionary::Object::Type t)
 {
   m_size = 0;
   m_free = 0;
-  m_filegroup_id = ~0;
+  m_filegroup_id = RNIL;
   m_filegroup_version = ~0;
 }
 
@@ -6947,7 +6947,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
 		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
-    dst.m_id = -1;
+    dst.m_id = RNIL;
     dst.m_version = ~0;
     
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
