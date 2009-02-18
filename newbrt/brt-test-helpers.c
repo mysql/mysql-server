@@ -4,7 +4,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;
     int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r!=0) return r;
-    toku_create_new_brtnode(brt, &node, 0, (TOKULOGGER)0);
+    toku_create_new_brtnode(brt, &node, 0);
 
     *blocknum = node->thisnodename;
     r = toku_unpin_brtnode(brt, node);
@@ -18,7 +18,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
     assert(n_children<=BRT_FANOUT);
     int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r!=0) return r;
-    toku_create_new_brtnode(brt, &node, height, (TOKULOGGER)0);
+    toku_create_new_brtnode(brt, &node, height);
     node->u.n.n_children=n_children;
     MALLOC_N(n_children+1, node->u.n.childinfos);
     MALLOC_N(n_children,   node->u.n.childkeys);

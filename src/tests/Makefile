@@ -49,6 +49,11 @@ BDB_DONTRUN_TESTS = \
 	helgrind2 \
 	helgrind3 \
 	test1426 \
+	test_logflush \
+	test_txn_abort8 \
+	test_txn_abort9 \
+	test_txn_close_open_commit \
+	test_txn_commit8 \
 #\ ends prev line
 
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
