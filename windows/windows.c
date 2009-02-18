@@ -220,7 +220,7 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap) {
     int r = _vsnprintf(str, size, format, ap);
     if (str && size>0) {
         str[size-1] = '\0';         //Always null terminate.
-        if (r<0 && errno==ERANGE);
+        if (r<0 && errno==ERANGE) {
             r = strlen(str)+1;      //Mimic linux return value.
                                     //May be too small, but it does
                                     //at least indicate overflow
