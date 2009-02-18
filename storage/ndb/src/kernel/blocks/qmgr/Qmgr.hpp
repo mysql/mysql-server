@@ -156,6 +156,8 @@ public:
     QmgrState sendPresToStatus;
     FailState failState;
     BlockReference blockRef;
+    Uint64 m_secret;
+    Uint64 m_alloc_timeout;
 
     NodeRec() { }
   }; /* p2c: size = 52 bytes */
@@ -308,7 +310,7 @@ private:
   void electionWon(Signal* signal);
   void cmInfoconf010Lab(Signal* signal);
   
-  void apiHbHandlingLab(Signal* signal);
+  void apiHbHandlingLab(Signal* signal, Uint64 now);
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
