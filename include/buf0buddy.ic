@@ -75,7 +75,8 @@ buf_buddy_get_slot(
 	ulint	i;
 	ulint	s;
 
-	for (i = 0, s = BUF_BUDDY_LOW; s < size; i++, s <<= 1);
+	for (i = 0, s = BUF_BUDDY_LOW; s < size; i++, s <<= 1) {
+	}
 
 	ut_ad(i <= BUF_BUDDY_SIZES);
 	return(i);
