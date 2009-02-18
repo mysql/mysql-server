@@ -193,7 +193,7 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   int no = count * per_page;
   
   const int max = count < g_df_zero.m_extent_pages ? 
-    per_page : g_df_zero.m_extent_count % per_page;
+    per_page : g_df_zero.m_extent_count - (g_df_zero.m_extent_count - 1) * per_page;
 
   File_formats::Datafile::Extent_page * page = 
     (File_formats::Datafile::Extent_page*)ptr;
@@ -201,7 +201,7 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   ndbout << "Extent page: " << count
 	 << ", lsn = [ " 
 	 << page->m_page_header.m_page_lsn_hi << " " 
-	 << page->m_page_header.m_page_lsn_lo << "]" 
+	 << page->m_page_header.m_page_lsn_lo << "] " 
 	 << endl;
   for(int i = 0; i<max; i++)
   {
