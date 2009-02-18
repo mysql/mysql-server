@@ -524,9 +524,10 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     NDB_TICKS tick= 0;
     /* only report error on second attempt as not to clog the cluster log */
     while (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-                                   (struct sockaddr*)&addr,
+                                   (struct sockaddr*)&addr, &addrlen,
                                    error_code, error_string,
-                                   tick == 0 ? 0 : log_event))
+                                   tick == 0 ? 0 : log_event,
+                                   timeout))
     {
       /* NDB_MGM_ALLOCID_CONFIG_MISMATCH is a non retriable error */
       if (tick == 0 && error_code != NDB_MGM_ALLOCID_CONFIG_MISMATCH)

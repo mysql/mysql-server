@@ -437,9 +437,14 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     infoEvent("Discarding CONNECT_REP(%d)", nodeId);
     return;
   }
-  
+
   c_connectedNodes.set(nodeId);
+
   NodeRecPtr nodePtr;
+  nodePtr.i = nodeId;
+  ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
+  nodePtr.p->m_secret = 0;
+
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
   NodeInfo nodeInfo = getNodeInfo(nodeId);
@@ -2456,7 +2461,7 @@ void Qmgr::timerHandlingLab(Signal* signal)
   {
     jam();
     hb_api_timer.reset();
-    apiHbHandlingLab(signal);
+    apiHbHandlingLab(signal, TcurrentTime);
   }
 
   if (cactivateApiCheck != 0) {
@@ -2562,7 +2567,7 @@ void Qmgr::checkHeartbeat(Signal* signal)
   }//if
 }//Qmgr::checkHeartbeat()
 
-void Qmgr::apiHbHandlingLab(Signal* signal) 
+void Qmgr::apiHbHandlingLab(Signal* signal, Uint64 now)
 {
   NodeRecPtr TnodePtr;
 
@@ -2607,6 +2612,14 @@ void Qmgr::apiHbHandlingLab(Signal* signal)
         api_failed(signal, nodeId);
       }//if
     }//if
+    else if (TnodePtr.p->phase == ZAPI_INACTIVE &&
+             TnodePtr.p->m_secret != 0 && now > TnodePtr.p->m_alloc_timeout)
+    {
+      jam();
+      TnodePtr.p->m_secret = 0;
+      warningEvent("Releasing node id allocation for node %u",
+                   TnodePtr.i);
+    }
   }//for
   return;
 }//Qmgr::apiHbHandlingLab()
@@ -2641,6 +2654,7 @@ void Qmgr::checkStartInterface(Signal* signal)
 	 * IS COMPLETE.
 	 *-------------------------------------------------------------------*/
         nodePtr.p->failState = NORMAL;
+        nodePtr.p->m_secret = 0;
         Uint32 type = getNodeInfo(nodePtr.i).m_type;
         switch(type){
         case NodeInfo::DB:
@@ -2937,6 +2951,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
    *-----------------------------------------------------------------------*/
   failedNodePtr.i = aFailedNode;
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+  failedNodePtr.p->m_secret = 0; // Not yet Uint64(rand()) << 32 + rand();
 
   ndbrequire(getNodeInfo(failedNodePtr.i).getType() == NodeInfo::DB);
   
@@ -3007,7 +3022,8 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
    *-----------------------------------------------------------------------*/
   failedNodePtr.i = nodeId;
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
-  
+  failedNodePtr.p->m_secret = 0; // Not yet Uint64(rand()) << 32 + rand();
+
   if (failedNodePtr.p->phase == ZFAIL_CLOSING)
   {
     /**
@@ -5455,22 +5471,37 @@ void
 Qmgr::execALLOC_NODEID_REQ(Signal * signal)
 {
   jamEntry();
-  const AllocNodeIdReq * req = (AllocNodeIdReq*)signal->getDataPtr();
-  Uint32 senderRef = req->senderRef;
-  Uint32 nodeId = req->nodeId;
-  Uint32 nodeType = req->nodeType;
+  AllocNodeIdReq req = *(AllocNodeIdReq*)signal->getDataPtr();
   Uint32 error = 0;
 
-  if (refToBlock(senderRef) != QMGR) // request from management server
+  NodeRecPtr nodePtr;
+  nodePtr.i = req.nodeId;
+  ptrAss(nodePtr, nodeRec);
+
+  if (refToBlock(req.senderRef) != QMGR) // request from management server
   {
     /* master */
 
     if (getOwnNodeId() != cpresident)
+    {
+      jam();
       error = AllocNodeIdRef::NotMaster;
+    }
     else if (!opAllocNodeIdReq.m_tracker.done())
+    {
+      jam();
       error = AllocNodeIdRef::Busy;
-    else if (c_connectedNodes.get(nodeId))
+    }
+    else if (c_connectedNodes.get(req.nodeId))
+    {
+      jam();
       error = AllocNodeIdRef::NodeConnected;
+    }
+    else if (nodePtr.p->m_secret != 0)
+    {
+      jam();
+      error = AllocNodeIdRef::NodeReserved;
+    }
 
     if (error)
     {
@@ -5479,60 +5510,99 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
       ref->senderRef = reference();
       ref->errorCode = error;
       ref->masterRef = numberToRef(QMGR, cpresident);
-      sendSignal(senderRef, GSN_ALLOC_NODEID_REF, signal,
+      ref->senderData = req.senderData;
+      ref->nodeId = req.nodeId;
+      sendSignal(req.senderRef, GSN_ALLOC_NODEID_REF, signal,
                  AllocNodeIdRef::SignalLength, JBB);
       return;
     }
 
-    if (ERROR_INSERTED(934) && nodeId != getOwnNodeId())
+    if (ERROR_INSERTED(934) && req.nodeId != getOwnNodeId())
     {
       CRASH_INSERTION(934);
     }
+
+    /**
+     * generate secret
+     */
+    Uint64 now = NdbTick_CurrentMillisecond();
+    Uint32 secret_hi = now >> 24;
+    Uint32 secret_lo = Uint32(now << 8) + getOwnNodeId();
+    req.secret_hi = secret_hi;
+    req.secret_lo = secret_lo;
+
+    if (req.timeout > 60000)
+      req.timeout = 60000;
+
+    nodePtr.p->m_secret = (Uint64(secret_hi) << 32) + secret_lo;
+    nodePtr.p->m_alloc_timeout = now + req.timeout;
     
-    opAllocNodeIdReq.m_req = *req;
+    opAllocNodeIdReq.m_req = req;
     opAllocNodeIdReq.m_error = 0;
-    opAllocNodeIdReq.m_connectCount = getNodeInfo(refToNode(senderRef)).m_connectCount;
+    opAllocNodeIdReq.m_connectCount =
+      getNodeInfo(refToNode(req.senderRef)).m_connectCount;
 
     jam();
-    AllocNodeIdReq * req = (AllocNodeIdReq*)signal->getDataPtrSend();
-    req->senderRef = reference();
+    AllocNodeIdReq * req2 = (AllocNodeIdReq*)signal->getDataPtrSend();
+    * req2 = req;
+    req2->senderRef = reference();
     NodeReceiverGroup rg(QMGR, c_clusterNodes);
     RequestTracker & p = opAllocNodeIdReq.m_tracker;
     p.init<AllocNodeIdRef>(c_counterMgr, rg, GSN_ALLOC_NODEID_REF, 0);
 
     sendSignal(rg, GSN_ALLOC_NODEID_REQ, signal,
-               AllocNodeIdReq::SignalLength, JBB);
+               AllocNodeIdReq::SignalLengthQMGR, JBB);
     return;
   }
 
   /* participant */
-
-  if (c_connectedNodes.get(nodeId))
-    error = AllocNodeIdRef::NodeConnected;
-  else
+  if (c_connectedNodes.get(req.nodeId))
   {
-    NodeRecPtr nodePtr;
-    nodePtr.i = nodeId;
-    ptrAss(nodePtr, nodeRec);
-    if (nodeType != getNodeInfo(nodeId).m_type)
-      error = AllocNodeIdRef::NodeTypeMismatch;
-    else if (nodePtr.p->failState != NORMAL)
-      error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
+    jam();
+    error = AllocNodeIdRef::NodeConnected;
   }
+  else if (req.nodeType != getNodeInfo(req.nodeId).m_type)
+  {
+    jam();
+    error = AllocNodeIdRef::NodeTypeMismatch;
+  }
+  else if (nodePtr.p->failState != NORMAL)
+  {
+    jam();
+    error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
+  }
+#if 0
+  /**
+   * For now only make "time/secret" based reservation on master
+   *   as we otherwise also need to clear it on failure + handle
+   *   master failure
+   */
+  else if (nodePtr.p->m_secret != 0)
+  {
+    jam();
+    error = AllocNodeIdRef::NodeReserved;
+  }
+#endif
 
   if (error)
   {
+    jam();
     AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->errorCode = error;
-    sendSignal(senderRef, GSN_ALLOC_NODEID_REF, signal,
+    ref->senderData = req.senderData;
+    ref->nodeId = req.nodeId;
+    ref->masterRef = numberToRef(QMGR, cpresident);
+    sendSignal(req.senderRef, GSN_ALLOC_NODEID_REF, signal,
                AllocNodeIdRef::SignalLength, JBB);
     return;
   }
 
   AllocNodeIdConf * conf = (AllocNodeIdConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
-  sendSignal(senderRef, GSN_ALLOC_NODEID_CONF, signal,
+  conf->secret_hi = req.secret_hi;
+  conf->secret_lo = req.secret_lo;
+  sendSignal(req.senderRef, GSN_ALLOC_NODEID_CONF, signal,
              AllocNodeIdConf::SignalLength, JBB);
 }
 
@@ -5545,6 +5615,22 @@ Qmgr::execALLOC_NODEID_CONF(Signal * signal)
   const AllocNodeIdConf * conf = (AllocNodeIdConf*)signal->getDataPtr();
   opAllocNodeIdReq.m_tracker.reportConf(c_counterMgr,
                                         refToNode(conf->senderRef));
+
+  if (signal->getLength() >= AllocNodeIdConf::SignalLength)
+  {
+    jam();
+    if (opAllocNodeIdReq.m_req.secret_hi != conf->secret_hi ||
+        opAllocNodeIdReq.m_req.secret_lo != conf->secret_lo)
+    {
+      jam();
+      if (opAllocNodeIdReq.m_error == 0)
+      {
+        jam();
+        opAllocNodeIdReq.m_error = AllocNodeIdRef::Undefined;
+      }
+    }
+  }
+
   completeAllocNodeIdReq(signal);
 }
 
@@ -5558,15 +5644,20 @@ Qmgr::execALLOC_NODEID_REF(Signal * signal)
   const AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtr();
   if (ref->errorCode == AllocNodeIdRef::NF_FakeErrorREF)
   {
+    jam();
     opAllocNodeIdReq.m_tracker.ignoreRef(c_counterMgr,
                                          refToNode(ref->senderRef));    
   }
   else
   {
+    jam();
     opAllocNodeIdReq.m_tracker.reportRef(c_counterMgr,
                                          refToNode(ref->senderRef));
     if (opAllocNodeIdReq.m_error == 0)
+    {
+      jam();
       opAllocNodeIdReq.m_error = ref->errorCode;
+    }
   }
   completeAllocNodeIdReq(signal);
 }
@@ -5593,6 +5684,17 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
   if (opAllocNodeIdReq.m_tracker.hasRef())
   {
     jam();
+
+    {
+      /**
+       * Clear reservation
+       */
+      NodeRecPtr nodePtr;
+      nodePtr.i = opAllocNodeIdReq.m_req.nodeId;
+      ptrAss(nodePtr, nodeRec);
+      nodePtr.p->m_secret = 0;
+    }
+
     AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = opAllocNodeIdReq.m_req.senderData;
@@ -5604,12 +5706,15 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
                AllocNodeIdRef::SignalLength, JBB);
     return;
   }
+
   jam();
+
   AllocNodeIdConf * conf = (AllocNodeIdConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = opAllocNodeIdReq.m_req.senderData;
   conf->nodeId = opAllocNodeIdReq.m_req.nodeId;
-  ndbassert(AllocNodeIdConf::SignalLength == 3);
+  conf->secret_lo = opAllocNodeIdReq.m_req.secret_lo;
+  conf->secret_hi = opAllocNodeIdReq.m_req.secret_hi;
   sendSignal(opAllocNodeIdReq.m_req.senderRef, GSN_ALLOC_NODEID_CONF, signal,
              AllocNodeIdConf::SignalLength, JBB);
 }
