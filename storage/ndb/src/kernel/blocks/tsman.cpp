@@ -844,7 +844,7 @@ Tsman::execFSWRITEREQ(Signal* signal)
     }
     if (page_no == extent_pages)
     {
-      Uint32 last = extents % per_page; 
+      Uint32 last = extents - ((extent_pages - 1) * per_page);
       page->get_header(last - 1, size)->m_next_free_extent = RNIL;
     }
   }
@@ -1248,7 +1248,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
        * Last extent header page...
        *   set correct no of extent headers
        */
-      extents= (datapages / size) % per_page;
+      Uint32 total_extents = datapages / size;
+      extents= total_extents - (pages - 1)*per_page;
     }
     for(Uint32 j = 0; j<extents; j++)
     {
