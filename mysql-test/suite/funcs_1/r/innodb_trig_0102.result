@@ -348,13 +348,13 @@ for each row set @test_var2='trig1_a';
 create trigger trig_db2.trig2 before insert on trig_db2.t1
 for each row set @test_var3='trig2';
 select trigger_schema, trigger_name, event_object_table
-from information_schema.triggers order by trigger_name;
+from information_schema.triggers
+where trigger_schema like 'trig_db%'
+        order by trigger_name;
 trigger_schema	trigger_name	event_object_table
-mtr	gs_insert	global_suppressions
 trig_db1	trig1_a	t1
 trig_db1	trig1_b	t1
 trig_db2	trig2	t1
-mtr	ts_insert	test_suppressions
 set @test_var1= '', @test_var2= '', @test_var3= '';
 insert into t1 (f1,f2) values ('insert to db1 t1 from db1',352);
 insert into trig_db2.t1 (f1,f2) values ('insert to db2 t1 from db1',352);

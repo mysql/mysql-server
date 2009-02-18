@@ -35,6 +35,37 @@ CREATE TABLE t1 (a int, b int); INSERT INTO t1 VALUES (1,1);
 EXPLAIN SELECT * FROM t1 WHERE b =  (SELECT max(2));
 DROP TABLE t1;
 
+#
+# Bug #33813: Schema names are case-sensitive in DROP FUNCTION
+#
+
+CREATE DATABASE `TESTDB`;
+
+USE `TESTDB`;
+DELIMITER //;
+
+CREATE FUNCTION test_fn() RETURNS INTEGER
+BEGIN
+DECLARE rId bigint;
+RETURN rId;
+END
+//
+
+CREATE FUNCTION test_fn2() RETURNS INTEGER
+BEGIN
+DECLARE rId bigint;
+RETURN rId;
+END
+//
+
+DELIMITER ;//
+
+DROP FUNCTION `TESTDB`.`test_fn`;
+DROP FUNCTION `testdb`.`test_fn2`;
+
+USE test;
+DROP DATABASE `TESTDB`;
+
 --echo End of 5.0 tests.
 
 --disable_warnings
