@@ -3321,7 +3321,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (key->type == Key::FOREIGN_KEY &&
           !part_info->is_auto_partitioned)
       {
-        my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
         goto err;
       }
     }
