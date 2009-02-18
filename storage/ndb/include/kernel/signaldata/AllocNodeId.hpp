@@ -24,21 +24,28 @@
  */
 class AllocNodeIdReq {
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLengthQMGR = 7 );
 
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 nodeId;
   Uint32 nodeType;
+  Uint32 timeout;
+
+  Uint32 secret_lo;
+  Uint32 secret_hi;
 };
 
 class AllocNodeIdConf {
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 nodeId;
+  Uint32 secret_lo;
+  Uint32 secret_hi;
 };
 
 class AllocNodeIdRef {

@@ -399,10 +399,11 @@ public:
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     struct sockaddr *client_addr,
+		     const struct sockaddr *client_addr,
                      SOCKET_SIZE_TYPE *client_addr_len,
 		     int &error_code, BaseString &error_string,
-                     int log_event = 1);
+                     int log_event = 1,
+                     int timeout_s = 20);
   
   /**
    *
@@ -491,7 +492,9 @@ private:
    */
   int getBlockNumber(const BaseString &blockName);
 
-  int alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type);
+  int alloc_node_id_req(NodeId free_node_id,
+                        enum ndb_mgm_node_type type,
+                        Uint32 timeout_ms);
 
   int check_nodes_starting();
   int check_nodes_stopping();
@@ -644,6 +647,21 @@ private:
   Config *_props;
 
   ConfigRetriever *m_config_retriever;
+
+  struct nodeid_and_host
+  {
+    unsigned id;
+    BaseString host;
+  };
+  int find_node_type(unsigned node_id, enum ndb_mgm_node_type type,
+                     const struct sockaddr *client_addr,
+                     NodeBitmask &nodes,
+                     NodeBitmask &exact_nodes,
+                     Vector<nodeid_and_host> &nodes_info,
+                     int &error_code, BaseString &error_string);
+  int match_hostname(const struct sockaddr *, const char *) const;
+  int try_alloc(unsigned id,  const char *, enum ndb_mgm_node_type type,
+                const struct sockaddr *client_addr, Uint32 timeout_ms);
 };
 
 inline
