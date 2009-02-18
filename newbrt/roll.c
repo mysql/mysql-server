@@ -37,7 +37,7 @@ toku_rollback_fcreate (TXNID      UU(xid),
     int  full_len=strlen(fname)+strlen(directory)+2;
     char full_fname[full_len];
     int l = snprintf(full_fname,full_len, "%s/%s", directory, fname);
-    assert(l<=full_len);
+    assert(l+1 == full_len);
     //Remove reference to the fd in the cachetable
     CACHEFILE cf;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);

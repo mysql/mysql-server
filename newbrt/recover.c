@@ -710,7 +710,8 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
 	if (r==0) {
 	    int fnamelen = strlen(log_dir) + strlen(de->d_name) + 2; // One for the slash and one for the trailing NUL.
 	    char fname[fnamelen];
-	    snprintf(fname, fnamelen, "%s/%s", log_dir, de->d_name);
+	    int l = snprintf(fname, fnamelen, "%s/%s", log_dir, de->d_name);
+	    assert(l+1 == fnamelen);
 	    r = unlink(fname);
 	    if (r!=0) {
 		result = errno;
@@ -738,7 +739,8 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	int namelen=strlen(data_dir);
 	char lockfname[namelen+sizeof(fname)];
 
-	snprintf(lockfname, sizeof(lockfname), "%s%s", data_dir, fname);
+	int l = snprintf(lockfname, sizeof(lockfname), "%s%s", data_dir, fname);
+	assert(l+1 == (signed)(sizeof(lockfname)));
         lockfd = toku_os_lock_file(lockfname);
 	if (lockfd<0) {
 	    printf("Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
