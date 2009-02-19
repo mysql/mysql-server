@@ -3450,15 +3450,16 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STR
                 verify_local_fingerprint_nonleaf(node);
                 int r = brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &did_change_shape);
                 assert(r != EAGAIN);
-                if (r == 0) return r;
+                if (r == 0) return r;           //Success
+                if (r != DB_NOTFOUND) return r; //Error (or message to quit early, such as TOKUDB_FOUND_BUT_REJECTED)
                 if (did_change_shape) goto again;
             }
         }
 
         /* check the first (left) or last (right) node if nothing has been found */
-        BOOL did_change_shape; // ignore this
+        BOOL ignore_did_change_shape; // ignore this
         verify_local_fingerprint_nonleaf(node);
-        return brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &did_change_shape);
+        return brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &ignore_did_change_shape);
     }
 }
 
