@@ -838,19 +838,17 @@ AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
 
-AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
-AC_CHECK_FUNC(yp_get_default_domain, ,
-  AC_CHECK_LIB(nsl, yp_get_default_domain))
-AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
+AC_SEARCH_LIBS(setsockopt, socket)
 # This may get things to compile even if bind-8 is installed
-AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
+AC_SEARCH_LIBS(bind, bind)
 # Check if crypt() exists in libc or libcrypt, sets LIBS if needed
 AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 # See if we need a library for address lookup.
 AC_SEARCH_LIBS(inet_aton, [socket nsl resolv])
 
 # For the sched_yield() function on Solaris
-AC_CHECK_FUNC(sched_yield, , AC_CHECK_LIB(posix4, sched_yield))
+AC_SEARCH_LIBS(sched_yield, posix4, 
+  AC_DEFINE(HAVE_SCHED_YIELD, 1, [sched_yield]))
 
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
@@ -956,7 +954,7 @@ AC_MSG_RESULT([$USE_PSTACK])
 # Check for gtty if termio.h doesn't exists
 if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
-  AC_CHECK_FUNC(gtty, , AC_CHECK_LIB(compat, gtty))
+  AC_SEARCH_LIBS(gtty, compat)
 fi
 
 # We make a special variable for non-threaded version of LIBS to avoid
