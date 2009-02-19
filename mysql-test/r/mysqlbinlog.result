@@ -353,7 +353,14 @@ flush logs;
 INSERT INTO t1 VALUES ('0123456789');
 flush logs;
 DROP TABLE t1;
-# 	Query	thread_id=REMOVED	exec_time=REMOVED	error_code=REMOVED
+We expect this value to be 1
+The bug being tested was that 'Query' lines were not preceded by '#'
+If the line is in the table, it had to have been preceded by a '#'
+
+SELECT COUNT(*) AS `BUG#28293_expect_1` FROM patch WHERE a LIKE '%Query%';
+BUG#28293_expect_1
+1
+DROP TABLE patch;
 flush logs;
 create table t1(a int);
 insert into t1 values(connection_id());
