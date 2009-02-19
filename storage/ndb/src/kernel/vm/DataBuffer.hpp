@@ -325,7 +325,6 @@ DataBuffer<sz>::seize(Uint32 n){
    */
   Uint32 free = thePool.getNoOfFree() * sz + rest;
   if(n > free){
-    release();
     return false;
   }
     
