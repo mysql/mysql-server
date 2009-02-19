@@ -29,6 +29,14 @@
 #include "mysql_priv.h"
 #include "rpl_mi.h"
 
+/*
+  There is an incompatibility between GNU ar and the Solaris linker
+  which makes the Solaris linker return an elf error when compiling
+  without NDB support (which makes libndb.a an empty library).
+  To avoid this we add a dummy declaration of a static variable
+  which makes us avoid this bug.
+*/
+int ha_ndb_dummy;
 #include <my_dir.h>
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
