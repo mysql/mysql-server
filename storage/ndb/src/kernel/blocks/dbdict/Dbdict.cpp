@@ -22911,6 +22911,15 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
     CRASH_INSERTION(6013);
   }
 
+  if (ERROR_INSERTED(6022))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   if (ERROR_INSERTED(6142))
   {
     /*
@@ -22943,6 +22952,15 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_prepare_first(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  if (ERROR_INSERTED(6021))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   trans_ptr.p->m_state = SchemaTrans::TS_PREPARING;
 
   SchemaOpPtr op_ptr;
@@ -23600,6 +23618,15 @@ void Dbdict::check_partial_trans_commit_start(SchemaTransPtr trans_ptr,
 void
 Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  if (ERROR_INSERTED(6016) || ERROR_INSERTED(6017))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMMIT;
 
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
@@ -23646,6 +23673,16 @@ void
 Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
+
+  if (ERROR_INSERTED(6018))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
 #ifdef MARTIN
   ndbout_c("trans_commit");
 #endif
@@ -23955,6 +23992,16 @@ void
 Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
+
+  if (ERROR_INSERTED(6019))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
 #ifdef MARTIN
   ndbout_c("trans_complete_start %u", trans_ptr.p->trans_key);
 #endif
@@ -24004,6 +24051,16 @@ void
 Dbdict::trans_complete_first(Signal * signal, SchemaTransPtr trans_ptr)
 {
   jam();
+
+  if (ERROR_INSERTED(6020))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   trans_ptr.p->m_state = SchemaTrans::TS_COMPLETING;
 
   bool first = false;
