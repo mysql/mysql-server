@@ -4271,7 +4271,7 @@ void Dbdict::printTables()
   DLHashTable<DictObject>::Iterator iter;
   bool moreTables = c_obj_hash.first(iter);
   printf("OBJECTS IN DICT:\n");
-  char name[MAX_TAB_NAME_SIZE];
+  char name[PATH_MAX];
   while (moreTables) {
     Ptr<DictObject> tablePtr = iter.curr;
     ConstRope r(c_rope_pool, tablePtr.p->m_name);
@@ -8967,7 +8967,7 @@ void Dbdict::execGET_TABLEDID_REQ(Signal * signal)
   Uint32 senderRef = req->senderRef;
   Uint32 len = req->len;
 
-  if(len>MAX_TAB_NAME_SIZE)
+  if(len>PATH_MAX)
   {
     jam();
     sendGET_TABLEID_REF((Signal*)signal, 
@@ -8976,7 +8976,7 @@ void Dbdict::execGET_TABLEDID_REQ(Signal * signal)
     return;
   }
 
-  char tableName[MAX_TAB_NAME_SIZE];
+  char tableName[PATH_MAX];
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ssPtr;
   handle.getSection(ssPtr,GetTableIdReq::TABLE_NAME);
@@ -9081,14 +9081,14 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     const Uint32 len = req->tableNameLen;
     
-    if(len > MAX_TAB_NAME_SIZE){
+    if(len > PATH_MAX){
       jam();
       releaseSections(handle);
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong, __LINE__);
       return;
     }
 
-    Uint32 tableName[(MAX_TAB_NAME_SIZE + 3) / 4];
+    Uint32 tableName[(PATH_MAX + 3) / 4];
     SegmentedSectionPtr ssPtr;
     handle.getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
     copy(tableName, ssPtr);
@@ -9458,7 +9458,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       pos = 0;
     }
     Uint32 i = 0;
-    char tmp[MAX_TAB_NAME_SIZE];
+    char tmp[PATH_MAX];
     name.copy(tmp);
     while (i < size) {
       char* p = (char*)&conf->tableData[pos];
@@ -9518,7 +9518,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
    */
   ListTablesData ltd;
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
-  char tname[MAX_TAB_NAME_SIZE];
+  char tname[PATH_MAX];
   SimplePropertiesSectionWriter tableDataWriter(* this);
   SimplePropertiesSectionWriter tableNamesWriter(* this);
 
@@ -18848,7 +18848,7 @@ Dbdict::createFile_fromWriteObjInfo(Signal* signal,
     ndbrequire(false);
   }
 
-  char name[MAX_TAB_NAME_SIZE];
+  char name[PATH_MAX];
   ConstRope tmp(c_rope_pool, f_ptr.p->m_path);
   tmp.copy(name);
   LinearSectionPtr ptr[3];
@@ -26342,7 +26342,7 @@ Dbdict::DictObject::print(NdbOut& out) const
   out << " (DictObject";
   out << dec << V(m_id);
   out << dec << V(m_type);
-  out << " name:" << dict->copyRope<MAX_TAB_NAME_SIZE>(m_name);
+  out << " name:" << dict->copyRope<PATH_MAX>(m_name);
   out << dec << V(m_ref_count);
   out << dec << V(m_trans_key);
   out << dec << V(m_op_ref_count);
@@ -26450,7 +26450,7 @@ Dbdict::TxHandle::print(NdbOut& out) const
 // check consistency when no schema trans is active
 
 #undef SZ
-#define SZ MAX_TAB_NAME_SIZE
+#define SZ PATH_MAX
 
 void
 Dbdict::check_consistency()
