@@ -1229,8 +1229,8 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
   g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d. "   \
                        "generation: %d, other_generation: %d, " \
                        "our state: %d, other state: %d",
-                       generation, other_generation,
-                       m_config_state, other_state, nodeId);
+                       nodeId, generation, other_generation,
+                       m_config_state, other_state);
 
   switch (m_config_state)
   {
