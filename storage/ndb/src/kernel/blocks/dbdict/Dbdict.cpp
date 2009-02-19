@@ -4979,7 +4979,7 @@ void Dbdict::printTables()
   DLHashTable<DictObject>::Iterator iter;
   bool moreTables = c_obj_hash.first(iter);
   printf("OBJECTS IN DICT:\n");
-  char name[MAX_TAB_NAME_SIZE];
+  char name[PATH_MAX];
   while (moreTables) {
     Ptr<DictObject> tablePtr = iter.curr;
     ConstRope r(c_rope_pool, tablePtr.p->m_name);
@@ -7793,14 +7793,14 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     const Uint32 len = req->tableNameLen;
     
-    if(len > MAX_TAB_NAME_SIZE){
+    if(len > PATH_MAX){
       jam();
       releaseSections(handle);
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong);
       return;
     }
 
-    Uint32 tableName[(MAX_TAB_NAME_SIZE + 3) / 4];
+    Uint32 tableName[(PATH_MAX + 3) / 4];
     SegmentedSectionPtr ssPtr;
     handle.getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
     copy(tableName, ssPtr);
@@ -8118,7 +8118,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       pos = 0;
     }
     Uint32 i = 0;
-    char tmp[MAX_TAB_NAME_SIZE];
+    char tmp[PATH_MAX];
     name.copy(tmp);
     while (i < size) {
       char* p = (char*)&conf->tableData[pos];
@@ -8178,7 +8178,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
    */
   ListTablesData ltd;
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
-  char tname[MAX_TAB_NAME_SIZE];
+  char tname[PATH_MAX];
   SimplePropertiesSectionWriter tableDataWriter(getSectionSegmentPool());
   SimplePropertiesSectionWriter tableNamesWriter(getSectionSegmentPool());
 
@@ -17051,7 +17051,7 @@ Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op)
     ndbrequire(false);
   }
   
-  char name[MAX_TAB_NAME_SIZE];
+  char name[PATH_MAX];
   ConstRope tmp(c_rope_pool, f_ptr.p->m_path);
   tmp.copy(name);
   LinearSectionPtr ptr[3];
