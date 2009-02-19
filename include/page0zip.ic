@@ -144,7 +144,8 @@ page_zip_set_size(
 
 		ut_ad(ut_is_2pow(size));
 
-		for (ssize = 1; size > (ulint) (512 << ssize); ssize++);
+		for (ssize = 1; size > (ulint) (512 << ssize); ssize++) {
+		}
 
 		page_zip->ssize = ssize;
 	} else {
