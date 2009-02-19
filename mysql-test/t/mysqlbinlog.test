@@ -1,9 +1,6 @@
 # We are using .opt file since we need small binlog size
 -- source include/have_log_bin.inc
 
-# Currently disabling this test on Windows due to use of grep and sed
---source include/not_windows.inc
-
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
 
