@@ -3101,7 +3101,7 @@ bool Item_param::convert_str_value(THD *thd)
       str_value.set_charset(value.cs_info.final_character_set_of_str_value);
     /* Here str_value is guaranteed to be in final_character_set_of_str_value */
 
-    max_length= str_value.length();
+    max_length= str_value.numchars() * str_value.charset()->mbmaxlen;
     decimals= 0;
     /*
       str_value_ptr is returned from val_str(). It must be not alloced
