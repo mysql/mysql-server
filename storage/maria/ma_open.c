@@ -536,6 +536,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->block_size= share->base.block_size;   /* Convenience */
     {
       HA_KEYSEG *pos=share->keyparts;
+      uint32 ftkey_nr= 1;
       for (i=0 ; i < keys ; i++)
       {
         share->keyinfo[i].share= share;
@@ -608,6 +609,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
             share->ft2_keyinfo.end=pos;
             setup_key_functions(& share->ft2_keyinfo);
           }
+          share->keyinfo[i].ftkey_nr= ftkey_nr++;
 	}
         setup_key_functions(share->keyinfo+i);
 	share->keyinfo[i].end=pos;
@@ -645,7 +647,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	pos->flag=0;
 	pos++;
       }
-      share->ftparsers= 0;
+      share->ftkeys= ftkey_nr;
     }
     share->data_file_type= share->state.header.data_file_type;
     share->base_length= (BASE_ROW_HEADER_SIZE +
@@ -1171,11 +1173,13 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
    Then calls _ma_state_info_write_sub().
 
    @param  share           table
-   @param  pWrite          bitmap: if 1 is set my_pwrite() is used otherwise
-                           my_write(); if 2 is set, info about keys is written
-                           (should only be needed after ALTER TABLE
-                           ENABLE/DISABLE KEYS, and REPAIR/OPTIMIZE); if 4 is
-                           set, MARIA_SHARE::intern_lock is taken.
+   @param  pWrite          bitmap: if 1 (MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET)
+                           is set my_pwrite() is used otherwise my_write();
+                           if 2 (MA_STATE_INFO_WRITE_FULL_INFO) is set, info
+                           about keys is written (should only be needed
+                           after ALTER TABLE ENABLE/DISABLE KEYS, and
+                           REPAIR/OPTIMIZE); if 4 (MA_STATE_INFO_WRITE_LOCK)
+                           is set, MARIA_SHARE::intern_lock is taken.
 
    @return Operation status
      @retval 0      OK
@@ -1188,7 +1192,7 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   if (share->options & HA_OPTION_READ_ONLY_DATA)
     return 0;
 
-  if (pWrite & 4)
+  if (pWrite & MA_STATE_INFO_WRITE_LOCK)
     pthread_mutex_lock(&share->intern_lock);
   else if (maria_multi_threaded)
   {
@@ -1207,7 +1211,7 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
                         LSN_IN_PARTS(share->state.is_of_horizon)));
   }
   res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
-  if (pWrite & 4)
+  if (pWrite & MA_STATE_INFO_WRITE_LOCK)
     pthread_mutex_unlock(&share->intern_lock);
   share->changed= 0;
   return res;
@@ -1221,10 +1225,12 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
 
    @param  file            descriptor of the index file to write
    @param  state           state information to write to the file
-   @param  pWrite          bitmap: if 1 is set my_pwrite() is used otherwise
-                           my_write(); if 2 is set, info about keys is written
-                           (should only be needed after ALTER TABLE
-                           ENABLE/DISABLE KEYS, and REPAIR/OPTIMIZE).
+   @param  pWrite          bitmap: if 1 (MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET)
+                           is set my_pwrite() is used otherwise my_write();
+                           if 2 (MA_STATE_INFO_WRITE_FULL_INFO) is set, info
+                           about keys is written (should only be needed
+                           after ALTER TABLE ENABLE/DISABLE KEYS, and
+                           REPAIR/OPTIMIZE).
 
    @notes
      For transactional multiuser tables, this function is called
@@ -1284,7 +1290,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
     mi_sizestore(ptr,state->key_root[i]);		ptr+= 8;
   }
   mi_sizestore(ptr,state->key_del);	        	ptr+= 8;
-  if (pWrite & 2)				/* From maria_chk */
+  if (pWrite & MA_STATE_INFO_WRITE_FULL_INFO)	/* From maria_chk */
   {
     uint key_parts= mi_uint2korr(state->header.key_parts);
     mi_int4store(ptr,state->sec_index_changed); 	ptr+= 4;
@@ -1304,7 +1310,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
     }
   }
 
-  res= (pWrite & 1) ?
+  res= (pWrite & MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET) ?
     my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
               MYF(MY_NABP | MY_THREADSAFE)) :
     my_write(file,  buff, (size_t) (ptr-buff),
@@ -1522,7 +1528,7 @@ uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;
-   keydef->ftparser_nr  = 0;
+   keydef->ftkey_nr     = 0;
    return ptr;
 }
 

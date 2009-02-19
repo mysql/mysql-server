@@ -13,6 +13,7 @@ let $default_checksum=`select @@global.maria_page_checksum`;
 set global storage_engine=maria;
 set session storage_engine=maria;
 set global maria_page_checksum=0;
+let $default_log_file_size=`select @@global.maria_log_file_size`;
 set global maria_log_file_size=4294967295;
 
 # Initialise
@@ -1406,8 +1407,9 @@ CREATE TABLE t1 (
   KEY (c1),
   KEY (c2)
 ) ENGINE=maria DEFAULT CHARSET=utf8 PACK_KEYS=0;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MARIA_CHK -d $MYSQLTEST_VARDIR/mysqld.1/data/test/t1
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--exec $MARIA_CHK -d $MYSQLD_DATADIR/test/t1
 DROP TABLE t1;
 
 # Test warnings with transactional=1 with MyISAM
@@ -1874,7 +1876,8 @@ drop table t1;
 # Set defaults back
 --disable_result_log
 --disable_query_log
-eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
-set global maria_log_file_size=default;
+eval set global storage_engine=$default_engine,
+maria_page_checksum=$default_checksum,
+maria_log_file_size=$default_log_file_size;
 --enable_result_log
 --enable_query_log

@@ -109,10 +109,9 @@ truncate table t1;
 check table t1 extended;
 drop table t1;
 
-
 # clean up everything
-let $mms_purpose=comparison;
-eval drop database mysqltest_for_$mms_purpose;
 let $mms_purpose=feeding_recovery;
+eval drop database mysqltest_for_$mms_purpose;
+let $mms_purpose=comparison;
 eval drop database mysqltest_for_$mms_purpose;
 drop database mysqltest;

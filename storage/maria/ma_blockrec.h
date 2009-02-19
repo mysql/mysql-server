@@ -122,6 +122,7 @@ static inline MARIA_RECORD_POS ma_recordpos(pgcache_page_no_t page,
                                             uint dir_entry)
 {
   DBUG_ASSERT(dir_entry <= 255);
+  DBUG_ASSERT(page > 0); /* page 0 is bitmap, not data page */
   return (MARIA_RECORD_POS) (((ulonglong) page << 8) | dir_entry);
 }
 

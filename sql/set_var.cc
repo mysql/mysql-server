@@ -1162,12 +1162,23 @@ extern void fix_delay_key_write(THD *thd, enum_var_type type)
   switch ((enum_delay_key_write) delay_key_write_options) {
   case DELAY_KEY_WRITE_NONE:
     myisam_delay_key_write=0;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    maria_delay_key_write= 0;
+#endif
+    ha_open_options&= ~HA_OPEN_DELAY_KEY_WRITE;
     break;
   case DELAY_KEY_WRITE_ON:
     myisam_delay_key_write=1;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    maria_delay_key_write= 1;
+#endif
+    ha_open_options&= ~HA_OPEN_DELAY_KEY_WRITE;
     break;
   case DELAY_KEY_WRITE_ALL:
     myisam_delay_key_write=1;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    maria_delay_key_write= 1;
+#endif
     ha_open_options|= HA_OPEN_DELAY_KEY_WRITE;
     break;
   }

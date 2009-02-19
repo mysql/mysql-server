@@ -2382,7 +2382,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         Note that we can come here without having an exclusive lock on the
         table, for example in this case:
         external_lock(F_(WR|RD)LCK); thr_lock() which fails due to lock
-        abortion; external_lock(F_UNLCK).
+        abortion; external_lock(F_UNLCK). Fortunately, the re-enabling happens
+        only if we were the thread which disabled logging.
       */
       if (_ma_reenable_logging_for_table(file, TRUE))
         DBUG_RETURN(1);
@@ -2874,6 +2875,7 @@ uint ha_maria::checksum() const
 bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes)
 {
+  DBUG_ENTER("check_if_incompatible_data");
   uint options= table->s->db_options_in_use;
 
   if (create_info->auto_increment_value != stats.auto_increment_value ||
@@ -2882,15 +2884,15 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
       (maria_row_type(create_info) != data_file_type &&
        create_info->row_type != ROW_TYPE_DEFAULT) ||
       table_changes == IS_EQUAL_NO ||
-      table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
-    return COMPATIBLE_DATA_NO;
+      (table_changes & IS_EQUAL_PACK_LENGTH)) // Not implemented yet
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
 
   if ((options & (HA_OPTION_CHECKSUM |
                   HA_OPTION_DELAY_KEY_WRITE)) !=
       (create_info->table_options & (HA_OPTION_CHECKSUM |
                               HA_OPTION_DELAY_KEY_WRITE)))
-    return COMPATIBLE_DATA_NO;
-  return COMPATIBLE_DATA_YES;
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+  DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
 
 

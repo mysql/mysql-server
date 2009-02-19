@@ -1,3 +1,6 @@
+call mtr.add_suppression("Checking table:   '.\/mysqltest\/t_corrupted2'");
+call mtr.add_suppression("Recovering table: '.\/mysqltest\/t_corrupted2'");
+call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted2' is marked as crashed and should be repaired");
 select @@global.maria_recover;
 @@global.maria_recover
 BACKUP
@@ -32,4 +35,4 @@ select * from t_corrupted2;
 a
 ThursdayMorningsMarket
 drop database mysqltest;
-set @@global.maria_recover=BACKUP;
+set global maria_recover=backup;

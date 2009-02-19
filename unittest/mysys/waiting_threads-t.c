@@ -24,6 +24,7 @@ struct test_wt_thd {
 
 uint i, cnt;
 pthread_mutex_t lock;
+pthread_cond_t thread_sync;
 
 ulong wt_timeout_short=100, wt_deadlock_search_depth_short=4;
 ulong wt_timeout_long=10000, wt_deadlock_search_depth_long=15;
@@ -48,9 +49,19 @@ pthread_handler_t test_wt(void *arg)
 
   my_thread_init();
 
-  pthread_mutex_lock(&lock);
+  pthread_mutex_lock(&mutex);
   id= cnt++;
-  pthread_mutex_unlock(&lock);
+  wt_thd_lazy_init(& thds[id].thd,
+                   & wt_deadlock_search_depth_short, & wt_timeout_short,
+                   & wt_deadlock_search_depth_long, & wt_timeout_long);
+
+  /* now, wait for everybody to be ready to run */
+  if (cnt >= THREADS)
+    pthread_cond_broadcast(&thread_sync);
+  else
+    while (cnt < THREADS)
+      pthread_cond_wait(&thread_sync, &mutex);
+  pthread_mutex_unlock(&mutex);
 
   my_rnd_init(&rand, (ulong)(intptr)&m, id);
   if (kill_strategy == YOUNGEST)
@@ -111,23 +122,23 @@ retry:
       thds[id].thd.weight++;
   }
 
+  pthread_mutex_lock(&mutex);
+  /* wait for everybody to finish */
+  if (!--cnt)
+    pthread_cond_broadcast(&thread_sync);
+  else
+    while (cnt)
+      pthread_cond_wait(&thread_sync, &mutex);
+
   pthread_mutex_lock(& thds[id].lock);
   pthread_mutex_lock(&lock);
   wt_thd_release_all(& thds[id].thd);
   pthread_mutex_unlock(&lock);
   pthread_mutex_unlock(& thds[id].lock);
+  wt_thd_destroy(& thds[id].thd);
 
-#ifndef DBUG_OFF
-  {
-#define DEL "(deleted)"
-    char *x=malloc(strlen(thds[id].thd.name)+sizeof(DEL)+1);
-    strxmov(x, thds[id].thd.name, DEL, 0);
-    thds[id].thd.name=x;
-  }
-#endif
-
-  pthread_mutex_lock(&mutex);
-  if (!--running_threads) pthread_cond_signal(&cond);
+  if (!--running_threads) /* now, signal when everybody is done with deinit */
+    pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
   DBUG_PRINT("wt", ("exiting"));
   my_thread_end();
@@ -137,6 +148,7 @@ retry:
 void do_one_test()
 {
   double sum, sum0;
+  DBUG_ENTER("do_one_test");
 
   reset(wt_cycle_stats);
   reset(wt_wait_stats);
@@ -162,10 +174,13 @@ void do_one_test()
            wt_wait_table[cnt], wt_wait_stats[cnt]);
   diag("timed out: %u", wt_wait_stats[cnt]);
   diag("successes: %u", wt_success_stats);
+
+  DBUG_VOID_RETURN;
 }
 
 void do_tests()
 {
+  DBUG_ENTER("do_tests");
   plan(14);
   compile_time_assert(THREADS >= 4);
 
@@ -174,19 +189,18 @@ void do_tests()
   bad= my_atomic_initialize();
   ok(!bad, "my_atomic_initialize() returned %d", bad);
 
+  pthread_cond_init(&thread_sync, 0);
   pthread_mutex_init(&lock, 0);
   wt_init();
   for (cnt=0; cnt < THREADS; cnt++)
-  {
-    wt_thd_lazy_init(& thds[cnt].thd,
-                     & wt_deadlock_search_depth_short, & wt_timeout_short,
-                     & wt_deadlock_search_depth_long, & wt_timeout_long);
     pthread_mutex_init(& thds[cnt].lock, 0);
-  }
   {
-    WT_RESOURCE_ID resid[3];
-    for (i=0; i < 3; i++)
+    WT_RESOURCE_ID resid[4];
+    for (i=0; i < array_elements(resid); i++)
     {
+      wt_thd_lazy_init(& thds[i].thd,
+                       & wt_deadlock_search_depth_short, & wt_timeout_short,
+                       & wt_deadlock_search_depth_long, & wt_timeout_long);
       resid[i].value= i+1;
       resid[i].type= &restype;
     }
@@ -220,15 +234,13 @@ void do_tests()
     wt_thd_release_all(& thds[1].thd);
     wt_thd_release_all(& thds[2].thd);
     wt_thd_release_all(& thds[3].thd);
-    pthread_mutex_unlock(&lock);
 
-    for (cnt=0; cnt < 4; cnt++)
+    for (i=0; i < array_elements(resid); i++)
     {
-      wt_thd_destroy(& thds[cnt].thd);
-      wt_thd_lazy_init(& thds[cnt].thd,
-                       & wt_deadlock_search_depth_short, & wt_timeout_short,
-                       & wt_deadlock_search_depth_long, & wt_timeout_long);
+      wt_thd_release_all(& thds[i].thd);
+      wt_thd_destroy(& thds[i].thd);
     }
+    pthread_mutex_unlock(&lock);
   }
 
   wt_deadlock_search_depth_short=6;
@@ -244,30 +256,23 @@ void do_tests()
 
 #define test_kill_strategy(X)                   \
   diag("kill strategy: " #X);                   \
+  DBUG_EXECUTE("reset_file",                    \
+               { rewind(DBUG_FILE); ftruncate(fileno(DBUG_FILE), 0); }); \
+  DBUG_PRINT("info", ("kill strategy: " #X));   \
   kill_strategy=X;                              \
   do_one_test();
 
   test_kill_strategy(LATEST);
-  SKIP_BIG_TESTS(1)
-  {
-    test_kill_strategy(RANDOM);
-  }
+  test_kill_strategy(RANDOM);
   test_kill_strategy(YOUNGEST);
   test_kill_strategy(LOCKS);
 
   DBUG_PRINT("wt", ("================= cleanup ==================="));
-  pthread_mutex_lock(&lock);
   for (cnt=0; cnt < THREADS; cnt++)
-  {
-    wt_thd_release_all(& thds[cnt].thd);
-    wt_thd_destroy(& thds[cnt].thd);
     pthread_mutex_destroy(& thds[cnt].lock);
-#ifndef DBUG_OFF
-    free(thds[cnt].thd.name);
-#endif
-  }
-  pthread_mutex_unlock(&lock);
   wt_end();
   pthread_mutex_destroy(&lock);
+  pthread_cond_destroy(&thread_sync);
+  DBUG_VOID_RETURN;
 }
 

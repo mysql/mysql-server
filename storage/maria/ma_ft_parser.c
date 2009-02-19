@@ -326,59 +326,39 @@ int maria_ft_parse(TREE *wtree, uchar *doc, int doclen,
 
 
 #define MAX_PARAM_NR 2
+
+MYSQL_FTPARSER_PARAM* maria_ftparser_alloc_param(MARIA_HA *info)
+{
+  if (!info->ftparser_param)
+  {
+    /* 
+.     info->ftparser_param can not be zero after the initialization,
+      because it always includes built-in fulltext parser. And built-in
+      parser can be called even if the table has no fulltext indexes and
+      no varchar/text fields.
+
+      ftb_find_relevance... parser (ftb_find_relevance_parse,
+      ftb_find_relevance_add_word) calls ftb_check_phrase... parser
+      (ftb_check_phrase_internal, ftb_phrase_add_word). Thus MAX_PARAM_NR=2.
+    */
+    info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
+      my_malloc(MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
+                info->s->ftkeys, MYF(MY_WME | MY_ZEROFILL));
+    init_alloc_root(&info->ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+  }
+  return info->ftparser_param;
+}
+
+
 MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info,
                                                       uint keynr, uint paramnr)
 {
   uint32 ftparser_nr;
   struct st_mysql_ftparser *parser;
-  if (! info->ftparser_param)
-  {
-    /* info->ftparser_param can not be zero after the initialization,
-       because it always includes built-in fulltext parser. And built-in
-       parser can be called even if the table has no fulltext indexes and
-       no varchar/text fields. */
-    if (! info->s->ftparsers)
-    {
-      /* It's ok that modification to shared structure is done w/o mutex
-         locks, because all threads would set the same variables to the
-         same values. */
-      uint i, j, keys= info->s->state.header.keys, ftparsers= 1;
-      for (i= 0; i < keys; i++)
-      {
-        MARIA_KEYDEF *keyinfo= &info->s->keyinfo[i];
-        if (keyinfo->flag & HA_FULLTEXT)
-        {
-          for (j= 0;; j++)
-          {
-            if (j == i)
-            {
-              keyinfo->ftparser_nr= ftparsers++;
-              break;
-            }
-            if (info->s->keyinfo[j].flag & HA_FULLTEXT &&
-                keyinfo->parser == info->s->keyinfo[j].parser)
-            {
-              keyinfo->ftparser_nr= info->s->keyinfo[j].ftparser_nr;
-              break;
-            }
-          }
-        }
-      }
-      info->s->ftparsers= ftparsers;
-    }
-    /*
-      We have to allocate two MYSQL_FTPARSER_PARAM structures per plugin
-      because in a boolean search a parser is called recursively
-      ftb_find_relevance* calls ftb_check_phrase*
-      (MAX_PARAM_NR=2)
-    */
-    info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
-      my_malloc(MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
-                info->s->ftparsers, MYF(MY_WME|MY_ZEROFILL));
-    init_alloc_root(&info->ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
-    if (! info->ftparser_param)
-      return 0;
-  }
+  
+  if (!maria_ftparser_alloc_param(info))
+    return 0;
+
   if (keynr == NO_SUCH_KEY)
   {
     ftparser_nr= 0;
@@ -386,7 +366,7 @@ MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info,
   }
   else
   {
-    ftparser_nr= info->s->keyinfo[keynr].ftparser_nr;
+    ftparser_nr= info->s->keyinfo[keynr].ftkey_nr;
     parser= info->s->keyinfo[keynr].parser;
   }
   DBUG_ASSERT(paramnr < MAX_PARAM_NR);
@@ -419,7 +399,7 @@ void maria_ftparser_call_deinitializer(MARIA_HA *info)
     for (j=0; j < MAX_PARAM_NR; j++)
     {
       MYSQL_FTPARSER_PARAM *ftparser_param=
-        &info->ftparser_param[keyinfo->ftparser_nr*MAX_PARAM_NR + j];
+        &info->ftparser_param[keyinfo->ftkey_nr*MAX_PARAM_NR + j];
       if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word)
       {
         if (keyinfo->parser->deinit)

@@ -116,8 +116,12 @@ my $path_config_file;           # The generated config file, var/my.cnf
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 my $DEFAULT_SUITES= "binlog,federated,main,maria,ndb,rpl,rpl_ndb";
-my $opt_suites;
 
+our $opt_usage;
+our $opt_list_options;
+our $opt_suites;
+our $opt_suites_default= "main,backup,backup_engines,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
+our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
 our $exe_mysqladmin;
@@ -181,10 +185,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   300; # minutes
-my $opt_shutdown_timeout=    10; # seconds
-my $opt_start_timeout   =   180; # seconds
+my $opt_testcase_timeout=     15; # 15 minutes
+my $opt_suite_timeout   =    360; # 6 hours
+my $opt_shutdown_timeout=     10; # 10 seconds
+my $opt_start_timeout   =    180; # 180 seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -207,6 +211,7 @@ my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $opt_callgrind;
+my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
 
 our $opt_warnings= 1;
 
@@ -261,6 +266,11 @@ sub main {
        "mysql-5.1-telco-6.2-merge"      => "ndb_team",
        "mysql-5.1-telco-6.3"            => "ndb_team",
        "mysql-6.0-ndb"                  => "ndb_team",
+       "mysql-6.0-falcon"               => "falcon_team",
+       "mysql-6.0-falcon-team"          => "falcon_team",
+       "mysql-6.0-falcon-wlad"          => "falcon_team",
+       "mysql-6.0-falcon-chris"         => "falcon_team",
+       "mysql-6.0-falcon-kevin"         => "falcon_team",
       );
 
     foreach my $dir ( reverse splitdir($basedir) ) {
@@ -808,8 +818,8 @@ sub command_line_setup {
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
 
-             # Extra options used when starting mysqld
-             'mysqltest=s'                 => \@opt_extra_mysqltest_opt,
+             # Extra options used when starting mysqltest
+             'mysqltest=s'              => \@opt_extra_mysqltest_opt,
 
              # Run test on running server
              'extern=s'                  => \%opts_extern, # Append to hash
@@ -849,6 +859,7 @@ sub command_line_setup {
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
+	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
 	     # Directories
              'tmpdir=s'                 => \$opt_tmpdir,
@@ -1073,7 +1084,7 @@ sub command_line_setup {
   {
     $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
 
-    if (check_socket_path_length("$opt_tmpdir/testsocket.sock"))
+    if (check_socket_path_length("$opt_tmpdir/mysql_testsocket.sock"))
     {
       mtr_report("Too long tmpdir path '$opt_tmpdir'",
 		 " creating a shorter one...");
@@ -1560,6 +1571,18 @@ sub client_arguments ($) {
 }
 
 
+sub mysqlbinlog_arguments () {
+  my $exe= mtr_exe_exists("$path_client_bindir/mysqlbinlog");
+
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--local-load=%s", $opt_tmpdir);
+  client_debug_arg($args, "mysqlbinlog");
+  return mtr_args2str($exe, @$args);
+}
+
+
 sub mysqlslap_arguments () {
   my $exe= mtr_exe_maybe_exists("$path_client_bindir/mysqlslap");
   if ( $exe eq "" ) {
@@ -1617,6 +1640,24 @@ sub mysql_client_test_arguments(){
   client_debug_arg($args,"mysql_client_test");
 
   return mtr_args2str($exe, @$args);
+}
+
+sub tool_arguments ($$) {
+  my($sedir, $tool_name) = @_;
+  my $exe= my_find_bin($basedir,
+		       [$sedir, "bin"],
+		       $tool_name);
+
+  my $args;
+  mtr_init_args(\$args);
+  client_debug_arg($args, $tool_name);
+  return mtr_args2str($exe, @$args);
+}
+
+
+sub have_maria_support () {
+  my $maria_var= $mysqld_variables{'maria'};
+  return defined $maria_var and $maria_var eq 'TRUE';
 }
 
 
@@ -1804,7 +1845,7 @@ sub environment_setup {
   $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
   $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
-  $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
+  $ENV{'MYSQL_BINLOG'}=             mysqlbinlog_arguments();
   $ENV{'MYSQL'}=                    client_arguments("mysql");
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
@@ -1840,36 +1881,21 @@ sub environment_setup {
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
-  # Setup env so childs can execute myisampack and myisamchk
+  # myisam tools
   # ----------------------------------------------------
-  $ENV{'MYISAMCHK'}= native_path(mtr_exe_exists(
-                       vs_config_dirs('storage/myisam', 'myisamchk'),
-                       vs_config_dirs('myisam', 'myisamchk'),
-                       "$path_client_bindir/myisamchk",
-                       "$basedir/storage/myisam/myisamchk",
-                       "$basedir/myisam/myisamchk"));
-  $ENV{'MYISAMPACK'}= native_path(mtr_exe_exists(
-                        vs_config_dirs('storage/myisam', 'myisampack'),
-                        vs_config_dirs('myisam', 'myisampack'),
-                        "$path_client_bindir/myisampack",
-                        "$basedir/storage/myisam/myisampack",
-                        "$basedir/myisam/myisampack"));
+  $ENV{'MYISAMLOG'}= tool_arguments("storage/myisam", "myisamlog", );
+  $ENV{'MYISAMCHK'}= tool_arguments("storage/myisam", "myisamchk");
+  $ENV{'MYISAMPACK'}= tool_arguments("storage/myisam", "myisampack");
+  $ENV{'MYISAM_FTDUMP'}= tool_arguments("storage/myisam", "myisam_ftdump");
 
   # ----------------------------------------------------
-  # Setup env so childs can execute maria_pack and maria_chk
+  # maria tools
   # ----------------------------------------------------
-  $ENV{'MARIA_CHK'}= native_path(mtr_exe_maybe_exists(
-                       vs_config_dirs('storage/maria', 'maria_chk'),
-                       vs_config_dirs('maria', 'maria_chk'),
-                       "$path_client_bindir/maria_chk",
-                       "$basedir/storage/maria/maria_chk",
-                       "$basedir/maria/maria_chk"));
-  $ENV{'MARIA_PACK'}= native_path(mtr_exe_maybe_exists(
-                        vs_config_dirs('storage/maria', 'maria_pack'),
-                        vs_config_dirs('maria', 'maria_pack'),
-                        "$path_client_bindir/maria_pack",
-                        "$basedir/storage/maria/maria_pack",
-                        "$basedir/maria/maria_pack"));
+  if (have_maria_support())
+  {
+    $ENV{'MARIA_CHK'}= tool_arguments("storage/maria", "maria_chk");
+    $ENV{'MARIA_PACK'}= tool_arguments("storage/maria", "maria_pack");
+  }
 
   # ----------------------------------------------------
   # perror
@@ -2592,7 +2618,6 @@ sub mysql_install_db {
   mtr_report("Installing system database...");
 
   my $args;
-  my $cmd_args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
@@ -2604,15 +2629,8 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-maria");
   mtr_add_arg($args, "--disable-sync-frm");
   mtr_add_arg($args, "--loose-disable-debug");
-  mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
-
-  #
-  # Setup args for bootstrap.test
-  #
-  mtr_init_args(\$cmd_args);
-  mtr_add_arg($cmd_args, "--loose-skip-maria");
 
   if ( $opt_debug )
   {
@@ -2631,11 +2649,16 @@ sub mysql_install_db {
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 
+  # MASV add only to bootstrap.test
+  # Setup args for bootstrap.test
+  #
+  #mtr_init_args(\$cmd_args);
+  #mtr_add_arg($cmd_args, "--loose-skip-maria")
+
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args) .
-    " " . join(" ", @$cmd_args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
 
 
 
@@ -4015,6 +4038,11 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s", "--core-file");
   }
 
+  # Enable the debug sync facility, set default wait timeout.
+  # Facility stays disabled if timeout value is zero.
+  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
+              $opt_debug_sync_timeout);
+
   return $args;
 }
 
@@ -4087,7 +4115,17 @@ sub mysqld_start ($$) {
     # When both --valgrind and --debug is selected, send
     # all output to the trace file, making it possible to
     # see the exact location where valgrind complains
-    $output= "$opt_vardir/log/".$mysqld->name().".trace";
+
+    # Write a message about this to the normal log file
+    my $trace_name= "$opt_vardir/log/".$mysqld->name().".trace";
+    mtr_tofile($output,
+	       "NOTE: When running with --valgrind --debug the output from",
+	       "mysqld(where the valgrind messages shows up) is stored ",
+	       "together with the trace file to make it ",
+	       "easier to find the exact position of valgrind errors.",
+	       "See trace file $trace_name.\n");
+    $output= $trace_name;
+
   }
 
   if ( defined $exe )
@@ -4664,6 +4702,11 @@ sub start_mysqltest ($) {
     }
   }
 
+  foreach my $arg ( @opt_extra_mysqltest_opt )
+  {
+    mtr_add_arg($args, "%s", $arg);
+  }
+
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
@@ -5034,6 +5077,7 @@ Options for test case authoring
 Options that pass on options
 
   mysqld=ARGS           Specify additional arguments to "mysqld"
+  mysqltest=ARGS        Specify additional arguments to "mysqltest"
 
 Options to run test on running server
 
@@ -5116,11 +5160,14 @@ Misc options
                         to turn off.
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
+                        actions. Disable facility with NUM=0.
 
 HERE
   exit(1);
 
 }
+
 
 sub list_options ($) {
   my $hash= shift;

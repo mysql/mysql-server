@@ -59,6 +59,38 @@ nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
 #endif /* TARGET_OS_LINUX */
 
 
+
+/**
+  Initialize thread attributes.
+*/
+
+void my_threadattr_global_init(void)
+{
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "fast" a.k.a "adaptive"
+
+    In this case the thread may steal the mutex from some other thread
+    that is waiting for the same mutex.  This will save us some
+    context switches but may cause a thread to 'starve forever' while
+    waiting for the mutex (not likely if the code within the mutex is
+    short).
+  */
+  pthread_mutexattr_init(&my_fast_mutexattr);  /* ?= MY_MUTEX_INIT_FAST */
+  pthread_mutexattr_settype(&my_fast_mutexattr,
+                            PTHREAD_MUTEX_ADAPTIVE_NP);
+#endif
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "errorcheck"
+  */
+  pthread_mutexattr_init(&my_errorcheck_mutexattr);
+  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
+                            PTHREAD_MUTEX_ERRORCHECK);
+#endif
+}
+
+
 static uint get_thread_lib(void);
 
 /*

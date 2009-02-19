@@ -2230,7 +2230,11 @@ static my_bool protect_against_repair_crash(MARIA_HA *info,
                             FLUSH_FORCE_WRITE,
                             discard_index ? FLUSH_IGNORE_CHANGED :
                             FLUSH_FORCE_WRITE) ||
-      (share->changed && _ma_state_info_write(share, 1|2|4)))
+      (share->changed &&
+       _ma_state_info_write(share,
+                            MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                            MA_STATE_INFO_WRITE_FULL_INFO |
+                            MA_STATE_INFO_WRITE_LOCK)))
     return TRUE;
   /* In maria_chk this is not needed: */
   if (maria_multi_threaded && share->base.born_transactional)
@@ -2239,7 +2243,9 @@ static my_bool protect_against_repair_crash(MARIA_HA *info,
     {
       /* this can be true only for a transactional table */
       maria_mark_crashed_on_repair(info);
-      if (_ma_state_info_write(share, 1|4))
+      if (_ma_state_info_write(share,
+                               MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                               MA_STATE_INFO_WRITE_LOCK))
         return TRUE;
     }
     if (translog_status == TRANSLOG_OK &&
@@ -3702,7 +3708,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 
         Note, built-in parser is always nr. 0 - see ftparser_call_initializer()
       */
-      if (sort_param.keyinfo->ftparser_nr == 0)
+      if (sort_param.keyinfo->ftkey_nr == 0)
       {
         /*
           for built-in parser the number of generated index entries
@@ -4251,6 +4257,9 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   sort_param[0].master= 1;
   sort_param[0].fix_datafile= ! rep_quick;
   sort_param[0].calc_checksum= test(param->testflag & T_CALC_CHECKSUM);
+
+  if (!maria_ftparser_alloc_param(info))
+    goto err;
 
   sort_info.got_error=0;
   pthread_mutex_lock(&sort_info.mutex);
@@ -6013,7 +6022,9 @@ int maria_update_state_info(HA_CHECK *param, MARIA_HA *info,uint update)
       if (!share->state.create_time)
 	share->state.create_time= share->state.check_time;
     }
-    if (_ma_state_info_write(share, 1|2))
+    if (_ma_state_info_write(share,
+                             MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                             MA_STATE_INFO_WRITE_FULL_INFO))
       goto err;
     share->changed=0;
   }

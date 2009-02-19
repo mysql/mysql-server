@@ -322,6 +322,8 @@ err:
   fatal_error= 0;
   if (my_errno == HA_ERR_FOUND_DUPP_KEY ||
       my_errno == HA_ERR_RECORD_FILE_FULL ||
+      my_errno == HA_ERR_LOCK_DEADLOCK ||
+      my_errno == HA_ERR_LOCK_WAIT_TIMEOUT ||
       my_errno == HA_ERR_NULL_IN_SPATIAL ||
       my_errno == HA_ERR_OUT_OF_MEM)
   {

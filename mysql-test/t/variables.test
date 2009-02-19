@@ -6,7 +6,7 @@ drop table if exists t1,t2;
 --enable_warnings
 
 #
-# Bug #19263: variables.test doesn't clean up after itself (I/II -- save)
+# Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
 #
 set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_connect_timeout           =@@global.connect_timeout;
@@ -35,6 +35,8 @@ set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
+set @my_max_allowed_packet        =@@global.max_allowed_packet;
+set @my_delay_key_write           =@@global.delay_key_write;
 # case insensitivity tests (new in 5.0)
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -197,46 +199,46 @@ SELECT @@version_compile_os LIKE 'non-existent';
 
 # The following should give errors
 
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set big_tables=OFFF;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set big_tables="OFFF";
---error 1193
+--error ER_UNKNOWN_SYSTEM_VARIABLE
 set unknown_variable=1;
---error 1232
+--error ER_WRONG_TYPE_FOR_VAR
 set max_join_size="hello";
---error 1286
+--error ER_UNKNOWN_STORAGE_ENGINE
 set storage_engine=UNKNOWN_TABLE_TYPE;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set storage_engine=MERGE, big_tables=2;
 show local variables like 'storage_engine';
---error 1229
+--error ER_GLOBAL_VARIABLE
 set SESSION query_cache_size=10000;
---error 1230
+--error ER_NO_DEFAULT
 set GLOBAL storage_engine=DEFAULT;
---error 1115
+--error ER_UNKNOWN_CHARACTER_SET
 set character_set_client=UNKNOWN_CHARACTER_SET;
---error 1273
+--error ER_UNKNOWN_COLLATION
 set collation_connection=UNKNOWN_COLLATION;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set character_set_client=NULL;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set collation_connection=NULL;
---error 1228
+--error ER_LOCAL_VARIABLE
 set global autocommit=1;
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@global.timestamp;
---error 1238 
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR 
 set @@version='';
---error 1229
+--error ER_GLOBAL_VARIABLE
 set @@concurrent_insert=1;
---error 1228
+--error ER_LOCAL_VARIABLE
 set @@global.sql_auto_is_null=1;
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@global.sql_auto_is_null;
---error 1229
+--error ER_GLOBAL_VARIABLE
 set myisam_max_sort_file_size=100;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set @@SQL_WARNINGS=NULL;
 
 # Test setting all variables
@@ -367,23 +369,23 @@ drop table t1,t2;
 # error conditions
 #
 
---error 1193
+--error ER_UNKNOWN_SYSTEM_VARIABLE
 select @@xxxxxxxxxx;
 select 1;
 
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.key_buffer_size;
 
---error 1229
+--error ER_GLOBAL_VARIABLE
 set ft_boolean_syntax = @@init_connect;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global ft_boolean_syntax = @@init_connect;
---error 1229
+--error ER_GLOBAL_VARIABLE
 set init_connect = NULL;
 set global init_connect = NULL;
---error 1229
+--error ER_GLOBAL_VARIABLE
 set ft_boolean_syntax = @@init_connect;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global ft_boolean_syntax = @@init_connect;
 
 # Bug#3754 SET GLOBAL myisam_max_sort_file_size doesn't work as
@@ -416,15 +418,15 @@ select @a, @b;
 #
 # Bug#2586:Disallow global/session/local as structured var. instance names
 #
---error 1064
+--error ER_PARSE_ERROR
 set @@global.global.key_buffer_size= 1;
---error 1064
+--error ER_PARSE_ERROR
 set GLOBAL global.key_buffer_size= 1;
---error 1064
+--error ER_PARSE_ERROR
 SELECT @@global.global.key_buffer_size;
---error 1064
+--error ER_PARSE_ERROR
 SELECT @@global.session.key_buffer_size;
---error 1064
+--error ER_PARSE_ERROR
 SELECT @@global.local.key_buffer_size;
 
 # BUG#5135: cannot turn on log_warnings with SET in 4.1 (and 4.0)
@@ -515,27 +517,27 @@ select @@lc_time_names;
 --echo *** LC_TIME_NAMES: testing with string expressions
 set lc_time_names=concat('de','_','DE');
 select @@lc_time_names;
---error 1105
+--error ER_UNKNOWN_ERROR
 set lc_time_names=concat('de','+','DE');
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing with numeric expressions
 set @@lc_time_names=1+2;
 select @@lc_time_names;
---error 1232
+--error ER_WRONG_TYPE_FOR_VAR
 set @@lc_time_names=1/0;
 select @@lc_time_names;
 set lc_time_names=en_US;
 --echo LC_TIME_NAMES: testing NULL and a negative number:
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set lc_time_names=NULL;
---error 1105
+--error ER_UNKNOWN_ERROR
 set lc_time_names=-1;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing locale with the last ID:
 set lc_time_names=108;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing a number beyond the valid ID range:
---error 1105
+--error ER_UNKNOWN_ERROR
 set lc_time_names=109;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing that 0 is en_US:
@@ -577,7 +579,7 @@ select @@query_prealloc_size = @test;
 # Bug#31588 buffer overrun when setting variables
 #
 # Buffer-size Off By One. Should throw valgrind-warning without fix #31588.
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global sql_mode=repeat('a',80);
 
 --echo End of 4.1 tests
@@ -595,9 +597,9 @@ drop table t1;
 # Bug #10339: read only variables.
 #
 
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@warning_count=1;
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@global.error_count=1;
 
 #
@@ -615,9 +617,9 @@ select @@max_heap_table_size > 0;
 # Bug #11775 Variable character_set_system does not exist (sometimes)
 #
 select @@character_set_system;
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set global character_set_system = latin1;
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@global.version_compile_os='234';
 
 #
@@ -728,7 +730,7 @@ select @@@;
 # Don't actually output, since it depends on the system
 --replace_column 1 #
 select @@hostname;
---error 1238
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@hostname= "anothername";
 --replace_column 2 #
 show variables like 'hostname';
@@ -771,6 +773,7 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        = default;
+set global delay_key_write           =@my_delay_key_write;
 #
 # Bug#28580 Repeatation of status variables
 #

@@ -1504,12 +1504,15 @@ void show_diff(DYNAMIC_STRING* ds,
   /* determine if we have diff on Windows
      needs special processing due to return values
      on that OS
+     This test is only done on Windows since it's only needed there
+     in order to correctly detect non-availibility of 'diff', and
+     the way it's implemented does not work with default 'diff' on Solaris.
   */
 #ifdef __WIN__
   have_diff = diff_check();
 #else
   have_diff = 1;
-#endif  
+#endif
 
   if (have_diff)
   {
@@ -4574,7 +4577,7 @@ void select_connection(struct st_command *command)
 
 void do_close_connection(struct st_command *command)
 {
-  DBUG_ENTER("close_connection");
+  DBUG_ENTER("do_close_connection");
 
   struct st_connection *con;
   static DYNAMIC_STRING ds_connection;
@@ -4635,7 +4638,7 @@ void do_close_connection(struct st_command *command)
     var_set_int("$mysql_get_server_version", 0xFFFFFFFF);
     var_set_string("$CURRENT_CONNECTION", con->name);
   }
-
+  dynstr_free(&ds_connection);
   DBUG_VOID_RETURN;
 }
 

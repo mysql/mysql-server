@@ -50,4 +50,7 @@ ERROR 23000: Duplicate entry '4' for key 'a'
 unlock tables;
 ERROR 23000: Duplicate entry '5' for key 'a'
 unlock tables;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop table t1;

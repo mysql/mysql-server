@@ -438,7 +438,7 @@ int maria_rtree_get_first(MARIA_HA *info, uint keynr, uint key_length)
   info->maria_rtree_recursion_depth= -1;
   info->keyread_buff_used= 1;
 
-  return maria_rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
+  return maria_rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
 

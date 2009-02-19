@@ -4227,11 +4227,11 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
        @todo IO If page is contiguous with next page to flush, group flushes
        in one single my_pwrite().
     */
-    /*
+    /**
       It is important to use block->hash_link->file below and not 'file', as
-      the first one is right and the second may have different content (and
-      this matters for callbacks, bitmap pages and data pages have different
-      ones).
+      the first one is right and the second may have different out-of-date
+      content (see StaleFilePointersInFlush in ma_checkpoint.c).
+      @todo change argument of functions to be File.
     */
     error= pagecache_fwrite(pagecache, &block->hash_link->file,
                             block->buffer,

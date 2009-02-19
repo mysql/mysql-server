@@ -16,6 +16,7 @@ set SQL_LOG_BIN=0;
 --error 0,1193
 set debug="";
 
+
 use mtr;
 
 create temporary table error_log (

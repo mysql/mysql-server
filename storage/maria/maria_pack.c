@@ -302,7 +302,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2002 MySQL AB");
+  puts("Copyright 2002-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
@@ -3005,7 +3005,9 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   if (share->base.keys)
     isamchk_neaded=1;
   DBUG_RETURN(_ma_state_info_write_sub(share->kfile.file,
-                                       &share->state, (1 + 2)));
+                                       &share->state,
+                                       MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                                       MA_STATE_INFO_WRITE_FULL_INFO));
 }
 
 
@@ -3045,7 +3047,9 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   if (isam_file->s->base.keys)
     isamchk_neaded=1;
   state.changed=STATE_CHANGED | STATE_NOT_ANALYZED; /* Force check of table */
-  DBUG_RETURN (_ma_state_info_write_sub(file,&state,1+2));
+  DBUG_RETURN (_ma_state_info_write_sub(file, &state,
+                                        MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                                        MA_STATE_INFO_WRITE_FULL_INFO));
 }
 
 

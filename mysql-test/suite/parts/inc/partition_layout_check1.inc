@@ -36,7 +36,7 @@ let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
 #   the corresponding SELECT on the INFORMATION_SCHEMA
 # - SHOW CREATE TABLE .. cannot write its out put into a file like SELECT
 let $show_file= $MYSQLD_DATADIR/test/tmp1;
---exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $show_file 2>&1 || true
+--exec echo "SHOW CREATE TABLE t1; exit; " | $MYSQL_TEST > $show_file 2>&1
 if ($do_file_tests)
 {
   # List the files belonging to the table t1

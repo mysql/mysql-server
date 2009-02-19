@@ -807,15 +807,23 @@ static void print_deadlock_warning(safe_mutex_t *new_mutex,
   fprintf(stderr, "safe_mutex: Found wrong usage of mutex "
           "'%s' and '%s'\n",
           parent_mutex->name, new_mutex->name);
+  DBUG_PRINT("info", ("safe_mutex: Found wrong usage of mutex "
+                      "'%s' and '%s'",
+                      parent_mutex->name, new_mutex->name));
   fprintf(stderr, "Mutex currently locked (in reverse order):\n");
+  DBUG_PRINT("info", ("Mutex currently locked (in reverse order):"));
   fprintf(stderr, "%-32.32s  %s  line %u\n", new_mutex->name, new_mutex->file,
           new_mutex->line);
+  DBUG_PRINT("info", ("%-32.32s  %s  line %u\n", new_mutex->name,
+                      new_mutex->file, new_mutex->line));
   for (mutex_root= *my_thread_var_mutex_in_use() ;
        mutex_root;
        mutex_root= mutex_root->next)
   {
     fprintf(stderr, "%-32.32s  %s  line %u\n", mutex_root->name,
             mutex_root->file, mutex_root->line);
+    DBUG_PRINT("info", ("%-32.32s  %s  line %u", mutex_root->name,
+                        mutex_root->file, mutex_root->line));
   }
   fflush(stderr);
   DBUG_VOID_RETURN;

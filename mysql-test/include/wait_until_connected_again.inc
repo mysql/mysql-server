@@ -8,7 +8,7 @@
 --disable_result_log
 --disable_query_log
 let $counter= 5000;
-let $mysql_errno= 1;
+let $mysql_errno= 9999;
 while ($mysql_errno)
 {
   # Strangely enough, the server might return "Too many connections"

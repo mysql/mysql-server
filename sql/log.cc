@@ -1495,12 +1495,19 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(in_transaction),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (!in_transaction || all)
+  if (thd->options & OPTION_BIN_LOG)
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
-    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
-    error= binlog_end_trans(thd, trx_data, &qev, all);
-    goto end;
+    if (!in_transaction || all)
+    {
+      Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+      qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+      error= binlog_end_trans(thd, trx_data, &qev, all);
+      goto end;
+    }
+  }
+  else
+  {
+    trx_data->reset();
   }
 
 end:

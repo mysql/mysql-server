@@ -325,7 +325,7 @@ int Item::save_time_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_time(&ltime))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_TIME);
 }
@@ -335,7 +335,7 @@ int Item::save_date_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
@@ -2083,6 +2083,12 @@ bool Item_field::val_bool_result()
     DBUG_ASSERT(0);
     return 0;                                   // Shut up compiler
   }
+}
+
+
+bool Item_field::is_null_result()
+{
+  return (null_value=result_field->is_null());
 }
 
 
@@ -5796,6 +5802,15 @@ double Item_ref::val_result()
 }
 
 
+bool Item_ref::is_null_result()
+{
+  if (result_field)
+    return (null_value=result_field->is_null());
+
+  return is_null();
+}
+
+
 longlong Item_ref::val_int_result()
 {
   if (result_field)
@@ -5901,7 +5916,9 @@ String *Item_ref::val_str(String* tmp)
 bool Item_ref::is_null()
 {
   DBUG_ASSERT(fixed);
-  return (*ref)->is_null();
+  bool tmp=(*ref)->is_null_result();
+  null_value=(*ref)->null_value;
+  return tmp;
 }
 
 

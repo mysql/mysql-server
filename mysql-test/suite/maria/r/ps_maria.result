@@ -1,4 +1,3 @@
-set global maria_log_file_size=4294967295;
 use test;
 drop table if exists t1, t9 ;
 create table t1

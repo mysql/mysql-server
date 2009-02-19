@@ -4992,6 +4992,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 				dst_path); /* purecov: inspected */
       goto err;     /* purecov: inspected */
     }
+    thd->thread_specific_used= TRUE;
   }
   else if (err)
   {
@@ -7174,7 +7175,9 @@ err_with_placeholders:
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(TRUE);
 }
-/* mysql_alter_table */
+
+
+/* Copy all rows from one table to another */
 
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
@@ -7188,7 +7191,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 {
   int error= 1, errpos= 0;
   Copy_field *copy= NULL, *copy_end;
-  ulong found_count= 0, delete_count= 0;
+  ha_rows found_count= 0, delete_count= 0;
   THD *thd= current_thd;
   uint length= 0;
   SORT_FIELD *sortorder;

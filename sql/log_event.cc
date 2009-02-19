@@ -5947,8 +5947,15 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
-/*
+/**
   Create_file_log_event::do_apply_event()
+  Constructor for Create_file_log_event to intantiate an event
+  from the relay log on the slave.
+
+  @retval
+    0           Success
+  @retval
+    1           Failure
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
@@ -6017,7 +6024,7 @@ err:
   if (fd >= 0)
     my_close(fd, MYF(0));
   thd_proc_info(thd, 0);
-  return error == 0;
+  return error != 0;
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 

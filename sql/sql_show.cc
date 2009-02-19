@@ -1003,6 +1003,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
   */
   has_now_default= table->timestamp_field == field &&
     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
+    
   has_default= (field_type != FIELD_TYPE_BLOB &&
                 !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
                 field->unireg_check != Field::NEXT_NUMBER &&

@@ -192,7 +192,9 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
     safe_mutex_assert_owner(&share->intern_lock);
     error= (maria_enable_indexes(tbl_info) ||
             /* we enabled indices, need '2' below */
-            _ma_state_info_write(share, 1|2));
+            _ma_state_info_write(share,
+                                 MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
+                                 MA_STATE_INFO_WRITE_FULL_INFO));
     /* no need for _ma_reset_status(): REDO_DELETE_ALL is just before us */
     break;
   default:

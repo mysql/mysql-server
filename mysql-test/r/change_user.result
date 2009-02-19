@@ -50,3 +50,5 @@ IS_FREE_LOCK('bug31418')
 SELECT IS_USED_LOCK('bug31418');
 IS_USED_LOCK('bug31418')
 NULL
+FLUSH STATUS;
+Value of com_select did not change

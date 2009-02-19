@@ -93,6 +93,7 @@ sub init_pattern {
 
 sub collect_test_cases ($$) {
   my $suites= shift; # Semicolon separated list of test suites
+  my %found_suites;
   my $opt_cases= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
@@ -102,6 +103,7 @@ sub collect_test_cases ($$) {
   foreach my $suite (split(",", $suites))
   {
     push(@$cases, collect_one_suite($suite, $opt_cases));
+    $found_suites{$suite}= 1;
   }
 
   if ( @$opt_cases )
@@ -113,6 +115,12 @@ sub collect_test_cases ($$) {
     {
       my $found= 0;
       my ($sname, $tname, $extension)= split_testname($test_name_spec);
+      if (defined($sname) && !defined($found_suites{$sname}))
+      {
+	$found_suites{$sname}= 1;
+	push(@$cases, collect_one_suite($sname));
+      }
+
       foreach my $test ( @$cases )
       {
 	# test->{name} is always in suite.name format
@@ -572,6 +580,36 @@ sub optimize_cases {
 	  if ( $default_engine =~ /^innodb/i );
       }
     }
+
+      # =======================================================
+      # Check that engine selected by
+      # --default-storage-engine=<engine> is supported
+      # =======================================================
+      my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+
+      foreach my $opt ( @{$tinfo->{master_opt}} ) {
+      my $default_engine=
+        mtr_match_prefix($opt, "--default-storage-engine=");
+
+      if (defined $default_engine){
+
+
+        my $engine_value= $::mysqld_variables{$default_engine};
+
+        if ( ! exists $::mysqld_variables{$default_engine} and
+             ! exists $builtin_engines{$default_engine} )
+        {
+          $tinfo->{'skip'}= 1;
+          $tinfo->{'comment'}=
+            "'$default_engine' not supported";
+        }
+
+        $tinfo->{'ndb_test'}= 1
+          if ( $default_engine =~ /^ndb/i );
+        $tinfo->{'innodb_test'}= 1
+          if ( $default_engine =~ /^innodb/i );
+      }
+    }
   }
 }
 
@@ -643,6 +681,7 @@ sub process_opts_file {
     }
   }
 }
+
 
 ##############################################################################
 #
@@ -838,14 +877,14 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need 'big-test' option";
+    $tinfo->{'comment'}= "Test needs 'big-test' option";
     return $tinfo
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need debug binaries";
+    $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
 
@@ -908,7 +947,7 @@ sub collect_one_test_case {
     if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test need binlog";
+      $tinfo->{'comment'}= "Test needs binlog";
       return $tinfo;
     }
   }

@@ -4,6 +4,11 @@
 
 -- source include/not_embedded.inc
 
+#
+# Produce output
+#
+
+select 1;
 
 # The following fails sporadically because 'check-testcase' runs
 # queries before this test and there is no way to guarantee that any
@@ -30,46 +35,5 @@
 #--replace_column 1 number 6 time 3 localhost
 #execute stmt1;
 #deallocate prepare stmt1;
-
-
-
-#
-# Bug#31222: com_% global status counters behave randomly with
-# mysql_change_user.
-#
-# Moved from change_user.test due to Bug#34517: SHOW GLOBAL STATUS does not
-# work properly in embedded server.
-#
-# TODO: move it back when Bug#34517 is fixed.
-#
-
-FLUSH STATUS;
-
---disable_result_log
---disable_query_log
-
-let $i = 100;
-
-while ($i)
-{
-  dec $i;
-
-  SELECT 1;
-}
-
---enable_query_log
---enable_result_log
-
-let $before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
-
---change_user
-
-let $after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
-
-if (`select $after != $before`){
-  SHOW GLOBAL STATUS LIKE 'com_select';
-  die The value of com_select changed during change_user;
-}
-echo Value of com_select did not change;
 
 # End of 5.1 tests

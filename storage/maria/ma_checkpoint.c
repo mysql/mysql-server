@@ -368,7 +368,9 @@ static void flush_all_tables(int what_to_flush)
                                    FLUSH_KEEP, FLUSH_KEEP);
         break;
       case 1:
-        res= _ma_state_info_write(info->s, 1|4);
+        res= _ma_state_info_write(info->s,
+                                  MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET|
+                                  MA_STATE_INFO_WRITE_LOCK);
         DBUG_PRINT("maria_flush_states",
                    ("is_of_horizon: LSN (%lu,0x%lx)",
                     LSN_IN_PARTS(info->s->state.is_of_horizon)));
@@ -651,6 +653,14 @@ pthread_handler_t ma_checkpoint_background(void *arg)
             We use FLUSH_KEEP_LAZY: if a file is already in flush, it's
             smarter to move to the next file than wait for this one to be
             completely flushed, which may take long.
+            StaleFilePointersInFlush: notice how below we use "dfile" which
+            is an OS file descriptor plus some function and MARIA_SHARE
+            pointers; this data dates from a previous checkpoint; since then,
+            the table may have been closed (so MARIA_SHARE* became stale), and
+            the file descriptor reassigned to another table which does not
+            have the same CRC-read-set callbacks: it is thus important that
+            flush_pagecache_blocks_with_filter() does not use the pointers,
+            only the OS file descriptor.
           */
           int res=
             flush_pagecache_blocks_with_filter(maria_pagecache,
@@ -1046,7 +1056,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           state_copies_horizon;
         if (kfile.file >= 0)
           sync_error|=
-            _ma_state_info_write_sub(kfile.file, &state_copy->state, 1);
+            _ma_state_info_write_sub(kfile.file, &state_copy->state,
+                                     MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET);
         /*
           We don't set share->changed=0 because it may interfere with a
           concurrent _ma_writeinfo() doing share->changed=1 (cancel its

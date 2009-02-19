@@ -75,7 +75,7 @@
  *        (the logic is - think of a call stack as of a path.
  *        "function" means only this function, "function/" means the hierarchy.
  *        in the future, filters like function1/function2 could be supported.
- *        wildcards are a natural extension too: * and ?)
+ *        following this logic glob(7) wildcards are supported.)
  *
  */
 
@@ -88,6 +88,13 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
+
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#else
+#define fnmatch(A,B,C) strcmp(A,B)
+#endif
+
 #if defined(MSDOS) || defined(__WIN__)
 #include <process.h>
 #endif
@@ -1451,7 +1458,9 @@ next:
     {
       if (!strncmp((*cur)->str, start, len))
       {
-        if (todo == EXCLUDE)
+        if ((*cur)->flags & todo)  /* same action ? */
+          (*cur)->flags|= subdir;  /* just merge the SUBDIR flag */
+        else if (todo == EXCLUDE)
         {
           struct link *delme=*cur;
           *cur=(*cur)->next_link;
@@ -1545,7 +1554,7 @@ static int InList(struct link *linkp, const char *cp)
 
   for (result=MATCHED; linkp != NULL; linkp= linkp->next_link)
   {
-    if (!strcmp(linkp->str, cp))
+    if (!fnmatch(linkp->str, cp, 0))
       return linkp->flags;
     if (!(linkp->flags & EXCLUDE))
       result=NOT_MATCHED;

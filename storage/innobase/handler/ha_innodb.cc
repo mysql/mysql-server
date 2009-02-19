@@ -128,7 +128,7 @@ static my_bool	innobase_file_per_table			= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
-static my_bool innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_adaptive_hash_index	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -461,7 +461,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(!srv_thread_concurrency)) {
+	if (UNIV_LIKELY(!trx->declared_to_be_inside_innodb)) {
 
 		return;
 	}
@@ -1716,8 +1716,6 @@ innobase_init(
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
-	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
-
 	srv_use_adaptive_hash_indexes =
 		(ibool) innobase_adaptive_hash_index;
 
@@ -2520,6 +2518,8 @@ retry:
 	prebuilt = row_create_prebuilt(ib_table);
 
 	prebuilt->mysql_row_len = table->s->reclength;
+	prebuilt->default_rec = table->s->default_values;
+	ut_ad(prebuilt->default_rec);
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 
@@ -3697,7 +3697,7 @@ no_commit:
 
 			/* We don't want to mask autoinc overflow errors. */
 			if (prebuilt->autoinc_error != DB_SUCCESS) {
-				error = prebuilt->autoinc_error;
+				error = (int) prebuilt->autoinc_error;
 
 				goto report_error;
 			}
@@ -4139,7 +4139,8 @@ ha_innobase::unlock_row(void)
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+		    && prebuilt->trx->isolation_level
+		    != TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -5986,7 +5987,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (srv_stats_on_metadata) {
+		if (innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -6034,11 +6035,13 @@ ha_innobase::info(
 			n_rows++;
 		}
 
-		/* Fix bug#29507: TRUNCATE shows too many rows affected.
-		Do not show the estimates for TRUNCATE command. */
+		/* Fix bug#40386: Not flushing query cache after truncate.
+		n_rows can not be 0 unless the table is empty, set to 1
+		instead. The original problem of bug#29507 is actually
+		fixed in the server code. */
 		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
 
-			n_rows = 0;
+			n_rows = 1;
 
 			/* We need to reset the prebuilt value too, otherwise
 			checks for values greater than the last value written
@@ -8246,7 +8249,7 @@ static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
+  PLUGIN_VAR_OPCMDARG,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
