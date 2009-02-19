@@ -1649,6 +1649,24 @@ DROP TABLE t1,t2;
 
 
 --echo #
+--echo # Bug#33550 mysqldump 4.0 compatibility broken
+--echo #
+
+SET NAMES utf8;
+CREATE TABLE `straße` ( f1 INT );
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
+DROP TABLE `straße`;
+
+CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ( f1 INT );
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test
+--error 2
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
+DROP TABLE `כדשגכחךלדגכחשךדגחכךלדגכ`;
+SET NAMES latin1;
+
+
+--echo #
 --echo # End of 5.0 tests
 --echo #
 
