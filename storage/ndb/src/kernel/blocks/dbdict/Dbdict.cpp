@@ -15922,6 +15922,15 @@ Dbdict::createObj_prepare_complete_done(Signal* signal,
 void
 Dbdict::createObj_commit(Signal * signal, SchemaOp * op)
 {
+  if (ERROR_INSERTED(6016))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   OpCreateObj * createObj = (OpCreateObj*)op;
 
   createObj->m_callback.m_callbackFunction = 
@@ -17000,6 +17009,15 @@ Dbdict::execCREATE_FILE_CONF(Signal* signal)
 void
 Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op)
 {
+  if (ERROR_INSERTED(6017))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   /**
    * CONTACT TSMAN LGMAN PGMAN 
    */
