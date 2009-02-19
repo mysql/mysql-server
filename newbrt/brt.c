@@ -3337,7 +3337,7 @@ static int
 brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor);
 
 // the number of nodes to prefetch
-#define TOKU_DO_PREFETCH 1
+#define TOKU_DO_PREFETCH 2
 #if TOKU_DO_PREFETCH
 
 static void
