@@ -120,7 +120,8 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   m_log_waiter_pool.wo_pool_init(RT_LGMAN_LOG_WAITER, pc);
   m_file_pool.init(RT_LGMAN_FILE, pc);
   m_logfile_group_pool.init(RT_LGMAN_FILEGROUP, pc);
-  m_data_buffer_pool.setSize(10);
+  // 10 -> 150M
+  m_data_buffer_pool.setSize(40);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -924,8 +925,18 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 	Buffer_idx range;
 	range.m_ptr_i= ptrI;
 	range.m_idx = cnt;
-	
-	ndbrequire(map.append((Uint32*)&range, 2));
+        
+	if (map.append((Uint32*)&range, 2) == false)
+        {
+          /**
+           * Failed to append page-range...
+           *   jump out of alloc routine
+           */
+          jam();
+          m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, 
+                                   range.m_ptr_i, range.m_idx);
+          break;
+        }
 	pages -= range.m_idx;
       }
       else
