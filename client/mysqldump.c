@@ -1129,7 +1129,8 @@ static int connect_to_db(char *host, char *user,char *passwd)
     DB_error(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);
   }
-  if (mysql_get_server_version(&mysql_connection) < 40100)
+  if ((mysql_get_server_version(&mysql_connection) < 40100) ||
+      (opt_compatible_mode & 3))
   {
     /* Don't dump SET NAMES with a pre-4.1 server (bug#7997).  */
     opt_set_charset= 0;
@@ -1857,11 +1858,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       row= mysql_fetch_row(result);
 
-      fprintf(sql_file,
-              "SET @saved_cs_client     = @@character_set_client;\n"
-              "SET character_set_client = utf8;\n"
+      fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
+              "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
+              "/*!40101 SET character_set_client = utf8 */;\n"
               "%s;\n"
-              "SET character_set_client = @saved_cs_client;\n",
+              "/*!40101 SET character_set_client = @saved_cs_client */;\n",
               row[1]);
 
       check_io(sql_file);
