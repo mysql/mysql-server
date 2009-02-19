@@ -57,6 +57,7 @@ select * from t2 order by a limit 3;
 --source include/ndb_backup_id.inc
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
+# now make a backup with explicit id to restore the backup id after initial start
 --inc $the_backup_id
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
@@ -84,6 +85,7 @@ reset master;
 --source include/ndb_backup_id.inc
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
+# now make a backup with explicit id to restore the backup id after initial start
 --inc $the_backup_id
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
