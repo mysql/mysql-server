@@ -353,7 +353,7 @@ mem_area_alloc(
 
 	/* If we are using os allocator just make a simple call
 	to malloc */
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		return(malloc(*psize));
 	}
 
@@ -491,7 +491,7 @@ mem_area_free(
 	ulint		size;
 	ulint		n;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		free(ptr);
 
 		return;

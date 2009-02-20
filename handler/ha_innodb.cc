@@ -9699,7 +9699,7 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
 static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Use OS memory allocator instead of InnoDB's internal memory allocator",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,

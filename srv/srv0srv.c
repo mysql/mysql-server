@@ -161,7 +161,7 @@ collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
 /* use os/external memory allocator */
-UNIV_INTERN my_bool	srv_use_sys_malloc	= FALSE;
+UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* previously requested size */
