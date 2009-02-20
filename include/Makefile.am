@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
+BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources dtrace_sources
 HEADERS_GEN_CONFIGURE =		mysql_version.h
 HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
@@ -69,10 +69,20 @@ my_config.h: config.h
 dist-hook:
 	$(RM) -f $(distdir)/mysql_version.h $(distdir)/my_config.h
 
-DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = probes_mysql.d
 if HAVE_DTRACE
 BUILT_SOURCES += probes_mysql_dtrace.h
 CLEANFILES += probes_mysql_dtrace.h
+
+# Fake for creating the probes file. If we are building a separate directory
+# then we copy the probes from the source location and use that
+# If we are building in the same directory as the source, we do not copy
+
+dtrace_sources: 
+	if ! test -f probes_mysql.d ; then \
+		$(CP) -f $(top_srcdir)/include/probes_mysql.d probes_mysql.d; \
+	fi
+	echo timestamp > dtrace_sources
 
 probes_mysql_dtrace.h: $(DTRACEPROVIDER)
 	$(DTRACE) $(DTRACEFLAGS) -h -s $(DTRACEPROVIDER) -o $@
