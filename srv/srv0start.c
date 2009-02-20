@@ -1069,7 +1069,7 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		fprintf(stderr,
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}

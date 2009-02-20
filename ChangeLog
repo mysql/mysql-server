@@ -1,5 +1,10 @@
 2009-02-20	The InnoDB Team
 
+	* handler/ha_innodb.cc:
+	Make innodb_use_sys_malloc=ON the default.
+
+2009-02-20	The InnoDB Team
+
 	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
 	mysql-test/innodb-autoinc.test:
 	Fix Bug#42400 InnoDB autoinc code can't handle floating-point columns
