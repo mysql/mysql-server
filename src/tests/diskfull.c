@@ -136,7 +136,7 @@ static int write_count = 0;
 static int fail_at = FAIL_NEVER;
 
 static ssize_t
-pwrite_counting_and_failing (int fd, const void *buf, size_t size, off_t off)
+pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t off)
 {
     write_count++;
     if (write_count>fail_at) {

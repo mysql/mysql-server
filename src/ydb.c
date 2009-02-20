@@ -3686,7 +3686,7 @@ int db_env_set_func_fsync (int (*fsync_function)(int)) {
     return toku_set_func_fsync(fsync_function);
 }
 
-int db_env_set_func_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, off_t)) {
+int db_env_set_func_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, toku_off_t)) {
     return toku_set_func_pwrite(pwrite_function);
 }
 int db_env_set_func_write (ssize_t (*write_function)(int, const void *, size_t)) {
