@@ -69,7 +69,7 @@ my_config.h: config.h
 dist-hook:
 	$(RM) -f $(distdir)/mysql_version.h $(distdir)/my_config.h
 
-DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
 if HAVE_DTRACE
 BUILT_SOURCES += probes_mysql_dtrace.h
 CLEANFILES += probes_mysql_dtrace.h
@@ -79,7 +79,7 @@ probes_mysql_dtrace.h: $(DTRACEPROVIDER)
 endif
 
 probes_mysql_nodtrace.h: $(DTRACEPROVIDER)
-	$(abs_top_srcdir)/scripts/dheadgen.pl -f $(DTRACEPROVIDER) > $@
+	$(top_srcdir)/scripts/dheadgen.pl -f $(DTRACEPROVIDER) > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

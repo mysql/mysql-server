@@ -72,7 +72,7 @@ libarchive_a_LIBADD = probes_mysql.o
 libarchive_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
 DTRACEFILES = libarchive_a-ha_archive.o
-DTRACEPROVIDER = $(abs_top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
