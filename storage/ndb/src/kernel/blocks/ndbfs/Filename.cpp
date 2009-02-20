@@ -120,14 +120,14 @@ Filename::set(const BaseString basepath[],
     const Uint32 nodeId = FsOpenReq::v2_getNodeId(filenumber);
     const Uint32 count = FsOpenReq::v2_getCount(filenumber);
     
-    BaseString::snprintf(buf, sizeof(buf), "BACKUP%sBACKUP-%d%s",
+    BaseString::snprintf(buf, sizeof(buf), "BACKUP%sBACKUP-%u%s",
 	     DIR_SEPARATOR, seq, DIR_SEPARATOR); 
     strcat(theName, buf);
     if(count == 0xffffffff) {
-      BaseString::snprintf(buf, sizeof(buf), "BACKUP-%d.%d",
+      BaseString::snprintf(buf, sizeof(buf), "BACKUP-%u.%d",
 	       seq, nodeId); strcat(theName, buf);
     } else {
-      BaseString::snprintf(buf, sizeof(buf), "BACKUP-%d-%d.%d",
+      BaseString::snprintf(buf, sizeof(buf), "BACKUP-%u-%d.%d",
 	       seq, count, nodeId); strcat(theName, buf);
     }
     break;
