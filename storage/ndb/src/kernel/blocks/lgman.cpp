@@ -120,7 +120,8 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   m_log_waiter_pool.wo_pool_init(RT_LGMAN_LOG_WAITER, pc);
   m_file_pool.init(RT_LGMAN_FILE, pc);
   m_logfile_group_pool.init(RT_LGMAN_FILEGROUP, pc);
-  m_data_buffer_pool.setSize(10);
+  // 10 -> 150M
+  m_data_buffer_pool.setSize(40);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -191,11 +192,13 @@ Lgman::execCONTINUEB(Signal* signal){
     Ptr<Logfile_group> ptr;
     if(ptrI != RNIL)
     {
+      jam();
       m_logfile_group_pool.getPtr(ptr, ptrI);
       find_log_head(signal, ptr);
     }
     else
     {
+      jam();
       init_run_undo_log(signal);
     }
     return;
@@ -930,8 +933,18 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 	Buffer_idx range;
 	range.m_ptr_i= ptrI;
 	range.m_idx = cnt;
-	
-	ndbrequire(map.append((Uint32*)&range, 2));
+        
+	if (map.append((Uint32*)&range, 2) == false)
+        {
+          /**
+           * Failed to append page-range...
+           *   jump out of alloc routine
+           */
+          jam();
+          m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, 
+                                   range.m_ptr_i, range.m_idx);
+          break;
+        }
 	pages -= range.m_idx;
       }
       else
@@ -2487,12 +2500,26 @@ Lgman::init_run_undo_log(Signal* signal)
   Logfile_group_list& list= m_logfile_group_list;
   Logfile_group_list tmp(m_logfile_group_pool);
 
+  bool found_any = false;
+
   list.first(group);
   while(!group.isNull())
   {
     Ptr<Logfile_group> ptr= group;
     list.next(group);
     list.remove(ptr);
+
+    if (ptr.p->m_state & Logfile_group::LG_ONLINE)
+    {
+      /**
+       * No logfiles in group
+       */
+      jam();
+      tmp.addLast(ptr);
+      continue;
+    }
+    
+    found_any = true;
 
     {
       /**
@@ -2536,6 +2563,17 @@ Lgman::init_run_undo_log(Signal* signal)
   }
   list = tmp;
 
+  if (found_any == false)
+  {
+    /**
+     * No logfilegroup had any logfiles
+     */
+    jam();
+    signal->theData[0] = reference();
+    sendSignal(DBLQH_REF, GSN_START_RECCONF, signal, 1, JBB);
+    return;
+  }
+  
   execute_undo_record(signal);
 }
 
