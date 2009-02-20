@@ -1,5 +1,5 @@
 #
-# Simple test for the erroneos create statements using the 
+# Simple test for the erroneos statements using the 
 # partition storage engine
 #
 -- source include/have_partition.inc
@@ -7,6 +7,19 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
+ 
+#
+# Bug#38719: Partitioning returns a different error code for a
+# duplicate key error
+CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a));
+-- error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1),(1);
+DROP TABLE t1;
+CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a))
+PARTITION BY KEY (a) PARTITIONS 2;
+-- error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1),(1);
+DROP TABLE t1;
 
 #
 # Bug#31931: Mix of handlers error message

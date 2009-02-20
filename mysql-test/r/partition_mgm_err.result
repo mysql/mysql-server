@@ -25,13 +25,13 @@ ALTER TABLE t1 DROP PARTITION x10, x1, x2, x3;
 ERROR HY000: Error in list of partitions to DROP
 ALTER TABLE t1 REORGANIZE PARTITION x0,x1,x2,x3,x4,x5,x6,x7,x8,x9,x10 INTO
 (PARTITION x11 VALUES LESS THAN (22));
-ERROR HY000: More partitions to reorganise than there are partitions
+ERROR HY000: More partitions to reorganize than there are partitions
 ALTER TABLE t1 REORGANIZE PARTITION x0,x1,x2 INTO
 (PARTITION x3 VALUES LESS THAN (6));
 ERROR HY000: Duplicate partition name x3
 ALTER TABLE t1 REORGANIZE PARTITION x0, x2 INTO
 (PARTITION x11 VALUES LESS THAN (2));
-ERROR HY000: When reorganising a set of partitions they must be in consecutive order
+ERROR HY000: When reorganizing a set of partitions they must be in consecutive order
 ALTER TABLE t1 REORGANIZE PARTITION x0, x1, x1 INTO
 (PARTITION x11 VALUES LESS THAN (4));
 ERROR HY000: Error in list of partitions to REORGANIZE
