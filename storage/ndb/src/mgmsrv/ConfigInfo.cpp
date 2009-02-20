@@ -1602,6 +1602,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     UNDEFINED,
     0, 0 },
 
+  {
+    CFG_DB_LCP_TRY_LOCK_TIMEOUT,
+    "MaxLCPStartDelay",
+    DB_TOKEN,
+    "Time in seconds that LCP will poll for checkpoint mutex, before putting it self in lock-queue",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "600" },
+
   /***************************************************************************
    * API
    ***************************************************************************/

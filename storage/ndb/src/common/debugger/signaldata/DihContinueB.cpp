@@ -192,6 +192,14 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
     fprintf(output, " Wait drop tab FailedNodeId: %d TableId: %d\n", 
 	    theData[1], theData[2]);
     return true;
+  case DihContinueB::ZLCP_TRY_LOCK:
+    fprintf(output, " Lcp trylock: attempt %u\n",
+            theData[1]);
+    break;
+  case DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX:
+    fprintf(output, " Delay release fragment-info mutex (handle: 0x%x)",
+            theData[1]);
+    break;
   default:
     fprintf(output, " Default system error lab...\n");
     break;
