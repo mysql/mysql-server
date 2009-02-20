@@ -882,7 +882,7 @@ BackupFile::setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path){
   m_expectedFileHeader.FileType = BackupFormat::CTL_FILE;
 
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  BaseString::snprintf(name, sz, "BACKUP-%d.%d.ctl", backupId, nodeId);  
+  BaseString::snprintf(name, sz, "BACKUP-%u.%d.ctl", backupId, nodeId);  
   setName(path, name);
 }
 
@@ -893,7 +893,7 @@ BackupFile::setDataFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::DATA_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  BaseString::snprintf(name, sz, "BACKUP-%d-%d.%d.Data", 
+  BaseString::snprintf(name, sz, "BACKUP-%u-%d.%d.Data", 
 	   m_expectedFileHeader.BackupId, no, m_nodeId);
   setName(bf.m_path, name);
 }
@@ -905,7 +905,7 @@ BackupFile::setLogFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::LOG_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  BaseString::snprintf(name, sz, "BACKUP-%d.%d.log", 
+  BaseString::snprintf(name, sz, "BACKUP-%u.%d.log", 
 	   m_expectedFileHeader.BackupId, m_nodeId);
   setName(bf.m_path, name);
 }
