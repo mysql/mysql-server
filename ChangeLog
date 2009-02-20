@@ -40,11 +40,10 @@
 2009-02-10	The InnoDB Team
 
 	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
-	include/buf0buf.ic, include/os0sync.h, include/os0sync.ic,
-	include/srv0srv.h, include/sync0rw.h, include/sync0rw.ic,
-	include/sync0sync.h, include/sync0sync.ic, include/univ.i,
-	row/row0sel.c, srv/srv0srv.c, srv/srv0start.c, sync/sync0arr.c,
-	sync/sync0rw.c, sync/sync0sync.c:
+	include/buf0buf.ic, include/os0sync.h, include/srv0srv.h,
+	include/sync0rw.h, include/sync0rw.ic, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, row/row0sel.c, srv/srv0srv.c,
+	srv/srv0start.c, sync/sync0arr.c, sync/sync0rw.c, sync/sync0sync.c:
 	On those platforms that support it, implement the synchronization
 	primitives of InnoDB mutexes and read/write locks with GCC atomic
 	builtins instead of Pthreads mutexes and InnoDB mutexes. These changes
