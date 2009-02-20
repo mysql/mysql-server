@@ -61,6 +61,7 @@ void Dbdih::initData()
 
   cgcpOrderBlocked = 0;
   c_lcpState.ctcCounter = 0;
+  c_lcpState.m_lcp_trylock_timeout = 0;
   cwaitLcpSr       = false;
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
