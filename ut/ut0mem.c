@@ -92,7 +92,7 @@ ut_malloc_low(
 	ulint	retry_count;
 	void*	ret;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		ret = malloc(n);
 		ut_a(ret || !assert_on_error);
 
@@ -275,7 +275,7 @@ ut_free(
 {
 	ut_mem_block_t* block;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		free(ptr);
 		return;
 	}
@@ -332,7 +332,7 @@ ut_realloc(
 	ulint		min_size;
 	void*		new_ptr;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		return(realloc(ptr, size));
 	}
 
