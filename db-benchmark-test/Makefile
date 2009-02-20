@@ -45,7 +45,7 @@ build: $(TARGETS)
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-xfast check-x check-no-rolltmp
+check: check-default check-xfast check-x check-no-rolltmp check-4G
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
@@ -65,6 +65,12 @@ check-xfast: $(TARGET_TDB)
 # A relatively fast test that detects #853 (don't log changes to a dictionary created in the same txn)
 check-no-rolltmp: $(TARGET_TDB)
 	./$(TARGET_TDB) $(VERBVERBOSE) --env no-rolltmp.dir --singlex --nolog --check_small_rolltmp $(SUMMARIZE_CMD)
+
+# Check to make sure that if we make a file that's bigger than 4GB that we can read the file back out and get all the rows.
+check-4G: $(TARGET_TDB)  $(SCANSCAN_TDB)
+	$(TARGET_TDB) -q --env 4g.dir --norandom --compressibility 1 --valsize 10000 1
+	$(SCANSCAN_TDB) --env 4g.dir --lwc --prelock --prelockflag --nox > 4g.out
+	fgrep "(5242880 rows)" 4g.out
 
 clean:
 	rm -f $(TARGETS)
