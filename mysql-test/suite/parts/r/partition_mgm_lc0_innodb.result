@@ -93,11 +93,11 @@ TableA	CREATE TABLE `TableA` (
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB,Partc INTO
 (PARTITION PARTA ,
 PARTITION partc );
-ERROR HY000: REORGANISE PARTITION can only be used to reorganise partitions not to change their numbers
+ERROR HY000: REORGANIZE PARTITION can only be used to reorganize partitions not to change their numbers
 ALTER TABLE TableA REORGANIZE PARTITION parta,Partc INTO
 (PARTITION partB ,
 PARTITION parta );
-ERROR HY000: When reorganising a set of partitions they must be in consecutive order
+ERROR HY000: When reorganizing a set of partitions they must be in consecutive order
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB INTO
 (PARTITION partB  COMMENT="Previusly named parta",
 PARTITION parta  COMMENT="Previusly named partB");
@@ -329,11 +329,11 @@ TableA	CREATE TABLE `TableA` (
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB,Partc INTO
 (PARTITION PARTA ,
 PARTITION partc );
-ERROR HY000: REORGANISE PARTITION can only be used to reorganise partitions not to change their numbers
+ERROR HY000: REORGANIZE PARTITION can only be used to reorganize partitions not to change their numbers
 ALTER TABLE TableA REORGANIZE PARTITION parta,Partc INTO
 (PARTITION partB ,
 PARTITION parta );
-ERROR HY000: When reorganising a set of partitions they must be in consecutive order
+ERROR HY000: When reorganizing a set of partitions they must be in consecutive order
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB INTO
 (PARTITION partB  COMMENT="Previusly named parta",
 PARTITION parta  COMMENT="Previusly named partB");
@@ -559,7 +559,7 @@ TableA	CREATE TABLE `TableA` (
 ALTER TABLE TableA REORGANIZE PARTITION parta,Partc INTO
 (PARTITION partB VALUES LESS THAN (3) ,
 PARTITION parta VALUES LESS THAN (11) );
-ERROR HY000: When reorganising a set of partitions they must be in consecutive order
+ERROR HY000: When reorganizing a set of partitions they must be in consecutive order
 ALTER TABLE TableA REORGANIZE PARTITION partB,Partc,PartD,PartE INTO
 (PARTITION partD VALUES LESS THAN (8) 
 COMMENT="Previously partB and partly Partc",
@@ -793,7 +793,7 @@ PARTITION partF VALUES IN (3,9)
 COMMENT = "Mix 2 of old parta and Partc",
 PARTITION parta VALUES IN (4,8) 
 COMMENT = "Mix 3 of old parta and Partc");
-ERROR HY000: When reorganising a set of partitions they must be in consecutive order
+ERROR HY000: When reorganizing a set of partitions they must be in consecutive order
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB,Partc INTO
 (PARTITION Partc VALUES IN (1,7) 
 COMMENT = "Mix 1 of old parta and Partc",
