@@ -1518,6 +1518,9 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
       invalidate_table(thd, tables_used);
   }
 
+  DBUG_EXECUTE_IF("wait_after_query_cache_invalidate",
+                  debug_wait_for_kill("wait_after_query_cache_invalidate"););
+
   DBUG_VOID_RETURN;
 }
 
