@@ -5468,7 +5468,18 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
 
 restart_cluster_failure:
+  int have_injector_mutex_lock= 0;
   do_ndbcluster_binlog_close_connection= BCCC_exit;
+
+  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+  {
+    sql_print_error("Could not allocate Thd_ndb object");
+    ndb_binlog_thread_running= -1;
+    pthread_mutex_unlock(&injector_mutex);
+    pthread_cond_signal(&injector_cond);
+    goto err;
+  }
+
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       s_ndb->init())
   {
@@ -5579,6 +5590,18 @@ restart_cluster_failure:
            (ndb_binlog_running && !ndb_apply_status_share) ||
            !ndb_binlog_tables_inited)
     {
+      if (!thd_ndb->valid_ndb())
+      {
+        /*
+          Cluster has gone away before setup was completed.
+          Keep lock on injector_mutex to prevent further
+          usage of the injector_ndb, and restart binlog
+          thread to get rid of any garbage on the ndb objects
+        */
+        have_injector_mutex_lock= 1;
+        do_ndbcluster_binlog_close_connection= BCCC_restart;
+        goto err;
+      }
       /* ndb not connected yet */
       struct timespec abstime;
       set_timespec(abstime, 1);
@@ -5591,18 +5614,10 @@ restart_cluster_failure:
     }
     pthread_mutex_unlock(&injector_mutex);
 
-    if (thd_ndb == NULL)
-    {
-      DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
-      if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
-      {
-        sql_print_error("Could not allocate Thd_ndb object");
-        goto err;
-      }
-      set_thd_ndb(thd, thd_ndb);
-      thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
-      thd->query_id= 0; // to keep valgrind quiet
-    }
+    DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
+    set_thd_ndb(thd, thd_ndb);
+    thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+    thd->query_id= 0; // to keep valgrind quiet
   }
 
   {
@@ -6179,7 +6194,8 @@ restart_cluster_failure:
     DBUG_PRINT("info",("Restarting cluster binlog thread"));
     thd->proc_info= "Restarting";
   }
-  pthread_mutex_lock(&injector_mutex);
+  if (!have_injector_mutex_lock)
+    pthread_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;
   injector_ndb= 0;
