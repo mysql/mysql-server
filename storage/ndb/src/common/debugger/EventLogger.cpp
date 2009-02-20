@@ -804,7 +804,7 @@ void getTextMemoryUsage(QQQQ) {
 
 void getTextBackupStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "Backup %d started from node %d", 
+		       "Backup %u started from node %d", 
 		       theData[2], refToNode(theData[1]));
 }
 void getTextBackupFailedToStart(QQQQ) {
@@ -839,7 +839,7 @@ void getTextBackupStatus(QQQQ) {
 }
 void getTextBackupAborted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "Backup %d started from %d has been aborted. Error: %d",
+		       "Backup %u started from %d has been aborted. Error: %d",
 		       theData[2], 
 		       refToNode(theData[1]), 
 		       theData[3]);

@@ -463,7 +463,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
      */
     BackupRecordPtr ptr LINT_SET_PTR;
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr)){
-      infoEvent("BackupRecord %d: BackupId: %d MasterRef: %x ClientRef: %x",
+      infoEvent("BackupRecord %d: BackupId: %u MasterRef: %x ClientRef: %x",
 		ptr.i, ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
       infoEvent(" State: %d", ptr.p->slaveState.getState());
       BackupFilePtr filePtr;
@@ -639,7 +639,7 @@ Backup::execBACKUP_CONF(Signal* signal)
   jamEntry();
   BackupConf * conf = (BackupConf*)signal->getDataPtr();
   
-  ndbout_c("Backup %d has started", conf->backupId);
+  ndbout_c("Backup %u has started", conf->backupId);
 }
 
 void
@@ -648,7 +648,7 @@ Backup::execBACKUP_REF(Signal* signal)
   jamEntry();
   BackupRef * ref = (BackupRef*)signal->getDataPtr();
 
-  ndbout_c("Backup (%d) has NOT started %d", ref->senderData, ref->errorCode);
+  ndbout_c("Backup (%u) has NOT started %d", ref->senderData, ref->errorCode);
 }
 
 void
@@ -659,7 +659,7 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
  
   startTime = NdbTick_CurrentMillisecond() - startTime;
   
-  ndbout_c("Backup %d has completed", rep->backupId);
+  ndbout_c("Backup %u has completed", rep->backupId);
   const Uint64 bytes =
     rep->noOfBytesLow + (((Uint64)rep->noOfBytesHigh) << 32);
   const Uint64 records =
@@ -691,7 +691,7 @@ Backup::execBACKUP_ABORT_REP(Signal* signal)
   jamEntry();
   BackupAbortRep* rep = (BackupAbortRep*)signal->getDataPtr();
   
-  ndbout_c("Backup %d has been aborted %d", rep->backupId, rep->reason);
+  ndbout_c("Backup %u has been aborted %d", rep->backupId, rep->reason);
 }
 
 const TriggerEvent::Value triggerEventValues[] = {
