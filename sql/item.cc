@@ -1726,7 +1726,6 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 bool agg_item_charsets(DTCollation &coll, const char *fname,
                        Item **args, uint nargs, uint flags, int item_sep)
 {
-  Item **arg, *safe_args[2];
   if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
     return TRUE;
 
