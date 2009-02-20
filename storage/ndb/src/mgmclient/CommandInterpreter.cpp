@@ -747,7 +747,7 @@ printLogEvent(struct ndb_logevent* event)
 #undef  EVENT
 #define EVENT BackupStarted
   case NDB_LE_BackupStarted:
-      ndbout_c("Node %u: Backup %d started from node %d",
+      ndbout_c("Node %u: Backup %u started from node %d",
                R, Q(backup_id), Q(starting_node));
       break;
 #undef EVENT
@@ -787,7 +787,7 @@ printLogEvent(struct ndb_logevent* event)
 #undef  EVENT
 #define EVENT BackupAborted
     case NDB_LE_BackupAborted:
-      ndbout_c("Node %u: Backup %d started from %d has been aborted. Error: %d",
+      ndbout_c("Node %u: Backup %u started from %d has been aborted. Error: %d",
                R, Q(backup_id), Q(starting_node), Q(error));
       break;
     /** 
