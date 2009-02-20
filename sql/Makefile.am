@@ -212,16 +212,19 @@ libndb_la_DEPENDENCIES = dtrace_files dtrace_providers probes_libndb.o
 mysqld_LDADD += probes_all.o
 mysqld_DEPENDENCIES += dtrace_files dtrace_providers probes_all.o
 CLEANFILES += dtrace_files dtrace_providers probes_all.o
-DTRACEPROVIDER = $(top_srcdir)/sql/probes_mysql.d
+DTRACEPROVIDER = ../include/probes_mysql.d
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
-dtrace_providers:
+dtrace_providers: dtrace_sources
 	echo $(DTRACEPROVIDER) > $@
+dtrace_sources:
+	-$(RM) -f probes_mysql.d
+	$(CP) $(top_srcdir)/include/probes_mysql.d probes_mysql.d
 
 DTRACEDIRS = . ../mysys $(patsubst %,$(top_builddir)/storage/%,@mysql_se_dirs@)
 
-probes_all.o: probes_mysql.d $(DTRACEFILES)
+probes_all.o: probes_mysql.d $(DTRACEFILES) dtrace_sources
 	providers=`(for i in $(DTRACEDIRS); do cat $$i/dtrace_providers 2>/dev/null; done) | tr " " "\n" | sort | uniq | sed -e '/^$$/d' -e 's/^/-s /'`; \
 	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in $$f; do test -f $$i/$$j && echo "$$i/$$j "; done; done`; \
 	$(DTRACE) $(DTRACEFLAGS) -G $$providers $$objects -o $@
