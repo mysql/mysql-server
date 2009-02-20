@@ -145,11 +145,15 @@ static void benchmark_setup (void) {
 
 }
 
+#if defined(TOKUDB)
 static void test1514(void);
+#endif
 static void benchmark_shutdown (void) {
     int r;
     
+#if defined(TOKUDB)
     if (do_1514_point_query) test1514();
+#endif
     if (do_transactions && singlex) {
 #if defined(TOKUDB)
 	struct txn_stat *s;
@@ -313,6 +317,7 @@ static int print_usage (const char *argv0) {
     return 1;
 }
 
+#if defined(TOKUDB)
 static int
 nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
     return 0;
@@ -343,6 +348,7 @@ test1514(void) {
 
     if (verbose) printf("(#1514) Single Point Query %9.6fs\n", tdiff(&t2, &t1));
 }
+#endif
 
 int main (int argc, const char *argv[]) {
     struct timeval t1,t2,t3;
@@ -411,8 +417,10 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--env") == 0) {
 	    if (i+1 >= argc) return print_usage(argv[0]);
 	    dbdir = argv[++i];
+#if defined(TOKUDB)
         } else if (strcmp(arg, "--1514") == 0) {
             do_1514_point_query=1;
+#endif
         } else if (strcmp(arg, "--prelock") == 0) {
             prelock=1;
         } else if (strcmp(arg, "--prelockflag") == 0) {
