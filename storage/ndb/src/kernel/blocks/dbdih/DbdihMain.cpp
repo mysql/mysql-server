@@ -633,6 +633,24 @@ void Dbdih::execCONTINUEB(Signal* signal)
     wait_old_scan(signal);
     return;
   }
+  case DihContinueB::ZLCP_TRY_LOCK:
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+    Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 
+                   signal->theData[1] };
+    ndbrequire(mutex.trylock(c, false));
+    return;
+  }
+  case DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX:
+  {
+    jam();
+    MutexHandle2<DIH_FRAGMENT_INFO> mh;
+    mh.setHandle(signal->theData[1]);
+    Mutex mutex(signal, c_mutexMgr, mh);
+    mutex.unlock();
+    return;
+  }
   }//switch
   
   ndbrequire(false);
@@ -1234,6 +1252,9 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     }
   }
   ndbout_c("Using %u fragments per node", c_fragments_per_node);
+  
+  ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
+                            &c_lcpState.m_lcp_trylock_timeout);
 
   cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
@@ -2581,9 +2602,17 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
 
   signal->theData[0] = DihContinueB::ZSTART_GCP;
   sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-
-  Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
-  mutex.unlock();
+  /**
+   * To increase likelyhood that multiple nodes starting simulatanious
+   *   gets to copy fragment-info before a new LCP is started
+   *   we delay the releasing of this mutex. So that node that (might)
+   *   be started when GSN_START_PERMREP arrives will get mutex
+   *   before LCP (which does trylock for 60s)
+   */
+  signal->theData[0] = DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX;
+  signal->theData[1] = c_nodeStartMaster.m_fragmentInfoMutex.getHandle();
+  c_nodeStartMaster.m_fragmentInfoMutex.clear();
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 2);
 }//Dbdih::execINCL_NODECONF()
 
 void Dbdih::execUNBLO_DICTCONF(Signal* signal) 
@@ -11458,11 +11487,9 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
     return;
   }//if
 
-  c_lcpState.m_start_time = c_current_time;
-
   Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
   Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
-  ndbrequire(mutex.lock(c, false));
+  ndbrequire(mutex.trylock(c, false));
 }
 
 void
@@ -11471,7 +11498,30 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
                                Uint32 retVal)
 {
   jamEntry();
+
+  if (retVal == UtilLockRef::LockAlreadyHeld)
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+    mutex.release();
+    
+    // 2* is as parameter is in seconds, and we sendSignalWithDelay 500ms
+    if (senderData >= 2*c_lcpState.m_lcp_trylock_timeout)
+    {
+      jam();
+      Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
+      ndbrequire(mutex.lock(c, false));
+      return;
+    }
+    signal->theData[0] = DihContinueB::ZLCP_TRY_LOCK;
+    signal->theData[1] = senderData + 1;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 2);
+    return;
+  }
+
   ndbrequire(retVal == 0);
+  
+  c_lcpState.m_start_time = c_current_time;
   
   setLcpActiveStatusStart(signal);
   

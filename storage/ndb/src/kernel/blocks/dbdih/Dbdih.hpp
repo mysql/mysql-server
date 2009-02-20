@@ -715,7 +715,6 @@ private:
   void updateToReq_fragmentMutex_locked(Signal*, Uint32, Uint32);
 
   MutexHandle2<DIH_FRAGMENT_INFO> c_fragmentInfoMutex_lcp;
-  MutexHandle2<DIH_FRAGMENT_INFO> c_fragmentInfoMutex_copyTab;
 
   void execBLOCK_COMMIT_ORD(Signal *);
   void execUNBLOCK_COMMIT_ORD(Signal *);
@@ -1447,6 +1446,7 @@ private:
     
     Uint64 m_start_time; // When last LCP was started
     Uint64 m_lcp_time;   // How long last LCP took
+    Uint32 m_lcp_trylock_timeout;
 
     struct CurrentFragment {
       Uint32 tableId;

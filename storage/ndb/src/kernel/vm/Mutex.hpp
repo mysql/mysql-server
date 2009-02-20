@@ -51,6 +51,10 @@ public:
   bool isNull() const;
   void release(SimulatedBlock::MutexManager & mgr);
 
+  Uint32 getHandle() const;
+  void setHandle(Uint32 handle);
+  void clear(); // disassociate handle from activemutexptr
+
 private:
   Uint32 m_activeMutexPtrI;
 };
@@ -134,6 +138,35 @@ MutexHandle2<MutexId>::release(SimulatedBlock::MutexManager & mgr){
   }
 }
 
+template<Uint32 MutexId>
+inline
+Uint32
+MutexHandle2<MutexId>::getHandle() const
+{
+  return m_activeMutexPtrI;
+}
+
+template<Uint32 MutexId>
+inline
+void
+MutexHandle2<MutexId>::clear()
+{
+  m_activeMutexPtrI = RNIL;
+}
+
+template<Uint32 MutexId>
+inline
+void
+MutexHandle2<MutexId>::setHandle(Uint32 val)
+{
+  if (m_activeMutexPtrI == RNIL)
+  {
+    m_activeMutexPtrI = val;
+    return;
+  }
+  ErrorReporter::handleAssert("Mutex::setHandle mutex alreay inuse", 
+			      __FILE__, __LINE__);
+}
 
 inline
 Mutex::Mutex(Signal* signal, SimulatedBlock::MutexManager & mgr, 
