@@ -3072,6 +3072,27 @@ db_put_check_size_constraints(DB *db, DBT *key, DBT *val) {
     return r;
 }
 
+//Return 0 if supported.
+//Return ERANGE if out of range.
+static int
+db_row_size_supported(DB *db, u_int32_t size) {
+    DBT key, val;
+
+    toku_fill_dbt(&key, NULL, size);
+    toku_fill_dbt(&val, NULL, 0);
+    int r = db_put_check_size_constraints(db, &key, &val);
+    if (r!=0) r = ERANGE;
+    return r;
+}
+
+static int
+locked_db_row_size_supported(DB *db, u_int32_t size) {
+    toku_ydb_lock();
+    int r = db_row_size_supported(db, size);
+    toku_ydb_unlock();
+    return r;
+}
+
 //Return 0 if insert is legal
 static int
 db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key, DBT *UU(val),
@@ -3592,6 +3613,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(pre_acquire_read_lock);
     SDB(pre_acquire_table_lock);
     SDB(truncate);
+    SDB(row_size_supported);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
