@@ -454,7 +454,7 @@ char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
 my_bool lower_case_file_system= 0;
-my_bool opt_large_pages= 1;
+my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint    opt_large_page_size= 0;
@@ -3242,8 +3242,18 @@ static int init_common_variables(const char *conf_file_name, int argc,
   /* Initialize large page size */
   if (opt_large_pages && (opt_large_page_size= my_get_large_page_size()))
   {
+      DBUG_PRINT("info", ("Large page set, large_page_size = %d",
+                 opt_large_page_size));
       my_use_large_pages= 1;
       my_large_page_size= opt_large_page_size;
+  }
+  else
+  {
+    opt_large_pages= 0;
+    /* 
+       Either not configured to use large pages or Linux haven't
+       been compiled with large page support
+    */
   }
 #endif /* HAVE_LARGE_PAGES */
 #ifdef HAVE_SOLARIS_LARGE_PAGES
@@ -5867,12 +5877,13 @@ struct my_option my_long_options[] =
 #ifdef HAVE_LARGE_PAGE_OPTION
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. \
 Disable with --skip-large-pages.",
-   (uchar**) &opt_large_pages, (uchar**) &opt_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-   0, 0, 0},
-  {"super-large-pages", OPT_ENABLE_SUPER_LARGE_PAGES, "Enable support for super large pages. \
+   (uchar**) &opt_large_pages, (uchar**) &opt_large_pages, 0, GET_BOOL,
+   NO_ARG, 0, 0, 1, 0, 1, 0},
+  {"super-large-pages", OPT_ENABLE_SUPER_LARGE_PAGES,
+   "Enable support for super large pages. \
 Disable with --skip-super-large-pages.",
-   (uchar**) &opt_super_large_pages, (uchar**) &opt_super_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-   0, 0, 0},
+   (uchar**) &opt_super_large_pages, (uchar**) &opt_super_large_pages, 0,
+   GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif
   {"ignore-builtin-innodb", OPT_IGNORE_BUILTIN_INNODB ,
    "Disable initialization of builtin InnoDB plugin",
@@ -7600,7 +7611,7 @@ static int mysql_init_variables(void)
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((uchar*) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((char *) &global_status_var, sizeof(global_status_var));
-  opt_large_pages= 1;
+  opt_large_pages= 0;
   opt_super_large_pages= 0;
   key_map_full.set_all();
 
