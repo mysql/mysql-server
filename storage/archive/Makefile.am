@@ -76,14 +76,14 @@ DTRACEPROVIDER = probes_mysql.d
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
-dtrace_providers: dtrace_sources
+dtrace_providers: probes_mysql.d
 	echo $(DTRACEPROVIDER) > $@
-dtrace_sources:
+probes_mysql.d:
 	-$(RM) -f probes_mysql.d
 	$(CP) $(top_srcdir)/include/probes_mysql.d probes_mysql.d
 	echo timestamp > dtrace_sources
 
-probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES) dtrace_sources
+probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
 endif
 
