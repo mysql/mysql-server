@@ -69,6 +69,12 @@ my_config.h: config.h
 dist-hook:
 	$(RM) -f $(distdir)/mysql_version.h $(distdir)/my_config.h
 
+dtrace_sources: 
+	if ! test -f probes_mysql.d ; then \
+		$(CP) -f $(top_srcdir)/include/probes_mysql.d probes_mysql.d; \
+	fi
+	echo timestamp > dtrace_sources
+
 DTRACEPROVIDER = probes_mysql.d
 if HAVE_DTRACE
 BUILT_SOURCES += probes_mysql_dtrace.h
@@ -77,12 +83,6 @@ CLEANFILES += probes_mysql_dtrace.h
 # Fake for creating the probes file. If we are building a separate directory
 # then we copy the probes from the source location and use that
 # If we are building in the same directory as the source, we do not copy
-
-dtrace_sources: 
-	if ! test -f probes_mysql.d ; then \
-		$(CP) -f $(top_srcdir)/include/probes_mysql.d probes_mysql.d; \
-	fi
-	echo timestamp > dtrace_sources
 
 probes_mysql_dtrace.h: $(DTRACEPROVIDER)
 	$(DTRACE) $(DTRACEFLAGS) -h -s $(DTRACEPROVIDER) -o $@
