@@ -598,11 +598,15 @@ parse_cpu_type()
   case "$cpu_type" in
     x86 )
       cpu_type="x86"
-      m64="no"
+      if test "x$m64" != "x" ; then
+        m64="no"
+      fi
       ;;
     x86_64 )
       cpu_type="x86"
-      m64="yes"
+      if test "x$m64" != "x" ; then
+        m64="yes"
+      fi
       ;;
     itanium )
       cpu_type="itanium"
@@ -703,17 +707,19 @@ parse_options()
       warning_mode="normal"
       ;;
     --32)
-      if test "x$m64" != "x" ; then
+      if test "x$explicit_size_set" != "x" ; then
         echo "Cannot set both --32 and --64"
         exit 1
       fi
+      explicit_size_set="yes"
       m64="no"
       ;;
     --64)
-      if test "x$m64" != "x" ; then
+      if test "x$explicit_size_set" != "x" ; then
         echo "Cannot set both --32 and --64"
         exit 1
       fi
+      explicit_size_set="yes"
       m64="yes"
       ;;
     --package=*)
@@ -856,8 +862,6 @@ set_cpu_base()
     else
       m64="no"
     fi
-  else
-    m64="no"
   fi
   echo "Discovered CPU of type $cpu_base_type ($cpu_arg) on $os"
   if test "x$m64" = "xyes" ; then
@@ -1560,6 +1564,7 @@ base_configs=
 debug_flags=
 cxxflags=
 m64=
+explicit_size_set=
 datadir=
 commands=
 use_autotools=
