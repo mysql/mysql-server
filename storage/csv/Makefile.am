@@ -48,16 +48,17 @@ libcsv_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
 DTRACEFILES = libcsv_a-ha_tina.o
 DTRACEPROVIDER = probes_mysql.d
-dtrace_sources:
+
+dtrace_files:
+	echo $(DTRACEFILES) > $@
+dtrace_providers: probes_mysql.d
+	echo $(DTRACEPROVIDER) > $@
+probes_mysql.d:
 	-$(RM) -f probes_mysql.d
 	$(CP) $(top_srcdir)/include/probes_mysql.d probes_mysql.d
 	echo timestamp > dtrace_sources
 
-dtrace_files:
-	echo $(DTRACEFILES) > $@
-dtrace_providers: dtrace_sources
-	echo $(DTRACEPROVIDER) > $@
-probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES) dtrace_sources
+probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
 endif
 
