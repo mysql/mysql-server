@@ -43,7 +43,7 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
 			probes_mysql.h probes_mysql_nodtrace.h
 
-EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
+EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl
