@@ -132,10 +132,14 @@ void
 Lgman::client_lock(BlockNumber block, int line)
 {
   if (isNdbMtLqh()) {
-    D("try lock" << hex << V(block) << dec << V(line));
+#ifdef VM_TRACE
+    Uint32 bno = blockToMain(block);
+    Uint32 ino = blockToInstance(block);
+#endif
+    D("try lock " << bno << "/" << ino << V(line));
     int ret = m_client_mutex.lock();
     ndbrequire(ret == 0);
-    D("got lock" << hex << V(block) << dec << V(line));
+    D("got lock " << bno << "/" << ino << V(line));
   }
 }
 
@@ -143,7 +147,11 @@ void
 Lgman::client_unlock(BlockNumber block, int line)
 {
   if (isNdbMtLqh()) {
-    D("unlock" << hex << V(block) << dec << V(line));
+#ifdef VM_TRACE
+    Uint32 bno = blockToMain(block);
+    Uint32 ino = blockToInstance(block);
+#endif
+    D("unlock " << bno << "/" << ino << V(line));
     int ret = m_client_mutex.unlock();
     ndbrequire(ret == 0);
   }
@@ -1146,14 +1154,18 @@ Logfile_client::Logfile_client(SimulatedBlock* block,
   m_lgman= lgman;
   m_lock = lock;
   m_logfile_group_id= logfile_group_id;
-  D("client ctor" << hex << V(m_block));
+  D("client ctor " << bno << "/" << ino);
   if (m_lock)
     m_lgman->client_lock(m_block, 0);
 }
 
 Logfile_client::~Logfile_client()
 {
-  D("client dtor" << hex << V(m_block));
+#ifdef VM_TRACE
+  Uint32 bno = blockToMain(m_block);
+  Uint32 ino = blockToInstance(m_block);
+#endif
+  D("client dtor " << bno << "/" << ino);
   if (m_lock)
     m_lgman->client_unlock(m_block, 0);
 }

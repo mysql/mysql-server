@@ -299,7 +299,7 @@ public:
     m_tablespace_id= tablespaceId;
     m_lock = lock;
 
-    D("client ctor" << hex << V(m_block) << dec
+    D("client ctor " << bno << "/" << ino
       << V(m_table_id) << V(m_fragment_id) << V(m_tablespace_id));
     if (m_lock)
       m_tsman->client_lock(m_block, 0);
@@ -308,7 +308,11 @@ public:
   Tablespace_client(Signal* signal, Tsman* tsman, Local_key* key);//undef
 
   ~Tablespace_client() {
-    D("client dtor" << hex << V(m_block));
+#ifdef VM_TRACE
+    Uint32 bno = blockToMain(m_block);
+    Uint32 ino = blockToInstance(m_block);
+#endif
+    D("client dtor " << bno << "/" << ino);
     if (m_lock)
       m_tsman->client_unlock(m_block, 0);
   }
