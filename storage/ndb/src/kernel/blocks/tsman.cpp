@@ -106,10 +106,14 @@ void
 Tsman::client_lock(BlockNumber block, int line)
 {
   if (isNdbMtLqh()) {
-    D("try lock" << hex << V(block) << dec << V(line));
+#ifdef VM_TRACE
+    Uint32 bno = blockToMain(block);
+    Uint32 ino = blockToInstance(block);
+#endif
+    D("try lock " << bno << "/" << ino << V(line));
     int ret = m_client_mutex.lock();
     ndbrequire(ret == 0);
-    D("got lock" << hex << V(block) << dec << V(line));
+    D("got lock " << bno << "/" << ino << V(line));
   }
 }
 
@@ -117,7 +121,11 @@ void
 Tsman::client_unlock(BlockNumber block, int line)
 {
   if (isNdbMtLqh()) {
-    D("unlock" << hex << V(block) << dec << V(line));
+#ifdef VM_TRACE
+    Uint32 bno = blockToMain(block);
+    Uint32 ino = blockToInstance(block);
+#endif
+    D("unlock " << bno << "/" << ino << V(line));
     int ret = m_client_mutex.unlock();
     ndbrequire(ret == 0);
   }
