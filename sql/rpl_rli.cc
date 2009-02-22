@@ -107,7 +107,6 @@ int init_relay_log_info(Relay_log_info* rli,
   fn_format(rli->slave_patternload_file, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
             MY_PACK_FILENAME | MY_UNPACK_FILENAME |
             MY_RETURN_REAL_PATH);
-  to_unix_path(rli->slave_patternload_file);
   rli->slave_patternload_file_size= strlen(rli->slave_patternload_file);
 
   /*
