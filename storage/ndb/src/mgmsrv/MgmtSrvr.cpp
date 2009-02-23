@@ -3049,7 +3049,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 		       *nodeId, type, (long) client_addr));
   if (m_opts.no_nodeid_checks) {
     if (*nodeId == 0) {
-      error_string.appfmt("no-nodeid-checks set in management server.\n"
+      error_string.appfmt("no-nodeid-checks set in management server. "
 			  "node id must be set explicitly in connectstring");
       error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
       DBUG_RETURN(false);
@@ -3078,8 +3078,8 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   if (type == NDB_MGM_NODE_TYPE_MGM && nodes_info.size() > 1)
   {
     // mgmt server may only have one match
-    error_string.appfmt("Ambiguous node id's %d and %d.\n"
-                        "Suggest specifying node id in connectstring,\n"
+    error_string.appfmt("Ambiguous node id's %d and %d. "
+                        "Suggest specifying node id in connectstring, "
                         "or specifying unique host names in config file.",
                         nodes_info[0].id, nodes_info[1].id);
     error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
