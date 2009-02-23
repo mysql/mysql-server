@@ -1982,6 +1982,11 @@ innobase_init(
 
 	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
 						   MYF(MY_FAE));
+	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
+
+	/* Initialize the InnoDB memory subsystem before calling
+	ut_malloc() in srv_parse_data_file_paths_and_sizes(). */
+	mem_init(srv_mem_pool_size);
 
 	ret = (bool) srv_parse_data_file_paths_and_sizes(
 				internal_innobase_data_file_path,
@@ -1994,8 +1999,10 @@ innobase_init(
 	if (ret == FALSE) {
 		sql_print_error(
 			"InnoDB: syntax error in innodb_data_file_path");
+mem_free_and_error:
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
+		ut_free_all_mem();
 		goto error;
 	}
 
@@ -2025,9 +2032,7 @@ innobase_init(
 	  sql_print_error("syntax error in innodb_log_group_home_dir, or a "
 			  "wrong number of mirrored log groups");
 
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
-		goto error;
+		goto mem_free_and_error;
 	}
 
 	/* Validate the file format by animal name */
@@ -2040,9 +2045,7 @@ innobase_init(
 
 			sql_print_error("InnoDB: wrong innodb_file_format.");
 
-			my_free(internal_innobase_data_file_path,
-				MYF(MY_ALLOW_ZERO_PTR));
-			goto error;
+			goto mem_free_and_error;
 		}
 	} else {
 		/* Set it to the default file format id. Though this
@@ -2081,10 +2084,7 @@ innobase_init(
 					trx_sys_file_format_id_to_name(
 						DICT_TF_FORMAT_MAX));
 
-			my_free(internal_innobase_data_file_path,
-				MYF(MY_ALLOW_ZERO_PTR));
-
-			goto error;
+			goto mem_free_and_error;
 		}
 	}
 
@@ -2106,8 +2106,6 @@ innobase_init(
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
-
-	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
@@ -2156,9 +2154,7 @@ innobase_init(
 	err = innobase_start_or_create_for_mysql();
 
 	if (err != DB_SUCCESS) {
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
-		goto error;
+		goto mem_free_and_error;
 	}
 
 	innobase_open_tables = hash_create(200);

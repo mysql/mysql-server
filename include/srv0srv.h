@@ -356,8 +356,7 @@ void
 srv_free(void);
 /*==========*/
 /*************************************************************************
-Initializes the synchronization primitives, memory system, and the thread
-local storage. */
+Initializes the synchronization primitives and the thread local storage. */
 UNIV_INTERN
 void
 srv_general_init(void);
