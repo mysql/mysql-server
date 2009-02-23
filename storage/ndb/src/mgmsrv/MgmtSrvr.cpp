@@ -3049,7 +3049,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 		       *nodeId, type, (long) client_addr));
   if (m_opts.no_nodeid_checks) {
     if (*nodeId == 0) {
-      error_string.appfmt("no-nodeid-checks set in management server.\n"
+      error_string.appfmt("no-nodeid-checks set in management server. "
 			  "node id must be set explicitly in connectstring");
       error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
       DBUG_RETURN(false);
@@ -3078,8 +3078,8 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   if (type == NDB_MGM_NODE_TYPE_MGM && nodes_info.size() > 1)
   {
     // mgmt server may only have one match
-    error_string.appfmt("Ambiguous node id's %d and %d.\n"
-                        "Suggest specifying node id in connectstring,\n"
+    error_string.appfmt("Ambiguous node id's %d and %d. "
+                        "Suggest specifying node id in connectstring, "
                         "or specifying unique host names in config file.",
                         nodes_info[0].id, nodes_info[1].id);
     error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
@@ -3999,9 +3999,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     return false;
   }
 
-  if (ss.sendSignal(nodeId, ssig,
-                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                    ConfigChangeReq::SignalLength) != SEND_OK)
+  if (ss.sendFragmentedSignal(nodeId, ssig,
+                              MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                              ConfigChangeReq::SignalLength) != 0)
   {
     msg.assfmt("Could not start configuration change, send to "
                "node %d failed", nodeId);
@@ -4034,9 +4034,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
           return false;
         }
 
-        if (ss.sendSignal(nodeId, ssig,
-                          MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                          ConfigChangeReq::SignalLength) != SEND_OK)
+        if (ss.sendFragmentedSignal(nodeId, ssig,
+                                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                                    ConfigChangeReq::SignalLength) != 0)
         {
           msg.assfmt("Could not start configuration change, send to "
                      "node %d failed", nodeId);
@@ -4058,6 +4058,19 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
+
+
+    case GSN_NODE_FAILREP:
+      // ignore, NF_COMPLETEREP will come
+      break;
+
+    case GSN_NF_COMPLETEREP:
+    {
+      NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+      msg.assign("Node %d failed uring configuration change", nodeId);
+      return false;
+      break;
+    }
 
     default:
       report_unknown_signal(signal);
