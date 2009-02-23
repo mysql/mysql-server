@@ -523,6 +523,12 @@ protected:
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
 
+/* @@optimizer_switch flags */
+#define OPTIMIZER_SWITCH_NO_INDEX_MERGE 1
+#define OPTIMIZER_SWITCH_NO_INDEX_MERGE_UNION 2
+#define OPTIMIZER_SWITCH_NO_INDEX_MERGE_SORT_UNION 4
+#define OPTIMIZER_SWITCH_NO_INDEX_MERGE_INTERSECT 8
+
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should

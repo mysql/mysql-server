@@ -468,6 +468,8 @@ static sys_var_thd_ulong        sys_optimizer_prune_level(&vars, "optimizer_prun
                                                   &SV::optimizer_prune_level);
 static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_search_depth",
                                                    &SV::optimizer_search_depth);
+static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
+                                     &SV::optimizer_switch);
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
                                              (uchar*) pidfile_name);
@@ -3834,6 +3836,56 @@ ulong fix_sql_mode(ulong sql_mode)
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                 MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER);
   return sql_mode;
+}
+
+
+bool
+sys_var_thd_optimizer_switch::
+symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
+{
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+
+  tmp.length(0);
+
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      tmp.append(optimizer_switch_typelib.type_names[i],
+                 optimizer_switch_typelib.type_lengths[i]);
+      tmp.append(',');
+    }
+  }
+
+  if (tmp.length())
+    tmp.length(tmp.length() - 1); /* trim the trailing comma */
+
+  rep->str= thd->strmake(tmp.ptr(), tmp.length());
+
+  rep->length= rep->str ? tmp.length() : 0;
+
+  return rep->length != tmp.length();
+}
+
+
+uchar *sys_var_thd_optimizer_switch::value_ptr(THD *thd, enum_var_type type,
+				               LEX_STRING *base)
+{
+  LEX_STRING opts;
+  ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+                  thd->variables.*offset);
+  (void) symbolic_mode_representation(thd, val, &opts);
+  return (uchar *) opts.str;
+}
+
+
+void sys_var_thd_optimizer_switch::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= 0;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
 }
 
 

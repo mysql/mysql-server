@@ -297,6 +297,24 @@ static const unsigned int sql_mode_names_len[]=
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names,
                             (unsigned int *)sql_mode_names_len };
+
+static const char *optimizer_switch_names[]=
+{
+  "no_index_merge","no_index_merge_union","no_index_merge_sort_union", 
+  "no_index_merge_intersection", NullS
+};
+/* Corresponding defines are named OPTIMIZER_SWITCH_XXX */
+static const unsigned int optimizer_switch_names_len[]=
+{
+  sizeof("no_index_merge") - 1,
+  sizeof("no_index_merge_union") - 1,
+  sizeof("ni_index_merge_sort_union") - 1,
+  sizeof("no_index_merge_intersection") - 1
+};
+TYPELIB optimizer_switch_typelib= { array_elements(optimizer_switch_names)-1,"",
+                                    optimizer_switch_names,
+                                    (unsigned int *)optimizer_switch_names_len };
+
 static const char *tc_heuristic_recover_names[]=
 {
   "COMMIT", "ROLLBACK", NullS
@@ -362,6 +380,7 @@ static ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static const char *sql_mode_str= "OFF";
+static const char *optimizer_switch_str="";
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
@@ -5565,6 +5584,7 @@ enum options_mysqld
   OPT_SYSDATE_IS_NOW,
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
+  OPT_OPTIMIZER_SWITCH,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
   OPT_SP_AUTOMATIC_PRIVILEGES,
   OPT_MAX_SP_RECURSION_DEPTH,
@@ -6717,6 +6737,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.optimizer_search_depth,
    (uchar**) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
+  {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
+   "optimizer_switch=option[,option[,option...]] where option can be one of: no_index_merge, no_index_merge_union, no_index_merge_sort_union, no_index_merge_intersection",
+   (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
@@ -8204,6 +8228,13 @@ mysqld_get_one_option(int optid,
       find_bit_type_or_exit(argument, &sql_mode_typelib, opt->name);
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
+    break;
+  }
+  case OPT_OPTIMIZER_SWITCH:
+  {
+    optimizer_switch_str= argument;
+    global_system_variables.optimizer_switch=
+      find_bit_type_or_exit(argument, &optimizer_switch_typelib, opt->name);
     break;
   }
   case OPT_ONE_THREAD:
