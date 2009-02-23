@@ -36,6 +36,20 @@ public:
   Uint32 *getDataPtrSend() { return theData; }
   const Uint32 *getDataPtr() const { return theData; }
 
+  /**
+   * Fragmentation
+   */
+  bool isFragmented() const { return header.m_fragmentInfo != 0;}
+  bool isFirstFragment() const { return header.m_fragmentInfo <= 1;}
+  bool isLastFragment() const { 
+    return header.m_fragmentInfo == 0 || header.m_fragmentInfo == 3; 
+  }
+
+
+  Uint32 getFragmentId() const {
+    return (header.m_fragmentInfo == 0 ? 0 : getDataPtr()[header.theLength - 1]);
+  }
+
   void print(FILE * out = stdout);
 private:
   bool deallocSections;
@@ -68,6 +82,8 @@ public:
   SendStatus sendSignal(Uint16 nodeId, const SimpleSignal *);
   SendStatus sendSignal(Uint16 nodeId, SimpleSignal& sig,
                         Uint16 recBlock, Uint16 gsn, Uint32 len);
+  int sendFragmentedSignal(Uint16 nodeId, SimpleSignal& sig,
+                           Uint16 recBlock, Uint16 gsn, Uint32 len);
   NodeBitmask broadcastSignal(NodeBitmask mask, SimpleSignal& sig,
                               Uint16 recBlock, Uint16 gsn, Uint32 len);
 

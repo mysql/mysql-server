@@ -3999,9 +3999,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     return false;
   }
 
-  if (ss.sendSignal(nodeId, ssig,
-                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                    ConfigChangeReq::SignalLength) != SEND_OK)
+  if (ss.sendFragmentedSignal(nodeId, ssig,
+                              MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                              ConfigChangeReq::SignalLength) != 0)
   {
     msg.assfmt("Could not start configuration change, send to "
                "node %d failed", nodeId);
@@ -4034,9 +4034,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
           return false;
         }
 
-        if (ss.sendSignal(nodeId, ssig,
-                          MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                          ConfigChangeReq::SignalLength) != SEND_OK)
+        if (ss.sendFragmentedSignal(nodeId, ssig,
+                                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                                    ConfigChangeReq::SignalLength) != 0)
         {
           msg.assfmt("Could not start configuration change, send to "
                      "node %d failed", nodeId);
@@ -4058,6 +4058,19 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
+
+
+    case GSN_NODE_FAILREP:
+      // ignore, NF_COMPLETEREP will come
+      break;
+
+    case GSN_NF_COMPLETEREP:
+    {
+      NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+      msg.assign("Node %d failed uring configuration change", nodeId);
+      return false;
+      break;
+    }
 
     default:
       report_unknown_signal(signal);

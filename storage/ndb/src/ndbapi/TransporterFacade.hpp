@@ -418,11 +418,14 @@ bool
 TransporterFacade::getIsNodeSendable(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   const Uint32 startLevel = node.m_state.startLevel;
-  assert(node.m_info.getType() == NodeInfo::DB);
+  const NodeInfo::NodeType node_type = node.m_info.getType();
+  assert(node_type == NodeInfo::DB ||
+         node_type == NodeInfo::MGM);
 
   return node.compatible && (startLevel == NodeState::SL_STARTED ||
                              startLevel == NodeState::SL_STOPPING_1 ||
-                             node.m_state.getSingleUserMode());
+                             node.m_state.getSingleUserMode() ||
+                             node_type == NodeInfo::MGM);
 }
 
 inline
