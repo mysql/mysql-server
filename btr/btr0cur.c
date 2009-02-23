@@ -4116,6 +4116,44 @@ next_zip_page:
 }
 
 /***********************************************************************
+Check the FIL_PAGE_TYPE on an uncompressed BLOB page. */
+static
+void
+btr_check_blob_fil_page_type(
+/*=========================*/
+	ulint		space_id,	/* in: space id */
+	ulint		page_no,	/* in: page number */
+	const page_t*	page,		/* in: page */
+	const char*	op)		/* in: operation (for diagnostics) */
+{
+	ulint	type = fil_page_get_type(page);
+
+	ut_a(space_id == page_get_space_id(page));
+	ut_a(page_no == page_get_page_no(page));
+
+	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
+		ulint	flags = fil_space_get_flags(space_id);
+
+		/* Old versions of InnoDB did not
+		initialize FIL_PAGE_TYPE on BLOB pages.
+		Ensure that this tablespace is in
+		an old format. */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: FIL_PAGE_TYPE=%lu"
+			" on BLOB %s page %lu space %lu flags %lx\n",
+			(ulong) type, op,
+			(ulong) page_no, (ulong) space_id, (ulong) flags);
+
+		/* The garbage in FIL_PAGE_TYPE will
+		only be tolerated in tables in old
+		format. */
+		ut_a((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51);
+	}
+}
+
+/***********************************************************************
 Frees the space in an externally stored field to the file space
 management if the field in data is owned by the externally stored field,
 in a rollback we may have the additional condition that the field must
@@ -4268,8 +4306,9 @@ btr_free_externally_stored_field(
 						 MLOG_4BYTES, &mtr);
 			}
 		} else {
-			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB);
 			ut_a(!page_zip);
+			btr_check_blob_fil_page_type(space_id, page_no, page,
+						     "free");
 
 			next_page_no = mach_read_from_4(
 				page + FIL_PAGE_DATA
@@ -4278,9 +4317,6 @@ btr_free_externally_stored_field(
 			/* We must supply the page level (= 0) as an argument
 			because we did not store it on the page (we save the
 			space overhead from an index page header. */
-
-			ut_a(space_id == page_get_space_id(page));
-			ut_a(page_no == page_get_page_no(page));
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
 
@@ -4419,9 +4455,8 @@ btr_copy_blob_prefix(
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
 		page = buf_block_get_frame(block);
 
-		/* Unfortunately, FIL_PAGE_TYPE was uninitialized for
-		many pages until MySQL/InnoDB 5.1.7. */
-		/* ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB); */
+		btr_check_blob_fil_page_type(space_id, page_no, page, "read");
+
 		blob_header = page + offset;
 		part_len = btr_blob_get_part_len(blob_header);
 		copy_len = ut_min(part_len, len - copied_len);
