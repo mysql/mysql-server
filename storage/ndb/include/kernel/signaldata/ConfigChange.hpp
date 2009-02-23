@@ -85,7 +85,8 @@ class ConfigChangeRef {
     IllegalInitialGeneration = 12,
     DifferentInitial        = 13,
     NotAllStarted           = 14,
-    NotPrimaryMgmNode       = 15
+    NotPrimaryMgmNode       = 15,
+    SendFailed              = 16
   };
 
 public:
@@ -123,6 +124,8 @@ public:
       return " Not all mgm nodes are started";
     case NotPrimaryMgmNode:
       return "Not primary mgm node for configuration";
+    case SendFailed:
+      return "Failed to send signal to other node";
 
     default:
       return "ConfigChangeRef, unknown error";
