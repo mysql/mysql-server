@@ -4427,6 +4427,7 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
+          write_bin_log(thd, TRUE, thd->query, thd->query_length);
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
@@ -5966,7 +5967,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     */
     char buf[32];
     my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    WARN_DEPRECATED(thd, "5.2", buf, "'TIMESTAMP'");
+    WARN_DEPRECATED(thd, "6.0", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new Create_field()) ||

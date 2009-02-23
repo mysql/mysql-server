@@ -82,7 +82,7 @@
 # Created: 2009-01-14 mleich
 #
 
-let $wait_counter= 50;
+let $wait_counter= 100;
 if ($wait_timeout)
 {
    let $wait_counter= `SELECT $wait_timeout * 10`;
@@ -108,5 +108,6 @@ if (!$success)
 {
    --echo # Timeout in wait_until_count_sessions.inc
    --echo # Number of sessions   expected: $count_sessions   found: $current_sessions
+   SHOW PROCESSLIST;
 }
 

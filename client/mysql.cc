@@ -250,7 +250,7 @@ static COMMANDS commands[] = {
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
+    "Set statement delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -2270,8 +2270,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(USE_NEW_READLINE_INTERFACE) 
 extern "C" char *no_completion(const char*,int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
 #endif
