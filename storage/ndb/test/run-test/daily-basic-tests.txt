@@ -893,18 +893,6 @@ max-time: 1500
 cmd: testSystemRestart
 args: -l 1 -n SR9 T1 
 
-max-time: 1000
-cmd: testSRBank
-args: -n SR -l 300 -r 15 T1
-
-max-time: 1000
-cmd: testSRBank
-args: -n NR -l 300 -r 15 T1
-
-max-time: 1000
-cmd: testSRBank
-args: -n Mix -l 300 -r 15 T1
-
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug24543 T1
