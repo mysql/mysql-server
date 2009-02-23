@@ -5,17 +5,17 @@ SELECT @start_global_value;
 '#--------------------FN_DYNVARS_064_01-------------------------#'
 SET @@global.log_bin_trust_routine_creators = TRUE;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SET @@global.log_bin_trust_routine_creators = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 0
 '#--------------------FN_DYNVARS_064_02-------------------------#'
 SET @@global.log_bin_trust_routine_creators = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators = 'FALSE';
 @@global.log_bin_trust_routine_creators = 'FALSE'
 1
@@ -24,37 +24,37 @@ Warning	1292	Truncated incorrect DOUBLE value: 'FALSE'
 '#--------------------FN_DYNVARS_064_03-------------------------#'
 SET @@global.log_bin_trust_routine_creators = ON;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 1
 SET @@global.log_bin_trust_routine_creators = OFF;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 0
 SET @@global.log_bin_trust_routine_creators = 0;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 0
 SET @@global.log_bin_trust_routine_creators = 1;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 1
 SET @@global.log_bin_trust_routine_creators = TRUE;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 1
 SET @@global.log_bin_trust_routine_creators = FALSE;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 0
@@ -70,7 +70,7 @@ SET @@global.log_bin_trust_routine_creators = "OFFF";
 ERROR 42000: Variable 'log_bin_trust_routine_creators' can't be set to the value of 'OFFF'
 SET @@global.log_bin_trust_routine_creators = OF;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 0
@@ -96,14 +96,14 @@ ERROR HY000: Variable 'log_bin_trust_routine_creators' is a GLOBAL variable
 '#---------------------FN_DYNVARS_064_07----------------------#'
 SET @@global.log_bin_trust_routine_creators = TRUE;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@log_bin_trust_routine_creators = @@global.log_bin_trust_routine_creators;
 @@log_bin_trust_routine_creators = @@global.log_bin_trust_routine_creators
 1
 '#---------------------FN_DYNVARS_064_08----------------------#'
 SET @@global.log_bin_trust_routine_creators = TRUE;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@log_bin_trust_routine_creators;
 @@log_bin_trust_routine_creators
 1
@@ -115,7 +115,7 @@ SELECT log_bin_trust_routine_creators = @@session.log_bin_trust_routine_creators
 ERROR 42S22: Unknown column 'log_bin_trust_routine_creators' in 'field list'
 SET @@global.log_bin_trust_routine_creators = @start_global_value;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 SELECT @@global.log_bin_trust_routine_creators;
 @@global.log_bin_trust_routine_creators
 1
