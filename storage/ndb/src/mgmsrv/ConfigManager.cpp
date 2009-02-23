@@ -1527,6 +1527,11 @@ ConfigManager::run()
       {
         g_eventLogger->info("Node %d failed during config change!!",
                             nodeId);
+        g_eventLogger->warning("Node failure handling of config "
+                               "change protocol not yet implemented!! "
+                               "No more configuration changes can occur, "
+                               "but the node will continue to serve the "
+                               "last good configuration");
         // TODO start take over of config change protocol
       }
       break;
