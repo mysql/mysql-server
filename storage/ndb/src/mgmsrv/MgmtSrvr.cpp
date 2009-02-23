@@ -4059,6 +4059,19 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
       // Ignore;
       break;
 
+
+    case GSN_NODE_FAILREP:
+      // ignore, NF_COMPLETEREP will come
+      break;
+
+    case GSN_NF_COMPLETEREP:
+    {
+      NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+      msg.assign("Node %d failed uring configuration change", nodeId);
+      return false;
+      break;
+    }
+
     default:
       report_unknown_signal(signal);
       return false;
