@@ -69,6 +69,7 @@ void
 ut_mem_init(void)
 /*=============*/
 {
+	ut_a(!ut_mem_block_list_inited);
 	os_fast_mutex_init(&ut_list_mutex);
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
