@@ -443,3 +443,17 @@ SELECT ROW(a, 1) IN (SELECT SUM(b), 3) FROM t1 GROUP BY a;
 ROW(a, 1) IN (SELECT SUM(b), 3)
 0
 DROP TABLE t1;
+create table t1 (a varchar(200),
+b int unsigned not null primary key auto_increment)
+default character set 'utf8';
+create table t2 (c varchar(200),
+d int unsigned not null primary key auto_increment)
+default character set 'latin1';
+insert into t1 (a) values('abc');
+insert into t2 (c) values('abc');
+select * from t1,t2 where (a,b) = (c,d);
+a	b	c	d
+abc	1	abc	1
+select host,user from mysql.user where (host,user) = ('localhost','test');
+host	user
+drop table t1,t2;

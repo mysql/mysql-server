@@ -275,6 +275,11 @@ static sys_var_const    sys_ft_query_expansion_limit(&vars,
 static sys_var_const    sys_ft_stopword_file(&vars, "ft_stopword_file",
                                              OPT_GLOBAL, SHOW_CHAR_PTR,
                                              (uchar*) &ft_stopword_file);
+
+static sys_var_const    sys_ignore_builtin_innodb(&vars, "ignore_builtin_innodb",
+                                                  OPT_GLOBAL, SHOW_BOOL,
+                                                  (uchar*) &opt_ignore_builtin_innodb);
+
 sys_var_str             sys_init_connect(&vars, "init_connect", 0,
                                          sys_update_init_connect,
                                          sys_default_init_connect,0);
@@ -3677,7 +3682,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 
 void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "@@table_type", "'@@storage_engine'");
+  WARN_DEPRECATED(thd, "6.0", "@@table_type", "'@@storage_engine'");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3939,7 +3944,7 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "@@log_bin_trust_routine_creators",
+  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
                       "'@@log_bin_trust_function_creators'");
 }
 
