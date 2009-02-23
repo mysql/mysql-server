@@ -410,11 +410,30 @@ void Cmvmi::execSTTOR(Signal* signal)
 
     if(m_ctx.m_config.lockPagesInMainMemory() == 1)
     {
+      jam();
+      /**
+       * Notify watchdog that we're locking memory...
+       *   which can be equally "heavy" as allocating it
+       */
+      refresh_watch_dog(9);
       int res = NdbMem_MemLockAll(0);
       if(res != 0){
         g_eventLogger->warning("Failed to memlock pages");
 	warningEvent("Failed to memlock pages");
       }
+    }
+    
+    /**
+     * Install "normal" watchdog value
+     */
+    {
+      Uint32 db_watchdog_interval = 0;
+      const ndb_mgm_configuration_iterator * p = 
+        m_ctx.m_config.getOwnConfigIterator();
+      ndb_mgm_get_int_parameter(p, CFG_DB_WATCHDOG_INTERVAL, 
+                                &db_watchdog_interval);
+      ndbrequire(db_watchdog_interval);
+      update_watch_dog_timer(db_watchdog_interval);
     }
     
     sendSTTORRY(signal);
