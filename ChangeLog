@@ -1,3 +1,10 @@
+2009-02-23	The InnoDB Team
+	* btr/btr0cur.c:
+	Fix Bug#43043 Crash on BLOB delete operation
+	When freeing an uncomrpressed BLOB page, tolerate an invalid value
+	in FIL_PAGE_TYPE.  Old versions of MySQL did not initialize the
+	page type on BLOB pages.
+
 2009-02-20	The InnoDB Team
 
 	* handler/ha_innodb.cc:
