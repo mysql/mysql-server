@@ -4090,12 +4090,6 @@ sub server_need_restart {
     return 0;
   }
 
-  if ( $opt_embedded_server )
-  {
-    mtr_verbose_restart($server, "no start or restart for embedded server");
-    return 0;
-  }
-
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose_restart($server, "forced in .opt file");
     return 1;
