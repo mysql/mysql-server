@@ -3999,9 +3999,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     return false;
   }
 
-  if (ss.sendSignal(nodeId, ssig,
-                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                    ConfigChangeReq::SignalLength) != SEND_OK)
+  if (ss.sendFragmentedSignal(nodeId, ssig,
+                              MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                              ConfigChangeReq::SignalLength) != 0)
   {
     msg.assfmt("Could not start configuration change, send to "
                "node %d failed", nodeId);
@@ -4034,9 +4034,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
           return false;
         }
 
-        if (ss.sendSignal(nodeId, ssig,
-                          MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                          ConfigChangeReq::SignalLength) != SEND_OK)
+        if (ss.sendFragmentedSignal(nodeId, ssig,
+                                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                                    ConfigChangeReq::SignalLength) != 0)
         {
           msg.assfmt("Could not start configuration change, send to "
                      "node %d failed", nodeId);

@@ -20,6 +20,7 @@
 #include "Config.hpp"
 #include "ConfigSubscriber.hpp"
 #include "MgmtSrvr.hpp"
+#include "Defragger.hpp"
 
 #include <ConfigRetriever.hpp>
 
@@ -73,6 +74,8 @@ class ConfigManager : public MgmtThread {
   NodeId m_node_id;
 
   const char* m_configdir;
+
+  Defragger m_defragger;
 
   /* Functions used from 'init' */
   static Config* load_init_config(const char*);
