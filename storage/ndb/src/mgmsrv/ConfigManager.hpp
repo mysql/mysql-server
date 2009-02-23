@@ -121,7 +121,7 @@ class ConfigManager : public MgmtThread {
   void execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig);
   void sendConfigChangeImplRef(SignalSender& ss, NodeId nodeId,
                                ConfigChangeRef::ErrorCode) const;
-  void sendConfigChangeImplReq(SignalSender& ss, const Config* conf);
+  bool sendConfigChangeImplReq(SignalSender& ss, const Config* conf);
 
   /*
     CONFIG_CHECK - protocol for exchanging and checking config state

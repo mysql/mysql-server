@@ -28,16 +28,18 @@
 #include <ndb_version.h>
 
 
-#ifdef VM_TRACE
-#define require(v)  assert(v)
-#else
 static void
-require(bool v)
+_require(bool v, const char* expr, const char* file, int line)
 {
-  if (!v)
+  if (unlikely(!v))
+  {
+    fprintf(stderr, "%s:%d: require('%s') failed\n",
+            file, line, expr);
+    fflush(stderr);
     abort();
+  }
 }
-#endif
+#define require(v)  _require((v), #v, __FILE__, __LINE__)
 
 extern "C" const char* opt_connect_str;
 
@@ -1107,7 +1109,11 @@ ConfigManager::startInitConfigChange(SignalSender& ss)
   require(m_config_state == CS_INITIAL);
   g_eventLogger->info("Starting initial configuration change");
   m_client_ref = ss.getOwnRef();
-  sendConfigChangeImplReq(ss, m_new_config);
+  if (!sendConfigChangeImplReq(ss, m_new_config))
+  {
+    g_eventLogger->error("Failed to start initial configuration change!");
+    exit(1);
+  }
 }
 
 
@@ -1118,7 +1124,11 @@ ConfigManager::startNewConfigChange(SignalSender& ss)
   g_eventLogger->info("Starting configuration change, generation: %d",
                       m_new_config->getGeneration());
   m_client_ref = ss.getOwnRef();
-  sendConfigChangeImplReq(ss, m_new_config);
+  if (!sendConfigChangeImplReq(ss, m_new_config))
+  {
+    g_eventLogger->error("Failed to start configuration change!");
+    exit(1);
+  }
 
   /* The new config has been sent and can now be discarded */
   delete m_new_config;
@@ -1126,7 +1136,7 @@ ConfigManager::startNewConfigChange(SignalSender& ss)
 }
 
 
-void
+bool
 ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
 {
   require(m_client_ref != RNIL);
@@ -1146,18 +1156,50 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   req->initial = (m_config_state == CS_INITIAL);
   req->length = buf.length();
 
-  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
-
   require(m_waiting_for.isclear());
-  m_waiting_for = ss.broadcastSignal(m_all_mgm, ssig,
-                                MGM_CONFIG_MAN,
-                                GSN_CONFIG_CHANGE_IMPL_REQ,
-                                ConfigChangeImplReq::SignalLength);
-  if (!m_waiting_for.isclear())
-    m_config_change_state = CCS_ABORT;
-  else
-    require(m_config_change_state == CCS_IDLE);
+  require(m_config_change_state == CCS_IDLE);
+
+  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
+  unsigned i = 0;
+  while((i = m_all_mgm.find(i+1)) != NodeBitmask::NotFound)
+  {
+    g_eventLogger->debug(" - to node %d", i);
+    SendStatus send_status=
+      ss.sendSignal(i, ssig, MGM_CONFIG_MAN,
+                    GSN_CONFIG_CHANGE_IMPL_REQ,
+                    ConfigChangeImplReq::SignalLength);
+    if (send_status != SEND_OK)
+    {
+      g_eventLogger->warning("Failed to send configuration change "
+                             "prepare to node: %d, send_status: %d",
+                             i, send_status);
+      break;
+    }
+    m_waiting_for.set(i);
+  }
+
+  if (!m_all_mgm.equal(m_waiting_for))
+  {
+    // Could not send prepare to all nodes
+    m_config_change_error = ConfigChangeRef::SendFailed;
+    if (!m_waiting_for.isclear())
+    {
+      // Some nodes got prepare, set state to
+      // abort and continue abort when result
+      // of prepare arrives
+      m_config_change_state = CCS_ABORT;
+      return false;
+    }
+
+    // No node has got prepare
+    return false;
+  }
+
+  // Prepare has been sent to all mgm nodes
+  // continue and wait for prepare conf(s)
   m_config_change_state = CCS_PREPARING;
+  return true;
+
 }
 
 
@@ -1210,7 +1252,14 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
   }
 
   m_client_ref = from;
-  sendConfigChangeImplReq(ss, &new_config);
+  if (!sendConfigChangeImplReq(ss, &new_config))
+  {
+    assert(m_config_change_error);
+    sendConfigChangeRef(ss, from,
+                        m_config_change_error);
+    return;
+  }
+
   return;
 }
 
