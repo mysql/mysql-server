@@ -8239,7 +8239,7 @@ static MYSQL_SYSVAR_BOOL(extra_dirty_writes, innobase_extra_dirty_writes,
 static MYSQL_SYSVAR_LONG(io_capacity, innobase_io_capacity,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of IOPs the server can do. Tunes the background IO rate",
-  NULL, NULL, 200, 100, ~0L, 0);
+  NULL, NULL, (long)200, (long)100, (long)~0L, (long)0);
 
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
@@ -8251,7 +8251,8 @@ static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   */
   IF_NETWARE("", " or 2 (fastest - crash-like)")
   ".",
-  NULL, NULL, 1, 0, IF_NETWARE(1,2), 0);
+  NULL, NULL, (unsigned long)1, (unsigned long)0,
+  (unsigned long)IF_NETWARE(1,2), (unsigned long)0);
 
 static MYSQL_SYSVAR_BOOL(file_per_table, innobase_file_per_table,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -8263,7 +8264,8 @@ static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   "Set to 0 (write and flush once per second),"
   " 1 (write and flush at each commit)"
   " or 2 (write at commit, flush once per second).",
-  NULL, NULL, 1, 0, 2, 0);
+  NULL, NULL, (unsigned long)1, (unsigned long)0, (unsigned long)2,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_STR(flush_method, innobase_unix_file_flush_method,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -8291,12 +8293,14 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, NULL, 75, 0, 99, 0);
+  NULL, NULL, (unsigned long)75, (unisgned long)0, (unsigned long)99,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
   "Desired maximum length of the purge queue (0 = no limit)",
-  NULL, NULL, 0, 0, ~0L, 0);
+  NULL, NULL, (unsigned long)0, (unsigned long)0, (unsigned long)~0L,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -8322,82 +8326,88 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
-  NULL, NULL, 8*1024*1024L, 2*1024*1024L, LONG_MAX, 1024);
+  NULL, NULL, (long)8*1024*1024L, (long)2*1024*1024L, LONG_MAX, (long)1024);
 
 static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
   PLUGIN_VAR_RQCMDARG,
   "Data file autoextend increment in megabytes",
-  NULL, NULL, 64L, 1L, 1000L, 0);
+  NULL, NULL, (unsigned long)64L, (unsigned long)1L, (unsigned long)1000L,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 1024*1024*1024L, 64*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, (long long)1024*1024*1024L, (long long)64*1024*1024L,
+  LONGLONG_MAX, (long long)1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, srv_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
-  NULL, NULL, 0, 0, 1000, 0);
+  NULL, NULL, (unsigned long)0, (unsigned long)0, (unsigned long)1000,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   PLUGIN_VAR_RQCMDARG,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
-  NULL, NULL, 500L, 1L, ~0L, 0);
+  NULL, NULL, (unsigned long)500L, (unsigned long)1L, (unsigned long)~0L,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_LONG(write_io_threads, innobase_write_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of write I/O threads in InnoDB.",
-  NULL, NULL, 8, 1, 64, 0);
+  NULL, NULL, (long)8, (long)1, (long)64, (long)0);
 
 static MYSQL_SYSVAR_LONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of read I/O threads in InnoDB.",
-  NULL, NULL, 8, 1, 64, 0);
+  NULL, NULL, (long)8, (long)1, (long)64, (long)0);
 
 static MYSQL_SYSVAR_LONG(max_merged_io, innobase_max_merged_io,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Max number of adjacent IO requests to merge in InnoDB.",
-  NULL, NULL, 64, 1, 64, 0);
+  NULL, NULL, (long)64, (long)1, (long)64, (long)0);
 
 static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
-  NULL, NULL, 0, 0, 6, 0);
+  NULL, NULL, (long)0, (long)0, (long)6, (long)0);
 
 static MYSQL_SYSVAR_LONG(lock_wait_timeout, innobase_lock_wait_timeout,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back.",
-  NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
+  NULL, NULL, (long)50, (long)1, (long)1024 * 1024 * 1024, (long)0);
 
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-  NULL, NULL, 16*1024*1024L, 2*1024*1024L, LONG_MAX, 1024);
+  NULL, NULL, (long)16*1024*1024L, (long)2*1024*1024L, LONG_MAX, (long)1024);
 
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of each log file in a log group.",
-  NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, (long long)128*1024*1024L, (long long)32*1024*1024L,
+  LONGLONG_MAX, (long long)1024*1024L);
 
 static MYSQL_SYSVAR_LONG(log_files_in_group, innobase_log_files_in_group,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion. Value 3 is recommended here.",
-  NULL, NULL, 3, 2, 100, 0);
+  NULL, NULL, (long)3, (long)2, (long)100, (long)0);
 
 static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
+  NULL, NULL, (long)1, (long)1, (long)10, (long)0);
 
 static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "How many files at the maximum InnoDB keeps open at the same time.",
-  NULL, NULL, 300L, 10L, LONG_MAX, 0);
+  NULL, NULL, (long)300L, (long)10L, LONG_MAX, (long)0L);
 
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
   "Count of spin-loop rounds in InnoDB mutexes",
-  NULL, NULL, 20L, 0L, ~0L, 0);
+  NULL, NULL, (unsigned long)20L, (unsigned long)0L, (unsigned long)~0L,
+  (unsigned long)0L);
 
 static MYSQL_SYSVAR_BOOL(thread_concurrency_timer_based,
                          innobase_thread_concurrency_timer_based,
@@ -8408,12 +8418,14 @@ static MYSQL_SYSVAR_BOOL(thread_concurrency_timer_based,
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-  NULL, NULL, 0, 0, 1000, 0);
+  NULL, NULL, (unsigned long)0, (unsigned long)0, (unsigned long)1000,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
   "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0 disable a sleep",
-  NULL, NULL, 10000L, 0L, ~0L, 0);
+  NULL, NULL, (unsigned long)10000L, (unsigned long)0L, (unsigned long)~0L,
+  (unsigned long)0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -8430,7 +8442,7 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   NULL, NULL,
   AUTOINC_NEW_STYLE_LOCKING,	/* Default setting */
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
-  AUTOINC_NO_LOCKING, 0);	/* Maximum value */
+  AUTOINC_NO_LOCKING, (long)0);	/* Maximum value */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
