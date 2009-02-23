@@ -6609,7 +6609,6 @@ int ha_ndbcluster::create(const char *name,
           strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
     {
       DBUG_PRINT("info", ("Schema distribution table not setup"));
-      DBUG_ASSERT(ndb_schema_share);
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
     single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
@@ -7450,7 +7449,6 @@ ha_ndbcluster::delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
-    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   /* ndb_share reference temporary */
@@ -8604,7 +8602,6 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
-    DBUG_ASSERT(ndb_schema_share);
     DBUG_VOID_RETURN;
   }
   ndbcluster_drop_database_impl(thd, path);
