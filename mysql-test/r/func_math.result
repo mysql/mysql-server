@@ -360,4 +360,34 @@ SELECT a DIV 2 FROM t1 UNION SELECT a DIV 2 FROM t1;
 a DIV 2
 0
 DROP TABLE t1;
+CREATE TABLE t1 (a DOUBLE);
+INSERT INTO t1 VALUES (-1.1), (1.1),
+(-1.5), (1.5),
+(-1.9), (1.9),
+(-2.1), (2.1),
+(-2.5), (2.5),
+(-2.9), (2.9),
+# Check numbers with absolute values > 2^53 - 1 
+# (see comments for MAX_EXACT_INTEGER)
+(-1e16 - 0.5), (1e16 + 0.5),
+(-1e16 - 1.5), (1e16 + 1.5);
+SELECT a, ROUND(a) FROM t1;
+a	ROUND(a)
+-1.1	-1
+1.1	1
+-1.5	-2
+1.5	2
+-1.9	-2
+1.9	2
+-2.1	-2
+2.1	2
+-2.5	-2
+2.5	2
+-2.9	-3
+2.9	3
+-1e+16	-10000000000000000
+1e+16	10000000000000000
+-1e+16	-10000000000000002
+1e+16	10000000000000002
+DROP TABLE t1;
 End of 5.0 tests
