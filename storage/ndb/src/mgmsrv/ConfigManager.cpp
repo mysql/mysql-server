@@ -685,6 +685,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
                        "requestType: %d",
                        nodeId, req->requestType);
 
+  if (!m_defragger.defragment(sig))
+    return; // More fragments to come
+
   Guard g(m_config_mutex);
 
   switch(req->requestType){
@@ -1164,17 +1167,19 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   while((i = m_all_mgm.find(i+1)) != NodeBitmask::NotFound)
   {
     g_eventLogger->debug(" - to node %d", i);
-    SendStatus send_status=
-      ss.sendSignal(i, ssig, MGM_CONFIG_MAN,
-                    GSN_CONFIG_CHANGE_IMPL_REQ,
-                    ConfigChangeImplReq::SignalLength);
-    if (send_status != SEND_OK)
+    int result =
+      ss.sendFragmentedSignal(i, ssig, MGM_CONFIG_MAN,
+                              GSN_CONFIG_CHANGE_IMPL_REQ,
+                              ConfigChangeImplReq::SignalLength);
+    if (result != 0)
     {
       g_eventLogger->warning("Failed to send configuration change "
-                             "prepare to node: %d, send_status: %d",
-                             i, send_status);
+                             "prepare to node: %d, result: %d",
+                             i, result);
       break;
     }
+    ssig.header.m_noOfSections = 1; // reset by sendFragmentedSignal
+
     m_waiting_for.set(i);
   }
 
@@ -1209,6 +1214,9 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
   BlockReference from = sig->header.theSendersBlockRef;
   const ConfigChangeReq * const req =
     CAST_CONSTPTR(ConfigChangeReq, sig->getDataPtr());
+
+  if (!m_defragger.defragment(sig))
+    return; // More fragments to come
 
   if (!m_started.equal(m_all_mgm)) // Not all started
   {
@@ -1571,6 +1579,7 @@ ConfigManager::run()
       ndbout_c("Node %d failed", nodeId);
       m_started.clear(nodeId);
       m_checked.clear(nodeId);
+      m_defragger.node_failed(nodeId);
 
       if (m_config_change_state != CCS_IDLE)
       {
