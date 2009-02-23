@@ -2152,6 +2152,15 @@ my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
     }
   }
 
+  /*
+    This query execution might have started after the query cache was flushed
+    by a concurrent INSERT. In this case, don't cache this statement as the
+    data file length difference might not be visible yet if the tables haven't
+    been unlocked by the concurrent insert thread.
+  */
+  if (file->state->uncacheable)
+    DBUG_RETURN(FALSE);
+
   /* It is ok to try to cache current statement. */
   DBUG_RETURN(TRUE);
 }

@@ -250,7 +250,7 @@ static COMMANDS commands[] = {
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
+    "Set statement delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
