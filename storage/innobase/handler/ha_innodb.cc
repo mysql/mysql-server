@@ -8375,7 +8375,7 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
 static MYSQL_SYSVAR_LONG(lock_wait_timeout, innobase_lock_wait_timeout,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back.",
-  NULL, NULL, (long)50, (long)1, (long)1024 * 1024 * 1024, (long)0);
+  NULL, NULL, (long)50, (long)1, (long)(1024*1024*1024), (long)0);
 
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
