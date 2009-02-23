@@ -49,6 +49,12 @@ UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
 
+/**************************************************************************
+Initializes the mem block list at database startup. */
+UNIV_INTERN
+void
+ut_mem_init(void);
+/*=============*/
 
 /**************************************************************************
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
