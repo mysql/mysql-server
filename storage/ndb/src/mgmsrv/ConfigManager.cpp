@@ -1044,7 +1044,10 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     require(m_config_change_error);
     if (m_client_ref == ss.getOwnRef())
     {
-      g_eventLogger->error("Config change failed!");
+      g_eventLogger->
+        error("Configuration change failed! error: %d '%s'",
+              m_config_change_error,
+              ConfigChangeRef::errorMessage(m_config_change_error));
       exit(1);
     }
     else
