@@ -4124,7 +4124,7 @@ btr_check_blob_fil_page_type(
 	ulint		space_id,	/* in: space id */
 	ulint		page_no,	/* in: page number */
 	const page_t*	page,		/* in: page */
-	const char*	op)		/* in: operation (for diagnostics) */
+	ibool		read)		/* in: TRUE=read, FALSE=purge */
 {
 	ulint	type = fil_page_get_type(page);
 
@@ -4134,6 +4134,14 @@ btr_check_blob_fil_page_type(
 	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
 		ulint	flags = fil_space_get_flags(space_id);
 
+		if (read
+		    && (flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51) {
+			/* Do not print anything about the type
+			mismatch when reading a BLOB page that is in
+			Antelope format. */
+			return;
+		}
+
 		/* Old versions of InnoDB did not
 		initialize FIL_PAGE_TYPE on BLOB pages.
 		Ensure that this tablespace is in
@@ -4142,9 +4150,9 @@ btr_check_blob_fil_page_type(
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: FIL_PAGE_TYPE=%lu"
-			" on BLOB %s page %lu space %lu flags %lx\n",
-			(ulong) type, op,
-			(ulong) page_no, (ulong) space_id, (ulong) flags);
+			" on BLOB %s space %lu page %lu flags %lx\n",
+			(ulong) type, read ? "read" : "purge",
+			(ulong) space_id, (ulong) page_no, (ulong) flags);
 
 		/* The garbage in FIL_PAGE_TYPE will
 		only be tolerated in tables in old
@@ -4308,7 +4316,7 @@ btr_free_externally_stored_field(
 		} else {
 			ut_a(!page_zip);
 			btr_check_blob_fil_page_type(space_id, page_no, page,
-						     "free");
+						     FALSE);
 
 			next_page_no = mach_read_from_4(
 				page + FIL_PAGE_DATA
@@ -4455,7 +4463,7 @@ btr_copy_blob_prefix(
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
 		page = buf_block_get_frame(block);
 
-		btr_check_blob_fil_page_type(space_id, page_no, page, "read");
+		btr_check_blob_fil_page_type(space_id, page_no, page, TRUE);
 
 		blob_header = page + offset;
 		part_len = btr_blob_get_part_len(blob_header);
