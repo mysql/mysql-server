@@ -279,7 +279,7 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #define my_pthread_setprio(A,B) pthread_setprio_np((A),(B))
 #elif defined(HAVE_PTHREAD_SETPRIO)
 #define my_pthread_setprio(A,B) pthread_setprio((A),(B))
-#elif defined(HAVE_PTHREAD_SETSCHEDPRIO) && !defined (__GNUC)
+#elif defined(HAVE_PTHREAD_SETSCHEDPRIO) && !defined (__GNUC__)
 /*
    Workaround for bug on Solaris where pthread.h have bug in GNU
    version of pthread.h => configure says yes, header files says
