@@ -1,5 +1,9 @@
 SET @old_general_log= @@global.general_log;
 drop table if exists t1, t2;
+CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
+ENGINE=MyISAM
+PARTITION BY HASH (a);
+ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)

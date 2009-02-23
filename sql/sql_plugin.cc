@@ -1138,6 +1138,9 @@ int plugin_init(int *argc, char **argv, int flags)
   {
     for (plugin= *builtins; plugin->info; plugin++)
     {
+      if (opt_ignore_builtin_innodb &&
+          !my_strcasecmp(&my_charset_latin1, plugin->name, "InnoDB"))
+          continue;
       /* by default, ndbcluster and federated are disabled */
       def_enabled=
         my_strcasecmp(&my_charset_latin1, plugin->name, "NDBCLUSTER") != 0 &&
