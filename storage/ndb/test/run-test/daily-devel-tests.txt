@@ -25,6 +25,18 @@ max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
 
+max-time: 1000
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n NR -l 300 -r 15 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n Mix -l 300 -r 15 T1
+
 #
 #
 # SYSTEM RESTARTS
