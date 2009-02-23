@@ -8293,7 +8293,7 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, NULL, (unsigned long)75, (unisgned long)0, (unsigned long)99,
+  NULL, NULL, (unsigned long)75, (unsigned long)0, (unsigned long)99,
   (unsigned long)0);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
