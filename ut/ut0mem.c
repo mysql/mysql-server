@@ -64,10 +64,10 @@ static ulint*	ut_mem_null_ptr	= NULL;
 
 /**************************************************************************
 Initializes the mem block list at database startup. */
-static
+UNIV_INTERN
 void
-ut_mem_block_list_init(void)
-/*========================*/
+ut_mem_init(void)
+/*=============*/
 {
 	os_fast_mutex_init(&ut_list_mutex);
 	UT_LIST_INIT(ut_mem_block_list);
@@ -106,10 +106,7 @@ ut_malloc_low(
 	}
 
 	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
-
-	if (UNIV_UNLIKELY(!ut_mem_block_list_inited)) {
-		ut_mem_block_list_init();
-	}
+	ut_a(ut_mem_block_list_inited);
 
 	retry_count = 0;
 retry:
@@ -383,10 +380,7 @@ ut_free_all_mem(void)
 {
 	ut_mem_block_t* block;
 
-	if (!ut_mem_block_list_inited) {
-		return;
-	}
-
+	ut_a(ut_mem_block_list_inited);
 	ut_mem_block_list_inited = FALSE;
 	os_fast_mutex_free(&ut_list_mutex);
 
