@@ -162,9 +162,8 @@ mem_init(
 		size = 1;
 	}
 
-	mem_comm_pool = mem_pool_create(size);
-
 	ut_mem_init();
+	mem_comm_pool = mem_pool_create(size);
 }
 
 #ifdef UNIV_MEM_DEBUG
