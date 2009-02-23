@@ -186,6 +186,26 @@ SignalSender::sendSignal(Uint16 nodeId,
 }
 
 
+int
+SignalSender::sendFragmentedSignal(Uint16 nodeId,
+                                   SimpleSignal& sig,
+                                   Uint16 recBlock, Uint16 gsn,
+                                   Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+  if (nodeId == theFacade->ownId())
+  {
+    // No need to fragment when sending to own node
+    return sendSignal(nodeId, &sig);
+  }
+
+  return theFacade->sendFragmentedSignal((NdbApiSignal*)&sig.header,
+                                         nodeId,
+                                         &sig.ptr[0],
+                                         sig.header.m_noOfSections);
+}
+
+
 template<class T>
 SimpleSignal *
 SignalSender::waitFor(Uint32 timeOutMillis, T & t)
