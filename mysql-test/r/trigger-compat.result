@@ -12,9 +12,7 @@ GRANT CREATE, TRIGGER ON mysqltest_db1.* TO mysqltest_dfn@localhost;
 ---> connection: wl2818_definer_con
 CREATE TABLE t1(num_value INT);
 CREATE TABLE t2(user_str TEXT);
-CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1
-FOR EACH ROW
-INSERT INTO t2 VALUES(CURRENT_USER());
+CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES(CURRENT_USER());
 
 ---> patching t1.TRG...
 
