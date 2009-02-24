@@ -164,12 +164,6 @@ Configuration::init(int argc, char** argv)
   if (_foreground)
     _foregroundMode = true;
 
-  // Save programname
-  if(argc > 0 && argv[0] != 0)
-    _programName = strdup(argv[0]);
-  else
-    _programName = strdup("");
-  
   globalData.ownId= 0;
 
   if (_nowait_nodes)
@@ -207,7 +201,6 @@ Configuration::init(int argc, char** argv)
 
 Configuration::Configuration()
 {
-  _programName = 0;
   _connectString = 0;
   _fsPath = 0;
   _backupPath = 0;
@@ -223,9 +216,6 @@ Configuration::Configuration()
 Configuration::~Configuration(){
   if (opt_connect_str)
     free(_connectString);
-
-  if(_programName != NULL)
-    free(_programName);
 
   if(_fsPath != NULL)
     free(_fsPath);
