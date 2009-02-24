@@ -1308,6 +1308,7 @@ public:
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);
+  void save_item_result(Item *item);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref);
