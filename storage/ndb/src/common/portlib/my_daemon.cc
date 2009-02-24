@@ -27,21 +27,16 @@
 #ifdef _WIN32
 #include <nt_servc.h>
 NTService g_ntsvc;
-HANDLE    g_evt;
+HANDLE    g_shutdown_evt;
 #endif
 
 static char *daemon_name;
 static long daemonpid;
 
-#define daemon_error_len 1024
-char *my_daemon_error=0;
-#define check(x,retval,fmt,s) \
-  {long x_=(long)(x);if(!x_){int i=0;\
-   if(!my_daemon_error)my_daemon_error=(char*)malloc(1024); \
-   i=my_snprintf(my_daemon_error,daemon_error_len,fmt,s);\
-   my_snprintf(&my_daemon_error[i],daemon_error_len-i,": %s (errno: %d)",\
-               strerror(errno),errno);\
-   return retval;    }}
+#define errorlen 1023
+char my_daemon_error[errorlen+1];
+#define ERR(...) \
+        (my_snprintf(my_daemon_error,errorlen,__VA_ARGS__),1)
 
 struct MY_DAEMON g_daemon;
 
@@ -49,7 +44,7 @@ struct MY_DAEMON g_daemon;
 static int init();
 static int stopper(void*)
 {
-  WaitForSingleObject(g_evt,INFINITE);
+  WaitForSingleObject(g_shutdown_evt,INFINITE);
   return g_daemon.stop();
 }
 #endif
@@ -59,12 +54,13 @@ int my_daemon_run(char *name,struct MY_DAEMON*d)
   daemon_name= name;
   memcpy(&g_daemon,d,sizeof(g_daemon));
 #ifdef _WIN32
-  g_evt=CreateEvent(0, 0, 0, 0);
-  g_ntsvc.SetShutdownEvent(g_evt);
+  g_shutdown_evt=CreateEvent(0, 0, 0, 0);
+  g_ntsvc.SetShutdownEvent(g_shutdown_evt);
   uintptr_t stop_thread= _beginthread((THREAD_FC)stopper,0,0);
   if(!stop_thread)
-    return 1;
-  check(!init(), 1, "%s", "init failed\n");
+    return ERR("couldn't start stopper thread\n");
+  if(init())
+    return ERR("init failed\n");
 #else /* Fork */
   pid_t n = fork();
   check(n!=-1,-1,"fork failed: %s", strerror(errno));
@@ -76,74 +72,115 @@ int my_daemon_run(char *name,struct MY_DAEMON*d)
   return 0;
 }
 
-static int pidfd, logfd;
 #ifdef _WIN32
 char *my_daemon_makecmdv(int c, const char **v)
 {
-  char exe[_MAX_PATH + 1], *t, *u;
+  char exe[_MAX_PATH + 3], *retval, *strpos;
   int i= 0, n= 0;
 
   GetModuleFileName(NULL, exe, sizeof(exe));
   n= strlen(exe);
   for (i= 0; i < c; i++)
-    n += strlen(v[i]) + 4;
-  u= t= (char*)my_malloc(n, MY_FAE);
-  u += my_snprintf(u, n, "%s", exe);
+    n += strlen(v[i]) + 8;
+  strpos= retval= (char*)my_malloc(n, MY_FAE);
+  strpos += my_snprintf(strpos, n, "\"%s\"", exe);
   for (i= 0; i < c; i++)
-    u += my_snprintf(u, n, " %s", v[i]);
-  return t;
+    strpos += my_snprintf(strpos, n, " \"%s\"", v[i]);
+  return retval;
 }
 
-char *my_daemon_make_svc_cmd(int n, char **v)
+static int startswith(char*s,char**set)
 {
+  char**item=set;
+  for(;*item;item++)
+    if(!strncmp(*item,s,strlen(*item)))
+      return 1;
+  return 0;
+}
+
+char *my_daemon_make_svc_cmd(int n, char **v, char *name)
+{
+  char*swi[]= {"--install","-i",0},
+      *swirs[]= {"--remove","-r","--install","-i","--service","-s",0};
+  if(!startswith(v[0],swi))
+    return ERR("The install option (-i) must be the first argument\n"),0;
+  int i= 0;
+  for(i=1;i<n;i++)
+    if(startswith(v[i],swirs))
+       return ERR("The install option (-i) must be the only -i or -r"
+                  " on command line\n"),0;
+  size_t opt_size= strlen(name)+16;
+  char*svcopt=(char*)my_malloc(opt_size, MY_FAE);
+  my_snprintf(svcopt,opt_size-1,"--service=%s",name);
+
   size_t size=sizeof(char*)*(n+2);
-  int i= 0,j= 0;
   char**v1= (char**)my_malloc(size, MY_FAE);
-  int longopt= !strncmp(v[0],"--install",strlen("--install"));
-  int shortopt= !strcmp(v[0],"-i") ;
-  check(shortopt || longopt,
-        0, "%s", "the install option (-i) must be the first argument\n");
-  char *name= longopt ? ( *(v[0]+strlen("--install"))=='=' ? v[0]+strlen("--install=") : 0 )
-	                  : ( n>0 && v[1][0]!='-' ? v[1] : 0 );
-  if(!name)
-	  name= "MySQL Cluster Management Server";
   memset(v1,0,size);
-  v1[i++]="-s";
-  v1[i++]=name;
-  j= longopt ? 1 : 2;
+  i=0;
+  v1[i++]= svcopt;
+
+  int j= 1;
+  for(;j<n&&v[j][0]!='-';j++); // skip through to first option
   for(;j<n;j++)
-    v1[i++]=v[j];
+    v1[i++]= v[j];
   return my_daemon_makecmdv(i, (const char**)v1);
+}
+
+//returns -1: no install/remove, 0: success, +ve error
+int maybe_install_or_remove_service(int argc_,char**argv_,char*opts_remove,char*opts_install,char*default_name)
+{
+  if(argc_<2)
+    return -1;
+  char*svc=default_name,
+      *r[]={"-r","--remove",0},
+      *i[]={"-i","--install",0};
+  if(opts_remove||startswith(argv_[1],r)) {
+    if(opts_remove)
+      svc=(char*)opts_remove;
+    printf("Removing service \"%s\"\n",svc);
+    return my_daemon_remove(svc);
+  }
+  if(opts_install||startswith(argv_[1],i)) {
+    char *svc_cmd;
+    if(opts_install)
+      svc=(char*)opts_install;
+    svc_cmd= my_daemon_make_svc_cmd(argc_-1, argv_+1, svc);
+    if(!svc_cmd) {
+      fprintf(stderr, my_daemon_error);
+      return 1;
+    }
+    printf("Installing service \"%s\"\n",svc);
+    printf("as \"%s\"\n",svc_cmd);
+    return my_daemon_install(svc, svc_cmd);
+  }
+  return -1;
 }
 
 int my_daemon_install(const char *name, const char *cmd)
 {
-  SC_HANDLE svc, scm;
-  const char *s= name;
+  SC_HANDLE svc= 0, scm= 0;
 
-  while (*s && isalnum(*s++))
-    ;
-  if (*s)
-    return 1;
-  check(g_ntsvc.SeekStatus(name, 1), 1, "SeekStatus on %s failed", name);
-  check(scm= OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE), 1, "%s",
-        "Failed to install the service: "
-        "Could not open Service Control Manager.\n");
-  check(svc= CreateService(scm, name, name,
-                            SERVICE_ALL_ACCESS,
-                            SERVICE_WIN32_OWN_PROCESS,
-                            (1 ? SERVICE_AUTO_START :
-                             SERVICE_DEMAND_START), SERVICE_ERROR_NORMAL,
-                            cmd, 0, 0, 0, 0, 0), 1, "%s",
-        "Failed to install the service: "
-        "Couldn't create service)\n"
-        ) printf("Service successfully installed.\n");
+  if(!g_ntsvc.SeekStatus(name, 1))
+    return ERR("SeekStatus on %s failed\n", name);
+  if(!(scm= OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE)))
+    return ERR("Failed to install the service: "
+               "Could not open Service Control Manager.\n");
+  if(!(svc= CreateService(scm, name, name,
+                          SERVICE_ALL_ACCESS,
+                          SERVICE_WIN32_OWN_PROCESS,
+                          (1 ? SERVICE_AUTO_START :
+                          SERVICE_DEMAND_START), SERVICE_ERROR_NORMAL,
+                          cmd, 0, 0, 0, 0, 0)))
+    return CloseServiceHandle(scm),
+           ERR("Failed to install the service: "
+               "Couldn't create service)\n");
+  printf("Service successfully installed.\n");
   CloseServiceHandle(svc);
   CloseServiceHandle(scm);
   return 0;
 }
 #endif
-
+static int pidfd, logfd;
 int daemon_closefiles()
 {
   close(pidfd);
@@ -165,19 +202,23 @@ int my_daemon_prefiles(const char *pidfil, const char *logfil)
   if (logfile != NULL)
   {
     logfd= open(logfile, O_CREAT | O_WRONLY | O_APPEND, 0644);
-    check(logfd != -1, 1, "%s: open for write failed", logfile);
+    if(logfd == -1)
+      return ERR("%s: open for write failed\n", logfile);
     my_dlog= fdopen(logfd, "a");
   }
   /* Check that we have write access to lock file */
   assert(pidfile != NULL);
   pidfd= open(pidfile, O_CREAT | O_RDWR, 0644);
-  check(pidfd != -1, 1, "%s: open for write failed", pidfile);
+  if(pidfd == -1)
+    return ERR("%s: open for write failed\n", pidfile);
   /* Read any old pid from lock file */
   n= read(pidfd, buf, sizeof(buf));
-  check(n >= 0, 1, "%s: read failed", pidfile);
+  if(n < 0)
+    return ERR("%s: read failed\n", pidfile);
   buf[n]= 0;
   daemonpid= atol(buf);
-  check(lseek(pidfd, 0, SEEK_SET) != -1, 1, "%s: lseek failed", pidfile);
+  if(lseek(pidfd, 0, SEEK_SET) == -1)
+    return ERR("%s: lseek failed\n", pidfile);
 #ifdef __WIN__                  //TODO: add my_lockf.c with these definitions
 #define lockf _locking
 #define F_TLOCK _LK_NBLCK
@@ -186,10 +227,11 @@ int my_daemon_prefiles(const char *pidfil, const char *logfil)
 #endif
 #ifdef F_TLOCK
   /* Test for lock before becoming daemon */
-  if (lockf(pidfd, F_TLOCK, 0) == -1)
-    check(errno != EACCES && errno != EAGAIN, 1,
-          "pidfile: already locked by pid=%ld", daemonpid);
-  check(lockf(pidfd, F_ULOCK, 0) != -1, 1, "%s: fail to unlock", pidfile);
+  if(lockf(pidfd, F_TLOCK, 0) == -1)
+    if(errno == EACCES || errno == EAGAIN)
+      return ERR("pidfile: already locked by pid=%ld\n", daemonpid);
+  if(lockf(pidfd, F_ULOCK, 0) == -1)
+    return ERR("%s: fail to unlock\n", pidfile);
 #endif
   return 0;
 }
@@ -202,21 +244,28 @@ int my_daemon_files()
   daemonpid= getpid();
 #ifdef F_TLOCK
   /* Lock the lock file (likely to succeed due to test above) */
-  check(lockf(pidfd, F_LOCK, 0) != -1, 1, "%s: lock failed", pidfile);
+  if(lockf(pidfd, F_LOCK, 0) == -1)
+    return ERR("%s: lock failed\n", pidfile);
 #endif
+#ifndef _WIN32
   /* Become process group leader */
-  IF_WIN(0, check(setsid() != -1, 1, "%s", "setsid failed"));
+  if(check(setsid() == -1)
+    return ERR("setsid failed\n");
+#endif
   /* Write pid to lock file */
-  check(IF_WIN(_chsize, ftruncate) (pidfd, 0) != -1, 1,
-        "%s: ftruncate failed", pidfile);
+  if(IF_WIN(_chsize, ftruncate)(pidfd, 0) == -1)
+    return ERR("%s: ftruncate failed\n", pidfile);
   n= my_sprintf(buf, (buf, "%ld\n", daemonpid));
-  check(write(pidfd, buf, n) == n, 1, "%s: write failed", pidfile);
+  if(write(pidfd, buf, n) != n)
+    return ERR("%s: write failed\n", pidfile);
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);
-  check(0 == open(IF_WIN("nul:", "/dev/null"), O_RDONLY), 1, "%s", "close 0");
-#ifdef _WIN32
+  char* fname=IF_WIN("nul:", "/dev/null");
+  if(open(fname, O_RDONLY)==-1)
+    return ERR("couldn't open %s\n", fname);
+#ifdef _WIN32 //no stdout/stderr on windows service
   *stdout= *stderr= *my_dlog;
-#else //no stdout/stderr on windows service
+#else
   if (logfd != 0)
   {
     dup2(logfd, 1);
@@ -248,9 +297,16 @@ static int evtlog(char *s)
   return 0;
 }
 
+static DWORD WINAPI main_function(LPVOID x)
+{
+  g_ntsvc.SetRunning();
+  g_daemon.start(0);
+  return 0;
+}
+
 static int init()
 {
-  return !g_ntsvc.Init(daemon_name,g_daemon.start);
+  return !g_ntsvc.Init(daemon_name,main_function);
 }
 
 int my_daemon_remove(const char *name)

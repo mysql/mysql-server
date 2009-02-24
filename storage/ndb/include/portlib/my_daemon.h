@@ -55,7 +55,7 @@ int my_daemon_files_run(char *name, struct MY_DAEMON*d, char *node_id);
    if any of the functions in my_daemon return non-zero (failure)
    then my_daemon_error contains the error message
 */
-extern char *my_daemon_error;
+extern char my_daemon_error[];
 
 /*
    my_daemon_install() adds a service called [name] which will
@@ -70,6 +70,8 @@ int my_daemon_install(const char *name, const char *cmd);
 */
 int my_daemon_remove(const char *name);
 
+int maybe_install_or_remove_service(int argc_,char**argv_,char*opts_remove,char*opts_install,char*default_name);
+
 /*
    these macros are provided for convenience.  including these macros
    in your main source file give you standard options for services
@@ -80,17 +82,10 @@ int my_daemon_remove(const char *name);
   uchar *prefix##remove,*prefix##install,*prefix##service
 #define MY_DAEMON_VARS(prefix) uchar *prefix remove,* install,*prefix service
 #define MY_DAEMON_VARS0 MY_DAEMON_VARS(NONE)
-#define MY_DAEMON_LONG_OPTS_PASTE(prefix) \
-  {"install", 'i', "Install this program as a service.", \
-   &prefix##install, &prefix##install, 0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
-  {"remove",  'r', "Remove this program as a service.", \
-   &prefix##remove,  &prefix##remove,  0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
-  {"service", 's', "Internal use only (for windows service)", \
-   &prefix##service, &prefix##service, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #define MY_DAEMON_LONG_OPTS(prefix) \
-  {"install", 'i', "Install this program as a service.", \
+  {"install", 'i', "Install this program as a service. (must be first argument)", \
    &prefix install, &prefix install, 0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
-  {"remove",  'r', "Remove this program as a service.", \
+  {"remove",  'r', "Remove this program as a service. (must be first argument)", \
    &prefix remove,  &prefix remove,  0, GET_STR,  OPT_ARG, 0, 0, 0, 0, 0, 0}, \
   {"service", 's', "Internal use only (for windows service)", \
    &prefix service, &prefix service, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -134,7 +129,7 @@ int my_daemon_closefiles();
    a helper function to turn a --install command line to a
    --service command line for internal use with MY_DAEMON_LONG_OPTS
 */
-char *my_daemon_make_svc_cmd(int n, char **v);
+char *my_daemon_make_svc_cmd(int n, char **v, char *default_name);
 
 C_MODE_END
 #endif //MY_DAEMON_H
