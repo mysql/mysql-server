@@ -411,17 +411,6 @@ drop table t1;
 1
 drop table t1;
 shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
-set @@global.server_id= 4294967295;
-reset master;
-select
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
-is not null
-1
-*** Unsigned server_id 4294967295 is found: 1 ***
-set @@global.server_id= 1;
-End of 5.0 tests
 flush logs;
 BUG#31611: Security risk with BINLOG statement
 SET BINLOG_FORMAT=ROW;
@@ -471,4 +460,15 @@ an_int	1000
 a_decimal	907.79
 a_string	Just a test
 DROP TABLE t1;
+set @@global.server_id= 4294967295;
+reset master;
+flush logs;
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+is not null
+1
+*** Unsigned server_id 4294967295 is found: 1 ***
+set @@global.server_id= 1;
 End of 5.1 tests
