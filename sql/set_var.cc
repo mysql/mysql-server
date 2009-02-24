@@ -134,8 +134,6 @@ static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
-static int get_unsigned(THD *thd, set_var *var);
-static bool fix_unsigned(THD *, ulonglong *, bool, const struct my_option *);
 bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
                           const char *name, longlong val);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
@@ -1406,42 +1404,49 @@ bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
 
 /**
   check an unsigned user-supplied value for a systemvariable against bounds.
-  if we needed to adjust the value, throw a warning/error.
 
   @param thd             thread handle
-  @param num             the value the user gave
-  @param warn            throw warning/error (FALSE if we get here from
-                         get_unsigned(), so we don't throw two warnings if
-                         user supplies negative value to an unsigned variable)
-  @param option_limits   the bounds-record
+  @param num             the value to limit
+  @param option_limits   the bounds-record, or NULL
 
-  @retval                TRUE on error, FALSE otherwise (warning or OK)
+  @retval                whether or not we needed to bound
  */
-static bool fix_unsigned(THD *thd, ulonglong *num, bool warn,
-                         const struct my_option *option_limits)
+static my_bool bound_unsigned(THD *thd, ulonglong *num,
+                              const struct my_option *option_limits)
 {
   my_bool   fixed     = FALSE;
   ulonglong unadjusted= *num;
 
-  *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
+  if (option_limits)
+    *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
 
-  return warn && throw_bounds_warning(thd, fixed, TRUE, option_limits->name,
-                                      (longlong) unadjusted);
-
+  return fixed;
 }
 
 
 /**
   Get unsigned system-variable.
   Negative value does not wrap around, but becomes zero.
+  Check user-supplied value for a systemvariable against bounds.
+  If we needed to adjust the value, throw a warning or error depending
+  on SQL-mode.
 
-  @param thd      thread handle
-  @param var      the system-variable to get
+  @param thd             thread handle
+  @param var             the system-variable to get
+  @param user_max        a limit given with --maximum-variable-name=... or 0
+  @param bound2ulong     pass TRUE if size is ulong, not ulonglong.  function
+                         will then bound on systems where it's necessary.
 
-  @retval         0 - OK, 1 - warning, 2 - error
+  @retval                TRUE on error, FALSE otherwise (warning or OK)
  */
-static int get_unsigned(THD *thd, set_var *var)
+static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
+                         my_bool bound2ulong)
 {
+  int                     warnings= 0;
+  ulonglong               unadjusted;
+  const struct my_option *limits= var->var->option_limits;
+
+  /* get_unsigned() */
   if (var->value->unsigned_flag)
     var->save_result.ulonglong_value= (ulonglong) var->value->val_int();
   else
@@ -1449,9 +1454,57 @@ static int get_unsigned(THD *thd, set_var *var)
     longlong v= var->value->val_int();
     var->save_result.ulonglong_value= (ulonglong) ((v < 0) ? 0 : v);
     if (v < 0)
-      return throw_bounds_warning(thd, TRUE, FALSE, var->var->name, v) ? 2 : 1;
+    {
+      warnings++;
+      if (throw_bounds_warning(thd, TRUE, FALSE, var->var->name, v))
+        return TRUE;  /* warning was promoted to error, give up */
+    }
   }
-  return 0;
+
+  unadjusted= var->save_result.ulonglong_value;
+
+  /* max, if any */
+
+  if ((user_max > 0) && (unadjusted > user_max))
+  {
+    var->save_result.ulonglong_value= user_max;
+
+    if ((warnings == 0) && throw_bounds_warning(thd, TRUE, TRUE,
+                                                var->var->name,
+                                                (longlong) unadjusted))
+      return TRUE;
+
+    warnings++;
+  }
+
+  /* fix_unsigned() */
+  if (limits)
+  {
+    my_bool   fixed;
+
+    var->save_result.ulonglong_value= getopt_ull_limit_value(unadjusted,
+							     limits, &fixed);
+
+    if ((warnings == 0) && throw_bounds_warning(thd, fixed, TRUE, limits->name,
+                                                (longlong) unadjusted))
+      return TRUE;
+  }
+  else if (bound2ulong)
+  {
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+    /* Avoid overflows on 32 bit systems */
+    if (var->save_result.ulonglong_value > ULONG_MAX)
+    {
+      var->save_result.ulonglong_value= ULONG_MAX;
+      if ((warnings == 0) && throw_bounds_warning(thd, TRUE, TRUE,
+                                                  var->var->name,
+                                                  (longlong) unadjusted))
+        return TRUE;
+    }
+#endif
+  }
+
+  return FALSE;
 }
 
 
@@ -1465,27 +1518,7 @@ sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_ar
 
 bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
-  bool ret         = FALSE;
-  int  got_warnings= get_unsigned(thd, var);
-
-  if (got_warnings == 2)
-    ret= TRUE;
-  else if (option_limits)
-    ret= fix_unsigned(thd, &var->save_result.ulonglong_value,
-                      (got_warnings == 0), option_limits);
-  else
-  {
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    /* Avoid overflows on 32 bit systems */
-    if (var->save_result.ulonglong_value > ULONG_MAX)
-    {
-      ret= throw_bounds_warning(thd, TRUE, TRUE, name,
-                                (longlong) var->save_result.ulonglong_value);
-      var->save_result.ulonglong_value= ULONG_MAX;
-    }
-#endif
-  }
-  return ret;
+  return get_unsigned(thd, var, 0, TRUE);
 }
 
 bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
@@ -1511,8 +1544,7 @@ bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  if (option_limits)
-    fix_unsigned(thd, &tmp, FALSE, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
   *value= (ulonglong) tmp;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
@@ -1563,38 +1595,8 @@ uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 {
-  ulonglong tmp;
-  int       got_warnings= get_unsigned(thd, var);
-
-  if (got_warnings == 2)
+  if (get_unsigned(thd, var, max_system_variables.*offset, TRUE))
     return TRUE;
-
-  tmp= var->save_result.ulonglong_value;
-
-  /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if ((ulong) tmp > max_system_variables.*offset)
-  {
-    if (throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp))
-      return TRUE;
-    tmp= max_system_variables.*offset;
-  }
-
-  if (option_limits)
-  {
-    if (fix_unsigned(thd, &tmp, (got_warnings == 0), option_limits))
-      return TRUE;
-  }
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-  else if (tmp > ULONG_MAX)
-  {
-    if (throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp))
-      return TRUE;
-    tmp= ULONG_MAX;
-  }
-#endif
-
-  var->save_result.ulonglong_value= (ulong) tmp;
-
   return ((check_func && (*check_func)(thd, var)));
 }
 
@@ -1641,8 +1643,7 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
   if ((ha_rows) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
-  if (option_limits)
-    fix_unsigned(thd, &tmp, FALSE, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
 
   if (var->type == OPT_GLOBAL)
   {
@@ -1684,30 +1685,7 @@ uchar *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ulonglong::check(THD *thd, set_var *var)
 {
-  ulonglong tmp;
-  int       got_warnings= get_unsigned(thd, var);
-
-  if (got_warnings == 2)
-    return TRUE;
-
-  tmp= var->save_result.ulonglong_value;
-
-  if (tmp > max_system_variables.*offset)
-  {
-    if (throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp))
-      return TRUE;
-    tmp= max_system_variables.*offset;
-  }
-
-  if (option_limits)
-  {
-    if (fix_unsigned(thd, &tmp, (got_warnings == 0), option_limits))
-      return TRUE;
-  }
-
-  var->save_result.ulonglong_value= tmp;
-
-  return FALSE;
+  return get_unsigned(thd, var, max_system_variables.*offset, FALSE);
 }
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
@@ -2353,7 +2331,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     goto end;
   }
 
-  fix_unsigned(thd, &tmp, FALSE, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
   key_cache->param_buff_size= (ulonglong) tmp;
 
   /* If key cache didn't existed initialize it, else resize it */
@@ -2407,7 +2385,7 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   if (key_cache->in_init)
     goto end;
 
-  fix_unsigned(thd, &tmp, FALSE, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
   *((ulong*) (((char*) key_cache) + offset))= (ulong) tmp;
 
   /*
