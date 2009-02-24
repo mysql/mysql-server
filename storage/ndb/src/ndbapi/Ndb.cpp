@@ -1823,7 +1823,13 @@ Ndb::internalize_table_name(const char *external_name) const
     const char* s0 = theImpl->m_prefix.c_str();
     const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
     const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
-    assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+    if (s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) != 0)
+    {
+      ndbout_c("s0: %s", s0);
+      ndbout_c("s1: %s", s1);
+      ndbout_c("s2: %s", s2);
+      assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+    }
 #endif
     ret.assfmt("%s%s",
                theImpl->m_prefix.c_str(),
