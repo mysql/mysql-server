@@ -109,7 +109,6 @@ public:
   void setRestartOnErrorInsert(int);
   
   // Cluster configuration
-  const char * programName() const;
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
   const char * getConnectString() const;
@@ -165,7 +164,6 @@ private:
   /**
    * arguments to NDB process
    */
-  char * _programName;
   char * _fsPath;
   char * _backupPath;
   bool _initialStart;
@@ -177,12 +175,6 @@ private:
 
   void calcSizeAlt(class ConfigValues * );
 };
-
-inline
-const char *
-Configuration::programName() const {
-  return _programName;
-}
 
 inline
 const char *
