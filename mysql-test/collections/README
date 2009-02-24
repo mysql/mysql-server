@@ -1,0 +1,30 @@
+This directory contains collections of test runs that we run during our
+integration and release testing. Each file contains zero or more lines,
+with one invocation of mysql-test-run.pl on each. These invocations are
+written so that, with the assumption that perl is in your search path,
+any collection can run as a shell script or a batch file, with the parent
+mysql-test directory being the current working directory.
+
+During integration testing, we choose the collection to run by following
+these steps:
+
+1) We choose the extension to look for, based on these rules:
+   - If we're running a per-push test, we choose ".push" as the extension.
+   - If we're running a daily test, we choose ".daily" as the extension.
+   - If we're running a weekly test, we choose ".weekly" as the extension.
+
+2) If there is a collection that has the same name as the branch we're
+   testing plus the extension as determined in step 1, we choose that
+   collection.
+
+3) If the branch is unknown or we have removed all characters from it
+   and still not found a matching collection, we choose the name "default"
+   plus the extension determined in step 1. If there is no such file,
+   we give up and don't test anything at all.
+
+4) If we haven't found a collection yet, we remove the last character from 
+   the branch name and go back to step 2.
+
+5) The commands from the collection are run line by line via execv() or
+   similar system calls. They are not run as a shell script. Shell 
+   expansions are not guaranteed to work and most likely won't.
