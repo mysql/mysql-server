@@ -33,7 +33,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "sync0sync.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
-#include "mem0pool.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
