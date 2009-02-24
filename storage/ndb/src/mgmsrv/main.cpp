@@ -153,7 +153,10 @@ static char **defaults_argv;
      if in a windows service, don't want process to exit()
      until cleanup of other threads is done
 */
-static void mgmd_exit(int result, bool do_exit = true)
+#ifdef _WIN32
+extern HANDLE  g_shutdown_evt;
+#endif
+static void mgmd_exit(int result)
 {
   g_eventLogger->close();
 
@@ -162,8 +165,14 @@ static void mgmd_exit(int result, bool do_exit = true)
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
-  if(do_exit)
+#ifdef _WIN32
+  if(opts.service)
+    SetEvent(g_shutdown_evt); // release stopper thread
+  else
     exit(result);
+#else
+  exit(result);
+#endif
 }
 
 int null_printf(const char*s,...)
@@ -190,30 +199,26 @@ int main(int argc, char** argv)
 
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:i:F:o,/tmp/ndb_mgmd.trace";
+  opt_debug= IF_WIN("d:t:i:F:o,c:\\ndb_mgmd.trace",
+                    "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
-			       ndb_std_get_one_option)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+                               ndb_std_get_one_option)))
     mgmd_exit(ho_error);
 
   if (opts.interactive ||
       opts.non_interactive ||
-      opts.print_full_config) {
+      opts.print_full_config ||
+      IF_WIN(1,0)) {
     opts.daemon= 0;
   }
 
 #ifdef _WIN32
-  if(opts.remove)
-    return my_daemon_remove((char*)opts.remove);
-  if(opts.install) {
-    char *svc_cmd= my_daemon_make_svc_cmd(argc_ - 1, argv_ + 1);
-    if(!svc_cmd) {
-      fprintf(stderr, my_daemon_error);
-      mgmd_exit(1);
-    }
-    return my_daemon_install((char*)opts.install, svc_cmd);
-  }
-
+  int r=maybe_install_or_remove_service(argc_,argv_,
+                                 (char*)opts.remove,(char*)opts.install,
+                                       "MySQL Cluster Management Server");
+  if(r!=-1)
+    return r;
 #ifdef _DEBUG
   /* it is impossible to attach a debugger to a starting service
   ** so it is necessary to log to a known place to diagnose
@@ -327,8 +332,9 @@ int event_loop(void*)
     while(g_StopServer != true && read_and_execute(&com, "ndb_mgm> ", 1));
   }
   else {
-    while(g_StopServer != true)
+    while(g_StopServer != true) {
       NdbSleep_MilliSleep(500);
+    }
   }
 
   g_eventLogger->info("Shutting down server...");
@@ -343,7 +349,7 @@ int event_loop(void*)
       mgmd_exit(ex);
   }
 
-  mgmd_exit(0,IF_WIN(!opts.service,1));
+  mgmd_exit(0);
   return 0;
 }
 
