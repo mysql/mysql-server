@@ -353,3 +353,14 @@ select @a:=f4, count(f4) from t1 group by 1 desc;
 2.6	1
 1.6	4
 drop table t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (0, 0), (2, 1), (2, 3), (1, 1), (30, 20);
+SELECT a, b INTO @a, @b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
+SELECT @a, @b;
+@a	@b
+2	3
+SELECT a, b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
+a	b
+2	3
+DROP TABLE t1;
+End of 5.0 tests
