@@ -1789,6 +1789,8 @@ int ha_myisam::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
+  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
+    return 0;
   return mi_extra(file, operation, 0);
 }
 
