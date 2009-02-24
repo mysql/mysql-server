@@ -4558,6 +4558,9 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   */
   int error= external_lock(thd, lock_type);
 
+  if (error == 0)
+    cached_table_flags= table_flags();
+
   if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_DONE_ENABLED() ||
       MYSQL_HANDLER_UNLOCK_DONE_ENABLED())
@@ -4575,9 +4578,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
       MYSQL_HANDLER_UNLOCK_DONE(error);
     }
   }
-
-  if (error == 0)
-    cached_table_flags= table_flags();
   DBUG_RETURN(error);
 }
 
