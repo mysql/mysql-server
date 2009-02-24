@@ -976,7 +976,7 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
   fputc('#', file);
   print_timestamp(file);
-  fprintf(file, " server id %lu  end_log_pos %s ", server_id,
+  fprintf(file, " server id %lu  end_log_pos %s ", (ulong) server_id,
 	  llstr(log_pos,llbuff));
 
   /* mysqlbinlog --hexdump */
