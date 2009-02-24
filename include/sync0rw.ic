@@ -640,9 +640,7 @@ rw_lock_x_unlock_func(
 			  But we shouldn't keep an ID of not-owner. */
 		lock->writer_thread = -1;
 
-		/* atomic operation may be safer about memory order. */
-		rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);
-		__sync_synchronize();
+		__sync_lock_test_and_set(&(lock->writer),RW_LOCK_NOT_LOCKED);
 	}
 #else
 	lock->writer_count--;
