@@ -50,14 +50,6 @@ ulint
 os_proc_get_number(void);
 /*====================*/
 /********************************************************************
-Allocates non-cacheable memory. */
-UNIV_INTERN
-void*
-os_mem_alloc_nocache(
-/*=================*/
-			/* out: allocated memory */
-	ulint	n);	/* in: number of bytes */
-/********************************************************************
 Allocates large pages memory. */
 UNIV_INTERN
 void*
