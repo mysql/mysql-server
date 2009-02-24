@@ -169,6 +169,8 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
+our $opt_experimental;
+
 my $baseport;
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 
@@ -792,7 +794,7 @@ sub command_line_setup {
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
-
+             'experimental=s'           => \$opt_experimental,
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
@@ -957,6 +959,28 @@ sub command_line_setup {
     mtr_print_thick_line('#');
     mtr_report("# $opt_comment");
     mtr_print_thick_line('#');
+  }
+
+  if ( $opt_experimental )
+  {
+    if ( open(FILE, "<", $opt_experimental) ) {
+      mtr_report("Using experimental file: $opt_experimental");
+      $opt_experimental = [];
+      while(<FILE>) {
+        chomp;
+        s/( +|^)#.*$//;
+        s/^ +//;
+        s/ +$//;
+        if ( $_ eq "" ) {
+          next;
+        }
+        print " - $_\n";
+        push @$opt_experimental, $_;
+      }
+      close FILE;
+    } else {
+      mtr_error("Can't read experimental file: $opt_experimental");      
+    }
   }
 
   foreach my $arg ( @ARGV )

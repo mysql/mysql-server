@@ -69,6 +69,8 @@ sub _mtr_report_test_name ($) {
 
   print _name(), _timestamp();
   printf "%-40s ", $tname;
+
+  return $tname;
 }
 
 
@@ -105,20 +107,41 @@ sub mtr_report_test_passed ($) {
 
 sub mtr_report_test ($) {
   my ($tinfo)= @_;
-  _mtr_report_test_name($tinfo);
+  my $test_name = _mtr_report_test_name($tinfo);
 
-  my $comment=  $tinfo->{'comment'};
-  my $logfile=  $tinfo->{'logfile'};
-  my $warnings= $tinfo->{'warnings'};
-  my $result=   $tinfo->{'result'};
+  my $comment=      $tinfo->{'comment'};
+  my $logfile=      $tinfo->{'logfile'};
+  my $warnings=     $tinfo->{'warnings'};
+  my $result=       $tinfo->{'result'};
 
   if ($result eq 'MTR_RES_FAILED'){
 
     my $timest = format_time();
+    my $fail = "fail";
+
+    if ( $::opt_experimental )
+    {
+      # Find out if this test case is an experimental one, so we can treat
+      # the failure as an expected failure instead of a regression.
+      for my $exp ( @$::opt_experimental ) {
+        if ( $exp ne $test_name ) {
+          if ( $exp ne "" && substr($exp, -1, 1) eq "*" ) {
+            $exp = substr($exp, 0, length($exp) - 1);
+            if ( substr($test_name, 0, length($exp)) ne $exp ) {
+              next;
+            }
+          } else {
+            next;
+          }
+        }
+        $fail = "exp-fail";
+        last;
+      }
+    }
 
     if ( $warnings )
     {
-      mtr_report("[ fail ]  Found warnings/errors in server log file!");
+      mtr_report("[ $fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
       return;
@@ -126,14 +149,14 @@ sub mtr_report_test ($) {
     my $timeout= $tinfo->{'timeout'};
     if ( $timeout )
     {
-      mtr_report("[ fail ]  timeout after $timeout seconds");
+      mtr_report("[ $fail ]  timeout after $timeout seconds");
       mtr_report("        Test ended at $timest");
       mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     else
     {
-      mtr_report("[ fail ]\n        Test ended at $timest");
+      mtr_report("[ $fail ]\n        Test ended at $timest");
     }
 
     if ( $logfile )
