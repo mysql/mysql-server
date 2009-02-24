@@ -1010,14 +1010,6 @@ dict_index_set_page(
 	dict_index_t*	index,	/* in/out: index */
 	ulint		page);	/* in: page number */
 /*************************************************************************
-Gets the type of the index tree. */
-UNIV_INLINE
-ulint
-dict_index_get_type(
-/*================*/
-					/* out: type */
-	const dict_index_t*	index);	/* in: index */
-/*************************************************************************
 Gets the read-write lock of the index tree. */
 UNIV_INLINE
 rw_lock_t*
