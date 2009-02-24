@@ -27,7 +27,6 @@ Created 6/9/1994 Heikki Tuuri
 #include "mem0mem.ic"
 #endif
 
-#include "mach0data.h"
 #include "buf0buf.h"
 #include "srv0srv.h"
 #include "mem0dbg.c"
