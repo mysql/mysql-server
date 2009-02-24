@@ -12194,12 +12194,59 @@ void Dbdih::checkGcpStopLab(Signal* signal)
   return;
 }//Dbdih::checkGcpStopLab()
 
+void
+Dbdih::dumpGcpStop()
+{
+  ndbout_c("c_nodeStartMaster.blockGcp: %u %u",
+           c_nodeStartMaster.blockGcp,
+           c_nodeStartMaster.startNode);
+  ndbout_c("m_gcp_save.m_counter: %u m_gcp_save.m_max_lag: %u",
+           m_gcp_monitor.m_gcp_save.m_counter, 
+           m_gcp_monitor.m_gcp_save.m_max_lag);
+  ndbout_c("m_micro_gcp.m_counter: %u m_micro_gcp.m_max_lag: %u",
+           m_gcp_monitor.m_micro_gcp.m_counter, 
+           m_gcp_monitor.m_micro_gcp.m_max_lag);
+  
+  ndbout_c("m_gcp_save.m_master.m_state: %u", m_gcp_save.m_master.m_state);
+  ndbout_c("m_micro_gcp.m_master.m_state: %u", m_micro_gcp.m_master.m_state);
+  
+  ndbout_c("c_COPY_GCIREQ_Counter = %s", c_COPY_GCIREQ_Counter.getText());
+  ndbout_c("c_COPY_TABREQ_Counter = %s", c_COPY_TABREQ_Counter.getText());
+  ndbout_c("c_CREATE_FRAGREQ_Counter = %s", c_CREATE_FRAGREQ_Counter.getText());
+  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
+	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
+  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
+  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
+  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
+  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
+  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
+  ndbout_c("c_MASTER_GCPREQ_Counter = %s", c_MASTER_GCPREQ_Counter.getText());
+  ndbout_c("c_MASTER_LCPREQ_Counter = %s", c_MASTER_LCPREQ_Counter.getText());
+  ndbout_c("c_START_INFOREQ_Counter = %s", c_START_INFOREQ_Counter.getText());
+  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
+  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
+  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", c_TC_CLOPSIZEREQ_Counter.getText());
+  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", c_TCGETOPSIZEREQ_Counter.getText());
+
+  ndbout_c("m_copyReason: %d m_waiting: %u %u",
+           c_copyGCIMaster.m_copyReason,
+           c_copyGCIMaster.m_waiting[0],
+           c_copyGCIMaster.m_waiting[1]);
+  
+  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+	   c_copyGCISlave.m_senderData,
+	   c_copyGCISlave.m_senderRef,
+	   c_copyGCISlave.m_copyReason,
+	   c_copyGCISlave.m_expectedNextWord);
+}
+
 /**
  * GCP stop detected, 
  * send SYSTEM_ERROR to all other alive nodes
  */
 void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
+  dumpGcpStop();
   Uint32 save_counter = m_gcp_monitor.m_gcp_save.m_counter;
   Uint32 micro_counter = m_gcp_monitor.m_micro_gcp.m_counter;
   m_gcp_monitor.m_gcp_save.m_counter = 0;
@@ -12368,16 +12415,6 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
   }
 
 dolocal:  
-  ndbout_c("m_copyReason: %d m_waiting: %d",
-           c_copyGCIMaster.m_copyReason,
-           c_copyGCIMaster.m_waiting[0]);
-  
-  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
-	   c_copyGCISlave.m_senderData,
-	   c_copyGCISlave.m_senderRef,
-	   c_copyGCISlave.m_copyReason,
-	   c_copyGCISlave.m_expectedNextWord);
-
   FileRecordPtr file0Ptr;
   file0Ptr.i = crestartInfoFile[0];
   ptrCheckGuard(file0Ptr, cfileFileSize, fileRecord);
@@ -12397,32 +12434,6 @@ dolocal:
   signal->theData[0] = 404;
   signal->theData[1] = file1Ptr.p->fileRef;
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
-
-  ndbout_c("c_COPY_GCIREQ_Counter = %s", 
-	   c_COPY_GCIREQ_Counter.getText());
-  ndbout_c("c_COPY_TABREQ_Counter = %s", 
-	   c_COPY_TABREQ_Counter.getText());
-  ndbout_c("c_CREATE_FRAGREQ_Counter = %s", 
-	   c_CREATE_FRAGREQ_Counter.getText());
-  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
-	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
-  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
-  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
-  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
-  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
-  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
-  ndbout_c("c_MASTER_GCPREQ_Counter = %s", 
-	   c_MASTER_GCPREQ_Counter.getText());
-  ndbout_c("c_MASTER_LCPREQ_Counter = %s", 
-	   c_MASTER_LCPREQ_Counter.getText());
-  ndbout_c("c_START_INFOREQ_Counter = %s", 
-	   c_START_INFOREQ_Counter.getText());
-  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
-  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
-  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", 
-	   c_TC_CLOPSIZEREQ_Counter.getText());
-  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", 
-	   c_TCGETOPSIZEREQ_Counter.getText());
 
   jam();
   SystemError * const sysErr = (SystemError*)&signal->theData[0];
@@ -15400,6 +15411,13 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   {
     jam();
     crashSystemAtGcpStop(signal, true);
+  }
+
+  if (arg == 7025)
+  {
+    jam();
+    dumpGcpStop();
+    return;
   }
 
 #ifdef GCP_TIMER_HACK
