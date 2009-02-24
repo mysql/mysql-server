@@ -2222,8 +2222,22 @@ static bool add_line(String &buffer,char *line,char *in_string,
   }
   if (out != line || !buffer.is_empty())
   {
-    *out++='\n';
     uint length=(uint) (out-line);
+
+    if (length < 9 || 
+        my_strnncoll (charset_info, 
+                      (uchar *)line, 9, (const uchar *) "delimiter", 9))
+    {
+      /* 
+        Don't add a new line in case there's a DELIMITER command to be 
+        added to the glob buffer (e.g. on processing a line like 
+        "<command>;DELIMITER <non-eof>") : similar to how a new line is 
+        not added in the case when the DELIMITER is the first command 
+        entered with an empty glob buffer. 
+      */
+      *out++='\n';
+      length++;
+    }
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
