@@ -63,7 +63,8 @@ int my_daemon_run(char *name,struct MY_DAEMON*d)
     return ERR("init failed\n");
 #else /* Fork */
   pid_t n = fork();
-  check(n!=-1,-1,"fork failed: %s", strerror(errno));
+  if(n==-1)
+    return ERR("fork failed: %s", strerror(errno));
   /* Exit if we are the parent */
   if (n != 0)
     exit(0);
@@ -249,7 +250,7 @@ int my_daemon_files()
 #endif
 #ifndef _WIN32
   /* Become process group leader */
-  if(check(setsid() == -1)
+  if(setsid()==-1)
     return ERR("setsid failed\n");
 #endif
   /* Write pid to lock file */
