@@ -61,28 +61,6 @@ os_proc_get_number(void)
 }
 
 /********************************************************************
-Allocates non-cacheable memory. */
-UNIV_INTERN
-void*
-os_mem_alloc_nocache(
-/*=================*/
-			/* out: allocated memory */
-	ulint	n)	/* in: number of bytes */
-{
-#ifdef __WIN__
-	void*	ptr;
-
-	ptr = VirtualAlloc(NULL, n, MEM_COMMIT,
-			   PAGE_READWRITE | PAGE_NOCACHE);
-	ut_a(ptr);
-
-	return(ptr);
-#else
-	return(ut_malloc(n));
-#endif
-}
-
-/********************************************************************
 Allocates large pages memory. */
 UNIV_INTERN
 void*
