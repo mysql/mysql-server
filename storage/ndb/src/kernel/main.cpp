@@ -15,7 +15,7 @@
 
 #include <ndb_global.h>
 #include <my_pthread.h>
-
+#include <ndb_opts.h>
 #include <ndb_version.h>
 #include "Configuration.hpp"
 #include <ConfigRetriever.hpp>
@@ -48,6 +48,13 @@
 
 extern EventLogger * g_eventLogger;
 extern NdbMutex * theShutdownMutex;
+
+static int opt_daemon, opt_no_daemon, opt_foreground,
+  opt_initial, opt_no_start, opt_initialstart;
+static const char* opt_nowait_nodes = 0;
+static const char* opt_bind_address = 0;
+
+extern NdbNodeBitmask g_nowait_nodes;
 
 void catchsigs(bool ignore); // for process signal handling
 
@@ -490,9 +497,66 @@ get_multithreaded_config(EmulatorData& ed)
   return 0;
 }
 
+
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndbd"),
+  { "initial", 256,
+    "Perform initial start of ndbd, including cleaning the file system. "
+    "Consult documentation before using this",
+    (uchar**) &opt_initial, (uchar**) &opt_initial, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nostart", 'n',
+    "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd",
+    (uchar**) &opt_no_start, (uchar**) &opt_no_start, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "daemon", 'd', "Start ndbd as daemon (default)",
+    (uchar**) &opt_daemon, (uchar**) &opt_daemon, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+  { "nodaemon", 256,
+    "Do not start ndbd as daemon, provided for testing purposes",
+    (uchar**) &opt_no_daemon, (uchar**) &opt_no_daemon, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "foreground", 256,
+    "Run real ndbd in foreground, provided for debugging purposes"
+    " (implies --nodaemon)",
+    (uchar**) &opt_foreground, (uchar**) &opt_foreground, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nowait-nodes", 256,
+    "Nodes that will not be waited for during start",
+    (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "initial-start", 256,
+    "Perform initial start",
+    (uchar**) &opt_initialstart, (uchar**) &opt_initialstart, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "bind-address", 256,
+    "Local bind address",
+    (uchar**) &opt_bind_address, (uchar**) &opt_bind_address, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, NULL);
+}
+
+static void usage()
+{
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
+}
+
+extern "C" void ndbSetOwnVersion();
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
+
+  ndbSetOwnVersion();
+
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
   g_eventLogger->setCategory("ndbd");
@@ -501,14 +565,56 @@ int main(int argc, char** argv)
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
 
+  // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
+
+  ndb_opt_set_usage_funcs("ndbd", short_usage_sub, usage);
+  load_defaults("my",load_default_groups,&argc,&argv);
+
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndbd.trace";
+#endif
+
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+                               ndb_std_get_one_option)))
+    exit(ho_error);
+
+  if (opt_no_daemon || opt_foreground) {
+    // --nodaemon or --forground implies --daemon=0
+    opt_daemon= 0;
+  }
+
+  DBUG_PRINT("info", ("no_start=%d", opt_no_start));
+  DBUG_PRINT("info", ("initial=%d", opt_initial));
+  DBUG_PRINT("info", ("daemon=%d", opt_daemon));
+  DBUG_PRINT("info", ("foreground=%d", opt_foreground));
+  DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
+
+  if (opt_nowait_nodes)
+  {
+    int res = g_nowait_nodes.parseMask(opt_nowait_nodes);
+    if(res == -2 || (res > 0 && g_nowait_nodes.get(0)))
+    {
+      g_eventLogger->error("Invalid nodeid specified in nowait-nodes: %s",
+                           opt_nowait_nodes);
+      exit(-1);
+    }
+    else if (res < 0)
+    {
+      g_eventLogger->error("Unable to parse nowait-nodes argument: %s",
+                           opt_nowait_nodes);
+      exit(-1);
+    }
+  }
 
   globalEmulatorData.create();
 
-  // Parse command line options
   Configuration* theConfig = globalEmulatorData.theConfiguration;
-  if(!theConfig->init(argc, argv)){
-    return NRT_Default;
+  if(!theConfig->init(opt_no_start, opt_initial,
+                      opt_initialstart, opt_daemon)){
+    g_eventLogger->error("Failed to init Configuration");
+    exit(-1);
   }
   char*cfg= getenv("WIN_NDBD_CFG");
   if(cfg) {
@@ -525,12 +631,12 @@ int main(int argc, char** argv)
 #ifndef NDB_WIN32
 	signal(SIGPIPE, SIG_IGN);
 #endif
-    theConfig->fetch_configuration();
+    theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
 
-  if (theConfig->getDaemonMode()) {
+  if (opt_daemon) {
     // Become a daemon
     char *lockfile= NdbConfig_PidFileName(globalData.ownId);
     char *logfile=  NdbConfig_StdoutFileName(globalData.ownId);
@@ -549,7 +655,7 @@ int main(int argc, char** argv)
   signal(SIGUSR1, handler_sigusr1);
 
   pid_t child = -1;
-  while (! theConfig->getForegroundMode()) // the cond is const
+  while (!opt_foreground)
   {
     // setup reporting between child and parent
     int filedes[2];
@@ -666,7 +772,7 @@ int main(int argc, char** argv)
     failed_startup_flag = false;
     reportShutdown(theConfig, error_exit, 1);
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
-    theConfig->fetch_configuration();
+    theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
   }
 
   if (child >= 0)
@@ -907,8 +1013,7 @@ catchsigs(bool ignore){
   for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
     handler_register(signals_ignore[i], SIG_IGN, ignore);
 #ifdef SIGTRAP
-  Configuration* theConfig = globalEmulatorData.theConfiguration;
-  if (! theConfig->getForegroundMode())
+  if (!opt_foreground)
     handler_register(SIGTRAP, handler_error, ignore);
 #endif
 #endif
