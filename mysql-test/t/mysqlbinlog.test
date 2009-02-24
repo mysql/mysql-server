@@ -278,27 +278,6 @@ echo shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
 error 1;
 exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTEST_VARDIR/tmp/bug31793.sql;
 
-#
-# Bug #37313  	BINLOG Contains Incorrect server id
-#
-
-let $save_server_id= `select @@global.server_id`;
-let $s_id_max=`select (1 << 32) - 1`;
-eval set @@global.server_id= $s_id_max;
-
-reset master;
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select
-(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
-is not null;
-let $s_id_unsigned= `select @a like "%server id $s_id_max%" /* must return 1 */`;
-echo *** Unsigned server_id $s_id_max is found: $s_id_unsigned ***;
-
-eval set @@global.server_id= $save_server_id;
---remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
-
---echo End of 5.0 tests
 
 #
 # Test --disable-force-if-open and --force-if-open
@@ -362,5 +341,26 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 
 query_vertical SELECT * FROM t1;
 DROP TABLE t1;
+
+#
+# Bug #37313  	BINLOG Contains Incorrect server id
+#
+
+let $save_server_id= `select @@global.server_id`;
+let $s_id_max=`select (1 << 32) - 1`;
+eval set @@global.server_id= $s_id_max;
+
+reset master;
+flush logs;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+is not null;
+let $s_id_unsigned= `select @a like "%server id $s_id_max%" /* must return 1 */`;
+echo *** Unsigned server_id $s_id_max is found: $s_id_unsigned ***;
+
+eval set @@global.server_id= $save_server_id;
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
 
 --echo End of 5.1 tests
