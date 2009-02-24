@@ -975,6 +975,7 @@ private:
   void ndbsttorry10Lab(Signal *, Uint32 _line);
   void createMutexes(Signal* signal, Uint32 no);
   void createMutex_done(Signal* signal, Uint32 no, Uint32 retVal);
+  void dumpGcpStop();
   void crashSystemAtGcpStop(Signal *, bool);
   void sendFirstDictfragsreq(Signal *, TabRecordPtr regTabPtr);
   void addtabrefuseLab(Signal *, ConnectRecordPtr regConnectPtr, Uint32 errorCode);

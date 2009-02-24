@@ -211,12 +211,16 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   jamEntry();
   switch (sysErr->errorCode){
   case SystemError::GCPStopDetected:
+  {
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "GCP stop was detected",     
 	     killingNode);
+    signal->theData[0] = 7025;
+    EXECUTE_DIRECT(DBDIH, GSN_DUMP_STATE_ORD, signal, 1);
+    jamEntry();
     break;
-
+  }
   case SystemError::CopyFragRefError:
     CRASH_INSERTION(1000);
     BaseString::snprintf(buf, sizeof(buf), 
