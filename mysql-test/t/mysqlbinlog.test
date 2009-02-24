@@ -262,6 +262,7 @@ let $s_id_max=`select (1 << 32) - 1`;
 eval set @@global.server_id= $s_id_max;
 
 reset master;
+flush logs;
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
