@@ -42,21 +42,8 @@ UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: the data file path string */
-	char***	data_file_names,	/* out, own: array of data file
-					names */
-	ulint**	data_file_sizes,	/* out, own: array of data file sizes
-					in megabytes */
-	ulint**	data_file_is_raw_partition,/* out, own: array of flags
-					showing which data files are raw
-					partitions */
-	ulint*	n_data_files,		/* out: number of data files */
-	ibool*	is_auto_extending,	/* out: TRUE if the last data file is
-					auto-extending */
-	ulint*	max_auto_extend_size);	/* out: max auto extend size for the
-					last file if specified, 0 if not */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str);	/* in/out: the data file path string */
 /*************************************************************************
 Reads log group home directories from a character string given in
 the .cnf file. */
@@ -64,10 +51,15 @@ UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: character string */
-	char***	log_group_home_dirs);	/* out, own: log group home dirs */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str);	/* in/out: character string */
+/*************************************************************************
+Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
+and srv_parse_log_group_home_dirs(). */
+UNIV_INTERN
+void
+srv_free_paths_and_sizes(void);
+/*==========================*/
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
