@@ -11,7 +11,7 @@ The syntax is as follows:
 
 2) Empty lines and lines starting with a hash (#) are ignored.
 
-3) If any other line contains a black followed by a hash (#), the hash 
+3) If any other line contains a blank followed by a hash (#), the hash 
    and any subsequent characters are ignored.
 
 4) The full test case name including the suite and execution mode
