@@ -35,8 +35,13 @@ static long daemonpid;
 
 #define errorlen 1023
 char my_daemon_error[errorlen+1];
-#define ERR(...) \
-        (my_snprintf(my_daemon_error,errorlen,__VA_ARGS__),1)
+int ERR(char*fmt,...) {
+  va_list argptr;
+  va_start(argptr, fmt);
+  my_snprintf(my_daemon_error,errorlen,fmt,argptr);
+  va_end(argptr);
+  return 1;
+}
 
 struct MY_DAEMON g_daemon;
 
