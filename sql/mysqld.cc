@@ -187,9 +187,6 @@ int initgroups(const char *,unsigned int);
 typedef fp_except fp_except_t;
 #endif
 #endif /* __FreeBSD__ && HAVE_IEEEFP_H */
-#ifdef HAVE_FENV_H
-#include <fenv.h>
-#endif
 #ifdef HAVE_SYS_FPU_H
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
