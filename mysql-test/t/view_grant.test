@@ -1218,6 +1218,44 @@ SHOW CREATE VIEW v1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+#
+# Bug#37191: Failed assertion in CREATE VIEW
+#
+CREATE USER mysqluser1@localhost;
+CREATE DATABASE mysqltest1;
+
+USE mysqltest1;
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+
+GRANT CREATE VIEW ON mysqltest1.* TO mysqluser1@localhost;
+
+GRANT SELECT ON t1 TO mysqluser1@localhost;
+GRANT INSERT ON t2 TO mysqluser1@localhost;
+
+--connect (connection1, localhost, mysqluser1, , mysqltest1)
+
+--echo This would lead to failed assertion.
+CREATE VIEW v1 AS SELECT a, b FROM t1, t2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM v1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT b FROM v1;
+
+--disconnect connection1
+--connection default
+
+DROP TABLE t1, t2;
+DROP VIEW v1;
+DROP DATABASE mysqltest1;
+DROP USER mysqluser1@localhost;
+USE test;
+
 --echo End of 5.1 tests.
 
 #
