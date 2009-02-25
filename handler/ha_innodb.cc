@@ -1988,27 +1988,16 @@ innobase_init(
 
 	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
 						   MYF(MY_FAE));
-	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
-
-	/* Initialize the InnoDB memory subsystem before calling
-	ut_malloc() in srv_parse_data_file_paths_and_sizes(). */
-	mem_init(srv_mem_pool_size);
 
 	ret = (bool) srv_parse_data_file_paths_and_sizes(
-				internal_innobase_data_file_path,
-				&srv_data_file_names,
-				&srv_data_file_sizes,
-				&srv_data_file_is_raw_partition,
-				&srv_n_data_files,
-				&srv_auto_extend_last_data_file,
-				&srv_last_file_size_max);
+		internal_innobase_data_file_path);
 	if (ret == FALSE) {
 		sql_print_error(
 			"InnoDB: syntax error in innodb_data_file_path");
 mem_free_and_error:
+		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		ut_free_all_mem();
 		goto error;
 	}
 
@@ -2031,8 +2020,7 @@ mem_free_and_error:
 #endif /* UNIG_LOG_ARCHIVE */
 
 	ret = (bool)
-		srv_parse_log_group_home_dirs(innobase_log_group_home_dir,
-						&srv_log_group_home_dirs);
+		srv_parse_log_group_home_dirs(innobase_log_group_home_dir);
 
 	if (ret == FALSE || innobase_mirrored_log_groups != 1) {
 	  sql_print_error("syntax error in innodb_log_group_home_dir, or a "
@@ -2112,6 +2100,8 @@ mem_free_and_error:
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
+
+	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
@@ -2212,6 +2202,7 @@ innobase_end(handlerton *hton, ha_panic_function type)
 		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
 			err = 1;
 		}
+		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
 		pthread_mutex_destroy(&innobase_share_mutex);

@@ -162,7 +162,6 @@ mem_init(
 		size = 1;
 	}
 
-	ut_mem_init();
 	mem_comm_pool = mem_pool_create(size);
 }
 
