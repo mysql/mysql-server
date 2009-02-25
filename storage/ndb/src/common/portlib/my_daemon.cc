@@ -35,7 +35,7 @@ static long daemonpid;
 
 #define errorlen 1023
 char my_daemon_error[errorlen+1];
-int ERR(char*fmt,...) {
+int ERR1(const char*fmt,...) {
   va_list argptr;
   va_start(argptr, fmt);
   my_snprintf(my_daemon_error,errorlen,fmt,argptr);
@@ -63,13 +63,13 @@ int my_daemon_run(char *name,struct MY_DAEMON*d)
   g_ntsvc.SetShutdownEvent(g_shutdown_evt);
   uintptr_t stop_thread= _beginthread((THREAD_FC)stopper,0,0);
   if(!stop_thread)
-    return ERR("couldn't start stopper thread\n");
+    return ERR1("couldn't start stopper thread\n");
   if(init())
-    return ERR("init failed\n");
+    return ERR1("init failed\n");
 #else /* Fork */
   pid_t n = fork();
   if(n==-1)
-    return ERR("fork failed: %s", strerror(errno));
+    return ERR1("fork failed: %s", strerror(errno));
   /* Exit if we are the parent */
   if (n != 0)
     exit(0);
@@ -109,11 +109,11 @@ char *my_daemon_make_svc_cmd(int n, char **v, char *name)
   char*swi[]= {"--install","-i",0},
       *swirs[]= {"--remove","-r","--install","-i","--service","-s",0};
   if(!startswith(v[0],swi))
-    return ERR("The install option (-i) must be the first argument\n"),0;
+    return ERR1("The install option (-i) must be the first argument\n"),0;
   int i= 0;
   for(i=1;i<n;i++)
     if(startswith(v[i],swirs))
-       return ERR("The install option (-i) must be the only -i or -r"
+       return ERR1("The install option (-i) must be the only -i or -r"
                   " on command line\n"),0;
   size_t opt_size= strlen(name)+16;
   char*svcopt=(char*)my_malloc(opt_size, MY_FAE);
@@ -167,9 +167,9 @@ int my_daemon_install(const char *name, const char *cmd)
   SC_HANDLE svc= 0, scm= 0;
 
   if(!g_ntsvc.SeekStatus(name, 1))
-    return ERR("SeekStatus on %s failed\n", name);
+    return ERR1("SeekStatus on %s failed\n", name);
   if(!(scm= OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE)))
-    return ERR("Failed to install the service: "
+    return ERR1("Failed to install the service: "
                "Could not open Service Control Manager.\n");
   if(!(svc= CreateService(scm, name, name,
                           SERVICE_ALL_ACCESS,
@@ -178,7 +178,7 @@ int my_daemon_install(const char *name, const char *cmd)
                           SERVICE_DEMAND_START), SERVICE_ERROR_NORMAL,
                           cmd, 0, 0, 0, 0, 0)))
     return CloseServiceHandle(scm),
-           ERR("Failed to install the service: "
+           ERR1("Failed to install the service: "
                "Couldn't create service)\n");
   printf("Service successfully installed.\n");
   CloseServiceHandle(svc);
@@ -209,22 +209,22 @@ int my_daemon_prefiles(const char *pidfil, const char *logfil)
   {
     logfd= open(logfile, O_CREAT | O_WRONLY | O_APPEND, 0644);
     if(logfd == -1)
-      return ERR("%s: open for write failed\n", logfile);
+      return ERR1("%s: open for write failed\n", logfile);
     my_dlog= fdopen(logfd, "a");
   }
   /* Check that we have write access to lock file */
   assert(pidfile != NULL);
   pidfd= open(pidfile, O_CREAT | O_RDWR, 0644);
   if(pidfd == -1)
-    return ERR("%s: open for write failed\n", pidfile);
+    return ERR1("%s: open for write failed\n", pidfile);
   /* Read any old pid from lock file */
   n= read(pidfd, buf, sizeof(buf));
   if(n < 0)
-    return ERR("%s: read failed\n", pidfile);
+    return ERR1("%s: read failed\n", pidfile);
   buf[n]= 0;
   daemonpid= atol(buf);
   if(lseek(pidfd, 0, SEEK_SET) == -1)
-    return ERR("%s: lseek failed\n", pidfile);
+    return ERR1("%s: lseek failed\n", pidfile);
 #ifdef __WIN__                  //TODO: add my_lockf.c with these definitions
 #define lockf _locking
 #define F_TLOCK _LK_NBLCK
@@ -235,9 +235,9 @@ int my_daemon_prefiles(const char *pidfil, const char *logfil)
   /* Test for lock before becoming daemon */
   if(lockf(pidfd, F_TLOCK, 0) == -1)
     if(errno == EACCES || errno == EAGAIN)
-      return ERR("pidfile: already locked by pid=%ld\n", daemonpid);
+      return ERR1("pidfile: already locked by pid=%ld\n", daemonpid);
   if(lockf(pidfd, F_ULOCK, 0) == -1)
-    return ERR("%s: fail to unlock\n", pidfile);
+    return ERR1("%s: fail to unlock\n", pidfile);
 #endif
   return 0;
 }
@@ -251,24 +251,24 @@ int my_daemon_files()
 #ifdef F_TLOCK
   /* Lock the lock file (likely to succeed due to test above) */
   if(lockf(pidfd, F_LOCK, 0) == -1)
-    return ERR("%s: lock failed\n", pidfile);
+    return ERR1("%s: lock failed\n", pidfile);
 #endif
 #ifndef _WIN32
   /* Become process group leader */
   if(setsid()==-1)
-    return ERR("setsid failed\n");
+    return ERR1("setsid failed\n");
 #endif
   /* Write pid to lock file */
   if(IF_WIN(_chsize, ftruncate)(pidfd, 0) == -1)
-    return ERR("%s: ftruncate failed\n", pidfile);
+    return ERR1("%s: ftruncate failed\n", pidfile);
   n= my_sprintf(buf, (buf, "%ld\n", daemonpid));
   if(write(pidfd, buf, n) != n)
-    return ERR("%s: write failed\n", pidfile);
+    return ERR1("%s: write failed\n", pidfile);
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);
   char* fname=IF_WIN("nul:", "/dev/null");
   if(open(fname, O_RDONLY)==-1)
-    return ERR("couldn't open %s\n", fname);
+    return ERR1("couldn't open %s\n", fname);
 #ifdef _WIN32 //no stdout/stderr on windows service
   *stdout= *stderr= *my_dlog;
 #else
