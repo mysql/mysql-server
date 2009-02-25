@@ -627,15 +627,12 @@ class NdbDictionaryImpl;
 class GlobalCacheInitObject
 {
 public:
-  NdbDictionaryImpl *m_dict;
   const BaseString &m_name;
-  GlobalCacheInitObject(NdbDictionaryImpl *dict,
-                        const BaseString &name) :
-    m_dict(dict),
+  GlobalCacheInitObject(const BaseString &name) :
     m_name(name)
   {}
   virtual ~GlobalCacheInitObject() {}
-  virtual int init(NdbTableImpl &tab) const = 0;
+  virtual int init(NdbDictionaryImpl *dict, NdbTableImpl &tab) const = 0;
 };
 
 class NdbDictionaryImpl : public NdbDictionary::Dictionary {
@@ -1109,15 +1106,14 @@ NdbDictionaryImpl::getImpl(const NdbDictionary::Dictionary & t){
 class InitTable : public GlobalCacheInitObject
 {
 public:
-  InitTable(NdbDictionaryImpl *dict,
-            const BaseString &name) :
-    GlobalCacheInitObject(dict, name)
+  InitTable(const BaseString &name) :
+    GlobalCacheInitObject(name)
   {}
-  int init(NdbTableImpl &tab) const
+  int init(NdbDictionaryImpl *dict, NdbTableImpl &tab) const
   {
-    int res= m_dict->getBlobTables(tab);
+    int res= dict->getBlobTables(tab);
     if (res == 0)
-      res= m_dict->createDefaultNdbRecord(&tab, NULL);
+      res= dict->createDefaultNdbRecord(&tab, NULL);
     
     return res;
   }
@@ -1128,7 +1124,7 @@ NdbTableImpl *
 NdbDictionaryImpl::getTableGlobal(const char * table_name)
 {
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
-  return fetchGlobalTableImplRef(InitTable(this, internal_tabname));
+  return fetchGlobalTableImplRef(InitTable(internal_tabname));
 }
 
 inline
@@ -1167,7 +1163,7 @@ NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName)
   if (info == 0)
   {
     NdbTableImpl *tab=
-      fetchGlobalTableImplRef(InitTable(this, internalTableName));
+      fetchGlobalTableImplRef(InitTable(internalTableName));
     if (tab)
     {
       info= Ndb_local_table_info::create(tab, m_local_table_data_size);
@@ -1189,12 +1185,12 @@ public:
   InitIndex(const BaseString &internal_indexname,
 	    const char *index_name,
 	    const NdbTableImpl &prim) :
-    GlobalCacheInitObject(0, internal_indexname),
+    GlobalCacheInitObject(internal_indexname),
     m_index_name(index_name),
     m_prim(prim)
     {}
   
-  int init(NdbTableImpl &tab) const {
+  int init(NdbDictionaryImpl *dict, NdbTableImpl &tab) const {
     DBUG_ENTER("InitIndex::init");
     DBUG_ASSERT(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
     /**
@@ -1210,7 +1206,7 @@ public:
       tab.m_index = idx;
 
       /* Finally, create default NdbRecord for this index */
-      DBUG_RETURN(m_dict->createDefaultNdbRecord(&tab, &m_prim));
+      DBUG_RETURN(dict->createDefaultNdbRecord(&tab, &m_prim));
     }
     DBUG_RETURN(1);
   }
