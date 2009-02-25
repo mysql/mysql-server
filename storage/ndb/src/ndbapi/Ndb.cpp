@@ -1747,6 +1747,20 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
         setDatabaseName(buf);
         sprintf(buf, "%.*s", (int) (s2 - (s1 + 1)), s1 + 1);
         setDatabaseSchemaName(buf);
+#ifdef VM_TRACE
+        // verify that m_prefix looks like abc/def/
+        const char* s0 = theImpl->m_prefix.c_str();
+        const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
+        const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
+        if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
+        {
+          ndbout_c("t->m_impl.m_internalName.c_str(): %s", t->m_impl.m_internalName.c_str());
+          ndbout_c("s0: %s", s0);
+          ndbout_c("s1: %s", s1);
+          ndbout_c("s2: %s", s2);
+          assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+        }
+#endif
         return 0;
       }
     }
