@@ -479,6 +479,7 @@ handler t1 open;
 --echo --> client 1
 connection default;
 drop table t1;
+disconnect con2;
 
 #
 # Bug#30632 HANDLER read failure causes hang
@@ -717,4 +718,5 @@ handler t1 close;
 connection con1;
 --reap
 drop table t1;
+disconnect con1;
 connection default;
