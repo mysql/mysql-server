@@ -4759,7 +4759,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
-  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
       s_ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Schema Ndb object failed");
