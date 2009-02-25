@@ -1249,6 +1249,14 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
+#ifdef __WIN__
+        /*
+           Need to hardcode this to 2 read and 2 write on Windows
+           while searching for problem causing this to crash when
+           higher number of threads are supported.
+        */
+        srv_n_read_io_threads = srv_n_write_io_threads = 2;
+#endif
 	/* Restrict the maximum number of file i/o threads */
 	if ((srv_n_read_io_threads + srv_n_write_io_threads) > SRV_MAX_N_IO_THREADS) {
 		fprintf(stderr,
@@ -1267,7 +1275,7 @@ innobase_start_or_create_for_mysql(void)
                                         SRV_MAX_N_PENDING_SYNC_IOS);
 	} else {
                 /* Might need more slots here. Alas, I don't do windows. */
-                n_threads = os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD,
+                n_threads = os_aio_init(SRV_N_PENDING_IOS_PER_THREAD,
                                         srv_n_read_io_threads,
                                         srv_n_write_io_threads,
                                         SRV_MAX_N_PENDING_SYNC_IOS);
