@@ -5480,7 +5480,7 @@ restart_cluster_failure:
     goto err;
   }
 
-  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
       s_ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Schema Ndb object failed");

@@ -1746,7 +1746,7 @@ NdbDictionaryImpl::fetchGlobalTableImplRef(const GlobalCacheInitObject &obj)
                                  m_ndb.usingFullyQualifiedNames());
     else
       m_error.code = 4000;
-    if (impl != 0 && (obj.init(*impl)))
+    if (impl != 0 && (obj.init(this, *impl)))
     {
       delete impl;
       impl = 0;
@@ -4305,7 +4305,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   DBUG_PRINT("info",("table %s", ev->getTableName()));
   if (tab == NULL)
   {
-    tab= fetchGlobalTableImplRef(InitTable(this, ev->getTableName()));
+    tab= fetchGlobalTableImplRef(InitTable(ev->getTableName()));
     if (tab == 0)
     {
       DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
@@ -4319,7 +4319,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     {
       DBUG_PRINT("info", ("mismatch on verison in cache"));
       releaseTableGlobal(*tab, 1);
-      tab= fetchGlobalTableImplRef(InitTable(this, ev->getTableName()));
+      tab= fetchGlobalTableImplRef(InitTable(ev->getTableName()));
       if (tab == 0)
       {
         DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
