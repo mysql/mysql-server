@@ -251,12 +251,7 @@
 2008-12-09	The InnoDB Team
 
 	* handler/ha_innodb.cc, srv/srv0srv.c, trx/trx0trx.c:
-	Fix Bug#40760 Getting database deadlocks on simultaneous inserts.
-	The config param innodb_thread_concurrency is dynamically set and is
-	read when a thread enters/exits innodb. If the value is changed
-	between the enter and exit time the behaviour becomes erratic. The fix
-	is not to use srv_thread_concurrency when exiting, instead use the
-	flag trx->declared_to_be_inside_innodb.
+	Fix Bug#40760 "set global innodb_thread_concurrency = 0;" is not safe
 
 2008-12-04	The InnoDB Team
 
