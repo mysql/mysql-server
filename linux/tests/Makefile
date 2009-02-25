@@ -14,7 +14,7 @@ all: $(TARGETS)
 test-gettime: test-gettime.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS) -lrt
 
-check: $(RUNTARGETS)
+check: $(TARGETS) $(RUNTARGETS)
 
 %.tdbrun: %
 	$(VGRIND) ./$<
