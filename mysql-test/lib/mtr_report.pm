@@ -109,10 +109,10 @@ sub mtr_report_test ($) {
   my ($tinfo)= @_;
   my $test_name = _mtr_report_test_name($tinfo);
 
-  my $comment=      $tinfo->{'comment'};
-  my $logfile=      $tinfo->{'logfile'};
-  my $warnings=     $tinfo->{'warnings'};
-  my $result=       $tinfo->{'result'};
+  my $comment=  $tinfo->{'comment'};
+  my $logfile=  $tinfo->{'logfile'};
+  my $warnings= $tinfo->{'warnings'};
+  my $result=   $tinfo->{'result'};
 
   if ($result eq 'MTR_RES_FAILED'){
 
@@ -123,14 +123,20 @@ sub mtr_report_test ($) {
     {
       # Find out if this test case is an experimental one, so we can treat
       # the failure as an expected failure instead of a regression.
-      for my $exp ( @$::opt_experimental ) {
+      for my $exp ( @$::experimental_test_cases ) {
         if ( $exp ne $test_name ) {
+          # if the expression is not the name of this test case, but has
+          # an asterisk at the end, determine if the characters up to
+          # but excluding the asterisk are the same
           if ( $exp ne "" && substr($exp, -1, 1) eq "*" ) {
             $exp = substr($exp, 0, length($exp) - 1);
             if ( substr($test_name, 0, length($exp)) ne $exp ) {
+              # no match, try next entry
               next;
             }
+            # if yes, fall through to set the exp-fail status
           } else {
+            # no match, try next entry
             next;
           }
         }

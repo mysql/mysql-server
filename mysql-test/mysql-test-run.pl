@@ -170,6 +170,7 @@ my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
 our $opt_experimental;
+our $experimental_test_cases;
 
 my $baseport;
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
@@ -963,24 +964,29 @@ sub command_line_setup {
 
   if ( $opt_experimental )
   {
-    if ( open(FILE, "<", $opt_experimental) ) {
-      mtr_report("Using experimental file: $opt_experimental");
-      $opt_experimental = [];
-      while(<FILE>) {
-        chomp;
-        s/( +|^)#.*$//;
-        s/^ +//;
-        s/ +$//;
-        if ( $_ eq "" ) {
-          next;
-        }
-        print " - $_\n";
-        push @$opt_experimental, $_;
+    # read the list of experimental test cases from the file specified on
+    # the command line
+    open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
+    mtr_report("Using experimental file: $opt_experimental");
+    $experimental_test_cases = [];
+    while(<FILE>) {
+      chomp;
+      # remove comments (# foo) at the beginning of the line, or after a 
+      # blank at the end of the line
+      s/( +|^)#.*$//;
+      # remove whitespace
+      s/^ +//;              
+      s/ +$//;
+      # if nothing left, don't need to remember this line
+      if ( $_ eq "" ) {
+        next;
       }
-      close FILE;
-    } else {
-      mtr_error("Can't read experimental file: $opt_experimental");      
+      # remember what is left as the name of another test case that should be
+      # treated as experimental
+      print " - $_\n";
+      push @$experimental_test_cases, $_;
     }
+    close FILE;
   }
 
   foreach my $arg ( @ARGV )
