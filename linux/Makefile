@@ -22,6 +22,10 @@ $(TARGET): $(OBJS)
 $(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED
 #Blank on purpose
 
+check: $(TARGET)
+	cd tests; $(MAKE) check
+
 clean:
 	rm -rf $(TARGET) $(LIBPORTABILITY)
+	cd tests; $(MAKE) clean
 

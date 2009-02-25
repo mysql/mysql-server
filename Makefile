@@ -21,7 +21,7 @@ utils.dir: src.dir
 
 build: $(patsubst %,%.dir, $(BUILDDIRS))
 
-CHECKS = $(patsubst %,%.checkdir,$(filter-out linux, $(SRCDIRS)))
+CHECKS = $(patsubst %,%.checkdir,$(SRCDIRS))
 
 # This is the original check rule
 # The stuff below allows "make -j2 -k check" to work
