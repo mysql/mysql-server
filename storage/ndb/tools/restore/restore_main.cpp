@@ -966,7 +966,9 @@ main(int argc, char** argv)
   }
 
   info << endl;
-  
+
+  info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
+
   /**
    * check wheater we can restore the backup (right version).
    */
