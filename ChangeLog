@@ -1,3 +1,9 @@
+2009-02-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#42714 AUTO_INCREMENT errors in 5.1.31
+
 2009-02-23	The InnoDB Team
 	* btr/btr0cur.c:
 	Fix Bug#43043 Crash on BLOB delete operation
