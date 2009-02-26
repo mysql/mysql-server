@@ -266,7 +266,7 @@ int my_daemon_files()
     return ERR1("%s: write failed\n", pidfile);
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);
-  char* fname=IF_WIN("nul:", "/dev/null");
+  const char* fname=IF_WIN("nul:", "/dev/null");
   if(open(fname, O_RDONLY)==-1)
     return ERR1("couldn't open %s\n", fname);
 #ifdef _WIN32 //no stdout/stderr on windows service
