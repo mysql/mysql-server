@@ -202,7 +202,7 @@ ifneq ($(CYGWIN),)
     ALWAYS_LINK=$(LIBPORTABILITY) /usr/lib/libz.a
     SRCPATH_DIRS = `find $(TOKUROOT) -type d | grep -v '/\.[^.]' | grep -F -v "$(TOKUROOT)$(OS_NOTCHOICE)" | tr '\n' ';'` 
     ifeq ($(WINDBG),1)
-	VGRIND = windbg -Q -c "ddddddddd;g" -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
+	VGRIND = windbg -hd -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
     else
     	VGRIND =
     endif
