@@ -30,22 +30,25 @@ do {                                                                            
 #define DB_HOME "DB_HOME"
 #define DBNAME "test.db"
 
-int rootfd;
 char* db_dir;
 char db_name[PATH_MAX];
 int extra_flags;
 char* home;
+BOOL inside_env = FALSE;
 
 
 static void
 reinit_config (int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
     int r = 0;
     //Return to base dir
-    r = fchdir(rootfd);                 assert(r == 0);
+    if (inside_env) {
+        r = chdir("../"); CKERR(r);
+    }
 
     r = system("rm -rf " ENVDIR);          assert(r == 0);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);               assert(r == 0);
     r = chdir(ENVDIR);                     assert(r == 0);
+    inside_env = TRUE;
     unsetenv(DB_HOME);
 
     if (set_home) {
@@ -72,8 +75,6 @@ test_main(int argc, const char *argv[]) {
     DB *db;
     int r;
     int i;
-    
-    rootfd = open(".", O_RDONLY, 0); assert(rootfd >= 0);
     
     for (i = 0; i < 8; i++) {
         int set_home = i & 0x1;
@@ -122,6 +123,5 @@ cleanup:
         CKERR(r);        
     }
 
-    r = close(rootfd); assert(r == 0);
     return 0;
 }
