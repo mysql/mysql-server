@@ -5,7 +5,6 @@
 #include <db.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 
 // Return the offset
 static int
@@ -15,22 +14,15 @@ grep_for_in_logs (const char *str) {
 #else
 #define lname ENVDIR "//log.0000000001"
 #endif
-    int fd = open(lname, O_RDONLY);
-    assert(fd>=0);
-    int64_t file_size;
-    int r = toku_os_get_file_size(fd, &file_size);
-    assert(r==0);
-    void *addr_v = mmap(0, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    assert(addr_v!=MAP_FAILED);
-    char *fstr = addr_v;
-    int   searchlen=strlen(str);
-    int i;
-    for (i=0; i+searchlen<file_size; i++) {
-	if (memcmp(str, fstr+i, searchlen)==0) {
-	    return i;
-	}
-    }
-    return -1;
+#define COMMAND "grep -F -o"
+    char systembuf[strlen(str)+sizeof(COMMAND " \"\" " lname " > /dev/null")];
+    int bytes = snprintf(systembuf, sizeof(systembuf), COMMAND " \"%s\" %s > /dev/null", str, lname);
+    assert(bytes>=0);
+    assert((size_t)bytes<sizeof(systembuf));
+    int r = system(systembuf);
+    assert(r!=-1);
+    if (r>0) r = -1;
+    return r;
 }
 
 int
