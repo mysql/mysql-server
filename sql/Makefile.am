@@ -45,6 +45,23 @@ DTRACEFILES =           filesort.o \
                         sql_select.o \
                         sql_update.o
 
+DTRACEFILES_DEPEND =    filesort.o \
+			.libs/libndb_la-ha_ndbcluster.lo \
+                        handler.o \
+                        mysqld.o \
+                        net_serv.o \
+                        scheduler.o \
+                        sp_head.o \
+                        sql_cache.o \
+                        sql_connect.o \
+                        sql_cursor.o \
+                        sql_delete.o \
+                        sql_insert.o \
+                        sql_parse.o \
+                        sql_prepare.o \
+                        sql_select.o \
+                        sql_update.o
+
 
 noinst_LTLIBRARIES=	libndb.la \
 			udf_example.la
@@ -223,7 +240,7 @@ probes_mysql.d:
 
 DTRACEDIRS = . ../mysys $(patsubst %,$(top_builddir)/storage/%,@mysql_se_dirs@)
 
-probes_all.o: probes_mysql.d $(DTRACEFILES)
+probes_all.o: probes_mysql.d $(DTRACEFILES_DEPEND)
 	providers=`(for i in $(DTRACEDIRS); do cat $$i/dtrace_providers 2>/dev/null; done) | tr " " "\n" | sort | uniq | sed -e '/^$$/d' -e 's/^/-s /'`; \
 	objects=`for i in $(DTRACEDIRS); do f=\`cat $$i/dtrace_files 2>/dev/null\`; for j in $$f; do test -f $$i/$$j && echo "$$i/$$j "; done; done`; \
 	$(DTRACE) $(DTRACEFLAGS) -G $$providers $$objects -o $@
