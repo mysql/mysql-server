@@ -1251,11 +1251,11 @@ innobase_start_or_create_for_mysql(void)
 
 #ifdef __WIN__
         /*
-           Need to hardcode this to 2 read and 2 write on Windows
+           Need to hardcode this to 1 read and 1 write on Windows
            while searching for problem causing this to crash when
            higher number of threads are supported.
         */
-        srv_n_read_io_threads = srv_n_write_io_threads = 2;
+        srv_n_read_io_threads = srv_n_write_io_threads = 1;
 #endif
 	/* Restrict the maximum number of file i/o threads */
 	if ((srv_n_read_io_threads + srv_n_write_io_threads) > SRV_MAX_N_IO_THREADS) {
