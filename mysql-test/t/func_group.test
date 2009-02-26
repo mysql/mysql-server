@@ -18,6 +18,8 @@ insert into t1 values (3,5,"C");
 insert into t1 values (3,6,"D");
 
 # Test of MySQL field extension with and without matching records.
+#### Note: The two following statements may fail if the execution plan
+#### or optimizer is changed. The result for column c is undefined.
 select a,c,sum(a) from t1 group by a;
 select a,c,sum(a) from t1 where a > 10 group by a;
 select sum(a) from t1 where a > 10;
