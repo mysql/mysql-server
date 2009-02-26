@@ -11,7 +11,7 @@ let $counter= 600;
 while ($mysql_errno)
 {
   # Table is readonly until the mysqld has connected properly
-  --error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG
+  --error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED
   replace into mysql.ndb_apply_status values(0,0,"",0,0);
   if ($mysql_errno)
   {
