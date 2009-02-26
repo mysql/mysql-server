@@ -31,7 +31,20 @@ $(notdir $(TLIBTDB)): $(TLIBTDB)
 
 SRCS = $(sort $(wildcard *.c))
 
-TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
+
+#Tests that are irrelevant in windows.
+WINDOWS_DONTRUN_TESTS = \
+	helgrind1 \
+	helgrind2 \
+	helgrind3 \
+#\ ends prev line
+
+ifeq ($(OS_CHOICE),windows)
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
+else
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
+endif
+
 BDB_DONTRUN_TESTS = \
 	bug1381 \
 	bug627 \
