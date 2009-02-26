@@ -4134,18 +4134,14 @@ btr_check_blob_fil_page_type(
 	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
 		ulint	flags = fil_space_get_flags(space_id);
 
-		if (read
-		    && (flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51) {
-			/* Do not print anything about the type
-			mismatch when reading a BLOB page that is in
-			Antelope format. */
+		if (UNIV_LIKELY
+		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
+			/* Old versions of InnoDB did not initialize
+			FIL_PAGE_TYPE on BLOB pages.  Do not print
+			anything about the type mismatch when reading
+			a BLOB page that is in Antelope format.*/
 			return;
 		}
-
-		/* Old versions of InnoDB did not
-		initialize FIL_PAGE_TYPE on BLOB pages.
-		Ensure that this tablespace is in
-		an old format. */
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -4153,11 +4149,7 @@ btr_check_blob_fil_page_type(
 			" on BLOB %s space %lu page %lu flags %lx\n",
 			(ulong) type, read ? "read" : "purge",
 			(ulong) space_id, (ulong) page_no, (ulong) flags);
-
-		/* The garbage in FIL_PAGE_TYPE will
-		only be tolerated in tables in old
-		format. */
-		ut_a((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51);
+		ut_error;
 	}
 }
 
