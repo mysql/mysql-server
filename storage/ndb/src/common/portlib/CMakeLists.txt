@@ -29,6 +29,7 @@ ADD_LIBRARY(ndbportlib STATIC
             NdbCondition.c NdbMutex.c
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.c
+            my_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
             ${EXTRA_SRC}
 )
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${EXTRA_LIB})

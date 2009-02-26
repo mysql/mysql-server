@@ -533,11 +533,16 @@ noconnect:
 }
 
 #include <Config.hpp>
+#include <EventLogger.hpp>
+
+extern EventLogger *g_eventLogger;
 
 ndb_mgm_configuration*
 load_configuration()
-{  
-  InitConfigFileParser parser(stderr);
+{
+  g_eventLogger->removeAllHandlers();
+  g_eventLogger->createConsoleHandler(ndberr);
+  InitConfigFileParser parser;
   if (g_config_file)
   {
     if (g_verbose)
