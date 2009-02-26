@@ -35,3 +35,13 @@ cd ../r
 ln -sf ../$TARGETDIR/mysql-test/*.result .
 cd ../include
 ln -sf ../$TARGETDIR/mysql-test/*.inc .
+
+# Apply any patches that are needed to make the mysql-test suite successful.
+# These patches are usually needed because of deviations of behavior between
+# the stock InnoDB and the InnoDB Plugin.
+cd ../..
+for patch in storage/innobase/mysql-test/patches/*.diff ; do
+	if [ "${patch}" != "storage/innobase/mysql-test/patches/*.diff" ] ; then
+		patch -p0 < ${patch}
+	fi
+done
