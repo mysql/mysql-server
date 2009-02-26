@@ -68,14 +68,14 @@ Logger::setCategory(const char* pCategory)
 }
 
 bool
-Logger::createConsoleHandler()
+Logger::createConsoleHandler(const NdbOut &out)
 {
   Guard g(m_handler_mutex);
   bool rc = true;
 
   if (m_pConsoleHandler == NULL)
   {
-    m_pConsoleHandler = new ConsoleLogHandler(); 
+    m_pConsoleHandler = new ConsoleLogHandler(out);
     if (!addHandler(m_pConsoleHandler)) // TODO: check error code
     {
       rc = false;
@@ -98,13 +98,14 @@ Logger::removeConsoleHandler()
 }
 
 bool
-Logger::createFileHandler()
+Logger::createFileHandler(char*filename)
 {
   Guard g(m_handler_mutex);
   bool rc = true;
   if (m_pFileHandler == NULL)
   {
-    m_pFileHandler = new FileLogHandler(); 
+    m_pFileHandler = filename ? new FileLogHandler(filename)
+                              : new FileLogHandler();
     if (!addHandler(m_pFileHandler)) // TODO: check error code
     {
       rc = false;

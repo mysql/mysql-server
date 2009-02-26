@@ -19,6 +19,23 @@
 #include <OutputStream.hpp>
 #include <socket_io.h>
 
+size_t my_vfprintf(FILE *f, const char* fmt, va_list ap)
+{
+  size_t size= 1024, len;
+  char *buf= (char*)malloc(size);
+  if(!buf)
+    return 0;
+  len= my_vsnprintf(buf, size, fmt, ap);
+  if(len >= size)
+  {
+    buf= (char*)realloc(buf, ++len);
+    len= my_vsnprintf(buf, len, fmt, ap);
+  }
+  len= fprintf(f, "%s", buf);
+  free(buf);
+  return len;
+}
+
 FileOutputStream::FileOutputStream(FILE * file){
   f = file;
 }
@@ -27,7 +44,7 @@ int
 FileOutputStream::print(const char * fmt, ...){
   va_list ap;
   va_start(ap, fmt);
-  const int ret = vfprintf(f, fmt, ap);
+  const int ret = my_vfprintf(f, fmt, ap);
   va_end(ap);
   return ret;
 }
@@ -36,7 +53,7 @@ int
 FileOutputStream::println(const char * fmt, ...){
   va_list ap;
   va_start(ap, fmt);
-  const int ret = vfprintf(f, fmt, ap);
+  const int ret = my_vfprintf(f, fmt, ap);
   va_end(ap);
   return ret + fprintf(f, "\n");
 }

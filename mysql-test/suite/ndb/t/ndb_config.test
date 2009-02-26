@@ -8,7 +8,7 @@ echo == 2 ==;
 --exec $NDB_CONFIG --no-defaults --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
 
 echo == 3 ==;
---exec $NDB_CONFIG --no-defaults -r \\\n -f " " --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
+--exec $NDB_CONFIG --no-defaults -r \\n -f " " --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
 
 echo == 4 ==;
 --exec $NDB_CONFIG --no-defaults --query=nodeid --type=ndbd --host=localhost 2> /dev/null
@@ -28,9 +28,8 @@ echo == 8 ==;
 
 echo == 9 ==;
 --exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
-
 echo == 10 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --ndb-shm --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
+--exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
 
 echo == 11 ==;
 --exec $NDB_CONFIG --no-defaults --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/std_data/ndb_config_config.ini 2> /dev/null

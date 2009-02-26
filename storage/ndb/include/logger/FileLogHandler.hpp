@@ -45,11 +45,6 @@ public:
   virtual const char* handler_type() {return "FILE"; };
 
   /**
-   * Default constructor.
-   */
-  FileLogHandler();
-
-  /**
    * Creates a new file handler with the specified filename, 
    * max number of archived log files and max log size for each log.
    *
@@ -58,7 +53,7 @@ public:
    * @param maxFileSize the maximum log file size before archiving.
    * @param maxLogEntries the maximum number of log entries before checking time to archive.
    */
-  FileLogHandler(const char* aFileName, 
+  FileLogHandler(const char* aFileName = "logger.log",
 		 int maxNoFiles = MAX_NO_FILES, 
 		 long maxFileSize = MAX_FILE_SIZE,
 		 unsigned int maxLogEntries = MAX_LOG_ENTRIES);
