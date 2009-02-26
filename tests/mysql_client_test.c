@@ -714,6 +714,7 @@ static void do_verify_prepare_field(MYSQL_RES *result,
 {
   MYSQL_FIELD *field;
   CHARSET_INFO *cs;
+  ulonglong expected_field_length;
 
   if (!(field= mysql_fetch_field_direct(result, no)))
   {
@@ -722,6 +723,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
   }
   cs= get_charset(field->charsetnr, 0);
   DIE_UNLESS(cs);
+  if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+    expected_field_length= UINT_MAX32;
   if (!opt_silent)
   {
     fprintf(stdout, "\n field[%d]:", no);
@@ -736,8 +739,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
       fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
               field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%lu`)",
-            field->length, length * cs->mbmaxlen);
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%llu`)",
+            field->length, expected_field_length);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
     fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
@@ -773,11 +776,11 @@ static void do_verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-  if (length && field->length != length * cs->mbmaxlen)
+  if (length && (field->length != expected_field_length))
   {
-    fprintf(stderr, "Expected field length: %d,  got length: %d\n",
-            (int) (length * cs->mbmaxlen), (int) field->length);
-    DIE_UNLESS(field->length == length * cs->mbmaxlen);
+    fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
+            expected_field_length, field->length);
+    DIE_UNLESS(field->length == expected_field_length);
   }
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
