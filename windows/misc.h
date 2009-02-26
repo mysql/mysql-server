@@ -59,7 +59,7 @@ void srandom(unsigned int seed);
 #define rmdir       _rmdir
 
 #ifndef PATH_MAX
-#define PATH_MAX 1
+#define PATH_MAX _MAX_PATH
 #endif
 
 char *realpath(const char *path, char *resolved_path);
