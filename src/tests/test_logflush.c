@@ -10,13 +10,13 @@
 static int
 grep_for_in_logs (const char *str) {
 #ifdef TOKUDB
-#define lname ENVDIR "//log000000000000.tokulog"
+#define lname ENVDIR "/log000000000000.tokulog"
 #else
-#define lname ENVDIR "//log.0000000001"
+#define lname ENVDIR "/log.0000000001"
 #endif
-#define COMMAND "grep -F -o"
-    char systembuf[strlen(str)+sizeof(COMMAND " \"\" " lname " > /dev/null")];
-    int bytes = snprintf(systembuf, sizeof(systembuf), COMMAND " \"%s\" %s > /dev/null", str, lname);
+#define COMMAND "grep -F -q"
+    char systembuf[strlen(str)+sizeof(COMMAND " \"\" " lname)];
+    int bytes = snprintf(systembuf, sizeof(systembuf), COMMAND " \"%s\" %s", str, lname);
     assert(bytes>=0);
     assert((size_t)bytes<sizeof(systembuf));
     int r = system(systembuf);
