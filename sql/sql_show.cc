@@ -106,7 +106,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Alter", "Tables",  "To alter the table"},
   {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
+  {"Create routine","Databases","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Create user", "Server Admin",  "To create new users"},
@@ -1232,21 +1232,25 @@ void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
+  my_bool compact_view_name= TRUE;
   my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                        MODE_ORACLE |
                                                        MODE_MSSQL |
                                                        MODE_DB2 |
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
-  /*
-     Compact output format for view can be used
-     - if user has db of this view as current db
-     - if this view only references table inside it's own db
-  */
+
   if (!thd->db || strcmp(thd->db, table->view_db.str))
-    table->compact_view_format= FALSE;
+    /*
+      print compact view name if the view belongs to the current database
+    */
+    compact_view_name= table->compact_view_format= FALSE;
   else
   {
+    /*
+      Compact output format for view body can be used
+      if this view only references table inside it's own db
+    */
     TABLE_LIST *tbl;
     table->compact_view_format= TRUE;
     for (tbl= thd->lex->query_tables;
@@ -1267,7 +1271,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     view_store_options(thd, table, buff);
   }
   buff->append(STRING_WITH_LEN("VIEW "));
-  if (!table->compact_view_format)
+  if (!compact_view_name)
   {
     append_identifier(thd, buff, table->view_db.str, table->view_db.length);
     buff->append('.');
