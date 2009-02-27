@@ -58,7 +58,10 @@ loop:
 
     if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
         strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists"))
+    {
+      NdbSleep_SecSleep(3);
       goto loop;
+    }
     
     g_err << "Error: " << ndb_mgm_get_latest_error(handle) << endl;
     g_err << "Error msg: " << ndb_mgm_get_latest_error_msg(handle) << endl;
