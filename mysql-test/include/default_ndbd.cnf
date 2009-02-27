@@ -16,7 +16,7 @@ FragmentLogFileSize=           12M
 DiskPageBufferMemory=          4M
 
 # O_DIRECT has issues on 2.4 whach have not been handled, Bug #29612
-ODirect= 1
+#ODirect= 1
 CompressedLCP= 1
 CompressedBackup= 1
 # the following parametes just function as a small regression
