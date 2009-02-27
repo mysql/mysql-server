@@ -66,7 +66,8 @@ struct BuildIndxRef {
     IndexNotUnique = 4251,
     AllocationFailure = 4252,
     InternalError = 4346,
-    IndexNotFound = 4243
+    IndexNotFound = 4243,
+    DeadlockError = 4351
   };
 
   STATIC_CONST( SignalLength = 10 );
