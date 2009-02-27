@@ -61,7 +61,7 @@ SELECT @@global.auto_increment_offset;
 1
 SET @@global.auto_increment_offset = -1024;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '-1024'
 SELECT @@global.auto_increment_offset;
 @@global.auto_increment_offset
 1
@@ -94,7 +94,7 @@ SELECT @@session.auto_increment_offset;
 1
 SET @@session.auto_increment_offset = -2;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '-2'
 SELECT @@session.auto_increment_offset;
 @@session.auto_increment_offset
 1
