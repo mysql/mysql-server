@@ -1405,22 +1405,38 @@ bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
 /**
   check an unsigned user-supplied value for a systemvariable against bounds.
 
+  TODO: This is a wrapper function to call clipping from within an update()
+        function.  Calling bounds from within update() is fair game in theory,
+        but we can only send warnings from in there, not errors, and besides,
+        it violates our model of separating check from update phase.
+        To avoid breaking out of the server with an ASSERT() in strict mode,
+        we pretend we're not in strict mode when we go through here. Bug#43233
+        was opened to remind us to replace this kludge with The Right Thing,
+        which of course is to do the check in the actual check phase, and then
+        throw an error or warning accordingly.
+
   @param thd             thread handle
   @param num             the value to limit
-  @param option_limits   the bounds-record, or NULL
-
-  @retval                whether or not we needed to bound
+  @param option_limits   the bounds-record, or NULL if none
  */
-static my_bool bound_unsigned(THD *thd, ulonglong *num,
+static void bound_unsigned(THD *thd, ulonglong *num,
                               const struct my_option *option_limits)
 {
-  my_bool   fixed     = FALSE;
-  ulonglong unadjusted= *num;
-
   if (option_limits)
+  {
+    my_bool   fixed     = FALSE;
+    ulonglong unadjusted= *num;
+
     *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
 
-  return fixed;
+    if (fixed)
+    {
+      ulong ssm= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~MODE_STRICT_ALL_TABLES;
+      throw_bounds_warning(thd, fixed, TRUE, option_limits->name, unadjusted);
+      thd->variables.sql_mode= ssm;
+    }
+  }
 }
 
 
@@ -1445,6 +1461,7 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
   int                     warnings= 0;
   ulonglong               unadjusted;
   const struct my_option *limits= var->var->option_limits;
+  struct my_option        fallback;
 
   /* get_unsigned() */
   if (var->value->unsigned_flag)
@@ -1477,31 +1494,32 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
     warnings++;
   }
 
+  /*
+    if the sysvar doesn't have a proper bounds record but the check
+    function would like bounding to ULONG where its size differs from
+    that of ULONGLONG, we make up a bogus limits record here and let
+    the usual suspects handle the actual limiting.
+  */
+
+  if (!limits && bound2ulong)
+  {
+    bzero(&fallback, sizeof(fallback));
+    fallback.var_type= GET_ULONG;
+    limits= &fallback;
+  }
+
   /* fix_unsigned() */
   if (limits)
   {
     my_bool   fixed;
 
-    var->save_result.ulonglong_value= getopt_ull_limit_value(unadjusted,
+    var->save_result.ulonglong_value= getopt_ull_limit_value(var->save_result.
+                                                             ulonglong_value,
 							     limits, &fixed);
 
     if ((warnings == 0) && throw_bounds_warning(thd, fixed, TRUE, limits->name,
                                                 (longlong) unadjusted))
       return TRUE;
-  }
-  else if (bound2ulong)
-  {
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    /* Avoid overflows on 32 bit systems */
-    if (var->save_result.ulonglong_value > ULONG_MAX)
-    {
-      var->save_result.ulonglong_value= ULONG_MAX;
-      if ((warnings == 0) && throw_bounds_warning(thd, TRUE, TRUE,
-                                                  var->var->name,
-                                                  (longlong) unadjusted))
-        return TRUE;
-    }
-#endif
   }
 
   return FALSE;
@@ -2334,7 +2352,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   bound_unsigned(thd, &tmp, option_limits);
   key_cache->param_buff_size= (ulonglong) tmp;
 
-  /* If key cache didn't existed initialize it, else resize it */
+  /* If key cache didn't exist initialize it, else resize it */
   key_cache->in_init= 1;
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
