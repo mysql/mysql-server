@@ -46,7 +46,7 @@ DTRACEFILES =           filesort.o \
                         sql_update.o
 
 DTRACEFILES_DEPEND =    filesort.o \
-			.libs/libndb_la-ha_ndbcluster.lo \
+			libndb_la-ha_ndbcluster.lo \
                         handler.o \
                         mysqld.o \
                         net_serv.o \
