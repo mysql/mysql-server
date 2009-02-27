@@ -274,6 +274,10 @@ max-time: 500
 cmd: testIndex
 args: -n MixedTransaction T1 
 
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring T6 
+
 #
 # SCAN TESTS
 #
