@@ -200,6 +200,7 @@ Pgman::execSTTOR(Signal* signal)
         c_tup = 0;
       }
       c_lgman = (Lgman*)globalData.getBlock(LGMAN);
+      c_tsman = (Tsman*)globalData.getBlock(TSMAN);
     }
     break;
   case 3:
@@ -1297,11 +1298,15 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
   ptr.p->m_last_lcp = m_last_lcp;
   if (ptr.p->m_state & Page_entry::DIRTY)
   {
-    Ptr<GlobalPage> org, copy;
-    ndbrequire(m_global_page_pool.seize(copy));
-    m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
-    memcpy(copy.p, org.p, sizeof(GlobalPage));
-    ptr.p->m_copy_page_i = copy.i;
+    {
+      // protect copy-page
+      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
+      Ptr<GlobalPage> org, copy;
+      ndbrequire(m_global_page_pool.seize(copy));
+      m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+      memcpy(copy.p, org.p, sizeof(GlobalPage));
+      ptr.p->m_copy_page_i = copy.i;
+    }
     
     m_lcp_outstanding++;
     ptr.p->m_state |= Page_entry::LCP;
@@ -1320,13 +1325,16 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
 void
 Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 {
-  Ptr<GlobalPage> org, copy;
-  m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
-  m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
-  memcpy(org.p, copy.p, sizeof(GlobalPage));
-  m_global_page_pool.release(copy);
-
-  ptr.p->m_copy_page_i = RNIL;
+  {
+    // protect copy-page
+    Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0);
+    Ptr<GlobalPage> org, copy;
+    m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
+    m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+    memcpy(org.p, copy.p, sizeof(GlobalPage));
+    m_global_page_pool.release(copy);
+    ptr.p->m_copy_page_i = RNIL;
+  }
 
   Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
   pl.next(ptr);
