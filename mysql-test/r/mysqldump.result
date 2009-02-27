@@ -3246,7 +3246,7 @@ USE `mysqldump_views`;
 /*!50001 DROP TABLE `nasishnasifu`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `mysqldump_views`.`nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
+/*!50001 VIEW `nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
 drop view nasishnasifu;
 drop database mysqldump_views;
 drop table mysqldump_tables.basetable;

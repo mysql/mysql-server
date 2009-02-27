@@ -314,4 +314,21 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug38158.sql;
 #
 --exec $MYSQL -e "select @z:='1',@z=database()"
 
+
+#
+# Bug #31060: MySQL CLI parser bug 2
+#
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug31060.sql
+;DELIMITER DELIMITER
+;
+SELECT 1DELIMITER
+DELIMITER ;
+SELECT 1;
+EOF
+
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug31060.sql 2>&1
+
+remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
+
 --echo End of 5.0 tests
