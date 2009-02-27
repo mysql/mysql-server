@@ -211,7 +211,6 @@ public:
     }
 
     /*** Various Operation Info ***/
-    Uint32    keyLen;          // Length of primary key (fixed size is assumed)
     Uint32    rsLen;           // Size of result set
     Uint32    noOfKeyAttr;     // Number of key attributes
     Uint32    noOfAttr;        // Number of attributes
@@ -233,7 +232,7 @@ public:
     AttrMappingBuffer    attrMapping;
 
     /*** First signal in tckeyreq train ***/
-    Uint32    tckeyLenInBytes;    // TcKeyReq total signal length (in bytes)
+    Uint32    tckeyLen;           // TcKeyReq total signal length
     Uint32    keyDataPos;         // Where to store keydata[] in tckey signal
                                   // (in #words from base in tckey signal)
     TcKeyReq  tckey;              // Signaldata for first signal in train
@@ -254,11 +253,10 @@ public:
     
     void print() const {
       ndbout << "[-PreparedOperation-" << endl
-	     << " keyLen: " << keyLen
 	     << ", rsLen: " << rsLen
 	     << ", noOfKeyAttr: " << noOfKeyAttr 
 	     << ", noOfAttr: " << noOfAttr 
-	     << ", tckeyLenInBytes: " << tckeyLenInBytes 
+	     << ", tckeyLen: " << tckeyLen 
 	     << ", keyDataPos: " << keyDataPos << endl
 	     << "-AttrMapping- (AttrId, KeyPos)-pairs "
 	     << "(Pos=3fff if non-key attr):" << endl;

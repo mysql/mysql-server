@@ -1097,7 +1097,6 @@ DbUtil::prepareOperation(Signal* signal,
   Uint32 noOfPKAttribsStored = 0;
   Uint32 noOfNonPKAttribsStored = 0;
   Uint32 attrLength = 0;
-  Uint32 pkAttrLength = 0;
   char attrNameRequested[MAX_ATTR_NAME_SIZE];
   Uint32 attrIdRequested;
 
@@ -1248,8 +1247,6 @@ DbUtil::prepareOperation(Signal* signal,
 	break;
       }
       attrLength += len;
-      if (attrDesc.AttributeKeyFlag)
-	pkAttrLength += len;
 
       if (operationType == UtilPrepareReq::Read) {
 	AttributeHeader::init(rsInfoIt.data, 
@@ -1299,14 +1296,7 @@ DbUtil::prepareOperation(Signal* signal,
   prepOpPtr.p->tckey.tableId = tableDesc.TableId;
   prepOpPtr.p->tckey.tableSchemaVersion = tableDesc.TableVersion;
   prepOpPtr.p->noOfKeyAttr = tableDesc.NoOfKeyAttr;
-  prepOpPtr.p->keyLen = tableDesc.KeyLength; // Total no of words in PK
-  if (prepOpPtr.p->keyLen > TcKeyReq::MaxKeyInfo) {
-    jam();
-    prepOpPtr.p->tckeyLenInBytes = (static_len + TcKeyReq::MaxKeyInfo) * 4;
-  } else {
-    jam();
-    prepOpPtr.p->tckeyLenInBytes = (static_len + prepOpPtr.p->keyLen) * 4;
-  }
+  prepOpPtr.p->tckeyLen = static_len;
   prepOpPtr.p->keyDataPos = static_len;  // Start of keyInfo[] in tckeyreq
   
   Uint32 requestInfo = 0;
@@ -1415,14 +1405,13 @@ DbUtil::hardcodedPrepare() {
   /**
    * Prepare SequenceCurrVal (READ)
    */
+  Uint32 keyLen = 1;
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 0));
-    ptr.p->keyLen = 1;
     ptr.p->tckey.attrLen = 1;
     ptr.p->rsLen = 3;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength +
-                              ptr.p->keyLen + ptr.p->tckey.attrLen) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + ptr.p->tckey.attrLen;
     ptr.p->keyDataPos = TcKeyReq::StaticLength; 
     ptr.p->tckey.tableId = 0;
     Uint32 requestInfo = 0;
@@ -1448,9 +1437,8 @@ DbUtil::hardcodedPrepare() {
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 1));
-    ptr.p->keyLen = 1;
     ptr.p->rsLen = 3;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength + ptr.p->keyLen + 5) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + 5;
     ptr.p->keyDataPos = TcKeyReq::StaticLength; 
     ptr.p->tckey.attrLen = 11;
     ptr.p->tckey.tableId = 0;
@@ -1504,11 +1492,9 @@ DbUtil::hardcodedPrepare() {
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 2));
-    ptr.p->keyLen = 1;
     ptr.p->tckey.attrLen = 5;
     ptr.p->rsLen = 0;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength +
-                              ptr.p->keyLen + ptr.p->tckey.attrLen) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + ptr.p->tckey.attrLen;
     ptr.p->keyDataPos = TcKeyReq::StaticLength;
     ptr.p->tckey.tableId = 0;
     Uint32 requestInfo = 0;
@@ -1526,9 +1512,8 @@ DbUtil::hardcodedPrepare() {
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 3));
-    ptr.p->keyLen = 1;
     ptr.p->rsLen = 0;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength + ptr.p->keyLen + 5) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + 5;
     ptr.p->keyDataPos = TcKeyReq::StaticLength;
     ptr.p->tckey.attrLen = 9;
     ptr.p->tckey.tableId = 0;
@@ -1587,7 +1572,7 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   ndbrequire(transPtr.p->operations.seize(opPtr));
   
   ndbrequire(opPtr.p->rs.seize(prepOp->rsLen));
-  ndbrequire(opPtr.p->keyInfo.seize(prepOp->keyLen));
+  ndbrequire(opPtr.p->keyInfo.seize(1));
 
   transPtr.p->gsn = GSN_UTIL_SEQUENCE_REQ;
   transPtr.p->clientRef = signal->senderBlockRef();
@@ -1853,7 +1838,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   ndbrequire(transPtr.p->operations.seize(opPtr));
   opPtr.p->prepOp   = prepOpPtr.p;
   opPtr.p->prepOp_i = prepOpPtr.i;
-  
+
 #if 0 //def EVENT_DEBUG
   printf("opPtr.p->rs.seize( %u )\n", prepOpPtr.p->rsLen);
 #endif
@@ -1926,13 +1911,6 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 		       0, clientRef, clientData);
     releaseTransaction(transPtr);    
     return;
-  }
-
-  // quick hack for hash index build
-  if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) != ZREAD){
-    prepOpPtr.p->tckey.attrLen =
-      prepOpPtr.p->attrInfo.getSize() + opPtr.p->attrInfo.getSize();
-    TcKeyReq::setKeyLength(prepOpPtr.p->tckey.requestInfo, keyInfo->getSize());
   }
 
 #if 0
@@ -2018,7 +1996,7 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   
   TcKeyReq * tcKey = (TcKeyReq*)signal->getDataPtrSend();
   //ndbout << "*** 6 ***"<< endl; pop->print();
-  memcpy(tcKey, &pop->tckey, pop->tckeyLenInBytes);
+  memcpy(tcKey, &pop->tckey, 4*pop->tckeyLen);
   //ndbout << "*** 6b ***"<< endl; 
   //printTCKEYREQ(stdout, signal->getDataPtrSend(), 
   //              pop->tckeyLenInBytes >> 2, 0);
@@ -2035,7 +2013,12 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   printf("DbUtil::runOperation: ATTRINFO\n");
   op->attrInfo.print(stdout);
 #endif
-
+  
+  Uint32 attrLen = pop->attrInfo.getSize() + op->attrInfo.getSize();
+  Uint32 keyLen = op->keyInfo.getSize();
+  tcKey->attrLen = attrLen + TcKeyReq::getAIInTcKeyReq(tcKey->requestInfo);
+  TcKeyReq::setKeyLength(tcKey->requestInfo, keyLen);
+  
   /**
    * Key Info
    */
@@ -2049,12 +2032,13 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   //ndbout << "*** 7 ***" << endl;
   //printTCKEYREQ(stdout, signal->getDataPtrSend(), 
   //		pop->tckeyLenInBytes >> 2, 0);
-
+  
 #if 0 //def EVENT_DEBUG
-    printf("DbUtil::runOperation: sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, %d , JBB)\n",  pop->tckeyLenInBytes >> 2);
-    printTCKEYREQ(stdout, signal->getDataPtr(), pop->tckeyLenInBytes >> 2,0);
+  printf("DbUtil::runOperation: sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, %d , JBB)\n",  pop->tckeyLenInBytes >> 2);
+  printTCKEYREQ(stdout, signal->getDataPtr(), pop->tckeyLenInBytes >> 2,0);
 #endif
-  sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, pop->tckeyLenInBytes >> 2, JBB);
+  Uint32 sigLen = pop->tckeyLen + (keyLen > 8 ? 8 : keyLen);
+  sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, sigLen, JBB);
   
   /**
    * More the 8 words of key info not implemented

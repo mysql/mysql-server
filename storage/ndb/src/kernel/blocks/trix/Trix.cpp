@@ -34,6 +34,17 @@
 
 #define CONSTRAINT_VIOLATION 893
 
+static
+bool
+check_timeout(Uint32 errCode)
+{
+  switch(errCode){
+  case 266:
+    return true;
+  }
+  return false;
+}
+
 #define DEBUG(x) { ndbout << "TRIX::" << x << endl; }
 
 /**
@@ -604,9 +615,20 @@ void Trix::execUTIL_EXECUTE_REF(Signal* signal)
   subRecPtr.p = subRec;
   ndbrequire(utilExecuteRef->errorCode == UtilExecuteRef::TCError);
   if(utilExecuteRef->TCErrorCode == CONSTRAINT_VIOLATION)
+  {
+    jam();
     buildFailed(signal, subRecPtr, BuildIndxRef::IndexNotUnique);
+  }
+  else if (check_timeout(utilExecuteRef->TCErrorCode))
+  {
+    jam();
+    buildFailed(signal, subRecPtr, BuildIndxRef::DeadlockError);
+  }
   else
+  {
+    jam();
     buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
+  }
 }
 
 void Trix::execSUB_CREATE_CONF(Signal* signal)

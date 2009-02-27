@@ -239,7 +239,8 @@ public:
     InvalidIndexType = 4250,
     IndexNotUnique = 4251,
     AllocationFailure = 4252,
-    InternalError = 4346
+    InternalError = 4346,
+    DeadlockError = 4351
   };
   STATIC_CONST( SignalLength = BuildIndxConf::SignalLength + 2 );
 
