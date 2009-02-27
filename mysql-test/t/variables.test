@@ -188,7 +188,7 @@ SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
-'transaction_alloc_block_size', 'transaction_prealloc_size');
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
 --echo Testing values that are multiples of 1024
 set @@range_alloc_block_size=1024*15+1024;
 set @@query_alloc_block_size=1024*15+1024*2;
