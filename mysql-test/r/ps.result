@@ -1386,13 +1386,13 @@ execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t4	repair	Error	Table 'test.t4' doesn't exist
-test.t4	repair	error	Corrupt
+test.t4	repair	status	Operation failed
 test.t3	repair	status	OK
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t4	repair	Error	Table 'test.t4' doesn't exist
-test.t4	repair	error	Corrupt
+test.t4	repair	status	Operation failed
 test.t3	repair	status	OK
 prepare stmt from "optimize table t1, t3, t4";
 execute stmt;
@@ -1400,23 +1400,23 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t3	optimize	status	OK
 test.t4	optimize	Error	Table 'test.t4' doesn't exist
-test.t4	optimize	error	Corrupt
+test.t4	optimize	status	Operation failed
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 test.t3	optimize	status	Table is already up to date
 test.t4	optimize	Error	Table 'test.t4' doesn't exist
-test.t4	optimize	error	Corrupt
+test.t4	optimize	status	Operation failed
 prepare stmt from "analyze table t4, t1";
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t4	analyze	Error	Table 'test.t4' doesn't exist
-test.t4	analyze	error	Corrupt
+test.t4	analyze	status	Operation failed
 test.t1	analyze	status	Table is already up to date
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t4	analyze	Error	Table 'test.t4' doesn't exist
-test.t4	analyze	error	Corrupt
+test.t4	analyze	status	Operation failed
 test.t1	analyze	status	Table is already up to date
 deallocate prepare stmt;
 drop table t1, t2, t3;
