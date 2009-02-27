@@ -199,7 +199,10 @@ int create_index(NDBT_Context* ctx, int indxNum,
     ndbout << "FAILED!" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
     ERR(err);
-    if(err.classification == NdbError::ApplicationError)
+    if (err.classification == NdbError::ApplicationError)
+      return SKIP_INDEX;
+
+    if (err.status == NdbError::TemporaryError)
       return SKIP_INDEX;
     
     return NDBT_FAILED;

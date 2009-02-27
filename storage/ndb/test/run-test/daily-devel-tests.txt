@@ -128,10 +128,6 @@ args: -n NFNR3 T6 T13
 
 max-time: 2500
 cmd: testIndex
-args: -n BuildDuring T6 
-
-max-time: 2500
-cmd: testIndex
 args: -l 2 -n SR1 T6 T13 
 
 max-time: 2500
