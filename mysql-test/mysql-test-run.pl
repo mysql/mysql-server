@@ -932,12 +932,12 @@ sub command_line_setup {
   }
 
   # Look for language files and charsetsdir, use same share
-  my $path_share=      mtr_path_exists("$basedir/share/mysql",
-				       "$basedir/sql/share",
-				       "$basedir/share");
+  $path_language=   mtr_path_exists("$basedir/share/mysql/english",
+                                    "$basedir/sql/share/english",
+                                    "$basedir/share/english");
 
-  
-  $path_language=      mtr_path_exists("$path_share/english");
+
+  my $path_share= dirname($path_language);
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   if (using_extern())
