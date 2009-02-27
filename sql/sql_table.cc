@@ -2314,7 +2314,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
-      result_code= HA_ADMIN_CORRUPT;
+      if (thd->net.last_errno == ER_NO_SUCH_TABLE)
+        /* A missing table is just issued as a failed command */
+        result_code= HA_ADMIN_FAILED;
+      else
+        /* Default failure code is corrupt table */
+        result_code= HA_ADMIN_CORRUPT;
       goto send_result;
     }
 

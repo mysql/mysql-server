@@ -27,7 +27,7 @@ drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	Error	Table 'test.t1' doesn't exist
-test.t1	repair	error	Corrupt
+test.t1	repair	status	Operation failed
 create table t1 engine=myisam SELECT 1,"table 1";
 flush tables;
 repair table t1;
