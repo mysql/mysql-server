@@ -288,6 +288,7 @@ ErrorBundle ErrorCodes[] = {
   { 4348, DMEC, IE, "Inconsistency detected at alter index" },
   { 4349, DMEC, IE, "Inconsistency detected at index usage" },
   { 4350, DMEC, IE, "Transaction already aborted" },
+  { 4351, DMEC, TO, "Timeout/deadlock during index build" },
 
   /**
    * Application error
