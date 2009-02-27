@@ -116,7 +116,8 @@ of the 32-bit x86 assembler in mutex operations. */
 /* For InnoDB rw_locks to work with atomics we need the thread_id
 to be no more than machine word wide. The following enables using
 atomics for InnoDB rw_locks where these conditions are met. */
-# if defined(HAVE_GCC_ATOMIC_BUILTINS) && defined(__linux__)
+# if defined(HAVE_GCC_ATOMIC_BUILTINS) && (defined(__linux__) \
+					   || defined(__FreeBSD__))
 #  define INNODB_RW_LOCKS_USE_ATOMICS
 # endif
 
