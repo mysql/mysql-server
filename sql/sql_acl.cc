@@ -3866,6 +3866,11 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   Security_context *sctx= thd->security_ctx;
   ulong want_access= want_access_arg;
   const char *table_name= NULL;
+  /*
+    Flag that gets set if privilege checking has to be performed on column
+    level.
+   */
+  bool using_column_privileges= FALSE;
 
   if (grant_option)
   {
@@ -3909,6 +3914,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
         GRANT_COLUMN *grant_column= 
           column_hash_search(grant_table, field_name,
                              (uint) strlen(field_name));
+        if (grant_column)
+          using_column_privileges= TRUE;
         if (!grant_column || (~grant_column->rights & want_access))
           goto err;
       }
@@ -3924,12 +3931,21 @@ err:
 
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
-  my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-           command,
-           sctx->priv_user,
-           sctx->host_or_ip,
-           fields->name(),
-           table_name);
+  /*
+    Do not give an error message listing a column name unless the user has
+    privilege to see all columns.
+  */
+  if (using_column_privileges)
+    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+             command, sctx->priv_user,
+             sctx->host_or_ip, table_name); 
+  else
+    my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+             command,
+             sctx->priv_user,
+             sctx->host_or_ip,
+             fields->name(),
+             table_name);
   return 1;
 }
 

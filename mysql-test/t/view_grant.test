@@ -1185,4 +1185,44 @@ DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_u1@localhost;
 
+
+#
+# Bug #41354: Access control is bypassed when all columns of a view are 
+# selected by * wildcard
+
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
+
+GRANT SELECT (f1) ON t1 TO foo;
+GRANT SELECT (f1) ON v1 TO foo;
+
+connect (addconfoo, localhost, foo,,);
+connection addconfoo;
+USE db1;
+
+
+SELECT f1 FROM t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT f2 FROM t1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM t1;
+
+SELECT f1 FROM v1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT f2 FROM v1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM v1;
+
+connection default;
+USE test;
+disconnect addconfoo;
+REVOKE SELECT (f1) ON db1.t1 FROM foo;
+REVOKE SELECT (f1) ON db1.v1 FROM foo;
+DROP USER foo;
+DROP VIEW db1.v1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+
 --echo End of 5.0 tests.
