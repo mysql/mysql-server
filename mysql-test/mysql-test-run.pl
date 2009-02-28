@@ -45,8 +45,8 @@ BEGIN {
     print "=======================================================\n";
     print "  WARNING: Using mysql-test-run.pl version 1!  \n";
     print "=======================================================\n";
-    require "lib/v1/mysql-test-run.pl";
-    exit(1);
+    # Should use exec() here on *nix but this appears not to work on Windows
+    exit(system($^X, "lib/v1/mysql-test-run.pl", @ARGV) >> 8);
   }
   elsif ( $version == 2 )
   {
