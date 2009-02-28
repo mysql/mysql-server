@@ -1936,11 +1936,6 @@ int ha_tokudb::write_row(uchar * record) {
     DB_TXN* txn = NULL;
 
     //
-    // status message to be shown in "show process list"
-    //
-    char status_msg[200]; //buffer of 200 should be a good upper bound.
-
-    //
     // some crap that needs to be done because MySQL does not properly abstract
     // this work away from us, namely filling in auto increment and setting auto timestamp
     //
@@ -2062,8 +2057,8 @@ int ha_tokudb::write_row(uchar * record) {
         added_rows++;
         num_added_rows_in_stmt++;
         if ((num_added_rows_in_stmt % 1000) == 0) {
-            sprintf(status_msg, "Inserted about %llu rows", num_added_rows_in_stmt);
-            thd_proc_info(thd, status_msg);
+            sprintf(write_status_msg, "Inserted about %llu rows", num_added_rows_in_stmt);
+            thd_proc_info(thd, write_status_msg);
         }
     }
 cleanup:
@@ -2155,10 +2150,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     THD* thd = ha_thd();
     DB_TXN* sub_trans = NULL;
     DB_TXN* txn = NULL;
-    //
-    // status message to be shown in "show process list"
-    //
-    char status_msg[200]; //buffer of 200 should be a good upper bound.
 
     LINT_INIT(error);
     statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
@@ -2275,8 +2266,8 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (!error) {
         num_updated_rows_in_stmt++;
         if ((num_updated_rows_in_stmt % 1000) == 0) {
-            sprintf(status_msg, "Inserted about %llu rows", num_updated_rows_in_stmt);
-            thd_proc_info(thd, status_msg);
+            sprintf(write_status_msg, "Updated about %llu rows", num_updated_rows_in_stmt);
+            thd_proc_info(thd, write_status_msg);
         }
     }
 
@@ -2387,10 +2378,6 @@ int ha_tokudb::delete_row(const uchar * record) {
     DBT prim_key;
     key_map keys = table_share->keys_in_use;
     bool has_null;
-    //
-    // status message to be shown in "show process list"
-    //
-    char status_msg[200]; //buffer of 200 should be a good upper bound.
     THD* thd = ha_thd();
     statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
 
@@ -2409,8 +2396,8 @@ int ha_tokudb::delete_row(const uchar * record) {
         deleted_rows++;
         num_deleted_rows_in_stmt++;
         if ((num_deleted_rows_in_stmt % 1000) == 0) {
-            sprintf(status_msg, "Inserted about %llu rows", num_deleted_rows_in_stmt);
-            thd_proc_info(thd, status_msg);
+            sprintf(write_status_msg, "Deleted about %llu rows", num_deleted_rows_in_stmt);
+            thd_proc_info(thd, write_status_msg);
         }
     }
     TOKUDB_DBUG_RETURN(error);
