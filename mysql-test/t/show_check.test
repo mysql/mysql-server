@@ -794,10 +794,12 @@ CREATE TABLE t1(колонка1 INT);
 # Check:
 #   - Dump mysqltest1;
 
---echo
---echo ---> Dumping mysqltest1 to show_check.mysqltest1.sql
+--let $outfile1=$MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
 
---exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+--echo
+--echo ---> Dumping mysqltest1 to outfile1
+
+--exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $outfile1
 
 #   - Clean mysqltest1;
 
@@ -812,7 +814,8 @@ DROP DATABASE mysqltest1;
 --echo
 
 --echo ---> Restoring mysqltest1...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+--exec $MYSQL test < $outfile1
+--remove_file $outfile1
 
 #   - Check definition of the table.
 
