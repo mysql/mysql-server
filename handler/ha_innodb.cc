@@ -7663,11 +7663,13 @@ ha_innobase::get_auto_increment(
 
 		prebuilt->autoinc_last_value = next_value;
 
-		ut_a(prebuilt->autoinc_last_value >= *first_value);
-
-		/* Update the table autoinc variable */
-		dict_table_autoinc_update_if_greater(
-			prebuilt->table, prebuilt->autoinc_last_value);
+		if (prebuilt->autoinc_last_value < *first_value) {
+			*first_value = (~(ulonglong) 0);
+		} else {
+			/* Update the table autoinc variable */
+			dict_table_autoinc_update_if_greater(
+				prebuilt->table, prebuilt->autoinc_last_value);
+		}
 	} else {
 		/* This will force write_row() into attempting an update
 		of the table's AUTOINC counter. */
