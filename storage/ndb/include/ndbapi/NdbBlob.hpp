@@ -386,6 +386,7 @@ private:
   NdbOperation* theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
   // partition id for data events
+  bool userDefinedPartitioning;
   Uint32 noPartitionId() { return ~(Uint32)0; }
   Uint32 thePartitionId;
   NdbRecAttr* thePartitionIdRecAttr;
@@ -440,6 +441,8 @@ private:
   int getHeadInlineValue(NdbOperation* anOp);
   void getHeadFromRecAttr();
   int setHeadInlineValue(NdbOperation* anOp);
+  void setHeadPartitionId(NdbOperation* anOp);
+  void setPartPartitionId(NdbOperation* anOp);
   // data operations
   int readDataPrivate(char* buf, Uint32& bytes);
   int writeDataPrivate(const char* buf, Uint32 bytes);
