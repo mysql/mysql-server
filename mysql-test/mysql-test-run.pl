@@ -3470,7 +3470,10 @@ sub start_check_warnings ($$) {
 
   my $name= "warnings-".$mysqld->name();
 
-  extract_warning_lines($mysqld->value('log-error'));
+  my $log_error= $mysqld->value('#log-error');
+  # To be communicated to the test
+  $ENV{MTR_LOG_ERROR}= $log_error;
+  extract_warning_lines($log_error);
 
   my $args;
   mtr_init_args(\$args);
@@ -3986,6 +3989,12 @@ sub mysqld_start ($$) {
 		$path_vardir_trace, $mysqld->name());
   }
 
+  if (IS_WINDOWS)
+  {
+    # Trick the server to send output to stderr, with --console
+    mtr_add_arg($args, "--console");
+  }
+
   if ( $opt_gdb || $opt_manual_gdb )
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
@@ -4018,7 +4027,7 @@ sub mysqld_start ($$) {
   # Remove the old pidfile if any
   unlink($mysqld->value('pid-file'));
 
-  my $output= $mysqld->value('log-error');
+  my $output= $mysqld->value('#log-error');
   if ( $opt_valgrind and $opt_debug )
   {
     # When both --valgrind and --debug is selected, send
@@ -4319,7 +4328,7 @@ sub start_servers($) {
       # Already started
 
       # Write start of testcase to log file
-      mark_log($mysqld->value('log-error'), $tinfo);
+      mark_log($mysqld->value('#log-error'), $tinfo);
 
       next;
     }
@@ -4378,7 +4387,7 @@ sub start_servers($) {
     mkpath($tmpdir) unless -d $tmpdir;
 
     # Write start of testcase to log file
-    mark_log($mysqld->value('log-error'), $tinfo);
+    mark_log($mysqld->value('#log-error'), $tinfo);
 
     # Run <tname>-master.sh
     if ($mysqld->option('#!run-master-sh') and
@@ -4429,7 +4438,7 @@ sub start_servers($) {
       $tinfo->{comment}=
 	"Failed to start ".$mysqld->name();
 
-      my $logfile= $mysqld->value('log-error');
+      my $logfile= $mysqld->value('#log-error');
       if ( defined $logfile and -f $logfile )
       {
 	$tinfo->{logfile}= mtr_fromfile($logfile);
