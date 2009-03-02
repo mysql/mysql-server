@@ -51,13 +51,10 @@
 #else
 #include "np/vis.h"
 #endif
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
+#include "readline/readline.h"
 #include "el.h"
 #include "fcns.h"		/* for EL_NUM_FCNS */
 #include "histedit.h"
-#include "readline/readline.h"
 #include "filecomplete.h"
 
 void rl_prep_terminal(int);
