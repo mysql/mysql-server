@@ -1198,7 +1198,7 @@ CREATE DATABASE mysqltest1;
 use mysqltest1;
 CREATE TABLE t1(колонка1 INT);
 
----> Dumping mysqltest1 to show_check.mysqltest1.sql
+---> Dumping mysqltest1 to outfile1
 
 
 DROP DATABASE mysqltest1;
