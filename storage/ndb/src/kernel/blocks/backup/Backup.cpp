@@ -3096,18 +3096,25 @@ Backup::openFilesReply(Signal* signal,
 
   if (ERROR_INSERTED(10037)) {
     jam();
-    ptr.p->errorCode = DefineBackupRef::FailedForBackupFilesAleadyExist;
+    /**
+     * Dont return FailedForBackupFilesAleadyExist
+     * cause this will make NdbBackup auto-retry with higher number :-)
+     */
+    ptr.p->errorCode = DefineBackupRef::FailedInsertFileHeader;
     defineBackupRef(signal, ptr);
     return;
   }
   /**
    * Did open succeed for all files
    */
-  if(ptr.p->checkError()) {
+  if(ptr.p->checkError()) 
+  {
     jam();
     if(ptr.p->errorCode == FsRef::fsErrFileExists)
+    {
+      jam();
       ptr.p->errorCode = DefineBackupRef::FailedForBackupFilesAleadyExist;
-
+    }
     defineBackupRef(signal, ptr);
     return;
   }//if
