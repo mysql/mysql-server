@@ -210,6 +210,9 @@ static Uint32 g_batchSize= 0;
 static Uint32 g_scanFlags= 0;
 static Uint32 g_parallel= 0;
 static Uint32 g_usingDisk= false;
+static const Uint32 MAX_FRAGS=48 * 8 * 4; // e.g. 48 nodes, 8 frags/node, 4 replicas
+static Uint16 frag_ng_mappings[MAX_FRAGS];
+
 
 static const char* stylename[3] = {
   "style=getValue/setValue",
@@ -480,6 +483,12 @@ dropTable()
   return 0;
 }
 
+static unsigned
+urandom(unsigned n)
+{
+  return n == 0 ? 0 : random() % n;
+}
+
 static int
 createTable(int storageType)
 {
@@ -494,7 +503,39 @@ createTable(int storageType)
   if (storageType == STORAGE_DISK)
     tab.setTablespaceName(g_tsName);
   tab.setLogging(loggingRequired);
-  tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
+  
+  /* Choose from the interesting fragmentation types :
+   * DistrKeyHash, DistrKeyLin, UserDefined
+   * Others are obsolete fragment-count setting variants 
+   * of DistrKeyLin
+   * For UserDefined partitioning, we need to set the partition
+   * id for all PK operations.
+   */
+  Uint32 fragTypeRange= 1 + (NdbDictionary::Object::UserDefined - 
+                             NdbDictionary::Object::DistrKeyHash);
+  Uint32 fragType= NdbDictionary::Object::DistrKeyHash + urandom(fragTypeRange);
+
+  tab.setFragmentType((NdbDictionary::Object::FragmentType)fragType);
+
+  if (fragType == NdbDictionary::Object::UserDefined)
+  {
+    /* Need to set the FragmentCount and fragment to NG mapping
+     * for this partitioning type 
+     */
+    const Uint32 numNodes= g_ncc->no_db_nodes();
+    const Uint32 numReplicas= 2; // Assumption
+    const Uint32 guessNumNgs= numNodes/2;
+    const Uint32 numNgs= guessNumNgs?guessNumNgs : 1;
+    const Uint32 numFragsPerNode= 2 + (rand() % 3);
+    const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
+    
+    tab.setFragmentCount(numPartitions);
+    for (Uint32 i=0; i<numPartitions; i++)
+    {
+      frag_ng_mappings[i]= i % numNgs;
+    }
+    tab.setFragmentData(frag_ng_mappings, sizeof(uint16) * numPartitions);
+  }
   const Chr& pk2chr = g_opt.m_pk2chr;
   // col PK1 - Uint32
   { NdbDictionary::Column col("PK1");
@@ -615,12 +656,6 @@ createTable(int storageType)
 
 // tuples
 
-static unsigned
-urandom(unsigned n)
-{
-  return n == 0 ? 0 : random() % n;
-}
-
 struct Bval {
   const Bcol& m_bcol;
   char* m_val;
@@ -730,12 +765,43 @@ struct Tup {
       return m_pk2;
     return urandom(2) == 0 ? m_pk2 : m_pk2eq;
   }
+  Uint32 getPartitionId(Uint32 numParts) const {
+    /* Only for UserDefined tables really */
+    return m_pk1 % numParts; // MySQLD hash(PK1) style partitioning
+  }
+
 private:
   Tup(const Tup&);
   Tup& operator=(const Tup&);
 };
 
 static Tup* g_tups;
+
+static void
+setUDpartId(const Tup& tup, NdbOperation* op)
+{
+  const NdbDictionary::Table* tab= op->getTable();
+  if (tab->getFragmentType() == NdbDictionary::Object::UserDefined)
+  {
+    Uint32 partId= tup.getPartitionId(tab->getFragmentCount());
+    DBG("Setting partition id to " << partId << " out of " << 
+        tab->getFragmentCount());
+    op->setPartitionId(partId);
+  }
+}
+
+static void
+setUDpartIdNdbRecord(const Tup& tup, 
+                     const NdbDictionary::Table* tab, 
+                     NdbOperation::OperationOptions& opts)
+{
+  opts.optionsPresent= 0;
+  if (tab->getFragmentType() == NdbDictionary::Object::UserDefined)
+  {
+    opts.optionsPresent= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    opts.partitionId= tup.getPartitionId(tab->getFragmentCount());
+  } 
+}
 
 static void
 calcBval(const Bcol& b, Bval& v, bool keepsize)
@@ -1163,6 +1229,7 @@ verifyHeadInline(Tup& tup)
     CHK(g_opr->equal("PK2", tup.pk2()) == 0);
     CHK(g_opr->equal("PK3", (char*)&tup.m_pk3) == 0);
   }
+  setUDpartId(tup, g_opr);
   NdbRecAttr* ra1;
   NdbRecAttr* ra2;
   NdbRecAttr* ra_frag;
@@ -1229,6 +1296,10 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
     CHK((ra_data = g_ops->getValue("NDB$DATA")) != 0);
   }
 
+  /* No partition id set on Blob part table scan so that we
+   * find any misplaced parts in other partitions
+   */
+
   CHK((ra_frag = g_ops->getValue(NdbDictionary::Column::FRAGMENT)) != 0);
   CHK(g_con->execute(NoCommit) == 0);
   unsigned partcount;
@@ -1251,7 +1322,8 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
         continue;
     }
     Uint32 part = ra_part->u_32_value();
-    DBG("part " << part << " of " << partcount);
+    Uint32 frag2 = ra_frag->u_32_value();
+    DBG("part " << part << " of " << partcount << " from fragment " << frag2);
     CHK(part < partcount && ! seen[part]);
     seen[part] = 1;
     unsigned n = b.m_inline + part * b.m_partsize;
@@ -1293,7 +1365,6 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
         i++;
       }
     }
-    Uint32 frag2 = ra_frag->u_32_value();
     DBG("frags main=" << frag << " blob=" << frag2 << " stripe=" << b.m_stripe);
     if (b.m_stripe == 0)
       CHK(frag == frag2);
@@ -1352,6 +1423,7 @@ insertPk(int style, int api)
         CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
         CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
       }
+      setUDpartId(tup, g_opr);
       CHK(getBlobHandles(g_opr) == 0);
     }
     else
@@ -1361,7 +1433,15 @@ insertPk(int style, int api)
         memcpy(&tup.m_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
         memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
       }
-      CHK((g_const_opr = g_con->insertTuple(g_full_record, tup.m_row)) != 0);
+      NdbOperation::OperationOptions opts;
+      setUDpartIdNdbRecord(tup,
+                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                           opts);
+      CHK((g_const_opr = g_con->insertTuple(g_full_record, 
+                                            tup.m_row,
+                                            NULL,
+                                            &opts,
+                                            sizeof(opts))) != 0);
       CHK(getBlobHandles(g_const_opr) == 0);
     }
     if (style == 0) {
@@ -1414,6 +1494,7 @@ readPk(int style, int api)
         CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
         CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
       }
+      setUDpartId(tup, g_opr);
       CHK(getBlobHandles(g_opr) == 0);
     }
     else
@@ -1423,13 +1504,24 @@ readPk(int style, int api)
         memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
         memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
       }
+      NdbOperation::OperationOptions opts;
+      setUDpartIdNdbRecord(tup,
+                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                           opts);
       if (urandom(2) == 0)
         CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
-                                            g_blob_record, tup.m_row)) != 0);
+                                            g_blob_record, tup.m_row,
+                                            NdbOperation::LM_Read,
+                                            NULL,
+                                            &opts,
+                                            sizeof(opts))) != 0);
       else
         CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
                                             g_blob_record, tup.m_row,
-                                            NdbOperation::LM_CommittedRead)) != 0);
+                                            NdbOperation::LM_CommittedRead,
+                                            NULL,
+                                            &opts,
+                                            sizeof(opts))) != 0);
       CHK(getBlobHandles(g_const_opr) == 0);
     }
     if (style == 0) {
@@ -1485,6 +1577,7 @@ updatePk(int style, int api)
           CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
           CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
         }
+        setUDpartId(tup, g_opr);
         CHK(getBlobHandles(g_opr) == 0);
       }
       else
@@ -1494,19 +1587,27 @@ updatePk(int style, int api)
           memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
           memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
         }
+        NdbOperation::OperationOptions opts;
+        setUDpartIdNdbRecord(tup,
+                             g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                             opts);
         if (mode == 0) {
           DBG("using updateTuple");
           CHK((g_const_opr= g_con->updateTuple(g_key_record, tup.m_key_row,
-                                               g_blob_record, tup.m_row)) != 0);
+                                               g_blob_record, tup.m_row,
+                                               NULL, &opts, sizeof(opts))) != 0);
         } else if (mode == 1) {
           DBG("using readTuple exclusive");
           CHK((g_const_opr= g_con->readTuple(g_key_record, tup.m_key_row,
                                              g_blob_record, tup.m_row,
-                                             NdbOperation::LM_Exclusive)) != 0);
+                                             NdbOperation::LM_Exclusive,
+                                             NULL, &opts, sizeof(opts))) != 0);
         } else {
           DBG("using readTuple - will fail and retry");
           CHK((g_const_opr= g_con->readTuple(g_key_record, tup.m_key_row,
-                                             g_blob_record, tup.m_row)) != 0);
+                                             g_blob_record, tup.m_row,
+                                             NdbOperation::LM_Read,
+                                             NULL, &opts, sizeof(opts))) != 0);
         }
         CHK(getBlobHandles(g_const_opr) == 0);
       }
@@ -1552,6 +1653,7 @@ writePk(int style, int api)
         CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
         CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
       }
+      setUDpartId(tup, g_opr);
       CHK(getBlobHandles(g_opr) == 0);
     }
     else
@@ -1564,8 +1666,13 @@ writePk(int style, int api)
         memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
         memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
       }
+      NdbOperation::OperationOptions opts;
+      setUDpartIdNdbRecord(tup,
+                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                           opts);
       CHK((g_const_opr= g_con->writeTuple(g_key_record, tup.m_key_row,
-                                          g_full_record, tup.m_row)) != 0);
+                                          g_full_record, tup.m_row,
+                                          NULL, &opts, sizeof(opts))) != 0);
       CHK(getBlobHandles(g_const_opr) == 0);
     }
     if (style == 0) {
@@ -1601,6 +1708,11 @@ deletePk(int api)
     {
       CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
       CHK(g_opr->deleteTuple() == 0);
+      /* Must set explicit partitionId before equal() calls as that's
+       * where implicit Blob handles are created which need the 
+       * partitioning info
+       */
+      setUDpartId(tup, g_opr);
       CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
       if (g_opt.m_pk2chr.m_len != 0)
       {
@@ -1615,8 +1727,13 @@ deletePk(int api)
         memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
         memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
       }
+      NdbOperation::OperationOptions opts;
+      setUDpartIdNdbRecord(tup,
+                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                           opts);
       CHK((g_const_opr= g_con->deleteTuple(g_key_record, tup.m_key_row,
-                                           g_full_record)) != 0);
+                                           g_full_record, NULL,
+                                           NULL, &opts, sizeof(opts))) != 0);
     }
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
@@ -1665,6 +1782,7 @@ deleteNoPk()
   DBG("deletePk pk1=" << hex << tup.m_pk1);
   CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
   CHK(g_opr->deleteTuple() == 0);
+  setUDpartId(tup, g_opr);
   CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
   if (pk2chr.m_len != 0) {
     CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
@@ -1700,12 +1818,14 @@ readIdx(int style, int api)
         CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
       CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+      /* No need to set partition Id for unique indexes */
       CHK(getBlobHandles(g_opx) == 0);
     }
     else
     {
       memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      /* No need to set partition Id for unique indexes */
       if (urandom(2) == 0)
         CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
                                            g_blob_record, tup.m_row)) != 0);
@@ -1753,12 +1873,14 @@ updateIdx(int style, int api)
       CHK(g_opx->updateTuple() == 0);
       CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+      /* No need to set partition Id for unique indexes */
       CHK(getBlobHandles(g_opx) == 0);
     }
     else
     {
       memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      /* No need to set partition Id for unique indexes */
       CHK((g_const_opr= g_con->updateTuple(g_idx_record, tup.m_key_row,
                                            g_blob_record, tup.m_row)) != 0);
       CHK(getBlobHandles(g_const_opr) == 0);
@@ -1795,6 +1917,7 @@ writeIdx(int style, int api)
       CHK(g_opx->writeTuple() == 0);
       CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+      /* No need to set partition Id for unique indexes */
       CHK(getBlobHandles(g_opx) == 0);
     }
     else
@@ -1804,6 +1927,7 @@ writeIdx(int style, int api)
       memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
       memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      /* No need to set partition Id for unique indexes */
       CHK((g_const_opr= g_con->writeTuple(g_idx_record, tup.m_key_row,
                                           g_full_record, tup.m_row)) != 0);
       CHK(getBlobHandles(g_const_opr) == 0);
@@ -1845,11 +1969,13 @@ deleteIdx(int api)
       CHK(g_opx->deleteTuple() == 0);
       CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
       CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+      /* No need to set partition Id for unique indexes */
     }
     else
     {
       memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      /* No need to set partition Id for unique indexes */
       CHK((g_const_opr= g_con->deleteTuple(g_idx_record, tup.m_key_row,
                                            g_full_record)) != 0);
     }
@@ -1906,10 +2032,12 @@ readScan(int style, int api, bool idx)
       CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
       CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
     }
+    /* Don't bother setting UserDefined partitions for scan tests */
     CHK(getBlobHandles(g_ops) == 0);   
   }
   else
   {
+    /* Don't bother setting UserDefined partitions for scan tests */
     if (urandom(2) == 0)
       if (! idx)
         CHK((g_ops= g_con->scanTable(g_full_record,
@@ -2008,9 +2136,11 @@ updateScan(int style, int api, bool idx)
       CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
       CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
     }
+    /* Don't bother setting UserDefined partitions for scan tests */
   }
   else
   {
+    /* Don't bother setting UserDefined partitions for scan tests */
     if (! idx)
       CHK((g_ops= g_con->scanTable(g_key_record,
                                    NdbOperation::LM_Exclusive)) != 0);
@@ -2108,9 +2238,11 @@ deleteScan(int api, bool idx)
       CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
       CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
     }
+    /* Don't bother setting UserDefined partitions for scan tests */
   }
   else
   {
+    /* Don't bother setting UserDefined partitions for scan tests */
     if (! idx)
       CHK((g_ops= g_con->scanTable(g_key_record,
                                    NdbOperation::LM_Exclusive)) != 0);
@@ -2291,6 +2423,7 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
   
   if (pkop)
   {
+    setUDpartId(tup, op);
     CHK(op->equal("PK1", tup.m_pk1) == 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
@@ -2431,6 +2564,7 @@ bugtest_36756()
       CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
       CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
     }
+    setUDpartId(tupExists, g_opr);
     CHK(getBlobHandles(g_opr) == 0);
     
     CHK(setBlobValue(tupExists) == 0);
@@ -2497,6 +2631,7 @@ bugtest_36756()
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->deleteTuple() == 0);
+    setUDpartId(tupExists, g_opr);
     CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
@@ -2546,7 +2681,7 @@ testmain()
     srandom(g_opt.m_seed);
   }
   for (g_loop = 0; g_opt.m_loop == 0 || g_loop < g_opt.m_loop; g_loop++) {
-        for (int storage= 0; storage < 2; storage++) {
+    for (int storage= 0; storage < 2; storage++) {
       if (!testcase(storageSymbol[storage]))
         continue;
       
@@ -2555,6 +2690,7 @@ testmain()
       CHK(createTable(storage) == 0);
       { /* Dump created table information */
         Bcol& b1 = g_blob1;
+        DBG("FragType: " << g_dic->getTable(g_opt.m_tname)->getFragmentType()); 
         CHK(NdbBlob::getBlobTableName(b1.m_btname, g_ndb, g_opt.m_tname, "BL1") == 0);
         DBG("BL1: inline=" << b1.m_inline << " part=" << b1.m_partsize << " table=" << b1.m_btname);
         if (! g_opt.m_oneblob) {
