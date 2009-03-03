@@ -2679,8 +2679,6 @@ void do_exec(struct st_command *command)
       "/\\/dev\\/null/NUL/",
       /* Replace "closed stdout" with non existing output fd */
       "/>&-/>&4/",
-      /* cmd.exe doesn't need to escape the backslash */
-      "/\\\\\\\\/\\\\/",
       0
     };
     int i= 0;
