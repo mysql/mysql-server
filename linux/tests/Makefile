@@ -6,6 +6,10 @@ TARGETS = $(patsubst %.c,%,$(SRCS))
 RUNTARGETS = $(patsubst %,%.tdbrun,$(TARGETS))
 VGRIND = valgrind
 
+ifeq ($(CC),icc)
+	CFLAGS += -diag-disable 981
+endif
+
 all: $(TARGETS)
 
 %: %.c
