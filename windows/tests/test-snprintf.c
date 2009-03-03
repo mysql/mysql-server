@@ -1,7 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#define _GNU_SOURCE
 #include "toku_portability.h"
 #include <stdio.h>
 #include <string.h>
