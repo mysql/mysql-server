@@ -1259,7 +1259,7 @@ db_is_nodup(DB *db) {
 
     int r = toku_brt_get_flags(db->i->brt, &brtflags);
     assert(r==0);
-    BOOL rval = !(brtflags&TOKU_DB_DUPSORT);
+    BOOL rval = (BOOL)(!(brtflags&TOKU_DB_DUPSORT));
     return rval;
 }
 
@@ -1522,7 +1522,7 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, void
     u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
-    context->do_locking = context->db->i->lt!=NULL && !lock_flags;
+    context->do_locking = (BOOL)(context->db->i->lt!=NULL && !lock_flags);
     context->r_user_callback = 0;
 }
 
@@ -1553,7 +1553,7 @@ toku_c_del(DBC * c, u_int32_t flags) {
     unchecked_flags &= ~flag_for_brt;
     u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
     unchecked_flags &= ~lock_flags;
-    BOOL do_locking = c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
+    BOOL do_locking = (BOOL)(c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
     int r = 0;
     if (unchecked_flags!=0) r = EINVAL;
@@ -2308,7 +2308,7 @@ static int c_getf_heaviside_callback(ITEMLEN found_keylen, bytevec found_keyvec,
         //Have cursor (base->c)
         //Have txn    (base->txn)
         //Have db     (base->db)
-        BOOL found = (found_keyvec != NULL);
+        BOOL found = (BOOL)(found_keyvec != NULL);
         DBC *tmp_cursor; //Temporary cursor to find 'next_key/next_val'
         DBT tmp_key;
         DBT tmp_val;
@@ -2505,11 +2505,11 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
-    BOOL error_if_missing = !(flags&DB_DELETE_ANY);
+    BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
     unchecked_flags &= ~DB_DELETE_ANY;
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     unchecked_flags &= ~lock_flags;
-    BOOL do_locking = db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
+    BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     int r = 0;
     if (unchecked_flags!=0) r = EINVAL;
     if (r==0 && error_if_missing) {
@@ -2604,11 +2604,11 @@ toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
-    BOOL error_if_missing = !(flags&DB_DELETE_ANY);
+    BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
     unchecked_flags &= ~DB_DELETE_ANY;
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     unchecked_flags &= ~lock_flags;
-    BOOL do_locking = db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
+    BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     int r = 0;
     if (unchecked_flags!=0) r = EINVAL;
     if (r==0 && error_if_missing) {
@@ -2919,7 +2919,7 @@ static int
 db_put_check_size_constraints(DB *db, DBT *key, DBT *val) {
     int r;
 
-    BOOL dupsort = !db_is_nodup(db);
+    BOOL dupsort = (BOOL)(!db_is_nodup(db));
     //Check limits on size of key and val.
     unsigned int nodesize;
     r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
@@ -2996,7 +2996,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
 
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
-    BOOL do_locking = db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE);
+    BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
     r = db_put_check_size_constraints(db, key, val);
     if (r==0) {
