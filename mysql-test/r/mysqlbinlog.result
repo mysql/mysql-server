@@ -349,17 +349,17 @@ DELIMITER ;
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 CREATE TABLE t1 (c1 CHAR(10));
-flush logs;
+FLUSH LOGS;
 INSERT INTO t1 VALUES ('0123456789');
-flush logs;
+FLUSH LOGS;
 DROP TABLE t1;
 # 	Query	thread_id=REMOVED	exec_time=REMOVED	error_code=REMOVED
-flush logs;
-create table t1(a int);
-insert into t1 values(connection_id());
-flush logs;
-drop table t1;
+FLUSH LOGS;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(connection_id());
+FLUSH LOGS;
+DROP TABLE t1;
 1
-drop table t1;
+DROP TABLE t1;
 shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
 End of 5.0 tests

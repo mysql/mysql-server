@@ -2,7 +2,7 @@
 -- source include/not_embedded.inc
 
 #
-# Bug #8731: wait_timeout does not work on Mac OS X
+# Bug#8731 wait_timeout does not work on Mac OS X
 #
 
 
@@ -87,6 +87,7 @@ while (!`select @aborted_clients`)
   }
 }
 --enable_query_log
+disconnect wait_con;
 
 connection con1;
 # When the connection is closed in this way, the error code should
@@ -97,3 +98,5 @@ select 2;
 --enable_reconnect
 select 3;
 disconnect con1;
+# The last connect is to keep tools checking the current test happy.
+connect (default,localhost,root,,test,,);
