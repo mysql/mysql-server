@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <ndb_opts.h>
 
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
@@ -29,121 +28,19 @@
 #include <NdbConfig.h>
 
 #include <mgmapi_configuration.hpp>
-#include <mgmapi_config_parameters_debug.h>
 #include <kernel_config_parameters.h>
 
-#include <kernel_types.h>
-#include <ndb_limits.h>
 #include <ndbapi_limits.h>
-#include "pc.hpp"
-#include <LogLevel.hpp>
-#include <NdbSleep.h>
-#include <NdbThread.h>
-
-extern "C" {
-  void ndbSetOwnVersion();
-}
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-enum ndbd_options {
-  OPT_INITIAL = NDB_STD_OPTIONS_LAST,
-  OPT_NODAEMON,
-  OPT_FOREGROUND,
-  OPT_NOWAIT_NODES,
-  OPT_INITIAL_START
-};
-
-// XXX should be my_bool ???
-static int _daemon, _no_daemon, _foreground,  _initial, _no_start;
-static int _initialstart;
-static const char* _nowait_nodes = 0;
-static const char* _bind_address = 0;
-
 extern Uint32 g_start_type;
-extern NdbNodeBitmask g_nowait_nodes;
-
-const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
-
-/**
- * Arguments to NDB process
- */
-static struct my_option my_long_options[] =
-{
-  NDB_STD_OPTS("ndbd"),
-  { "initial", OPT_INITIAL,
-    "Perform initial start of ndbd, including cleaning the file system. "
-    "Consult documentation before using this",
-    (uchar**) &_initial, (uchar**) &_initial, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nostart", 'n',
-    "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd",
-    (uchar**) &_no_start, (uchar**) &_no_start, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "daemon", 'd', "Start ndbd as daemon (default)",
-    (uchar**) &_daemon, (uchar**) &_daemon, 0,
-    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "nodaemon", OPT_NODAEMON,
-    "Do not start ndbd as daemon, provided for testing purposes",
-    (uchar**) &_no_daemon, (uchar**) &_no_daemon, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "foreground", OPT_FOREGROUND,
-    "Run real ndbd in foreground, provided for debugging purposes"
-    " (implies --nodaemon)",
-    (uchar**) &_foreground, (uchar**) &_foreground, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nowait-nodes", OPT_NOWAIT_NODES, 
-    "Nodes that will not be waited for during start",
-    (uchar**) &_nowait_nodes, (uchar**) &_nowait_nodes, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "initial-start", OPT_INITIAL_START, 
-    "Perform initial start",
-    (uchar**) &_initialstart, (uchar**) &_initialstart, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "bind-address", OPT_NOWAIT_NODES, 
-    "Local bind address",
-    (uchar**) &_bind_address, (uchar**) &_bind_address, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
-
-static void short_usage_sub(void)
-{
-  ndb_short_usage_sub(my_progname, NULL);
-}
-
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
 
 bool
-Configuration::init(int argc, char** argv)
+Configuration::init(int _no_start, int _initial,
+                    int _initialstart, int _daemon)
 {
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
-  load_defaults("my",load_default_groups,&argc,&argv);
-
-  int ho_error;
-#ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndbd.trace";
-#endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
-    exit(ho_error);
-
-  if (_no_daemon || _foreground) {
-    _daemon= 0;
-  }
-
-  DBUG_PRINT("info", ("no_start=%d", _no_start));
-  DBUG_PRINT("info", ("initial=%d", _initial));
-  DBUG_PRINT("info", ("daemon=%d", _daemon));
-  DBUG_PRINT("info", ("foreground=%d", _foreground));
-  DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
-
-  ndbSetOwnVersion();
-
   // Check the start flag
   if (_no_start)
     globalData.theRestartFlag = initial_state;
@@ -153,42 +50,13 @@ Configuration::init(int argc, char** argv)
   // Check the initial flag
   if (_initial)
     _initialStart = true;
-  
-  // Check connectstring
-  if (opt_connect_str)
-    _connectString = strdup(opt_connect_str);
-  
+
   // Check daemon flag
   if (_daemon)
     _daemonMode = true;
-  if (_foreground)
-    _foregroundMode = true;
 
-  // Save programname
-  if(argc > 0 && argv[0] != 0)
-    _programName = strdup(argv[0]);
-  else
-    _programName = strdup("");
-  
   globalData.ownId= 0;
 
-  if (_nowait_nodes)
-  {
-    int res = g_nowait_nodes.parseMask(_nowait_nodes);
-    if(res == -2 || (res > 0 && g_nowait_nodes.get(0)))
-    {
-      ndbout_c("Invalid nodeid specified in nowait-nodes: %s", 
-               _nowait_nodes);
-      exit(-1);
-    }
-    else if (res < 0)
-    {
-      ndbout_c("Unable to parse nowait-nodes argument: %s",
-               _nowait_nodes);
-      exit(-1);
-    }
-  }
-  
   if (_initialstart)
   {
     _initialStart = true;
@@ -198,8 +66,8 @@ Configuration::init(int argc, char** argv)
   threadIdMutex = NdbMutex_Create();
   if (!threadIdMutex)
   {
-    ndbout_c("Failed to create threadIdMutex");
-    exit(-1);
+    g_eventLogger->error("Failed to create threadIdMutex");
+    return false;
   }
   initThreadArray();
   return true;
@@ -207,13 +75,10 @@ Configuration::init(int argc, char** argv)
 
 Configuration::Configuration()
 {
-  _programName = 0;
-  _connectString = 0;
   _fsPath = 0;
   _backupPath = 0;
   _initialStart = false;
   _daemonMode = false;
-  _foregroundMode = false;
   m_config_retriever= 0;
   m_clusterConfig= 0;
   m_clusterConfigIter= 0;
@@ -221,11 +86,6 @@ Configuration::Configuration()
 }
 
 Configuration::~Configuration(){
-  if (opt_connect_str)
-    free(_connectString);
-
-  if(_programName != NULL)
-    free(_programName);
 
   if(_fsPath != NULL)
     free(_fsPath);
@@ -252,7 +112,8 @@ Configuration::closeConfiguration(bool end_session){
 }
 
 void
-Configuration::fetch_configuration(){
+Configuration::fetch_configuration(const char* _connect_string,
+                                   const char* _bind_address){
   /**
    * Fetch configuration from management server
    */
@@ -261,7 +122,7 @@ Configuration::fetch_configuration(){
   }
 
   m_mgmd_port= 0;
-  m_config_retriever= new ConfigRetriever(getConnectString(),
+  m_config_retriever= new ConfigRetriever(_connect_string,
 					  NDB_VERSION, 
 					  NODE_TYPE_DB,
 					  _bind_address);
@@ -657,18 +518,6 @@ Configuration::getRestartOnErrorInsert() const {
 void
 Configuration::setRestartOnErrorInsert(int i){
   m_restartOnErrorInsert = i;
-}
-
-const char *
-Configuration::getConnectString() const {
-  return _connectString;
-}
-
-char *
-Configuration::getConnectStringCopy() const {
-  if(_connectString != 0)
-    return strdup(_connectString);
-  return 0;
 }
 
 const ndb_mgm_configuration_iterator * 

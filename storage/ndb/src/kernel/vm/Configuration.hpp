@@ -16,6 +16,8 @@
 #ifndef Configuration_H
 #define Configuration_H
 
+#include <ndb_global.h>
+
 #include <util/BaseString.hpp>
 #include <mgmapi.h>
 #include <ndb_types.h>
@@ -52,12 +54,11 @@ public:
   Configuration();
   ~Configuration();
 
-  /**
-   * Returns false if arguments are invalid
-   */
-  bool init(int argc, char** argv);
+  bool init(int _no_start, int _initial,
+            int _initialstart, int _daemon);
 
-  void fetch_configuration();
+  void fetch_configuration(const char* _connect_string,
+                           const char* _bind_adress);
   void setupConfiguration();
   void closeConfiguration(bool end_session= true);
   
@@ -109,11 +110,8 @@ public:
   void setRestartOnErrorInsert(int);
   
   // Cluster configuration
-  const char * programName() const;
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
-  const char * getConnectString() const;
-  char * getConnectStringCopy() const;
 
   /**
    * 
@@ -121,7 +119,6 @@ public:
   bool getInitialStart() const;
   void setInitialStart(bool val);
   bool getDaemonMode() const;
-  bool getForegroundMode() const;
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
@@ -167,24 +164,15 @@ private:
   /**
    * arguments to NDB process
    */
-  char * _programName;
   char * _fsPath;
   char * _backupPath;
   bool _initialStart;
-  char * _connectString;
   Uint32 m_mgmd_port;
   BaseString m_mgmd_host;
   bool _daemonMode; // if not, angel in foreground
-  bool _foregroundMode; // no angel, raw ndbd in foreground
 
   void calcSizeAlt(class ConfigValues * );
 };
-
-inline
-const char *
-Configuration::programName() const {
-  return _programName;
-}
 
 inline
 const char *
@@ -208,12 +196,6 @@ inline
 bool
 Configuration::getDaemonMode() const {
   return _daemonMode;
-}
-
-inline
-bool
-Configuration::getForegroundMode() const {
-  return _foregroundMode;
 }
 
 #endif
