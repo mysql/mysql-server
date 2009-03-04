@@ -279,8 +279,11 @@ COUNT(*)
 ***** Finsh the slave sync process *******
 @the_epoch:=MAX(epoch)
 <the_epoch>
-@the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
 <the_pos>	master-bin.000001
+CHANGE MASTER TO
+master_log_file = 'master-bin.000001',
+master_log_pos = <the_pos> ;
 * 4. *
 * 5. *
 START SLAVE;
