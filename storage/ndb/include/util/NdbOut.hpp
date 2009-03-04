@@ -49,7 +49,7 @@ class OutputStream;
 class NullOutputStream;
 
 /*  Declare a static variable of NdbOut as ndbout */
-extern NdbOut ndbout;
+extern NdbOut ndbout, ndberr;
 
 class NdbOut
 {
