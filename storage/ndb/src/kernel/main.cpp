@@ -596,7 +596,6 @@ int main(int argc, char** argv)
     int status = 0, error_exit = 0, signum = 0;
     while(waitpid(child, &status, 0) != child);
     if(WIFEXITED(status)){
-      ndbout_c("status: %d, exit: %d", status, WEXITSTATUS(status));
       switch(WEXITSTATUS(status)){
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
@@ -634,8 +633,6 @@ int main(int argc, char** argv)
       error_exit = 1;
       if (WIFSIGNALED(status))
       {
-      ndbout_c("status: %d, signal: %d", status, WTERMSIG(status));
-
 	signum = WTERMSIG(status);
 	childReportSignal(signum);
       }
@@ -738,10 +735,7 @@ int main(int argc, char** argv)
   int status;
   status = NdbThread_SetConcurrencyLevel(30);
   assert(status == 0);
-//  exit(-1);
-//  abort();
-
-
+  
   catchsigs(false);
    
   /**
@@ -953,9 +947,6 @@ handler_error(int signum){
       NdbSleep_MilliSleep(10);
   thread_id= my_thread_id();
   g_eventLogger->info("Received signal %d. Running error handler.", signum);
-
-//  signal(signum, SIG_DFL);
-//  raise(signum);
   childReportSignal(signum);
   // restart the system
   char errorData[64], *info= 0;
