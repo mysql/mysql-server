@@ -1496,4 +1496,22 @@ UNLOCK TABLES;
 --echo # drop the created tables
 DROP TABLE t1, t2, t3;
 
+#
+# Bug #41305 server crashes when inserting duplicate row into a merge table
+#
+--echo # insert duplicate value in child table while merge table doesn't have key
+create table t1 (
+        col1 int(10),
+        primary key (col1)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE m1 (
+  col1 int(10) NOT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(t1);
+
+insert into m1 (col1) values (1);
+--error ER_DUP_ENTRY
+insert into m1 (col1) values (1);
+
+drop table m1, t1;
 --echo End of 5.1 tests
