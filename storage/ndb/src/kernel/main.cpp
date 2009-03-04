@@ -562,10 +562,6 @@ int main(int argc, char** argv)
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
   g_eventLogger->setCategory("ndbd");
-  g_eventLogger->enable(Logger::LL_ON, Logger::LL_INFO);
-  g_eventLogger->enable(Logger::LL_ON, Logger::LL_CRITICAL);
-  g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
-  g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
 
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
