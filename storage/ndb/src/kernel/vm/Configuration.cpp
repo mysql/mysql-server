@@ -303,7 +303,7 @@ Configuration::fetch_configuration(){
 	      "Unable to alloc node id", m_config_retriever->getErrorString());
   }
   
-  ndb_mgm_configuration * p = cr.getConfig();
+  ndb_mgm_configuration * p = cr.getConfig(globalData.ownId);
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)

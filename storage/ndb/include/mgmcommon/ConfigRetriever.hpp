@@ -47,7 +47,7 @@ public:
    * @return ndb_mgm_configuration object if succeeded, 
    *         NULL if erroneous local config file or configuration error.
    */
-  struct ndb_mgm_configuration * getConfig();
+  struct ndb_mgm_configuration * getConfig(Uint32 nodeid);
   
   void resetError();
   int hasError();
@@ -87,22 +87,14 @@ private:
   BaseString errorString;
   enum ErrorType {
     CR_NO_ERROR = 0,
-    CR_ERROR = 1,
-    CR_RETRY = 2
+    CR_ERROR = 1
   };
   ErrorType latestErrorType;
 
   void setError(ErrorType, const char * errorMsg);
   void setError(ErrorType, BaseString err);
 
-  Uint32      _ownNodeId;
   bool m_end_session;
-
-  /*
-  Uint32      m_mgmd_port;
-  const char *m_mgmd_host;
-  */
-
   Uint32 m_version;
   Uint32 m_node_type;
   NdbMgmHandle m_handle;
