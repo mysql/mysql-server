@@ -171,6 +171,7 @@ my $current_config_name; # The currently running config file template
 
 my $baseport;
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
+my $build_thread= 0;
 
 my $opt_record;
 my $opt_report_features;
@@ -665,14 +666,9 @@ sub run_worker ($) {
   report_option('name',"worker[$thread_num]");
 
   # --------------------------------------------------------------------------
-  # Use auto build thread in all but first worker
+  # Set different ports per thread
   # --------------------------------------------------------------------------
-  set_build_thread_ports($thread_num > 1 ? 'auto' : $opt_build_thread);
-
-  if (check_ports_free()){
-    # Some port was not free(which one has already been printed)
-    mtr_error("Some port(s) was not free")
-  }
+  set_build_thread_ports($thread_num);
 
   # --------------------------------------------------------------------------
   # Turn off verbosity in workers, unless explicitly specified
@@ -1268,18 +1264,32 @@ sub command_line_setup {
 # But a fairly safe range seems to be 5001 - 32767
 #
 sub set_build_thread_ports($) {
-  my $build_thread= shift || 0;
+  my $thread= shift || 0;
 
-  if ( lc($build_thread) eq 'auto' ) {
-    #mtr_report("Requesting build thread... ");
-    $build_thread= mtr_get_unique_id(250, 299);
-    if ( !defined $build_thread ) {
-      mtr_error("Could not get a unique build thread id");
+  if ( lc($opt_build_thread) eq 'auto' ) {
+    my $found_free = 0;
+    $build_thread = 250;	# Start attempts from here
+    while (! $found_free)
+    {
+      $build_thread= mtr_get_unique_id($build_thread, 299);
+      if ( !defined $build_thread ) {
+	mtr_error("Could not get a unique build thread id");
+      }
+      $found_free= check_ports_free($build_thread);
+      # If not free, release and try from next number
+      mtr_release_unique_id($build_thread++) unless $found_free;
     }
-    #mtr_report(" - got $build_thread");
+  }
+  else
+  {
+    $build_thread = $opt_build_thread + $thread - 1;
   }
   $ENV{MTR_BUILD_THREAD}= $build_thread;
-  $opt_build_thread= $build_thread;
+
+  if (! check_ports_free($build_thread)) {
+    # Some port was not free(which one has already been printed)
+    mtr_error("Some port(s) was not free")
+  }
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
@@ -2433,22 +2443,18 @@ sub kill_leftovers ($) {
 # Check that all the ports that are going to
 # be used are free
 #
-sub check_ports_free
+sub check_ports_free ($)
 {
-  my @ports_to_check;
-  for ($baseport..$baseport+9){
-    push(@ports_to_check, $_);
-  }
-  #mtr_report("Checking ports...");
-  # print "@ports_to_check\n";
-  foreach my $port (@ports_to_check){
-    if (mtr_ping_port($port)){
-      mtr_report(" - 'localhost:$port' was not free");
-      return 1; # One port was not free
+  my $bthread= shift;
+  my $portbase = $bthread * 10 + 10000;
+  for ($portbase..$portbase+9){
+    if (mtr_ping_port($_)){
+      mtr_report(" - 'localhost:$_' was not free");
+      return 0; # One port was not free
     }
   }
 
-  return 0; # All ports free
+  return 1; # All ports free
 }
 
 
