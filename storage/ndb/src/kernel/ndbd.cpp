@@ -37,7 +37,6 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
 {
@@ -280,11 +279,237 @@ get_multithreaded_config(EmulatorData& ed)
 }
 
 
-void catchsigs(bool ignore);
+extern FILE *child_info_file_r;
+extern FILE *child_info_file_w;
+
+static void
+writeChildInfo(const char *token, int val)
+{
+  fprintf(child_info_file_w, "%s=%d\n", token, val);
+  fflush(child_info_file_w);
+}
+
+void
+childReportSignal(int signum)
+{
+  writeChildInfo("signal", signum);
+}
+
+void
+childReportError(int error)
+{
+  writeChildInfo("error", error);
+}
+
+void
+childExit(int code, Uint32 currentStartPhase)
+{
+#ifndef NDB_WIN
+  writeChildInfo("sphase", currentStartPhase);
+  writeChildInfo("exit", code);
+  fprintf(child_info_file_w, "\n");
+  fclose(child_info_file_r);
+  fclose(child_info_file_w);
+  exit(code);
+#else
+  {
+    Configuration* theConfig=globalEmulatorData.theConfiguration;
+    theConfig->closeConfiguration(true);
+    switch (code) {
+    case NRT_Default:
+      g_eventLogger->info("Angel shutting down");
+      reportShutdown(theConfig, 0, 0, currentStartPhase);
+      exit(0);
+      break;
+    case NRT_NoStart_Restart:
+      theConfig->setInitialStart(false);
+      globalData.theRestartFlag=initial_state;
+      break;
+    case NRT_NoStart_InitialStart:
+      theConfig->setInitialStart(true);
+      globalData.theRestartFlag=initial_state;
+      break;
+    case NRT_DoStart_InitialStart:
+      theConfig->setInitialStart(true);
+      globalData.theRestartFlag=perform_start;
+      break;
+    default:
+      if (theConfig->stopOnError())
+      {
+        /**
+         * Error shutdown && stopOnError()
+         */
+        reportShutdown(theConfig, 1, 0, currentStartPhase);
+        exit(0);
+      }
+      // Fall-through
+    case NRT_DoStart_Restart:
+      theConfig->setInitialStart(false);
+      globalData.theRestartFlag=perform_start;
+      break;
+    }
+    char buf[80];
+    BaseString::snprintf(buf, sizeof (buf), "WIN_NDBD_CFG=%d %d %d",
+                         theConfig->getInitialStart(),
+                         globalData.theRestartFlag, globalData.ownId);
+    _putenv(buf);
+
+    char exe[MAX_PATH];
+    GetModuleFileName(0, exe, sizeof (exe));
+
+    STARTUPINFO sinfo;
+    ZeroMemory(&sinfo, sizeof (sinfo));
+    sinfo.cb=sizeof (STARTUPINFO);
+    sinfo.dwFlags=STARTF_USESHOWWINDOW;
+    sinfo.wShowWindow=SW_HIDE;
+
+    PROCESS_INFORMATION pinfo;
+    if (reportShutdown(theConfig, 0, 1, currentStartPhase))
+    {
+      g_eventLogger->error("unable to shutdown");
+      exit(1);
+    }
+    g_eventLogger->info("Ndb has terminated.  code=%d", code);
+    if (code == NRT_NoStart_Restart)
+      globalTransporterRegistry.disconnectAll();
+    g_eventLogger->info("Ndb has terminated.  Restarting");
+    if (CreateProcess(exe, GetCommandLine(), NULL, NULL, TRUE, 0, NULL, NULL,
+                      &sinfo, &pinfo) == 0)
+    {
+      g_eventLogger->error("Angel was unable to create child ndbd process"
+                           " error: %d", GetLastError());
+    }
+  }
+#endif
+}
+
+void
+childAbort(int code, Uint32 currentStartPhase)
+{
+#ifndef NDB_WIN
+  writeChildInfo("sphase", currentStartPhase);
+  writeChildInfo("exit", code);
+  fprintf(child_info_file_w, "\n");
+  fclose(child_info_file_r);
+  fclose(child_info_file_w);
+#ifndef NDB_WIN32
+  signal(SIGABRT, SIG_DFL);
+#endif
+  abort();
+#else
+  childExit(code, currentStartPhase);
+#endif
+}
+
+extern "C"
+void
+handler_shutdown(int signum){
+  g_eventLogger->info("Received signal %d. Performing stop.", signum);
+  childReportError(0);
+  childReportSignal(signum);
+  globalData.theRestartFlag = perform_stop;
+}
+
+extern NdbMutex * theShutdownMutex;
+
+extern "C"
+void
+handler_error(int signum){
+  // only let one thread run shutdown
+  static long thread_id= 0;
+
+  if (thread_id != 0 && thread_id == my_thread_id())
+  {
+    // Shutdown thread received signal
+#ifndef NDB_WIN32
+	signal(signum, SIG_DFL);
+    kill(getpid(), signum);
+#endif
+    while(true)
+      NdbSleep_MilliSleep(10);
+  }
+  if(theShutdownMutex && NdbMutex_Trylock(theShutdownMutex) != 0)
+    while(true)
+      NdbSleep_MilliSleep(10);
+  thread_id= my_thread_id();
+  g_eventLogger->info("Received signal %d. Running error handler.", signum);
+  childReportSignal(signum);
+  // restart the system
+  char errorData[64], *info= 0;
+#ifdef HAVE_STRSIGNAL
+  info= strsignal(signum);
+#endif
+  BaseString::snprintf(errorData, sizeof(errorData), "Signal %d received; %s", signum,
+		       info ? info : "No text for signal available");
+  ERROR_SET_SIGNAL(fatal, NDBD_EXIT_OS_SIGNAL_RECEIVED, errorData, __FILE__);
+}
+
+
+static void
+catchsigs(bool foreground){
+#if !defined NDB_WIN32
+
+  static const int signals_shutdown[] = {
+#ifdef SIGBREAK
+    SIGBREAK,
+#endif
+    SIGHUP,
+    SIGINT,
+#if defined SIGPWR
+    SIGPWR,
+#elif defined SIGINFO
+    SIGINFO,
+#endif
+    SIGQUIT,
+    SIGTERM,
+#ifdef SIGTSTP
+    SIGTSTP,
+#endif
+    SIGTTIN,
+    SIGTTOU
+  };
+
+  static const int signals_error[] = {
+    SIGABRT,
+    SIGALRM,
+#ifdef SIGBUS
+    SIGBUS,
+#endif
+    SIGCHLD,
+    SIGFPE,
+    SIGILL,
+#ifdef SIGIO
+    SIGIO,
+#endif
+#ifdef SIGPOLL
+    SIGPOLL,
+#endif
+    SIGSEGV
+  };
+
+  static const int signals_ignore[] = {
+    SIGPIPE
+  };
+
+  size_t i;
+  for(i = 0; i < sizeof(signals_shutdown)/sizeof(signals_shutdown[0]); i++)
+    signal(signals_shutdown[i], handler_shutdown);
+  for(i = 0; i < sizeof(signals_error)/sizeof(signals_error[0]); i++)
+    signal(signals_error[i], handler_error);
+  for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
+    signal(signals_ignore[i], SIG_IGN);
+
+#ifdef SIGTRAP
+  if (!foreground)
+    signal(SIGTRAP, handler_error);
+#endif
+
+#endif
+}
 
 
 int
-ndbd_run(void)
+ndbd_run(bool foreground)
 {
 
   if (get_multithreaded_config(globalEmulatorData))
@@ -343,7 +568,7 @@ ndbd_run(void)
   status = NdbThread_SetConcurrencyLevel(30);
   assert(status == 0);
 
-  catchsigs(false);
+  catchsigs(foreground);
 
   /**
    * Do startup

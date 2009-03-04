@@ -13,9 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDBD_HPP
-#define NDBD_HPP
+#ifndef ANGEL_HPP
+#define ANGEL_HPP
 
-int ndbd_run(bool foreground);
-
+int angel_run(const char* connect_str,
+              const char* bind_address,
+              bool initialstart,
+              bool daemon);
 #endif

@@ -1,0 +1,387 @@
+/* Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
+#include <ndb_global.h>
+#include <ndb_version.h>
+
+#include "angel.hpp"
+
+#include <NdbConfig.h>
+#include <NdbAutoPtr.hpp>
+#include <NdbDaemon.h>
+
+#include <ConfigRetriever.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
+#include "vm/SimBlockList.hpp"
+
+
+#define MAX_FAILED_STARTUPS 3
+// Flag set by child through SIGUSR1 to signal a failed startup
+static bool failed_startup_flag=false;
+// Counter for consecutive failed startups
+static Uint32 failed_startups=0;
+
+// child signalling failed restart
+extern "C"
+void
+handler_sigusr1(int signum)
+{
+  if (!failed_startup_flag)
+  {
+    failed_startups++;
+    failed_startup_flag=true;
+  }
+  g_eventLogger->info("Angel received ndbd startup failure count %u.", failed_startups);
+}
+
+
+// These are used already before fork if fetch_configuration() fails
+// (e.g. Unable to alloc node id).  Set them to something reasonable.
+FILE *child_info_file_r=stdin;
+FILE *child_info_file_w=stdout;
+
+#include <Properties.hpp>
+
+static int
+insert(const char * pair, Properties & p)
+{
+  BaseString tmp(pair);
+
+  tmp.trim(" \t\n\r");
+  Vector<BaseString> split;
+  tmp.split(split, ":=", 2);
+  if (split.size() != 2)
+    return -1;
+  p.put(split[0].trim().c_str(), split[1].trim().c_str());
+  return 0;
+}
+
+static int
+readChildInfo(Properties &info)
+{
+  fclose(child_info_file_w);
+  char buf[128];
+  while (fgets(buf, sizeof (buf), child_info_file_r))
+    insert(buf, info);
+  fclose(child_info_file_r);
+  return 0;
+}
+
+static bool
+get_int_property(Properties &info,
+                 const char *token, Uint32 *int_val)
+{
+  const char *str_val=0;
+  if (!info.get(token, &str_val))
+    return false;
+  char *endptr;
+  long int tmp=strtol(str_val, &endptr, 10);
+  if (str_val == endptr)
+    return false;
+  *int_val=tmp;
+  return true;
+}
+
+int reportShutdown(class Configuration *config, int error_exit, int restart, Uint32 sphase=256)
+{
+  Uint32 error=0, signum=0;
+#ifndef NDB_WIN
+  Properties info;
+  readChildInfo(info);
+
+  get_int_property(info, "signal", &signum);
+  get_int_property(info, "error", &error);
+  get_int_property(info, "sphase", &sphase);
+#endif
+  Uint32 length, theData[25];
+  EventReport *rep=(EventReport *) theData;
+
+  rep->setNodeId(globalData.ownId);
+  if (restart)
+    theData[1]=1 |
+          (globalData.theRestartFlag == initial_state ? 2 : 0) |
+    (config->getInitialStart() ? 4 : 0);
+  else
+    theData[1]=0;
+
+  if (error_exit == 0)
+  {
+    rep->setEventType(NDB_LE_NDBStopCompleted);
+    theData[2]=signum;
+    length=3;
+  } else
+  {
+    rep->setEventType(NDB_LE_NDBStopForced);
+    theData[2]=signum;
+    theData[3]=error;
+    theData[4]=sphase;
+    theData[5]=0; // extra
+    length=6;
+  }
+
+  { // Log event
+    const EventReport * const eventReport=(EventReport *) & theData[0];
+    g_eventLogger->log(eventReport->getEventType(), theData, length,
+                       eventReport->getNodeId(), 0);
+  }
+
+  for (unsigned n=0; n < config->m_mgmds.size(); n++)
+  {
+    NdbMgmHandle h=ndb_mgm_create_handle();
+    if (h == 0 ||
+        ndb_mgm_set_connectstring(h, config->m_mgmds[n].c_str()) ||
+        ndb_mgm_connect(h,
+                        1, //no_retries
+                        0, //retry_delay_in_seconds
+                        0 //verbose
+                        ))
+      goto handle_error;
+
+    {
+      if (ndb_mgm_report_event(h, theData, length))
+        goto handle_error;
+    }
+    goto do_next;
+
+handle_error:
+    if (h)
+    {
+      BaseString tmp(ndb_mgm_get_latest_error_msg(h));
+      tmp.append(" : ");
+      tmp.append(ndb_mgm_get_latest_error_desc(h));
+      g_eventLogger->warning("Unable to report shutdown reason to %s: %s",
+                             config->m_mgmds[n].c_str(), tmp.c_str());
+    } else
+    {
+      g_eventLogger->error("Unable to report shutdown reason to %s",
+                           config->m_mgmds[n].c_str());
+    }
+do_next:
+    if (h)
+    {
+      ndb_mgm_disconnect(h);
+      ndb_mgm_destroy_handle(&h);
+    }
+  }
+  return 0;
+}
+
+
+static void
+ignore_signals(void)
+{
+  static const int ignore_list[] = {
+#ifdef SIGBREAK
+    SIGBREAK,
+#endif
+    SIGHUP,
+    SIGINT,
+#if defined SIGPWR
+    SIGPWR,
+#elif defined SIGINFO
+    SIGINFO,
+#endif
+    SIGQUIT,
+    SIGTERM,
+#ifdef SIGTSTP
+    SIGTSTP,
+#endif
+    SIGTTIN,
+    SIGTTOU,
+    SIGABRT,
+    SIGALRM,
+#ifdef SIGBUS
+    SIGBUS,
+#endif
+    SIGFPE,
+    SIGILL,
+#ifdef SIGIO
+    SIGIO,
+#endif
+#ifdef SIGPOLL
+    SIGPOLL,
+#endif
+    SIGSEGV,
+    SIGPIPE,
+#ifdef SIGTRAP
+    SIGTRAP
+#endif
+  };
+
+  for(size_t i = 0; i < sizeof(ignore_list)/sizeof(ignore_list[0]); i++)
+    signal(ignore_list[i], SIG_IGN);
+}
+
+void
+childReportSignal(int signum);
+
+int
+angel_run(const char* connect_str,
+          const char* bind_address,
+          bool initialstart,
+          bool daemon)
+{
+  if (daemon)
+  {
+    // Become a daemon
+    char *lockfile=NdbConfig_PidFileName(globalData.ownId);
+    char *logfile=NdbConfig_StdoutFileName(globalData.ownId);
+    NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
+
+#ifndef NDB_WIN32
+    if (NdbDaemon_Make(lockfile, logfile, 0) == -1)
+    {
+      ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
+      return 1;
+    }
+#endif
+  }
+
+  signal(SIGUSR1, handler_sigusr1);
+
+  pid_t child= -1;
+  while (true)
+  {
+    // setup reporting between child and parent
+    int filedes[2];
+    if (pipe(filedes))
+    {
+      g_eventLogger->error("pipe() failed with errno=%d (%s)",
+                           errno, strerror(errno));
+      return 1;
+    } else
+    {
+      if (!(child_info_file_w=fdopen(filedes[1], "w")))
+      {
+        g_eventLogger->error("fdopen() failed with errno=%d (%s)",
+                             errno, strerror(errno));
+      }
+      if (!(child_info_file_r=fdopen(filedes[0], "r")))
+      {
+        g_eventLogger->error("fdopen() failed with errno=%d (%s)",
+                             errno, strerror(errno));
+      }
+    }
+
+    if ((child=fork()) <= 0)
+      break; // child or error
+
+    /**
+     * Parent
+     */
+
+    ignore_signals();
+
+    /**
+     * We no longer need the mgm connection in this process
+     * (as we are the angel, not ndb)
+     *
+     * We don't want to purge any allocated resources (nodeid), so
+     * we set that option to false
+     */
+    Configuration* theConfig = globalEmulatorData.theConfiguration;
+    theConfig->closeConfiguration(false);
+
+    int status=0, error_exit=0, signum=0;
+    while (waitpid(child, &status, 0) != child);
+    if (WIFEXITED(status))
+    {
+      switch (WEXITSTATUS(status)) {
+      case NRT_Default:
+        g_eventLogger->info("Angel shutting down");
+        reportShutdown(theConfig, 0, 0);
+        exit(0);
+        break;
+      case NRT_NoStart_Restart:
+        theConfig->setInitialStart(false);
+        globalData.theRestartFlag=initial_state;
+        break;
+      case NRT_NoStart_InitialStart:
+        theConfig->setInitialStart(true);
+        globalData.theRestartFlag=initial_state;
+        break;
+      case NRT_DoStart_InitialStart:
+        theConfig->setInitialStart(true);
+        globalData.theRestartFlag=perform_start;
+        break;
+      default:
+        error_exit=1;
+        if (theConfig->stopOnError())
+        {
+          /**
+           * Error shutdown && stopOnError()
+           */
+          reportShutdown(theConfig, error_exit, 0);
+          exit(0);
+        }
+        // Fall-through
+      case NRT_DoStart_Restart:
+        theConfig->setInitialStart(false);
+        globalData.theRestartFlag=perform_start;
+        break;
+      }
+    } else
+    {
+      error_exit=1;
+      if (WIFSIGNALED(status))
+      {
+        signum=WTERMSIG(status);
+        childReportSignal(signum);
+      } else
+      {
+        signum=127;
+        g_eventLogger->info("Unknown exit reason. Stopped.");
+      }
+      if (theConfig->stopOnError())
+      {
+        /**
+         * Error shutdown && stopOnError()
+         */
+        reportShutdown(theConfig, error_exit, 0);
+        exit(0);
+      }
+    }
+
+    if (!failed_startup_flag)
+    {
+      // Reset the counter for consecutive failed startups
+      failed_startups=0;
+    } else if (failed_startups >= MAX_FAILED_STARTUPS && !theConfig->stopOnError())
+    {
+      /**
+       * Error shutdown && stopOnError()
+       */
+      g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
+                           "Not restarting", failed_startups);
+      reportShutdown(theConfig, error_exit, 0);
+      exit(0);
+    }
+    failed_startup_flag=false;
+    reportShutdown(theConfig, error_exit, 1);
+    g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
+    theConfig->fetch_configuration(connect_str, bind_address);
+  }
+
+  if (child >= 0)
+    g_eventLogger->info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  else if (child > 0)
+    g_eventLogger->info("Ndb pid: %d", getpid());
+
+  return 0;
+}
