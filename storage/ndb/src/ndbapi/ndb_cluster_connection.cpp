@@ -739,7 +739,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
                                                     3/*delay*/);
     if(nodeId == 0)
       break;
-    ndb_mgm_configuration * props = m_config_retriever->getConfig();
+    ndb_mgm_configuration * props = m_config_retriever->getConfig(nodeId);
     if(props == 0)
       break;
 

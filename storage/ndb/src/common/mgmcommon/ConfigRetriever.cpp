@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,27 +14,17 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <ndb_version.h>
 
 #include <ConfigRetriever.hpp>
+
 #include <SocketServer.hpp>
-
 #include <NdbSleep.h>
-#include <NdbOut.hpp>
-
-#include <NdbTCP.h>
-#include <NdbEnv.h>
-
-#include <uucode.h>
-#include <Properties.hpp>
-
-#include <socket_io.h>
 
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <ConfigValues.hpp>
-#include <NdbHost.h>
+
 
 //****************************************************************************
 //****************************************************************************
@@ -42,17 +32,15 @@
 ConfigRetriever::ConfigRetriever(const char * _connect_string,
 				 Uint32 version, Uint32 node_type,
 				 const char * _bindaddress,
-                                 int timeout_ms)
+                                 int timeout_ms) :
+  m_version(version),
+  m_node_type(node_type),
+  m_end_session(true)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
   DBUG_PRINT("enter", ("connect_string: '%s'", _connect_string));
   DBUG_PRINT("enter", ("version: %d, node_type: %d, bind: %s, timeout: %d",
                        version, node_type,_bindaddress, timeout_ms));
-
-  m_version = version;
-  m_node_type = node_type;
-  _ownNodeId= 0;
-  m_end_session= true;
 
   m_handle= ndb_mgm_create_handle();
 
@@ -148,7 +136,7 @@ ConfigRetriever::is_connected(void)
 //****************************************************************************
 //****************************************************************************
 struct ndb_mgm_configuration*
-ConfigRetriever::getConfig() {
+ConfigRetriever::getConfig(Uint32 nodeid) {
 
   struct ndb_mgm_configuration * p = 0;
 
@@ -158,7 +146,7 @@ ConfigRetriever::getConfig() {
   if(p == 0)
     return 0;
   
-  if(!verifyConfig(p, _ownNodeId)){
+  if(!verifyConfig(p, nodeid)){
     free(p);
     p= 0;
   }
@@ -364,7 +352,6 @@ Uint32
 ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
 {
   int res;
-  _ownNodeId= 0;
   if(m_handle != 0)
   {
     while (1)
@@ -376,7 +363,7 @@ ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
       res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type,
                                 no_retries == 0 /* only log last retry */);
       if(res >= 0)
-	return _ownNodeId= (Uint32)res;
+	return (Uint32)res;
 
   next:
       int error = ndb_mgm_get_latest_error(m_handle);
