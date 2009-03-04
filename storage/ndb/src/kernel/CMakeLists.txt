@@ -75,6 +75,7 @@ LINK_LIBRARIES(ndbcmvmi
                ${NDB_SCI_LIBS})
 ADD_EXECUTABLE(ndbd
                main.cpp
+               ndbd.cpp
                SimBlockList.cpp
               ../mgmsrv/ConfigInfo.cpp
               ../mgmsrv/Config.cpp
