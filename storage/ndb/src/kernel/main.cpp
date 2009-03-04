@@ -634,9 +634,6 @@ int main(int argc, char** argv)
     globalData.ownId= z;
   }
   { // Do configuration
-#ifndef NDB_WIN32
-	signal(SIGPIPE, SIG_IGN);
-#endif
     theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
   }
 
