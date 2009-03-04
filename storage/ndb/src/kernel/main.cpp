@@ -50,7 +50,7 @@ extern EventLogger * g_eventLogger;
 extern NdbMutex * theShutdownMutex;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
-  opt_initial, opt_no_start, opt_initialstart;
+  opt_initial, opt_no_start, opt_initialstart, opt_verbose;
 static const char* opt_nowait_nodes = 0;
 static const char* opt_bind_address = 0;
 
@@ -536,6 +536,10 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opt_bind_address, (uchar**) &opt_bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "verbose", 'v',
+    "Write more log messages",
+    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -582,6 +586,10 @@ int main(int argc, char** argv)
     // --nodaemon or --forground implies --daemon=0
     opt_daemon= 0;
   }
+
+  // Turn on debug printouts if --verbose
+  if (opt_verbose)
+    g_eventLogger->enable(Logger::LL_DEBUG);
 
   DBUG_PRINT("info", ("no_start=%d", opt_no_start));
   DBUG_PRINT("info", ("initial=%d", opt_initial));
