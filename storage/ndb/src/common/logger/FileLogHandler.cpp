@@ -20,17 +20,6 @@
 //
 // PUBLIC
 //
-
-FileLogHandler::FileLogHandler() : 
-  LogHandler(),
-  m_maxNoFiles(MAX_NO_FILES), 
-  m_maxFileSize(MAX_FILE_SIZE),
-  m_maxLogEntries(MAX_LOG_ENTRIES)
-
-{
-  m_pLogFile = new File_class("logger.log", "a+");
-}
-
 FileLogHandler::FileLogHandler(const char* aFileName, 
 			       int maxNoFiles, 
 			       long maxFileSize,

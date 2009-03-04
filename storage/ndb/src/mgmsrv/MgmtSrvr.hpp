@@ -26,6 +26,7 @@
 #include <EventLogger.hpp>
 
 #include <SignalSender.hpp>
+#include <my_daemon.h>
 
 #define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
 
@@ -131,6 +132,7 @@ public:
     int print_full_config;
     const char* configdir;
     int verbose;
+    MY_DAEMON_VARS0;
     MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
     int reload;
     int initial;

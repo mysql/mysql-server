@@ -67,11 +67,10 @@ check_param(const ConfigInfo::ParamInfo & param)
 
   // Run the config file through InitConfigFileParser
   // throw away the error messages for now.
-  FILE* err_file= tmpfile();
-  InitConfigFileParser parser(err_file);
+
+  InitConfigFileParser parser;
   Config* conf = parser.parseConfig(config_file);
   fclose(config_file);
-  fclose(err_file);
 
   if (conf == NULL)
     return false;

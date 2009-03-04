@@ -59,9 +59,7 @@ hex(c2)	hex(c3)	c1
 SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
-SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-FROM mysql.ndb_binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
-@the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
 <the_pos>	master-bin.000001
 CHANGE MASTER TO
 master_log_file = 'master-bin.000001',

@@ -2619,6 +2619,9 @@ static int replace(DYNAMIC_STRING *ds_str,
 }
 
 
+/* where to put this declaration in the file? */
+int regex_replace(DYNAMIC_STRING *ds, char *expr);
+
 /*
   Execute given command.
 
@@ -2670,12 +2673,18 @@ void do_exec(struct st_command *command)
 
 #ifdef __WIN__
 #ifndef USE_CYGWIN
-  /* Replace /dev/null with NUL */
-  while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
-    ;
-  /* Replace "closed stdout" with non existing output fd */
-  while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
-    ;
+  {
+    char *replaces[]= {
+      /* Replace /dev/null with NUL */
+      "/\\/dev\\/null/NUL/",
+      /* Replace "closed stdout" with non existing output fd */
+      "/>&-/>&4/",
+      0
+    };
+    int i= 0;
+    for(;replaces[i];i++)
+      regex_replace(&ds_cmd, replaces[i]);
+  }
 #endif
 #endif
 
@@ -8566,15 +8575,31 @@ void do_get_replace_regex(struct st_command *command)
   command->last_argument= command->end;
 }
 
+/* where to put these functions in the file? */
+void free_regex(struct st_replace_regex* r)
+{
+  delete_dynamic(&r->regex_arr);
+  my_free(r->even_buf,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(r->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(r,MYF(0));
+}
+
+/* where to put these functions in the file? */
+int regex_replace(DYNAMIC_STRING *ds, char *expr)
+{
+  struct st_replace_regex* r= init_replace_regex(expr);
+  int rv= multi_reg_replace(r, ds->str);
+  dynstr_set(ds, r->buf);
+  free_regex(r);
+  return rv;
+}
+
 void free_replace_regex()
 {
   if (glob_replace_regex)
   {
-    delete_dynamic(&glob_replace_regex->regex_arr);
-    my_free(glob_replace_regex->even_buf,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(glob_replace_regex->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(glob_replace_regex,MYF(0));
-    glob_replace_regex=0;
+    free_regex(glob_replace_regex);
+    glob_replace_regex= 0;
   }
 }
 

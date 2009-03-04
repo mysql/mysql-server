@@ -15,9 +15,8 @@
 
 #include "ConsoleLogHandler.hpp"
 
-#include <NdbOut.hpp>
-
-ConsoleLogHandler::ConsoleLogHandler() : LogHandler()
+ConsoleLogHandler::ConsoleLogHandler(const NdbOut& out)
+ : LogHandler(), _out(out)
 {
 }
 
