@@ -6147,6 +6147,7 @@ my_bool translog_write_record(LSN *lsn,
     LSN dummy_lsn;
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[6];
+    DBUG_ASSERT(trn->undo_lsn == LSN_IMPOSSIBLE);
     int6store(log_data, trn->trid);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
