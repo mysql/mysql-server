@@ -1093,7 +1093,7 @@ innobase_start_or_create_for_mysql(void)
 #else /* HAVE_GCC_ATOMIC_BUILTINS */
 	fprintf(stderr,
 		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
