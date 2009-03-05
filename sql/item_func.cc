@@ -4838,7 +4838,6 @@ bool Item_func_get_system_var::is_written_to_binlog()
 void Item_func_get_system_var::fix_length_and_dec()
 {
   char *cptr;
-  int well_formed_error;
   maybe_null=0;
   max_length= 0;
 
