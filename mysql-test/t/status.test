@@ -1,6 +1,9 @@
 # embedded server causes different stat
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 # PS causes different statistics
 --disable_ps_protocol
 
@@ -208,3 +211,7 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 
 # End of 5.0 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
