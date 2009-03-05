@@ -1,3 +1,9 @@
+2009-03-05	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#43203 Overflow from auto incrementing causes server segv
+
 2009-02-25	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
