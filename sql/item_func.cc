@@ -4837,7 +4837,10 @@ bool Item_func_get_system_var::is_written_to_binlog()
 
 void Item_func_get_system_var::fix_length_and_dec()
 {
+  char *cptr;
+  int well_formed_error;
   maybe_null=0;
+  max_length= 0;
 
   if (var->check_type(var_type))
   {
@@ -4867,8 +4870,14 @@ void Item_func_get_system_var::fix_length_and_dec()
       break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
+      pthread_mutex_lock(&LOCK_global_system_variables);
+      cptr= var->show_type() == SHOW_CHAR_PTR ? 
+        *(char**) var->value_ptr(current_thd, var_type, &component) :
+        (char*) var->value_ptr(current_thd, var_type, &component);
+      if (cptr)
+        max_length= strlen(cptr) * system_charset_info->mbmaxlen;
+      pthread_mutex_unlock(&LOCK_global_system_variables);
       collation.set(system_charset_info, DERIVATION_SYSCONST);
-      max_length= MAX_BLOB_WIDTH;
       decimals=NOT_FIXED_DEC;
       break;
     case SHOW_BOOL:
