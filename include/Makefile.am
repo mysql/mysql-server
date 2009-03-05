@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources dtrace_sources
+BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
 HEADERS_GEN_CONFIGURE =		mysql_version.h
 HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
@@ -27,7 +27,8 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
-			$(HEADERS_GEN_MAKE)
+			$(HEADERS_GEN_MAKE) probes_mysql.h \
+			probes_mysql_nodtrace.h
 
 noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h \
@@ -69,11 +70,10 @@ my_config.h: config.h
 dist-hook:
 	$(RM) -f $(distdir)/mysql_version.h $(distdir)/my_config.h
 
-dtrace_sources: 
+probes_mysql.d:
 	if ! test -f probes_mysql.d ; then \
 		$(CP) -f $(top_srcdir)/include/probes_mysql.d probes_mysql.d; \
 	fi
-	echo timestamp > dtrace_sources
 
 DTRACEPROVIDER = probes_mysql.d
 if HAVE_DTRACE
