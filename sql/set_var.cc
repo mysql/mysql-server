@@ -1455,13 +1455,12 @@ static void bound_unsigned(THD *thd, ulonglong *num,
   @param thd             thread handle
   @param var             the system-variable to get
   @param user_max        a limit given with --maximum-variable-name=... or 0
-  @param bound2ulong     pass TRUE if size is ulong, not ulonglong.  function
-                         will then bound on systems where it's necessary.
+  @param var_type        function will bound on systems where necessary.
 
   @retval                TRUE on error, FALSE otherwise (warning or OK)
  */
 static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
-                         my_bool bound2ulong)
+                         ulong var_type)
 {
   int                     warnings= 0;
   ulonglong               unadjusted;
@@ -1506,10 +1505,10 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
     the usual suspects handle the actual limiting.
   */
 
-  if (!limits && bound2ulong)
+  if (!limits && var_type != GET_ULL)
   {
     bzero(&fallback, sizeof(fallback));
-    fallback.var_type= GET_ULONG;
+    fallback.var_type= var_type;
     limits= &fallback;
   }
 
@@ -1541,7 +1540,7 @@ sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_ar
 
 bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
-  return get_unsigned(thd, var, 0, TRUE);
+  return get_unsigned(thd, var, 0, GET_ULONG);
 }
 
 bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
@@ -1618,7 +1617,7 @@ uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 {
-  if (get_unsigned(thd, var, max_system_variables.*offset, TRUE))
+  if (get_unsigned(thd, var, max_system_variables.*offset, GET_ULONG))
     return TRUE;
   DBUG_ASSERT(var->save_result.ulonglong_value <= ULONG_MAX);
   return ((check_func && (*check_func)(thd, var)));
@@ -1709,7 +1708,7 @@ uchar *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ulonglong::check(THD *thd, set_var *var)
 {
-  return get_unsigned(thd, var, max_system_variables.*offset, FALSE);
+  return get_unsigned(thd, var, max_system_variables.*offset, GET_ULL);
 }
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
@@ -2384,7 +2383,7 @@ end:
 */
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= (ulonglong) (ulong) var->value->val_int();
+  ulonglong tmp= var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 
