@@ -51,6 +51,30 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
 		;;
   esac
   AC_SUBST(INNODB_DYNAMIC_CFLAGS)
+  AC_MSG_CHECKING(whether pthread_t can be used by GCC atomic builtins)
+  AC_TRY_RUN(
+    [
+      #include <pthread.h>
+
+      int main(int argc, char** argv) {
+        pthread_t       x1;
+        pthread_t       x2;
+        pthread_t       x3;
+
+        __sync_bool_compare_and_swap(&x1, x2, x3);
+
+        return(0);
+      }
+    ],
+    [
+      AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+                [pthread_t can be used by GCC atomic builtins])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+    )
   ])
 
 # vim: set ft=config:
