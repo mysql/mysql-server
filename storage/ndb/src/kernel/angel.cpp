@@ -186,6 +186,7 @@ do_next:
 static void
 ignore_signals(void)
 {
+#ifndef NDB_WIN32
   static const int ignore_list[] = {
 #ifdef SIGBREAK
     SIGBREAK,
@@ -226,6 +227,7 @@ ignore_signals(void)
 
   for(size_t i = 0; i < sizeof(ignore_list)/sizeof(ignore_list[0]); i++)
     signal(ignore_list[i], SIG_IGN);
+#endif
 }
 
 void
@@ -237,6 +239,9 @@ angel_run(const char* connect_str,
           bool initialstart,
           bool daemon)
 {
+#ifdef NDB_WIN32
+  return 1;
+#else
   if (daemon)
   {
     // Become a daemon
@@ -384,4 +389,5 @@ angel_run(const char* connect_str,
     g_eventLogger->info("Ndb pid: %d", getpid());
 
   return 0;
+#endif
 }
