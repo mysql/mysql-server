@@ -8239,7 +8239,7 @@ static MYSQL_SYSVAR_BOOL(extra_dirty_writes, innobase_extra_dirty_writes,
 static MYSQL_SYSVAR_LONG(io_capacity, innobase_io_capacity,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of IOPs the server can do. Tunes the background IO rate",
-  NULL, NULL, (long)200, (long)100, (long)~0L, (long)0);
+  NULL, NULL, (long)200, (long)100, LONG_MAX, (long)0);
 
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
