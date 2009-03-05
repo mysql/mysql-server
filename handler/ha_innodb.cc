@@ -3591,7 +3591,8 @@ ha_innobase::write_row(
 			/* out: error code */
 	uchar*	record)	/* in: a row in MySQL format */
 {
-	int		error = 0;
+	ulint		error = 0;
+        int             error_result= 0;
 	ibool		auto_inc_used= FALSE;
 	ulint		sql_command;
 	trx_t*		trx = thd_to_trx(user_thd);
@@ -3707,6 +3708,7 @@ no_commit:
 			}
 
 			/* MySQL errors are passed straight back. */
+			error_result = (int) error;
 			goto func_exit;
 		}
 
@@ -3800,7 +3802,7 @@ set_max_autoinc:
 				err = innobase_set_max_autoinc(auto_inc);
 
 				if (err != DB_SUCCESS) {
-					error = (int) err;
+					error = err;
 				}
 			}
 			break;
@@ -3810,12 +3812,12 @@ set_max_autoinc:
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
 report_error:
-	error = convert_error_code_to_mysql(error, user_thd);
+	error_result = convert_error_code_to_mysql((int) error, user_thd);
 
 func_exit:
 	innobase_active_small();
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(error_result);
 }
 
 /**************************************************************************
