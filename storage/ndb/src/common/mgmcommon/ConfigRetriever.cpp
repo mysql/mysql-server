@@ -33,9 +33,9 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
 				 Uint32 version, Uint32 node_type,
 				 const char * _bindaddress,
                                  int timeout_ms) :
+  m_end_session(true),
   m_version(version),
-  m_node_type(node_type),
-  m_end_session(true)
+  m_node_type(node_type)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
   DBUG_PRINT("enter", ("connect_string: '%s'", _connect_string));
