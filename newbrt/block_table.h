@@ -14,7 +14,7 @@ struct block_translation_pair {
 void toku_blocktable_lock_init(void);
 void toku_blocktable_lock_destroy(void);
 
-void toku_block_realloc(BLOCK_TABLE bt, BLOCKNUM b, u_int64_t size, u_int64_t *offset);
+void toku_block_realloc(BLOCK_TABLE bt, BLOCKNUM b, u_int64_t size, u_int64_t *offset, int *dirty);
 void toku_block_alloc(BLOCK_TABLE bt, u_int64_t size, u_int64_t *offset);
 void toku_block_free(BLOCK_TABLE bt, u_int64_t offset);
 DISKOFF toku_block_get_offset(BLOCK_TABLE bt, BLOCKNUM b);

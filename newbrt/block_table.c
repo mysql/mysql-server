@@ -136,8 +136,9 @@ update_size_on_disk(BLOCK_TABLE bt) {
 }
 
 void
-toku_block_realloc(BLOCK_TABLE bt, BLOCKNUM b, u_int64_t size, u_int64_t *offset) {
+toku_block_realloc(BLOCK_TABLE bt, BLOCKNUM b, u_int64_t size, u_int64_t *offset, int *dirty) {
     lock_for_blocktable();
+    *dirty = 1;
     extend_block_translation(bt, b);
     block_free_blocknum(bt, b);
     block_alloc_and_set_translation(bt, b, size, offset);
