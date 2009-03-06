@@ -248,7 +248,13 @@ probes_all.o: probes_mysql.d $(DTRACEFILES_DEPEND)
 # Can't depend directly on .libs/*.o, because there is no generated rule for
 # that in the Makefile; it is a byproduct of *.lo
 probes_libndb.o: probes_mysql.d libndb_la-ha_ndbcluster.lo
-	$(DTRACE) $(DTRACEFLAGS) -G -s probes_mysql.d .libs/libndb_la-ha_ndbcluster.o -o $@
+	if test -f .libs/libndb_la-ha_ndbcluster.o ; then
+		$(DTRACE) $(DTRACEFLAGS) -G -s probes_mysql.d .libs/libndb_la-ha_ndbcluster.o -o $@
+	endif
+	if test -f libndb_la-ha_ndbcluster.o ; then
+		$(DTRACE) $(DTRACEFLAGS) -G -s probes_mysql.d libndb_la-ha_ndbcluster.o -o $@
+	endif
+
 endif
 
 # Don't update the files from bitkeeper
