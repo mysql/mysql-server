@@ -583,8 +583,8 @@ InitConfigFileParser::Context::reportError(const char * fmt, ...){
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
-  fprintf(m_errstream, "Error line %d: %s\n",
-	  m_lineno, buf);
+  g_eventLogger->error("at line %d: %s\n",
+                       m_lineno, buf);
 
   //m_currentSection->print();
 }
@@ -598,8 +598,8 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
-  fprintf(m_errstream, "Warning line %d: %s\n",
-	  m_lineno, buf);
+  g_eventLogger->warning("at line %d: %s\n",
+                         m_lineno, buf);
 }
 
 #include <my_sys.h>
