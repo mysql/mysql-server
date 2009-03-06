@@ -1389,3 +1389,8 @@ SET @@session.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
+select @@storage_engine;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@@storage_engine	253	6	6	N	1	31	8
+@@storage_engine
+MyISAM
