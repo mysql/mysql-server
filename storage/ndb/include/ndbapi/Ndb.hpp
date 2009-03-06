@@ -1339,13 +1339,56 @@ public:
 
 
   /**
-   * Structure for passing in pointers to startTransaction
+   * Structure for passing in pointers to distribution key values
+   * When distribution key has multiple parts, they should be
+   * passed as an array, with the last part's ptr == NULL.
    * 
    */
   struct Key_part_ptr
   {
     const void * ptr;
     unsigned len;
+  };
+
+  /**
+   * Structure for describing a table partition in terms of either
+   * 
+   * PS_NONE
+   *   No partitioning info provided.
+   *
+   * PS_USER_DEFINED
+   *   A specific partition id for a table with user defined 
+   *   partitioning
+   *
+   * PS_DISTR_KEY_PART_PTR
+   *   An array of a table's distribution key values for a 
+   *   table with native partitioning.
+   *
+   */
+
+  struct PartitionSpec
+  {
+    enum SpecType
+    {
+      PS_NONE                = 0,
+      PS_USER_DEFINED        = 1,
+      PS_DISTR_KEY_PART_PTR  = 2
+    };
+
+    Uint32 type;
+    
+    union
+    {
+      struct {
+        Uint32 partitionId;
+      } UserDefined;
+      
+      struct {
+        const Key_part_ptr* tableKeyParts;
+        void* xfrmbuf;
+        Uint32 xfrmbuflen;
+      } KeyPartPtr;
+    };
   };
 
   /**
@@ -1384,7 +1427,7 @@ public:
                                    Uint32 partitionId);
 
   /**
-   * Compute hash value given table/keys
+   * Compute distribution hash value given table/keys
    *
    * @param  hashvalueptr - OUT, is set to hashvalue if return value is 0
    * @param  table    Pointer to table object
@@ -1398,6 +1441,7 @@ public:
    *
    * @note if xfrmbuf is null (default) malloc/free will be made
    *       if xfrmbuf is not null but length is too short, method will fail
+   *       Only for use with natively partitioned tables.
    *
    * @return 0 - ok - hashvalueptr is set
    *         else - fail, return error code
