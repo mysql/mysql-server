@@ -1634,7 +1634,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    "2",
     "2",
     "8"
   },
