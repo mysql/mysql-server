@@ -82,7 +82,6 @@ public:
     ConfigValuesFactory m_configValues;  //
 
   public:
-    FILE * m_errstream;
     void reportError(const char * msg, ...)
       ATTRIBUTE_FORMAT(printf, 2, 3);
     void reportWarning(const char * msg, ...)
