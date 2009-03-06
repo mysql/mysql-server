@@ -73,66 +73,44 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
-  int result= NDBT_FAILED;
 
-  NdbMgmHandle h;
-  h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  g_info << "Check connect works with timeout 3000" << endl;
+  if (!mgmd.set_timeout(3000))
+    return NDBT_FAILED;
 
-  ndbout << "TEST connect timeout" << endl;
+  if (!mgmd.connect())
+  {
+    g_err << "Connect failed with timeout 3000" << endl;
+    return NDBT_FAILED;
+  }
 
-  ndb_mgm_set_timeout(h, 3000);
+  if (!mgmd.disconnect())
+    return NDBT_FAILED;
 
-  NDB_TICKS  tstart, tend;
-  NDB_TICKS secs;
+  g_info << "Check connect to illegal host will timeout after 3000" << endl;
+  if (!mgmd.set_timeout(3000))
+    return NDBT_FAILED;
+  mgmd.setConnectString("1.1.1.1");
 
-  tstart= NdbTick_CurrentMillisecond();
+  NDB_TICKS tstart= NdbTick_CurrentMillisecond();
+  if (mgmd.connect())
+  {
+    g_err << "Connect to illegal host suceeded" << endl;
+    return NDBT_FAILED;
+  }
 
-  ndb_mgm_connect(h,0,0,0);
+  NDB_TICKS msecs= NdbTick_CurrentMillisecond() - tstart;
+  ndbout << "Took about " << msecs <<" milliseconds"<<endl;
 
-  tend= NdbTick_CurrentMillisecond();
-
-  secs= tend - tstart;
-  ndbout << "Took about: " << secs <<" milliseconds"<<endl;
-
-  if(secs < 4)
-    result= NDBT_OK;
-  else
-    goto done;
-
-  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
-
-  ndbout << "TEST connect timeout" << endl;
-
-  ndb_mgm_destroy_handle(&h);
-
-  h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, "1.1.1.1");
-
-  ndbout << "TEST connect timeout (invalid host)" << endl;
-
-  ndb_mgm_set_timeout(h, 3000);
-
-  tstart= NdbTick_CurrentMillisecond();
-
-  ndb_mgm_connect(h,0,0,0);
-
-  tend= NdbTick_CurrentMillisecond();
-
-  secs= tend - tstart;
-  ndbout << "Took about: " << secs <<" milliseconds"<<endl;
-
-  if(secs < 4)
-    result= NDBT_OK;
-  else
-    result= NDBT_FAILED;
-
-done:
-  ndb_mgm_disconnect(h);
-  ndb_mgm_destroy_handle(&h);
-
-  return result;
+  if(msecs > 6000)
+  {
+    g_err << "The connect to illegal host timedout after much longer "
+          << "time than was expected, expected <= 6000, got " << msecs << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
 }
+
 
 int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
