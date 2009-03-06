@@ -300,11 +300,12 @@ Ndb::waitUntilReady(int timeout)
 }
 
 /*****************************************************************************
-NdbTransaction* startTransaction();
+NdbTransaction* computeHash()
 
-Return Value:   Returns a pointer to a connection object.
-                Return NULL otherwise.
-Remark:         Start transaction. Synchronous.
+Return Value:   Returns 0 for success, NDBAPI error code otherwise
+Remark:         Computes the distribution hash value for a row with the
+                supplied distribtion key values.
+                Only relevant for natively partitioned tables.
 *****************************************************************************/ 
 int
 Ndb::computeHash(Uint32 *retval,
@@ -321,6 +322,15 @@ Ndb::computeHash(Uint32 *retval,
 
   Uint32 colcnt = impl->m_columns.size();
   Uint32 parts = impl->m_noOfDistributionKeys;
+
+  if (unlikely(impl->m_fragmentType == NdbDictionary::Object::UserDefined))
+  {
+    /* Calculating native hash on keys in user defined 
+     * partitioned table is probably part of a bug
+     */
+    goto euserdeftable;
+  }
+
   if (parts == 0)
   {
     parts = impl->m_noOfKeys;
@@ -454,6 +464,9 @@ Ndb::computeHash(Uint32 *retval,
     free(buf);
   
   return 0;
+  
+euserdeftable:
+  return 4544;
   
 enullptr:
   return 4316;
