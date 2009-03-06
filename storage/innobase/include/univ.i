@@ -144,6 +144,14 @@ by one. */
 #define UNIV_SYNC_ATOMIC
 #endif
 
+#if defined(WIN_ATOMICS32) || defined(WIN_ATOMICS64)
+/*
+ * We have a full set of atomic ops available - we will use them
+ * This is on Windows
+ */
+#define UNIV_SYNC_ATOMIC
+#endif
+
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG
