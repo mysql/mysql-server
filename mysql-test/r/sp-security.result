@@ -342,12 +342,12 @@ GRANT SUPER ON *.* TO mysqltest_2@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 
 ---> connection: mysqltest_2_con
-use mysqltest;
+USE mysqltest;
 CREATE PROCEDURE wl2897_p1() SELECT 1;
 CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
 
 ---> connection: mysqltest_1_con
-use mysqltest;
+USE mysqltest;
 CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
@@ -363,7 +363,7 @@ Warnings:
 Note	1449	The user specified as a definer ('a @ b @ c'@'localhost') does not exist
 
 ---> connection: con1root
-use mysqltest;
+USE mysqltest;
 SHOW CREATE PROCEDURE wl2897_p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p1		CREATE DEFINER=`mysqltest_2`@`localhost` PROCEDURE `wl2897_p1`()
@@ -393,7 +393,7 @@ CREATE USER mysqltest_2@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 
 ---> connection: mysqltest_1_con
-use mysqltest;
+USE mysqltest;
 CREATE PROCEDURE bug13198_p1()
 SELECT 1;
 CREATE FUNCTION bug13198_f1() RETURNS INT
@@ -406,7 +406,7 @@ bug13198_f1()
 1
 
 ---> connection: mysqltest_2_con
-use mysqltest;
+USE mysqltest;
 CALL bug13198_p1();
 1
 1
@@ -418,7 +418,7 @@ bug13198_f1()
 DROP USER mysqltest_1@localhost;
 
 ---> connection: mysqltest_2_con
-use mysqltest;
+USE mysqltest;
 CALL bug13198_p1();
 ERROR HY000: The user specified as a definer ('mysqltest_1'@'localhost') does not exist
 SELECT bug13198_f1();
@@ -435,7 +435,7 @@ Host	User	Password
 localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
 
 ---> connection: mysqltest_2_con
-use test;
+USE test;
 CREATE PROCEDURE sp19857() DETERMINISTIC
 BEGIN
 DECLARE a INT;
