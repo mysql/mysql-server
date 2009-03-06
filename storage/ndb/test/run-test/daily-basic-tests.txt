@@ -985,8 +985,8 @@ args: -n NoLoad T6
 # MGMAPI AND MGSRV
 #
 max-time: 1800
-cmd: testMgm
-args: -n SingleUserMode T1 
+cmd: testSingleUserMode
+args: T1
 
 # OLD FLEX
 max-time: 500
