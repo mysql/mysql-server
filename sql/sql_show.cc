@@ -3796,8 +3796,19 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                            cs);
     table->field[4]->store((longlong) count, TRUE);
     field->sql_type(type);
-    table->field[14]->store(type.ptr(), type.length(), cs);		
+    table->field[14]->store(type.ptr(), type.length(), cs);
+    /*
+      MySQL column type has the following format:
+      base_type [(dimension)] [unsigned] [zerofill].
+      For DATA_TYPE column we extract only base type.
+    */
     tmp_buff= strchr(type.ptr(), '(');
+    if (!tmp_buff)
+      /*
+        if there is no dimention part then check the presence of
+        [unsigned] [zerofill] attributes and cut them of if exist.
+      */
+      tmp_buff= strchr(type.ptr(), ' ');
     table->field[7]->store(type.ptr(),
                            (tmp_buff ? tmp_buff - type.ptr() :
                             type.length()), cs);

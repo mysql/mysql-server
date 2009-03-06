@@ -110,6 +110,7 @@ static void sys_default_init_connect(THD*, enum_var_type type);
 static bool sys_update_init_slave(THD*, set_var*);
 static void sys_default_init_slave(THD*, enum_var_type type);
 static bool set_option_bit(THD *thd, set_var *var);
+static bool set_option_log_bin_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
@@ -729,7 +730,7 @@ static sys_var_thd_bit	sys_log_update(&vars, "sql_log_update",
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
                                        check_log_update,
-				       set_option_bit,
+                                       set_option_log_bin_bit,
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
 					 set_option_bit,
@@ -3033,6 +3034,16 @@ static bool set_option_bit(THD *thd, set_var *var)
   return 0;
 }
 
+/*
+  Functions to be only used to update thd->options OPTION_BIN_LOG bit
+*/
+static bool set_option_log_bin_bit(THD *thd, set_var *var)
+{
+  set_option_bit(thd, var);
+  if (!thd->in_sub_stmt)
+    thd->sql_log_bin_toplevel= thd->options & OPTION_BIN_LOG;
+  return 0;
+}
 
 static bool set_option_autocommit(THD *thd, set_var *var)
 {
