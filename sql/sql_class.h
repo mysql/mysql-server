@@ -205,6 +205,13 @@ class MYSQL_LOG: public TC_LOG
   time_t last_time,query_start;
   IO_CACHE log_file;
   IO_CACHE index_file;
+  /*
+    purge_temp is a temp file used in purge_logs so that the index file
+    can be updated before deleting files from disk, yielding better crash
+    recovery. It is created on demand the first time purge_logs is called
+    and then reused for subsequent calls. It is cleaned up in cleanup().
+  */
+  IO_CACHE purge_temp;
   char *name;
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
@@ -1351,6 +1358,13 @@ public:
     Note: in the parser, stmt_arena == thd, even for PS/SP.
   */
   Query_arena *stmt_arena;
+
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  table_map table_map_for_update;
+
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc

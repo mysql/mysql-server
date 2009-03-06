@@ -9,9 +9,9 @@
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
 drop view if exists v1;
---error 0,1141,1147
+--error 0,ER_NONEXISTING_GRANT,ER_NONEXISTING_TABLE_GRANT
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
---error 0,1141,1147
+--error 0,ER_NONEXISTING_GRANT,ER_NONEXISTING_TABLE_GRANT
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 --enable_warnings
@@ -24,17 +24,17 @@ let $1 = 100;
 while ($1)
  {
   let $2 = 5;
-  eval insert into t1(t) values ('$1'); 
+  eval insert into t1(t) values ('$1');
   while ($2)
    {
-     eval insert into t2(id2,t) values ($1,'$2'); 
+     eval insert into t2(id2,t) values ($1,'$2');
      let $3 = 10;
      while ($3)
      {
-       eval insert into t3(id3,t) values ($1,'$2'); 
+       eval insert into t3(id3,t) values ($1,'$2');
        dec $3;
      }
-     dec $2; 
+     dec $2;
    }
   dec $1;
  }
@@ -79,11 +79,11 @@ let $1 = 1000;
 while ($1)
  {
   let $2 = 5;
-  eval insert into t1 values ($1,'aaaaaaaaaaaaaaaaaaaa'); 
+  eval insert into t1 values ($1,'aaaaaaaaaaaaaaaaaaaa');
   while ($2)
    {
-     eval insert into t2(id2,t) values ($1,'bbbbbbbbbbbbbbbbb'); 
-     dec $2; 
+     eval insert into t2(id2,t) values ($1,'bbbbbbbbbbbbbbbbb');
+     dec $2;
    }
   dec $1;
  }
@@ -159,9 +159,9 @@ create table t2 (n int(10) not null primary key, d int(10));
 insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
 LOCK TABLES t1 write, t2 read;
---error 1099
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
---error 1099
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 unlock tables;
@@ -182,7 +182,7 @@ create table t1 (n int(10), d int(10));
 create table t2 (n int(10), d int(10));
 insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
---error 1175
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 set sql_safe_updates=0;
 drop table t1,t2;
@@ -195,7 +195,7 @@ set timestamp=1038000000;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 select n,d,unix_timestamp(t) from t1;
 select n,d,unix_timestamp(t) from t2;
---error 1064
+--error ER_PARSE_ERROR
 UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
 drop table t1,t2;
 set timestamp=0;
@@ -317,43 +317,8 @@ update t2, t1 set t2.field=t1.field
 
 delete t1, t2 from t2 inner join t1 on t1.id1=t2.id2
   where 0=1;
-delete t1, t2 from t2,t1 
+delete t1, t2 from t2,t1
   where t1.id1=t2.id2 and 0=1;
-
-drop table t1,t2;
-
-#
-# Test for bug #1820.
-#
-
-create table t1 ( a int not null, b int not null) ;
---disable_query_log
-insert into t1 values (1,1),(2,2),(3,3),(4,4);
-let $1=19;
-set @d=4;
-while ($1)
-{
-  eval insert into t1 select a+@d,b+@d from t1;
-  eval set @d=@d*2;
-  dec $1;
-}
-
---enable_query_log
-alter table t1 add index i1(a);
-delete from t1 where a > 2000000;
-create table t2 like t1;
-insert into t2 select * from t1;
-
-select 't2 rows before small delete', count(*) from t1;
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 2;
-select 't2 rows after small delete', count(*) from t2;
-select 't1 rows after small delete', count(*) from t1;
-
-## Try deleting many rows 
-
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 100*1000;
-select 't2 rows after big delete', count(*) from t2;
-select 't1 rows after big delete', count(*) from t1;
 
 drop table t1,t2;
 
@@ -366,7 +331,7 @@ CREATE TABLE t2 ( a int );
 DELETE t1 FROM t1, t2 AS t3;
 DELETE t4 FROM t1, t1 AS t4;
 DELETE t3 FROM t1 AS t3, t1 AS t4;
---error 1109
+--error ER_UNKNOWN_TABLE
 DELETE t1 FROM t1 AS t3, t2 AS t4;
 INSERT INTO t1 values (1),(2);
 INSERT INTO t2 values (1),(2);
@@ -386,7 +351,7 @@ create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(1
 insert into t1 values (0,'A01-Comp',1);
 insert into t1 values (0,'B01-Comp',1);
 insert into t2 values (0,1,'A Note',1);
-update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2; 
+update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2;
 select * from t1;
 select * from t2;
 drop table t1, t2;
@@ -414,6 +379,9 @@ revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
+connection default;
+disconnect user1;
+disconnect root;
 
 #
 # multi delete wrong table check
@@ -421,31 +389,31 @@ drop database mysqltest;
 create table t1 (a int, primary key (a));
 create table t2 (a int, primary key (a));
 create table t3 (a int, primary key (a));
--- error 1109
+-- error ER_UNKNOWN_TABLE
 delete t1,t3 from t1,t2 where t1.a=t2.a and t2.a=(select t3.a from t3 where t1.a=t3.a);
 drop table t1, t2, t3;
 
 #
 # multi* unique updating table check
 #
-create table t1 (col1 int); 
+create table t1 (col1 int);
 create table t2 (col1 int);
--- error 1093
+-- error ER_UPDATE_TABLE_USED
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
--- error 1093
+-- error ER_UPDATE_TABLE_USED
 delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
 drop table t1,t2;
 
-# Test for BUG#5837 - delete with outer join and const tables
+# Test for Bug#5837 delete with outer join and const tables
 --disable_warnings
 create table t1 (
-  aclid bigint not null primary key, 
-  status tinyint(1) not null 
+  aclid bigint not null primary key,
+  status tinyint(1) not null
 ) engine = innodb;
 
 create table t2 (
-  refid bigint not null primary key, 
-  aclid bigint, index idx_acl(aclid) 
+  refid bigint not null primary key,
+  aclid bigint, index idx_acl(aclid)
 ) engine = innodb;
 --enable_warnings
 insert into t2 values(1,null);
@@ -453,17 +421,17 @@ delete t2, t1 from t2 left join t1 on (t2.aclid=t1.aclid) where t2.refid='1';
 drop table t1, t2;
 
 #
-# Bug#19225: unchecked error leads to server crash
+# Bug#19225 unchecked error leads to server crash
 #
 create table t1(a int);
 create table t2(a int);
---error 1093
+--error ER_UPDATE_TABLE_USED
 delete from t1,t2 using t1,t2 where t1.a=(select a from t1);
 drop table t1, t2;
 # End of 4.1 tests
 
 #
-# Test for bug #1980.
+# Test for Bug#1980.
 #
 --disable_warnings
 create table t1 ( c char(8) not null ) engine=innodb;
@@ -519,9 +487,12 @@ send alter table t1 add column c int default 100 after a;
 
 connect (updater,localhost,root,,test);
 connection updater;
+# Wait till "alter table t1 ..." is in work.
+sleep 2;
 send update t1, v1 set t1.b=t1.a+t1.b+v1.b where t1.a=v1.a;
 
 connection locker;
+# Wait till "update t1, v1 ..." is in work.
 sleep 2;
 unlock tables;
 
@@ -535,8 +506,14 @@ select * from t2;
 drop view v1;
 drop table t1, t2;
 
+connection default;
+disconnect locker;
+disconnect changer;
+disconnect updater;
+
+
 #
-# Bug#27716  	multi-update did partially and has not binlogged
+# Bug#27716 multi-update did partially and has not binlogged
 #
 
 CREATE TABLE `t1` (
@@ -571,11 +548,12 @@ reset master;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 show master status /* there must be the UPDATE query event */;
 
-# cleanup bug#27716
+# cleanup
 drop table t1, t2;
 
+
 #
-# Bug #29136  	erred multi-delete on trans table does not rollback 
+# Bug#29136 erred multi-delete on trans table does not rollback
 #
 
 # prepare
@@ -604,7 +582,7 @@ select count(*) from t3 /* must be 1 */;
 # the query must be in binlog (no surprise though)
 source include/show_binlog_events.inc;
 
-# cleanup bug#29136
+# cleanup
 drop table t1, t2, t3;
 
 

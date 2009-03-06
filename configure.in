@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.74)
+AM_INIT_AUTOMAKE(mysql, 5.0.79)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=74
+NDB_VERSION_BUILD=79
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -409,7 +409,7 @@ fi
 MYSQL_PROG_AR
 
 # libmysqlclient versioning when linked with GNU ld.
-if $LD --version 2>/dev/null|grep -q GNU; then
+if $LD --version 2>/dev/null|grep GNU > /dev/null; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
@@ -437,11 +437,13 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-# If ln -f does not exists use -s (AFS systems)
-if test -n "$LN_CP_F"; then
-  LN_CP_F="$LN_CP_F -s"
-fi
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  :
+else
+  # If ln -f does not exists use -s (AFS systems)
+  if test -n "$LN_CP_F"; then
+    LN_CP_F="$LN_CP_F -s"
+  fi
 fi
 
 AC_PATH_PROG(MV, mv, mv)
@@ -823,7 +825,7 @@ AC_TYPE_SIZE_T
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
+AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  memory.h pwd.h select.h \
  stdlib.h stddef.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
@@ -1940,14 +1942,16 @@ MYSQL_CHECK_IN_ADDR_T
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
-MYSQL_CHECK_LONGLONG_TO_FLOAT
-if test "$ac_cv_conv_longlong_to_float" != "yes"
-then
-  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  :
+else
+  MYSQL_CHECK_LONGLONG_TO_FLOAT
+  if test "$ac_cv_conv_longlong_to_float" != "yes"
+  then
+    AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again])
-fi
+  fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
@@ -2056,7 +2060,7 @@ AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
 AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
-  fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
+  fconvert fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
   localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
@@ -2728,8 +2732,10 @@ then
   AC_SUBST(THREAD_LOBJECTS)
 fi
 
-if test "$with_server" != "no"
+if test "$with_server" = "no"
 then
+  AM_CONDITIONAL([BUILD_INNODB_TOOLS], [false])
+else
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 

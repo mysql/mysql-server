@@ -186,39 +186,41 @@ int initgroups(const char *,unsigned int);
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#ifdef HAVE_SYS_FPU_H
+/* for IRIX to use set_fpc_csr() */
+#include <sys/fpu.h>
+#endif
 
+inline void setup_fpu()
+{
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
   /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision
   */
-
-inline void set_proper_floating_point_mode()
-{
-  /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
 #if defined(__i386__)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
- fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
-	     FP_X_IMP));
+  fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
+              FP_X_IMP));
+#endif /* __i386__ */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+
+#ifdef HAVE_FESETROUND
+    /* Set FPU rounding mode to "round-to-nearest" */
+  fesetround(FE_TONEAREST);
+#endif /* HAVE_FESETROUND */
+    
+#if defined(__sgi) && defined(HAVE_SYS_FPU_H)
+  /* Enable denormalized DOUBLE values support for IRIX */
+  union fpc_csr n;
+  n.fc_word = get_fpc_csr();
+  n.fc_struct.flush = 0;
+  set_fpc_csr(n.fc_word);
 #endif
 }
-#elif defined(__sgi)
-/* for IRIX to use set_fpc_csr() */
-#include <sys/fpu.h>
-
-inline void set_proper_floating_point_mode()
-{
-  /* Enable denormalized DOUBLE values support for IRIX */
-  {
-    union fpc_csr n;
-    n.fc_word = get_fpc_csr();
-    n.fc_struct.flush = 0;
-    set_fpc_csr(n.fc_word);
-  }
-}
-#else
-#define set_proper_floating_point_mode()
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
 
 } /* cplusplus */
 
@@ -3035,12 +3037,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_connect.value_length= strlen(opt_init_connect);
   else
     sys_init_connect.value=my_strdup("",MYF(0));
+  sys_init_connect.is_os_charset= TRUE;
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
     sys_init_slave.value_length= strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
+  sys_init_slave.is_os_charset= TRUE;
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -3277,7 +3281,7 @@ static int init_server_components()
   query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
-  set_proper_floating_point_mode();
+  setup_fpu();
   init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
@@ -3615,6 +3619,44 @@ void decrement_handler_count()
 
 
 #ifndef EMBEDDED_LIBRARY
+#ifndef DBUG_OFF
+/*
+  Debugging helper function to keep the locale database
+  (see sql_locale.cc) and max_month_name_length and
+  max_day_name_length variable values in consistent state.
+*/
+static void test_lc_time_sz()
+{
+  DBUG_ENTER("test_lc_time_sz");
+  for (MY_LOCALE **loc= my_locales; *loc; loc++)
+  {
+    uint max_month_len= 0;
+    uint max_day_len = 0;
+    for (const char **month= (*loc)->month_names->type_names; *month; month++)
+    {
+      set_if_bigger(max_month_len,
+                    my_numchars_mb(&my_charset_utf8_general_ci,
+                                   *month, *month + strlen(*month)));
+    }
+    for (const char **day= (*loc)->day_names->type_names; *day; day++)
+    {
+      set_if_bigger(max_day_len,
+                    my_numchars_mb(&my_charset_utf8_general_ci,
+                                   *day, *day + strlen(*day)));
+    }
+    if ((*loc)->max_month_name_length != max_month_len ||
+        (*loc)->max_day_name_length != max_day_len)
+    {
+      DBUG_PRINT("Wrong max day name(or month name) length for locale:",
+                 ("%s", (*loc)->name));
+      DBUG_ASSERT(0);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+#endif//DBUG_OFF
+
+
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
@@ -3708,6 +3750,10 @@ int main(int argc, char **argv)
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
   openlog(libwrapName, LOG_PID, LOG_AUTH);
+#endif
+
+#ifndef DBUG_OFF
+  test_lc_time_sz();
 #endif
 
   /*
@@ -3840,6 +3886,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  Service.SetRunning();
+#endif
 
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
@@ -6573,6 +6622,7 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
+  {"Queries",                  (char*) 0,                       SHOW_QUERIES},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions),
    SHOW_LONG_STATUS},
 

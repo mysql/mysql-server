@@ -97,6 +97,17 @@ static HA_ERRORS ha_errlist[]=
   { 150,"Foreign key constraint is incorrectly formed"},
   { 151,"Cannot add a child row"},
   { 152,"Cannot delete a parent row"},
+  { 153,"No savepoint with that name"},
+  { 154,"Non unique key block size"},
+  { 155,"The table does not exist in engine"},
+  { 156,"The table existed in storage engine"},
+  { 157,"Could not connect to storage engine"},
+  { 158,"NULLs are not supported in spatial index"},
+  { 159,"The table changed in storage engine"},
+  { 160,"The table changed in storage engine"},
+  { 161,"The table is not writable"},
+  { 162,"Failed to get the next autoinc value"},
+  { 163,"Failed to set the row autoinc value"},
   { -30999, "DB_INCOMPLETE: Sync didn't finish"},
   { -30998, "DB_KEYEMPTY: Key/data deleted or never created"},
   { -30997, "DB_KEYEXIST: The key/data pair already exists"},
@@ -185,11 +196,36 @@ static const char *get_ha_error_msg(int code)
 }
 
 
+#if defined(__WIN__)
+static my_bool print_win_error_msg(DWORD error, my_bool verbose)
+{
+  LPTSTR s;
+  if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                    FORMAT_MESSAGE_FROM_SYSTEM,
+                    NULL, error, 0, (LPTSTR)&s, 0,
+                    NULL))
+  {
+    if (verbose)
+      printf("Win32 error code %d: %s", error, s);
+    else
+      puts(s);
+    LocalFree(s);
+    return 0;
+  }
+  return 1;
+}
+#endif
+
+
+
 int main(int argc,char *argv[])
 {
   int error,code,found;
   const char *msg;
   char *unknown_error = 0;
+#if defined(__WIN__)
+  my_bool skip_win_message= 0;
+#endif
   MY_INIT(argv[0]);
 
   if (get_options(&argc,&argv))
@@ -286,8 +322,15 @@ int main(int argc,char *argv[])
         /* Error message still not found, look in handler error codes */
         if (!(msg=get_ha_error_msg(code)))
         {
-	  fprintf(stderr,"Illegal error code: %d\n",code);
-	  error=1;
+#if defined(__WIN__)
+          if (!(skip_win_message= !print_win_error_msg((DWORD)code, verbose)))
+          {
+#endif
+            fprintf(stderr,"Illegal error code: %d\n",code);
+            error=1;
+#if defined(__WIN__)
+          }
+#endif
         }
         else
         {
@@ -298,6 +341,10 @@ int main(int argc,char *argv[])
             puts(msg);
         }
       }
+#if defined(__WIN__)
+      if (!skip_win_message)
+        print_win_error_msg((DWORD)code, verbose);
+#endif
     }
   }
 

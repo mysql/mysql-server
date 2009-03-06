@@ -1073,6 +1073,7 @@ Time_zone_system::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
   localtime_r(&tmp_t, &tmp_tm);
   localtime_to_TIME(tmp, &tmp_tm);
   tmp->time_type= MYSQL_TIMESTAMP_DATETIME;
+  adjust_leap_second(tmp);
 }
 
 
@@ -1157,6 +1158,7 @@ Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
   gmtime_r(&tmp_t, &tmp_tm);
   localtime_to_TIME(tmp, &tmp_tm);
   tmp->time_type= MYSQL_TIMESTAMP_DATETIME;
+  adjust_leap_second(tmp);
 }
 
 
@@ -1260,6 +1262,7 @@ void
 Time_zone_db::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const
 {
   ::gmt_sec_to_TIME(tmp, t, tz_info);
+  adjust_leap_second(tmp);
 }
 
 
@@ -2371,6 +2374,25 @@ Time_zone *my_tz_find_with_opening_tz_tables(THD *thd, const String *name)
     close_thread_tables(thd);
   }
   DBUG_RETURN(tz);
+}
+
+
+/**
+  Convert leap seconds into non-leap
+
+  This function will convert the leap seconds added by the OS to 
+  non-leap seconds, e.g. 23:59:59, 23:59:60 -> 23:59:59, 00:00:01 ...
+  This check is not checking for years on purpose : although it's not a
+  complete check this way it doesn't require looking (and having installed)
+  the leap seconds table.
+
+  @param[in,out] broken down time structure as filled in by the OS
+*/
+
+void Time_zone::adjust_leap_second(MYSQL_TIME *t)
+{
+  if (t->second == 60 || t->second == 61)
+    t->second= 59;
 }
 
 #endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */

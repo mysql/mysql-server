@@ -775,7 +775,7 @@ reopen_tables:
     DBUG_RETURN(TRUE);
   }
 
-  tables_for_update= get_table_map(fields);
+  thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
   /*
     Setup timestamp handling and locking mode
@@ -1248,6 +1248,32 @@ multi_update::initialize_tables(JOIN *join)
 	continue;
       }
     }
+
+    /*
+      enable uncacheable flag if we update a view with check option
+      and check option has a subselect, otherwise, the check option
+      can be evaluated after the subselect was freed as independent
+      (See full_local in JOIN::join_free()).
+    */
+    if (table_ref->check_option && !join->select_lex->uncacheable)
+    {
+      SELECT_LEX_UNIT *tmp_unit;
+      SELECT_LEX *sl;
+      for (tmp_unit= join->select_lex->first_inner_unit();
+           tmp_unit;
+           tmp_unit= tmp_unit->next_unit())
+      {
+        for (sl= tmp_unit->first_select(); sl; sl= sl->next_select())
+        {
+          if (sl->master_unit()->item)
+          {
+            join->select_lex->uncacheable|= UNCACHEABLE_CHECKOPTION;
+            goto loop_end;
+          }
+        }
+      }
+    }
+loop_end:
 
     if (table == first_table_for_update && table_ref->check_option)
     {
