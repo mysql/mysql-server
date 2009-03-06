@@ -31,7 +31,6 @@ functions */
 
 #include <sys/locking.h>
 #include <windows.h>
-#include <math.h>			/* Because of rint() */
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
@@ -223,13 +222,6 @@ typedef uint rf_SetTimer;
 #define inline __inline
 #endif /* __cplusplus */
 
-inline double rint(double nr)
-{
-  double f = floor(nr);
-  double c = ceil(nr);
-  return (((c-nr) >= (nr-f)) ? f :c);
-}
-
 #ifdef _WIN64
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
@@ -244,6 +236,15 @@ inline double ulonglong2double(ulonglong value)
 }
 #define my_off_t2double(A) ulonglong2double(A)
 #endif /* _WIN64 */
+
+inline ulonglong double2ulonglong(double d)
+{
+  double t= d - (double) 0x8000000000000000ULL;
+
+  if (t >= 0)
+    return  ((ulonglong) t) + 0x8000000000000000ULL;
+  return (ulonglong) d;
+}
 
 #if SIZEOF_OFF_T > 4
 #define lseek(A,B,C) _lseeki64((A),(longlong) (B),(C))
@@ -272,7 +273,6 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_FLOAT_H
 #define HAVE_LIMITS_H
 #define HAVE_STDDEF_H
-#define HAVE_RINT		/* defined in this file */
 #define NO_FCNTL_NONBLOCK	/* No FCNTL */
 #define HAVE_ALLOCA
 #define HAVE_STRPBRK

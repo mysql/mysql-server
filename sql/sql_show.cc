@@ -44,7 +44,7 @@ static void
 append_algorithm(TABLE_LIST *table, String *buff);
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
-static bool schema_table_store_record(THD *thd, TABLE *table);
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 
 /***************************************************************************
@@ -106,7 +106,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Alter", "Tables",  "To alter the table"},
   {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
+  {"Create routine","Databases","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Create user", "Server Admin",  "To create new users"},
@@ -287,11 +287,18 @@ find_files(THD *thd, List<char> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
+  uint wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
-  if (wild && !wild[0])
-    wild=0;
+  if (wild)
+  {
+    if (!wild[0])
+      wild= 0;
+    else
+      wild_length= strlen(wild);
+  }
+
 
   bzero((char*) &table_list,sizeof(table_list));
 
@@ -340,8 +347,11 @@ find_files(THD *thd, List<char> *files, const char *db,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(files_charset_info, file->name, wild))
-	    continue;
+          if (my_wildcmp(files_charset_info,
+                         file->name, file->name + strlen(file->name),
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one,wild_many))
+            continue;
 	}
 	else if (wild_compare(file->name,wild,0))
 	  continue;
@@ -798,7 +808,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
 {
   bool has_default;
   bool has_now_default;
-
+  enum enum_field_types field_type= field->type();
   /* 
      We are using CURRENT_TIMESTAMP instead of NOW because it is
      more standard
@@ -806,7 +816,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
   has_now_default= table->timestamp_field == field && 
     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
     
-  has_default= (field->type() != FIELD_TYPE_BLOB &&
+  has_default= (field_type != FIELD_TYPE_BLOB &&
                 !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
                 field->unireg_check != Field::NEXT_NUMBER &&
                 !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
@@ -821,7 +831,19 @@ static bool get_field_default_value(THD *thd, TABLE *table,
     {                                             // Not null by default
       char tmp[MAX_FIELD_WIDTH];
       String type(tmp, sizeof(tmp), field->charset());
-      field->val_str(&type);
+      if (field_type == MYSQL_TYPE_BIT)
+      {
+        longlong dec= field->val_int();
+        char *ptr= longlong2str(dec, tmp + 2, 2);
+        uint32 length= (uint32) (ptr - tmp);
+        tmp[0]= 'b';
+        tmp[1]= '\'';        
+        tmp[length]= '\'';
+        type.length(length + 1);
+        quoted= 0;
+      }
+      else
+        field->val_str(&type);
       if (type.length())
       {
         String def_val;
@@ -1210,21 +1232,25 @@ void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
+  my_bool compact_view_name= TRUE;
   my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                        MODE_ORACLE |
                                                        MODE_MSSQL |
                                                        MODE_DB2 |
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
-  /*
-     Compact output format for view can be used
-     - if user has db of this view as current db
-     - if this view only references table inside it's own db
-  */
+
   if (!thd->db || strcmp(thd->db, table->view_db.str))
-    table->compact_view_format= FALSE;
+    /*
+      print compact view name if the view belongs to the current database
+    */
+    compact_view_name= table->compact_view_format= FALSE;
   else
   {
+    /*
+      Compact output format for view body can be used
+      if this view only references table inside it's own db
+    */
     TABLE_LIST *tbl;
     table->compact_view_format= TRUE;
     for (tbl= thd->lex->query_tables;
@@ -1245,7 +1271,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     view_store_options(thd, table, buff);
   }
   buff->append(STRING_WITH_LEN("VIEW "));
-  if (!table->compact_view_format)
+  if (!compact_view_name)
   {
     append_identifier(thd, buff, table->view_db.str, table->view_db.length);
     buff->append('.');
@@ -1441,6 +1467,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char name_buffer[80];
   int len;
   LEX_STRING null_lex_str;
+  CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   null_lex_str.str= 0;				// For sys_var->value_ptr()
@@ -1469,9 +1496,10 @@ static bool show_status_array(THD *thd, const char *wild,
         long nr;
         if (show_type == SHOW_SYS)
         {
-          show_type= ((sys_var*) value)->show_type();
-          value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
-                                                           &null_lex_str);
+          sys_var *var= ((sys_var *) value);
+          show_type= var->show_type();
+          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+          charset= var->charset(thd);
         }
 
         pos= end= buff;
@@ -1519,6 +1547,9 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_STARTTIME:
           nr= (long) (thd->query_start() - server_start_time);
           end= int10_to_str(nr, buff, 10);
+          break;
+        case SHOW_QUERIES:
+          end= int10_to_str((long) thd->query_id, buff, 10);
           break;
 #ifdef HAVE_REPLICATION
         case SHOW_RPL_STATUS:
@@ -1794,7 +1825,7 @@ static bool show_status_array(THD *thd, const char *wild,
         restore_record(table, s->default_values);
         table->field[0]->store(name_buffer, strlen(name_buffer),
                                system_charset_info);
-        table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        table->field[1]->store(pos, (uint32) (end - pos), charset);
         if (schema_table_store_record(thd, table))
           DBUG_RETURN(TRUE);
       }
@@ -1870,7 +1901,7 @@ typedef struct st_index_field_values
     1	                  error
 */
 
-static bool schema_table_store_record(THD *thd, TABLE *table)
+bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
   if ((error= table->file->write_row(table->record[0])))

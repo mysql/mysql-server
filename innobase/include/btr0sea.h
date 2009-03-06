@@ -40,6 +40,14 @@ btr_search_info_create(
 /*===================*/
 				/* out, own: search info struct */
 	mem_heap_t*	heap);	/* in: heap where created */
+/*********************************************************************
+Returns the value of ref_count. The value is protected by
+btr_search_latch. */
+ulint
+btr_search_info_get_ref_count(
+/*==========================*/
+				/* out: ref_count value. */
+	btr_search_t*   info);	/* in: search info. */
 /*************************************************************************
 Updates the search info. */
 UNIV_INLINE
@@ -144,6 +152,13 @@ btr_search_validate(void);
 
 struct btr_search_struct{
 	ulint	magic_n;	/* magic number */
+	ulint	ref_count;	/* Number of blocks in this index tree
+				that have search index built
+				i.e. block->index points to this index.
+				Protected by btr_search_latch except
+				when during initialization in
+				btr_search_info_create(). */
+
 	/* The following 4 fields are currently not used: */
 	rec_t*	last_search;	/* pointer to the lower limit record of the
 				previous search; NULL if not known */
@@ -154,8 +169,10 @@ struct btr_search_struct{
 				or BTR_SEA_SAME_PAGE */
 	dulint	modify_clock;	/* value of modify clock at the time
 				last_search was stored */
-	/*----------------------*/
-	/* The following 4 fields are not protected by any latch: */
+
+	/* The following fields are not protected by any latch.
+	Unfortunately, this means that they must be aligned to
+	the machine word, i.e., they cannot be turned into bit-fields. */
 	page_t*	root_guess;	/* the root page frame when it was last time
 				fetched, or NULL */
 	ulint	hash_analysis;	/* when this exceeds a certain value, the

@@ -17,9 +17,9 @@ my %opt = (
 );
 
 GetOptions(\%opt,
-    'verbose|v+',# verbose
+    'v|verbose+',# verbose
     'help+',	# write usage info
-    'debug|d+',	# debug
+    'd|debug+',	# debug
     's=s',	# what to sort by (t, at, l, al, r, ar etc)
     'r!',	# reverse the sort order (largest last instead of first)
     't=i',	# just show the top n queries

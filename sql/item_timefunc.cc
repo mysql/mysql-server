@@ -1036,12 +1036,25 @@ longlong Item_func_month::val_int()
 }
 
 
+void Item_func_monthname::fix_length_and_dec()
+{
+  THD* thd= current_thd;
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= my_charset_repertoire(cs);
+  locale= thd->variables.lc_time_names;  
+  collation.set(cs, DERIVATION_COERCIBLE, repertoire);
+  decimals=0;
+  max_length= locale->max_month_name_length * collation.collation->mbmaxlen;
+  maybe_null=1; 
+}
+
+
 String* Item_func_monthname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
-  uint   month= (uint) val_int();
-  THD *thd= current_thd;
+  uint month= (uint) val_int();
+  uint err;
 
   if (null_value || !month)
   {
@@ -1049,8 +1062,9 @@ String* Item_func_monthname::val_str(String* str)
     return (String*) 0;
   }
   null_value=0;
-  month_name= thd->variables.lc_time_names->month_names->type_names[month-1];
-  str->set(month_name, strlen(month_name), system_charset_info);
+  month_name= locale->month_names->type_names[month-1];
+  str->copy(month_name, strlen(month_name), &my_charset_utf8_bin,
+	    collation.collation, &err);
   return str;
 }
 
@@ -1169,19 +1183,32 @@ longlong Item_func_weekday::val_int()
                                  odbc_type) + test(odbc_type);
 }
 
+void Item_func_dayname::fix_length_and_dec()
+{
+  THD* thd= current_thd;
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= my_charset_repertoire(cs);
+  locale= thd->variables.lc_time_names;  
+  collation.set(cs, DERIVATION_COERCIBLE, repertoire);
+  decimals=0;
+  max_length= locale->max_day_name_length * collation.collation->mbmaxlen;
+  maybe_null=1; 
+}
+
 
 String* Item_func_dayname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
   const char *day_name;
-  THD *thd= current_thd;
+  uint err;
 
   if (null_value)
     return (String*) 0;
   
-  day_name= thd->variables.lc_time_names->day_names->type_names[weekday];
-  str->set(day_name, strlen(day_name), system_charset_info);
+  day_name= locale->day_names->type_names[weekday];
+  str->copy(day_name, strlen(day_name), &my_charset_utf8_bin,
+	    collation.collation, &err);
   return str;
 }
 
@@ -2550,6 +2577,8 @@ void Item_char_typecast::fix_length_and_dec()
        and thus avoid unnecessary character set conversion.
      - If the argument is not a number, then from_cs is set to
        the argument's charset.
+
+       Note (TODO): we could use repertoire technique here.
   */
   from_cs= (args[0]->result_type() == INT_RESULT || 
             args[0]->result_type() == DECIMAL_RESULT ||
@@ -2557,12 +2586,13 @@ void Item_char_typecast::fix_length_and_dec()
            (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
            args[0]->collation.collation;
   charset_conversion= (cast_cs->mbmaxlen > 1) ||
-                      !my_charset_same(from_cs, cast_cs) &&
-                      from_cs != &my_charset_bin &&
-                      cast_cs != &my_charset_bin;
+                      (!my_charset_same(from_cs, cast_cs) &&
+                       from_cs != &my_charset_bin &&
+                       cast_cs != &my_charset_bin);
   collation.set(cast_cs, DERIVATION_IMPLICIT);
-  char_length= (cast_length >= 0) ? cast_length : 
-	       args[0]->max_length/from_cs->mbmaxlen;
+  char_length= (cast_length >= 0) ?
+                 cast_length :
+                 args[0]->max_length / args[0]->collation.collation->mbmaxlen;
   max_length= char_length * cast_cs->mbmaxlen;
 }
 

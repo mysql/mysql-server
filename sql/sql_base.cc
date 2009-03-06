@@ -2102,7 +2102,10 @@ bool reopen_table(TABLE *table,bool locked)
   for (key=0 ; key < table->s->keys ; key++)
   {
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
+    {
       table->key_info[key].key_part[part].field->table= table;
+      table->key_info[key].key_part[part].field->orig_table= table;
+    }
   }
   if (table->triggers)
     table->triggers->set_table(table);
@@ -5476,7 +5479,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Ensure that we have access rights to all fields to be inserted. */
-    if (!((table && (table->grant.privilege & SELECT_ACL) ||
+    if (!((table && !tables->view && (table->grant.privilege & SELECT_ACL) ||
            tables->view && (tables->grant.privilege & SELECT_ACL))) &&
         !any_privileges)
     {

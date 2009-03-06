@@ -58,4 +58,31 @@ drop table t_bug25347;
 drop database d_bug25347;
 use test;
 
+#
+# Bug#39541 CHECK TABLE on information_schema myisam tables produces error
+#
+create view v1 as select * from information_schema.routines;
+check table v1, information_schema.routines;
+drop view v1;
+
+
+#
+# Bug#37527: mysqlcheck fails to report entire database 
+# when frm file corruption
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+# backup then null t1.frm
+--copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm.bak
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--write_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+EOF
+--exec $MYSQL_CHECK test
+# restore t1.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm.bak $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm.bak
+DROP TABLE t1, t2;
+
+
 --echo End of 5.0 tests

@@ -375,31 +375,8 @@ update t2, t1 set t2.field=t1.field
 where t1.id1=t2.id2 and 0=1;
 delete t1, t2 from t2 inner join t1 on t1.id1=t2.id2
 where 0=1;
-delete t1, t2 from t2,t1 
+delete t1, t2 from t2,t1
 where t1.id1=t2.id2 and 0=1;
-drop table t1,t2;
-create table t1 ( a int not null, b int not null) ;
-alter table t1 add index i1(a);
-delete from t1 where a > 2000000;
-create table t2 like t1;
-insert into t2 select * from t1;
-select 't2 rows before small delete', count(*) from t1;
-t2 rows before small delete	count(*)
-t2 rows before small delete	2000000
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 2;
-select 't2 rows after small delete', count(*) from t2;
-t2 rows after small delete	count(*)
-t2 rows after small delete	1999999
-select 't1 rows after small delete', count(*) from t1;
-t1 rows after small delete	count(*)
-t1 rows after small delete	1999999
-delete t1,t2 from t1,t2 where t1.b=t2.a and t1.a < 100*1000;
-select 't2 rows after big delete', count(*) from t2;
-t2 rows after big delete	count(*)
-t2 rows after big delete	1900001
-select 't1 rows after big delete', count(*) from t1;
-t1 rows after big delete	count(*)
-t1 rows after big delete	1900001
 drop table t1,t2;
 CREATE TABLE t1 ( a int );
 CREATE TABLE t2 ( a int );
@@ -466,12 +443,12 @@ delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 drop table t1,t2;
 create table t1 (
-aclid bigint not null primary key, 
-status tinyint(1) not null 
+aclid bigint not null primary key,
+status tinyint(1) not null
 ) engine = innodb;
 create table t2 (
-refid bigint not null primary key, 
-aclid bigint, index idx_acl(aclid) 
+refid bigint not null primary key,
+aclid bigint, index idx_acl(aclid)
 ) engine = innodb;
 insert into t2 values(1,null);
 delete t2, t1 from t2 left join t1 on (t2.aclid=t1.aclid) where t2.refid='1';
@@ -545,7 +522,7 @@ a	b
 4	4
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	189		
+master-bin.000001	198		
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
@@ -555,7 +532,7 @@ UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 1
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	204		
+master-bin.000001	213		
 drop table t1, t2;
 drop table if exists t1, t2, t3;
 CREATE TABLE t1 (a int, PRIMARY KEY (a));
