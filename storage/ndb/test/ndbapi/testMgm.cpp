@@ -1549,15 +1549,36 @@ check_reload_config_both_config_and_mycnf(NdbMgmd& mgmd)
                                        "ERROR: Both mycnf and config_filename");
 }
 
+
 static bool
-check_reload_config_invalid_config_filename(NdbMgmd& mgmd)
+show_variables(NdbMgmd& mgmd, Properties& reply)
 {
+  if (!mgmd.call("show variables", "",
+                 "show variables reply", reply))
+  {
+    g_err << "show_variables: mgmd.call failed" << endl;
+    return false;
+  }
+  return true;
+}
+
+
+static bool
+check_reload_config_invalid_config_filename(NdbMgmd& mgmd, bool mycnf)
+{
+
+  BaseString expected("Could not load configuration from 'nonexisting_file");
+  if (mycnf)
+  {
+    // Differing error message if started from my.cnf
+    expected.assign("Can't switch to use config.ini 'nonexisting_file' "
+                    "when node was started from my.cnf");
+  }
+
   Properties args;
   // Send reload command with an invalid config_filename
   args.put("config_filename", "nonexisting_file");
-  return reload_config_result_contains(mgmd, args,
-                                       "Could not load configuration "
-                                       "from 'nonexisting_file");
+  return reload_config_result_contains(mgmd, args, expected.c_str());
 }
 
 
@@ -1568,10 +1589,19 @@ int runTestReloadConfig(NDBT_Context* ctx, NDBT_Step* step)
   if (!mgmd.connect())
     return NDBT_FAILED;
 
+  Properties variables;
+  if (!show_variables(mgmd, variables))
+    return NDBT_FAILED;
+
+  const char* mycnf_str;
+  if (!variables.get("mycnf", &mycnf_str))
+    abort();
+  bool uses_mycnf = strcmp(mycnf_str, "1");
+
   int result= NDBT_FAILED;
   if (
       check_reload_config_both_config_and_mycnf(mgmd) &&
-      check_reload_config_invalid_config_filename(mgmd) &&
+      check_reload_config_invalid_config_filename(mgmd, uses_mycnf) &&
       true)
     result= NDBT_OK;
 
