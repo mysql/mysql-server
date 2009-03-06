@@ -1121,3 +1121,10 @@ SET @@session.thread_stack= 7;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@global.thread_stack= 7;
 #
+
+#
+# Bug#41030 Wrong meta data (incorrect fieldlen)
+#
+--enable_metadata
+select @@storage_engine;
+--disable_metadata
