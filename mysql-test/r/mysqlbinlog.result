@@ -353,7 +353,14 @@ flush logs;
 INSERT INTO t1 VALUES ('0123456789');
 flush logs;
 DROP TABLE t1;
-# 	Query	thread_id=REMOVED	exec_time=REMOVED	error_code=REMOVED
+We expect this value to be 1
+The bug being tested was that 'Query' lines were not preceded by '#'
+If the line is in the table, it had to have been preceded by a '#'
+
+SELECT COUNT(*) AS `BUG#28293_expect_1` FROM patch WHERE a LIKE '%Query%';
+BUG#28293_expect_1
+1
+DROP TABLE patch;
 flush logs;
 create table t1(a int);
 insert into t1 values(connection_id());
@@ -362,4 +369,15 @@ drop table t1;
 1
 drop table t1;
 shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
+set @@global.server_id= 4294967295;
+reset master;
+flush logs;
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+is not null
+1
+*** Unsigned server_id 4294967295 is found: 1 ***
+set @@global.server_id= 1;
 End of 5.0 tests

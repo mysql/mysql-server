@@ -243,7 +243,7 @@ static COMMANDS commands[] = {
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
+    "Set statement delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -1998,7 +1998,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     if (!preserve_comments)
     {
-      // Skip spaces at the beggining of a statement
+      // Skip spaces at the beginning of a statement
       if (my_isspace(charset_info,inchar) && (out == line) &&
           buffer.is_empty())
         continue;
@@ -2081,37 +2081,6 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	continue;
       }
     }
-    else if (!*ml_comment && !*in_string &&
-             (end_of_line - pos) >= 10 &&
-             !my_strnncoll(charset_info, (uchar*) pos, 10,
-                           (const uchar*) "delimiter ", 10))
-    {
-      // Flush previously accepted characters
-      if (out != line)
-      {
-        buffer.append(line, (uint32) (out - line));
-        out= line;
-      }
-
-      // Flush possible comments in the buffer
-      if (!buffer.is_empty())
-      {
-        if (com_go(&buffer, 0) > 0) // < 0 is not fatal
-          DBUG_RETURN(1);
-        buffer.length(0);
-      }
-
-      /*
-        Delimiter wants the get rest of the given line as argument to
-        allow one to change ';' to ';;' and back
-      */
-      buffer.append(pos);
-      if (com_delimiter(&buffer, pos) > 0)
-        DBUG_RETURN(1);
-
-      buffer.length(0);
-      break;
-    }
     else if (!*ml_comment && !*in_string && is_prefix(pos, delimiter))
     {
       // Found a statement. Continue parsing after the delimiter
@@ -2174,7 +2143,23 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
       // comment to end of line
       if (preserve_comments)
+      {
+        bool started_with_nothing= !buffer.length();
+
         buffer.append(pos);
+
+        /*
+          A single-line comment by itself gets sent immediately so that
+          client commands (delimiter, status, etc) will be interpreted on
+          the next line.
+        */
+        if (started_with_nothing)
+        {
+          if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
+            DBUG_RETURN(1);
+          buffer.length(0);
+        }
+      }
 
       break;
     }
@@ -2237,8 +2222,22 @@ static bool add_line(String &buffer,char *line,char *in_string,
   }
   if (out != line || !buffer.is_empty())
   {
-    *out++='\n';
     uint length=(uint) (out-line);
+
+    if (length < 9 || 
+        my_strnncoll (charset_info, 
+                      (uchar *)line, 9, (const uchar *) "delimiter", 9))
+    {
+      /* 
+        Don't add a new line in case there's a DELIMITER command to be 
+        added to the glob buffer (e.g. on processing a line like 
+        "<command>;DELIMITER <non-eof>") : similar to how a new line is 
+        not added in the case when the DELIMITER is the first command 
+        entered with an empty glob buffer. 
+      */
+      *out++='\n';
+      length++;
+    }
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
@@ -2262,8 +2261,10 @@ static char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(USE_NEW_READLINE_INTERFACE) 
 char *no_completion(const char*,int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+int no_completion(const char*,int)
 #else
 char *no_completion()
 #endif
@@ -2845,7 +2846,7 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   param= get_arg(buff, 0);
   if (!param || !*param)
   {
-    return put_info("Usage: \\C char_setname | charset charset_name", 
+    return put_info("Usage: \\C charset_name | charset charset_name", 
 		    INFO_ERROR, 0);
   }
   new_cs= get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));

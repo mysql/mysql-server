@@ -3786,13 +3786,13 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 #undef NOT_FIXED_DEC
     {
       /*
-        The 14 below is to ensure that the server and client has the same
+        DBL_DIG below is to ensure that the server and client has the same
         precisions. This will ensure that on the same machine you get the
         same value as a string independent of the protocol you use.
       */
       sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1,
                                         param->buffer_length),
-	      min(14,width), value);
+              min(DBL_DIG, width), value);
       end= strcend(buff, ' ');
       *end= 0;
     }

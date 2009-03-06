@@ -1,6 +1,12 @@
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
 
+# Bug#41308: Test main.ndb_autodiscover.test doesn't work on Windows due
+#            to 'grep' calls
+# Test is currently disabled on Windows via the next line until this bug
+# can be resolved.
+--source include/not_windows.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 --enable_warnings

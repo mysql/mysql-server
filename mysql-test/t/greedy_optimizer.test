@@ -311,3 +311,76 @@ explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and 
 show status like 'Last_query_cost';
 
 drop table t1,t2,t3,t4,t5,t6,t7;
+
+
+#
+# Bug # 38795: Automatic search depth and nested join's results in server
+# crash
+#
+
+CREATE TABLE t1 (a int, b int, d int, i int); INSERT INTO t1 VALUES (1,1,1,1);
+CREATE TABLE t2 (b int, c int, j int); INSERT INTO t2 VALUES (1,1,1);
+CREATE TABLE t2_1 (j int); INSERT INTO t2_1 VALUES (1);
+CREATE TABLE t3 (c int, f int); INSERT INTO t3 VALUES (1,1);
+CREATE TABLE t3_1 (f int); INSERT INTO t3_1 VALUES (1);
+CREATE TABLE t4 (d int, e int, k int); INSERT INTO t4 VALUES (1,1,1);
+CREATE TABLE t4_1 (k int); INSERT INTO t4_1 VALUES (1);
+CREATE TABLE t5 (g int, d int, h int, l int); INSERT INTO t5 VALUES (1,1,1,1);
+CREATE TABLE t5_1 (l int); INSERT INTO t5_1 VALUES (1);
+
+SET optimizer_search_depth = 3;
+
+SELECT 1
+FROM t1
+LEFT JOIN (
+  t2 JOIN t3 ON t3.c = t2.c
+) ON t2.b = t1.b
+LEFT JOIN (
+  t4 JOIN t5 ON t5.d = t4.d
+) ON t4.d = t1.d
+;
+
+SELECT 1
+FROM t1
+LEFT JOIN (
+  t2 LEFT JOIN (t3 JOIN t3_1 ON t3.f = t3_1.f) ON t3.c = t2.c
+) ON t2.b = t1.b
+LEFT JOIN (
+  t4 JOIN t5 ON t5.d = t4.d
+) ON t4.d = t1.d
+;
+
+SELECT 1
+FROM t1
+LEFT JOIN (
+ (t2 JOIN t2_1 ON t2.j = t2_1.j) JOIN t3 ON t3.c = t2.c
+) ON t2.b = t1.b
+LEFT JOIN (
+  t4 JOIN t5 ON t5.d = t4.d
+) ON t4.d = t1.d
+;
+
+SELECT 1
+FROM t1
+LEFT JOIN (
+  t2 JOIN t3 ON t3.c = t2.c
+) ON t2.b = t1.b
+LEFT JOIN (
+  (t4 JOIN t4_1 ON t4.k = t4_1.k) LEFT JOIN t5 ON t5.d = t4.d
+) ON t4.d = t1.d
+;
+
+SELECT 1
+FROM t1
+LEFT JOIN (
+  t2 JOIN t3 ON t3.c = t2.c
+) ON t2.b = t1.b
+LEFT JOIN (
+  t4 LEFT JOIN (t5 JOIN t5_1 ON t5.l = t5_1.l) ON t5.d = t4.d
+) ON t4.d = t1.d
+;
+
+SET optimizer_search_depth = DEFAULT;
+DROP TABLE t1,t2,t2_1,t3,t3_1,t4,t4_1,t5,t5_1;
+
+--echo End of 5.0 tests
