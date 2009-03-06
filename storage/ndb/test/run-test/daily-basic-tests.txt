@@ -1282,9 +1282,93 @@ max-time: 500
 cmd: testLimits
 args: -n DropSignalFragments T1
 
-max-time: 300 
+max-time: 300
 cmd: testMgm
-args: 
+args: -n ApiSessionFailure
+
+max-time: 300
+cmd: testMgm
+args: -n ApiConnectTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiTimeoutBasic
+
+max-time: 300
+cmd: testMgm
+args: -n ApiGetStatusTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiGetConfigTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiMgmEventTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiMgmStructEventTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n SetConfig
+
+max-time: 300
+cmd: testMgm
+args: -n CheckConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestReloadConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestSetConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestSetConfigParallel
+
+max-time: 300
+cmd: testMgm
+args: -n GetConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestStatus
+
+max-time: 300
+cmd: testMgm
+args: -n TestStatus200
+
+max-time: 300
+cmd: testMgm
+args: -n TestGetNodeId
+
+max-time: 300
+cmd: testMgm
+args: -n TestGetVersion
+
+max-time: 300
+cmd: testMgm
+args: -n TestTransporterConnect
+
+max-time: 300
+cmd: testMgm
+args: -n TestConnectionParameter
+
+max-time: 300
+cmd: testMgm
+args: -n Bug40922
+
+max-time: 300
+cmd: testMgm
+args: -n Stress
+
+max-time: 300
+cmd: testMgm
+args: -n Stress2
 
 max-time: 300
 cmd: testScan
