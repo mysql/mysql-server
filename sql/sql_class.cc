@@ -172,7 +172,9 @@ THD::THD()
               /* statement id */ 0),
    Open_tables_state(refresh_version),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
+   user_time(0), in_sub_stmt(0),
+   table_map_for_update(0),
+   global_read_lock(0), is_fatal_error(0),
    transaction_rollback_request(0), is_fatal_sub_stmt_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), last_insert_id_used_bin_log(0), insert_id_used(0),
@@ -651,6 +653,8 @@ void THD::cleanup_after_query()
   free_items();
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
+  /* reset table map for multi-table update */
+  table_map_for_update= 0;
 }
 
 
