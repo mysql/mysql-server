@@ -32,6 +32,7 @@ class NdbMgmd {
   NdbMgmHandle m_handle;
   Uint32 m_nodeid;
   bool m_verbose;
+  unsigned int m_timeout;
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
   {
     if (!m_verbose)
@@ -53,7 +54,7 @@ class NdbMgmd {
   }
 public:
   NdbMgmd() :
-    m_handle(NULL), m_nodeid(0), m_verbose(true)
+    m_handle(NULL), m_nodeid(0), m_verbose(true), m_timeout(0)
     {
       const char* connect_string= getenv("NDB_CONNECTSTRING");
       if (connect_string)
@@ -82,6 +83,21 @@ public:
     return m_connect_str.c_str();
   }
 
+  void setConnectString(const char* connect_str) {
+    m_connect_str.assign(connect_str);
+  }
+
+  bool set_timeout(unsigned int timeout) {
+    m_timeout = timeout;
+    if (m_handle &&
+        ndb_mgm_set_timeout(m_handle, timeout) != 0)
+    {
+      error("set_timeout: failed to set timeout on handle");
+      return false;
+    }
+    return true;
+  }
+
   void verbose(bool yes = true){
     m_verbose= yes;
   }
@@ -95,6 +111,7 @@ public:
   }
 
   bool connect(const char* connect_string = NULL) {
+    assert(m_handle == NULL);
     m_handle= ndb_mgm_create_handle();
     if (!m_handle){
       error("connect: ndb_mgm_create_handle failed");
@@ -105,6 +122,12 @@ public:
                                   connect_string ?
                                   connect_string : getConnectString()) != 0){
       error("connect: ndb_mgm_set_connectstring failed");
+      return false;
+    }
+
+    if (m_timeout > 0 &&
+        ndb_mgm_set_timeout(m_handle, m_timeout) != 0){
+      error("connect: ndb_mgm_set_timeout failed");
       return false;
     }
 
