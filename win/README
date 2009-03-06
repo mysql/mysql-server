@@ -58,6 +58,7 @@ The options right now are:
     WITH_EXAMPLE_STORAGE_ENGINE
     WITH_FEDERATED_STORAGE_ENGINE
     __NT__                               Enable named pipe support
+    WITHOUT_ATOMICS                      Do not use atomic instructions
     MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
     COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
     MYSQL_TCP_PORT=<port>                Server port, default 3306

@@ -168,7 +168,8 @@ ha_innodb_la_SOURCES=	$(libinnobase_a_SOURCES)
 
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
-			pars/pars0grm.y pars/pars0lex.l
+			pars/pars0grm.y pars/pars0lex.l \
+			win_atomics32_test.c win_atomics64_test.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

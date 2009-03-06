@@ -25,6 +25,25 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
                               PROPERTIES COMPILE_FLAGS -Od)
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
 
+IF (NOT WITHOUT_ATOMICS)
+# Check if this Windows version supports atomic instructions
+  IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
+# Check for 64 bit atomics
+    TRY_RUN(RUN_RES COMPILE_RES ${CMAKE_BINARY_DIR}
+            ${CMAKE_SOURCE_DIR}/storage/innobase/win_atomics64_test.c)
+    IF (RUN_RES)
+      ADD_DEFINTIONS(-DWIN_ATOMICS64)
+    ENDIF (RUN_RES)
+  ELSE (CMAKE_SIZEOF_VOID_P MATCHES 8)
+# Check for 32 bit atomics
+    TRY_RUN(run_res compile_res ${CMAKE_BINARY_DIR}
+            ${CMAKE_SOURCE_DIR}/storage/innobase/win_atomics32_test.c)
+    IF (RUN_RES)
+      ADD_DEFINITIONS(-DWIN_ATOMICS32)
+    ENDIF (RUN_RES)
+  ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
+ENDIF (NOT WITHOUT_ATOMICS)
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/storage/innobase/include
                     ${CMAKE_SOURCE_DIR}/storage/innobase/handler

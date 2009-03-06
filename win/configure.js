@@ -50,6 +50,7 @@ try
             case "EMBED_MANIFESTS":
             case "EXTRA_DEBUG":
             case "WITH_EMBEDDED_SERVER":
+            case "WITHOUT_ATOMICS":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
             case "MYSQL_SERVER_SUFFIX":

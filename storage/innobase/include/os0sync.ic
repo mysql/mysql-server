@@ -64,6 +64,12 @@ os_compare_and_swap(
 	lint retVal = (lint)atomic_cas_ulong((volatile ulong_t *)ptr,
 		oldVal, newVal);
 	return (retVal == oldVal);
+#elif WIN_ATOMICS32
+        lint retVal = (lint)InterlockedCompareExchange(ptr, newVal, oldVal);
+        return (retVal == oldVal);
+#elif WIN_ATOMICS64
+        lint retVal = (lint)InterlockedCompareExchange64(ptr, newVal, oldVal);
+        return (retVal == oldVal);
 #else
 #error "Need support for atomic ops"
 #endif
@@ -79,6 +85,10 @@ os_memory_barrier_load()
   __sync_synchronize();
 #elif HAVE_SOLARIS_ATOMIC
   membar_consumer();
+#elif WIN_ATOMICS32
+  MemoryBarrier();
+#elif WIN_ATOMICS64
+  MemoryBarrier();
 #endif
 }
 
@@ -92,6 +102,10 @@ os_memory_barrier_store()
   __sync_synchronize();
 #elif HAVE_SOLARIS_ATOMIC
   membar_producer();
+#elif WIN_ATOMICS32
+  MemoryBarrier();
+#elif WIN_ATOMICS64
+  MemoryBarrier();
 #endif
 }
 
@@ -105,6 +119,10 @@ os_memory_barrier()
   __sync_synchronize();
 #elif HAVE_SOLARIS_ATOMIC
   membar_enter();
+#elif WIN_ATOMICS32
+  MemoryBarrier();
+#elif WIN_ATOMICS64
+  MemoryBarrier();
 #endif
 }
 
@@ -123,9 +141,12 @@ os_atomic_increment(
 	return (__sync_add_and_fetch(ptr, amount));
 #elif HAVE_SOLARIS_ATOMIC
 	return ((lint)atomic_add_long_nv((volatile ulong_t *)ptr, amount));
+#elif WIN_ATOMICS32
+        return ((lint)InterlockedExchangeAdd(ptr, amount));
+#elif WIN_ATOMICS64
+        return ((lint)InterlockedExchangeAdd64(ptr, amount));
 #else
 #error "Need support for atomic ops"
 #endif
 }
-
 #endif /* UNIV_SYNC_ATOMIC */
