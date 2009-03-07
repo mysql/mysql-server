@@ -110,8 +110,8 @@ my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
 
 END {
-  if (defined $opt_tmpdir_pid and
-      $opt_tmpdir_pid == $$){
+  if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
+  {
     # Remove the tempdir this process has created
     mtr_verbose("Removing tmpdir '$opt_tmpdir");
     rmtree($opt_tmpdir);
