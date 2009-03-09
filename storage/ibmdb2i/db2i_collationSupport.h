@@ -40,6 +40,9 @@ OF SUCH DAMAGE.
 #include "db2i_global.h"
 #include "mysql_priv.h"
 
-int32 updateAssociatedSortSequence(const Field *curField, char* fileSortSequenceType, char* fileSortSequence, char* fileSortSequenceLibrary);
+int32 updateAssociatedSortSequence(const CHARSET_INFO* charset, 
+                                   char* fileSortSequenceType, 
+                                   char* fileSortSequence, 
+                                   char* fileSortSequenceLibrary);
 
 #endif

@@ -65,6 +65,11 @@ public:
       len = size;
       if (protectBuf) 
         mprotect(protectedPage(), 0x1000, PROT_NONE);
+#ifndef DBUG_OFF
+      // Prevents a problem with DBUG_PRINT over-reading in recent versions of 
+      // MySQL
+      *((char*)protectedPage()-1) = 0;
+#endif
     }
   }
   

@@ -96,11 +96,12 @@ int32 db2i_table::initDB2Objects(const char* path)
   
   physicalFile = new db2i_file(this);
   physicalFile->fillILEDefn(&fileDefnSpace[0], true);
-  
-  if (fileObjects > 1)
+
+  logicalFileCount = mysqlTable->keys;
+  if (logicalFileCount > 0)
   {
-    logicalFiles = new db2i_file*[fileObjects - 1];
-    for (int k = 0; k < mysqlTable->keys; k++)
+    logicalFiles = new db2i_file*[logicalFileCount];
+    for (int k = 0; k < logicalFileCount; k++)
     {
       logicalFiles[k] = new db2i_file(this, k);
       logicalFiles[k]->fillILEDefn(&fileDefnSpace[k+1], false);
@@ -111,16 +112,29 @@ int32 db2i_table::initDB2Objects(const char* path)
   size_t formatSpaceLen = sizeof(format_hdr_t) + mysqlTable->fields * sizeof(DB2Field);
   formatSpace.alloc(formatSpaceLen);
 
-  int rc = db2i_ileBridge::getBridgeForThread()->allocateFileDefn(fileDefnSpace,
-                                                       fileDefnHandles,
-                                                       fileObjects,
-                                                       db2LibNameEbcdic,
-                                                       strlen(db2LibNameEbcdic),
-                                                       formatSpace,
-                                                       formatSpaceLen);
+  int rc = db2i_ileBridge::getBridgeForThread()->
+                             expectErrors(QMY_ERR_RTNFMT)->
+                             allocateFileDefn(fileDefnSpace,
+                                              fileDefnHandles,
+                                              fileObjects,
+                                              db2LibNameEbcdic,
+                                              strlen(db2LibNameEbcdic),
+                                              formatSpace,
+                                              formatSpaceLen);
   
   if (rc)
+  {
+    // We have to handle a format space error as a special case of a FID
+    // mismatch. We should only get the space error if columns have been added
+    // to the DB2 table without MySQL's knowledge, which is effectively a 
+    // FID problem.
+    if (rc == QMY_ERR_RTNFMT)
+    {
+      rc = QMY_ERR_LVLID_MISMATCH;
+      getErrTxt(rc);
+    }
     return rc;
+  }
 
   convFromEbcdic(((format_hdr_t*)formatSpace)->FilLvlId, fileLevelID, sizeof(fileLevelID));
 
@@ -274,7 +288,7 @@ db2i_table::~db2i_table()
       
   if (logicalFiles)
   {      
-    for (int k = 0; k < mysqlTable->keys; ++k)
+    for (int k = 0; k < logicalFileCount; ++k)
     {
       delete logicalFiles[k];
     }
@@ -302,11 +316,40 @@ void db2i_table::getDB2QualifiedNameFromPath(const char* path, char* to)
 }
 
 
+size_t db2i_table::smartFilenameToTableName(const char *in, char* out, size_t outlen)
+{
+  if (strchr(in, '@') == NULL)
+  {
+    return filename_to_tablename(in, out, outlen);
+  }
+  
+  char* test = (char*) my_malloc(outlen, MYF(MY_WME));
+  
+  filename_to_tablename(in, test, outlen);
+
+  char* cur = test;
+  
+  while (*cur)
+  {
+    if ((*cur <= 0x20) || (*cur >= 0x80))
+    {
+      strncpy(out, in, outlen);
+      my_free(test, MYF(0));
+      return min(outlen, strlen(out));
+    }
+    ++cur;
+  }
+
+  strncpy(out, test, outlen);
+  my_free(test, MYF(0));
+  return min(outlen, strlen(out));
+}
+
 void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
 {
   if (strchr(in, '#') == NULL)
   {
-    filename_to_tablename(in, out, outlen);
+    smartFilenameToTableName(in, out, outlen);
     return;
   }
   
@@ -326,7 +369,7 @@ void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
   memcpy(temp, part1, min(outlen, part2 - part1));
   temp[min(outlen-1, part2-part1)] = 0;
     
-  int32 accumLen = filename_to_tablename(temp, out, outlen);
+  int32 accumLen = smartFilenameToTableName(temp, out, outlen);
   
   if (part2 && (accumLen + 4 < outlen))
   {
@@ -337,7 +380,7 @@ void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
     memcpy(temp, part3, min(outlen, part4-part3));
     temp[min(outlen-1, part4-part3)] = 0;
 
-    accumLen += filename_to_tablename(temp, strend(out), outlen-accumLen);
+    accumLen += smartFilenameToTableName(temp, strend(out), outlen-accumLen);
     
     if (part4 && (accumLen + (strend(in) - part4 + 1) < outlen))
     {

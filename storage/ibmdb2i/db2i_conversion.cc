@@ -43,6 +43,12 @@ OF SUCH DAMAGE.
 #include "db2i_errors.h"
 #include "wchar.h"
 
+const char ZERO_DATETIME_VALUE[] = "0000-00-00 00:00:00";
+const char ZERO_DATETIME_VALUE_SUBST[] = "0001-01-01 00:00:00";
+const char ZERO_DATE_VALUE[] = "0000-00-00";
+const char ZERO_DATE_VALUE_SUBST[] = "0001-01-01";
+
+
 /**
   Put a BCD digit into a BCD string.
   
@@ -149,7 +155,6 @@ int ha_ibmdb2i::convertFieldChars(enum_conversionDirection direction,
   }
 
   size_t initOLen= olen;
-  ilen = min(ilen, olen); // Handle partial translation
   size_t substitutedChars = 0;
   int rc = iconv(conversion, (char**)&input, &ilen, &output, &olen, &substitutedChars );
   if (unlikely(rc < 0))
@@ -176,6 +181,178 @@ int ha_ibmdb2i::convertFieldChars(enum_conversionDirection direction,
   return (0);
 }
 
+/**
+  Append the appropriate default value clause onto a CREATE TABLE definition
+  
+  This was inspired by get_field_default_value in sql/sql_show.cc.
+  
+  @param field  The field whose value is to be obtained
+  @param statement  The string to receive the DEFAULT clause
+  @param quoteIt  Does the data type require single quotes around the value?
+  @param ccsid  The ccsid of the field value (if a string type); 0 if no conversion needed  
+*/
+static void get_field_default_value(Field *field, 
+                                    String &statement, 
+                                    bool quoteIt, 
+                                    uint32 ccsid,
+                                    bool substituteZeroDates)
+{
+  if ((field->type() != FIELD_TYPE_BLOB &&
+      !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+      field->unireg_check != Field::NEXT_NUMBER))
+  {
+    my_ptrdiff_t old_ptr= (my_ptrdiff_t) (field->table->s->default_values - field->table->record[0]); 
+    field->move_field_offset(old_ptr);
+    
+    String defaultClause(64);
+    defaultClause.length(0);
+    defaultClause.append(" DEFAULT ");
+    if (!field->is_null())
+    {
+      my_bitmap_map *old_map = tmp_use_all_columns(field->table, field->table->read_set);
+      char tmp[MAX_FIELD_WIDTH];
+      
+      if (field->real_type() == MYSQL_TYPE_ENUM ||
+          field->real_type() == MYSQL_TYPE_SET) 
+      {
+        CHARSET_INFO *cs= &my_charset_bin;
+        uint len = (uint)(cs->cset->longlong10_to_str)(cs,tmp,sizeof(tmp), 10, field->val_int()); 
+        tmp[len]=0; 
+        defaultClause.append(tmp);
+      }
+      else
+      {
+        String type(tmp, sizeof(tmp), field->charset());
+        field->val_str(&type);
+        if (type.length())
+        {
+          if (field->type() == MYSQL_TYPE_DATE &&
+               memcmp(type.ptr(), STRING_WITH_LEN(ZERO_DATE_VALUE)) == 0)
+          {
+            if (substituteZeroDates)
+              type.set(STRING_WITH_LEN(ZERO_DATE_VALUE_SUBST), field->charset());
+            else
+            {
+              warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+              return;
+            }
+          }
+          else if ((field->type() == MYSQL_TYPE_DATETIME ||
+                field->type() == MYSQL_TYPE_TIMESTAMP) &&
+               memcmp(type.ptr(), STRING_WITH_LEN(ZERO_DATETIME_VALUE)) == 0)
+          {
+            if (substituteZeroDates)
+              type.set(STRING_WITH_LEN(ZERO_DATETIME_VALUE_SUBST), field->charset());
+            else
+            {
+              warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+              return;
+            }
+          }
+
+
+          if (field->type() != MYSQL_TYPE_STRING &&
+              field->type() != MYSQL_TYPE_VARCHAR &&
+              field->type() != MYSQL_TYPE_BLOB &&
+              field->type() != MYSQL_TYPE_BIT)
+          {
+            if (quoteIt)
+              defaultClause.append('\'');
+            defaultClause.append(type);
+            if (quoteIt)
+              defaultClause.append('\'');
+          }
+          else
+          {
+            int length;
+            char* out;
+            
+            // If a ccsid is specified, we need to make sure that the DEFAULT
+            // string is converted to that encoding.
+            if (ccsid != 0)
+            {
+              iconv_t iconvD;
+              if (getConversion(toDB2, field->charset(), ccsid, iconvD))
+              {
+                warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+                return;
+              }
+
+              size_t ilen = type.length();
+              size_t olen = 6 * ilen;
+              size_t origOlen = olen;
+              const char* in = type.ptr();
+              const char* tempIn = in;
+              out = (char*)my_malloc(olen, MYF(MY_WME));
+              char* tempOut = out;
+              size_t substitutedChars;
+
+              if (iconv(iconvD, (char**)&tempIn, &ilen, &tempOut, &olen, &substitutedChars) < 0)
+              {
+                warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+                my_free(out, MYF(0));
+                return;
+              }
+              // Now we process the converted string to represent it as 
+              // hexadecimal values.
+
+              length = origOlen - olen;
+            }
+            else
+            {
+              length = type.length();
+              out = (char*)my_malloc(length*2, MYF(MY_WME));
+              memcpy(out, (char*)type.ptr(), length);
+            }
+            
+            if (length > 16370)
+            {
+              warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+              my_free(out, MYF(0));
+              return;
+            }
+
+            if (ccsid == 1200)
+              defaultClause.append("ux'");
+            else if (ccsid == 13488)
+              defaultClause.append("gx'");
+            else if (field->charset() == &my_charset_bin)
+              defaultClause.append("binary(x'");              
+            else
+              defaultClause.append("x'");
+
+            const char hexMap[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};            
+            for (int c = length-1; c >= 0; --c)
+            {
+              out[c*2+1] = hexMap[out[c] & 0xF];
+              out[c*2] = hexMap[out[c] >> 4];
+            }
+
+            defaultClause.append(out, length*2);
+            defaultClause.append('\'');
+            if (field->charset() == &my_charset_bin)
+              defaultClause.append(")");              
+
+            my_free(out, MYF(0));
+          }
+        }
+        else
+          defaultClause.length(0);
+      }
+      tmp_restore_column_map(field->table->read_set, old_map);
+    }
+    else if (field->maybe_null())
+      defaultClause.append(STRING_WITH_LEN("NULL"));
+    
+    if (old_ptr)
+      field->move_field_offset(-old_ptr);
+    
+    statement.append(defaultClause);
+  }
+}
+
+
+
 
 /** 
     Convert a MySQL field definition into its corresponding DB2 type.
@@ -189,10 +366,15 @@ int ha_ibmdb2i::convertFieldChars(enum_conversionDirection direction,
 int ha_ibmdb2i::getFieldTypeMapping(Field* field, 
                                     String& mapping, 
                                     enum_TimeFormat timeFormat, 
-                                    enum_BlobMapping blobMapping)
+                                    enum_BlobMapping blobMapping,
+                                    enum_ZeroDate zeroDateHandling,
+                                    bool propagateDefaults,
+                                    enum_YearFormat yearFormat)
 {
   char stringBuildBuffer[257];
   uint32 fieldLength;
+  bool defaultNeedsQuotes = false;
+  uint16 db2Ccsid = 0;
 
   CHARSET_INFO* fieldCharSet = field->charset();
   switch (field->type())
@@ -257,19 +439,69 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
     case MYSQL_TYPE_DATE: 
     case MYSQL_TYPE_NEWDATE:
       mapping.append(STRING_WITH_LEN("DATE"));
+      defaultNeedsQuotes = true;
       break;
     case MYSQL_TYPE_TIME:
       if (timeFormat == TIME_OF_DAY)
+      {
         mapping.append(STRING_WITH_LEN("TIME"));
+        defaultNeedsQuotes = true;
+      }
       else
         mapping.append(STRING_WITH_LEN("INTEGER"));
       break;
-    case MYSQL_TYPE_TIMESTAMP: 
     case MYSQL_TYPE_DATETIME:
-        mapping.append(STRING_WITH_LEN("TIMESTAMP"));
+      mapping.append(STRING_WITH_LEN("TIMESTAMP"));
+      defaultNeedsQuotes = true;
       break;
-    case MYSQL_TYPE_YEAR: 
-      mapping.append(STRING_WITH_LEN("CHAR(4) CCSID 1208"));
+    case MYSQL_TYPE_TIMESTAMP: 
+      mapping.append(STRING_WITH_LEN("TIMESTAMP"));
+
+      if (table_share->timestamp_field == field && propagateDefaults)
+      {
+        switch (((Field_timestamp*)field)->get_auto_set_type())
+        {
+          case TIMESTAMP_NO_AUTO_SET:
+            break;
+          case TIMESTAMP_AUTO_SET_ON_INSERT:
+            mapping.append(STRING_WITH_LEN(" DEFAULT CURRENT_TIMESTAMP"));
+            break;
+          case TIMESTAMP_AUTO_SET_ON_UPDATE:
+            if (osVersion.v >= 6 &&
+                !field->is_null())
+            {
+              mapping.append(STRING_WITH_LEN(" GENERATED BY DEFAULT FOR EACH ROW ON UPDATE AS ROW CHANGE TIMESTAMP"));
+              warning(ha_thd(), DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+            }
+            else
+              warning(ha_thd(), DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+            break;
+          case TIMESTAMP_AUTO_SET_ON_BOTH:
+            if (osVersion.v >= 6 &&
+                !field->is_null())
+              mapping.append(STRING_WITH_LEN(" GENERATED BY DEFAULT FOR EACH ROW ON UPDATE AS ROW CHANGE TIMESTAMP"));
+            else
+            {
+              mapping.append(STRING_WITH_LEN(" DEFAULT CURRENT_TIMESTAMP"));
+              warning(ha_thd(), DB2I_ERR_WARN_COL_ATTRS, field->field_name);
+            }
+            break;
+        }
+      }
+      else
+        defaultNeedsQuotes = true;
+      break;
+    case MYSQL_TYPE_YEAR:
+      if (yearFormat == CHAR4)
+      {
+        mapping.append(STRING_WITH_LEN("CHAR(4) CCSID 1208"));
+        defaultNeedsQuotes = true;
+      }
+      else
+      {
+        mapping.append(STRING_WITH_LEN("SMALLINT"));
+        defaultNeedsQuotes = false;
+      }
       break;
     case MYSQL_TYPE_BIT: 
       sprintf(stringBuildBuffer, "BINARY(%d)", (field->max_display_length() / 8) + 1);
@@ -286,6 +518,8 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
         }
         else
         {
+          defaultNeedsQuotes = true;
+          
           fieldLength = field->max_display_length(); // Get field byte length
 
           if (fieldCharSet == &my_charset_bin)
@@ -300,12 +534,11 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
               {
                 sprintf(stringBuildBuffer, "VARBINARY(%d)", max(fieldLength, 1));
               }
-/*              else if (blobMapping == AS_VARCHAR &&
-                       get_blob_type_from_length(fieldLength) == MYSQL_TYPE_BLOB)
+              else if (blobMapping == AS_VARCHAR &&
+                       (field->flags & PART_KEY_FLAG))
               {
-                sprintf(stringBuildBuffer, "LONG VARBINARY ", max(fieldLength, 1));
+                sprintf(stringBuildBuffer, "LONG VARBINARY ");
               }
-*/
               else 
               {
                 fieldLength = min(MAX_BLOB_LENGTH, fieldLength);
@@ -316,7 +549,6 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
           }
           else
           {
-            uint16 db2Ccsid = 0; // No override CCSID
             if (field->type() == MYSQL_TYPE_STRING)
             {
               if (fieldLength > MAX_CHAR_LENGTH)
@@ -375,7 +607,7 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
                 }
               }
               else if (blobMapping == AS_VARCHAR &&
-                       get_blob_type_from_length(fieldLength) == MYSQL_TYPE_BLOB)
+                       (field->flags & PART_KEY_FLAG))
               {
                 if (fieldCharSet->mbmaxlen > 1)
                 {
@@ -446,6 +678,13 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
       break;
 
   }
+  
+  if (propagateDefaults)
+    get_field_default_value(field, 
+                            mapping, 
+                            defaultNeedsQuotes, 
+                            db2Ccsid, 
+                            (zeroDateHandling==SUBSTITUTE_0001_01_01));
   
   return 0;
 } 
@@ -552,7 +791,6 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
     case MYSQL_TYPE_DATETIME:
       {
         String tempString(27);
-        const char* ZERO_VALUE = "0000-00-00 00:00:00";
         if (data == NULL)
         {
           field->val_str(&tempString, &tempString);
@@ -563,10 +801,15 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
         }
         memset(db2Buf, '0', 26);
         memcpy(db2Buf, tempString.ptr(), tempString.length());
-        if (strncmp(db2Buf,ZERO_VALUE,strlen(ZERO_VALUE)) == 0)
+        if (strncmp(db2Buf,ZERO_DATETIME_VALUE,strlen(ZERO_DATETIME_VALUE)) == 0)
         {
-          getErrTxt(DB2I_ERR_INVALID_COL_VALUE,ZERO_VALUE,field->field_name);
-          return(DB2I_ERR_INVALID_COL_VALUE);
+          if (cachedZeroDateOption == SUBSTITUTE_0001_01_01)
+            memcpy(db2Buf, ZERO_DATETIME_VALUE_SUBST, sizeof(ZERO_DATETIME_VALUE_SUBST));
+          else
+          {
+            getErrTxt(DB2I_ERR_INVALID_COL_VALUE, field->field_name);
+            return(DB2I_ERR_INVALID_COL_VALUE);
+          }
         }
         (db2Buf)[10] = '-';
         (db2Buf)[13] = (db2Buf)[16] = (db2Buf)[19] = '.';
@@ -620,7 +863,6 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
       {
-        const char* ZERO_VALUE = "0000-00-00";
         String tempString(11);
         if (data == NULL)
         {
@@ -631,10 +873,15 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
           field->val_str(&tempString, data);
         }
         memcpy(db2Buf, tempString.ptr(), 10);
-        if (strncmp(db2Buf,ZERO_VALUE,strlen(ZERO_VALUE)) == 0)
+        if (strncmp(db2Buf,ZERO_DATE_VALUE,strlen(ZERO_DATE_VALUE)) == 0)
         {
-          getErrTxt(DB2I_ERR_INVALID_COL_VALUE,ZERO_VALUE,field->field_name);
-          return(DB2I_ERR_INVALID_COL_VALUE);
+          if (cachedZeroDateOption == SUBSTITUTE_0001_01_01)
+            memcpy(db2Buf, ZERO_DATE_VALUE_SUBST, sizeof(ZERO_DATE_VALUE_SUBST));
+          else
+          {
+            getErrTxt(DB2I_ERR_INVALID_COL_VALUE,field->field_name);
+            return(DB2I_ERR_INVALID_COL_VALUE);
+          }
         }
 
         convertNumericToEbcdicFast(db2Buf,10);
@@ -668,20 +915,28 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
     case MYSQL_TYPE_YEAR:
       {
         String tempString(5);
-        if (data == NULL)
+        if (db2Field.getType() == QMY_CHAR)
         {
-          field->val_str(&tempString, (String*)NULL);
+          if (data == NULL)
+          {
+            field->val_str(&tempString, (String*)NULL);
+          }
+          else
+          {
+            field->val_str(&tempString, data);
+          }
+          memcpy(db2Buf, tempString.ptr(), 4);
         }
         else
         {
-          field->val_str(&tempString, data);
+          uint8 temp = *(uint8*)(data == NULL ? field->ptr : data);
+          *(uint16*)(db2Buf) = (temp ? temp + 1900 : 0);
         }
-        memcpy(db2Buf, tempString.ptr(), 4);
       }         
       break;
     case MYSQL_TYPE_BIT:
       {
-        int bytesToCopy = (db2Field.getByteLengthInRecord()-1) / 8 + 1;
+        int bytesToCopy = db2Field.getByteLengthInRecord();
 
         if (data == NULL)
         {
@@ -745,10 +1000,18 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
               break;
             case MYSQL_TYPE_BLOB:
               {
-                DBUG_ASSERT(data == NULL);
-                bytesToStore = ((Field_blob*)field)->get_length();                
-                bytesToPad = maxDisplayLength - bytesToStore;
-                ((Field_blob*)field)->get_ptr((uchar**)&dataToStore);
+                if (data == NULL)
+                {
+                  bytesToStore = ((Field_blob*)field)->get_length();                
+                  bytesToPad = maxDisplayLength - bytesToStore;
+                  ((Field_blob*)field)->get_ptr((uchar**)&dataToStore);
+                }
+                else
+                {
+                  // Key lens are stored little-endian
+                  bytesToStore = *(uint8*)data + ((*(uint8*)(data+1)) << 8);
+                  dataToStore = data + 2;                  
+                }
               }
               break; 
           }
@@ -1028,6 +1291,10 @@ int32 ha_ibmdb2i::convertDB2toMySQL(const DB2Field& db2Field, Field* field, cons
                         a2toi_ebcdic((uchar*)bufPtr+5) * 100 +
                         a2toi_ebcdic((uchar*)bufPtr+8);
 
+        if (cachedZeroDateOption == SUBSTITUTE_0001_01_01 &&
+            value == (10000 + 100 + 1))
+          value = 0;
+        
         storeRC = field->store(value);
       }
       break;
@@ -1054,19 +1321,30 @@ int32 ha_ibmdb2i::convertDB2toMySQL(const DB2Field& db2Field, Field* field, cons
                         (a2toi_ebcdic((uchar*)bufPtr+11) * 10000 +
                          a2toi_ebcdic((uchar*)bufPtr+14) * 100 +
                          a2toi_ebcdic((uchar*)bufPtr+17));
+        
+        if (cachedZeroDateOption == SUBSTITUTE_0001_01_01 &&
+            value == (10000 + 100 + 1) * 1000000LL)
+          value = 0;
 
         storeRC = field->store(value);
       }
       break;
     case MYSQL_TYPE_YEAR: 
       {
-        storeRC = field->store(bufPtr, 4, &my_charset_bin);
+        if (db2Field.getType() == QMY_CHAR)
+        {
+          storeRC = field->store(bufPtr, 4, &my_charset_bin);
+        }
+        else
+        {
+          storeRC = field->store(*((uint16*)bufPtr));
+        }
       }
       break;
     case MYSQL_TYPE_BIT:
       {      
         uint64 temp= 0;
-        int bytesToCopy= (db2Field.getByteLengthInRecord()-1) / 8 + 1;
+        int bytesToCopy= db2Field.getByteLengthInRecord();
         memcpy(((char*)&temp) + (sizeof(temp) - bytesToCopy), bufPtr, bytesToCopy);
         storeRC = field->store(temp, TRUE);
       }
@@ -1163,6 +1441,6 @@ int32 ha_ibmdb2i::convertDB2toMySQL(const DB2Field& db2Field, Field* field, cons
   {
     invalidDataFound = true;
   }
-  
+
   return 0;
 }

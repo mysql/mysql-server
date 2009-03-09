@@ -150,7 +150,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         {
           if (strcmp((*field)->field_name, curColumn->field_name) == 0)
           {
-            int rc = updateAssociatedSortSequence((*field),
+            int rc = updateAssociatedSortSequence((*field)->charset(),
                                                   fileSortSequenceType,
                                                   fileSortSequence,
                                                   fileSortSequenceLibrary);
@@ -447,14 +447,13 @@ int ha_ibmdb2i::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_lis
   cst_name* fieldName;         // Pointer to field name structure
   const char *method;
   ulong methodLen;
-  bool gotShare = FALSE;       // Indicator for local get_share
   char* tempPtr;               // Temp pointer for traversing constraint space
   char convName[128];
 
-  // Allocate space to retrieve the DB2 constraint information. 
   if (!(share = get_share(table_share->path.str, table)))
      DBUG_RETURN(0);               
 
+  // Allocate space to retrieve the DB2 constraint information. 
   constraintSpaceLength = 5000;              // Try allocating 5000 bytes and see if enough.
 
   constraintSpace.alloc(constraintSpaceLength);

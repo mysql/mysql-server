@@ -63,9 +63,9 @@ static const char* engineErrors[MAX_MSGSTRING] =
   {"Error in iconv() function during character set conversion (errno = %d)"}, 
   {"Error from Get Encoding Scheme (QTQGESP) API: %d, %d, %d"},               
   {"Error from Get Related Default CCSID (QTQGRDC) API: %d, %d, %d"},         
-  {"Invalid value '%-.128s' for column '%.192s'"},                            
+  {"Data out of range for column '%.192s'"},                            
   {"Schema name '%.128s' exceeds maximum length of %d characters"},
-  {"Multiple collations not supported in a single index"},
+  {"Multiple collations not supported in a single index or constraint"},
   {"Sort sequence was not found"},
   {"One or more characters in column %.128s were substituted during conversion"},
   {"A decimal column exceeded the maximum precision. Data may be truncated."},
@@ -76,6 +76,7 @@ static const char* engineErrors[MAX_MSGSTRING] =
   {"A duplicate key was encountered for index '%.128s'"},
   {"A table with the same name exists but has incompatible column definitions."},
   {"The created table was discovered as an existing DB2 object."},
+  {"Some attribute(s) defined for column '%.128s' may not be honored by accesses from DB2."},
 };
 
 /*
