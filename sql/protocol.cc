@@ -641,7 +641,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
                      field.length / item->collation.collation->mbminlen :
                      field.length / item->collation.collation->mbmaxlen;
         max_length*= thd_charset->mbmaxlen;
-        field_length= (max_length > UINT_MAX32) ? UINT_MAX32 : max_length;
+        field_length= (max_length > UINT_MAX32) ? 
+          UINT_MAX32 : (unit32) max_length;
         int4store(pos + 2, field_length);
       }
       pos[6]= field.type;
