@@ -3703,7 +3703,10 @@ static int init_server_components()
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
+      {
         freopen(log_error_file, "a+", stderr);
+        setbuf(stderr, NULL);
+      }
     }
   }
 
@@ -4331,6 +4334,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     freopen(log_error_file,"a+",stdout);
     freopen(log_error_file,"a+",stderr);
+    setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
 #endif
