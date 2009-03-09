@@ -3199,7 +3199,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   DBUG_ENTER("dump_selected_tables");
 
   if (init_dumping(db, init_dumping_tables))
-    return 1;
+    DBUG_RETURN(1);
 
   init_alloc_root(&root, 8192, 0);
   if (!(dump_tables= pos= (char**) alloc_root(&root, tables * sizeof(char *))))
