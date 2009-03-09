@@ -2935,14 +2935,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   }
 
   /* Partition pruning */
-  if (m_use_partition_pruning && part_spec != NULL &&
+  if (m_use_partition_pruning && 
+      m_user_defined_partitioning && part_spec != NULL &&
       part_spec->start_part == part_spec->end_part)
   {
-    /* TODO - 6.4
-     * Really should only take this path when the table uses
-     * user-defined partitioning, otherwise we need a key value
-     * to correctly constrain the partition scanned.
-     */
+    /* Explicitly set partition id when pruning User-defined partitioned scan */
     options.partitionId = part_spec->start_part;
     options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
   }
@@ -3014,7 +3011,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
 
-  if (m_use_partition_pruning)
+  if (m_use_partition_pruning && m_user_defined_partitioning)
   {
     part_spec.start_part= 0;
     part_spec.end_part= m_part_info->get_tot_partitions() - 1;
@@ -3036,15 +3033,14 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
        * Only one partition is required to scan, if sorted is required
        * don't need it anymore since output from one ordered partitioned
        * index is always sorted.
+       *
+       * Note : This table scan pruning currently only occurs for 
+       * UserDefined partitioned tables.
+       * It could be extended to occur for natively partitioned tables if
+       * the Partitioning layer can make a key (e.g. start or end key)
+       * available so that we can determine the correct pruning in the 
+       * NDBAPI layer.
        */
-      // TODO - 6.4
-      // This code still allows a table scan of a natively partitioned
-      // table to be pruned by MySQLD.  
-      // It is used as part of ALTER TABLE COALESCE PARTITION in the 
-      // ndb_partition_key test.
-      // If this is required then we need a single value of the
-      // distribution key to attempt pruning.
-      //
       use_set_part_id= TRUE;
       if (!trans)
         if (unlikely(!(trans= get_transaction_part_id(part_spec.start_part,
@@ -3065,9 +3061,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   options.parallel = parallelism;
 
   if (use_set_part_id) {
-    // TODO - 6.4 
-    // Note that we still call this for natively partitioned tables
-    // See comment above about resolving this.
+    assert(m_user_defined_partitioning);
     options.optionsPresent|= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
     options.partitionId = part_spec.start_part;
   };

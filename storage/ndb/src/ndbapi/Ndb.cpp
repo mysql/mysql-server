@@ -388,6 +388,8 @@ Ndb::computeHash(Uint32 *retval,
   
   if (buf)
   {
+    /* Get 64-bit aligned ptr required for hashing */
+    assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
     UintPtr use = (org + 7) & ~(UintPtr)7;
 
@@ -501,17 +503,42 @@ Ndb::computeHash(Uint32 *retval,
                  void* buf, Uint32 bufLen)
 {
   Uint32 len;
-  char* pos = (char*)buf;
+  char* pos = NULL;
 
   Uint32 parts = keyRec->distkey_index_length;
 
+  if (unlikely(keyRec->flags & NdbRecord::RecHasUserDefinedPartitioning))
   {
+    /* Calculating native hash on keys in user defined 
+     * partitioned table is probably part of a bug
+     */
+    goto euserdeftable;
+  }
+
+  if (buf)
+  {
+    /* Get 64-bit aligned address as required for hashing */
+    assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
     UintPtr use = (org + 7) & ~(UintPtr)7;
 
     buf = (void*)use;
     bufLen -= Uint32(use - org);
   }
+  else
+  {
+    /* We malloc buf here.  Don't have a handy 'Max distr key size'
+     * variable, so let's use the key length, which must include
+     * the Distr key.
+     */
+    buf= malloc(keyRec->m_keyLenInWords << 2);
+    if (unlikely(buf == 0))
+      goto enomem;
+    bufLen= 0; /* So we remember to deallocate */
+    assert((UintPtr(buf) & 7) == 0);
+  }
+  
+  pos= (char*) buf;
 
   for (Uint32 i = 0; i < parts; i++)
   {
@@ -603,8 +630,17 @@ Ndb::computeHash(Uint32 *retval,
     free(buf);
 
   return 0;
+
+euserdeftable:
+  return 4544;
+
+enomem:
+  return 4000;
   
-emalformedstring:  
+emalformedstring:
+  if (bufLen == 0)
+    free(buf);
+
   return 4279;
 }
 

@@ -51,7 +51,7 @@ setNativePartitioning(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
   }
 
   /* Use rand to choose one of the native partitioning schemes */
-  const Uint32 rType= rand() % 2;
+  const Uint32 rType= rand() % 3;
   Uint32 fragType= -1;
   switch(rType)
   {
@@ -60,6 +60,9 @@ setNativePartitioning(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
     break;
   case 1 :
     fragType = NdbDictionary::Object::DistrKeyLin;
+    break;
+  case 2:
+    fragType = NdbDictionary::Object::HashMapPartition;
     break;
   }
 
@@ -241,6 +244,10 @@ create_dist_table(Ndb* pNdb,
     if (userDefined)
     {
       setupUDPartitioning(pNdb, tab);
+    }
+    else
+    {
+      setNativePartitioning(pNdb, tab, 0, 0);
     }
     
     NdbDictionary::Column dk;
@@ -984,6 +991,7 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
       //keyParts[0].ptr= &badPartVal;
       
       Ndb::PartitionSpec pSpec;
+      char* tabRow= NULL;
       
       if (userDefined)
       {
@@ -993,10 +1001,35 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
       }
       else
       {
-        pSpec.type= Ndb::PartitionSpec::PS_DISTR_KEY_PART_PTR;
-        pSpec.KeyPartPtr.tableKeyParts= keyParts;
-        pSpec.KeyPartPtr.xfrmbuf= NULL;
-        pSpec.KeyPartPtr.xfrmbuflen= 0;
+        /* Can set either using an array of Key parts, or a KeyRecord
+         * structure.  Let's test both
+         */
+        if (rand() % 2)
+        {
+          //ndbout << "Using Key Parts to set range partition info" << endl;
+          pSpec.type= Ndb::PartitionSpec::PS_DISTR_KEY_PART_PTR;
+          pSpec.KeyPartPtr.tableKeyParts= keyParts;
+          pSpec.KeyPartPtr.xfrmbuf= NULL;
+          pSpec.KeyPartPtr.xfrmbuflen= 0;
+        }
+        else
+        {
+          //ndbout << "Using KeyRecord to set range partition info" << endl;
+          
+          /* Setup a row in NdbRecord format with the distkey value set */
+          tabRow= (char*)malloc(NdbDictionary::getRecordRowLength(tabRecord));
+          int& dKeyVal= *((int*) NdbDictionary::getValuePtr(tabRecord,
+                                                            tabRow,
+                                                            tab->getColumn(DistTabDKeyCol)->getAttrId()));
+          dKeyVal= partValue;
+          // dKeyVal= partValue + 1; // Test failue case
+          
+          pSpec.type= Ndb::PartitionSpec::PS_DISTR_KEY_RECORD;
+          pSpec.KeyRecord.keyRecord= tabRecord;
+          pSpec.KeyRecord.keyRow= tabRow;
+          pSpec.KeyRecord.xfrmbuf= 0;
+          pSpec.KeyRecord.xfrmbuflen= 0;
+        }
       }
 
       CHECK(op->setBound(idxRecord,
@@ -1004,6 +1037,11 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
                          &pSpec,
                          sizeof(pSpec)),
             op);
+
+      if (tabRow)
+        free(tabRow);
+      tabRow= NULL;
+
     }
   }
 

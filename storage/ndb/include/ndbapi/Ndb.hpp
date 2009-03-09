@@ -1364,9 +1364,50 @@ public:
    *   An array of a table's distribution key values for a 
    *   table with native partitioning.
    *
+   * PS_DISTR_KEY_RECORD
+   *   A row in given NdbRecord format containing a natively 
+   *   partitioned table's distribution key values 
+   *
    */
 
   struct PartitionSpec
+  {
+    enum SpecType
+    {
+      PS_NONE                = 0,
+      PS_USER_DEFINED        = 1,
+      PS_DISTR_KEY_PART_PTR  = 2,
+      PS_DISTR_KEY_RECORD    = 3
+    };
+
+    Uint32 type;
+    
+    union
+    {
+      struct {
+        Uint32 partitionId;
+      } UserDefined;
+      
+      struct {
+        const Key_part_ptr* tableKeyParts;
+        void* xfrmbuf;
+        Uint32 xfrmbuflen;
+      } KeyPartPtr;
+
+      struct {
+        const NdbRecord* keyRecord;
+        const char* keyRow;
+        void* xfrmbuf;
+        Uint32 xfrmbuflen;
+      } KeyRecord;
+    };
+  };
+
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  /* First version of PartitionSpec, defined here for 
+   * backwards compatibility reasons
+   */
+  struct PartitionSpec_v1
   {
     enum SpecType
     {
@@ -1390,6 +1431,7 @@ public:
       } KeyPartPtr;
     };
   };
+#endif
 
   /**
    * Start a transaction

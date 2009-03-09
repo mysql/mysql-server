@@ -611,6 +611,8 @@ ErrorBundle ErrorCodes[] = {
   { 4543, DMEC, AE, "Duplicate partitioning information supplied" },
   { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
   { 4545, DMEC, AE, "Invalid or Unsupported PartitionInfo structure" },
+  { 4546, DMEC, AE, "Explicit partitioning info not allowed for table and operation" },
+
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
