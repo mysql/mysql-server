@@ -3544,7 +3544,13 @@ const char *db_version(int *major, int *minor, int *patch) {
         *minor = DB_VERSION_MINOR;
     if (patch)
         *patch = DB_VERSION_PATCH;
+#if defined(TOKUDB_REVISION)
+#define xstr(X) str(X)
+#define str(X) #X
+    return "tokudb " xstr(DB_VERSION_MAJOR) "." xstr(DB_VERSION_MINOR) "." xstr(DB_VERSION_PATCH) " build " xstr(TOKUDB_REVISION);
+#else
     return DB_VERSION_STRING;
+#endif
 }
  
 int db_env_set_func_fsync (int (*fsync_function)(int)) {

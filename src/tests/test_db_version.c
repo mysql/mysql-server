@@ -17,7 +17,9 @@ test_main (int argc, const char *argv[]) {
     assert(major==DB_VERSION_MAJOR);
     assert(minor==DB_VERSION_MINOR);
     assert(patch==DB_VERSION_PATCH);
-    if (verbose)
-        printf("%d.%d.%d %s\n", major, minor, patch, v);
+    if (verbose) {
+        printf("%d.%d.%d\n", major, minor, patch);
+        printf("%s\n", v);
+    }
     return 0;
 }
