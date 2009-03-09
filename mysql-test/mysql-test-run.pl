@@ -180,6 +180,9 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
+our $opt_experimental;
+our $experimental_test_cases;
+
 my $baseport;
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $build_thread= 0;
@@ -799,7 +802,7 @@ sub command_line_setup {
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
-
+             'experimental=s'           => \$opt_experimental,
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
@@ -964,6 +967,33 @@ sub command_line_setup {
     mtr_print_thick_line('#');
     mtr_report("# $opt_comment");
     mtr_print_thick_line('#');
+  }
+
+  if ( $opt_experimental )
+  {
+    # read the list of experimental test cases from the file specified on
+    # the command line
+    open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
+    mtr_report("Using experimental file: $opt_experimental");
+    $experimental_test_cases = [];
+    while(<FILE>) {
+      chomp;
+      # remove comments (# foo) at the beginning of the line, or after a 
+      # blank at the end of the line
+      s/( +|^)#.*$//;
+      # remove whitespace
+      s/^ +//;              
+      s/ +$//;
+      # if nothing left, don't need to remember this line
+      if ( $_ eq "" ) {
+        next;
+      }
+      # remember what is left as the name of another test case that should be
+      # treated as experimental
+      print " - $_\n";
+      push @$experimental_test_cases, $_;
+    }
+    close FILE;
   }
 
   foreach my $arg ( @ARGV )
