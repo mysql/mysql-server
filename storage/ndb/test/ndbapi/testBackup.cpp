@@ -26,6 +26,13 @@
   result = NDBT_FAILED; \
   continue; } 
 
+int
+clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup(GETNDB(step)->getNodeId());
+  backup.clearOldBackups();
+  return NDBT_OK;
+}
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -481,6 +488,7 @@ TESTCASE("BackupOne",
 	 "3. Drop tables and restart \n"
 	 "4. Restore\n"
 	 "5. Verify count and content of table\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupOne);
   INITIALIZER(runDropTablesRestart);
@@ -495,6 +503,7 @@ TESTCASE("BackupRandom",
 	 "3. Drop tables and restart \n"
 	 "4. Restore\n"
 	 "5. Verify count and content of table\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupRandom);
   INITIALIZER(runDropTablesRestart);
@@ -505,6 +514,7 @@ TESTCASE("BackupRandom",
 TESTCASE("BackupDDL", 
 	 "Test that backup and restore works on with DDL ongoing\n"
 	 "1. Backups and DDL (create,drop,table.index)"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   STEP(runBackupLoop);
   STEP(runDDL);
@@ -521,6 +531,7 @@ TESTCASE("BackupBank",
 	 "3.  Restart ndb -i and reload each backup\n"
 	 "    let bank verify that the backup is consistent\n"
 	 "4.  Drop bank\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
   STEP(runBankTransactions);
@@ -541,36 +552,42 @@ TESTCASE("BackupBank",
 }
 TESTCASE("NFMaster", 
 	 "Test that backup behaves during node failiure\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(setMaster);
   STEP(runAbort);
 
 }
 TESTCASE("NFMasterAsSlave", 
 	 "Test that backup behaves during node failiure\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(setMasterAsSlave);
   STEP(runAbort);
 
 }
 TESTCASE("NFSlave", 
 	 "Test that backup behaves during node failiure\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(setSlave);
   STEP(runAbort);
 
 }
 TESTCASE("FailMaster", 
 	 "Test that backup behaves during node failiure\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(setMaster);
   STEP(runFail);
 
 }
 TESTCASE("FailMasterAsSlave", 
 	 "Test that backup behaves during node failiure\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(setMasterAsSlave);
   STEP(runFail);
 
 }
 TESTCASE("FailSlave", 
 	 "Test that backup behaves during node failiure\n"){
+  INITIALIZER(clearOldBackups);
   INITIALIZER(setSlave);
   STEP(runFail);
 

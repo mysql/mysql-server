@@ -39,6 +39,8 @@ public:
   int FailSlave(NdbRestarter& _restarter);
   int Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool onMaster);
 
+  int clearOldBackups();
+
 private:
 
   int execRestore(bool _restore_data,
