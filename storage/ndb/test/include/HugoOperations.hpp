@@ -91,6 +91,8 @@ public:
 		   int rowId);
 
   int equalForRow(NdbOperation*, int rowid);
+
+  bool getPartIdForRow(const NdbOperation* pOp, int rowid, Uint32& partId);
   
   int setValues(NdbOperation*, int rowId, int updateId);
   
