@@ -872,7 +872,7 @@ int ha_myisammrg::info(uint flag)
     table->s->crashed= 1;
 #endif
   stats.data_file_length= mrg_info.data_file_length;
-  if (mrg_info.errkey >= table_share->keys) 
+  if (mrg_info.errkey >= (int) table_share->keys)
   {
     /*
      If value of errkey is higher than the number of keys
