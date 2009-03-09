@@ -48,7 +48,7 @@ ERROR HY000: Variable 'myisam_data_pointer_size' is a GLOBAL variable and should
 '#------------------FN_DYNVARS_093_05-----------------------#'
 SET @@global.myisam_data_pointer_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect myisam_data_pointer_size value: '0'
+Warning	1292	Truncated incorrect myisam_data_pointer_size value: '-1'
 SELECT @@global.myisam_data_pointer_size;
 @@global.myisam_data_pointer_size
 2
