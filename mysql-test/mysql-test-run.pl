@@ -190,6 +190,8 @@ my $build_thread= 0;
 my $opt_record;
 my $opt_report_features;
 
+my $opt_skip_core;
+
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
 
@@ -4008,6 +4010,7 @@ sub mysqld_arguments ($$$) {
       mtr_add_arg($args, "%s", $arg);
     }
   }
+  $opt_skip_core = $found_skip_core;
   if ( !$found_skip_core )
   {
     mtr_add_arg($args, "%s", "--core-file");
@@ -4105,6 +4108,7 @@ sub mysqld_start ($$) {
        error         => $output,
        append        => 1,
        verbose       => $opt_verbose,
+       nocore        => $opt_skip_core,
        host          => undef,
        shutdown      => sub { mysqld_stop($mysqld) },
       );
