@@ -72,7 +72,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
 				 NdbOperation::LockMode lm){
   int a;  
   allocRows(numRecords);
-  indexScans.clear();
+  indexScans.clear();  
   int check;
 
   NdbOperation* pOp = 0;
@@ -95,13 +95,17 @@ rand_lock_mode:
     case NdbOperation::LM_Exclusive:
     case NdbOperation::LM_CommittedRead:
     case NdbOperation::LM_SimpleRead:
-      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
-	 pIndexScanOp == 0)
+      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex)
       {
-	pIndexScanOp = ((NdbIndexScanOperation*)pOp);
-	check = pIndexScanOp->readTuples(lm);
-        /* Record NdbIndexScanOperation ptr for later... */
-        indexScans.push_back(pIndexScanOp);
+        if (pIndexScanOp == 0)
+        {
+          pIndexScanOp = ((NdbIndexScanOperation*)pOp);
+          bool mrrScan= (numRecords > 1);
+          Uint32 flags= mrrScan? NdbScanOperation::SF_MultiRange : 0; 
+          check = pIndexScanOp->readTuples(lm, flags);
+          /* Record NdbIndexScanOperation ptr for later... */
+          indexScans.push_back(pIndexScanOp);
+        }
       }
       else
 	check = pOp->readTuple(lm);
@@ -119,6 +123,14 @@ rand_lock_mode:
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    /* Do we need to set the partitionId for this operation? */
+    if (getPartIdForRow(pOp, r+recordNo, partId))
+    {
+      g_info << "Setting operation partition Id" << endl;
+      pOp->setPartitionId(partId);
+    }
 
     if(pIndexScanOp)
       pIndexScanOp->end_of_bound(r);
@@ -192,9 +204,19 @@ rand_lock_mode:
       return NDBT_FAILED;
     }
     
+    int rowid= rand() % records;
+
     // Define primary keys
-    if (equalForRow(pOp, rand() % records) != 0)
+    if (equalForRow(pOp, rowid) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    /* Do we need to set the partitionId for this operation? */
+    if (getPartIdForRow(pOp, rowid, partId))
+    {
+      g_info << "Setting operation partition Id" << endl;
+      pOp->setPartitionId(partId);
+    }
 
     if(pIndexScanOp)
       pIndexScanOp->end_of_bound(r);
@@ -241,6 +263,11 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     {
       return NDBT_FAILED;
     }
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
   }
   return NDBT_OK;
 }
@@ -288,6 +315,11 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     {
       return NDBT_FAILED;
     }
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
   }
   return NDBT_OK;
 }
@@ -314,6 +346,11 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
     
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
+
     // Define attributes to update
     for(a = 0; a<tab.getNoOfColumns(); a++){
       if (tab.getColumn(a)->getPrimaryKey() == false){
@@ -348,6 +385,11 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
+    
   }
   return NDBT_OK;
 }
@@ -373,6 +415,10 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
+
+    Uint32 partId;
+    if(getPartIdForRow(pOp, r+recordNo, partId))
+      pOp->setPartitionId(partId);
   }
   return NDBT_OK;
 }
@@ -561,6 +607,7 @@ HugoOperations::wait_async(Ndb* pNdb, int timeout)
 HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
 			       const NdbDictionary::Index* idx):
   UtilTransactions(_tab, idx),
+  pIndexScanOp(NULL),
   calc(_tab)
 {
 }
@@ -591,10 +638,39 @@ HugoOperations::equalForRow(NdbOperation* pOp, int row)
   return NDBT_OK;
 }
 
+bool HugoOperations::getPartIdForRow(const NdbOperation* pOp,
+                                     int rowid,
+                                     Uint32& partId)
+{
+  if (tab.getFragmentType() == NdbDictionary::Object::UserDefined)
+  {
+    /* Primary keys and Ordered indexes are partitioned according
+     * to the row number
+     * PartitionId must be set for PK access.  Ordered indexes
+     * can scan all partitions.
+     */
+    if (pOp->getType() == NdbOperation::PrimaryKeyAccess)
+    {
+      /* Need to set the partitionId for this op
+       * For Hugo, we use 'HASH' partitioning, which is probably
+       * better called 'MODULO' partitioning with
+       * FragId == rowNum % NumPartitions
+       * This gives a good balance with the normal Hugo data, but different
+       * row to partition assignments than normal key partitioning.
+       */
+      const Uint32 numFrags= tab.getFragmentCount();
+      partId= rowid % numFrags;
+      g_info << "Returning partition Id of " << partId << endl;
+      return true;
+    }
+  }
+  partId= ~0;
+  return false;
+}
+
 int HugoOperations::equalForAttr(NdbOperation* pOp,
 				   int attrId, 
 				   int rowId){
-  int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);  
   if (attr->getPrimaryKey() == false){
     g_info << "Can't call equalForAttr on non PK attribute" << endl;
@@ -613,7 +689,6 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
 				      int attrId, 
 				      int rowId,
 				      int updateId){
-  int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
   
   int len = attr->getSizeInBytes();
