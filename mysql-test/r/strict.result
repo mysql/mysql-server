@@ -1305,7 +1305,7 @@ set @@sql_mode='traditional';
 create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*
          123456789*123456789*123456789*123456789*123456789*';
-ERROR HY000: Too long comment for table 't1'
+ERROR HY000: Comment for table 't1' is too long (max = 60)
 create table t1 (
 i int comment
 '123456789*123456789*123456789*123456789*
@@ -1315,7 +1315,7 @@ i int comment
  123456789*123456789*123456789*123456789*
  123456789*123456789*123456789*123456789*
  123456789*123456789*123456789*123456789*');
-ERROR HY000: Too long comment for field 'i'
+ERROR HY000: Comment for field 'i' is too long (max = 255)
 set @@sql_mode= @org_mode;
 create table t1
 (i int comment
@@ -1327,7 +1327,7 @@ create table t1
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*');
 Warnings:
-Warning	1105	Unknown error
+Warning	1629	Comment for field 'i' is too long (max = 255)
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
 column_name	column_comment
