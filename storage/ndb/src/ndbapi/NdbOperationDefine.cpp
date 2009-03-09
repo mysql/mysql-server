@@ -1242,6 +1242,14 @@ NdbOperation::handleOperationOptions (const OperationType type,
        * takeover operation 
        */
     }
+    /* Only allowed for pk ops on user defined partitioned tables */
+    if (unlikely( ! ((op->m_attribute_record->flags & 
+                      NdbRecord::RecHasUserDefinedPartitioning) &&
+                     (op->m_key_record->table->m_index == NULL))))
+    {
+      /* Explicit partitioning info not allowed for table and operation*/
+      return 4546;
+    }
     op->theDistributionKey=opts->partitionId;
     op->theDistrKeyIndicator_= 1;       
   }

@@ -534,14 +534,21 @@ NdbOperation::setPartitionId(Uint32 value)
     return; // TODO : Consider adding int rc for error
   }
 
-  /* Todo - 6.4
-   * Should only be allowed for user-defined partitioned tables
-   * Add an #ifdef STRICT_SET_PARTITION_ID
-   * Cannot be on at least until Blobs stop setting partition
-   * id for parts and MySQLD stops setting it for Alter table.
-   * operations.
+  /* We only allow setPartitionId() for :
+   *   PrimaryKey ops on a UserDefined partitioned table
+   *   Ordered index scans
+   *   Table scans
+   *
+   * It is not allowed on :
+   *   Primary key access to Natively partitioned tables
+   *   Any unique key access
    */
-
+  assert(((m_type == PrimaryKeyAccess) && 
+          (m_currentTable->getFragmentType() ==
+           NdbDictionary::Object::UserDefined)) ||
+         (m_type == OrderedIndexScan) ||
+         (m_type == TableScan));
+  
   theDistributionKey = value;
   theDistrKeyIndicator_ = 1;
   DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",

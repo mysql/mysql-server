@@ -473,7 +473,8 @@ protected:
                                ScanOptions& currOptions);
   int handleScanOptions(const ScanOptions *options);
   int validatePartInfoPtr(const Ndb::PartitionSpec*& partInfo,
-                          Uint32 sizeOfPartInfo);
+                          Uint32 sizeOfPartInfo,
+                          Ndb::PartitionSpec& partValue);
   int getPartValueFromInfo(const Ndb::PartitionSpec* partInfo,
                            const NdbTableImpl* table,
                            Uint32* partValue);
