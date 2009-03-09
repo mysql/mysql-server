@@ -1163,11 +1163,11 @@ set @@sql_mode= @org_mode;
 # Bug #13934 Silent truncation of table comments
 #
 set @@sql_mode='traditional';
---error 1105
+--error ER_TOO_LONG_TABLE_COMMENT
 create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*
          123456789*123456789*123456789*123456789*123456789*';
---error 1105
+--error ER_TOO_LONG_FIELD_COMMENT
 create table t1 (
 i int comment
 '123456789*123456789*123456789*123456789*

@@ -81,6 +81,8 @@ ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@global.optimizer_prune_level = FELSE;
 ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@global.optimizer_prune_level = -1024;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_prune_level value: '-1024'
 SELECT @@global.optimizer_prune_level;
 @@global.optimizer_prune_level
 0
@@ -107,6 +109,8 @@ ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@session.optimizer_prune_level = 'OFN';
 ERROR 42000: Incorrect argument type to variable 'optimizer_prune_level'
 SET @@session.optimizer_prune_level = -2;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_prune_level value: '-2'
 SELECT @@session.optimizer_prune_level;
 @@session.optimizer_prune_level
 0

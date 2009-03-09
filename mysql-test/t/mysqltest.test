@@ -62,7 +62,8 @@ select otto from (select 1 as otto) as t1;
 --exec echo "select friedrich from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
 
 # expectation = response
---error 1054
+--error ER_BAD_FIELD_ERROR
+
 select friedrich from (select 1 as otto) as t1;
 
 # The following unmasked unsuccessful statement must give
@@ -135,14 +136,16 @@ eval select $mysql_errno as "after_successful_stmt_errno" ;
 #----------------------------------------------------------------------------
 # check mysql_errno = 1064 after statement with wrong syntax
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 eval select $mysql_errno as "after_wrong_syntax_errno" ;
 
 # ----------------------------------------------------------------------------
 # check if let $my_var= 'abc' ; affects $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 let $my_var= 'abc' ;
 eval select $mysql_errno as "after_let_var_equal_value" ;
@@ -150,7 +153,8 @@ eval select $mysql_errno as "after_let_var_equal_value" ;
 # ----------------------------------------------------------------------------
 # check if set @my_var= 'abc' ; affects $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 set @my_var= 'abc' ;
 eval select $mysql_errno as "after_set_var_equal_value" ;
@@ -159,7 +163,8 @@ eval select $mysql_errno as "after_set_var_equal_value" ;
 #  check if the setting of --disable-warnings itself affects $mysql_errno
 #  (May be --<whatever> modifies $mysql_errno.)
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 --disable_warnings
 eval select $mysql_errno as "after_disable_warnings_command" ;
@@ -170,7 +175,8 @@ eval select $mysql_errno as "after_disable_warnings_command" ;
 # (May be disabled warnings affect $mysql_errno.)
 # ----------------------------------------------------------------------------
 drop table if exists t1 ;
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 drop table if exists t1 ;
 eval select $mysql_errno as "after_disable_warnings" ;
@@ -179,21 +185,26 @@ eval select $mysql_errno as "after_disable_warnings" ;
 # ----------------------------------------------------------------------------
 # check if masked errors affect $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 eval select $mysql_errno as "after_minus_masked" ;
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 eval select $mysql_errno as "after_!_masked" ;
 
 # ----------------------------------------------------------------------------
 # Will manipulations of $mysql_errno be possible and visible ?
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 let $mysql_errno= -1;
 eval select $mysql_errno as "after_let_errno_equal_value" ;
@@ -202,50 +213,61 @@ eval select $mysql_errno as "after_let_errno_equal_value" ;
 # How affect actions on prepared statements $mysql_errno ?
 # ----------------------------------------------------------------------------
 # failing prepare
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 prepare stmt from "select 3 from t1" ;
 eval select $mysql_errno as "after_failing_prepare" ;
 create table t1 ( f1 char(10));
 
 # successful prepare
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 prepare stmt from "select 3 from t1" ;
 eval select $mysql_errno as "after_successful_prepare" ;
 
 # successful execute
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 execute stmt;
 eval select $mysql_errno as "after_successful_execute" ;
 
 # failing execute (table has been dropped)
 drop table t1;
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 execute stmt;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # failing execute (unknown statement)
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
+
 execute __stmt_;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # successful deallocate
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 deallocate prepare stmt;
 eval select $mysql_errno as "after_successful_deallocate" ;
 
 # failing deallocate ( statement handle does not exist )
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
+
 deallocate prepare __stmt_;
 eval select $mysql_errno as "after_failing_deallocate" ;
 
@@ -270,7 +292,8 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 # ----------------------------------------------------------------------------
 # Switch off the abort on error and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 --disable_abort_on_error
 eval select $mysql_errno as "after_--disable_abort_on_error" ;
@@ -284,9 +307,11 @@ select 3 from t1 ;
 # masked failing statements
 # ----------------------------------------------------------------------------
 # expected error = response
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 eval select $mysql_errno as "after_!errno_masked_error" ;
 # expected error <> response
@@ -300,7 +325,8 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 # ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 --enable_abort_on_error
 eval select $mysql_errno as "after_--enable_abort_on_error" ;
@@ -309,7 +335,8 @@ eval select $mysql_errno as "after_--enable_abort_on_error" ;
 # masked failing statements
 # ----------------------------------------------------------------------------
 # expected error = response
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 
 # ----------------------------------------------------------------------------
@@ -572,9 +599,6 @@ echo ;
 # ----------------------------------------------------------------------------
 
 # Illegal use of exec
---error 1
---exec echo "--exec false" | $MYSQL_TEST 2>&1
-
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
 
@@ -955,8 +979,6 @@ system echo "hej" > /dev/null;
 --exec echo "system;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "system false;" | $MYSQL_TEST 2>&1
 
 --disable_abort_on_error
 system NonExistsinfComamdn 2> /dev/null;
@@ -1374,7 +1396,8 @@ connection default;
 let $num= 2;
 while ($num)
 {
-   --error 1064
+   --error ER_PARSE_ERROR
+
    failing_statement;
 
    dec $num;
@@ -1433,14 +1456,14 @@ select "this will be executed";
 #
 # Test zero length result file. Should not pass
 #
---exec touch $MYSQLTEST_VARDIR/tmp/zero_length_file.result
+--exec echo '' > $MYSQLTEST_VARDIR/tmp/zero_length_file.result
 --exec echo "echo ok;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  > /dev/null 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
 --error 0,1
-remove_file $MYSQLTEST_VARDIR/log/zero_length_file.reject;
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.reject;
 --error 0,1
 remove_file $MYSQL_TEST_DIR/r/zero_length_file.reject;
 
@@ -1486,7 +1509,8 @@ drop table t1;
 --error 1
 --exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
 # The .out file should be non existent
---exec test ! -s $MYSQLTEST_VARDIR/tmp/bug11731.out
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 
 
@@ -1508,7 +1532,7 @@ drop table t1;
 
 --exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
 # The .out file should exist
---exec test -s $MYSQLTEST_VARDIR/tmp/bug11731.out
+--file_exists $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 remove_file $MYSQLTEST_VARDIR/tmp/bug11731.out;
 remove_file $MYSQLTEST_VARDIR/log/bug11731.log;
@@ -1520,14 +1544,17 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug11731.sql;
 
 # It should be possible to use the command "query" to force mysqltest to
 # send the command to the server although it's a builtin mysqltest command.
---error 1064
+--error ER_PARSE_ERROR
+
 query sleep;
 
---error 1064
+--error ER_PARSE_ERROR
+
 --query sleep
 
 # Just an empty query command
---error 1065
+--error ER_EMPTY_QUERY
+
 query ;
 
 # test for replace_regex
@@ -1921,7 +1948,8 @@ eval $my_stmt;
 # 8. Ensure that "sorted_result " does not change the semantics of
 #    "--error ...." or the protocol output after such an expected failure
 --sorted_result
---error 1146
+--error ER_NO_SUCH_TABLE
+
 SELECT '2' as "my_col1",2 as "my_col2"
 UNION
 SELECT '1',1 from t2;

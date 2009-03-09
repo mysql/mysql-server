@@ -4928,10 +4928,11 @@ int ha_partition::info(uint flag)
       This flag is used to get index number of the unique index that
       reported duplicate key
       We will report the errkey on the last handler used and ignore the rest
+      Note: all engines does not support HA_STATUS_ERRKEY, so set errkey.
     */
+    file->errkey= errkey;
     file->info(HA_STATUS_ERRKEY);
-    if (file->errkey != (uint) -1)
-      errkey= file->errkey;
+    errkey= file->errkey;
   }
   if (flag & HA_STATUS_TIME)
   {

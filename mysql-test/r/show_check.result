@@ -1198,7 +1198,7 @@ CREATE DATABASE mysqltest1;
 use mysqltest1;
 CREATE TABLE t1(колонка1 INT);
 
----> Dumping mysqltest1 to show_check.mysqltest1.sql
+---> Dumping mysqltest1 to outfile1
 
 
 DROP DATABASE mysqltest1;
@@ -1295,7 +1295,7 @@ drop database mysqltest;
 show full plugin;
 show warnings;
 Level	Code	Message
-Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW PLUGINS' instead
+Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 6.0. Please use 'SHOW PLUGINS' instead
 show plugin;
 show plugins;
 create database `mysqlttest\1`;

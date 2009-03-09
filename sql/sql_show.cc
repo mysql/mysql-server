@@ -287,7 +287,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Alter", "Tables",  "To alter the table"},
   {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
+  {"Create routine","Databases","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Create user", "Server Admin",  "To create new users"},
@@ -468,11 +468,18 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
+  uint wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
-  if (wild && !wild[0])
-    wild=0;
+  if (wild)
+  {
+    if (!wild[0])
+      wild= 0;
+    else
+      wild_length= strlen(wild);
+  }
+
 
 
   bzero((char*) &table_list,sizeof(table_list));
@@ -537,8 +544,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(files_charset_info, uname, wild))
-	    continue;
+          if (my_wildcmp(files_charset_info,
+                         uname, uname + file_name_len,
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one,wild_many))
+            continue;
 	}
 	else if (wild_compare(uname, wild, 0))
 	  continue;
@@ -1588,21 +1598,25 @@ void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
 int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
+  my_bool compact_view_name= TRUE;
   my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                        MODE_ORACLE |
                                                        MODE_MSSQL |
                                                        MODE_DB2 |
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
-  /*
-     Compact output format for view can be used
-     - if user has db of this view as current db
-     - if this view only references table inside it's own db
-  */
+
   if (!thd->db || strcmp(thd->db, table->view_db.str))
-    table->compact_view_format= FALSE;
+    /*
+      print compact view name if the view belongs to the current database
+    */
+    compact_view_name= table->compact_view_format= FALSE;
   else
   {
+    /*
+      Compact output format for view body can be used
+      if this view only references table inside it's own db
+    */
     TABLE_LIST *tbl;
     table->compact_view_format= TRUE;
     for (tbl= thd->lex->query_tables;
@@ -1623,7 +1637,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     view_store_options(thd, table, buff);
   }
   buff->append(STRING_WITH_LEN("VIEW "));
-  if (!table->compact_view_format)
+  if (!compact_view_name)
   {
     append_identifier(thd, buff, table->view_db.str, table->view_db.length);
     buff->append('.');
@@ -3782,8 +3796,19 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                            cs);
     table->field[4]->store((longlong) count, TRUE);
     field->sql_type(type);
-    table->field[14]->store(type.ptr(), type.length(), cs);		
+    table->field[14]->store(type.ptr(), type.length(), cs);
+    /*
+      MySQL column type has the following format:
+      base_type [(dimension)] [unsigned] [zerofill].
+      For DATA_TYPE column we extract only base type.
+    */
     tmp_buff= strchr(type.ptr(), '(');
+    if (!tmp_buff)
+      /*
+        if there is no dimention part then check the presence of
+        [unsigned] [zerofill] attributes and cut them of if exist.
+      */
+      tmp_buff= strchr(type.ptr(), ' ');
     table->field[7]->store(type.ptr(),
                            (tmp_buff ? tmp_buff - type.ptr() :
                             type.length()), cs);

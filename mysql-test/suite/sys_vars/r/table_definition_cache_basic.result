@@ -45,7 +45,7 @@ SELECT @@global.table_definition_cache;
 256
 SET @@global.table_definition_cache = -1024;
 Warnings:
-Warning	1292	Truncated incorrect table_definition_cache value: '0'
+Warning	1292	Truncated incorrect table_definition_cache value: '-1024'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
 256

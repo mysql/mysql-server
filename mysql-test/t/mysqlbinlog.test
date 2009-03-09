@@ -180,7 +180,7 @@ delimiter ;//
 flush logs;
 call p1();
 drop procedure p1;
---error 1305
+--error ER_SP_DOES_NOT_EXIST 
 call p1();
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000008
@@ -232,7 +232,26 @@ flush logs;
 INSERT INTO t1 VALUES ('0123456789');
 flush logs;
 DROP TABLE t1;
---exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000012 | grep 'Query' | sed 's/[0-9]\{1,\}/REMOVED/g'
+
+# We create a table, patch, and load the output into it
+# By using LINES STARTING BY '#' + SELECT WHERE a LIKE 'Query'
+# We can easily see if a 'Query' line is missing the '#' character
+# as described in the original bug
+
+--disable_query_log 
+CREATE TABLE patch (a blob);
+--exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000012 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat'
+     INTO TABLE patch FIELDS TERMINATED by '' LINES STARTING BY '#';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat
+--enable_query_log
+
+--echo We expect this value to be 1
+--echo The bug being tested was that 'Query' lines were not preceded by '#'
+--echo If the line is in the table, it had to have been preceded by a '#'
+--echo
+SELECT COUNT(*) AS `BUG#28293_expect_1` FROM patch WHERE a LIKE '%Query%';
+DROP TABLE patch;
 
 #
 # Bug #29928: incorrect connection_id() restoring from mysqlbinlog out
@@ -259,7 +278,6 @@ echo shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
 error 1;
 exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTEST_VARDIR/tmp/bug31793.sql;
 
---echo End of 5.0 tests
 
 #
 # Test --disable-force-if-open and --force-if-open
@@ -323,5 +341,26 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 
 query_vertical SELECT * FROM t1;
 DROP TABLE t1;
+
+#
+# Bug #37313  	BINLOG Contains Incorrect server id
+#
+
+let $save_server_id= `select @@global.server_id`;
+let $s_id_max=`select (1 << 32) - 1`;
+eval set @@global.server_id= $s_id_max;
+
+reset master;
+flush logs;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+is not null;
+let $s_id_unsigned= `select @a like "%server id $s_id_max%" /* must return 1 */`;
+echo *** Unsigned server_id $s_id_max is found: $s_id_unsigned ***;
+
+eval set @@global.server_id= $save_server_id;
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog
 
 --echo End of 5.1 tests

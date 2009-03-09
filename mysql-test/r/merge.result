@@ -2103,4 +2103,16 @@ a
 UNLOCK TABLES;
 # drop the created tables
 DROP TABLE t1, t2, t3;
+# insert duplicate value in child table while merge table doesn't have key
+create table t1 (
+col1 int(10),
+primary key (col1)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE m1 (
+col1 int(10) NOT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(t1);
+insert into m1 (col1) values (1);
+insert into m1 (col1) values (1);
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+drop table m1, t1;
 End of 5.1 tests

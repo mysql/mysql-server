@@ -637,6 +637,7 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 extern void TERMINATE(FILE *file, uint flag);
 #endif
 extern void init_glob_errs(void);
+extern void wait_for_free_space(const char *filename, int errors);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
