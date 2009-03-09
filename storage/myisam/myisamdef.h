@@ -38,6 +38,7 @@ typedef struct st_mi_status_info
   my_off_t key_file_length;
   my_off_t data_file_length;
   ha_checksum checksum;
+  my_bool uncacheable;                  /* Active concurrent insert */
 } MI_STATUS_INFO;
 
 typedef struct st_mi_state_info

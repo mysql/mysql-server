@@ -365,8 +365,9 @@ rec_set_field_extern_bits(
 /***************************************************************
 This is used to modify the value of an already existing field in a record.
 The previous value must have exactly the same size as the new value. If len
-is UNIV_SQL_NULL then the field is treated as an SQL null for old-style
-records. For new-style records, len must not be UNIV_SQL_NULL. */
+is UNIV_SQL_NULL then the field is treated as an SQL null.
+For records in ROW_FORMAT=COMPACT (new-style records), len must not be
+UNIV_SQL_NULL unless the field already is SQL null. */
 UNIV_INLINE
 void
 rec_set_nth_field(
@@ -375,11 +376,7 @@ rec_set_nth_field(
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n,	/* in: index number of the field */
 	const void*	data,	/* in: pointer to the data if not SQL null */
-	ulint		len);	/* in: length of the data or UNIV_SQL_NULL.
-				If not SQL null, must have the same
-				length as the previous value.
-				If SQL null, previous value must be
-				SQL null. */
+	ulint		len);	/* in: length of the data or UNIV_SQL_NULL */
 /**************************************************************
 The following function returns the data size of an old-style physical
 record, that is the sum of field lengths. SQL null fields
