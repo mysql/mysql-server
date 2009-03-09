@@ -35,6 +35,45 @@
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 
+int
+NdbBackup::clearOldBackups()
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int retCode = 0;
+
+  for(size_t i = 0; i < ndbNodes.size(); i++)
+  {
+    int nodeId = ndbNodes[i].node_id;
+    const char* path = getBackupDataDirForNode(nodeId);
+    if (path == NULL)
+      return -1;  
+    
+    const char *host;
+    if (!getHostName(nodeId, &host))
+      return -1;
+
+    /* 
+     * Clear old backup files
+     */ 
+    BaseString tmp;
+    tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+  
+    ndbout << "buf: "<< tmp.c_str() <<endl;
+    int res = system(tmp.c_str());  
+    ndbout << "ssh res: " << res << endl;
+
+    if (res && retCode == 0)
+      retCode = res;
+  }
+
+  return retCode;
+}
+
 int 
 NdbBackup::start(unsigned int & _backup_id){
 
@@ -45,6 +84,8 @@ NdbBackup::start(unsigned int & _backup_id){
   ndb_mgm_reply reply;
   reply.return_code = 0;
 
+  bool any = _backup_id == 0;
+
 loop:
   if (ndb_mgm_start_backup(handle,
 			   2, // wait until completed
@@ -52,9 +93,11 @@ loop:
 			   &reply) == -1) {
 
     if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
-        strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists"))
+        strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists") &&
+        any == true)
     {
       NdbSleep_SecSleep(3);
+      _backup_id += 100;
       goto loop;
     }
     
