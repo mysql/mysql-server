@@ -277,33 +277,32 @@ static int32 getAssociatedSortSequence(const CHARSET_INFO *fieldCharSet, const c
   
   This function accumulates information about a key as it is called for each
   field composing the key. The caller should invoke the function for each field
-  and (with the exception of the curField parm) preserve the values for the 
+  and (with the exception of the charset parm) preserve the values for the 
   parms across invocations, until a particular key has been evaluated. Once
   the last field in the key has been evaluated, the fileSortSequence and 
   fileSortSequenceLibrary parms will contain the correct information for 
   creating the corresponding DB2 key.
   
-  @param curField  The field under consideration
+  @param charset  The character set under consideration
   @param[in, out] fileSortSequenceType  The type of the current key's sort seq
   @param[in, out] fileSortSequence  The IBM i identifier for the DB2 sort sequence
                                     that corresponds 
     
   @return  0 if successful. Failure otherwise
 */
-int32 updateAssociatedSortSequence(const Field *curField, 
+int32 updateAssociatedSortSequence(const CHARSET_INFO* charset, 
                                    char* fileSortSequenceType, 
                                    char* fileSortSequence, 
                                    char* fileSortSequenceLibrary)
 {
   DBUG_ENTER("ha_ibmdb2i::updateAssociatedSortSequence");
-  DBUG_ASSERT(curField);
-  CHARSET_INFO* fieldCharSet = curField->charset();
-  if (strcmp(fieldCharSet->csname,"binary") != 0)
+  DBUG_ASSERT(charset);
+  if (strcmp(charset->csname,"binary") != 0)
   {
     char newSortSequence[11] = "";
     char newSortSequenceType = ' ';
     const char* foundSortSequence;
-    int rc = getAssociatedSortSequence(fieldCharSet, &foundSortSequence);
+    int rc = getAssociatedSortSequence(charset, &foundSortSequence);
     if (rc) DBUG_RETURN (rc);
     switch(foundSortSequence[0])
     {
@@ -313,11 +312,11 @@ int32 updateAssociatedSortSequence(const Field *curField,
         break;
       case 'Q': // Non-ICU sort sequence
         strcat(newSortSequence,foundSortSequence);
-        if ((fieldCharSet->state & MY_CS_BINSORT) != 0)
+        if ((charset->state & MY_CS_BINSORT) != 0)
         {
           strcat(newSortSequence,"U"); 
         }
-        else if ((fieldCharSet->state & MY_CS_CSSORT) != 0)
+        else if ((charset->state & MY_CS_CSSORT) != 0)
         {
           strcat(newSortSequence,"U"); 
         }
@@ -329,7 +328,7 @@ int32 updateAssociatedSortSequence(const Field *curField,
         break;
       default: // ICU sort sequence
 	{
-          if ((fieldCharSet->state & MY_CS_CSSORT) == 0)
+          if ((charset->state & MY_CS_CSSORT) == 0)
           {
             if (osVersion.v >= 6)
               strcat(newSortSequence,"I34"); // ICU 3.4

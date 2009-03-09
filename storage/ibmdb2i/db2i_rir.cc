@@ -140,6 +140,17 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
   }
   keyCnt = maxKeyCnt >= minKeyCnt ? maxKeyCnt : minKeyCnt;
 
+  /*
+     Handle the special case where MySQL does not pass either a min or max
+     key range. In this case, set the key count to 1 (knowing that there
+     is at least one key field) to flow through and create one bounds structure.
+     When both the min and max key ranges are nil, the bounds structure will
+     specify positive and negative infinity and DB2 will estimate the total 
+     number of rows.                                                                                                                                                            */
+
+  if (keyCnt == 0)
+    keyCnt = 1;
+
   /*                                                                               
      Allocate the space needed to pass range information to DB2. The            
      space must be large enough to store the following:                         
@@ -196,8 +207,7 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
      estimate. If one bound is null, both bounds must be null. When the bound 
      is not null, the data offset and length must be set, and the literal     
      value stored for access by DB2.                                          
-                                                                              */
- 
+                                                                                         */
   for (int partsInUse = 0; partsInUse < keyCnt; ++partsInUse)
   {
    Field *field= curKey.key_part[partsInUse].field;
@@ -298,19 +308,28 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
            else
              tempLen = field->field_length;                         
 
-           if (litDefPtr->DataType == QMY_CHAR || litDefPtr->DataType == QMY_VARCHAR ||
-               (strncmp(fieldCharSet->csname, "utf8", sizeof("utf8")) == 0))
-           {
+           /* Determine if we are dealing with a partial key and if so, find the end of the partial key. */
+           if (litDefPtr->DataType == QMY_CHAR || litDefPtr->DataType == QMY_VARCHAR )
+           { /* Char or varchar.  If UTF8, no conversion is done to DB2 graphic.) */
                endOfMinPtr = (char*)memchr(tempMinPtr,field->charset()->min_sort_char,tempLen);
                if (endOfMinPtr)
-                 endOfLiteralPtr = tempPtr + (((uint32_t)(endOfMinPtr - tempMinPtr)) *
-                  (litDefPtr->DataType == QMY_CHAR || litDefPtr->DataType == QMY_VARCHAR ? 1 : 2));
+                 endOfLiteralPtr = tempPtr + ((uint32_t)(endOfMinPtr - tempMinPtr));
            }
            else
            {
-             endOfMinPtr = (char*)wmemchr((wchar_t*)tempMinPtr,field->charset()->min_sort_char,tempLen/2);
-             if (endOfMinPtr)
-               endOfLiteralPtr = tempPtr + (endOfMinPtr - tempMinPtr);
+              if (strncmp(fieldCharSet->csname, "utf8", sizeof("utf8")) == 0)
+              {  /* The MySQL charset is UTF8 but we are converting to graphic on DB2. Divide number of UTF8 bytes
+                    by 3 to get the number of characters, then multiple by 2 for double-byte graphic.*/
+               endOfMinPtr = (char*)memchr(tempMinPtr,field->charset()->min_sort_char,tempLen);
+               if (endOfMinPtr)
+                 endOfLiteralPtr = tempPtr + (((uint32_t)((endOfMinPtr - tempMinPtr)) / 3) * 2);
+              } 
+              else
+              { /* The DB2 data type is graphic or vargraphic, and we are not converting from UTF8 to graphic. */  
+                endOfMinPtr = (char*)wmemchr((wchar_t*)tempMinPtr,field->charset()->min_sort_char,tempLen/2);
+                if (endOfMinPtr)
+                  endOfLiteralPtr = tempPtr + (endOfMinPtr - tempMinPtr);
+              }
            }
            /* Enforce here that a partial is only allowed on the last field position 
               of the key composite                                                    */
@@ -354,6 +373,11 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
       }  
       else                                                    // max_key field is not null
       {
+        if (boundsPtr->LoBound.IsNull[0] == QMY_YES)          // select where x < 10 or x is null
+        {
+          rc = HA_POS_ERROR;
+          break;
+        }
         if (!reuseLiteral)                                    
         {  
           if (literalCnt)             
@@ -381,7 +405,7 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
               litDefPtr->DataType == QMY_GRAPHIC || litDefPtr->DataType == QMY_VARGRAPHIC))
           {
              if (litDefPtr->DataType == QMY_VARCHAR || litDefPtr->DataType == QMY_VARGRAPHIC)
-	     {
+             {
                 tempPtr = literalPtr + sizeof(uint16);
              }
              else

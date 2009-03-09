@@ -73,10 +73,12 @@ class IORowBuffer
       Sets up the buffer to hold the size indicated.
       
       @param rowLen  length of the rows that will be stored in this buffer
+      @param nullMapOffset  position of null map within each row
       @param size    buffer size requested
     */
-    void allocBuf(uint32 rowLen, uint32 size)
+    void allocBuf(uint32 rowLen, uint16 nullMapOffset, uint32 size)
     {
+      nullOffset = nullMapOffset;
       uint32 newSize = size + sizeof(BufferHdr_t);
         // If the internal structure of the row is changing, we need to
         // remember this and notify the subclasses via initAfterAllocate();
@@ -129,7 +131,9 @@ class IORowBuffer
     };
 
     uint32 getRowCapacity() const {return rowCapacity;}
-    
+    uint32 getRowNullOffset() const {return nullOffset;}
+    uint32 getRowLength() const {return rowLength;}
+        
   protected: 
     /**
       Called prior to freeing buffer storage so that subclasses can do
@@ -150,6 +154,7 @@ class IORowBuffer
     uint32 allocSize;
     uint32 rowCapacity;
     uint32 rowLength;
+    uint16 nullOffset;
     uint32& usedRows() const { return ((BufferHdr_t*)(char*)data)->UsedRowCnt; }
     uint32& maxRows() const {return ((BufferHdr_t*)(char*)data)->MaxRowCnt; }
 };
@@ -207,7 +212,7 @@ class IOReadBuffer : public IORowBuffer
     IOReadBuffer() {;}
     IOReadBuffer(uint32 rows, uint32 rowLength)
     {
-      allocBuf(rows, rows * rowLength);
+      allocBuf(rows, 0, rows * rowLength);
       maxRows() = rows;
     }
     
