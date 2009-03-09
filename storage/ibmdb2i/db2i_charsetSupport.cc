@@ -703,7 +703,7 @@ static int32 openNewConversion(enum_conversionDirection direction,
 */
 int32 getConversion(enum_conversionDirection direction, const CHARSET_INFO* cs, uint16 db2CCSID, iconv_t& conversion)
 {
-  DBUG_ENTER("db2i_charsetSupport::convChars");
+  DBUG_ENTER("db2i_charsetSupport::getConversion");
   
   int32 rc;
 

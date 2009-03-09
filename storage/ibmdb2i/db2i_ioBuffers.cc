@@ -257,7 +257,7 @@ void IOAsyncReadBuffer::newReadRequest(FILE_HANDLE infile,
   int fildes[2];
   int ileDescriptor = QMY_REUSE;
 
-  closePipe();
+  interruptRead();
 
   if (likely(useAsync))
   {

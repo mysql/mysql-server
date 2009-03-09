@@ -62,6 +62,7 @@ enum db2i_InfoRequestSpec
 }; 
   
 extern  handlerton *ibmdb2i_hton;
+struct IBMDB2I_SHARE;
 
 const uint32 db2i_ileBridge_MAX_INPARM_SIZE = 512;
 const uint32 db2i_ileBridge_MAX_OUTPARM_SIZE = 512;
@@ -220,7 +221,8 @@ public:
                     uint32* outLen,
                     uint32* outCnt);
   int32 optimizeTable(FILE_HANDLE rfileHandle);
-  static int32 initILE(const char* aspName); 
+  static int32 initILE(const char* aspName,
+                       uint16* traceCtlPtr); 
   int32 initFileForIO(FILE_HANDLE rfileHandle,
                       char accessIntent,
                       char commitLevel,
@@ -336,9 +338,9 @@ public:
     @param newhandle  The handle associated with newname
     
   */
-  void preserveHandle(const char* newname, FILE_HANDLE newhandle)
+  void preserveHandle(const char* newname, FILE_HANDLE newhandle, IBMDB2I_SHARE* share)
   {
-    pendingLockedHandles.add(newname, newhandle);
+    pendingLockedHandles.add(newname, newhandle, share);
   }
   
   /**
@@ -348,9 +350,10 @@ public:
     
     @return The handle associated with name    
   */
-  FILE_HANDLE findAndRemovePreservedHandle(const char* name)
+  FILE_HANDLE findAndRemovePreservedHandle(const char* name, IBMDB2I_SHARE** share)
   {
-    return pendingLockedHandles.findAndRemove(name);
+    FILE_HANDLE hdl = pendingLockedHandles.findAndRemove(name, share);
+    return hdl;
   }
   
   /**
@@ -380,7 +383,7 @@ public:
     
     @return A pointer to the 7 character message ID.
   */
-  const char* getErrorMsgID()
+  static const char* getErrorMsgID()
   {
     return ((Qmy_Error_output_t*)parms()->outParms)->MsgId;
   }
@@ -413,6 +416,13 @@ public:
         return HA_ERR_NO_SUCH_TABLE;
       case QMY_ERR_NON_UNIQUE_KEY:
         return ER_DUP_ENTRY;
+      case QMY_ERR_MSGID:
+        {
+          if (memcmp(getErrorMsgID(), DB2I_CPF503A, 7) == 0)
+            return HA_ERR_ROW_IS_REFERENCED;
+          if (memcmp(getErrorMsgID(), DB2I_SQL0538, 7) == 0)
+            return HA_ERR_CANNOT_ADD_FOREIGN;
+        }
     }
     return rc;
   }
@@ -458,14 +468,15 @@ private:
   {
     friend db2i_ileBridge* db2i_ileBridge::createNewBridge(CONNECTION_HANDLE);
     public: 
-      void add(const char* newname, FILE_HANDLE newhandle);
-      FILE_HANDLE findAndRemove(const char* fileName);
+      void add(const char* newname, FILE_HANDLE newhandle, IBMDB2I_SHARE* share);
+      FILE_HANDLE findAndRemove(const char* fileName, IBMDB2I_SHARE** share);
       
     private:     
       struct NameHandlePair
       {
         char name[FN_REFLEN];
         FILE_HANDLE handle;
+        IBMDB2I_SHARE* share;
         NameHandlePair* next;
       }* head;
   } pendingLockedHandles;

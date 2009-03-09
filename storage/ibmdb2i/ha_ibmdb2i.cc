@@ -78,7 +78,7 @@ static MYSQL_SYSVAR_STR(rdb_name, ibmdb2i_rdb_name,
 
 static MYSQL_THDVAR_BOOL(transaction_unsafe,
   0,
-  "True auto-commit mode.",
+  "Disable support for commitment control",
   NULL, 
   NULL, 
   FALSE);
@@ -113,22 +113,49 @@ static MYSQL_THDVAR_UINT(max_write_buffer_size,
   64*1024*1024,
   1);
 
-static MYSQL_THDVAR_BOOL(create_time_columns_as_TOD,
+static MYSQL_THDVAR_BOOL(compat_opt_time_as_duration,
   0,
-  "Control how new TIME columns should be defined in DB2. 1=time-of-day (default), 0=duration.",
+  "Control how new TIME columns should be defined in DB2. 0=time-of-day (default), 1=duration.",
   NULL, 
   NULL, 
-  TRUE);
+  FALSE);
 
-static MYSQL_THDVAR_UINT(map_blob_to_varchar,
+static MYSQL_THDVAR_UINT(compat_opt_year_as_int,
   0,
-  "Control how new TEXT columns should be defined in DB2. 0=CLOB (default), 1=VARCHAR",
+  "Control how new YEAR columns should be defined in DB2. 0=CHAR(4) (default), 1=SMALLINT.",
   NULL, 
   NULL, 
   0,
   0,
   1,
   1);
+
+static MYSQL_THDVAR_UINT(compat_opt_blob_cols,
+  0,
+  "Control how new TEXT and BLOB columns should be defined in DB2. 0=CLOB/BLOB (default), 1=VARCHAR/VARBINARY",
+  NULL, 
+  NULL, 
+  0,
+  0,
+  1,
+  1);
+
+static MYSQL_THDVAR_UINT(compat_opt_allow_zero_date_vals,
+  0,
+  "Allow substitute values to be used when storing a column with a 0000-00-00 date component. 0=No substitution (default), 1=Substitute '0001-01-01'",
+  NULL, 
+  NULL, 
+  0,
+  0,
+  1,
+  1);
+
+static MYSQL_THDVAR_BOOL(propagate_default_col_vals,
+  0,
+  "Should DEFAULT column values be propagated to the DB2 table definition.",
+  NULL, 
+  NULL, 
+  TRUE);
 
 static my_bool ibmdb2i_assume_exclusive_use;
 static MYSQL_SYSVAR_BOOL(assume_exclusive_use, ibmdb2i_assume_exclusive_use,
@@ -155,7 +182,7 @@ static MYSQL_THDVAR_UINT(create_index_option,
   1,
   1);
 
-static MYSQL_THDVAR_UINT(discovery_mode,
+/* static MYSQL_THDVAR_UINT(discovery_mode,
   0,
   "Unsupported",
   NULL,
@@ -163,6 +190,17 @@ static MYSQL_THDVAR_UINT(discovery_mode,
   0,
   0,
   1,
+  1); */
+
+static uint32 ibmdb2i_system_trace;
+static MYSQL_SYSVAR_UINT(system_trace_level, ibmdb2i_system_trace,
+  0,
+  "Set system tracing level",
+  NULL, 
+  NULL, 
+  0,
+  0,
+  63,
   1);
 
 
@@ -276,7 +314,7 @@ static int ibmdb2i_init_func(void *p)
       ibmdb2i_rdb_name[i] = my_toupper(system_charset_info, (uchar)ibmdb2i_rdb_name[i]);
     }    
     
-    rc = db2i_ileBridge::initILE(ibmdb2i_rdb_name);
+    rc = db2i_ileBridge::initILE(ibmdb2i_rdb_name, (uint16*)(((char*)&ibmdb2i_system_trace)+2));
     if (rc == 0)
     {
       was_ILE_inited = true;
@@ -294,7 +332,7 @@ static int ibmdb2i_done_func(void *p)
 
   if (ibmdb2i_open_tables.records)
     error= 1;  
-
+  
   if (was_ILE_inited)
     db2i_ileBridge::exitILE();
 
@@ -386,6 +424,8 @@ int ha_ibmdb2i::free_share(IBMDB2I_SHARE *share)
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free(share, MYF(0));
+    pthread_mutex_unlock(&ibmdb2i_mutex);
+    return 1;
   }
   pthread_mutex_unlock(&ibmdb2i_mutex);
 
@@ -528,6 +568,8 @@ ha_ibmdb2i::ha_ibmdb2i(handlerton *hton, TABLE_SHARE *table_arg)
 
 ha_ibmdb2i::~ha_ibmdb2i()
 {
+  DBUG_ASSERT(activeReferences == 0 || outstanding_start_bulk_insert);
+    
   if (indexHandles)
     my_free(indexHandles, MYF(0));
   if (indexReadSizeEstimates)
@@ -554,13 +596,17 @@ int ha_ibmdb2i::open(const char *name, int mode, uint test_if_locked)
 
   initBridge();
   
-  if (!(share = get_share(name, table)))
+  dataHandle = bridge()->findAndRemovePreservedHandle(name, &share);
+  
+  if (share)
+    db2Table = share->db2Table;
+  
+  if (!share && (!(share = get_share(name, table))))
     DBUG_RETURN(my_errno);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
 
-  dataHandle = bridge()->findAndRemovePreservedHandle(name);
     
   DBUG_RETURN(0);
 }
@@ -572,13 +618,17 @@ int ha_ibmdb2i::close(void)
 {
   DBUG_ENTER("ha_ibmdb2i::close");
   int32 rc = 0;
-
+  bool preserveShare = false;
+  
   db2i_ileBridge* bridge = db2i_ileBridge::getBridgeForThread();
   
   if (dataHandle)
   {
     if (bridge->expectErrors(QMY_ERR_PEND_LOCKS)->deallocateFile(dataHandle, FALSE) == QMY_ERR_PEND_LOCKS)
-      bridge->preserveHandle(share->table_name, dataHandle);
+    {
+      bridge->preserveHandle(share->table_name, dataHandle, share);
+      preserveShare = true;
+    }
     dataHandle = 0;
   }
 
@@ -592,7 +642,11 @@ int ha_ibmdb2i::close(void)
   
   cleanupBuffers();
     
-  free_share(share);
+  if (!preserveShare)
+  {
+    if (free_share(share))
+      share = NULL;
+  }
   
   DBUG_RETURN(rc);
 }
@@ -608,58 +662,60 @@ int ha_ibmdb2i::write_row(uchar * buf)
     DBUG_RETURN( last_start_bulk_insert_rc );
   
   ha_statistic_increment(&SSV::ha_write_count);
-  int rc;
+  int rc = 0;
 
   bool fileHandleNeedsRelease = false;
   
   if (!activeHandle)
   {
-    rc = useDataFile(QMY_UPDATABLE);
+    rc = useDataFile();
     if (rc) DBUG_RETURN(rc);
     fileHandleNeedsRelease = true;
   }
       
   if (!outstanding_start_bulk_insert)
-    prepWriteBuffer(1);
+    rc = prepWriteBuffer(1, getFileForActiveHandle());
   
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
-
-  char* writeBuffer = activeWriteBuf->addRow();
-  rc = prepareRowForWrite(writeBuffer, 
-                          writeBuffer+activeFormat->writeRowNullOffset,
-                          true);
-  if (rc == 0)
+  if (!rc)
   {
-    // If we are doing block inserts, if the MI is supposed to generate an auto_increment
-    // (i.e. identity column) value for this record, and if this is not the first record in
-    // the block, then store the value (that the MI will generate for the identity column)
-    // into the MySQL write buffer. We can predetermine the value because the file is locked.    
+    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+      table->timestamp_field->set_time();
 
-    if ((autoIncLockAcquired) && (default_identity_value) && (got_auto_inc_values))
-    { 
-      if (unlikely((next_identity_value - 1) == 
-                    maxValueForField(table->next_number_field)))
-      {
-        rc = QMY_ERR_MAXVALUE;
+    char* writeBuffer = activeWriteBuf->addRow();
+    rc = prepareRowForWrite(writeBuffer, 
+                            writeBuffer+activeWriteBuf->getRowNullOffset(),
+                            true);
+    if (rc == 0)
+    {
+      // If we are doing block inserts, if the MI is supposed to generate an auto_increment
+      // (i.e. identity column) value for this record, and if this is not the first record in
+      // the block, then store the value (that the MI will generate for the identity column)
+      // into the MySQL write buffer. We can predetermine the value because the file is locked.    
+
+      if ((autoIncLockAcquired) && (default_identity_value) && (got_auto_inc_values))
+      { 
+        if (unlikely((next_identity_value - 1) == 
+                      maxValueForField(table->next_number_field)))
+        {
+          rc = QMY_ERR_MAXVALUE;
+        }
+        else
+        {
+          rc = table->next_number_field->store((longlong) next_identity_value, TRUE);
+          next_identity_value = next_identity_value + incrementByValue;
+        }
       }
-      else
-      {
-        rc = table->next_number_field->store((longlong) next_identity_value, TRUE);
-        next_identity_value = next_identity_value + incrementByValue;
-      }
+      // If the buffer is full, or if we locked the file and this is the first or last row
+      // of a blocked insert, then flush the buffer.    
+      if (!rc && (activeWriteBuf->endOfBuffer()) ||
+          ((autoIncLockAcquired) &&
+           ((!got_auto_inc_values))) ||
+          (returnDupKeysImmediately))
+        rc = flushWrite(activeHandle, buf);
     }
-    // If the buffer is full, or if we locked the file and this is the first or last row
-    // of a blocked insert, then flush the buffer.    
-    if (!rc && (activeWriteBuf->endOfBuffer()) ||
-        ((autoIncLockAcquired) &&
-         ((!got_auto_inc_values))) ||
-        (returnDupKeysImmediately))
-      rc = flushWrite(activeHandle, buf);
+    else
+      activeWriteBuf->deleteRow();
   }
-  else
-    activeWriteBuf->deleteRow();
-    
       
   if (fileHandleNeedsRelease)
     releaseActiveHandle();
@@ -748,7 +804,7 @@ int ha_ibmdb2i::update_row(const uchar * old_data, uchar * new_data)
   
   char* writeBuf = activeWriteBuf->addRow();
   rc = prepareRowForWrite(writeBuf, 
-                          writeBuf+activeFormat->writeRowNullOffset,
+                          writeBuf+activeWriteBuf->getRowNullOffset(),
                           onDupUpdate);
 
   char* lastDupKeyNamePtr = NULL;
@@ -819,9 +875,28 @@ int ha_ibmdb2i::index_init(uint idx, bool sorted)
     
   active_index=idx;
 
-  rc = useIndexFile(accessIntent, idx);
-  if (accessIntent != QMY_READ_ONLY)
-    prepWriteBuffer(1);
+  rc = useIndexFile(idx);
+  
+  if (!rc)
+  {
+//     THD* thd = ha_thd();
+//     if (accessIntent == QMY_UPDATABLE &&
+//         thd_tx_isolation(thd) == ISO_REPEATABLE_READ &&
+//         !THDVAR(thd, transaction_unsafe))
+//     {
+//       readAccessIntent = QMY_READ_ONLY;
+//     }
+//     else
+//     {
+      readAccessIntent = accessIntent;
+//     }
+    
+    if (!rc && accessIntent != QMY_READ_ONLY)
+      rc = prepWriteBuffer(1, db2Table->indexFile(idx));
+    
+    if (rc)
+      releaseIndexFile(idx);
+  }
   
   DBUG_RETURN(rc); 
 }
@@ -839,16 +914,18 @@ int ha_ibmdb2i::index_read(uchar * buf, const uchar * key,
   int rc;
   
   ha_rows estimatedRows = getIndexReadEstimate(active_index);
-  rc = prepReadBuffer(estimatedRows);  
+  rc = prepReadBuffer(estimatedRows, db2Table->indexFile(active_index), readAccessIntent);  
   if (unlikely(rc)) DBUG_RETURN(rc);
   
   DBUG_ASSERT(activeReadBuf);
   
-  keyBuf.allocBuf(activeFormat->readRowLen, activeFormat->readRowLen);
+  keyBuf.allocBuf(activeReadBuf->getRowLength(), 
+                  activeReadBuf->getRowNullOffset(), 
+                  activeReadBuf->getRowLength());
   keyBuf.zeroBuf();
   
   char* db2KeyBufPtr = keyBuf.ptr();
-  char* nullKeyMap = db2KeyBufPtr + activeFormat->readRowNullOffset;
+  char* nullKeyMap = db2KeyBufPtr + activeReadBuf->getRowNullOffset();
   
   const uchar* keyBegin = key;
   int partsInUse;
@@ -990,7 +1067,9 @@ int ha_ibmdb2i::index_first(uchar * buf)
 
   if (unlikely(last_index_init_rc)) DBUG_RETURN(last_index_init_rc);
     
-  int rc = prepReadBuffer(DEFAULT_MAX_ROWS_TO_BUFFER);
+  int rc = prepReadBuffer(DEFAULT_MAX_ROWS_TO_BUFFER, 
+                          db2Table->indexFile(active_index), 
+                          readAccessIntent);
   
   if (rc == 0)
   {
@@ -1010,7 +1089,9 @@ int ha_ibmdb2i::index_last(uchar * buf)
   
   if (unlikely(last_index_init_rc)) DBUG_RETURN(last_index_init_rc);
   
-  int rc = prepReadBuffer(DEFAULT_MAX_ROWS_TO_BUFFER);
+  int rc = prepReadBuffer(DEFAULT_MAX_ROWS_TO_BUFFER, 
+                          db2Table->indexFile(active_index), 
+                          readAccessIntent);
   
   if (rc == 0)
   {
@@ -1044,19 +1125,30 @@ int ha_ibmdb2i::rnd_init(bool scan)
   {
     rowsToBlockOnRead = DEFAULT_MAX_ROWS_TO_BUFFER;
   }
-
-  rc = useDataFile(accessIntent); 
   
-  if (rc == 0) 
+  rc = useDataFile(); 
+  
+  if (!rc)
   {
-    if (accessIntent != QMY_READ_ONLY)
-      prepWriteBuffer(1);
-    rc = prepReadBuffer(rowsToBlockOnRead);
-    
-    if (rc == 0 && scan)
-    {
+//     THD* thd = ha_thd();
+//     if (accessIntent == QMY_UPDATABLE &&
+//         thd_tx_isolation(thd) == ISO_REPEATABLE_READ &&
+//         !THDVAR(thd, transaction_unsafe))
+//     {
+//       readAccessIntent = QMY_READ_ONLY;
+//     }
+//     else
+//     {
+      readAccessIntent = accessIntent;
+//     }
+
+    rc = prepReadBuffer(rowsToBlockOnRead, db2Table->dataFile(), readAccessIntent);
+
+    if (!rc && accessIntent != QMY_READ_ONLY)
+      rc = prepWriteBuffer(1, db2Table->dataFile());
+
+    if (!rc && scan)
       doInitialRead(QMY_FIRST, rowsToBlockOnRead);
-    }
     
     if (rc)
       releaseDataFile();
@@ -1167,7 +1259,10 @@ int ha_ibmdb2i::rnd_pos(uchar * buf, uchar *pos)
   
   if (likely(rc == 0))
   {
-    rc = prepReadBuffer(1);
+    rc = prepReadBuffer(1, getFileForActiveHandle(), accessIntent);
+
+    if (likely(rc == 0) && accessIntent == QMY_UPDATABLE)
+      rc = prepWriteBuffer(1, getFileForActiveHandle());
 
     if (likely(rc == 0))
     {
@@ -1181,7 +1276,7 @@ int ha_ibmdb2i::rnd_pos(uchar * buf, uchar *pos)
       {
         rrnAssocHandle = activeHandle;
         const char* readBuf = activeReadBuf->getRowN(0);
-        rc = mungeDB2row(buf, readBuf, readBuf + activeFormat->readRowNullOffset, false);
+        rc = mungeDB2row(buf, readBuf, readBuf + activeReadBuf->getRowNullOffset(), false);
         releaseRowNeeded = TRUE;
       }
     }    
@@ -1450,7 +1545,9 @@ int ha_ibmdb2i::getNextIdVal(ulonglong *value)
   
   char queryBuffer[MAX_DB2_COLNAME_LENGTH + MAX_DB2_QUALIFIEDNAME_LENGTH + 64];
   strcpy(queryBuffer, " SELECT CAST(MAX( ");
-  convertMySQLNameToDB2Name(table->found_next_number_field->field_name, strend(queryBuffer), MAX_DB2_COLNAME_LENGTH+1);
+  convertMySQLNameToDB2Name(table->found_next_number_field->field_name, 
+                            strend(queryBuffer), 
+                            MAX_DB2_COLNAME_LENGTH+1);
   strcat(queryBuffer, ") AS BIGINT) FROM ");    
   db2Table->getDB2QualifiedName(strend(queryBuffer));
   DBUG_ASSERT(strlen(queryBuffer) < sizeof(queryBuffer));
@@ -1621,7 +1718,9 @@ int ha_ibmdb2i::reset_auto_increment(ulonglong value)
   query.append(fileName);
   query.append(STRING_WITH_LEN(" ALTER COLUMN "));
   char colName[MAX_DB2_COLNAME_LENGTH+1];
-  convertMySQLNameToDB2Name(table->found_next_number_field->field_name, colName, sizeof(colName));
+  convertMySQLNameToDB2Name(table->found_next_number_field->field_name, 
+                            colName, 
+                            sizeof(colName));
   query.append(colName);
   
   char restart_value[22];  
@@ -1637,10 +1736,10 @@ int ha_ibmdb2i::reset_auto_increment(ulonglong value)
 
   rc = db2i_ileBridge::getBridgeForThread()->execSQL(sqlStream.getPtrToData(),
                                                      sqlStream.getStatementCount(),
-                                                     getCommitLevel(),
+                                                     QMY_NONE, //getCommitLevel(),
                                                      FALSE,
                                                      FALSE,
-                                                     FALSE,
+                                                     TRUE, //FALSE,
                                                      dataHandle);
   if (rc == 0)
     db2Table->updateStartId(value); 
@@ -1657,7 +1756,8 @@ int ha_ibmdb2i::reset_auto_increment(ulonglong value)
 bool ha_ibmdb2i::get_error_message(int error, String *buf)
 {
   DBUG_ENTER("ha_ibmdb2i::get_error_message");
-  if (error >= DB2I_FIRST_ERR && error <= DB2I_LAST_ERR)
+  if ((error >= DB2I_FIRST_ERR && error <= DB2I_LAST_ERR) ||
+      (error >= QMY_ERR_MIN && error <= QMY_ERR_MAX))
   {
     db2i_ileBridge* bridge = db2i_ileBridge::getBridgeForThread(ha_thd());
     char* errMsg = bridge->getErrorStorage();
@@ -1773,7 +1873,9 @@ int ha_ibmdb2i::external_lock(THD *thd, int lock_type)
                            (command == SQLCOM_LOCK_TABLES ? QMY_NO : QMY_YES)); 
     
   } 
-
+  
+  // Cache this away so we don't have to access it on each row operation
+  cachedZeroDateOption = (enum_ZeroDate)THDVAR(thd, compat_opt_allow_zero_date_vals);
   
   DBUG_RETURN(rc);
 }
@@ -1834,9 +1936,16 @@ int ha_ibmdb2i::delete_table(const char *name)
   if (rc == 0)
   {
     db2i_table::deleteAssocFiles(name);
-    FILE_HANDLE savedHandle = bridge->findAndRemovePreservedHandle(name);
-    if (savedHandle)
-      bridge->deallocateFile(savedHandle, TRUE);
+  }
+  
+  FILE_HANDLE savedHandle = bridge->findAndRemovePreservedHandle(name, &share);
+  while (savedHandle)
+  {
+    bridge->deallocateFile(savedHandle, TRUE);
+    DBUG_ASSERT(share);
+    if (free_share(share))
+      share = NULL;   
+    savedHandle = bridge->findAndRemovePreservedHandle(name, &share);
   }
     
   my_errno = rc;
@@ -2012,7 +2121,8 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
 
   if (osVersion.v < 6)
   {
-    if (strlen(libName) > MAX_DB2_V5R4_LIBNAME_LENGTH)
+    if (strlen(libName) > 
+         MAX_DB2_V5R4_LIBNAME_LENGTH + (isUpperOrQuote(system_charset_info, libName) ? 2 : 0))
     {
       getErrTxt(DB2I_ERR_TOO_LONG_SCHEMA,libName, MAX_DB2_V5R4_LIBNAME_LENGTH);
       DBUG_RETURN(DB2I_ERR_TOO_LONG_SCHEMA);
@@ -2043,9 +2153,12 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   query.append(STRING_WITH_LEN(" ("));
   
   THD* thd = ha_thd();
-  enum_TimeFormat timeFormat = (THDVAR(thd, create_time_columns_as_TOD) ? TIME_OF_DAY : DURATION);
-  enum_BlobMapping blobMapping = (enum_BlobMapping)(THDVAR(thd, map_blob_to_varchar));
-      
+  enum_TimeFormat timeFormat = (enum_TimeFormat)(THDVAR(thd, compat_opt_time_as_duration));
+  enum_YearFormat yearFormat = (enum_YearFormat)(THDVAR(thd, compat_opt_year_as_int));
+  enum_BlobMapping blobMapping = (enum_BlobMapping)(THDVAR(thd, compat_opt_blob_cols));
+  enum_ZeroDate zeroDate = (enum_ZeroDate)(THDVAR(thd, compat_opt_allow_zero_date_vals));
+  bool propagateDefaults = THDVAR(thd, propagate_default_col_vals);
+  
   Field **field;
   for (field= table_arg->field; *field; field++)
   {  
@@ -2061,7 +2174,13 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
     query.append(colName);    
     query.append(' ');
 
-    if (rc = getFieldTypeMapping(*field, query, timeFormat, blobMapping))
+    if (rc = getFieldTypeMapping(*field, 
+                                 query, 
+                                 timeFormat, 
+                                 blobMapping,
+                                 zeroDate,
+                                 propagateDefaults,
+                                 yearFormat))
       DBUG_RETURN(rc);
 
     if ( (*field)->flags & NOT_NULL_FLAG )
@@ -2105,43 +2224,35 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
 
     } 
   }
+  
+  bool primaryHasStringField = false;
 
-  String primaryKeyQuery;
-  primaryKeyQuery.length(0);
   if (table_arg->s->primary_key != MAX_KEY && !isTemporary)
   {
     KEY& curKey = table_arg->key_info[table_arg->s->primary_key];
-    primaryKeyQuery.append(STRING_WITH_LEN(" PRIMARY KEY( "));
+    query.append(STRING_WITH_LEN(", PRIMARY KEY( "));
     for (int j = 0; j < curKey.key_parts; ++j)
     {
       if (j != 0)
       {
-        primaryKeyQuery.append( STRING_WITH_LEN(" , ") );
+        query.append( STRING_WITH_LEN(" , ") );
       }
       Field* field = curKey.key_part[j].field;
       convertMySQLNameToDB2Name(field->field_name, colName, sizeof(colName));
-      primaryKeyQuery.append(colName);
-      rc = updateAssociatedSortSequence(field,
-                                        &fileSortSequenceType,
-                                        fileSortSequence,
-                                        fileSortSequenceLibrary);
-      if (rc) DBUG_RETURN (rc);
+      query.append(colName);
+      enum_field_types type = field->real_type();
+      if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_BLOB ||
+          type == MYSQL_TYPE_STRING)
+      {
+        rc = updateAssociatedSortSequence(field->charset(),
+                                          &fileSortSequenceType,
+                                          fileSortSequence,
+                                          fileSortSequenceLibrary);
+        if (rc) DBUG_RETURN (rc);
+        primaryHasStringField = true;
+      }
     }
-    primaryKeyQuery.append(STRING_WITH_LEN(" ) "));
-  }
-
-  bool needAlterForPrimaryKey = FALSE;
-  if ((fileSortSequence[0] != '*') && (fileSortSequence[0] != 'Q')) // An ICU sort sequence
-  {
-    needAlterForPrimaryKey = TRUE;
-  }
-  else 
-  {
-    if (primaryKeyQuery.length() > 0)
-    {
-      query.append(STRING_WITH_LEN(" , "));
-      query.append(primaryKeyQuery);
-    }
+    query.append(STRING_WITH_LEN(" ) "));
   }
 
   rc = buildDB2ConstraintString(thd->lex, 
@@ -2162,20 +2273,6 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   SqlStatementStream sqlStream(query.length());
   sqlStream.addStatement(query,fileSortSequence,fileSortSequenceLibrary);
   
-
-
-  if (needAlterForPrimaryKey == TRUE && !isTemporary) 
-  {
-    rc = buildCreateIndexStatement(sqlStream, 
-                              table_arg->key_info[table_arg->s->primary_key],
-                              true,
-                              libName,
-                              fileName);
-    if (rc) DBUG_RETURN (rc);
-  }
-  
-  uint i = 0;
-  
   for (uint i = 0; i < table_arg->s->keys; ++i)
   {
     if (i != table_arg->s->primary_key || isTemporary)
@@ -2193,8 +2290,8 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   
   initBridge();
   
-  if (THDVAR(thd, discovery_mode) == 1)
-    bridge()->expectErrors(QMY_ERR_TABLE_EXISTS);
+//   if (THDVAR(thd, discovery_mode) == 1)
+//     bridge()->expectErrors(QMY_ERR_TABLE_EXISTS);
   
   rc = bridge()->execSQL(sqlStream.getPtrToData(),
                          sqlStream.getStatementCount(),
@@ -2209,8 +2306,8 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
     my_error(ER_BLOB_USED_AS_KEY, MYF(0), "*unknown*");
     rc = ER_BLOB_USED_AS_KEY;
   }
-  else if (unlikely(rc == QMY_ERR_TABLE_EXISTS) &&
-           THDVAR(thd, discovery_mode) == 1)
+/*   else if (unlikely(rc == QMY_ERR_TABLE_EXISTS) &&
+            THDVAR(thd, discovery_mode) == 1)
   {
     db2i_table* temp = new db2i_table(table_arg->s, name);
     int32 rc = temp->fastInitForCreate(name);
@@ -2221,6 +2318,7 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
     
     DBUG_RETURN(rc);
   }   
+*/
   
   if (!rc && !isTemporary)
   {
@@ -2483,9 +2581,9 @@ void ha_ibmdb2i::start_bulk_insert(ha_rows rows)
   
   if (activeHandle == 0)
   {
-    last_start_bulk_insert_rc = useDataFile(QMY_UPDATABLE);
+    last_start_bulk_insert_rc = useDataFile();
     if (last_start_bulk_insert_rc == 0)
-      prepWriteBuffer(rows);
+      last_start_bulk_insert_rc = prepWriteBuffer(rows, db2Table->dataFile());
   }
 
   if (last_start_bulk_insert_rc == 0)
@@ -2519,12 +2617,18 @@ int ha_ibmdb2i::end_bulk_insert()
 }
 
   
-int ha_ibmdb2i::prepReadBuffer(ha_rows rowsToRead)    
+int ha_ibmdb2i::prepReadBuffer(ha_rows rowsToRead, const db2i_file* file, char intent)    
 {
   DBUG_ENTER("ha_ibmdb2i::prepReadBuffer");
-  DBUG_ASSERT((accessIntent == QMY_READ_ONLY || accessIntent == QMY_UPDATABLE) && rowsToRead > 0);
+  DBUG_ASSERT(rowsToRead > 0);
 
-  int rc = 0;
+  THD* thd = ha_thd();
+  char cmtLvl = getCommitLevel(thd);
+  
+  const db2i_file::RowFormat* format;
+  int rc = file->obtainRowFormat(activeHandle, intent, cmtLvl, &format);
+  
+  if (unlikely(rc)) DBUG_RETURN(rc);
   
   if (lobFieldsRequested())
   {
@@ -2534,10 +2638,8 @@ int ha_ibmdb2i::prepReadBuffer(ha_rows rowsToRead)
   
   rowsToRead = min(stats.records+1,min(rowsToRead, DEFAULT_MAX_ROWS_TO_BUFFER));
   
-  THD* thd = ha_thd();
-  
-  uint bufSize = min((activeFormat->readRowLen * rowsToRead), THDVAR(thd, max_read_buffer_size));
-  multiRowReadBuf.allocBuf(activeFormat->readRowLen, bufSize);
+  uint bufSize = min((format->readRowLen * rowsToRead), THDVAR(thd, max_read_buffer_size));
+  multiRowReadBuf.allocBuf(format->readRowLen, format->readRowNullOffset, bufSize);
   activeReadBuf = &multiRowReadBuf;
     
   if (db2Table->hasBlobs())
@@ -2547,28 +2649,42 @@ int ha_ibmdb2i::prepReadBuffer(ha_rows rowsToRead)
     rc = prepareReadBufferForLobs();
     if (rc) DBUG_RETURN(rc);
   }
-  activeReadBuf->update(accessIntent, &releaseRowNeeded, getCommitLevel(thd));
+  
+//   if (accessIntent == QMY_UPDATABLE &&
+//       thd_tx_isolation(thd) == ISO_REPEATABLE_READ &&
+//       !THDVAR(thd, transaction_unsafe))
+//     activeReadBuf->update(QMY_READ_ONLY, &releaseRowNeeded, QMY_REPEATABLE_READ);
+//   else
+    activeReadBuf->update(intent, &releaseRowNeeded, cmtLvl);
 
   DBUG_RETURN(rc);
 }
 
  
-void ha_ibmdb2i::prepWriteBuffer(ha_rows rowsToWrite)
+int ha_ibmdb2i::prepWriteBuffer(ha_rows rowsToWrite, const db2i_file* file)
 {
   DBUG_ENTER("ha_ibmdb2i::prepWriteBuffer");
   DBUG_ASSERT(accessIntent == QMY_UPDATABLE && rowsToWrite > 0);
   
-  rowsToWrite = min(rowsToWrite, DEFAULT_MAX_ROWS_TO_BUFFER);
+  const db2i_file::RowFormat* format;
+  int rc = file->obtainRowFormat(activeHandle,
+                                 QMY_UPDATABLE,
+                                 getCommitLevel(ha_thd()),
+                                 &format);
 
-  uint bufSize = min((activeFormat->writeRowLen * rowsToWrite), THDVAR(ha_thd(), max_write_buffer_size));
-  multiRowWriteBuf.allocBuf(activeFormat->writeRowLen, bufSize);
+  if (unlikely(rc)) DBUG_RETURN(rc);
+  
+  rowsToWrite = min(rowsToWrite, DEFAULT_MAX_ROWS_TO_BUFFER);
+  
+  uint bufSize = min((format->writeRowLen * rowsToWrite), THDVAR(ha_thd(), max_write_buffer_size));
+  multiRowWriteBuf.allocBuf(format->writeRowLen, format->writeRowNullOffset, bufSize);
   activeWriteBuf = &multiRowWriteBuf;
 
   if (!blobWriteBuffers && db2Table->hasBlobs())
   {
     blobWriteBuffers = new ValidatedPointer<char>[db2Table->getBlobCount()];
   }    
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2621,7 +2737,7 @@ int ha_ibmdb2i::flushWrite(FILE_HANDLE fileHandle, uchar* buf )
           readAllColumns = true;
           mungeDB2row(buf, 
                       badRow, 
-                      badRow + activeFormat->writeRowNullOffset,
+                      badRow + activeWriteBuf->getRowNullOffset(),
                       true);
           readAllColumns = savedReadAllColumns;
 
@@ -2770,7 +2886,7 @@ int ha_ibmdb2i::prepareReadBufferForLobs()
   activeReadBuf->setRowsToProcess((activeLobFields ? 1 : activeReadBuf->getRowCapacity()));
   int rc = bridge()->objectOverride(activeHandle,
                                     activeReadBuf->ptr(),
-                                    activeFormat->readRowLen);
+                                    activeReadBuf->getRowLength());
   DBUG_RETURN(rc);
 }
 
@@ -2898,7 +3014,10 @@ int32 ha_ibmdb2i::buildCreateIndexStatement(SqlStatementStream& sqlStream,
     Field* field = key.key_part[j].field;
     convertMySQLNameToDB2Name(field->field_name, colName, sizeof(colName));
     fieldDefinition.append(colName);
-    rc = updateAssociatedSortSequence(field,&fileSortSequenceType,fileSortSequence,fileSortSequenceLibrary);
+    rc = updateAssociatedSortSequence(field->charset(),
+                                      &fileSortSequenceType,
+                                      fileSortSequence,
+                                      fileSortSequenceLibrary);
     if (rc) DBUG_RETURN (rc);
   }
   fieldDefinition.append(STRING_WITH_LEN(" ) "));
@@ -3098,7 +3217,7 @@ double ha_ibmdb2i::read_time(uint index, uint ranges, ha_rows rows)
   DBUG_RETURN(cost);
 }
 
-int ha_ibmdb2i::useIndexFile(char intent, int idx)
+int ha_ibmdb2i::useIndexFile(int idx)
 {
   DBUG_ENTER("ha_ibmdb2i::useIndexFile");
 
@@ -3112,16 +3231,8 @@ int ha_ibmdb2i::useIndexFile(char intent, int idx)
 
   if (rc == 0)
   {
-    rc = db2Table->indexFile(idx)->useFile(indexHandles[idx],
-                                    intent,
-                                    getCommitLevel(),
-                                    &activeFormat);
-
-    if (rc == 0)
-    {
       activeHandle = indexHandles[idx];
       bumpInUseCounter(1);
-    }
   }
 
    DBUG_RETURN(rc);
@@ -3141,11 +3252,15 @@ static struct st_mysql_sys_var* ibmdb2i_system_variables[] = {
   MYSQL_SYSVAR(max_read_buffer_size),
   MYSQL_SYSVAR(max_write_buffer_size),
   MYSQL_SYSVAR(async_enabled),
-  MYSQL_SYSVAR(create_time_columns_as_TOD),
   MYSQL_SYSVAR(assume_exclusive_use),
-  MYSQL_SYSVAR(map_blob_to_varchar),
+  MYSQL_SYSVAR(compat_opt_blob_cols),
+  MYSQL_SYSVAR(compat_opt_time_as_duration),
+  MYSQL_SYSVAR(compat_opt_allow_zero_date_vals),
+  MYSQL_SYSVAR(compat_opt_year_as_int),
+  MYSQL_SYSVAR(propagate_default_col_vals),
   MYSQL_SYSVAR(create_index_option),
-  MYSQL_SYSVAR(discovery_mode),
+//   MYSQL_SYSVAR(discovery_mode),
+  MYSQL_SYSVAR(system_trace_level),
   NULL
 };
 
@@ -3160,7 +3275,7 @@ mysql_declare_plugin(ibmdb2i)
   "IBMDB2I",
   "The IBM development team in Rochester, Minnesota",
   "IBM DB2 for i Storage Engine",
-  PLUGIN_LICENSE_PROPRIETARY,
+  PLUGIN_LICENSE_GPL,
   ibmdb2i_init_func,                            /* Plugin Init */
   ibmdb2i_done_func,                            /* Plugin Deinit */
   0x0100 /* 1.0 */,

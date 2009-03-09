@@ -65,7 +65,7 @@ OF SUCH DAMAGE.
   It is used to describe the underlying table definition, and it caches
   table statistics.
 */
-typedef struct st_ibmdb2i_share {
+struct IBMDB2I_SHARE {
   char *table_name;
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
@@ -110,7 +110,7 @@ typedef struct st_ibmdb2i_share {
     ulong data_file_length;
   } cachedStats;
   
-} IBMDB2I_SHARE;
+};
 
 class ha_ibmdb2i: public handler
 {
@@ -143,16 +143,15 @@ class ha_ibmdb2i: public handler
   // Array of file handles belonging to the underlying LFs
   FILE_HANDLE* indexHandles;
 
-  // Pointer to a definition of the layout of the row buffer for the file
-  // described by activeHandle
-  const db2i_file::RowFormat* activeFormat;
- 
   // Flag to indicate whether a call needs to be made to unlock a row when
   // a read operation has ended. DB2 will handle row unlocking as we move
   // through rows, but if an operation ends before we reach the end of a file,
   // DB2 needs to know to unlock the last row read.
   bool releaseRowNeeded;
   
+  // Pointer to a definition of the layout of the row buffer for the file
+  // described by activeHandle
+  const db2i_file::RowFormat* activeFormat;
    
   IORowBuffer keyBuf;
   uint32 keyLen;
@@ -190,6 +189,7 @@ class ha_ibmdb2i: public handler
   // The access intent indicated by the last external_locks() call.
   // May be either QMY_READ or QMY_UPDATABLE
   char accessIntent;
+  char readAccessIntent;
 
   ha_rows* indexReadSizeEstimates;
 
@@ -361,6 +361,20 @@ private:
     AS_VARCHAR
   };
     
+  enum enum_ZeroDate
+  {
+    NO_SUBSTITUTE,
+    SUBSTITUTE_0001_01_01
+  };
+  
+  enum enum_YearFormat
+  {
+    CHAR4,
+    SMALLINT
+  };
+  
+  enum_ZeroDate cachedZeroDateOption;
+    
   IBMDB2I_SHARE *get_share(const char *table_name, TABLE *table);       
   int free_share(IBMDB2I_SHARE *share);
   int32 mungeDB2row(uchar* record, const char* dataPtr, const char* nullMapPtr, bool skipLOBs);
@@ -396,10 +410,9 @@ private:
   }
   
         
-  int useDataFile(char intent)
+  int useDataFile()
   {
     DBUG_ENTER("ha_ibmdb2i::useDataFile");    
-    DBUG_PRINT("ha_ibmdb2i::useDataFile", ("Intent: %d", intent));
     
     int rc = 0;
     if (!dataHandle)
@@ -408,20 +421,11 @@ private:
       DBUG_RETURN(0);
     
     DBUG_ASSERT(activeHandle == 0);
-
     
     if (likely(rc == 0))
     {
-      rc = db2Table->dataFile()->useFile(dataHandle,
-                                         intent,
-                                         getCommitLevel(),
-                                         &activeFormat);
-
-      if (likely(rc == 0))
-      {
-        activeHandle = dataHandle;
-        bumpInUseCounter(1);
-      }
+      activeHandle = dataHandle;
+      bumpInUseCounter(1);
     }
 
     DBUG_RETURN(rc);
@@ -448,7 +452,7 @@ private:
     DBUG_VOID_RETURN;
   }
  
-  int useIndexFile(char intent, int idx);
+  int useIndexFile(int idx);
   
   void releaseIndexFile(int idx)
   {
@@ -526,7 +530,10 @@ private:
   int getFieldTypeMapping(Field* field, 
                           String& mapping, 
                           enum_TimeFormat timeFormate,
-                          enum_BlobMapping blobMapping);
+                          enum_BlobMapping blobMapping,
+                          enum_ZeroDate zeroDateHandling,
+                          bool propagateDefaults,
+                          enum_YearFormat yearFormat);
 
   int getKeyFromName(const char* name, size_t len);
 
@@ -564,6 +571,9 @@ private:
         {
           DBUG_ASSERT(activeReadBuf->rowCount() == 1);
           row = activeReadBuf->readNextRow(orientation, currentRRN);
+          
+          if (unlikely(!row))
+            rc = activeReadBuf->lastrc();
         }
       }
     }
@@ -571,7 +581,7 @@ private:
     if (likely(rc == 0))
     {
       rrnAssocHandle = activeHandle;
-      rc = mungeDB2row(destination, row, row+activeFormat->readRowNullOffset, false);
+      rc = mungeDB2row(destination, row, row+activeReadBuf->getRowNullOffset(), false);
     }   
     return rc;
   }
@@ -631,7 +641,7 @@ private:
       }
     }
     
-    int rc = file->useFile(handle, intent, getCommitLevel(), &activeFormat);
+    int rc = file->obtainRowFormat(handle, intent, getCommitLevel(), &activeFormat);
     if (likely(rc == 0))
     {
       activeHandle = handle;
@@ -641,12 +651,25 @@ private:
     DBUG_RETURN(rc);   
   }
   
-  int prepReadBuffer(ha_rows rowsToRead);
-  void prepWriteBuffer(ha_rows rowsToWrite);
+  const db2i_file* getFileForActiveHandle() const
+  {
+    if (activeHandle == dataHandle)
+      return db2Table->dataFile();
+    else
+      for (uint i = 0; i < table_share->keys; ++i)
+        if (indexHandles[i] == activeHandle)
+          return db2Table->indexFile(i);
+    DBUG_ASSERT(0);
+    return NULL;
+  }
+  
+  int prepReadBuffer(ha_rows rowsToRead, const db2i_file* file, char intent);
+  int prepWriteBuffer(ha_rows rowsToWrite, const db2i_file* file);
   
   void invalidateCachedStats()
   {
-    share->cachedStats.invalidate(rowCount | deletedRowCount | objLength | meanRowLen | ioCount);
+    share->cachedStats.invalidate(rowCount | deletedRowCount | objLength | 
+                                  meanRowLen | ioCount);
   }
     
   void warnIfInvalidData()

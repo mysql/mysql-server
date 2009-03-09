@@ -894,6 +894,7 @@ int32 db2i_ileBridge::savepoint(uint8 function,
   return rc;
 }
 
+static ILEMemHandle traceSpcHandle;
 /**
   Do initialization for  the QMY_* APIs.
   
@@ -902,7 +903,8 @@ int32 db2i_ileBridge::savepoint(uint8 function,
   
   @return  0 if successful; error otherwise
 */
-int32 db2i_ileBridge::initILE(const char* aspName)
+int32 db2i_ileBridge::initILE(const char* aspName,
+                              uint16* traceCtlPtr)
 {
   // We forego the typical thread-based parms space because MySQL doesn't
   // allow us to clean it up before checking for memory leaks. As a result
@@ -915,6 +917,8 @@ int32 db2i_ileBridge::initILE(const char* aspName)
     reportSystemAPIError(rc, NULL);
     return rc;
   }
+  
+  registerPtr(traceCtlPtr, &traceSpcHandle);
   
   struct ParmBlock
   {
@@ -935,6 +939,9 @@ int32 db2i_ileBridge::initILE(const char* aspName)
   memset(paddedName, ' ', sizeof(paddedName));
   memcpy(paddedName, aspName, strlen(aspName));      
   convToEbcdic(paddedName, parmBlock->parms.RDBName, strlen(paddedName));
+  
+  parmBlock->parms.RDBNamLen = strlen(paddedName);
+  parmBlock->parms.TrcSpcHnd = traceSpcHandle;
             
   rc = doIt();
 
@@ -963,6 +970,8 @@ int32 db2i_ileBridge::exitILE()
   {
     reportSystemAPIError(rc, (Qmy_Error_output_t*)parmBlock->outParms);
   }
+  
+  unregisterPtr(traceSpcHandle);
 
   DBUG_PRINT("db2i_ileBridge::exitILE", ("Registered ptrs remaining: %d", registeredPtrs));
 #ifndef DBUG_OFF
@@ -1267,7 +1276,7 @@ int32 db2i_ileBridge::quiesceFileInstance(FILE_HANDLE rfileHandle)
   return rc;
 }
   
-void db2i_ileBridge::PreservedHandleList::add(const char* newname, FILE_HANDLE newhandle) 
+void db2i_ileBridge::PreservedHandleList::add(const char* newname, FILE_HANDLE newhandle, IBMDB2I_SHARE* share) 
 {
   NameHandlePair *newPair = (NameHandlePair*)my_malloc(sizeof(NameHandlePair), MYF(MY_WME)); 
 
@@ -1276,11 +1285,12 @@ void db2i_ileBridge::PreservedHandleList::add(const char* newname, FILE_HANDLE n
 
   strcpy(newPair->name, newname);
   newPair->handle = newhandle;
+  newPair->share = share;
   DBUG_PRINT("db2i_ileBridge", ("Added handle %d for %s", uint32(newhandle), newname));
 }
     
 
-FILE_HANDLE db2i_ileBridge::PreservedHandleList::findAndRemove(const char* fileName)
+FILE_HANDLE db2i_ileBridge::PreservedHandleList::findAndRemove(const char* fileName, IBMDB2I_SHARE** share)
 {
   NameHandlePair* current = head;
   NameHandlePair* prev = NULL;
@@ -1291,6 +1301,7 @@ FILE_HANDLE db2i_ileBridge::PreservedHandleList::findAndRemove(const char* fileN
     if (strcmp(fileName, current->name) == 0)
     { 
       FILE_HANDLE tmp = current->handle;
+      *share = current->share;
       if (prev)
         prev->next = next;
       if (current == head)

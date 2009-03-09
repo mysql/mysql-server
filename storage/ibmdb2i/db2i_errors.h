@@ -78,7 +78,8 @@ enum DB2I_errors
   DB2I_ERR_UNKNOWN_IDX,
   DB2I_ERR_DISCOVERY_MISMATCH,
   DB2I_ERR_WARN_CREATE_DISCOVER,
-  DB2I_LAST_ERR = DB2I_ERR_WARN_CREATE_DISCOVER
+  DB2I_ERR_WARN_COL_ATTRS,
+  DB2I_LAST_ERR = DB2I_ERR_WARN_COL_ATTRS
 };
 
 void getErrTxt(int errcode, ...);
@@ -86,6 +87,7 @@ void reportSystemAPIError(int errCode, const Qmy_Error_output *errInfo);
 void warning(THD *thd, int errCode, ...);
 
 const char* DB2I_SQL0350 = "\xE2\xD8\xD3\xF0\xF3\xF5\xF0"; // SQL0350 in EBCDIC
-
+const char* DB2I_CPF503A = "\xC3\xD7\xC6\xF5\xF0\xF3\xC1"; // CPF503A in EBCDIC
+const char* DB2I_SQL0538 = "\xE2\xD8\xD3\xF0\xF5\xF3\xF8"; // SQL0538 in EBCDIC
 
 #endif

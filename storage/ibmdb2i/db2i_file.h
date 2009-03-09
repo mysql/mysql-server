@@ -270,6 +270,7 @@ private:
 
   void findConversionDefinition(enum_conversionDirection direction, uint16 fieldID);
   static void filenameToTablename(const char* in, char* out, size_t outlen);  
+  static size_t smartFilenameToTableName(const char *in, char* out, size_t outlen);
   void convertNativeToSQLName(const char* input, 
                               char* output) 
   {
@@ -301,6 +302,7 @@ private:
   iconv_t* conversionDefinitions[2];
   
   const TABLE_SHARE* mysqlTable;
+  uint16 logicalFileCount;
   char* db2LibNameEbcdic; // Quoted and in EBCDIC
   char* db2LibNameAscii;
   char* db2TableNameEbcdic;
@@ -326,22 +328,18 @@ private:
 */
 class db2i_file
 {
-  enum RowFormats
-  {
-    readOnly = 0,
-    readWrite,
-    maxRowFormats
-  };
 
 public: 
-  mutable struct RowFormat
+  struct RowFormat
   {
     uint16 readRowLen;
     uint16 readRowNullOffset;
     uint16 writeRowLen;
     uint16 writeRowNullOffset;
     char inited;
-  } formats[maxRowFormats];
+  };
+  
+public:
 
   // Construct an instance for a physical file.
   db2i_file(db2i_table* table);
@@ -375,31 +373,29 @@ public:
   
   // This obtains the row layout associated with a particular access intent for
   // an open instance of the file.
-  int useFile(FILE_HANDLE instanceHandle, 
-              char intent,
-              char commitLevel,
-              const RowFormat** activeFormat) const
+  int obtainRowFormat(FILE_HANDLE instanceHandle, 
+                       char intent,
+                       char commitLevel,
+                       const RowFormat** activeFormat) const
   {
-    DBUG_ENTER("db2i_file::useFile");    
+    DBUG_ENTER("db2i_file::obtainRowFormat");    
     RowFormat* rowFormat;
         
     if (intent == QMY_UPDATABLE)
       rowFormat = &(formats[readWrite]);
     else if (intent == QMY_READ_ONLY)
       rowFormat = &(formats[readOnly]);
-    else
-      DBUG_ASSERT(0);
         
-    if (!rowFormat->inited)
+    if (unlikely(!rowFormat->inited))
     {
-      int rc;
-      rc = db2i_ileBridge::getBridgeForThread()->initFileForIO(instanceHandle,
-                                                             intent,
-                                                             commitLevel,
-                                                             &(rowFormat->writeRowLen),
-                                                             &(rowFormat->writeRowNullOffset),
-                                                             &(rowFormat->readRowLen),
-                                                             &(rowFormat->readRowNullOffset));
+      int rc = db2i_ileBridge::getBridgeForThread()->
+                                 initFileForIO(instanceHandle,
+                                               intent,
+                                               commitLevel,
+                                               &(rowFormat->writeRowLen),
+                                               &(rowFormat->writeRowNullOffset),
+                                               &(rowFormat->readRowLen),
+                                               &(rowFormat->readRowNullOffset));
       if (rc) DBUG_RETURN(rc);
       rowFormat->inited = 1;
     }
@@ -426,6 +422,15 @@ public:
   }
   
 private:  
+  enum RowFormats
+  {
+    readOnly = 0,
+    readWrite,
+    maxRowFormats
+  };
+    
+  mutable RowFormat formats[maxRowFormats];
+  
   void commonCtorInit();
   
   char* db2FileName; // Quoted and in EBCDIC

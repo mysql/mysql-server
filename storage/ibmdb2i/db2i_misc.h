@@ -92,4 +92,16 @@ bool convertMySQLNameToDB2Name(const char* input,
   return (o <= outlen-1);
 }
 
+bool isUpperOrQuote(const CHARSET_INFO* cs, const char* s)
+{
+  while (*s)
+  {
+    if (my_isupper(cs, *s) || (*s == '"'))
+      ++s;
+    else
+      return false;
+  }
+  return true;
+}
+  
 #endif
