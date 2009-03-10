@@ -1,15 +1,23 @@
-create table t1 (a int) engine=innodb;
-reset master;
-set autocommit=0;
-insert t1 values (1);
-flush tables with read lock;
-show master status;
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
+# Switch to connection con1
+CREATE TABLE t1 (a INT) ENGINE=innodb;
+RESET MASTER;
+SET AUTOCOMMIT=0;
+INSERT t1 VALUES (1);
+# Switch to connection con2
+FLUSH TABLES WITH READ LOCK;
+SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	106		
-commit;
-show master status;
+# Switch to connection con1
+COMMIT;
+# Switch to connection con2
+SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	106		
-unlock tables;
-drop table t1;
-set autocommit=1;
+UNLOCK TABLES;
+# Switch to connection con1
+DROP TABLE t1;
+SET AUTOCOMMIT=1;
+# Switch to connection default and close connections con1 and con2
