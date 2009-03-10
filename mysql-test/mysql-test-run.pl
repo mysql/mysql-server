@@ -223,6 +223,7 @@ our $opt_warnings= 1;
 our $opt_skip_ndbcluster= 0;
 
 my $exe_ndbd;
+my $exe_ndbmtd;
 my $exe_ndb_mgmd;
 my $exe_ndb_waiter;
 
@@ -1487,10 +1488,19 @@ sub executable_setup () {
 
   if ( ! $opt_skip_ndbcluster )
   {
+    # Look for single threaded NDB
     $exe_ndbd=
       my_find_bin($basedir,
 		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
 		  "ndbd");
+
+    # Look for multi threaded NDB
+    $exe_ndbmtd=
+      my_find_bin($basedir,
+		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
+		  "ndbmtd");
+    mtr_report(" - multi threaded ndbd, will be used \"round robin\"")
+      if ($exe_ndbmtd);
 
     $exe_ndb_mgmd=
       my_find_bin($basedir,
@@ -2325,6 +2335,8 @@ sub ndb_mgmd_start ($$) {
 }
 
 
+my $exe_ndbmtd_counter= 0;
+
 sub ndbd_start {
   my ($cluster, $ndbd)= @_;
 
@@ -2341,12 +2353,18 @@ sub ndbd_start {
 
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
+  my $exe= $exe_ndbd;
+  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
+  {
+    # Use ndbmtd every other time
+    $exe= $exe_ndbmtd;
+  }
 
   my $path_ndbd_log= "$dir/ndbd.log";
   my $proc= My::SafeProcess->new
     (
      name          => $ndbd->after('cluster_config.'),
-     path          => $exe_ndbd,
+     path          => $exe,
      args          => \$args,
      output        => $path_ndbd_log,
      error         => $path_ndbd_log,
