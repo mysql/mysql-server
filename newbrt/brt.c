@@ -4426,7 +4426,6 @@ static void toku_brt_lock_init(void) {
     toku_pwrite_lock_init();
     toku_logger_lock_init();
     toku_graceful_lock_init();
-    toku_blocktable_lock_init();
     toku_leaflock_init();
 }
 
@@ -4434,7 +4433,6 @@ static void toku_brt_lock_destroy(void) {
     toku_pwrite_lock_destroy();
     toku_logger_lock_destroy();
     toku_graceful_lock_destroy();
-    toku_blocktable_lock_destroy();
     toku_leaflock_destroy();
 }
 

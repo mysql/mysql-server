@@ -731,7 +731,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     int rr = 0;
     if (h->panic) return h->panic;
     lock_for_pwrite();
-    toku_block_lock_for_multiple_operations();
+    toku_block_lock_for_multiple_operations(h->blocktable);
     struct wbuf w_main;
     unsigned int size_main = toku_serialize_brt_header_size (h);
     {
@@ -750,7 +750,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
                                                &size_translation, &address_translation);
         size_translation = w_translation.size;
     }
-    toku_block_unlock_for_multiple_operations();
+    toku_block_unlock_for_multiple_operations(h->blocktable);
     {
         //Actual Write main header
 	ssize_t nwrote;
