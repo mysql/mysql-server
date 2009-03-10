@@ -8254,7 +8254,10 @@ mysqld_get_one_option(int optid,
   {
     optimizer_switch_str= argument;
     global_system_variables.optimizer_switch=
-      find_bit_type_or_exit(argument, &optimizer_switch_typelib, opt->name);
+      find_bit_type_or_exit(argument, &optimizer_switch_typelib, opt->name, 
+                            &error);
+    if (error)
+      return 1;
     break;
   }
   case OPT_ONE_THREAD:
