@@ -128,7 +128,7 @@ set global read_only=0;
 drop table t1,t2;
 drop user test@localhost;
 #
-# Bug #27440 read_only allows create and drop database
+# Bug#27440 read_only allows create and drop database
 #
 set global read_only= 1;
 drop database if exists mysqltest_db1;
