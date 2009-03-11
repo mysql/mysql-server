@@ -39,7 +39,7 @@ SELECT @@global.table_open_cache ;
 '#--------------------FN_DYNVARS_001_04-------------------------#'
 SET @@global.table_open_cache  = -1;
 Warnings:
-Warning	1292	Truncated incorrect table_open_cache value: '0'
+Warning	1292	Truncated incorrect table_open_cache value: '-1'
 SELECT @@global.table_open_cache  ;
 @@global.table_open_cache
 1
@@ -51,7 +51,7 @@ SELECT @@global.table_open_cache ;
 524288
 SET @@global.table_open_cache = -1024;
 Warnings:
-Warning	1292	Truncated incorrect table_open_cache value: '0'
+Warning	1292	Truncated incorrect table_open_cache value: '-1024'
 SELECT @@global.table_open_cache ;
 @@global.table_open_cache
 1

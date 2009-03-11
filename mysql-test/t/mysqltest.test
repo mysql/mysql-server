@@ -6,6 +6,9 @@
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 # ============================================================================
 #
 # Test of mysqltest itself
@@ -50,7 +53,7 @@ select otto from (select 1 as otto) as t1;
 
 # ----------------------------------------------------------------------------
 # Negative case(statement):
-# The derived table t1 does not contain a column named 'friedrich' . 
+# The derived table t1 does not contain a column named 'friedrich' .
 # --> ERROR 42S22: Unknown column 'friedrich' in 'field list and
 # --> 1054: Unknown column 'friedrich' in 'field list'
 # ----------------------------------------------------------------------------
@@ -121,7 +124,7 @@ select friedrich from (select 1 as otto) as t1;
 # $mysql_errno is a builtin variable of mysqltest and contains the return code
 # of the last command sent to the server.
 #
-#      The following test cases often initialize $mysql_errno to 1064 by 
+#      The following test cases often initialize $mysql_errno to 1064 by
 #      a command with wrong syntax.
 #      Example: --error 1064      To prevent the abort after the error.
 #               garbage ;
@@ -485,7 +488,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Allow trailing # comment
 --sleep 1 # Wait for insert delayed to be executed.
---sleep 1 	 # Wait for insert delayed to be executed.
+--sleep 1        # Wait for insert delayed to be executed.
 
 # ----------------------------------------------------------------------------
 # Test error
@@ -707,7 +710,7 @@ echo Not a banana: $cat;
 --error 1
 --exec echo "let hi;" | $MYSQL_TEST  2>&1
 
-# More advanced test for bug#17280
+# More advanced test for Bug#17280
 let $success= 1;
 --echo # Execute: --echo # <whatever> success: \$success
 --echo # <whatever> success: $success
@@ -1386,12 +1389,12 @@ connection default;
 
 
 # ----------------------------------------------------------------------------
-# TODO Test queries, especially their errormessages... so it's easy to debug 
+# TODO Test queries, especially their errormessages... so it's easy to debug
 # new scripts and diagnose errors
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-# Test bug#12386
+# Test Bug#12386
 # ----------------------------------------------------------------------------
 let $num= 2;
 while ($num)
@@ -1407,7 +1410,7 @@ SELECT 1 as a;
 
 
 #
-# Bug #10251: Identifiers containing quotes not handled correctly
+# Bug#10251 Identifiers containing quotes not handled correctly
 #
 select 1 as `a'b`, 2 as `a"b`;
 
@@ -1428,7 +1431,7 @@ let $message= `SELECT USER()`;
 
 # The message contains more then 80 characters on multiple lines
 # and is kept between double quotes.
-let $message= 
+let $message=
 "Here comes a very very long message that
     - is longer then 80 characters    and
     - consists of several lines";
@@ -1463,7 +1466,9 @@ select "this will be executed";
 
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
 --error 0,1
-remove_file $MYSQLTEST_VARDIR/log/zero_length_file.reject;
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.reject;
+--error 0,1
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.log;
 --error 0,1
 remove_file $MYSQL_TEST_DIR/r/zero_length_file.reject;
 
@@ -1487,8 +1492,8 @@ remove_file $MYSQLTEST_VARDIR/tmp/query.sql;
 #--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/result_file.result 2>&1
 
 #
-# Bug #11731 mysqltest in multi-statement queries ignores errors in
-#            non-1st queries
+# Bug#11731 mysqltest in multi-statement queries ignores errors in
+#           non-1st queries
 #
 
 echo Failing multi statement query;
@@ -1539,7 +1544,7 @@ remove_file $MYSQLTEST_VARDIR/log/bug11731.log;
 remove_file $MYSQLTEST_VARDIR/tmp/bug11731.sql;
 
 #
-# Bug#19890  	mysqltest: "query" command is broken
+# Bug#19890 mysqltest "query" command is broken
 #
 
 # It should be possible to use the command "query" to force mysqltest to
@@ -1565,7 +1570,7 @@ select "at" as col1, "c" as col2;
 select "at" as col1, "AT" as col2, "c" as col3;
 
 --replace_regex /a/b/ /ct/d/
-select "a" as col1, "ct" as col2; 
+select "a" as col1, "ct" as col2;
 
 --replace_regex /(strawberry)/raspberry and \1/ /blueberry/blackberry/ /potato/tomato/;
 select "strawberry","blueberry","potato";
@@ -1583,7 +1588,7 @@ select "strawberry","blueberry","potato";
 --error 1
 --exec echo "--replace_regex /a b c" | $MYSQL_TEST 2>&1
 --error 1
---exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1 
+--exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1
 
 # REQUIREMENT
 #   replace_regex should replace substitutions from left to right in output
@@ -1954,7 +1959,7 @@ SELECT '2' as "my_col1",2 as "my_col2"
 UNION
 SELECT '1',1 from t2;
 
-# 9. Ensure that several result formatting options including "sorted_result" 
+# 9. Ensure that several result formatting options including "sorted_result"
 #    - have all an effect
 #    - "--sorted_result" does not need to be direct before the statement
 #    - Row sorting is applied after modification of the column content
@@ -2170,15 +2175,15 @@ remove_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 #
-# Bug #36041: mysql-test-run doesn't seem to string match 100% effectively
-# on Windows
+# Bug#36041 mysql-test-run doesn't seem to string match 100% effectively
+#           on Windows
 #
 
 --replace_result c:\\a.txt z
 SELECT 'c:\\a.txt' AS col;
 
 #
-# Bug #32307  	mysqltest - does not detect illegal if syntax
+# Bug#32307 mysqltest - does not detect illegal if syntax
 #
 
 let $test= 1;
@@ -2212,11 +2217,13 @@ select 1;
 
 
 # ----------------------------------------------------------------------------
-# BUG#35701: please allow test language variables in connection and sync_slave_with_master
+# BUG#35701 please allow test language variables in connection and sync_slave_with_master
 # Test that "connection $variable" works and that $CURRENT_CONNECTION has the right value.
 # ----------------------------------------------------------------------------
 
 connect (con1,localhost,root,,);
+--echo $CURRENT_CONNECTION
+connect (con2,localhost,root,,);
 --echo $CURRENT_CONNECTION
 
 connection default;
@@ -2225,8 +2232,11 @@ connection default;
 connection con1;
 --echo $CURRENT_CONNECTION
 
-let $x= default;
-let $y= con1;
+connection con2;
+--echo $CURRENT_CONNECTION
+
+let $x= con1;
+let $y= con2;
 
 connection $x;
 --echo $CURRENT_CONNECTION
@@ -2245,3 +2255,6 @@ disconnect $y;
 
 --echo End of tests
 
+connection default;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
