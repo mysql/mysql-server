@@ -878,7 +878,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "8M",
+    "32M",
     "1M",
     STR_VALUE(MAX_INT_RNIL)},
 
@@ -1439,7 +1439,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "4M", // sum of BackupDataBufferSize and BackupLogBufferSize
+    "32M", // sum of BackupDataBufferSize and BackupLogBufferSize
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1451,7 +1451,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "2M", // remember to change BackupMemory
+    "16M", // remember to change BackupMemory
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1463,7 +1463,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "2M", // remember to change BackupMemory
+    "16M", // remember to change BackupMemory
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1475,7 +1475,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "32K",
+    "256K",
     "2K",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1487,7 +1487,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "256K",
+    "1M",
     "2K",
     STR_VALUE(MAX_INT_RNIL) },
 
