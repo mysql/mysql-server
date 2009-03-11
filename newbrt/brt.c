@@ -771,9 +771,9 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
             for (i=0; i<n_leafentries; i++) sumlesizes += leafentry_disksize(leafentries[i]);
             u_int32_t sumsofar=0;
             // split in half if not sequentially inserted
-            // otherwise put 1/4 in the new node (current minimum size given the node fusing algorithm)
+            // otherwise put 1/128th in the new node
             u_int32_t f = 2; // 1/2
-            if (node->u.l.seqinsert*2 >= n_leafentries) f = 4; // 1/4
+            if (node->u.l.seqinsert*2 >= n_leafentries) f = 128; // 1/128
             node->u.l.seqinsert = 0;
             for (i=n_leafentries-1; i>0; i--) {
                 assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
@@ -1619,6 +1619,8 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
         
 //        toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     *re = get_leaf_reactivity(node);
+    if (cmd->type == BRT_INSERT && *re == RE_FUSIBLE)
+        *re = RE_STABLE;
     VERIFY_NODE(t, node);
     return 0;
 }
