@@ -101,9 +101,10 @@ int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
           ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
       if (bank.performMakeGLs(yield) != NDBT_OK)
       {
-	if(ctx->getProperty(NMR_SR) != NdbMixRestarter::SR_RUNNING)
+        Uint32 state = ctx->getProperty(NMR_SR);
+	if(state != NdbMixRestarter::SR_RUNNING)
 	  break;
-	ndbout << "bank.performMakeGLs FAILED" << endl;
+	ndbout << "bank.performMakeGLs FAILED: " << state << endl;
         abort();
 	return NDBT_FAILED;
       }
@@ -212,19 +213,11 @@ TESTCASE("SR",
   TC_PROPERTY("Type", NdbMixRestarter::RTM_SR);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
+  STEPS(runBankTransactions, 10);
   STEP(runBankGL);
   STEP(runBankSrValidator);
   STEP(runMixRestart);
+  FINALIZER(runDropBank);
 }
 TESTCASE("NR", 
 	 " Test that a consistent bank is restored after graceful shutdown\n"
@@ -236,16 +229,7 @@ TESTCASE("NR",
   TC_PROPERTY("Type", NdbMixRestarter::RTM_NR);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
+  STEPS(runBankTransactions, 10);
   STEP(runBankGL);
   STEP(runMixRestart);
   FINALIZER(runDropBank);
@@ -260,16 +244,7 @@ TESTCASE("Mix",
   TC_PROPERTY("Type", NdbMixRestarter::RTM_ALL);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
+  STEPS(runBankTransactions, 10);
   STEP(runBankGL);
   STEP(runMixRestart);
   STEP(runBankSrValidator);
