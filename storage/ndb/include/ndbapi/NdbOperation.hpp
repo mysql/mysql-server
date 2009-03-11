@@ -1063,8 +1063,6 @@ public:
 
 
 protected:
-  int handle_distribution_key(const NdbColumnImpl*, const Uint64 *, Uint32 len);
-protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
  *****************************************************************************/

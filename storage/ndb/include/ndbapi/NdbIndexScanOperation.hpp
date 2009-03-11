@@ -197,24 +197,39 @@ public:
   };
 
   /**
-   * Add a bound to an NdbRecord defined Index scan
+   * Add a range to an NdbRecord defined Index scan
    * 
-   * This method is called to add a bound to an IndexScan operation
+   * This method is called to add a range to an IndexScan operation
    * which has been defined with a call to NdbTransaction::scanIndex().
-   * To add extra bounds, the index scan operation must have been
+   * To add more than one range, the index scan operation must have been
    * defined with the the SF_MultiRange flag set.
    *
    * Where multiple numbered ranges are defined with multiple calls to 
-   * setBound, and the scan is ordered, the range number for each bound 
-   * must be larger than the range number for the previously defined bound.
+   * setBound, and the scan is ordered, the range number for each range 
+   * must be larger than the range number for the previously defined range.
    * 
-   * @param key_record NdbRecord structure for the key the bound is 
-   *        to be added to
+   * When the application knows that rows in-range will only be found in
+   * a particular partition, a PartitionSpecification can be supplied.
+   * This may be used to limit the scan to a single partition, improving
+   * system efficiency
+   * The sizeOfPartInfo parameter should be set to the 
+   * sizeof(PartitionSpec) to enable backwards compatibility.
+   * 
+   * @param key_record NdbRecord structure for the key the index is 
+   *        defined on
    * @param bound The bound to add
+   * @param partInfo Extra information to enable a reduced set of
+   *        partitions to be scanned.
+   * @param sizeOfPartInfo
+   *
    * @return 0 for Success, other for Failure.
    */
   int setBound(const NdbRecord *key_record,
                const IndexBound& bound);
+  int setBound(const NdbRecord *key_record,
+               const IndexBound& bound,
+               const Ndb::PartitionSpec* partInfo,
+               Uint32 sizeOfPartInfo= 0);
 
   /**
    * Is current scan sorted?
@@ -300,10 +315,10 @@ private:
   virtual int equal_impl(const NdbColumnImpl*, const char*);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
 
-  void setDistKeyFromRange(const NdbRecord *key_record,
-                           const NdbRecord *result_record,
-                           const char *row,
-                           Uint32 distkeyMax);
+  int getDistKeyFromRange(const NdbRecord* key_record,
+                          const NdbRecord* result_record,
+                          const char* row,
+                          Uint32* distKey);
   void fix_get_values();
   int next_result_ordered(bool fetchAllowed, bool forceSend = false);
   int next_result_ordered_ndbrecord(const char * & out_row,
