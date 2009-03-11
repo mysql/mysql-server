@@ -523,11 +523,18 @@ protected:
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
 
-/* @@optimizer_switch flags */
-#define OPTIMIZER_SWITCH_NO_INDEX_MERGE 1
-#define OPTIMIZER_SWITCH_NO_INDEX_MERGE_UNION 2
-#define OPTIMIZER_SWITCH_NO_INDEX_MERGE_SORT_UNION 4
-#define OPTIMIZER_SWITCH_NO_INDEX_MERGE_INTERSECT 8
+/* @@optimizer_switch flags. These must be in sync with optimizer_switch_typelib */
+#define OPTIMIZER_SWITCH_INDEX_MERGE 1
+#define OPTIMIZER_SWITCH_INDEX_MERGE_UNION 2
+#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION 4
+#define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
+#define OPTIMIZER_SWITCH_LAST 16
+
+#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)
+
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -1831,6 +1838,10 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
+ulonglong find_set_from_flags(TYPELIB *lib, uint default_set,
+                              ulonglong cur_set, ulonglong default_set,
+                              const char *str, uint length, CHARSET_INFO *cs,
+                              char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, uint length,
                bool part_match);
 uint find_type2(const TYPELIB *lib, const char *find, uint length,

@@ -3926,17 +3926,17 @@ symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
 {
   char buff[STRING_BUFFER_USUAL_SIZE*8];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
-
+  int i;
+  ulonglong bit;
   tmp.length(0);
-
-  for (uint i= 0; val; val>>= 1, i++)
+ 
+  for (i= 0, bit=1; bit != OPTIMIZER_SWITCH_LAST; i++, bit= bit << 1)
   {
-    if (val & 1)
-    {
-      tmp.append(optimizer_switch_typelib.type_names[i],
-                 optimizer_switch_typelib.type_lengths[i]);
-      tmp.append(',');
-    }
+    tmp.append(optimizer_switch_typelib.type_names[i],
+               optimizer_switch_typelib.type_lengths[i]);
+    tmp.append('=');
+    tmp.append((val & bit)? "on":"off");
+    tmp.append(',');
   }
 
   if (tmp.length())
@@ -3961,12 +3961,45 @@ uchar *sys_var_thd_optimizer_switch::value_ptr(THD *thd, enum_var_type type,
 }
 
 
-void sys_var_thd_optimizer_switch::set_default(THD *thd, enum_var_type type)
+/*
+  Check (and actually parse) string representation of @@optimizer_switch.
+*/
+
+bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
 {
-  if (type == OPT_GLOBAL)
-    global_system_variables.*offset= 0;
-  else
-    thd->variables.*offset= global_system_variables.*offset;
+  bool not_used;
+  char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
+  uint error_len= 0;
+  String str(buff, sizeof(buff), system_charset_info), *res;
+
+  if (!(res= var->value->val_str(&str)))
+  {
+    strmov(buff, "NULL");
+    goto err;
+  }
+  
+  if (res->length() == 0)
+  {
+    buff[0]= 0;
+    goto err;
+  }
+
+  var->save_result.ulong_value= 
+    (ulong)find_set_from_flags(&optimizer_switch_typelib, 
+                               optimizer_switch_typelib.count, 
+                               thd->variables.optimizer_switch,
+                               global_system_variables.optimizer_switch,
+                               res->c_ptr(), res->length(), NULL,
+                               &error, &error_len, &not_used);
+  if (error_len)
+  {
+    strmake(buff, error, min(sizeof(buff) - 1, error_len));
+    goto err;
+  }
+  return FALSE;
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
+  return TRUE;
 }
 
 

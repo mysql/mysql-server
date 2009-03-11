@@ -302,16 +302,17 @@ TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 
 static const char *optimizer_switch_names[]=
 {
-  "no_index_merge","no_index_merge_union","no_index_merge_sort_union", 
-  "no_index_merge_intersection", NullS
+  "index_merge","index_merge_union","index_merge_sort_union", 
+  "index_merge_intersection", "default", NullS
 };
 /* Corresponding defines are named OPTIMIZER_SWITCH_XXX */
 static const unsigned int optimizer_switch_names_len[]=
 {
-  sizeof("no_index_merge") - 1,
-  sizeof("no_index_merge_union") - 1,
-  sizeof("ni_index_merge_sort_union") - 1,
-  sizeof("no_index_merge_intersection") - 1
+  sizeof("index_merge") - 1,
+  sizeof("index_merge_union") - 1,
+  sizeof("index_merge_sort_union") - 1,
+  sizeof("index_merge_intersection") - 1,
+  sizeof("default") - 1
 };
 TYPELIB optimizer_switch_typelib= { array_elements(optimizer_switch_names)-1,"",
                                     optimizer_switch_names,
@@ -7656,7 +7657,8 @@ static int mysql_init_variables(void)
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
-
+  
+  global_system_variables.optimizer_switch= OPTIMIZER_SWITCH_DEFAULT;
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
@@ -8252,12 +8254,22 @@ mysqld_get_one_option(int optid,
   }
   case OPT_OPTIMIZER_SWITCH:
   {
+    bool not_used;
+    char *error= 0;
+    uint error_len= 0;
     optimizer_switch_str= argument;
     global_system_variables.optimizer_switch=
-      find_bit_type_or_exit(argument, &optimizer_switch_typelib, opt->name, 
-                            &error);
-    if (error)
-      return 1;
+      (ulong)find_set_from_flags(&optimizer_switch_typelib, 
+                                 optimizer_switch_typelib.count, 
+                                 global_system_variables.optimizer_switch,
+                                 global_system_variables.optimizer_switch,
+                                 argument, strlen(argument), NULL,
+                                 &error, &error_len, &not_used);
+     if (error)
+     {
+       fprintf(stderr, "Invalid optimizer_switch flag: %s\n", error);
+       return 1;
+     }
     break;
   }
   case OPT_ONE_THREAD:
