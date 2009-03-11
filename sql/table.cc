@@ -2982,11 +2982,8 @@ void st_table::reset_item_list(List<Item> *item_list) const
 
 void  TABLE_LIST::calc_md5(char *buffer)
 {
-  my_MD5_CTX context;
   uchar digest[16];
-  my_MD5Init(&context);
-  my_MD5Update(&context,(uchar *) select_stmt.str, select_stmt.length);
-  my_MD5Final(digest, &context);
+  MY_MD5_HASH(digest, (uchar *) select_stmt.str, select_stmt.length);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 	    digest[0], digest[1], digest[2], digest[3],
