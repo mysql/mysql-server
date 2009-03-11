@@ -439,7 +439,8 @@ void Item_sum::make_field(Send_field *tmp_field)
 
 void Item_sum::print(String *str, enum_query_type query_type)
 {
-  Item **pargs= orig_args;
+  /* orig_args is not filled with valid values until fix_fields() */
+  Item **pargs= fixed ? orig_args : args;
   str->append(func_name());
   for (uint i=0 ; i < arg_count ; i++)
   {
