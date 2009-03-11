@@ -3040,7 +3040,9 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
 	    assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero (but if panic, don't worry)
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
         // printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
+	assert(*error_string == 0);
         r = toku_cachefile_close(&brt->cf, logger, error_string);
+	if (r==0) assert(*error_string == 0);
     }
     if (brt->database_name) toku_free(brt->database_name);
     if (brt->fname) toku_free(brt->fname);
