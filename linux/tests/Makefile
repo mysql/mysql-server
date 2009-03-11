@@ -11,6 +11,15 @@ ifeq ($(CC),icc)
 	CFLAGS += -diag-disable 981
 endif
 
+HERE=linux/tests
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+SUMMARIZE_SHOULD_FAIL= ;if test $$? = 0; then printf "%-60sXFAIL\n" $(HERE)/$@; else printf "%-60sXPASS\n" $(HERE)/$@ ; test 0 = 1; fi
+INVERTER=;test $$? -ne 0
+else
+SUMMARIZE_CMD =
+endif
+
 all: $(TARGETS)
 
 %: %.c
@@ -23,14 +32,16 @@ check: $(TARGETS) $(RUNTARGETS)
 
 %.tdbrun: %
 ifeq ($(VGRIND),)
-	./$<
+	./$< $(SUMMARIZE_CMD)
 else
 	$(VGRIND) --log-file=$<.valgrind ./$<; \
 	if [ $$? = 0 ] ; then \
 		grep "LEAK SUMMARY" $<.valgrind >/dev/null 2>&1; \
-		if [ $$? = 0 ] ; then cat $<.valgrind; exit 1; fi \
-	fi
+		if [ $$? = 0 ] ; then cat $<.valgrind; test 0 = 1; fi \
+	fi \
+	$(SUMMARIZE_CMD)
 endif
 
 clean:
 	rm -rf $(TARGETS) *.valgrind
+
