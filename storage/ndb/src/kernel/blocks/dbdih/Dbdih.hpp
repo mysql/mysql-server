@@ -25,6 +25,7 @@
 #include <signaldata/MasterLCP.hpp>
 #include <signaldata/CopyGCIReq.hpp>
 #include <blocks/mutexes.hpp>
+#include <signaldata/LCP.hpp>
 
 #ifdef DBDIH_C
 
@@ -1791,6 +1792,40 @@ private:
   NdbNodeBitmask m_to_nodes;
 
   void startme_copygci_conf(Signal*);
+
+  /**
+   * Local LCP state
+   *   This struct is more or less a copy of lcp-state
+   *   Reason for duplicating it is that
+   *   - not to mess with current code
+   *   - this one is "distributed", i.e maintained by *all* nodes,
+   *     not like c_lcpState which mixed master/slave state in a "unnatural"
+   *     way
+   */
+  struct LocalLCPState
+  {
+    enum State {
+      LS_INITIAL = 0,
+      LS_RUNNING = 1,
+      LS_COMPLETE = 2
+    } m_state;
+    
+    StartLcpReq m_start_lcp_req;
+    Uint32 m_keep_gci; // Min GCI is needed to restore LCP
+    Uint32 m_stop_gci; // This GCI needs to be complete before LCP is restorable
+
+    LocalLCPState() { reset();}
+    
+    void reset();
+    void init(const StartLcpReq*);
+    void lcp_frag_rep(const LcpFragRep*);
+    void lcp_complete_rep(Uint32 gci);
+    
+    /**
+     * @param gci - current GCI being made restorable (COPY_GCI)
+     */
+    bool check_cut_log_tail(Uint32 gci) const;
+  } m_local_lcp_state;
 
   // MT LQH
   Uint32 c_fragments_per_node;
