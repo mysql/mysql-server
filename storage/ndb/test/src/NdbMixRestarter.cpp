@@ -98,8 +98,9 @@ NdbMixRestarter::restart_cluster(NDBT_Context* ctx,
 }
 
 static
-ndb_mgm_node_state*
-select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
+void
+select_nodes_to_stop(Vector<ndb_mgm_node_state*>& victims,
+                     Vector<ndb_mgm_node_state>& nodes)
 {
   Uint32 i, j;
   Vector<ndb_mgm_node_state*> alive_nodes;
@@ -110,7 +111,6 @@ select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
       alive_nodes.push_back(node);
   }
 
-  Vector<ndb_mgm_node_state*> victims;
   // Remove those with one in node group
   for(i = 0; i<alive_nodes.size(); i++)
   {
@@ -124,7 +124,15 @@ select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
       }
     }
   }
+}
 
+static
+ndb_mgm_node_state*
+select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
+{
+  Vector<ndb_mgm_node_state*> victims;
+  select_nodes_to_stop(victims, nodes);
+  
   if (victims.size())
   {
     int victim = rand() % victims.size();
@@ -137,17 +145,25 @@ select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
 }
 
 static
-ndb_mgm_node_state*
-select_node_to_start(Vector<ndb_mgm_node_state>& nodes)
+void
+select_nodes_to_start(Vector<ndb_mgm_node_state*>& victims, 
+                      Vector<ndb_mgm_node_state>& nodes)
 {
   Uint32 i;
-  Vector<ndb_mgm_node_state*> victims;
   for(i = 0; i<nodes.size(); i++)
   {
     ndb_mgm_node_state* node = &nodes[i];
     if (node->node_status == NDB_MGM_NODE_STATUS_NOT_STARTED)
       victims.push_back(node);
   }
+}
+
+static
+ndb_mgm_node_state*
+select_node_to_start(Vector<ndb_mgm_node_state>& nodes)
+{
+  Vector<ndb_mgm_node_state*> victims;
+  select_nodes_to_start(victims, nodes);
 
   if (victims.size())
   {
