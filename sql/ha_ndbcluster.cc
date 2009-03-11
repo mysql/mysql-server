@@ -2738,6 +2738,7 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
 
   if (ppartition_id != NULL)
   {
+    assert(m_user_defined_partitioning);
     options.optionsPresent|= NdbOperation::OperationOptions::OO_PARTITION_ID;
     options.partitionId= *ppartition_id;
     poptions= &options;
@@ -2902,6 +2903,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   if (m_use_partition_pruning && part_spec != NULL &&
       part_spec->start_part == part_spec->end_part)
   {
+    /* TODO - 6.4
+     * Really should only take this path when the table uses
+     * user-defined partitioning, otherwise we need a key value
+     * to correctly constrain the partition scanned.
+     */
     options.partitionId = part_spec->start_part;
     options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
   }
@@ -2915,6 +2921,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
                              &options,
                              sizeof(NdbScanOperation::ScanOptions))))
     ERR_RETURN(trans->getNdbError());
+
+  DBUG_PRINT("info", ("Is scan pruned to 1 partition? : %u", op->getPruned()));
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, NULL, table->read_set) != 0)
@@ -2994,6 +3002,14 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
        * don't need it anymore since output from one ordered partitioned
        * index is always sorted.
        */
+      // TODO - 6.4
+      // This code still allows a table scan of a natively partitioned
+      // table to be pruned by MySQLD.  
+      // It is used as part of ALTER TABLE COALESCE PARTITION in the 
+      // ndb_partition_key test.
+      // If this is required then we need a single value of the
+      // distribution key to attempt pruning.
+      //
       use_set_part_id= TRUE;
       if (!(trans= get_transaction_part_id(part_spec.start_part, error)))
       {
@@ -3021,6 +3037,9 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   options.parallel = parallelism;
 
   if (use_set_part_id) {
+    // TODO - 6.4 
+    // Note that we still call this for natively partitioned tables
+    // See comment above about resolving this.
     options.optionsPresent|= NdbScanOperation::ScanOptions::SO_PARTITION_ID;
     options.partitionId = part_spec.start_part;
   };
@@ -10688,6 +10707,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       {
         if (part_spec.start_part == part_spec.end_part)
         {
+          /* MySQLD thinks this key is definitely in one partition so 
+           * we'll hint the transaction to run there.
+           * No big loss if it's transiently incorrect
+           */
           if (unlikely((trans= start_transaction_part_id(part_spec.start_part, error)) == NULL))
           {
             DBUG_RETURN(error);
@@ -10711,14 +10734,18 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     if (read_multi_needs_scan(cur_index_type, key_info, r))
     {
       any_real_read= TRUE;
+      DBUG_PRINT("info", ("any_real_read= TRUE"));
+      
       /*
         If we reach the limit of ranges allowed in a single scan: stop
         here, send what we have so far, and continue when done with that.
       */
-      DBUG_PRINT("info", ("Reached the limit of ranges allowed in a single"
-                          "scan, any_real_read= TRUE"));
       if (i > NdbIndexScanOperation::MaxRangeNo)
+      {
+        DBUG_PRINT("info", ("Reached the limit of ranges allowed in a single"
+                            "scan"));
         break;
+      }
 
       /* Create the scan operation for the first scan range. */
       if (!m_multi_cursor)
@@ -10774,13 +10801,34 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         m_next_row= 0;
       }
 
+      Ndb::PartitionSpec ndbPartitionSpec;
+      const Ndb::PartitionSpec* ndbPartSpecPtr= NULL;
+
+      /* If this table uses user-defined partitioning, use MySQLD provided
+       * partition info as pruning info
+       * Otherwise, scan range pruning is performed automatically by
+       * NDBAPI based on distribution key values.
+       */
+      if (m_use_partition_pruning && 
+          m_user_defined_partitioning &&
+          (part_spec.start_part == part_spec.end_part))
+      {
+        DBUG_PRINT("info", ("Range on user-def-partitioned table can be pruned to part %u",
+                            part_spec.start_part));
+        ndbPartitionSpec.type= Ndb::PartitionSpec::PS_USER_DEFINED;
+        ndbPartitionSpec.UserDefined.partitionId= part_spec.start_part;
+        ndbPartSpecPtr= &ndbPartitionSpec;
+      }
+
       /* Include this range in the ordered index scan. */
       NdbIndexScanOperation::IndexBound bound;
       compute_index_bounds(bound, key_info, &r->start_key, &r->end_key);
       bound.range_no= i;
 
       if (m_multi_cursor->setBound(m_index[active_index].ndb_record_key,
-                                   bound))
+                                   bound,
+                                   ndbPartSpecPtr, // Only for user-def tables
+                                   sizeof(Ndb::PartitionSpec)))
       {
         ERR_RETURN(trans->getNdbError());
       }
@@ -10838,6 +10886,12 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   m_multi_range_defined_end= ranges + i;
 
   buffer->end_of_used_area= row_buf;
+
+  if (m_multi_cursor)
+  {
+    DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
+                        m_multi_cursor->getPruned()));
+  };
 
   if (any_real_read)
   {

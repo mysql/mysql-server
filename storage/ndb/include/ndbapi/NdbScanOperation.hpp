@@ -114,7 +114,9 @@ public:
                 SO_GETVALUE     = 0x08,
                 SO_PARTITION_ID = 0x10,
                 SO_INTERPRETED  = 0x20,
-                SO_CUSTOMDATA   = 0x40 };
+                SO_CUSTOMDATA   = 0x40,
+                SO_PART_INFO    = 0x80
+    };
 
     /* Flags controlling scan behaviour
      * See NdbScanOperation::ScanFlag for details
@@ -138,7 +140,11 @@ public:
     NdbOperation::GetValueSpec *extraGetValues;
     Uint32                     numExtraGetValues;
 
-    /* Specific partition to limit this scan to */
+    /* Specific partition to limit this scan to
+     * Alternatively, an Ndb::PartitionSpec can be supplied.
+     * For Index Scans, partitioning information can be supplied for
+     * each range
+     */
     Uint32 partitionId;
 
     /* Interpreted code to execute as part of the scan */
@@ -146,6 +152,10 @@ public:
 
     /* CustomData ptr to associate with the scan operation */
     void * customData;
+
+    /* Partition information for bounding this scan */
+    const Ndb::PartitionSpec* partitionInfo;
+    Uint32 sizeOfPartInfo;
   };
 
 
@@ -185,6 +195,58 @@ public:
   inline int readTuplesExclusive(int parallell = 0){
     return readTuples(LM_Exclusive, 0, parallell);
   }
+
+  /* First version of ScanOptions, defined here for backwards
+   * compatibility reasons
+   */
+  struct ScanOptions_v1
+  {
+    /* Which options are present - see below for possibilities */
+    Uint64 optionsPresent;
+
+    enum Type { SO_SCANFLAGS    = 0x01,
+                SO_PARALLEL     = 0x02,
+                SO_BATCH        = 0x04,
+                SO_GETVALUE     = 0x08,
+                SO_PARTITION_ID = 0x10,
+                SO_INTERPRETED  = 0x20,
+                SO_CUSTOMDATA   = 0x40 };
+
+    /* Flags controlling scan behaviour
+     * See NdbScanOperation::ScanFlag for details
+     */
+    Uint32 scan_flags;
+
+    /* Desired scan parallelism.
+     * Default == 0 == Maximum parallelism
+     */
+    Uint32 parallel;
+
+    /* Desired scan batchsize in rows 
+     * for NDBD -> API transfers
+     * Default == 0 == Automatically chosen size
+     */
+    Uint32 batch;
+    
+    /* Extra values to be read for each row meeting
+     * scan criteria
+     */
+    NdbOperation::GetValueSpec *extraGetValues;
+    Uint32                     numExtraGetValues;
+
+    /* Specific partition to limit this scan to
+     * Only applicable for tables defined with UserDefined partitioning
+     * For Index Scans, partitioning information can be supplied for
+     * each range
+     */
+    Uint32 partitionId;
+
+    /* Interpreted code to execute as part of the scan */
+    const NdbInterpretedCode *interpretedCode;
+
+    /* CustomData ptr to associate with the scan operation */
+    void * customData;
+  };
 #endif
   
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -388,6 +450,14 @@ public:
    */
   NdbTransaction* getNdbTransaction() const;
 
+
+  /**
+   * Is scan operation pruned to a single table partition?
+   * For NdbRecord defined scans, valid before+after execute.
+   * For Old Api defined scans, valid only after execute.
+   */
+  bool getPruned() const;
+
 protected:
   NdbScanOperation(Ndb* aNdb,
                    NdbOperation::Type aType = NdbOperation::TableScan);
@@ -400,7 +470,15 @@ protected:
   int handleScanGetValuesOldApi();
   int addInterpretedCode(Uint32 aTC_ConncetPtr,
                          Uint64 aTransId);
+  int handleScanOptionsVersion(const ScanOptions*& optionsPtr, 
+                               Uint32 sizeOfOptions,
+                               ScanOptions& currOptions);
   int handleScanOptions(const ScanOptions *options);
+  int validatePartInfoPtr(const Ndb::PartitionSpec*& partInfo,
+                          Uint32 sizeOfPartInfo);
+  int getPartValueFromInfo(const Ndb::PartitionSpec* partInfo,
+                           const NdbTableImpl* table,
+                           Uint32* partValue);
   int generatePackedReadAIs(const NdbRecord *reseult_record, bool& haveBlob);
   int scanImpl(const NdbScanOperation::ScanOptions *options);
   int scanTableImpl(const NdbRecord *result_record,
@@ -565,6 +643,16 @@ protected:
    * old NdbScanFilter Api
    */
   NdbInterpretedCode* m_interpretedCodeOldApi;
+
+  enum ScanPruningState {
+    SPS_UNKNOWN,           // Initial state
+    SPS_FIXED,             // Explicit partitionId passed in ScanOptions
+    SPS_ONE_PARTITION,     // Scan pruned to one partition by previous range
+    SPS_MULTI_PARTITION    // Scan cannot be pruned due to previous ranges
+  };
+  
+  ScanPruningState m_pruneState;
+  Uint32 m_pruningKey;  // Can be distr key hash or actual partition id.
 };
 
 inline

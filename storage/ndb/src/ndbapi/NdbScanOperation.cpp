@@ -123,6 +123,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_scanUsingOldApi= true;
   m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
+  m_pruneState= SPS_UNKNOWN;
 
   m_api_receivers_count = 0;
   m_current_api_receiver = 0;
@@ -288,6 +289,20 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
   {
     /* Should not have any blobs defined at this stage */
     assert(theBlobList == NULL);
+    assert(m_pruneState == SPS_UNKNOWN);
+    
+    // TODO - 6.4
+    //      : Ideally we could insist that an explicit partition id
+    //        is only allowed for user-defined partitioned tables.
+    //        However, alter table for partitions currently uses this
+    //        (ndb_partition_key test)
+    //
+    //assert(m_attribute_record->table->m_fragmentType == 
+    //  NdbDictionary::Object::UserDefined);
+    m_pruneState= SPS_FIXED;
+    m_pruningKey= options->partitionId;
+    
+    /* And set the vars in the operation now too */
     theDistributionKey = options->partitionId;
     theDistrKeyIndicator_ = 1;
     DBUG_PRINT("info", ("NdbScanOperation::handleScanOptions(dist key): %u",
@@ -325,6 +340,28 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
   if (options->optionsPresent & ScanOptions::SO_CUSTOMDATA)
   {
     m_customData = options->customData;
+  }
+
+  /* Preferred form of partitioning information */
+  if (options->optionsPresent & ScanOptions::SO_PART_INFO)
+  {
+    Uint32 partValue;
+    const Ndb::PartitionSpec* pSpec= options->partitionInfo;
+    if (unlikely(validatePartInfoPtr(pSpec,
+                                     options->sizeOfPartInfo) ||
+                 getPartValueFromInfo(pSpec,
+                                      m_currentTable,
+                                      &partValue)))
+      return -1;
+    
+    assert(m_pruneState == SPS_UNKNOWN);
+    m_pruneState= SPS_FIXED;
+    m_pruningKey= partValue;
+    
+    theDistributionKey= partValue;
+    theDistrKeyIndicator_= 1;
+    DBUG_PRINT("info", ("Set distribution key from partition spec to %u",
+                        partValue));
   }
 
   return 0;
@@ -473,6 +510,50 @@ NdbScanOperation::scanImpl(const NdbScanOperation::ScanOptions *options)
   return 0;
 }
 
+int
+NdbScanOperation::handleScanOptionsVersion(const ScanOptions*& optionsPtr, 
+                                           Uint32 sizeOfOptions,
+                                           ScanOptions& currOptions)
+{
+  /* Handle different sized ScanOptions */
+  if (unlikely((sizeOfOptions !=0) &&
+               (sizeOfOptions != sizeof(ScanOptions))))
+  {
+    /* Different size passed, perhaps it's an old client */
+    if (sizeOfOptions == sizeof(ScanOptions_v1))
+    {
+      const ScanOptions_v1* oldOptions= 
+        (const ScanOptions_v1*) optionsPtr;
+
+      /* v1 of ScanOptions, copy into current version
+       * structure and update options ptr
+       */
+      currOptions.optionsPresent= oldOptions->optionsPresent;
+      currOptions.scan_flags= oldOptions->scan_flags;
+      currOptions.parallel= oldOptions->parallel;
+      currOptions.batch= oldOptions->batch;
+      currOptions.extraGetValues= oldOptions->extraGetValues;
+      currOptions.numExtraGetValues= oldOptions->numExtraGetValues;
+      currOptions.partitionId= oldOptions->partitionId;
+      currOptions.interpretedCode= oldOptions->interpretedCode;
+      currOptions.customData= oldOptions->customData;
+      
+      /* New fields */
+      currOptions.partitionInfo= NULL;
+      currOptions.sizeOfPartInfo= 0;
+      
+      optionsPtr= &currOptions;
+    }
+    else
+    {
+      /* No other versions supported currently */
+      setErrorCodeAbort(4298);
+      /* Invalid or unsupported ScanOptions structure */
+      return -1;
+    }
+  }
+  return 0;
+}
 
 int
 NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
@@ -486,21 +567,12 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
   Uint32 parallel = 0;
   Uint32 batch = 0;
 
+  ScanOptions currentOptions;
+
   if (options != NULL)
   {
-    /* Check options size for versioning... */
-    if (unlikely((sizeOfOptions !=0) &&
-                 (sizeOfOptions != sizeof(ScanOptions))))
-    {
-      /* Handle different sized ScanOptions
-       * Probably smaller is old version, larger is new version
-       */
-      
-      /* No other versions supported currently */
-      setErrorCodeAbort(4298);
-      /* Invalid or unsupported ScanOptions structure */
+    if (handleScanOptionsVersion(options, sizeOfOptions, currentOptions))
       return -1;
-    }
     
     /* Process some initial ScanOptions - most are 
      * handled later
@@ -534,6 +606,42 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
 }
 
 
+int
+NdbScanOperation::getPartValueFromInfo(const Ndb::PartitionSpec* partInfo,
+                                       const NdbTableImpl* table,
+                                       Uint32* partValue)
+{
+  if (partInfo->type == Ndb::PartitionSpec::PS_USER_DEFINED)
+  {
+    assert(table->m_fragmentType == NdbDictionary::Object::UserDefined);
+    *partValue= partInfo->UserDefined.partitionId;
+    return 0;
+  }
+  if (partInfo->type == Ndb::PartitionSpec::PS_DISTR_KEY_PART_PTR)
+  {
+    assert(table->m_fragmentType != NdbDictionary::Object::UserDefined);
+    Uint32 hashVal;
+    int ret= Ndb::computeHash(&hashVal, table, 
+                              partInfo->KeyPartPtr.tableKeyParts,
+                              partInfo->KeyPartPtr.xfrmbuf, 
+                              partInfo->KeyPartPtr.xfrmbuflen);
+    if (ret == 0)
+    {
+      *partValue= table->getPartitionId(hashVal);
+      return 0;
+    }
+    else
+    {
+      setErrorCodeAbort(ret);
+      return -1;
+    }
+  }
+  
+  /* 4542 : Unknown partition information type */
+  setErrorCodeAbort(4542);
+  return -1;
+}
+
 /*
   Compare two rows on some prefix of the index.
   This is used to see if we can determine that all rows in an index range scan
@@ -547,6 +655,9 @@ compare_index_row_prefix(const NdbRecord *rec,
                          Uint32 prefix_length)
 {
   Uint32 i;
+
+  if (row1 == row2) // Easy case with same ptrs
+    return 0;
 
   for (i= 0; i<prefix_length; i++)
   {
@@ -583,17 +694,21 @@ compare_index_row_prefix(const NdbRecord *rec,
   return 0;
 }
 
-void
-NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
+int
+NdbIndexScanOperation::getDistKeyFromRange(const NdbRecord *key_record,
                                            const NdbRecord *result_record,
                                            const char *row,
-                                           Uint32 distkeyMax)
+                                           Uint32* distKey)
 {
   const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
   Uint64 tmp[ MaxKeySizeInLongWords ];
   char* tmpshrink = (char*)tmp;
   size_t tmplen = sizeof(tmp);
   
+  /* This can't work for User Defined partitioning */
+  assert(key_record->table->m_fragmentType != 
+         NdbDictionary::Object::UserDefined);
+
   Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
   Uint32 i;
   for (i = 0; i<key_record->distkey_index_length; i++)
@@ -608,8 +723,9 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
         bool len_ok = col->shrink_varchar(row, len, tmpshrink);
         if (!len_ok)
         {
-          assert(false);
-          return;
+          /* 4209 : Length parameter in equal/setValue is incorrect */
+          setErrorCodeAbort(4209);
+          return -1;
         }
         ptrs[i].ptr = tmpshrink;
         tmpshrink += len;
@@ -617,8 +733,9 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
       }
       else
       {
-        // no buffer...
-        return;
+        /* 4207 : Key size is limited to 4092 bytes */
+        setErrorCodeAbort(4207);
+        return -1;
       }
     }
     else
@@ -634,41 +751,82 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
                              ptrs, tmpshrink, tmplen);
   if (ret == 0)
   {
-    theDistributionKey= result_record->table->getPartitionId(hashValue);
-    theDistrKeyIndicator_= 1;
-
-    ScanTabReq *req= CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
-    ScanTabReq::setDistributionKeyFlag(req->requestInfo, 1);
-    req->distributionKey= theDistributionKey;
-    theSCAN_TABREQ->setLength(ScanTabReq::StaticLength + 1);
+    /* Return actual partitionId determined by hash */
+    *distKey= result_record->table->getPartitionId(hashValue);
+    return 0;
   }
-#ifdef VM_TRACE
   else
   {
+#ifdef VM_TRACE
     ndbout << "err: " << ret << endl;
-    assert(false);
-  }
 #endif
+    setErrorCodeAbort(ret);
+    return -1;
+  }
 }
 
+int
+NdbScanOperation::validatePartInfoPtr(const Ndb::PartitionSpec*& partInfo,
+                                      Uint32 sizeOfPartInfo)
+{  
+  if (unlikely((sizeOfPartInfo != sizeof(Ndb::PartitionSpec)) &&
+               (sizeOfPartInfo != 0)))
+  {
+    /* 4545 : Invalid or Unsupported PartitionInfo structure */
+    setErrorCodeAbort(4545);
+    return -1;
+  }
+  
+  if (partInfo->type != Ndb::PartitionSpec::PS_NONE)
+  {
+    if (m_pruneState == SPS_FIXED)
+    {
+      /* 4543 : Duplicate partitioning information supplied */
+      setErrorCodeAbort(4543);
+      return -1;
+    }
+    
+    if ((partInfo->type == Ndb::PartitionSpec::PS_USER_DEFINED) !=
+        ((m_currentTable->m_fragmentType == NdbDictionary::Object::UserDefined)))
+    {
+      /* Mismatch between type of partitioning info supplied, and table's
+       * partitioning type
+       */
+      /* 4544 : Wrong partitionInfo type for table */
+      setErrorCodeAbort(4544);
+      return -1;
+    }
+  }
+  else
+  {
+    /* PartInfo supplied, but set to NONE */
+    partInfo= NULL;
+  }
+
+  return 0;
+}
+
+
+int
+NdbIndexScanOperation::setBound(const NdbRecord* key_record,
+                                const IndexBound& bound)
+{
+  return setBound(key_record, bound, NULL, 0);
+}
 
 /** 
  * setBound()
  *
  * This method is called from scanIndex() and setBound().  
  * It adds a bound to an Index Scan.
+ * It can be passed extra partitioning information.
  */
 int 
 NdbIndexScanOperation::setBound(const NdbRecord *key_record,
-                                const IndexBound& bound)
+                                const IndexBound& bound,
+                                const Ndb::PartitionSpec* partInfo,
+                                Uint32 sizeOfPartInfo)
 {
-  /*
-    Set up index range bounds, write into keyinfo.
-    
-    ToDo: We only set scan distribution key if there's only one
-    scan bound. (see BUG#25821).  MRR/BKA does not use it.
-  */
-
   if (unlikely((theStatus != NdbOperation::UseNdbRecord)))
   {
     setErrorCodeAbort(4284);
@@ -689,6 +847,21 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
     /* IndexBound passed has no bound information */
     setErrorCodeAbort(4541);
     return -1;
+  }
+
+  /* Check the base table's partitioning scheme 
+   * (Ordered index itself has 'undefined' fragmentation)
+   */
+  bool tabHasUserDefPartitioning= (m_currentTable->m_fragmentType == 
+                                   NdbDictionary::Object::UserDefined);
+
+  /* Validate explicit partitioning info if it's supplied */
+  if (partInfo)
+  {
+    /* May update the PartInfo ptr */
+    if (validatePartInfoPtr(partInfo,
+                            sizeOfPartInfo))
+      return -1;
   }
 
   m_num_bounds++;
@@ -777,34 +950,125 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
   m_first_bound_word= theKEYINFOptr + theTotalNrOfKeyWordInSignal;
   m_this_bound_start= theTupKeyLen;
 
-  /*
-    Now check if the range bounds a single distribution key. If so, we need
-    scan only a single fragment.
-    
-    ToDo: we do not attempt to identify the case where we have multiple
-    ranges, but they all bound the same single distribution key. It seems
-    not really worth the effort to optimise this case, better to fix the
-    multi-range protocol so that the distribution key could be specified
-    individually for each of the multiple ranges.
-  */
-  if (m_num_bounds == 1 &&  
-      ! theDistrKeyIndicator_ && // Partitioning not already specified.
-      ! m_multi_range)           // Only single range optimisation currently
+
+  /* Now determine if the scan can (continue to) be pruned to one
+   * partition
+   * 
+   * This can only be the case if 
+   *   - There's no overriding partition id/info specified in 
+   *     ScanOptions 
+   *     AND
+   *   - This range scan can be pruned to 1 partition 'value'
+   *     AND
+   *   - All previous ranges (MRR) were partition pruned 
+   *     to the same partition 'value'
+   *
+   * Where partition 'value' is either a partition id or a hash
+   * that maps to one in the kernel.
+   */
+  if ((m_pruneState == SPS_UNKNOWN) ||      // First range
+      (m_pruneState == SPS_ONE_PARTITION))  // Previous ranges are commonly pruned
   {
-    Uint32 index_distkeys = key_record->m_no_of_distribution_keys;
-    Uint32 table_distkeys = m_attribute_record->m_no_of_distribution_keys;
-    Uint32 distkey_min= key_record->m_min_distkey_prefix_length;
-    if (index_distkeys == table_distkeys &&
-        common_key_count >= distkey_min &&
-        bound.low_key &&
-        bound.high_key &&
-        0==compare_index_row_prefix(key_record,
-                                    bound.low_key,
-                                    bound.high_key,
-                                    distkey_min))
-      setDistKeyFromRange(key_record, m_attribute_record,
-                          bound.low_key, distkey_min);
-  }
+    bool currRangeHasOnePartVal= false;
+    Uint32 currRangePartValue= 0;
+
+    /* Determine whether this range scan can be pruned */
+    if (partInfo)
+    {
+      /* Explicit partitioning info supplied, use it to get a value */
+      currRangeHasOnePartVal= true;
+
+      if (getPartValueFromInfo(partInfo,
+                               m_attribute_record->table,
+                               &currRangePartValue))
+      {
+        return -1;
+      }
+    }
+    else
+    {
+      if (likely(!tabHasUserDefPartitioning))
+      {
+        /* Attempt to get implicit partitioning info from range bounds - 
+         * only possible if they are present and bound a single value 
+         * of the table's distribution keys
+         */
+        Uint32 index_distkeys = key_record->m_no_of_distribution_keys;
+        Uint32 table_distkeys = m_attribute_record->m_no_of_distribution_keys;
+        Uint32 distkey_min= key_record->m_min_distkey_prefix_length;
+        if (index_distkeys == table_distkeys &&   // Index has all base table d-keys
+            common_key_count >= distkey_min &&    // Bounds have all d-keys
+            bound.low_key &&                      // Have both bounds
+            bound.high_key &&
+            0==compare_index_row_prefix(key_record,     // Both bounds are same
+                                        bound.low_key,
+                                        bound.high_key,
+                                        distkey_min))
+        {
+          currRangeHasOnePartVal= true;
+          if (getDistKeyFromRange(key_record, m_attribute_record,
+                                  bound.low_key,
+                                  &currRangePartValue))
+            return -1;
+        }
+      }
+    }
+     
+
+    /* Determine whether this pruned range fits with any existing
+     * range pruning
+     * As we can currently only prune a single scan to one partition
+     * (Not a set of partitions, or a set of partitions per range)
+     * we can only prune if all ranges happen to be prune-able to the
+     * same partition.
+     * In future perhaps Ndb can be enhanced to support partition sets
+     * and/or per-range partition pruning.
+     */
+    const ScanPruningState prevPruneState= m_pruneState;
+    if (currRangeHasOnePartVal)
+    {
+      if (m_pruneState == SPS_UNKNOWN)
+      {
+        /* Prune the scan to use this range's partition value */
+        m_pruneState= SPS_ONE_PARTITION;
+        m_pruningKey= currRangePartValue;
+      }
+      else
+      {
+        /* If this range's partition value is the same as the previous
+         * ranges then we can stay pruned, otherwise we cannot
+         */
+        assert(m_pruneState == SPS_ONE_PARTITION);
+        if (currRangePartValue != m_pruningKey)
+        {
+          /* This range is found in a different partition to previous
+           * range(s).  We cannot prune this scan.
+           */
+          m_pruneState= SPS_MULTI_PARTITION;
+        }
+      }
+    }
+    else
+    {
+      /* This range cannot be scanned by scanning a single partition
+       * Therefore the scan must scan all partitions
+       */
+      m_pruneState= SPS_MULTI_PARTITION;
+    }
+
+    /* Now modify the SCANTABREQ */
+    if (m_pruneState != prevPruneState)
+    {
+      theDistrKeyIndicator_= (m_pruneState == SPS_ONE_PARTITION);
+      theDistributionKey= m_pruningKey;
+
+      ScanTabReq *req= CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+      ScanTabReq::setDistributionKeyFlag(req->requestInfo, theDistrKeyIndicator_);
+      req->distributionKey= theDistributionKey;
+      theSCAN_TABREQ->setLength(ScanTabReq::StaticLength + theDistrKeyIndicator_);
+    }
+  } // if (m_pruneState == UNKNOWN / SPS_ONE_PARTITION)
+
   return 0;
 } // ::setBound();
 
@@ -824,21 +1088,12 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
   Uint32 parallel = 0;
   Uint32 batch = 0;
 
+  ScanOptions currentOptions;
+
   if (options != NULL)
   {
-    /* Check options size for versioning... */
-    if (unlikely((sizeOfOptions !=0) &&
-                 (sizeOfOptions != sizeof(ScanOptions))))
-    {
-      /* Handle different sized ScanOptions
-       * Probably smaller is old version, larger is new version
-       */
-      
-      /* No other versions supported currently */
-      setErrorCodeAbort(4298);
-      /* Invalid or unsupported ScanOptions structure */
+    if (handleScanOptionsVersion(options, sizeOfOptions, currentOptions))
       return -1;
-    }
     
     /* Process some initial ScanOptions here
      * The rest will be handled later
@@ -985,6 +1240,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
                                        Uint32 batch)
 {
   m_ordered = m_descending = false;
+  m_pruneState= SPS_UNKNOWN;
   Uint32 fragCount = m_currentTable->m_fragmentCount;
 
   if (parallel > fragCount || parallel == 0) {
@@ -1781,7 +2037,14 @@ int NdbScanOperation::finaliseScanOldApi()
   options.parallel= m_savedParallelOldApi;
   options.batch= m_savedBatchOldApi;
 
-  /* customData, interpretedCode or partitionId should 
+  if (theDistrKeyIndicator_ == 1)
+  {
+    /* User has defined a partition id specifically */
+    options.optionsPresent |= ScanOptions::SO_PARTITION_ID;
+    options.partitionId= theDistributionKey;
+  }
+
+  /* customData or interpretedCode should 
    * already be set in the operation members - no need 
    * to pass in as ScanOptions
    */
@@ -2876,8 +3139,6 @@ NdbIndexScanOperation::getIndexBoundFromRecAttr(NdbRecAttr* recAttr)
 {
   return &((OldApiScanRangeDefinition*)recAttr->aRef())->ib;
 }
-
-
 /* Method called to release any resources allocated by the old 
  * Index Scan bound API
  */
@@ -3610,3 +3871,15 @@ NdbIndexScanOperation::get_range_no()
   }
   return -1;
 }
+
+
+bool
+NdbScanOperation::getPruned() const
+{
+  /* Note that for old Api scans, the bounds are not added until 
+   * execute() time, so this will return false until after execute
+   */
+  return ((m_pruneState == SPS_ONE_PARTITION) ||
+          (m_pruneState == SPS_FIXED));
+}
+

@@ -510,8 +510,10 @@ insert into tab2 values (1, "Donnington", 1, repeat("O", 1000)),
 (6, "Cairns", 6, repeat("T", 1000)),
 (7, "Highlea", 7, repeat("U", 1000));
 
-checksum table tab1;
-checksum table tab2;
+# checksum table tab1;
+# checksum table tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 use db2;
 
@@ -521,8 +523,10 @@ create table tab2 (a int primary key, b varchar(20), c int, unique(c), d text) e
 insert into tab1 select * from db1.tab1;
 insert into tab2 select * from db1.tab2;
 
-checksum table tab1;
-checksum table tab2;
+# checksum table tab1;
+# checksum table tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 --echo ***********************
 --echo Backing up created data
@@ -540,11 +544,15 @@ drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 
 use db1;
 show tables;
-checksum table tab1, tab2;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 use db2;
 show tables;
-checksum table tab1, tab2;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 
@@ -558,8 +566,9 @@ use db1;
 show tables;
 use db2;
 show tables;
-checksum table tab1, tab2;
-
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 drop table db2.tab1, db2.tab2;
 
@@ -572,7 +581,9 @@ drop table db2.tab1, db2.tab2;
 
 use db1;
 show tables;
-checksum table tab1, tab2;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 use db2;
 show tables;
@@ -601,11 +612,13 @@ show tables;
 
 use db1;
 show tables;
-checksum table tab1;
+# checksum table tab1;
+select * from tab1 order by a;
 
 use db2;
 show tables;
-checksum table tab2;
+# checksum table tab2;
+select * from tab2 order by a;
 
 
 drop table db1.tab1, db2.tab2;
@@ -620,11 +633,13 @@ drop table db1.tab1, db2.tab2;
 
 use db1;
 show tables;
-checksum table tab2;
+# checksum table tab2;
+select * from tab2 order by a;
 
 use db2;
 show tables;
-checksum table tab1;
+# checksum table tab1;
+select * from tab1 order by a;
 
 drop table db1.tab2, db2.tab1;
 
@@ -639,7 +654,8 @@ drop table db1.tab2, db2.tab1;
 
 use db1;
 show tables;
-checksum table tab1;
+# checksum table tab1;
+select * from tab1 order by a;
 
 use db2;
 show tables;
@@ -656,7 +672,8 @@ drop table db1.tab1;
 
 use db1;
 show tables;
-checksum table tab2;
+# checksum table tab2;
+select * from tab2 order by a;
 
 use db2;
 show tables;
@@ -673,7 +690,8 @@ drop table db1.tab2;
 
 use db1;
 show tables;
-checksum table tab1;
+# checksum table tab1;
+select * from tab1 order by a;
 
 use db2;
 show tables;
@@ -692,7 +710,9 @@ use db1;
 show tables;
 use db2;
 show tables;
-checksum table tab1, tab2;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 drop table db2.tab1, db2.tab2;
 
@@ -708,7 +728,8 @@ use db1;
 show tables;
 use db2;
 show tables;
-checksum table tab1;
+# checksum table tab1;
+select * from tab1 order by a;
 
 drop table db2.tab1;
 
@@ -737,10 +758,14 @@ show databases;
 
 use db1;
 show tables;
-checksum table tab1, tab2;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 use db2;
 show tables;
-checksum table tab1, tab2;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
 
 drop table db1.tab1, db1.tab2;
 drop table db2.tab1, db2.tab2;
@@ -754,7 +779,8 @@ drop table db2.tab1, db2.tab2;
 
 use db1;
 show tables;
-checksum table tab2;
+# checksum table tab2;
+select * from tab2 order by a;
 
 use db2;
 show tables;
