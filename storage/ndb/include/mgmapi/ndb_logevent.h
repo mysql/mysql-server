@@ -195,6 +195,8 @@ extern "C" {
     NDB_LE_SubscriptionStatus = 69
 
     /* 70 unused */
+
+    ,NDB_LE_RedoStatus = 73
   };
 
   /**
@@ -738,6 +740,18 @@ extern "C" {
         unsigned report_type;
 	unsigned node_id;
       } SubscriptionStatus;
+      /** Log event data @ref NDB_LE_RedoStatus */
+      struct {
+	unsigned log_part;
+	unsigned head_file_no;
+        unsigned head_mbyte;
+        unsigned tail_file_no;
+        unsigned tail_mbyte;
+        unsigned total_hi;
+        unsigned total_lo;
+        unsigned free_hi;
+        unsigned free_lo;
+      } RedoStatus;
 #ifndef DOXYGEN_FIX
     };
 #else

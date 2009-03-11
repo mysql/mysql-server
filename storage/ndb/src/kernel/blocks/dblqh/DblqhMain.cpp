@@ -169,6 +169,47 @@ static NdbOut * traceopout = 0;
 #define TRACE_OP(x, y) {}
 #endif
 
+struct LogPosition
+{
+  Uint32 m_file_no;
+  Uint32 m_mbyte;
+};
+
+int
+cmp(const LogPosition& pos1, const LogPosition& pos2)
+{
+  if (pos1.m_file_no > pos2.m_file_no)
+    return 1;
+  if (pos1.m_file_no < pos2.m_file_no)
+    return -1;
+  if (pos1.m_mbyte > pos2.m_mbyte)
+    return 1;
+  if (pos1.m_mbyte < pos2.m_mbyte)
+    return -1;
+
+  return 0;
+}
+
+/**
+ * head - tail
+ */
+static
+Uint64
+free_log(const LogPosition& head, const LogPosition& tail, 
+         Uint32 cnt, Uint32 size)
+{
+  Uint64 headmb = head.m_file_no*Uint64(size) + head.m_mbyte;
+  Uint64 tailmb = tail.m_file_no*Uint64(size) + tail.m_mbyte;
+  if (headmb >= tailmb)
+  {
+    return (cnt * Uint64(size)) - headmb + tailmb;
+  }
+  else
+  {
+    return tailmb - headmb;
+  }
+}
+
 /* ------------------------------------------------------------------------- */
 /* -------               SEND SYSTEM ERROR                           ------- */
 /*                                                                           */
@@ -12159,6 +12200,18 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   
 }//Dblqh::sendCOMP_LCP_ROUND()
 
+#if NOT_YET
+void
+Dblqh::execLCP_COMPLETE_REP(Signal* signal)
+{
+  /**
+   * This is sent when last LCP is restorable
+   */
+  LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtr();
+  Uint32 keepGci = rep->keepGci;
+  setLogTail(signal, keepGci);
+}
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* -------               SEND ACC_LCPREQ AND TUP_LCPREQ              ------- */
@@ -12184,24 +12237,10 @@ void Dblqh::sendStartLcp(Signal* signal)
 /*FOR SHORT LOGS.                                                            */
 /* ------------------------------------------------------------------------- */
 
-// this function has not been verified yet
-Uint32 Dblqh::remainingLogSize(const LogFileRecordPtr &sltCurrLogFilePtr,
-			       const LogPartRecordPtr &sltLogPartPtr)
-{
-  Uint32 hf = sltCurrLogFilePtr.p->fileNo*clogFileSize+sltCurrLogFilePtr.p->currentMbyte;
-  Uint32 tf = sltLogPartPtr.p->logTailFileNo*clogFileSize+sltLogPartPtr.p->logTailMbyte;
-  Uint32 sz = sltLogPartPtr.p->noLogFiles*clogFileSize;
-  if (tf > hf) hf += sz;
-  return sz-(hf-tf);
-}
-
 void Dblqh::setLogTail(Signal* signal, Uint32 keepGci) 
 {
   LogPartRecordPtr sltLogPartPtr;
   LogFileRecordPtr sltLogFilePtr;
-#if 0
-  LogFileRecordPtr sltCurrLogFilePtr;
-#endif
   UintR tsltMbyte;
   UintR tsltStartMbyte;
   UintR tsltIndex;
@@ -12212,13 +12251,6 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
     ptrAss(sltLogPartPtr, logPartRecord);
     findLogfile(signal, sltLogPartPtr.p->logTailFileNo,
                 sltLogPartPtr, &sltLogFilePtr);
-
-#if 0
-    sltCurrLogFilePtr.i = sltLogPartPtr.p->currentLogfile;
-    ptrCheckGuard(sltCurrLogFilePtr, clogFileFileSize, logFileRecord);
-    infoEvent("setLogTail: Available log file %d size = %d[mbytes]+%d[words]", sltLogPartPtr.i,
-	      remainingLogSize(sltCurrLogFilePtr, sltLogPartPtr), sltCurrLogFilePtr.p->remainingWordsInMbyte);
-#endif
 
     tsltMbyte = sltLogPartPtr.p->logTailMbyte;
     tsltStartMbyte = tsltMbyte;
@@ -12327,10 +12359,6 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
         }//if
       }//if
     }
-#if 0
-    infoEvent("setLogTail: Available log file %d size = %d[mbytes]+%d[words]", sltLogPartPtr.i,
-	      remainingLogSize(sltCurrLogFilePtr, sltLogPartPtr), sltCurrLogFilePtr.p->remainingWordsInMbyte);
-#endif
   }//for
 
 }//Dblqh::setLogTail()
@@ -12398,6 +12426,9 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
+  Uint32 saveNewestCompletedGci = cnewestCompletedGci;
+  cnewestCompletedGci = gci;
+
   if (cstartRecReq < SRR_REDO_COMPLETE)
   {
     /**
@@ -12413,9 +12444,10 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
   
-  ndbrequire(gci >= cnewestCompletedGci);
+  ndbrequire(gci >= saveNewestCompletedGci);
   
-  if (gci == cnewestCompletedGci) {
+  if (gci == saveNewestCompletedGci) 
+  {
 /*---------------------------------------------------------------------------*/
 /* GLOBAL CHECKPOINT HAVE ALREADY BEEN HANDLED. REQUEST MUST HAVE BEEN SENT  */
 /* FROM NEW MASTER DIH.                                                      */
@@ -14545,7 +14577,8 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   fragptr.p->logFlag = Fragrecord::STATE_FALSE;
   fragptr.p->srStatus = Fragrecord::SS_IDLE;
 
-  if (noOfLogNodes > 0) {
+  if (noOfLogNodes > 0) 
+  {
     jam();
     for (Uint32 i = 0; i < noOfLogNodes; i++) {
       jam();
@@ -14554,8 +14587,19 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
       fragptr.p->srLqhLognode[i] = startFragReq->lqhLogNode[i];
     }//for
     fragptr.p->newestGci = startFragReq->lastGci[noOfLogNodes - 1];
-  } else {
-    fragptr.p->newestGci = cnewestGci;
+  } 
+  else
+  {
+    jam();
+    /**
+     * This is a really weird piece of code
+     *   it's probably incorrect, but seems to mask problems...
+     */
+    if (cnewestGci > fragptr.p->newestGci) 
+    {
+      jam();
+      fragptr.p->newestGci = cnewestGci;
+    }
   }//if
   
   if (lcpNo == ZNIL)
@@ -19131,20 +19175,13 @@ void Dblqh::writeNextLog(Signal* signal)
     twnlNextMbyte = logFilePtr.p->currentMbyte + 1;
     twnlNextFileNo = logFilePtr.p->fileNo;
   }//if
-  if (twnlNextFileNo == logPartPtr.p->logTailFileNo) {
-    if (logPartPtr.p->logTailMbyte == twnlNextMbyte) {
-      jam();
-/* -------------------------------------------------- */
-/*       THE NEXT MBYTE WILL BE THE TAIL. WE MUST     */
-/*       STOP LOGGING NEW OPERATIONS. THIS OPERATION  */
-/*       ALLOWED TO PASS. ALSO COMMIT, NEXT, COMPLETED*/
-/*       GCI, ABORT AND FRAGMENT SPLIT IS ALLOWED.    */
-/*       OPERATIONS ARE ALLOWED AGAIN WHEN THE TAIL   */
-/*       IS MOVED FORWARD AS A RESULT OF A START_LCP  */
-/*       _ROUND SIGNAL ARRIVING FROM DBDIH.           */
-/* -------------------------------------------------- */
-      logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
-    }//if
+
+  LogPosition head = { twnlNextFileNo, twnlNextMbyte };
+  LogPosition tail = { logPartPtr.p->logTailFileNo, logPartPtr.p->logTailMbyte};
+  if (free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize) <= 4)
+  {
+    jam();
+    logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
   }//if
 }//Dblqh::writeNextLog()
 
@@ -20068,6 +20105,44 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       EXECUTE_DIRECT(DBLQH, GSN_DUMP_STATE_ORD, signal, 1);
     }
   }
+
+  if(arg == 2399)
+  {
+    jam();
+
+    if (cstartRecReq < SRR_REDO_COMPLETE)
+    {
+      jam();
+      return;
+    }
+
+    for(Uint32 i = 0; i<4; i++)
+    {
+      logPartPtr.i = i;
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+      
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
+      signal->theData[0] = NDB_LE_RedoStatus;
+      signal->theData[1] = i;
+      signal->theData[2] = head.m_file_no;
+      signal->theData[3] = head.m_mbyte;
+      signal->theData[4] = tail.m_file_no;
+      signal->theData[5] = tail.m_mbyte;
+      signal->theData[6] = Uint32(total >> 32);
+      signal->theData[7] = Uint32(total);
+      signal->theData[8] = Uint32(mb >> 32);
+      signal->theData[9] = Uint32(mb);
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 10, JBB);
+    }
+  }
+
 }//Dblqh::execDUMP_STATE_ORD()
 
 /* **************************************************************** */
