@@ -4298,7 +4298,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->main_da.is_error() && 
-          thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+          (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE ||
+           thd->main_da.sql_errno() == ER_FILE_NOT_FOUND))
         /* A missing table is just issued as a failed command */
         result_code= HA_ADMIN_FAILED;
       else

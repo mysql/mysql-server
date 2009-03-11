@@ -5,6 +5,9 @@
 # should work with embedded server after mysqltest is fixed
 --source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --source include/add_anonymous_users.inc
 
 connect (con0,localhost,root,,);
@@ -233,7 +236,8 @@ connect (con1,localhost,mysqltest1,,);
 connection con1;
 select * from t1;
 
-connection con0;
+connection default;
+disconnect con0;
 disconnect con1;
 
 drop trigger trg1;
@@ -244,3 +248,7 @@ set global init_connect="set @a='a\\0c'";
 revoke all privileges, grant option from mysqltest1@localhost;
 drop user mysqltest1@localhost;
 drop table t1, t2;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
