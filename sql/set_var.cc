@@ -1520,9 +1520,10 @@ static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
 
     var->save_result.ulonglong_value= getopt_ull_limit_value(var->save_result.
                                                              ulonglong_value,
-							     limits, &fixed);
+                                                             limits, &fixed);
 
-    if ((warnings == 0) && throw_bounds_warning(thd, fixed, TRUE, limits->name,
+    if ((warnings == 0) && throw_bounds_warning(thd, fixed, TRUE,
+                                                var->var->name,
                                                 (longlong) unadjusted))
       return TRUE;
   }
