@@ -2387,7 +2387,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           table deletes.
         */
         if ((thd->lex->sql_command != SQLCOM_DELETE) && 
-             !optimizer_flag(thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE))
+             optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE))
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
@@ -2411,7 +2411,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
       else
       {
-        if (!optimizer_flag(thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE))
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE))
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
@@ -3778,7 +3778,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     disabled in @@optimizer_switch
   */
   if (all_scans_rors && 
-      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE_UNION))
+      optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
   {
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     goto skip_to_ror_scan;
@@ -3798,7 +3798,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g",
                      imerge_cost));
   if (imerge_cost > read_time || 
-      optimizer_flag(param->thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE_SORT_UNION))
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION))
   {
     goto build_ror_index_merge;
   }
@@ -3839,7 +3839,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 build_ror_index_merge:
   if (!all_scans_ror_able || 
       param->thd->lex->sql_command == SQLCOM_DELETE ||
-      optimizer_flag(param->thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE_UNION))
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
@@ -4513,7 +4513,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   DBUG_ENTER("get_best_ror_intersect");
 
   if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
-      optimizer_flag(param->thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE_INTERSECT))
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
     DBUG_RETURN(NULL);
 
   /*
@@ -4703,7 +4703,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   ROR_SCAN_INFO **ror_scans_end= tree->ror_scans_end;
   DBUG_ENTER("get_best_covering_ror_intersect");
 
-  if (optimizer_flag(param->thd, OPTIMIZER_SWITCH_NO_INDEX_MERGE_INTERSECT))
+  if (!optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
     DBUG_RETURN(NULL);
 
   for (ROR_SCAN_INFO **scan= tree->ror_scans; scan != ror_scans_end; ++scan)
