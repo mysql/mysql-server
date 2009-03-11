@@ -1421,6 +1421,12 @@ SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 SET GLOBAL expire_logs_days = @old_eld;
+SET GLOBAL auto_increment_offset=-1;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
+SET GLOBAL auto_increment_offset=0;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
 select @@storage_engine;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					@@storage_engine	253	6	6	N	1	31	8
