@@ -2,6 +2,10 @@
 # WL#1756
 #
 -- source include/have_innodb.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -14,10 +18,10 @@ xa rollback 'test1';
 select * from t1;
 
 xa start 'test2';
---error 1399
+--error ER_XAER_RMFAIL
 xa start 'test-bad';
 insert t1 values (20);
---error 1399
+--error ER_XAER_RMFAIL
 xa prepare 'test2';
 xa end 'test2';
 xa prepare 'test2';
@@ -27,22 +31,22 @@ select * from t1;
 xa start 'testa','testb';
 insert t1 values (30);
 
---error 1399
+--error ER_XAER_RMFAIL
 commit;
 
 xa end 'testa','testb';
 
---error 1399
+--error ER_XAER_RMFAIL
 begin;
---error 1399
+--error ER_XAER_RMFAIL
 create table t2 (a int);
 
 connect (con1,localhost,root,,);
 connection con1;
 
---error 1440
+--error ER_XAER_DUPID
 xa start 'testa','testb';
---error 1440
+--error ER_XAER_DUPID
 xa start 'testa','testb', 123;
 
 #        gtrid [ , bqual [ , formatID ] ]
@@ -51,7 +55,7 @@ insert t1 values (40);
 xa end 'testb',' 0@P`',11;
 xa prepare 'testb',0x2030405060,11;
 
---error 1399
+--error ER_XAER_RMFAIL
 start transaction;
 
 xa recover;
@@ -64,11 +68,11 @@ xa prepare 'testa','testb';
 
 xa recover;
 
---error 1397
+--error ER_XAER_NOTA
 xa commit 'testb',0x2030405060,11;
 xa rollback 'testa','testb';
 
---error 1064
+--error ER_PARSE_ERROR
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
 
 select * from t1;
@@ -119,3 +123,7 @@ xa start 'a','c';
 drop table t1;
 
 --echo End of 5.0 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

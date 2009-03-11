@@ -9,10 +9,9 @@
 # in proper order.
 --source include/have_binlog_format_mixed_or_statement.inc
 
-
 #
-# Test for bug #25044 "ALTER TABLE ... ENABLE KEYS acquires global
-# 'opening tables' lock".
+# Test for Bug#25044 ALTER TABLE ... ENABLE KEYS acquires global
+#                    'opening tables' lock
 #
 # ALTER TABLE ... ENABLE KEYS should not acquire LOCK_open mutex for
 # the whole its duration as it prevents other queries from execution.
@@ -56,6 +55,7 @@ show binlog events in 'master-bin.000001' from 106;
 
 # Clean up
 drop tables t1, t2;
+disconnect addconroot;
 
 
 --echo End of 5.0 tests
@@ -76,6 +76,7 @@ create table t1 (i int);
 reset master;
 set session debug="+d,sleep_alter_before_main_binlog";
 --send alter table t1 change i c char(10) default 'Test1';
+connect (addconroot, localhost, root,,);
 connection addconroot;
 --sleep 2
 insert into t1 values ();
@@ -105,6 +106,7 @@ connection addconroot;
 rename table t1 to t3;
 connection default;
 --reap
+disconnect addconroot;
 drop table t3;
 set session debug="-d,sleep_alter_before_main_binlog";
 
@@ -114,3 +116,4 @@ show binlog events in 'master-bin.000001' from 106;
 
 
 --echo End of 5.1 tests
+
