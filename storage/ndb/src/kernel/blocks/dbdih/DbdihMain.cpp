@@ -727,6 +727,28 @@ done:
   CRASH_INSERTION2(7020, reason==CopyGCIReq::LOCAL_CHECKPOINT);
   CRASH_INSERTION2(7008, reason==CopyGCIReq::GLOBAL_CHECKPOINT);
 
+  if (m_local_lcp_state.check_cut_log_tail(c_newest_restorable_gci))
+  {
+    jam();
+
+#if NOT_YET
+    LcpCompleteRep* rep = (LcpCompleteRep*)signal->getDataPtrSend();
+    rep->nodeId = getOwnNodeId();
+    rep->blockNo = 0;
+    rep->lcpId = m_local_lcp_state.m_start_lcp_req.lcpId;
+    rep->keepGci = m_local_lcp_state.m_keep_gci;
+    sendSignal(DBLQH_REF, GSN_LCP_COMPLETE_REP, signal, 
+               LcpCompleteRep::SignalLength, JBB);
+
+    warningEvent("CUT LOG TAIL: reason: %u lcp: %u m_keep_gci: %u stop: %u",
+                 reason,
+                 m_local_lcp_state.m_start_lcp_req.lcpId,
+                 m_local_lcp_state.m_keep_gci,
+                 m_local_lcp_state.m_stop_gci);
+#endif
+    m_local_lcp_state.reset();
+  }
+  
   /* -------------------------------------------------------------------------*/
   /*     WE SET THE REQUESTER OF THE COPY GCI TO THE CURRENT MASTER. IF THE   */
   /*     CURRENT MASTER WE DO NOT WANT THE NEW MASTER TO RECEIVE CONFIRM OF   */
@@ -9966,8 +9988,15 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   return;
 }//Dbdih::writingCopyGciLab()
 
-void Dbdih::execSTART_LCP_REQ(Signal* signal){
+void Dbdih::execSTART_LCP_REQ(Signal* signal)
+{
+  jamEntry();
   StartLcpReq * req = (StartLcpReq*)signal->getDataPtr();
+
+  /**
+   * Init m_local_lcp_state
+   */
+  m_local_lcp_state.init(req);
  
   CRASH_INSERTION2(7021, isMaster());
   CRASH_INSERTION2(7022, !isMaster());
@@ -9994,6 +10023,63 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal){
   signal->theData[1] = c_lcpState.m_masterLcpDihRef;
   signal->theData[2] = 0;
   sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+}
+
+void
+Dbdih::LocalLCPState::reset()
+{
+  m_state = LS_INITIAL;
+  m_keep_gci = RNIL;
+  m_stop_gci = RNIL;
+}
+
+void
+Dbdih::LocalLCPState::init(const StartLcpReq * req)
+{
+  m_state = LS_RUNNING;
+  m_start_lcp_req = *req;
+  m_keep_gci = ~(Uint32)0;
+  m_stop_gci = 0;
+}
+
+void
+Dbdih::LocalLCPState::lcp_frag_rep(const LcpFragRep * rep)
+{
+  assert(m_state == LS_RUNNING);
+  if (rep->maxGciCompleted < m_keep_gci)
+  {
+    m_keep_gci = rep->maxGciCompleted;
+    if (rep->maxGciCompleted < 100)
+    {
+      printLCP_FRAG_REP(stdout, (Uint32*)rep,
+                        LcpFragRep::SignalLength, 0);
+    }
+  }
+
+  if (rep->maxGciStarted > m_stop_gci)
+  {
+    m_stop_gci = rep->maxGciStarted;
+  }
+}
+
+void
+Dbdih::LocalLCPState::lcp_complete_rep(Uint32 gci)
+{
+  assert(m_state == LS_RUNNING);
+  m_state = LS_COMPLETE;
+  if (gci > m_stop_gci)
+    m_stop_gci = gci;
+}
+
+bool
+Dbdih::LocalLCPState::check_cut_log_tail(Uint32 gci) const
+{
+  if (m_state == LS_COMPLETE)
+  {
+    if (gci >= m_stop_gci)
+      return true;
+  }
+  return false;
 }
 
 void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId) 
@@ -11442,10 +11528,13 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   /*    WHILE COPYING DICTIONARY AND DISTRIBUTION INFO TO A STARTING NODE   */
   /*    WE WILL ALSO NOT ALLOW THE LOCAL CHECKPOINT TO PROCEED.             */
   /*----------------------------------------------------------------------- */
-  if (c_lcpState.immediateLcpStart == false) {
-    if ((c_lcpState.ctcCounter < 
-	 ((Uint32)1 << c_lcpState.clcpDelay)) ||
-        (c_nodeStartMaster.blockLcp == true)) {
+  if (c_lcpState.immediateLcpStart == false) 
+  {
+    Uint64 cnt = Uint64(c_lcpState.ctcCounter);
+    Uint64 limit = Uint64(1) << c_lcpState.clcpDelay;
+    bool dostart = cnt >= limit; 
+    if (dostart == false || c_nodeStartMaster.blockLcp == true) 
+    {
       jam();
       c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 
@@ -11472,6 +11561,19 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   c_lcpState.ctimer = 0;
   c_lcpState.keepGci = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
+
+  CRASH_INSERTION(7014);
+  c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
+  sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
+}
+
+void Dbdih::execTC_CLOPSIZECONF(Signal* signal) 
+{
+  jamEntry();
+  Uint32 senderNodeId = signal->theData[0];
+  receiveLoopMacro(TC_CLOPSIZEREQ, senderNodeId);
+  
+  ndbrequire(c_lcpState.lcpStatus == LCP_TC_CLOPSIZE);
 
   /* ----------------------------------------------------------------------- */
   /*       UPDATE THE NEW LATEST LOCAL CHECKPOINT ID.                        */
@@ -11504,6 +11606,12 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
     jam();
     Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
     mutex.release();
+
+    if (senderData == 0)
+    {
+      jam();
+      infoEvent("Local checkpoint blocked waiting for node-restart");
+    }
     
     // 2* is as parameter is in seconds, and we sendSignalWithDelay 500ms
     if (senderData >= 2*c_lcpState.m_lcp_trylock_timeout)
@@ -11703,27 +11811,15 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
   Mutex mutex(signal, c_mutexMgr, c_startLcpMutexHandle);
   mutex.release();
   
-  CRASH_INSERTION(7014);
-  c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
-  sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
-}
-
-void Dbdih::execTC_CLOPSIZECONF(Signal* signal) {
-  jamEntry();
-  Uint32 senderNodeId = signal->theData[0];
-  receiveLoopMacro(TC_CLOPSIZEREQ, senderNodeId);
-  
-  ndbrequire(c_lcpState.lcpStatus == LCP_TC_CLOPSIZE);
   /* ----------------------------------------------------------------------- */
-  /*     ALL TC'S HAVE CLEARED THEIR OPERATION SIZE COUNTERS. NOW PROCEED BY */
-  /*     STARTING THE LOCAL CHECKPOINT IN EACH LQH.                          */
+  /*     NOW PROCEED BY STARTING THE LOCAL CHECKPOINT IN EACH LQH.           */
   /* ----------------------------------------------------------------------- */
   c_lcpState.m_LAST_LCP_FRAG_ORD = c_lcpState.m_participatingLQH;
 
   CRASH_INSERTION(7015);
   c_lcpState.setLcpStatus(LCP_START_LCP_ROUND, __LINE__);
   startLcpRoundLoopLab(signal, 0, 0);
-}//Dbdih::execTC_CLOPSIZECONF()
+}
 
 void
 Dbdih::master_lcp_fragmentMutex_locked(Signal* signal, 
@@ -12038,6 +12134,14 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     jam();
     c_lcpState.lcpStopGcp = started;
   }
+
+  /**
+   * Update m_local_lcp_state
+   *
+   * we could only look fragments that we have locally...
+   *   but for now we look at all fragments
+   */
+  m_local_lcp_state.lcp_frag_rep(lcpReport);
 
   if(tableDone){
     jam();
@@ -12597,6 +12701,11 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
 
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 
+  /**
+   * Update m_local_lcp_state
+   */
+  m_local_lcp_state.lcp_complete_rep(c_newest_restorable_gci);
+  
   if (isMaster())
   {
     /**
@@ -15710,7 +15819,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 nodeOrder[MAX_REPLICAS];
 	const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, nodeOrder);
 	char buf[100];
-	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) - ", tabPtr.i, j, dihGetInstanceKey(fragPtr));
+	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) LP: %u - ", tabPtr.i, j, dihGetInstanceKey(fragPtr), fragPtr.p->m_log_part_id);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
 	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
