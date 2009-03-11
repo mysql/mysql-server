@@ -380,7 +380,7 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 /* Global variables */
 
-bool opt_update_log, opt_bin_log;
+bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -5666,7 +5666,8 @@ enum options_mysqld
   OPT_DEADLOCK_TIMEOUT_SHORT,
   OPT_DEADLOCK_TIMEOUT_LONG,
   OPT_GENERAL_LOG_FILE,
-  OPT_SLOW_QUERY_LOG_FILE
+  OPT_SLOW_QUERY_LOG_FILE,
+  OPT_IGNORE_BUILTIN_INNODB
 };
 
 
@@ -5897,6 +5898,9 @@ Disable with --skip-large-pages.",
    (uchar**) &opt_large_pages, (uchar**) &opt_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
 #endif
+  {"ignore-builtin-innodb", OPT_IGNORE_BUILTIN_INNODB ,
+   "Disable initialization of builtin InnoDB plugin",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
    (uchar**) &opt_init_connect, (uchar**) &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7599,6 +7603,7 @@ static int mysql_init_variables(void)
   log_output_options= find_bit_type(log_output_str, &log_output_typelib);
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
+  opt_ignore_builtin_innodb= 0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
@@ -7906,6 +7911,9 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_BIG_TABLES:
     thd_startup_options|=OPTION_BIG_TABLES;
+    break;
+  case (int) OPT_IGNORE_BUILTIN_INNODB:
+    opt_ignore_builtin_innodb= 1;
     break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;

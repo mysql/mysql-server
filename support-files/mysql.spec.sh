@@ -46,7 +46,7 @@
 %else
 %define release 0.glibc23
 %endif
-%define license GPL
+%define mysql_license	GPL
 %define mysqld_user	mysql
 %define mysqld_group	mysql
 %define server_suffix -standard
@@ -80,7 +80,7 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under %{license} license as shown in the Description field.
+License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	Sun Microsystems, Inc. Product Engineering Team <build@mysql.com>
@@ -101,7 +101,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 Sun Microsystems, Inc.
 
-Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.
+Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ Sun Microsystems, Inc.  All rights reserved.
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -125,7 +125,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 Sun Microsystems, Inc.
 
-Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.  All rights reserved.
+Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ Sun Microsystems, Inc.  All rights reserved.
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -392,9 +392,9 @@ CXXFLAGS="$CXXFLAGS" \
 BuildMySQL "\
 		--with-debug \
 %if %{MARIA_BUILD}
-		--with-comment=\"MySQL Community Server - Debug [Maria] (%{license})\" \
+		--with-comment=\"MySQL Community Server - Debug [Maria] (%{mysql_license})\" \
 %else
-		--with-comment=\"MySQL Community Server - Debug (%{license})\" \
+		--with-comment=\"MySQL Community Server - Debug (%{mysql_license})\" \
 %endif
 ")
 
@@ -418,9 +418,9 @@ CXXFLAGS="$CXXFLAGS" \
 BuildMySQL "\
 		--with-embedded-server \
 %if %{MARIA_BUILD}
-		--with-comment=\"MySQL Community Server [Maria] (%{license})\" \
+		--with-comment=\"MySQL Community Server [Maria] (%{mysql_license})\" \
 %else
-		--with-comment=\"MySQL Community Server (%{license})\" \
+		--with-comment=\"MySQL Community Server (%{mysql_license})\" \
 %endif
 ")
 # We might want to save the config log file

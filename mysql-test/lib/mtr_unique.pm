@@ -28,7 +28,17 @@ sub msg {
  # print "### unique($$) - ", join(" ", @_), "\n";
 }
 
-my $file= "/tmp/mysql-test-ports";
+my $file;
+
+if(!IS_WINDOWS)
+{
+  $file= "/tmp/mysql-test-ports";
+}
+else
+{
+  $file= $ENV{'TEMP'}."/mysql-test-ports";
+}
+  
 
 my %mtr_unique_ids;
 
@@ -178,6 +188,8 @@ sub mtr_release_unique_id($) {
 
   flock SEM, LOCK_UN or warn "can't unlock $file.sem";
   close SEM;
+
+  delete $mtr_unique_ids{$$};
 }
 
 

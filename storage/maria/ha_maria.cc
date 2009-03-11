@@ -1574,7 +1574,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 
   if ((error= maria_preload(file, map, table_list->ignore_leaves)))
   {
-    char buf[ERRMSGSIZE+20];
+    char buf[MYSQL_ERRMSG_SIZE+20];
     const char *errmsg;
 
     switch (error) {
@@ -1585,7 +1585,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
       errmsg= "Failed to allocate buffer";
       break;
     default:
-      my_snprintf(buf, ERRMSGSIZE,
+      my_snprintf(buf, sizeof(buf),
                   "Failed to read from index file (errno: %d)", my_errno);
       errmsg= buf;
     }

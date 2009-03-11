@@ -196,7 +196,7 @@ create table db37908.t1(f1 int);
 insert into db37908.t1 values(1);
 grant usage,execute on test.* to mysqltest_1@localhost;
 create procedure proc37908() begin select 1; end |
-create function func37908() returns int sql security invoker 
+create function func37908() returns int sql security invoker
 return (select * from db37908.t1 limit 1)|
 select * from db37908.t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't1'

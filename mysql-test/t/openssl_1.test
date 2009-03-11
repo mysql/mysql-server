@@ -3,6 +3,10 @@
 
 --source include/have_ssl.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -21,38 +25,42 @@ connect (con2,localhost,ssl_user2,,,,,SSL);
 connect (con3,localhost,ssl_user3,,,,,SSL);
 connect (con4,localhost,ssl_user4,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (con5,localhost,ssl_user5,,,,,SSL);
 
 connection con1;
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 delete from t1;
 
 connection con2;
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 delete from t1;
 
 connection con3;
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 delete from t1;
 
 connection con4;
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 delete from t1;
 
 connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
 drop user ssl_user1@localhost, ssl_user2@localhost,
 ssl_user3@localhost, ssl_user4@localhost, ssl_user5@localhost;
 
@@ -97,7 +105,7 @@ drop table t1;
 --exec $MYSQL_TEST --ssl-cert= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
-# BUG#21611 Slave can't connect when master-ssl-cipher specified
+# Bug#21611 Slave can't connect when master-ssl-cipher specified
 # - Apparently selecting a cipher doesn't work at all
 # - Usa a cipher that both yaSSL and OpenSSL supports
 #
@@ -115,7 +123,7 @@ drop table t1;
 --echo End of 5.0 tests
 
 #
-# Bug #26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS in
+# Bug#26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS in
 # Event (see also information_schema.test for the other part of test for
 # this bug).
 #
@@ -171,7 +179,7 @@ SET GLOBAL event_scheduler=0;
 --exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
-# Bug #27669 mysqldump: SSL connection error when trying to connect
+# Bug#27669 mysqldump: SSL connection error when trying to connect
 #
 
 CREATE TABLE t1(a int);
@@ -190,10 +198,11 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-create --skip-comments --ssl --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem test 2>&1
 
 DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/test.sql
 
 #
-# Bug#39172: Asking for DH+non-RSA key with server set to use other key caused
-# 				YaSSL to crash the server.
+# Bug#39172 Asking for DH+non-RSA key with server set to use other key caused
+#           YaSSL to crash the server.
 #
 
 # Common ciphers to openssl and yassl
@@ -231,3 +240,6 @@ select 'is still running; no cipher request crashed the server' as result from d
 
 ##
 --echo End of 5.1 tests
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
