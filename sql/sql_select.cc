@@ -9788,6 +9788,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->in_use= thd;
   table->quick_keys.init();
   table->covering_keys.init();
+  table->merge_keys.init();
   table->keys_in_use_for_query.init();
 
   table->s= share;
