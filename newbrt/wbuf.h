@@ -133,6 +133,15 @@ static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
 	    wbuf_bytes  (w, h.u.many.names[i], (u_int32_t)(1+strlen(h.u.many.names[i])));
 	}
     }
+    wbuf_BLOCKNUM(w, h.btt_size);
+    wbuf_DISKOFF(w, h.btt_diskoff);
+    {
+	BLOCKNUM i;
+	for (i.b=0; i.b<h.btt_size.b; i.b++) {
+	    wbuf_DISKOFF(w, h.btt_pairs[i.b].off);
+	    wbuf_int(w, h.btt_pairs[i.b].size);
+	}
+    }
 }
 
 static inline void wbuf_INTPAIRARRAY (struct wbuf *w, INTPAIRARRAY h) {

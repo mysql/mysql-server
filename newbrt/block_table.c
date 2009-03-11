@@ -344,13 +344,6 @@ toku_block_recovery_set_unused_blocks(BLOCK_TABLE bt, BLOCKNUM newunused) {
 }
 
 void
-toku_block_recovery_set_free_blocks(BLOCK_TABLE bt, BLOCKNUM newfree) {
-    lock_for_blocktable(bt);
-    bt->free_blocks = newfree;
-    unlock_for_blocktable(bt);
-}
-
-void
 toku_block_memcpy_translation_table(BLOCK_TABLE bt, size_t n, void *p) {
     lock_for_blocktable(bt);
     memcpy(p, bt->block_translation, n);
@@ -405,40 +398,73 @@ toku_blocktable_debug_set_translation(BLOCK_TABLE bt,
     unlock_for_blocktable(bt);
 } 
 
-void
-toku_blocktable_create(BLOCK_TABLE *btp,
-        BLOCKNUM free_blocks,
-        BLOCKNUM unused_blocks,
-        u_int64_t translated_blocknum_limit,
-        u_int64_t block_translation_address_on_disk,
-        u_int64_t block_translation_size_on_disk,
-        unsigned char *buffer) {
-
-    BLOCK_TABLE bt;
-    XMALLOC(bt);
+static void
+toku_blocktable_create_internal (BLOCK_TABLE *btp,
+				 BLOCKNUM free_blocks,
+				 BLOCKNUM unused_blocks,
+				 u_int64_t translated_blocknum_limit,
+				 u_int64_t block_translation_address_on_disk)
+// Effect: Fill it in, including the translation table, which is uninitialized
+{
+    BLOCK_TABLE XMALLOC(bt);
     blocktable_lock_init(bt);
-
     bt->free_blocks   = free_blocks;
     bt->unused_blocks = unused_blocks;
     bt->translated_blocknum_limit = translated_blocknum_limit;
     bt->block_translation_address_on_disk = block_translation_address_on_disk;
+
     update_size_on_disk(bt);
-    if (block_translation_address_on_disk==0 && block_translation_size_on_disk == 0) {
+    if (block_translation_address_on_disk==0) {
         bt->block_translation_size_on_disk = 0;
     }
-    assert(block_translation_size_on_disk==bt->block_translation_size_on_disk);
-
-
-    // Set up the the block translation buffer.
     create_block_allocator(&bt->block_allocator, BLOCK_ALLOCATOR_HEADER_RESERVE, BLOCK_ALLOCATOR_ALIGNMENT);
     if (block_translation_address_on_disk==0) {
         bt->block_translation = NULL;
-        assert(buffer==NULL);
-    }
-    else {
+    }  else {
         XMALLOC_N(translated_blocknum_limit, bt->block_translation);
         //Mark where the translation table is stored on disk.
 	block_allocator_alloc_block_at(bt->block_allocator, bt->block_translation_size_on_disk, bt->block_translation_address_on_disk);
+    }
+
+    *btp = bt;
+}
+
+void toku_blocktable_create_from_loggedheader(BLOCK_TABLE *btp, LOGGEDBRTHEADER h) {
+    // We don't need the lock for the block table for this operation.
+    BLOCK_TABLE bt;
+    toku_blocktable_create_internal (&bt,
+				     h.free_blocks,
+				     h.unused_blocks,
+				     h.btt_size.b,
+				     h.btt_diskoff);
+    int64_t i;
+    for (i=0; i<h.btt_size.b; i++) {
+	bt->block_translation[i].diskoff = h.btt_pairs[i].off;
+	bt->block_translation[i].size    = h.btt_pairs[i].size;
+	if (h.btt_pairs[i].size > 0) {
+	    block_allocator_alloc_block_at(bt->block_allocator, h.btt_pairs[i].size, h.btt_pairs[i].off);
+	}
+    }
+    *btp = bt;
+}
+
+void
+toku_blocktable_create(BLOCK_TABLE *btp,
+		       BLOCKNUM free_blocks,
+		       BLOCKNUM unused_blocks,
+		       u_int64_t translated_blocknum_limit,
+		       u_int64_t block_translation_address_on_disk,
+		       unsigned char *buffer) {
+    BLOCK_TABLE bt;
+    toku_blocktable_create_internal(&bt,
+				    free_blocks, unused_blocks,
+				    translated_blocknum_limit,
+				    block_translation_address_on_disk);
+				    
+
+    // Set up the the block translation buffer.
+    if (block_translation_address_on_disk != 0) {
+	assert(buffer);
         //Load translations from the buffer.
         u_int64_t i;
     	struct rbuf rt;
@@ -453,7 +479,8 @@ toku_blocktable_create(BLOCK_TABLE *btp,
                 block_allocator_alloc_block_at(bt->block_allocator, bt->block_translation[i].size, bt->block_translation[i].diskoff);
             //printf("%s:%d %ld %ld\n", __FILE__, __LINE__, bt->block_translation[i].diskoff, bt->block_translation[i].size);
         }
-
+    } else {
+	assert(buffer==0);
     }
     
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, bt->translated_blocknum_limit, bt->block_translation_address_on_disk);
@@ -466,6 +493,5 @@ toku_blocktable_create_new(BLOCK_TABLE *btp) {
     toku_blocktable_create(btp,
                            make_blocknum(-1),
                            make_blocknum(2),
-                           0, 0, 0, NULL);
+                           0, 0, NULL);
 }
-
