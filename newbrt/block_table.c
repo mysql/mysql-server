@@ -63,13 +63,15 @@ verify(BLOCK_TABLE bt, BLOCKNUM b) {
     assert((u_int64_t)b.b < bt->translated_blocknum_limit);
 }
 
-void blocktable_lock_init(BLOCK_TABLE bt) {
+static void
+blocktable_lock_init(BLOCK_TABLE bt) {
     memset(&bt->mutex, 0, sizeof(bt->mutex));
     int r = toku_pthread_mutex_init(&bt->mutex, NULL); assert(r == 0);
     bt->is_locked = 0;
 }
 
-void blocktable_lock_destroy(BLOCK_TABLE bt) {
+static void
+blocktable_lock_destroy(BLOCK_TABLE bt) {
     int r = toku_pthread_mutex_destroy(&bt->mutex); assert(r == 0);
 }
 
