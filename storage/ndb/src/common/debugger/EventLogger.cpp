@@ -715,6 +715,21 @@ void getTextStartREDOLog(QQQQ) {
 		       theData[3],
 		       theData[4]);
 }
+void getTextRedoStatus(QQQQ) {
+  Uint64 total = (Uint64(theData[6]) << 32) + theData[7];
+  Uint64 free = (Uint64(theData[8]) << 32) + theData[9];
+  
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Logpart: %u head=[ file: %u mbyte: %u ] tail=[ file: %u mbyte: %u ] total mb: %llu free mb: %llu free%%: %u",
+		       theData[1],
+		       theData[2],
+		       theData[3],
+		       theData[4],
+		       theData[5],
+                       total,
+                       free,
+                       Uint32((100 * free) / total));
+}
 void getTextUNDORecordsExecuted(QQQQ) {
   const char* line = "";
   if (theData[1] == DBTUP){
@@ -1082,6 +1097,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT ),
   ROW(LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO ),
   ROW(UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
+  ROW(RedoStatus,              LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
 
   // STARTUP
   ROW(NDBStartStarted,         LogLevel::llStartUp,     1, Logger::LL_INFO ),
