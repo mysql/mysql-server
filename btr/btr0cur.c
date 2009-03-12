@@ -3919,10 +3919,21 @@ btr_store_big_rec_extern_fields(
 				int		err;
 				page_zip_des_t*	blob_page_zip;
 
-				mach_write_to_2(page + FIL_PAGE_TYPE,
-						prev_page_no == FIL_NULL
-						? FIL_PAGE_TYPE_ZBLOB
-						: FIL_PAGE_TYPE_ZBLOB2);
+				/* Write FIL_PAGE_TYPE to the redo log
+				separately, before logging any other
+				changes to the page, so that the debug
+				assertions in
+				recv_parse_or_apply_log_rec_body() can
+				be made simpler.  Before InnoDB Plugin
+				1.0.4, the initialization of
+				FIL_PAGE_TYPE was logged as part of
+				the mlog_log_string() below. */
+
+				mlog_write_ulint(page + FIL_PAGE_TYPE,
+						 prev_page_no == FIL_NULL
+						 ? FIL_PAGE_TYPE_ZBLOB
+						 : FIL_PAGE_TYPE_ZBLOB2,
+						 MLOG_2BYTES, &mtr);
 
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
@@ -3968,9 +3979,9 @@ btr_store_big_rec_extern_fields(
 				memset(page + page_zip_get_size(page_zip)
 				       - c_stream.avail_out,
 				       0, c_stream.avail_out);
-				mlog_log_string(page + FIL_PAGE_TYPE,
+				mlog_log_string(page + FIL_PAGE_FILE_FLUSH_LSN,
 						page_zip_get_size(page_zip)
-						- FIL_PAGE_TYPE,
+						- FIL_PAGE_FILE_FLUSH_LSN,
 						&mtr);
 				/* Copy the page to compressed storage,
 				because it will be flushed to disk
