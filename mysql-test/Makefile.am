@@ -71,11 +71,11 @@ SUBDIRS =	lib/My/SafeProcess
 EXTRA_DIST =	README \
 		valgrind.supp \
 		$(test_SCRIPTS) \
-		$(nobase_test_DATA)
+		$(nobase_test_DATA) 
 
 # List of directories containing test + result files and the
 # related test data files that should be copied
-TEST_DIRS = t r include std_data std_data/parts \
+TEST_DIRS = t r include std_data std_data/parts collections \
 	std_data/ndb_backup50 std_data/ndb_backup51 \
 	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
 	std_data/funcs_1 \

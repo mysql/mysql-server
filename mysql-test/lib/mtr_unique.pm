@@ -188,6 +188,8 @@ sub mtr_release_unique_id($) {
 
   flock SEM, LOCK_UN or warn "can't unlock $file.sem";
   close SEM;
+
+  delete $mtr_unique_ids{$$};
 }
 
 

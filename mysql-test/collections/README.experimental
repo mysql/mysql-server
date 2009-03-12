@@ -1,0 +1,25 @@
+The .experimental files in this directory contain names of test cases that
+are still in development and whose failures should be considered expected,
+instead of regressions.
+
+These files are to be used with the --experimental option of 
+mysql-test-run.pl. Please look at its help screen for usage information.
+
+The syntax is as follows:
+
+1) One line per test case.
+
+2) Empty lines and lines starting with a hash (#) are ignored.
+
+3) If any other line contains a blank followed by a hash (#), the hash 
+   and any subsequent characters are ignored.
+
+4) The full test case name including the suite and execution mode
+   must be specified, for example:
+        main.alias 'row'     # bug#00000
+
+5) As an exception to item 4, the last character of the test case
+   specification may be an asterisk (*). In that case, all test cases that
+   start with the same characters up to the last letter before the asterisk
+   are considered experimental:
+        main.a*  # get rid of main.alias, main.alibaba and main.agliolio
