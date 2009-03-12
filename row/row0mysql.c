@@ -1476,7 +1476,6 @@ row_unlock_for_mysql(
 					and clust_pcur, and we do not need to
 					reposition the cursors. */
 {
-	dict_index_t*	index;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
@@ -1501,9 +1500,7 @@ row_unlock_for_mysql(
 
 	trx->op_info = "unlock_row";
 
-	index = btr_pcur_get_btr_cur(pcur)->index;
-
-	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
+	if (prebuilt->new_rec_locks >= 1) {
 
 		mtr_start(&mtr);
 
@@ -1518,22 +1515,9 @@ row_unlock_for_mysql(
 		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
-
-		/* If the search was done through the clustered index, then
-		we have not used clust_pcur at all, and we must NOT try to
-		reset locks on clust_pcur. The values in clust_pcur may be
-		garbage! */
-
-		if (index->type & DICT_CLUSTERED) {
-
-			goto func_exit;
-		}
 	}
 
-	index = btr_pcur_get_btr_cur(clust_pcur)->index;
-
-	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
-
+	if (prebuilt->new_rec_locks >= 2) {
 		mtr_start(&mtr);
 
 		/* Restore the cursor position and find the record */
@@ -1550,7 +1534,6 @@ row_unlock_for_mysql(
 		mtr_commit(&mtr);
 	}
 
-func_exit:
 	trx->op_info = "";
 
 	return(DB_SUCCESS);
