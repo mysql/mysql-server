@@ -597,6 +597,7 @@ LocalProxy::execNF_COMPLETEREP(Signal* signal)
 {
   Ss_NODE_FAILREP& ss = ssFind<Ss_NODE_FAILREP>(1);
   ndbrequire(!ss.noReply(number()));
+  ss.m_workerMask.set(ss.m_worker); // Avoid require in recvCONF
   recvCONF(signal, ss);
 }
 

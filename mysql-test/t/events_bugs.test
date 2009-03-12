@@ -1222,10 +1222,10 @@ drop event e1;
 --source include/no_running_events.inc
 
 DROP DATABASE events_test;
-# Restore the original state (option with no argument in events_bugs-master.opt
-# turns the scheduler on).
-SET GLOBAL event_scheduler = 'ON';
+# Restore the original state i.e to how it was when test started
+# (option with no argument in events_bugs-master.opt  turns the scheduler on).
+SET GLOBAL event_scheduler= 'ON';
 --source include/running_event_scheduler.inc
-SET @@global.concurrent_insert = @concurrent_insert;
+SET @@global.concurrent_insert= @concurrent_insert;
 
 # THIS MUST BE THE LAST LINE in this file.

@@ -4271,7 +4271,7 @@ void Dbdict::printTables()
   DLHashTable<DictObject>::Iterator iter;
   bool moreTables = c_obj_hash.first(iter);
   printf("OBJECTS IN DICT:\n");
-  char name[MAX_TAB_NAME_SIZE];
+  char name[PATH_MAX];
   while (moreTables) {
     Ptr<DictObject> tablePtr = iter.curr;
     ConstRope r(c_rope_pool, tablePtr.p->m_name);
@@ -8967,7 +8967,7 @@ void Dbdict::execGET_TABLEDID_REQ(Signal * signal)
   Uint32 senderRef = req->senderRef;
   Uint32 len = req->len;
 
-  if(len>MAX_TAB_NAME_SIZE)
+  if(len>PATH_MAX)
   {
     jam();
     sendGET_TABLEID_REF((Signal*)signal, 
@@ -8976,7 +8976,7 @@ void Dbdict::execGET_TABLEDID_REQ(Signal * signal)
     return;
   }
 
-  char tableName[MAX_TAB_NAME_SIZE];
+  char tableName[PATH_MAX];
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ssPtr;
   handle.getSection(ssPtr,GetTableIdReq::TABLE_NAME);
@@ -9081,14 +9081,14 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     const Uint32 len = req->tableNameLen;
     
-    if(len > MAX_TAB_NAME_SIZE){
+    if(len > PATH_MAX){
       jam();
       releaseSections(handle);
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong, __LINE__);
       return;
     }
 
-    Uint32 tableName[(MAX_TAB_NAME_SIZE + 3) / 4];
+    Uint32 tableName[(PATH_MAX + 3) / 4];
     SegmentedSectionPtr ssPtr;
     handle.getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
     copy(tableName, ssPtr);
@@ -9458,7 +9458,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       pos = 0;
     }
     Uint32 i = 0;
-    char tmp[MAX_TAB_NAME_SIZE];
+    char tmp[PATH_MAX];
     name.copy(tmp);
     while (i < size) {
       char* p = (char*)&conf->tableData[pos];
@@ -9518,7 +9518,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
    */
   ListTablesData ltd;
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
-  char tname[MAX_TAB_NAME_SIZE];
+  char tname[PATH_MAX];
   SimplePropertiesSectionWriter tableDataWriter(* this);
   SimplePropertiesSectionWriter tableNamesWriter(* this);
 
@@ -18458,6 +18458,31 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     return;
   }
 
+  /**
+   * auto-connect
+   */
+  if (f.FilegroupId == RNIL && f.FilegroupVersion == RNIL)
+  {
+    jam();
+    Filegroup_hash::Iterator it;
+    c_filegroup_hash.first(it);
+    while (!it.isNull())
+    {
+      jam();
+      if ((f.FileType == DictTabInfo::Undofile &&
+           it.curr.p->m_type == DictTabInfo::LogfileGroup) ||
+          (f.FileType == DictTabInfo::Datafile &&
+           it.curr.p->m_type == DictTabInfo::Tablespace))
+      {
+        jam();
+        f.FilegroupId = it.curr.p->key;
+        f.FilegroupVersion = it.curr.p->m_version;
+        break;
+      }
+      c_filegroup_hash.next(it);
+    }
+  }
+
   // Get Filegroup
   FilegroupPtr fg_ptr;
   if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId))
@@ -18823,7 +18848,7 @@ Dbdict::createFile_fromWriteObjInfo(Signal* signal,
     ndbrequire(false);
   }
 
-  char name[MAX_TAB_NAME_SIZE];
+  char name[PATH_MAX];
   ConstRope tmp(c_rope_pool, f_ptr.p->m_path);
   tmp.copy(name);
   LinearSectionPtr ptr[3];
@@ -19119,6 +19144,21 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
       jam();
       setError(error, CreateFilegroupRef::InvalidExtentSize, __LINE__);
       return;
+    }
+
+    /**
+     * auto-connect
+     */
+    if (fg.TS_LogfileGroupId == RNIL && fg.TS_LogfileGroupVersion == RNIL)
+    {
+      jam();
+      Filegroup_hash::Iterator it;
+      if (c_filegroup_hash.first(it))
+      {
+        jam();
+        fg.TS_LogfileGroupId = it.curr.p->key;
+        fg.TS_LogfileGroupVersion = it.curr.p->m_version;
+      }
     }
   }
   else if(fg.FilegroupType == DictTabInfo::LogfileGroup)
@@ -22871,6 +22911,15 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
     CRASH_INSERTION(6013);
   }
 
+  if (ERROR_INSERTED(6022))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   if (ERROR_INSERTED(6142))
   {
     /*
@@ -22903,6 +22952,15 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_prepare_first(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  if (ERROR_INSERTED(6021))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   trans_ptr.p->m_state = SchemaTrans::TS_PREPARING;
 
   SchemaOpPtr op_ptr;
@@ -23560,6 +23618,15 @@ void Dbdict::check_partial_trans_commit_start(SchemaTransPtr trans_ptr,
 void
 Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  if (ERROR_INSERTED(6016) || ERROR_INSERTED(6017))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMMIT;
 
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
@@ -23606,6 +23673,16 @@ void
 Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
+
+  if (ERROR_INSERTED(6018))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
 #ifdef MARTIN
   ndbout_c("trans_commit");
 #endif
@@ -23915,6 +23992,16 @@ void
 Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
+
+  if (ERROR_INSERTED(6019))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
 #ifdef MARTIN
   ndbout_c("trans_complete_start %u", trans_ptr.p->trans_key);
 #endif
@@ -23964,6 +24051,16 @@ void
 Dbdict::trans_complete_first(Signal * signal, SchemaTransPtr trans_ptr)
 {
   jam();
+
+  if (ERROR_INSERTED(6020))
+  {
+    jam();
+    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
+    signal->theData[0] = 9999;
+    sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
+
   trans_ptr.p->m_state = SchemaTrans::TS_COMPLETING;
 
   bool first = false;
@@ -26245,7 +26342,7 @@ Dbdict::DictObject::print(NdbOut& out) const
   out << " (DictObject";
   out << dec << V(m_id);
   out << dec << V(m_type);
-  out << " name:" << dict->copyRope<MAX_TAB_NAME_SIZE>(m_name);
+  out << " name:" << dict->copyRope<PATH_MAX>(m_name);
   out << dec << V(m_ref_count);
   out << dec << V(m_trans_key);
   out << dec << V(m_op_ref_count);
@@ -26353,7 +26450,7 @@ Dbdict::TxHandle::print(NdbOut& out) const
 // check consistency when no schema trans is active
 
 #undef SZ
-#define SZ MAX_TAB_NAME_SIZE
+#define SZ PATH_MAX
 
 void
 Dbdict::check_consistency()

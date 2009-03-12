@@ -93,7 +93,7 @@ testMgm_SOURCES = testMgm.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
-testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
+testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp

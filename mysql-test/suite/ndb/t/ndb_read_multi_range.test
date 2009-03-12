@@ -427,4 +427,4 @@ select * from t1
     or (a = 'm' and b = 'm')
     or (a = 'v')
     order by a asc, b asc;
-drop table t1;
+drop table t1, t2;

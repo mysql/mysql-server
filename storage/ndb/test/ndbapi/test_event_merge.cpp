@@ -1001,11 +1001,11 @@ checkop(const Op* op, Uint32& pk1)
     if (c.pk) {
       chkrc(ind0 == 0); // always PK in post data
       if (optype == Op::INS)
-        chkrc(ind1 == -1);
-      if (optype == Op::DEL)
         chkrc(ind1 == -1); // no PK in pre data
+      if (optype == Op::DEL)
+        chkrc(ind1 == 0); // always PK in pre data (note change from 6.3.23)
       if (optype == Op::UPD)
-        chkrc(ind1 == 0);
+        chkrc(ind1 == 0); // always PK in pre data
     }
     if (! c.pk) {
       if (optype == Op::INS)
@@ -1132,14 +1132,14 @@ compop(const Op* op1, const Op* op2, Op* op3) // op1 o op2 = op3
   }
   if (res_op->type == Op::DEL) {
     // UPD o DEL
-    copydata(op2->data[0], res_op->data[0], true, false); // PK
-    copydata(op1->data[1], res_op->data[1], false, true); // non-PK
+    copydata(op2->data[0], res_op->data[0], true, false); // PK only
+    copydata(op1->data[1], res_op->data[1], true, true); // PK + non-PK
   } 
   if (res_op->type == Op::UPD && op1->type == Op::DEL) {
     // DEL o INS
     copydata(op2->data[0], res_op->data[0], true, true);
-    copydata(op1->data[0], res_op->data[1], true, false); // PK
-    copydata(op1->data[1], res_op->data[1], false, true); // non-PK
+    copydata(op1->data[0], res_op->data[1], true, false); // PK only
+    copydata(op1->data[1], res_op->data[1], true, true); // PK + non-PK
   }
   if (res_op->type == Op::UPD && op1->type == Op::UPD) {
     // UPD o UPD
@@ -1466,10 +1466,7 @@ makeop(const Op* prev_op, Op* op, Uint32 pk1, Op::Type optype)
       d1.ind[i] = -1;
     } else if (optype == Op::DEL) {
       assert(dp.ind[i] >= 0);
-      if (c.pk)
-        d1.ind[i] = -1;
-      else
-        copycol(c, dp, d1);
+      copycol(c, dp, d1);
     } else if (optype == Op::UPD) {
       assert(dp.ind[i] >= 0);
       if (d0.ind[i] == -1) // not updating this col

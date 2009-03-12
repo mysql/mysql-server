@@ -878,6 +878,8 @@ struct Query_cache_query_flags
   unsigned int client_protocol_41:1;
   unsigned int result_in_binary_protocol:1;
   unsigned int more_results_exists:1;
+  unsigned int in_trans:1;
+  unsigned int autocommit:1;
   unsigned int pkt_nr;
   uint character_set_client_num;
   uint character_set_results_num;
@@ -1975,6 +1977,7 @@ extern my_bool opt_log, opt_slow_log;
 extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
+extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
 extern uint volatile thread_count, thread_running, global_read_lock;

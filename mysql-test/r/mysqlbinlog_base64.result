@@ -1,3 +1,4 @@
+reset master;
 create table t1 (a int);
 insert into t1 values (1);
 insert into t1 values (2);
@@ -5,7 +6,7 @@ insert into t1 values (3);
 update t1 set a=a+2 where a=2;
 update t1 set a=a+2 where a=3;
 create table t2 (word varchar(20));
-load data infile '../std_data_ln/words.dat' into table t2;
+load data infile '../../std_data/words.dat' into table t2;
 flush logs;
 drop table t1;
 drop table t2;
@@ -89,7 +90,7 @@ aberration
 flush logs;
 drop table t2;
 create table t2 (word varchar(20));
-load data infile '../std_data_ln/words.dat' into table t2;
+load data infile '../../std_data/words.dat' into table t2;
 insert into t2 select * from t2;
 insert into t2 select * from t2;
 insert into t2 select * from t2;

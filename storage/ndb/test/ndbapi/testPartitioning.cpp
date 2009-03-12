@@ -20,6 +20,13 @@
 #include <NdbRestarter.hpp>
 
 static Uint32 max_dks = 0;
+static const Uint32 MAX_FRAGS=48 * 8 * 4; // e.g. 48 nodes, 8 frags/node, 4 replicas
+static Uint32 frag_ng_mappings[MAX_FRAGS];
+static const char* DistTabName= "DistTest";
+static const char* DistTabDKeyCol= "DKey";
+static const char* DistTabPKey2Col= "PKey2";
+static const char* DistTabResultCol= "Result";
+static const char* DistIdxName= "ResultIndex";
 
 static
 int
@@ -32,7 +39,7 @@ run_drop_table(NDBT_Context* ctx, NDBT_Step* step)
 
 static
 int
-add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
+setNativePartitioning(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
 {
   switch(when){
   case 0: // Before
@@ -42,6 +49,44 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   default:
     return 0;
   }
+
+  /* Use rand to choose one of the native partitioning schemes */
+  const Uint32 rType= rand() % 3;
+  Uint32 fragType= -1;
+  switch(rType)
+  {
+  case 0 :
+    fragType = NdbDictionary::Object::DistrKeyHash;
+    break;
+  case 1 :
+    fragType = NdbDictionary::Object::DistrKeyLin;
+    break;
+  case 2:
+    fragType = NdbDictionary::Object::HashMapPartition;
+    break;
+  }
+
+  ndbout << "Setting fragment type to " << fragType << endl;
+  tab.setFragmentType((NdbDictionary::Object::FragmentType)fragType);
+  return 0;
+}
+
+
+static
+int
+add_distribution_key(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
+{
+  switch(when){
+  case 0: // Before
+    break;
+  case 1: // After
+    return 0;
+  default:
+    return 0;
+  }
+
+  /* Choose a partitioning type */
+  setNativePartitioning(ndb, tab, when, arg);
 
   int keys = tab.getNoOfPrimaryKeys();
   Uint32 dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
@@ -99,22 +144,38 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
     }
   }
 
-  Uint32 linear_hash_ind = rand() & 1;
-  NdbDictionary::Table::FragmentType ftype;
-  if (linear_hash_ind)
-    ftype = NdbDictionary::Table::DistrKeyLin;
-  else
-    ftype = NdbDictionary::Table::DistrKeyHash;
-  tab.setFragmentType(ftype);
-
   ndbout << (NDBT_Table&)tab << endl;
+
+  return 0;
+}
+
+
+static
+int
+setupUDPartitioning(Ndb* ndb, NdbDictionary::Table& tab)
+{
+  /* Following should really be taken from running test system : */
+  const Uint32 numNodes= ndb->get_ndb_cluster_connection().no_db_nodes();
+  const Uint32 numReplicas= 2; // Assumption
+  const Uint32 guessNumNgs= numNodes/2;
+  const Uint32 numNgs= guessNumNgs?guessNumNgs : 1;
+  const Uint32 numFragsPerNode= 2 + (rand() % 3);
+  const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
+
+  tab.setFragmentType(NdbDictionary::Table::UserDefined);
+  tab.setFragmentCount(numPartitions);
+  for (Uint32 i=0; i<numPartitions; i++)
+  {
+    frag_ng_mappings[i]= i % numNgs;
+  }
+  tab.setFragmentData(frag_ng_mappings, numPartitions);
 
   return 0;
 }
 
 static
 int
-one_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
+setUserDefPartitioning(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
 {
   switch(when){
   case 0: // Before
@@ -124,6 +185,28 @@ one_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   default:
     return 0;
   }
+  
+  setupUDPartitioning(ndb, tab);
+
+  ndbout << (NDBT_Table&)tab << endl;
+
+  return 0;
+}
+
+static
+int
+one_distribution_key(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
+{
+  switch(when){
+  case 0: // Before
+    break;
+  case 1: // After
+    return 0;
+  default:
+    return 0;
+  }
+
+  setNativePartitioning(ndb, tab, when, arg);
 
   int keys = tab.getNoOfPrimaryKeys();
   int dist_key_no = rand()% keys;
@@ -147,15 +230,122 @@ one_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   return 0;
 }
 
+static 
+const NdbDictionary::Table*
+create_dist_table(Ndb* pNdb, 
+                  bool userDefined)
+{
+  NdbDictionary::Dictionary* dict= pNdb->getDictionary();
+
+  do {
+    NdbDictionary::Table tab;
+    tab.setName(DistTabName);
+    
+    if (userDefined)
+    {
+      setupUDPartitioning(pNdb, tab);
+    }
+    else
+    {
+      setNativePartitioning(pNdb, tab, 0, 0);
+    }
+    
+    NdbDictionary::Column dk;
+    dk.setName(DistTabDKeyCol);
+    dk.setType(NdbDictionary::Column::Unsigned);
+    dk.setLength(1);
+    dk.setNullable(false);
+    dk.setPrimaryKey(true);
+    dk.setPartitionKey(true);
+    tab.addColumn(dk);
+
+    NdbDictionary::Column pk2;
+    pk2.setName(DistTabPKey2Col);
+    pk2.setType(NdbDictionary::Column::Unsigned);
+    pk2.setLength(1);
+    pk2.setNullable(false);
+    pk2.setPrimaryKey(true);
+    pk2.setPartitionKey(false);
+    tab.addColumn(pk2);
+
+    NdbDictionary::Column result;
+    result.setName(DistTabResultCol);
+    result.setType(NdbDictionary::Column::Unsigned);
+    result.setLength(1);
+    result.setNullable(true);
+    result.setPrimaryKey(false);
+    tab.addColumn(result);
+
+    dict->dropTable(tab.getName());
+    if(dict->createTable(tab) == 0)
+    {
+      ndbout << (NDBT_Table&)tab << endl;
+
+      do {
+        /* Primary key index */
+        NdbDictionary::Index idx;
+        idx.setType(NdbDictionary::Index::OrderedIndex);
+        idx.setLogging(false);
+        idx.setTable(DistTabName);
+        idx.setName("PRIMARY");
+        idx.addColumnName(DistTabDKeyCol);
+        idx.addColumnName(DistTabPKey2Col);
+      
+        dict->dropIndex("PRIMARY",
+                        tab.getName());
+        
+        if (dict->createIndex(idx) == 0)
+        {
+          ndbout << "Primary Index created successfully" << endl;          
+          break;
+        }
+        ndbout << "Primary Index create failed with " << 
+          dict->getNdbError().code << 
+          " retrying " << endl;
+      } while (0);
+
+      do {
+        /* Now the index on the result column */
+        NdbDictionary::Index idx;
+        idx.setType(NdbDictionary::Index::OrderedIndex);
+        idx.setLogging(false);
+        idx.setTable(DistTabName);
+        idx.setName(DistIdxName);
+        idx.addColumnName(DistTabResultCol);
+      
+        dict->dropIndex(idx.getName(),
+                        tab.getName());
+        
+        if (dict->createIndex(idx) == 0)
+        {
+          ndbout << "Index on Result created successfully" << endl;          
+          return dict->getTable(tab.getName());
+        }
+        ndbout << "Index create failed with " << 
+          dict->getNdbError().code << endl;
+      } while (0);
+    }
+  } while (0);
+  return 0;
+};
+
 static int
 run_create_table(NDBT_Context* ctx, NDBT_Step* step)
 {
+  /* Create table, optionally with extra distribution keys
+   * or UserDefined partitioning
+   */
   max_dks = ctx->getProperty("distributionkey", (unsigned)0);
-  
+  bool userDefined = ctx->getProperty("UserDefined", (unsigned) 0);
+
   if(NDBT_Tables::createTable(GETNDB(step), 
 			      ctx->getTab()->getName(), 
 			      false, false, 
-			      max_dks?add_distribution_key:0) == NDBT_OK)
+			      max_dks?
+                              add_distribution_key:
+                              userDefined? 
+                              setUserDefPartitioning :
+                              setNativePartitioning) == NDBT_OK)
   {
     return NDBT_OK;
   }
@@ -260,29 +450,47 @@ static int run_create_pk_index_drop(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 static int
-run_tests(Ndb* p_ndb, HugoTransactions& hugoTrans, int records)
+run_create_dist_table(NDBT_Context* ctx, NDBT_Step* step)
 {
-  if (hugoTrans.loadTable(p_ndb, records) != 0)
+  bool userDefined = ctx->getProperty("UserDefined", (unsigned)0);
+  if(create_dist_table(GETNDB(step),
+                       userDefined))
+    return NDBT_OK;
+  
+  return NDBT_FAILED;
+}
+
+static int
+run_drop_dist_table(NDBT_Context* ctx, NDBT_Step* step)
+{
+  GETNDB(step)->getDictionary()->dropTable(DistTabName);
+  return NDBT_OK;
+}
+
+static int
+run_tests(Ndb* p_ndb, HugoTransactions& hugoTrans, int records, Uint32 batchSize = 1)
+{
+  if (hugoTrans.loadTable(p_ndb, records, batchSize) != 0)
   {
     return NDBT_FAILED;
   }
 
-  if(hugoTrans.pkReadRecords(p_ndb, records) != 0)
+  if(hugoTrans.pkReadRecords(p_ndb, records, batchSize) != 0)
   {
     return NDBT_FAILED;
   }
 
-  if(hugoTrans.pkUpdateRecords(p_ndb, records) != 0)
+  if(hugoTrans.pkUpdateRecords(p_ndb, records, batchSize) != 0)
   {
     return NDBT_FAILED;
   }
 
-  if(hugoTrans.pkDelRecords(p_ndb, records) != 0)
+  if(hugoTrans.pkDelRecords(p_ndb, records, batchSize) != 0)
   {
     return NDBT_FAILED;
   }
 
-  if (hugoTrans.loadTable(p_ndb, records) != 0)
+  if (hugoTrans.loadTable(p_ndb, records, batchSize) != 0)
   {
     return NDBT_FAILED;
   }
@@ -333,8 +541,10 @@ run_pk_dk(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_OK;
 
   HugoTransactions hugoTrans(*tab);
+
+  Uint32 batchSize= ctx->getProperty("BatchSize", (unsigned) 1);
   
-  return run_tests(p_ndb, hugoTrans, records);
+  return run_tests(p_ndb, hugoTrans, records, batchSize);
 }
 
 int
@@ -361,10 +571,11 @@ run_index_dk(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Failed to retreive index: " << name.c_str() << endl;
     return NDBT_FAILED;
   }
+  Uint32 batchSize= ctx->getProperty("BatchSize", (unsigned) 1);
 
   HugoTransactions hugoTrans(*pTab, idx);
   
-  return run_tests(p_ndb, hugoTrans, records);
+  return run_tests(p_ndb, hugoTrans, records, batchSize);
 }
 
 static int
@@ -473,6 +684,8 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
   for(int i = 0; i<records && result == NDBT_OK; i++)
   {
     char buffer[NDB_MAX_TUPLE_SIZE];
+    NdbTransaction* pTrans= NULL;
+
     char* start= buffer + (rand() & 7);
     char* pos= start;
     
@@ -494,8 +707,8 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
     ptrs[k].ptr = 0;
     
     // Now we have the pk, start a hinted transaction
-    NdbTransaction* pTrans= p_ndb->startTransaction(tab, ptrs);
-    
+    pTrans= p_ndb->startTransaction(tab, ptrs);
+  
     // Because we pass an Ordered index here, pkReadRecord will
     // use an index scan on the Ordered index
     HugoOperations ops(*tab, idx);
@@ -529,6 +742,440 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+#define CHECK(x, y) {int res= (x);                    \
+    if (res != 0) { ndbout << "Assert failed at "     \
+                           << __LINE__ << endl        \
+                           << res << endl             \
+                           << " error : "             \
+                           << (y)->getNdbError().code \
+                           << endl;                   \
+      return NDBT_FAILED; } }
+
+#define CHECKNOTNULL(x, y) {                              \
+    if ((x) == NULL) { ndbout << "Assert failed at line "    \
+                              << __LINE__ << endl            \
+                              << " with "                    \
+                              << (y)->getNdbError().code     \
+                              << endl;                       \
+      return NDBT_FAILED; } }
+
+
+static int
+load_dist_table(Ndb* pNdb, int records, int parts)
+{
+  const NdbDictionary::Table* tab= pNdb->getDictionary()->getTable(DistTabName);
+  bool userDefined= (tab->getFragmentType() == 
+                     NdbDictionary::Object::UserDefined);
+
+  const NdbRecord* distRecord= tab->getDefaultRecord();
+  CHECKNOTNULL(distRecord, pNdb);
+  
+  char* buf= (char*) malloc(NdbDictionary::getRecordRowLength(distRecord));
+
+  CHECKNOTNULL(buf, pNdb);
+
+  /* We insert a number of records with a constrained number of
+   * values for the distribution key column
+   */
+  for (int r=0; r < records; r++)
+  {
+    NdbTransaction* trans= pNdb->startTransaction();
+    CHECKNOTNULL(trans, pNdb);
+
+    int& dKeyVal= *((int*) NdbDictionary::getValuePtr(distRecord,
+                                                      buf,
+                                                      tab->getColumn(DistTabDKeyCol)->getAttrId()));
+    int& pKey2Val= *((int*) NdbDictionary::getValuePtr(distRecord,
+                                                      buf,
+                                                      tab->getColumn(DistTabPKey2Col)->getAttrId()));
+    int& resultVal=  *((int*) NdbDictionary::getValuePtr(distRecord,
+                                                      buf,
+                                                      tab->getColumn(DistTabResultCol)->getAttrId()));
+    dKeyVal= r % parts;
+    pKey2Val= r;
+    resultVal= r*r;
+
+    NdbOperation::OperationOptions opts;
+    opts.optionsPresent= 0;
+
+    if (userDefined)
+    {
+      /* For user-defined partitioning, we set the partition id
+       * to be the distribution key value modulo the number
+       * of partitions in the table
+       */
+      opts.optionsPresent= NdbOperation::OperationOptions::OO_PARTITION_ID;
+      opts.partitionId= (r%parts) % tab->getFragmentCount();
+    }
+    
+    CHECKNOTNULL(trans->insertTuple(distRecord, buf, 
+                                    NULL, &opts, sizeof(opts)), trans);
+
+    CHECK(trans->execute(NdbTransaction::Commit), trans);
+    trans->close();
+  }
+
+  free(buf);
+  
+  return NDBT_OK;
+};
+
+struct PartInfo
+{
+  NdbTransaction* trans;
+  NdbIndexScanOperation* op;
+  int dKeyVal;
+  int valCount;
+};
+
+class Ap
+{
+public:
+  void* ptr;
+  
+  Ap(void* _ptr) : ptr(_ptr)
+    {};
+  ~Ap()
+    {
+      if (ptr != 0)
+      {
+        free(ptr);
+        ptr= 0;
+      }
+    }
+};
+
+static int
+dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePrimary)
+{
+  const NdbDictionary::Table* tab= pNdb->getDictionary()->getTable(DistTabName);
+  CHECKNOTNULL(tab, pNdb->getDictionary());
+  const char* indexName= usePrimary ? "PRIMARY" : DistIdxName;
+  const NdbDictionary::Index* idx= pNdb->getDictionary()->getIndex(indexName,
+                                                                   DistTabName);
+  CHECKNOTNULL(idx, pNdb->getDictionary());
+  const NdbRecord* tabRecord= tab->getDefaultRecord();
+  const NdbRecord* idxRecord= idx->getDefaultRecord();
+  bool userDefined= (tab->getFragmentType() == 
+                     NdbDictionary::Object::UserDefined);
+
+  char* boundBuf= (char*) malloc(NdbDictionary::getRecordRowLength(idx->getDefaultRecord()));
+
+  if (usePrimary)
+    ndbout << "Checking MRR indexscan distribution awareness when distribution key part of bounds" << endl;
+  else
+    ndbout << "Checking MRR indexscan distribution awareness when distribution key provided explicitly" << endl;
+
+  if (userDefined)
+    ndbout << "User Defined Partitioning scheme" << endl;
+  else
+    ndbout << "Native Partitioning scheme" << endl;
+
+  Ap boundAp(boundBuf);
+
+  for (int r=0; r < records; r++)
+  {
+    int partValue= r % parts;
+    PartInfo& pInfo= partInfo[partValue];
+
+    if (pInfo.trans == NULL)
+    {
+      /* Provide the partition key as a hint for this transaction */
+      if (!userDefined)
+      {
+        Ndb::Key_part_ptr keyParts[2];
+        keyParts[0].ptr= &partValue;
+        keyParts[0].len= sizeof(partValue);
+        keyParts[1].ptr= NULL;
+        keyParts[1].len= 0;
+        
+        /* To test that bad hinting causes failure, uncomment */
+        // int badPartVal= partValue+1;
+        // keyParts[0].ptr= &badPartVal;
+        
+        CHECKNOTNULL(pInfo.trans= pNdb->startTransaction(tab, keyParts), 
+                     pNdb);
+      }
+      else
+      {
+        /* User Defined partitioning */
+        Uint32 partId= partValue % tab->getFragmentCount();
+        CHECKNOTNULL(pInfo.trans= pNdb->startTransaction(tab,
+                                                         partId),
+                     pNdb);
+      }
+      pInfo.valCount= 0;
+      pInfo.dKeyVal= partValue;
+
+      NdbScanOperation::ScanOptions opts;
+      opts.optionsPresent= NdbScanOperation::ScanOptions::SO_SCANFLAGS;
+      opts.scan_flags= NdbScanOperation::SF_MultiRange;
+
+      // Define the scan operation for this partition.
+      CHECKNOTNULL(pInfo.op= pInfo.trans->scanIndex(idx->getDefaultRecord(),
+                                                    tab->getDefaultRecord(),
+                                                    NdbOperation::LM_Read,
+                                                    NULL,
+                                                    NULL,
+                                                    &opts,
+                                                    sizeof(opts)), 
+                   pInfo.trans);
+    }
+    
+    NdbIndexScanOperation* op= pInfo.op;
+
+    if (usePrimary)
+    {
+      /* Scanning the primary index, set bound on the pk */
+      int& dKeyVal= *((int*) NdbDictionary::getValuePtr(idxRecord,
+                                                        boundBuf,
+                                                        tab->getColumn(DistTabDKeyCol)->getAttrId()));
+      int& pKey2Val= *((int*) NdbDictionary::getValuePtr(idxRecord,
+                                                         boundBuf,
+                                                         tab->getColumn(DistTabPKey2Col)->getAttrId()));
+      dKeyVal= partValue;
+      pKey2Val= r;
+
+      NdbIndexScanOperation::IndexBound ib;
+      ib.low_key= boundBuf;
+      ib.low_key_count= 2;
+      ib.low_inclusive= true;
+      ib.high_key= ib.low_key;
+      ib.high_key_count= ib.low_key_count;
+      ib.high_inclusive= true;
+      ib.range_no= pInfo.valCount++;
+
+      /* No partitioning info for native, PK index scan
+       * NDBAPI can determine it from PK */
+      Ndb::PartitionSpec pSpec;
+      pSpec.type= Ndb::PartitionSpec::PS_NONE;
+
+      if (userDefined)
+      {
+        /* We'll provide partition info */
+        pSpec.type= Ndb::PartitionSpec::PS_USER_DEFINED;
+        pSpec.UserDefined.partitionId= partValue % tab->getFragmentCount();
+      }
+
+      CHECK(op->setBound(idxRecord,
+                         ib,
+                         &pSpec,
+                         sizeof(pSpec)),
+            op);
+    }
+    else
+    {
+      /* Scanning the secondary index, set bound on the result */
+      int& resultVal= *((int*) NdbDictionary::getValuePtr(idxRecord,
+                                                          boundBuf,
+                                                          tab->getColumn(DistTabResultCol)->getAttrId()));
+      resultVal= r*r;
+      
+      NdbIndexScanOperation::IndexBound ib;
+      ib.low_key= boundBuf;
+      ib.low_key_count= 1;
+      ib.low_inclusive= true;
+      ib.high_key= ib.low_key;
+      ib.high_key_count= ib.low_key_count;
+      ib.high_inclusive= true;      
+      ib.range_no= pInfo.valCount++;
+
+      Ndb::Key_part_ptr keyParts[2];
+      keyParts[0].ptr= &partValue;
+      keyParts[0].len= sizeof(partValue);
+      keyParts[1].ptr= NULL;
+      keyParts[1].len= 0;
+      
+      /* To test that bad hinting causes failure, uncomment */
+      //int badPartVal= partValue+1;
+      //keyParts[0].ptr= &badPartVal;
+      
+      Ndb::PartitionSpec pSpec;
+      char* tabRow= NULL;
+      
+      if (userDefined)
+      {
+        /* We'll provide partition info */
+        pSpec.type= Ndb::PartitionSpec::PS_USER_DEFINED;
+        pSpec.UserDefined.partitionId= partValue % tab->getFragmentCount();
+      }
+      else
+      {
+        /* Can set either using an array of Key parts, or a KeyRecord
+         * structure.  Let's test both
+         */
+        if (rand() % 2)
+        {
+          //ndbout << "Using Key Parts to set range partition info" << endl;
+          pSpec.type= Ndb::PartitionSpec::PS_DISTR_KEY_PART_PTR;
+          pSpec.KeyPartPtr.tableKeyParts= keyParts;
+          pSpec.KeyPartPtr.xfrmbuf= NULL;
+          pSpec.KeyPartPtr.xfrmbuflen= 0;
+        }
+        else
+        {
+          //ndbout << "Using KeyRecord to set range partition info" << endl;
+          
+          /* Setup a row in NdbRecord format with the distkey value set */
+          tabRow= (char*)malloc(NdbDictionary::getRecordRowLength(tabRecord));
+          int& dKeyVal= *((int*) NdbDictionary::getValuePtr(tabRecord,
+                                                            tabRow,
+                                                            tab->getColumn(DistTabDKeyCol)->getAttrId()));
+          dKeyVal= partValue;
+          // dKeyVal= partValue + 1; // Test failue case
+          
+          pSpec.type= Ndb::PartitionSpec::PS_DISTR_KEY_RECORD;
+          pSpec.KeyRecord.keyRecord= tabRecord;
+          pSpec.KeyRecord.keyRow= tabRow;
+          pSpec.KeyRecord.xfrmbuf= 0;
+          pSpec.KeyRecord.xfrmbuflen= 0;
+        }
+      }
+
+      CHECK(op->setBound(idxRecord,
+                         ib,
+                         &pSpec,
+                         sizeof(pSpec)),
+            op);
+
+      if (tabRow)
+        free(tabRow);
+      tabRow= NULL;
+
+    }
+  }
+
+  for (int p=0; p < parts; p++)
+  {
+    PartInfo& pInfo= partInfo[p];
+    //ndbout << "D-key val " << p << " has " << pInfo.valCount
+    //       << " ranges specified. " << endl;
+    //ndbout << "Is Pruned? " << pInfo.op->getPruned() << endl;
+    if (! pInfo.op->getPruned())
+    {
+      ndbout << "MRR Scan Operation should have been pruned, but was not." << endl;
+      return NDBT_FAILED;
+    }
+    
+    CHECK(pInfo.trans->execute(NdbTransaction::NoCommit), pInfo.trans);
+    
+    int resultCount=0;
+    
+    const char* resultPtr;
+    int rc= 0;
+    
+    while ((rc= pInfo.op->nextResult(&resultPtr, true, true)) == 0)
+    {
+      int& dKeyVal= *((int*) NdbDictionary::getValuePtr(tabRecord,
+                                                        resultPtr,
+                                                        tab->getColumn(DistTabDKeyCol)->getAttrId()));
+      int& pKey2Val= *((int*) NdbDictionary::getValuePtr(tabRecord,
+                                                         resultPtr,
+                                                         tab->getColumn(DistTabPKey2Col)->getAttrId()));
+      int& resultVal= *((int*) NdbDictionary::getValuePtr(tabRecord,
+                                                          resultPtr,
+                                                          tab->getColumn(DistTabResultCol)->getAttrId()));
+      
+      if ((dKeyVal != pInfo.dKeyVal) ||
+          (resultVal != (pKey2Val * pKey2Val)))
+      {
+        ndbout << "Got bad values.  Dkey : " << dKeyVal
+               << " Pkey2 : " << pKey2Val
+               << " Result : " << resultVal
+               << endl;
+        return NDBT_FAILED;
+      }
+      resultCount++;
+    }
+
+    if (rc != 1)
+    {
+      ndbout << "Got bad scan rc " << rc << endl;
+      ndbout << "Error : " << pInfo.op->getNdbError().code << endl;
+      ndbout << "Trans Error : " << pInfo.trans->getNdbError().code << endl;
+      return NDBT_FAILED;
+    }
+  
+    if (resultCount != pInfo.valCount)
+    {
+      ndbout << "Error resultCount was " << resultCount << endl;
+      return NDBT_FAILED;
+    }
+    CHECK(pInfo.trans->execute(NdbTransaction::Commit), pInfo.trans);
+    pInfo.trans->close();
+  };
+
+  ndbout << "Success" << endl;
+
+  return NDBT_OK;
+}
+
+static int
+dist_scan(Ndb* pNdb, int records, int parts, bool usePk)
+{
+  PartInfo* partInfo= new PartInfo[parts];
+
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(8050) != 0)
+  {
+    delete[] partInfo;
+    return NDBT_FAILED;
+  }
+
+  for (int p=0; p<parts; p++)
+  {
+    partInfo[p].trans= NULL;
+    partInfo[p].op= NULL;
+    partInfo[p].dKeyVal= 0;
+    partInfo[p].valCount= 0;
+  }
+  
+  int result= dist_scan_body(pNdb, 
+                             records, 
+                             parts, 
+                             partInfo, 
+                             usePk);
+
+  restarter.insertErrorInAllNodes(0);
+  delete[] partInfo;
+  
+  return result;
+}
+
+static int
+run_dist_test(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records= ctx->getNumRecords();
+  
+  /* Choose an interesting number of discrete
+   * distribution key values to work with
+   */
+  int numTabPartitions= GETNDB(step)
+    ->getDictionary()
+    ->getTable(DistTabName)
+    ->getFragmentCount();
+  int numDkeyValues= 2*numTabPartitions + (rand() % 6);
+  
+  ndbout << "Table has " << numTabPartitions
+         << " physical partitions" << endl;
+  ndbout << "Testing with " << numDkeyValues 
+         << " discrete distribution key values " << endl;
+
+  if (load_dist_table(GETNDB(step), records, numDkeyValues) != NDBT_OK)
+    return NDBT_FAILED;
+  
+  /* Test access via PK ordered index (including Dkey) */
+  if (dist_scan(GETNDB(step), records, numDkeyValues, true) != NDBT_OK)
+    return NDBT_FAILED;
+
+  /* Test access via secondary ordered index (not including Dkey) */
+  if (dist_scan(GETNDB(step), records, numDkeyValues, false) != NDBT_OK)
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
+
 
 NDBT_TESTSUITE(testPartitioning);
 TESTCASE("pk_dk", 
@@ -541,7 +1188,7 @@ TESTCASE("pk_dk",
   INITIALIZER(run_drop_table);
 }
 TESTCASE("hash_index_dk", 
-	 "Unique index operatations with distribution key")
+	 "Unique index operations with distribution key")
 {
   TC_PROPERTY("distributionkey", ~0);
   TC_PROPERTY("OrderedIndex", (unsigned)0);
@@ -553,7 +1200,7 @@ TESTCASE("hash_index_dk",
   INITIALIZER(run_drop_table);
 }
 TESTCASE("ordered_index_dk", 
-	 "Ordered index operatations with distribution key")
+	 "Ordered index operations with distribution key")
 {
   TC_PROPERTY("distributionkey", (unsigned)1);
   TC_PROPERTY("OrderedIndex", (unsigned)1);
@@ -565,7 +1212,7 @@ TESTCASE("ordered_index_dk",
   INITIALIZER(run_drop_table);
 }
 TESTCASE("smart_scan", 
-	 "Ordered index operatations with distribution key")
+	 "Ordered index operations with distribution key")
 {
   TC_PROPERTY("OrderedIndex", (unsigned)1);
   INITIALIZER(run_drop_table);
@@ -578,6 +1225,7 @@ TESTCASE("smart_scan",
 TESTCASE("startTransactionHint", 
 	 "Test startTransactionHint wo/ distribution key")
 {
+  /* If hint is incorrect, node failure occurs */
   TC_PROPERTY("distributionkey", (unsigned)0);
   INITIALIZER(run_drop_table);
   INITIALIZER(run_create_table);
@@ -587,6 +1235,7 @@ TESTCASE("startTransactionHint",
 TESTCASE("startTransactionHint_dk", 
 	 "Test startTransactionHint with distribution key")
 {
+  /* If hint is incorrect, node failure occurs */
   TC_PROPERTY("distributionkey", (unsigned)~0);
   INITIALIZER(run_drop_table);
   INITIALIZER(run_create_table);
@@ -596,6 +1245,7 @@ TESTCASE("startTransactionHint_dk",
 TESTCASE("startTransactionHint_orderedIndex",
          "Test startTransactionHint and ordered index reads")
 {
+  /* If hint is incorrect, node failure occurs */
   TC_PROPERTY("distributionkey", (unsigned)0);
   TC_PROPERTY("OrderedIndex", (unsigned)1);
   INITIALIZER(run_drop_table);
@@ -608,6 +1258,7 @@ TESTCASE("startTransactionHint_orderedIndex",
 TESTCASE("startTransactionHint_orderedIndex_dk",
          "Test startTransactionHint and ordered index reads with distribution key")
 {
+  /* If hint is incorrect, node failure occurs */
   TC_PROPERTY("distributionkey", (unsigned)~0);
   TC_PROPERTY("OrderedIndex", (unsigned)1);
   INITIALIZER(run_drop_table);
@@ -616,6 +1267,60 @@ TESTCASE("startTransactionHint_orderedIndex_dk",
   INITIALIZER(run_startHint_ordered_index);
   INITIALIZER(run_create_pk_index_drop);
   INITIALIZER(run_drop_table);
+}
+TESTCASE("startTransactionHint_orderedIndex_mrr_native",
+         "Test hinting and MRR Ordered Index Scans for native partitioned table")
+{
+  TC_PROPERTY("UserDefined", (unsigned)0);
+  INITIALIZER(run_create_dist_table);
+  INITIALIZER(run_dist_test);
+  INITIALIZER(run_drop_dist_table);
+}
+TESTCASE("pk_userDefined",
+         "Test primary key operations on table with user-defined partitioning")
+{
+  /* Check PK ops against user-defined partitioned table */
+  TC_PROPERTY("UserDefined", (unsigned) 1);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_pk_dk);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+};
+TESTCASE("hash_index_userDefined",
+         "Unique index operations on table with user-defined partitioning")
+{
+  /* Check hash index ops against user-defined partitioned table */
+  TC_PROPERTY("OrderedIndex", (unsigned)0);
+  TC_PROPERTY("UserDefined", (unsigned)1);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_index_dk);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+}
+TESTCASE("ordered_index_userDefined", 
+	 "Ordered index operations on table with user-defined partitioning")
+{
+  /* Check ordered index operations against user-defined partitioned table */
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  TC_PROPERTY("UserDefined", (unsigned)1);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_index_dk);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+}
+TESTCASE("startTransactionHint_orderedIndex_mrr_userDefined",
+         "Test hinting and MRR Ordered Index Scans for user defined partitioned table")
+{
+  TC_PROPERTY("UserDefined", (unsigned)1);
+  INITIALIZER(run_create_dist_table);
+  INITIALIZER(run_dist_test);
+  INITIALIZER(run_drop_dist_table);
 }
 
 NDBT_TESTSUITE_END(testPartitioning);

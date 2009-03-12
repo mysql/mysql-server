@@ -21,6 +21,7 @@
 #include "Pool.hpp"
 #include "AsyncFile.hpp"
 #include "OpenFiles.hpp"
+#include <signaldata/FsOpenReq.hpp>
 
 class AsyncIoThread;
 
@@ -86,8 +87,7 @@ private:
   Vector<AsyncFile*> theIdleUnboundFiles; // List of idle AsyncFiles
   OpenFiles theOpenFiles;           // List of open AsyncFiles
 
-  BaseString theFileSystemPath;
-  BaseString theBackupFilePath;
+  BaseString m_base_path[FsOpenReq::BP_MAX];
   
   // Statistics variables
   Uint32 m_maxOpenedFiles;

@@ -506,7 +506,7 @@ NdbTableImpl::init(){
   m_min_rows = 0;
   m_max_rows = 0;
   m_tablespace_name.clear();
-  m_tablespace_id = ~0;
+  m_tablespace_id = RNIL;
   m_tablespace_version = ~0;
   m_single_user_mode = 0;
   m_hash_map_id = RNIL;
@@ -645,11 +645,9 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
 
   if(m_tablespace_id != obj.m_tablespace_id)
   {
-#if wl3600_todo // diff for no ts, check later
     DBUG_PRINT("info",("m_tablespace_id %d != %d",m_tablespace_id,
                         obj.m_tablespace_id));
     DBUG_RETURN(false);
-#endif
   }
 
   if(m_tablespace_version != obj.m_tablespace_version)
@@ -1709,7 +1707,7 @@ NdbDictionaryImpl::fetchGlobalTableImplRef(const GlobalCacheInitObject &obj)
                                  m_ndb.usingFullyQualifiedNames());
     else
       m_error.code = 4000;
-    if (impl != 0 && (obj.init(*impl)))
+    if (impl != 0 && (obj.init(this, *impl)))
     {
       delete impl;
       impl = 0;
@@ -3189,7 +3187,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 
   const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:
-  if(impl.m_tablespace_id != ~(Uint32)0)
+  if(impl.m_tablespace_version != ~(Uint32)0)
   {
     tmpTab->TablespaceId = impl.m_tablespace_id;
     tmpTab->TablespaceVersion = impl.m_tablespace_version;
@@ -4358,7 +4356,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   DBUG_PRINT("info",("table %s", ev->getTableName()));
   if (tab == NULL)
   {
-    tab= fetchGlobalTableImplRef(InitTable(this, ev->getTableName()));
+    tab= fetchGlobalTableImplRef(InitTable(ev->getTableName()));
     if (tab == 0)
     {
       DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
@@ -4372,7 +4370,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     {
       DBUG_PRINT("info", ("mismatch on verison in cache"));
       releaseTableGlobal(*tab, 1);
-      tab= fetchGlobalTableImplRef(InitTable(this, ev->getTableName()));
+      tab= fetchGlobalTableImplRef(InitTable(ev->getTableName()));
       if (tab == 0)
       {
         DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
@@ -5478,7 +5476,7 @@ NdbFilegroupImpl::NdbFilegroupImpl(NdbDictionary::Object::Type t)
 {
   m_extent_size = 0;
   m_undo_buffer_size = 0;
-  m_logfile_group_id = ~0;
+  m_logfile_group_id = RNIL;
   m_logfile_group_version = ~0;
 }
 
@@ -5559,7 +5557,7 @@ NdbFileImpl::NdbFileImpl(NdbDictionary::Object::Type t)
 {
   m_size = 0;
   m_free = 0;
-  m_filegroup_id = ~0;
+  m_filegroup_id = RNIL;
   m_filegroup_version = ~0;
 }
 
@@ -6949,7 +6947,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
 		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
-    dst.m_id = -1;
+    dst.m_id = RNIL;
     dst.m_version = ~0;
     
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));

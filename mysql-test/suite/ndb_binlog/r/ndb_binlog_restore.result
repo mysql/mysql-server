@@ -4,8 +4,6 @@ drop table if exists t1;
 #
 create table t1 (a int key, b int) engine ndb;
 insert into t1 values (1,1);
-@the_backup_id:=backup_id
-<the_backup_id>
 #
 # extra table to be used to ensure data has arrived to binlog
 create table t2 (a int key, b int) engine ndb;
@@ -43,12 +41,12 @@ set SQL_LOG_BIN=0;
 insert into t2 values (2,2);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	COMMIT
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
 drop table t1, t2;
 #
 # Now more complex using "BANK schema" including restore of log

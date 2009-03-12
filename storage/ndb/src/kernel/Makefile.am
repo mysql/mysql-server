@@ -25,8 +25,8 @@ if BUILD_NDBMTD
 ndbbin_PROGRAMS += ndbmtd
 endif
 
-ndbd_SOURCES = main.cpp SimBlockList.cpp
-ndbmtd_SOURCES = main.cpp SimBlockList.cpp
+ndbd_SOURCES = main.cpp ndbd.cpp angel.cpp SimBlockList.cpp
+ndbmtd_SOURCES = main.cpp ndbd.cpp angel.cpp SimBlockList.cpp
 
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 

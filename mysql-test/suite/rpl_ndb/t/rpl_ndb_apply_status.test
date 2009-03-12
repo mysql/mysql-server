@@ -16,7 +16,7 @@ select * from mysql.ndb_apply_status;
 
 
 -- source include/have_ndb.inc
--- source include/have_binlog_format_row.inc
+-- source include/have_binlog_format_mixed_or_row.inc
 -- source include/ndb_master-slave.inc
 
 #

@@ -17,6 +17,7 @@
 #define CONSOLELOGHANDLER_H
 
 #include "LogHandler.hpp"
+#include <NdbOut.hpp>
 
 /**
  * Logs messages to the console/stdout.
@@ -30,7 +31,7 @@ public:
   /**
    * Default constructor.
    */
-  ConsoleLogHandler();
+  ConsoleLogHandler(const NdbOut &out= ndbout);
   /**
    * Destructor.
    */
@@ -47,7 +48,8 @@ protected:
   virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
   virtual void writeMessage(const char* pMsg);
   virtual void writeFooter();
-  	
+  const NdbOut& _out;
+
 private:
   /** Prohibit*/
   ConsoleLogHandler(const ConsoleLogHandler&);

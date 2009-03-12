@@ -914,7 +914,7 @@ main(int argc, char** argv)
     exitHandler(NDBT_FAILED);
   }
 
-  g_options.appfmt(" -b %d", ga_backupId);
+  g_options.appfmt(" -b %u", ga_backupId);
   g_options.appfmt(" -n %d", ga_nodeId);
   if (_restore_meta)
     g_options.appfmt(" -m");
@@ -966,7 +966,9 @@ main(int argc, char** argv)
   }
 
   info << endl;
-  
+
+  info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
+
   /**
    * check wheater we can restore the backup (right version).
    */

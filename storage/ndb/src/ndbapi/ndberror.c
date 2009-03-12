@@ -298,6 +298,7 @@ ErrorBundle ErrorCodes[] = {
   { 4348, DMEC, IE, "Inconsistency detected at alter index" },
   { 4349, DMEC, IE, "Inconsistency detected at index usage" },
   { 4350, DMEC, IE, "Transaction already aborted" },
+  { 4351, DMEC, TO, "Timeout/deadlock during index build" },
 
   /**
    * Application error
@@ -606,6 +607,12 @@ ErrorBundle ErrorCodes[] = {
   { 4539, DMEC, AE, "NdbInterpretedCode not supported for operation type" },
   { 4540, DMEC, AE, "Attempt to pass an Index column to createRecord.  Use base table columns only" },
   { 4541, DMEC, AE, "IndexBound has no bound information" },
+  { 4542, DMEC, AE, "Unknown partition information type" },
+  { 4543, DMEC, AE, "Duplicate partitioning information supplied" },
+  { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
+  { 4545, DMEC, AE, "Invalid or Unsupported PartitionInfo structure" },
+  { 4546, DMEC, AE, "Explicit partitioning info not allowed for table and operation" },
+
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },

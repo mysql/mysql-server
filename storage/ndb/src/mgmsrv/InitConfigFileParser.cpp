@@ -19,7 +19,10 @@
 #include "Config.hpp"
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
+#include "EventLogger.hpp"
 #include <m_string.h>
+
+extern EventLogger *g_eventLogger;
 
 const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);
@@ -29,10 +32,9 @@ static void require(bool v) { if(!v) abort();}
 //****************************************************************************
 //  Ctor / Dtor
 //****************************************************************************
-InitConfigFileParser::InitConfigFileParser(FILE * out)
+InitConfigFileParser::InitConfigFileParser()
 {
   m_info = new ConfigInfo();
-  m_errstream = out ? out : stderr;
 }
 
 InitConfigFileParser::~InitConfigFileParser() {
@@ -42,12 +44,11 @@ InitConfigFileParser::~InitConfigFileParser() {
 //****************************************************************************
 //  Read Config File
 //****************************************************************************
-InitConfigFileParser::Context::Context(const ConfigInfo * info, FILE * out)
+InitConfigFileParser::Context::Context(const ConfigInfo * info)
   :  m_userProperties(true), m_configValues(1000, 20) {
 
   m_config = new Properties(true);
   m_defaults = new Properties(true);
-  m_errstream = out;
 }
 
 InitConfigFileParser::Context::~Context(){
@@ -62,7 +63,7 @@ Config *
 InitConfigFileParser::parseConfig(const char * filename) {
   FILE * file = fopen(filename, "r");
   if(file == 0){
-    fprintf(m_errstream, "Error opening file: %s\n", filename);
+    g_eventLogger->error("Error opening '%s', error: %d, %s", filename, errno, strerror(errno));
     return 0;
   }
   
@@ -76,7 +77,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
 
   char line[MAX_LINE_LENGTH];
 
-  Context ctx(m_info, m_errstream); 
+  Context ctx(m_info);
   ctx.m_lineno = 0;
   ctx.m_currentSection = 0;
 
@@ -582,8 +583,8 @@ InitConfigFileParser::Context::reportError(const char * fmt, ...){
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
-  fprintf(m_errstream, "Error line %d: %s\n",
-	  m_lineno, buf);
+  g_eventLogger->error("at line %d: %s\n",
+                       m_lineno, buf);
 
   //m_currentSection->print();
 }
@@ -597,8 +598,8 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
-  fprintf(m_errstream, "Warning line %d: %s\n",
-	  m_lineno, buf);
+  g_eventLogger->warning("at line %d: %s\n",
+                         m_lineno, buf);
 }
 
 #include <my_sys.h>
@@ -851,7 +852,7 @@ InitConfigFileParser::parse_mycnf()
     api = &options[idx+3];
   }
   
-  Context ctx(m_info, m_errstream); 
+  Context ctx(m_info);
   const char *groups[]= { "cluster_config", 0 };
   if (load_defaults(options, groups))
     goto end;

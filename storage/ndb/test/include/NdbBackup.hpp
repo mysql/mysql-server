@@ -44,6 +44,8 @@ public:
   int startLogEvent();
   int checkBackupStatus();
 
+  int clearOldBackups();
+
 private:
 
   int execRestore(bool _restore_data,

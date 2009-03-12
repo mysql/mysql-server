@@ -633,6 +633,24 @@ void Dbdih::execCONTINUEB(Signal* signal)
     wait_old_scan(signal);
     return;
   }
+  case DihContinueB::ZLCP_TRY_LOCK:
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+    Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 
+                   signal->theData[1] };
+    ndbrequire(mutex.trylock(c, false));
+    return;
+  }
+  case DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX:
+  {
+    jam();
+    MutexHandle2<DIH_FRAGMENT_INFO> mh;
+    mh.setHandle(signal->theData[1]);
+    Mutex mutex(signal, c_mutexMgr, mh);
+    mutex.unlock();
+    return;
+  }
   }//switch
   
   ndbrequire(false);
@@ -709,6 +727,28 @@ done:
   CRASH_INSERTION2(7020, reason==CopyGCIReq::LOCAL_CHECKPOINT);
   CRASH_INSERTION2(7008, reason==CopyGCIReq::GLOBAL_CHECKPOINT);
 
+  if (m_local_lcp_state.check_cut_log_tail(c_newest_restorable_gci))
+  {
+    jam();
+
+#if NOT_YET
+    LcpCompleteRep* rep = (LcpCompleteRep*)signal->getDataPtrSend();
+    rep->nodeId = getOwnNodeId();
+    rep->blockNo = 0;
+    rep->lcpId = m_local_lcp_state.m_start_lcp_req.lcpId;
+    rep->keepGci = m_local_lcp_state.m_keep_gci;
+    sendSignal(DBLQH_REF, GSN_LCP_COMPLETE_REP, signal, 
+               LcpCompleteRep::SignalLength, JBB);
+
+    warningEvent("CUT LOG TAIL: reason: %u lcp: %u m_keep_gci: %u stop: %u",
+                 reason,
+                 m_local_lcp_state.m_start_lcp_req.lcpId,
+                 m_local_lcp_state.m_keep_gci,
+                 m_local_lcp_state.m_stop_gci);
+#endif
+    m_local_lcp_state.reset();
+  }
+  
   /* -------------------------------------------------------------------------*/
   /*     WE SET THE REQUESTER OF THE COPY GCI TO THE CURRENT MASTER. IF THE   */
   /*     CURRENT MASTER WE DO NOT WANT THE NEW MASTER TO RECEIVE CONFIRM OF   */
@@ -1234,6 +1274,9 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     }
   }
   ndbout_c("Using %u fragments per node", c_fragments_per_node);
+  
+  ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
+                            &c_lcpState.m_lcp_trylock_timeout);
 
   cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
@@ -2581,9 +2624,17 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
 
   signal->theData[0] = DihContinueB::ZSTART_GCP;
   sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-
-  Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
-  mutex.unlock();
+  /**
+   * To increase likelyhood that multiple nodes starting simulatanious
+   *   gets to copy fragment-info before a new LCP is started
+   *   we delay the releasing of this mutex. So that node that (might)
+   *   be started when GSN_START_PERMREP arrives will get mutex
+   *   before LCP (which does trylock for 60s)
+   */
+  signal->theData[0] = DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX;
+  signal->theData[1] = c_nodeStartMaster.m_fragmentInfoMutex.getHandle();
+  c_nodeStartMaster.m_fragmentInfoMutex.clear();
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 2);
 }//Dbdih::execINCL_NODECONF()
 
 void Dbdih::execUNBLO_DICTCONF(Signal* signal) 
@@ -9937,8 +9988,15 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   return;
 }//Dbdih::writingCopyGciLab()
 
-void Dbdih::execSTART_LCP_REQ(Signal* signal){
+void Dbdih::execSTART_LCP_REQ(Signal* signal)
+{
+  jamEntry();
   StartLcpReq * req = (StartLcpReq*)signal->getDataPtr();
+
+  /**
+   * Init m_local_lcp_state
+   */
+  m_local_lcp_state.init(req);
  
   CRASH_INSERTION2(7021, isMaster());
   CRASH_INSERTION2(7022, !isMaster());
@@ -9965,6 +10023,63 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal){
   signal->theData[1] = c_lcpState.m_masterLcpDihRef;
   signal->theData[2] = 0;
   sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+}
+
+void
+Dbdih::LocalLCPState::reset()
+{
+  m_state = LS_INITIAL;
+  m_keep_gci = RNIL;
+  m_stop_gci = RNIL;
+}
+
+void
+Dbdih::LocalLCPState::init(const StartLcpReq * req)
+{
+  m_state = LS_RUNNING;
+  m_start_lcp_req = *req;
+  m_keep_gci = ~(Uint32)0;
+  m_stop_gci = 0;
+}
+
+void
+Dbdih::LocalLCPState::lcp_frag_rep(const LcpFragRep * rep)
+{
+  assert(m_state == LS_RUNNING);
+  if (rep->maxGciCompleted < m_keep_gci)
+  {
+    m_keep_gci = rep->maxGciCompleted;
+    if (rep->maxGciCompleted < 100)
+    {
+      printLCP_FRAG_REP(stdout, (Uint32*)rep,
+                        LcpFragRep::SignalLength, 0);
+    }
+  }
+
+  if (rep->maxGciStarted > m_stop_gci)
+  {
+    m_stop_gci = rep->maxGciStarted;
+  }
+}
+
+void
+Dbdih::LocalLCPState::lcp_complete_rep(Uint32 gci)
+{
+  assert(m_state == LS_RUNNING);
+  m_state = LS_COMPLETE;
+  if (gci > m_stop_gci)
+    m_stop_gci = gci;
+}
+
+bool
+Dbdih::LocalLCPState::check_cut_log_tail(Uint32 gci) const
+{
+  if (m_state == LS_COMPLETE)
+  {
+    if (gci >= m_stop_gci)
+      return true;
+  }
+  return false;
 }
 
 void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId) 
@@ -11413,10 +11528,13 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   /*    WHILE COPYING DICTIONARY AND DISTRIBUTION INFO TO A STARTING NODE   */
   /*    WE WILL ALSO NOT ALLOW THE LOCAL CHECKPOINT TO PROCEED.             */
   /*----------------------------------------------------------------------- */
-  if (c_lcpState.immediateLcpStart == false) {
-    if ((c_lcpState.ctcCounter < 
-	 ((Uint32)1 << c_lcpState.clcpDelay)) ||
-        (c_nodeStartMaster.blockLcp == true)) {
+  if (c_lcpState.immediateLcpStart == false) 
+  {
+    Uint64 cnt = Uint64(c_lcpState.ctcCounter);
+    Uint64 limit = Uint64(1) << c_lcpState.clcpDelay;
+    bool dostart = cnt >= limit; 
+    if (dostart == false || c_nodeStartMaster.blockLcp == true) 
+    {
       jam();
       c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 
@@ -11444,6 +11562,19 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   c_lcpState.keepGci = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
 
+  CRASH_INSERTION(7014);
+  c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
+  sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
+}
+
+void Dbdih::execTC_CLOPSIZECONF(Signal* signal) 
+{
+  jamEntry();
+  Uint32 senderNodeId = signal->theData[0];
+  receiveLoopMacro(TC_CLOPSIZEREQ, senderNodeId);
+  
+  ndbrequire(c_lcpState.lcpStatus == LCP_TC_CLOPSIZE);
+
   /* ----------------------------------------------------------------------- */
   /*       UPDATE THE NEW LATEST LOCAL CHECKPOINT ID.                        */
   /* ----------------------------------------------------------------------- */
@@ -11458,11 +11589,9 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
     return;
   }//if
 
-  c_lcpState.m_start_time = c_current_time;
-
   Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
   Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
-  ndbrequire(mutex.lock(c, false));
+  ndbrequire(mutex.trylock(c, false));
 }
 
 void
@@ -11471,7 +11600,36 @@ Dbdih::lcpFragmentMutex_locked(Signal* signal,
                                Uint32 retVal)
 {
   jamEntry();
+
+  if (retVal == UtilLockRef::LockAlreadyHeld)
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, c_fragmentInfoMutex_lcp);
+    mutex.release();
+
+    if (senderData == 0)
+    {
+      jam();
+      infoEvent("Local checkpoint blocked waiting for node-restart");
+    }
+    
+    // 2* is as parameter is in seconds, and we sendSignalWithDelay 500ms
+    if (senderData >= 2*c_lcpState.m_lcp_trylock_timeout)
+    {
+      jam();
+      Callback c = { safe_cast(&Dbdih::lcpFragmentMutex_locked), 0 };
+      ndbrequire(mutex.lock(c, false));
+      return;
+    }
+    signal->theData[0] = DihContinueB::ZLCP_TRY_LOCK;
+    signal->theData[1] = senderData + 1;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 2);
+    return;
+  }
+
   ndbrequire(retVal == 0);
+  
+  c_lcpState.m_start_time = c_current_time;
   
   setLcpActiveStatusStart(signal);
   
@@ -11653,27 +11811,15 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
   Mutex mutex(signal, c_mutexMgr, c_startLcpMutexHandle);
   mutex.release();
   
-  CRASH_INSERTION(7014);
-  c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
-  sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
-}
-
-void Dbdih::execTC_CLOPSIZECONF(Signal* signal) {
-  jamEntry();
-  Uint32 senderNodeId = signal->theData[0];
-  receiveLoopMacro(TC_CLOPSIZEREQ, senderNodeId);
-  
-  ndbrequire(c_lcpState.lcpStatus == LCP_TC_CLOPSIZE);
   /* ----------------------------------------------------------------------- */
-  /*     ALL TC'S HAVE CLEARED THEIR OPERATION SIZE COUNTERS. NOW PROCEED BY */
-  /*     STARTING THE LOCAL CHECKPOINT IN EACH LQH.                          */
+  /*     NOW PROCEED BY STARTING THE LOCAL CHECKPOINT IN EACH LQH.           */
   /* ----------------------------------------------------------------------- */
   c_lcpState.m_LAST_LCP_FRAG_ORD = c_lcpState.m_participatingLQH;
 
   CRASH_INSERTION(7015);
   c_lcpState.setLcpStatus(LCP_START_LCP_ROUND, __LINE__);
   startLcpRoundLoopLab(signal, 0, 0);
-}//Dbdih::execTC_CLOPSIZECONF()
+}
 
 void
 Dbdih::master_lcp_fragmentMutex_locked(Signal* signal, 
@@ -11988,6 +12134,14 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     jam();
     c_lcpState.lcpStopGcp = started;
   }
+
+  /**
+   * Update m_local_lcp_state
+   *
+   * we could only look fragments that we have locally...
+   *   but for now we look at all fragments
+   */
+  m_local_lcp_state.lcp_frag_rep(lcpReport);
 
   if(tableDone){
     jam();
@@ -12547,6 +12701,11 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
 
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 
+  /**
+   * Update m_local_lcp_state
+   */
+  m_local_lcp_state.lcp_complete_rep(c_newest_restorable_gci);
+  
   if (isMaster())
   {
     /**
@@ -12843,12 +13002,59 @@ void Dbdih::checkGcpStopLab(Signal* signal)
   return;
 }//Dbdih::checkGcpStopLab()
 
+void
+Dbdih::dumpGcpStop()
+{
+  ndbout_c("c_nodeStartMaster.blockGcp: %u %u",
+           c_nodeStartMaster.blockGcp,
+           c_nodeStartMaster.startNode);
+  ndbout_c("m_gcp_save.m_counter: %u m_gcp_save.m_max_lag: %u",
+           m_gcp_monitor.m_gcp_save.m_counter, 
+           m_gcp_monitor.m_gcp_save.m_max_lag);
+  ndbout_c("m_micro_gcp.m_counter: %u m_micro_gcp.m_max_lag: %u",
+           m_gcp_monitor.m_micro_gcp.m_counter, 
+           m_gcp_monitor.m_micro_gcp.m_max_lag);
+  
+  ndbout_c("m_gcp_save.m_master.m_state: %u", m_gcp_save.m_master.m_state);
+  ndbout_c("m_micro_gcp.m_master.m_state: %u", m_micro_gcp.m_master.m_state);
+  
+  ndbout_c("c_COPY_GCIREQ_Counter = %s", c_COPY_GCIREQ_Counter.getText());
+  ndbout_c("c_COPY_TABREQ_Counter = %s", c_COPY_TABREQ_Counter.getText());
+  ndbout_c("c_CREATE_FRAGREQ_Counter = %s", c_CREATE_FRAGREQ_Counter.getText());
+  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
+	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
+  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
+  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
+  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
+  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
+  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
+  ndbout_c("c_MASTER_GCPREQ_Counter = %s", c_MASTER_GCPREQ_Counter.getText());
+  ndbout_c("c_MASTER_LCPREQ_Counter = %s", c_MASTER_LCPREQ_Counter.getText());
+  ndbout_c("c_START_INFOREQ_Counter = %s", c_START_INFOREQ_Counter.getText());
+  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
+  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
+  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", c_TC_CLOPSIZEREQ_Counter.getText());
+  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", c_TCGETOPSIZEREQ_Counter.getText());
+
+  ndbout_c("m_copyReason: %d m_waiting: %u %u",
+           c_copyGCIMaster.m_copyReason,
+           c_copyGCIMaster.m_waiting[0],
+           c_copyGCIMaster.m_waiting[1]);
+  
+  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+	   c_copyGCISlave.m_senderData,
+	   c_copyGCISlave.m_senderRef,
+	   c_copyGCISlave.m_copyReason,
+	   c_copyGCISlave.m_expectedNextWord);
+}
+
 /**
  * GCP stop detected, 
  * send SYSTEM_ERROR to all other alive nodes
  */
 void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
+  dumpGcpStop();
   Uint32 save_counter = m_gcp_monitor.m_gcp_save.m_counter;
   Uint32 micro_counter = m_gcp_monitor.m_micro_gcp.m_counter;
   m_gcp_monitor.m_gcp_save.m_counter = 0;
@@ -13017,16 +13223,6 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
   }
 
 dolocal:  
-  ndbout_c("m_copyReason: %d m_waiting: %d",
-           c_copyGCIMaster.m_copyReason,
-           c_copyGCIMaster.m_waiting[0]);
-  
-  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
-	   c_copyGCISlave.m_senderData,
-	   c_copyGCISlave.m_senderRef,
-	   c_copyGCISlave.m_copyReason,
-	   c_copyGCISlave.m_expectedNextWord);
-
   FileRecordPtr file0Ptr;
   file0Ptr.i = crestartInfoFile[0];
   ptrCheckGuard(file0Ptr, cfileFileSize, fileRecord);
@@ -13046,32 +13242,6 @@ dolocal:
   signal->theData[0] = 404;
   signal->theData[1] = file1Ptr.p->fileRef;
   EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
-
-  ndbout_c("c_COPY_GCIREQ_Counter = %s", 
-	   c_COPY_GCIREQ_Counter.getText());
-  ndbout_c("c_COPY_TABREQ_Counter = %s", 
-	   c_COPY_TABREQ_Counter.getText());
-  ndbout_c("c_CREATE_FRAGREQ_Counter = %s", 
-	   c_CREATE_FRAGREQ_Counter.getText());
-  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
-	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
-  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
-  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
-  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
-  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
-  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
-  ndbout_c("c_MASTER_GCPREQ_Counter = %s", 
-	   c_MASTER_GCPREQ_Counter.getText());
-  ndbout_c("c_MASTER_LCPREQ_Counter = %s", 
-	   c_MASTER_LCPREQ_Counter.getText());
-  ndbout_c("c_START_INFOREQ_Counter = %s", 
-	   c_START_INFOREQ_Counter.getText());
-  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
-  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
-  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", 
-	   c_TC_CLOPSIZEREQ_Counter.getText());
-  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", 
-	   c_TCGETOPSIZEREQ_Counter.getText());
 
   jam();
   SystemError * const sysErr = (SystemError*)&signal->theData[0];
@@ -15649,7 +15819,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 nodeOrder[MAX_REPLICAS];
 	const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, nodeOrder);
 	char buf[100];
-	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) - ", tabPtr.i, j, dihGetInstanceKey(fragPtr));
+	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) LP: %u - ", tabPtr.i, j, dihGetInstanceKey(fragPtr), fragPtr.p->m_log_part_id);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
 	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
@@ -16028,6 +16198,13 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   {
     jam();
     crashSystemAtGcpStop(signal, true);
+  }
+
+  if (arg == 7025)
+  {
+    jam();
+    dumpGcpStop();
+    return;
   }
 
 #ifdef GCP_TIMER_HACK

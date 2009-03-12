@@ -522,7 +522,7 @@ int Bank::performMakeGLs(int yield){
 	g_err << "performValidateGLs verification failed" << endl;
 	return NDBT_FAILED;
       }
-      g_info << "performValidateGLs failed" << endl;
+      g_info << "performValidateGLs failed: " << result << endl;
       return NDBT_FAILED;
       continue;
     }
@@ -619,7 +619,7 @@ int Bank::performValidateAllGLs(){
 	g_err << "performValidateGLs verification failed" << endl;
 	return NDBT_FAILED;
       }
-      g_err << "performValidateGLs failed" << endl;
+      g_err << "performValidateGLs failed: " << result << endl;
       return NDBT_FAILED;
     }
 
@@ -1090,7 +1090,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
     
     int result = performValidateGL(glTime);
     if (result != NDBT_OK){
-      g_err << "performValidateGL failed" << endl;
+      g_err << "performValidateGL failed: " << result << endl;
       return result;
     }
     

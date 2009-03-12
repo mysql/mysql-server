@@ -20,6 +20,7 @@
 #include "Config.hpp"
 #include "ConfigSubscriber.hpp"
 #include "MgmtSrvr.hpp"
+#include "Defragger.hpp"
 
 #include <ConfigRetriever.hpp>
 
@@ -74,6 +75,8 @@ class ConfigManager : public MgmtThread {
 
   const char* m_configdir;
 
+  Defragger m_defragger;
+
   /* Functions used from 'init' */
   static Config* load_init_config(const char*);
   static Config* load_init_mycnf(void);
@@ -121,7 +124,7 @@ class ConfigManager : public MgmtThread {
   void execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig);
   void sendConfigChangeImplRef(SignalSender& ss, NodeId nodeId,
                                ConfigChangeRef::ErrorCode) const;
-  void sendConfigChangeImplReq(SignalSender& ss, const Config* conf);
+  bool sendConfigChangeImplReq(SignalSender& ss, const Config* conf);
 
   /*
     CONFIG_CHECK - protocol for exchanging and checking config state

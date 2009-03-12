@@ -255,10 +255,30 @@ max-time: 500
 cmd: testBasic
 args: -n Bug20535
 
+#
+# INDEX
+#
+max-time: 1500
+cmd: testIndex
+args: -n CreateAll T1 T13 T14
+
+max-time: 3600
+cmd: testIndex
+args: -n InsertDelete T1 
+
+max-time: 3600
+cmd: testIndex
+args: -n CreateLoadDrop T1 
+
 max-time: 500
 cmd: testIndex
-args: -n Bug25059 -r 3000 T1
+args: -n MixedTransaction T1 
 
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring T6 
+
+#
 # SCAN TESTS
 #
 max-time: 500
@@ -513,10 +533,6 @@ max-time: 500
 cmd: testNodeRestart
 args: -n Bug15685 T1
 
-max-time: 500
-cmd: testNodeRestart
-args: -n Bug16772 T1
-
 #max-time: 500
 #cmd: testSystemRestart
 #args: -n Bug18385 T1
@@ -631,14 +647,6 @@ max-time: 1500
 cmd: testDict
 args: -n CreateInvalidTables T1 
 
-max-time: 1500
-cmd: testDict
-args: -n CreateTableWhenDbIsFull T6 
-
-max-time: 1500
-cmd: testDict
-args: -n CreateMaxTables T6 
-
 max-time: 500
 cmd: testDict
 args: -n FragmentTypeSingle T1 
@@ -662,10 +670,6 @@ args: -n Restart_NR2 T1 I3
 max-time: 500
 cmd: testDict
 args: -n Bug21755 T1
-
-max-time: 1500
-cmd: testDict
-args: -l 25 -n DictRestart T1
 
 max-time: 1500
 cmd: testDict
@@ -695,10 +699,6 @@ args: -n MaxNdb T6
 max-time: 500
 cmd: testNdbApi
 args: -n MaxTransactions T1 T6 T13 
-
-max-time: 500
-cmd: testNdbApi
-args: -n MaxOperations T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
@@ -836,7 +836,7 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n basic T1 
 
-max-time: 1500
+max-time: 2500
 cmd: testSystemRestart
 args: -n SR1 T1 
 
@@ -876,17 +876,22 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_UNDO T6 
 
-max-time: 1000
-cmd: testSRBank
-args: -n SR -l 300 -r 15 T1
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR6 T1 
 
-max-time: 1000
-cmd: testSRBank
-args: -n NR -l 300 -r 15 T1
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR7 T1 
 
-max-time: 1000
-cmd: testSRBank
-args: -n Mix -l 300 -r 15 T1
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR8 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -l 1 -n SR9 T1 
 
 max-time: 300
 cmd: testNodeRestart
@@ -912,9 +917,76 @@ max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
 
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events --blob-version 1
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops --blob-version 1
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug31980 T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n CommittedRead T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNode T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n LateCommit T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartMasterNodeError T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodes T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesError9999 T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeInitial T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n NoLoad T6
+
+#
+# MGMAPI AND MGSRV
+#
+max-time: 1800
+cmd: testSingleUserMode
+args: T1
 
 # OLD FLEX
 max-time: 500
@@ -924,6 +996,10 @@ args: -c 25 -t 10
 max-time: 500
 cmd: flexHammer
 args: -r 5 -t 32 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
 
 max-time: 300
 cmd: DbCreate
@@ -1038,7 +1114,7 @@ max-time: 300
 cmd: test_event
 args: -n Bug31701 T1
 
-max-time: 300
+max-time: 600
 cmd: testSystemRestart
 args: -n Bug22696 T1
 
@@ -1077,10 +1153,6 @@ args: -n Bug34216 -l 10 T1 I3 D2
 max-time: 1200
 cmd: testNodeRestart
 args: -n mixedmultiop T1 I2 I3 D2
-
-max-time: 600
-cmd: test_event
-args: -l 1 -n SubscribeNR T1
 
 max-time: 600
 cmd: testNodeRestart
@@ -1210,9 +1282,93 @@ max-time: 500
 cmd: testLimits
 args: -n DropSignalFragments T1
 
-max-time: 300 
+max-time: 300
 cmd: testMgm
-args: 
+args: -n ApiSessionFailure
+
+max-time: 300
+cmd: testMgm
+args: -n ApiConnectTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiTimeoutBasic
+
+max-time: 300
+cmd: testMgm
+args: -n ApiGetStatusTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiGetConfigTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiMgmEventTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n ApiMgmStructEventTimeout
+
+max-time: 300
+cmd: testMgm
+args: -n SetConfig
+
+max-time: 300
+cmd: testMgm
+args: -n CheckConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestReloadConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestSetConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestSetConfigParallel
+
+max-time: 300
+cmd: testMgm
+args: -n GetConfig
+
+max-time: 300
+cmd: testMgm
+args: -n TestStatus
+
+max-time: 300
+cmd: testMgm
+args: -n TestStatus200
+
+max-time: 300
+cmd: testMgm
+args: -n TestGetNodeId
+
+max-time: 300
+cmd: testMgm
+args: -n TestGetVersion
+
+max-time: 300
+cmd: testMgm
+args: -n TestTransporterConnect
+
+max-time: 300
+cmd: testMgm
+args: -n TestConnectionParameter
+
+max-time: 300
+cmd: testMgm
+args: -n Bug40922
+
+max-time: 300
+cmd: testMgm
+args: -n Stress
+
+max-time: 300
+cmd: testMgm
+args: -n Stress2
 
 max-time: 300
 cmd: testScan

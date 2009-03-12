@@ -422,7 +422,7 @@ MgmtSrvr::init()
   int error_code;
   BaseString error_string;
   if (!alloc_node_id(&nodeId, NDB_MGM_NODE_TYPE_MGM,
-                     0, /* client_addr */
+                     0, 0, /* client_addr, len */
                      error_code, error_string,
                      0 /* log_event */ ))
   {
@@ -2716,7 +2716,9 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 }
 
 int
-MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
+MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
+                            enum ndb_mgm_node_type type,
+                            Uint32 timeout_ms)
 {
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
@@ -2730,6 +2732,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
   req->senderData = 19;
   req->nodeId = free_node_id;
   req->nodeType = type;
+  req->timeout = timeout_ms;
 
   int do_send = 1;
   NodeId nodeId = 0;
@@ -2814,141 +2817,164 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
   return 0;
 }
 
-bool
-MgmtSrvr::alloc_node_id(NodeId * nodeId,
-			enum ndb_mgm_node_type type,
-			struct sockaddr *client_addr, 
-			int &error_code, BaseString &error_string,
-                        int log_event)
+int
+MgmtSrvr::match_hostname(const struct sockaddr *clnt_addr,
+                         const char *config_hostname) const
 {
-  DBUG_ENTER("MgmtSrvr::alloc_node_id");
-  DBUG_PRINT("enter", ("nodeid: %d  type: %d  client_addr: 0x%ld",
-		       *nodeId, type, (long) client_addr));
-  if (m_opts.no_nodeid_checks) {
-    if (*nodeId == 0) {
-      error_string.appfmt("no-nodeid-checks set in management server.\n"
-			  "node id must be set explicitly in connectstring");
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      DBUG_RETURN(false);
-    }
-    DBUG_RETURN(true);
-  }
-
-  Guard g(m_node_id_mutex);
-  int no_mgm= 0;
-  NodeBitmask connected_nodes(m_reserved_nodes);
-  get_connected_nodes(connected_nodes);
-  {
-    for(Uint32 i = 0; i < MAX_NODES; i++)
-      if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
-	no_mgm++;
-  }
-  bool found_matching_id= false;
-  bool found_matching_type= false;
-  bool found_free_node= false;
-  unsigned id_found= 0;
-  const char *config_hostname= 0;
   struct in_addr config_addr= {0};
-  int r_config_addr= -1;
-  unsigned type_c= 0;
-
+  if (clnt_addr)
   {
-    Guard guard_config(m_local_config_mutex);
-    ConfigIter iter(m_local_config, CFG_SECTION_NODE);
-    for(iter.first(); iter.valid(); iter.next())
+    const struct in_addr *clnt_in_addr = &((sockaddr_in*)clnt_addr)->sin_addr;
+
+    if (Ndb_getInAddr(&config_addr, config_hostname) != 0
+        || memcmp(&config_addr, clnt_in_addr, sizeof(config_addr)) != 0)
     {
-      unsigned curr_nodeid = 0;
-      require(!iter.get(CFG_NODE_ID, &curr_nodeid));
-      if (*nodeId && *nodeId != curr_nodeid)
-        continue;
-      found_matching_id = true;
-
-      require(!iter.get(CFG_TYPE_OF_SECTION, &type_c));
-      if(type_c != (unsigned)type)
-        continue;
-      found_matching_type = true;
-
-      if (connected_nodes.get(curr_nodeid))
-        continue;
-      found_free_node = true;
-
-      require(!iter.get(CFG_NODE_HOST, &config_hostname));
-      if (config_hostname && config_hostname[0] == 0)
-        config_hostname = 0;
-      else if (client_addr)
+      struct in_addr tmp_addr;
+      if (Ndb_getInAddr(&tmp_addr, "localhost") != 0
+          || memcmp(&tmp_addr, clnt_in_addr, sizeof(config_addr)) != 0)
       {
-        // check hostname compatibility
-        const void *tmp_in = &(((sockaddr_in*)client_addr)->sin_addr);
-        if((r_config_addr= Ndb_getInAddr(&config_addr, config_hostname)) != 0 ||
-           memcmp(&config_addr, tmp_in, sizeof(config_addr)) != 0)
-        {
-          struct in_addr tmp_addr;
-          if(Ndb_getInAddr(&tmp_addr, "localhost") != 0 ||
-             memcmp(&tmp_addr, tmp_in, sizeof(config_addr)) != 0)
-          {
-            // not localhost
-            continue;
-          }
-
-          // connecting through localhost
-          // check if config_hostname is local
-          if (!SocketServer::tryBind(0,config_hostname))
-            continue;
-        }
-      }
-      else
-      {
-        // client_addr == 0
-        if (!SocketServer::tryBind(0,config_hostname))
-          continue;
+        // not localhost
+#if 0
+        ndbout << "MgmtSrvr::getFreeNodeId compare failed for \""
+               << config_hostname
+               << "\" id=" << tmp << endl;
+#endif
+        return -1;
       }
 
-      if (*nodeId != 0 ||
-          type != NDB_MGM_NODE_TYPE_MGM ||
-          no_mgm == 1)  // any match is ok
-      {
-        if (config_hostname == 0 &&
-            *nodeId == 0 &&
-            type != NDB_MGM_NODE_TYPE_MGM)
-        {
-          if (!id_found) // only set if not set earlier
-            id_found = curr_nodeid;
-          continue; /* continue looking for a nodeid with specified hostname */
-        }
-        assert(id_found == 0);
-        id_found = curr_nodeid;
-        break;
-      }
-
-      if (id_found) // mgmt server may only have one match
-      {
-        error_string.appfmt("Ambiguous node id's %d and %d. "
-                            "Suggest specifying node id in connectstring, "
-                            "or specifying unique host names in config file.",
-                            id_found, curr_nodeid);
-        error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-        DBUG_RETURN(false);
-      }
-
-      if (config_hostname == 0)
-      {
-        error_string.appfmt("Ambiguity for node id %d. "
-                            "Suggest specifying node id in connectstring, "
-                            "or specifying unique host names in config file, "
-                            "or specifying just one mgmt server in "
-                            "config file.",
-                            curr_nodeid);
-        error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-        DBUG_RETURN(false);
-      }
-      id_found = curr_nodeid; // mgmt server matched, check for more matches
+      // connecting through localhost
+      // check if config_hostname is local
+      if (!SocketServer::tryBind(0, config_hostname))
+        return -1;
     }
   }
-
-  if (id_found && client_addr != 0)
+  else
   {
-    int res = alloc_node_id_req(id_found, type);
-    unsigned save_id_found = id_found;
+    if (!SocketServer::tryBind(0, config_hostname))
+      return -1;
+  }
+  return 0;
+}
+
+int
+MgmtSrvr::find_node_type(unsigned node_id, enum ndb_mgm_node_type type,
+                         const struct sockaddr *client_addr,
+                         NodeBitmask &nodes,
+                         NodeBitmask &exact_nodes,
+                         Vector<struct nodeid_and_host> &nodes_info,
+                         int &error_code, BaseString &error_string)
+{
+  const char *found_config_hostname= 0;
+  unsigned type_c= (unsigned)type;
+
+  Guard g(m_local_config_mutex);
+
+  ConfigIter iter(m_local_config, CFG_SECTION_NODE);
+  for(iter.first(); iter.valid(); iter.next())
+  {
+    unsigned id;
+    if (iter.get(CFG_NODE_ID, &id))
+      require(false);
+    if (node_id && node_id != id)
+      continue;
+    if (iter.get(CFG_TYPE_OF_SECTION, &type_c))
+      require(false);
+    if (type_c != (unsigned)type)
+    {
+      if (!node_id)
+        continue;
+      goto error;
+    }
+    const char *config_hostname= 0;
+    if (iter.get(CFG_NODE_HOST, &config_hostname))
+      require(false);
+    if (config_hostname == 0 || config_hostname[0] == 0)
+    {
+      config_hostname= "";
+    }
+    else
+    {
+      found_config_hostname= config_hostname;
+      if (match_hostname(client_addr, config_hostname))
+      {
+        if (!node_id)
+          continue;
+        goto error;
+      }
+      exact_nodes.set(id);
+    }
+    nodes.set(id);
+    struct nodeid_and_host a= {id, config_hostname};
+    nodes_info.push_back(a);
+    if (node_id)
+      break;
+  }
+  if (nodes_info.size() != 0)
+  {
+    return 0;
+  }
+
+ error:
+  /*
+    lock on m_configMutex held because found_config_hostname may have
+    reference inot config structure
+  */
+  error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+  if (node_id)
+  {
+    if (type_c != (unsigned) type)
+    {
+      BaseString type_string, type_c_string;
+      const char *alias, *str;
+      alias= ndb_mgm_get_node_type_alias_string(type, &str);
+      type_string.assfmt("%s(%s)", alias, str);
+      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c,
+                                                &str);
+      type_c_string.assfmt("%s(%s)", alias, str);
+      error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
+                          node_id, type_c_string.c_str(),
+                          type_string.c_str());
+      return -1;
+    }
+    if (found_config_hostname)
+    {
+      struct in_addr config_addr= {0};
+      int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
+      error_string.appfmt("Connection with id %d done from wrong host ip %s,",
+                          node_id, inet_ntoa(((struct sockaddr_in *)
+                                              (client_addr))->sin_addr));
+      error_string.appfmt(" expected %s(%s).", found_config_hostname,
+                          r_config_addr ?
+                          "lookup failed" : inet_ntoa(config_addr));
+      return -1;
+    }
+    error_string.appfmt("No node defined with id=%d in config file.", node_id);
+    return -1;
+  }
+
+  // node_id == 0 and nodes_info.size() == 0
+  if (found_config_hostname)
+  {
+    error_string.appfmt("Connection done from wrong host ip %s.",
+                        (client_addr)?
+                        inet_ntoa(((struct sockaddr_in *)
+                                   (client_addr))->sin_addr):"");
+    return -1;
+  }
+
+  error_string.append("No nodes defined in config file.");
+  return -1;
+}
+
+int
+MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
+                    enum ndb_mgm_node_type type,
+                    const struct sockaddr *client_addr,
+                    Uint32 timeout_ms)
+{
+  if (client_addr != 0)
+  {
+    int res = alloc_node_id_req(id, type, timeout_ms);
     switch (res)
     {
     case 0:
@@ -2959,155 +2985,175 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       break;
     default:
       // something wrong
-      id_found = 0;
-      break;
-
-    }
-    if (id_found == 0)
-    {
-      char buf[128];
-      ndb_error_string(res, buf, sizeof(buf));
-      error_string.appfmt("Cluster refused allocation of id %d. Error: %d (%s).",
-			  save_id_found, res, buf);
-      g_eventLogger->warning("Cluster refused allocation of id %d. "
-                             "Connection from ip %s. "
-                             "Returned error string \"%s\"", save_id_found,
-                             inet_ntoa(((struct sockaddr_in *)
-                                        (client_addr))->sin_addr),
-                             error_string.c_str());
-      DBUG_RETURN(false);
+      return -1;
     }
   }
 
-  if (id_found)
+  DBUG_PRINT("info", ("allocating node id %d",id));
   {
-    *nodeId= id_found;
-    DBUG_PRINT("info", ("allocating node id %d",*nodeId));
+    int r= 0;
+    if (client_addr)
     {
-      int r= 0;
-      if (client_addr)
-	m_connect_address[id_found]=
-	  ((struct sockaddr_in *)client_addr)->sin_addr;
-      else if (config_hostname)
-	r= Ndb_getInAddr(&(m_connect_address[id_found]), config_hostname);
-      else {
-	char name[256];
-	r= gethostname(name, sizeof(name));
-	if (r == 0) {
-	  name[sizeof(name)-1]= 0;
-	  r= Ndb_getInAddr(&(m_connect_address[id_found]), name);
-	}
+      m_connect_address[id]= ((struct sockaddr_in *)client_addr)->sin_addr;
+    }
+    else if (config_hostname)
+    {
+      r= Ndb_getInAddr(&(m_connect_address[id]), config_hostname);
+    }
+    else
+    {
+      char name[256];
+      r= gethostname(name, sizeof(name));
+      if (r == 0)
+      {
+        name[sizeof(name)-1]= 0;
+        r= Ndb_getInAddr(&(m_connect_address[id]), name);
       }
-      if (r)
-	m_connect_address[id_found].s_addr= 0;
     }
-    m_reserved_nodes.set(id_found);
-    if (theFacade && id_found != theFacade->ownId())
+    if (r)
     {
-      /**
-       * Make sure we're ready to accept connections from this node
-       */
-      theFacade->lock_mutex();
-      theFacade->doConnect(id_found);
-      theFacade->unlock_mutex();
+      m_connect_address[id].s_addr= 0;
     }
+  }
+  m_reserved_nodes.set(id);
+  if (theFacade && id != theFacade->ownId())
+  {
+    /**
+     * Make sure we're ready to accept connections from this node
+     */
+    theFacade->lock_mutex();
+    theFacade->doConnect(id);
+    theFacade->unlock_mutex();
+  }
     
-    char tmp_str[128];
-    m_reserved_nodes.getText(tmp_str);
-    g_eventLogger->info("Mgmt server state: nodeid %d reserved for ip %s, "
-                        "m_reserved_nodes %s.",
-                        id_found, get_connect_address(id_found), tmp_str);
+  char tmp_str[128];
+  m_reserved_nodes.getText(tmp_str);
+  g_eventLogger->info("Mgmt server state: nodeid %d reserved for ip %s, "
+                      "m_reserved_nodes %s.",
+                      id, get_connect_address(id), tmp_str);
+
+  return 0;
+}
+
+bool
+MgmtSrvr::alloc_node_id(NodeId * nodeId,
+			enum ndb_mgm_node_type type,
+			const struct sockaddr *client_addr,
+			SOCKET_SIZE_TYPE *client_addr_len,
+			int &error_code, BaseString &error_string,
+                        int log_event,
+                        int timeout_s)
+{
+  DBUG_ENTER("MgmtSrvr::alloc_node_id");
+  DBUG_PRINT("enter", ("nodeid: %d  type: %d  client_addr: 0x%ld",
+		       *nodeId, type, (long) client_addr));
+  if (m_opts.no_nodeid_checks) {
+    if (*nodeId == 0) {
+      error_string.appfmt("no-nodeid-checks set in management server. "
+			  "node id must be set explicitly in connectstring");
+      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+      DBUG_RETURN(false);
+    }
     DBUG_RETURN(true);
   }
 
-  if (found_matching_type && !found_free_node) {
-    // we have a temporary error which might be due to that 
-    // we have got the latest connect status from db-nodes.  Force update.
-    updateStatus();
+  Uint32 timeout_ms = Uint32(1000 * timeout_s);
+
+  Guard g(m_node_id_mutex);
+
+  NodeBitmask connected_nodes;
+  get_connected_nodes(connected_nodes);
+
+  NodeBitmask nodes, exact_nodes;
+  Vector<struct nodeid_and_host> nodes_info;
+
+  /* find all nodes with correct type */
+  if (find_node_type(*nodeId, type, client_addr, nodes, exact_nodes, nodes_info,
+                     error_code, error_string))
+    goto error;
+
+  // nodes_info.size() == 0 handled inside find_node_type
+  DBUG_ASSERT(nodes_info.size() != 0);
+
+  if (type == NDB_MGM_NODE_TYPE_MGM && nodes_info.size() > 1)
+  {
+    // mgmt server may only have one match
+    error_string.appfmt("Ambiguous node id's %d and %d. "
+                        "Suggest specifying node id in connectstring, "
+                        "or specifying unique host names in config file.",
+                        nodes_info[0].id, nodes_info[1].id);
+    error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+    goto error;
   }
 
-  BaseString type_string, type_c_string;
+  /* remove connected and reserved nodes from possible nodes to allocate */
+  nodes.bitANDC(connected_nodes);
+  nodes.bitANDC(m_reserved_nodes);
+
+  /* first try all nodes with exact match of hostname */
+  for (Uint32 i = 0; i < nodes_info.size(); i++)
   {
-    const char *alias, *str;
-    alias= ndb_mgm_get_node_type_alias_string(type, &str);
-    type_string.assfmt("%s(%s)", alias, str);
-    alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c,
-					      &str);
-    type_c_string.assfmt("%s(%s)", alias, str);
+    unsigned id= nodes_info[i].id;
+    if (!nodes.get(id))
+      continue;
+
+    if (!exact_nodes.get(id))
+      continue;
+
+    const char *config_hostname= nodes_info[i].host.c_str();
+    if (!try_alloc(id, config_hostname, type, client_addr, timeout_ms))
+    {
+      // success
+      *nodeId= id;
+      DBUG_RETURN(true);
+    }
   }
 
-  if (*nodeId == 0)
+  /* now try the open nodes */
+  for (Uint32 i = 0; i < nodes_info.size(); i++)
   {
-    if (found_matching_id)
+    unsigned id= nodes_info[i].id;
+    if (!nodes.get(id))
+      continue;
+
+    /**
+     * exact node tried in loop above
+     */
+    if (exact_nodes.get(id))
+      continue;
+
+    if (!try_alloc(id, NULL, type, client_addr, timeout_ms))
     {
-      if (found_matching_type)
-      {
-	if (found_free_node)
-        {
-	  error_string.appfmt("Connection done from wrong host ip %s.",
-			      (client_addr)?
-                              inet_ntoa(((struct sockaddr_in *)
-					 (client_addr))->sin_addr):"");
-          error_code = NDB_MGM_ALLOCID_ERROR;
-        }
-	else
-        {
-	  error_string.appfmt("No free node id found for %s.",
-			      type_string.c_str());
-          error_code = NDB_MGM_ALLOCID_ERROR;
-        }
-      }
-      else
-      {
-	error_string.appfmt("No %s node defined in config file.",
-			    type_string.c_str());
-        error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      }
+      // success
+      *nodeId= id;
+      DBUG_RETURN(true);
     }
-    else
-    {
-      error_string.append("No nodes defined in config file.");
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-    }
+  }
+
+  /*
+    there are nodes with correct type available but
+    allocation failed for some reason
+  */
+  if (*nodeId)
+  {
+    error_string.appfmt("Id %d already allocated by another node.",
+                        *nodeId);
   }
   else
   {
-    if (found_matching_id)
-    {
-      if (found_matching_type)
-      {
-	if (found_free_node)
-        {
-	  // have to split these into two since inet_ntoa overwrites itself
-	  error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-			      *nodeId, inet_ntoa(((struct sockaddr_in *)
-						  (client_addr))->sin_addr));
-	  error_string.appfmt(" expected %s(%s).", config_hostname,
-			      r_config_addr ?
-			      "lookup failed" : inet_ntoa(config_addr));
-          error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-	}
-        else
-        {
-	  error_string.appfmt("Id %d already allocated by another node.",
-			      *nodeId);
-          error_code = NDB_MGM_ALLOCID_ERROR;
-        }
-      }
-      else
-      {
-	error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
-			    *nodeId, type_c_string.c_str(),
-			    type_string.c_str());
-        error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      }
-    }
-    else
-    {
-      error_string.appfmt("No node defined with id=%d in config file.",
-			  *nodeId);
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-    }
+    const char *alias, *str;
+    alias= ndb_mgm_get_node_type_alias_string(type, &str);
+    error_string.appfmt("No free node id found for %s(%s).",
+                        alias, str);
+  }
+  error_code = NDB_MGM_ALLOCID_ERROR;
+
+ error:
+  if (error_code != NDB_MGM_ALLOCID_CONFIG_MISMATCH)
+  {
+    // we have a temporary error which might be due to that
+    // we have got the latest connect status from db-nodes.  Force update.
+    updateStatus();
   }
 
   if (log_event || error_code == NDB_MGM_ALLOCID_CONFIG_MISMATCH)
@@ -3121,27 +3167,35 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			   : "<none>",
 			   error_string.c_str());
 
-    NodeBitmask connected_nodes2;
-    get_connected_nodes(connected_nodes2);
     BaseString tmp_connected, tmp_not_connected;
     for(Uint32 i = 0; i < MAX_NODES; i++)
     {
-      if (connected_nodes2.get(i))
+      if (connected_nodes.get(i))
       {
-	if (!m_reserved_nodes.get(i))
-	  tmp_connected.appfmt(" %d", i);
+        if (!m_reserved_nodes.get(i))
+        {
+          tmp_connected.appfmt("%d ", i);
+        }
       }
       else if (m_reserved_nodes.get(i))
       {
-	tmp_not_connected.appfmt(" %d", i);
+        tmp_not_connected.appfmt("%d ", i);
       }
     }
+
     if (tmp_connected.length() > 0)
-      g_eventLogger->info("Mgmt server state: node id's %s connected but not reserved", 
-			  tmp_connected.c_str());
+    {
+      g_eventLogger->info
+        ("Mgmt server state: node id's %sconnected but not reserved",
+         tmp_connected.c_str());
+    }
+
     if (tmp_not_connected.length() > 0)
-      g_eventLogger->info("Mgmt server state: node id's %s not connected but reserved",
-			  tmp_not_connected.c_str());
+    {
+      g_eventLogger->info
+        ("Mgmt server state: node id's %snot connected but reserved",
+         tmp_not_connected.c_str());
+    }
   }
   DBUG_RETURN(false);
 }
@@ -3945,9 +3999,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     return false;
   }
 
-  if (ss.sendSignal(nodeId, ssig,
-                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                    ConfigChangeReq::SignalLength) != SEND_OK)
+  if (ss.sendFragmentedSignal(nodeId, ssig,
+                              MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                              ConfigChangeReq::SignalLength) != 0)
   {
     msg.assfmt("Could not start configuration change, send to "
                "node %d failed", nodeId);
@@ -3980,9 +4034,9 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
           return false;
         }
 
-        if (ss.sendSignal(nodeId, ssig,
-                          MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
-                          ConfigChangeReq::SignalLength) != SEND_OK)
+        if (ss.sendFragmentedSignal(nodeId, ssig,
+                                    MGM_CONFIG_MAN, GSN_CONFIG_CHANGE_REQ,
+                                    ConfigChangeReq::SignalLength) != 0)
         {
           msg.assfmt("Could not start configuration change, send to "
                      "node %d failed", nodeId);
@@ -4004,6 +4058,19 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     case GSN_TAKE_OVERTCCONF:
       // Ignore;
       break;
+
+
+    case GSN_NODE_FAILREP:
+      // ignore, NF_COMPLETEREP will come
+      break;
+
+    case GSN_NF_COMPLETEREP:
+    {
+      NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+      msg.assign("Node %d failed uring configuration change", nodeId);
+      return false;
+      break;
+    }
 
     default:
       report_unknown_signal(signal);
@@ -4104,7 +4171,6 @@ MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
   return true;
 }
 
-
 void
 MgmtSrvr::show_variables(NdbOut& out)
 {
@@ -4130,11 +4196,9 @@ MgmtSrvr::show_variables(NdbOut& out)
   out << "master_node: " << m_master_node << endl;
 }
 
-
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;
-
 template class Vector< Vector<BaseString> >;
-
+template class Vector<MgmtSrvr::nodeid_and_host>;

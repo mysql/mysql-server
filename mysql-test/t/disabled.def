@@ -9,9 +9,9 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-federated_transactions   : Bug#29523 Transactions do not work
-slow_query_log_func      : Bug #37962: *_func tests containing sleeps/race conditions
-wait_timeout_func    : Bug #41225 joro wait_timeout_func fails
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#41098 Query Cache returns wrong result with concurrent insert
+innodb_bug39438          : BUG#42383 2009-01-28 lsoares "This fails in embedded and on windows.  Note that this test is not run on windows and on embedded in PB for main trees currently"
 innodb			 : Bug #37995  	Error message truncation in test "innodb" in embedded mode
+concurrent_innodb_unsafelog: Bug #41498 concurrent_innodb_unsafelog fails sporadically
+concurrent_innodb_safelog: Bug #39484  	main.concurrent_innodb_safelog fails sporadically
