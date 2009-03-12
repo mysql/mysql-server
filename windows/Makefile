@@ -19,6 +19,9 @@ $(LIBPORTABILITY): $(TARGET)
 
 $(TARGET): $(OBJS)
 
+check: $(TARGET)
+	cd tests && $(MAKE) check
+
 clean:
 	rm -rf $(TARGET) $(LIBPORTABILITY)
-
+	cd tests && $(MAKE) clean
