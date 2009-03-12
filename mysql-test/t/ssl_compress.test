@@ -4,6 +4,9 @@
 -- source include/have_ssl.inc
 -- source include/have_compress.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 connect (ssl_compress_con,localhost,root,,,,,SSL COMPRESS);
 
 # Check ssl turned on
@@ -20,3 +23,10 @@ SHOW STATUS LIKE 'Ssl_cipher';
 
 # Check compression turned on
 SHOW STATUS LIKE 'Compression';
+
+connection default;
+disconnect ssl_compress_con;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

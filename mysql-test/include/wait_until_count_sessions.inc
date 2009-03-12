@@ -2,14 +2,23 @@
 #
 # SUMMARY
 #
-#    Waits until the passed number ($count_sessions) of concurrent sessions was
-#    observed via
+#    Waits until the passed number ($count_sessions) of concurrent sessions or
+#    a smaller number was observed via
 #       SHOW STATUS LIKE 'Threads_connected'
 #    or the operation times out.
-#    Note: Starting with 5.1 we could also use
-#          SELECT COUNT(*) FROM information_schema.processlist
-#          I stay with "SHOW STATUS LIKE 'Threads_connected'" because this
-#          runs in all versions 5.0+
+#    Note:
+#    1. We wait for $current_sessions <= $count_sessions because in the use case
+#       with count_sessions.inc before and wait_until_count_sessions.inc after
+#       the core of the test it could happen that the disconnects of sessions
+#       belonging to the preceeding test are not finished.
+#       sessions at test begin($count_sessions) =  m + n
+#       sessions of the previous test which will be soon disconnected = n (n >= 0)
+#       sessions at test end ($current sessions, assuming the test disconnects
+#          all additional sessions) = m
+#    2. Starting with 5.1 we could also use
+#       SELECT COUNT(*) FROM information_schema.processlist
+#       I stay with "SHOW STATUS LIKE 'Threads_connected'" because this
+#       runs in all versions 5.0+
 #
 #
 # USAGE
@@ -19,7 +28,7 @@
 #
 #    OR typical example of a test which uses more than one session
 #       Such a test could harm successing tests if there is no server shutdown
-#       and start between.cw
+#       and start between.
 #
 #       If the testing box is slow than the disconnect of sessions belonging to
 #       the current test might happen when the successing test gets executed.
@@ -79,7 +88,11 @@
 #    backup.test, grant3.test
 #
 #
-# Created: 2009-01-14 mleich
+# Created:
+#    2009-01-14 mleich
+# Modified:
+#    2009-02-24 mleich Fix Bug#43114 wait_until_count_sessions too restrictive,
+#                                    random PB failures
 #
 
 let $wait_counter= 100;
@@ -93,7 +106,7 @@ let $wait_timeout= 0;
 while ($wait_counter)
 {
    let $current_sessions= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
-   let $success= `SELECT $current_sessions = $count_sessions`;
+   let $success= `SELECT $current_sessions <= $count_sessions`;
    if ($success)
    {
       let $wait_counter= 0;
@@ -107,7 +120,7 @@ while ($wait_counter)
 if (!$success)
 {
    --echo # Timeout in wait_until_count_sessions.inc
-   --echo # Number of sessions   expected: $count_sessions   found: $current_sessions
+   --echo # Number of sessions   expected: <= $count_sessions   found: $current_sessions
    SHOW PROCESSLIST;
 }
 
