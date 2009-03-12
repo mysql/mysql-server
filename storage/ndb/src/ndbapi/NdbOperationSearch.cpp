@@ -534,6 +534,21 @@ NdbOperation::setPartitionId(Uint32 value)
     return; // TODO : Consider adding int rc for error
   }
 
+  /* We only allow setPartitionId() for :
+   *   PrimaryKey ops on a UserDefined partitioned table
+   *   Ordered index scans
+   *   Table scans
+   *
+   * It is not allowed on :
+   *   Primary key access to Natively partitioned tables
+   *   Any unique key access
+   */
+  assert(((m_type == PrimaryKeyAccess) && 
+          (m_currentTable->getFragmentType() ==
+           NdbDictionary::Object::UserDefined)) ||
+         (m_type == OrderedIndexScan) ||
+         (m_type == TableScan));
+  
   theDistributionKey = value;
   theDistrKeyIndicator_ = 1;
   DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",

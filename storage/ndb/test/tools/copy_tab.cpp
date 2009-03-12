@@ -73,6 +73,31 @@ int main(int argc, const char** argv){
     ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+
+  Vector<NdbDictionary::Index*> indexes;
+  {
+    NdbDictionary::Dictionary::List list;
+    int res = MyNdb.getDictionary()->listIndexes(list, *ptab);
+    for (unsigned i = 0; i<list.count; i++)
+    {
+      const NdbDictionary::Index* idx = 
+        MyNdb.getDictionary()->getIndex(list.elements[i].name,
+                                        _tabname);
+      if (idx)
+      {
+        ndbout << " found index " << list.elements[i].name << endl;
+        NdbDictionary::Index * copy = new NdbDictionary::Index();
+        copy->setName(idx->getName());
+        copy->setType(idx->getType());
+        copy->setLogging(idx->getLogging());
+        for (unsigned j = 0; j<idx->getNoOfColumns(); j++)
+        {
+          copy->addColumn(idx->getColumn(j)->getName());
+        }
+        indexes.push_back(copy);
+      }
+    }
+  }
   for (int i = optind + 1; i<argc; i++)
   {
     const char *_to_tabname = argv[i];
@@ -83,6 +108,20 @@ int main(int argc, const char** argv){
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
+
+    for (unsigned j = 0; j<indexes.size(); j++)
+    {
+      NdbDictionary::Index * idx = indexes[j];
+      idx->setTable(_to_tabname);
+      int res = MyNdb.getDictionary()->createIndex(*idx);
+      if (res != 0)
+      {
+        ndbout << "Failed to create index: " << idx->getName() << " : " 
+               << MyNdb.getDictionary()->getNdbError() << endl;
+        return NDBT_ProgramExit(NDBT_FAILED);
+      }
+    }
+    
     ndbout << "OK" << endl;
     if (_copy_data){
       ndbout << "Copying data..."<<endl;
@@ -98,5 +137,13 @@ int main(int argc, const char** argv){
       ndbout << "OK" << endl;
     }
   }
+  
+  for (unsigned j = 0; j<indexes.size(); j++)
+  {
+    delete indexes[j];
+  }
+
   return NDBT_ProgramExit(NDBT_OK);
 }
+
+template class Vector<NdbDictionary::Index*>;

@@ -28,16 +28,18 @@
 #include <ndb_version.h>
 
 
-#ifdef VM_TRACE
-#define require(v)  assert(v)
-#else
 static void
-require(bool v)
+_require(bool v, const char* expr, const char* file, int line)
 {
-  if (!v)
+  if (unlikely(!v))
+  {
+    fprintf(stderr, "%s:%d: require('%s') failed\n",
+            file, line, expr);
+    fflush(stderr);
     abort();
+  }
 }
-#endif
+#define require(v)  _require((v), #v, __FILE__, __LINE__)
 
 extern "C" const char* opt_connect_str;
 
@@ -683,6 +685,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
                        "requestType: %d",
                        nodeId, req->requestType);
 
+  if (!m_defragger.defragment(sig))
+    return; // More fragments to come
+
   Guard g(m_config_mutex);
 
   switch(req->requestType){
@@ -1044,7 +1049,10 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     require(m_config_change_error);
     if (m_client_ref == ss.getOwnRef())
     {
-      g_eventLogger->error("Config change failed!");
+      g_eventLogger->
+        error("Configuration change failed! error: %d '%s'",
+              m_config_change_error,
+              ConfigChangeRef::errorMessage(m_config_change_error));
       exit(1);
     }
     else
@@ -1104,7 +1112,11 @@ ConfigManager::startInitConfigChange(SignalSender& ss)
   require(m_config_state == CS_INITIAL);
   g_eventLogger->info("Starting initial configuration change");
   m_client_ref = ss.getOwnRef();
-  sendConfigChangeImplReq(ss, m_new_config);
+  if (!sendConfigChangeImplReq(ss, m_new_config))
+  {
+    g_eventLogger->error("Failed to start initial configuration change!");
+    exit(1);
+  }
 }
 
 
@@ -1115,7 +1127,11 @@ ConfigManager::startNewConfigChange(SignalSender& ss)
   g_eventLogger->info("Starting configuration change, generation: %d",
                       m_new_config->getGeneration());
   m_client_ref = ss.getOwnRef();
-  sendConfigChangeImplReq(ss, m_new_config);
+  if (!sendConfigChangeImplReq(ss, m_new_config))
+  {
+    g_eventLogger->error("Failed to start configuration change!");
+    exit(1);
+  }
 
   /* The new config has been sent and can now be discarded */
   delete m_new_config;
@@ -1123,7 +1139,7 @@ ConfigManager::startNewConfigChange(SignalSender& ss)
 }
 
 
-void
+bool
 ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
 {
   require(m_client_ref != RNIL);
@@ -1143,18 +1159,52 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   req->initial = (m_config_state == CS_INITIAL);
   req->length = buf.length();
 
-  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
-
   require(m_waiting_for.isclear());
-  m_waiting_for = ss.broadcastSignal(m_all_mgm, ssig,
-                                MGM_CONFIG_MAN,
-                                GSN_CONFIG_CHANGE_IMPL_REQ,
-                                ConfigChangeImplReq::SignalLength);
-  if (!m_waiting_for.isclear())
-    m_config_change_state = CCS_ABORT;
-  else
-    require(m_config_change_state == CCS_IDLE);
+  require(m_config_change_state == CCS_IDLE);
+
+  g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
+  unsigned i = 0;
+  while((i = m_all_mgm.find(i+1)) != NodeBitmask::NotFound)
+  {
+    g_eventLogger->debug(" - to node %d", i);
+    int result =
+      ss.sendFragmentedSignal(i, ssig, MGM_CONFIG_MAN,
+                              GSN_CONFIG_CHANGE_IMPL_REQ,
+                              ConfigChangeImplReq::SignalLength);
+    if (result != 0)
+    {
+      g_eventLogger->warning("Failed to send configuration change "
+                             "prepare to node: %d, result: %d",
+                             i, result);
+      break;
+    }
+    ssig.header.m_noOfSections = 1; // reset by sendFragmentedSignal
+
+    m_waiting_for.set(i);
+  }
+
+  if (!m_all_mgm.equal(m_waiting_for))
+  {
+    // Could not send prepare to all nodes
+    m_config_change_error = ConfigChangeRef::SendFailed;
+    if (!m_waiting_for.isclear())
+    {
+      // Some nodes got prepare, set state to
+      // abort and continue abort when result
+      // of prepare arrives
+      m_config_change_state = CCS_ABORT;
+      return false;
+    }
+
+    // No node has got prepare
+    return false;
+  }
+
+  // Prepare has been sent to all mgm nodes
+  // continue and wait for prepare conf(s)
   m_config_change_state = CCS_PREPARING;
+  return true;
+
 }
 
 
@@ -1164,6 +1214,9 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
   BlockReference from = sig->header.theSendersBlockRef;
   const ConfigChangeReq * const req =
     CAST_CONSTPTR(ConfigChangeReq, sig->getDataPtr());
+
+  if (!m_defragger.defragment(sig))
+    return; // More fragments to come
 
   if (!m_started.equal(m_all_mgm)) // Not all started
   {
@@ -1207,7 +1260,14 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
   }
 
   m_client_ref = from;
-  sendConfigChangeImplReq(ss, &new_config);
+  if (!sendConfigChangeImplReq(ss, &new_config))
+  {
+    assert(m_config_change_error);
+    sendConfigChangeRef(ss, from,
+                        m_config_change_error);
+    return;
+  }
+
   return;
 }
 
@@ -1229,8 +1289,8 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
   g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d. "   \
                        "generation: %d, other_generation: %d, " \
                        "our state: %d, other state: %d",
-                       generation, other_generation,
-                       m_config_state, other_state, nodeId);
+                       nodeId, generation, other_generation,
+                       m_config_state, other_state);
 
   switch (m_config_state)
   {
@@ -1519,11 +1579,17 @@ ConfigManager::run()
       ndbout_c("Node %d failed", nodeId);
       m_started.clear(nodeId);
       m_checked.clear(nodeId);
+      m_defragger.node_failed(nodeId);
 
       if (m_config_change_state != CCS_IDLE)
       {
         g_eventLogger->info("Node %d failed during config change!!",
                             nodeId);
+        g_eventLogger->warning("Node failure handling of config "
+                               "change protocol not yet implemented!! "
+                               "No more configuration changes can occur, "
+                               "but the node will continue to serve the "
+                               "last good configuration");
         // TODO start take over of config change protocol
       }
       break;

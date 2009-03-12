@@ -1,6 +1,6 @@
 
 --eval create table t1 (a $type1, b $type2, c $type3, d int, e $type4, primary key(a,c,e), unique(c,b,d)) engine ndb partition by key(c,e)
---exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "all error 8072" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8072" >> $NDB_TOOLS_OUTPUT
 
 --echo # verify tc select on insert using simple int key
 --disable_query_log
@@ -96,5 +96,5 @@ dec $i;
 --enable_result_log
 
 --echo # Cleanup
---exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 drop table t1;

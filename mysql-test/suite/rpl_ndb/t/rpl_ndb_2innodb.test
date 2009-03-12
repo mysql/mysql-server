@@ -19,6 +19,14 @@ set ndb_table_temporary=0;
 
 -- connection slave
 -- source include/have_innodb.inc
+
+# Remove any old ndb_apply_status from slaves datadir
+let $datadir= `SELECT @@datadir`;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.frm;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.ndb;
+
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
@@ -28,7 +36,14 @@ CREATE TABLE mysql.ndb_apply_status
                    end_pos BIGINT UNSIGNED NOT NULL,
                    PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB;
 
+-- connection master
+--disable_query_log
+set new=on;
+set storage_engine=ndbcluster;
+--enable_query_log
+
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
 
 --connection slave
+set @@global.slave_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;

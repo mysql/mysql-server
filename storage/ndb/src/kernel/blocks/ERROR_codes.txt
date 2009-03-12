@@ -631,6 +631,13 @@ Dbdict:
 6014 Master failure during commit
 6015 Master failure after commit
 
+6022 Cluster failure before flush prepare
+6021 Cluster failure before prepare first
+6016
+6017 Cluster failure before flush commit
+6018 Cluster failure before commit first
+6019 Cluster failure before flush complete
+6020 Cluster failure before complete first
 
 6200 Set error code after handleTabInfoInit in master
 6201 Set error code after handleTabInfoInit in master (index)

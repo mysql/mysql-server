@@ -587,4 +587,4 @@ h	h	8
 i	i	9
 m	m	13
 v	v	22
-drop table t1;
+drop table t1, t2;

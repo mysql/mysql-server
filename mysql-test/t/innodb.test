@@ -1163,7 +1163,7 @@ drop table t2;
 # Test error handling
 
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error ER_WRONG_FK_DEF
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
@@ -1317,6 +1317,7 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 
 # Test for innodb_thread_concurrency variable
+SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=1001;
 show variables like "innodb_thread_concurrency";
@@ -1324,6 +1325,7 @@ set global innodb_thread_concurrency=0;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
+SET @@global.innodb_thread_concurrency= @old_innodb_thread_concurrency;
 
 # Test for innodb_concurrency_tickets variable
 show variables like "innodb_concurrency_tickets";
@@ -1356,7 +1358,7 @@ source include/varchar.inc;
 #
 
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 create table t1 (v varchar(65530), key(v));
 drop table t1;
 create table t1 (v varchar(65536));
@@ -1631,7 +1633,7 @@ disconnect b;
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1005
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
 set foreign_key_checks=1;
@@ -1643,7 +1645,7 @@ drop table t2;
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1005
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
 set foreign_key_checks=1;
@@ -1674,7 +1676,7 @@ set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1025
 rename table t3 to t1;
 set foreign_key_checks=1;
@@ -2314,7 +2316,7 @@ ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error 1025
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;

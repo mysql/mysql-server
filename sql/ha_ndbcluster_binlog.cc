@@ -73,7 +73,6 @@ int ndb_binlog_thread_running= 0;
 my_bool ndb_binlog_running= FALSE;
 my_bool ndb_binlog_tables_inited= FALSE;
 my_bool ndb_binlog_is_ready= FALSE;
-
 /*
   Global reference to the ndb injector thread THD oject
 
@@ -2710,15 +2709,19 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         if (ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE %s.%s", schema->db, schema->name);
         log_query= 1;
-        pthread_mutex_lock(&LOCK_open);
-        ndbcluster_rename_share(thd, share);
-        pthread_mutex_unlock(&LOCK_open);
+        if (share)
+        {
+          pthread_mutex_lock(&LOCK_open);
+          ndbcluster_rename_share(thd, share);
+          pthread_mutex_unlock(&LOCK_open);
+        }
         break;
       case SOT_RENAME_TABLE_PREPARE:
         if (ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE_PREPARE %s.%s -> %s",
                                 schema->db, schema->name, schema->query);
-        if (schema->node_id != g_ndb_cluster_connection->node_id())
+        if (share &&
+            schema->node_id != g_ndb_cluster_connection->node_id())
           ndbcluster_prepare_rename_share(share, schema->query);
         break;
       case SOT_ALTER_TABLE_COMMIT:
@@ -3238,40 +3241,57 @@ static void
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
 {
+  DBUG_ENTER("set_binlog_flags");
   switch (ndb_binlog_type)
   {
   case NBT_NO_LOGGING:
+    DBUG_PRINT("info", ("NBT_NO_LOGGING"));
     set_binlog_nologging(share);
-    return;
+    DBUG_VOID_RETURN;
   case NBT_DEFAULT:
+    DBUG_PRINT("info", ("NBT_DEFAULT"));
     if (opt_ndb_log_updated_only)
+    {
       set_binlog_updated_only(share);
+    }
     else
+    {
       set_binlog_full(share);
+    }
     if (opt_ndb_log_update_as_write)
+    {
       set_binlog_use_write(share);
+    }
     else
+    {
       set_binlog_use_update(share);
+    }
     break;
   case NBT_UPDATED_ONLY:
+    DBUG_PRINT("info", ("NBT_UPDATED_ONLY"));
     set_binlog_updated_only(share);
     set_binlog_use_write(share);
     break;
   case NBT_USE_UPDATE:
+    DBUG_PRINT("info", ("NBT_USE_UPDATE"));
   case NBT_UPDATED_ONLY_USE_UPDATE:
+    DBUG_PRINT("info", ("NBT_UPDATED_ONLY_USE_UPDATE"));
     set_binlog_updated_only(share);
     set_binlog_use_update(share);
     break;
   case NBT_FULL:
+    DBUG_PRINT("info", ("NBT_FULL"));
     set_binlog_full(share);
     set_binlog_use_write(share);
     break;
   case NBT_FULL_USE_UPDATE:
+    DBUG_PRINT("info", ("NBT_FULL_USE_UPDATE"));
     set_binlog_full(share);
     set_binlog_use_update(share);
     break;
   }
   set_binlog_logging(share);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3852,7 +3872,8 @@ err:
                         ER(ER_ILLEGAL_HA_CREATE_OPTION),
                         ndbcluster_hton_name, msg);  
   }
-  set_binlog_flags(share, NBT_DEFAULT);
+  if (do_set_binlog_flags)
+    set_binlog_flags(share, NBT_DEFAULT);
   if (ndberror.code && ndb_extra_logging)
   {
     List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
@@ -5137,7 +5158,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         since we do not have an after image
       */
       int n;
-      if (table->s->primary_key != MAX_KEY)
+      if (!get_binlog_full(share) && table->s->primary_key != MAX_KEY)
         n= 0; /*
                 use the primary key only as it save time and space and
                 it is the only thing needed to log the delete
@@ -5461,8 +5482,19 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
 
 restart_cluster_failure:
+  int have_injector_mutex_lock= 0;
   do_ndbcluster_binlog_close_connection= BCCC_exit;
-  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+
+  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+  {
+    sql_print_error("Could not allocate Thd_ndb object");
+    ndb_binlog_thread_running= -1;
+    pthread_mutex_unlock(&injector_mutex);
+    pthread_cond_signal(&injector_cond);
+    goto err;
+  }
+
+  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
       s_ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Schema Ndb object failed");
@@ -5572,6 +5604,18 @@ restart_cluster_failure:
            (ndb_binlog_running && !ndb_apply_status_share) ||
            !ndb_binlog_tables_inited)
     {
+      if (!thd_ndb->valid_ndb())
+      {
+        /*
+          Cluster has gone away before setup was completed.
+          Keep lock on injector_mutex to prevent further
+          usage of the injector_ndb, and restart binlog
+          thread to get rid of any garbage on the ndb objects
+        */
+        have_injector_mutex_lock= 1;
+        do_ndbcluster_binlog_close_connection= BCCC_restart;
+        goto err;
+      }
       /* ndb not connected yet */
       struct timespec abstime;
       set_timespec(abstime, 1);
@@ -5584,18 +5628,10 @@ restart_cluster_failure:
     }
     pthread_mutex_unlock(&injector_mutex);
 
-    if (thd_ndb == NULL)
-    {
-      DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
-      if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
-      {
-        sql_print_error("Could not allocate Thd_ndb object");
-        goto err;
-      }
-      set_thd_ndb(thd, thd_ndb);
-      thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
-      thd->query_id= 0; // to keep valgrind quiet
-    }
+    DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
+    set_thd_ndb(thd, thd_ndb);
+    thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+    thd->query_id= 0; // to keep valgrind quiet
   }
 
   {
@@ -6172,7 +6208,8 @@ restart_cluster_failure:
     DBUG_PRINT("info",("Restarting cluster binlog thread"));
     thd->proc_info= "Restarting";
   }
-  pthread_mutex_lock(&injector_mutex);
+  if (!have_injector_mutex_lock)
+    pthread_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;
   injector_ndb= 0;

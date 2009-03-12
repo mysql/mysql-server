@@ -471,7 +471,7 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
   Uint32 senderRef = req->senderRef;
   Uint32 senderData = req->senderData;
   DropTabReq::RequestType rt = (DropTabReq::RequestType)req->requestType;
-  
+
   if(!tabPtr.p->get_enabled() && rt == DropTabReq::OnlineDropTab){
     jam();
     DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
@@ -2543,18 +2543,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
     ;
   } else {
-    if (localTabptr.p->checkTablePrepared(tcKeyReq->tableSchemaVersion,
-                                          tcKeyReq->transId1)) {
-      jam();
-    } else {
     /*-----------------------------------------------------------------------*/
     /* THE API IS WORKING WITH AN OLD SCHEMA VERSION. IT NEEDS REPLACEMENT.  */
     /* COULD ALSO BE THAT THE TABLE IS NOT DEFINED.                          */
     /*-----------------------------------------------------------------------*/
-      releaseSections(handle);
-      TCKEY_abort(signal, 8);
-      return;
-    }
+    releaseSections(handle);
+    TCKEY_abort(signal, 8);
+    return;
   }//if
   
   //-------------------------------------------------------------------------
@@ -3002,14 +2997,9 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   if(localTabptr.p->checkTable(schemaVersion)){
     ;
   } else {
-    if (localTabptr.p->checkTablePrepared(schemaVersion,
-                                          regApiPtr->transid[0])) {
-      jam();
-    } else {
-      terrorCode = localTabptr.p->getErrorCode(schemaVersion);
-      TCKEY_abort(signal, 58);
-      return;
-    }
+    terrorCode = localTabptr.p->getErrorCode(schemaVersion);
+    TCKEY_abort(signal, 58);
+    return;
   }
   
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
@@ -3213,14 +3203,9 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   if(localTabptr.p->checkTable(regCachePtr->schemaVersion)){
     ;
   } else {
-    if (localTabptr.p->checkTablePrepared(regCachePtr->schemaVersion,
-                                          regApiPtr->transid[0])) {
-      jam();
-    } else {
-      terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
-      TCKEY_abort(signal, 58);
-      return;
-    }
+    terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
+    TCKEY_abort(signal, 58);
+    return;
   }
   if (Tnode != 0)
   {

@@ -27,6 +27,10 @@ void Qmgr::initData()
 
   // Records with constant sizes
   nodeRec = new NodeRec[MAX_NODES];
+  for (Uint32 i = 0; i<MAX_NODES; i++)
+  {
+    nodeRec[i].m_secret = 0;
+  }
 
   cnoCommitFailedNodes = 0;
   c_maxDynamicId = 0;

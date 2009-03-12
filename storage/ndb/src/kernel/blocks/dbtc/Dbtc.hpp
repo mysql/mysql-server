@@ -1002,16 +1002,18 @@ public:
     Uint8 hasVarKeys;
 
     bool checkTable(Uint32 schemaVersion) const {
-      return get_enabled() && !get_dropping() && 
-	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));
+      return !get_dropping() &&
+	((/** normal transaction path */
+          get_enabled() && table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) 
+         ||
+         (/** 
+           * unique index is relaxed for DbUtil and transactions ongoing
+           * while index is created
+           */
+          get_prepared() && schemaVersion == currentSchemaVersion &&
+          DictTabInfo::isUniqueIndex(tableType)));
     }
-
-    bool checkTablePrepared(Uint32 schemaVersion, Uint32 transId1) const {
-      return get_prepared() && !get_dropping() && 
-	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) &&
-        (transId1 >> 20) == DBUTIL; // wl3600_todo use schema trans id instead
-    }
-
+    
     Uint32 getErrorCode(Uint32 schemaVersion) const;
   };
   typedef Ptr<TableRecord> TableRecordPtr;

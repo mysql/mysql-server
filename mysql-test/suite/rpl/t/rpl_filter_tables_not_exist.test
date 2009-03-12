@@ -124,9 +124,11 @@ UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id
 sync_slave_with_master;
 connection master;
 
-# Parameter for include/wait_for_slave_sql_error_and_skip.inc, ask it
-# to show SQL error message
-let show_sql_error=1;
+# Parameters for include/wait_for_slave_sql_error_and_skip.inc:
+# Ask it to show SQL error message.
+let $show_sql_error= 1;
+# The expected error will always be 1146 (ER_NO_SUCH_TABLE).
+let $slave_sql_errno= 1146;
 
 #
 # Only do tables are referenced for update, these statements should

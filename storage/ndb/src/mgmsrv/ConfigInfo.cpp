@@ -878,7 +878,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "8M",
+    "32M",
     "1M",
     STR_VALUE(MAX_INT_RNIL)},
 
@@ -1075,7 +1075,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_DB_THREAD_POOL,
-    "ThreadPool",
+    "DiskIOThreadPool",
     DB_TOKEN,
     "No of unbound threads for file access (currently only for DD)",
     ConfigInfo::CI_USED,
@@ -1439,7 +1439,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "4M", // sum of BackupDataBufferSize and BackupLogBufferSize
+    "32M", // sum of BackupDataBufferSize and BackupLogBufferSize
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1451,7 +1451,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "2M", // remember to change BackupMemory
+    "16M", // remember to change BackupMemory
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1463,7 +1463,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "2M", // remember to change BackupMemory
+    "16M", // remember to change BackupMemory
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1475,7 +1475,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "32K",
+    "256K",
     "2K",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1487,7 +1487,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "256K",
+    "1M",
     "2K",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1634,7 +1634,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    UNDEFINED,
+    "2",
     "2",
     "8"
   },
@@ -1677,6 +1677,73 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"
   },
+
+  {
+    CFG_DB_DD_FILESYSTEM_PATH,
+    "FileSystemPathDD",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data/undo-files",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_DATAFILE_PATH,
+    "FileSystemPathDataFiles",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data-files",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_UNDOFILE_PATH,
+    "FileSystemPathUndoFiles",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-undo-files",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_LOGFILEGROUP_SPEC,
+    "InitialLogfileGroup",
+    DB_TOKEN,
+    "Logfile group that will be created during initial start",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_DD_TABLEPACE_SPEC,
+    "InitialTablespace",
+    DB_TOKEN,
+    "Tablespace that will be created during initial start",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_DB_LCP_TRY_LOCK_TIMEOUT,
+    "MaxLCPStartDelay",
+    DB_TOKEN,
+    "Time in seconds that LCP will poll for checkpoint mutex, before putting it self in lock-queue",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "600" },
 
   /***************************************************************************
    * API
@@ -2156,7 +2223,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "256K",
+    "2M",
     "64K",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -2168,7 +2235,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "64K",
+    "2M",
     "16K",
     STR_VALUE(MAX_INT_RNIL) },
 

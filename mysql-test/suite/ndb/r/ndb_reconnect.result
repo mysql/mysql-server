@@ -25,3 +25,4 @@ select * from t1;
 a	b	c
 1	row 1	2
 insert into t1 values (2, "row 1", 37);
+drop table t1;

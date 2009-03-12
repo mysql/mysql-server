@@ -151,8 +151,16 @@
 
 #define CFG_NDBMT_CLASSIC             191
 
+#define CFG_DB_DD_FILESYSTEM_PATH     193
+#define CFG_DB_DD_DATAFILE_PATH       194
+#define CFG_DB_DD_UNDOFILE_PATH       195
+#define CFG_DB_DD_LOGFILEGROUP_SPEC   196
+#define CFG_DB_DD_TABLEPACE_SPEC      197
+
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
+
+#define CFG_DB_LCP_TRY_LOCK_TIMEOUT   605
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

@@ -73,66 +73,44 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
-  int result= NDBT_FAILED;
 
-  NdbMgmHandle h;
-  h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  g_info << "Check connect works with timeout 3000" << endl;
+  if (!mgmd.set_timeout(3000))
+    return NDBT_FAILED;
 
-  ndbout << "TEST connect timeout" << endl;
+  if (!mgmd.connect())
+  {
+    g_err << "Connect failed with timeout 3000" << endl;
+    return NDBT_FAILED;
+  }
 
-  ndb_mgm_set_timeout(h, 3000);
+  if (!mgmd.disconnect())
+    return NDBT_FAILED;
 
-  NDB_TICKS  tstart, tend;
-  NDB_TICKS secs;
+  g_info << "Check connect to illegal host will timeout after 3000" << endl;
+  if (!mgmd.set_timeout(3000))
+    return NDBT_FAILED;
+  mgmd.setConnectString("1.1.1.1");
 
-  tstart= NdbTick_CurrentMillisecond();
+  NDB_TICKS tstart= NdbTick_CurrentMillisecond();
+  if (mgmd.connect())
+  {
+    g_err << "Connect to illegal host suceeded" << endl;
+    return NDBT_FAILED;
+  }
 
-  ndb_mgm_connect(h,0,0,0);
+  NDB_TICKS msecs= NdbTick_CurrentMillisecond() - tstart;
+  ndbout << "Took about " << msecs <<" milliseconds"<<endl;
 
-  tend= NdbTick_CurrentMillisecond();
-
-  secs= tend - tstart;
-  ndbout << "Took about: " << secs <<" milliseconds"<<endl;
-
-  if(secs < 4)
-    result= NDBT_OK;
-  else
-    goto done;
-
-  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
-
-  ndbout << "TEST connect timeout" << endl;
-
-  ndb_mgm_destroy_handle(&h);
-
-  h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, "1.1.1.1");
-
-  ndbout << "TEST connect timeout (invalid host)" << endl;
-
-  ndb_mgm_set_timeout(h, 3000);
-
-  tstart= NdbTick_CurrentMillisecond();
-
-  ndb_mgm_connect(h,0,0,0);
-
-  tend= NdbTick_CurrentMillisecond();
-
-  secs= tend - tstart;
-  ndbout << "Took about: " << secs <<" milliseconds"<<endl;
-
-  if(secs < 4)
-    result= NDBT_OK;
-  else
-    result= NDBT_FAILED;
-
-done:
-  ndb_mgm_disconnect(h);
-  ndb_mgm_destroy_handle(&h);
-
-  return result;
+  if(msecs > 6000)
+  {
+    g_err << "The connect to illegal host timedout after much longer "
+          << "time than was expected, expected <= 6000, got " << msecs << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
 }
+
 
 int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -1571,15 +1549,36 @@ check_reload_config_both_config_and_mycnf(NdbMgmd& mgmd)
                                        "ERROR: Both mycnf and config_filename");
 }
 
+
 static bool
-check_reload_config_invalid_config_filename(NdbMgmd& mgmd)
+show_variables(NdbMgmd& mgmd, Properties& reply)
 {
+  if (!mgmd.call("show variables", "",
+                 "show variables reply", reply))
+  {
+    g_err << "show_variables: mgmd.call failed" << endl;
+    return false;
+  }
+  return true;
+}
+
+
+static bool
+check_reload_config_invalid_config_filename(NdbMgmd& mgmd, bool mycnf)
+{
+
+  BaseString expected("Could not load configuration from 'nonexisting_file");
+  if (mycnf)
+  {
+    // Differing error message if started from my.cnf
+    expected.assign("Can't switch to use config.ini 'nonexisting_file' "
+                    "when node was started from my.cnf");
+  }
+
   Properties args;
   // Send reload command with an invalid config_filename
   args.put("config_filename", "nonexisting_file");
-  return reload_config_result_contains(mgmd, args,
-                                       "Could not load configuration "
-                                       "from 'nonexisting_file");
+  return reload_config_result_contains(mgmd, args, expected.c_str());
 }
 
 
@@ -1590,10 +1589,19 @@ int runTestReloadConfig(NDBT_Context* ctx, NDBT_Step* step)
   if (!mgmd.connect())
     return NDBT_FAILED;
 
+  Properties variables;
+  if (!show_variables(mgmd, variables))
+    return NDBT_FAILED;
+
+  const char* mycnf_str;
+  if (!variables.get("mycnf", &mycnf_str))
+    abort();
+  bool uses_mycnf = strcmp(mycnf_str, "1");
+
   int result= NDBT_FAILED;
   if (
       check_reload_config_both_config_and_mycnf(mgmd) &&
-      check_reload_config_invalid_config_filename(mgmd) &&
+      check_reload_config_invalid_config_filename(mgmd, uses_mycnf) &&
       true)
     result= NDBT_OK;
 

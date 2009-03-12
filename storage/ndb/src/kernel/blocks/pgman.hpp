@@ -369,6 +369,7 @@ private:
 
   class Dbtup *c_tup;
   class Lgman *c_lgman;
+  class Tsman *c_tsman;
 
   // loop status
   bool m_stats_loop_on;

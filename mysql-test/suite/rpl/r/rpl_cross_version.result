@@ -1,0 +1,12 @@
+==== Initialize ====
+Setting up fake replication from MYSQL_TEST_DIR/suite/binlog/std_data/binlog_old_version_4_1.000001
+==== Test ====
+start slave sql_thread;
+==== a prove that the fake has been processed successfully ====
+SELECT COUNT(*) - 17920 as zero FROM t3;
+zero
+0
+==== Clean up ====
+stop slave sql_thread;
+Cleaning up after setup_fake_relay_log.inc
+drop table t1, t3;

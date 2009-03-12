@@ -547,9 +547,11 @@ int mysql_update(THD *thd,
       table->file->read_before_write_removal_possible(&fields, &values);
   }
   updated= found= 0;
-  /* Generate an error when trying to set a NOT NULL field to NULL. */
-  thd->count_cuted_fields= ignore ? CHECK_FIELD_WARN
-                                  : CHECK_FIELD_ERROR_FOR_NULL;
+  /*
+    Generate an error (in TRADITIONAL mode) or warning
+    when trying to set a NOT NULL field to NULL.
+  */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
   thd_proc_info(thd, "Updating");
 

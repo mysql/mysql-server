@@ -1,0 +1,40 @@
+flush logs;
+flush logs;
+flush logs;
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+master-bin.000003	#
+master-bin.000004	#
+purge binary logs TO 'master-bin.000004';
+Warnings:
+Warning	1612	Being purged log master-bin.000001 was not found
+*** must show a list starting from the 'TO' argument of PURGE ***
+show binary logs;
+Log_name	File_size
+master-bin.000004	#
+reset master;
+flush logs;
+flush logs;
+flush logs;
+*** must be a warning master-bin.000001 was not found ***
+Warnings:
+Warning	1612	Being purged log master-bin.000001 was not found
+Warning	1612	Being purged log master-bin.000001 was not found
+*** must show one record, of the active binlog, left in the index file after PURGE ***
+show binary logs;
+Log_name	File_size
+master-bin.000004	#
+reset master;
+flush logs;
+flush logs;
+flush logs;
+purge binary logs TO 'master-bin.000002';
+ERROR HY000: Fatal error during log purge
+show warnings;
+Level	Code	Message
+Error	1377	a problem with deleting master-bin.000001; consider examining correspondence of your binlog index file to the actual binlog files
+Error	1377	Fatal error during log purge
+reset master;
+End of tests

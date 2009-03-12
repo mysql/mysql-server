@@ -55,6 +55,7 @@
 #include <signaldata/TakeOver.hpp>
 #include <signaldata/CreateNodegroupImpl.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
+#include <signaldata/CreateFilegroup.hpp>
 
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
@@ -210,12 +211,16 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   jamEntry();
   switch (sysErr->errorCode){
   case SystemError::GCPStopDetected:
+  {
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "GCP stop was detected",     
 	     killingNode);
+    signal->theData[0] = 7025;
+    EXECUTE_DIRECT(DBDIH, GSN_DUMP_STATE_ORD, signal, 1);
+    jamEntry();
     break;
-
+  }
   case SystemError::CopyFragRefError:
     CRASH_INSERTION(1000);
     BaseString::snprintf(buf, sizeof(buf), 
@@ -256,6 +261,131 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   return;
 }//Ndbcntr::execSYSTEM_ERROR()
 
+
+struct ddentry
+{
+  Uint32 type;
+  const char * name;
+  Uint64 size;
+};
+
+/**
+ * f_dd[] = {
+ * { DictTabInfo::LogfileGroup, "DEFAULT-LG", 32*1024*1024 },
+ * { DictTabInfo::Undofile, "undofile.dat", 64*1024*1024 },
+ * { DictTabInfo::Tablespace, "DEFAULT-TS", 1024*1024 },
+ * { DictTabInfo::Datafile, "datafile.dat", 64*1024*1024 },
+ * { ~0, 0, 0 }
+ * };
+ */
+Vector<ddentry> f_dd;
+
+Uint64
+parse_size(const char * src)
+{
+  Uint64 num = 0;
+  char * endptr = 0;
+  num = strtoll(src, &endptr, 10);
+
+  if (endptr)
+  {
+    switch(* endptr){
+    case 'k':
+    case 'K':
+      num *= 1024;
+      break;
+    case 'm':
+    case 'M':
+      num *= 1024;
+      num *= 1024;
+      break;
+    case 'g':
+    case 'G':
+      num *= 1024;
+      num *= 1024;
+      num *= 1024;
+      break;
+    }
+  }
+  return num;
+}
+
+static
+int
+parse_spec(Vector<ddentry> & dst,
+           const char * src,
+           Uint32 type)
+{
+  const char * key;
+  Uint32 filetype;
+
+  struct ddentry group;
+  if (type == DictTabInfo::LogfileGroup)
+  {
+    key = "undo_buffer_size=";
+    group.size = 64*1024*1024;
+    group.name = "DEFAULT-LG";
+    group.type = type;
+    filetype = DictTabInfo::Undofile;
+  }
+  else
+  {
+    key = "extent_size=";
+    group.size = 1024*1024;
+    group.name = "DEFAULT-TS";
+    group.type = type;
+    filetype = DictTabInfo::Datafile;
+  }
+  size_t keylen = strlen(key);
+
+  BaseString arg(src);
+  Vector<BaseString> list;
+  arg.split(list, ";");
+
+  bool first = true;
+  for (Uint32 i = 0; i<list.size(); i++)
+  {
+    list[i].trim();
+    if (strncasecmp(list[i].c_str(), "name=", sizeof("name=")-1) == 0)
+    {
+      group.name= strdup(list[i].c_str() + sizeof("name=")-1);
+    }
+    else if (strncasecmp(list[i].c_str(), key, keylen) == 0)
+    {
+      group.size = parse_size(list[i].c_str() + keylen);
+    }
+    else
+    {
+      /**
+       * interpret as filespec
+       */
+      struct ddentry entry;
+      const char * path = list[i].c_str();
+      char * sizeptr = const_cast<char*>(strchr(path, ':'));
+      if (sizeptr == 0)
+      {
+        return -1;
+      }
+      * sizeptr = 0;
+
+      entry.name = strdup(path);
+      entry.size = parse_size(sizeptr + 1);
+      entry.type = filetype;
+
+      if (first)
+      {
+        /**
+         * push group aswell
+         */
+        first = false;
+        dst.push_back(group);
+      }
+      dst.push_back(entry);
+    }
+  }
+  return 0;
+}
+
 void 
 Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -269,6 +399,50 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  Uint32 dl = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
+  if (dl == 0)
+  {
+    const char * lgspec = 0;
+    char buf[1024];
+    if (!ndb_mgm_get_string_parameter(p, CFG_DB_DD_LOGFILEGROUP_SPEC, &lgspec))
+    {
+      jam();
+
+      if (parse_spec(f_dd, lgspec, DictTabInfo::LogfileGroup))
+      {
+        BaseString::snprintf(buf, sizeof(buf),
+                             "Unable to parse InitalLogfileGroup: %s", lgspec);
+        progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+      }
+    }
+
+    const char * tsspec = 0;
+    if (!ndb_mgm_get_string_parameter(p, CFG_DB_DD_TABLEPACE_SPEC, &tsspec))
+    {
+      if (f_dd.size() == 0)
+      {
+        warningEvent("InitalTablespace specified, "
+                     "but InitalLogfileGroup is not!");
+        warningEvent("Ignoring InitalTablespace: %s",
+                     tsspec);
+      }
+      else
+      {
+        if (parse_spec(f_dd, tsspec, DictTabInfo::Tablespace))
+        {
+          BaseString::snprintf(buf, sizeof(buf),
+                               "Unable to parse InitalTablespace: %s", tsspec);
+          progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+        }
+      }
+    }
+  }
+
+  struct ddentry empty;
+  empty.type = ~0;
+  f_dd.push_back(empty);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -297,14 +471,6 @@ void Ndbcntr::execSTTOR(Signal* signal)
     break;
   case ZSTART_PHASE_1:
     jam();
-    {
-      Uint32 db_watchdog_interval = 0;
-      const ndb_mgm_configuration_iterator * p = 
-        m_ctx.m_config.getOwnConfigIterator();
-      ndb_mgm_get_int_parameter(p, CFG_DB_WATCHDOG_INTERVAL, &db_watchdog_interval);
-      ndbrequire(db_watchdog_interval);
-      update_watch_dog_timer(db_watchdog_interval);
-    }
     startPhase1Lab(signal);
     break;
   case ZSTART_PHASE_2:
@@ -1821,7 +1987,6 @@ void Ndbcntr::systemErrorLab(Signal* signal, int line)
 /*       |  :  |   :             |                   v                       */
 /*       | 2048|   0             |                   v                       */
 /*---------------------------------------------------------------------------*/
-
 void Ndbcntr::beginSchemaTransLab(Signal* signal)
 {
   c_schemaTransId = reference();
@@ -1914,11 +2079,174 @@ void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
   ndbrequire(false);
 }
 
+void
+Ndbcntr::createDDObjects(Signal * signal, unsigned index)
+{
+  const ndb_mgm_configuration_iterator * p =
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  Uint32 propPage[256];
+  LinearWriter w(propPage, 256);
+
+  const ddentry* entry = &f_dd[index];
+
+  switch(entry->type){
+  case DictTabInfo::LogfileGroup:
+  case DictTabInfo::Tablespace:
+  {
+    jam();
+
+    DictFilegroupInfo::Filegroup fg; fg.init();
+    BaseString::snprintf(fg.FilegroupName, sizeof(fg.FilegroupName),
+                         entry->name);
+    fg.FilegroupType = entry->type;
+    if (entry->type == DictTabInfo::LogfileGroup)
+    {
+      jam();
+      fg.LF_UndoBufferSize = Uint32(entry->size);
+    }
+    else
+    {
+      jam();
+      fg.TS_ExtentSize = Uint32(entry->size);
+      fg.TS_LogfileGroupId = RNIL;
+      fg.TS_LogfileGroupVersion = RNIL;
+    }
+
+    SimpleProperties::UnpackStatus s;
+    s = SimpleProperties::pack(w,
+                               &fg,
+                               DictFilegroupInfo::Mapping,
+                               DictFilegroupInfo::MappingSize, true);
+
+
+    Uint32 length = w.getWordsUsed();
+    LinearSectionPtr ptr[3];
+    ptr[0].p = &propPage[0];
+    ptr[0].sz = length;
+
+    CreateFilegroupReq * req = (CreateFilegroupReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = index;
+    req->objType = entry->type;
+    req->transId = c_schemaTransId;
+    req->transKey = c_schemaTransKey;
+    req->requestInfo = 0;
+    sendSignal(DBDICT_REF, GSN_CREATE_FILEGROUP_REQ, signal,
+               CreateFilegroupReq::SignalLength, JBB, ptr, 1);
+    return;
+  }
+  case DictTabInfo::Undofile:
+  case DictTabInfo::Datafile:
+  {
+    jam();
+    Uint32 propPage[256];
+    LinearWriter w(propPage, 256);
+    DictFilegroupInfo::File f; f.init();
+    BaseString::snprintf(f.FileName, sizeof(f.FileName), entry->name);
+    f.FileType = entry->type;
+    f.FilegroupId = RNIL;
+    f.FilegroupVersion = RNIL;
+    f.FileSizeHi = Uint32(entry->size >> 32);
+    f.FileSizeLo = Uint32(entry->size);
+
+    SimpleProperties::UnpackStatus s;
+    s = SimpleProperties::pack(w,
+                               &f,
+                               DictFilegroupInfo::FileMapping,
+                               DictFilegroupInfo::FileMappingSize, true);
+
+    Uint32 length = w.getWordsUsed();
+    LinearSectionPtr ptr[3];
+    ptr[0].p = &propPage[0];
+    ptr[0].sz = length;
+
+    CreateFileReq * req = (CreateFileReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = index;
+    req->objType = entry->type;
+    req->transId = c_schemaTransId;
+    req->transKey = c_schemaTransKey;
+    req->requestInfo = CreateFileReq::ForceCreateFile;
+    sendSignal(DBDICT_REF, GSN_CREATE_FILE_REQ, signal,
+               CreateFileReq::SignalLength, JBB, ptr, 1);
+    return;
+  }
+  default:
+    break;
+  }
+
+  endSchemaTransLab(signal);
+}
+
+void
+Ndbcntr::execCREATE_FILEGROUP_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFilegroupRef* ref = (CreateFilegroupRef*)signal->getDataPtr();
+  char buf[1024];
+
+  const ddentry* entry = &f_dd[ref->senderData];
+
+  if (entry->type == DictTabInfo::LogfileGroup)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create logfilegroup err %u",
+                         ref->errorCode);
+  }
+  else if (entry->type == DictTabInfo::Tablespace)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create tablespace err %u",
+                         ref->errorCode);
+  }
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+}
+
+void
+Ndbcntr::execCREATE_FILEGROUP_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFilegroupConf* conf = (CreateFilegroupConf*)signal->getDataPtr();
+  createDDObjects(signal, conf->senderData + 1);
+}
+
+void
+Ndbcntr::execCREATE_FILE_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFileRef* ref = (CreateFileRef*)signal->getDataPtr();
+  char buf[1024];
+
+  const ddentry* entry = &f_dd[ref->senderData];
+
+  if (entry->type == DictTabInfo::Undofile)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create undofile %s err %u",
+                         entry->name,
+                         ref->errorCode);
+  }
+  else if (entry->type == DictTabInfo::Datafile)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create datafile %s err %u",
+                         entry->name,
+                         ref->errorCode);
+  }
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+}
+
+void
+Ndbcntr::execCREATE_FILE_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFileConf* conf = (CreateFileConf*)signal->getDataPtr();
+  createDDObjects(signal, conf->senderData + 1);
+}
+
 void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
 {
   if (index >= g_sysTableCount) {
     ndbassert(index == g_sysTableCount);
-    endSchemaTransLab(signal);
+    createDDObjects(signal, 0);
     return;
   }
   const SysTable& table = *g_sysTableList[index];
@@ -3018,25 +3346,30 @@ void Ndbcntr::execSTART_ORD(Signal* signal){
 
 #define CLEAR_DX 13
 #define CLEAR_LCP 3
+#define CLEAR_DD 2
+// FileSystemPathDataFiles FileSystemPathUndoFiles
 
 void
 Ndbcntr::clearFilesystem(Signal* signal)
 {
-  const Uint32 lcp = c_fsRemoveCount >= CLEAR_DX;
-  
+  jam();
   FsRemoveReq * req  = (FsRemoveReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer   = 0;
   req->directory     = 1;
   req->ownDirectory  = 1;
 
-  if (lcp == 0)
+  const Uint32 DX = CLEAR_DX;
+  const Uint32 LCP = CLEAR_DX + CLEAR_LCP;
+  const Uint32 DD = CLEAR_DX + CLEAR_LCP + CLEAR_DD;
+
+  if (c_fsRemoveCount < DX)
   {
     FsOpenReq::setVersion(req->fileNumber, 3);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL); // Can by any...
     FsOpenReq::v1_setDisk(req->fileNumber, c_fsRemoveCount);
   }
-  else
+  else if (c_fsRemoveCount < LCP)
   {
     FsOpenReq::setVersion(req->fileNumber, 5);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
@@ -3044,6 +3377,19 @@ Ndbcntr::clearFilesystem(Signal* signal)
     FsOpenReq::v5_setTableId(req->fileNumber, 0);
     FsOpenReq::v5_setFragmentId(req->fileNumber, 0);
   }
+  else if (c_fsRemoveCount < DD)
+  {
+    req->ownDirectory  = 0;
+    FsOpenReq::setVersion(req->fileNumber, 6);
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+    FsOpenReq::v5_setLcpNo(req->fileNumber,
+                           FsOpenReq::BP_DD_DF + c_fsRemoveCount - LCP);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
              FsRemoveReq::SignalLength, JBA);
   c_fsRemoveCount++;
@@ -3052,12 +3398,12 @@ Ndbcntr::clearFilesystem(Signal* signal)
 void
 Ndbcntr::execFSREMOVECONF(Signal* signal){
   jamEntry();
-  if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP){
+  if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP + CLEAR_DD){
     jam();
     sendSttorry(signal);
   } else {
     jam();
-    ndbrequire(c_fsRemoveCount < CLEAR_DX + CLEAR_LCP);
+    ndbrequire(c_fsRemoveCount < CLEAR_DX + CLEAR_LCP + CLEAR_DD);
     clearFilesystem(signal);
   }//if
 }
@@ -3289,3 +3635,5 @@ Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
                DropNodegroupImplConf::SignalLength, JBB);
   }
 }
+
+template class Vector<ddentry>;

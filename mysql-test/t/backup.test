@@ -1,6 +1,6 @@
 
 # The server need to be started in $MYSQLTEST_VARDIR since it
-# uses ../std_data_ln/
+# uses ../../std_data/
 -- source include/uses_vardir.inc
 
 #
@@ -16,41 +16,41 @@ drop table if exists t1, t2, t3, t4;
 --enable_warnings
 create table t4(n int);
 --replace_result ": 1" ": X" ": 2" ": X" ": 22" ": X" ": 23" ": X" $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-backup table t4 to '../bogus';
-backup table t4 to '../tmp';
+backup table t4 to '../../bogus';
+backup table t4 to '../../tmp';
 --replace_result ": 7" ": X" ": 17" ": X" $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-backup table t4 to '../tmp';
+backup table t4 to '../../tmp';
 drop table t4;
-restore table t4 from '../tmp';
+restore table t4 from '../../tmp';
 select count(*) from t4;
 
 create table t1(n int);
 insert into t1 values (23),(45),(67);
-backup table t1 to '../tmp';
+backup table t1 to '../../tmp';
 drop table t1;
 --replace_result ": 1" ": X" ": 2" ": X" ": 22" ": X" ": 23" ": X" $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-restore table t1 from '../bogus';
-restore table t1 from '../tmp';
+restore table t1 from '../../bogus';
+restore table t1 from '../../tmp';
 select n from t1;
 create table t2(m int not null primary key);
 create table t3(k int not null primary key);
 insert into t2 values (123),(145),(167);
 insert into t3 values (223),(245),(267);
-backup table t2,t3 to '../tmp';
+backup table t2,t3 to '../../tmp';
 drop table t1,t2,t3;
-restore table t1,t2,t3 from '../tmp';
+restore table t1,t2,t3 from '../../tmp';
 select n from t1;
 select m from t2;
 select k from t3;
 drop table t1,t2,t3,t4;
-restore table t1 from '../tmp';
+restore table t1 from '../../tmp';
 connection con2;
 rename table t1 to t5;
 --send
 lock tables t5 write;
 connection con1;
 --send
-backup table t5 to '../tmp';
+backup table t5 to '../../tmp';
 connection con2;
 reap;
 unlock tables;
@@ -80,11 +80,11 @@ DROP TABLE IF EXISTS `t+1`;
 --enable_warnings
 CREATE  TABLE `t+1` (c1 INT);
 INSERT  INTO  `t+1` VALUES (1), (2), (3);
-BACKUP  TABLE `t+1` TO '../tmp';
+BACKUP  TABLE `t+1` TO '../../tmp';
 DROP    TABLE `t+1`;
 #
 # Same for restore.
-RESTORE TABLE `t+1` FROM '../tmp';
+RESTORE TABLE `t+1` FROM '../../tmp';
 SELECT * FROM `t+1`;
 DROP    TABLE `t+1`;
 

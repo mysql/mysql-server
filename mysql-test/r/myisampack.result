@@ -48,4 +48,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	Table 'test.t1' is read only
 Warnings:
 Error	1036	Table 't1' is read only
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	error	Table 'test.t1' is read only
+Warnings:
+Error	1036	Table 't1' is read only
 drop table t1;

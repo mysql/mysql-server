@@ -376,7 +376,7 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 /* Global variables */
 
-bool opt_update_log, opt_bin_log;
+bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -5498,6 +5498,7 @@ enum options_mysqld
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_BATCH_SIZE,
   OPT_NDB_OPTIMIZATION_DELAY,
+  OPT_NDB_TABLE_TEMPORARY,
   OPT_NDB_WAIT_CONNECTED,
   OPT_NDB_CLUSTER_CONNECTION_POOL,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
@@ -5617,7 +5618,8 @@ enum options_mysqld
   OPT_OLD_MODE,
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
-  OPT_SLOW_QUERY_LOG_FILE
+  OPT_SLOW_QUERY_LOG_FILE,
+  OPT_IGNORE_BUILTIN_INNODB
 };
 
 
@@ -5823,6 +5825,9 @@ Disable with --skip-large-pages.",
    (uchar**) &opt_large_pages, (uchar**) &opt_large_pages, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
 #endif
+  {"ignore-builtin-innodb", OPT_IGNORE_BUILTIN_INNODB ,
+   "Disable initialization of builtin InnoDB plugin",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
    (uchar**) &opt_init_connect, (uchar**) &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6163,6 +6168,11 @@ master-ssl",
    (uchar**) &global_system_variables.ndb_optimization_delay,
    (uchar**) &max_system_variables.ndb_optimization_delay,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, 100000, 0, 0, 0},
+  {"ndb-table-temporary", OPT_NDB_TABLE_TEMPORARY,
+   "Create tables without persistence to disk",
+   (uchar**) &global_system_variables.ndb_table_temporary,
+   (uchar**) &global_system_variables.ndb_table_temporary,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-index-stat-enable", OPT_NDB_INDEX_STAT_ENABLE,
    "Use ndb index statistics in query optimization.",
    (uchar**) &global_system_variables.ndb_index_stat_enable,
@@ -7606,6 +7616,7 @@ static int mysql_init_variables(void)
   log_output_options= find_bit_type(log_output_str, &log_output_typelib);
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
+  opt_ignore_builtin_innodb= 0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
@@ -7903,6 +7914,9 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_BIG_TABLES:
     thd_startup_options|=OPTION_BIG_TABLES;
+    break;
+  case (int) OPT_IGNORE_BUILTIN_INNODB:
+    opt_ignore_builtin_innodb= 1;
     break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;

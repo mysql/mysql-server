@@ -18,6 +18,7 @@
 
 #include <ndb_global.h>
 #include <BaseString.hpp>
+#include <NdbOut.hpp>
 
 #define MAX_LOG_MESSAGE_SIZE 1024
 
@@ -132,7 +133,7 @@ public:
    *
    * @return true if successful.
    */
-  bool createConsoleHandler();
+  bool createConsoleHandler(const NdbOut &out= ndbout);
 
   /**
    * Remove the default console handler.
@@ -144,7 +145,7 @@ public:
    *
    * @return true if successful.
    */
-  bool createFileHandler();
+  bool createFileHandler(char* filename= 0);
 
   /**
    * Remove the default file handler.

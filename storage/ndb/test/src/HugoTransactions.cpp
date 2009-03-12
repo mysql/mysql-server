@@ -1080,13 +1080,19 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
           do {
             
             if (calc.verifyRowValues(rows[0]) != 0){
+              g_info << "Row validation failure" << endl;
               closeTransaction(pNdb);
               return NDBT_FAILED;
             }
             
             int updates = calc.getUpdatesValue(rows[0]) + 1;
             
-            if(pkUpdateRecord(pNdb, r+rows_found, 1, updates) != NDBT_OK)
+            /* Rows may not arrive in the order they were requested
+             * (When multiple partitions scanned without ORDERBY)
+             * therefore we use the id from the row to update it
+             */
+            const Uint32 rowId= calc.getIdValue(rows[0]);
+            if(pkUpdateRecord(pNdb, rowId, 1, updates) != NDBT_OK)
             {
               ERR(pTrans->getNdbError());
               closeTransaction(pNdb);
@@ -1103,6 +1109,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 
         if(check != 1)
         {
+          g_info << "Check failed" << endl;
           closeTransaction(pNdb);
           return NDBT_FAILED;
         } 
@@ -1110,6 +1117,8 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 
       if (rows_found != batch)
       {
+        g_info << "Incorrect num of rows found.  Expected "
+               << batch << ". Found " << rows_found << endl;
         closeTransaction(pNdb);
         return NDBT_FAILED;
       }
