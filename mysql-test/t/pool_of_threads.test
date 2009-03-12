@@ -1,0 +1,7 @@
+# Start with thread_handling=pool-of-threads
+# and run a number of tests
+
+-- source include/have_pool_of_threads.inc
+
+-- source include/common-tests.inc
+

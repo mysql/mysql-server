@@ -265,6 +265,13 @@ static sys_var_long_ptr	sys_delayed_queue_size(&vars, "delayed_queue_size",
 static sys_var_event_scheduler sys_event_scheduler(&vars, "event_scheduler");
 #endif
 
+static sys_var_const    sys_extra_port(&vars, "extra_port",
+                                       OPT_GLOBAL, SHOW_INT,
+                                       (uchar*) &mysqld_extra_port);
+static sys_var_long_ptr	sys_extra_max_connections(&vars,
+                                                  "extra_max_connections",
+                                                  &extra_max_connections,
+                                                  fix_max_connections);
 static sys_var_long_ptr	sys_expire_logs_days(&vars, "expire_logs_days",
 					     &expire_logs_days);
 static sys_var_bool_ptr	sys_flush(&vars, "flush", &myisam_flush);
@@ -1357,7 +1364,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections + 
+  resize_thr_alarm(max_connections + extra_max_connections +
 		   global_system_variables.max_insert_delayed_threads + 10);
 #endif
 }

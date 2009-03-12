@@ -98,6 +98,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/vio/libvio.a \
                 @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \
+		$(libevent_inc_libs) \
 		$(yassl_inc_libs)
 
 if HAVE_YASSL

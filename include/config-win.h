@@ -436,3 +436,7 @@ inline ulonglong double2ulonglong(double d)
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
+#ifndef EMBEDDED_LIBRARY
+#define HAVE_LIBEVENT 1
+#define HAVE_POOL_OF_THREADS 1
+#endif

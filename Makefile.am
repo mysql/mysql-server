@@ -19,7 +19,9 @@ AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
-			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+			README COPYING EXCEPTIONS-CLIENT \
+			CMakeLists.txt \
+			config/ac-macros/libevent_configure.m4
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
@@ -51,7 +53,6 @@ bin-dist:		all
 # Remove BK's "SCCS" subdirectories from source distribution
 # Create initial database files for Windows installations and check them.
 dist-hook:
-	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
 	scripts/mysql_install_db --no-defaults --cross-bootstrap \
 		--builddir=$(top_builddir) \
@@ -97,7 +98,7 @@ test-nr:
 
 test-pr:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row #@libevent_test_option@
 
 test-ns:
 	cd mysql-test ; \

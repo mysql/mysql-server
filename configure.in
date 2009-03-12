@@ -55,6 +55,7 @@ sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/readline.m4)
 sinclude(config/ac-macros/ssl.m4)
+sinclude(config/ac-macros/libevent.m4)
 sinclude(config/ac-macros/zlib.m4)
 
 # Remember to add a directory sql/share/LANGUAGE
@@ -2389,6 +2390,7 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
+MYSQL_CHECK_LIBEVENT
 
 #--------------------------------------------------------------------
 # Declare our plugin modules

@@ -878,6 +878,18 @@ void _db_push_(const char *control)
     FixTraceFlags(old_fflags, cs);
 }
 
+/**
+  Returns TRUE if session-local settings have been set.
+*/
+
+int _db_is_pushed_()
+{
+  CODE_STATE *cs= NULL;
+  get_code_state_or_return FALSE;
+  return (cs->stack != &init_settings);
+}
+
+
 /*
  *  FUNCTION
  *

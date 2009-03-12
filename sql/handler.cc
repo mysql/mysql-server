@@ -377,8 +377,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   if (!hton)
     goto end;
 
-  switch (hton->state)
-  {
+  switch (hton->state) {
   case SHOW_OPTION_NO:
   case SHOW_OPTION_DISABLED:
     break;
@@ -435,6 +434,9 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
+      /* Free data, so that we don't refer to it in ha_finalize_handlerton */
+      my_free(hton, MYF(0));
+      plugin->data= 0;
       goto err;
     }
   }
@@ -463,6 +465,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         if (idx == (int) DB_TYPE_DEFAULT)
         {
           sql_print_warning("Too many storage engines!");
+          my_free(hton, MYF(0));
+          plugin->data= 0;
           DBUG_RETURN(1);
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)

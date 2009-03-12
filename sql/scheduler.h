@@ -28,7 +28,8 @@ class THD;
 class scheduler_functions
 {
 public:
-  uint max_threads;
+  uint max_threads, *connection_count;
+  ulong *max_connections;
   bool (*init)(void);
   bool (*init_new_connection_thread)(void);
   void (*add_connection)(THD *thd);
@@ -45,16 +46,45 @@ enum scheduler_types
   SCHEDULER_POOL_OF_THREADS
 };
 
-void one_thread_per_connection_scheduler(scheduler_functions* func);
+void one_thread_per_connection_scheduler(scheduler_functions *func,
+                                         ulong *arg_max_connections,
+                                         uint *arg_connection_count);
 void one_thread_scheduler(scheduler_functions* func);
 
-enum pool_command_op
+#if defined(HAVE_LIBEVENT) && !defined(EMBEDDED_LIBRARY)
+
+#define HAVE_POOL_OF_THREADS 1
+
+struct event;
+
+class thd_scheduler
 {
-  NOT_IN_USE_OP= 0, NORMAL_OP= 1, CONNECT_OP, KILL_OP, DIE_OP
+public:
+  bool logged_in;
+  struct event* io_event;
+  LIST list;
+  bool thread_attached;  /* Indicates if THD is attached to the OS thread */
+  
+#ifndef DBUG_OFF
+  char dbug_explain[256];
+  bool set_explain;
+#endif
+
+  thd_scheduler();
+  ~thd_scheduler();
+  bool init(THD* parent_thd);
+  bool thread_attach();
+  void thread_detach();
 };
+
+void pool_of_threads_scheduler(scheduler_functions* func);
+
+#else
 
 #define HAVE_POOL_OF_THREADS 0                  /* For easyer tests */
 #define pool_of_threads_scheduler(A) one_thread_per_connection_scheduler(A)
 
 class thd_scheduler
 {};
+
+#endif

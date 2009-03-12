@@ -357,8 +357,9 @@ static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
+static my_bool opt_ignore_wrong_options= 0;
 static uint kill_cached_threads, wake_thread;
-static ulong thread_created;
+ulong thread_created;
 static ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
@@ -469,6 +470,7 @@ const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
+uint mysqld_extra_port;
 uint mysqld_port_timeout;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
@@ -495,6 +497,7 @@ ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong extra_max_connections;
 uint  max_user_connections= 0;
 /**
   Limit of the total number of prepared statements in the server.
@@ -648,7 +651,7 @@ static int defaults_argc;
 static char **defaults_argv;
 static char *opt_bin_logname;
 
-static my_socket unix_sock,ip_sock;
+static my_socket unix_sock, base_ip_sock, extra_ip_sock;
 struct my_rnd_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
 #ifndef EMBEDDED_LIBRARY
@@ -708,7 +711,7 @@ my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
 #endif
 
-scheduler_functions thread_scheduler;
+scheduler_functions thread_scheduler, extra_thread_scheduler;
 
 #define SSL_VARS_NOT_STATIC
 #include "sslopt-vars.h"
@@ -735,7 +738,7 @@ struct st_VioSSLFd *ssl_acceptor_fd;
   Number of currently active user connections. The variable is protected by
   LOCK_connection_count.
 */
-uint connection_count= 0;
+uint connection_count= 0, extra_connection_count= 0;
 
 /* Function declarations */
 
@@ -831,11 +834,17 @@ static void close_connections(void)
   DBUG_PRINT("quit",("Closing sockets"));
   if (!opt_disable_networking )
   {
-    if (ip_sock != INVALID_SOCKET)
+    if (base_ip_sock != INVALID_SOCKET)
     {
-      (void) shutdown(ip_sock, SHUT_RDWR);
-      (void) closesocket(ip_sock);
-      ip_sock= INVALID_SOCKET;
+      (void) shutdown(base_ip_sock, SHUT_RDWR);
+      (void) closesocket(base_ip_sock);
+      base_ip_sock= INVALID_SOCKET;
+    }
+    if (extra_ip_sock != INVALID_SOCKET)
+    {
+      (void) shutdown(extra_ip_sock, SHUT_RDWR);
+      (void) closesocket(extra_ip_sock);
+      extra_ip_sock= INVALID_SOCKET;
     }
   }
 #ifdef __NT__
@@ -969,42 +978,39 @@ static void close_connections(void)
 }
 
 
-static void close_server_sock()
+static void close_socket(my_socket sock, const char *info)
 {
-#ifdef HAVE_CLOSE_SERVER_SOCK
-  DBUG_ENTER("close_server_sock");
-  my_socket tmp_sock;
-  tmp_sock=ip_sock;
-  if (tmp_sock != INVALID_SOCKET)
+  DBUG_ENTER("close_socket");
+
+  if (sock != INVALID_SOCKET)
   {
-    ip_sock=INVALID_SOCKET;
-    DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    DBUG_PRINT("info", ("calling shutdown on %s socket", info));
+    (void) shutdown(sock, SHUT_RDWR);
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
       to hang on AIX 4.3 during shutdown
     */
-    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));
-    VOID(closesocket(tmp_sock));
+    DBUG_PRINT("info", ("calling closesocket on %s socket", info));
+    (void) closesocket(tmp_sock);
 #endif
   }
-  tmp_sock=unix_sock;
-  if (tmp_sock != INVALID_SOCKET)
-  {
-    unix_sock=INVALID_SOCKET;
-    DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
-#if defined(__NETWARE__)
-    /*
-      The following code is disabled for normal systems as it may cause MySQL
-      to hang on AIX 4.3 during shutdown
-    */
-    DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
-    VOID(closesocket(tmp_sock));
-#endif
+  DBUG_VOID_RETURN;
+}
+
+
+static void close_server_sock()
+{
+#ifdef HAVE_CLOSE_SERVER_SOCK
+  DBUG_ENTER("close_server_sock");
+
+  close_socket(base_ip_sock, "TCP/IP");
+  close_socket(extra_ip_sock, "TCP/IP");
+  close_socket(unix_sock, "unix/IP");
+
+  if (unix_sock != INVALID_SOCKET)
     VOID(unlink(mysqld_unix_port));
-  }
+  base_ip_sock= extra_ip_sock= unix_sock= INVALID_SOCKET;
   DBUG_VOID_RETURN;
 #endif
 }
@@ -1592,17 +1598,86 @@ static void set_root(const char *path)
 #endif
 }
 
-static void network_init(void)
+/**
+   Activate usage of a tcp port
+*/
+
+static my_socket activate_tcp_port(uint port)
 {
-  struct sockaddr_in	IPaddr;
-#ifdef HAVE_SYS_UN_H
-  struct sockaddr_un	UNIXaddr;
-#endif
+  struct sockaddr_in IPaddr;
+  my_socket ip_sock;
   int	arg=1;
   int   ret;
   uint  waited;
   uint  this_wait;
   uint  retry;
+  DBUG_ENTER("activate_tcp_port");
+  DBUG_PRINT("enter",("port: %u", port));
+
+  ip_sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (ip_sock == INVALID_SOCKET)
+  {
+    DBUG_PRINT("error",("Got error: %d from socket()",socket_errno));
+    sql_perror(ER(ER_IPSOCK_ERROR));		/* purecov: tested */
+    unireg_abort(1);				/* purecov: tested */
+  }
+  bzero((char*) &IPaddr, sizeof(IPaddr));
+  IPaddr.sin_family = AF_INET;
+  IPaddr.sin_addr.s_addr = my_bind_addr;
+  IPaddr.sin_port = (unsigned short) htons((unsigned short) port);
+
+#ifndef __WIN__
+  /*
+    We should not use SO_REUSEADDR on windows as this would enable a
+    user to open two mysqld servers with the same TCP/IP port.
+  */
+  (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
+#endif /* __WIN__ */
+  /*
+    Sometimes the port is not released fast enough when stopping and
+    restarting the server. This happens quite often with the test suite
+    on busy Linux systems. Retry to bind the address at these intervals:
+    Sleep intervals: 1, 2, 4,  6,  9, 13, 17, 22, ...
+    Retry at second: 1, 3, 7, 13, 22, 35, 52, 74, ...
+    Limit the sequence by mysqld_port_timeout (set --port-open-timeout=#).
+  */
+
+  for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
+  {
+    if (((ret= bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
+                    sizeof(IPaddr))) >= 0) ||
+        (socket_errno != SOCKET_EADDRINUSE) ||
+        (waited >= mysqld_port_timeout))
+      break;
+    sql_print_information("Retrying bind on TCP/IP port %u", port);
+    this_wait= retry * retry / 3 + 1;
+    sleep(this_wait);
+  }
+  if (ret < 0)
+  {
+    DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
+    sql_perror("Can't start server: Bind on TCP/IP port");
+    sql_print_error("Do you already have another mysqld server running on "
+                    "port: %u ?", port);
+    unireg_abort(1);
+  }
+  if (listen(ip_sock,(int) back_log) < 0)
+  {
+    sql_perror("Can't start server: listen() on TCP/IP port");
+    sql_print_error("listen() on TCP/IP failed with error %d",
+                    socket_errno);
+    unireg_abort(1);
+  }
+  DBUG_RETURN(ip_sock);
+}
+
+
+static void network_init(void)
+{
+#ifdef HAVE_SYS_UN_H
+  struct sockaddr_un	UNIXaddr;
+#endif
+  int	arg=1;
   DBUG_ENTER("network_init");
   LINT_INIT(ret);
 
@@ -1611,61 +1686,12 @@ static void network_init(void)
 
   set_ports();
 
-  if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
+  if (!opt_disable_networking && !opt_bootstrap)
   {
-    DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
-    ip_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (ip_sock == INVALID_SOCKET)
-    {
-      DBUG_PRINT("error",("Got error: %d from socket()",socket_errno));
-      sql_perror(ER(ER_IPSOCK_ERROR));		/* purecov: tested */
-      unireg_abort(1);				/* purecov: tested */
-    }
-    bzero((char*) &IPaddr, sizeof(IPaddr));
-    IPaddr.sin_family = AF_INET;
-    IPaddr.sin_addr.s_addr = my_bind_addr;
-    IPaddr.sin_port = (unsigned short) htons((unsigned short) mysqld_port);
-
-#ifndef __WIN__
-    /*
-      We should not use SO_REUSEADDR on windows as this would enable a
-      user to open two mysqld servers with the same TCP/IP port.
-    */
-    (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
-#endif /* __WIN__ */
-    /*
-      Sometimes the port is not released fast enough when stopping and
-      restarting the server. This happens quite often with the test suite
-      on busy Linux systems. Retry to bind the address at these intervals:
-      Sleep intervals: 1, 2, 4,  6,  9, 13, 17, 22, ...
-      Retry at second: 1, 3, 7, 13, 22, 35, 52, 74, ...
-      Limit the sequence by mysqld_port_timeout (set --port-open-timeout=#).
-    */
-    for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
-    {
-      if (((ret= bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
-                      sizeof(IPaddr))) >= 0) ||
-          (socket_errno != SOCKET_EADDRINUSE) ||
-          (waited >= mysqld_port_timeout))
-        break;
-      sql_print_information("Retrying bind on TCP/IP port %u", mysqld_port);
-      this_wait= retry * retry / 3 + 1;
-      sleep(this_wait);
-    }
-    if (ret < 0)
-    {
-      DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
-      sql_perror("Can't start server: Bind on TCP/IP port");
-      sql_print_error("Do you already have another mysqld server running on port: %d ?",mysqld_port);
-      unireg_abort(1);
-    }
-    if (listen(ip_sock,(int) back_log) < 0)
-    {
-      sql_perror("Can't start server: listen() on TCP/IP port");
-      sql_print_error("listen() on TCP/IP failed with error %d",
-		      socket_errno);
-      unireg_abort(1);
-    }
+    if (mysqld_port)
+      base_ip_sock= activate_tcp_port(mysqld_port);
+    if (mysqld_extra_port)
+      extra_ip_sock= activate_tcp_port(mysqld_extra_port);
   }
 
 #ifdef __NT__
@@ -1829,7 +1855,7 @@ void unlink_thd(THD *thd)
   thd->cleanup();
 
   pthread_mutex_lock(&LOCK_connection_count);
-  --connection_count;
+  (*thd->scheduler->connection_count)--;
   pthread_mutex_unlock(&LOCK_connection_count);
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -2438,15 +2464,17 @@ and this may fail.\n\n");
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
-  fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
+  fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads +
+          (uint) extra_max_connections);
   fprintf(stderr, "threads_connected=%u\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
-		     thread_scheduler.max_threads +
-                     max_connections * sizeof(THD)) / 1024);
+		     (thread_scheduler.max_threads + extra_max_connections) +
+                     (max_connections + extra_max_connections)* sizeof(THD))
+          / 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
 #if defined(HAVE_LINUXTHREADS)
@@ -2692,7 +2720,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(thread_scheduler.max_threads +
+  init_thr_alarm(thread_scheduler.max_threads + extra_max_connections +
 		 global_system_variables.max_insert_delayed_threads + 10);
   if (test_flags & TEST_SIGINT)
   {
@@ -3005,10 +3033,8 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
     The default value is taken from either opt_date_time_formats[] or
     the ISO format (ANSI SQL)
 
-  @retval
-    0 ok
-  @retval
-    1 error
+  @retval 0 ok
+  @retval 1 error
 */
 
 static bool init_global_datetime_format(timestamp_type format_type,
@@ -3303,7 +3329,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     uint files, wanted_files, max_open_files;
 
     /* MyISAM requires two file handles per table. */
-    wanted_files= 10+max_connections+table_cache_size*2;
+    wanted_files= (10 + max_connections + extra_max_connections +
+                   table_cache_size*2);
     /*
       We are trying to allocate no less than max_connections*5 file
       handles (i.e. we are trying to set the limit so that they will
@@ -3314,7 +3341,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
       can't get max_connections*5 but still got no less than was
       requested (value of wanted_files).
     */
-    max_open_files= max(max(wanted_files, max_connections*5),
+    max_open_files= max(max(wanted_files,
+                            (max_connections + extra_max_connections)*5),
                         open_files_limit);
     files= my_set_max_open_files(max_open_files);
 
@@ -4585,10 +4613,8 @@ static char *add_quoted_string(char *to, const char *from, char *to_end)
   @param file_path		Path to this program
   @param startup_option	Startup option to mysqld
 
-  @retval
-    0		option handled
-  @retval
-    1		Could not handle option
+  @retval 0	option handled
+  @retval 1	Could not handle option
 */
 
 static bool
@@ -4851,7 +4877,7 @@ void create_thread_to_handle_connection(THD *thd)
       (void) pthread_mutex_unlock(&LOCK_thread_count);
 
       pthread_mutex_lock(&LOCK_connection_count);
-      --connection_count;
+      (*thd->scheduler->connection_count)--;
       pthread_mutex_unlock(&LOCK_connection_count);
 
       statistic_increment(aborted_connects,&LOCK_status);
@@ -4900,7 +4926,8 @@ static void create_new_thread(THD *thd)
 
   pthread_mutex_lock(&LOCK_connection_count);
 
-  if (connection_count >= max_connections + 1 || abort_loop)
+  if (*thd->scheduler->connection_count >=
+      *thd->scheduler->max_connections + 1|| abort_loop)
   {
     pthread_mutex_unlock(&LOCK_connection_count);
 
@@ -4910,10 +4937,10 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-  ++connection_count;
+  ++*thd->scheduler->connection_count;
 
-  if (connection_count > max_used_connections)
-    max_used_connections= connection_count;
+  if (connection_count + extra_connection_count > max_used_connections)
+    max_used_connections= connection_count + extra_connection_count;
 
   pthread_mutex_unlock(&LOCK_connection_count);
 
@@ -4930,7 +4957,7 @@ static void create_new_thread(THD *thd)
 
   thread_count++;
 
-  thread_scheduler.add_connection(thd);
+  thd->scheduler->add_connection(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -4945,7 +4972,8 @@ inline void kill_broken_server()
 #if !defined(__NETWARE__)
       unix_sock == INVALID_SOCKET ||
 #endif
-      (!opt_disable_networking && ip_sock == INVALID_SOCKET))
+      (!opt_disable_networking &&
+       (base_ip_sock == INVALID_SOCKET || extra_ip_sock != INVALID_SOCKET)))
   {
     select_thread_in_use = 0;
     /* The following call will never return */
@@ -4964,26 +4992,38 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 {
   my_socket sock,new_sock;
   uint error_count=0;
-  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
+  uint max_used_connection;
   fd_set readFDs,clientFDs;
   THD *thd;
   struct sockaddr_in cAddr;
-  int ip_flags=0,socket_flags=0,flags;
+  int base_ip_flags=0, extra_ip_flags= 0, socket_flags=0, flags;
   st_vio *vio_tmp;
   DBUG_ENTER("handle_connections_sockets");
+
+  max_used_connection= (uint) (max(base_ip_sock, unix_sock));
+  max_used_connection= (uint) (max(extra_ip_sock, (int) max_used_connection));
+  max_used_connection++;
 
   LINT_INIT(new_sock);
 
   (void) my_pthread_getprio(pthread_self());		// For debugging
 
   FD_ZERO(&clientFDs);
-  if (ip_sock != INVALID_SOCKET)
+  if (base_ip_sock != INVALID_SOCKET)
   {
-    FD_SET(ip_sock,&clientFDs);
+    FD_SET(base_ip_sock, &clientFDs);
 #ifdef HAVE_FCNTL
-    ip_flags = fcntl(ip_sock, F_GETFL, 0);
+    base_ip_flags = fcntl(base_ip_sock, F_GETFL, 0);
 #endif
   }
+  if (extra_ip_sock != INVALID_SOCKET)
+  {
+    FD_SET(extra_ip_sock, &clientFDs);
+#ifdef HAVE_FCNTL
+    extra_ip_flags = fcntl(extra_ip_sock, F_GETFL, 0);
+#endif
+  }
+
 #ifdef HAVE_SYS_UN_H
   FD_SET(unix_sock,&clientFDs);
 #ifdef HAVE_FCNTL
@@ -5021,14 +5061,22 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 #ifdef HAVE_SYS_UN_H
     if (FD_ISSET(unix_sock,&readFDs))
     {
-      sock = unix_sock;
+      sock=  unix_sock;
       flags= socket_flags;
     }
     else
 #endif
     {
-      sock = ip_sock;
-      flags= ip_flags;
+      if (FD_ISSET(base_ip_sock,&readFDs))
+      {
+        sock=  base_ip_sock;
+        flags= base_ip_flags;
+      }
+      else
+      {
+        sock=  extra_ip_sock;
+        flags= extra_ip_flags;
+      }
     }
 
 #if !defined(NO_FCNTL_NONBLOCK)
@@ -5081,7 +5129,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 
 #ifdef HAVE_LIBWRAP
     {
-      if (sock == ip_sock)
+      if (sock == base_ip_sock || sock == extra_ip_sock)
       {
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
@@ -5161,6 +5209,11 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     if (sock == unix_sock)
       thd->security_ctx->host=(char*) my_localhost;
 
+    if (sock == extra_ip_sock)
+    {
+      thd->extra_port= 1;
+      thd->scheduler= &extra_thread_scheduler;
+    }
     create_new_thread(thd);
   }
 
@@ -5502,6 +5555,7 @@ enum options_mysqld
   OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
+  OPT_EXTRA_PORT,
   OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,
   OPT_SKIP_NETWORKING,         OPT_BIN_LOG_INDEX,
   OPT_BIND_ADDRESS,            OPT_PID_FILE,
@@ -5660,6 +5714,7 @@ enum options_mysqld
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
   OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_OLD_MODE,
+  OPT_TEST_IGNORE_WRONG_OPTIONS, 
   OPT_SLAVE_EXEC_MODE,
   OPT_DEADLOCK_SEARCH_DEPTH_SHORT,
   OPT_DEADLOCK_SEARCH_DEPTH_LONG,
@@ -5884,6 +5939,15 @@ struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
+  {"extra-port", OPT_EXTRA_PORT,
+   "Extra port number to use for tcp-connections in a one-thread-per-connection manner. 0 means don't use another port",
+   (uchar**) &mysqld_extra_port,
+   (uchar**) &mysqld_extra_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"extra-max-connections", OPT_MAX_CONNECTIONS,
+   "The number of connections on 'extra-port.",
+   (uchar**) &extra_max_connections,
+   (uchar**) &extra_max_connections, 0, GET_ULONG, REQUIRED_ARG, 1, 1, 100000,
+   0, 1, 0},
   {"gdb", OPT_DEBUGGING,
    "Set up signals usable for debugging",
    (uchar**) &opt_debugging, (uchar**) &opt_debugging,
@@ -6471,6 +6535,10 @@ log and this option does nothing anymore.",
    (uchar**) &use_temp_pool, (uchar**) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
 
+  {"test-ignore-wrong-options", OPT_TEST_IGNORE_WRONG_OPTIONS,
+   "Ignore wrong enums values in command line arguments. Usefull only for test scripts",
+   (uchar**) &opt_ignore_wrong_options, (uchar**) &opt_ignore_wrong_options,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
    (uchar**) &timed_mutexes, (uchar**) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0,
@@ -7648,7 +7716,7 @@ static int mysql_init_variables(void)
   slave_exec_mode_options= (uint)
     find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL);
   opt_specialflag= SPECIAL_ENGLISH;
-  unix_sock= ip_sock= INVALID_SOCKET;
+  unix_sock= base_ip_sock= extra_ip_sock= INVALID_SOCKET;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -7820,6 +7888,38 @@ static int mysql_init_variables(void)
 }
 
 
+/**
+   Find type for option
+
+   If opt_ignore_wrong_options is set ignore wrong values
+   otherwise exit
+
+   @return
+   @retval 0 ok    ; *result is updated
+   @retval 1 error ; *result is not touched
+*/
+
+static my_bool find_opt_type(const char *x, TYPELIB *typelib,
+                             const char *option, int *result)
+{
+  int res;
+
+  if (opt_ignore_wrong_options)
+  {
+    if ((res= find_type_with_warning(x, typelib, option)) <= 0)
+      return 1;
+  }
+  else
+    res= find_type_or_exit(x, typelib, option);
+  *result= res;
+  return 0;
+}
+
+
+/**
+   Get next option from the command line
+*/
+
 my_bool
 mysqld_get_one_option(int optid,
                       const struct my_option *opt __attribute__((unused)),
@@ -7923,9 +8023,11 @@ mysqld_get_one_option(int optid,
   case (int) OPT_INIT_RPL_ROLE:
   {
     int role;
-    role= find_type_or_exit(argument, &rpl_role_typelib, opt->name);
-    rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
-    break;
+    if (!find_opt_type(argument, &rpl_role_typelib, opt->name, &role))
+    {
+      rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
+      break;
+    }
   }
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
@@ -7979,8 +8081,10 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_FORMAT:
   {
     int id;
-    id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
-    global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
+    if (!find_opt_type(argument, &binlog_format_typelib, opt->name, &id))
+    {
+      global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
+    }
     break;
   }
   case (int)OPT_BINLOG_DO_DB:
@@ -8093,7 +8197,7 @@ mysqld_get_one_option(int optid,
     exit(1);
 #endif
     opt_disable_networking=1;
-    mysqld_port=0;
+    mysqld_port= mysqld_extra_port= 0;
     break;
   case (int) OPT_SKIP_SHOW_DB:
     opt_skip_show_db=1;
@@ -8192,8 +8296,8 @@ mysqld_get_one_option(int optid,
     else
     {
       int type;
-      type= find_type_or_exit(argument, &delay_key_write_typelib, opt->name);
-      delay_key_write_options= (uint) type-1;
+      if (!find_opt_type(argument, &delay_key_write_typelib, opt->name, &type))
+        delay_key_write_options= (uint) type-1;
     }
     break;
   case OPT_CHARSETS_DIR:
@@ -8203,8 +8307,8 @@ mysqld_get_one_option(int optid,
   case OPT_TX_ISOLATION:
   {
     int type;
-    type= find_type_or_exit(argument, &tx_isolation_typelib, opt->name);
-    global_system_variables.tx_isolation= (type-1);
+    if (!find_opt_type(argument, &tx_isolation_typelib, opt->name, &type))
+      global_system_variables.tx_isolation= (type-1);
     break;
   }
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -8233,8 +8337,8 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_NDB_DISTRIBUTION:
     int id;
-    id= find_type_or_exit(argument, &ndb_distribution_typelib, opt->name);
-    opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
+    if (!find_opt_type(argument, &ndb_distribution_typelib, opt->name, &id))
+      opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
   case OPT_NDB_EXTRA_LOGGING:
     if (!argument)
@@ -8274,9 +8378,8 @@ mysqld_get_one_option(int optid,
       myisam_concurrent_insert= 0;      /* --skip-concurrent-insert */
     break;
   case OPT_TC_HEURISTIC_RECOVER:
-    tc_heuristic_recover= find_type_or_exit(argument,
-                                            &tc_heuristic_recover_typelib,
-                                            opt->name);
+    find_opt_type(argument, &tc_heuristic_recover_typelib,
+                  opt->name, (int*) &tc_heuristic_recover);
     break;
   case OPT_MYISAM_STATS_METHOD:
   {
@@ -8285,21 +8388,23 @@ mysqld_get_one_option(int optid,
     LINT_INIT(method_conv);
 
     myisam_stats_method_str= argument;
-    method= find_type_or_exit(argument, &myisam_stats_method_typelib,
-                              opt->name);
-    switch (method-1) {
-    case 2:
-      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
-      break;
-    case 1:
-      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
-      break;
-    case 0:
-    default:
-      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
-      break;
+    if (!find_opt_type(argument, &myisam_stats_method_typelib,
+                      opt->name, &method))
+    {
+      switch (method-1) {
+      case 2:
+        method_conv= MI_STATS_METHOD_IGNORE_NULLS;
+        break;
+      case 1:
+        method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+        break;
+      case 0:
+      default:
+        method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+        break;
+      }
+      global_system_variables.myisam_stats_method= method_conv;
     }
-    global_system_variables.myisam_stats_method= method_conv;
     break;
   }
   case OPT_SQL_MODE:
@@ -8317,8 +8422,9 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_THREAD_HANDLING:
   {
-    global_system_variables.thread_handling=
-      find_type_or_exit(argument, &thread_handling_typelib, opt->name)-1;
+    int id;
+    if (!find_opt_type(argument, &thread_handling_typelib, opt->name, &id))
+      global_system_variables.thread_handling= id - 1;
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
@@ -8337,6 +8443,10 @@ mysqld_get_one_option(int optid,
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
+    break;
+  case OPT_TEST_IGNORE_WRONG_OPTIONS:
+    /* Used for testing options */
+    opt_ignore_wrong_options= 1;
     break;
   }
   return 0;
@@ -8483,14 +8593,19 @@ static void get_options(int *argc,char **argv)
 
 #ifdef EMBEDDED_LIBRARY
   one_thread_scheduler(&thread_scheduler);
+  one_thread_scheduler(&extra_thread_scheduler);
 #else
   if (global_system_variables.thread_handling <=
       SCHEDULER_ONE_THREAD_PER_CONNECTION)
-    one_thread_per_connection_scheduler(&thread_scheduler);
+    one_thread_per_connection_scheduler(&thread_scheduler, &max_connections,
+                                        &connection_count);
   else if (global_system_variables.thread_handling == SCHEDULER_NO_THREADS)
     one_thread_scheduler(&thread_scheduler);
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
+  one_thread_per_connection_scheduler(&extra_thread_scheduler,
+                                      &extra_max_connections,
+                                      &extra_connection_count);
 #endif
 }
 
@@ -8715,12 +8830,9 @@ skip: ;
 
   @param dir_name			Directory to test
 
-  @retval
-    -1  Don't know (Test failed)
-  @retval
-    0   File system is case sensitive
-  @retval
-    1   File system is case insensitive
+  @retval -1  Don't know (Test failed)
+  @retval  0   File system is case sensitive
+  @retval  1   File system is case insensitive
 */
 
 static int test_if_case_insensitive(const char *dir_name)

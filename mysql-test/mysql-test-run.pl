@@ -1200,10 +1200,22 @@ sub command_line_setup {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
+    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
+    $opt_suite_timeout= $opt_testcase_timeout;
+    $opt_retry= 1;
+    $opt_retry_failure= 1;
+
     if ( using_extern() )
     {
       mtr_error("Can't use --extern when using debugger");
     }
+  }
+  if ($opt_debug)
+  {
+    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
+    $opt_suite_timeout= $opt_testcase_timeout;
+    $opt_retry= 1;
+    $opt_retry_failure= 1;
   }
 
   # --------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 CREATE TABLE t1(a int) engine=innodb;
 START TRANSACTION;
 insert into t1 values(9);
-SET SESSION debug="d,crash_commit_before";
+SET GLOBAL debug="d,crash_commit_before";
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 SHOW CREATE TABLE t1;

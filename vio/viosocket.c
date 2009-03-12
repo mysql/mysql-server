@@ -637,3 +637,21 @@ int vio_close_shared_memory(Vio * vio)
 }
 #endif /* HAVE_SMEM */
 #endif /* __WIN__ */
+
+
+/**
+  Number of bytes in the read buffer.
+
+  @return number of bytes in the read buffer or < 0 if error.
+*/
+
+ssize_t vio_pending(Vio *vio)
+{
+  if (vio->read_pos < vio->read_end)
+    return vio->read_end - vio->read_pos;
+#ifdef HAVE_OPENSSL
+  if (vio->ssl_arg)
+    return SSL_pending((SSL*) vio->ssl_arg);
+#endif
+  return 0;
+}

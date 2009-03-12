@@ -1260,6 +1260,7 @@ public:
   struct st_mysql_stmt *current_stmt;
 #endif
   NET	  net;				// client connection descriptor
+  scheduler_functions *scheduler;       // Scheduler for this connection
   MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
@@ -1346,7 +1347,7 @@ public:
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
-  uint16 peer_port;
+  uint16     peer_port;
   time_t     start_time, user_time;
   ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
   ulonglong  start_utime, utime_after_lock;
@@ -1722,6 +1723,8 @@ public:
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
+  bool       extra_port;                        /* If extra connection */
+
   /**
     Set to TRUE if execution of the current compound statement
     can not continue. In particular, disables activation of
@@ -2206,7 +2209,7 @@ public:
     *p_db_length= db_length;
     return FALSE;
   }
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
 
 public:
   /**
