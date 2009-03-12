@@ -1411,8 +1411,8 @@ set_solaris_configs()
       fi
     else
 #Using SPARC cpu with SunStudio (Forte) compiler
-      ASFLAGS="$ASFLAGS xarch=sparc"
-      LDFLAGS="$LDFLAGS xarch=sparc"
+      ASFLAGS="$ASFLAGS -xarch=sparc"
+      LDFLAGS="$LDFLAGS -xarch=sparc"
       compiler_flags="$compiler_flags -xarch=sparc"
       if test "x$fast_flag" = "xyes" ; then
         compiler_flags="$compiler_flags -xbinopt=prepare"
