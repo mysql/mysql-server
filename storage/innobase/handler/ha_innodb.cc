@@ -953,6 +953,12 @@ innobase_next_autoinc(
 	/* Should never be 0. */
 	ut_a(increment > 0);
 
+	/* According to MySQL documentation, if the offset is greater than
+	the increment then the offset is ignored. */
+	if (offset > increment) {
+		offset = 0;
+	}
+
 	if (max_value <= current) {
 		next_value = max_value;
 	} else if (offset <= 1) {
@@ -3780,7 +3786,7 @@ no_commit:
 			will be 0 if get_auto_increment() was not called.*/
 
 			if (auto_inc <= col_max_value
-			    && auto_inc > prebuilt->autoinc_last_value) {
+			    && auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->autoinc_increment > 0);
 
