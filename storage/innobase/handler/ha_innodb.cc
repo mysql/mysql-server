@@ -953,6 +953,12 @@ innobase_next_autoinc(
 	/* Should never be 0. */
 	ut_a(increment > 0);
 
+	/* According to MySQL documentation, if the offset is greater than
+	the increment then the offset is ignored. */
+	if (offset > increment) {
+		offset = 0;
+	}
+
 	if (max_value <= current) {
 		next_value = max_value;
 	} else if (offset <= 1) {
@@ -3312,8 +3318,8 @@ build_template(
 				goto include_field;
 			}
 
-                        if (bitmap_is_set(table->read_set, i) ||
-                            bitmap_is_set(table->write_set, i)) {
+			if (bitmap_is_set(table->read_set, i) ||
+			    bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3405,7 +3411,7 @@ skip_field:
 }
 
 /************************************************************************
-Get the upper limit of the MySQL integral type. */
+Get the upper limit of the MySQL integral and floating-point type. */
 
 ulonglong
 ha_innobase::innobase_get_int_col_max_value(
@@ -3416,7 +3422,7 @@ ha_innobase::innobase_get_int_col_max_value(
 
 	switch(field->key_type()) {
 	/* TINY */
-        case HA_KEYTYPE_BINARY:
+	case HA_KEYTYPE_BINARY:
 		max_value = 0xFFULL;
 		break;
 	case HA_KEYTYPE_INT8:
@@ -3430,7 +3436,7 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFULL;
 		break;
 	/* MEDIUM */
-    	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_UINT24:
 		max_value = 0xFFFFFFULL;
 		break;
 	case HA_KEYTYPE_INT24:
@@ -3444,11 +3450,19 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFFFFFULL;
 		break;
 	/* BIG */
-    	case HA_KEYTYPE_ULONGLONG:
+	case HA_KEYTYPE_ULONGLONG:
 		max_value = 0xFFFFFFFFFFFFFFFFULL;
 		break;
 	case HA_KEYTYPE_LONGLONG:
 		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_FLOAT:
+		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
+		max_value = 0x1000000ULL;
+		break;
+	case HA_KEYTYPE_DOUBLE:
+		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
+		max_value = 0x20000000000000ULL;
 		break;
 	default:
 		ut_error;
@@ -3772,7 +3786,7 @@ no_commit:
 			will be 0 if get_auto_increment() was not called.*/
 
 			if (auto_inc <= col_max_value
-			    && auto_inc > prebuilt->autoinc_last_value) {
+			    && auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->autoinc_increment > 0);
 
@@ -7650,11 +7664,13 @@ ha_innobase::get_auto_increment(
 
 		prebuilt->autoinc_last_value = next_value;
 
-		ut_a(prebuilt->autoinc_last_value >= *first_value);
-
-		/* Update the table autoinc variable */
-		dict_table_autoinc_update_if_greater(
-			prebuilt->table, prebuilt->autoinc_last_value);
+		if (prebuilt->autoinc_last_value < *first_value) {
+			*first_value = (~(ulonglong) 0);
+		} else {
+			/* Update the table autoinc variable */
+			dict_table_autoinc_update_if_greater(
+				prebuilt->table, prebuilt->autoinc_last_value);
+		}
 	} else {
 		/* This will force write_row() into attempting an update
 		of the table's AUTOINC counter. */

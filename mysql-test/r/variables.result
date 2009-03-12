@@ -1432,4 +1432,32 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					@@storage_engine	253	6	6	N	1	31	8
 @@storage_engine
 MyISAM
+SET @old_server_id = @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 32) - 1;
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+SET GLOBAL server_id = (1 << 32);
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '4294967296'
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+SET GLOBAL server_id = (1 << 60);
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '1152921504606846976'
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+SET GLOBAL server_id = 0;
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+0
+SET GLOBAL server_id = -1;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '-1'
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+0
+SET GLOBAL server_id = @old_server_id;
 End of 5.1 tests
