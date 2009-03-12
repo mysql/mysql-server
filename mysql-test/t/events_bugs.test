@@ -1209,6 +1209,18 @@ select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mo
 select name from mysql.event where name = 'p' and sql_mode = @full_mode;
 drop event e1;
 
+#
+# Bug#36540: CREATE EVENT and ALTER EVENT statements fail with large server_id
+#
+
+SET @old_server_id = @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 32) - 1;
+SELECT @@GLOBAL.server_id;
+CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, originator FROM INFORMATION_SCHEMA.EVENTS;
+DROP EVENT ev1;
+SET GLOBAL server_id = @old_server_id;
+
 ###########################################################################
 #
 # End of tests
