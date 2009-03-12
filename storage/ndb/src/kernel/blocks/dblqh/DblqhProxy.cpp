@@ -469,7 +469,7 @@ DblqhProxy::execLCP_FRAG_REP(Signal* signal)
 {
   ndbrequire(signal->getLength() == LcpFragRep::SignalLength);
 
-  const LcpFragRep* conf = (const LcpFragRep*)signal->getDataPtr();
+  LcpFragRep* conf = (LcpFragRep*)signal->getDataPtr();
   Uint32 ssId = getSsId(conf);
   Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
 
@@ -479,19 +479,13 @@ DblqhProxy::execLCP_FRAG_REP(Signal* signal)
   c_lcpRecord.m_frags++;
   D("LCP: rep" << V(conf->lcpId) << V(c_lcpRecord.m_frags));
 
-  NodePtr nodePtr;
-  c_nodeList.first(nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  while (nodePtr.i != RNIL) {
-    if (nodePtr.p->m_alive) {
-      jam();
-      Uint32 nodeId = nodePtr.p->m_nodeId;
-      BlockReference dihRef = calcDihBlockRef(nodeId);
-      sendSignal(dihRef, GSN_LCP_FRAG_REP,
-                 signal, LcpFragRep::SignalLength, JBB);
-    }
-    c_nodeList.next(nodePtr);
-  }
+  /**
+   * But instead of broadcasting to all DIH's
+   *   send to local that will do the broadcast
+   */
+  conf->nodeId = LcpFragRep::BROADCAST_REQ;
+  sendSignal(DBDIH_REF, GSN_LCP_FRAG_REP,
+             signal, LcpFragRep::SignalLength, JBB);
 }
 
 // GSN_LCP_COMPLETE_ORD [ sub-op, fictional gsn ]
@@ -578,24 +572,13 @@ DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
     }
   }
 
-  NodePtr nodePtr;
-  c_nodeList.first(nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  while (nodePtr.i != RNIL) {
-    if (nodePtr.p->m_alive) {
-      jam();
-      Uint32 nodeId = nodePtr.p->m_nodeId;
-      BlockReference dihRef = calcDihBlockRef(nodeId);
-
-      LcpCompleteRep* conf = (LcpCompleteRep*)signal->getDataPtrSend();
-      conf->nodeId = getOwnNodeId();
-      conf->blockNo = DBLQH;
-      conf->lcpId = ss.m_req.lcpId;
-      sendSignal(dihRef, GSN_LCP_COMPLETE_REP,
-                 signal, LcpCompleteRep::SignalLength, JBB);
-    }
-    c_nodeList.next(nodePtr);
-  }
+  
+  LcpCompleteRep* conf = (LcpCompleteRep*)signal->getDataPtrSend();
+  conf->nodeId = LcpFragRep::BROADCAST_REQ;
+  conf->blockNo = DBLQH;
+  conf->lcpId = ss.m_req.lcpId;
+  sendSignal(DBDIH_REF, GSN_LCP_COMPLETE_REP,
+             signal, LcpCompleteRep::SignalLength, JBB);
 
   for (i = 0; i < ss.BlockCnt; i++) {
     jam();

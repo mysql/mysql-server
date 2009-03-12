@@ -304,23 +304,6 @@ protected:
   Uint32 c_typeOfStart;
   Uint32 c_masterNodeId;
 
-  struct Node {
-    Uint32 m_nodeId;
-    bool m_alive;
-    Node() {
-      m_nodeId = 0;
-      m_alive = false;
-    }
-    Uint32 nextList;
-    union {
-    Uint32 prevList;
-    Uint32 nextPool;
-    };
-  };
-  typedef Ptr<Node> NodePtr;
-  ArrayPool<Node> c_nodePool;
-  DLFifoList<Node> c_nodeList;
-
   // GSN_READ_CONFIG_REQ
   struct Ss_READ_CONFIG_REQ : SsSequential {
     ReadConfigReq m_req;
