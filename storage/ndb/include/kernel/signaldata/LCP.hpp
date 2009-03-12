@@ -123,6 +123,7 @@ struct LcpFragRep {
   friend bool printLCP_FRAG_REP(FILE *, const Uint32 *, Uint32, Uint16);  
 
   STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( BROADCAST_REQ = 0 );
 
   Uint32 nodeId;
   Uint32 lcpId;

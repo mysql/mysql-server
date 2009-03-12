@@ -12402,22 +12402,15 @@ Dblqh::sendLCP_FRAG_REP(Signal * signal,
   lcpReport->maxGciCompleted = fragPtrP->maxGciCompletedInLcp;
   lcpReport->maxGciStarted = fragPtrP->maxGciInLcp;
   
-  if (!isNdbMtLqh()) {
-    for (Uint32 i = 0; i < cnoOfNodes; i++) {
-      jam();
-      Uint32 nodeId = cnodeData[i];
-      if(cnodeStatus[i] == ZNODE_UP){
-        jam();
-        BlockReference Tblockref = calcDihBlockRef(nodeId);
-        sendSignal(Tblockref, GSN_LCP_FRAG_REP, signal, 
-                   LcpFragRep::SignalLength, JBB);
-      }//if
-    }//for
-  } else {
+  Uint32 ref = DBDIH_REF;
+  if (isNdbMtLqh())
+  {
     jam();
-    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal,
-               LcpFragRep::SignalLength, JBB);
+    ref = DBLQH_REF;
   }
+  lcpReport->nodeId = LcpFragRep::BROADCAST_REQ;
+  sendSignal(ref, GSN_LCP_FRAG_REP, signal,
+             LcpFragRep::SignalLength, JBB);
 }
 
 void Dblqh::contChkpNextFragLab(Signal* signal) 
@@ -12646,29 +12639,22 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   rep->lcpId = lcpId;
   rep->blockNo = DBLQH;
   
-  if (!isNdbMtLqh()) {
-    for (Uint32 i = 0; i < cnoOfNodes; i++) {
-      jam();
-      Uint32 nodeId = cnodeData[i];
-      if(cnodeStatus[i] == ZNODE_UP){
-        jam();
-        
-        BlockReference blockref = calcDihBlockRef(nodeId);
-        sendSignal(blockref, GSN_LCP_COMPLETE_REP, signal, 
-                   LcpCompleteRep::SignalLength, JBB);
-      }//if
-    }//for
-  } else {
+  Uint32 ref = DBDIH_REF;
+  if (isNdbMtLqh())
+  {
     jam();
-    sendSignal(DBLQH_REF, GSN_LCP_COMPLETE_REP, signal,
-               LcpCompleteRep::SignalLength, JBB);
+    ref = DBLQH_REF;
   }
+  rep->nodeId = LcpFragRep::BROADCAST_REQ;
 
+  sendSignal(ref, GSN_LCP_COMPLETE_REP, signal,
+             LcpCompleteRep::SignalLength, JBB);
+  
   if(lcpPtr.p->reportEmpty){
     jam();
     sendEMPTY_LCP_CONF(signal, true);
   }
-
+  
   if (cstartRecReq < SRR_FIRST_LCP_DONE)
   {
     jam();

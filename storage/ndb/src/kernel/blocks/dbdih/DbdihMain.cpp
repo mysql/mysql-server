@@ -12030,6 +12030,32 @@ void Dbdih::sendLastLCP_FRAG_ORD(Signal* signal)
 void Dbdih::execLCP_FRAG_REP(Signal* signal) 
 {
   jamEntry();
+
+  LcpFragRep * const lcpReport = (LcpFragRep *)&signal->theData[0];
+
+  /**
+   * Proxing LCP_FRAG_REP
+   */
+  const bool broadcast_req = lcpReport->nodeId == LcpFragRep::BROADCAST_REQ;
+  if (broadcast_req)
+  {
+    jam();
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
+
+    /**
+     * Set correct nodeId
+     */
+    lcpReport->nodeId = getOwnNodeId();
+
+    NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
+    rg.m_nodes.clear(getOwnNodeId());
+    sendSignal(rg, GSN_LCP_FRAG_REP, signal, signal->getLength(), JBB);  
+
+    /**
+     * and continue processing
+     */
+  }
+
   ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   
 #if 0
@@ -12038,7 +12064,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 		    signal->length(), number());
 #endif  
 
-  LcpFragRep * const lcpReport = (LcpFragRep *)&signal->theData[0];
   Uint32 nodeId = lcpReport->nodeId;
   Uint32 tableId = lcpReport->tableId;
   Uint32 fragId = lcpReport->fragId;
@@ -12079,7 +12104,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   CRASH_INSERTION2(7016, !isMaster());
   CRASH_INSERTION2(7191, (!isMaster() && tableId));
 
-  bool fromTimeQueue = (signal->senderBlockRef() == reference());
+  bool fromTimeQueue = (signal->senderBlockRef()==reference()&&!broadcast_req);
   
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
@@ -12596,6 +12621,26 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
 #endif
 
   LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtr();
+
+  if (rep->nodeId == LcpFragRep::BROADCAST_REQ)
+  {
+    jam();
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
+    
+    /**
+     * Set correct nodeId
+     */
+    rep->nodeId = getOwnNodeId();
+
+    NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
+    rg.m_nodes.clear(getOwnNodeId());
+    sendSignal(rg, GSN_LCP_COMPLETE_REP, signal, signal->getLength(), JBB);  
+    
+    /**
+     * and continue processing
+     */
+  }
+  
   Uint32 lcpId = rep->lcpId;
   Uint32 nodeId = rep->nodeId;
   Uint32 blockNo = rep->blockNo;
