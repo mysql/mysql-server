@@ -2901,8 +2901,9 @@ row_sel_get_clust_rec_for_mysql(
 func_exit:
 	*out_rec = clust_rec;
 
-	if (prebuilt->select_lock_type == LOCK_X) {
-		/* We may use the cursor in update: store its position */
+	if (prebuilt->select_lock_type != LOCK_NONE) {
+		/* We may use the cursor in update or in unlock_row():
+		store its position */
 
 		btr_pcur_store_position(prebuilt->clust_pcur, mtr);
 	}
