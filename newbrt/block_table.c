@@ -337,13 +337,6 @@ toku_block_dump_translation(BLOCK_TABLE bt, u_int64_t offset) {
 }
 
 void
-toku_block_recovery_set_unused_blocks(BLOCK_TABLE bt, BLOCKNUM newunused) {
-    lock_for_blocktable(bt);
-    bt->unused_blocks = newunused;
-    unlock_for_blocktable(bt);
-}
-
-void
 toku_block_memcpy_translation_table(BLOCK_TABLE bt, size_t n, void *p) {
     lock_for_blocktable(bt);
     memcpy(p, bt->block_translation, n);
