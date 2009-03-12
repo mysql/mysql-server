@@ -338,9 +338,9 @@ start_again:
 			be written to disk in a flush */
 
 			mlog_write_ulint(buf_block_get_frame(new_block)
-					 + FIL_PAGE_DATA,
-					 TRX_SYS_DOUBLEWRITE_MAGIC_N,
-					 MLOG_4BYTES, &mtr);
+					 + FIL_PAGE_TYPE,
+					 FIL_PAGE_TYPE_ALLOCATED,
+					 MLOG_2BYTES, &mtr);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				mlog_write_ulint(doublewrite
