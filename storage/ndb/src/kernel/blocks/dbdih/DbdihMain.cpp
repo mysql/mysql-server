@@ -10049,11 +10049,6 @@ Dbdih::LocalLCPState::lcp_frag_rep(const LcpFragRep * rep)
   if (rep->maxGciCompleted < m_keep_gci)
   {
     m_keep_gci = rep->maxGciCompleted;
-    if (rep->maxGciCompleted < 100)
-    {
-      printLCP_FRAG_REP(stdout, (Uint32*)rep,
-                        LcpFragRep::SignalLength, 0);
-    }
   }
 
   if (rep->maxGciStarted > m_stop_gci)
