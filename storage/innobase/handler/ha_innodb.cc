@@ -3312,8 +3312,8 @@ build_template(
 				goto include_field;
 			}
 
-                        if (bitmap_is_set(table->read_set, i) ||
-                            bitmap_is_set(table->write_set, i)) {
+			if (bitmap_is_set(table->read_set, i) ||
+			    bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3416,7 +3416,7 @@ ha_innobase::innobase_get_int_col_max_value(
 
 	switch(field->key_type()) {
 	/* TINY */
-        case HA_KEYTYPE_BINARY:
+	case HA_KEYTYPE_BINARY:
 		max_value = 0xFFULL;
 		break;
 	case HA_KEYTYPE_INT8:
@@ -3430,7 +3430,7 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFULL;
 		break;
 	/* MEDIUM */
-    	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_UINT24:
 		max_value = 0xFFFFFFULL;
 		break;
 	case HA_KEYTYPE_INT24:
