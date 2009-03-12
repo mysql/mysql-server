@@ -104,6 +104,21 @@ const uint error_conflict_fn_max_violation= 9999;
 #endif /* HAVE_NDB_BINLOG */
 
 
+class Mutex_guard
+{
+public:
+  Mutex_guard(pthread_mutex_t &mutex) : m_mutex(mutex)
+  {
+    pthread_mutex_lock(&m_mutex);
+  };
+  ~Mutex_guard()
+  {
+    pthread_mutex_unlock(&m_mutex);
+  };
+private:
+  pthread_mutex_t &m_mutex;
+};
+
 class Ndb_table_guard
 {
 public:

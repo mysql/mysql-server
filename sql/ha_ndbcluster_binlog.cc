@@ -2142,7 +2142,7 @@ end:
 */
 
 int
-ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
+ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                          Ndb_event_data *event_data)
 {
   DBUG_ENTER("ndb_handle_schema_change");
@@ -2160,8 +2160,11 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   DBUG_ASSERT(pOp->getEventType() == NDBEVENT::TE_DROP ||
               pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
   {
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    Ndb *ndb= thd_ndb->ndb;
+    NDBDICT *dict= ndb->getDictionary();
     ndb->setDatabaseName(dbname);
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), tabname);
+    Ndb_table_guard ndbtab_g(dict, tabname);
     const NDBTAB *ev_tab= pOp->getTable();
     const NDBTAB *cache_tab= ndbtab_g.get_table();
     if (cache_tab &&
@@ -2222,7 +2225,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   }
 
   pthread_mutex_lock(&injector_mutex);
-  ndb->dropEventOperation(pOp);
+  is_ndb->dropEventOperation(pOp);
   pOp= 0;
   pthread_mutex_unlock(&injector_mutex);
 
@@ -2267,7 +2270,7 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
 }
 
 static int
-ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
+ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                                       NdbEventOperation *pOp,
                                       List<Cluster_schema> 
                                       *post_epoch_log_list,
@@ -2287,6 +2290,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         ev_type == NDBEVENT::TE_INSERT)
     {
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
+      Ndb *ndb= thd_ndb->ndb;
+      NDBDICT *dict= ndb->getDictionary();
       Thd_ndb_options_guard thd_ndb_options(thd_ndb);
       Cluster_schema *schema= (Cluster_schema *)
         sql_alloc(sizeof(Cluster_schema));
@@ -2401,9 +2406,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           if (!share || !share->op)
           {
             {
-              injector_ndb->setDatabaseName(schema->db);
-              Ndb_table_guard ndbtab_g(injector_ndb->getDictionary(),
-                                       schema->name);
+              ndb->setDatabaseName(schema->db);
+              Ndb_table_guard ndbtab_g(dict, schema->name);
               ndbtab_g.invalidate();
             }
             TABLE_LIST table_list;
@@ -2555,7 +2559,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
-      ndb_handle_schema_change(thd, ndb, pOp, event_data);
+      ndb_handle_schema_change(thd, s_ndb, pOp, event_data);
       break;
     case NDBEVENT::TE_NODE_FAILURE:
     {
@@ -2642,6 +2646,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
   DBUG_ENTER("ndb_binlog_thread_handle_schema_event_post_epoch");
   Cluster_schema *schema;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+  NDBDICT *dict= ndb->getDictionary();
   while ((schema= post_epoch_log_list->pop()))
   {
     Thd_ndb_options_guard thd_ndb_options(thd_ndb);
@@ -2692,9 +2698,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           sql_print_information("SOT_DROP_TABLE %s.%s", schema->db, schema->name);
         log_query= 1;
         {
-          injector_ndb->setDatabaseName(schema->db);
-          Ndb_table_guard ndbtab_g(injector_ndb->getDictionary(),
-                                   schema->name);
+          ndb->setDatabaseName(schema->db);
+          Ndb_table_guard ndbtab_g(dict, schema->name);
           ndbtab_g.invalidate();
         }
         {
@@ -2731,9 +2736,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           break;
         log_query= 1;
         {
-          injector_ndb->setDatabaseName(schema->db);
-          Ndb_table_guard ndbtab_g(injector_ndb->getDictionary(),
-                                   schema->name);
+          ndb->setDatabaseName(schema->db);
+          Ndb_table_guard ndbtab_g(dict, schema->name);
           ndbtab_g.invalidate();
         }
         {
@@ -2751,7 +2755,10 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             if (event_data)
               delete event_data;
             share->op->setCustomData(NULL);
-            injector_ndb->dropEventOperation(share->op);
+            {
+              Mutex_guard injector_mutex_g(injector_mutex);
+              injector_ndb->dropEventOperation(share->op);
+            }
             share->op= 0;
             free_share(&share);
           }
@@ -2800,9 +2807,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
       {
         if (ndb_extra_logging > 9)
           sql_print_information("SOT_ONLINE_ALTER_TABLE_PREPARE %s.%s", schema->db, schema->name);
-        NDBDICT *dict= injector_ndb->getDictionary();
         int error= 0;
-        injector_ndb->setDatabaseName(schema->db);
+        ndb->setDatabaseName(schema->db);
         {
           Ndb_table_guard ndbtab_g(dict, schema->name);
           ndbtab_g.get_table();
@@ -2924,7 +2930,10 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             if (event_data)
               delete event_data;
             share->op->setCustomData(NULL);
-            injector_ndb->dropEventOperation(share->op);
+            {
+              Mutex_guard injector_mutex_g(injector_mutex);
+              injector_ndb->dropEventOperation(share->op);
+            }
             share->op= share->new_op;
             share->new_op= 0;
             free_share(&share);
@@ -4340,16 +4349,13 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   int retry_sleep= 100;
   while (1)
   {
-    pthread_mutex_lock(&injector_mutex);
+    Mutex_guard injector_mutex_g(injector_mutex);
     Ndb *ndb= injector_ndb;
     if (do_ndb_schema_share)
       ndb= schema_ndb;
 
     if (ndb == 0)
-    {
-      pthread_mutex_unlock(&injector_mutex);
       DBUG_RETURN(-1);
-    }
 
     NdbEventOperation* op;
     if (do_ndb_schema_share)
@@ -4372,7 +4378,6 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                           ndb->getNdbError().code,
                           ndb->getNdbError().message,
                           "NDB");
-      pthread_mutex_unlock(&injector_mutex);
       DBUG_RETURN(-1);
     }
 
@@ -4435,7 +4440,6 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                                 op->getNdbError().message,
                                 "NDB");
             ndb->dropEventOperation(op);
-            pthread_mutex_unlock(&injector_mutex);
             DBUG_RETURN(-1);
           }
         }
@@ -4481,7 +4485,6 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       share->event_data= event_data;
       op->setCustomData(NULL);
       ndb->dropEventOperation(op);
-      pthread_mutex_unlock(&injector_mutex);
       if (retries && !thd->killed)
       {
         do_retry_sleep(retry_sleep);
@@ -4489,7 +4492,6 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       }
       DBUG_RETURN(-1);
     }
-    pthread_mutex_unlock(&injector_mutex);
     break;
   }
 
@@ -4878,7 +4880,7 @@ static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
 }
 
 static int
-ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
+ndb_binlog_thread_handle_non_data_event(THD *thd,
                                         NdbEventOperation *pOp,
                                         ndb_binlog_index_row &row)
 {
@@ -4952,7 +4954,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
     return 0;
   }
 
-  ndb_handle_schema_change(thd, ndb, pOp, event_data);
+  ndb_handle_schema_change(thd, injector_ndb, pOp, event_data);
   return 0;
 }
 
@@ -5832,7 +5834,7 @@ restart_cluster_failure:
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
           {
             ndb_binlog_index_row row;
-            ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);
+            ndb_binlog_thread_handle_non_data_event(thd, pOp, row);
           }
         }
         if (i_ndb->getEventOperation() == NULL &&
@@ -6070,13 +6072,7 @@ restart_cluster_failure:
             ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count);
           else
           {
-            // set injector_ndb database/schema from table internal name
-            IF_DBUG(int ret=)
-              i_ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
-            DBUG_ASSERT(ret == 0);
-            ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, *rows);
-            // reset to catch errors
-            i_ndb->setDatabaseName("");
+            ndb_binlog_thread_handle_non_data_event(thd, pOp, *rows);
             DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                                 s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                                 "<empty>"));
