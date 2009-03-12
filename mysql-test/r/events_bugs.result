@@ -736,6 +736,17 @@ select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mo
 select name from mysql.event where name = 'p' and sql_mode = @full_mode;
 name
 drop event e1;
+SET @old_server_id = @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 32) - 1;
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+SELECT event_name, originator FROM INFORMATION_SCHEMA.EVENTS;
+event_name	originator
+ev1	4294967295
+DROP EVENT ev1;
+SET GLOBAL server_id = @old_server_id;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;
