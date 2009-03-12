@@ -19,7 +19,7 @@
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
 
-class StartLcpReq {
+struct StartLcpReq {
   /**
    * Sender(s)
    */
@@ -38,7 +38,6 @@ class StartLcpReq {
 public:
 
   STATIC_CONST( SignalLength = 2 + 2 * NdbNodeBitmask::Size );
-private:
   Uint32 senderRef;
   Uint32 lcpId;
   
@@ -107,7 +106,7 @@ private:
 };
 
 
-class LcpFragRep {
+struct LcpFragRep {
   /**
    * Sender(s) and receiver(s)
    */
@@ -119,10 +118,9 @@ class LcpFragRep {
   friend class Dblqh;
 
   friend bool printLCP_FRAG_REP(FILE *, const Uint32 *, Uint32, Uint16);  
-public:
+
   STATIC_CONST( SignalLength = 7 );
 
-private:
   Uint32 nodeId;
   Uint32 lcpId;
   Uint32 lcpNo;
