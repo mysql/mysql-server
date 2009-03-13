@@ -137,6 +137,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_MASTER_GCPREF, &Dbdih::execMASTER_GCPREF);
   addRecSignal(GSN_MASTER_GCPCONF, &Dbdih::execMASTER_GCPCONF);
   addRecSignal(GSN_EMPTY_LCP_CONF, &Dbdih::execEMPTY_LCP_CONF);
+  addRecSignal(GSN_EMPTY_LCP_REP, &Dbdih::execEMPTY_LCP_REP);
+
   addRecSignal(GSN_MASTER_LCPREQ, &Dbdih::execMASTER_LCPREQ);
   addRecSignal(GSN_MASTER_LCPREF, &Dbdih::execMASTER_LCPREF);
   addRecSignal(GSN_MASTER_LCPCONF, &Dbdih::execMASTER_LCPCONF);
