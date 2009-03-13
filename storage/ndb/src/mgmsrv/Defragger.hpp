@@ -125,6 +125,4 @@ public:
 
 };
 
-template class Vector<Defragger::DefragBuffer*>;
-
 #endif
