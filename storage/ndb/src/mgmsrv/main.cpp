@@ -86,7 +86,6 @@ static MgmtSrvr::MgmtOpts opts;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),
-  MY_DAEMON_LONG_OPTS(opts.)
   { "config-file", 'f', "Specify cluster configuration file",
     (uchar**) &opts.config_filename, (uchar**) &opts.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -153,9 +152,6 @@ static char **defaults_argv;
      if in a windows service, don't want process to exit()
      until cleanup of other threads is done
 */
-#ifdef _WIN32
-extern HANDLE  g_shutdown_evt;
-#endif
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
@@ -165,30 +161,13 @@ static void mgmd_exit(int result)
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
-#ifdef _WIN32
-  if(opts.service)
-    SetEvent(g_shutdown_evt); // release stopper thread
-  else
-    exit(result);
-#else
-  exit(result);
-#endif
+  my_daemon_exit(result);
 }
 
-int null_printf(const char*s,...)
-{
-  return 0;
-}
-#define DBG IF_WIN(g_eventLogger->debug,null_printf)
 
-int event_loop(void*);
-int start();
-int argc_;char**argv_;
-int main(int argc, char** argv)
+static int mgmd_main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
-  argc_= argc;
-  argv_= argv;
 
   g_eventLogger->setCategory("MgmSrvr");
 
@@ -202,36 +181,27 @@ int main(int argc, char** argv)
   opt_debug= IF_WIN("d:t:i:F:o,c:\\ndb_mgmd.trace",
                     "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
+
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
                                ndb_std_get_one_option)))
     mgmd_exit(ho_error);
 
   if (opts.interactive ||
       opts.non_interactive ||
-      opts.print_full_config ||
-      IF_WIN(1,0)) {
+      opts.print_full_config) {
     opts.daemon= 0;
   }
 
 #ifdef _WIN32
-  int r=maybe_install_or_remove_service(argc_,argv_,
-                                 (char*)opts.remove,(char*)opts.install,
-                                       "MySQL Cluster Management Server");
-  if(r!=-1)
-    return r;
 #ifdef _DEBUG
-  /* it is impossible to attach a debugger to a starting service
-  ** so it is necessary to log to a known place to diagnose
-  ** problems.  services don't have a stdout/stderr so the only
-  ** way to write debug info is to a file.
-  ** change this path if you don't have a c:\
-  */
-  if(opts.service) {
-    char *fn= "c:\\ndb_mgmd_debug.log";
-    g_eventLogger->createFileHandler(fn);
-    DBG(NdbConfig_StdoutFileName(0));
-    DBG(NdbConfig_get_path(0));
-  } else
+  if (opts.daemon)
+  {
+    /* Write eventlog output to file for easier debugging */
+    g_eventLogger->createFileHandler("c:\\ndb_mgmd_debug.log");
+    g_eventLogger->info("StdoutFileName: %s", NdbConfig_StdoutFileName(0));
+    g_eventLogger->info("get_path: %s", NdbConfig_get_path(0));
+    g_eventLogger->info("GetCommandLine: %s", GetCommandLine());
+  }
 #endif
 #endif
   /* Output to console initially */
@@ -253,103 +223,92 @@ int main(int argc, char** argv)
 #if !defined NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
-  return start();
-}
 
-int daemon_stop()
-{
-  g_StopServer= true;
-  return 0;
-}
+  while (!g_StopServer)
+  {
+    g_eventLogger->info("NDB Cluster Management Server. %s",
+                        NDB_VERSION_STRING);
 
-int start()
-{
-  g_eventLogger->info("NDB Cluster Management Server. %s", NDB_VERSION_STRING);
+    mgm= new MgmtSrvr(opts, opt_connect_str);
+    if (mgm == NULL) {
+      g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
+      mgmd_exit(1);
+    }
 
-  mgm= new MgmtSrvr(opts, opt_connect_str);
-  if (mgm == NULL) {
-    DBG("mgm is NULL");
-    g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
-    mgmd_exit(1);
-  }
-
-  /* Init mgm, load or fetch config */
-  if (!mgm->init()) {
-    delete mgm;
-    mgmd_exit(1);
-  }
-
-  my_setwd(NdbConfig_get_path(0), MYF(0));
-#ifdef _WIN32
-  DBG("cl %s",GetCommandLine());
-#endif
-  if (IF_WIN(opts.service,opts.daemon)) {
-    DBG("service name %s",IF_WIN(opts.service,""));
-    NodeId localNodeId= mgm->getOwnNodeId();
-    if (localNodeId == 0) {
-      g_eventLogger->error("Couldn't get own node id");
+    /* Init mgm, load or fetch config */
+    if (!mgm->init()) {
       delete mgm;
       mgmd_exit(1);
     }
-    struct MY_DAEMON thedaemon= {event_loop,daemon_stop};
-    char *lockfile= NdbConfig_PidFileName(localNodeId);
-    char *logfile=  NdbConfig_StdoutFileName(localNodeId);
-    DBG("to open %s,%s", lockfile, logfile);
-    if (my_daemon_prefiles(lockfile, logfile)) {
-      g_eventLogger->error("daemon_prefiles %s", my_daemon_error);
-      mgmd_exit(1);
-    }
-    if(my_daemon_files()) {
-      g_eventLogger->error("daemon_files %s", my_daemon_error);
-      mgmd_exit(1);
-    }
-    return my_daemon_run((char*)IF_WIN(opts.service,0),&thedaemon);
-  }
-#ifdef _WIN32
-  if(opts.daemon) {
-    g_eventLogger->error("no daemon mode on windows, use -i to set up a service.");
-    mgmd_exit(1);
-  }
-#endif
-  return event_loop(0);
-}
 
-int event_loop(void*)
-{
-  if (!mgm->start()) { /* Start mgm services */
+    my_setwd(NdbConfig_get_path(0), MYF(0));
+
+    if (opts.daemon)
+    {
+      NodeId localNodeId= mgm->getOwnNodeId();
+      if (localNodeId == 0) {
+        g_eventLogger->error("Couldn't get own node id");
+        delete mgm;
+        mgmd_exit(1);
+      }
+
+      char *lockfile= NdbConfig_PidFileName(localNodeId);
+      char *logfile=  NdbConfig_StdoutFileName(localNodeId);
+      if (my_daemonize(lockfile, logfile))
+      {
+        g_eventLogger->error("Couldn't start as daemon, error: '%s'",
+                             my_daemon_error);
+        mgmd_exit(1);
+      }
+    }
+
+    /* Start mgm services */
+    if (!mgm->start()) {
+      delete mgm;
+      mgmd_exit(1);
+    }
+
+    if (opts.interactive) {
+      int port= mgm->getPort();
+      BaseString con_str;
+      if(opts.bind_address)
+        con_str.appfmt("host=%s:%d", opts.bind_address, port);
+      else
+        con_str.appfmt("localhost:%d", port);
+      Ndb_mgmclient com(con_str.c_str(), 1);
+      while(!g_StopServer){
+        if (!read_and_execute(&com, "ndb_mgm> ", 1))
+          g_StopServer = true;
+      }
+    }
+    else {
+      while (!g_StopServer)
+        NdbSleep_MilliSleep(500);
+    }
+
+    g_eventLogger->info("Shutting down server...");
     delete mgm;
-    mgmd_exit(1);
-  }
+    g_eventLogger->info("Shutdown complete");
 
-  if(opts.interactive) {
-    int port= mgm->getPort();
-    BaseString con_str;
-    if(opts.bind_address)
-      con_str.appfmt("host=%s:%d", opts.bind_address, port);
-    else
-      con_str.appfmt("localhost:%d", port);
-    Ndb_mgmclient com(con_str.c_str(), 1);
-    while(g_StopServer != true && read_and_execute(&com, "ndb_mgm> ", 1));
-  }
-  else {
-    while(g_StopServer != true) {
-      NdbSleep_MilliSleep(500);
+    if(g_RestartServer){
+      g_eventLogger->info("Restarting server...");
+      g_RestartServer= g_StopServer= false;
     }
-  }
-
-  g_eventLogger->info("Shutting down server...");
-  delete mgm;
-  g_eventLogger->info("Shutdown complete");
-
-  if(g_RestartServer){
-    g_eventLogger->info("Restarting server...");
-    g_RestartServer= g_StopServer= false;
-    int ex= start();
-    if(ex)
-      mgmd_exit(ex);
   }
 
   mgmd_exit(0);
   return 0;
 }
 
+
+static void mgmd_stop(void)
+{
+  g_StopServer= true;
+}
+
+
+int main(int argc, char** argv)
+{
+  return my_daemon_init(argc, argv, mgmd_main, mgmd_stop,
+                        "ndb_mgmd", "MySQL Cluster Management Server");
+}
