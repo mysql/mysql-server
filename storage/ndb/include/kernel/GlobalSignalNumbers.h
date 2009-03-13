@@ -319,6 +319,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_EMPTY_LCP_REQ               223
 #define GSN_EMPTY_LCP_CONF              224
+#define GSN_EMPTY_LCP_REP               223 // local (LQH - DIH)
 
 #define GSN_SCHEMA_INFO                 225
 #define GSN_SCHEMA_INFOCONF             226

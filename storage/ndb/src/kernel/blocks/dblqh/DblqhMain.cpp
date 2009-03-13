@@ -12508,8 +12508,9 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
 
 void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
 {
-  
-  EmptyLcpConf * const rep = (EmptyLcpConf*)&signal->theData[0];
+  EmptyLcpRep * sig = (EmptyLcpRep*)signal->getDataPtrSend();
+  EmptyLcpConf * rep = (EmptyLcpConf*)sig->conf;
+
   /* ----------------------------------------------------------------------
    *       We have been requested to report when there are no more local
    *       waiting to be started or ongoing. In this signal we also report
@@ -12531,19 +12532,14 @@ void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
     rep->lcpNo = ~0;
     rep->lcpId = c_lcpId;
   }
-  
-  for (Uint32 i = 0; i < cnoOfNodes; i++) {
+
+  if (!isNdbMtLqh())
+  {
     jam();
-    Uint32 nodeId = cnodeData[i];
-    if (lcpPtr.p->m_EMPTY_LCP_REQ.get(nodeId)) {
-      jam();
-      
-      BlockReference blockref =
-        !isNdbMtLqh() ? calcDihBlockRef(nodeId) : calcLqhBlockRef(nodeId);
-      sendSignal(blockref, GSN_EMPTY_LCP_CONF, signal, 
-		 EmptyLcpConf::SignalLength, JBB);
-    }//if
-  }//for
+    lcpPtr.p->m_EMPTY_LCP_REQ.copyto(NdbNodeBitmask::Size, sig->receiverGroup);
+    sendSignal(DBDIH_REF, GSN_EMPTY_LCP_REP, signal, 
+               EmptyLcpRep::SignalLength + EmptyLcpConf::SignalLength, JBB);
+  }
 
   lcpPtr.p->reportEmpty = false;
   lcpPtr.p->m_EMPTY_LCP_REQ.clear();

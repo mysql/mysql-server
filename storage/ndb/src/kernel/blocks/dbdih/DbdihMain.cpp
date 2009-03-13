@@ -6091,6 +6091,25 @@ void Dbdih::startLcpTakeOverLab(Signal* signal, Uint32 failedNodeId)
   /*--------------------------------------------------------------------*/
 }//Dbdih::startLcpTakeOver()
 
+void
+Dbdih::execEMPTY_LCP_REP(Signal* signal)
+{
+  jamEntry();
+  EmptyLcpRep* rep = (EmptyLcpRep*)signal->getDataPtr();
+  
+  Uint32 len = signal->getLength();
+  ndbrequire(len > EmptyLcpRep::SignalLength);
+  len -= EmptyLcpRep::SignalLength;
+
+  NdbNodeBitmask nodes;
+  nodes.assign(NdbNodeBitmask::Size, rep->receiverGroup);
+  NodeReceiverGroup rg (DBDIH, nodes);
+  memmove(signal->getDataPtrSend(), 
+          signal->getDataPtr()+EmptyLcpRep::SignalLength, 4*len);
+  
+  sendSignal(rg, GSN_EMPTY_LCP_CONF, signal, len, JBB);
+}
+
 void Dbdih::execEMPTY_LCP_CONF(Signal* signal)
 {
   jamEntry();
