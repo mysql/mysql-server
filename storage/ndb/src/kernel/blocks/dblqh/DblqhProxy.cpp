@@ -43,9 +43,10 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_LCP_FRAG_ORD
   addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
   addRecSignal(GSN_LCP_FRAG_REP, &DblqhProxy::execLCP_FRAG_REP);
-  addRecSignal(GSN_END_LCP_REQ, &DblqhProxy::execEND_LCP_REQ);
   addRecSignal(GSN_END_LCP_CONF, &DblqhProxy::execEND_LCP_CONF);
   addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
+
+  addRecSignal(GSN_EMPTY_LCP_REQ, &DblqhProxy::execEMPTY_LCP_REQ);
 
   // GSN_GCP_SAVEREQ
   addRecSignal(GSN_GCP_SAVEREQ, &DblqhProxy::execGCP_SAVEREQ);
@@ -77,10 +78,6 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_LQH_TRANSREQ
   addRecSignal(GSN_LQH_TRANSREQ, &DblqhProxy::execLQH_TRANSREQ);
   addRecSignal(GSN_LQH_TRANSCONF, &DblqhProxy::execLQH_TRANSCONF);
-
-  // GSN_EMPTY_LCP_REQ
-  addRecSignal(GSN_EMPTY_LCP_REQ, &DblqhProxy::execEMPTY_LCP_REQ);
-  addRecSignal(GSN_EMPTY_LCP_CONF, &DblqhProxy::execEMPTY_LCP_CONF);
 
   // GSN_SUB_GCP_COMPLETE_REP
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &DblqhProxy::execSUB_GCP_COMPLETE_REP);
@@ -383,7 +380,14 @@ DblqhProxy::sendTAB_COMMITCONF(Signal* signal, Uint32 ssId)
   ssRelease<Ss_TAB_COMMITREQ>(ssId);
 }
 
-// GSN_LCP_FRAG_ORD
+// LCP handling
+
+Uint32
+DblqhProxy::getNoOfOutstanding(const LcpRecord & rec) const
+{
+  ndbrequire(rec.m_lcp_frag_ord_cnt >= rec.m_lcp_frag_rep_cnt);
+  return rec.m_lcp_frag_ord_cnt - rec.m_lcp_frag_rep_cnt;
+}
 
 void
 DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
@@ -392,18 +396,20 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
 
   const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
   const LcpFragOrd req_copy = *req;
-  Uint32 ssId = getSsId(req);
 
-  bool found = false;
-  Ss_LCP_FRAG_ORD& ss = ssFindSeize<Ss_LCP_FRAG_ORD>(ssId, &found);
+  bool lcp_complete_ord = req->lastFragmentFlag;
 
-  if (!found) {
+  if (c_lcpRecord.m_state == LcpRecord::L_IDLE)
+  {
     jam();
     D("LCP: start" << V(req->lcpId));
-    ndbrequire(c_lcpRecord.m_idle);
-    c_lcpRecord.m_idle = false;
+    c_lcpRecord.m_state = LcpRecord::L_STARTING;
     c_lcpRecord.m_lcpId = req->lcpId;
-    c_lcpRecord.m_frags = 0;
+    c_lcpRecord.m_lcp_frag_rep_cnt = 0;
+    c_lcpRecord.m_lcp_frag_ord_cnt = 0;
+    c_lcpRecord.m_complete_outstanding = 0;
+    c_lcpRecord.m_lastFragmentFlag = false;
+    c_lcpRecord.m_empty_lcp_req.clear();
 
     // handle start of LCP in PGMAN and TSMAN
     LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
@@ -413,71 +419,57 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
     *req = req_copy;
     EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
                    signal, LcpFragOrd::SignalLength);
-  } else {
-    jam();
-    D("LCP: continue" << V(req->lcpId) << V(c_lcpRecord.m_frags));
-    ndbrequire(!c_lcpRecord.m_idle);
-    ndbrequire(c_lcpRecord.m_lcpId == req->lcpId);
 
-    if (c_lcpRecord.m_frags == 0) {
-      // first frag has not replied
+    c_lcpRecord.m_state = LcpRecord::L_RUNNING;
+  }
+
+  jam();
+  D("LCP: continue" << V(req->lcpId) << V(c_lcpRecord.m_lcp_frag_ord_cnt));
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_RUNNING);
+  ndbrequire(c_lcpRecord.m_lcpId == req->lcpId);
+
+  if (lcp_complete_ord)
+  {
+    jam();
+    c_lcpRecord.m_lastFragmentFlag = true;
+    if (getNoOfOutstanding(c_lcpRecord) == 0)
+    {
       jam();
-      D("LCP: delay" << V(req->lcpId) << V(c_lcpRecord.m_frags));
-      LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
-      *req = req_copy;
-      sendSignalWithDelay(reference(), GSN_LCP_FRAG_ORD,
-                          signal, 100, LcpFragOrd::SignalLength);
+      completeLCP_1(signal);
       return;
     }
-  }
 
-  if (req->lastFragmentFlag) {
-    jam();
-    D("LCP: complete" << V(req->lcpId));
-    execLCP_COMPLETE_ORD(signal);
+    /**
+     * Wait for all LCP_FRAG_ORD/REP to complete
+     */
     return;
   }
-  sendREQ(signal, ss);
-}
-
-void
-DblqhProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId)
-{
-  Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
-  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
-
-  NdbLogPartInfo lpinfo(workerInstance(ss.m_worker));
-  if (!lpinfo.partNoOwner(req->tableId, req->fragmentId)) {
+  else
+  {
     jam();
-    skipReq(ss);
-    return;
+    c_lcpRecord.m_last_lcp_frag_ord = req_copy;
   }
 
-  if (!ss.m_active.get(ss.m_worker)) {
-    jam();
-    D("LCP: active" << V(ss.m_worker));
-    ss.m_active.set(ss.m_worker);
-  }
+  c_lcpRecord.m_lcp_frag_ord_cnt++;
 
-  sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
-             signal, LcpFragOrd::SignalLength, JBB);
+  // Forward
+  Uint32 instance = getInstanceKey(req->tableId, req->fragmentId);
+  sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+             GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
 }
 
-// increment frag count and pass through
 void
 DblqhProxy::execLCP_FRAG_REP(Signal* signal)
 {
   ndbrequire(signal->getLength() == LcpFragRep::SignalLength);
 
   LcpFragRep* conf = (LcpFragRep*)signal->getDataPtr();
-  Uint32 ssId = getSsId(conf);
-  Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
 
-  ndbrequire(!c_lcpRecord.m_idle);
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_RUNNING);
   ndbrequire(c_lcpRecord.m_lcpId == conf->lcpId);
 
-  c_lcpRecord.m_frags++;
-  D("LCP: rep" << V(conf->lcpId) << V(c_lcpRecord.m_frags));
+  c_lcpRecord.m_lcp_frag_rep_cnt++;
+  D("LCP: rep" << V(conf->lcpId) << V(c_lcpRecord.m_lcp_frag_rep_cnt));
 
   /**
    * But instead of broadcasting to all DIH's
@@ -486,194 +478,261 @@ DblqhProxy::execLCP_FRAG_REP(Signal* signal)
   conf->nodeId = LcpFragRep::BROADCAST_REQ;
   sendSignal(DBDIH_REF, GSN_LCP_FRAG_REP,
              signal, LcpFragRep::SignalLength, JBB);
-}
 
-// GSN_LCP_COMPLETE_ORD [ sub-op, fictional gsn ]
-
-void
-DblqhProxy::execLCP_COMPLETE_ORD(Signal* signal)
-{
-  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
-  Uint32 ssId = getSsId(req);
-  Ss_LCP_COMPLETE_ORD& ss = ssSeize<Ss_LCP_COMPLETE_ORD>(ssId);
-  ss.m_req = *req;
-
-  Ss_LCP_FRAG_ORD& ssLcp = ssFind<Ss_LCP_FRAG_ORD>(ssId);
-  const Uint32 activeCount = ssLcp.m_active.count();
-  D("LCP: complete" << V(activeCount));
-  // database with no fragments is not handled
-  ndbrequire(activeCount != 0);
-
-  // seize END_LCP_REQ records
-  Uint32 i;
-  for (i = 0; i < ss.BlockCnt; i++) {
-    EndLcpReq tmp;
-    tmp.backupId = ss.m_req.lcpId;
-    tmp.proxyBlockNo = ss.m_endLcp[i].m_blockNo;
-    Uint32 ssIdEnd = getSsId(&tmp);
-    Ss_END_LCP_REQ& ssEnd = ssSeize<Ss_END_LCP_REQ>(ssIdEnd);
-    ss.m_endLcp[i].m_ssId = ssIdEnd;
-    ssEnd.m_ssIdLcp = ssId;
-
-    // set wait-for bitmask
-    setMask(ssEnd, ssLcp.m_active);
+  if (c_lcpRecord.m_lastFragmentFlag)
+  {
+    jam();
+    /**
+     * lastFragmentFlag has arrived...
+     */
+    if (getNoOfOutstanding(c_lcpRecord) == 0)
+    {
+      jam();
+      /*
+       *   and we have all fragments has been processed
+       */
+      completeLCP_1(signal);
+    }
+    return;
   }
 
-  sendREQ(signal, ss);
+  checkSendEMPTY_LCP_CONF(signal);
 }
 
 void
-DblqhProxy::sendLCP_COMPLETE_ORD(Signal* signal, Uint32 ssId)
+DblqhProxy::completeLCP_1(Signal* signal)
 {
-  Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_RUNNING);
+  c_lcpRecord.m_state = LcpRecord::L_COMPLETING_1;
+  ndbrequire(c_lcpRecord.m_complete_outstanding == 0);
 
-  LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
-  *req = ss.m_req;
-  sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
-             signal, LcpFragOrd::SignalLength, JBB);
+  /**
+   * send LCP_FRAG_ORD (lastFragmentFlag = true)
+   *   to all LQH instances...
+   *   they will reply with LCP_COMPLETE_REP
+   */
+  LcpFragOrd* ord = (LcpFragOrd*)signal->getDataPtrSend();
+  ord->lcpId = c_lcpRecord.m_lcpId;
+  ord->lastFragmentFlag = true;
+  for (Uint32 i = 0; i<c_workers; i++)
+  {
+    jam();
+    c_lcpRecord.m_complete_outstanding++;
+    sendSignal(workerRef(i), GSN_LCP_FRAG_ORD, signal,
+               LcpFragOrd::SignalLength, JBB);
+  }
+
+  /**
+   * send END_LCP_REQ to all pgman instances (except "extra" pgman)
+   *   they will reply with END_LCP_CONF
+   */
+  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
+  req->senderData= 0;
+  req->senderRef= reference();
+  req->backupPtr= 0;
+  req->backupId= c_lcpRecord.m_lcpId;
+  for (Uint32 i = 0; i<c_workers; i++)
+  {
+    jam();
+    c_lcpRecord.m_complete_outstanding++;
+    sendSignal(numberToRef(PGMAN, workerInstance(i), getOwnNodeId()),
+               GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, JBB);
+  }
 }
 
 void
 DblqhProxy::execLCP_COMPLETE_REP(Signal* signal)
 {
-  const LcpCompleteRep* conf = (const LcpCompleteRep*)signal->getDataPtr();
-  Uint32 ssId = getSsId(conf);
-  Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
-  recvCONF(signal, ss);
-}
+  jamEntry();
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1);
+  ndbrequire(c_lcpRecord.m_complete_outstanding);
+  c_lcpRecord.m_complete_outstanding--;
 
-void
-DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
-{
-  Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
-  Uint32 i;
-
-  if (!lastReply(ss))
-    return;
-
-  // verify the protocol
-  for (i = 0; i < ss.BlockCnt; i++) {
-    Uint32 ssIdEnd = ss.m_endLcp[i].m_ssId;
-    Ss_END_LCP_REQ& ssEnd = ssFind<Ss_END_LCP_REQ>(ssIdEnd);
-    const Uint32 rb = ssEnd.m_proxyBlockNo;
-    switch (rb) {
-    case PGMAN:
-      ndbrequire(ssEnd.m_confcount == 1);
-      break;
-    case TSMAN:
-      ndbrequire(ssEnd.m_confcount == 0);
-      break;
-    case LGMAN:
-      ndbrequire(ssEnd.m_confcount == 1);
-      break;
-    default:
-      ndbrequire(false);
-      break;
-    }
-  }
-
-  
-  LcpCompleteRep* conf = (LcpCompleteRep*)signal->getDataPtrSend();
-  conf->nodeId = LcpFragRep::BROADCAST_REQ;
-  conf->blockNo = DBLQH;
-  conf->lcpId = ss.m_req.lcpId;
-  sendSignal(DBDIH_REF, GSN_LCP_COMPLETE_REP,
-             signal, LcpCompleteRep::SignalLength, JBB);
-
-  for (i = 0; i < ss.BlockCnt; i++) {
-    jam();
-    Uint32 ssIdEnd = ss.m_endLcp[i].m_ssId;
-    ssRelease<Ss_END_LCP_REQ>(ssIdEnd);
-  }
-  ssRelease<Ss_LCP_COMPLETE_ORD>(ssId);
-  ssRelease<Ss_LCP_FRAG_ORD>(ssId);
-  c_lcpRecord.m_idle = true;
-}
-
-// GSN_END_LCP_REQ [ sub-op ]
-
-void
-DblqhProxy::execEND_LCP_REQ(Signal* signal)
-{
-  ndbrequire(refToMain(signal->getSendersBlockRef()) == DBLQH);
-
-  const EndLcpReq* req = (const EndLcpReq*)signal->getDataPtr();
-  Uint32 rb = req->proxyBlockNo;
-  ndbrequire(rb == PGMAN || rb == TSMAN || rb == LGMAN);
-
-  Uint32 ssId = getSsId(req);
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
-
-  if (++ss.m_reqcount == 1) {
-    ss.m_backupId = req->backupId;
-    ss.m_proxyBlockNo = req->proxyBlockNo;
-  } else {
-    ndbrequire(ss.m_backupId == req->backupId);
-    ndbrequire(ss.m_proxyBlockNo == req->proxyBlockNo);
-  }
-
-  // reversed roles
-  recvCONF(signal, ss);
-}
-
-void
-DblqhProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId)
-{
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
-
-  const EndLcpReq* req = (const EndLcpReq*)signal->getDataPtr();
-  ss.m_req[ss.m_worker] = *req;
-
-  if (!lastReply(ss)) {
-    jam();
-    return;
-  }
-
+  if (c_lcpRecord.m_complete_outstanding == 0)
   {
-    const Uint32 rb = ss.m_proxyBlockNo;
-    EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
-    req->senderData = ssId;
-    req->senderRef = reference();
-    req->backupPtr = 0;
-    req->backupId = ss.m_backupId;
-    EXECUTE_DIRECT(rb, GSN_END_LCP_REQ,
-                   signal, EndLcpReq::SignalLength, 0);
+    jam();
+    completeLCP_2(signal);
+    return;
   }
 }
 
 void
 DblqhProxy::execEND_LCP_CONF(Signal* signal)
 {
-  const EndLcpConf* req = (const EndLcpConf*)signal->getDataPtr();
-  Uint32 ssId = getSsId(req);
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
-  ndbrequire(ss.m_confcount == 0);
-  ss.m_confcount++;
+  jamEntry();
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1 ||
+             c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2 ||
+             c_lcpRecord.m_state == LcpRecord::L_COMPLETING_3);
 
-  const Uint32 sb = refToMain(req->senderRef);
-  ndbrequire(sb == PGMAN || sb == LGMAN);
+  ndbrequire(c_lcpRecord.m_complete_outstanding);
+  c_lcpRecord.m_complete_outstanding--;
 
-  // reversed roles
-  sendREQ(signal, ss);
+  if (c_lcpRecord.m_complete_outstanding == 0)
+  {
+    jam();
+    if (c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1)
+    {
+      jam();
+      completeLCP_2(signal);
+      return;
+    }
+    else if (c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2)
+    {
+      jam();
+      completeLCP_3(signal);
+      return;
+    }
+    else
+    {
+      jam();
+      sendLCP_COMPLETE_REP(signal);
+      return;
+    }
+  }
 }
 
 void
-DblqhProxy::sendEND_LCP_CONF(Signal* signal, Uint32 ssId)
+DblqhProxy::completeLCP_2(Signal* signal)
 {
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
-  Ss_LCP_FRAG_ORD& ssLcp = ssFind<Ss_LCP_FRAG_ORD>(ss.m_ssIdLcp);
+  jamEntry();
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1);
+  c_lcpRecord.m_state = LcpRecord::L_COMPLETING_2;
 
-  // workers handling no fragments sent no REQ and get no CONF
-  if (!ssLcp.m_active.get(ss.m_worker)) {
+  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
+  req->senderData= 0;
+  req->senderRef= reference();
+  req->backupPtr= 0;
+  req->backupId= c_lcpRecord.m_lcpId;
+  c_lcpRecord.m_complete_outstanding++;
+
+  /**
+   * send to "extra" instance
+   *   that will checkpoint extent-pages
+   */
+  // NOTE: ugly to use MaxLqhWorkers directly
+  Uint32 instance = MaxLqhWorkers + 1;
+  sendSignal(numberToRef(PGMAN, instance, getOwnNodeId()),
+             GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, JBB);
+}
+
+
+void
+DblqhProxy::completeLCP_3(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2);
+  c_lcpRecord.m_state = LcpRecord::L_COMPLETING_3;
+
+  /**
+   * And finally also checkpoint UNDO LOG
+   *   and inform TSMAN that checkpoint is "complete"
+   */
+  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
+  req->senderData= 0;
+  req->senderRef= reference();
+  req->backupPtr= 0;
+  req->backupId= c_lcpRecord.m_lcpId;
+
+  // no reply from this
+  sendSignal(TSMAN_REF, GSN_END_LCP_REQ, signal,
+             EndLcpReq::SignalLength, JBB);
+
+  if (c_lcpRecord.m_lcp_frag_rep_cnt)
+  {
+    jam();
+    c_lcpRecord.m_complete_outstanding++;
+    sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal,
+               EndLcpReq::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    /**
+     * lgman does currently not like 0 fragments,
+     *   cause then it does not get a LCP_FRAG_ORD
+     *
+     *   this should change so that it gets this first (style)
+     */
+    sendLCP_COMPLETE_REP(signal);
+  }
+}
+
+void
+DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal)
+{
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_3);
+
+  LcpCompleteRep* conf = (LcpCompleteRep*)signal->getDataPtrSend();
+  conf->nodeId = LcpFragRep::BROADCAST_REQ;
+  conf->blockNo = DBLQH;
+  conf->lcpId = c_lcpRecord.m_lcpId;
+  sendSignal(DBDIH_REF, GSN_LCP_COMPLETE_REP,
+             signal, LcpCompleteRep::SignalLength, JBB);
+
+  c_lcpRecord.m_state = LcpRecord::L_IDLE;
+  checkSendEMPTY_LCP_CONF(signal);
+}
+
+void
+DblqhProxy::execEMPTY_LCP_REQ(Signal* signal)
+{
+  jam();
+
+  EmptyLcpReq * const req = (EmptyLcpReq*)&signal->theData[0];
+  Uint32 nodeId = refToNode(req->senderRef);
+  c_lcpRecord.m_empty_lcp_req.set(nodeId);
+  checkSendEMPTY_LCP_CONF(signal);
+}
+
+void
+DblqhProxy::checkSendEMPTY_LCP_CONF_impl(Signal* signal)
+{
+  ndbrequire(!c_lcpRecord.m_empty_lcp_req.isclear());
+  
+  EmptyLcpRep * rep = (EmptyLcpRep*)signal->getDataPtrSend();
+  EmptyLcpConf * conf = (EmptyLcpConf*)rep->conf;
+
+  switch(c_lcpRecord.m_state){
+  case LcpRecord::L_IDLE:
+    jam();
+    conf->idle = true;
+    break;
+  case LcpRecord::L_STARTING:
+    jam();
+    return;
+  case LcpRecord::L_RUNNING:{
+    jam();
+    if (getNoOfOutstanding(c_lcpRecord) == 0)
+    {
+      jam();
+      /**
+       * Given that we wait for all ongoing...
+       *   we can simply return last LCP_FRAG_ORD sent to us
+       */
+      conf->tableId = c_lcpRecord.m_last_lcp_frag_ord.tableId;
+      conf->fragmentId = c_lcpRecord.m_last_lcp_frag_ord.fragmentId;
+      conf->lcpId = c_lcpRecord.m_last_lcp_frag_ord.lcpId;
+      conf->lcpNo = c_lcpRecord.m_last_lcp_frag_ord.lcpNo;
+      break;
+    }
+    return;
+  }
+  case LcpRecord::L_COMPLETING_1:
+    jam();
+  case LcpRecord::L_COMPLETING_2:
+    jam();
+  case LcpRecord::L_COMPLETING_3:
     jam();
     return;
   }
-  
-  EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
-  conf->senderData = ss.m_req[ss.m_worker].senderData;
-  conf->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_END_LCP_CONF,
-             signal, EndLcpConf::SignalLength, JBB);
+
+  conf->senderNodeId = getOwnNodeId();
+
+  c_lcpRecord.m_empty_lcp_req.copyto(NdbNodeBitmask::Size, rep->receiverGroup);
+  sendSignal(DBDIH_REF, GSN_EMPTY_LCP_REP, signal,
+             EmptyLcpRep::SignalLength + EmptyLcpConf::SignalLength, JBB);
+
+  c_lcpRecord.m_empty_lcp_req.clear();
 }
 
 // GSN_GCP_SAVEREQ
@@ -1258,88 +1317,6 @@ DblqhProxy::sendLQH_TRANSCONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_LQH_TRANSREQ>(ssId);
-}
-
-// GSN_EMPTY_LCP_REQ
-
-void
-DblqhProxy::execEMPTY_LCP_REQ(Signal* signal)
-{
-  const EmptyLcpReq* req = (const EmptyLcpReq*)signal->getDataPtr();
-  Ss_EMPTY_LCP_REQ& ss = ssSeize<Ss_EMPTY_LCP_REQ>(1);
-  ss.m_req = *req;
-  ndbrequire(signal->getLength() == EmptyLcpReq::SignalLength);
-  sendREQ(signal, ss);
-}
-
-void
-DblqhProxy::sendEMPTY_LCP_REQ(Signal* signal, Uint32 ssId)
-{
-  Ss_EMPTY_LCP_REQ& ss = ssFind<Ss_EMPTY_LCP_REQ>(ssId);
-
-  EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtrSend();
-  *req = ss.m_req;
-
-  req->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_EMPTY_LCP_REQ,
-             signal, EmptyLcpReq::SignalLength, JBB);
-}
-
-void
-DblqhProxy::execEMPTY_LCP_CONF(Signal* signal)
-{
-  Ss_EMPTY_LCP_REQ& ss = ssFind<Ss_EMPTY_LCP_REQ>(1);
-  recvCONF(signal, ss);
-}
-
-void
-DblqhProxy::sendEMPTY_LCP_CONF(Signal* signal, Uint32 ssId)
-{
-  Ss_EMPTY_LCP_REQ& ss = ssFind<Ss_EMPTY_LCP_REQ>(ssId);
-  const EmptyLcpConf* conf = (const EmptyLcpConf*)signal->getDataPtr();
-
-  if (firstReply(ss)) {
-    jam();
-    ss.m_conf = *conf;
-  } else if (ss.m_conf.idle && conf->idle) {
-    jam();
-    ndbrequire(ss.m_conf.lcpId == conf->lcpId);
-  } else if (ss.m_conf.idle && !conf->idle) {
-    jam();
-    ndbrequire(ss.m_conf.lcpId == conf->lcpId);
-    ss.m_conf = *conf;
-  } else if (!ss.m_conf.idle && conf->idle) {
-    jam();
-    ndbrequire(ss.m_conf.lcpId == conf->lcpId);
-  } else if (!ss.m_conf.idle && !conf->idle) {
-    jam();
-    if (ss.m_conf.tableId < conf->tableId ||
-        (ss.m_conf.tableId == conf->tableId &&
-         ss.m_conf.fragmentId < conf->fragmentId)) {
-      jam();
-      ss.m_conf.tableId = conf->tableId;
-      ss.m_conf.fragmentId = conf->fragmentId;
-      ndbrequire(ss.m_conf.lcpNo == conf->lcpNo);
-      ndbrequire(ss.m_conf.lcpId == conf->lcpId);
-    }
-  } else {
-    ndbassert(false);
-  }
-
-  if (!lastReply(ss))
-    return;
-
-  if (ss.m_error == 0) {
-    jam();
-    EmptyLcpConf* conf = (EmptyLcpConf*)signal->getDataPtrSend();
-    *conf = ss.m_conf;
-    sendSignal(ss.m_req.senderRef, GSN_EMPTY_LCP_CONF,
-               signal, EmptyLcpConf::SignalLength, JBB);
-  } else {
-    ndbrequire(false);
-  }
-
-  ssRelease<Ss_EMPTY_LCP_REQ>(ssId);
 }
 
 // GSN_EXEC_SR_1 [fictional gsn ]
