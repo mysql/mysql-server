@@ -2653,7 +2653,8 @@ void do_exec(struct st_command *command)
       log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed", command->first_argument);
+      die("command \"%s\" failed\n\nOutput from before failure:\n%s\n",
+          command->first_argument, ds_res.str);
     }
 
     DBUG_PRINT("info",
