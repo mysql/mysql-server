@@ -1613,6 +1613,7 @@ static my_socket activate_tcp_port(uint port)
   uint  retry;
   DBUG_ENTER("activate_tcp_port");
   DBUG_PRINT("enter",("port: %u", port));
+  LINT_INIT(ret);
 
   ip_sock = socket(AF_INET, SOCK_STREAM, 0);
   if (ip_sock == INVALID_SOCKET)
@@ -1679,7 +1680,6 @@ static void network_init(void)
 #endif
   int	arg=1;
   DBUG_ENTER("network_init");
-  LINT_INIT(ret);
 
   if (thread_scheduler.init())
     unireg_abort(1);			/* purecov: inspected */
