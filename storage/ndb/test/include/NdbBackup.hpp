@@ -27,6 +27,7 @@ public:
     : NdbConfig(_own_id, _addr) {};
 
   int start(unsigned & _backup_id);
+  int start() { unsigned unused =0; return start(unused); }
   int restore(unsigned _backup_id);
 
   int NFMaster(NdbRestarter& _restarter);
