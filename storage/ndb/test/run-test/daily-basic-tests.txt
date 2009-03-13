@@ -780,11 +780,11 @@ max-time: 500
 cmd: testInterpreter
 args: T1 
 
-max-time: 150000
+max-time: 7200
 cmd: testOperations
 args:
 
-max-time: 15000
+max-time: 7200
 cmd: testTransactions
 args:
 
