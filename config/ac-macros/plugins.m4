@@ -477,10 +477,23 @@ dnl Although this is "pretty", it breaks libmysqld build
       # Even if we don't build a plugin, we bundle its source into the dist
       # file.  So its Makefile (and Makefiles for any subdirs) must be
       # generated for 'make dist' to work.
-      m4_syscmd(test -f "$6/configure")
+      m4_syscmd([test -f "]$6[/configure"])
       ifelse(m4_sysval, 0,
         [AC_CONFIG_SUBDIRS($6)],
-        [AC_CONFIG_FILES($6/Makefile)]
+        [
+          # autoconf doesn't provide an automatic way to configure DIST_SUBDIRS of
+          # a subdir; for our purposes, it's enough to just check for existing
+          # Makefile.am files and add them in here
+dnl
+dnl Warning, don't try to quote the m4_esyscmd() macro, it doesn't
+dnl work.  Quoting here is tricky.
+dnl
+dnl The $FIND or $SED variable can be set by the user when calling autoconf itself
+dnl to if they need to pass a specific path.  This is *NOT* used when calling
+dnl running configure!
+dnl
+          AC_CONFIG_FILES(m4_esyscmd([${FIND-find} "]$6[" -name Makefile.am -print | ${SED-sed} 's,\.am$,,']))
+        ]
       )
 
       ifelse(
