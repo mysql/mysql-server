@@ -55,6 +55,7 @@ enum close_when_done {
     KEEP_WHEN_DONE
 };
 enum create_type {
+    STEAL_ARRAY,
     BATCH_INSERT,
     INSERT_AT,
     INSERT_AT_ALMOST_RANDOM,
@@ -233,6 +234,13 @@ test_create_from_sorted_array (enum create_type create_choice, enum close_when_d
     if (create_choice == BATCH_INSERT) {
         r = toku_omt_create_from_sorted_array(&omt, values, length);
         CKERR(r);
+    }
+    else if (create_choice == STEAL_ARRAY) {
+        TESTVALUE* MALLOC_N(length, values_copy);
+        memcpy(values_copy, values, length*sizeof(*values));
+        r = toku_omt_create_steal_sorted_array(&omt, &values_copy, length, length);
+        CKERR(r);
+        assert(values_copy==NULL);
     }
     else if (create_choice == INSERT_AT) {
         test_create_insert_at_sequential(KEEP_WHEN_DONE);
@@ -974,6 +982,7 @@ test_main(int argc, const char *argv[]) {
     test_create(      CLOSE_WHEN_DONE);
     test_create_size( CLOSE_WHEN_DONE);
     runtests_create_choice(BATCH_INSERT);
+    runtests_create_choice(STEAL_ARRAY);
     runtests_create_choice(INSERT_AT);
     runtests_create_choice(INSERT_AT_ALMOST_RANDOM);
     cleanup_globals();

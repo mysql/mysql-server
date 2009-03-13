@@ -807,9 +807,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
             B   ->u.l.n_bytes_in_buffer += diff_size;
         }
         if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+break_at, n_leafentries-break_at))) return r;
-        if ((r = toku_omt_create_from_sorted_array(&node->u.l.buffer, leafentries,          break_at))) return r;
-
-        toku_free(leafentries);
+        if ((r = toku_omt_create_steal_sorted_array(&node->u.l.buffer, &leafentries,          break_at, n_leafentries))) return r;
+        assert(leafentries==NULL);
 
         toku_verify_all_in_mempool(node);
         toku_verify_all_in_mempool(B);

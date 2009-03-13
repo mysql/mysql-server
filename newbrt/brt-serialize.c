@@ -573,12 +573,13 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	u_int32_t end_of_data = rc.ndone;
 	result->u.l.n_bytes_in_buffer += end_of_data-start_of_data + n_in_buf*OMT_ITEM_OVERHEAD;
 	actual_sum *= result->rand4fingerprint;
-	r = toku_omt_create_from_sorted_array(&result->u.l.buffer, array, n_in_buf);
-	toku_free(array);
+	r = toku_omt_create_steal_sorted_array(&result->u.l.buffer, &array, n_in_buf, n_in_buf);
 	if (r!=0) {
+            toku_free(array);
 	    if (0) { died_21: toku_omt_destroy(&result->u.l.buffer); }
 	    return toku_db_badformat();
 	}
+        assert(array==NULL);
         r = toku_leaflock_borrow(&result->u.l.leaflock);
         if (r!=0) goto died_21;
 
