@@ -23,13 +23,13 @@ SELECT @@global.rpl_recovery_rank;
 123456789
 SET @@global.rpl_recovery_rank = 2147483648*2;
 Warnings:
-Warning	1292	Truncated incorrect rpl-recovery-rank value: '4294967296'
+Warning	1292	Truncated incorrect rpl_recovery_rank value: '4294967296'
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 4294967295
 SET @@global.rpl_recovery_rank = 2147483648*1024;
 Warnings:
-Warning	1292	Truncated incorrect rpl-recovery-rank value: '2199023255552'
+Warning	1292	Truncated incorrect rpl_recovery_rank value: '2199023255552'
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 4294967295
@@ -38,7 +38,7 @@ SELECT @@global.rpl_recovery_rank;
 4294967295
 SET @@global.rpl_recovery_rank = 2147483648*2147483648;
 Warnings:
-Warning	1292	Truncated incorrect rpl-recovery-rank value: '4611686018427387904'
+Warning	1292	Truncated incorrect rpl_recovery_rank value: '4611686018427387904'
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 4294967295

@@ -3703,7 +3703,10 @@ static int init_server_components()
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
+      {
         freopen(log_error_file, "a+", stderr);
+        setbuf(stderr, NULL);
+      }
     }
   }
 
@@ -4331,6 +4334,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     freopen(log_error_file,"a+",stdout);
     freopen(log_error_file,"a+",stderr);
+    setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
 #endif
@@ -6245,7 +6249,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
-   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, UINT_MAX32,
    0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated;you can set variables directly with --variable-name=value.",
