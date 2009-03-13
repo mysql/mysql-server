@@ -330,41 +330,11 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST([NDB_SIZEOF_LONG])
   AC_SUBST([NDB_SIZEOF_LONG_LONG])
 
-  AC_CONFIG_FILES(storage/ndb/include/Makefile dnl
-   storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
-   storage/ndb/docs/Makefile dnl
-   storage/ndb/tools/Makefile dnl
-   storage/ndb/src/common/debugger/Makefile dnl
-   storage/ndb/src/common/debugger/signaldata/Makefile dnl
-   storage/ndb/src/common/portlib/Makefile dnl
-   storage/ndb/src/common/util/Makefile dnl
-   storage/ndb/src/common/logger/Makefile dnl
-   storage/ndb/src/common/transporter/Makefile dnl
-   storage/ndb/src/common/mgmcommon/Makefile dnl
-   storage/ndb/src/kernel/Makefile dnl
-   storage/ndb/src/kernel/error/Makefile dnl
-   storage/ndb/src/kernel/blocks/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
-   storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
-   storage/ndb/src/kernel/blocks/backup/Makefile dnl
-   storage/ndb/src/kernel/vm/Makefile dnl
-   storage/ndb/src/mgmapi/Makefile dnl
-   storage/ndb/src/ndbapi/Makefile dnl
-   storage/ndb/src/mgmsrv/Makefile dnl
-   storage/ndb/src/mgmclient/Makefile dnl
-   storage/ndb/src/cw/Makefile dnl
-   storage/ndb/src/cw/cpcd/Makefile dnl
-   storage/ndb/test/Makefile dnl
-   storage/ndb/test/src/Makefile dnl
-   storage/ndb/test/ndbapi/Makefile dnl
-   storage/ndb/test/ndbapi/bank/Makefile dnl
-   storage/ndb/test/tools/Makefile dnl
-   storage/ndb/test/run-test/Makefile dnl
-   storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
-   storage/ndb/include/ndb_types.h dnl
-  )
+  AC_CONFIG_FILES([
+   storage/ndb/include/ndb_version.h
+   storage/ndb/include/ndb_global.h
+   storage/ndb/include/ndb_types.h
+  ])
 ])
 
 AC_SUBST(TEST_NDBCLUSTER)                                                                                
