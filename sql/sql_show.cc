@@ -1338,7 +1338,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
-  field_list.push_back(new Item_return_int("Time",7, FIELD_TYPE_LONG));
+  field_list.push_back(field= new Item_return_int("Time",7, FIELD_TYPE_LONG));
+  field->unsigned_flag= 0;
   field_list.push_back(field=new Item_empty_string("State",30));
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
@@ -1439,7 +1440,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     else
       protocol->store(command_name[thd_info->command], system_charset_info);
     if (thd_info->start_time)
-      protocol->store((uint32) (now - thd_info->start_time));
+      protocol->store_long ((longlong) (now - thd_info->start_time));
     else
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);
