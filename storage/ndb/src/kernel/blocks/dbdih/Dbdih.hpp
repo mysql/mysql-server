@@ -645,6 +645,7 @@ private:
   void execNDB_TAMPER(Signal *);
   void execDEBUG_SIG(Signal *);
   void execEMPTY_LCP_CONF(Signal *);
+  void execEMPTY_LCP_REP(Signal*);
   void execMASTER_GCPREF(Signal *);
   void execMASTER_GCPREQ(Signal *);
   void execMASTER_GCPCONF(Signal *);

@@ -71,4 +71,17 @@ struct EmptyLcpConf {
   Uint32 idle;
 };
 
+/**
+ * This is a envelope signal
+ *   sent from LQH to local DIH, that will forward it as a
+ *   EMPTY_LCP_CONF to avoid race condition with LCP_FRAG_REP
+ *   which is now routed via local DIH
+ */
+struct EmptyLcpRep
+{
+  STATIC_CONST( SignalLength = NdbNodeBitmask::Size );
+  Uint32 receiverGroup[NdbNodeBitmask::Size];
+  Uint32 conf[EmptyLcpConf::SignalLength];
+};
+
 #endif
