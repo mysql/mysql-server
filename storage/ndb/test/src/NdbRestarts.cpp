@@ -431,50 +431,80 @@ int twoNodeFailure(NdbRestarter& _restarter,
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
-  int nodeId = _restarter.getDbNodeId(randomId);  
-  g_info << _restart->m_name << ": node = "<< nodeId << endl;
+  int n[2];
+  n[0] = _restarter.getDbNodeId(randomId);  
+  n[1] = _restarter.getRandomNodeOtherNodeGroup(n[0], rand());
+  g_info << _restart->m_name << ": node = "<< n[0] << endl;
 
-  CHECK(_restarter.insertErrorInNode(nodeId, 9999) == 0,
-	"Could not restart node "<< nodeId);
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  CHECK(_restarter.dumpStateOneNode(n[0], val2, 2) == 0,
+        "Failed to dump");
+  CHECK(_restarter.dumpStateOneNode(n[1], val2, 2) == 0,
+        "Failed to dump");
+  
+  CHECK(_restarter.insertErrorInNode(n[0], 9999) == 0,
+	"Could not restart node "<< n[0]);
 
-    // Create random value, max 10 secs
-  int max = 10;
-  int seconds = (myRandom48(max)) + 1;   
-  g_info << "Waiting for " << seconds << "(" << max 
-	 << ") secs " << endl;
-  NdbSleep_SecSleep(seconds);
+    // Create random value, max 3 secs
+  int max = 3000;
+  int ms = (myRandom48(max)) + 1;   
+  g_info << "Waiting for " << ms << "(" << max 
+	 << ") ms " << endl;
+  NdbSleep_MilliSleep(ms);
 
-  nodeId = _restarter.getRandomNodeOtherNodeGroup(nodeId, rand());
-  g_info << _restart->m_name << ": node = "<< nodeId << endl;
+  g_info << _restart->m_name << ": node = "<< n[1] << endl;
+  CHECK(_restarter.insertErrorInNode(n[1], 9999) == 0,
+	"Could not restart node "<< n[1]);
 
-  CHECK(_restarter.insertErrorInNode(nodeId, 9999) == 0,
-	"Could not restart node "<< nodeId);
+  CHECK(_restarter.waitNodesNoStart(n, 2) == 0,
+        "Failed to wait nostart");
 
+  _restarter.startNodes(n, 2);
+  
   return NDBT_OK;
 }
 
 int twoMasterNodeFailure(NdbRestarter& _restarter, 
 			 const NdbRestarts::NdbRestart* _restart){
 
-  int nodeId = _restarter.getDbNodeId(0);  
-  g_info << _restart->m_name << ": node = "<< nodeId << endl;
+  int n[2];
+  n[0] = _restarter.getMasterNodeId();  
+  n[1] = n[0];
+  do {
+    n[1] = _restarter.getNextMasterNodeId(n[1]);
+  } while(_restarter.getNodeGroup(n[0]) == _restarter.getNodeGroup(n[1]));
+  
+  g_info << _restart->m_name << ": ";
+  g_info << "node0 = "<< n[0] << "(" << _restarter.getNodeGroup(n[0]) << ") ";
+  g_info << "node1 = "<< n[1] << "(" << _restarter.getNodeGroup(n[1]) << ") ";
+  g_info << endl;
 
-  CHECK(_restarter.insertErrorInNode(nodeId, 39999) == 0,
-	"Could not restart node "<< nodeId);
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  CHECK(_restarter.dumpStateOneNode(n[0], val2, 2) == 0,
+        "Failed to dump");
+  CHECK(_restarter.dumpStateOneNode(n[1], val2, 2) == 0,
+        "Failed to dump");
+  
+  CHECK(_restarter.insertErrorInNode(n[0], 9999) == 0,
+	"Could not restart node "<< n[0]);
+  
+  // Create random value, max 3 secs
+  int max = 3000;
+  int ms = (myRandom48(max)) + 1;   
+  g_info << "Waiting for " << ms << "(" << max 
+	 << ") ms " << endl;
+  NdbSleep_MilliSleep(ms);
+  
+  g_info << _restart->m_name << ": node = "<< n[1] << endl;
+  
+  CHECK(_restarter.insertErrorInNode(n[1], 9999) == 0,
+	"Could not restart node "<< n[1]);
+  
+  CHECK(_restarter.waitNodesNoStart(n, 2) == 0,
+        "Failed to wait nostart");
 
-  // Create random value, max 10 secs
-  int max = 10;
-  int seconds = (myRandom48(max)) + 1;   
-  g_info << "Waiting for " << seconds << "(" << max 
-	 << ") secs " << endl;
-  NdbSleep_SecSleep(seconds);
-
-  nodeId = _restarter.getDbNodeId(0);  
-  g_info << _restart->m_name << ": node = "<< nodeId << endl;
-
-  CHECK(_restarter.insertErrorInNode(nodeId, 39999) == 0,
-	"Could not restart node "<< nodeId);
-
+  _restarter.startNodes(n, 2);
+  
   return NDBT_OK;
 }
 
