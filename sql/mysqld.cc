@@ -2925,18 +2925,16 @@ pthread_handler_t handle_shutdown(void *arg)
 }
 #endif
 
-#if !defined(EMBEDDED_LIBRARY)
 const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 
-#if defined(__WIN__)
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
-#endif /*!EMBEDDED_LIBRARY*/
 
 
 /**
