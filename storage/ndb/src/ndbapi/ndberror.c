@@ -433,7 +433,8 @@ ErrorBundle ErrorCodes[] = {
   { 1513, DMEC, IE, "Filegroup not online" },
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
-  
+  { 1516, DMEC, SE, "File to small" },
+
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
   { 776,  DMEC, AE, "Index created on temporary table must itself be temporary" },
