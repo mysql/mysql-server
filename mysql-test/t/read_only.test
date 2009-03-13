@@ -3,9 +3,11 @@
 
 # should work with embedded server after mysqltest is fixed
 --source include/not_embedded.inc
---source include/count_sessions.inc
 
 set @start_read_only= @@global.read_only;
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
@@ -110,7 +112,7 @@ drop table t1;
 insert into t1 values(1);
 
 #
-# BUG#11733: COMMITs should not happen if read-only is set
+# Bug#11733 COMMITs should not happen if read-only is set
 #
 
 # LOCK TABLE ... WRITE / READ_ONLY
@@ -238,8 +240,9 @@ set global read_only=1;
 connection default;
 select @@global.read_only;
 unlock tables;
+disconnect root2;
 
-# BUG #22077 "DROP TEMPORARY TABLE fails with wrong error if read_only is set"
+# Bug#22077 DROP TEMPORARY TABLE fails with wrong error if read_only is set
 #
 # check if DROP TEMPORARY on a non-existing temporary table returns the right
 # error
@@ -256,10 +259,12 @@ drop temporary table if exists ttt;
 --echo connection default;
 connection default;
 set global read_only=0;
+disconnect con1;
 drop table t1,t2;
 drop user test@localhost;
+
 --echo #
---echo # Bug #27440 read_only allows create and drop database
+--echo # Bug#27440 read_only allows create and drop database
 --echo #
 set global read_only= 1;
 --disable_warnings
@@ -297,7 +302,7 @@ delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 drop database mysqltest_db1;
 set global read_only= @start_read_only;
-disconnect con1;
-disconnect root2;
+
+# Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

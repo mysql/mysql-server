@@ -20,6 +20,7 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		
 SUBDIRS = @mysql_se_dirs@
+DIST_SUBDIRS = @mysql_se_distdirs@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
