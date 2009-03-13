@@ -164,7 +164,8 @@ struct CreateFileImplRef {
     OutOfMemory = 1511,
     FileReadError = 1512,
     FilegroupNotOnline = 1513,
-    FileSizeTooLarge = 1515
+    FileSizeTooLarge = 1515,
+    FileSizeTooSmall = 1516
   };
   
   Uint32 senderData;
