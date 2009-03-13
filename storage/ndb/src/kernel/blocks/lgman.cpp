@@ -621,19 +621,20 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       ndbrequire(false);
     }
     
-    if(ERROR_INSERTED(15000) ||
-       (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
+    if (ERROR_INSERTED(15000) ||
+        (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
     {
       jam();
-      releaseSections(handle);
-
-      CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
-      ref->senderData = senderData;
-      ref->senderRef = reference();
-      ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
-      sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
-                 CreateFileImplRef::SignalLength, JBB);
-      return;
+      err = CreateFileImplRef::FileSizeTooLarge;
+      break;
+    }
+    
+    Uint64 sz = (Uint64(req->file_size_hi) << 32) + req->file_size_lo;
+    if (sz < 1024*1024)
+    {
+      jam();
+      err = CreateFileImplRef::FileSizeTooSmall;
+      break;
     }
 
     new (file_ptr.p) Undofile(req, ptr.i);
@@ -644,7 +645,7 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
     open_file(signal, file_ptr, req->requestInfo, &handle);
     return;
   } while(0);
-  
+
   releaseSections(handle);
   CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
   ref->senderData = senderData;
