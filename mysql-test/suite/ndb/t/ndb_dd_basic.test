@@ -41,6 +41,14 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M;
 
+# bug#29574
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 5K
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
 ##################################
 # Basic test of disk tables for NDB
 # Start by creating a logfile group
