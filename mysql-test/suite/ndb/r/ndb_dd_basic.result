@@ -22,6 +22,12 @@ USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M;
 Warnings:
 Error	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 5K
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+ERROR HY000: Failed to create UNDOFILE
 set storage_engine=ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'

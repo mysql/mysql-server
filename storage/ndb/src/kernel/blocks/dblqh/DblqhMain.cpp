@@ -12029,6 +12029,8 @@ void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
   CRASH_INSERTION(5008);
   EmptyLcpReq * const emptyLcpOrd = (EmptyLcpReq*)&signal->theData[0];
 
+  ndbrequire(!isNdbMtLqh()); // Handled by DblqhProxy
+
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   
@@ -12201,20 +12203,27 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       lcpPtr.p->firstFragmentFlag= false;
 
-      if (!isNdbMtLqh()) {
+      if (!isNdbMtLqh())
+      {
+        jam();
         *ord = lcpPtr.p->currentFragment.lcpFragOrd;
         EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
         jamEntry();
-      }
       
-      /**
-       * First fragment mean that last LCP is complete :-)
-       */
-      if (!isNdbMtLqh()) {
+        /**
+         * First fragment mean that last LCP is complete :-)
+         */
+        jam();
         *ord = lcpPtr.p->currentFragment.lcpFragOrd;
         EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
                        signal, signal->length(), 0);
         jamEntry();
+      }
+      else
+      {
+        /**
+         * Handle by LqhProxy
+         */
       }
     }
     
@@ -12261,20 +12270,27 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       lcpPtr.p->firstFragmentFlag= false;
 
       // proxy is used in MT LQH to handle also the extra pgman worker
-      if (!isNdbMtLqh()) {
+      if (!isNdbMtLqh())
+      {
+        jam();
         *ord = lcpPtr.p->currentFragment.lcpFragOrd;
         EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
         jamEntry();
-      }
       
-      /**
-       * First fragment mean that last LCP is complete :-)
-       */
-      if (!isNdbMtLqh()) {
+        /**
+         * First fragment mean that last LCP is complete :-)
+         */
+        jam();
         *ord = lcpPtr.p->currentFragment.lcpFragOrd;
         EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
                        signal, signal->length(), 0);
         jamEntry();
+      }
+      else
+      {
+        /**
+         * Handled by proxy
+         */
       }
     }
     
@@ -12508,8 +12524,9 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
 
 void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
 {
-  
-  EmptyLcpConf * const rep = (EmptyLcpConf*)&signal->theData[0];
+  EmptyLcpRep * sig = (EmptyLcpRep*)signal->getDataPtrSend();
+  EmptyLcpConf * rep = (EmptyLcpConf*)sig->conf;
+
   /* ----------------------------------------------------------------------
    *       We have been requested to report when there are no more local
    *       waiting to be started or ongoing. In this signal we also report
@@ -12531,19 +12548,10 @@ void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
     rep->lcpNo = ~0;
     rep->lcpId = c_lcpId;
   }
-  
-  for (Uint32 i = 0; i < cnoOfNodes; i++) {
-    jam();
-    Uint32 nodeId = cnodeData[i];
-    if (lcpPtr.p->m_EMPTY_LCP_REQ.get(nodeId)) {
-      jam();
-      
-      BlockReference blockref =
-        !isNdbMtLqh() ? calcDihBlockRef(nodeId) : calcLqhBlockRef(nodeId);
-      sendSignal(blockref, GSN_EMPTY_LCP_CONF, signal, 
-		 EmptyLcpConf::SignalLength, JBB);
-    }//if
-  }//for
+
+  lcpPtr.p->m_EMPTY_LCP_REQ.copyto(NdbNodeBitmask::Size, sig->receiverGroup);
+  sendSignal(DBDIH_REF, GSN_EMPTY_LCP_REP, signal,
+             EmptyLcpRep::SignalLength + EmptyLcpConf::SignalLength, JBB);
 
   lcpPtr.p->reportEmpty = false;
   lcpPtr.p->m_EMPTY_LCP_REQ.clear();
@@ -12557,6 +12565,10 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 {
   clcpCompletedState = LCP_CLOSE_STARTED;
 
+  lcpPtr.i = 0;
+  ptrAss(lcpPtr, lcpRecord);
+  lcpPtr.p->m_outstanding = 0;
+
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->senderData= lcpPtr.i;
   req->senderRef= reference();
@@ -12564,43 +12576,31 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
   req->backupId= lcpId;
 
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+
+  lcpPtr.p->m_outstanding++;
   sendSignal(backupRef, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 
-  if (!isNdbMtLqh()) {
+  if (!isNdbMtLqh())
+  {
+    jam();
+    lcpPtr.p->m_outstanding++;
     sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
                EndLcpReq::SignalLength, JBB);
-  } else {
-    jam();
-    req->proxyBlockNo = PGMAN;
-    sendSignal(DBLQH_REF, GSN_END_LCP_REQ, signal, 
-               EndLcpReq::SignalLength + 1, JBB);
-  }
 
-  if (!isNdbMtLqh()) {
+    lcpPtr.p->m_outstanding++;
     sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
                EndLcpReq::SignalLength, JBB);
-  } else {
-    jam();
-    req->proxyBlockNo = LGMAN;
-    sendSignal(DBLQH_REF, GSN_END_LCP_REQ,
-               signal, EndLcpReq::SignalLength + 1, JBB);
-  }
 
-  if (!isNdbMtLqh()) {
     EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ,
                    signal, EndLcpReq::SignalLength, 0);
-    jamEntry();
-  } else {
-    jam();
-    req->proxyBlockNo = TSMAN;
-    sendSignal(DBLQH_REF, GSN_END_LCP_REQ,
-               signal, EndLcpReq::SignalLength + 1, JBB);
   }
-
-  lcpPtr.i = 0;
-  ptrAss(lcpPtr, lcpRecord);
-  lcpPtr.p->m_outstanding = 3;
+  else
+  {
+    /**
+     * This is all handled by LqhProxy
+     */
+  }
   return;
 }//Dblqh::completeLcpRoundLab()
 
@@ -15223,10 +15223,15 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
     
-    if (!isNdbMtLqh()) {
+    if (!isNdbMtLqh())
+    {
+      jam();
       signal->theData[0] = c_lcpId;
       sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    } else {
+    }
+    else
+    {
+      jam();
       signal->theData[0] = c_lcpId;
       signal->theData[1] = LGMAN;
       sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
@@ -15298,10 +15303,15 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
     
-    if (!isNdbMtLqh()) {
+    if (!isNdbMtLqh())
+    {
+      jam();
       signal->theData[0] = c_lcpId;
       sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    } else {
+    }
+    else
+    {
+      jam();
       signal->theData[0] = c_lcpId;
       signal->theData[1] = LGMAN;
       sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
@@ -15336,10 +15346,15 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   case LGMAN:
     jam();
     lcpPtr.p->m_outstanding++;
-    if (!isNdbMtLqh()) {
+    if (!isNdbMtLqh())
+    {
+      jam();
       signal->theData[0] = c_lcpId;
       sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    } else {
+    }
+    else
+    {
+      jam();
       signal->theData[0] = c_lcpId;
       signal->theData[1] = TSMAN;
       sendSignal(DBLQH_REF, GSN_START_RECREQ, signal, 2, JBB);
@@ -15399,10 +15414,15 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
      *    ANY FRAGMENTS PARTICIPATE IN THIS PHASE.
      * --------------------------------------------------------------------- */
     signal->theData[0] = cownNodeid;
-    if (!isNdbMtLqh()) {
+    if (!isNdbMtLqh())
+    {
+      jam();
       NodeReceiverGroup rg(DBLQH, m_sr_nodes);
       sendSignal(rg, GSN_EXEC_SRREQ, signal, 1, JBB);
-    } else {
+    }
+    else
+    {
+      jam();
       const Uint32 sz = NdbNodeBitmask::Size;
       m_sr_nodes.copyto(sz, &signal->theData[1]);
       sendSignal(DBLQH_REF, GSN_EXEC_SRREQ, signal, 1 + sz, JBB);
@@ -16900,10 +16920,15 @@ void Dblqh::srPhase3Comp(Signal* signal)
   jamEntry();
 
   signal->theData[0] = cownNodeid;
-  if (!isNdbMtLqh()) {
+  if (!isNdbMtLqh())
+  {
+    jam();
     NodeReceiverGroup rg(DBLQH, m_sr_nodes);
     sendSignal(rg, GSN_EXEC_SRCONF, signal, 1, JBB);
-  } else {
+  }
+  else
+  {
+    jam();
     const Uint32 sz = NdbNodeBitmask::Size;
     m_sr_nodes.copyto(sz, &signal->theData[1]);
     sendSignal(DBLQH_REF, GSN_EXEC_SRCONF, signal, 1 + sz, JBB);

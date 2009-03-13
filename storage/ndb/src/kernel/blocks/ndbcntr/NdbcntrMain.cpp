@@ -3615,11 +3615,12 @@ Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
   DropNodegroupImplReq reqCopy = *(DropNodegroupImplReq*)signal->getDataPtr();
   DropNodegroupImplReq *req = &reqCopy;
 
-  if (req->requestType == DropNodegroupImplReq::RT_COMMIT)
+  if (req->requestType == DropNodegroupImplReq::RT_COMPLETE)
   {
     jam();
     Uint32 save = c_nodeGroup;
     getNodeGroup(signal);
+    
     if (save != c_nodeGroup)
     {
       jam();
