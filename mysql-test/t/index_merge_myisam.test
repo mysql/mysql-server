@@ -60,6 +60,25 @@ set optimizer_switch='index_merge';
 --error ER_WRONG_VALUE_FOR_VAR
 set optimizer_switch='on';
 
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge=on,index_merge=off';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge_union=on,index_merge_union=default';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='default,index_merge=on,index_merge=off,default';
+
+set optimizer_switch=default;
+set optimizer_switch='index_merge=off,index_merge_union=off,default';
+select @@optimizer_switch;
+set optimizer_switch=default;
+
+# Check setting defaults for global vars
+select @@global.optimizer_switch;
+set @@global.optimizer_switch=default;
+select @@global.optimizer_switch;
+
 --echo #
 --echo # Check index_merge's @@optimizer_switch flags
 --echo #

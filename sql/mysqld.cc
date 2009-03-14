@@ -383,7 +383,10 @@ static ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static const char *sql_mode_str= "OFF";
-static const char *optimizer_switch_str="";
+/* Text representation for OPTIMIZER_SWITCH_DEFAULT */
+static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
+                                        "index_merge_sort_union=on,"
+                                        "index_merge_intersection=on";
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
@@ -6747,8 +6750,11 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
-   "optimizer_switch=option[,option[,option...]] where option can be one of: no_index_merge, no_index_merge_union, no_index_merge_sort_union, no_index_merge_intersection",
-   (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 0,
+   "optimizer_switch=option=val[,option=val...], where option={index_merge, "
+   "index_merge_union, index_merge_sort_union, index_merge_intersection} and "
+   "val={on, off, default}.",
+   (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 
+   /*OPTIMIZER_SWITCH_DEFAULT*/0,
    0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
@@ -8267,7 +8273,10 @@ mysqld_get_one_option(int optid,
                                  &error, &error_len, &not_used);
      if (error)
      {
-       fprintf(stderr, "Invalid optimizer_switch flag: %s\n", error);
+       char buf[512];
+       char *cbuf= buf;
+       cbuf += my_snprintf(buf, 512, "Error in parsing optimizer_switch setting near %*s\n", error_len, error);
+       sql_perror(buf);
        return 1;
      }
     break;
