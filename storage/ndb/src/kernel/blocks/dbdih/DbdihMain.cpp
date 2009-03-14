@@ -8080,7 +8080,7 @@ Dbdih::wait_old_scan(Signal* signal)
   if (now > start + wait)
   {
     infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
-              now - start,
+              Uint32(now - start),
               tabPtr.p->m_scan_count[1],
               tabPtr.i);
 
