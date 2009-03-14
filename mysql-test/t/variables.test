@@ -1155,6 +1155,11 @@ SELECT @@global.expire_logs_days;
 # cleanup
 SET GLOBAL expire_logs_days = @old_eld;
 
+# show that warning uses underscore (sysvar-name), not hyphens (option-name)
+SET GLOBAL auto_increment_offset=-1;
+SET GLOBAL auto_increment_offset=0;
+
+
 
 #
 # Bug#41030 Wrong meta data (incorrect fieldlen)
