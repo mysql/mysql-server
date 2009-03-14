@@ -4003,6 +4003,14 @@ err:
 }
 
 
+void sys_var_thd_optimizer_switch::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= OPTIMIZER_SWITCH_DEFAULT;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
 /****************************************************************************
   Named list handling
 ****************************************************************************/

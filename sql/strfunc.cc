@@ -106,7 +106,24 @@ static TYPELIB on_off_default_typelib= {array_elements(on_off_default_names)-1,
 
 
 /*
-  Given a string, find the first field_separator char, minding the charset
+  Parse a TYPELIB name from the buffer
+
+  SYNOPSIS
+    parse_name()
+      lib          Set of names to scan for.
+      strpos INOUT Start of the buffer (updated to point to the next
+                   character after the name)
+      end          End of the buffer
+      cs           Charset used in the buffer
+
+  DESCRIPTION
+    Parse a TYPELIB name from the buffer. The buffer is assumed to contain
+    one of the names specified in the TYPELIB, followed by comma, '=', or
+    end of the buffer.
+
+  RETURN
+    0	No matching name
+    >0  Offset+1 in typelib for matched name
 */
 
 static uint parse_name(TYPELIB *lib, const char **strpos, const char *end, 
@@ -133,7 +150,7 @@ static uint parse_name(TYPELIB *lib, const char **strpos, const char *end,
     for (; pos != end && *pos != '=' && *pos !=',' ; pos++);
 
   uint var_len= (uint) (pos - start);
-  /* Determine which flag it is*/
+  /* Determine which flag it is */
   uint find= cs ? find_type2(lib, start, var_len, cs) :
                   find_type(lib, start, var_len, (bool) 0);
   *strpos= pos;
@@ -164,7 +181,7 @@ static my_wc_t get_next_char(const char **pos, const char *end, CHARSET_INFO *cs
 
 
 /*
-  Parse a string representation of set of flags
+  Parse and apply a set of flag assingments
 
   SYNOPSIS
     find_set_from_flags()
@@ -173,11 +190,12 @@ static my_wc_t get_next_char(const char **pos, const char *end, CHARSET_INFO *cs
       cur_set           Current set of flags (start from this state)
       default_set       Default set of flags (use this for assign-default
                         keyword and flag=default assignments)
-      str	        String representation (see below)
-      length            Length of the above
-      cs                Charset used for the string
-      err_pos	   OUT  If error, set to point to start of wrong set string
-      err_len	   OUT  If error, set to the length of wrong set string
+      str               String to be parsed
+      length            Length of the string
+      cs                String charset
+      err_pos      OUT  If error, set to point to start of wrong set string
+                        NULL on success
+      err_len      OUT  If error, set to the length of wrong set string
       set_warning  OUT  TRUE <=> Some string in set couldn't be used
 
   DESCRIPTION
@@ -186,13 +204,17 @@ static my_wc_t get_next_char(const char **pos, const char *end, CHARSET_INFO *cs
       param_name1=value1,param_name2=value2,... 
     
     where the names are specified in the TYPELIB, and each value can be
-    either 'on','off', or 'default'. Besides param=val assignments, we
-    support "default" keyword (keyword #default_name in the typelib) which
-    means assign everything the default.
+    either 'on','off', or 'default'. Setting the same name twice is not 
+    allowed.
+    
+    Besides param=val assignments, we support the "default" keyword (keyword 
+    #default_name in the typelib). It can be used one time, if specified it 
+    causes us to build the new set over the default_set rather than cur_set
+    value.
     
   RETURN
-    FALSE Ok
-    TRUE  Error
+    Parsed set value if (*errpos == NULL)
+    Otherwise undefined
 */
 
 ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
@@ -202,71 +224,69 @@ ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
 {
   CHARSET_INFO *strip= cs ? cs : &my_charset_latin1;
   const char *end= str + strip->cset->lengthsp(strip, str, length);
-  ulonglong flags= cur_set;
+  ulonglong flags_to_set= 0, flags_to_clear= 0;
+  bool set_defaults= 0;
   *err_pos= 0;                  // No error yet
   if (str != end)
   {
     const char *start= str;    
     for (;;)
     {
-      my_wc_t chr;
       const char *pos= start;
-      uint flag, value;
+      uint flag_no, value;
 
-      if (!(flag= parse_name(lib, &pos, end, cs)))
-      {
-        *err_pos= (char*) start;
-        *err_len= pos - start;
-        *set_warning= 1;
-        break;
-      }
+      if (!(flag_no= parse_name(lib, &pos, end, cs)))
+        goto err;
 
-      if (flag == default_name)
+      if (flag_no == default_name)
       {
-        flags= default_set;
+        /* Using 'default' twice isn't allowed. */
+        if (set_defaults)
+          goto err;
+        set_defaults= TRUE;
       }
       else
       {
-        if ((chr= get_next_char(&pos, end, cs)) != '=')
+        ulonglong bit=  ((longlong) 1 << (flag_no - 1));
+        /* parse the '=on|off|default' */
+        if ((flags_to_clear | flags_to_set) & bit ||
+            get_next_char(&pos, end, cs) != '=' ||
+            !(value= parse_name(&on_off_default_typelib, &pos, end, cs)))
         {
-          *err_pos= (char*)start;
-          *err_len= pos - start;
-          *set_warning= 1;
-          break;
-        }
-
-        if (!(value= parse_name(&on_off_default_typelib, &pos, end, cs)))
-        {
-          *err_pos= (char*) start;
-          *err_len= pos - start;
-          *set_warning= 1;
-          break;
+          goto err;
         }
         
-        ulonglong bit=  ((longlong) 1 << (flag - 1));
-        if (value == 1) // this is 'xxx=off'
-          flags &= ~bit;
-        else if (value == 2) // this is 'xxx=on' 
-          flags |= bit;
-        else // this is 'xxx=default'
+        if (value == 1) // this is '=off'
+          flags_to_clear|= bit;
+        else if (value == 2) // this is '=on'
+          flags_to_set|= bit;
+        else // this is '=default' 
         {
-          bit= default_set & bit;
-          flags= (flags & ~bit) | bit;
+          if (default_set & bit)
+            flags_to_set|= bit;
+          else
+            flags_to_clear|= bit;
         }
       }
-
       if (pos >= end)
         break;
-      if ((chr= get_next_char(&pos, end, cs)) != ',')
-      {
-        *err_pos= (char*)start;
-        *err_len= pos - start;
-        *set_warning= 1;
-      }
+
+      if (get_next_char(&pos, end, cs) != ',')
+        goto err;
+
       start=pos;
+      continue;
+   err:
+      *err_pos= (char*)start;
+      *err_len= end - start;
+      *set_warning= TRUE;
+      break;
     }
   }
-  return flags;
+  ulonglong res= set_defaults? default_set : cur_set;
+  res|= flags_to_set;
+  res&= ~flags_to_clear;
+  return res;
 }
 
 
