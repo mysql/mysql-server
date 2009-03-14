@@ -306,7 +306,7 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
-  signal.theData[2] = (bytes/count);
+  signal.theData[2] = Uint32(bytes/count);
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }
 #endif
@@ -328,7 +328,7 @@ TransporterCallbackKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.theData[0] = NDB_LE_ReceiveBytesStatistic;
   signal.theData[1] = nodeId;
-  signal.theData[2] = (bytes/count);
+  signal.theData[2] = Uint32(bytes/count);
 #ifndef NDBD_MULTITHREADED
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 #else

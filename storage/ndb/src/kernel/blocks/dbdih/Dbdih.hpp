@@ -696,7 +696,7 @@ private:
   void execTCGETOPSIZECONF(Signal *);
   void execTC_CLOPSIZECONF(Signal *);
 
-  int handle_invalid_lcp_no(const class LcpFragRep*, ReplicaRecordPtr);
+  int handle_invalid_lcp_no(const struct LcpFragRep*, ReplicaRecordPtr);
   void execLCP_FRAG_REP(Signal *);
   void execLCP_COMPLETE_REP(Signal *);
   void execSTART_LCP_REQ(Signal *);
@@ -860,7 +860,7 @@ private:
   void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
   void checkLcpStart(Signal *, Uint32 lineNo);
   void checkStartMoreLcp(Signal *, Uint32 nodeId);
-  bool reportLcpCompletion(const class LcpFragRep *);
+  bool reportLcpCompletion(const struct LcpFragRep *);
   void sendLCP_COMPLETE_REP(Signal *);
 
 //------------------------------------

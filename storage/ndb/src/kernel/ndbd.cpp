@@ -100,7 +100,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
 
   Uint64 shared_mem = 8*1024*1024;
   ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
-  shared_mem /= GLOBAL_PAGE_SIZE;
+  Uint32 shared_pages = Uint32(shared_mem /= GLOBAL_PAGE_SIZE);
 
   Uint32 tupmem = 0;
   if (ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem))
@@ -132,7 +132,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  Uint32 jbpages = compute_jb_pages(&ed);;
+  Uint32 jbpages = compute_jb_pages(&ed);
   if (jbpages)
   {
     Resource_limit rl;
@@ -146,7 +146,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   if (globalTransporterRegistry.get_using_default_send_buffer() == false)
   {
     Uint64 mem = globalTransporterRegistry.get_total_max_send_buffer();
-    sbpages = (mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
+    sbpages = Uint32((mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE);
     Resource_limit rl;
     rl.m_min = sbpages;
     rl.m_max = sbpages;
@@ -154,11 +154,11 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (shared_mem + tupmem + filepages + jbpages + sbpages)
+  if (shared_pages + tupmem + filepages + jbpages + sbpages)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem + tupmem + filepages + jbpages + sbpages;
+    rl.m_max = shared_pages + tupmem + filepages + jbpages + sbpages;
     rl.m_resource_id = 0;
     ed.m_mem_manager->set_resource_limit(rl);
   }

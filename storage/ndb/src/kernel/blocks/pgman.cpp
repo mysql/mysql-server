@@ -143,10 +143,10 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
         page_buffer = min_buffer;
     }
     // convert to pages
-    page_buffer = (page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE;
-    m_param.m_max_pages = page_buffer;
-    m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_buffer);
-    m_param.m_max_hot_pages = (page_buffer * 9) / 10;
+    Uint32 page_cnt = Uint32((page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE);
+    m_param.m_max_pages = page_cnt;
+    m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_cnt);
+    m_param.m_max_hot_pages = (page_cnt * 9) / 10;
   }
 
   Pool_context pc;

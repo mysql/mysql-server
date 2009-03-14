@@ -361,9 +361,9 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
                        my_bool rt_prio,
                        my_bool high_prio)
 {
-  int policy, prio, error_no= 0;
+  int error_no= 0;
 #if defined HAVE_LINUX_SCHEDULING
-  int ret;
+  int ret, policy, prio;
   struct sched_param loc_sched_param;
   if (rt_prio)
   {
@@ -385,7 +385,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     This variant is POSIX compliant so should be useful on most
     Operating Systems supporting real-time scheduling.
   */
-  int ret;
+  int ret, policy, prio;
   struct sched_param loc_sched_param;
   if (rt_prio)
   {

@@ -149,7 +149,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 }
 
 void
-TransporterRegistry::allocate_send_buffers(Uint32 total_send_buffer)
+TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer)
 {
   if (!m_use_default_send_buffer)
     return;
@@ -178,7 +178,7 @@ TransporterRegistry::allocate_send_buffers(Uint32 total_send_buffer)
   }
 
   /* Initialize the page freelist. */
-  Uint32 send_buffer_pages =
+  Uint64 send_buffer_pages =
     (total_send_buffer + SendBufferPage::PGSIZE - 1)/SendBufferPage::PGSIZE;
   /* Add one extra page of internal fragmentation overhead per transporter. */
   send_buffer_pages += nTransporters;
