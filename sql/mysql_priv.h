@@ -530,6 +530,7 @@ protected:
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
 #define OPTIMIZER_SWITCH_LAST 16
 
+/* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
