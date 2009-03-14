@@ -775,7 +775,7 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
   ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next())
   {
-    Uint32 nodeId1, nodeId2, remoteNodeId;
+    Uint32 nodeId1, nodeId2;
     if (iter.get(CFG_CONNECTION_NODE_1, &nodeId1) ||
         iter.get(CFG_CONNECTION_NODE_2, &nodeId2))
       DBUG_RETURN(false);

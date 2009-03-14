@@ -1138,7 +1138,7 @@ Lgman::Undofile::Undofile(const struct CreateFileImplReq* req, Uint32 ptrI)
   Uint64 pages = req->file_size_hi;
   pages = (pages << 32) | req->file_size_lo;
   pages /= GLOBAL_PAGE_SIZE;
-  m_file_size = pages;
+  m_file_size = Uint32(pages);
 
   m_create.m_senderRef = req->senderRef; // During META
   m_create.m_senderData = req->senderData; // During META

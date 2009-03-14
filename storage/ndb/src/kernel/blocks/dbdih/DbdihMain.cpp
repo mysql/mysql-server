@@ -3241,7 +3241,7 @@ add_lcp_counter(Uint32 * counter, Uint32 add)
   tmp += add;
   if (tmp > 0xFFFFFFFF)
     tmp = 0xFFFFFFFF;
-  * counter = tmp;
+  * counter = Uint32(tmp);
 }
 
 void
@@ -5113,8 +5113,8 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
      
     GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
     req->senderData = m_micro_gcp.m_master_ref;
-    req->gci_hi = m_micro_gcp.m_old_gci >> 32;
-    req->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    req->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
+    req->gci_lo = Uint32(m_micro_gcp.m_old_gci);
     sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
                GCPNoMoreTrans::SignalLength, JBB);
   }
@@ -7937,17 +7937,21 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     tabPtr.p->m_new_map_ptr_i = RNIL;
     tabPtr.p->m_scan_reorg_flag = 0;
     return;
-  case AlterTabReq::AlterTableWaitScan:
+  case AlterTabReq::AlterTableWaitScan:{
     jam();
+    Uint64 now = NdbTick_CurrentMillisecond();
+    now /= 1000;
     signal->theData[0] = DihContinueB::ZWAIT_OLD_SCAN;
     signal->theData[1] = tabPtr.i;
     signal->theData[2] = senderRef;
     signal->theData[3] = senderData;
     signal->theData[4] = connectPtr.i;
-    signal->theData[5] = NdbTick_CurrentMillisecond() / 1000;
-    signal->theData[6] = 3;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
+    signal->theData[5] = Uint32(now >> 32);
+    signal->theData[6] = Uint32(now);
+    signal->theData[7] = 3;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 8, JBB);
     return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -8068,9 +8072,11 @@ Dbdih::wait_old_scan(Signal* signal)
     return;
   }
 
-  Uint32 start = signal->theData[5];
-  Uint32 wait = signal->theData[6];
-  Uint32 now = NdbTick_CurrentMillisecond() / 1000;
+  Uint32 start_hi = signal->theData[5];
+  Uint32 start_lo = signal->theData[6];
+  Uint64 start = (Uint64(start_hi) << 32) + start_lo;
+  Uint32 wait = signal->theData[7];
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
   if (now > start + wait)
   {
     infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
@@ -8080,11 +8086,11 @@ Dbdih::wait_old_scan(Signal* signal)
 
     if (wait == 3)
     {
-      signal->theData[6] = 3 + 7;
+      signal->theData[7] = 3 + 7;
     }
     else
     {
-      signal->theData[6] = 2 * wait;
+      signal->theData[7] = 2 * wait;
     }
   }
 

@@ -1107,7 +1107,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
         field_blob->set_notnull();
         field_blob->move_field_offset(-ptrdiff);
       }
-      offset+= ((len64 + 7) & ~((Uint64)7));
+      offset+= Uint32((len64 + 7) & ~((Uint64)7));
     }
     else if (ha->m_blob_destination_record)
     {
@@ -1282,7 +1282,7 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
         if (ndb_blob->getLength(len64) != 0)
           ERR_RETURN(ndb_blob->getNdbError());
         // Align to Uint64
-        uint32 size= len64;
+        uint32 size= Uint32(len64);
         if (size % 8 != 0)
           size+= 8 - size % 8;
         if (loop == 1)
@@ -11774,7 +11774,7 @@ static uint get_no_fragments(ulonglong max_rows)
 #endif
   ulonglong acc_fragment_size= 512*1024*1024;
 #if MYSQL_VERSION_ID >= 50100
-  return (max_rows*acc_row_size)/acc_fragment_size+1;
+  return uint(max_rows*acc_row_size)/acc_fragment_size+1;
 #else
   return ((max_rows*acc_row_size)/acc_fragment_size+1
 	  +1/*correct rounding*/)/2;
@@ -12698,6 +12698,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
 {
+  // TODO check that extent_size < 2^32
   ndb_ts->setName(alter_info->tablespace_name);
   ndb_ts->setExtentSize(alter_info->extent_size);
   ndb_ts->setDefaultLogfileGroup(alter_info->logfile_group_name);
@@ -12721,6 +12722,7 @@ bool set_up_datafile(st_alter_tablespace *alter_info,
 bool set_up_logfile_group(st_alter_tablespace *alter_info,
                           NdbDictionary::LogfileGroup *ndb_lg)
 {
+  // TODO check that undo-buffer-size < 2^32
   ndb_lg->setName(alter_info->logfile_group_name);
   ndb_lg->setUndoBufferSize(alter_info->undo_buffer_size);
   return FALSE;

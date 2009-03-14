@@ -817,9 +817,10 @@ Tsman::open_file(Signal* signal,
   ndbrequire(eh_words < File_formats::Datafile::EXTENT_PAGE_WORDS);
   Uint32 extents_per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
   Uint64 extent_pages = (extents + extents_per_page - 1) / extents_per_page;
-  
-  ptr.p->m_create.m_extent_pages = extent_pages;
-  ptr.p->m_create.m_data_pages = data_pages;
+
+  // TODO check overflow in cast
+  ptr.p->m_create.m_extent_pages = Uint32(extent_pages);
+  ptr.p->m_create.m_data_pages = Uint32(data_pages);
 
   /**
    * Update file size

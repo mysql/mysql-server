@@ -372,7 +372,7 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
   
   Uint32 pages = 0;
-  pages += page_buffer / GLOBAL_PAGE_SIZE; // in pages
+  pages += Uint32(page_buffer / GLOBAL_PAGE_SIZE); // in pages
   Uint32 restore_instances = 1;
   if (isNdbMtLqh())
     restore_instances = getLqhWorkers();
