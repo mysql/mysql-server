@@ -5320,10 +5320,17 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
     if (nodePtr.p->phase == ZAPI_ACTIVE && 
 	getNodeInfo(nodePtr.i).m_version >= api.minVersion)
     {
+      jam();
       mask.set(nodePtr.i);
     }
   }
   
+  if (mask.isclear())
+  {
+    jam();
+    return;
+  }
+
   NodeReceiverGroup rg(API_CLUSTERMGR, mask);
   sendSignal(rg, api.gsn, signal, len, JBB); // forward sections
 }
