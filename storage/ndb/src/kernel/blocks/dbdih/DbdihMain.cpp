@@ -8171,6 +8171,9 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
   getFragstore(tabPtr.p, fragId, fragPtr);
   dec_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 
+  releaseReplicas(fragPtr.p->storedReplicas);
+  releaseReplicas(fragPtr.p->oldStoredReplicas);
+
   if (fragId == ((chunks - 1) << LOG_NO_OF_FRAGS_PER_CHUNK))
   {
     jam();
@@ -16317,6 +16320,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
+    RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
     {
       Uint32 cnghash = 0;
@@ -16335,6 +16339,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+    RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
     {
       Uint32 cnghash = 0;
