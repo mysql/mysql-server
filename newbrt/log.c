@@ -473,7 +473,10 @@ int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void
 	    }
 	    txn->newest_logentry = txn->oldest_logentry = 0;
 	    // Put all the memarena data into the parent.
-	    memarena_move_buffers(txn->parent->rollentry_arena, txn->rollentry_arena);
+	    if (memarena_size_in_use(txn->rollentry_arena) > 0) {
+		// If there are no bytes to move, then just leave things alone, and let the memory be reclaimed on txn is closed.
+		memarena_move_buffers(txn->parent->rollentry_arena, txn->rollentry_arena);
+	    }
 
 	    // Note the open brts, the omts must be merged
 	    r = toku_omt_iterate(txn->open_brts, note_brt_used_in_parent_txn, txn->parent);
@@ -1015,7 +1018,10 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 }
 
 int toku_maybe_spill_rollbacks (TOKUTXN txn) {
-    if (txn->rollentry_resident_bytecount>txn->logger->write_block_size) {
+    // Previously:
+    // if (txn->rollentry_resident_bytecount>txn->logger->write_block_size) {
+    // But now we use t
+    if (memarena_total_memory_size(txn->rollentry_arena) > txn->logger->write_block_size) {
 	struct roll_entry *item;
 	ssize_t bufsize = txn->rollentry_resident_bytecount;
 	char *MALLOC_N(bufsize, buf);

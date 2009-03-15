@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 
 static void
-four_billion_subtransactions (void) {
+four_billion_subtransactions (int do_something_in_children) {
     DB_ENV *env;
     DB *db;
     DB_TXN *xparent;
@@ -31,12 +31,23 @@ four_billion_subtransactions (void) {
     r=env->txn_begin(env, 0, &xparent, 0);  CKERR(r);
     long long i;
     //long long const fourbillion = 1ll << 32;
-    long long const fourbillion = 400000;
+    long long const fourbillion = 500000;
+    printf("Doing %d\n", do_something_in_children);
     for (i=0; i < fourbillion + 100; i++) {
 	DB_TXN *xchild;
 	r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
+	if (do_something_in_children) {
+	    char hello[30], there[30];
+	    snprintf(hello, sizeof(hello), "hello%lld", i);
+	    snprintf(there, sizeof(there), "there%lld", i);
+	    DBT key, val;
+	    r=db->put(db, xchild,
+		      dbt_init(&key, hello, strlen(hello)+1),
+		      dbt_init(&val, there, strlen(there)+1),
+		      DB_YESOVERWRITE);
+	    CKERR(r);
+	}
 	r=xchild->commit(xchild, 0); CKERR(r);
-	if (0==i%50000) sleep(1);
 	if (i%1000000==0) { printf("."); fflush(stdout); }
 
     }
@@ -50,7 +61,8 @@ int
 test_main (int argc, const char *argv[])
 {
     parse_args(argc, argv);
-    four_billion_subtransactions();
+    four_billion_subtransactions(0);
+    four_billion_subtransactions(1);
     return 0;
 }
 
