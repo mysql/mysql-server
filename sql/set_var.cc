@@ -3990,7 +3990,7 @@ bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
                                optimizer_switch_typelib.count, 
                                thd->variables.optimizer_switch,
                                global_system_variables.optimizer_switch,
-                               res->c_ptr(), res->length(), NULL,
+                               res->c_ptr_safe(), res->length(), NULL,
                                &error, &error_len, &not_used);
   if (error_len)
   {
