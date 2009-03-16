@@ -311,6 +311,7 @@ private:
                              Uint32 column_index,
                              const char *row,
                              Uint32 bound_type);
+  int insert_open_bound(const NdbRecord* key_record);
 
   virtual int equal_impl(const NdbColumnImpl*, const char*);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
