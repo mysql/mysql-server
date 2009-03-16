@@ -19,7 +19,7 @@ SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test
 include $(TOKUROOT)toku_include/Makefile.include
 
-BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/ scanrace.tokudb/
+BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/ scanrace.tokudb/ 4g.dir/
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include
