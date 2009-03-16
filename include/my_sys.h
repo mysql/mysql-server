@@ -843,14 +843,17 @@ extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
                                 char **defaults, char **extra_defaults,
                                 char **group_suffix);
+extern int my_load_defaults(const char *conf_file, const char **groups,
+                            int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,
-			 int *argc, char ***argv);
+                         int *argc, char ***argv);
 extern int modify_defaults_file(const char *file_location, const char *option,
                                 const char *option_value,
                                 const char *section_name, int remove_option);
 extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
-                                  Process_option_func func, void *func_ctx);
+                                  Process_option_func func, void *func_ctx,
+                                  const char **default_directories);
 extern void free_defaults(char **argv);
 extern void my_print_default_files(const char *conf_file);
 extern void print_defaults(const char *conf_file, const char **groups);
