@@ -25,8 +25,9 @@ hex(c2)	hex(c3)	c1
 0	1	BCDEF
 1	0	CD
 0	0	DEFGHIJKL
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 UPDATE t1 SET c2=0 WHERE c3="row2";
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
