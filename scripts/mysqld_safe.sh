@@ -18,7 +18,7 @@ niceness=0
 logging=init
 want_syslog=0
 syslog_tag=
-user=@MYSQLD_USER@
+user='@MYSQLD_USER@'
 pid_file=
 err_log=
 
@@ -64,9 +64,10 @@ my_which ()
 {
   save_ifs="${IFS-UNSET}"
   IFS=:
+  ret=0
   for file
   do
-    for dir in $PATH
+    for dir in "$PATH"
     do
       if [ -f "$dir/$file" ]
       then
@@ -74,15 +75,18 @@ my_which ()
         continue 2
       fi
     done
-    return 1  # Failure, didn't find file in path
+
+	ret=1  #signal an error
+	break
   done
+
   if [ "$save_ifs" = UNSET ]
   then
     unset IFS
   else
     IFS="$save_ifs"
   fi
-  return 0  # Success
+  return $ret  # Success
 }
 
 log_generic () {
@@ -234,8 +238,8 @@ then
   ledir="$MY_PWD/libexec"		# Where mysqld is
 # Since we didn't find anything, used the compiled-in defaults
 else
-  MY_BASEDIR_VERSION=@prefix@
-  ledir=@libexecdir@
+  MY_BASEDIR_VERSION='@prefix@'
+  ledir='@libexecdir@'
 fi
 
 
@@ -413,7 +417,7 @@ then
   MYSQLD=mysqld
 fi
 
-if test ! -x $ledir/$MYSQLD
+if test ! -x "$ledir/$MYSQLD"
 then
   log_error "The file $ledir/$MYSQLD
 does not exist or is not executable. Please cd to the mysql installation
@@ -425,7 +429,7 @@ fi
 
 if test -z "$pid_file"
 then
-  pid_file=$DATADIR/`@HOSTNAME@`.pid
+  pid_file="$DATADIR/`@HOSTNAME@`.pid"
 else
   case "$pid_file" in
     /* ) ;;
