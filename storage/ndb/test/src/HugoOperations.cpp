@@ -69,7 +69,8 @@ NdbConnection* HugoOperations::getTransaction(){
 int HugoOperations::pkReadRecord(Ndb* pNdb,
 				 int recordNo,
 				 int numRecords,
-				 NdbOperation::LockMode lm){
+				 NdbOperation::LockMode lm,
+                                 NdbOperation::LockMode *lmused){
   int a;  
   allocRows(numRecords);
   indexScans.clear();
@@ -95,6 +96,8 @@ rand_lock_mode:
     case NdbOperation::LM_Exclusive:
     case NdbOperation::LM_CommittedRead:
     case NdbOperation::LM_SimpleRead:
+      if (lmused)
+        * lmused = lm;
       if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
 	 pIndexScanOp == 0)
       {
@@ -150,7 +153,8 @@ rand_lock_mode:
 int HugoOperations::pkReadRandRecord(Ndb* pNdb,
                                      int records,
                                      int numRecords,
-                                     NdbOperation::LockMode lm){
+                                     NdbOperation::LockMode lm,
+                                     NdbOperation::LockMode *lmused){
   int a;  
   allocRows(numRecords);
   indexScans.clear();
@@ -176,6 +180,8 @@ rand_lock_mode:
     case NdbOperation::LM_Exclusive:
     case NdbOperation::LM_CommittedRead:
     case NdbOperation::LM_SimpleRead:
+      if (lmused)
+        * lmused = lm;
       if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
 	 pIndexScanOp == 0)
       {

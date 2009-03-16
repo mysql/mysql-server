@@ -884,9 +884,10 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     if (timer_active)
       NdbTick_getMicroTimer(&timer_start);
 
+    NdbOperation::LockMode lmused;
     if (_rand == 0)
     {
-      if(pkReadRecord(pNdb, r, batch, lm) != NDBT_OK)
+      if(pkReadRecord(pNdb, r, batch, lm, &lmused) != NDBT_OK)
       {
         ERR(pTrans->getNdbError());
         closeTransaction(pNdb);
@@ -895,7 +896,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     }
     else
     {
-      if(pkReadRandRecord(pNdb, records, batch, lm) != NDBT_OK)
+      if(pkReadRandRecord(pNdb, records, batch, lm, &lmused) != NDBT_OK)
       {
         ERR(pTrans->getNdbError());
         closeTransaction(pNdb);
@@ -904,6 +905,20 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     }
     
     check = pTrans->execute(Commit, AbortOnError);
+
+    if (check != -1 && lmused == NdbOperation::LM_CommittedRead)
+    {
+      /**
+       * LM_CommittedRead will not abort transaction
+       *   even if doing execute(AbortOnError);
+       *   so also check pTrans->getNdbError() in this case
+       */
+      if (pTrans->getNdbError().status != NdbError::Success)
+      {
+        check = -1;
+      }
+    }      
+
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       
