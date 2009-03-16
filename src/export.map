@@ -39,6 +39,7 @@
    setup_dlmalloc;
 
    toku_cachetable_print_hash_histogram;
+   toku_set_lsn_increment;
 
    toku_default_compare_fun;
 
