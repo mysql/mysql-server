@@ -590,6 +590,9 @@ ErrorBundle ErrorCodes[] = {
   { 4539, DMEC, AE, "NdbInterpretedCode not supported for operation type" },
   { 4540, DMEC, AE, "Attempt to pass an Index column to createRecord.  Use base table columns only" },
   { 4541, DMEC, AE, "IndexBound has no bound information" }, // No longer generated
+  /* 4542-4546 used in later releases */
+  { 4547, DMEC, AE, "RecordSpecification has overlapping offsets" },
+  { 4548, DMEC, AE, "RecordSpecification has too many elements" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
