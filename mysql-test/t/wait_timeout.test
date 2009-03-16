@@ -10,8 +10,11 @@
 -- source include/not_embedded.inc
 -- source include/one_thread_per_connection.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 #
-# Bug#8731: wait_timeout does not work on Mac OS X
+# Bug#8731 wait_timeout does not work on Mac OS X
 #
 
 let $start_value= `SELECT @@global.wait_timeout`;
@@ -113,6 +116,7 @@ while (!`select @aborted_clients`)
 # the disconnect has reached client
 let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist;
 --source include/wait_condition.inc
+disconnect wait_con;
 
 --echo connection con1;
 connection con1;
@@ -126,8 +130,13 @@ SELECT 2;
 SELECT 3;
 --replace_result $start_value <start_value>
 eval SET @@global.wait_timeout= $start_value;
-# ML: The start value might be changed in future ...
 --echo disconnection con1;
 disconnect con1;
 
+
+# The last connect is to keep tools checking the current test happy.
+connect (default,localhost,root,,test,,);
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
 

@@ -177,39 +177,41 @@ int initgroups(const char *,unsigned int);
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#ifdef HAVE_SYS_FPU_H
+/* for IRIX to use set_fpc_csr() */
+#include <sys/fpu.h>
+#endif
 
-/**
-  We can't handle floating point exceptions with threads, so disable
-  this on freebsd.
-*/
-inline void set_proper_floating_point_mode()
+inline void setup_fpu()
 {
-  /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+  /* We can't handle floating point exceptions with threads, so disable
+     this on freebsd
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision
+  */
 #if defined(__i386__)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
- fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
-	     FP_X_IMP));
+  fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
+              FP_X_IMP));
+#endif /* __i386__ */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+
+#ifdef HAVE_FESETROUND
+    /* Set FPU rounding mode to "round-to-nearest" */
+  fesetround(FE_TONEAREST);
+#endif /* HAVE_FESETROUND */
+    
+#if defined(__sgi) && defined(HAVE_SYS_FPU_H)
+  /* Enable denormalized DOUBLE values support for IRIX */
+  union fpc_csr n;
+  n.fc_word = get_fpc_csr();
+  n.fc_struct.flush = 0;
+  set_fpc_csr(n.fc_word);
 #endif
 }
-#elif defined(__sgi)
-/* for IRIX to use set_fpc_csr() */
-#include <sys/fpu.h>
-
-inline void set_proper_floating_point_mode()
-{
-  /* Enable denormalized DOUBLE values support for IRIX */
-  {
-    union fpc_csr n;
-    n.fc_word = get_fpc_csr();
-    n.fc_struct.flush = 0;
-    set_fpc_csr(n.fc_word);
-  }
-}
-#else
-#define set_proper_floating_point_mode()
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
 
 } /* cplusplus */
 
@@ -646,6 +648,9 @@ static int defaults_argc;
 static char **defaults_argv;
 static char *opt_bin_logname;
 
+int orig_argc;
+char **orig_argv;
+
 static my_socket unix_sock,ip_sock;
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
@@ -742,12 +747,12 @@ uint connection_count= 0;
 
 pthread_handler_t signal_hand(void *arg);
 static int mysql_init_variables(void);
-static void get_options(int *argc,char **argv);
+static int get_options(int *argc,char **argv);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
-static void fix_paths(void);
+static int fix_paths(void);
 pthread_handler_t handle_connections_sockets(void *arg);
 pthread_handler_t kill_server_thread(void *arg);
 static void bootstrap(FILE *file);
@@ -761,7 +766,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg);
 pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
-                                   const char *option);
+                                   const char *option, int *error);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 
@@ -1185,7 +1190,8 @@ extern "C" void unireg_abort(int exit_code)
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
 }
-#endif
+
+#endif /*EMBEDDED_LIBRARY*/
 
 
 void clean_up(bool print_message)
@@ -2919,18 +2925,16 @@ pthread_handler_t handle_shutdown(void *arg)
 }
 #endif
 
-#if !defined(EMBEDDED_LIBRARY)
-static const char *load_default_groups[]= {
+const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 
-#if defined(__WIN__)
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
-#endif /*!EMBEDDED_LIBRARY*/
 
 
 /**
@@ -3218,10 +3222,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
                      SQLCOM_END + 8);
 #endif
 
+  orig_argc=argc;
+  orig_argv=argv;
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   defaults_argc=argc;
-  get_options(&defaults_argc, defaults_argv);
+  if (get_options(&defaults_argc, defaults_argv))
+    return 1;
   set_server_version();
 
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
@@ -3671,7 +3678,7 @@ static int init_server_components()
   query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
-  set_proper_floating_point_mode();
+  setup_fpu();
   init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
@@ -3699,7 +3706,10 @@ static int init_server_components()
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
+      {
         freopen(log_error_file, "a+", stderr);
+        setbuf(stderr, NULL);
+      }
     }
   }
 
@@ -3879,6 +3889,7 @@ server.");
     if ((ho_error= handle_options(&defaults_argc, &tmp_argv, no_opts,
                                   mysqld_get_one_option)))
       unireg_abort(ho_error);
+    my_getopt_skip_unknown= TRUE;
 
     if (defaults_argc)
     {
@@ -4327,6 +4338,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     freopen(log_error_file,"a+",stdout);
     freopen(log_error_file,"a+",stderr);
+    setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
 #endif
@@ -6241,7 +6253,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
-   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, UINT_MAX32,
    0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated;you can set variables directly with --variable-name=value.",
@@ -7492,6 +7504,7 @@ To see what values a running MySQL server is using, type\n\
 
 static int mysql_init_variables(void)
 {
+  int error;
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
@@ -7549,7 +7562,10 @@ static int mysql_init_variables(void)
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
   slave_exec_mode_options= 0;
   slave_exec_mode_options= (uint)
-    find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL);
+    find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL,
+                          &error);
+  if (error)
+    return 1;
   opt_specialflag= SPECIAL_ENGLISH;
   unix_sock= ip_sock= INVALID_SOCKET;
   mysql_home_ptr= mysql_home;
@@ -7727,6 +7743,8 @@ mysqld_get_one_option(int optid,
                       const struct my_option *opt __attribute__((unused)),
                       char *argument)
 {
+  int error;
+
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
@@ -7770,7 +7788,9 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_SLAVE_EXEC_MODE:
     slave_exec_mode_options= (uint)
-      find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "");
+      find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "", &error);
+    if (error)
+      return 1;
     break;
 #endif
   case OPT_SAFEMALLOC_MEM_LIMIT:
@@ -7838,18 +7858,16 @@ mysqld_get_one_option(int optid,
 
     if (!(p= strstr(argument, "->")))
     {
-      fprintf(stderr,
-	      "Bad syntax in replicate-rewrite-db - missing '->'!\n");
-      exit(1);
+      sql_print_error("Bad syntax in replicate-rewrite-db - missing '->'!\n");
+      return 1;
     }
     val= p--;
     while (my_isspace(mysqld_charset, *p) && p > argument)
       *p-- = 0;
     if (p == argument)
     {
-      fprintf(stderr,
-	      "Bad syntax in replicate-rewrite-db - empty FROM db!\n");
-      exit(1);
+      sql_print_error("Bad syntax in replicate-rewrite-db - empty FROM db!\n");
+      return 1;
     }
     *val= 0;
     val+= 2;
@@ -7857,9 +7875,8 @@ mysqld_get_one_option(int optid,
       *val++;
     if (!*val)
     {
-      fprintf(stderr,
-	      "Bad syntax in replicate-rewrite-db - empty TO db!\n");
-      exit(1);
+      sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
+      return 1;
     }
 
     rpl_filter->add_db_rewrite(key, val);
@@ -7887,8 +7904,8 @@ mysqld_get_one_option(int optid,
   {
     if (rpl_filter->add_do_table(argument))
     {
-      fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
-      exit(1);
+      sql_print_error("Could not add do table rule '%s'!\n", argument);
+      return 1;
     }
     break;
   }
@@ -7896,8 +7913,8 @@ mysqld_get_one_option(int optid,
   {
     if (rpl_filter->add_wild_do_table(argument))
     {
-      fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
-      exit(1);
+      sql_print_error("Could not add do table rule '%s'!\n", argument);
+      return 1;
     }
     break;
   }
@@ -7905,8 +7922,8 @@ mysqld_get_one_option(int optid,
   {
     if (rpl_filter->add_wild_ignore_table(argument))
     {
-      fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
-      exit(1);
+      sql_print_error("Could not add ignore table rule '%s'!\n", argument);
+      return 1;
     }
     break;
   }
@@ -7914,8 +7931,8 @@ mysqld_get_one_option(int optid,
   {
     if (rpl_filter->add_ignore_table(argument))
     {
-      fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
-      exit(1);
+      sql_print_error("Could not add ignore table rule '%s'!\n", argument);
+      return 1;
     }
     break;
   }
@@ -7936,7 +7953,9 @@ mysqld_get_one_option(int optid,
     {
       log_output_str= argument;
       log_output_options=
-        find_bit_type_or_exit(argument, &log_output_typelib, opt->name);
+        find_bit_type_or_exit(argument, &log_output_typelib, opt->name, &error);
+      if (error)
+        return 1;
   }
     break;
   }
@@ -7946,7 +7965,7 @@ mysqld_get_one_option(int optid,
     sql_perror("Event scheduler is not supported in embedded build.");
 #else
     if (Events::set_opt_event_scheduler(argument))
-	exit(1);
+      return 1;
 #endif
     break;
   case (int) OPT_SKIP_NEW:
@@ -7985,7 +8004,7 @@ mysqld_get_one_option(int optid,
   case (int) OPT_SKIP_NETWORKING:
 #if defined(__NETWARE__)
     sql_perror("Can't start server: skip-networking option is currently not supported on NetWare");
-    exit(1);
+    return 1;
 #endif
     opt_disable_networking=1;
     mysqld_port=0;
@@ -8156,7 +8175,10 @@ mysqld_get_one_option(int optid,
     {
       myisam_recover_options_str=argument;
       myisam_recover_options=
-        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name);
+        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name,
+                              &error);
+      if (error)
+        return 1;
     }
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
@@ -8201,7 +8223,9 @@ mysqld_get_one_option(int optid,
   {
     sql_mode_str= argument;
     global_system_variables.sql_mode=
-      find_bit_type_or_exit(argument, &sql_mode_typelib, opt->name);
+      find_bit_type_or_exit(argument, &sql_mode_typelib, opt->name, &error);
+    if (error)
+      return 1;
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
     break;
@@ -8240,13 +8264,17 @@ mysqld_get_one_option(int optid,
 
 /** Handle arguments for multiple key caches. */
 
-extern "C" uchar **mysql_getopt_value(const char *keyname, uint key_length,
-                                      const struct my_option *option);
+extern "C" int mysql_getopt_value(uchar **value,
+                                  const char *keyname, uint key_length,
+                                  const struct my_option *option,
+                                  int *error);
 
-uchar* *
+static uchar* *
 mysql_getopt_value(const char *keyname, uint key_length,
-		   const struct my_option *option)
+		   const struct my_option *option, int *error)
 {
+  if (error)
+    *error= 0;
   switch (option->id) {
   case OPT_KEY_BUFFER_SIZE:
   case OPT_KEY_CACHE_BLOCK_SIZE:
@@ -8255,7 +8283,11 @@ mysql_getopt_value(const char *keyname, uint key_length,
   {
     KEY_CACHE *key_cache;
     if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
-      exit(1);
+    {
+      if (error)
+        *error= EXIT_OUT_OF_MEMORY;
+      return 0;
+    }
     switch (option->id) {
     case OPT_KEY_BUFFER_SIZE:
       return (uchar**) &key_cache->param_buff_size;
@@ -8293,7 +8325,7 @@ void option_error_reporter(enum loglevel level, const char *format, ...)
   @todo
   - FIXME add EXIT_TOO_MANY_ARGUMENTS to "mysys_err.h" and return that code?
 */
-static void get_options(int *argc,char **argv)
+static int get_options(int *argc,char **argv)
 {
   int ho_error;
 
@@ -8307,7 +8339,7 @@ static void get_options(int *argc,char **argv)
 
   if ((ho_error= handle_options(argc, &argv, my_long_options,
                                 mysqld_get_one_option)))
-    exit(ho_error);
+    return ho_error;
   (*argc)++; /* add back one for the progname handle_options removes */
              /* no need to do this for argv as we are discarding it. */
 
@@ -8346,7 +8378,8 @@ static void get_options(int *argc,char **argv)
   max_allowed_packet= global_system_variables.max_allowed_packet;
   net_buffer_length= global_system_variables.net_buffer_length;
 #endif
-  fix_paths();
+  if (fix_paths())
+    return 1;
 
   /*
     Set some global variables from the global_system_variables
@@ -8373,7 +8406,7 @@ static void get_options(int *argc,char **argv)
 				  &global_system_variables.time_format) ||
       init_global_datetime_format(MYSQL_TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
-    exit(1);
+    return 1;
 
 #ifdef EMBEDDED_LIBRARY
   one_thread_scheduler(&thread_scheduler);
@@ -8386,6 +8419,7 @@ static void get_options(int *argc,char **argv)
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
 #endif
+  return 0;
 }
 
 
@@ -8449,7 +8483,7 @@ fn_format_relative_to_data_home(char * to, const char *name,
 }
 
 
-static void fix_paths(void)
+static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
   convert_dirname(mysql_home,mysql_home,NullS);
@@ -8496,12 +8530,12 @@ static void fix_paths(void)
   charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
-    exit(1);
+    return 1;
 #ifdef HAVE_REPLICATION
   if (!slave_load_tmpdir)
   {
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))
-      exit(1);
+      return 1;
   }
 #endif /* HAVE_REPLICATION */
   /*
@@ -8514,30 +8548,37 @@ static void fix_paths(void)
     my_free(opt_secure_file_priv, MYF(0));
     opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
   }
+  return 0;
 }
 
 
 static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
-                                   const char *option)
+                                   const char *option, int *error)
 {
-  ulong res;
-
+  ulong result;
   const char **ptr;
   
-  if ((res= find_bit_type(x, bit_lib)) == ~(ulong) 0)
+  *error= 0;
+  if ((result= find_bit_type(x, bit_lib)) == ~(ulong) 0)
   {
+    char *buff= (char *) my_alloca(2048);
+    char *cbuf;
     ptr= bit_lib->type_names;
-    if (!*x)
-      fprintf(stderr, "No option given to %s\n", option);
-    else
-      fprintf(stderr, "Wrong option to %s. Option(s) given: %s\n", option, x);
-    fprintf(stderr, "Alternatives are: '%s'", *ptr);
+    cbuf= buff + ((!*x) ?
+      my_snprintf(buff, 2048, "No option given to %s\n", option) :
+      my_snprintf(buff, 2048, "Wrong option to %s. Option(s) given: %s\n",
+                  option, x));
+    cbuf+= my_snprintf(cbuf, 2048 - (cbuf-buff), "Alternatives are: '%s'", *ptr);
     while (*++ptr)
-      fprintf(stderr, ",'%s'", *ptr);
-    fprintf(stderr, "\n");
-    exit(1);
+      cbuf+= my_snprintf(cbuf, 2048 - (cbuf-buff), ",'%s'", *ptr);
+    my_snprintf(cbuf, 2048 - (cbuf-buff), "\n");
+    sql_perror(buff);
+    *error= 1;
+    my_afree(buff);
+    return 0;
   }
-  return res;
+
+  return result;
 }
 
 
