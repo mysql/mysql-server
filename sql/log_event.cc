@@ -6618,7 +6618,7 @@ void Execute_load_query_log_event::print(FILE* file,
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
-    my_b_printf(&cache, " INTO");
+    my_b_printf(&cache, " INTO ");
     my_b_write(&cache, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
     my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
@@ -6699,7 +6699,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
     /* Ordinary load data */
     break;
   }
-  p= strmake(p, STRING_WITH_LEN(" INTO"));
+  p= strmake(p, STRING_WITH_LEN(" INTO "));
   p= strmake(p, query+fn_pos_end, q_len-fn_pos_end);
 
   error= Query_log_event::do_apply_event(rli, buf, p-buf);
