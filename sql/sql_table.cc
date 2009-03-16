@@ -3321,7 +3321,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (key->type == Key::FOREIGN_KEY &&
           !part_info->is_auto_partitioned)
       {
-        my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
         goto err;
       }
     }
@@ -4297,7 +4297,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
-      result_code= HA_ADMIN_CORRUPT;
+      if (thd->main_da.is_error() && 
+          (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE ||
+           thd->main_da.sql_errno() == ER_FILE_NOT_FOUND))
+        /* A missing table is just issued as a failed command */
+        result_code= HA_ADMIN_FAILED;
+      else
+        /* Default failure code is corrupt table */
+        result_code= HA_ADMIN_CORRUPT;
       goto send_result;
     }
 

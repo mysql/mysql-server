@@ -24,7 +24,7 @@ static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);
 static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
 static size_t fill_buffer(LINE_BUFFER *buffer);
-static char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length);
+static char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length, bool *truncated);
 
 
 LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
@@ -42,12 +42,13 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 }
 
 
-char *batch_readline(LINE_BUFFER *line_buff)
+char *batch_readline(LINE_BUFFER *line_buff, bool *truncated)
 {
   char *pos;
   ulong out_length;
+  DBUG_ASSERT(truncated != NULL);
 
-  if (!(pos=intern_read_line(line_buff,&out_length)))
+  if (!(pos=intern_read_line(line_buff,&out_length, truncated)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
     if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
@@ -149,6 +150,14 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
     read_count=(buffer->bufread - bufbytes)/IO_SIZE;
     if ((read_count*=IO_SIZE))
       break;
+    if (buffer->bufread * 2 > buffer->max_size)
+    {
+      /*
+        So we must grow the buffer but we cannot due to the max_size limit.
+        Return 0 w/o setting buffer->eof to signal this condition.
+      */
+      return 0;
+    }
     buffer->bufread *= 2;
     if (!(buffer->buffer = (char*) my_realloc(buffer->buffer,
 					      buffer->bufread+1,
@@ -172,11 +181,15 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
 
   DBUG_PRINT("fill_buff", ("Got %lu bytes", (ulong) read_count));
 
-  /* Kludge to pretend every nonempty file ends with a newline. */
-  if (!read_count && bufbytes && buffer->end[-1] != '\n')
+  if (!read_count)
   {
-    buffer->eof = read_count = 1;
-    *buffer->end = '\n';
+    buffer->eof = 1;
+    /* Kludge to pretend every nonempty file ends with a newline. */
+    if (bufbytes && buffer->end[-1] != '\n')
+    {
+      read_count = 1;
+      *buffer->end = '\n';
+    }
   }
   buffer->end_of_line=(buffer->start_of_line=buffer->buffer)+bufbytes;
   buffer->end+=read_count;
@@ -186,7 +199,7 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
 
 
 
-char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length)
+char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length, bool *truncated)
 {
   char *pos;
   size_t length;
@@ -200,14 +213,23 @@ char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length)
       pos++;
     if (pos == buffer->end)
     {
-      if ((uint) (pos - buffer->start_of_line) < buffer->max_size)
+      /*
+        fill_buffer() can return 0 either on EOF in which case we abort
+        or when the internal buffer has hit the size limit. In the latter case
+        return what we have read so far and signal string truncation.
+      */
+      if (!(length=fill_buffer(buffer)) || length == (uint) -1)
       {
-	if (!(length=fill_buffer(buffer)) || length == (size_t) -1)
-	  DBUG_RETURN(0);
-	continue;
+        if (buffer->eof)
+          DBUG_RETURN(0);
       }
+      else
+        continue;
       pos--;					/* break line here */
+      *truncated= 1;
     }
+    else
+      *truncated= 0;
     buffer->end_of_line=pos+1;
     *out_length=(ulong) (pos + 1 - buffer->eof - buffer->start_of_line);
     DBUG_RETURN(buffer->start_of_line);
