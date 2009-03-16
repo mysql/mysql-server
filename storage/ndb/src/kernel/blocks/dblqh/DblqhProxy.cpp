@@ -192,6 +192,12 @@ DblqhProxy::sendCREATE_TAB_CONF(Signal* signal, Uint32 ssId)
     conf->lqhConnectPtr = ssId;
     sendSignal(dictRef, GSN_CREATE_TAB_CONF,
                signal, CreateTabConf::SignalLength, JBB);
+
+    // inform DBTUP proxy
+    CreateTabReq* req = (CreateTabReq*)signal->getDataPtrSend();
+    *req = ss.m_req;
+    EXECUTE_DIRECT(DBTUP, GSN_CREATE_TAB_REQ,
+                   signal, CreateTabReq::SignalLength);
   } else {
     CreateTabRef* ref = (CreateTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();

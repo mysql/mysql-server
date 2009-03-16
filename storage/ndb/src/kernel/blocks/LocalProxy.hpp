@@ -318,6 +318,8 @@ protected:
   };
   SsPool<Ss_READ_CONFIG_REQ> c_ss_READ_CONFIG_REQ;
   void execREAD_CONFIG_REQ(Signal*);
+  virtual void callREAD_CONFIG_REQ(Signal*);
+  void backREAD_CONFIG_REQ(Signal*);
   void sendREAD_CONFIG_REQ(Signal*, Uint32 ssId);
   void execREAD_CONFIG_CONF(Signal*);
   void sendREAD_CONFIG_CONF(Signal*, Uint32 ssId);

@@ -276,11 +276,24 @@ LocalProxy::loadWorkers()
 void
 LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
 {
-  Ss_READ_CONFIG_REQ& ss = ssSeize<Ss_READ_CONFIG_REQ>();
+  Ss_READ_CONFIG_REQ& ss = ssSeize<Ss_READ_CONFIG_REQ>(1);
 
   const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
   ss.m_req = *req;
   ndbrequire(ss.m_req.noOfParameters == 0);
+  callREAD_CONFIG_REQ(signal);
+}
+
+void
+LocalProxy::callREAD_CONFIG_REQ(Signal* signal)
+{
+  backREAD_CONFIG_REQ(signal);
+}
+
+void
+LocalProxy::backREAD_CONFIG_REQ(Signal* signal)
+{
+  Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(1);
 
   // run sequentially due to big mallocs and initializations
   sendREQ(signal, ss);
