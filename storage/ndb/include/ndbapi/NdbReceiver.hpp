@@ -215,6 +215,7 @@ inline
 void
 NdbReceiver::prepareSend(){
   /* Set pointers etc. to prepare for receiving the first row of the batch. */
+  theMagicNumber = 0x11223344;
   m_current_row = 0;
   m_received_result_length = 0;
   m_expected_result_length = 0;
