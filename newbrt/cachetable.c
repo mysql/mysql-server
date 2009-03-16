@@ -1585,8 +1585,8 @@ graceful_log(int fd, char *operation, BOOL was_dirty, BOOL is_dirty) {
              +7  //operation
              +5  //was dirty
              +5  //is  dirty
-             +5  //process id
-             +5  //thread id
+             +10  //process id
+             +10  //thread id
              +26 //ctime string (including \n)
              ];
     assert(graceful_is_locked); //ctime uses static buffer.  Lock must be held.
