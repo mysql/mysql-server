@@ -1908,7 +1908,8 @@ buf_LRU_validate(void)
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU);
+	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU,
+			 ut_ad(ut_list_node_313->in_LRU_list));
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
@@ -1956,7 +1957,8 @@ buf_LRU_validate(void)
 		ut_a(buf_pool->LRU_old_len == old_len);
 	}
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free);
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free,
+			 ut_ad(ut_list_node_313->in_free_list));
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
@@ -1965,7 +1967,9 @@ buf_LRU_validate(void)
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
-	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU);
+	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
+			 ut_ad(ut_list_node_313->in_unzip_LRU_list
+			       && ut_list_node_313->page.in_LRU_list));
 
 	for (block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
 	     block;

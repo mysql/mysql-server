@@ -4693,7 +4693,9 @@ fil_validate(void)
 		space = HASH_GET_FIRST(system->spaces, i);
 
 		while (space != NULL) {
-			UT_LIST_VALIDATE(chain, fil_node_t, space->chain);
+			UT_LIST_VALIDATE(chain, fil_node_t, space->chain,
+					 ut_a(ut_list_node_313->open
+					      || !ut_list_node_313->n_pending));
 
 			fil_node = UT_LIST_GET_FIRST(space->chain);
 
@@ -4713,7 +4715,7 @@ fil_validate(void)
 
 	ut_a(system->n_open == n_open);
 
-	UT_LIST_VALIDATE(LRU, fil_node_t, system->LRU);
+	UT_LIST_VALIDATE(LRU, fil_node_t, system->LRU, (void) 0);
 
 	fil_node = UT_LIST_GET_FIRST(system->LRU);
 

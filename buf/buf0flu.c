@@ -227,7 +227,8 @@ buf_flush_remove(
 
 	bpage->oldest_modification = 0;
 
-	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list));
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list,
+			      ut_ad(ut_list_node_313->in_flush_list)));
 }
 
 /************************************************************************
@@ -1206,7 +1207,8 @@ buf_flush_validate_low(void)
 {
 	buf_page_t*	bpage;
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list);
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list,
+			 ut_ad(ut_list_node_313->in_flush_list));
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
