@@ -92,8 +92,17 @@ $(IPO_NEWBRT): ipo_newbrt.obj
 	xilib /out:$@ $^
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
-log_header.h log_code.c: logformat$(BINSUF)
+
+# This version runs logformat twice.  There is something screwing in make that if you have a pattern form with two outputs
+# then it runs the thing only once, but if it has no % symbols it runs it twice.
+## log_header.h log_code.c: logformat$(BINSUF)
+##	./logformat
+# So we do it this way
+log_code.c: logformat$(BINSUF)
 	./logformat
+log_header.h: log_code.c
+	test 1 = 1
+
 #Needs to be done manually since it does not include newbrt.
 logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
 	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LIBPORTABILITY) $(LINK_MUST_BE_LAST)
