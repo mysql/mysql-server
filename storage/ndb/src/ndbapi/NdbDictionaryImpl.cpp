@@ -6140,7 +6140,7 @@ NdbDictionaryImpl::setNull(const NdbRecord* record,
       assert(attrIdIndex < (int)record->noOfColumns);
       NdbRecord::Attr attr= record->columns[attrIdIndex];
       
-      if (record->flags & NdbRecord::IsNullable)
+      if (attr.flags & NdbRecord::IsNullable)
       {
         if (value)
           *(row + attr.nullbit_byte_offset) |= 
