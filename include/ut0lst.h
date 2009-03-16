@@ -216,14 +216,14 @@ and ASSERTION is a condition on ut_list_node_313. */
 #define UT_LIST_VALIDATE(NAME, TYPE, BASE, ASSERTION)			\
 do {									\
 	ulint	ut_list_i_313;						\
-	TYPE *	ut_list_node_313;					\
+	TYPE*	ut_list_node_313;					\
 									\
 	ut_list_node_313 = (BASE).start;				\
 									\
-	for (ut_list_i_313 = 0; ut_list_i_313 < (BASE).count;		\
-	     ut_list_i_313++) {						\
+	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
 		ut_a(ut_list_node_313);					\
 		ASSERTION;						\
+		ut_ad((ut_list_node_313->NAME).next || !ut_list_i_313);	\
 		ut_list_node_313 = (ut_list_node_313->NAME).next;	\
 	}								\
 									\
@@ -231,10 +231,10 @@ do {									\
 									\
 	ut_list_node_313 = (BASE).end;					\
 									\
-	for (ut_list_i_313 = 0; ut_list_i_313 < (BASE).count;		\
-	     ut_list_i_313++) {						\
+	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
 		ut_a(ut_list_node_313);					\
 		ASSERTION;						\
+		ut_ad((ut_list_node_313->NAME).prev || !ut_list_i_313);	\
 		ut_list_node_313 = (ut_list_node_313->NAME).prev;	\
 	}								\
 									\
