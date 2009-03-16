@@ -607,7 +607,7 @@ ErrorBundle ErrorCodes[] = {
   { 4538, DMEC, AE, "NdbInterpretedCode instruction requires that table is set" },
   { 4539, DMEC, AE, "NdbInterpretedCode not supported for operation type" },
   { 4540, DMEC, AE, "Attempt to pass an Index column to createRecord.  Use base table columns only" },
-  { 4541, DMEC, AE, "IndexBound has no bound information" },
+  { 4541, DMEC, AE, "IndexBound has no bound information" }, // No longer generated
   { 4542, DMEC, AE, "Unknown partition information type" },
   { 4543, DMEC, AE, "Duplicate partitioning information supplied" },
   { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
