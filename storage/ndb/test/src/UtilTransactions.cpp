@@ -1099,10 +1099,13 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 	    goto error;
 	  if(get_values(iop, indexRow))
 	    goto error;
+          if(equal(pIndex, iop, scanRow))
+            goto error;
 	}
-	
-	if(equal(pIndex, iop, scanRow))
-	  goto error;
+	else
+        {
+          goto error;
+        }
       }     
 
       check = pTrans->execute(NoCommit, AbortOnError);
