@@ -218,7 +218,7 @@ slave-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
 slave-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-slave-bin.000001	#	Execute_load_query	1	#	use `test`; load data INFILE '../../tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
+slave-bin.000001	#	Execute_load_query	1	#	use `test`; load data INFILE '../../tmp/SQL_LOAD-2-1-1.data' INTO  table t1 ignore 1 lines ;file_id=1
 slave-bin.000001	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=MyISAM
 slave-bin.000001	#	Rotate	2	#	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;
