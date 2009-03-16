@@ -1021,7 +1021,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
-  load_defaults(filename, groups, &argc, &argv);
+  my_load_defaults(filename, groups, &argc, &argv, NULL);
   if (argc != 1)				/* If some default option */
   {
     char **option=argv;
