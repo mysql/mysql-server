@@ -125,8 +125,9 @@ create table t6 engine=myisam as select * from t6_c;
 create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 select count(*) from t1;
@@ -244,8 +245,9 @@ PARTITION BY LINEAR HASH (`relatta`)
 PARTITIONS 4;
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 select count(*) from t1;
@@ -448,8 +450,9 @@ select * from t9_c) a;
 count(*)
 3
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 DROP TABLE test.backup_info;
 Create table test/def/t2_c failed: Translate frm error
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;

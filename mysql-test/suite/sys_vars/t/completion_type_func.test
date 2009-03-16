@@ -1,4 +1,4 @@
-############## mysql-test\t\completion_type_func.test ##########################
+############## mysql-test/suite/sys_vars/t/completion_type_func.test ###########
 #                                                                              #
 # Variable Name: completion_type                                               #
 # Scope: GLOBAL & SESSION                                                      #
@@ -25,84 +25,154 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-#########################
-#   Creating new table  #
-#########################
+##############################
+# Setup: Table + connections #
+##############################
 
 --echo ## Creating new table ##
 CREATE TABLE t1
 (
-id INT NOT NULL AUTO_INCREMENT,
+id INT NOT NULL,
 PRIMARY KEY (id),
 name VARCHAR(30)
 ) ENGINE = INNODB;
 
---echo '#--------------------FN_DYNVARS_017_01-------------------------#'
-#########################################################
-#    Setting initial value of completion_type to zero   #
-#########################################################
-
---echo ## Creating new connection ##
+--echo ## Creating new connections test_con1, test_con2 ##
 connect (test_con1,localhost,root,,);
-connection test_con1;
+connect (test_con2,localhost,root,,);
 
-INSERT INTO t1(name) VALUES('Record_1');
-SET @@autocommit = 0;
+connection default;
+
+--echo #########################################################
+--echo #    Setting initial value of completion_type to zero   #
+--echo #########################################################
+
+INSERT INTO t1 VALUES(1,'Record_1');
 SELECT * FROM t1;
 
 --echo ## Setting value of variable to 0 ##
 SET @@session.completion_type = 0;
 
 --echo ## Here commit & rollback should work normally ##
+--echo ## test commit ##
 START TRANSACTION;
-SELECT * FROM t1;
-INSERT INTO t1(name) VALUES('Record_2');
-INSERT INTO t1(name) VALUES('Record_3');
-SELECT * FROM t1;
-DELETE FROM t1 WHERE id = 2;
+INSERT INTO t1 VALUES(2,'Record_2');
+INSERT INTO t1 VALUES(3,'Record_3');
 SELECT * FROM t1;
 
-
-START TRANSACTION;
+--echo Switching to connection test_con1
+connection test_con1;
+--echo ## Don't expect to see id's 2 and 3 in the table w/o COMMIT ##
 SELECT * FROM t1;
-INSERT INTO t1(name) VALUES('Record_4');
-INSERT INTO t1(name) VALUES('Record_5');
+
+--echo Switching to default connection
+connection default;
 COMMIT;
 
+--echo ## test rollback ##
+START TRANSACTION;
+INSERT INTO t1 VALUES(4,'Record_4');
+INSERT INTO t1 VALUES(5,'Record_5');
+SELECT * FROM t1;
 
---echo '#--------------------FN_DYNVARS_017_02-------------------------#'
-#########################################################
-#    Setting initial value of completion_type to 2      #
-#########################################################
+--echo Switching to connection test_con1
+connection test_con1;
+--echo ## Don't expect to see id's 4 and 5 here ##
+--echo ## Expect to see 3, Record_3 ##
+SELECT * FROM t1;
+
+--echo Switching to connection default;
+connection default;
+
+
+ROLLBACK;
+--echo ## Don't expect to see id's 4 and 5 now ##
+SELECT * FROM t1;
+
+--echo 
+--echo #########################################################
+--echo #    Setting initial value of completion_type to one    #
+--echo #########################################################
+
+--echo Switching to connection test_con1;
+connection test_con1;
+SET @@session.completion_type = 1;
+
+START TRANSACTION;
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(6,'Record_6');
+INSERT INTO t1 VALUES(7,'Record_7');
+COMMIT;
+
+--echo ## Expect to immediately have a new transaction ##
+INSERT INTO t1 VALUES(8,'Record_8');
+SELECT * FROM t1;
+
+connection test_con2;
+--echo switching to test_con2
+--echo ## Do not expect to see 8, Record_8 as no COMMIT has occurred ##
+SELECT * FROM t1;
+
+--echo switch to connection test_con1
+connection test_con1;
+
+--echo ## Testing ROLLBACK behavior
+START TRANSACTION;
+INSERT INTO t1 VALUES(9, 'Record_9');
+INSERT INTO t1 VALUES(10, 'Record_10');
+--echo ## Expect to see id's 8, 9, 10 here ##
+--echo ## 8, Record_8 COMMITted with the start of this transaction ##
+SELECT * FROM t1;
+ROLLBACK;
+--echo ## id's 9 and 10 are gone now due to ROLLBACK ##
+SELECT * FROM t1;
+
+--echo ## Expect a new transaction ##
+INSERT INTO t1 VALUES(9, 'Record_9');
+
+--echo Switching to connection test_con2
+connection test_con2;
+--echo ## Don't expect to see 9, Record_9 due to no COMMIT yet ##
+SELECT * FROM t1;
+
+--echo Switching to connection test_con1
+connection test_con1;
+ROLLBACK;
+--echo ## Don't expect to see 9, Record_9
+SELECT * FROM t1;
+
+--echo #########################################################
+--echo #    Setting initial value of completion_type to 2      #
+--echo #########################################################
 
 SET @@session.completion_type = 2;
 
 --echo ## Here commit should work as COMMIT RELEASE ##
 START TRANSACTION;
 SELECT * FROM t1;
-INSERT INTO t1(name) VALUES('Record_6');
-INSERT INTO t1(name) VALUES('Record_7');
+INSERT INTO t1 VALUES(9,'Record_9');
+INSERT INTO t1 VALUES(10,'Record_10');
 COMMIT;
 
 --echo ## Inserting rows should give error here because connection should ##
 --echo ## disconnect after using COMMIT ##
---Error 2006,2013,1053
-INSERT INTO t1(name) VALUES('Record_4');
+--Error 2006,2013,ER_SERVER_SHUTDOWN
+INSERT INTO t1 VALUES(4,'Record_4');
 
---echo ## Creating new connection test_con2 ##
-connect (test_con2,localhost,root,,);
+--echo switch to connection test_con2
 connection test_con2;
 SET @@session.completion_type = 2;
 
 --echo ## Inserting rows and using Rollback which should Rollback & release ##
 START TRANSACTION;
 SELECT * FROM t1;
-INSERT INTO t1(name) VALUES('Record_8');
-INSERT INTO t1(name) VALUES('Record_9');
+INSERT INTO t1 VALUES(11,'Record_11');
+INSERT INTO t1 VALUES(12,'Record_12');
 ROLLBACK;
 
---Error 2006,2013,1053
-INSERT INTO t1(name) VALUES('Record_4');
+--echo ## Expect a failure due to COMMIT/ROLLBACK AND RELEASE behavior ##
+--Error 2006,2013,ER_SERVER_SHUTDOWN,
+INSERT INTO t1 VALUES(4,'Record_4');
 
 connection default;
 disconnect test_con1;

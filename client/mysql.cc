@@ -115,6 +115,8 @@ extern "C" {
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
+
 typedef struct st_status
 {
   int exit_status;
@@ -1045,7 +1047,7 @@ static void fix_history(String *final_command);
 
 static COMMANDS *find_command(char *name,char cmd_name);
 static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment);
+                     bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1117,7 +1119,7 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (status.batch && !status.line_buff &&
-      !(status.line_buff=batch_readline_init(opt_max_allowed_packet+512,stdin)))
+      !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
     free_defaults(defaults_argv);
     my_end(0);
@@ -1810,13 +1812,14 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  bool truncated= 0;
   status.exit_status=1;
   
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
+      line=batch_readline(status.line_buff, &truncated);
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1913,7 +1916,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string,&ml_comment))
+    if (add_line(glob_buffer,line,&in_string,&ml_comment, truncated))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -1999,7 +2002,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
 
 
 static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment)
+                     bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2245,8 +2248,23 @@ static bool add_line(String &buffer,char *line,char *in_string,
   }
   if (out != line || !buffer.is_empty())
   {
-    *out++='\n';
     uint length=(uint) (out-line);
+
+    if (!truncated &&
+        (length < 9 || 
+         my_strnncoll (charset_info, 
+                       (uchar *)line, 9, (const uchar *) "delimiter", 9)))
+    {
+      /* 
+        Don't add a new line in case there's a DELIMITER command to be 
+        added to the glob buffer (e.g. on processing a line like 
+        "<command>;DELIMITER <non-eof>") : similar to how a new line is 
+        not added in the case when the DELIMITER is the first command 
+        entered with an empty glob buffer. 
+      */
+      *out++='\n';
+      length++;
+    }
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
@@ -2855,7 +2873,7 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   param= get_arg(buff, 0);
   if (!param || !*param)
   {
-    return put_info("Usage: \\C char_setname | charset charset_name", 
+    return put_info("Usage: \\C charset_name | charset charset_name", 
 		    INFO_ERROR, 0);
   }
   new_cs= get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));
@@ -3907,7 +3925,7 @@ static int com_source(String *buffer, char *line)
     return put_info(buff, INFO_ERROR, 0);
   }
 
-  if (!(line_buff=batch_readline_init(opt_max_allowed_packet+512,sql_file)))
+  if (!(line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, sql_file)))
   {
     my_fclose(sql_file,MYF(0));
     return put_info("Can't initialize batch_readline", INFO_ERROR, 0);

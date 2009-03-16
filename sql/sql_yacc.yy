@@ -6489,7 +6489,8 @@ select_option:
           {
             if (check_simple_select())
               MYSQL_YYABORT;
-            Lex->lock_option= TL_READ_HIGH_PRIORITY;
+            Lex->lock_option=  TL_READ_HIGH_PRIORITY;
+            Lex->current_select->lock_option= TL_READ_HIGH_PRIORITY;
           }
         | DISTINCT         { Select->options|= SELECT_DISTINCT; }
         | SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
@@ -6535,6 +6536,7 @@ select_lock_type:
           {
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
+            lex->current_select->lock_option= TL_WRITE;
             lex->safe_to_cache_query=0;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
@@ -6542,6 +6544,7 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->
               set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
+            lex->current_select->lock_option= TL_READ_WITH_SHARED_LOCKS;
             lex->safe_to_cache_query=0;
           }
         ;
@@ -12909,6 +12912,18 @@ subselect_start:
 subselect_end:
           {
             LEX *lex=Lex;
+            /*
+              Set the required lock level for the tables associated with the
+              current sub-select. This will overwrite previous lock options set
+              using st_select_lex::add_table_to_list in any of the following
+              rules: single_multi, table_wild_one, load_data, table_alias_ref,
+              table_factor.
+              The default lock level is TL_READ_DEFAULT but it can be modified
+              with query options specific for a certain (sub-)SELECT.
+            */
+            lex->current_select->
+              set_lock_for_tables(lex->current_select->lock_option);
+
             lex->pop_context();
             SELECT_LEX *child= lex->current_select;
             lex->current_select = lex->current_select->return_after_parsing();

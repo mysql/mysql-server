@@ -1753,7 +1753,7 @@ int ha_myisam::info(uint flag)
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) misam_info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key)*share->key_parts);
+	     sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
 
@@ -1788,6 +1788,8 @@ int ha_myisam::info(uint flag)
 int ha_myisam::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
+    return 0;
+  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
     return 0;
   return mi_extra(file, operation, 0);
 }
