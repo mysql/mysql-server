@@ -109,10 +109,8 @@ test_txn_abort (int n, int which_guys_to_abort) {
 
 int
 test_main(int argc, const char *argv[]) {
+#if IS_TDB // This test is inappropriate for BDB.  It requires finer grained locking that BDB supports.
     int i,j;
-    if (!IS_TDB) {
-	return 0; // This test is inappropriate for BDB.  It requires finer grained locking that BDB supports.
-    }
     for (i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
@@ -126,5 +124,6 @@ test_main(int argc, const char *argv[]) {
 	for (i=1; i<100; i*=2) 
 	    test_txn_abort(i, j);
     if (verbose>0) printf("OK\n");
+#endif
     return 0;
 }
