@@ -91,6 +91,9 @@ struct Options
 #endif
 
 public:
+  /* Array of paths to be passed to my_search_option_files() later */
+  static const char **default_directories;
+
   static int load(int argc, char **argv);
   static void cleanup();
 
