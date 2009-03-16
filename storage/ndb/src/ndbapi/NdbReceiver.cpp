@@ -85,6 +85,7 @@ NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 
 void
 NdbReceiver::release(){
+  theMagicNumber = 0;
   NdbRecAttr* tRecAttr = theFirstRecAttr;
   while (tRecAttr != NULL)
   {
