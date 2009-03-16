@@ -1839,7 +1839,7 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
-ulonglong find_set_from_flags(TYPELIB *lib, uint default_set,
+ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
                               ulonglong cur_set, ulonglong default_set,
                               const char *str, uint length, CHARSET_INFO *cs,
                               char **err_pos, uint *err_len, bool *set_warning);
