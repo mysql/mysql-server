@@ -1155,7 +1155,8 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU));
+	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU,
+			      ut_ad(ut_list_node_313->in_LRU_list)));
 
 	/* relocate buf_pool->page_hash */
 	fold = buf_page_address_fold(bpage->space, bpage->offset);

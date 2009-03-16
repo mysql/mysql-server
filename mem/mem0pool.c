@@ -624,7 +624,8 @@ mem_pool_validate(
 
 	for (i = 0; i < 64; i++) {
 
-		UT_LIST_VALIDATE(free_list, mem_area_t, pool->free_list[i]);
+		UT_LIST_VALIDATE(free_list, mem_area_t, pool->free_list[i],
+				 (void) 0);
 
 		area = UT_LIST_GET_FIRST(pool->free_list[i]);
 
