@@ -635,6 +635,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   const char *key_row= m_key_row;
   const NdbRecord *attr_rec= m_attribute_record;
   const char *updRow;
+  const bool isScanTakeover= (key_rec == NULL);
 
   TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId);
@@ -642,7 +643,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   remain= TcKeyReq::MaxKeyInfo;
 
   /* Fill in keyinfo (in TCKEYREQ signal, spilling into KEYINFO signals). */
-  if (!key_rec)
+  if (isScanTakeover)
   {
     /* This means that key_row contains the KEYINFO20 data. */
     /* i.e. lock takeover */
@@ -922,18 +923,72 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
       if (likely(!(col->flags & (NdbRecord::IsBlob|NdbRecord::IsMysqldBitfield))))
       {
-        if (col->is_null(updRow))
-          length= 0;
-        else if (!col->get_var_length(updRow, length))
+        if (( ! (col->flags & NdbRecord::IsKey)) ||
+            ( isScanTakeover ) )
         {
-          /* Hm, corrupt varchar length. */
-          setErrorCodeAbort(4209);
-          return -1;
+          /* Normal path where we get data from the attr row 
+           * Always get ATTRINFO data from the attr row for ScanTakeover
+           * Update as there's no key row
+           * This allows scan-takeover update to update pk within
+           * collation rules
+           */
+          if (col->is_null(updRow))
+            length= 0;
+          else if (!col->get_var_length(updRow, length))
+          {
+            /* Hm, corrupt varchar length. */
+            setErrorCodeAbort(4209);
+            return -1;
+          }
+          data= &updRow[col->offset];
         }
-        data= &updRow[col->offset];
+        else
+        {
+          /* For Insert/Write where user provides PK columns,
+           * take them from the key record row to avoid sending different
+           * values in KeyInfo and AttrInfo
+           * Need the correct Attr struct from the key
+           * record
+           */
+          assert(key_rec != 0); /* Not scan takeover */
+          assert(key_rec->m_attrId_indexes_length > attrId);
+          int keyColIdx= key_rec->m_attrId_indexes[attrId];
+          assert(keyColIdx != -1);
+          col= &key_rec->columns[keyColIdx];
+          assert(col->attrId == attrId);
+          assert(col->flags & NdbRecord::IsKey);
+          
+          /* Now get the data and length from the key row 
+           * Any issues with key nullness should've been 
+           * caught above
+           */
+          assert(!col->is_null(key_row));
+          length= 0;
+          
+          bool len_ok;
+          
+          if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+          {
+            /* Used to support special varchar format for mysqld keys. 
+             * Ideally we'd avoid doing this shrink twice...
+             */
+            len_ok= col->shrink_varchar(key_row, length, buf);
+            data= buf;
+          }
+          else
+          {
+            len_ok= col->get_var_length(key_row, length);
+            data= &key_row[col->offset];
+          }
+          
+          /* Should have 'seen' any length issues when generating keyinfo above */
+          assert(len_ok); 
+        }
       }
       else
       {
+        /* Blob or MySQLD bitfield handling */
+        assert(! (col->flags & NdbRecord::IsKey));
         if (likely(col->flags & NdbRecord::IsMysqldBitfield))
         {
           /* Mysqld format bitfield. */
