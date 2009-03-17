@@ -1841,6 +1841,8 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
 
 #include <NDBT_Tables.hpp>
 
+#define SAFTY 300
+
 int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   static int acclst[] = { 3001, 6200, 6202 };
   static int tuplst[] = { 4007, 4008, 4009, 4010 };
@@ -1908,13 +1910,14 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       if (errNo != 0 && errNo != errval)
         continue;
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
-      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
-
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) != 0,
              "failed to fail after error insert " << errval);
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
       CHECK2(pDic->dropTable(tab.getName()) == 0,
@@ -1926,12 +1929,14 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       if (errNo != 0 && errNo != errval)
         continue;
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
-      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) != 0,
              "failed to fail after error insert " << errval);
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
       CHECK2(pDic->dropTable(tab.getName()) == 0,
@@ -1942,15 +1947,19 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       int errval = tuxlst[j];
       if (errNo != 0 && errNo != errval)
         continue;
-      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
-      CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
-             "failed to set error insert");
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
+
+      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
+      CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
+             "failed to set error insert");
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
+
       CHECK2(pDic->createIndex(idx) != 0,
              "failed to fail after error insert " << errval);
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createIndex(idx) == 0,
              pDic->getNdbError());
       CHECK2(pDic->dropTable(tab.getName()) == 0,
@@ -6529,9 +6538,11 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
       if (errNo != 0 && errNo != errval)
         continue;
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
-      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
+
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
 
       int res = pDic->alterTable(*org, altered);
       if (res)
@@ -6540,9 +6551,10 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
       }
       CHECK2(res != 0,
              "failed to fail after error insert " << errval);
-      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
              "failed to clear error insert");
+      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+      NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
 
       const NdbDictionary::Table* check = pDic->getTable(tab.getName());
 
