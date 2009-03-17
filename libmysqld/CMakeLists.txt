@@ -201,6 +201,6 @@ ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
 TARGET_LINK_LIBRARIES(mysqlserver)
 
-ADD_LIBRARY(libmysqld MODULE cmake_dummy.c libmysqld.def)
+ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
