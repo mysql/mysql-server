@@ -473,7 +473,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void
 	    }
 	    txn->newest_logentry = txn->oldest_logentry = 0;
 	    // Put all the memarena data into the parent.
-	    if (memarena_size_in_use(txn->rollentry_arena) > 0) {
+	    if (memarena_total_size_in_use(txn->rollentry_arena) > 0) {
 		// If there are no bytes to move, then just leave things alone, and let the memory be reclaimed on txn is closed.
 		memarena_move_buffers(txn->parent->rollentry_arena, txn->rollentry_arena);
 	    }

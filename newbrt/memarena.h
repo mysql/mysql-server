@@ -37,6 +37,6 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source);
 size_t memarena_total_memory_size (MEMARENA);
 // Effect: Calculate the amount of memory used by a memory arena.
 
-size_t memarena_size_in_use (MEMARENA);
+size_t memarena_total_size_in_use (MEMARENA);
 
 #endif
