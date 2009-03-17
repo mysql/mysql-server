@@ -1559,6 +1559,7 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  lock_option= TL_READ_DEFAULT;
 }
 
 void st_select_lex::init_select()
