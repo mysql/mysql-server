@@ -7547,8 +7547,8 @@ void Dbdih::releaseTable(TabRecordPtr tabPtr)
     for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
       jam();
       getFragstore(tabPtr.p, fragId, fragPtr);
-      releaseReplicas(fragPtr.p->storedReplicas);
-      releaseReplicas(fragPtr.p->oldStoredReplicas);
+      releaseReplicas(& fragPtr.p->storedReplicas);
+      releaseReplicas(& fragPtr.p->oldStoredReplicas);
     }//for
     releaseFragments(tabPtr);
   }
@@ -7560,10 +7560,10 @@ void Dbdih::releaseTable(TabRecordPtr tabPtr)
   }//if
 }//Dbdih::releaseTable()
 
-void Dbdih::releaseReplicas(Uint32 replicaPtrI) 
+void Dbdih::releaseReplicas(Uint32 * replicaPtrI) 
 {
   ReplicaRecordPtr replicaPtr;
-  replicaPtr.i = replicaPtrI;
+  replicaPtr.i = * replicaPtrI;
   jam();
   while (replicaPtr.i != RNIL) {
     jam();
@@ -7574,6 +7574,8 @@ void Dbdih::releaseReplicas(Uint32 replicaPtrI)
     replicaPtr.i = tmp;
     cnoFreeReplicaRec++;
   }//while
+
+  * replicaPtrI = RNIL;
 }//Dbdih::releaseReplicas()
 
 void Dbdih::seizeReplicaRec(ReplicaRecordPtr& replicaPtr) 
@@ -12311,7 +12313,10 @@ Dbdih::dumpGcpStop()
            m_gcp_monitor.m_micro_gcp.m_counter, 
            m_gcp_monitor.m_micro_gcp.m_max_lag);
   
+  
+  ndbout_c("m_gcp_save.m_state: %u", m_gcp_save.m_state);
   ndbout_c("m_gcp_save.m_master.m_state: %u", m_gcp_save.m_master.m_state);
+  ndbout_c("m_micro_gcp.m_state: %u", m_micro_gcp.m_state);
   ndbout_c("m_micro_gcp.m_master.m_state: %u", m_micro_gcp.m_master.m_state);
   
   ndbout_c("c_COPY_GCIREQ_Counter = %s", c_COPY_GCIREQ_Counter.getText());
