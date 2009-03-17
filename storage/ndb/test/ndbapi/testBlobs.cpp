@@ -205,7 +205,9 @@ static unsigned g_pk1_offset= 0;
 static unsigned g_pk2_offset= 0;
 static unsigned g_pk3_offset= 0;
 static unsigned g_blob1_offset= 0;
+static unsigned g_blob1_null_offset= 0;
 static unsigned g_blob2_offset= 0;
+static unsigned g_blob2_null_offset= 0;
 static unsigned g_rowsize= 0;
 static const char* g_tsName= "DEFAULT-TS";
 static Uint32 g_batchSize= 0;
@@ -350,7 +352,9 @@ initConstants()
   g_pk3_offset= g_pk2_offset + g_opt.m_pk2chr.m_totlen;
   g_blob1_offset= g_pk3_offset + 2;
   g_blob2_offset= g_blob1_offset + sizeof(NdbBlob *);
-  g_rowsize= g_blob2_offset + sizeof(NdbBlob *);
+  g_blob1_null_offset= g_blob2_offset + sizeof(NdbBlob *);
+  g_blob2_null_offset= g_blob1_null_offset + 1;
+  g_rowsize= g_blob2_null_offset + 1;
 }
 
 static int
@@ -627,6 +631,8 @@ createTable(int storageType)
   spec[0].offset= g_pk1_offset;
   spec[numpks].column= dict_table->getColumn("BL1");
   spec[numpks].offset= g_blob1_offset;
+  spec[numpks].nullbit_byte_offset= g_blob1_null_offset;
+  spec[numpks].nullbit_bit_in_byte= 0;
   if (g_opt.m_pk2chr.m_len != 0)
   {
     spec[1].column= dict_table->getColumn("PK2");
@@ -638,6 +644,8 @@ createTable(int storageType)
   {
     spec[numpks+1].column= dict_table->getColumn("BL2");
     spec[numpks+1].offset= g_blob2_offset;
+    spec[numpks+1].nullbit_byte_offset= g_blob2_null_offset;
+    spec[numpks+1].nullbit_bit_in_byte= 0;
   }
   CHK((g_key_record= g_dic->createRecord(dict_table, &spec[0], numpks,
                                          sizeof(spec[0]))) != 0);

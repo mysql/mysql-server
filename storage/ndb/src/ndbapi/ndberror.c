@@ -613,7 +613,8 @@ ErrorBundle ErrorCodes[] = {
   { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
   { 4545, DMEC, AE, "Invalid or Unsupported PartitionInfo structure" },
   { 4546, DMEC, AE, "Explicit partitioning info not allowed for table and operation" },
-
+  { 4547, DMEC, AE, "RecordSpecification has overlapping offsets" },
+  { 4548, DMEC, AE, "RecordSpecification has too many elements" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
