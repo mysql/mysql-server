@@ -4647,6 +4647,10 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
   int failed_attempts= 0;
 
   DBUG_ENTER("safe_connect");
+
+  verbose_msg("Connecting to server %s:%d (socket %s) as '%s'"
+              ", connection '%s', attempt %d ...", 
+              host, port, sock, user, name, failed_attempts);
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
                             CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
   {
@@ -4678,6 +4682,7 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
     }
     failed_attempts++;
   }
+  verbose_msg("... Connected.");
   DBUG_VOID_RETURN;
 }
 
@@ -7511,8 +7516,12 @@ int main(int argc, char **argv)
   parse_args(argc, argv);
 
   log_file.open(opt_logdir, result_file_name, ".log");
+  verbose_msg("Logging to '%s'.", log_file.file_name());
   if (opt_mark_progress)
+  {
     progress_file.open(opt_logdir, result_file_name, ".progress");
+    verbose_msg("Tracing progress in '%s'.", progress_file.file_name());
+  }
 
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
@@ -7521,6 +7530,8 @@ int main(int argc, char **argv)
 
   DBUG_PRINT("info",("result_file: '%s'",
                      result_file_name ? result_file_name : ""));
+  verbose_msg("Results saved in '%s'.", 
+              result_file_name ? result_file_name : "");
   if (mysql_server_init(embedded_server_arg_count,
 			embedded_server_args,
 			(char**) embedded_server_groups))
@@ -7591,6 +7602,7 @@ int main(int argc, char **argv)
     open_file(opt_include);
   }
 
+  verbose_msg("Start processing test commands from '%s' ...", cur_file->file_name);
   while (!read_command(&command) && !abort_flag)
   {
     int current_line_inc = 1, processed = 0;
@@ -7908,6 +7920,7 @@ int main(int argc, char **argv)
   log_file.close();
 
   start_lineno= 0;
+  verbose_msg("... Done processing test commands.");
 
   if (parsing_disabled)
     die("Test ended with parsing disabled");
@@ -7958,6 +7971,7 @@ int main(int argc, char **argv)
   if (!command_executed && result_file_name)
     die("No queries executed but result file found!");
 
+  verbose_msg("Test has succeeded!");
   timer_output();
   /* Yes, if we got this far the test has suceeded! Sakila smiles */
   cleanup_and_exit(0);

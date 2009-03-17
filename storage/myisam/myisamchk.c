@@ -363,6 +363,7 @@ static void usage(void)
   -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n");
 #endif
   printf("\
+  -H, --HELP          Display this help and exit.\n\
   -?, --help          Display this help and exit.\n\
   -O, --set-variable var=option.\n\
                       Change the value of a variable. Please note that\n\

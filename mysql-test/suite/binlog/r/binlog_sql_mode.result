@@ -1,0 +1,46 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET @old_sql_mode=  @@global.sql_mode;
+SET @old_binlog_format=@@session.binlog_format;
+SET SESSION sql_mode=8;
+Initialization 
+RESET MASTER;
+CREATE TABLE t1 (id INT);
+CREATE PROCEDURE testProc() SELECT * FROM t1;
+CREATE VIEW testView as SELECT * from t1;
+CREATE FUNCTION testFunc()
+RETURNS INT
+BEGIN
+return 1;
+END;|
+CREATE TRIGGER testTrig BEFORE INSERT ON t1
+FOR EACH ROW BEGIN
+UPDATE t1 SET id = id +1;
+END;|
+CREATE EVENT testEvent ON SCHEDULE
+EVERY 1 DAY
+DO
+BEGIN
+UPDATE t1 SET id = id +1;
+END;|
+Chceck Result
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
+is not null
+1
+*** String sql_mode=0 is found: 0 ***
+Clean Up
+DROP PROCEDURE testProc;
+DROP FUNCTION testFunc;
+DROP TRIGGER testTrig;
+DROP EVENT testEvent;
+DROP VIEW testView;
+DROP TABLE t1;
+SET @@global.sql_mode= @old_sql_mode;
+SET @@session.binlog_format=@old_binlog_format;

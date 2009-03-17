@@ -1303,6 +1303,8 @@ bool agg_item_collations(DTCollation &c, const char *name,
                          Item **items, uint nitems, uint flags, int item_sep);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
                                         Item **items, uint nitems, uint flags);
+bool agg_item_set_converter(DTCollation &coll, const char *fname,
+                            Item **args, uint nargs, uint flags, int item_sep);
 bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
 

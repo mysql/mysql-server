@@ -1440,7 +1440,8 @@ void close_temporary_tables(THD *thd)
   if (!thd->temporary_tables)
     return;
 
-  if (!mysql_bin_log.is_open() || thd->current_stmt_binlog_row_based)
+  if (!mysql_bin_log.is_open() || 
+      (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)
