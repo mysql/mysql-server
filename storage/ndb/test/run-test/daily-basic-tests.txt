@@ -121,10 +121,6 @@ args: -n NoCommitSleep T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommit626 T6 D1 D2
-
-max-time: 500
-cmd: testBasic
 args: -n NoCommitAndClose T6 D1 D2
 
 max-time: 500
@@ -597,18 +593,6 @@ max-time: 3000
 cmd: testNodeRestart
 args: -n Bug25984 T1
 
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug26457 T1
-
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug28023 T6 D2
-
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug29364 T1
-
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
@@ -1069,10 +1053,6 @@ args: -n ApiConnectTimeout T1
 max-time: 120
 cmd: testMgm
 args: -n ApiTimeoutBasic T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiSessionFailure T1
 
 max-time: 120
 cmd: testMgm
