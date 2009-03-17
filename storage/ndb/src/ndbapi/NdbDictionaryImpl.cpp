@@ -5665,34 +5665,154 @@ cmp_ndbrec_attr(const void *a, const void *b)
     return 1;
 }
 
+struct BitRange{
+  Uint64 start; /* First occupied bit */
+  Uint64 end; /* Last occupied bit */
+};
+
+static int
+cmp_bitrange(const void* a, const void* b)
+{
+  /* Sort them by start bit */
+  const BitRange& brA= *(const BitRange*)a;
+  const BitRange& brB= *(const BitRange*)b;
+
+  if (brA.start < brB.start)
+    return -1;
+  else if (brA.start == brB.start)
+    return 0;
+  else
+    return 1;
+}
+
+bool
+NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *recSpec,
+                                      Uint32 length,
+                                      Uint32 flags) 
+{
+  /* We check that there's no overlap between any of the data values
+   * or Null bits
+   */
+  
+  /* Column data + NULL bits with at least 1 non nullable PK */
+  const Uint32 MaxRecordElements= (2* NDB_MAX_ATTRIBUTES_IN_TABLE) - 1;
+  Uint32 numElements= 0;
+  BitRange bitRanges[ MaxRecordElements ];
+
+  if (length > NDB_MAX_ATTRIBUTES_IN_TABLE)
+  {
+    m_error.code= 4548;
+    return false;
+  }
+  
+  /* Populate bitRanges array with ranges of bits occupied by 
+   * data values and null bits
+   */
+  for (Uint32 rs=0; rs < length; rs++)
+  {
+    const NdbDictionary::Column* col= recSpec[rs].column;
+    Uint64 elementByteOffset= recSpec[rs].offset;
+    Uint64 elementByteLength= col->getSizeInBytes();
+    Uint64 nullLength= col->getNullable() ? 1 : 0;
+
+    /* Blobs 'data' just occupies the size of an NdbBlob ptr */
+    const NdbDictionary::Column::Type type= col->getType();
+    const bool isBlob= 
+      (type == NdbDictionary::Column::Blob) || 
+      (type == NdbDictionary::Column::Text);
+
+    if (isBlob)
+    {
+      elementByteLength= sizeof(NdbBlob*);
+    }
+    
+    if ((type == NdbDictionary::Column::Bit) &&
+        (flags & NdbDictionary::RecMysqldBitfield))
+    {
+      /* MySQLD Bit format puts 'fractional' part of bit types 
+       * in with the null bits - so there's 1 optional Null 
+       * bit followed by n (max 7) databits, at position 
+       * given by the nullbit offsets.  Then the rest of
+       * the bytes go at the normal offset position.
+       */
+      Uint32 bitLength= col->getLength();
+      Uint32 fractionalBits= bitLength % 8;
+      nullLength+= fractionalBits;
+      elementByteLength= bitLength / 8;
+    }
+
+    bitRanges[numElements].start= 8 * elementByteOffset;
+    bitRanges[numElements].end= (8 * (elementByteOffset + elementByteLength)) - 1;
+    
+    numElements++;
+
+    if (nullLength)
+    {
+      bitRanges[numElements].start= 
+        (8* recSpec[rs].nullbit_byte_offset) + 
+        recSpec[rs].nullbit_bit_in_byte;
+      bitRanges[numElements].end= bitRanges[numElements].start + 
+        (nullLength -1);
+
+      numElements++;
+    }
+  }
+  
+  /* Now sort the 'elements' by start bit */
+  qsort(bitRanges,
+        numElements,
+        sizeof(BitRange),
+        cmp_bitrange);
+
+  Uint64 endOfPreviousRange= bitRanges[0].end;
+
+  /* Now check that there's no overlaps */
+  for (Uint32 rangeNum= 1; rangeNum < numElements; rangeNum++)
+  {
+    if (unlikely((bitRanges[rangeNum].start <= endOfPreviousRange)))
+    {
+      /* Oops, this range overlaps with previous one */
+      m_error.code= 4547;
+      return false;
+    }
+    endOfPreviousRange= bitRanges[rangeNum].end;
+  }
+
+  /* All relevant ranges are distinct */
+  return true;
+}
+
 
 /* ndb_set_record_specification
  * This procedure sets the contents of the passed RecordSpecification
  * for the given column in the given table.
  * The column is placed at the storageOffset given, and a new
  * storageOffset, beyond the end of this column, is returned.
- * Null bits are stored at the start of the row, in attrid position.
- * Note that non nullable columns must therefore still have 
- * space reserved.
- * The caller must ensure that sufficient space is reserved before the 
- * offset of the first column.
+ * Null bits are stored at the start of the row in consecutive positions.
+ * The caller must ensure that enough space exists for all of the nullable
+ * columns, before the first bit of data.
  * The new storageOffset is returned.
  */
 static Uint32
 ndb_set_record_specification(Uint32 storageOffset,
                              Uint32 field_num,
+                             Uint32& nullableColNum,
                              NdbDictionary::RecordSpecification *spec,
                              NdbColumnImpl *col)
 {
   spec->column= col->m_facade;
 
   spec->offset= storageOffset;
-  Uint32 nextOffset= storageOffset + spec->column->getSizeInBytes();
-
+  /* For Blobs we just need the NdbBlob* */
+  const Uint32 sizeOfElement= col->getBlobType() ? 
+    sizeof(NdbBlob*) :
+    spec->column->getSizeInBytes();
+  
   if (spec->column->getNullable())
   {
-    spec->nullbit_byte_offset= (field_num >> 3);
-    spec->nullbit_bit_in_byte= (field_num & 7);
+    spec->nullbit_byte_offset= (nullableColNum >> 3);
+    spec->nullbit_bit_in_byte= (nullableColNum & 7);
+    nullableColNum ++;
   }
   else
   {
@@ -5700,7 +5820,7 @@ ndb_set_record_specification(Uint32 storageOffset,
     spec->nullbit_bit_in_byte= 0;
   }
 
-  return nextOffset;
+  return storageOffset + sizeOfElement;
 }
 
 
@@ -5760,7 +5880,26 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
   /* Determine number of nullable columns */
   for (i=0; i<numCols; i++)
   {
-    if (tableOrIndex->m_columns[i]->m_nullable)
+    /* As the Index NdbRecord is built using Columns from the base table,
+     * it will get/set Null according to their Nullability.
+     * If this is an index, then we need to take the 'Nullability' from
+     * the base table column objects - unique index table column objects
+     * will not be nullable as they are part of the key.
+     */
+    const NdbColumnImpl* col= NULL;
+    
+    if (isIndex)
+    {
+      Uint32 baseTableColNum= 
+        tableOrIndex->m_index->m_columns[i]->m_keyInfoPos;
+      col= baseTableForIndex->m_columns[baseTableColNum];
+    }
+    else
+    {
+      col= tableOrIndex->m_columns[i];
+    }
+    
+    if (col->m_nullable)
       nullableCols ++;
   }
 
@@ -5778,6 +5917,8 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
     return -1;
   }
   
+  Uint32 nullableColNum= 0;
+
   /* Build record specification array for this table. */
   for (i= 0; i < numCols; i++)
   {
@@ -5834,7 +5975,8 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
     }
 
     offset= ndb_set_record_specification(offset, 
-                                         i, 
+                                         i,
+                                         nullableColNum,
                                          &spec[i], 
                                          col);
   }
@@ -5985,6 +6127,12 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   if (elemSize != sizeof(NdbDictionary::RecordSpecification))
   {
     m_error.code= 4289;
+    return NULL;
+  }
+
+  if (!validateRecordSpec(recSpec, length, flags))
+  {
+    /* Error set in call */
     return NULL;
   }
 
