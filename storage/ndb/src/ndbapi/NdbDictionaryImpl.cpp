@@ -5797,10 +5797,16 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
       elementByteLength= bitLength / 8;
     }
 
-    bitRanges[numElements].start= 8 * elementByteOffset;
-    bitRanges[numElements].end= (8 * (elementByteOffset + elementByteLength)) - 1;
-    
-    numElements++;
+    /* Does the element itself have any bytes?
+     * (MySQLD bit format may have all data as 'null bits'
+     */
+    if (elementByteLength)
+    {
+      bitRanges[numElements].start= 8 * elementByteOffset;
+      bitRanges[numElements].end= (8 * (elementByteOffset + elementByteLength)) - 1;
+      
+      numElements++;
+    }
 
     if (nullLength)
     {
