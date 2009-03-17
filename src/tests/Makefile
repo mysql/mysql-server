@@ -43,9 +43,11 @@ WINDOWS_DONTRUN_TESTS = \
 WINDOWS_BDB_DONTRUN_TESTS = \
 	diskfull \
 	test_groupcommit_count \
+	test_set_func_malloc \
 #\ ends prev line
 #diskfull: windows bdb is missing db_env_set_func_pwrite and db_env_set_func_write
 #test_groupcommit_count: windows bdb is missing db_env_set_func_fsync
+#test_set_func_malloc: windows bdb (some) are missing db_env_set_func_(malloc|realloc|free)
 
 ifeq ($(OS_CHOICE),windows)
     TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
@@ -157,15 +159,16 @@ ifdef BDBDIR
 %.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
 endif
 ifeq ($(DEBUG),0)
-WINDOWS_BDB_LIB_NAME=libdb$(BDBVER).$(SOEXT)
+WINDOWS_BDB_LIB_NAME=libdb.$(SOEXT)
 $(WINDOWS_BDB_LIB_NAME):
-	cp $(BDBDIR)/bin/$(WINDOWS_BDB_LIB_NAME) $@
+	cp $(BDBDIR)/lib/libdb[0-9][0-9].$(SOEXT) ./
 else
-WINDOWS_BDB_LIB_NAME=libdb$(BDBVER)d.$(SOEXT)
+WINDOWS_BDB_LIB_NAME=libdbd.$(SOEXT)
 $(WINDOWS_BDB_LIB_NAME):
-	cp $(BDBDIR)/bin/debug/$(WINDOWS_BDB_LIB_NAME) $@
+	cp $(BDBDIR)/lib/libdb[0-9][0-9]d.$(SOEXT) ./
 endif
 %.bdb$(BINSUF): DLINK_FILES=$(BDBDIR)/lib/$(WINDOWS_BDB_LIB_NAME)
+#empty
 else
 WINDOWS_BDB_LIB_NAME=
 #linux
