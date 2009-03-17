@@ -993,6 +993,22 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n NoLoad T6
 
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentFail T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13 
+
 #
 # MGMAPI AND MGSRV
 #

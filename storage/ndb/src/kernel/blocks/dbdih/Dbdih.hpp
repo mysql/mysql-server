@@ -1085,7 +1085,7 @@ private:
                     Uint32& tfstLcp);
   void newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr);
   void packCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
-  void releaseReplicas(Uint32 replicaPtr);
+  void releaseReplicas(Uint32 * replicaPtr);
   void removeOldCrashedReplicas(ReplicaRecordPtr rocReplicaPtr);
   void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr);
   void seizeReplicaRec(ReplicaRecordPtr& replicaPtr);
