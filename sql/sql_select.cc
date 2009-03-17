@@ -7643,10 +7643,12 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
 
       /*
         Check if we eliminated all the predicates of the level, e.g.
-        (a=a AND b=b AND a=a)
+        (a=a AND b=b AND a=a).
       */
-      if (!(args->elements + cond_equal.current_level.elements + eq_list.elements))
-        return new Item_int((longlong) 1,1);
+      if (!args->elements && 
+          !cond_equal.current_level.elements && 
+          !eq_list.elements)
+        return new Item_int((longlong) 1, 1);
 
       List_iterator_fast<Item_equal> it(cond_equal.current_level);
       while ((item_equal= it++))
