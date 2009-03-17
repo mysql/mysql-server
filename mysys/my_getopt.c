@@ -846,7 +846,8 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   if (num < optp->min_value)
   {
     num= optp->min_value;
-    adjusted= TRUE;
+    if (old < optp->min_value)
+      adjusted= TRUE;
   }
 
   if (fix)
@@ -917,7 +918,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   if (num < (ulonglong) optp->min_value)
   {
     num= (ulonglong) optp->min_value;
-    adjusted= TRUE;
+    if (old < optp->min_value)
+      adjusted= TRUE;
   }
 
   if (fix)
