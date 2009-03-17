@@ -20,17 +20,6 @@ HERE = db-benchmark-test
 include $(TOKUROOT)toku_include/Makefile.include
 
 BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/ scanrace.tokudb/ 4g.dir/
-
-ifdef BDBDIR
-BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib $(LIBPORTABILITY) -lpthread
-else
-BDB_CPPFLAGS = 
-BDB_LDFLAGS = -ldb $(LIBPORTABILITY)
-endif
-BDB_CPPFLAGS+=-D_GNU_SOURCE -D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600 -DBDB -I$(TOKUROOT)toku_include -I$(PORTABILITY_HEADERS)
-
-TOKUDB=libtokudb.$(SOEXT)
 TDB_DLINK_FILES = $(TOKUROOT)lib/$(TOKUDB)
 
 TARGET_BDB = db-benchmark-test-bdb$(BINSUF)
@@ -39,10 +28,42 @@ TARGET_TDB = db-benchmark-test-tokudb$(BINSUF)
 SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
 SCANRACE_TDB = scanrace-tokudb$(BINSUF)
 TARGETS = $(TARGET_BDB) $(SCANSCAN_BDB) $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB)
+TARGETS_BDB = $(TARGET_BDB) $(SCANSCAN_BDB)
+
+ifeq ($(OS_CHOICE),windows)
+ifdef BDBDIR
+$(TARGETS_BDB): INCLUDEDIRS=-I$(BDBDIR)/include
+$(TARGETS_BDB): RPATH_DIRS=$(BDBDIR)/lib
+endif
+ifeq ($(DEBUG),0)
+WINDOWS_BDB_LIB_NAME=libdb.$(SOEXT)
+$(WINDOWS_BDB_LIB_NAME):
+	cp $(BDBDIR)/lib/libdb[0-9][0-9].$(SOEXT) ./
+else
+WINDOWS_BDB_LIB_NAME=libdbd.$(SOEXT)
+$(WINDOWS_BDB_LIB_NAME):
+	cp $(BDBDIR)/lib/libdb[0-9][0-9]d.$(SOEXT) ./
+endif
+$(TARGETS_BDB): DLINK_FILES=$(BDBDIR)/lib/$(WINDOWS_BDB_LIB_NAME)
+#empty
+else
+WINDOWS_BDB_LIB_NAME=
+#linux
+ifdef BDBDIR
+$(TARGETS_BDB): INCLUDEDIRS=-I$(BDBDIR)/include
+$(TARGETS_BDB): RPATH_DIRS=$(BDBDIR)/lib
+endif
+$(TARGETS_BDB): DLINK_FILES=db.$(SOEXT)
+endif
+#empty on purpose
+
+BDB_CPPFLAGS+=-D_GNU_SOURCE -D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600 -DBDB -I$(TOKUROOT)toku_include -I$(PORTABILITY_HEADERS)
+
+TOKUDB=libtokudb.$(SOEXT)
 
 default: build
-build: $(TARGETS) 
-build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
+build: build.tdb build.bdb
+build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
 check: check-default check-xfast check-x check-no-rolltmp check-4G
@@ -119,10 +140,11 @@ $(SCANRACE_TDB): scanrace.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 endif
 
+$(TARGETS_BDB): CPPFLAGS+=-DDIRSUF=bdb  -DTOKU_ALLOW_DEPRECATED
 $(TARGET_BDB): db-benchmark-test.c
-	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 $(SCANSCAN_BDB): scanscan.c
-	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $< -o $@ -DDIRSUF=bdb $(BDB_LDFLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 PARGS =
 
