@@ -256,7 +256,7 @@ void my_error_unregister_all(void)
 
   for (cursor= my_errmsgs_globerrs.meh_next; cursor != NULL; cursor= saved_next)
   {
-	/* We need this ptr, but we're about to free its container, so save it. */
+    /* We need this ptr, but we're about to free its container, so save it. */
     saved_next= cursor->meh_next;
 
     my_free((uchar*) cursor, MYF(0));
