@@ -1,6 +1,7 @@
 #include <unistd.h>
 
 char *optarg;
+int optind;
 
 static const char *match(char c, const char *optstring) {
     int i;
@@ -16,6 +17,7 @@ int getopt(int argc, char * const argv[], const char *optstring) {
     const char *theopt;
     if (lastargc == 0) {
         lastargc = 1;
+        optind = 1;
     }
     optarg = 0;
     if (lastargc >= argc) {
@@ -41,6 +43,7 @@ int getopt(int argc, char * const argv[], const char *optstring) {
         } else
             optarg = argv[lastargc++];
     }
+    optind = lastargc;
     return theopt[0];
 }
 

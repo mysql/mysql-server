@@ -8,6 +8,7 @@ extern "C" {
 #include <io.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <getopt.h>
 
 int fsync(int fildes);
 
@@ -25,11 +26,6 @@ sleep(unsigned int);
 
 int
 usleep(unsigned int);
-
-int
-getopt(int argc, char *const argv[], const char *optstring);
-
-extern char *optarg;
 
 #if defined(__cplusplus)
 };
