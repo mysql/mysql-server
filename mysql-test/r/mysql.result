@@ -188,6 +188,10 @@ delimiter
 2
 @z:='1'	@z=database()
 1	NULL
+1
+1
+1
+1
 End of 5.0 tests
 WARNING: --server-arg option not supported in this configuration.
 Warning (Code 1286): Unknown table engine 'nonexistent'

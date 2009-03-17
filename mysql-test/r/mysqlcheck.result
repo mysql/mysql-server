@@ -149,7 +149,7 @@ SET NAMES DEFAULT;
 mysqlcheck --default-character-set="latin1" --databases test
 test.?
 Error    : Table doesn't exist
-error    : Corrupt
+status   : Operation failed
 mysqlcheck --default-character-set="utf8" --databases test
 test.я                                            OK
 SET NAMES utf8;

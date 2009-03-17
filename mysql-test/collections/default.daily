@@ -1,0 +1,1 @@
+perl mysql-test-run.pl --timer --force --comment=rpl_ndb_row --suite=rpl_ndb,ndb --mysqld=--binlog-format=row --experimental=collections/default.experimental

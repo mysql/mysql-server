@@ -1,6 +1,10 @@
 -- source include/have_query_cache.inc
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 #
 # Tests with query cache
 #
@@ -79,7 +83,7 @@ show status like "Qcache_free_blocks";
 drop table t1, t2, t3, t11, t21;
 
 #
-# do not use QC if tables locked (BUG#12385)
+# do not use QC if tables locked (Bug#12385)
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
@@ -96,10 +100,13 @@ SELECT * FROM t1;
 connection root;
 SELECT * FROM t1;
 drop table t1;
+connection default;
+disconnect root;
+disconnect root2;
 
 #
-# query in QC from normal execution and SP (BUG#6897)
-# improved to also test BUG#3583 and BUG#12990
+# query in QC from normal execution and SP (Bug#6897)
+# improved to also test Bug#3583 and Bug#12990
 #
 flush query cache;
 reset query cache;
@@ -181,7 +188,7 @@ drop procedure f4;
 drop table t1;
 
 #
-# bug#14767: INSERT in SF + concurrent SELECT with query cache
+# Bug#14767 INSERT in SF + concurrent SELECT with query cache
 #
 connection default;
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
@@ -257,6 +264,7 @@ SELECT id FROM view1 WHERE id>2;
 show status like 'Qcache_queries_in_cache';
 
 connection default;
+USE test;
 DROP DATABASE bug30269;
 disconnect bug30269;
 DROP USER 'bug30269'@'localhost';
@@ -266,3 +274,5 @@ set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
 
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

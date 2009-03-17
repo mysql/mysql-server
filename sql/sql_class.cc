@@ -538,6 +538,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
+   sql_log_bin_toplevel(false),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -787,6 +788,7 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
+  sql_log_bin_toplevel= options & OPTION_BIN_LOG;
 }
 
 
@@ -1587,6 +1589,11 @@ bool select_send::send_data(List<Item> &items)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       break;
     }
+    /*
+      Reset buffer to its original state, as it may have been altered in
+      Item::send().
+    */
+    buffer.set(buff, sizeof(buff), &my_charset_bin);
   }
   thd->sent_row_count++;
   if (thd->is_error())
@@ -3657,7 +3664,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     If we are in statement mode and trying to log an unsafe statement,
     we should print a warning.
   */
-  if (lex->is_stmt_unsafe() &&
+  if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
       variables.binlog_format == BINLOG_FORMAT_STMT)
   {
     push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
