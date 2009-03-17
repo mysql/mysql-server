@@ -424,7 +424,7 @@ public:
       }
     
     /* next time to report backup status */
-    Uint32 m_next_report;
+    Uint64 m_next_report;
 
     Uint32 m_gsn;
     CompoundState slaveState; 

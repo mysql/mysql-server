@@ -17,8 +17,7 @@
 #include "LocalProxy.hpp"
 
 LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
-  SimulatedBlock(blockNumber, ctx),
-  c_nodeList(c_nodePool)
+  SimulatedBlock(blockNumber, ctx)
 {
   BLOCK_CONSTRUCTOR(LocalProxy);
 
@@ -34,7 +33,6 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
 
   c_typeOfStart = NodeState::ST_ILLEGAL_TYPE;
   c_masterNodeId = ZNIL;
-  c_nodePool.setSize(MAX_NDB_NODES);
 
   // GSN_READ_CONFIG_REQ
   addRecSignal(GSN_READ_CONFIG_REQ, &LocalProxy::execREAD_CONFIG_REQ, true);
@@ -278,11 +276,24 @@ LocalProxy::loadWorkers()
 void
 LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
 {
-  Ss_READ_CONFIG_REQ& ss = ssSeize<Ss_READ_CONFIG_REQ>();
+  Ss_READ_CONFIG_REQ& ss = ssSeize<Ss_READ_CONFIG_REQ>(1);
 
   const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
   ss.m_req = *req;
   ndbrequire(ss.m_req.noOfParameters == 0);
+  callREAD_CONFIG_REQ(signal);
+}
+
+void
+LocalProxy::callREAD_CONFIG_REQ(Signal* signal)
+{
+  backREAD_CONFIG_REQ(signal);
+}
+
+void
+LocalProxy::backREAD_CONFIG_REQ(Signal* signal)
+{
+  Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(1);
 
   // run sequentially due to big mallocs and initializations
   sendREQ(signal, ss);
@@ -486,33 +497,6 @@ LocalProxy::execREAD_NODESCONF(Signal* signal)
 
   const ReadNodesConf* conf = (const ReadNodesConf*)signal->getDataPtr();
 
-  ndbrequire(c_nodePool.getNoOfFree() == c_nodePool.getSize());
-  Uint32 count = 0;
-  Uint32 i;
-  for (i = 0; i < MAX_NDB_NODES; i++) {
-    if (NdbNodeBitmask::get(conf->allNodes, i)) {
-      jam();
-      count++;
-
-      NodePtr nodePtr;
-      bool ok = c_nodePool.seize(nodePtr);
-      ndbrequire(ok);
-      new (nodePtr.p) Node;
-
-      nodePtr.p->m_nodeId = i;
-      if (NdbNodeBitmask::get(conf->inactiveNodes, i)) {
-        jam();
-        nodePtr.p->m_alive = false;
-      } else {
-        jam();
-        nodePtr.p->m_alive = true;
-      }
-
-      c_nodeList.addLast(nodePtr);
-    }
-  }
-  ndbrequire(count != 0 && count == conf->noOfNodes);
-
   c_masterNodeId = conf->masterNodeId;
 
   switch (ss.m_gsn) {
@@ -550,20 +534,6 @@ LocalProxy::execNODE_FAILREP(Signal* signal)
 
   NdbNodeBitmask mask;
   mask.assign(NdbNodeBitmask::Size, req->theNodes);
-
-  // proxy itself
-  NodePtr nodePtr;
-  c_nodeList.first(nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  while (nodePtr.i != RNIL)
-  {
-    if (NdbNodeBitmask::get(req->theNodes, nodePtr.p->m_nodeId))
-    {
-      jam();
-      nodePtr.p->m_alive = false;
-    }
-    c_nodeList.next(nodePtr);
-  }
 
   // from each worker wait for ack for each failed node
   for (Uint32 i = 0; i < c_workers; i++)
@@ -652,20 +622,6 @@ LocalProxy::execINCL_NODEREQ(Signal* signal)
   ss.m_reqlength = signal->getLength();
   ndbrequire(sizeof(ss.m_req) >= (ss.m_reqlength << 2));
   memcpy(&ss.m_req, signal->getDataPtr(), ss.m_reqlength << 2);
-
-  // proxy itself
-  NodePtr nodePtr;
-  c_nodeList.first(nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  while (nodePtr.i != RNIL) {
-    jam();
-    if (ss.m_req.inclNodeId == nodePtr.p->m_nodeId) {
-      jam();
-      ndbrequire(!nodePtr.p->m_alive);
-      nodePtr.p->m_alive = true;
-    }
-    c_nodeList.next(nodePtr);
-  }
 
   sendREQ(signal, ss);
 }

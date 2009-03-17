@@ -206,7 +206,7 @@ Backup::execCONTINUEB(Signal* signal)
     */
     int delay_time = m_reset_delay_used;
     NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
-    int sig_delay = curr_time - m_reset_disk_speed_time;
+    int sig_delay = int(curr_time - m_reset_disk_speed_time);
 
     m_words_written_this_period = m_overflow_disk_write;
     m_overflow_disk_write = 0;
@@ -772,8 +772,8 @@ Backup::findTable(const BackupRecordPtr & ptr,
 
 static Uint32 xps(Uint64 x, Uint64 ms)
 {
-  float fx = x;
-  float fs = ms;
+  float fx = float(x);
+  float fs = float(ms);
   
   if(ms == 0 || x == 0) {
     jamNoBlock();
@@ -820,7 +820,7 @@ operator<< (NdbOut & out, const Number & val){
   char str[2];
   str[0] = p;
   str[1] = 0;
-  Uint32 tmp = (val.val + (loop >> 1)) / loop;
+  Uint32 tmp = (Uint32)((val.val + (loop >> 1)) / loop);
 #if 1
   if(p > 0)
     out << tmp << str;
@@ -1486,7 +1486,7 @@ Backup::execUTIL_SEQUENCE_CONF(Signal* signal)
   }
 
   ptr.p->backupKey[0] = (getOwnNodeId() << 16) | (ptr.p->backupId & 0xFFFF);
-  ptr.p->backupKey[1] = NdbTick_CurrentMillisecond();
+  ptr.p->backupKey[1] = Uint32(NdbTick_CurrentMillisecond());
 
   ptr.p->masterData.gsn = GSN_UTIL_LOCK_REQ;
   Mutex mutex(signal, c_mutexMgr, ptr.p->masterData.m_defineBackupMutex);
@@ -2643,8 +2643,8 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
       rep->noOfRecordsLow = (Uint32)(ptr.p->noOfRecords & 0xFFFFFFFF);
       rep->noOfBytesHigh = (Uint32)(ptr.p->noOfBytes >> 32);
       rep->noOfRecordsHigh = (Uint32)(ptr.p->noOfRecords >> 32);
-      rep->noOfLogBytes = ptr.p->noOfLogBytes;
-      rep->noOfLogRecords = ptr.p->noOfLogRecords;
+      rep->noOfLogBytes = Uint32(ptr.p->noOfLogBytes); // TODO 64-bit log-bytes
+      rep->noOfLogRecords = Uint32(ptr.p->noOfLogRecords); // TODO ^^
       rep->nodes = ptr.p->nodes;
       sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
 		 BackupCompleteRep::SignalLength, JBB);
@@ -4280,7 +4280,7 @@ Backup::OperationRecord::closeScan()
 bool 
 Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
 {
-  const Uint32 done = opNoDone-opNoConf;
+  const Uint32 done = Uint32(opNoDone-opNoConf);
   
   ndbrequire(noOfOps == done);
   ndbrequire(opLen == total_len);
@@ -5203,8 +5203,8 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
   if(ptr.p->logFilePtr != RNIL)
   {
     ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
-    conf->noOfLogBytes= filePtr.p->operation.noOfBytes;
-    conf->noOfLogRecords= filePtr.p->operation.noOfRecords;
+    conf->noOfLogBytes= Uint32(filePtr.p->operation.noOfBytes);     // TODO
+    conf->noOfLogRecords= Uint32(filePtr.p->operation.noOfRecords); // TODO
   }
   else
   {

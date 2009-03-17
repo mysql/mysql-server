@@ -4202,3 +4202,4 @@ template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;
 template class Vector< Vector<BaseString> >;
 template class Vector<MgmtSrvr::nodeid_and_host>;
+template class Vector<Defragger::DefragBuffer*>;

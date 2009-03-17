@@ -21433,9 +21433,10 @@ Dbdict::dropNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 
   impl_req->requestType = DropNodegroupImplReq::RT_COMPLETE;
   dropNodegroupRecPtr.p->m_blockIndex = 0;
-  dropNodegroupRecPtr.p->m_blockCnt = 2;
+  dropNodegroupRecPtr.p->m_blockCnt = 3;
   dropNodegroupRecPtr.p->m_blockNo[0] = SUMA_REF;
   dropNodegroupRecPtr.p->m_blockNo[1] = DBDIH_REF;
+  dropNodegroupRecPtr.p->m_blockNo[2] = NDBCNTR_REF;
 
   dropNodegroup_toLocal(signal, op_ptr);
 }

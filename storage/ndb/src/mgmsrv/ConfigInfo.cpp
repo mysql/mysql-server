@@ -2870,7 +2870,7 @@ ConfigInfo::ConfigInfo()
 	  case CI_INT64:
 	    {
 	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
-	      require(p->put(param._fname, Uint64(default_uint64)));
+	      require(p->put64(param._fname, Uint64(default_uint64)));
 	      break;
 	    }
 	}

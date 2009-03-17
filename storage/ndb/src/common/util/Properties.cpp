@@ -1005,7 +1005,7 @@ Properties::put64(const char * name, Uint32 no, Uint64 val, bool replace){
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
   BaseString::snprintf(tmp, tmp_len, "%s_%d", name, no);
-  bool res = put(tmp, Uint64(val), replace);
+  bool res = put64(tmp, val, replace);
   free(tmp);
   return res;
 }

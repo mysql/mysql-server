@@ -212,7 +212,7 @@ protected:
   template <class Ss>
   Ss& ssSeize() {
     const Uint32 base = SsIdBase;
-    const Uint32 mask = SsIdBase - 1;
+    const Uint32 mask = Uint32(Int32(SsIdBase) - 1);
     Uint32 ssId = base | c_ssIdSeq;
     c_ssIdSeq = (c_ssIdSeq + 1) & mask;
     return ssSeize<Ss>(ssId);
@@ -304,23 +304,6 @@ protected:
   Uint32 c_typeOfStart;
   Uint32 c_masterNodeId;
 
-  struct Node {
-    Uint32 m_nodeId;
-    bool m_alive;
-    Node() {
-      m_nodeId = 0;
-      m_alive = false;
-    }
-    Uint32 nextList;
-    union {
-    Uint32 prevList;
-    Uint32 nextPool;
-    };
-  };
-  typedef Ptr<Node> NodePtr;
-  ArrayPool<Node> c_nodePool;
-  DLFifoList<Node> c_nodeList;
-
   // GSN_READ_CONFIG_REQ
   struct Ss_READ_CONFIG_REQ : SsSequential {
     ReadConfigReq m_req;
@@ -335,6 +318,8 @@ protected:
   };
   SsPool<Ss_READ_CONFIG_REQ> c_ss_READ_CONFIG_REQ;
   void execREAD_CONFIG_REQ(Signal*);
+  virtual void callREAD_CONFIG_REQ(Signal*);
+  void backREAD_CONFIG_REQ(Signal*);
   void sendREAD_CONFIG_REQ(Signal*, Uint32 ssId);
   void execREAD_CONFIG_CONF(Signal*);
   void sendREAD_CONFIG_CONF(Signal*, Uint32 ssId);

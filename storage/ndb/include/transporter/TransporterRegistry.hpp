@@ -220,7 +220,7 @@ public:
    * Argument is the value of config parameter TotalSendBufferMemory. If 0,
    * a default will be used of sum(max send buffer) over all transporters.
    */
-  void allocate_send_buffers(Uint32 total_send_buffer);
+  void allocate_send_buffers(Uint64 total_send_buffer);
 
   /**
    * Get sum of max send buffer over all transporters, to be used as a default

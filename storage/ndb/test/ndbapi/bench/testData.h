@@ -122,7 +122,9 @@ typedef struct {
 
 typedef struct {
   const class NdbRecord* subscriberTableNdbRecord;
-  const class NdbRecord* groupTableNdbRecord;
+  const class NdbRecord* groupTableAllowReadNdbRecord;
+  const class NdbRecord* groupTableAllowInsertNdbRecord;
+  const class NdbRecord* groupTableAllowDeleteNdbRecord;
   const class NdbRecord* sessionTableNdbRecord;
   const class NdbInterpretedCode* incrServerReadsProg;
   const class NdbInterpretedCode* incrServerInsertsProg;

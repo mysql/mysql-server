@@ -769,7 +769,7 @@ Suma::send_handover_req(Signal* signal)
   c_startup.m_handover_nodes.assign(c_alive_nodes);
   c_startup.m_handover_nodes.bitAND(c_nodes_in_nodegroup_mask);
   c_startup.m_handover_nodes.clear(getOwnNodeId());
-  Uint32 gci= (m_last_complete_gci >> 32) + 3;
+  Uint32 gci= Uint32(m_last_complete_gci >> 32) + 3;
   
   SumaHandoverReq* req= (SumaHandoverReq*)signal->getDataPtrSend();
   char buf[255];
@@ -5162,7 +5162,7 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
 
   Uint32 gci = req->gci;
   Uint32 nodeId = req->nodeId;
-  Uint32 new_gci = (m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
+  Uint32 new_gci = Uint32(m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
   
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA

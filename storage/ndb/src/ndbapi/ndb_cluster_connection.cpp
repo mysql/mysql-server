@@ -708,8 +708,6 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
                                          int retry_delay_in_seconds,
                                          int verbose)
 {
-  struct ndb_mgm_reply mgm_reply;
-
   DBUG_ENTER("Ndb_cluster_connection::connect");
   do {
     if (m_config_retriever == 0)

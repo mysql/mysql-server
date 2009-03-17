@@ -192,7 +192,7 @@ print_extent_page(int count, void* ptr, Uint32 sz){
   
   int no = count * per_page;
   
-  const int max = count < g_df_zero.m_extent_pages ? 
+  const int max = count < int(g_df_zero.m_extent_pages) ? 
     per_page : g_df_zero.m_extent_count - (g_df_zero.m_extent_count - 1) * per_page;
 
   File_formats::Datafile::Extent_page * page = 
@@ -250,7 +250,7 @@ print_data_page(int count, void* ptr, Uint32 sz){
 
 int
 print_undo_page(int count, void* ptr, Uint32 sz){
-  if(count > g_uf_zero.m_undo_pages + 1)
+  if(count > int(g_uf_zero.m_undo_pages + 1))
   {
     ndbout_c(" ERROR to many pages in file!!");
     return 1;

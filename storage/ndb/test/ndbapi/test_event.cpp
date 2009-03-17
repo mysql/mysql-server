@@ -23,6 +23,7 @@
 #include <NdbRestarts.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
+#include <Bitmask.hpp>
 
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
@@ -1688,26 +1689,70 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_RETURN(NDBT_OK);
 }
 
-static int restartAllNodes(int & cnt)
+typedef Bitmask<(MAX_NDB_NODES + 31) / 32> NdbNodeBitmask;
+
+static
+int 
+restartNodes(NdbNodeBitmask mask)
 {
-  cnt = 0;
-  NdbRestarter restarter;
-  int id = 0;
-  do {
-    int nodeId = restarter.getDbNodeId(id++);
-    ndbout << "Restart node " << nodeId << endl; 
-    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
-      g_err << "Failed to restartNextDbNode" << endl;
-      break;
-    }    
-    if(restarter.waitClusterStarted(60) != 0){
-      g_err << "Cluster failed to start" << endl;
-      break;
+  int cnt = 0;
+  int nodes[MAX_NDB_NODES];
+  NdbRestarter res;
+  for (Uint32 i = 0; i<MAX_NDB_NODES; i++)
+  {
+    if (mask.get(i))
+    {
+      nodes[cnt++] = i;
+      res.restartOneDbNode(i,
+                           /** initial */ false,
+                           /** nostart */ true,
+                           /** abort   */ true);
     }
-    id = id % restarter.getNumDbNodes();
-    cnt++;
-  } while (id);
-  return id != 0;
+  }
+
+  int result;
+  if (res.waitNodesNoStart(nodes, cnt) != 0)
+    return NDBT_FAILED;
+
+  res.startNodes(nodes, cnt);
+
+  return res.waitClusterStarted();
+}
+
+static int restartAllNodes()
+{
+  NdbRestarter restarter;
+  NdbNodeBitmask ng;
+  NdbNodeBitmask nodes0;
+  NdbNodeBitmask nodes1;
+
+  /**
+   * Restart all nodes using two restarts
+   *   instead of one by one...as this takes to long
+   */
+  for (Uint32 i = 0; i<restarter.getNumDbNodes(); i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    if (ng.get(restarter.getNodeGroup(nodeId)) == false)
+    {
+      nodes0.set(nodeId);
+      ng.set(restarter.getNodeGroup(nodeId));
+    }
+    else
+    {
+      nodes1.set(nodeId);
+    }
+  }
+
+  int res;
+  if ((res = restartNodes(nodes0)) != NDBT_OK)
+  {
+    return res;
+  }
+  
+
+  res = restartNodes(nodes1);
+  return res;
 }
 
 static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
@@ -1716,7 +1761,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
   Ndb * ndb= GETNDB(step);
   int result = NDBT_OK;
   NdbRestarter restarter;
-  int loops = 2*ctx->getNumLoops();
+  int loops = ctx->getNumLoops();
 
   if (restarter.getNumDbNodes() < 2)
   {
@@ -1746,8 +1791,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     ndbout << "Restarting with dropped events with subscribers" << endl;
-    int cnt0 = 0, cnt1 = 0;
-    if (restartAllNodes(cnt0))
+    if (restartAllNodes())
       break;
     if (ndb->getDictionary()->dropTable(pTab->getName()) != 0){
       g_err << "Failed to drop " << pTab->getName() <<" in db" << endl;
@@ -1755,7 +1799,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
     }
     ndbout << "Restarting with dropped events and dropped "
            << "table with subscribers" << endl;
-    if (restartAllNodes(cnt1))
+    if (restartAllNodes())
       break;
     if (ndb->dropEventOperation(pOp))
     {
@@ -1769,7 +1813,6 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     result = NDBT_OK;
-    loops -= (cnt0 + cnt1);
   } while (--loops > 0);
   
   DBUG_RETURN(result);
