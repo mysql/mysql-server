@@ -81,6 +81,8 @@ buf_buddy_add_to_free(
 	if (b) UNIV_MEM_VALID(b, BUF_BUDDY_LOW << i);
 #endif /* UNIV_DEBUG_VALGRIND */
 
+	ut_ad(buf_pool_mutex_own());
+	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 	ut_ad(buf_pool->zip_free[i].start != bpage);
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
 
@@ -110,6 +112,7 @@ buf_buddy_remove_from_free(
 	ut_ad(!next || buf_page_get_state(next) == BUF_BLOCK_ZIP_FREE);
 #endif /* UNIV_DEBUG_VALGRIND */
 
+	ut_ad(buf_pool_mutex_own());
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 	UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
 
@@ -134,12 +137,12 @@ buf_buddy_alloc_zip(
 	ut_ad(buf_pool_mutex_own());
 	ut_a(i < BUF_BUDDY_SIZES);
 
-#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
+#ifndef UNIV_DEBUG_VALGRIND
 	/* Valgrind would complain about accessing free memory. */
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i],
-			 ut_a(buf_page_get_state(ut_list_node_313)
-			      == BUF_BLOCK_ZIP_FREE));
-#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i],
+			      ut_ad(buf_page_get_state(ut_list_node_313)
+				    == BUF_BLOCK_ZIP_FREE)));
+#endif /* !UNIV_DEBUG_VALGRIND */
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
 	if (bpage) {
@@ -223,6 +226,7 @@ buf_buddy_block_register(
 	const ulint	fold = BUF_POOL_ZIP_FOLD(block);
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
 
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
@@ -264,12 +268,13 @@ buf_buddy_alloc_from(
 		bpage = (buf_page_t*) ((byte*) buf + offs);
 		ut_d(memset(bpage, j, BUF_BUDDY_LOW << j));
 		bpage->state = BUF_BLOCK_ZIP_FREE;
-#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
+#ifndef UNIV_DEBUG_VALGRIND
 		/* Valgrind would complain about accessing free memory. */
-		UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[j],
-				 ut_a(buf_page_get_state(ut_list_node_313)
-				      == BUF_BLOCK_ZIP_FREE));
-#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
+		ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i],
+				      ut_ad(buf_page_get_state(
+						    ut_list_node_313)
+					    == BUF_BLOCK_ZIP_FREE)));
+#endif /* !UNIV_DEBUG_VALGRIND */
 		buf_buddy_add_to_free(bpage, j);
 	}
 
@@ -578,8 +583,8 @@ buddy_free2:
 buddy_nonfree:
 	/* Valgrind would complain about accessing free memory. */
 	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i],
-			      ut_a(buf_page_get_state(ut_list_node_313)
-				   == BUF_BLOCK_ZIP_FREE)));
+			      ut_ad(buf_page_get_state(ut_list_node_313)
+				    == BUF_BLOCK_ZIP_FREE)));
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	/* The buddy is not free. Is there a free block of this size? */
@@ -605,21 +610,20 @@ buddy_nonfree:
 		buddy = (buf_page_t*) buf_buddy_get(((byte*) bpage),
 						    BUF_BUDDY_LOW << i);
 
-#if defined UNIV_DEBUG && !defined UNIV_DEBUG_VALGRIND
-		{
-			const buf_page_t* b;
+#ifndef UNIV_DEBUG_VALGRIND
+		/* Valgrind would complain about accessing free memory. */
 
-			/* The buddy must not be (completely) free, because
-			we always recombine adjacent free blocks.
-			(Parts of the buddy can be free in
-			buf_pool->zip_free[j] with j < i.)*/
-			for (b = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
-			     b; b = UT_LIST_GET_NEXT(list, b)) {
+		/* The buddy must not be (completely) free, because we
+		always recombine adjacent free blocks.
 
-				ut_a(b != buddy);
-			}
-		}
-#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
+		(Parts of the buddy can be free in
+		buf_pool->zip_free[j] with j < i.) */
+		ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i],
+				      ut_ad(buf_page_get_state(
+						    ut_list_node_313)
+					    == BUF_BLOCK_ZIP_FREE
+					    && ut_list_node_313 != buddy)));
+#endif /* !UNIV_DEBUG_VALGRIND */
 
 		if (buf_buddy_relocate(buddy, buf, i)) {
 
