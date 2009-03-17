@@ -345,7 +345,7 @@ T3_Callback_1(int result, NdbConnection * pCON, void * threadData){
   {
     char* rowPtr= (char*) &td->transactionData;
     const NdbRecord* record= td->ndbRecordSharedData->
-      groupTableNdbRecord;
+      groupTableAllowReadNdbRecord;
     Uint32 m=0;
     unsigned char* mask= (unsigned char*) &m;
     
@@ -673,7 +673,7 @@ T4_Callback_1(int result, NdbConnection * pCON, void * threadData){
   {
     char* rowPtr= (char*) &td->transactionData;
     const NdbRecord* record= td->ndbRecordSharedData->
-      groupTableNdbRecord;
+      groupTableAllowInsertNdbRecord;
     Uint32 m=0;
     unsigned char* mask= (unsigned char*) &m;
 
@@ -1011,7 +1011,7 @@ T5_Callback_1(int result, NdbConnection * pCON, void * threadData){
   {
     char* rowPtr= (char*) &td->transactionData;
     const NdbRecord* record= td->ndbRecordSharedData->
-      groupTableNdbRecord;
+      groupTableAllowDeleteNdbRecord;
     Uint32 m=0;
     unsigned char* mask= (unsigned char*) &m;
 
