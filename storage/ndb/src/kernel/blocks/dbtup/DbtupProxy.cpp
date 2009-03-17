@@ -23,8 +23,13 @@
 
 DbtupProxy::DbtupProxy(Block_context& ctx) :
   LocalProxy(DBTUP, ctx),
-  c_pgman(0)
+  c_pgman(0),
+  c_tableRecSize(0),
+  c_tableRec(0)
 {
+  // GSN_CREATE_TAB_REQ
+  addRecSignal(GSN_CREATE_TAB_REQ, &DbtupProxy::execCREATE_TAB_REQ);
+
   // GSN_DROP_TAB_REQ
   addRecSignal(GSN_DROP_TAB_REQ, &DbtupProxy::execDROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_CONF, &DbtupProxy::execDROP_TAB_CONF);
@@ -45,6 +50,26 @@ DbtupProxy::newWorker(Uint32 instanceNo)
   return new Dbtup(m_ctx, instanceNo);
 }
 
+// GSN_READ_CONFIG_REQ
+void
+DbtupProxy::callREAD_CONFIG_REQ(Signal* signal)
+{
+  const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
+  ndbrequire(req->noOfParameters == 0);
+
+  const ndb_mgm_configuration_iterator * p = 
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &c_tableRecSize));
+  c_tableRec = (Uint8*)allocRecord("TableRec", sizeof(Uint8), c_tableRecSize);
+  D("proxy:" << V(c_tableRecSize));
+  Uint32 i;
+  for (i = 0; i < c_tableRecSize; i++)
+    c_tableRec[i] = 0;
+  backREAD_CONFIG_REQ(signal);
+}
+
 // GSN_STTOR
 
 void
@@ -58,6 +83,19 @@ DbtupProxy::callSTTOR(Signal* signal)
     break;
   }
   backSTTOR(signal);
+}
+
+// GSN_CREATE_TAB_REQ
+
+void
+DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
+{
+  const CreateTabReq* req = (const CreateTabReq*)signal->getDataPtr();
+  const Uint32 tableId = req->tableId;
+  ndbrequire(tableId < c_tableRecSize);
+  ndbrequire(c_tableRec[tableId] == 0);
+  c_tableRec[tableId] = 1;
+  D("proxy: created table" << V(tableId));
 }
 
 // GSN_DROP_TAB_REQ
@@ -112,6 +150,14 @@ DbtupProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
     conf->tableId = ss.m_req.tableId;
     sendSignal(dictRef, GSN_DROP_TAB_CONF,
                signal, DropTabConf::SignalLength, JBB);
+    // for completeness (not needed for UNDO code)
+    const Uint32 tableId = conf->tableId;
+    // make sure to not crash for nothing
+    if (tableId < c_tableRecSize && c_tableRec[tableId] == 1) {
+      jam();
+      c_tableRec[tableId] = 0;
+      D("proxy: dropped table" << V(tableId));
+    }
   } else {
     ndbrequire(false);
   }
@@ -297,7 +343,6 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
      * Page request goes to the extra PGMAN worker (our thread).
      * TUP worker reads same page again via another PGMAN worker.
      * MT-LGMAN is planned, do not optimize (pass page) now
-     * wl4391 todo - extra worker to free unlocked pages after SR
      */
     Page_cache_client pgman(this, c_pgman);
     Page_cache_client::Request req;
@@ -348,6 +393,12 @@ DbtupProxy::disk_restart_undo_callback(Signal* signal, Uint32, Uint32 page_id)
       undo.m_table_id = page->m_table_id;
       undo.m_fragment_id = page->m_fragment_id;
       D("proxy: callback" << V(undo.m_table_id) << V(undo.m_fragment_id));
+      const Uint32 tableId = undo.m_table_id;
+      if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
+        D("proxy: table dropped" << V(tableId));
+        undo.m_actions |= Proxy_undo::NoExecute;
+        undo.m_actions |= Proxy_undo::SendUndoNext;
+      }
     }
   }
 
@@ -421,6 +472,12 @@ int
 DbtupProxy::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
                                       const Local_key* key, Uint32 pages)
 {
+  if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
+    jam();
+    D("proxy: table dropped" << V(tableId));
+    return -1;
+  }
+
   // local call so mapping instance key to number is ok
   Uint32 instanceKey = getInstanceKey(tableId, fragId);
   Uint32 instanceNo = getInstanceFromKey(instanceKey);
@@ -434,6 +491,8 @@ void
 DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
                                    const Local_key* key, Uint32 bits)
 {
+  ndbrequire(tableId < c_tableRecSize && c_tableRec[tableId] == 1);
+
   // local call so mapping instance key to number is ok
   Uint32 instanceKey = getInstanceKey(tableId, fragId);
   Uint32 instanceNo = getInstanceFromKey(instanceKey);

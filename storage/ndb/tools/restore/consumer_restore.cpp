@@ -253,7 +253,7 @@ static Uint32 get_no_fragments(Uint64 max_rows, Uint32 no_nodes)
   Uint32 i = 0;
   Uint32 acc_row_size = 27;
   Uint32 acc_fragment_size = 512*1024*1024;
-  Uint32 no_parts= (max_rows*acc_row_size)/acc_fragment_size + 1;
+  Uint32 no_parts= Uint32((max_rows*acc_row_size)/acc_fragment_size + 1);
   Uint32 reported_parts = no_nodes; 
   while (reported_parts < no_parts && ++i < 4 &&
          (reported_parts + no_parts) < MAX_NDB_PARTITIONS)

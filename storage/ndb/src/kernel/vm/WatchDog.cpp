@@ -233,7 +233,7 @@ WatchDog::run()
         threadId[i] = m_watchedList[i].m_threadId;
         oldCounterValue[i] = m_watchedList[i].m_lastCounterValue;
         theIntervalCheck[i] = m_watchedList[i].m_slowWarnDelay;
-        elapsed[i] = NdbTick_getMicrosPassed(start_time[i], now)/1000;
+        elapsed[i] = (Uint32)NdbTick_getMicrosPassed(start_time[i], now)/1000;
         if (oldCounterValue[i] == 9 && elapsed[i] >= theIntervalCheck[i])
           m_watchedList[i].m_slowWarnDelay += theInterval;
       }

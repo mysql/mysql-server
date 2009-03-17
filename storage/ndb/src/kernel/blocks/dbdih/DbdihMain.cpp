@@ -3241,7 +3241,7 @@ add_lcp_counter(Uint32 * counter, Uint32 add)
   tmp += add;
   if (tmp > 0xFFFFFFFF)
     tmp = 0xFFFFFFFF;
-  * counter = tmp;
+  * counter = Uint32(tmp);
 }
 
 void
@@ -5113,8 +5113,8 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
      
     GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
     req->senderData = m_micro_gcp.m_master_ref;
-    req->gci_hi = m_micro_gcp.m_old_gci >> 32;
-    req->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    req->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
+    req->gci_lo = Uint32(m_micro_gcp.m_old_gci);
     sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
                GCPNoMoreTrans::SignalLength, JBB);
   }
@@ -6090,6 +6090,25 @@ void Dbdih::startLcpTakeOverLab(Signal* signal, Uint32 failedNodeId)
   // node.
   /*--------------------------------------------------------------------*/
 }//Dbdih::startLcpTakeOver()
+
+void
+Dbdih::execEMPTY_LCP_REP(Signal* signal)
+{
+  jamEntry();
+  EmptyLcpRep* rep = (EmptyLcpRep*)signal->getDataPtr();
+  
+  Uint32 len = signal->getLength();
+  ndbrequire(len > EmptyLcpRep::SignalLength);
+  len -= EmptyLcpRep::SignalLength;
+
+  NdbNodeBitmask nodes;
+  nodes.assign(NdbNodeBitmask::Size, rep->receiverGroup);
+  NodeReceiverGroup rg (DBDIH, nodes);
+  memmove(signal->getDataPtrSend(), 
+          signal->getDataPtr()+EmptyLcpRep::SignalLength, 4*len);
+  
+  sendSignal(rg, GSN_EMPTY_LCP_CONF, signal, len, JBB);
+}
 
 void Dbdih::execEMPTY_LCP_CONF(Signal* signal)
 {
@@ -7918,17 +7937,21 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     tabPtr.p->m_new_map_ptr_i = RNIL;
     tabPtr.p->m_scan_reorg_flag = 0;
     return;
-  case AlterTabReq::AlterTableWaitScan:
+  case AlterTabReq::AlterTableWaitScan:{
     jam();
+    Uint64 now = NdbTick_CurrentMillisecond();
+    now /= 1000;
     signal->theData[0] = DihContinueB::ZWAIT_OLD_SCAN;
     signal->theData[1] = tabPtr.i;
     signal->theData[2] = senderRef;
     signal->theData[3] = senderData;
     signal->theData[4] = connectPtr.i;
-    signal->theData[5] = NdbTick_CurrentMillisecond() / 1000;
-    signal->theData[6] = 3;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
+    signal->theData[5] = Uint32(now >> 32);
+    signal->theData[6] = Uint32(now);
+    signal->theData[7] = 3;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 8, JBB);
     return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -8049,23 +8072,25 @@ Dbdih::wait_old_scan(Signal* signal)
     return;
   }
 
-  Uint32 start = signal->theData[5];
-  Uint32 wait = signal->theData[6];
-  Uint32 now = NdbTick_CurrentMillisecond() / 1000;
+  Uint32 start_hi = signal->theData[5];
+  Uint32 start_lo = signal->theData[6];
+  Uint64 start = (Uint64(start_hi) << 32) + start_lo;
+  Uint32 wait = signal->theData[7];
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
   if (now > start + wait)
   {
     infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
-              now - start,
+              Uint32(now - start),
               tabPtr.p->m_scan_count[1],
               tabPtr.i);
 
     if (wait == 3)
     {
-      signal->theData[6] = 3 + 7;
+      signal->theData[7] = 3 + 7;
     }
     else
     {
-      signal->theData[6] = 2 * wait;
+      signal->theData[7] = 2 * wait;
     }
   }
 
@@ -8145,6 +8170,9 @@ Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
 
   getFragstore(tabPtr.p, fragId, fragPtr);
   dec_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
+
+  releaseReplicas(fragPtr.p->storedReplicas);
+  releaseReplicas(fragPtr.p->oldStoredReplicas);
 
   if (fragId == ((chunks - 1) << LOG_NO_OF_FRAGS_PER_CHUNK))
   {
@@ -10049,11 +10077,6 @@ Dbdih::LocalLCPState::lcp_frag_rep(const LcpFragRep * rep)
   if (rep->maxGciCompleted < m_keep_gci)
   {
     m_keep_gci = rep->maxGciCompleted;
-    if (rep->maxGciCompleted < 100)
-    {
-      printLCP_FRAG_REP(stdout, (Uint32*)rep,
-                        LcpFragRep::SignalLength, 0);
-    }
   }
 
   if (rep->maxGciStarted > m_stop_gci)
@@ -12035,6 +12058,32 @@ void Dbdih::sendLastLCP_FRAG_ORD(Signal* signal)
 void Dbdih::execLCP_FRAG_REP(Signal* signal) 
 {
   jamEntry();
+
+  LcpFragRep * const lcpReport = (LcpFragRep *)&signal->theData[0];
+
+  /**
+   * Proxing LCP_FRAG_REP
+   */
+  const bool broadcast_req = lcpReport->nodeId == LcpFragRep::BROADCAST_REQ;
+  if (broadcast_req)
+  {
+    jam();
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
+
+    /**
+     * Set correct nodeId
+     */
+    lcpReport->nodeId = getOwnNodeId();
+
+    NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
+    rg.m_nodes.clear(getOwnNodeId());
+    sendSignal(rg, GSN_LCP_FRAG_REP, signal, signal->getLength(), JBB);  
+
+    /**
+     * and continue processing
+     */
+  }
+
   ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   
 #if 0
@@ -12043,7 +12092,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 		    signal->length(), number());
 #endif  
 
-  LcpFragRep * const lcpReport = (LcpFragRep *)&signal->theData[0];
   Uint32 nodeId = lcpReport->nodeId;
   Uint32 tableId = lcpReport->tableId;
   Uint32 fragId = lcpReport->fragId;
@@ -12084,7 +12132,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   CRASH_INSERTION2(7016, !isMaster());
   CRASH_INSERTION2(7191, (!isMaster() && tableId));
 
-  bool fromTimeQueue = (signal->senderBlockRef() == reference());
+  bool fromTimeQueue = (signal->senderBlockRef()==reference()&&!broadcast_req);
   
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
@@ -12601,6 +12649,26 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
 #endif
 
   LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtr();
+
+  if (rep->nodeId == LcpFragRep::BROADCAST_REQ)
+  {
+    jam();
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == getOwnNodeId());
+    
+    /**
+     * Set correct nodeId
+     */
+    rep->nodeId = getOwnNodeId();
+
+    NodeReceiverGroup rg(DBDIH, c_lcpState.m_participatingDIH);
+    rg.m_nodes.clear(getOwnNodeId());
+    sendSignal(rg, GSN_LCP_COMPLETE_REP, signal, signal->getLength(), JBB);  
+    
+    /**
+     * and continue processing
+     */
+  }
+  
   Uint32 lcpId = rep->lcpId;
   Uint32 nodeId = rep->nodeId;
   Uint32 blockNo = rep->blockNo;
@@ -16252,6 +16320,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
+    RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
     {
       Uint32 cnghash = 0;
@@ -16270,6 +16339,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+    RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
     {
       Uint32 cnghash = 0;

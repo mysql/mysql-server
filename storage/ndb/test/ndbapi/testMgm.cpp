@@ -1099,10 +1099,13 @@ check_get_nodeid_dynamic_nodeid(NdbMgmd& mgmd)
         an error "there is no more nodeid" occur
       */
       if (!ok(reply)){
-        BaseString expected;
-        expected.assfmt("No free node id found for %s",
+        BaseString expected1;
+        expected1.assfmt("No free node id found for %s",
                         NdbMgmd::NodeType(nodeType).c_str());
-        if (!result_contains(reply, expected.c_str()))
+        BaseString expected2;
+        expected2.assfmt("Connection done from wrong host");
+        if (!(result_contains(reply, expected1.c_str()) ||
+              result_contains(reply, expected2.c_str())))
           result= false; // Got wrong error message
         break;
       }

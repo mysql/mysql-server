@@ -2416,7 +2416,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   char * item = strtok_r(tmpString, " ", &tmpPtr);
   while(item != NULL){
     if (0x0 <= strtoll(item, NULL, 0) && strtoll(item, NULL, 0) <= 0xffffffff){
-      pars[no] = strtoll(item, NULL, 0); 
+      pars[no] = strtol(item, NULL, 0); 
     } else {
       ndbout << "Illegal value in argument to signal." << endl
 	     << "(Value must be between 0 and 0xffffffff.)" 

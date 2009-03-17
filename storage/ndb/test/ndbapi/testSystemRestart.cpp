@@ -1372,7 +1372,6 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   bool all = ctx->getProperty("ALL", (unsigned)0);
 
   Uint32 i = 1;
-  Uint32 backupId;
 
   int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
   int lcp = DumpStateOrd::DihMinTimeBetweenLCP;
@@ -1432,7 +1431,7 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterStarted() == 0);
     
     ndbout << "Starting backup..." << flush;
-    CHECK(backup.start(backupId) == 0);
+    CHECK(backup.start() == 0);
     ndbout << "done" << endl;
 
     int cnt = 0;
@@ -1467,7 +1466,6 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   bool all = ctx->getProperty("ALL", (unsigned)0);
 
   Uint32 i = 1;
-  Uint32 backupId;
 
   int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
   int lcp = DumpStateOrd::DihMinTimeBetweenLCP;
@@ -1522,7 +1520,7 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterStarted() == 0);
     
     ndbout << "Starting backup..." << flush;
-    CHECK(backup.start(backupId) == 0);
+    CHECK(backup.start() == 0);
     ndbout << "done" << endl;
 
     int cnt = 0;

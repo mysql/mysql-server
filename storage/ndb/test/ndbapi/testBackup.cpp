@@ -160,12 +160,11 @@ int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
 int
 runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup(GETNDB(step)->getNodeId()+1);
-  unsigned backupId = 0;
   
   int loops = ctx->getNumLoops();
   while(!ctx->isTestStopped() && loops--)
   {
-    if (backup.start(backupId) == -1)
+    if (backup.start() == -1)
     {
       sleep(1);
       loops++;

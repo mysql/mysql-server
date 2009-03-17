@@ -890,14 +890,12 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
     return -1;
   }
 
-  if (((bound.low_key == NULL) && (bound.high_key == NULL)) ||
-      ((bound.low_key_count == 0) && (bound.high_key_count == 0)))
-  {
-    /* IndexBound passed has no bound information */
-    setErrorCodeAbort(4541);
-    return -1;
-  }
-
+  /* Has the user supplied an open range (no bounds)? */
+  const bool openRange= (((bound.low_key == NULL) && 
+                          (bound.high_key == NULL)) ||
+                         ((bound.low_key_count == 0) && 
+                          (bound.high_key_count == 0)));
+  
   /* Check the base table's partitioning scheme 
    * (Ordered index itself has 'undefined' fragmentation)
    */
@@ -973,27 +971,38 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
   Uint32* firstRangeWord= NULL;
   const Uint32 keyLenBeforeRange= theTupKeyLen;
 
-  for (j= 0; j<key_count; j++)
+  if (likely(!openRange))
   {
-    Uint32 bound_type;
-    /* If key is part of lower bound */
-    if (bound.low_key && j<bound.low_key_count)
+    for (j= 0; j<key_count; j++)
     {
-      /* Inclusive if defined, or matching rows can include this value */
-      bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
-        BoundLE : BoundLT;
-      ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                             bound.low_key, bound_type, firstRangeWord);
+      Uint32 bound_type;
+      /* If key is part of lower bound */
+      if (bound.low_key && j<bound.low_key_count)
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
+          BoundLE : BoundLT;
+        ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
+                               bound.low_key, bound_type, firstRangeWord);
+      }
+      /* If key is part of upper bound */
+      if (bound.high_key && j<bound.high_key_count)
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
+          BoundGE : BoundGT;
+        ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
+                               bound.high_key, bound_type, firstRangeWord);
+      }
     }
-    /* If key is part of upper bound */
-    if (bound.high_key && j<bound.high_key_count)
-    {
-      /* Inclusive if defined, or matching rows can include this value */
-      bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
-        BoundGE : BoundGT;
-      ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                             bound.high_key, bound_type, firstRangeWord);
-    }
+  }
+  else
+  {
+    /* Open range - all rows must be returned.
+     * To encode this, we'll request all rows where the first
+     * key column value is >= NULL
+     */
+    insert_open_bound(key_record, firstRangeWord);
   }
 
   /* Set the length of this range
@@ -1063,6 +1072,7 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
                                         bound.high_key,
                                         distkey_min))
         {
+          assert(! openRange);
           currRangeHasOnePartVal= true;
           if (getDistKeyFromRange(key_record, m_attribute_record,
                                   bound.low_key,
@@ -3254,6 +3264,49 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
     setErrorCodeAbort(4000);
     return -1;
   }
+  
+  return 0;
+}
+
+int
+NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
+                                         Uint32*& firstWordOfBound)
+{
+  /* We want to insert an open bound into a scan
+   * This is done by requesting all rows with first key column
+   * >= NULL (so, confusingly, bound is <= NULL)
+   * Sending this as bound info for an open bound allows us to 
+   * also send the range number etc so that MRR scans can include
+   * open ranges.
+   * Note that MRR scans with open ranges are an inefficient use of
+   * MRR.  Really the application should realise that all rows are
+   * being processed and only fetch them once.
+   */
+  const Uint32 bound_type= NdbIndexScanOperation::BoundLE;
+  
+  if (unlikely(insertKEYINFO_NdbRecord((const char*) &bound_type,
+                                       sizeof(Uint32))))
+  {
+    /* Some sort of allocation error */
+    setErrorCodeAbort(4000);
+    return -1;
+  }
+
+  /* Grab ptr to first word of this bound if caller wants it */
+  if (firstWordOfBound == NULL)
+    firstWordOfBound= theKEYINFOptr - 1;
+  
+  /* Create NULL attribute header. */
+  const NdbRecord::Attr *column= &key_record->columns[0];
+  AttributeHeader ah(column->index_attrId, 0);
+
+  if (unlikely(insertKEYINFO_NdbRecord((const char*) &ah.m_value,
+                                       sizeof(Uint32))))
+  {
+    /* Some sort of allocation error */
+    setErrorCodeAbort(4000);
+    return -1;
+  };
   
   return 0;
 }

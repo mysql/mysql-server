@@ -884,6 +884,10 @@ public:
   int createDefaultNdbRecord(NdbTableImpl* tableOrIndex,
                              const NdbTableImpl* baseTableForIndex);
 
+  bool validateRecordSpec(const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 flags);
+
   NdbRecord *createRecord(const NdbTableImpl *table,
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,

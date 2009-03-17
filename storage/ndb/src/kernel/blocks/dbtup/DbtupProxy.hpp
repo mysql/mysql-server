@@ -17,6 +17,7 @@
 #define NDB_DBTUP_PROXY
 
 #include <LocalProxy.hpp>
+#include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
 
@@ -31,8 +32,17 @@ protected:
 
   class Pgman* c_pgman; // PGMAN proxy
 
+  Uint32 c_tableRecSize;
+  Uint8* c_tableRec;    // bool => table exists
+
+  // GSN_READ_CONFIG_REQ
+  virtual void callREAD_CONFIG_REQ(Signal*);
+
   // GSN_STTOR
   virtual void callSTTOR(Signal*);
+
+  // GSN_CREATE_TAB_REQ
+  void execCREATE_TAB_REQ(Signal*);
 
   // GSN_DROP_TAB_REQ
   struct Ss_DROP_TAB_REQ : SsParallel {

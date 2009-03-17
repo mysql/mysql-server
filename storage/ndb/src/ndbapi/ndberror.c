@@ -448,7 +448,8 @@ ErrorBundle ErrorCodes[] = {
   { 1513, DMEC, IE, "Filegroup not online" },
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
-  
+  { 1516, DMEC, SE, "File to small" },
+
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
   { 776,  DMEC, AE, "Index created on temporary table must itself be temporary" },
@@ -606,13 +607,14 @@ ErrorBundle ErrorCodes[] = {
   { 4538, DMEC, AE, "NdbInterpretedCode instruction requires that table is set" },
   { 4539, DMEC, AE, "NdbInterpretedCode not supported for operation type" },
   { 4540, DMEC, AE, "Attempt to pass an Index column to createRecord.  Use base table columns only" },
-  { 4541, DMEC, AE, "IndexBound has no bound information" },
+  { 4541, DMEC, AE, "IndexBound has no bound information" }, // No longer generated
   { 4542, DMEC, AE, "Unknown partition information type" },
   { 4543, DMEC, AE, "Duplicate partitioning information supplied" },
   { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
   { 4545, DMEC, AE, "Invalid or Unsupported PartitionInfo structure" },
   { 4546, DMEC, AE, "Explicit partitioning info not allowed for table and operation" },
-
+  { 4547, DMEC, AE, "RecordSpecification has overlapping offsets" },
+  { 4548, DMEC, AE, "RecordSpecification has too many elements" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },

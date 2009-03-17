@@ -4520,7 +4520,7 @@ Uint32 Qmgr::getArbitTimeout()
     jam();
   case ARBIT_PREP2:
     jam();
-    return 1000 + cnoOfNodes * hb_send_timer.getDelay();
+    return 1000 + cnoOfNodes * Uint32(hb_send_timer.getDelay());
   case ARBIT_START:
     jam();
     return 1000 + arbitRec.timeout;
@@ -5449,10 +5449,17 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
     if (nodePtr.p->phase == ZAPI_ACTIVE && 
 	getNodeInfo(nodePtr.i).m_version >= api.minVersion)
     {
+      jam();
       mask.set(nodePtr.i);
     }
   }
   
+  if (mask.isclear())
+  {
+    jam();
+    return;
+  }
+
   NodeReceiverGroup rg(API_CLUSTERMGR, mask);
   sendSignal(rg, api.gsn, signal, len, JBB,
 	     &handle);
@@ -5526,7 +5533,7 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
      * generate secret
      */
     Uint64 now = NdbTick_CurrentMillisecond();
-    Uint32 secret_hi = now >> 24;
+    Uint32 secret_hi = Uint32(now >> 24);
     Uint32 secret_lo = Uint32(now << 8) + getOwnNodeId();
     req.secret_hi = secret_hi;
     req.secret_lo = secret_lo;
