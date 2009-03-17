@@ -973,26 +973,55 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
 
   if (likely(!openRange))
   {
-    for (j= 0; j<key_count; j++)
+    /* If low and high key pointers are the same and key counts are
+     * the same, we send as an Eq bound to save bandwidth.
+     * This will not send an EQ bound if :
+     *   - Different numbers of high and low keys are EQ
+     *   - High and low keys are EQ, but use different ptrs
+     * This could be improved in future with another setBound() variant.
+     */
+    const bool isEqRange= 
+      (bound.low_key == bound.high_key) &&
+      (bound.low_key_count == bound.high_key_count) &&
+      (bound.low_inclusive && bound.high_inclusive); // Does this matter?
+
+    if (isEqRange)
     {
-      Uint32 bound_type;
-      /* If key is part of lower bound */
-      if (bound.low_key && j<bound.low_key_count)
+      /* Using BoundEQ will result in bound being sent only once */
+      for (j= 0; j<key_count; j++)
       {
-        /* Inclusive if defined, or matching rows can include this value */
-        bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
-          BoundLE : BoundLT;
         ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                               bound.low_key, bound_type, firstRangeWord);
+                               bound.low_key, BoundEQ, firstRangeWord);
       }
-      /* If key is part of upper bound */
-      if (bound.high_key && j<bound.high_key_count)
+    }
+    else
+    {
+      /* Distinct upper and lower bounds, must specify them independently */
+      /* Note :  Protocol allows individual columns to be specified as EQ
+       * or some prefix of columns.  This is not currently supported from
+       * NDBAPI.
+       */
+      for (j= 0; j<key_count; j++)
       {
-        /* Inclusive if defined, or matching rows can include this value */
-        bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
-          BoundGE : BoundGT;
-        ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                               bound.high_key, bound_type, firstRangeWord);
+        Uint32 bound_type;
+        /* If key is part of lower bound */
+        if (bound.low_key && j<bound.low_key_count)
+        {
+          /* Inclusive if defined, or matching rows can include this value */
+          bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
+            BoundLE : BoundLT;
+          ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
+                                 bound.low_key, bound_type, firstRangeWord);
+        }
+        /* If key is part of upper bound */
+        if (bound.high_key && j<bound.high_key_count)
+        {
+          /* Inclusive if defined, or matching rows can include this value */
+          bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
+            BoundGE : BoundGT;
+          ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
+                                 bound.high_key, bound_type, firstRangeWord);
+        }
       }
     }
   }
