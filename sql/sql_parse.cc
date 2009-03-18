@@ -4129,9 +4129,32 @@ end_with_restore_list:
 
     res= (sp_result= lex->sphead->create(thd));
     switch (sp_result) {
-    case SP_OK:
+    case SP_OK: {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
+
+      Security_context security_context;
+      bool restore_backup_context= false;
+      Security_context *backup= NULL;
+      LEX_USER *definer= thd->lex->definer;
+      /*
+        Check if the definer exists on slave, 
+        then use definer privilege to insert routine privileges to mysql.procs_priv.
+
+        For current user of SQL thread has GLOBAL_ACL privilege, 
+        which doesn't any check routine privileges, 
+        so no routine privilege record  will insert into mysql.procs_priv.
+      */
+      if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
+      {
+        security_context.change_security_context(thd, 
+                                                 &thd->lex->definer->user,
+                                                 &thd->lex->definer->host,
+                                                 &thd->lex->sphead->m_db,
+                                                 &backup);
+        restore_backup_context= true;
+      }
+
       if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
                                lex->sphead->m_db.str, name,
@@ -4143,8 +4166,19 @@ end_with_restore_list:
                        ER_PROC_AUTO_GRANT_FAIL,
                        ER(ER_PROC_AUTO_GRANT_FAIL));
       }
+
+      /*
+        Restore current user with GLOBAL_ACL privilege of SQL thread
+      */ 
+      if (restore_backup_context)
+      {
+        DBUG_ASSERT(thd->slave_thread == 1);
+        thd->security_ctx->restore_security_context(thd, backup);
+      }
+
 #endif
     break;
+    }
     case SP_WRITE_ROW_FAILED:
       my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
     break;
