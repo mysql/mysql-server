@@ -34,6 +34,10 @@ check_file(){
 	    ^max-time*)
 		testcase=$(expr $testcase + 1);;
 	    ^cmd*)
+		if [ $(echo $line | wc -w) -ne 2 ]
+		then
+		    die $file $lineno
+		fi
 		testcase=$(expr $testcase + 2);;
 	    ^args*)
 		testcase=$(expr $testcase + 4);;
