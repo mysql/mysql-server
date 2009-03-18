@@ -140,7 +140,9 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
 size_t
 memarena_total_memory_size (MEMARENA m)
 {
-    return m->size_of_other_bufs + m->buf_size + sizeof(m);
+    return (memarena_total_size_in_use(m) +
+            sizeof(*m) +
+            m->n_other_bufs * sizeof(*m->other_bufs));
 }
 
 size_t
