@@ -7086,10 +7086,18 @@ void Dblqh::execACCKEYREF(Signal* signal)
    *
    * -> ZNO_TUPLE_FOUND is possible
    */
-  ndbrequire
-    (tcPtr->seqNoReplica == 0 ||
-     errCode != ZTUPLE_ALREADY_EXIST ||
-     (tcPtr->operation == ZREAD && (tcPtr->dirtyOp || tcPtr->opSimple)));
+  if (unlikely(! (tcPtr->seqNoReplica == 0 ||
+                  errCode != ZTUPLE_ALREADY_EXIST ||
+                  (tcPtr->operation == ZREAD && 
+                   (tcPtr->dirtyOp || tcPtr->opSimple)))))
+  {
+    jamLine(Uint32(tcPtr->operation));
+    jamLine(Uint32(tcPtr->seqNoReplica));
+    jamLine(Uint32(errCode));
+    jamLine(Uint32(tcPtr->dirtyOp));
+    jamLine(Uint32(tcPtr->opSimple));
+    ndbrequire(false);
+  }
   
   tcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH;
   abortCommonLab(signal);
