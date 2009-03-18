@@ -965,11 +965,17 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
     }
     else
     {
+      Uint32 resultValAttrId= tab->getColumn(DistTabResultCol)->getAttrId();
       /* Scanning the secondary index, set bound on the result */
       int& resultVal= *((int*) NdbDictionary::getValuePtr(idxRecord,
                                                           boundBuf,
-                                                          tab->getColumn(DistTabResultCol)->getAttrId()));
+                                                          resultValAttrId));
       resultVal= r*r;
+
+      NdbDictionary::setNull(idxRecord,
+                             boundBuf,
+                             resultValAttrId,
+                             false);
       
       NdbIndexScanOperation::IndexBound ib;
       ib.low_key= boundBuf;
