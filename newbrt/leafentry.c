@@ -151,9 +151,12 @@ leafentry_disksize_internal (LEAFENTRY le) {
 }
 
 u_int32_t leafentry_disksize (LEAFENTRY le) {
-    u_int32_t m = leafentry_memsize(le);
     u_int32_t d = leafentry_disksize_internal(le);
+#if 0
+    // this computation is currently identical to the _disksize_internal
+    u_int32_t m = leafentry_memsize(le);
     assert(m==d);
+#endif
     return d;
 }
 
