@@ -9,7 +9,17 @@
 
 #include "includes.h"
 
-int main (int argc, const char *argv[]) {
+static int recovery_main(int argc, const char *argv[]);
+
+int
+main(int argc, const char *argv[]) {
+    toku_brt_init();
+    int r = recovery_main(argc, argv);
+    toku_brt_destroy();
+    return r;
+}
+
+int recovery_main (int argc, const char *argv[]) {
     const char *data_dir, *log_dir;
     if (argc==3) {
 	data_dir = argv[1];
@@ -18,13 +28,13 @@ int main (int argc, const char *argv[]) {
 	data_dir = log_dir = argv[1];
     } else {
 	printf("Usage: %s <datadir> [ <logdir> ]\n", argv[0]);
-	exit(1);
+	return(1);
     }
 
     int r=tokudb_recover(data_dir, log_dir);
     if (r!=0) {
 	fprintf(stderr, "Recovery failed\n");
-	exit(1);
+	return(1);
     }
     toku_malloc_cleanup();
     return 0;
