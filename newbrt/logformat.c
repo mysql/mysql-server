@@ -284,6 +284,12 @@ generate_log_writer (void) {
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
 			fprintf(cf, "  if (logger==0) return 0;\n");
+			fprintf(cf, "  if (!logger->write_log_files) {\n");
+			fprintf(cf, "    ml_lock(&logger->input_lock);\n");
+			fprintf(cf, "    logger->lsn.lsn += toku_lsn_increment;\n");
+			fprintf(cf, "    ml_unlock(&logger->input_lock);\n");
+			fprintf(cf, "    return 0;\n");
+			fprintf(cf, "  }\n");
 			fprintf(cf, "  const unsigned int buflen= (+4 // len at the beginning\n");
 			fprintf(cf, "                              +1 // log command\n");
 			fprintf(cf, "                              +8 // lsn\n");
