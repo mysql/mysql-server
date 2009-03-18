@@ -1139,8 +1139,9 @@ int plugin_init(int *argc, char **argv, int flags)
     for (plugin= *builtins; plugin->info; plugin++)
     {
       if (opt_ignore_builtin_innodb &&
-          !my_strcasecmp(&my_charset_latin1, plugin->name, "InnoDB"))
-          continue;
+          !my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
+                        6, (const uchar*) "InnoDB", 6))
+        continue;
       /* by default, ndbcluster and federated are disabled */
       def_enabled=
         my_strcasecmp(&my_charset_latin1, plugin->name, "NDBCLUSTER") != 0 &&
@@ -1633,8 +1634,8 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 {
   TABLE_LIST tables;
   TABLE *table;
-  int error, argc;
-  char *argv[2];
+  int error, argc=orig_argc;
+  char **argv=orig_argv;
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
@@ -1650,21 +1651,31 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 
   pthread_mutex_lock(&LOCK_plugin);
   rw_wrlock(&LOCK_system_variables_hash);
-  /* handle_options() assumes arg0 (program name) always exists */
-  argv[0]= const_cast<char*>(""); // without a cast gcc emits a warning
-  argv[1]= 0;
-  argc= 1;
+
+  my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL);
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+  if (argv)
+    free_defaults(argv);
   rw_unlock(&LOCK_system_variables_hash);
 
   if (error || !(tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
     goto err;
 
-  if (plugin_initialize(tmp))
+  if (tmp->state == PLUGIN_IS_DISABLED)
   {
-    my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
-             "Plugin initialization function failed.");
-    goto deinit;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
+                        name->str, "Plugin is disabled");
+  }
+  else
+  {
+    DBUG_ASSERT(tmp->state == PLUGIN_IS_UNINITIALIZED);
+    if (plugin_initialize(tmp))
+    {
+      my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
+               "Plugin initialization function failed.");
+      goto deinit;
+    }
   }
 
   /*

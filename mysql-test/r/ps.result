@@ -235,7 +235,7 @@ execute stmt1;
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
 execute stmt1;
-prepare stmt1 from "select * from t1 into outfile 'f1.txt'";
+prepare stmt1 from "select * from t1 into outfile '<MYSQLTEST_VARDIR>/tmp/f1.txt'";
 execute stmt1;
 deallocate prepare stmt1;
 drop table t1;
@@ -803,6 +803,8 @@ select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 16382
 set global max_prepared_stmt_count=-1;
+Warnings:
+Warning	1292	Truncated incorrect max_prepared_stmt_count value: '-1'
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
 0
@@ -1394,13 +1396,13 @@ execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t4	repair	Error	Table 'test.t4' doesn't exist
-test.t4	repair	error	Corrupt
+test.t4	repair	status	Operation failed
 test.t3	repair	status	OK
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t4	repair	Error	Table 'test.t4' doesn't exist
-test.t4	repair	error	Corrupt
+test.t4	repair	status	Operation failed
 test.t3	repair	status	OK
 prepare stmt from "optimize table t1, t3, t4";
 execute stmt;
@@ -1408,23 +1410,23 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t3	optimize	status	OK
 test.t4	optimize	Error	Table 'test.t4' doesn't exist
-test.t4	optimize	error	Corrupt
+test.t4	optimize	status	Operation failed
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 test.t3	optimize	status	Table is already up to date
 test.t4	optimize	Error	Table 'test.t4' doesn't exist
-test.t4	optimize	error	Corrupt
+test.t4	optimize	status	Operation failed
 prepare stmt from "analyze table t4, t1";
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t4	analyze	Error	Table 'test.t4' doesn't exist
-test.t4	analyze	error	Corrupt
+test.t4	analyze	status	Operation failed
 test.t1	analyze	status	Table is already up to date
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t4	analyze	Error	Table 'test.t4' doesn't exist
-test.t4	analyze	error	Corrupt
+test.t4	analyze	status	Operation failed
 test.t1	analyze	status	Table is already up to date
 deallocate prepare stmt;
 drop table t1, t2, t3;
