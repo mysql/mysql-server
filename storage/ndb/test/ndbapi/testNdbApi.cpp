@@ -2002,6 +2002,8 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 sizeOfTabRec= NdbDictionary::getRecordRowLength(tabRec);
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
   char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+  bzero(keyRowBuf, sizeof(keyRowBuf));
+  bzero(attrRowBuf, sizeof(attrRowBuf));
 
   HugoCalculator calc(*pTab);
 
