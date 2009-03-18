@@ -2047,6 +2047,9 @@ extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 
+extern int orig_argc;
+extern char **orig_argv;
+extern const char *load_default_groups[];
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

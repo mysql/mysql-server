@@ -648,6 +648,9 @@ static int defaults_argc;
 static char **defaults_argv;
 static char *opt_bin_logname;
 
+int orig_argc;
+char **orig_argv;
+
 static my_socket unix_sock,ip_sock;
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
@@ -2922,18 +2925,16 @@ pthread_handler_t handle_shutdown(void *arg)
 }
 #endif
 
-#if !defined(EMBEDDED_LIBRARY)
-static const char *load_default_groups[]= {
+const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 
-#if defined(__WIN__)
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
-#endif /*!EMBEDDED_LIBRARY*/
 
 
 /**
@@ -3221,6 +3222,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
                      SQLCOM_END + 8);
 #endif
 
+  orig_argc=argc;
+  orig_argv=argv;
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   defaults_argc=argc;
@@ -3703,7 +3706,10 @@ static int init_server_components()
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
+      {
         freopen(log_error_file, "a+", stderr);
+        setbuf(stderr, NULL);
+      }
     }
   }
 
@@ -3883,6 +3889,7 @@ server.");
     if ((ho_error= handle_options(&defaults_argc, &tmp_argv, no_opts,
                                   mysqld_get_one_option)))
       unireg_abort(ho_error);
+    my_getopt_skip_unknown= TRUE;
 
     if (defaults_argc)
     {
@@ -4331,6 +4338,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     freopen(log_error_file,"a+",stdout);
     freopen(log_error_file,"a+",stderr);
+    setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
 #endif
@@ -6245,7 +6253,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
-   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, UINT_MAX32,
    0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated;you can set variables directly with --variable-name=value.",

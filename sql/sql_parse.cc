@@ -5580,6 +5580,14 @@ void mysql_reset_thd_for_next_command(THD *thd)
 }
 
 
+/**
+  Resets the lex->current_select object.
+  @note It is assumed that lex->current_select != NULL
+
+  This function is a wrapper around select_lex->init_select() with an added
+  check for the special situation when using INTO OUTFILE and LOAD DATA.
+*/
+
 void
 mysql_init_select(LEX *lex)
 {
@@ -5593,6 +5601,18 @@ mysql_init_select(LEX *lex)
   }
 }
 
+
+/**
+  Used to allocate a new SELECT_LEX object on the current thd mem_root and
+  link it into the relevant lists.
+
+  This function is always followed by mysql_init_select.
+
+  @see mysql_init_select
+
+  @retval TRUE An error occurred
+  @retval FALSE The new SELECT_LEX was successfully allocated.
+*/
 
 bool
 mysql_new_select(LEX *lex, bool move_down)
@@ -6411,7 +6431,6 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
-
   for (TABLE_LIST *tables= (TABLE_LIST*) table_list.first;
        tables;
        tables= tables->next_local)
