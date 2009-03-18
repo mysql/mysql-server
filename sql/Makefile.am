@@ -236,7 +236,7 @@ dtrace_providers: probes_mysql.d
 	echo $(DTRACEPROVIDER) > $@
 probes_mysql.d:
 	-$(RM) -f probes_mysql.d
-	$(CP) $(top_srcdir)/include/probes_mysql.d probes_mysql.d
+	$(CP) $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d
 
 DTRACEDIRS = . ../mysys $(patsubst %,$(top_builddir)/storage/%,@mysql_se_dirs@)
 
