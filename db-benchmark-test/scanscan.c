@@ -463,10 +463,9 @@ int main (int argc, const char *argv[]) {
     case RUN_LWC:    scanscan_lwc();    break;
     case RUN_VERIFY: scanscan_verify(); break;
     case RUN_HEAVI:  scanscan_heaviside(); break;
-#else
+#endif
     case RUN_RANGE:  scanscan_range();  break;
     default:         assert(0);         break;
-#endif
     }
     scanscan_shutdown();
 
