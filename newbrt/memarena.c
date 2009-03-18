@@ -52,6 +52,7 @@ void* malloc_in_memarena (MEMARENA ma, size_t size) {
 	    assert(ma->other_bufs);
 	    ma->other_bufs[old_n]=ma->buf;
 	    ma->n_other_bufs = old_n+1;
+            ma->size_of_other_bufs += ma->buf_size;
 	}
 	// Make a new one
 	{
