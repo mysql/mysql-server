@@ -1295,6 +1295,8 @@ mysql-test/linux_sys_vars.inc
 mysql-test/load_sysvars.inc
 mysql-test/mtr
 mysql-test/mysql-test-run
+mysql-test/mysql-test-gcov.err
+mysql-test/mysql-test-gcov.msg
 mysql-test/mysql-test-run-shell
 mysql-test/mysql-test-run.log
 mysql-test/mysql_test_run_new

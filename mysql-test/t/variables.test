@@ -36,6 +36,7 @@ set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
+set @my_join_buffer_size          =@@global.join_buffer_size;
 # case insensitivity tests (new in 5.0)
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -173,21 +174,63 @@ select @@timestamp>0;
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select ROUND(RAND(),5);
 
-show variables like '%alloc%';
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
-set @@range_alloc_block_size=1024*16;
+
+--echo
+--echo ==+ Testing %alloc% system variables +==
+--echo ==+ NOTE:  These values *must* be a multiple of 1024 +==
+--echo ==+ Other values will be rounded down to nearest multiple +==
+--echo
+--echo ==+ Show initial values +==
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
+
+--echo ==+ information_schema data +==
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
+--echo Testing values that are multiples of 1024
+set @@range_alloc_block_size=1024*15+1024;
+set @@query_alloc_block_size=1024*15+1024*2;
+set @@query_prealloc_size=1024*18-1024;
+set @@transaction_alloc_block_size=1024*21-1024*1;
+set @@transaction_prealloc_size=1024*21-2048;
+--echo ==+ Check manipulated values ==+
+select @@query_alloc_block_size;
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
+--echo ==+ information_schema data +==
+SELECT * FROM information_schema.session_variables
+WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
+--echo ==+ Manipulate variable values +==
+--echo Testing values that are not 1024 multiples
+set @@range_alloc_block_size=1024*16+1023;
 set @@query_alloc_block_size=1024*17+2;
-set @@query_prealloc_size=1024*18;
+set @@query_prealloc_size=1024*18-1023;
 set @@transaction_alloc_block_size=1024*20-1;
 set @@transaction_prealloc_size=1024*21-1;
 select @@query_alloc_block_size;
-show variables like '%alloc%';
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+--echo ==+ Check manipulated values ==+
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
+--echo ==+ information_schema data +==
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
+--echo ==+ Set values back to the default values +==
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
-show variables like '%alloc%';
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+--echo ==+ Check the values now that they are reset +==
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
 
 #
 # Bug #10904 Illegal mix of collations between
@@ -605,12 +648,14 @@ set @@global.error_count=1;
 # Bug #10351: Setting ulong variable to > MAX_ULONG fails on 32-bit platform
 #
 
+--disable_warnings
 set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 set global max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
+--enable_warnings
 
 #
 # Bug #11775 Variable character_set_system does not exist (sometimes)
@@ -736,6 +781,18 @@ show variables like 'hostname';
 
 --echo End of 5.0 tests
 
+#
+# Bug#36446: Attempt to set @@join_buffer_size to its minimum value
+#            produces spurious warning
+#
+
+# set to 1 so mysqld will correct to minimum (+ warn)
+set join_buffer_size=1;
+# save minimum
+set @save_join_buffer_size=@@join_buffer_size;
+# set minimum
+set join_buffer_size=@save_join_buffer_size;
+
 # This is at the very after the versioned tests, since it involves doing
 # cleanup
 #
@@ -772,6 +829,8 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
+set global join_buffer_size          =@my_join_buffer_size;
+
 #
 # Bug#28580 Repeatation of status variables
 #
@@ -1079,3 +1138,67 @@ SET @@session.thread_stack= 7;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@global.thread_stack= 7;
 #
+
+#
+# Bug #40657 - assertion with out of range variables and traditional sql_mode
+#
+
+SELECT @@global.expire_logs_days INTO @old_eld;
+
+SET GLOBAL expire_logs_days = -1;
+--echo needs to've been adjusted (0)
+SELECT @@global.expire_logs_days;
+
+SET GLOBAL expire_logs_days = 11;
+SET @old_mode=@@sql_mode;
+SET SESSION sql_mode = 'TRADITIONAL';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL expire_logs_days = 100;
+--echo needs to be unchanged (11)
+SELECT @@global.expire_logs_days;
+SET SESSION sql_mode = @old_mode;
+
+SET GLOBAL expire_logs_days = 100;
+--echo needs to've been adjusted (99)
+SELECT @@global.expire_logs_days;
+
+SET GLOBAL expire_logs_days = 11;
+SET GLOBAL expire_logs_days = 99;
+--echo needs to pass with no warnings (99)
+SELECT @@global.expire_logs_days;
+
+# cleanup
+SET GLOBAL expire_logs_days = @old_eld;
+
+# show that warning uses underscore (sysvar-name), not hyphens (option-name)
+SET GLOBAL auto_increment_offset=-1;
+SET GLOBAL auto_increment_offset=0;
+
+
+
+#
+# Bug#41030 Wrong meta data (incorrect fieldlen)
+#
+
+--enable_metadata
+select @@storage_engine;
+--disable_metadata
+
+#
+# Bug#36540: CREATE EVENT and ALTER EVENT statements fail with large server_id
+#
+
+SET @old_server_id = @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 32) - 1;
+SELECT @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 32);
+SELECT @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 60);
+SELECT @@GLOBAL.server_id;
+SET GLOBAL server_id = 0;
+SELECT @@GLOBAL.server_id;
+SET GLOBAL server_id = -1;
+SELECT @@GLOBAL.server_id;
+SET GLOBAL server_id = @old_server_id;
+
+--echo End of 5.1 tests

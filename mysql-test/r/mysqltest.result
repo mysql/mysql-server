@@ -743,10 +743,12 @@ select 1;
 -- a comment for the server;
 mysqltest: At line 1: Found line beginning with --  that didn't contain a valid mysqltest command, check your syntax or use # if you intended to write a comment
 con1
+con2
 default
 con1
-default
+con2
 con1
-con1
+con2
+con2
 -closed_connection-
 End of tests

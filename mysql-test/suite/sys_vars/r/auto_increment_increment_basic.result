@@ -55,13 +55,13 @@ SELECT @@session.auto_increment_increment;
 '#------------------FN_DYNVARS_001_05-----------------------#'
 SET @@global.auto_increment_increment = 0;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '0'
+Warning	1292	Truncated incorrect auto_increment_increment value: '0'
 SELECT @@global.auto_increment_increment;
 @@global.auto_increment_increment
 1
 SET @@global.auto_increment_increment = -1024;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '0'
+Warning	1292	Truncated incorrect auto_increment_increment value: '-1024'
 SELECT @@global.auto_increment_increment;
 @@global.auto_increment_increment
 1
@@ -83,13 +83,13 @@ SELECT @@global.auto_increment_increment;
 65535
 SET @@session.auto_increment_increment = 0;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '0'
+Warning	1292	Truncated incorrect auto_increment_increment value: '0'
 SELECT @@session.auto_increment_increment;
 @@session.auto_increment_increment
 1
 SET @@session.auto_increment_increment = -2;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '0'
+Warning	1292	Truncated incorrect auto_increment_increment value: '-2'
 SELECT @@session.auto_increment_increment;
 @@session.auto_increment_increment
 1
@@ -126,7 +126,7 @@ SELECT @@global.auto_increment_increment;
 1
 SET @@global.auto_increment_increment = FALSE;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '0'
+Warning	1292	Truncated incorrect auto_increment_increment value: '0'
 SELECT @@global.auto_increment_increment;
 @@global.auto_increment_increment
 1

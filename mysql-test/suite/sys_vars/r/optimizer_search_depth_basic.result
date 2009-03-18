@@ -72,6 +72,8 @@ SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 63
 SET @@global.optimizer_search_depth = -1;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-1'
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 0
@@ -98,6 +100,8 @@ SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 63
 SET @@session.optimizer_search_depth = -2;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-2'
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 0
