@@ -247,7 +247,7 @@ for ($i=2 ; $i <= $keys ; $i++)
 $loop_time=new Benchmark;
 for ($i=1 ; $i <= $opt_loop_count ; $i++)
 {
-  do_many($dbh,$server->create("bench_$i", \@fields, \@index));
+  do_many($dbh,$server->create("bench_$i", \@fields, \@keys));
   $dbh->do("drop table bench_$i" . $server->{'drop_attr'}) or die $DBI::errstr;
 }
 

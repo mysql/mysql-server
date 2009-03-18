@@ -2,15 +2,14 @@
 #
 #  used from .../storedproc_08.inc to show all created / altered routines
 
-let $message= ... now check what is stored:;
---source include/show_msg.inc
+--echo
+--echo ... now check what is stored:
+--echo -----------------------------
 
 --vertical_results
 
-#--replace_column 16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
-
 --replace_column 16 <modified> 17 <created>
-SELECT * FROM information_schema.routines;
+SELECT * FROM information_schema.routines where routine_schema = 'db_storedproc';
 
 
 SHOW CREATE FUNCTION  fn_1;

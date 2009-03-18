@@ -60,7 +60,7 @@ Warnings:
 Note	1003	select ln(exp(10)) AS `ln(exp(10))`,exp((ln(sqrt(10)) * 2)) AS `exp(ln(sqrt(10))*2)`,ln(-(1)) AS `ln(-1)`,ln(0) AS `ln(0)`,ln(NULL) AS `ln(NULL)`
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
-3	3.9068905956085	NULL	NULL	NULL
+3	3.90689059560852	NULL	NULL	NULL
 explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -68,7 +68,7 @@ Warnings:
 Note	1003	select log2(8) AS `log2(8)`,log2(15) AS `log2(15)`,log2(-(2)) AS `log2(-2)`,log2(0) AS `log2(0)`,log2(NULL) AS `log2(NULL)`
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
-2	1.2552725051033	NULL	NULL	NULL
+2	1.25527250510331	NULL	NULL	NULL
 explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -85,7 +85,7 @@ Note	1003	select pow(10,log10(10)) AS `pow(10,log10(10))`,pow(2,4) AS `power(2,4
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
 rand(999999)	rand()
-0.014231365187309	0.028870999839968
+0.0142313651873091	0.028870999839968
 explain extended select rand(999999),rand();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -101,7 +101,7 @@ Warnings:
 Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format((1 / tan(1)),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
-180	6.2831853071796
+180	6.28318530717959
 select format(atan(-2, 2), 6);
 format(atan(-2, 2), 6)
 -0.785398
@@ -368,7 +368,7 @@ mod(5, cast(-2 as unsigned))	mod(5, 18446744073709551614)	mod(5, -2)
 5	5	1
 select pow(cast(-2 as unsigned), 5), pow(18446744073709551614, 5), pow(-2, 5);
 pow(cast(-2 as unsigned), 5)	pow(18446744073709551614, 5)	pow(-2, 5)
-2.1359870359209e+96	2.1359870359209e+96	-32
+2.13598703592091e+96	2.13598703592091e+96	-32
 CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
 SELECT a DIV 900 y FROM t1 GROUP BY y;
@@ -406,6 +406,36 @@ INSERT INTO t1 VALUES ('a');
 SELECT a DIV 2 FROM t1 UNION SELECT a DIV 2 FROM t1;
 a DIV 2
 0
+DROP TABLE t1;
+CREATE TABLE t1 (a DOUBLE);
+INSERT INTO t1 VALUES (-1.1), (1.1),
+(-1.5), (1.5),
+(-1.9), (1.9),
+(-2.1), (2.1),
+(-2.5), (2.5),
+(-2.9), (2.9),
+# Check numbers with absolute values > 2^53 - 1 
+# (see comments for MAX_EXACT_INTEGER)
+(-1e16 - 0.5), (1e16 + 0.5),
+(-1e16 - 1.5), (1e16 + 1.5);
+SELECT a, ROUND(a) FROM t1;
+a	ROUND(a)
+-1.1	-1
+1.1	1
+-1.5	-2
+1.5	2
+-1.9	-2
+1.9	2
+-2.1	-2
+2.1	2
+-2.5	-2
+2.5	2
+-2.9	-3
+2.9	3
+-1e+16	-10000000000000000
+1e+16	10000000000000000
+-1e+16	-10000000000000002
+1e+16	10000000000000002
 DROP TABLE t1;
 End of 5.0 tests
 SELECT 1e308 + 1e308;

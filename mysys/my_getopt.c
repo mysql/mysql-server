@@ -100,10 +100,10 @@ static void default_reporter(enum loglevel level,
   one. Call function 'get_one_option()' once for each option.
 */
 
-static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *);
+static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *, int *);
 
 void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
-						    const struct my_option *))
+						    const struct my_option *, int *))
 {
   getopt_get_addr= func_addr;
 }
@@ -362,8 +362,12 @@ int handle_options(int *argc, char ***argv,
                                      my_progname, optp->name);
 	  return EXIT_NO_ARGUMENT_ALLOWED;
 	}
+        error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
-	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp) : optp->value;
+	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
+          optp->value;
+        if (error)
+          return error;
   
 	if (optp->arg_type == NO_ARG)
 	{
@@ -1092,7 +1096,7 @@ static void init_variables(const struct my_option *options,
     if (options->value)
       init_one_value(options, options->value, options->def_value);
     if (options->var_type & GET_ASK_ADDR &&
-	(variable= (*getopt_get_addr)("", 0, options)))
+	(variable= (*getopt_get_addr)("", 0, options, 0)))
       init_one_value(options, variable, options->def_value);
   }
   DBUG_VOID_RETURN;
@@ -1196,7 +1200,7 @@ void my_print_variables(const struct my_option *options)
   for (optp= options; optp->id; optp++)
   {
     uchar* *value= (optp->var_type & GET_ASK_ADDR ?
-		  (*getopt_get_addr)("", 0, optp) : optp->value);
+		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {
       printf("%s ", optp->name);

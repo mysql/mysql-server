@@ -2,7 +2,12 @@
 # check that it blocks updates unless they are only on temporary tables.
 
 # should work with embedded server after mysqltest is fixed
--- source include/not_embedded.inc
+--source include/not_embedded.inc
+
+set @start_read_only= @@global.read_only;
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
@@ -13,12 +18,15 @@ DROP TABLE IF EXISTS t1,t2,t3;
 
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 
+--echo connect (con1,localhost,test,,test);
 connect (con1,localhost,test,,test);
 
+--echo connection default;
 connection default;
 
 set global read_only=0;
 
+--echo connection con1;
 connection con1;
 
 create table t1 (a int);
@@ -27,6 +35,7 @@ insert into t1 values(1);
 
 create table t2 select * from t1;
 
+--echo connection default;
 connection default;
 
 set global read_only=1;
@@ -36,28 +45,29 @@ set global read_only=1;
 create table t3 (a int);
 drop table t3;
 
+--echo connection con1;
 connection con1;
 
 select @@global.read_only;
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 create table t3 (a int);
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 insert into t1 values(1);
 
 # if a statement, after parse stage, looks like it will update a
 # non-temp table, it will be rejected, even if at execution it would
 # have turned out that 0 rows would be updated
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 update t1 set a=1 where 1=0;
 
 # multi-update is special (see sql_parse.cc) so we test it
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 update t1,t2 set t1.a=t2.a+1 where t1.a=t2.a;
 
 # check multi-delete to be sure
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 delete t1,t2 from t1,t2 where t1.a=t2.a;
 
 # With temp tables updates should be accepted:
@@ -71,7 +81,7 @@ insert into t3 values(1);
 insert into t4 select * from t3;
 
 # a non-temp table updated:
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
 
 # no non-temp table updated (just swapped):
@@ -79,7 +89,7 @@ update t1,t3 set t3.a=t1.a+1 where t1.a=t3.a;
 
 update t4,t3 set t4.a=t3.a+1 where t4.a=t3.a;
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 delete t1 from t1,t3 where t1.a=t3.a;
 
 delete t3 from t1,t3 where t1.a=t3.a;
@@ -98,88 +108,107 @@ delete t1 from t1,t3 where t1.a=t3.a;
 
 drop table t1;
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 insert into t1 values(1);
 
 #
-# BUG#11733: COMMITs should not happen if read-only is set
+# Bug#11733 COMMITs should not happen if read-only is set
 #
 
 # LOCK TABLE ... WRITE / READ_ONLY
 # - is an error in the same connection
 # - is ok in a different connection
 
+--echo connection default;
 connection default;
 set global read_only=0;
 lock table t1 write;
 
+--echo connection con1;
 connection con1;
 lock table t2 write;
 
+--echo connection default;
 connection default;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 set global read_only=1;
 unlock tables ;
 # The following call blocks until con1 releases the write lock.
 # Blocking is expected.
+--echo send set global read_only=1;
 send set global read_only=1;
 
+--echo connection con1;
 connection con1;
---sleep 1
 select @@global.read_only;
 unlock tables ;
---sleep 1
+let $wait_condition= SELECT @@global.read_only= 1;
+--source include/wait_condition.inc
 select @@global.read_only;
 
+--echo connection default;
 connection default;
+--echo reap;
 reap;
 
 # LOCK TABLE ... READ / READ_ONLY
 # - is an error in the same connection
 # - is ok in a different connection
 
+--echo connection default;
 connection default;
 set global read_only=0;
 lock table t1 read;
 
+--echo connection con1;
 connection con1;
 lock table t2 read;
 
+--echo connection default;
 connection default;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 set global read_only=1;
 unlock tables ;
 # The following call blocks until con1 releases the read lock.
 # Blocking is a limitation, and could be improved.
+--echo send set global read_only=1;
 send set global read_only=1;
 
+--echo connection con1;
 connection con1;
---sleep 1
 select @@global.read_only;
 unlock tables ;
---sleep 1
+let $wait_condition= SELECT @@global.read_only= 1;
+--source include/wait_condition.inc
 select @@global.read_only;
 
+--echo connection default;
 connection default;
+--echo reap;
 reap;
 
 # pending transaction / READ_ONLY
 # - is an error in the same connection
 # - is ok in a different connection
 
+--echo connection default;
 connection default;
 set global read_only=0;
 BEGIN;
 
+--echo connection con1;
 connection con1;
 BEGIN;
 
+--echo connection default;
 connection default;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 set global read_only=1;
 ROLLBACK;
+
 set global read_only=1;
 
+--echo connection con1;
 connection con1;
 select @@global.read_only;
 ROLLBACK;
@@ -188,26 +217,32 @@ ROLLBACK;
 # - in the same SUPER connection
 # - in another SUPER connection
 
+--echo connection default;
 connection default;
 set global read_only=0;
 flush tables with read lock;
 set global read_only=1;
 unlock tables;
 
+--echo connect (root2,localhost,root,,test);
 connect (root2,localhost,root,,test);
 
+--echo connection default;
 connection default;
 set global read_only=0;
 flush tables with read lock;
 
+--echo connection root2;
 connection root2;
 set global read_only=1;
 
+--echo connection default;
 connection default;
 select @@global.read_only;
 unlock tables;
+disconnect root2;
 
-# BUG #22077 "DROP TEMPORARY TABLE fails with wrong error if read_only is set"
+# Bug#22077 DROP TEMPORARY TABLE fails with wrong error if read_only is set
 #
 # check if DROP TEMPORARY on a non-existing temporary table returns the right
 # error
@@ -221,12 +256,15 @@ drop temporary table if exists ttt;
 #
 # Cleanup
 #
+--echo connection default;
 connection default;
 set global read_only=0;
+disconnect con1;
 drop table t1,t2;
 drop user test@localhost;
+
 --echo #
---echo # Bug #27440 read_only allows create and drop database
+--echo # Bug#27440 read_only allows create and drop database
 --echo #
 set global read_only= 1;
 --disable_warnings
@@ -244,14 +282,18 @@ grant all on mysqltest_db2.* to `mysqltest_u1`@`%`;
 create database mysqltest_db1;
 grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;
 flush privileges;
+--echo connect (con_bug27440,127.0.0.1,mysqltest_u1,,test,MASTER_MYPORT,);
 connect (con_bug27440,127.0.0.1,mysqltest_u1,,test,$MASTER_MYPORT,);
+--echo connection con_bug27440;
 connection con_bug27440;
 --error ER_OPTION_PREVENTS_STATEMENT
 create database mysqltest_db2;
 show databases like '%mysqltest_db2%';
 --error ER_OPTION_PREVENTS_STATEMENT
 drop database mysqltest_db1;
+--echo disconnect con_bug27440;
 disconnect con_bug27440;
+--echo connection default;
 connection default;
 delete from mysql.user where User like 'mysqltest_%';
 delete from mysql.db where User like 'mysqltest_%';
@@ -259,4 +301,8 @@ delete from mysql.tables_priv where User like 'mysqltest_%';
 delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 drop database mysqltest_db1;
-set global read_only=0;
+set global read_only= @start_read_only;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
