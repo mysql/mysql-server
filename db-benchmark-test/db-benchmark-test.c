@@ -27,6 +27,7 @@ enum { SERIAL_SPACING = 1<<6 };
 enum { DEFAULT_ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
 enum { DEFAULT_ITEMS_PER_TRANSACTION = 1<<14 };
 
+static void insert (long long v);
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 #define CKERR2(r,rexpect) if (r!=rexpect) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==rexpect);
 
@@ -44,6 +45,7 @@ int prelockflag = 0;
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 int singlex = 0;  // Do a single transaction
+int insert1first = 0;  // insert 1 before doing the rest
 int check_small_rolltmp = 0; // verify that the rollback logs are small (only valid if singlex)
 int do_transactions = 0;
 int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no logging when transactions are used
@@ -131,6 +133,19 @@ static void benchmark_setup (void) {
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
     assert(r == 0);
+    if (insert1first) {
+        if (do_transactions) {
+            r=tid->commit(tid, 0);
+            assert(r==0);
+            r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
+        }
+        insert(-1);
+        if (singlex) {
+            r=tid->commit(tid, 0);
+            assert(r==0);
+            r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
+        }
+    }
     if (do_transactions) {
 	if (singlex) do_prelock(db, tid);
         else {
@@ -150,7 +165,7 @@ static void benchmark_shutdown (void) {
 #if defined(TOKUDB)
     if (do_1514_point_query) test1514();
 #endif
-    if (do_transactions && singlex) {
+    if (do_transactions && singlex && !insert1first) {
 #if defined(TOKUDB)
 	struct txn_stat *s;
 	r = tid->txn_stat(tid, &s);
@@ -385,6 +400,8 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
+	} else if (strcmp(arg, "--insert1first") == 0) {
+	    insert1first = 1;
 	} else if (strcmp(arg, "--check_small_rolltmp") == 0) {
 	    check_small_rolltmp = 1;
 	} else if (strcmp(arg, "--xcount") == 0) {
