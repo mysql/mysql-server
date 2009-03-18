@@ -573,7 +573,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
       else
       {
         /* With conversion */
-        uint max_char_len;
+        ulonglong max_length;
+        uint32 field_length;
         int2store(pos, thd_charset->number);
         /*
           For TEXT/BLOB columns, field_length describes the maximum data
@@ -584,12 +585,22 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
           char_count * mbmaxlen, where character count is taken from the
           definition of the column. In other words, the maximum number
           of characters here is limited by the column definition.
+
+          When one has a LONG TEXT column with a single-byte
+          character set, and the connection character set is multi-byte, the
+          client may get fields longer than UINT_MAX32, due to
+          <character set column> -> <character set connection> conversion.
+          In that case column max length does not fit into the 4 bytes
+          reserved for it in the protocol.
         */
-        max_char_len= (field.type >= (int) MYSQL_TYPE_TINY_BLOB &&
-                      field.type <= (int) MYSQL_TYPE_BLOB) ?
-                      field.length / item->collation.collation->mbminlen :
-                      field.length / item->collation.collation->mbmaxlen;
-        int4store(pos+2, max_char_len * thd_charset->mbmaxlen);
+        max_length= (field.type >= MYSQL_TYPE_TINY_BLOB &&
+                     field.type <= MYSQL_TYPE_BLOB) ?
+                     field.length / item->collation.collation->mbminlen :
+                     field.length / item->collation.collation->mbmaxlen;
+        max_length*= thd_charset->mbmaxlen;
+        field_length= (max_length > UINT_MAX32) ? 
+          UINT_MAX32 : (uint32) max_length;
+        int4store(pos + 2, field_length);
       }
       pos[6]= field.type;
       int2store(pos+7,field.flags);

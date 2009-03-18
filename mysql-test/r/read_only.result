@@ -1,12 +1,18 @@
+set @start_read_only= @@global.read_only;
 DROP TABLE IF EXISTS t1,t2,t3;
 grant CREATE, SELECT, DROP on *.* to test@localhost;
+connect (con1,localhost,test,,test);
+connection default;
 set global read_only=0;
+connection con1;
 create table t1 (a int);
 insert into t1 values(1);
 create table t2 select * from t1;
+connection default;
 set global read_only=1;
 create table t3 (a int);
 drop table t3;
+connection con1;
 select @@global.read_only;
 @@global.read_only
 1
@@ -39,13 +45,18 @@ delete t1 from t1,t3 where t1.a=t3.a;
 drop table t1;
 insert into t1 values(1);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+connection default;
 set global read_only=0;
 lock table t1 write;
+connection con1;
 lock table t2 write;
+connection default;
 set global read_only=1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables ;
+send set global read_only=1;
 set global read_only=1;
+connection con1;
 select @@global.read_only;
 @@global.read_only
 0
@@ -53,13 +64,20 @@ unlock tables ;
 select @@global.read_only;
 @@global.read_only
 1
+connection default;
+reap;
+connection default;
 set global read_only=0;
 lock table t1 read;
+connection con1;
 lock table t2 read;
+connection default;
 set global read_only=1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables ;
+send set global read_only=1;
 set global read_only=1;
+connection con1;
 select @@global.read_only;
 @@global.read_only
 0
@@ -67,24 +85,35 @@ unlock tables ;
 select @@global.read_only;
 @@global.read_only
 1
+connection default;
+reap;
+connection default;
 set global read_only=0;
 BEGIN;
+connection con1;
 BEGIN;
+connection default;
 set global read_only=1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 ROLLBACK;
 set global read_only=1;
+connection con1;
 select @@global.read_only;
 @@global.read_only
 1
 ROLLBACK;
+connection default;
 set global read_only=0;
 flush tables with read lock;
 set global read_only=1;
 unlock tables;
+connect (root2,localhost,root,,test);
+connection default;
 set global read_only=0;
 flush tables with read lock;
+connection root2;
 set global read_only=1;
+connection default;
 select @@global.read_only;
 @@global.read_only
 1
@@ -94,11 +123,12 @@ ERROR 42S02: Unknown table 'ttt'
 drop temporary table if exists ttt;
 Warnings:
 Note	1051	Unknown table 'ttt'
+connection default;
 set global read_only=0;
 drop table t1,t2;
 drop user test@localhost;
 #
-# Bug #27440 read_only allows create and drop database
+# Bug#27440 read_only allows create and drop database
 #
 set global read_only= 1;
 drop database if exists mysqltest_db1;
@@ -112,16 +142,20 @@ grant all on mysqltest_db2.* to `mysqltest_u1`@`%`;
 create database mysqltest_db1;
 grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;
 flush privileges;
+connect (con_bug27440,127.0.0.1,mysqltest_u1,,test,MASTER_MYPORT,);
+connection con_bug27440;
 create database mysqltest_db2;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 show databases like '%mysqltest_db2%';
 Database (%mysqltest_db2%)
 drop database mysqltest_db1;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+disconnect con_bug27440;
+connection default;
 delete from mysql.user where User like 'mysqltest_%';
 delete from mysql.db where User like 'mysqltest_%';
 delete from mysql.tables_priv where User like 'mysqltest_%';
 delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 drop database mysqltest_db1;
-set global read_only=0;
+set global read_only= @start_read_only;
