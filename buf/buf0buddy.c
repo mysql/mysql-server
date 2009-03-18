@@ -512,7 +512,8 @@ buf_buddy_free_low(
 /*===============*/
 	void*	buf,	/* in: block to be freed, must not be
 			pointed to by the buffer pool */
-	ulint	i)	/* in: index of buf_pool->zip_free[] */
+	ulint	i)	/* in: index of buf_pool->zip_free[],
+			or BUF_BUDDY_SIZES */
 {
 	buf_page_t*	bpage;
 	buf_page_t*	buddy;
