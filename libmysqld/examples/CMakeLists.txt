@@ -30,12 +30,12 @@ ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc
                ../../client/sql_string.cc)
 TARGET_LINK_LIBRARIES(mysql_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-ADD_DEPENDENCIES(mysql_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysql_embedded libmysqld)
 
 ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
 TARGET_LINK_LIBRARIES(mysqltest_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-ADD_DEPENDENCIES(mysqltest_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysqltest_embedded libmysqld)
 
 ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
 TARGET_LINK_LIBRARIES(mysql_client_test_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-ADD_DEPENDENCIES(mysql_client_test_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysql_client_test_embedded libmysqld)
