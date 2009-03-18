@@ -93,9 +93,15 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_truncate_subdb \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
-	test_db_remove \
 	test_abort4 \
 #\ ends prev line
+ifneq ($(OS_CHOICE),windows)
+    TDB_TESTS_THAT_SHOULD_FAIL+= \
+	test_db_remove \
+#\ ends prev line
+endif
+
+
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 #\ ends prev line
