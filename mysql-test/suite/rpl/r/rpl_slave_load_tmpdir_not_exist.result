@@ -1,0 +1,2 @@
+start slave;
+Unable to use slave's temporary directory ../../../error - Can't read dir of '../../../error' (Errcode: 2)
