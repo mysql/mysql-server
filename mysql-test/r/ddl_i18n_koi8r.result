@@ -1729,18 +1729,18 @@ DELETE FROM mysqltest2.log|
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqltest1` /*!40100 DEFAULT CHARACTER SET cp866 */;
 
 USE `mysqltest1`;
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `log` (
   `msg` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-SET character_set_client = @saved_cs_client;
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-SET character_set_client = @saved_cs_client;
+/*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1),(0),(1);
 ALTER DATABASE mysqltest1 CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -1808,18 +1808,18 @@ ALTER DATABASE mysqltest1 CHARACTER SET cp866 COLLATE cp866_general_ci ;
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqltest2` /*!40100 DEFAULT CHARACTER SET cp866 */;
 
 USE `mysqltest2`;
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `log` (
   `msg` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-SET character_set_client = @saved_cs_client;
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-SET character_set_client = @saved_cs_client;
+/*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1),(0),(1);
 ALTER DATABASE mysqltest2 CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;

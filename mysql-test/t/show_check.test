@@ -5,6 +5,9 @@
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 #
 # Test of some show commands
 #
@@ -195,7 +198,7 @@ show columns from t1;
 drop table t1;
 
 #
-# Test for Bug #2593 "SHOW CREATE TABLE doesn't properly double quotes"
+# Test for Bug#2593 SHOW CREATE TABLE doesn't properly double quotes
 #
 
 SET @old_sql_mode= @@sql_mode, sql_mode= '';
@@ -223,7 +226,7 @@ CREATE TABLE """a" (i INT);
 SHOW CREATE TABLE """a";
 DROP TABLE """a";
 
-#Bug #4374 SHOW TABLE STATUS FROM ignores collation_connection
+# Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
 #set names latin1;
 #create database `Д`;
 #create table `Д`.`Д` (a int) engine=heap;
@@ -248,7 +251,7 @@ SET sql_quote_show_create= @old_sql_quote_show_create;
 SET sql_mode= @old_sql_mode;
 
 #
-# Test for bug #2719 "Heap tables status shows wrong or missing data."
+# Test for Bug#2719 Heap tables status shows wrong or missing data.
 #
 
 select @@max_heap_table_size;
@@ -309,7 +312,7 @@ show table status;
 drop table t1, t2, t3;
 
 #
-# Test for bug #3342 SHOW CREATE DATABASE seems to require DROP privilege
+# Test for Bug#3342 SHOW CREATE DATABASE seems to require DROP privilege
 #
 
 create database mysqltest;
@@ -324,35 +327,38 @@ connect (con1,localhost,mysqltest_1,,mysqltest);
 connection con1;
 select * from t1;
 show create database mysqltest;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 drop table t1;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 drop database mysqltest;
+disconnect con1;
 
 connect (con2,localhost,mysqltest_2,,test);
 connection con2;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from mysqltest.t1;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 show create database mysqltest;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 drop table mysqltest.t1;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 drop database mysqltest;
+disconnect con2;
 
 connect (con3,localhost,mysqltest_3,,test);
 connection con3;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 select * from mysqltest.t1;
 show create database mysqltest;
 drop table mysqltest.t1;
 drop database mysqltest;
+disconnect con3;
 
 connection default;
 set names binary;
-delete from mysql.user 
+delete from mysql.user
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
-delete from mysql.db   
+delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 
@@ -366,7 +372,7 @@ flush privileges;
 #drop database `Д`;
 
 # Test that USING <keytype> is always shown in SHOW CREATE TABLE when it was
-# specified during table creation, but not otherwise. (Bug #7235)
+# specified during table creation, but not otherwise. (Bug#7235)
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -397,7 +403,7 @@ ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-# Test for BUG#9439 "Reporting wrong datatype for sub_part on show index"
+# Test for Bug#9439 Reporting wrong datatype for sub_part on show index
 CREATE TABLE t1(
   field1 text NOT NULL,
   PRIMARY KEY(field1(1000))
@@ -407,7 +413,7 @@ show index from t1;
 --disable_metadata
 drop table t1;
 
-# Test for BUG#11635: mysqldump exports TYPE instead of USING for HASH
+# Test for Bug#11635 mysqldump exports TYPE instead of USING for HASH
 create table t1 (
   c1 int NOT NULL,
   c2 int NOT NULL,
@@ -417,7 +423,7 @@ create table t1 (
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-# Test for BUG#93: 4.1 protocl crash on corupted frm and SHOW TABLE STATUS
+# Test for Bug#93 4.1 protocl crash on corupted frm and SHOW TABLE STATUS
 
 flush tables;
 
@@ -426,19 +432,19 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 system echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
 --replace_column 6 # 7 # 8 # 9 #
 SHOW TABLE STATUS like 't1';
---error 1033
+--error ER_NOT_FORM_FILE
 show create table t1;
 drop table if exists t1;
 --error 1,0
 --remove_file $MYSQLD_DATADIR/test/t1.frm
 
 #
-# BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar
+# Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar
 # First we close all open tables with FLUSH tables and then we open some.
 #
 
 --echo
---echo # Bug#12183: SHOW OPEN TABLES behavior doesn't match grammar.
+--echo # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar.
 --echo
 
 # NOTE: SHOW OPEN TABLES does not sort result list by database or table names.
@@ -497,15 +503,15 @@ use test;
 --echo
 
 #
-# BUG #12591 (SHOW TABLES FROM dbname produces wrong error message)
+# Bug#12591 SHOW TABLES FROM dbname produces wrong error message
 #
---error 1049
+--error ER_BAD_DB_ERROR
 SHOW TABLES FROM non_existing_database;
 
 --echo End of 4.1 tests
 
 #
-# Bug#17203: "sql_no_cache sql_cache" in views created from prepared
+# Bug#17203 "sql_no_cache sql_cache" in views created from prepared
 # statement
 #
 # The problem was that initial user setting was forgotten, and current
@@ -585,7 +591,7 @@ SHOW COLUMNS FROM no_such_table;
 
 
 #
-# Bug #19764: SHOW commands end up in the slow log as table scans
+# Bug#19764 SHOW commands end up in the slow log as table scans
 #
 flush status;
 show status like 'slow_queries';
@@ -597,7 +603,7 @@ select 1 from information_schema.tables limit 1;
 show status like 'slow_queries';
 
 create table t1 (a int);
-create trigger tr1 before insert on t1 for each row 
+create trigger tr1 before insert on t1 for each row
 begin
 end;
 create view v1 as select a from t1;
@@ -657,9 +663,10 @@ drop table t1;
 drop procedure p1;
 drop function f1;
 drop event e1;
+
 #
-# BUG#10491: Server returns data as charset binary SHOW CREATE TABLE or SELECT
-# FROM I_S.
+# Bug#10491 Server returns data as charset binary SHOW CREATE TABLE or SELECT
+#           FROM I_S.
 #
 
 #
@@ -774,7 +781,7 @@ SHOW TRIGGERS LIKE 't1';
 
 --echo ----------------------------------------------------------------
 
-SELECT 
+SELECT
   TRIGGER_CATALOG,
   TRIGGER_SCHEMA,
   TRIGGER_NAME,
@@ -897,10 +904,12 @@ CREATE TABLE t1(колонка1 INT);
 # Check:
 #   - Dump mysqltest1;
 
---echo
---echo ---> Dumping mysqltest1 to show_check.mysqltest1.sql
+--let $outfile1=$MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
 
---exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+--echo
+--echo ---> Dumping mysqltest1 to outfile1
+
+--exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $outfile1
 
 #   - Clean mysqltest1;
 
@@ -915,7 +924,8 @@ DROP DATABASE mysqltest1;
 --echo
 
 --echo ---> Restoring mysqltest1...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+--exec $MYSQL test < $outfile1
+--remove_file $outfile1
 
 #   - Check definition of the table.
 
@@ -927,7 +937,7 @@ DROP DATABASE mysqltest1;
 use test;
 
 #
-# Bug #28808: log_queries_not_using_indexes variable dynamic change is ignored
+# Bug#28808 log_queries_not_using_indexes variable dynamic change is ignored
 #
 flush status;
 show variables like "log_queries_not_using_indexes";
@@ -943,7 +953,7 @@ select 1 from information_schema.tables limit 1;
 show status like 'slow_queries';
 
 #
-# Bug #30088: Can't disable myisam-recover by a value of ""
+# Bug#30088 Can't disable myisam-recover by a value of ""
 #
 show variables like 'myisam_recover_options';
 
@@ -974,7 +984,8 @@ SHOW AUTHORS;
 --enable_result_log
 
 #
-# Test for bug #9785 SELECT privilege for the whole database is needed to do SHOW CREATE DATABASE
+# Bug#9785 SELECT privilege for the whole database is needed to do
+#          SHOW CREATE DATABASE
 #
 create database mysqltest;
 show create database mysqltest;
@@ -990,6 +1001,8 @@ delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
+connection default;
+disconnect con4;
 
 #
 # Ensure that show plugin code is tested
@@ -1005,8 +1018,8 @@ show plugins;
 --enable_result_log
 
 #
-# Bug #19874: SHOW COLUMNS and SHOW KEYS handle identifiers containing
-# \ incorrectly
+# Bug#19874 SHOW COLUMNS and SHOW KEYS handle identifiers containing
+#           \ incorrectly
 #
 create database `mysqlttest\1`;
 create table `mysqlttest\1`.`a\b` (a int);
@@ -1018,7 +1031,7 @@ drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
 
 #
-# Bug#24392: SHOW ENGINE MUTEX STATUS is a synonym for SHOW INNODB STATUS
+# Bug#24392 SHOW ENGINE MUTEX STATUS is a synonym for SHOW INNODB STATUS
 #
 
 --error ER_UNKNOWN_STORAGE_ENGINE
@@ -1104,8 +1117,8 @@ DROP PROCEDURE p1;
 DEALLOCATE PREPARE stmt1;
 
 #
-# BUG#10491: Server returns data as charset binary SHOW CREATE TABLE or SELECT
-# FROM INFORMATION_SCHEMA.
+# Bug#10491 Server returns data as charset binary SHOW CREATE TABLE or SELECT
+#           FROM INFORMATION_SCHEMA.
 #
 # Before the change performed to fix the bug, the metadata of the output of
 # SHOW CREATE statements would always describe the result as 'binary'. That
@@ -1168,16 +1181,16 @@ DROP TABLE t1;
 DROP EVENT ev1;
 
 #
-# Bug #30036: SHOW TABLE TYPES causes the debug client to crash
+# Bug#30036 SHOW TABLE TYPES causes the debug client to crash
 #
 --disable_result_log
 SHOW TABLE TYPES;
 --enable_result_log
 
-#
-# Bug #32710: SHOW INNODB STATUS requires SUPER
-#
 
+#
+# Bug#32710 SHOW INNODB STATUS requires SUPER
+#
 
 CREATE USER test_u@localhost;
 GRANT PROCESS ON *.* TO test_u@localhost;
@@ -1195,3 +1208,7 @@ DROP USER test_u@localhost;
 
 
 --echo End of 5.1 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

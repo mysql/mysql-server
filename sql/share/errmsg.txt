@@ -6154,3 +6154,26 @@ WARN_PLUGIN_BUSY
 
 ER_VARIABLE_IS_READONLY
   eng "%s variable '%s' is read-only. Use SET %s to assign the value"
+
+ER_WARN_ENGINE_TRANSACTION_ROLLBACK
+  eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
+
+ER_SLAVE_HEARTBEAT_FAILURE
+  eng "Unexpected master's heartbeat data: %s"
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
+  eng "The requested value for the heartbeat period %s %s"
+
+ER_NDB_REPLICATION_SCHEMA_ERROR
+        eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
+ER_CONFLICT_FN_PARSE_ERROR
+        eng "Error in parsing conflict function. Message: %-.64s"
+ER_EXCEPTIONS_WRITE_ERROR
+        eng "Write to exceptions table failed. Message: %-.128s""
+
+ER_TOO_LONG_TABLE_COMMENT
+  eng "Comment for table '%-.64s' is too long (max = %lu)"
+  por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
+
+ER_TOO_LONG_FIELD_COMMENT
+  eng "Comment for field '%-.64s' is too long (max = %lu)"
+  por "Comentário para o campo '%-.64s' é longo demais (max = %lu)"
