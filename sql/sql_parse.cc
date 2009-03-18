@@ -4427,6 +4427,7 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
+          write_bin_log(thd, TRUE, thd->query, thd->query_length);
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
@@ -5579,6 +5580,14 @@ void mysql_reset_thd_for_next_command(THD *thd)
 }
 
 
+/**
+  Resets the lex->current_select object.
+  @note It is assumed that lex->current_select != NULL
+
+  This function is a wrapper around select_lex->init_select() with an added
+  check for the special situation when using INTO OUTFILE and LOAD DATA.
+*/
+
 void
 mysql_init_select(LEX *lex)
 {
@@ -5592,6 +5601,18 @@ mysql_init_select(LEX *lex)
   }
 }
 
+
+/**
+  Used to allocate a new SELECT_LEX object on the current thd mem_root and
+  link it into the relevant lists.
+
+  This function is always followed by mysql_init_select.
+
+  @see mysql_init_select
+
+  @retval TRUE An error occurred
+  @retval FALSE The new SELECT_LEX was successfully allocated.
+*/
 
 bool
 mysql_new_select(LEX *lex, bool move_down)
@@ -5966,7 +5987,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     */
     char buf[32];
     my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    WARN_DEPRECATED(thd, "5.2", buf, "'TIMESTAMP'");
+    WARN_DEPRECATED(thd, "6.0", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new Create_field()) ||
@@ -6410,7 +6431,6 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
-
   for (TABLE_LIST *tables= (TABLE_LIST*) table_list.first;
        tables;
        tables= tables->next_local)

@@ -150,17 +150,30 @@ DROP DATABASE IF EXISTS mysql_test;
 CREATE DATABASE mysql_test;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm
---copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD
---copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI
+
+--let $proc_frm = $MYSQLD_DATADIR/mysql/proc.frm
+--let $proc_MYD = $MYSQLD_DATADIR/mysql/proc.MYD
+--let $proc_MYI = $MYSQLD_DATADIR/mysql/proc.MYI
+
+--let $copy_of_proc_frm = $MYSQLTEST_VARDIR/tmp/bug29958.copy.frm
+--let $copy_of_proc_MYD = $MYSQLTEST_VARDIR/tmp/bug29958.copy.MYD
+--let $copy_of_proc_MYI = $MYSQLTEST_VARDIR/tmp/bug29958.copy.MYI
+
+--copy_file $proc_frm $copy_of_proc_frm
+--copy_file $proc_MYD $copy_of_proc_MYD
+--copy_file $proc_MYI $copy_of_proc_MYI
 
 DROP TABLE mysql.proc;
 
 DROP DATABASE mysql_test;
 
---copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm $MYSQLD_DATADIR/mysql/proc.frm
---copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD $MYSQLD_DATADIR/mysql/proc.MYD
---copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI $MYSQLD_DATADIR/mysql/proc.MYI
+--copy_file $copy_of_proc_frm $proc_frm
+--copy_file $copy_of_proc_MYD $proc_MYD
+--copy_file $copy_of_proc_MYI $proc_MYI
+
+--remove_file $copy_of_proc_frm
+--remove_file $copy_of_proc_MYD
+--remove_file $copy_of_proc_MYI
 
 --echo
 --echo # --

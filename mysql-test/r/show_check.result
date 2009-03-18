@@ -545,9 +545,9 @@ mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
 drop table mysqltest.t1;
 drop database mysqltest;
 set names binary;
-delete from mysql.user 
+delete from mysql.user
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
-delete from mysql.db   
+delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
@@ -664,7 +664,7 @@ show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table if exists t1;
 
-# Bug#12183: SHOW OPEN TABLES behavior doesn't match grammar.
+# Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar.
 
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
@@ -784,7 +784,7 @@ show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
 create table t1 (a int);
-create trigger tr1 before insert on t1 for each row 
+create trigger tr1 before insert on t1 for each row
 begin
 end;
 create view v1 as select a from t1;
@@ -1010,7 +1010,7 @@ def			TRIGGERS	DATABASE_COLLATION	Database Collation	253	96	17	N	1	0	33
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 t1_bi	INSERT	t1	SET @a = 1	BEFORE	NULL		root@localhost	binary	binary	latin1_swedish_ci
 ----------------------------------------------------------------
-SELECT 
+SELECT
 TRIGGER_CATALOG,
 TRIGGER_SCHEMA,
 TRIGGER_NAME,
@@ -1198,7 +1198,7 @@ CREATE DATABASE mysqltest1;
 use mysqltest1;
 CREATE TABLE t1(колонка1 INT);
 
----> Dumping mysqltest1 to show_check.mysqltest1.sql
+---> Dumping mysqltest1 to outfile1
 
 
 DROP DATABASE mysqltest1;
@@ -1295,7 +1295,7 @@ drop database mysqltest;
 show full plugin;
 show warnings;
 Level	Code	Message
-Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW PLUGINS' instead
+Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 6.0. Please use 'SHOW PLUGINS' instead
 show plugin;
 show plugins;
 create database `mysqlttest\1`;

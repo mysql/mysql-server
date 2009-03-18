@@ -74,6 +74,8 @@ SELECT @@session.max_sp_recursion_depth;
 150
 '#------------------FN_DYNVARS_085_05-----------------------#'
 SET @@global.max_sp_recursion_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1024'
 SELECT @@global.max_sp_recursion_depth;
 @@global.max_sp_recursion_depth
 0
@@ -84,6 +86,8 @@ SELECT @@global.max_sp_recursion_depth;
 @@global.max_sp_recursion_depth
 255
 SET @@global.max_sp_recursion_depth = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1'
 SELECT @@global.max_sp_recursion_depth;
 @@global.max_sp_recursion_depth
 0
@@ -110,6 +114,8 @@ SELECT @@session.max_sp_recursion_depth;
 @@session.max_sp_recursion_depth
 255
 SET @@session.max_sp_recursion_depth = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1'
 SELECT @@session.max_sp_recursion_depth;
 @@session.max_sp_recursion_depth
 0
@@ -120,6 +126,8 @@ SELECT @@session.max_sp_recursion_depth;
 @@session.max_sp_recursion_depth
 255
 SET @@session.max_sp_recursion_depth = -001;
+Warnings:
+Warning	1292	Truncated incorrect max_sp_recursion_depth value: '-1'
 SELECT @@session.max_sp_recursion_depth;
 @@session.max_sp_recursion_depth
 0
