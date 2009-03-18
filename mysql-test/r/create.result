@@ -1731,7 +1731,7 @@ t1	CREATE TABLE `t1` (
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
-  `TIME` bigint(7) NOT NULL DEFAULT '0',
+  `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
@@ -1745,7 +1745,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
-  `TIME` bigint(7) NOT NULL DEFAULT '0',
+  `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
