@@ -76,7 +76,7 @@ enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES,
-  OPT_GLOBAL_SUBST
+  OPT_GLOBAL_SUBST, OPT_MY_CONNECT_TIMEOUT
 };
 
 static int record= 0, opt_sleep= -1;
@@ -87,6 +87,7 @@ const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
+static int opt_connect_timeout= -1;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
@@ -4952,6 +4953,9 @@ void do_connect(struct st_command *command)
   if (opt_charsets_dir)
     mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
+  if (opt_connect_timeout >= 0)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+                  &opt_connect_timeout);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
@@ -5692,6 +5696,9 @@ static struct my_option my_long_options[] =
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect-timeout", OPT_MY_CONNECT_TIMEOUT, "Client connection timeout",
+   (uchar**) &opt_connect_timeout, (uchar**) &opt_connect_timeout, 0,
+   GET_INT, REQUIRED_ARG, -1, -1, 0, 0, 0, 0},
   {"timer-file", 'm', "File where the timing in micro seconds is stored.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",

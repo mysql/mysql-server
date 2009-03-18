@@ -2151,3 +2151,23 @@ Privat (Private Nutzung)	Mobilfunk
 Warnings:
 Warning	1052	Column 'kundentyp' in group statement is ambiguous
 drop table t1;
+SELECT sleep(5);
+SELECT sleep(5);
+# -- Success: more than --thread-pool-size normal connections not possible
+sleep(5)
+0
+sleep(5)
+0
+SELECT sleep(5);
+SELECT sleep(5);
+SELECT 'Connection on extra port ok';
+Connection on extra port ok
+Connection on extra port ok
+SELECT 'Connection on extra port 2 ok';
+Connection on extra port 2 ok
+Connection on extra port 2 ok
+# -- Success: more than --extra-max-connections + 1 normal connections not possible
+sleep(5)
+0
+sleep(5)
+0
