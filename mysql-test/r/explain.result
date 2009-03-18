@@ -155,6 +155,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+EXPLAIN EXTENDED SELECT COUNT(a) FROM t1 USE KEY(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+DROP TABLE t1;
 #
 # Bug#37870: Usage of uninitialized value caused failed assertion.
 #
@@ -182,3 +186,4 @@ dt
 2001-01-01 01:01:01
 2001-01-01 01:01:01
 drop tables t1, t2;
+End of 5.1 tests.

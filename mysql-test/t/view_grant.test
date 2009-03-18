@@ -1,6 +1,9 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --disable_warnings
 drop database if exists mysqltest;
 drop view if exists v1,v2,v3;
@@ -32,19 +35,19 @@ grant create view,select on test.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
--- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 create definer=root@localhost view v1 as select * from mysqltest.t1;
 create view v1 as select * from mysqltest.t1;
 # try to modify view without DROP privilege on it
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 alter view v1 as select * from mysqltest.t1;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create or replace view v1 as select * from mysqltest.t1;
 # no CRETE VIEW privilege
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create view mysqltest.v2  as select * from mysqltest.t1;
 # no SELECT privilege
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create view v2 as select * from mysqltest.t2;
 
 connection root;
@@ -54,7 +57,7 @@ show create view v1;
 grant create view,drop,select on test.* to mysqltest_1@localhost;
 
 connection user1;
-# following 'use' command is workaround of bug #9582 and should be removed
+# following 'use' command is workaround of Bug#9582 and should be removed
 # when that bug will be fixed
 use test;
 alter view v1 as select * from mysqltest.t1;
@@ -82,7 +85,7 @@ grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
 connection user1;
 select c from mysqltest.v1;
 # there are no privileges on column 'd'
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 select d from mysqltest.v1;
 
 connection root;
@@ -102,7 +105,7 @@ grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
 connection user1;
 select c from mysqltest.v1;
 # there are no privileges on column 'd'
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 select d from mysqltest.v1;
 
 connection root;
@@ -117,7 +120,7 @@ connection root;
 --disable_warnings
 create database mysqltest;
 --enable_warnings
-#prepare views and tables
+# prepare views and tables
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
 create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
@@ -139,21 +142,21 @@ select c from mysqltest.v4;
 show columns from mysqltest.v1;
 show columns from mysqltest.v2;
 # but explain/show do not
--- error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v1;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v1;
--- error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v2;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v2;
--- error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v3;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v3;
--- error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v4;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v4;
 
 # allow to see one of underlying table
@@ -162,19 +165,19 @@ grant select on mysqltest.t1 to mysqltest_1@localhost;
 connection user1;
 # EXPLAIN of view on above table works
 explain select c from mysqltest.v1;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v1;
 explain select c from mysqltest.v2;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v2;
 # but other EXPLAINs do not
--- error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v3;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v3;
--- error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v4;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v4;
 
 # allow to see any view in mysqltest database
@@ -228,14 +231,14 @@ select * from t1;
 update v2 set a=a+c;
 select * from t1;
 # no rights on column
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 update t2,v2 set v2.c=v2.a+v2.c where t2.x=v2.c;
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 update v2 set c=a+c;
 # no rights for view
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update t2,v3 set v3.a=v3.a+v3.c where t2.x=v3.c;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update v3 set a=a+c;
 
 use test;
@@ -269,9 +272,9 @@ select * from t1;
 delete v1 from t2,v1 where t2.x=v1.c;
 select * from t1;
 # no rights for view
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 delete v2 from t2,v2 where t2.x=v2.c;
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 delete from v2 where c < 4;
 
 use test;
@@ -305,9 +308,9 @@ select * from t1;
 insert into v1 select x,y from t2;
 select * from t1;
 # no rights for view
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 insert into v2 values (5,6);
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 insert into v2 select x,y from t2;
 
 use test;
@@ -335,10 +338,10 @@ connection user1;
 create view v1 as select * from mysqltest.t1;
 create view v2 as select b from mysqltest.t2;
 # There are not rights on mysqltest.v1
--- error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create view mysqltest.v1 as select * from mysqltest.t1;
 # There are not any rights on mysqltest.t2.a
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 create view v3 as select a from mysqltest.t2;
 
 # give CREATE VIEW privileges (without any privileges for result column)
@@ -358,13 +361,13 @@ create view mysqltest.v3 as select b from mysqltest.t2;
 
 
 # Expression need select privileges
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 create view v4 as select b+1 from mysqltest.t2;
 
 connection root;
 grant create view,update,select on test.* to mysqltest_1@localhost;
 connection user1;
--- error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 create view v4 as select b+1 from mysqltest.t2;
 
 connection root;
@@ -417,7 +420,7 @@ connection root;
 # check view definer information
 show create view v1;
 revoke select on mysqltest.t1 from mysqltest_1@localhost;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v1;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 select * from v1;
@@ -426,7 +429,7 @@ drop view v1;
 drop database mysqltest;
 
 #
-# rights on execution of view underlying functiond (BUG#9505)
+# rights on execution of view underlying functiond (Bug#9505)
 #
 connection root;
 --disable_warnings
@@ -459,11 +462,11 @@ connection user1;
 use mysqltest;
 select * from v1;
 select * from v2;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v3;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v4;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v5;
 use test;
 
@@ -511,13 +514,13 @@ use test;
 connection root;
 create view v5 as select * from v1;
 revoke execute on function f2 from mysqltest_1@localhost;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v1;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v2;
 select * from v3;
 select * from v4;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v5;
 
 drop view v1, v2, v3, v4, v5;
@@ -555,13 +558,13 @@ use test;
 
 connection root;
 revoke select on t1 from mysqltest_1@localhost;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v1;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v2;
 select * from v3;
 select * from v4;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v5;
 
 #drop view v1, v2, v3, v4, v5;
@@ -594,11 +597,11 @@ connection user1;
 use mysqltest;
 select * from v1;
 select * from v2;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v3;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v4;
--- error ER_VIEW_INVALID
+--error ER_VIEW_INVALID
 select * from v5;
 use test;
 
@@ -610,7 +613,7 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
 
 #
-# BUG#14256: definer in view definition is not fully qualified
+# Bug#14256 definer in view definition is not fully qualified
 #
 --disable_warnings
 drop view if exists v1;
@@ -647,6 +650,7 @@ drop view v1;
 select @v1def1, @v1def2, @v1def1=@v1def2;
 
 connection root;
+disconnect test14256;
 drop user test14256;
 
 # Restore the anonymous users.
@@ -656,8 +660,8 @@ flush privileges;
 drop table t1;
 
 #
-# BUG#14726: freeing stack variable in case of an error of opening
-# a view when we have locked tables with LOCK TABLES statement.
+# Bug#14726 freeing stack variable in case of an error of opening a view when
+#           we have locked tables with LOCK TABLES statement.
 #
 connection root;
 --disable_warnings
@@ -674,7 +678,7 @@ connection user1;
 
 use mysqltest;
 LOCK TABLES v1 READ;
--- error ER_TABLEACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE TABLE v1;
 UNLOCK TABLES;
 use test;
@@ -685,7 +689,7 @@ drop user mysqltest_1@localhost;
 drop database mysqltest;
 
 #
-# switch to default connaction
+# switch to default connection
 #
 disconnect user1;
 disconnect root;
@@ -702,7 +706,7 @@ drop view v1;
 drop view v2;
 
 #
-# Bug#18681: View privileges are broken
+# Bug#18681 View privileges are broken
 #
 CREATE DATABASE mysqltest1;
 CREATE USER readonly@localhost;
@@ -723,54 +727,55 @@ GRANT UPDATE,SELECT ON mysqltest1.v_tus TO readonly@localhost;
 GRANT DELETE ON mysqltest1.v_td TO readonly@localhost;
 GRANT DELETE,SELECT ON mysqltest1.v_tds TO readonly@localhost;
 
-CONNECT (n1,localhost,readonly,,);
-CONNECTION n1;
+connect (n1,localhost,readonly,,);
+connection n1;
 
---error 1356
+--error ER_VIEW_INVALID
 SELECT * FROM mysqltest1.v_t1;
---error 1356
+--error ER_VIEW_INVALID
 INSERT INTO mysqltest1.v_t1 VALUES(4);
---error 1356
+--error ER_VIEW_INVALID
 DELETE FROM mysqltest1.v_t1 WHERE x = 1;
---error 1356
+--error ER_VIEW_INVALID
 UPDATE mysqltest1.v_t1 SET x = 3 WHERE x = 2;
---error 1356
+--error ER_VIEW_INVALID
 UPDATE mysqltest1.v_t1 SET x = 3;
---error 1356
+--error ER_VIEW_INVALID
 DELETE FROM mysqltest1.v_t1;
---error 1356
+--error ER_VIEW_INVALID
 SELECT 1 FROM mysqltest1.v_t1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysqltest1.t1;
 
 SELECT * FROM mysqltest1.v_ts;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysqltest1.v_ts, mysqltest1.t1 WHERE mysqltest1.t1.x = mysqltest1.v_ts.x;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysqltest1.v_ti;
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 INSERT INTO mysqltest1.v_ts VALUES (100);
 INSERT INTO mysqltest1.v_ti VALUES (100);
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 UPDATE mysqltest1.v_ts SET x= 200 WHERE x = 100;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 UPDATE mysqltest1.v_ts SET x= 200;
 UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
 UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
 UPDATE mysqltest1.v_tu SET x= 200;
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM mysqltest1.v_ts WHERE x= 200;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM mysqltest1.v_ts;
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 DELETE FROM mysqltest1.v_td WHERE x= 200;
 DELETE FROM mysqltest1.v_tds WHERE x= 200;
 DELETE FROM mysqltest1.v_td;
 
-CONNECTION default;
+connection default;
+disconnect n1;
 DROP VIEW mysqltest1.v_tds;
 DROP VIEW mysqltest1.v_td;
 DROP VIEW mysqltest1.v_tus;
@@ -783,21 +788,21 @@ DROP USER readonly@localhost;
 DROP DATABASE mysqltest1;
 
 #
-# BUG#14875: Bad view DEFINER makes SHOW CREATE VIEW fail
+# Bug#14875 Bad view DEFINER makes SHOW CREATE VIEW fail
 #
 CREATE TABLE t1 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (1), (2), (3);
 CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
-#--warning 1448
+#--warning ER_VIEW_OTHER_USER
 SHOW CREATE VIEW v;
---error 1449
+--error ER_NO_SUCH_USER
 SELECT * FROM v;
 DROP VIEW v;
 DROP TABLE t1;
 USE test;
 
 #
-# Bug#20363: Create view on just created view is now denied
+# Bug#20363 Create view on just created view is now denied
 #
 eval CREATE USER mysqltest_db1@localhost identified by 'PWD';
 eval GRANT ALL ON mysqltest_db1.* TO mysqltest_db1@localhost WITH GRANT OPTION;
@@ -828,6 +833,7 @@ SELECT * FROM view2;
 SELECT * from view3;
 
 connection default;
+disconnect session1;
 DROP VIEW mysqltest_db1.view3;
 DROP VIEW mysqltest_db1.view2;
 DROP VIEW mysqltest_db1.view1;
@@ -835,8 +841,8 @@ DROP TABLE mysqltest_db1.t1;
 DROP SCHEMA mysqltest_db1;
 DROP USER mysqltest_db1@localhost;
 #
-# BUG#20482: failure on Create join view with sources views/tables 
-#             in different schemas
+# Bug#20482 failure on Create join view with sources views/tables
+#           in different schemas
 #
 --disable_warnings
 CREATE DATABASE test1;
@@ -846,7 +852,7 @@ CREATE DATABASE test2;
 CREATE TABLE test1.t0 (a VARCHAR(20));
 CREATE TABLE test2.t1 (a VARCHAR(20));
 CREATE VIEW  test2.t3 AS SELECT * FROM test1.t0;
-CREATE OR REPLACE VIEW test.v1 AS 
+CREATE OR REPLACE VIEW test.v1 AS
   SELECT ta.a AS col1, tb.a AS col2 FROM test2.t3 ta, test2.t1 tb;
 
 DROP VIEW test.v1;
@@ -857,8 +863,8 @@ DROP DATABASE test1;
 
 
 #
-# BUG#20570: CURRENT_USER() in a VIEW with SQL SECURITY DEFINER
-# returns invoker name
+# Bug#20570 CURRENT_USER() in a VIEW with SQL SECURITY DEFINER returns
+#           invoker name
 #
 --disable_warnings
 DROP VIEW IF EXISTS v1;
@@ -917,7 +923,7 @@ DROP USER mysqltest_u1@localhost;
 
 
 #
-# Bug#17254: Error for DEFINER security on VIEW provides too much info
+# Bug#17254 Error for DEFINER security on VIEW provides too much info
 #
 connect (root,localhost,root,,);
 connection root;
@@ -941,12 +947,12 @@ DROP USER def_17254@localhost;
 connect (inv,localhost,inv_17254,,db17254);
 connection inv;
 --echo for a user
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM v1;
 
 connection root;
 --echo for a superuser
---error 1449
+--error ER_NO_SUCH_USER
 SELECT * FROM v1;
 DROP USER inv_17254@localhost;
 DROP DATABASE db17254;
@@ -955,7 +961,7 @@ disconnect inv;
 
 
 #
-# BUG#24404: strange bug with view+permission+prepared statement
+# Bug#24404 strange bug with view+permission+prepared statement
 #
 --disable_warnings
 DROP DATABASE IF EXISTS mysqltest_db1;
@@ -1023,8 +1029,8 @@ DROP USER mysqltest_u1@localhost;
 DROP USER mysqltest_u2@localhost;
 
 #
-# Bug#26813: The SUPER privilege is wrongly required to alter a view created
-#            by another user.
+# Bug#26813 The SUPER privilege is wrongly required to alter a view created
+#           by another user.
 #
 connection root;
 CREATE DATABASE db26813;
@@ -1056,7 +1062,7 @@ DROP DATABASE db26813;
 disconnect u1;
 
 --echo #
---echo # Bug#29908: A user can gain additional access through the ALTER VIEW.
+--echo # Bug#29908 A user can gain additional access through the ALTER VIEW.
 --echo #
 connection root;
 CREATE DATABASE mysqltest_29908;
@@ -1101,7 +1107,7 @@ disconnect u2;
 --echo #######################################################################
 
 #
-# BUG#24040: Create View don't succed with "all privileges" on a database.
+# Bug#24040 Create View don't succed with "all privileges" on a database.
 #
 
 # Prepare.
@@ -1185,11 +1191,51 @@ SELECT * FROM mysqltest1.t4;
 
 # Cleanup.
 
--- disconnect bug24040_con
+disconnect bug24040_con;
 
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_u1@localhost;
+
+
+#
+# Bug#41354 Access control is bypassed when all columns of a view are
+#           selected by * wildcard
+
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
+
+GRANT SELECT (f1) ON t1 TO foo;
+GRANT SELECT (f1) ON v1 TO foo;
+
+connect (addconfoo, localhost, foo,,);
+connection addconfoo;
+USE db1;
+
+SELECT f1 FROM t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT f2 FROM t1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM t1;
+
+SELECT f1 FROM v1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT f2 FROM v1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM v1;
+
+connection default;
+disconnect root;
+disconnect addconfoo;
+USE test;
+REVOKE SELECT (f1) ON db1.t1 FROM foo;
+REVOKE SELECT (f1) ON db1.v1 FROM foo;
+DROP USER foo;
+DROP VIEW db1.v1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
 
 --echo End of 5.0 tests.
 
@@ -1217,6 +1263,44 @@ SHOW CREATE VIEW v1;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug#37191: Failed assertion in CREATE VIEW
+#
+CREATE USER mysqluser1@localhost;
+CREATE DATABASE mysqltest1;
+
+USE mysqltest1;
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+
+GRANT CREATE VIEW ON mysqltest1.* TO mysqluser1@localhost;
+
+GRANT SELECT ON t1 TO mysqluser1@localhost;
+GRANT INSERT ON t2 TO mysqluser1@localhost;
+
+--connect (connection1, localhost, mysqluser1, , mysqltest1)
+
+--echo This would lead to failed assertion.
+CREATE VIEW v1 AS SELECT a, b FROM t1, t2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM v1;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT b FROM v1;
+
+--disconnect connection1
+--connection default
+
+DROP TABLE t1, t2;
+DROP VIEW v1;
+DROP DATABASE mysqltest1;
+DROP USER mysqluser1@localhost;
+USE test;
 
 --echo End of 5.1 tests.
 
@@ -1254,8 +1338,8 @@ DROP DATABASE mysqltest1;
 DROP USER mysqluser1@localhost;
 
 #
-# Bug#35600: Security breach via view, I_S table and prepared 
-# statement/stored procedure
+# Bug#35600 Security breach via view, I_S table and prepared
+#           statement/stored procedure
 #
 CREATE USER mysqluser1@localhost;
 CREATE DATABASE mysqltest1;
@@ -1296,3 +1380,8 @@ DROP VIEW v1, v2;
 DROP DATABASE mysqltest1;
 DROP VIEW test.v3;
 DROP USER mysqluser1@localhost;
+USE test;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+

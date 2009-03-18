@@ -86,6 +86,7 @@ const char *Options::Main::bind_address= NULL; /* No default value */
 uint Options::Main::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::Main::port_number= DEFAULT_PORT;
 my_bool Options::Main::mysqld_safe_compatible= FALSE;
+const char **Options::default_directories= NULL;
 
 /* Options::User_management */
 
@@ -439,7 +440,8 @@ int Options::load(int argc, char **argv)
   log_info("Loading config file '%s'...",
            (const char *) Main::config_file);
 
-  load_defaults(Main::config_file, default_groups, &argc, &saved_argv);
+  my_load_defaults(Main::config_file, default_groups, &argc,
+                   &saved_argv, &default_directories);
 
   if ((handle_options(&argc, &saved_argv, my_long_options, get_one_option)))
     return ERR_INVALID_USAGE;
