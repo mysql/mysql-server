@@ -43,6 +43,10 @@
 
    toku_default_compare_fun;
 
+   toku_stat;
+   toku_fstat;
+
+
  local: *;
 };
 

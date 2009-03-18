@@ -102,7 +102,8 @@ int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
     return 0;
 }
 
-#if !TOKU_WINDOWS
+#if !TOKU_WINDOWS && !defined(BOOL_DEFINED)
+#define BOOL_DEFINED
 typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #endif
 

@@ -50,11 +50,6 @@ typedef int64_t toku_off_t;
 #include <stdint.h>
 #include <inttypes.h>
 
-#ifndef TOKU_OFF_T_DEFINED
-#define TOKU_OFF_T_DEFINED
-typedef int64_t toku_off_t;
-#endif
-
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -74,6 +69,11 @@ typedef int64_t toku_off_t;
 
 #error Not ICC and not GNUC.  What compiler?
 
+#endif
+
+#ifndef TOKU_OFF_T_DEFINED
+#define TOKU_OFF_T_DEFINED
+typedef int64_t toku_off_t;
 #endif
 
 #include "toku_os.h"

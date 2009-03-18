@@ -198,7 +198,7 @@ toku_stat(const char *name, toku_struct_stat *buf) {
 }
 
 int
-toku_stat(int fd, toku_struct_fstat *buf) {
+toku_fstat(int fd, toku_struct_stat *buf) {
     int r = fstat(fd, buf);
     return r;
 }
