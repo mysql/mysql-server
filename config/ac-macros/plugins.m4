@@ -302,7 +302,9 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
     _MYSQL_CONFIGURE_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
     _MYSQL_EMIT_PLUGIN_ACTIONS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
     AC_SUBST([mysql_se_dirs])
+    AC_SUBST([mysql_se_distdirs])
     AC_SUBST([mysql_pg_dirs])
+    AC_SUBST([mysql_pg_distdirs])
     AC_SUBST([mysql_se_unittest_dirs])
     AC_SUBST([mysql_pg_unittest_dirs])
     AC_SUBST([condition_dependent_plugin_modules])
@@ -354,6 +356,24 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
   fi
   AC_MSG_RESULT([no])
  ],[
+
+  # Plugin is not disabled, determine if it should be built,
+  # or only distributed
+
+  m4_ifdef([$6], [
+    if test ! -d "$srcdir/$6"; then
+      # Plugin directory was removed after autoconf was run; treat
+      # this as a disabled plugin
+      if test "X[$with_plugin_]$2" = Xyes; then
+        AC_MSG_RESULT([error])
+        AC_MSG_ERROR([disabled])
+      fi
+
+      # The result message will be printed below
+      [with_plugin_]$2=no
+    fi
+  ])
+
   m4_ifdef([$9],[
    if test "X[$with_plugin_]$2" = Xno; then
      AC_MSG_RESULT([error])
@@ -372,6 +392,8 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
      ;;
    esac
   ])
+
+
   if test "X[$with_plugin_]$2" = Xno; then
     AC_MSG_RESULT([no])
   else
@@ -448,28 +470,49 @@ dnl Although this is "pretty", it breaks libmysqld build
        condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
       ])
     fi
-    m4_ifdef([$6],[
-      if test -n "$mysql_use_plugin_dir" ; then
-        mysql_plugin_dirs="$mysql_plugin_dirs $6"
-        m4_syscmd(test -f "$6/configure")
-        ifelse(m4_sysval, 0,
-          [AC_CONFIG_SUBDIRS($6)],
-          [AC_CONFIG_FILES($6/Makefile)]
-        )
-        ifelse(m4_substr($6, 0, 8), [storage/],
-          [
-            [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)"
-             mysql_se_unittest_dirs="$mysql_se_unittest_dirs ../$6"
-          ],
-          m4_substr($6, 0, 7), [plugin/],
-          [
-            [mysql_pg_dirs="$mysql_pg_dirs ]m4_substr($6, 7)"
-             mysql_pg_unittest_dirs="$mysql_pg_unittest_dirs ../$6"
-          ],
-          [AC_FATAL([don't know how to handle plugin dir ]$6)])
-      fi
-    ])
   fi
+
+  m4_ifdef([$6], [
+    if test -d "$srcdir/$6"; then
+      # Even if we don't build a plugin, we bundle its source into the dist
+      # file.  So its Makefile (and Makefiles for any subdirs) must be
+      # generated for 'make dist' to work.
+      m4_syscmd([test -f "]$6[/configure"])
+      ifelse(m4_sysval, 0,
+        [AC_CONFIG_SUBDIRS($6)],
+        [
+          # autoconf doesn't provide an automatic way to configure DIST_SUBDIRS of
+          # a subdir; for our purposes, it's enough to just check for existing
+          # Makefile.am files and add them in here
+dnl
+dnl Warning, don't try to quote the m4_esyscmd() macro, it doesn't
+dnl work.  Quoting here is tricky.
+dnl
+dnl The $FIND or $SED variable can be set by the user when calling autoconf itself
+dnl to if they need to pass a specific path.  This is *NOT* used when calling
+dnl running configure!
+dnl
+          AC_CONFIG_FILES(m4_esyscmd([${FIND-find} "]$6[" -name Makefile.am -print | ${SED-sed} 's,\.am$,,']))
+        ]
+      )
+
+      ifelse(
+        m4_substr($6, 0, 8), [storage/], [
+          mysql_se_distdirs="$mysql_se_distdirs m4_substr($6, 8)"
+          if test -n "$mysql_use_plugin_dir" ; then
+            mysql_se_dirs="$mysql_se_dirs m4_substr($6, 8)"
+            mysql_se_unittest_dirs="$mysql_se_unittest_dirs ../$6"
+          fi],
+
+        m4_substr($6, 0, 7), [plugin/], [
+          mysql_pg_distdirs="$mysql_pg_distdirs m4_substr($6, 7)"
+          if test -n "$mysql_use_plugin_dir" ; then
+            mysql_pg_dirs="$mysql_pg_dirs m4_substr($6, 7)"
+            mysql_pg_unittest_dirs="$mysql_pg_unittest_dirs ../$6"
+          fi],
+        [AC_FATAL([don't know how to handle plugin dir ]$6)])
+    fi
+  ])
  ])
 ])
 
