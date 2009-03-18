@@ -197,6 +197,8 @@ int main(int argc, char** argv)
   g_eventLogger->info("Ndb started");
 #endif
 
-  return ndbd_run(opt_foreground);
+  int res = ndbd_run(opt_foreground);
+  _exit(res);
+  return res;
 }
 
