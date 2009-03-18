@@ -1806,6 +1806,9 @@ buf_LRU_block_remove_hashed_page(
 			void*	data = bpage->zip.data;
 			bpage->zip.data = NULL;
 
+			ut_ad(!bpage->in_free_list);
+			ut_ad(!bpage->in_flush_list);
+			ut_ad(!bpage->in_LRU_list);
 			mutex_exit(&((buf_block_t*) bpage)->mutex);
 			buf_pool_mutex_exit_forbid();
 			buf_buddy_free(data, page_zip_get_size(&bpage->zip));
