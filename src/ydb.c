@@ -359,19 +359,19 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	{
 	    BOOL made_new_home = FALSE;
         char* new_home = NULL;
-    	struct stat buf;
+    	toku_struct_stat buf;
         if (home[strlen(home)-1] == '\\') {
             new_home = toku_malloc(strlen(home));
             memcpy(new_home, home, strlen(home));
             new_home[strlen(home) - 1] = 0;
             made_new_home = TRUE;
         }
-    	r = stat(made_new_home? new_home : home, &buf);
+    	r = toku_stat(made_new_home? new_home : home, &buf);
         if (made_new_home) {
             toku_free(new_home);
         }
     	if (r!=0) {
-    	    return toku_ydb_do_error(env, errno, "Error from stat(\"%s\",...)\n", home);
+    	    return toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
     	}
     }
     unused_flags &= ~DB_PRIVATE;
@@ -2711,7 +2711,7 @@ static char *construct_full_name(const char *dir, const char *fname) {
 static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) {
     u_int32_t i;
     int r;
-    struct stat statbuf;
+    toku_struct_stat statbuf;
     char* full_name;
     
     assert(full_name_out);    
@@ -2720,7 +2720,7 @@ static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) 
         for (i = 0; i < dbenv->i->n_data_dirs; i++) {
             full_name = construct_full_name(dbenv->i->data_dirs[0], fname);
             if (!full_name) return ENOMEM;
-            r = stat(full_name, &statbuf);
+            r = toku_stat(full_name, &statbuf);
             if (r == 0) goto finish;
             else {
                 toku_free(full_name);
@@ -2839,8 +2839,8 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         openflags |= O_RDWR;
     
     {
-        struct stat statbuf;
-        if (stat(db->i->full_fname, &statbuf) == 0) {
+        toku_struct_stat statbuf;
+        if (toku_stat(db->i->full_fname, &statbuf) == 0) {
             /* If the database exists at the file level, and we specified no db_name, then complain here. */
             if (dbname == 0 && is_db_create) {
                 if (is_db_excl) {

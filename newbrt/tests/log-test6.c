@@ -59,8 +59,8 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
 
     {
-	struct stat statbuf;
-	r = stat(dname "/log000000000000.tokulog", &statbuf);
+	toku_struct_stat statbuf;
+	r = toku_stat(dname "/log000000000000.tokulog", &statbuf);
 	assert(r==0);
 	assert(statbuf.st_size<=LSIZE);
     }

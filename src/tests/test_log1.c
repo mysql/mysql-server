@@ -44,8 +44,8 @@ test_main (int UU(argc), const char UU(*argv[])) {
     r=db->close(db, 0);       assert(r==0);
     r=env->close(env, 0);     assert(r==0);
     {
-	struct stat statbuf;
-	r = stat(ENVDIR "/foo.db", &statbuf);
+	toku_struct_stat statbuf;
+	r = toku_stat(ENVDIR "/foo.db", &statbuf);
 	assert(r==0);
     }
     return 0;

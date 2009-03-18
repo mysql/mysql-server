@@ -28,6 +28,12 @@ extern "C" {
 
 #include "stdint.h"
 #include "inttypes.h"
+
+#ifndef TOKU_OFF_T_DEFINED
+#define TOKU_OFF_T_DEFINED
+typedef int64_t toku_off_t;
+#endif
+
 #include <direct.h>
 #include <sys/types.h>
 #include "unistd.h"
@@ -43,6 +49,12 @@ extern "C" {
 
 #include <stdint.h>
 #include <inttypes.h>
+
+#ifndef TOKU_OFF_T_DEFINED
+#define TOKU_OFF_T_DEFINED
+typedef int64_t toku_off_t;
+#endif
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -67,17 +79,12 @@ extern "C" {
 #include "toku_os.h"
 #include "toku_htonl.h"
 
-#ifndef TOKU_OFF_T_DEFINED
-#define TOKU_OFF_T_DEFINED
-typedef int64_t toku_off_t;
-#endif
-
 #define UU(x) x __attribute__((__unused__))
 
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
 #   if defined(__ICL) //Windows Intel Compiler
-#       pragma deprecated (creat, fstat, getpid, syscall, sysconf, mkdir, strdup)
+#       pragma deprecated (creat, fstat, stat, getpid, syscall, sysconf, mkdir, strdup)
 #       pragma poison off_t
 #    ifndef DONT_DEPRECATE_MALLOC
 #       pragma deprecated (malloc, free, realloc)
@@ -85,6 +92,7 @@ typedef int64_t toku_off_t;
 #   else
 int      creat()                        __attribute__((__deprecated__));
 int      fstat()                        __attribute__((__deprecated__));
+int      stat()                         __attribute__((__deprecated__));
 int      getpid(void)                   __attribute__((__deprecated__));
 long int syscall(long int __sysno, ...) __attribute__((__deprecated__));
 // Sadly, dlmalloc needs sysconf, and on linux this causes trouble with -combine.  So let the warnings show up under windows only.

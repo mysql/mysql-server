@@ -112,8 +112,8 @@ test_main(int argc, const char *argv[]) {
 
         //Verify it went in the right directory.
     	{
-        	struct stat buf;
-        	r = stat(db_name, &buf);
+        	toku_struct_stat buf;
+        	r = toku_stat(db_name, &buf);
         	CKERR(r);
         }
 #ifdef USE_TDB

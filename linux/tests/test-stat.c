@@ -40,5 +40,10 @@ int main(void) {
 
     test_stat("./testdir/", 0, 0);
 
+    test_stat("/", 0, 0);
+
+    test_stat("/usr", 0, 0);
+    test_stat("/usr/", 0, 0);
+
     return 0;
 }

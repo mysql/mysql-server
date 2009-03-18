@@ -1508,9 +1508,9 @@ graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create
 
     toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
-    struct stat tmpbuf;
-    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
+    toku_struct_stat tmpbuf;
+    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
@@ -1538,10 +1538,10 @@ graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
 
     toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
-    struct stat tmpbuf;
-    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
-    db_exists    = (BOOL)(stat(db_fname, &tmpbuf) == 0);
+    toku_struct_stat tmpbuf;
+    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
+    db_exists    = (BOOL)(toku_stat(db_fname, &tmpbuf) == 0);
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
@@ -1564,9 +1564,9 @@ graceful_dirty_get_append_fd(const char *db_fname) {
 
     toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
-    struct stat tmpbuf;
-    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
+    toku_struct_stat tmpbuf;
+    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
@@ -1687,10 +1687,10 @@ toku_graceful_delete(const char *db_fname) {
     sprintf(cleanbuf, "%s.clean", db_fname);
     sprintf(dirtybuf, "%s.dirty", db_fname);
 
-    struct stat tmpbuf;
+    toku_struct_stat tmpbuf;
     lock_for_graceful();
-    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
+    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
 
     int r = 0;
     if (clean_exists) {

@@ -33,8 +33,8 @@ test_abort_create (void) {
     r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     {
-	struct stat statbuf;
-	r = stat(ENVDIR "/test.db", &statbuf);
+	toku_struct_stat statbuf;
+	r = toku_stat(ENVDIR "/test.db", &statbuf);
 	assert(r==0);
     }
 
@@ -44,8 +44,8 @@ test_abort_create (void) {
     r = env->close(env, 0); assert(r == 0);
 
     {
-	struct stat statbuf;
-	r = stat(ENVDIR "/test.db", &statbuf);
+	toku_struct_stat statbuf;
+	r = toku_stat(ENVDIR "/test.db", &statbuf);
 	assert(r!=0);
     }
 

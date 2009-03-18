@@ -53,8 +53,8 @@ test_main (int argc __attribute__((__unused__)),
 	    if (strncmp(dirent->d_name, "log", 3)!=0) continue;
 	    char fname[sizeof(dname)+256+1];
 	    snprintf(fname, sizeof(fname), "%s/%s", dname, dirent->d_name);
-	    struct stat statbuf;
-	    r = stat(fname, &statbuf);
+	    toku_struct_stat statbuf;
+	    r = toku_stat(fname, &statbuf);
 	    assert(r==0);
 	    assert(statbuf.st_size<=LSIZE);
 	}

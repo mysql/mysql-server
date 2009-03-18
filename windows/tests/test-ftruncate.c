@@ -1,3 +1,4 @@
+#include <toku_portability.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -41,8 +42,8 @@ int main(void) {
         assert(r == sizeof junk);
     }
     
-    struct stat filestat;
-    r = fstat(fd, &filestat);
+    toku_struct_stat filestat;
+    r = toku_fstat(fd, &filestat);
     assert(r == 0);
 
     printf("orig size %lu\n", (unsigned long) filestat.st_size); fflush(stdout);
@@ -50,7 +51,7 @@ int main(void) {
     r = ftruncate(fd, 0);
     assert(r == 0);
 
-    r = fstat(fd, &filestat);
+    r = toku_fstat(fd, &filestat);
     assert(r == 0);
 
     printf("truncated size %lu\n", (unsigned long) filestat.st_size); fflush(stdout);
