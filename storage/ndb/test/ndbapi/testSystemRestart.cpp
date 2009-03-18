@@ -1174,6 +1174,7 @@ runBug24664(NDBT_Context* ctx, NDBT_Step* step)
   int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
   int dump[] = { DumpStateOrd::DihStartLcpImmediately };
   
+  restarter.getNumDbNodes();
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
   NdbLogEventHandle handle = 
     ndb_mgm_create_logevent_handle(restarter.handle, filter);
