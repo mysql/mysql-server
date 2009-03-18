@@ -82,7 +82,9 @@ void pool_of_threads_scheduler(scheduler_functions* func);
 #else
 
 #define HAVE_POOL_OF_THREADS 0                  /* For easyer tests */
-#define pool_of_threads_scheduler(A) one_thread_per_connection_scheduler(A)
+#define pool_of_threads_scheduler(A) \
+  one_thread_per_connection_scheduler(A, &max_connections, \
+                                      &connection_count)
 
 class thd_scheduler
 {};

@@ -3014,7 +3014,9 @@ static const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
-"mysqld","server", MYSQL_BASE_VERSION, 0, 0};
+"mysqld", "server", MYSQL_BASE_VERSION,
+"mariadb", MARIADB_BASE_VERSION,
+0, 0};
 
 #if defined(__WIN__)
 static const int load_default_groups_sz=
