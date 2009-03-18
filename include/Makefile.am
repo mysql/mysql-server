@@ -72,7 +72,7 @@ dist-hook:
 
 probes_mysql.d:
 	if ! test -f probes_mysql.d ; then \
-		$(CP) -f $(top_srcdir)/include/probes_mysql.d probes_mysql.d; \
+		$(CP) -f $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d; \
 	fi
 
 DTRACEPROVIDER = probes_mysql.d

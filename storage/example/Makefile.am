@@ -63,7 +63,7 @@ dtrace_providers: probes_mysql.d
 	echo $(DTRACEPROVIDER) > $@
 probes_mysql.d:
 	-$(RM) -f probes_mysql.d
-	$(CP) $(top_srcdir)/include/probes_mysql.d probes_mysql.d
+	$(CP) $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d
 	echo timestamp > dtrace_sources
 
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
