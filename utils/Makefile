@@ -17,7 +17,7 @@ endif
 BDB_DUMP=$(BDBDIR)/bin/db_dump$(BINSUF)
 BDB_LOAD=$(BDBDIR)/bin/db_load$(BINSUF)
 
-DIFF=diff -w -I 'db_pagesize='
+DIFF=diff -q -I 'db_pagesize='
 
 # vars to compile bins that handle tokudb using libdb.so
 # when one uses relative address in an rpath, the library better be located relative
