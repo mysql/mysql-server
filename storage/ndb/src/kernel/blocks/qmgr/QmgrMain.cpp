@@ -5434,8 +5434,6 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     nodePtr.p->m_secret = (Uint64(secret_hi) << 32) + secret_lo;
     nodePtr.p->m_alloc_timeout = now + req.timeout;
 
-    ndbout_c("setting secret on node %u", nodePtr.i);
-    
     opAllocNodeIdReq.m_req = req;
     opAllocNodeIdReq.m_error = 0;
     opAllocNodeIdReq.m_connectCount =
