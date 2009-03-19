@@ -229,3 +229,17 @@ insert into t1 set a=0x6c;
 insert into t1 set a=0x4c98;
 check table t1 extended;
 drop table t1;
+
+#
+# Bug#41627 Illegal mix of collations in LEAST / GREATEST / CASE
+#
+select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
+create table t1
+select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci) as f1;
+show create table t1;
+drop table t1;
+
+select case _latin1'a' when _latin2'b' then 1 when _latin5'c' collate
+latin5_turkish_ci then 2 else 3 end;
+
+select concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);

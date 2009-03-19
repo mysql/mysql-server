@@ -11,6 +11,11 @@
 # Creation Date: 2008-03-07                                                    #
 # Author:  Salman Rawala                                                       #
 #                                                                              #
+# Modified: HHunger 2009-02-23 Inserted a wait condition right after the       #
+#                              "INSERT ..record_6" to wait for the end of      #
+#                              the insert.                                     #
+#           mleich This test needs some inporovements                          #
+#                                                                              #
 # Description: Test Cases of Dynamic System Variable "concurrent_insert"       #
 #              that checks functionality of this variable                      #
 #                                                                              #
@@ -62,7 +67,6 @@ connection test_con1;
 INSERT INTO t1(name) VALUES('Record_4');
 SELECT * FROM t1;
 
-
 --echo ## unlocking tables ##
 --echo connection default;
 connection default;
@@ -106,6 +110,8 @@ UNLOCK TABLES;
 --echo ## table contens after UNLOCK ##
 SELECT * FROM t1;
 INSERT INTO t1(name) VALUES('Record_6');
+let $wait_condition= SELECT COUNT(*) = 5 FROM t1;
+--source include/wait_condition.inc
 
 --echo connection test_con1;
 connection test_con1;
