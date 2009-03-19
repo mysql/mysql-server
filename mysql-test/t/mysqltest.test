@@ -573,7 +573,7 @@ echo ;
 
 # Illegal use of exec
 --error 1
---exec echo "--exec false" | $MYSQL_TEST 2>&1
+--exec echo "--exec false" | $MYSQL_TEST > /dev/null 2>&1
 
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
