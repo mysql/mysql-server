@@ -227,9 +227,11 @@ hex(h3)	NULL
 hex(i1)	NULL
 hex(i2)	NULL
 hex(i3)	NULL
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
 DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat'
+INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
@@ -261,9 +263,11 @@ create table t4 (pk int key, a int) engine ndb;
 insert into t2 values (1,11),(2,12),(3,13),(4,14),(5,15);
 insert into t3 values (1,21),(2,22),(3,23),(4,24),(5,25);
 insert into t4 values (1,31),(2,32),(3,33),(4,34),(5,35);
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
 DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat'
+INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
@@ -305,9 +309,11 @@ create table t1
 insert into t1 values(1, 8388607, 16777215);
 insert into t1 values(2, -8388608, 0);
 insert into t1 values(3, -1, 1);
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
 DELETE FROM test.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/tmp.dat'
+INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>

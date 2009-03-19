@@ -106,7 +106,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Alter", "Tables",  "To alter the table"},
   {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
+  {"Create routine","Databases","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Create user", "Server Admin",  "To create new users"},
@@ -287,11 +287,18 @@ find_files(THD *thd, List<char> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
+  uint wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
-  if (wild && !wild[0])
-    wild=0;
+  if (wild)
+  {
+    if (!wild[0])
+      wild= 0;
+    else
+      wild_length= strlen(wild);
+  }
+
 
   bzero((char*) &table_list,sizeof(table_list));
 
@@ -340,8 +347,11 @@ find_files(THD *thd, List<char> *files, const char *db,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(files_charset_info, file->name, wild))
-	    continue;
+          if (my_wildcmp(files_charset_info,
+                         file->name, file->name + strlen(file->name),
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one,wild_many))
+            continue;
 	}
 	else if (wild_compare(file->name,wild,0))
 	  continue;
@@ -1222,21 +1232,25 @@ void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
+  my_bool compact_view_name= TRUE;
   my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                        MODE_ORACLE |
                                                        MODE_MSSQL |
                                                        MODE_DB2 |
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
-  /*
-     Compact output format for view can be used
-     - if user has db of this view as current db
-     - if this view only references table inside it's own db
-  */
+
   if (!thd->db || strcmp(thd->db, table->view_db.str))
-    table->compact_view_format= FALSE;
+    /*
+      print compact view name if the view belongs to the current database
+    */
+    compact_view_name= table->compact_view_format= FALSE;
   else
   {
+    /*
+      Compact output format for view body can be used
+      if this view only references table inside it's own db
+    */
     TABLE_LIST *tbl;
     table->compact_view_format= TRUE;
     for (tbl= thd->lex->query_tables;
@@ -1257,7 +1271,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     view_store_options(thd, table, buff);
   }
   buff->append(STRING_WITH_LEN("VIEW "));
-  if (!table->compact_view_format)
+  if (!compact_view_name)
   {
     append_identifier(thd, buff, table->view_db.str, table->view_db.length);
     buff->append('.');
@@ -1324,7 +1338,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
-  field_list.push_back(new Item_return_int("Time",7, FIELD_TYPE_LONG));
+  field_list.push_back(field= new Item_return_int("Time",7, FIELD_TYPE_LONG));
+  field->unsigned_flag= 0;
   field_list.push_back(field=new Item_empty_string("State",30));
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
@@ -1425,7 +1440,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     else
       protocol->store(command_name[thd_info->command], system_charset_info);
     if (thd_info->start_time)
-      protocol->store((uint32) (now - thd_info->start_time));
+      protocol->store_long ((longlong) (now - thd_info->start_time));
     else
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);
