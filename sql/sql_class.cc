@@ -172,7 +172,9 @@ THD::THD()
               /* statement id */ 0),
    Open_tables_state(refresh_version),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
+   user_time(0), in_sub_stmt(0),
+   table_map_for_update(0),
+   global_read_lock(0), is_fatal_error(0),
    transaction_rollback_request(0), is_fatal_sub_stmt_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), last_insert_id_used_bin_log(0), insert_id_used(0),
@@ -341,6 +343,12 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
+
+  if (variables.max_join_size == HA_POS_ERROR)
+    options |= OPTION_BIG_SELECTS;
+  else
+    options &= ~OPTION_BIG_SELECTS;
+
   transaction.all.modified_non_trans_table= transaction.stmt.modified_non_trans_table= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
@@ -651,6 +659,8 @@ void THD::cleanup_after_query()
   free_items();
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
+  /* reset table map for multi-table update */
+  table_map_for_update= 0;
 }
 
 
@@ -1047,6 +1057,11 @@ bool select_send::send_data(List<Item> &items)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       break;
     }
+    /*
+      Reset buffer to its original state, as it may have been altered in
+      Item::send().
+    */
+    buffer.set(buff, sizeof(buff), &my_charset_bin);
   }
   thd->sent_row_count++;
   if (!thd->vio_ok())

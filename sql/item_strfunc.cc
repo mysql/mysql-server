@@ -101,13 +101,10 @@ String *Item_func_md5::val_str(String *str)
   str->set_charset(&my_charset_bin);
   if (sptr)
   {
-    my_MD5_CTX context;
     unsigned char digest[16];
 
     null_value=0;
-    my_MD5Init (&context);
-    my_MD5Update (&context,(unsigned char *) sptr->ptr(), sptr->length());
-    my_MD5Final (digest, &context);
+    MY_MD5_HASH(digest,(unsigned char *) sptr->ptr(), sptr->length());
     if (str->alloc(32))				// Ensure that memory is free
     {
       null_value=1;
