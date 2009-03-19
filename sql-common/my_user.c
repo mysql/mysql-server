@@ -44,8 +44,8 @@ void parse_user(const char *user_id_str, size_t user_id_len,
   }
   else
   {
-    *user_name_len= p - user_id_str;
-    *host_name_len= user_id_len - *user_name_len - 1;
+    *user_name_len= (uint) (p - user_id_str);
+    *host_name_len= (uint) (user_id_len - *user_name_len - 1);
 
     if (*user_name_len > USERNAME_LENGTH)
       *user_name_len= USERNAME_LENGTH;

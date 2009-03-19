@@ -172,7 +172,7 @@ char* my_cgets(char *buffer, size_t clen, size_t* plen)
   do
   {
     clen= min(clen, (size_t) csbi.dwSize.X*csbi.dwSize.Y);
-    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, clen - 1, &plen_res,
+    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, (DWORD) clen - 1, &plen_res,
                      NULL))
     {
       result= NULL;

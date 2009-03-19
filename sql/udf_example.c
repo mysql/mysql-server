@@ -1099,7 +1099,7 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
     sprintf(result, "not const");
   }
   *is_null= 0;
-  *length= strlen(result);
+  *length= (uint) strlen(result);
   return result;
 }
 
@@ -1133,7 +1133,7 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
                 char *is_null, char *error __attribute__((unused)))
 {
   strmov(result, initid->ptr);
-  *length= strlen(result);
+  *length= (uint) strlen(result);
   *is_null= 0;
   return result;
 }
