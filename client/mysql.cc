@@ -1199,7 +1199,7 @@ int main(int argc,char *argv[])
 #endif
   sprintf(buff, "%s",
 #ifndef NOT_YET
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input statement.\n");
 #else
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
