@@ -52,9 +52,10 @@ DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
 enable_warnings;
 
+stop slave sql_thread;
+reset slave;
+source include/wait_for_slave_sql_to_stop.inc;
 remove_file $MYSQLD_DATADIR/slave-relay-bin.000001;
 remove_file $MYSQLD_DATADIR/slave-relay-bin.index;
-stop slave sql_thread;
-source include/wait_for_slave_sql_to_stop.inc;
 
 SET @@global.relay_log_purge= @old_relay_log_purge;
