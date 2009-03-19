@@ -900,6 +900,8 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
+
+    CRASH_INSERTION(9994);
     
     /**
      * Start running startphases
