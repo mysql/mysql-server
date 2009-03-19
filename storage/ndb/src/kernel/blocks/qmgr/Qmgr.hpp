@@ -291,7 +291,7 @@ private:
 
   void api_failed(Signal* signal, Uint32 aFailedNode);
   void node_failed(Signal* signal, Uint16 aFailedNode);
-  void checkStartInterface(Signal* signal);
+  void checkStartInterface(Signal* signal, Uint64 now);
   void failReport(Signal* signal,
                   Uint16 aFailedNode,
                   UintR aSendFailRep,
