@@ -611,3 +611,22 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
+least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
+a
+create table t1
+select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci) as f1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` varchar(1) CHARACTER SET latin5 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+select case _latin1'a' when _latin2'b' then 1 when _latin5'c' collate
+latin5_turkish_ci then 2 else 3 end;
+case _latin1'a' when _latin2'b' then 1 when _latin5'c' collate
+latin5_turkish_ci then 2 else 3 end
+3
+select concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
+concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
+abc
