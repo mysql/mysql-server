@@ -74,6 +74,7 @@ BDB_DONTRUN_TESTS = \
 	test1426 \
 	test1572 \
 	test_logflush \
+	test_txn_abort6 \
 	test_txn_abort8 \
 	test_txn_abort9 \
 	test_txn_close_open_commit \
@@ -379,4 +380,3 @@ dumpit:
 test_thread_stack.%run: test_thread_stack.%$(BINSUF)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
-
