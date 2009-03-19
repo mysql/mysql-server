@@ -404,6 +404,7 @@ void Dbdict::execCONTINUEB(Signal* signal)
       Uint32* data = &signal->theData[0];
       Uint32 masterRef = data[1];
       memmove(&data[0], &data[2], SchemaTransImplConf::SignalLength << 2);
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_CONF", __LINE__);
       sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
                  SchemaTransImplConf::SignalLength, JBB);
     }
@@ -7144,11 +7145,15 @@ void
 Dbdict::execALTER_TABLE_REQ(Signal* signal)
 {
   jamEntry();
+
   if (!assembleFragments(signal)) {
+    g_eventLogger->info("QQQ(%u) - Dbdict::execALTER_TABLE_REQ", __LINE__);
     jam();
     return;
   }
   SectionHandle handle(this, signal);
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execALTER_TABLE_REQ", __LINE__);
 
   const AlterTableReq req_copy =
     *(const AlterTableReq*)signal->getDataPtr();
@@ -7188,6 +7193,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   ref->transId = req->transId;
   getError(error, ref);
 
+  g_eventLogger->info("QQQ(%u) - GSN_ALTER_TABLE_REF", __LINE__);
   sendSignal(req->clientRef, GSN_ALTER_TABLE_REF, signal,
              AlterTableRef::SignalLength, JBB);
 }
@@ -7982,6 +7988,7 @@ Dbdict::alterTable_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
     conf->newTableVersion = impl_req->newTableVersion;
 
     Uint32 clientRef = op_ptr.p->m_clientRef;
+    g_eventLogger->info("QQQ(%u) - GSN_ALTER_TABLE_CONF", __LINE__);
     sendSignal(clientRef, GSN_ALTER_TABLE_CONF, signal,
                AlterTableConf::SignalLength, JBB);
   } else {
@@ -7995,6 +8002,7 @@ Dbdict::alterTable_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
     ref->errorKey = error.errorKey;
 
     Uint32 clientRef = op_ptr.p->m_clientRef;
+    g_eventLogger->info("QQQ(%u) - GSN_ALTER_TABLE_REF", __LINE__);
     sendSignal(clientRef, GSN_ALTER_TABLE_REF, signal,
                AlterTableRef::SignalLength, JBB);
   }
@@ -8035,6 +8043,7 @@ Dbdict::alterTable_toSumaSync(Signal* signal,
     ndbrequire(false);
   }
 
+  g_eventLogger->info("QQQ(%u) - GSN_ALTER_TABLE_REQ", __LINE__);
   sendSignal(reference(), GSN_ALTER_TABLE_REQ, signal,
              AlterTableReq::SignalLength, JBB);
 }
@@ -8932,6 +8941,7 @@ void
 Dbdict::execALTER_TABLE_CONF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execALTER_TABLE_CONF", __LINE__);
   const AlterTableConf* conf = (const AlterTableConf*)signal->getDataPtr();
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
   handleDictConf(signal, conf);
@@ -8941,6 +8951,7 @@ void
 Dbdict::execALTER_TABLE_REF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execALTER_TABLE_REF", __LINE__);
   const AlterTableRef* ref = (const AlterTableRef*)signal->getDataPtr();
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
   handleDictRef(signal, ref);
@@ -22176,6 +22187,9 @@ void
 Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_BEGIN_REQ", __LINE__);
+
   const SchemaTransBeginReq* req =
     (const SchemaTransBeginReq*)signal->getDataPtr();
   Uint32 clientRef = req->clientRef;
@@ -22285,6 +22299,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       req->requestInfo = SchemaTransImplReq::RT_START;
       req->start.clientRef = trans_ptr.p->m_clientRef;
       req->transId = trans_ptr.p->m_transId;
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
       sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
                  SchemaTransImplReq::SignalLength, JBB);
     }
@@ -22348,6 +22363,8 @@ void
 Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_REQ", __LINE__);
 
   const SchemaTransEndReq* req =
     (const SchemaTransEndReq*)signal->getDataPtr();
@@ -22549,6 +22566,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
   req->requestInfo = requestInfo;
   req->transId = trans_ptr.p->m_transId;
   req->parse.gsn = gsn;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendFragmentedSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
                        SchemaTransImplReq::SignalLength + extra_length, JBB,
                        &handle);
@@ -22593,6 +22611,7 @@ void
 Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_CONF", __LINE__);
   ndbrequire(signal->getNoOfSections() == 0);
 
   const SchemaTransImplConf* conf =
@@ -22619,6 +22638,7 @@ void
 Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_REF", __LINE__);
   ndbrequire(signal->getNoOfSections() == 0);
 
   const SchemaTransImplRef* ref =
@@ -22946,6 +22966,7 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
   req->opKey = RNIL;
   req->requestInfo = SchemaTransImplReq::RT_FLUSH_PREPARE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -23031,6 +23052,7 @@ Dbdict::trans_prepare_next(Signal* signal,
   req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_PREPARE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -23236,6 +23258,7 @@ Dbdict::trans_abort_parse_next(Signal* signal,
   req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_ABORT_PARSE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -23424,6 +23447,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
   req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_ABORT_PREPARE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -23558,6 +23582,7 @@ Dbdict::trans_rollback_sp_next(Signal* signal,
   req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_ABORT_PARSE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 
@@ -23666,6 +23691,7 @@ Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
   req->opKey = RNIL;
   req->requestInfo = SchemaTransImplReq::RT_FLUSH_COMMIT;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -23860,6 +23886,7 @@ Dbdict::trans_commit_next(Signal* signal,
     */
     rg.m_nodes.clear(getOwnNodeId());
 
+    g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
     sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
                SchemaTransImplReq::SignalLength, JBB);
     sendSignal(reference(), GSN_SCHEMA_TRANS_IMPL_REQ, signal,
@@ -23870,6 +23897,7 @@ Dbdict::trans_commit_next(Signal* signal,
     /*
       New master had already committed operation
      */
+    g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
     sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
                SchemaTransImplReq::SignalLength, JBB);
   }
@@ -24044,6 +24072,7 @@ Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
   req->opKey = RNIL;
   req->requestInfo = SchemaTransImplReq::RT_FLUSH_COMPLETE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -24125,6 +24154,7 @@ Dbdict::trans_complete_next(Signal* signal,
   req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_COMPLETE;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);  
 }
@@ -24213,6 +24243,7 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
   req->opKey = RNIL;
   req->requestInfo = SchemaTransImplReq::RT_END;
   req->transId = trans_ptr.p->m_transId;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REQ", __LINE__);
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);  
 }
@@ -24429,8 +24460,10 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
   jamEntry();
   if (!assembleFragments(signal)) {
     jam();
+    g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_REQ", __LINE__);
     return;
   }
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_REQ", __LINE__);
 
   SchemaTransImplReq reqCopy =
     *(const SchemaTransImplReq*)signal->getDataPtr();
@@ -24970,6 +25003,7 @@ Dbdict::sendTransConf(Signal* signal, SchemaTransPtr trans_ptr)
     return;
   }
 
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_CONF", __LINE__);
   sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
              SchemaTransImplConf::SignalLength, JBB);
 }
@@ -25005,6 +25039,7 @@ Dbdict::sendTransRef(Signal* signal, SchemaTransPtr trans_ptr)
   resetError(trans_ptr.p->m_error);
 
   const Uint32 masterRef = trans_ptr.p->m_masterRef;
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_IMPL_REF", __LINE__);
   sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_REF, signal,
              SchemaTransImplRef::SignalLength, JBB);
 }
@@ -25195,6 +25230,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
       conf->senderRef = reference();
       conf->transId = transId;
       conf->transKey = trans_ptr.p->trans_key;
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_BEGIN_CONF", __LINE__);
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_BEGIN_CONF, signal,
                  SchemaTransBeginConf::SignalLength, JBB);
     } else {
@@ -25204,6 +25240,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
       ref->senderRef = reference();
       ref->transId = transId;
       getError(trans_ptr.p->m_error, ref);
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_BEGIN_REF", __LINE__);
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_BEGIN_REF, signal,
                  SchemaTransBeginRef::SignalLength, JBB);
     }
@@ -25219,6 +25256,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
         (SchemaTransEndConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       conf->transId = transId;
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_END_CONF", __LINE__);
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_CONF, signal,
                  SchemaTransEndConf::SignalLength, JBB);
     } else {
@@ -25230,6 +25268,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
       getError(trans_ptr.p->m_error, ref);
       ref->masterNodeId = c_masterNodeId;
 
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_END_REF", __LINE__);
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_REF, signal,
                  SchemaTransEndRef::SignalLength, JBB);
     }
@@ -25270,6 +25309,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
 #ifdef VM_TRACE
       ndbout_c("Dbdict::sendTransClientReply: sending GSN_SCHEMA_TRANS_END_REP to 0x%8x", receiverRef);
 #endif
+      g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_END_REP", __LINE__);
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_REP, signal,
                  SchemaTransEndRep::SignalLength, JBB);
     }
@@ -25345,6 +25385,7 @@ Dbdict::beginSchemaTrans(Signal* signal, TxHandlePtr tx_ptr)
   req->transId = tx_ptr.p->m_transId;
   req->requestInfo = requestInfo;
 
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_BEGIN_REQ", __LINE__);
   sendSignal(reference(), GSN_SCHEMA_TRANS_BEGIN_REQ, signal,
              SchemaTransBeginReq::SignalLength, JBB);
 }
@@ -25376,6 +25417,7 @@ Dbdict::endSchemaTrans(Signal* signal, TxHandlePtr tx_ptr, Uint32 flags)
   req->requestInfo = requestInfo;
   req->flags = flags;
 
+  g_eventLogger->info("QQQ(%u) - GSN_SCHEMA_TRANS_END_REQ", __LINE__);
   sendSignal(reference(), GSN_SCHEMA_TRANS_END_REQ, signal,
              SchemaTransEndReq::SignalLength, JBB);
 }
@@ -25383,7 +25425,8 @@ Dbdict::endSchemaTrans(Signal* signal, TxHandlePtr tx_ptr, Uint32 flags)
 void
 Dbdict::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 {
-  jamEntry();
+  jamEntry(); 
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_BEGIN_CONF", __LINE__);
   const SchemaTransBeginConf* conf =
     (const SchemaTransBeginConf*)signal->getDataPtr();
 
@@ -25401,6 +25444,7 @@ void
 Dbdict::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_BEGIN_REF", __LINE__);
   const SchemaTransBeginRef* ref =
     (const SchemaTransBeginRef*)signal->getDataPtr();
 
@@ -25417,6 +25461,7 @@ void
 Dbdict::execSCHEMA_TRANS_END_CONF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_CONF", __LINE__);
   const SchemaTransEndConf* conf =
     (const SchemaTransEndConf*)signal->getDataPtr();
 
@@ -25431,6 +25476,7 @@ void
 Dbdict::execSCHEMA_TRANS_END_REF(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_REF", __LINE__);
   const SchemaTransEndRef* ref =
     (const SchemaTransEndRef*)signal->getDataPtr();
 
@@ -25447,6 +25493,7 @@ void
 Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
 {
   jamEntry();
+  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_REP", __LINE__);
   const SchemaTransEndRep* rep =
     (const SchemaTransEndRep*)signal->getDataPtr();
 
