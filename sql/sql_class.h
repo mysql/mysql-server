@@ -321,6 +321,8 @@ struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  /* A bitmap for switching optimizations on/off */
+  ulong optimizer_switch;
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong query_cache_type;
@@ -664,7 +666,7 @@ public:
   */
 
   char *db;
-  uint db_length;
+  size_t db_length;
 
 public:
 

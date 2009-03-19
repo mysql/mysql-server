@@ -251,7 +251,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     protocol->store(warning_level_names[err->level].str,
 		    warning_level_names[err->level].length, system_charset_info);
     protocol->store((uint32) err->code);
-    protocol->store(err->msg, strlen(err->msg), system_charset_info);
+    protocol->store(err->msg, (uint) strlen(err->msg), system_charset_info);
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }

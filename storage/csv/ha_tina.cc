@@ -553,7 +553,7 @@ int ha_tina::chain_append()
     /* We set up for the next position */
     if ((off_t)(chain_ptr - chain) == (chain_size -1))
     {
-      off_t location= chain_ptr - chain;
+      my_off_t location= chain_ptr - chain;
       chain_size += DEFAULT_CHAIN_LENGTH;
       if (chain_alloced)
       {

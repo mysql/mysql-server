@@ -265,7 +265,7 @@ int azdopen(azio_stream *s,File fd, int Flags);
 */
 
 
-extern unsigned int azread ( azio_stream *s, voidp buf, unsigned int len, int *error);
+extern unsigned int azread ( azio_stream *s, voidp buf, size_t len, int *error);
 /*
      Reads the given number of uncompressed bytes from the compressed file.
    If the input file was not in gzip format, gzread copies the given number
