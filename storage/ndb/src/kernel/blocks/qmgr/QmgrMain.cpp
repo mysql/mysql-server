@@ -2454,7 +2454,7 @@ void Qmgr::timerHandlingLab(Signal* signal)
   if (interface_check_timer.check(TcurrentTime)) {
     jam();
     interface_check_timer.reset();
-    checkStartInterface(signal);
+    checkStartInterface(signal, TcurrentTime);
   }
 
   if (hb_api_timer.check(TcurrentTime)) 
@@ -2624,7 +2624,7 @@ void Qmgr::apiHbHandlingLab(Signal* signal, Uint64 now)
   return;
 }//Qmgr::apiHbHandlingLab()
 
-void Qmgr::checkStartInterface(Signal* signal) 
+void Qmgr::checkStartInterface(Signal* signal, Uint64 now) 
 {
   NodeRecPtr nodePtr;
   /*------------------------------------------------------------------------*/
@@ -2634,6 +2634,7 @@ void Qmgr::checkStartInterface(Signal* signal)
   /*------------------------------------------------------------------------*/
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
+    Uint32 type = getNodeInfo(nodePtr.i).m_type;
     if (nodePtr.p->phase == ZFAIL_CLOSING) {
       jam();
       setNodeInfo(nodePtr.i).m_heartbeat_cnt++;
@@ -2655,7 +2656,6 @@ void Qmgr::checkStartInterface(Signal* signal)
 	 *-------------------------------------------------------------------*/
         nodePtr.p->failState = NORMAL;
         nodePtr.p->m_secret = 0;
-        Uint32 type = getNodeInfo(nodePtr.i).m_type;
         switch(type){
         case NodeInfo::DB:
           jam();
@@ -2700,7 +2700,15 @@ void Qmgr::checkStartInterface(Signal* signal)
 	  warningEvent(buf);
 	}
       }
-    }//if
+    }
+    else if (type == NodeInfo::DB && nodePtr.p->phase == ZINIT &&
+             nodePtr.p->m_secret != 0 && now > nodePtr.p->m_alloc_timeout)
+    {
+      jam();
+      nodePtr.p->m_secret = 0;
+      warningEvent("Releasing node id allocation for node %u",
+                   nodePtr.i);
+    }
   }//for
   return;
 }//Qmgr::checkStartInterface()
@@ -5543,6 +5551,8 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
 
     nodePtr.p->m_secret = (Uint64(secret_hi) << 32) + secret_lo;
     nodePtr.p->m_alloc_timeout = now + req.timeout;
+
+    ndbout_c("setting secret on node %u", nodePtr.i);
     
     opAllocNodeIdReq.m_req = req;
     opAllocNodeIdReq.m_error = 0;
