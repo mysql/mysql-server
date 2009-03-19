@@ -47,7 +47,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   }
   do
   {
-    uint length;
+    size_t length;
     end=strcend(pathlist, DELIM);
     strmake(buff, pathlist, (uint) (end-pathlist));
     length= cleanup_dirname(buff, buff);
