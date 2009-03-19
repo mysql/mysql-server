@@ -32,7 +32,7 @@ int main(void) {
     test_stat("testdir/foo/", -1, ENOENT);
     r = system("touch testdir/foo"); assert(r==0);
     test_stat("testdir/foo", 0, 0);
-    test_stat("testdir/foo/", -1, ENOENT);
+    test_stat("testdir/foo/", -1, ENOTDIR);
 
     test_stat("testdir", 0, 0);
 

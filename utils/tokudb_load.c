@@ -44,7 +44,6 @@ load_globals g;
 #include "tokudb_common_funcs.h"
 
 static int   usage          (void);
-static int   longusage      (void);
 static int   load_database  (void);
 static int   create_init_env(void);
 static int   read_header    (void);
@@ -164,11 +163,11 @@ cleanup:
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: dbenv->close: %s\n", g.progname, db_strerror(retval));
    }
-   if (g.config_options)   free(g.config_options);
-   if (g.subdatabase)      free(g.subdatabase);
-   if (g.read_header.data) free(g.read_header.data);
-   if (g.get_dbt.data[0])  free(g.get_dbt.data[0]);
-   if (g.get_dbt.data[1])  free(g.get_dbt.data[1]);
+   if (g.config_options)   toku_free(g.config_options);
+   if (g.subdatabase)      toku_free(g.subdatabase);
+   if (g.read_header.data) toku_free(g.read_header.data);
+   if (g.get_dbt.data[0])  toku_free(g.get_dbt.data[0]);
+   if (g.get_dbt.data[1])  toku_free(g.get_dbt.data[1]);
    resend_signals();
 
    return g.exitcode;
@@ -176,7 +175,6 @@ cleanup:
 
 int load_database()
 {
-   DB_ENV* dbenv = g.dbenv;
    int retval;
 
    /* Create a database handle. */
@@ -232,7 +230,7 @@ int create_init_env()
    DB_ENV* dbenv;
    int flags;
    //TODO: Experiments to determine right cache size for tokudb, or maybe command line argument.
-   int cache = 1 << 20; /* 1 megabyte */
+   //int cache = 1 << 20; /* 1 megabyte */
 
    retval = db_env_create(&dbenv, 0);
    if (retval) {
@@ -279,7 +277,6 @@ int create_init_env()
       PRINT_ERROR(retval, "DB_ENV->open");
       goto error;
    }
-success:
    g.dbenv = dbenv;
    return EXIT_SUCCESS;
 
@@ -386,26 +383,25 @@ if (!strcmp(field, match)) {                             \
 int read_header()
 {
    static u_int64_t datasize = 1 << 10;
-   u_int64_t index = 0;
+   u_int64_t idx = 0;
    char* field;
    char* value;
    int ch;
    int32_t num;
    int retval;
    DB* db = g.db;
-   DB_ENV* dbenv = g.dbenv;
    int r;
 
    assert(g.header);
 
-   if (g.read_header.data == NULL && (g.read_header.data = (char*)malloc(datasize * sizeof(char))) == NULL) {
+   if (g.read_header.data == NULL && (g.read_header.data = (char*)toku_malloc(datasize * sizeof(char))) == NULL) {
       PRINT_ERROR(errno, "read_header: malloc");
       goto error;
    }
    while (!g.eof) {
       if (caught_any_signals()) goto success;    
       g.linenumber++;
-      index = 0;
+      idx = 0;
       /* Read a line. */
       while (true) {
          if ((ch = getchar()) == EOF) {
@@ -415,14 +411,14 @@ int read_header()
          }
          if (ch == '\n') break;
 
-         g.read_header.data[index] = (char)ch;
-         index++;
+         g.read_header.data[idx] = (char)ch;
+         idx++;
 
          /* Ensure room exists for next character/null terminator. */
-         if (index == datasize && doublechararray(&g.read_header.data, &datasize)) goto error;
+         if (idx == datasize && doublechararray(&g.read_header.data, &datasize)) goto error;
       }
-      if (index == 0 && g.eof) goto success;
-      g.read_header.data[index] = '\0';
+      if (idx == 0 && g.eof) goto success;
+      g.read_header.data[idx] = '\0';
 
       field = g.read_header.data;
       if ((value = strchr(g.read_header.data, '=')) == NULL) goto formaterror;
@@ -465,7 +461,7 @@ int read_header()
       }
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
          if (g.subdatabase != NULL) {
-            free(g.subdatabase);
+            toku_free(g.subdatabase);
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
@@ -498,40 +494,34 @@ success:
    r = 0;
 
    if (false) {
-printerror:
-      r = EXIT_FAILURE;
-      PRINT_ERROR(retval, "%s=%s", field, value);
-   }
-   if (false) {
 formaterror:
       r = EXIT_FAILURE;
       PRINT_ERRORX("line %"PRIu64": unexpected format", g.linenumber);
    }
+   if (false) {
 error:
+      r = EXIT_FAILURE;
+   }
    return r;
 }
 
 int apply_commandline_options()
 {
    int r;
-   char** next_config_option = g.config_options;
-   unsigned index;
+   unsigned idx;
    char* field;
    char* value = NULL;
-   bool first;
-   int ch;
    int32_t num;
    int retval;
    DB* db = g.db;
-   DB_ENV* dbenv = g.dbenv;
 
-   for (index = 0; g.config_options[index]; index++) {
+   for (idx = 0; g.config_options[idx]; idx++) {
       if (value) {
          /* Restore the field=value format. */
          value[-1] = '=';
          value = NULL;
       }
-      field = g.config_options[index];
+      field = g.config_options[idx];
 
       if ((value = strchr(field, '=')) == NULL) {
          PRINT_ERRORX("command-line configuration uses name=value format");
@@ -547,7 +537,7 @@ int apply_commandline_options()
 
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
          if (g.subdatabase != NULL) {
-            free(g.subdatabase);
+            toku_free(g.subdatabase);
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
@@ -583,11 +573,6 @@ int apply_commandline_options()
    }
    r = 0;
 
-   if (false) {
-printerror:
-      r = EXIT_FAILURE;
-      PRINT_ERROR(retval, "%s=%s", field, value);
-   }
 error:
    return r;
 }
@@ -595,9 +580,7 @@ error:
 int open_database()
 {
    DB* db = g.db;
-   DB_ENV* dbenv = g.dbenv;
    int retval;
-   DBTYPE opened_type;
 
    int open_flags = 0;
    //TODO: Transaction auto commit stuff
@@ -643,8 +626,6 @@ error:
 
 int doublechararray(char** pmem, u_int64_t* size)
 {
-   DB_ENV* dbenv = g.dbenv;
-
    assert(pmem);
    assert(size);
    assert(IS_POWER_OF_2(*size));
@@ -655,7 +636,7 @@ int doublechararray(char** pmem, u_int64_t* size)
       PRINT_ERRORX("Line %"PRIu64": Line too long.\n", g.linenumber);
       goto error;
    }
-   if ((*pmem = (char*)realloc(*pmem, *size)) == NULL) {
+   if ((*pmem = (char*)toku_realloc(*pmem, *size)) == NULL) {
       PRINT_ERROR(errno, "doublechararray: realloc");
       goto error;
    }
@@ -667,20 +648,18 @@ error:
 
 static int get_dbt(DBT* pdbt)
 {
-   DB_ENV* dbenv = g.dbenv;
    /* Need to store a key and value. */
    static u_int64_t datasize[2] = {1 << 10, 1 << 10};
    static int which = 0;
    char* datum;
-   u_int64_t index = 0;
+   u_int64_t idx = 0;
    int highch;
    int lowch;
-   DB* db = g.db;
 
    /* *pdbt should have been memset to 0 before being called. */
    which = 1 - which;
    if (g.get_dbt.data[which] == NULL &&
-      (g.get_dbt.data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
+      (g.get_dbt.data[which] = (char*)toku_malloc(datasize[which] * sizeof(char))) == NULL) {
       PRINT_ERROR(errno, "get_dbt: malloc");
       goto error;
    }
@@ -741,13 +720,13 @@ static int get_dbt(DBT* pdbt)
          if (nextch == EOF) {
             break;
          }
-         if (index == datasize[which]) {
+         if (idx == datasize[which]) {
             /* Overflow, double the memory. */
             if (doublechararray(&g.get_dbt.data[which], &datasize[which])) goto error;
             datum = g.get_dbt.data[which];
          }
-         datum[index] = (char)nextch;
-         index++;
+         datum[idx] = (char)nextch;
+         idx++;
       }
       if (firstch == EOF) g.eof = true;
    }
@@ -772,19 +751,19 @@ static int get_dbt(DBT* pdbt)
             PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
             goto error;
          }
-         if (index == datasize[which]) {
+         if (idx == datasize[which]) {
             /* Overflow, double the memory. */
             if (doublechararray(&g.get_dbt.data[which], &datasize[which])) goto error;
             datum = g.get_dbt.data[which];
          }
-         datum[index] = (char)((hextoint(highch) << 4) | hextoint(lowch));
-         index++;
+         datum[idx] = (char)((hextoint(highch) << 4) | hextoint(lowch));
+         idx++;
       }
       if (highch == EOF) g.eof = true;
    }
 
    /* Done reading. */
-   pdbt->size = index;
+   pdbt->size = idx;
    pdbt->data = (void*)datum;
    return EXIT_SUCCESS;
 error:
@@ -797,7 +776,6 @@ error:
 
 static int insert_pair(DBT* key, DBT* data)
 {
-   DB_ENV* dbenv = g.dbenv;
    DB* db = g.db;
 
    int retval = db->put(db, NULL, key, data, g.overwritekeys ? DB_YESOVERWRITE : DB_NOOVERWRITE);
@@ -813,13 +791,9 @@ error:
 
 int read_keys()
 {
-   int retval;
-   size_t length;
    DBT key;
    DBT data;
    int spacech;
-   DB* db = g.db;
-   DB_ENV* dbenv = g.dbenv;
 
    char footer[sizeof("ATA=END\n")];
 
@@ -911,7 +885,6 @@ error:
 int close_database()
 {
    DB* db = g.db;
-   DB_ENV* dbenv = g.dbenv;
    int retval;
 
    assert(db);

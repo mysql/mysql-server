@@ -7,6 +7,7 @@ TOKUROOT=../
 INCLUDEDIRS=-I. -I$(TOKUROOT)toku_include -I$(TOKUROOT)include -I$(TOKUROOT)src
 DEPEND_COMPILE += \
 	./*.h \
+SKIP_NORETURN=1
 #end
 
 HERE = utils
@@ -25,6 +26,7 @@ DIFF=diff -q -I 'db_pagesize='
 
 # vars to compile bins that handle tokudb using libtokudb.a
 
+CPPFLAGS+= -D_GNU_SOURCE
 # vars to compile bins that handle bdb
 BDB_CPPFLAGS = -I$(BDBDIR)/include
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread $(BDB_LOADLIBES)
@@ -39,6 +41,9 @@ STATIC_UTILS=$(patsubst %$(BINSUF),%_static$(BINSUF),$(UTILS))
 
 $(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT)
 $(STATIC_UTILS): LINK_FILES+=$(TOKUROOT)lib/libtokudb.$(AEXT)
+
+$(UTILS) $(STATIC_UTILS): RPATH_DIRS+=$(TOKUROOT)lib
+#empty
 
 ifeq ($(OS_CHOICE),windows)
 ifdef BDBDIR

@@ -5,12 +5,12 @@
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <db.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
-#include <db.h>
 #if IS_TDB
 #include <ydb.h>
 #endif
