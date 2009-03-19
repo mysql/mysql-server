@@ -524,6 +524,20 @@ convert_error_code_to_mysql(
                 mark_transaction_to_rollback(thd, TRUE);
 
     		return(HA_ERR_LOCK_TABLE_FULL);
+	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {
+
+		/* Once MySQL add the appropriate code to errmsg.txt then
+		we can get rid of this #ifdef. NOTE: The code checked by
+		the #ifdef is the suggested name for the error condition
+		and the actual error code name could very well be different.
+		This will require some monitoring, ie. the status
+		of this request on our part.*/
+#ifdef ER_TOO_MANY_CONCURRENT_TRXS
+		return(ER_TOO_MANY_CONCURRENT_TRXS);
+#else
+		return(HA_ERR_RECORD_FILE_FULL);
+#endif
+
 	} else if (error == DB_UNSUPPORTED) {
 
 		return(HA_ERR_UNSUPPORTED);
@@ -3731,7 +3745,6 @@ convert_search_mode_to_innobase(
 		case HA_READ_MBR_WITHIN:
 		case HA_READ_MBR_DISJOINT:
 		case HA_READ_MBR_EQUAL:
-			my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 			return(PAGE_CUR_UNSUPP);
 		/* do not use "default:" in order to produce a gcc warning:
 		enumeration value '...' not handled in switch
@@ -5212,7 +5225,7 @@ ha_innobase::records_in_range(
 						      mode2);
 	} else {
 
-		n_rows = 0;
+		n_rows = HA_POS_ERROR;
 	}
 
 	dtuple_free_for_mysql(heap1);

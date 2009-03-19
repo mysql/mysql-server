@@ -115,6 +115,8 @@ static void client_disconnect(void);
 
 #define DIE_UNLESS(expr) \
         ((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
+#define DIE_IF(expr) \
+        ((void) ((expr) ? (die(__FILE__, __LINE__, #expr), 0) : 0))
 #define DIE(expr) \
         die(__FILE__, __LINE__, #expr)
 
@@ -714,6 +716,7 @@ static void do_verify_prepare_field(MYSQL_RES *result,
 {
   MYSQL_FIELD *field;
   CHARSET_INFO *cs;
+  ulonglong expected_field_length;
 
   if (!(field= mysql_fetch_field_direct(result, no)))
   {
@@ -722,6 +725,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
   }
   cs= get_charset(field->charsetnr, 0);
   DIE_UNLESS(cs);
+  if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+    expected_field_length= UINT_MAX32;
   if (!opt_silent)
   {
     fprintf(stdout, "\n field[%d]:", no);
@@ -736,8 +741,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
       fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
               field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%lu`)",
-            field->length, length * cs->mbmaxlen);
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%llu`)",
+            field->length, expected_field_length);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
     fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
@@ -773,11 +778,11 @@ static void do_verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-  if (length && field->length != length * cs->mbmaxlen)
+  if (length && (field->length != expected_field_length))
   {
-    fprintf(stderr, "Expected field length: %d,  got length: %d\n",
-            (int) (length * cs->mbmaxlen), (int) field->length);
-    DIE_UNLESS(field->length == length * cs->mbmaxlen);
+    fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
+            expected_field_length, field->length);
+    DIE_UNLESS(field->length == expected_field_length);
   }
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
@@ -16273,6 +16278,176 @@ static void test_bug38486(void)
   DBUG_VOID_RETURN;
 }
 
+static void bug20023_change_user(MYSQL *con)
+{
+  DIE_IF(mysql_change_user(con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+}
+
+static void bug20023_query_int_variable(MYSQL *con,
+                                        const char *var_name,
+                                        int *var_value)
+{
+  MYSQL_RES *rs;
+  MYSQL_ROW row;
+
+  char query_buffer[MAX_TEST_QUERY_LENGTH];
+
+  my_snprintf(query_buffer,
+          sizeof (query_buffer),
+          "SELECT @@%s",
+          (const char *) var_name);
+
+  DIE_IF(mysql_query(con, query_buffer));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  *var_value= atoi(row[0]);
+  mysql_free_result(rs);
+}
+
+static void test_bug20023()
+{
+  MYSQL con;
+
+  int sql_big_selects_orig;
+  int max_join_size_orig;
+
+  int sql_big_selects_2;
+  int sql_big_selects_3;
+  int sql_big_selects_4;
+  int sql_big_selects_5;
+
+  char query_buffer[MAX_TEST_QUERY_LENGTH];
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /***********************************************************************
+   Remember original SQL_BIG_SELECTS, MAX_JOIN_SIZE values.
+  ***********************************************************************/
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_orig);
+
+  bug20023_query_int_variable(&con,
+                              "global.max_join_size",
+                              &max_join_size_orig);
+
+  /***********************************************************************
+   Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
+  ***********************************************************************/
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_2);
+
+  /* Check that SQL_BIG_SELECTS is reset properly. */
+
+  DIE_UNLESS(sql_big_selects_orig == sql_big_selects_2);
+
+  /***********************************************************************
+   Test that if MAX_JOIN_SIZE set to non-default value,
+   SQL_BIG_SELECTS will be 0.
+  ***********************************************************************/
+
+  /* Set MAX_JOIN_SIZE to some non-default value. */
+
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 10000"));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_3);
+
+  /* Check that SQL_BIG_SELECTS is 0. */
+
+  DIE_UNLESS(sql_big_selects_3 == 0);
+
+  /***********************************************************************
+   Test that if MAX_JOIN_SIZE set to default value,
+   SQL_BIG_SELECTS will be 1.
+  ***********************************************************************/
+
+  /* Set MAX_JOIN_SIZE to the default value (-1). */
+
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_4);
+
+  /* Check that SQL_BIG_SELECTS is 1. */
+
+  DIE_UNLESS(sql_big_selects_4 == 1);
+
+  /***********************************************************************
+   Restore MAX_JOIN_SIZE.
+   Check that SQL_BIG_SELECTS will be the original one.
+  ***********************************************************************/
+
+  /* Restore MAX_JOIN_SIZE. */
+
+  my_snprintf(query_buffer,
+           sizeof (query_buffer),
+           "SET @@global.max_join_size = %d",
+           (int) max_join_size_orig);
+
+  DIE_IF(mysql_query(&con, query_buffer));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_5);
+
+  /* Check that SQL_BIG_SELECTS is 1. */
+
+  DIE_UNLESS(sql_big_selects_5 == sql_big_selects_orig);
+
+  /***********************************************************************
+   That's it. Cleanup.
+  ***********************************************************************/
+
+  mysql_close(&con);
+}
+
 static void test_bug40365(void)
 {
   uint         rc, i;
@@ -16410,6 +16585,69 @@ static void test_bug36326()
 
 #endif
 
+/**
+  Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
+             string value.
+*/
+
+static void test_bug41078(void)
+{
+  uint         rc;
+  MYSQL_STMT   *stmt= 0;
+  MYSQL_BIND   param, result;
+  ulong        cursor_type= CURSOR_TYPE_READ_ONLY;
+  ulong        len;
+  char         str[64];
+  const char   param_str[]= "abcdefghijklmn";
+  my_bool      is_null, error;
+
+  DBUG_ENTER("test_bug41078");
+
+  rc= mysql_query(mysql, "SET NAMES UTF8");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &cursor_type);
+  check_execute(stmt, rc);
+  
+  bzero(&param, sizeof(param));
+  param.buffer_type= MYSQL_TYPE_STRING;
+  param.buffer= (void *) param_str;
+  len= sizeof(param_str) - 1;
+  param.length= &len;
+
+  rc= mysql_stmt_bind_param(stmt, &param);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(&result, sizeof(result));
+  result.buffer_type= MYSQL_TYPE_STRING;
+  result.buffer= str;
+  result.buffer_length= sizeof(str);
+  result.is_null= &is_null;
+  result.length= &len;
+  result.error=  &error;
+  
+  rc= mysql_stmt_bind_result(stmt, &result);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(len == sizeof(param_str) - 1 && !strcmp(str, param_str));
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -16713,6 +16951,8 @@ static struct my_tests_st my_tests[]= {
 #ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
 #endif
+  { "test_bug41078", test_bug41078 },
+  { "test_bug20023", test_bug20023 },
   { 0, 0 }
 };
 

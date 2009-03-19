@@ -5479,7 +5479,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Ensure that we have access rights to all fields to be inserted. */
-    if (!((table && (table->grant.privilege & SELECT_ACL) ||
+    if (!((table && !tables->view && (table->grant.privilege & SELECT_ACL) ||
            tables->view && (tables->grant.privilege & SELECT_ACL))) &&
         !any_privileges)
     {

@@ -1,14 +1,17 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
 
---sleep 2
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --disable_warnings
 drop table if exists t1,t3;
 --enable_warnings
 delimiter |;
 
+
 #
-# BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
+# Bug#4902: Stored procedure with SHOW WARNINGS leads to packet error
 #
 # Added tests for show grants command
 --disable_warnings
@@ -47,7 +50,7 @@ drop procedure bug4902_2|
 
 
 #
-# BUG#5278: Stored procedure packets out of order if SET PASSWORD.
+# Bug#5278: Stored procedure packets out of order if SET PASSWORD.
 #
 --disable_warnings
 drop function if exists bug5278|
@@ -58,13 +61,16 @@ begin
   return 'okay';
 end|
 
---error 1133
+--error ER_PASSWORD_NO_MATCH
 select bug5278()|
---error 1133
+--error ER_PASSWORD_NO_MATCH
 select bug5278()|
 drop function bug5278|
 
 
+#
+# Bug#3583: query cache doesn't work for stored procedures
+#
 --disable_warnings
 drop table if exists t1|
 --enable_warnings
@@ -72,9 +78,6 @@ create table t1 (
 	id   char(16) not null default '',
         data int not null
 )|
-#
-# BUG#3583: query cache doesn't work for stored procedures
-#
 --disable_warnings
 drop procedure if exists bug3583|
 --enable_warnings
@@ -110,8 +113,9 @@ delete from t1|
 drop procedure bug3583|
 drop table t1|
 
+
 #
-# BUG#6807: Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
+# Bug#6807: Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
 #
 --disable_warnings
 drop procedure if exists bug6807|
@@ -125,16 +129,16 @@ begin
   select 'Not reached';
 end|
 
---error 1317
+--error ER_QUERY_INTERRUPTED
 call bug6807()|
---error 1317
+--error ER_QUERY_INTERRUPTED
 call bug6807()|
 
 drop procedure bug6807|
 
 
 #
-# BUG#10100: function (and stored procedure?) recursivity problem
+# Bug#10100: function (and stored procedure?) recursivity problem
 #
 --disable_warnings
 drop function if exists bug10100f|
@@ -233,11 +237,11 @@ begin
   close c;
 end|
 
-#end of the stack checking
+# end of the stack checking
 set @@max_sp_recursion_depth=255|
 set @var=1|
-#disable log because error about stack overrun contains numbers which
-#depend on a system
+# disable log because error about stack overrun contains numbers which
+# depend on a system
 -- disable_result_log
 -- error ER_STACK_OVERRUN_NEED_MORE
 call bug10100p(255, @var)|
@@ -266,6 +270,7 @@ drop table t3|
 
 delimiter ;|
 
+
 #
 # Bug#15298 SHOW GRANTS FOR CURRENT_USER: Incorrect output in DEFINER context
 #
@@ -282,6 +287,11 @@ call 15298_1();
 call 15298_2();
 
 connection default;
+disconnect con1;
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;
 drop procedure 15298_2;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
