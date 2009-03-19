@@ -660,7 +660,7 @@ static ha_checksum checksum_format_specifier(const char* msg)
       case 'u':
       case 'x':
       case 's':
-        chksum= my_checksum(chksum, start, p-start);
+        chksum= my_checksum(chksum, start, (uint) (p - start));
         start= 0; /* Not in format specifier anymore */
         break;
 

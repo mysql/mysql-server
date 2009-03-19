@@ -24,7 +24,7 @@ class Transparent_file
   uchar *buff;  /* in-memory window to the file or mmaped area */
   /* current window sizes */
   off_t lower_bound;
-  off_t upper_bound;
+  my_off_t upper_bound;
   uint buff_size;
 
 public:

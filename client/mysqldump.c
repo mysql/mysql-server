@@ -802,7 +802,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_set_charset= 0;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
-                                    argument, strlen(argument),
+                                    argument, (uint) strlen(argument),
                                     &err_ptr, &err_len);
       if (err_len)
       {
