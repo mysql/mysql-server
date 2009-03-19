@@ -477,3 +477,12 @@ create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
 create index i on nationaldish(countrycode,calories) using hash;
 
 drop table nationaldish;
+
+# bug#42857 Got error 4541 -IndexBound has no bound information- from NDBCLUSTER
+# Test that query returns results expected
+
+drop table if exists t1;
+create table t1(c1 varchar(20) primary key, c2 char(20)) engine=ndbcluster;
+insert into t1(c1,c2) values ('ddd','jg');
+select * from t1 where  (c2 < 'b' AND c1 <> 'g')  OR  (c2 <> 'a' AND c1 <> 'd');
+drop table t1;

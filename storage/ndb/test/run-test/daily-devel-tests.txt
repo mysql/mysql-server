@@ -77,10 +77,6 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n FullDb T6 T13 
 
-max-time: 2500
-cmd: testNodeRestart
-args: -n RestartRandomNodeError T6 T13 
-
 max-time: 3600
 cmd: testNodeRestart
 args: -l 1 -n RestartNFDuringNR T6 T13 
@@ -88,18 +84,6 @@ args: -l 1 -n RestartNFDuringNR T6 T13
 max-time: 3600
 cmd: testNodeRestart
 args: -n RestartNodeDuringLCP T6 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n TwoNodeFailure T6 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n TwoMasterNodeFailure T6 T13 
-
-max-time: 2500
-cmd: testNodeRestart
-args: -n FiftyPercentFail T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
