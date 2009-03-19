@@ -1531,7 +1531,8 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
     else
     {
       // Cannot apply conversion
-      set(0, DERIVATION_NONE, 0);
+      set(&my_charset_bin, DERIVATION_NONE,
+          (dt.repertoire|repertoire));
       return 1;
     }
   }
@@ -1614,15 +1615,31 @@ bool agg_item_collations(DTCollation &c, const char *fname,
 {
   uint i;
   Item **arg;
+  bool unknown_cs= 0;
+
   c.set(av[0]->collation);
   for (i= 1, arg= &av[item_sep]; i < count; i++, arg++)
   {
     if (c.aggregate((*arg)->collation, flags))
     {
+      if (c.derivation == DERIVATION_NONE &&
+          c.collation == &my_charset_bin)
+      {
+        unknown_cs= 1;
+        continue;
+      }
       my_coll_agg_error(av, count, fname, item_sep);
       return TRUE;
     }
   }
+
+  if (unknown_cs &&
+      c.derivation != DERIVATION_EXPLICIT)
+  {
+    my_coll_agg_error(av, count, fname, item_sep);
+    return TRUE;
+  }
+
   if ((flags & MY_COLL_DISALLOW_NONE) &&
       c.derivation == DERIVATION_NONE)
   {
