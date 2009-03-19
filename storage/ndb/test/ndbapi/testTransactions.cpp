@@ -48,6 +48,17 @@ struct OperationTestCase {
 
 #define X -1
 
+/**
+ * //XX1 - SimpleRead can read either of primary/backup replicas
+ *         but uses locks. 
+ *         This means that combination of S-READ and ReadEx/ScanEx
+ *         will yield different result depending on which TC-node the S-READ
+ *         is started...
+ *
+ *         NOTE: S-READ vs DML is not unpredictable as DML locks both replicas
+ *        
+ *         Therefor those combinations are removed from the matrix
+ */
 OperationTestCase matrix[] = {
   { "ReadRead",         true, "READ",   1, "READ",      0, 1,   0, 1 },
   { "ReadReadEx",       true, "READ",   1, "READ-EX", 266, X,   0, 1 },
@@ -96,7 +107,7 @@ OperationTestCase matrix[] = {
 
   { "ScanExRead",       true, "SCAN-EX",1, "READ",    266, 1,   0, 1 },
   { "ScanExReadEx",     true, "SCAN-EX",1, "READ-EX", 266, 1,   0, 1 },
-  { "ScanExSimpleRead", true, "SCAN-EX",1, "S-READ",  266, 1,   0, 1 },
+//XX1  { "ScanExSimpleRead", true, "SCAN-EX",1, "S-READ",  266, 1,   0, 1 },
   { "ScanExDirtyRead",  true, "SCAN-EX",1, "D-READ",    0, 1,   0, 1 },
   { "ScanExInsert",     true, "SCAN-EX",1, "INSERT",  266, X,   0, 1 },
   { "ScanExUpdate",     true, "SCAN-EX",1, "UPDATE",  266, 2,   0, 1 },
@@ -128,7 +139,7 @@ OperationTestCase matrix[] = {
 
   { "ReadExRead",       true, "READ-EX",1, "READ",    266, X,   0, 1 },
   { "ReadExReadEx",     true, "READ-EX",1, "READ-EX", 266, X,   0, 1 },
-  { "ReadExSimpleRead", true, "READ-EX",1, "S-READ",  266, X,   0, 1 },
+//XX1  { "ReadExSimpleRead", true, "READ-EX",1, "S-READ",  266, X,   0, 1 },
   { "ReadExDirtyRead",  true, "READ-EX",1, "D-READ",    0, 1,   0, 1 },
   { "ReadExInsert",     true, "READ-EX",1, "INSERT",  266, X,   0, 1 },
   { "ReadExUpdate",     true, "READ-EX",1, "UPDATE",  266, X,   0, 1 },

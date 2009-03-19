@@ -411,21 +411,41 @@ NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
     cols[1].offset= offsetof(TransactionData, permission);
     cols[1].nullbit_byte_offset= 0;
     cols[1].nullbit_bit_in_byte=  0;
-    cols[2].column= tab->getColumn((int) IND_GROUP_ALLOW_INSERT);
-    cols[2].offset= offsetof(TransactionData, permission);
-    cols[2].nullbit_byte_offset= 0;
-    cols[2].nullbit_bit_in_byte=  0;
-    cols[3].column= tab->getColumn((int) IND_GROUP_ALLOW_DELETE);
-    cols[3].offset= offsetof(TransactionData, permission);
-    cols[3].nullbit_byte_offset= 0;
-    cols[3].nullbit_bit_in_byte=  0;
 
-    ndbRecordSharedDataPtr->groupTableNdbRecord=
-      dict->createRecord(tab, cols, 4, sizeof(cols[0]), 0);
+    ndbRecordSharedDataPtr->groupTableAllowReadNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
 
-    if (ndbRecordSharedDataPtr->groupTableNdbRecord == NULL)
+    if (ndbRecordSharedDataPtr->groupTableAllowReadNdbRecord == NULL)
     {
-      ndbout << "Error creating record 2: " << dict->getNdbError() << endl;
+      ndbout << "Error creating record 2.1: " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    cols[1].column= tab->getColumn((int) IND_GROUP_ALLOW_INSERT);
+    cols[1].offset= offsetof(TransactionData, permission);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+
+    ndbRecordSharedDataPtr->groupTableAllowInsertNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->groupTableAllowInsertNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 2.2: " << dict->getNdbError() << endl;
+      return -1;
+    }
+
+    cols[1].column= tab->getColumn((int) IND_GROUP_ALLOW_DELETE);
+    cols[1].offset= offsetof(TransactionData, permission);
+    cols[1].nullbit_byte_offset= 0;
+    cols[1].nullbit_bit_in_byte=  0;
+
+    ndbRecordSharedDataPtr->groupTableAllowDeleteNdbRecord=
+      dict->createRecord(tab, cols, 2, sizeof(cols[0]), 0);
+
+    if (ndbRecordSharedDataPtr->groupTableAllowDeleteNdbRecord == NULL)
+    {
+      ndbout << "Error creating record 2.3: " << dict->getNdbError() << endl;
       return -1;
     }
 

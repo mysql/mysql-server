@@ -23,6 +23,7 @@
 #include <NdbRestarts.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
+#include <Bitmask.hpp>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -1691,24 +1692,70 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_RETURN(NDBT_OK);
 }
 
+typedef Bitmask<(MAX_NDB_NODES + 31) / 32> NdbNodeBitmask;
+
+static
+int 
+restartNodes(NdbNodeBitmask mask)
+{
+  int cnt = 0;
+  int nodes[MAX_NDB_NODES];
+  NdbRestarter res;
+  for (Uint32 i = 0; i<MAX_NDB_NODES; i++)
+  {
+    if (mask.get(i))
+    {
+      nodes[cnt++] = i;
+      res.restartOneDbNode(i,
+                           /** initial */ false,
+                           /** nostart */ true,
+                           /** abort   */ true);
+    }
+  }
+
+  int result;
+  if (res.waitNodesNoStart(nodes, cnt) != 0)
+    return NDBT_FAILED;
+
+  res.startNodes(nodes, cnt);
+
+  return res.waitClusterStarted();
+}
+
 static int restartAllNodes()
 {
   NdbRestarter restarter;
-  int id = 0;
-  do {
-    int nodeId = restarter.getDbNodeId(id++);
-    ndbout << "Restart node " << nodeId << endl; 
-    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
-      g_err << "Failed to restartNextDbNode" << endl;
-      break;
-    }    
-    if(restarter.waitClusterStarted(60) != 0){
-      g_err << "Cluster failed to start" << endl;
-      break;
+  NdbNodeBitmask ng;
+  NdbNodeBitmask nodes0;
+  NdbNodeBitmask nodes1;
+
+  /**
+   * Restart all nodes using two restarts
+   *   instead of one by one...as this takes to long
+   */
+  for (Uint32 i = 0; i<restarter.getNumDbNodes(); i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    if (ng.get(restarter.getNodeGroup(nodeId)) == false)
+    {
+      nodes0.set(nodeId);
+      ng.set(restarter.getNodeGroup(nodeId));
     }
-    id = id % restarter.getNumDbNodes();
-  } while (id);
-  return id != 0;
+    else
+    {
+      nodes1.set(nodeId);
+    }
+  }
+
+  int res;
+  if ((res = restartNodes(nodes0)) != NDBT_OK)
+  {
+    return res;
+  }
+  
+
+  res = restartNodes(nodes1);
+  return res;
 }
 
 static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
