@@ -287,6 +287,7 @@ generate_log_writer (void) {
 			fprintf(cf, "  if (!logger->write_log_files) {\n");
 			fprintf(cf, "    ml_lock(&logger->input_lock);\n");
 			fprintf(cf, "    logger->lsn.lsn += toku_lsn_increment;\n");
+			fprintf(cf, "    if (lsnp) *lsnp=logger->lsn;\n");
 			fprintf(cf, "    ml_unlock(&logger->input_lock);\n");
 			fprintf(cf, "    return 0;\n");
 			fprintf(cf, "  }\n");
