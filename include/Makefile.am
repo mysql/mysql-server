@@ -15,9 +15,8 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
-HEADERS_GEN_CONFIGURE =		mysql_version.h
-HEADERS_GEN_MAKE =		my_config.h
+BUILT_SOURCES =		link_sources
+HEADERS_GEN_CONFIGURE =		mysql_version.h my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h mysql/plugin.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
@@ -26,8 +25,7 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
-			$(HEADERS_GEN_MAKE)
+			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE)
 
 noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h \

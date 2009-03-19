@@ -1678,14 +1678,17 @@ if test "$with_debug" = "yes"
 then
   # Medium debug.
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
-  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DSAFE_MUTEX $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
+  AC_DEFINE([SAFE_MUTEX], [1], [Use safe mutexes])
+  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX $CXXFLAGS"
 elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
-  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+  AC_DEFINE([SAFE_MUTEX], [1], [Use safe mutexes])
+  AC_DEFINE([SAFEMALLOC], [1], [Use safe malloc])
+  CFLAGS="$DEBUG_CFLAGS $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $CXXFLAGS"
 else
   # Optimized version. No debug
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
@@ -2812,6 +2815,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+AC_CONFIG_COMMANDS([my_config.h], cp include/config.h include/my_config.h)
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
