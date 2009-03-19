@@ -281,7 +281,7 @@ public:
                                    uint32 len, String *res);
   int as_wkt(String *wkt, const char **end)
   {
-    uint32 len= get_class_info()->m_name.length;
+    uint32 len= (uint) get_class_info()->m_name.length;
     if (wkt->reserve(len + 2, 512))
       return 1;
     wkt->qs_append(get_class_info()->m_name.str, len);

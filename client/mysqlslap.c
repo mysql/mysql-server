@@ -1929,7 +1929,7 @@ parse_option(const char *origin, option_string **stmt, char delm)
   char *ptr= (char *)origin;
   option_string **sptr= stmt;
   option_string *tmp;
-  uint length= strlen(origin);
+  size_t length= strlen(origin);
   uint count= 0; /* We know that there is always one */
 
   for (tmp= *sptr= (option_string *)my_malloc(sizeof(option_string),

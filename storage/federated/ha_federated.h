@@ -70,7 +70,7 @@ typedef struct st_federated_share {
   int share_key_length;
   ushort port;
 
-  uint table_name_length, server_name_length, connect_string_length, use_count;
+  size_t table_name_length, server_name_length, connect_string_length, use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } FEDERATED_SHARE;
@@ -113,7 +113,7 @@ private:
                                      uint key_len,
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);
-  int real_query(const char *query, uint length);
+  int real_query(const char *query, size_t length);
   int real_connect();
 public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
