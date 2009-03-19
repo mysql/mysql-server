@@ -1728,7 +1728,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
   List_iterator_fast<ulonglong> it_mode(definition_modes_list);
-  uint on_q_table_name_len, before_on_len;
+  size_t on_q_table_name_len, before_on_len;
   String buff;
 
   DBUG_ASSERT(definitions_list.elements == on_table_names_list.elements &&
