@@ -194,7 +194,6 @@ delimiter
 1
 set @old_max_allowed_packet = @@global.max_allowed_packet;
 set @@global.max_allowed_packet = 2 * 1024 * 1024 + 1024;
-set @@max_allowed_packet = @@global.max_allowed_packet;
 CREATE TABLE t1(data LONGBLOB);
 INSERT INTO t1 SELECT REPEAT('1', 2*1024*1024);
 SELECT LENGTH(data) FROM t1;
@@ -202,7 +201,6 @@ LENGTH(data)
 2097152
 DROP TABLE t1;
 set @@global.max_allowed_packet = @old_max_allowed_packet;
-set @@max_allowed_packet = @@global.max_allowed_packet;
 End of 5.0 tests
 WARNING: --server-arg option not supported in this configuration.
 Warning (Code 1286): Unknown table engine 'nonexistent'
