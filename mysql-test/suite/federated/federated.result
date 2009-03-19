@@ -2130,6 +2130,26 @@ SELECT t1.a FROM t1, t1 as t2 WHERE t2.b NOT LIKE t1.b;
 a
 DROP TABLE t1;
 DROP TABLE t1;
+#
+# BUG#21360 - mysqldump error on federated tables
+#
+#Switch to Connection Slave
+CREATE TABLE t1(id VARCHAR(20) NOT NULL, PRIMARY KEY(id));
+INSERT INTO  t1 VALUES ('text1'),('text2'),('text3'),('text4');
+#Switch to Connection Master
+CREATE TABLE t1(id VARCHAR(20) NOT NULL, PRIMARY KEY(id)) ENGINE=FEDERATED 
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+# Dump table t1 using mysqldump tool
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `t1` (
+  `id` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=FEDERATED DEFAULT CHARSET=latin1 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE t1;
+#Switch to Connection Slave
+DROP TABLE t1;
 End of 5.0 tests
 create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';
