@@ -1083,7 +1083,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   if ((env= getenv("ETC")))
     errors += add_directory(alloc, env, dirs);
 #elif defined(DEFAULT_SYSCONFDIR)
-  if (DEFAULT_SYSCONFDIR != "")
+  if (DEFAULT_SYSCONFDIR[0])
     errors += add_directory(alloc, DEFAULT_SYSCONFDIR, dirs);
 #endif /* __EMX__ || __OS2__ */
 
