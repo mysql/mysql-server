@@ -336,12 +336,16 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 #             mysqldump/import   
 #  
   
-# Have to change the global variable as the mysql client will use 
-# a separate session 
+# Have to change the global variable as the session variable is 
+# read-only.
 set @old_max_allowed_packet = @@global.max_allowed_packet; 
 # 2 MB blob length + some space for the rest of INSERT query
 set @@global.max_allowed_packet = 2 * 1024 * 1024 + 1024; 
-set @@max_allowed_packet = @@global.max_allowed_packet;
+
+# Create a new connection since the global max_allowed_packet
+# has no effect for the current connection
+connect (con1, localhost, root,,);
+connection con1; 
 
 CREATE TABLE t1(data LONGBLOB);  
 INSERT INTO t1 SELECT REPEAT('1', 2*1024*1024);  
@@ -355,7 +359,9 @@ SELECT LENGTH(data) FROM t1;
 remove_file $MYSQLTEST_VARDIR/tmp/bug41486.sql; 
 DROP TABLE t1;  
 
+connection default;
+disconnect con1;
+
 set @@global.max_allowed_packet = @old_max_allowed_packet; 
-set @@max_allowed_packet = @@global.max_allowed_packet;
  
 --echo End of 5.0 tests
