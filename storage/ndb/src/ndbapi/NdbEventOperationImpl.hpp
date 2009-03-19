@@ -414,30 +414,10 @@ public:
   Uint32 m_oid;
 
   /*
-    m_node_bit_mask keeps track of which ndb nodes have reference to
-    an event op
-
-    - add    - TE_ACTIVE
-    - remove - TE_STOP, TE_NODE_FAILURE, TE_CLUSTER_FAILURE
-
-    TE_NODE_FAILURE and TE_CLUSTER_FAILURE are created as events
-    and added to all event ops listed as active or pending delete
-    in m_dropped_ev_op using insertDataL, includeing the blob
-    event ops referenced by a regular event op.
-    - NdbEventBuffer::report_node_failure_completed
-
-    TE_ACTIVE is sent from the kernel on initial execute/start of the
-    event op, but is also internally generetad on node connect like
-    TE_NODE_FAILURE and TE_CLUSTER_FAILURE
-    - NdbEventBuffer::report_node_connected
-
-    when m_node_bit_mask becomes clear, the kernel reference is
-    removed from m_ref_count
-
-    node id 0 is used to denote that cluster has a reference
-   */
-
-  Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_node_bit_mask;
+    when parsed gci > m_stop_gci it is safe to drop operation
+    as kernel will not have any more references
+  */
+  Uint64 m_stop_gci;
 
   /*
     m_ref_count keeps track of outstanding references to an event
@@ -546,7 +526,7 @@ public:
 
   NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
                                                Uint32* event_types);
-  void deleteUsedEventOperations();
+  void deleteUsedEventOperations(Uint64 last_consumed_gci);
 
   NdbEventOperationImpl *move_data();
 
@@ -585,8 +565,14 @@ public:
 #endif
 
   Ndb *m_ndb;
-  Uint64 m_latestGCI;           // latest "handover" GCI
+
+  // "latest gci" variables updated in receiver thread
+  Uint64 m_latestGCI;           // latest GCI completed in order
   Uint64 m_latest_complete_GCI; // latest complete GCI (in case of outof order)
+  Uint64 m_highest_sub_gcp_complete_GCI; // highest gci seen in api
+  // "latest gci" variables updated in user thread
+  Uint64 m_latest_poll_GCI; // latest gci handed over to user thread
+
   bool m_startup_hack;
 
   NdbMutex *m_mutex;

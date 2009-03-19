@@ -11101,6 +11101,7 @@ busy:
     subbPtr.p->m_subscriptionKey = req->subscriptionKey;
     subbPtr.p->m_subscriberRef = req->subscriberRef;
     subbPtr.p->m_subscriberData = req->subscriberData;
+    bzero(&subbPtr.p->m_sub_stop_conf, sizeof(subbPtr.p->m_sub_stop_conf));
 
     if (signal->getLength() < SubStopReq::SignalLength)
     {
@@ -11245,7 +11246,24 @@ void Dbdict::execSUB_STOP_CONF(Signal* signal)
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
+  Uint64 old_gci, new_gci = 0;
+  {
+    Uint32 old_gci_hi = subbPtr.p->m_sub_stop_conf.gci_hi;
+    Uint32 old_gci_lo = subbPtr.p->m_sub_stop_conf.gci_lo;
+    old_gci = old_gci_lo | (Uint64(old_gci_hi) << 32);
+    if (signal->getLength() >= SubStopConf::SignalLengthWithGci)
+    {
+      Uint32 new_gci_hi = conf->gci_hi;
+      Uint32 new_gci_lo = conf->gci_lo;
+      new_gci = new_gci_lo | (Uint64(new_gci_hi) << 32);
+    }
+  }
   subbPtr.p->m_sub_stop_conf = *conf;
+  if (old_gci > new_gci)
+  {
+    subbPtr.p->m_sub_stop_conf.gci_hi= Uint32(old_gci>>32);
+    subbPtr.p->m_sub_stop_conf.gci_lo= Uint32(old_gci);
+  }
   subbPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
   completeSubStopReq(signal,subbPtr.i,0);
 }

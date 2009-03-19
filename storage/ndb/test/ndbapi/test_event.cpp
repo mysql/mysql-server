@@ -1812,6 +1812,13 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
     
+    // consume events to make sure dropped events are deleted
+    if (ndb->pollEvents(0))
+    {
+      while (ndb->nextEvent())
+        ;
+    }
+
     if (ndb->dropEventOperation(pOp))
     {
       g_err << "pOp->execute(): "
