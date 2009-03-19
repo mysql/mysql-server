@@ -2815,6 +2815,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+AC_CONFIG_COMMANDS([my_config.h], cp include/config.h include/my_config.h)
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
