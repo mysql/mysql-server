@@ -112,3 +112,100 @@ show grants for rpl_do_grant2@localhost;
 sync_slave_with_master;
 --error 1141
 show grants for rpl_do_grant2@localhost;
+
+#####################################################
+# Purpose
+# Test whether mysql.procs_priv get replicated 
+# Related bugs:
+# BUG42217  mysql.procs_priv does not get replicated
+#####################################################
+connection master; 
+
+--disable_warnings
+DROP DATABASE IF EXISTS bug42217_db;
+--enable_warnings
+CREATE DATABASE  bug42217_db;
+
+GRANT CREATE ROUTINE ON bug42217_db.* TO 'create_rout_db'@'localhost'
+        IDENTIFIED BY 'create_rout_db' WITH GRANT OPTION;
+
+connect (create_rout_db_master, localhost, create_rout_db, create_rout_db, bug42217_db,$MASTER_MYPORT,);
+connect (create_rout_db_slave, localhost, create_rout_db, create_rout_db, bug42217_db, $SLAVE_MYPORT,);
+
+connection create_rout_db_master;
+
+
+USE bug42217_db;
+
+DELIMITER //;
+CREATE FUNCTION upgrade_del_func() RETURNS CHAR(30)
+BEGIN
+   RETURN "INSIDE upgrade_del_func()";
+END//
+
+DELIMITER ;//
+
+connection master;
+
+USE bug42217_db;
+--replace_column 8 #
+SELECT * FROM mysql.procs_priv;
+SELECT upgrade_del_func();
+
+sync_slave_with_master;
+--replace_column 8 #
+SELECT * FROM mysql.procs_priv;
+SHOW GRANTS FOR 'create_rout_db'@'localhost';
+
+USE bug42217_db;
+SHOW CREATE FUNCTION upgrade_del_func;
+SELECT upgrade_del_func();
+
+--echo "Check whether the definer user will be able to execute the replicated routine on slave"
+connection create_rout_db_slave;
+USE bug42217_db;
+SHOW CREATE FUNCTION upgrade_del_func;
+SELECT upgrade_del_func();
+
+connection slave;
+DELETE FROM mysql.procs_priv;
+FLUSH PRIVILEGES;
+USE bug42217_db;
+--echo "Can't execute the replicated routine on slave like before after procs privilege is deleted "
+--error 1370
+SELECT upgrade_del_func();
+
+--echo "Test the user who creates a function on master doesn't exist on slave."
+--echo "Hence SQL thread ACL_GLOBAL privilege jumps in and no mysql.procs_priv is inserted"
+DROP USER 'create_rout_db'@'localhost';
+
+connection create_rout_db_master;
+DELIMITER //;
+CREATE FUNCTION upgrade_alter_func() RETURNS CHAR(30)
+BEGIN
+   RETURN "INSIDE upgrade_alter_func()";
+END//
+DELIMITER ;//
+
+connection master;
+SELECT upgrade_alter_func();
+
+sync_slave_with_master;
+SHOW CREATE FUNCTION upgrade_alter_func;
+--echo "Should no privilege record for upgrade_alter_func in mysql.procs_priv"
+--replace_column 8 #
+SELECT * FROM mysql.procs_priv;
+--error 1449
+SELECT upgrade_alter_func();
+
+###### CLEAN UP SECTION ##############
+disconnect create_rout_db_master;
+disconnect create_rout_db_slave;
+connection master;
+USE bug42217_db;
+DROP FUNCTION upgrade_del_func;
+DROP FUNCTION upgrade_alter_func;
+DROP DATABASE bug42217_db;
+DROP USER 'create_rout_db'@'localhost';
+ 
+--echo "End of test"
