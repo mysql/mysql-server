@@ -135,8 +135,10 @@ void
 recv_recovery_from_checkpoint_finish(void);
 /*======================================*/
 /***********************************************************
-Scans log from a buffer and stores new log data to the parsing buffer. Parses
-and hashes the log records if new data found. */
+Scans log from a buffer and stores new log data to the parsing buffer.
+Parses and hashes the log records if new data found.  Unless
+UNIV_HOTBACKUP is defined, this function will apply log records
+automatically when the hash table becomes full. */
 UNIV_INTERN
 ibool
 recv_scan_log_recs(
@@ -144,20 +146,14 @@ recv_scan_log_recs(
 					/* out: TRUE if limit_lsn has been
 					reached, or not able to scan any more
 					in this log group */
-	ibool		apply_automatically,/* in: TRUE if we want this
-					function to apply log records
-					automatically when the hash table
-					becomes full; in the hot backup tool
-					the tool does the applying, not this
-					function */
 	ulint		available_memory,/* in: we let the hash table of recs
 					to grow to this size, at the maximum */
 	ibool		store_to_hash,	/* in: TRUE if the records should be
 					stored to the hash table; this is set
 					to FALSE if just debug checking is
 					needed */
-	byte*		buf,		/* in: buffer containing a log segment
-					or garbage */
+	const byte*	buf,		/* in: buffer containing a log
+					segment or garbage */
 	ulint		len,		/* in: buffer length */
 	ib_uint64_t	start_lsn,	/* in: buffer start lsn */
 	ib_uint64_t*	contiguous_lsn,	/* in/out: it is known that all log

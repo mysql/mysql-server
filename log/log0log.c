@@ -3220,8 +3220,7 @@ log_check_log_recs(
 
 	ut_memcpy(scan_buf, start, end - start);
 
-	recv_scan_log_recs(TRUE,
-			   (buf_pool->curr_size
+	recv_scan_log_recs((buf_pool->curr_size
 			    - recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 			   FALSE, scan_buf, end - start,
 			   ut_uint64_align_down(buf_start_lsn,
