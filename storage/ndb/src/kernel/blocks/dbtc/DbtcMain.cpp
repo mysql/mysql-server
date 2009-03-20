@@ -161,6 +161,11 @@ operator<<(NdbOut& out, Dbtc::ScanFragRec::ScanFragState state){
 }
 #endif
 
+#ifdef ERROR_INSERT
+extern int ErrorSignalReceive;
+extern int ErrorMaxSegmentsToSeize;
+#endif
+
 void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
 {
@@ -2597,44 +2602,33 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TsenderData = tcKeyReq->senderData;
 
-  if (ERROR_INSERTED(8065) || 
-      ERROR_INSERTED(8066) ||
-      ERROR_INSERTED(8067))
+  if (ERROR_INSERTED(8065))
   {
-    /* Consume all but 10(8065) or all but 1 (8066) or all (8067) of 
-     * the SegmentedSection buffers to allow testing of what happens 
-     * when they're exhausted, either in this signal or one to follow
-     * 8068 frees all 'hoarded' segments
-     */
-    Uint32 segmentsToLeave= ERROR_INSERTED(8065)? 
-      10 : 
-      ERROR_INSERTED(8066) ? 
-      1 :
-      0;
-    Uint32 freeSegments= g_sectionSegmentPool.getNoOfFree();
-    DEBUG("Hoarding all but " << segmentsToLeave << 
-          " of " << freeSegments << " free segments");
-    if (freeSegments >= segmentsToLeave)
-    {
-      Uint32 numToAlloc= (g_sectionSegmentPool.getNoOfFree() - segmentsToLeave);
-      Uint32 segmentsIVal= errorInsertHoardedSegments;
-      Uint32 space[SectionSegment::DataLength];
-      
-      while (numToAlloc-- > 0)
-        appendToSection(segmentsIVal, space, SectionSegment::DataLength);
-      
-      errorInsertHoardedSegments= segmentsIVal;
-    }
+    ErrorSignalReceive= 1;
+    ErrorMaxSegmentsToSeize= 10;
   }
-
-  if (ERROR_INSERTED(8068) && 
-      (errorInsertHoardedSegments != RNIL))
+  if (ERROR_INSERTED(8066))
   {
-    /* Free the SegmentedSection buffers taken previously */
-    DEBUG("Freeing hoarded segments");
-    releaseSection(errorInsertHoardedSegments);
-    errorInsertHoardedSegments= RNIL;
-  }   
+    ErrorSignalReceive= 1;
+    ErrorMaxSegmentsToSeize= 5;
+  }
+  if (ERROR_INSERTED(8067))
+  {
+    ErrorSignalReceive= 1;
+    ErrorMaxSegmentsToSeize= 0;
+  }
+  if (ERROR_INSERTED(8068))
+  {
+    ErrorSignalReceive= 0;
+    ErrorMaxSegmentsToSeize= 0;
+    CLEAR_ERROR_INSERT_VALUE;
+    DEBUG("Max segments to seize cleared");
+  }
+#ifdef ERROR_INSERT
+  if (ErrorSignalReceive)
+    DEBUG("Max segments to seize : " 
+          << ErrorMaxSegmentsToSeize);
+#endif
 
   /* Key and attribute lengths are passed in the header for 
    * short TCKEYREQ and  passed as section lengths for long 
@@ -13424,12 +13418,18 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
    *                                   -> ITAS_WAIT_KEY
    *
    *   [2..N]   Base table primary    ITAS_WAIT_KEY
-   *            key info               -> [ ITAS_WAIT_KEY ]
+   *            key info               -> [ ITAS_WAIT_KEY |
+   *                                        ITAS_WAIT_KEY_FAIL ]
    *                                   -> ITAS_ALL_RECEIVED
    *
    * The outgoing KeyInfo section contains the base
    * table primary key info, with the fragment id passed
    * as the distribution key.
+   * ITAS_WAIT_KEY_FAIL state is entered when there is no 
+   * space to store received TRANSID_AI information and
+   * key collection must fail.  Transaction abort is performed
+   * once all TRANSID_AI is received, and the system waits in
+   * ITAS_WAIT_KEY_FAIL state until then.
    *
    */
   Uint32 remain= len;
@@ -13474,19 +13474,41 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
                            remain))
       {
         jam();
+        remain= 0;
+        break;
+      }
+      else
+      {
+        jam();
 #ifdef VM_TRACE
-        ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize beffer for TRANSID_AI\n");
+        ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize buffer for TRANSID_AI\n");
 #endif
-        apiConnectptr.i = indexOp->connectionIndex;
-        ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-        releaseIndexOperation(apiConnectptr.p, indexOp);
-        terrorCode = ZGET_DATAREC_ERROR;
-        abortErrorLab(signal);
-        return false;
+        indexOp->transIdAIState= ITAS_WAIT_KEY_FAIL;
+        /* Fall through to ITAS_WAIT_KEY_FAIL state handling */
+      }
+    }
+
+    case ITAS_WAIT_KEY_FAIL:
+    {
+      /* Failed when collecting key previously - if we have all the
+       * TRANSID_AI now then we abort
+       */
+      if (indexOp->pendingTransIdAI > len)
+      {
+        /* Still some TransIdAI to arrive, keep waiting as if we had
+         * stored it
+         */
+        remain= 0;
+        break;
       }
 
-      remain= 0;
-      break;
+      /* All TransIdAI has arrived, abort */
+      apiConnectptr.i = indexOp->connectionIndex;
+      ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+      releaseIndexOperation(apiConnectptr.p, indexOp);
+      terrorCode = ZGET_DATAREC_ERROR;
+      abortErrorLab(signal);
+      return false;
     }
 
     case ITAS_ALL_RECEIVED:
@@ -13789,7 +13811,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
       tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
       tcIndxRef->transId[0] = regApiPtr->transid[0];
       tcIndxRef->transId[1] = regApiPtr->transid[1];
-      tcIndxRef->errorCode = 4000;
+      tcIndxRef->errorCode = ZGET_DATAREC_ERROR;
       tcIndxRef->errorData = 0;
       sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal,
                  TcKeyRef::SignalLength, JBB);
