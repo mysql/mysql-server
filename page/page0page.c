@@ -2310,10 +2310,11 @@ page_validate(
 	if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP)
 			    <= page_dir_get_nth_slot(page, n_slots - 1)))) {
 
-		fputs("InnoDB: Record heap and dir overlap on a page ",
-		      stderr);
-		dict_index_name_print(stderr, NULL, index);
-		fprintf(stderr, ", %p, %p\n",
+		fprintf(stderr, 
+			"InnoDB: Record heap and dir overlap"
+			" on space %lu page %lu index %s, %p, %p\n",
+			(ulong) page_get_space_id(page),
+			(ulong) page_get_page_no(page), index->name,
 			page_header_get_ptr(page, PAGE_HEAP_TOP),
 			page_dir_get_nth_slot(page, n_slots - 1));
 
@@ -2345,17 +2346,19 @@ page_validate(
 			goto func_exit;
 		}
 
+#ifndef UNIV_HOTBACKUP
 		/* Check that the records are in the ascending order */
 		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
 		    && !page_rec_is_supremum(rec)) {
 			if (UNIV_UNLIKELY
 			    (1 != cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
-				fprintf(stderr,
+				fprintf(stderr, 
 					"InnoDB: Records in wrong order"
-					" on page %lu ",
-					(ulong) page_get_page_no(page));
-				dict_index_name_print(stderr, NULL, index);
+					" on space %lu page %lu index %s\n",
+					(ulong) page_get_space_id(page),
+					(ulong) page_get_page_no(page),
+					index->name);
 				fputs("\nInnoDB: previous record ", stderr);
 				rec_print_new(stderr, old_rec, old_offsets);
 				fputs("\nInnoDB: record ", stderr);
@@ -2365,6 +2368,7 @@ page_validate(
 				goto func_exit;
 			}
 		}
+#endif /* !UNIV_HOTBACKUP */
 
 		if (page_rec_is_user_rec(rec)) {
 
@@ -2510,10 +2514,12 @@ func_exit:
 
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
-		fprintf(stderr, "InnoDB: Apparent corruption in page %lu in ",
-			(ulong) page_get_page_no(page));
-		dict_index_name_print(stderr, NULL, index);
-		putc('\n', stderr);
+		fprintf(stderr, 
+			"InnoDB: Apparent corruption"
+			" in space %lu page %lu index %s\n",
+			(ulong) page_get_space_id(page),
+			(ulong) page_get_page_no(page),
+			index->name);
 		buf_page_print(page, 0);
 	}
 
