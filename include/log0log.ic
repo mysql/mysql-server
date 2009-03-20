@@ -45,9 +45,10 @@ UNIV_INLINE
 ibool
 log_block_get_flush_bit(
 /*====================*/
-				/* out: TRUE if this block was the first
-				to be written in a log flush */
-	byte*	log_block)	/* in: log block */
+					/* out: TRUE if this block was
+					the first to be written in a
+					log flush */
+	const byte*	log_block)	/* in: log block */
 {
 	if (LOG_BLOCK_FLUSH_BIT_MASK
 	    & mach_read_from_4(log_block + LOG_BLOCK_HDR_NO)) {
@@ -64,7 +65,7 @@ UNIV_INLINE
 void
 log_block_set_flush_bit(
 /*====================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ibool	val)		/* in: value to set */
 {
 	ulint	field;
@@ -86,9 +87,9 @@ UNIV_INLINE
 ulint
 log_block_get_hdr_no(
 /*=================*/
-				/* out: log block number stored in the block
-				header */
-	byte*	log_block)	/* in: log block */
+					/* out: log block number
+					stored in the block header */
+	const byte*	log_block)	/* in: log block */
 {
 	return(~LOG_BLOCK_FLUSH_BIT_MASK
 	       & mach_read_from_4(log_block + LOG_BLOCK_HDR_NO));
@@ -101,7 +102,7 @@ UNIV_INLINE
 void
 log_block_set_hdr_no(
 /*=================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	n)		/* in: log block number: must be > 0 and
 				< LOG_BLOCK_FLUSH_BIT_MASK */
 {
@@ -117,9 +118,10 @@ UNIV_INLINE
 ulint
 log_block_get_data_len(
 /*===================*/
-				/* out: log block data length measured as a
-				byte offset from the block start */
-	byte*	log_block)	/* in: log block */
+					/* out: log block data length
+					measured as a byte offset from
+					the block start */
+	const byte*	log_block)	/* in: log block */
 {
 	return(mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN));
 }
@@ -130,7 +132,7 @@ UNIV_INLINE
 void
 log_block_set_data_len(
 /*===================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	len)		/* in: data length */
 {
 	mach_write_to_2(log_block + LOG_BLOCK_HDR_DATA_LEN, len);
@@ -142,9 +144,10 @@ UNIV_INLINE
 ulint
 log_block_get_first_rec_group(
 /*==========================*/
-				/* out: first mtr log record group byte offset
-				from the block start, 0 if none */
-	byte*	log_block)	/* in: log block */
+					/* out: first mtr log record
+					group byte offset from the
+					block start, 0 if none */
+	const byte*	log_block)	/* in: log block */
 {
 	return(mach_read_from_2(log_block + LOG_BLOCK_FIRST_REC_GROUP));
 }
@@ -155,7 +158,7 @@ UNIV_INLINE
 void
 log_block_set_first_rec_group(
 /*==========================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	offset)		/* in: offset, 0 if none */
 {
 	mach_write_to_2(log_block + LOG_BLOCK_FIRST_REC_GROUP, offset);
@@ -167,8 +170,9 @@ UNIV_INLINE
 ulint
 log_block_get_checkpoint_no(
 /*========================*/
-				/* out: checkpoint no (4 lowest bytes) */
-	byte*	log_block)	/* in: log block */
+					/* out: checkpoint no (4
+					lowest bytes) */
+	const byte*	log_block)	/* in: log block */
 {
 	return(mach_read_from_4(log_block + LOG_BLOCK_CHECKPOINT_NO));
 }
@@ -179,7 +183,7 @@ UNIV_INLINE
 void
 log_block_set_checkpoint_no(
 /*========================*/
-	byte*		log_block,	/* in: log block */
+	byte*		log_block,	/* in/out: log block */
 	ib_uint64_t	no)		/* in: checkpoint no */
 {
 	mach_write_to_4(log_block + LOG_BLOCK_CHECKPOINT_NO, (ulint) no);
@@ -247,7 +251,7 @@ UNIV_INLINE
 void
 log_block_set_checksum(
 /*===================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	checksum)	/* in: checksum */
 {
 	mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE
