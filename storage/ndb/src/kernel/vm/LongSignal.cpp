@@ -179,11 +179,8 @@ dupSection(SPC_ARG Uint32& copyFirstIVal, Uint32 srcFirstIVal)
   return true;
 }
 
-#ifdef ERROR_INSERT
 extern int ErrorSignalReceive;
 extern int ErrorMaxSegmentsToSeize;
-#endif
-
 
 /**
  * appendToSection
