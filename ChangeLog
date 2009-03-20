@@ -40,6 +40,10 @@
 	dict_ind_redundant and dict_ind_compact, which are
 	initialized by dict_init().
 
+2008-03-11	The InnoDB Team
+
+	InnoDB Plugin 1.0.3 released
+
 2009-03-05	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
