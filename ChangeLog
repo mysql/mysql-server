@@ -1,7 +1,8 @@
 2009-03-20	The InnoDB Team
 
 	* buf/buf0buf.c, include/log0recv.h, log/log0recv.c:
-	Remove the compile-time constant parameters of recv_recover_page().
+	Remove the compile-time constant parameters of
+	recv_recover_page() and recv_sys_init().
 
 2009-03-20	The InnoDB Team
 
