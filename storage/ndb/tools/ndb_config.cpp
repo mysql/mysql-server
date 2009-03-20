@@ -45,6 +45,8 @@ static const char * g_field_delimiter=",";
 static const char * g_row_delimiter=" ";
 static const char * g_config_file = 0;
 static int g_mycnf = 0;
+static int g_configinfo = 0;
+static int g_xml = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
@@ -89,6 +91,12 @@ static struct my_option my_long_options[] =
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "mycnf", 256, "Read config from my.cnf",
     (uchar**) &g_mycnf, (uchar**) &g_mycnf,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "configinfo", 256, "Print configinfo",
+    (uchar**) &g_configinfo, (uchar**) &g_configinfo,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "xml", 256, "Print configinfo in xml format",
+    (uchar**) &g_xml, (uchar**) &g_xml,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -151,6 +159,7 @@ static int apply(const Iter&, const Vector<Apply*>&);
 static ndb_mgm_configuration* fetch_configuration();
 static ndb_mgm_configuration* load_configuration();
 
+
 int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
@@ -159,6 +168,16 @@ main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return -1;
+
+  if (g_configinfo)
+  {
+    ConfigInfo info;
+    if (g_xml)
+      info.print_xml();
+    else
+      info.print();
+    exit(0);
+  }
 
   if (g_nodes && g_connections)
   {
