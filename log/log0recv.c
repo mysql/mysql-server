@@ -669,9 +669,10 @@ static
 ibool
 log_block_checksum_is_ok_or_old_format(
 /*===================================*/
-			/* out: TRUE if ok, or if the log block may be in the
-			format of InnoDB version < 3.23.52 */
-	byte*	block)	/* in: pointer to a log block */
+				/* out: TRUE if ok, or if the log
+				block may be in the format of InnoDB
+				version < 3.23.52 */
+	const byte*	block)	/* in: pointer to a log block */
 {
 #ifdef UNIV_LOG_DEBUG
 	return(TRUE);
@@ -2153,7 +2154,7 @@ ibool
 recv_sys_add_to_parsing_buf(
 /*========================*/
 					/* out: TRUE if more data added */
-	byte*		log_block,	/* in: log block */
+	const byte*	log_block,	/* in: log block */
 	ib_uint64_t	scanned_lsn)	/* in: lsn of how far we were able
 					to find data in this log block */
 {
