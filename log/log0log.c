@@ -468,8 +468,8 @@ UNIV_INTERN
 ulint
 log_group_get_capacity(
 /*===================*/
-				/* out: capacity in bytes */
-	log_group_t*	group)	/* in: log group */
+					/* out: capacity in bytes */
+	const log_group_t*	group)	/* in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -483,9 +483,10 @@ UNIV_INLINE
 ulint
 log_group_calc_size_offset(
 /*=======================*/
-				/* out: size offset (<= offset) */
-	ulint		offset,	/* in: real offset within the log group */
-	log_group_t*	group)	/* in: log group */
+					/* out: size offset (<= offset) */
+	ulint			offset,	/* in: real offset within the
+					log group */
+	const log_group_t*	group)	/* in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -499,9 +500,10 @@ UNIV_INLINE
 ulint
 log_group_calc_real_offset(
 /*=======================*/
-				/* out: real offset (>= offset) */
-	ulint		offset,	/* in: size offset within the log group */
-	log_group_t*	group)	/* in: log group */
+					/* out: real offset (>= offset) */
+	ulint			offset,	/* in: size offset within the
+					log group */
+	const log_group_t*	group)	/* in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -515,10 +517,10 @@ static
 ulint
 log_group_calc_lsn_offset(
 /*======================*/
-				/* out: offset within the log group */
-	ib_uint64_t	lsn,	/* in: lsn, must be within 4 GB of
-				group->lsn */
-	log_group_t*	group)	/* in: log group */
+					/* out: offset within the log group */
+	ib_uint64_t		lsn,	/* in: lsn, must be within 4 GB of
+					group->lsn */
+	const log_group_t*	group)	/* in: log group */
 {
 	ib_uint64_t	gr_lsn;
 	ib_int64_t	gr_lsn_size_offset;
@@ -1665,10 +1667,10 @@ UNIV_INTERN
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
-	byte*	buf,	/* in: buffer containing checkpoint info */
-	ulint	n,	/* in: nth slot */
-	ulint*	file_no,/* out: archived file number */
-	ulint*	offset)	/* out: archived file offset */
+	const byte*	buf,	/* in: buffer containing checkpoint info */
+	ulint		n,	/* in: nth slot */
+	ulint*		file_no,/* out: archived file number */
+	ulint*		offset)	/* out: archived file offset */
 {
 	ut_ad(n < LOG_MAX_N_GROUPS);
 

@@ -1,5 +1,11 @@
 2009-03-20	The InnoDB Team
 
+	* include/log0log.h, include/log0log.ic, log/log0log.c:
+	Add in/out comments or const qualifiers to some function
+	parameters as appropriate.
+
+2009-03-20	The InnoDB Team
+
 	* dict/dict0boot.c, dict/dict0dict.c, fsp/fsp0fsp.c,
 	include/dict0dict.h, include/srv0srv.h, srv/srv0srv.c,
 	page/page0page.c:
