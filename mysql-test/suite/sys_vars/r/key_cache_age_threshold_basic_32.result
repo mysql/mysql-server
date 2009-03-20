@@ -37,10 +37,14 @@ SELECT @@global.key_cache_age_threshold;
 'Bug# 34877 : Invalid Values are coming in variable on assigning valid values and Out Of Memory Warnings are coming';
 '#--------------------FN_DYNVARS_056_04-------------------------#'
 SET @@global.key_cache_age_threshold = -1;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '18446744073709551615'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 4294967200
 SET @@global.key_cache_age_threshold = 42949672951;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '42949672951'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 4294967200
@@ -50,9 +54,11 @@ SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 4294967200
 SET @@global.key_cache_age_threshold = -1024;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '18446744073709550592'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-4294966200
+4294967200
 SET @@global.key_cache_age_threshold = 99;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_age_threshold value: '99'

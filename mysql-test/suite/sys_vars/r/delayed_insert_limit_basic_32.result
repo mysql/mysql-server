@@ -35,7 +35,7 @@ SELECT @@global.delayed_insert_limit;
 1
 SET @@global.delayed_insert_limit = -1024;
 Warnings:
-Warning	1292	Truncated incorrect delayed_insert_limit value: '0'
+Warning	1292	Truncated incorrect delayed_insert_limit value: '-1024'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 1
