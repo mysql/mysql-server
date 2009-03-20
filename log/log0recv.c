@@ -154,8 +154,6 @@ UNIV_INTERN
 void
 recv_sys_init(
 /*==========*/
-	ibool	recover_from_backup,	/* in: TRUE if this is called
-					to recover from a hot backup */
 	ulint	available_memory)	/* in: available memory in bytes */
 {
 	if (recv_sys->heap != NULL) {
@@ -165,12 +163,12 @@ recv_sys_init(
 
 	mutex_enter(&(recv_sys->mutex));
 
-	if (!recover_from_backup) {
-		recv_sys->heap = mem_heap_create_in_buffer(256);
-	} else {
-		recv_sys->heap = mem_heap_create(256);
-		recv_is_from_backup = TRUE;
-	}
+#ifndef UNIV_HOTBACKUP
+	recv_sys->heap = mem_heap_create_in_buffer(256);
+#else /* !UNIV_HOTBACKUP */
+	recv_sys->heap = mem_heap_create(256);
+	recv_is_from_backup = TRUE;
+#endif /* !UNIV_HOTBACKUP */
 
 	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
 	recv_sys->len = 0;
@@ -2597,7 +2595,7 @@ recv_recovery_from_checkpoint_start_func(
 
 	if (TYPE_CHECKPOINT) {
 		recv_sys_create();
-		recv_sys_init(FALSE, buf_pool_get_curr_size());
+		recv_sys_init(buf_pool_get_curr_size());
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
@@ -3369,7 +3367,7 @@ recv_recovery_from_archive_start(
 	ut_a(0);
 
 	recv_sys_create();
-	recv_sys_init(FALSE, buf_pool_get_curr_size());
+	recv_sys_init(buf_pool_get_curr_size());
 
 	recv_recovery_on = TRUE;
 	recv_recovery_from_backup_on = TRUE;

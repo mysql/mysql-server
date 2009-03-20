@@ -208,8 +208,6 @@ UNIV_INTERN
 void
 recv_sys_init(
 /*==========*/
-	ibool	recover_from_backup,	/* in: TRUE if this is called
-					to recover from a hot backup */
 	ulint	available_memory);	/* in: available memory in bytes */
 /***********************************************************************
 Empties the hash table of stored log records, applying them to appropriate
