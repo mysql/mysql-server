@@ -1,5 +1,11 @@
 2009-03-20	The InnoDB Team
 
+	* page/page0page.c:
+	In page_validate(), always report the space id, page number and
+	the name of the index when corruption is noticed.
+
+2009-03-20	The InnoDB Team
+
 	* include/log0log.h, include/log0log.ic, log/log0log.c:
 	Add in/out comments or const qualifiers to some function
 	parameters as appropriate.
