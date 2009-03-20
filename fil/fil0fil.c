@@ -1324,29 +1324,6 @@ fil_space_free(
 	return(TRUE);
 }
 
-#ifdef UNIV_HOTBACKUP
-/***********************************************************************
-Returns the tablespace object for a given id, or NULL if not found from the
-tablespace memory cache. */
-static
-fil_space_t*
-fil_get_space_for_id_low(
-/*=====================*/
-			/* out: tablespace object or NULL; NOTE that you must
-			own &(fil_system->mutex) to call this function! */
-	ulint	id)	/* in: space id */
-{
-	fil_system_t*	system		= fil_system;
-	fil_space_t*	space;
-
-	ut_ad(system);
-
-	space = fil_space_get_by_id(id);
-
-	return(space);
-}
-#endif
-
 /***********************************************************************
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache. */
@@ -3309,7 +3286,7 @@ fil_load_single_table_tablespace(
 
 	mutex_enter(&(fil_system->mutex));
 
-	space = fil_get_space_for_id_low(space_id);
+	space = fil_space_get_by_id(space_id);
 
 	if (space) {
 		char*	new_path;
