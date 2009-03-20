@@ -373,7 +373,7 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
   }
   else
   {
-    size_t len;
+    int len;
 
     /*
       mysql_upgrade was run absolutely or relatively.  We can find a sibling
