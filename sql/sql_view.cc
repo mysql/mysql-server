@@ -61,7 +61,8 @@ static void make_unique_view_field_name(Item *target,
   char *name= (target->orig_name ?
                target->orig_name :
                target->name);
-  size_t name_len, attempt;
+  size_t name_len;
+  uint attempt;
   char buff[NAME_LEN+1];
   List_iterator_fast<Item> itc(item_list);
 

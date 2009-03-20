@@ -82,7 +82,7 @@ char Transparent_file::get_value(off_t offset)
   size_t bytes_read;
 
   /* check boundaries */
-  if ((lower_bound <= offset) && (offset < upper_bound))
+  if ((lower_bound <= offset) && (((my_off_t) offset) < upper_bound))
     return buff[offset - lower_bound];
 
   VOID(my_seek(filedes, offset, MY_SEEK_SET, MYF(0)));
@@ -95,7 +95,7 @@ char Transparent_file::get_value(off_t offset)
   upper_bound= lower_bound + bytes_read;
 
   /* end of file */
-  if (upper_bound == offset)
+  if (upper_bound == (my_off_t) offset)
     return 0;
 
   return buff[0];
