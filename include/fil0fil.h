@@ -263,6 +263,7 @@ UNIV_INTERN
 void
 fil_init(
 /*=====*/
+	ulint	hash_size,	/* in: hash table size */
 	ulint	max_n_open);	/* in: max number of open files */
 /***********************************************************************
 Opens all log files and system tablespace data files. They stay open until the
