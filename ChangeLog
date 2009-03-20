@@ -1,5 +1,10 @@
 2009-03-20	The InnoDB Team
 
+	* buf/buf0buf.c, include/log0recv.h, log/log0recv.c:
+	Remove the compile-time constant parameters of recv_recover_page().
+
+2009-03-20	The InnoDB Team
+
 	* data/data0type.c, handler/ha_innodb.cc, include/ha_prototypes.h:
 	Declare innobase_get_at_most_n_mbchars() in ha_prototypes.h.
 
