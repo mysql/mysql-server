@@ -89,17 +89,19 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
 UNIV_INTERN
 void
-recv_recover_page(
-/*==============*/
-	ibool		recover_backup,
-				/* in: TRUE if we are recovering a backup
-				page: then we do not acquire any latches
-				since the page was read in outside the
-				buffer pool */
+recv_recover_page_func(
+/*===================*/
+#ifndef UNIV_HOTBACKUP
 	ibool		just_read_in,
 				/* in: TRUE if the i/o-handler calls this for
 				a freshly read page */
+#endif /* !UNIV_HOTBACKUP */
 	buf_block_t*	block);	/* in: buffer block */
+#ifndef UNIV_HOTBACKUP
+# define recv_recover_page(jri, block)	recv_recover_page_func(jri, block)
+#else /* !UNIV_HOTBACKUP */
+# define recv_recover_page(jri, block)	recv_recover_page_func(block)
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************
 Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function

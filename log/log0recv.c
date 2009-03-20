@@ -1186,16 +1186,13 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
 UNIV_INTERN
 void
-recv_recover_page(
-/*==============*/
-	ibool		recover_backup,
-				/* in: TRUE if we are recovering a backup
-				page: then we do not acquire any latches
-				since the page was read in outside the
-				buffer pool */
+recv_recover_page_func(
+/*===================*/
+#ifndef UNIV_HOTBACKUP
 	ibool		just_read_in,
 				/* in: TRUE if the i/o-handler calls this for
 				a freshly read page */
+#endif /* !UNIV_HOTBACKUP */
 	buf_block_t*	block)	/* in: buffer block */
 {
 	page_t*		page;
@@ -1207,7 +1204,9 @@ recv_recover_page(
 	ib_uint64_t	page_lsn;
 	ib_uint64_t	page_newest_lsn;
 	ibool		modification_to_page;
+#ifndef UNIV_HOTBACKUP
 	ibool		success;
+#endif /* !UNIV_HOTBACKUP */
 	mtr_t		mtr;
 
 	mutex_enter(&(recv_sys->mutex));
@@ -1247,46 +1246,42 @@ recv_recover_page(
 
 	page = block->frame;
 
-	if (!recover_backup) {
-		if (just_read_in) {
-			/* Move the ownership of the x-latch on the
-			page to this OS thread, so that we can acquire
-			a second x-latch on it. This is needed for the
-			operations to the page to pass the debug
-			checks. */
+#ifndef UNIV_HOTBACKUP
+	if (just_read_in) {
+		/* Move the ownership of the x-latch on the page to
+		this OS thread, so that we can acquire a second
+		x-latch on it.  This is needed for the operations to
+		the page to pass the debug checks. */
 
-			rw_lock_x_lock_move_ownership(&(block->lock));
-		}
-
-		success = buf_page_get_known_nowait(RW_X_LATCH, block,
-						    BUF_KEEP_OLD,
-						    __FILE__, __LINE__,
-						    &mtr);
-		ut_a(success);
-
-		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+		rw_lock_x_lock_move_ownership(&block->lock);
 	}
+
+	success = buf_page_get_known_nowait(RW_X_LATCH, block,
+					    BUF_KEEP_OLD,
+					    __FILE__, __LINE__,
+					    &mtr);
+	ut_a(success);
+
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Read the newest modification lsn from the page */
 	page_lsn = mach_read_ull(page + FIL_PAGE_LSN);
 
-	if (!recover_backup) {
-		/* It may be that the page has been modified in the buffer
-		pool: read the newest modification lsn there */
+#ifndef UNIV_HOTBACKUP
+	/* It may be that the page has been modified in the buffer
+	pool: read the newest modification lsn there */
 
-		page_newest_lsn
-			= buf_page_get_newest_modification(&block->page);
+	page_newest_lsn = buf_page_get_newest_modification(&block->page);
 
-		if (page_newest_lsn) {
+	if (page_newest_lsn) {
 
-			page_lsn = page_newest_lsn;
-		}
-	} else {
-		/* In recovery from a backup we do not really use the buffer
-		pool */
-
-		page_newest_lsn = 0;
+		page_lsn = page_newest_lsn;
 	}
+#else /* !UNIV_HOTBACKUP */
+	/* In recovery from a backup we do not really use the buffer pool */
+	page_newest_lsn = 0;
+#endif /* !UNIV_HOTBACKUP */
 
 	modification_to_page = FALSE;
 	start_lsn = end_lsn = 0;
@@ -1375,11 +1370,13 @@ recv_recover_page(
 
 	mutex_exit(&(recv_sys->mutex));
 
-	if (!recover_backup && modification_to_page) {
+#ifndef UNIV_HOTBACKUP
+	if (modification_to_page) {
 		ut_a(block);
 
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Make sure that committing mtr does not change the modification
 	lsn values of page */
@@ -1513,7 +1510,7 @@ loop:
 					buf_block_dbg_add_level(
 						block, SYNC_NO_ORDER_CHECK);
 
-					recv_recover_page(FALSE, FALSE, block);
+					recv_recover_page(FALSE, block);
 					mtr_commit(&mtr);
 				} else {
 					recv_read_in_area(space, zip_size,
@@ -1693,7 +1690,7 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			/* Apply the log records to this page */
-			recv_recover_page(TRUE, FALSE, block);
+			recv_recover_page(FALSE, block);
 
 			/* Write the page back to the tablespace file using the
 			fil0fil.c routines */
