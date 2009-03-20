@@ -215,6 +215,13 @@ SET GLOBAL event_scheduler = OFF;
 
 # -- End of Bug#35074.
 
+SELECT 'Connection on extra port ok';
+Connection on extra port ok
+Connection on extra port ok
+SELECT 'Connection on extra port 2 ok';
+Connection on extra port 2 ok
+Connection on extra port 2 ok
+# -- Success: more than --extra-max-connections + 1 normal connections not possible
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
