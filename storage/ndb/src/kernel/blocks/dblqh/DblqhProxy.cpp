@@ -228,6 +228,15 @@ DblqhProxy::execLQHADDATTREQ(Signal* signal)
   memcpy(&ss.m_req, req, reqlength << 2);
   ss.m_reqlength = reqlength;
 
+  /**
+   * Count LQHFRAGREQ, 
+   *   so that I can release CREATE_TAB_REQ after last attribute has been
+   *   processed
+   */
+  Ss_CREATE_TAB_REQ& ss_main = ssFind<Ss_CREATE_TAB_REQ>(ssId);
+  ndbrequire(ss_main.m_req.noOfAttributes >= req->noOfAttributes);
+  ss_main.m_req.noOfAttributes -= req->noOfAttributes;
+
   sendREQ(signal, ss);
 }
 
@@ -276,13 +285,27 @@ DblqhProxy::sendLQHADDATTCONF(Signal* signal, Uint32 ssId)
   if (!lastReply(ss))
     return;
 
-  if (ss.m_error == 0) {
+  if (ss.m_error == 0) 
+  {
+    jam();
     LqhAddAttrConf* conf = (LqhAddAttrConf*)signal->getDataPtrSend();
     conf->senderData = ss.m_req.senderData;
     conf->senderAttrPtr = ss.m_req.senderAttrPtr;
     sendSignal(dictRef, GSN_LQHADDATTCONF,
                signal, LqhAddAttrConf::SignalLength, JBB);
-  } else {
+
+    if (ss_main.m_req.noOfAttributes == 0)
+    {
+      jam();
+      /**
+       * All the attributes has been processed
+       *   release create_table object
+       */
+      ssRelease<Ss_CREATE_TAB_REQ>(ssId);
+    }
+  }
+  else 
+  {
     jam();
     LqhAddAttrRef* ref = (LqhAddAttrRef*)signal->getDataPtrSend();
     ref->senderData = ss.m_req.senderData;
@@ -357,8 +380,7 @@ void
 DblqhProxy::sendTAB_COMMITCONF(Signal* signal, Uint32 ssId)
 {
   Ss_TAB_COMMITREQ& ss = ssFind<Ss_TAB_COMMITREQ>(ssId);
-  Ss_CREATE_TAB_REQ& ss_main = ssFind<Ss_CREATE_TAB_REQ>(ssId);
-  BlockReference dictRef = ss_main.m_req.senderRef;
+  BlockReference dictRef = ss.m_req.senderRef;
 
   if (!lastReply(ss))
     return;
@@ -382,7 +404,6 @@ DblqhProxy::sendTAB_COMMITCONF(Signal* signal, Uint32 ssId)
     return;
   }
 
-  ssRelease<Ss_CREATE_TAB_REQ>(ssId);
   ssRelease<Ss_TAB_COMMITREQ>(ssId);
 }
 
