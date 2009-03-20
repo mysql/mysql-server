@@ -1622,7 +1622,7 @@ int compare_files2(File fd1, const char* filename2)
 {
   int error= RESULT_OK;
   File fd2;
-  my_off_t fd1_length, fd2_length;
+  size_t fd1_length, fd2_length;
   DYNAMIC_STRING fd1_result, fd2_result;
 
   if ((fd2= my_open(filename2, O_RDONLY, MYF(0))) < 0)
@@ -1631,8 +1631,8 @@ int compare_files2(File fd1, const char* filename2)
     die("Failed to open second file: '%s'", filename2);
   }
 
-  fd1_length= my_seek(fd1, 0, SEEK_END, MYF(0));
-  fd2_length= my_seek(fd2, 0, SEEK_END, MYF(0));
+  fd1_length= (size_t) my_seek(fd1, 0, SEEK_END, MYF(0));
+  fd2_length= (size_t) my_seek(fd2, 0, SEEK_END, MYF(0));
 
   if (init_dynamic_string(&fd1_result, 0, fd1_length, 0) ||
       init_dynamic_string(&fd2_result, 0, fd2_length, 0))

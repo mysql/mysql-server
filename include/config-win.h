@@ -94,6 +94,17 @@ functions */
 
 #define S_IROTH		S_IREAD		/* for my_lib */
 
+/* for MY_S_ISFIFO() macro from my_lib */
+#if defined (_S_IFIFO) && !defined (S_IFIFO)
+#define S_IFIFO _S_IFIFO
+#endif
+
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
+
 /* 
    Constants used by chmod. Note, that group/others is ignored
    - because unsupported by Windows due to different access control model.
@@ -160,10 +171,21 @@ typedef __int64 os_off_t;
 #ifdef _WIN64
 typedef UINT_PTR rf_SetTimer;
 #else
-#ifndef HAVE_SIZE_T
-typedef unsigned int size_t;
-#endif
 typedef uint rf_SetTimer;
+#endif
+
+#ifndef HAVE_SIZE_T
+#ifndef _SIZE_T_DEFINED
+typedef SIZE_T size_t;
+#define _SIZE_T_DEFINED
+#endif
+#endif
+
+#ifndef HAVE_SSIZE_T
+#ifndef _SSIZE_T_DEFINED
+typedef SSIZE_T ssize_t;
+#define _SSIZE_T_DEFINED
+#endif
 #endif
 
 #define Socket_defined
@@ -195,7 +217,7 @@ typedef uint rf_SetTimer;
 #define SIZEOF_CHARP		4
 #endif
 #define HAVE_BROKEN_NETINET_INCLUDES
-#ifdef __NT__
+#ifdef _WIN32
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
 #endif
 
@@ -316,7 +338,7 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#ifndef __NT__
+#ifndef _WIN32
 #undef FILE_SHARE_DELETE
 #define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
 #endif
@@ -368,7 +390,7 @@ inline ulonglong double2ulonglong(double d)
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
 /* The following is only used for statistics, so it should be good enough */
-#ifdef __NT__  /* This should also work on Win98 but .. */
+#ifdef _WIN32  /* This should also work on Win98 but .. */
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
 #endif

@@ -254,6 +254,7 @@ void do_tests()
   diag("timeout_long=%lu us, deadlock_search_depth_long=%lu",
        wt_timeout_long, wt_deadlock_search_depth_long);
 
+#ifndef _WIN32
 #define test_kill_strategy(X)                   \
   diag("kill strategy: " #X);                   \
   DBUG_EXECUTE("reset_file",                    \
@@ -261,6 +262,12 @@ void do_tests()
   DBUG_PRINT("info", ("kill strategy: " #X));   \
   kill_strategy=X;                              \
   do_one_test();
+#else
+  diag("kill strategy: " #X);                   \
+  DBUG_PRINT("info", ("kill strategy: " #X));   \
+  kill_strategy=X;                              \
+  do_one_test();
+#endif
 
   test_kill_strategy(LATEST);
   test_kill_strategy(RANDOM);
