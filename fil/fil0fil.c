@@ -1457,63 +1457,38 @@ fil_check_adress_in_tablespace(
 }
 
 /********************************************************************
-Creates a the tablespace memory cache. */
-static
-fil_system_t*
-fil_system_create(
-/*==============*/
-				/* out, own: tablespace memory cache */
-	ulint	hash_size,	/* in: hash table size */
-	ulint	max_n_open)	/* in: maximum number of open files; must be
-				> 10 */
-{
-	fil_system_t*	system;
-
-	ut_a(hash_size > 0);
-	ut_a(max_n_open > 0);
-
-	system = mem_alloc(sizeof(fil_system_t));
-
-	mutex_create(&system->mutex, SYNC_ANY_LATCH);
-
-	system->spaces = hash_create(hash_size);
-	system->name_hash = hash_create(hash_size);
-
-	UT_LIST_INIT(system->LRU);
-
-	system->n_open = 0;
-	system->max_n_open = max_n_open;
-
-	system->modification_counter = 0;
-	system->max_assigned_id = 0;
-
-	system->tablespace_version = 0;
-
-	UT_LIST_INIT(system->unflushed_spaces);
-	UT_LIST_INIT(system->space_list);
-
-	return(system);
-}
-
-/********************************************************************
 Initializes the tablespace memory cache. */
 UNIV_INTERN
 void
 fil_init(
 /*=====*/
+	ulint	hash_size,	/* in: hash table size */
 	ulint	max_n_open)	/* in: max number of open files */
 {
-	ulint	hash_size;
-
 	ut_a(fil_system == NULL);
 
-	if (srv_file_per_table) {
-		hash_size = 50000;
-	} else {
-		hash_size = 5000;
-	}
+	ut_a(hash_size > 0);
+	ut_a(max_n_open > 0);
 
-	fil_system = fil_system_create(hash_size, max_n_open);
+	fil_system = mem_alloc(sizeof(fil_system_t));
+
+	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
+
+	fil_system->spaces = hash_create(hash_size);
+	fil_system->name_hash = hash_create(hash_size);
+
+	UT_LIST_INIT(fil_system->LRU);
+
+	fil_system->n_open = 0;
+	fil_system->max_n_open = max_n_open;
+
+	fil_system->modification_counter = 0;
+	fil_system->max_assigned_id = 0;
+
+	fil_system->tablespace_version = 0;
+
+	UT_LIST_INIT(fil_system->unflushed_spaces);
+	UT_LIST_INIT(fil_system->space_list);
 }
 
 /***********************************************************************

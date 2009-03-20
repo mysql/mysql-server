@@ -11,6 +11,11 @@
 
 2009-03-20	The InnoDB Team
 
+	* fil/fil0fil.h, fil/fil0fil.c, srv/srv0start.c:
+	Add the parameter hash_size to fil_init().
+
+2009-03-20	The InnoDB Team
+
 	* fil/fil0fil.c:
 	Refer to fil_system directly, not via local variables.
 

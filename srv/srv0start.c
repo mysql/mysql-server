@@ -1273,7 +1273,8 @@ innobase_start_or_create_for_mysql(void)
 			    SRV_MAX_N_PENDING_SYNC_IOS);
 	}
 
-	fil_init(srv_max_n_open_files);
+	fil_init(srv_file_per_table ? 50000 : 5000,
+		 srv_max_n_open_files);
 
 	ret = buf_pool_init();
 
