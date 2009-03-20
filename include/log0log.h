@@ -261,10 +261,10 @@ UNIV_INTERN
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
-	byte*	buf,	/* in: buffer containing checkpoint info */
-	ulint	n,	/* in: nth slot */
-	ulint*	file_no,/* out: archived file number */
-	ulint*	offset);/* out: archived file offset */
+	const byte*	buf,	/* in: buffer containing checkpoint info */
+	ulint		n,	/* in: nth slot */
+	ulint*		file_no,/* out: archived file number */
+	ulint*		offset);/* out: archived file offset */
 /**********************************************************
 Writes checkpoint info to groups. */
 UNIV_INTERN
@@ -382,7 +382,7 @@ UNIV_INTERN
 void
 log_group_set_fields(
 /*=================*/
-	log_group_t*	group,	/* in: group */
+	log_group_t*	group,	/* in/out: group */
 	ib_uint64_t	lsn);	/* in: lsn for which the values should be
 				set */
 /**********************************************************
@@ -392,42 +392,44 @@ UNIV_INTERN
 ulint
 log_group_get_capacity(
 /*===================*/
-				/* out: capacity in bytes */
-	log_group_t*	group);	/* in: log group */
+					/* out: capacity in bytes */
+	const log_group_t*	group);	/* in: log group */
 /****************************************************************
 Gets a log block flush bit. */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
 /*====================*/
-				/* out: TRUE if this block was the first
-				to be written in a log flush */
-	byte*	log_block);	/* in: log block */
+					/* out: TRUE if this block was
+					the first to be written in a
+					log flush */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Gets a log block number stored in the header. */
 UNIV_INLINE
 ulint
 log_block_get_hdr_no(
 /*=================*/
-				/* out: log block number stored in the block
-				header */
-	byte*	log_block);	/* in: log block */
+					/* out: log block number
+					stored in the block header */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Gets a log block data length. */
 UNIV_INLINE
 ulint
 log_block_get_data_len(
 /*===================*/
-				/* out: log block data length measured as a
-				byte offset from the block start */
-	byte*	log_block);	/* in: log block */
+					/* out: log block data length
+					measured as a byte offset from
+					the block start */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Sets the log block data length. */
 UNIV_INLINE
 void
 log_block_set_data_len(
 /*===================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	len);		/* in: data length */
 /****************************************************************
 Calculates the checksum for a log block. */
@@ -451,7 +453,7 @@ UNIV_INLINE
 void
 log_block_set_checksum(
 /*===================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	checksum);	/* in: checksum */
 /****************************************************************
 Gets a log block first mtr log record group offset. */
@@ -459,16 +461,17 @@ UNIV_INLINE
 ulint
 log_block_get_first_rec_group(
 /*==========================*/
-				/* out: first mtr log record group byte offset
-				from the block start, 0 if none */
-	byte*	log_block);	/* in: log block */
+					/* out: first mtr log record
+					group byte offset from the
+					block start, 0 if none */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Sets the log block first mtr log record group offset. */
 UNIV_INLINE
 void
 log_block_set_first_rec_group(
 /*==========================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	offset);	/* in: offset, 0 if none */
 /****************************************************************
 Gets a log block checkpoint number field (4 lowest bytes). */
@@ -476,8 +479,9 @@ UNIV_INLINE
 ulint
 log_block_get_checkpoint_no(
 /*========================*/
-				/* out: checkpoint no (4 lowest bytes) */
-	byte*	log_block);	/* in: log block */
+					/* out: checkpoint no (4
+					lowest bytes) */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Initializes a log block in the log buffer. */
 UNIV_INLINE
