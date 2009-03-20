@@ -1290,8 +1290,8 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
                                                (uchar*) server_name,
                                                server_name_length)))
   {
-    DBUG_PRINT("info", ("server_name %s length %d not found!",
-                        server_name, server_name_length));
+    DBUG_PRINT("info", ("server_name %s length %u not found!",
+                        server_name, (unsigned) server_name_length));
     server= (FOREIGN_SERVER *) NULL;
   }
   /* otherwise, make copy of server */
