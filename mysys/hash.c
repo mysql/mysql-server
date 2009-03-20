@@ -33,7 +33,7 @@ typedef struct st_hash_info {
   uchar *data;					/* data for current entry */
 } HASH_LINK;
 
-static uint my_hash_mask(uint hashnr, uint buffmax, uint maxlength);
+static uint my_hash_mask(size_t hashnr, size_t buffmax, size_t maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
 static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
                    size_t length);
