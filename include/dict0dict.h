@@ -1140,6 +1140,18 @@ struct dict_sys_struct{
 	dict_table_t*	sys_fields;	/* SYS_FIELDS table */
 };
 
+/* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
+extern dict_index_t*	dict_ind_redundant;
+/* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
+extern dict_index_t*	dict_ind_compact;
+
+/**************************************************************************
+Inits dict_ind_redundant and dict_ind_compact. */
+UNIV_INTERN
+void
+dict_ind_init(void);
+/*===============*/
+
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"
 #endif

@@ -28,6 +28,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0dict.ic"
 #endif
 
+/* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
+dict_index_t*	dict_ind_redundant;
+/* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
+dict_index_t*	dict_ind_compact;
+
 #include "buf0buf.h"
 #include "data0type.h"
 #include "mach0data.h"
@@ -4619,6 +4624,40 @@ dict_index_name_print(
 	ut_print_name(file, trx, FALSE, index->name);
 	fputs(" of table ", file);
 	ut_print_name(file, trx, TRUE, index->table_name);
+}
+
+/**************************************************************************
+Inits dict_ind_redundant and dict_ind_compact. */
+UNIV_INTERN
+void
+dict_ind_init(void)
+/*===============*/
+{
+	dict_table_t*		table;
+
+	/* create dummy table and index for REDUNDANT infimum and supremum */
+	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0);
+	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
+			       DATA_ENGLISH | DATA_NOT_NULL, 8);
+
+	dict_ind_redundant = dict_mem_index_create("SYS_DUMMY1", "SYS_DUMMY1",
+						   DICT_HDR_SPACE, 0, 1);
+	dict_index_add_col(dict_ind_redundant, table,
+			   dict_table_get_nth_col(table, 0), 0);
+	dict_ind_redundant->table = table;
+	/* create dummy table and index for COMPACT infimum and supremum */
+	table = dict_mem_table_create("SYS_DUMMY2",
+				      DICT_HDR_SPACE, 1, DICT_TF_COMPACT);
+	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
+			       DATA_ENGLISH | DATA_NOT_NULL, 8);
+	dict_ind_compact = dict_mem_index_create("SYS_DUMMY2", "SYS_DUMMY2",
+						 DICT_HDR_SPACE, 0, 1);
+	dict_index_add_col(dict_ind_compact, table,
+			   dict_table_get_nth_col(table, 0), 0);
+	dict_ind_compact->table = table;
+
+	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
+	dict_ind_redundant->cached = dict_ind_compact->cached = TRUE;
 }
 
 /**************************************************************************

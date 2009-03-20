@@ -1,3 +1,12 @@
+2009-03-20	The InnoDB Team
+
+	* dict/dict0boot.c, dict/dict0dict.c, fsp/fsp0fsp.c,
+	include/dict0dict.h, include/srv0srv.h, srv/srv0srv.c,
+	page/page0page.c:
+	Replace srv_sys->dummy_ind1 and srv_sys->dummy_ind2 with
+	dict_ind_redundant and dict_ind_compact, which are
+	initialized by dict_init().
+
 2009-03-05	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
