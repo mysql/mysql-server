@@ -1322,10 +1322,14 @@ setEventLogFilter(int severity, int enable)
     g_eventLogger->enable(level);
   } else if (enable == 0) {
     g_eventLogger->disable(level);
-  } else if (g_eventLogger->isEnable(level)) {
-    g_eventLogger->disable(level);
-  } else {
-    g_eventLogger->enable(level);
+  }
+  else
+  {
+    /* enable is < 0 => toggle the filter value */
+    if (g_eventLogger->isEnable(level))
+      g_eventLogger->disable(level);
+    else
+      g_eventLogger->enable(level);
   }
   return g_eventLogger->isEnable(level);
 }
@@ -1340,7 +1344,7 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
   args.get("level", &severity);
   args.get("enable", &enable);
 
-  int result = setEventLogFilter(severity, enable);
+  bool result = setEventLogFilter(severity, enable);
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
