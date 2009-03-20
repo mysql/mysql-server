@@ -201,6 +201,9 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     req->senderRef = numberToRef(1,1);
     req->tableId = tab;
     req->tableVersion = tabRecPtr.p->tableVersion + ver;
+
+    g_eventLogger->info("QQQ(%u) - GSN_DROP_TABLE_REQ", __LINE__);
+
     sendSignal(DBDICT_REF, GSN_DROP_TABLE_REQ, signal,
 	       DropTableReq::SignalLength, JBB);
   }
@@ -6461,10 +6464,13 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
 {
   jamEntry();
   if (!assembleFragments(signal)) {
+    g_eventLogger->info("QQQ(%u) - Dbdict::execDROP_TABLE_REQ (assemble)", __LINE__);
     jam();
     return;
   }
   SectionHandle handle(this, signal);
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execDROP_TABLE_REQ %x", __LINE__, signal->getSendersBlockRef());
 
   const DropTableReq req_copy =
     *(const DropTableReq*)signal->getDataPtr();
@@ -6498,6 +6504,8 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
   ref->tableId = req->tableId;
   ref->tableVersion = req->tableVersion;
   getError(error, ref);
+
+  g_eventLogger->info("QQQ(%u) - GSN_DROP_TABLE_REQ %x", __LINE__, req->clientRef);
 
   sendSignal(req->clientRef, GSN_DROP_TABLE_REF, signal,
              DropTableRef::SignalLength, JBB);
@@ -6605,6 +6613,9 @@ Dbdict::dropTable_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
     D(V(conf->tableId) << V(conf->tableVersion));
 
     Uint32 clientRef = op_ptr.p->m_clientRef;
+
+    g_eventLogger->info("QQQ(%u) - GSN_DROP_TABLE_CONF %x", __LINE__, clientRef);
+
     sendSignal(clientRef, GSN_DROP_TABLE_CONF, signal,
                DropTableConf::SignalLength, JBB);
   } else {
@@ -6618,6 +6629,9 @@ Dbdict::dropTable_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
     getError(error, ref);
 
     Uint32 clientRef = op_ptr.p->m_clientRef;
+
+    g_eventLogger->info("QQQ(%u) - GSN_DROP_TABLE_REF %x", __LINE__, clientRef);
+
     sendSignal(clientRef, GSN_DROP_TABLE_REF, signal,
                DropTableRef::SignalLength, JBB);
   }
@@ -6734,6 +6748,8 @@ Dbdict::prepDropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
     ref->tableId = impl_req->tableId;
     ref->errorCode = 9131;
 
+    g_eventLogger->info("QQQ(%u) - GSN_PREP_DROP_TAB_REF %x", __LINE__, reference());
+
     sendSignal(reference(), GSN_PREP_DROP_TAB_REF, signal,
                PrepDropTabRef::SignalLength, JBB);
     return;
@@ -6747,6 +6763,9 @@ Dbdict::prepDropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
   prep->requestType = impl_req->requestType;
 
   BlockReference ref = numberToRef(block, getOwnNodeId());
+
+  g_eventLogger->info("QQQ(%u) - GSN_PREP_DROP_TAB_REQ %x", __LINE__, ref);
+
   sendSignal(ref, GSN_PREP_DROP_TAB_REQ, signal,
              PrepDropTabReq::SignalLength, JBB);
 }
@@ -6770,6 +6789,9 @@ void
 Dbdict::execPREP_DROP_TAB_CONF(Signal * signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execPREP_DROP_TAB_CONF %x", __LINE__, signal->getSendersBlockRef());
+
   const PrepDropTabConf* conf = (const PrepDropTabConf*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(conf->senderRef);
@@ -6783,6 +6805,9 @@ void
 Dbdict::execPREP_DROP_TAB_REF(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execPREP_DROP_TAB_REF %x", __LINE__, signal->getSendersBlockRef());
+
   const PrepDropTabRef* ref = (const PrepDropTabRef*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(ref->senderRef);
@@ -6946,6 +6971,9 @@ Dbdict::dropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
   req->requestType = impl_req->requestType;
 
   BlockReference ref = numberToRef(block, getOwnNodeId());
+
+  g_eventLogger->info("QQQ(%u) - GSN_DROP_TAB_REQ %x", __LINE__, ref);
+
   sendSignal(ref, GSN_DROP_TAB_REQ, signal,
              DropTabReq::SignalLength, JBB);
 }
@@ -6954,6 +6982,9 @@ void
 Dbdict::execDROP_TAB_CONF(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execDROP_TAB_CONF %x", __LINE__, signal->getSendersBlockRef());
+
   const DropTabConf* conf = (const DropTabConf*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(conf->senderRef);
@@ -6967,6 +6998,9 @@ void
 Dbdict::execDROP_TAB_REF(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execDROP_TAB_REF %x", __LINE__, signal->getSendersBlockRef());
+
   const DropTabRef* ref = (const DropTabRef*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(ref->senderRef);
@@ -7026,6 +7060,8 @@ Dbdict::dropTab_complete(Signal* signal,
     conf->senderData = op_key;
     conf->tableId = tableId;
 
+    g_eventLogger->info("QQQ(%u) - GSN_DROP_TAB_CONF SUMA_REF", __LINE__);
+
     sendSignal(SUMA_REF, GSN_DROP_TAB_CONF, signal,
                DropTabConf::SignalLength, JBB);
   }
@@ -7068,6 +7104,9 @@ Dbdict::dropTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 void Dbdict::execDROP_TABLE_CONF(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execGSN_DROP_TABLE_CONF %x", __LINE__, signal->getSendersBlockRef());
+
   const DropTableConf* conf = (const DropTableConf*)signal->getDataPtr();
   handleDictConf(signal, conf);
 }
@@ -7075,6 +7114,9 @@ void Dbdict::execDROP_TABLE_CONF(Signal* signal)
 void Dbdict::execDROP_TABLE_REF(Signal* signal)
 {
   jamEntry();
+
+  g_eventLogger->info("QQQ(%u) - Dbdict::execGSN_DROP_TABLE_REF %x", __LINE__, signal->getSendersBlockRef());
+
   const DropTableRef* ref = (const DropTableRef*)signal->getDataPtr();
   handleDictRef(signal, ref);
 }
@@ -7147,13 +7189,13 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   jamEntry();
 
   if (!assembleFragments(signal)) {
-    g_eventLogger->info("QQQ(%u) - Dbdict::execALTER_TABLE_REQ", __LINE__);
+    g_eventLogger->info("QQQ(%u) - Dbdict::execALTER_TABLE_REQ (assemble)", __LINE__);
     jam();
     return;
   }
   SectionHandle handle(this, signal);
 
-  g_eventLogger->info("QQQ(%u) - Dbdict::execALTER_TABLE_REQ", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execALTER_TABLE_REQ %x", __LINE__, signal->getSendersBlockRef());
 
   const AlterTableReq req_copy =
     *(const AlterTableReq*)signal->getDataPtr();
@@ -10890,6 +10932,8 @@ Dbdict::dropIndex_toDropTable(Signal* signal, SchemaOpPtr op_ptr)
   req->requestInfo = requestInfo;
   req->tableId = impl_req->indexId;
   req->tableVersion = impl_req->indexVersion;
+
+  g_eventLogger->info("QQQ(%u) - GSN_DROP_TABLE_REQ %x", __LINE__, reference());
 
   sendSignal(reference(), GSN_DROP_TABLE_REQ, signal,
              DropTableReq::SignalLength, JBB);
@@ -22420,7 +22464,7 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
 {
   jamEntry();
 
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_REQ", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_END_REQ", __LINE__);
 
   const SchemaTransEndReq* req =
     (const SchemaTransEndReq*)signal->getDataPtr();
@@ -22667,7 +22711,7 @@ void
 Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
 {
   jamEntry();
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_CONF", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_IMPL_CONF", __LINE__);
   ndbrequire(signal->getNoOfSections() == 0);
 
   const SchemaTransImplConf* conf =
@@ -22694,7 +22738,7 @@ void
 Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
 {
   jamEntry();
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_REF", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_IMPL_REF", __LINE__);
   ndbrequire(signal->getNoOfSections() == 0);
 
   const SchemaTransImplRef* ref =
@@ -24516,10 +24560,10 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
   jamEntry();
   if (!assembleFragments(signal)) {
     jam();
-    g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_REQ", __LINE__);
+    g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_IMPL_REQ (assemble)", __LINE__);
     return;
   }
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_IMPL_REQ", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_IMPL_REQ", __LINE__);
 
   SchemaTransImplReq reqCopy =
     *(const SchemaTransImplReq*)signal->getDataPtr();
@@ -25482,7 +25526,7 @@ void
 Dbdict::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 {
   jamEntry(); 
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_BEGIN_CONF", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_BEGIN_CONF", __LINE__);
   const SchemaTransBeginConf* conf =
     (const SchemaTransBeginConf*)signal->getDataPtr();
 
@@ -25500,7 +25544,7 @@ void
 Dbdict::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
 {
   jamEntry();
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_BEGIN_REF", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_BEGIN_REF", __LINE__);
   const SchemaTransBeginRef* ref =
     (const SchemaTransBeginRef*)signal->getDataPtr();
 
@@ -25517,7 +25561,7 @@ void
 Dbdict::execSCHEMA_TRANS_END_CONF(Signal* signal)
 {
   jamEntry();
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_CONF", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_END_CONF", __LINE__);
   const SchemaTransEndConf* conf =
     (const SchemaTransEndConf*)signal->getDataPtr();
 
@@ -25532,7 +25576,7 @@ void
 Dbdict::execSCHEMA_TRANS_END_REF(Signal* signal)
 {
   jamEntry();
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_REF", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_END_REF", __LINE__);
   const SchemaTransEndRef* ref =
     (const SchemaTransEndRef*)signal->getDataPtr();
 
@@ -25549,7 +25593,7 @@ void
 Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
 {
   jamEntry();
-  g_eventLogger->info("QQQ(%u) - execSCHEMA_TRANS_END_REP", __LINE__);
+  g_eventLogger->info("QQQ(%u) - Dbdict::execSCHEMA_TRANS_END_REP", __LINE__);
   const SchemaTransEndRep* rep =
     (const SchemaTransEndRep*)signal->getDataPtr();
 
