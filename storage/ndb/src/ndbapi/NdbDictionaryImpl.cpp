@@ -4325,11 +4325,17 @@ NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
                      SubStartRef::BusyWithNR,
                      SubStartRef::NotMaster,
                      0 };
-  DBUG_RETURN(dictSignal(&tSignal,NULL,0,
-			 0 /*use masternode id*/,
-			 WAIT_CREATE_INDX_REQ /*WAIT_SUB_STOP__REQ*/,
-			 -1, 100,
-			 errCodes, -1));
+  int ret= dictSignal(&tSignal,NULL,0,
+                      0 /*use masternode id*/,
+                      WAIT_CREATE_INDX_REQ /*WAIT_SUB_STOP__REQ*/,
+                      -1, 100,
+                      errCodes, -1);
+  if (ret == 0)
+  {
+    Uint32 *data = (Uint32*)m_buffer.get_data();
+    ev_op.m_stop_gci = data[1] | (Uint64(data[0]) << 32);
+  }
+  DBUG_RETURN(ret);
 }
 
 NdbEventImpl * 
@@ -4519,6 +4525,20 @@ NdbDictInterface::execSUB_STOP_CONF(NdbApiSignal * signal,
 
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subscriptionId,subscriptionKey,subscriberData));
+
+  Uint32 gci_hi= 0;
+  Uint32 gci_lo= 0;
+  if (SubStopConf::SignalLength >= SubStopConf::SignalLengthWithGci)
+  {
+    gci_hi= subStopConf->gci_hi;
+    gci_lo= subStopConf->gci_lo;
+  }
+
+  m_buffer.grow(4 * 2); // 2 words
+  Uint32* data = (Uint32*)m_buffer.get_data();
+  data[0] = gci_hi;
+  data[1] = gci_lo;
+
   m_waiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }

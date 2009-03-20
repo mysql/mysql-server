@@ -222,7 +222,8 @@ struct SubStopConf {
    */
 
   friend bool printSUB_STOP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLengthWithGci = 9 );
+  STATIC_CONST( SignalLength = 9 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -231,6 +232,9 @@ struct SubStopConf {
   Uint32 part;  // SubscriptionData::Part
   Uint32 subscriberData;
   Uint32 subscriberRef;
+  //
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 struct SubSyncReq {

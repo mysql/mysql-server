@@ -13470,6 +13470,15 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
     jam();
     EVENT_TRACE;
     releaseSections(handle);
+
+    if (ERROR_INSERTED(6023))
+    {
+      jam();
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      return;
+    }
+
     createEvent_RT_DICT_AFTER_GET(signal, evntRecPtr);
     return;
   }
@@ -14143,15 +14152,44 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
   ndbout_c("DBDICT(Coordinator) got GSN_CREATE_EVNT_REF evntRecPtr.i = (%d)", evntRecPtr.i);
 #endif
 
-  if (ref->errorCode == CreateEvntRef::NF_FakeErrorREF){
+  LinearSectionPtr ptr[1];
+
+  int noLSP = 0;
+  LinearSectionPtr *ptr0 = NULL;
+  if (ref->errorCode == CreateEvntRef::NF_FakeErrorREF)
+  {
     jam();
-    evntRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(ref->senderRef));
-  } else {
+    evntRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, 
+                                         refToNode(ref->senderRef));
+
+    /**
+     * If a CREATE_EVNT_REF finishes request,
+     *   we need to make sure that table name is sent
+     *   same as it is if a CREATE_EVNT_CONF finishes request
+     */
+    if (evntRecPtr.p->m_reqTracker.done())
+    {
+      jam();
+      /**
+       * Add "extra" check if tracker is done...
+       *   (strictly not necessary...)
+       *   but makes case more explicit
+       */
+      ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
+      ptr[0].sz = (strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4;
+      ptr0 = ptr;
+      noLSP = 1;
+    }
+  }
+  else 
+  {
     jam();
     evntRecPtr.p->m_errorCode = ref->errorCode;
-    evntRecPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(ref->senderRef));
+    evntRecPtr.p->m_reqTracker.reportRef(c_counterMgr, 
+                                         refToNode(ref->senderRef));
   }
-  createEvent_sendReply(signal, evntRecPtr);
+
+  createEvent_sendReply(signal, evntRecPtr, ptr0, noLSP);
 
   return;
 }
@@ -14729,6 +14767,7 @@ busy:
     subbPtr.p->m_subscriptionKey = req->subscriptionKey;
     subbPtr.p->m_subscriberRef = req->subscriberRef;
     subbPtr.p->m_subscriberData = req->subscriberData;
+    bzero(&subbPtr.p->m_sub_stop_conf, sizeof(subbPtr.p->m_sub_stop_conf));
 
     if (signal->getLength() < SubStopReq::SignalLength)
     {
@@ -14873,7 +14912,24 @@ void Dbdict::execSUB_STOP_CONF(Signal* signal)
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
+  Uint64 old_gci, new_gci = 0;
+  {
+    Uint32 old_gci_hi = subbPtr.p->m_sub_stop_conf.gci_hi;
+    Uint32 old_gci_lo = subbPtr.p->m_sub_stop_conf.gci_lo;
+    old_gci = old_gci_lo | (Uint64(old_gci_hi) << 32);
+    if (signal->getLength() >= SubStopConf::SignalLengthWithGci)
+    {
+      Uint32 new_gci_hi = conf->gci_hi;
+      Uint32 new_gci_lo = conf->gci_lo;
+      new_gci = new_gci_lo | (Uint64(new_gci_hi) << 32);
+    }
+  }
   subbPtr.p->m_sub_stop_conf = *conf;
+  if (old_gci > new_gci)
+  {
+    subbPtr.p->m_sub_stop_conf.gci_hi= Uint32(old_gci>>32);
+    subbPtr.p->m_sub_stop_conf.gci_lo= Uint32(old_gci);
+  }
   subbPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
   completeSubStopReq(signal,subbPtr.i,0);
 }
