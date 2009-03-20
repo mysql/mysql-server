@@ -1,5 +1,10 @@
 2009-03-20	The InnoDB Team
 
+	* fil/fil0fil.c:
+	Refer to fil_system directly, not via local variables.
+
+2009-03-20	The InnoDB Team
+
 	* page/page0page.c:
 	In page_validate(), always report the space id, page number and
 	the name of the index when corruption is noticed.
