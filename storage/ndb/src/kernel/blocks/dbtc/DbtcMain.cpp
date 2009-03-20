@@ -161,10 +161,8 @@ operator<<(NdbOut& out, Dbtc::ScanFragRec::ScanFragState state){
 }
 #endif
 
-#ifdef ERROR_INSERT
 extern int ErrorSignalReceive;
 extern int ErrorMaxSegmentsToSeize;
-#endif
 
 void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
