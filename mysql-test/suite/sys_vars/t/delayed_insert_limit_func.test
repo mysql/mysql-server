@@ -1,23 +1,26 @@
-############# mysql-test\t\sql_low_priority_updates_func.test ###########################
-#                                                                                       #
-# Variable Name: sql_low_priority_updates                                               #
-# Scope: GLOBAL                                                                         #
-# Access Type: Dynamic                                                                  #
-# Data Type: BOOLEAN                                                                    #
-# Default Value: 1 TRUE                                                                 #
-# Values:       1 TRUE, 0 FALSE                                                         #
-#                                                                                       #
-#                                                                                       #
-# Creation Date: 2008-02-25                                                             #
-# Author:  Sharique Abdullah                                                            #
-#                                                                                       #
-# Description: Test Cases of Dynamic System Variable "sql_low_priority_updates"         #
-#              that checks behavior of this variable in the following ways              #
-#              * Functionality based on different values                                #
-#                                                                                       #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html                     #
-#                                                                                       #
-#########################################################################################
+################################################################################
+#                                                                              #
+# Variable Name: sql_low_priority_updates                                      #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: BOOLEAN                                                           #
+# Default Value: 1 TRUE                                                        #
+# Values:       1 TRUE, 0 FALSE                                                #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-25                                                    #
+# Author:  Sharique Abdullah                                                   #
+# Modified: HHunger 2009-02-26 Replaced 2 sleeps by wait conditions            #
+# Modified: mleich  2009-03-18 Partially reimplemented                         #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "sql_low_priority_updates"#
+#              that checks behavior of this variable in the following ways     #
+#              * Functionality based on different values                       #
+#                                                                              #
+# Reference:                                                                   #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
+#                                                                              #
+################################################################################
 
 --echo ** Setup **
 --echo
@@ -29,8 +32,10 @@
 
 --echo Creating connection con0
 connect (con0,localhost,root,,);
+let $con0_id=`SELECT CONNECTION_ID()`;
 --echo Creating connection con1
 connect (con1,localhost,root,,);
+let $con1_id=`SELECT CONNECTION_ID()`;
 
 connection default;
 
@@ -40,31 +45,20 @@ SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
 # Create Table
 #
 
-CREATE TABLE t1 (a varchar(100));
+CREATE TABLE t1 (a VARCHAR(100),b VARCHAR(100),c VARCHAR(100));
 
 --echo '#--------------------FN_DYNVARS_25_01-------------------------#'
-#
-# Value less than the provided INSERTS (9)
-#
 
-SET GLOBAL delayed_insert_limit = 9;
+# delayed_insert_limit is smaller than the number of inserted rows
 
---echo ** Connection con0 **
-connection con0;
-SET GLOBAL delayed_insert_limit = 9;
---echo ** Connection con1 **
-connection con1;
-SET GLOBAL delayed_insert_limit = 9;
---echo ** Connection default **
-connection default;
-SET GLOBAL delayed_insert_limit = 9;
+SET GLOBAL delayed_insert_limit = 14;
 
-INSERT INTO t1 VALUES('1');
-INSERT INTO t1 VALUES('2');
-INSERT INTO t1 VALUES('3');
-INSERT INTO t1 VALUES('4');
-INSERT INTO t1 VALUES('5');
-INSERT INTO t1 VALUES('6');
+INSERT INTO t1 VALUES('1','1','1');
+INSERT INTO t1 VALUES('2','1','1');
+INSERT INTO t1 VALUES('3','1','1');
+INSERT INTO t1 VALUES('4','1','1');
+INSERT INTO t1 VALUES('5','1','1');
+INSERT INTO t1 VALUES('6','1','1');
 
 LOCK TABLE t1 WRITE;
 
@@ -72,76 +66,94 @@ LOCK TABLE t1 WRITE;
 connection con1;
 
 delimiter |;
-
 send
-INSERT DELAYED INTO t1 VALUES('7');
-INSERT DELAYED INTO t1 VALUES('8');
-INSERT DELAYED INTO t1 VALUES('9');
-INSERT DELAYED INTO t1 VALUES('10');
-INSERT DELAYED INTO t1 VALUES('11');
-INSERT DELAYED INTO t1 VALUES('12');
-INSERT DELAYED INTO t1 VALUES('13');
-INSERT DELAYED INTO t1 VALUES('14');
-INSERT DELAYED INTO t1 VALUES('15');
-INSERT DELAYED INTO t1 VALUES('16');
-INSERT DELAYED INTO t1 VALUES('17');
-INSERT DELAYED INTO t1 VALUES('18');
-INSERT DELAYED INTO t1 VALUES('19');
-INSERT DELAYED INTO t1 VALUES('20');
-INSERT DELAYED INTO t1 VALUES('21');
-INSERT DELAYED INTO t1 VALUES('22');|
-
+INSERT DELAYED INTO t1 VALUES('7','1','1');
+INSERT DELAYED INTO t1 VALUES('8','1','1');
+INSERT DELAYED INTO t1 VALUES('9','1','1');
+INSERT DELAYED INTO t1 VALUES('10','1','1');
+INSERT DELAYED INTO t1 VALUES('11','1','1');
+INSERT DELAYED INTO t1 VALUES('12','1','1');
+INSERT DELAYED INTO t1 VALUES('13','1','1');
+INSERT DELAYED INTO t1 VALUES('14','1','1');
+INSERT DELAYED INTO t1 VALUES('15','1','1');
+INSERT DELAYED INTO t1 VALUES('16','1','1');
+INSERT DELAYED INTO t1 VALUES('17','1','1');
+INSERT DELAYED INTO t1 VALUES('18','1','1');
+INSERT DELAYED INTO t1 VALUES('19','1','1');
+INSERT DELAYED INTO t1 VALUES('20','1','1');
+INSERT DELAYED INTO t1 VALUES('21','1','1');
+INSERT DELAYED INTO t1 VALUES('22','1','1');
+INSERT DELAYED INTO t1 VALUES('23','1','1');
+INSERT DELAYED INTO t1 VALUES('24','1','1');
+INSERT DELAYED INTO t1 VALUES('25','1','1');
+INSERT DELAYED INTO t1 VALUES('26','1','1');
+INSERT DELAYED INTO t1 VALUES('27','1','1');
+INSERT DELAYED INTO t1 VALUES('28','1','1');
+INSERT DELAYED INTO t1 VALUES('29','1','1');
+INSERT DELAYED INTO t1 VALUES('30','1','1');
+INSERT DELAYED INTO t1 VALUES('31','1','1');
+INSERT DELAYED INTO t1 VALUES('32','1','1');
+INSERT DELAYED INTO t1 VALUES('33','1','1');
+INSERT DELAYED INTO t1 VALUES('34','1','1');
+INSERT DELAYED INTO t1 VALUES('35','1','1');
+INSERT DELAYED INTO t1 VALUES('36','1','1');
+INSERT DELAYED INTO t1 VALUES('37','1','1');
+INSERT DELAYED INTO t1 VALUES('38','1','1');
+INSERT DELAYED INTO t1 VALUES('39','1','1');
+INSERT DELAYED INTO t1 VALUES('40','1','1');
+INSERT DELAYED INTO t1 VALUES('41','1','1');
+INSERT DELAYED INTO t1 VALUES('42','1','1');
+INSERT DELAYED INTO t1 VALUES('43','1','1');|
 delimiter ;|
 
 --echo ** Connection con0 **
 connection con0;
-
-delimiter |;
-
-send
-SELECT * FROM t1;|
-
-delimiter ;|
+let $wait_condition=
+   SELECT variable_value > 0 FROM information_schema.global_status
+   WHERE variable_name like 'Not_flushed_delayed_rows';
+--source include/wait_condition.inc
+let $my_select= SELECT COUNT(*) BETWEEN 21 AND 43 FROM t1;
+let $my_select= SELECT COUNT(*) FROM t1;
+send;
+eval $my_select;
 
 --echo ** Connection default **
 connection default;
-
---echo Waiting for 1 sec
---sleep 1
-
+--echo ** Wait till con0 is blocked **
+let $wait_condition=
+   SELECT COUNT(*) = 1 FROM information_schema.processlist
+   WHERE state = 'Locked' AND info = '$my_select';
+--source include/wait_condition.inc
 UNLOCK TABLES;
 
+--echo ** Connection con1 **
+connection con1;
+--echo Asynchronous "reap" result
+reap;
+
 --echo ** Connection con0 **
 connection con0;
+--echo Asynchronous "reap" result
+--echo The next result suffers from
+--echo '# Bug#35386 insert delayed inserts 1 + limit rows instead of just limit rows'
 reap;
---echo 'Bug#35386: insert delayed inserts 1 + limit rows instead of just limit rows'
 
 --echo ** Connection default **
 connection default;
-
---echo Waiting for 1 sec
---sleep 1
+let $wait_condition= SELECT count(*) = 43 FROM t1;
+--source include/wait_condition.inc
 --echo Checking if the delayed insert continued afterwards
-SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
 
-DELETE FROM t1;
+DROP TABLE t1;
 
 
 --echo '#--------------------FN_DYNVARS_25_02-------------------------#'
-#
-# Value 5
-#
 
-SET GLOBAL delayed_insert_limit = 20;
+# delayed_insert_limit is bigger than the number of inserted rows
 
---echo ** Connection con0 **
-connection con0;
-SET GLOBAL delayed_insert_limit = 20;
---echo ** Connection con1 **
-connection con1;
-SET GLOBAL delayed_insert_limit = 20;
---echo ** Connection default **
-connection default;
+CREATE TABLE t1 (a VARCHAR(100));
+
 SET GLOBAL delayed_insert_limit = 20;
 
 INSERT INTO t1 VALUES('1');
@@ -181,49 +193,52 @@ delimiter ;|
 
 --echo ** Connection con0 **
 connection con0;
-
+let $wait_condition=
+   SELECT variable_value > 0 FROM information_schema.global_status
+   WHERE variable_name like 'Not_flushed_delayed_rows';
+--source include/wait_condition.inc
 --echo Asynchronous execute
-delimiter |;
-
-send
-SELECT * FROM t1;|
-
-delimiter ;|
+let $my_select= SELECT COUNT(*) = 22 FROM t1;
+send;
+eval $my_select;
 
 --echo ** Connection default **
 connection default;
-
---echo Waiting for 1 sec
---sleep 1
-
+--echo ** Wait till con0 is blocked **
+let $wait_condition=
+   SELECT COUNT(*) = 1 FROM information_schema.processlist
+   WHERE state = 'Locked' AND info = '$my_select';
+--source include/wait_condition.inc
 UNLOCK TABLES;
+
+--echo ** Connection con1 **
+connection con1;
+reap;
 
 --echo ** Connection con0 **
 connection con0;
---echo Asynchronous execute result
+--echo Asynchronous "reap" result
 reap;
 
 --echo ** Connection default**
 connection default;
-
---echo Waiting for 1 sec
---sleep 1
 --echo Checking if the delayed insert gives the same result afterwards
-SELECT * FROM t1;
+eval $my_select;
 
-DELETE FROM t1;
 
 #
 # Cleanup
 #
 
---echo Switching to default
+--echo ** Connection default**
 connection default;
+DROP TABLE t1;
+SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
 
 --echo Disconnecting from con1, con0
 disconnect con0;
 disconnect con1;
-
-DROP TABLE t1;
-
-SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
+let $wait_condition=
+   SELECT COUNT(*) = 0 FROM information_schema.processlist
+   WHERE id IN ($con0_id,$con1_id);
+--source include/wait_condition.inc

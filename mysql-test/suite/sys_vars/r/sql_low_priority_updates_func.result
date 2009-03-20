@@ -29,7 +29,6 @@ LOCK TABLE t1 READ;
 SELECT * FROM t1;
 UNLOCK TABLES;|
 ** Connection default **
-Sleeping for 1 secs
 UNLOCK TABLES;
 ** Connection con0 **
 ** Asynchronous Result **
@@ -66,7 +65,6 @@ LOCK TABLE t1 READ;
 SELECT * FROM t1;
 UNLOCK TABLES;|
 ** Connection default **
-Sleeping for 1 secs
 UNLOCK TABLES;
 ** Connection con0 **
 ** Asynchronous Result **
