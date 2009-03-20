@@ -3177,7 +3177,7 @@ corrupt:
 		if (recv_recovery_is_on()) {
 			/* Pages must be uncompressed for crash recovery. */
 			ut_a(uncompressed);
-			recv_recover_page(FALSE, TRUE, (buf_block_t*) bpage);
+			recv_recover_page(TRUE, (buf_block_t*) bpage);
 		}
 
 		if (uncompressed && !recv_no_ibuf_operations) {
