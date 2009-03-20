@@ -225,6 +225,24 @@ innobase_get_charset(
 	void*	mysql_thd);	/* in: MySQL thread handle */
 
 /**********************************************************************
+This function is used to find the storage length in bytes of the first n
+characters for prefix indexes using a multibyte character set. The function
+finds charset information and returns length of prefix_len characters in the
+index field in bytes. */
+UNIV_INTERN
+ulint
+innobase_get_at_most_n_mbchars(
+/*===========================*/
+				/* out: number of bytes occupied by the first
+				n characters */
+	ulint charset_id,	/* in: character set id */
+	ulint prefix_len,	/* in: prefix length in bytes of the index
+				(this has to be divided by mbmaxlen to get the
+				number of CHARACTERS n in the prefix) */
+	ulint data_len,		/* in: length of the string in bytes */
+	const char* str);	/* in: character string */
+
+/**********************************************************************
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL. */
 
