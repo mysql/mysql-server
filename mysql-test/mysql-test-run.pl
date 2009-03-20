@@ -357,7 +357,7 @@ sub main {
   mtr_print_thick_line();
   mtr_print_header();
 
-  my $completed= run_test_server($server, $tests, $opt_parallel);
+  my ($completed, $fail)= run_test_server($server, $tests, $opt_parallel);
 
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
@@ -393,6 +393,10 @@ sub main {
     mtr_error("Not all tests completed");
   }
 
+  if ($fail) {
+    mtr_error("Test suite failure.");
+  }
+
   mtr_print_line();
 
   if ( $opt_gcov ) {
@@ -412,6 +416,7 @@ sub run_test_server ($$$) {
   my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
   my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
   my $num_failed_test= 0; # Number of tests failed so far
+  my $test_failure= 0;
 
   # Scheduler variables
   my $max_ndb= $childs / 2;
@@ -445,7 +450,7 @@ sub run_test_server ($$$) {
 	  $s->remove($sock);
 	  if (--$childs == 0){
 	    $suite_timeout_proc->kill();
-	    return $completed;
+	    return ($completed, $test_failure);
 	  }
 	  next;
 	}
@@ -509,18 +514,19 @@ sub run_test_server ($$$) {
 	    }
 	    $num_saved_datadir++;
 
+            $test_failure= 1;
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
 	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
-	      return $completed;
+	      return ($completed, 1);
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
-	      return undef;
+	      return (undef, 1);
 	    }
 	    $num_failed_test++;
 	  }
@@ -571,7 +577,18 @@ sub run_test_server ($$$) {
 	elsif ($line eq 'START'){
 	  ; # Send first test
 	}
-	else {
+	elsif ($line eq 'WARNINGS'){
+          my $fake_test= My::Test::read_test($sock);
+          my $test_list= join (" ", @{$fake_test->{testnames}});
+          mtr_report("***Warnings generated in error logs during shutdown ".
+                     "after running tests: $test_list");
+          $test_failure= 1;
+          if ( !$opt_force ) {
+            # Test failure due to warnings, force is off
+            $suite_timeout_proc->kill();
+            return ($completed, 1);
+          }
+        } else {
 	  mtr_error("Unknown response: '$line' from client");
 	}
 
@@ -649,7 +666,7 @@ sub run_test_server ($$$) {
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
       mtr_report("Test suite timeout! Terminating...");
-      return undef;
+      return (undef, 1);
     }
   }
 }
@@ -717,7 +734,7 @@ sub run_worker ($) {
       delete($test->{'comment'});
       delete($test->{'logfile'});
 
-      run_testcase($test);
+      run_testcase($test, $server);
       #$test->{result}= 'MTR_RES_PASSED';
       # Send it back, now with results set
       #$test->print_test();
@@ -725,6 +742,15 @@ sub run_worker ($) {
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
+      # We need to gracefully shut down the servers to see any
+      # Valgrind memory leak errors etc. since last server restart.
+      if ($opt_warnings) {
+        stop_servers(all_servers());
+        if(check_warnings_post_shutdown($server)) {
+          # Warnings appeared in log file(s) during final server shutdown.
+          exit(1);
+        }
+      }
       exit(0);
     }
     else {
@@ -732,9 +758,7 @@ sub run_worker ($) {
     }
   }
 
-  stop_all_servers();
-
-  exit(1);
+  die "Internal error: should not reach this place.";
 }
 
 
@@ -3109,6 +3133,7 @@ sub run_on_all($$)
 sub mark_log {
   my ($log, $tinfo)= @_;
   my $log_msg= "CURRENT_TEST: $tinfo->{name}\n";
+  pre_write_errorlog($log, $tinfo->{name});
   mtr_tofile($log, $log_msg);
 }
 
@@ -3181,8 +3206,8 @@ my %old_env;
 #  > 0 failure
 #
 
-sub run_testcase ($) {
-  my $tinfo=  shift;
+sub run_testcase ($$) {
+  my ($tinfo, $server_socket)= @_;
 
   mtr_verbose("Running test:", $tinfo->{name});
 
@@ -3197,7 +3222,12 @@ sub run_testcase ($) {
   {
     my @restart= servers_need_restart($tinfo);
     if ( @restart != 0) {
-      stop_servers($tinfo, @restart );
+      # Remember that we restarted for this test case (count restarts)
+      $tinfo->{'restarted'}= 1;
+      stop_servers(@restart );
+      if ($opt_warnings) {
+        check_warnings_post_shutdown($server_socket);
+      }
     }
 
     if ( started(all_servers()) == 0 )
@@ -3336,7 +3366,18 @@ sub run_testcase ($) {
 	{
 	  if ($check_res == 1) {
 	    # Test case had sideeffects, not fatal error, just continue
-	    stop_all_servers();
+            if ($opt_warnings) {
+              # Checking error logs for warnings, so need to stop server
+              # gracefully so that memory leaks etc. can be properly detected.
+              stop_servers(all_servers());
+              check_warnings_post_shutdown($server_socket);
+              # Even if we got warnings here, we should not fail this
+              # particular test, as the warnings may be caused by an earlier
+              # test.
+            } else {
+              # Not checking warnings, so can do a hard shutdown.
+              stop_all_servers();
+            }
 	    mtr_report("Resuming tests...\n");
 	  }
 	  else {
@@ -3468,6 +3509,64 @@ sub run_testcase ($) {
 }
 
 
+# We want to preserve the error log between server restarts, as it may contain
+# valuable debugging information even if there is no test failure recorded.
+sub _preserve_error_log_names {
+  my ($mysqld)= @_;
+  my $error_log_file= $mysqld->value('log-error');
+  my $error_log_dir= dirname($error_log_file);
+  my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
+  return ($error_log_file, $save_name);
+}
+
+sub preserve_error_log {
+  my ($mysqld)= @_;
+  my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
+  my $res= rename($error_log_file, $save_name);
+  # Ignore any errors, as it's just a best-effort to keep the log if possible.
+}
+
+sub restore_error_log {
+  my ($mysqld)= @_;
+  my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
+  my $res= rename($save_name, $error_log_file);
+}
+
+# Keep track of last position in mysqld error log where we scanned for
+# warnings, so we can attribute any warnings found to the correct test
+# suite or server restart.
+my $last_warning_position= { };
+
+# Called just before a mysqld server is started or a testcase is run,
+# to keep track of which tests have been run since last restart, and
+# of when the error log is reset.
+#
+# Second argument $test_name is test name, or undef for server restart.
+sub pre_write_errorlog {
+  my ($error_log, $test_name)= @_;
+
+  if (! -e $error_log) {
+    # If the error log is moved away, reset the warning parse position.
+    delete $last_warning_position->{$error_log};
+  }
+
+  if (defined($test_name)) {
+    $last_warning_position->{$error_log}{test_names}= []
+      unless exists($last_warning_position->{$error_log}{test_names});
+    push @{$last_warning_position->{$error_log}{test_names}}, $test_name;
+  } else {
+    # Server restart, so clear the list of tests run since last restart.
+    # (except the last one (if any), which is the test about to be run).
+    if (defined($last_warning_position->{$error_log}{test_names}) &&
+        @{$last_warning_position->{$error_log}{test_names}}) {
+      $last_warning_position->{$error_log}{test_names}=
+        [$last_warning_position->{$error_log}{test_names}[-1]];
+    } else {
+      $last_warning_position->{$error_log}{test_names}= [];
+    }
+  }
+}
+
 #
 # Perform a rough examination of the servers
 # error log and write all lines that look
@@ -3479,18 +3578,14 @@ sub extract_warning_lines ($) {
   # Open the servers .err log file and read all lines
   # belonging to current tets into @lines
   my $Ferr = IO::File->new($error_log)
-    or mtr_error("Could not open file '$error_log' for reading: $!");
+    or return [];
+  my $last_pos= $last_warning_position->{$error_log}{seek_pos};
+  $Ferr->seek($last_pos, 0) if defined($last_pos);
+  # If the seek fails, we will parse the whole error log, at least we will not
+  # miss any warnings.
 
-  my @lines;
-  while ( my $line = <$Ferr> )
-  {
-    if ( $line =~ /^CURRENT_TEST:/ )
-    {
-      # Throw away lines from previous tests
-      @lines = ();
-    }
-    push(@lines, $line);
-  }
+  my @lines= <$Ferr>;
+  $last_warning_position->{$error_log}{seek_pos}= $Ferr->tell();
   $Ferr = undef; # Close error log file
 
   # mysql_client_test.test sends a COM_DEBUG packet to the server
@@ -3537,20 +3632,47 @@ sub extract_warning_lines ($) {
      qr/Attempting backtrace/,
      qr/Assertion .* failed/,
     );
+  # These are taken from the include/mtr_warnings.sql global suppression
+  # list. They occur delayed, so they can be parsed during shutdown rather
+  # than during the per-test check.
+  #
+  # ToDo: having the warning suppressions inside the mysqld we are trying to
+  # check is in any case horrible. We should change it to all be done here
+  # within the Perl code, which is both simpler, easier, faster, and more
+  # robust. We could still have individual test cases put in suppressions by
+  # parsing statically or by writing dynamically to a CSV table read by the
+  # Perl code.
+  my @antipatterns =
+    (
+     qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
+     qr/InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/,
+    );
 
-  foreach my $line ( @lines )
+  my $match_count= 0;
+  LINE: foreach my $line ( @lines )
   {
-    foreach my $pat ( @patterns )
+    PAT: foreach my $pat ( @patterns )
     {
       if ( $line =~ /$pat/ )
       {
+        foreach my $apat (@antipatterns)
+        {
+          next LINE if $line =~ $apat;
+        }
 	print $Fwarn $line;
-	last;
+        ++$match_count;
+	last PAT;
       }
     }
   }
   $Fwarn = undef; # Close file
 
+  if ($match_count > 0 &&
+      defined($last_warning_position->{$error_log}{test_names})) {
+    return $last_warning_position->{$error_log}{test_names};
+  } else {
+    return [];
+  }
 }
 
 
@@ -3717,6 +3839,22 @@ sub check_warnings ($) {
   mtr_error("INTERNAL_ERROR: check_warnings");
 }
 
+# Check for warnings generated during shutdown of a mysqld server.
+# If any, report them to master server, and return true; else just return false.
+sub check_warnings_post_shutdown {
+  my ($server_socket)= @_;
+  my $testname_hash= { };
+  foreach my $mysqld ( mysqlds())
+  {
+    my $testlist= extract_warning_lines($mysqld->value('log-error'));
+    $testname_hash->{$_}= 1 for @$testlist;
+  }
+  my @warning_tests= keys(%$testname_hash);
+  if (@warning_tests) {
+    my $fake_test= My::Test->new(testnames => \@warning_tests);
+    $fake_test->write_test($server_socket, 'WARNINGS');
+  }
+}
 
 #
 # Loop through our list of processes and look for and entry
@@ -3814,6 +3952,7 @@ sub clean_datadir {
   foreach my $mysqld ( mysqlds() )
   {
     my $mysqld_dir= dirname($mysqld->value('datadir'));
+    preserve_error_log($mysqld);
     if (-d $mysqld_dir ) {
       mtr_verbose(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
@@ -4142,6 +4281,7 @@ sub mysqld_start ($$) {
 
   if ( defined $exe )
   {
+    pre_write_errorlog($output);
     $mysqld->{'proc'}= My::SafeProcess->new
       (
        name          => $mysqld->name(),
@@ -4371,10 +4511,7 @@ sub get_extra_opts {
 
 
 sub stop_servers($$) {
-  my ($tinfo, @servers)= @_;
-
-  # Remember if we restarted for this test case (count restarts)
-  $tinfo->{'restarted'}= 1;
+  my (@servers)= @_;
 
   if ( join('|', @servers) eq join('|', all_servers()) )
   {
@@ -4466,6 +4603,7 @@ sub start_servers($) {
       }
 
       if (-d $datadir ) {
+        preserve_error_log($mysqld);
 	mtr_verbose(" - removing '$datadir'");
 	rmtree($datadir);
       }
@@ -4491,6 +4629,7 @@ sub start_servers($) {
 	unless -d $datadir;
 
     }
+    restore_error_log($mysqld);
 
     # Create the servers tmpdir
     my $tmpdir= $mysqld->value('tmpdir');
