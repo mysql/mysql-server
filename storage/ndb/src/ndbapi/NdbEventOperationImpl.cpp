@@ -182,7 +182,7 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
 
   m_state= EO_CREATED;
 
-  m_node_bit_mask.clear();
+  m_stop_gci = 0;
 #ifdef ndb_event_stores_merge_events_flag
   m_mergeEvents = m_eventImpl->m_mergeEvents;
 #else
@@ -606,7 +606,7 @@ NdbEventOperationImpl::execute_nolock()
   // add kernel reference
   // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
-  m_node_bit_mask.set(0u);
+  m_stop_gci= ~(Uint64)0;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   Uint32 buckets = 0;
   int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this,
@@ -628,10 +628,6 @@ NdbEventOperationImpl::execute_nolock()
           m_error.code= myDict->getNdbError().code;
           DBUG_RETURN(r);
         }
-        // add blob reference to main op
-        // removed by TE_STOP or TE_CLUSTER_FAILURE
-        m_ref_count++;
-        DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
         blob_op = blob_op->m_next;
       }
     }
@@ -644,7 +640,7 @@ NdbEventOperationImpl::execute_nolock()
   // remove kernel reference
   // added above
   m_ref_count--;
-  m_node_bit_mask.clear(0u);
+  m_stop_gci = 0;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   m_state= EO_ERROR;
   mi_type= 0;
@@ -696,6 +692,23 @@ NdbEventOperationImpl::stop()
   m_state= EO_DROPPED;
   mi_type= 0;
   if (r == 0) {
+    if (m_stop_gci == 0)
+    {
+      // response from old kernel
+      Uint64 gci= m_ndb->theEventBuffer->m_highest_sub_gcp_complete_GCI;
+      if (gci)
+      {
+        // calculate a "safe" gci in the future to remove event op.
+        gci += Uint64(3) << 32;
+      }
+      else
+      {
+        // set highest value to ensure that operation does not get dropped
+        // too early. Note '-1' as ~Uint64(0) indicates active event
+        gci = ~Uint64(0)-1;
+      }
+      m_stop_gci = gci;
+    }
     m_ndb->theEventBuffer->add_drop_unlock();
     DBUG_RETURN(0);
   }
@@ -1051,6 +1064,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_max_gci_index(0),
   m_ndb(ndb),
   m_latestGCI(0), m_latest_complete_GCI(0),
+  m_latest_poll_GCI(0),
+  m_highest_sub_gcp_complete_GCI(0),
   m_total_alloc(0),
   m_free_thresh(0),
   m_min_free_thresh(0),
@@ -1145,7 +1160,7 @@ NdbEventBuffer::init_gci_containers()
 {
   m_startup_hack = true;
   bzero(&m_complete_data, sizeof(m_complete_data));
-  m_latest_complete_GCI = m_latestGCI = 0;
+  m_latest_complete_GCI = m_latestGCI = m_latest_poll_GCI = 0;
   m_active_gci.clear();
   m_active_gci.fill(3, g_empty_gci_container);
   m_min_gci_index = m_max_gci_index = 1;
@@ -1201,8 +1216,7 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
     if (unlikely(ev_op == 0))
       ret= 0;
   }
-  if (latestGCI)
-    *latestGCI= m_latestGCI;
+  m_latest_poll_GCI= m_latestGCI;
 #ifdef VM_TRACE
   if (ev_op)
   {
@@ -1213,7 +1227,19 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
   }
   m_latest_command= m_latest_command_save;
 #endif
+  if (unlikely(ev_op == 0))
+  {
+    /*
+      gci's consumed up until m_latest_poll_GCI, so we can free all
+      dropped event operations stopped up until that gci
+    */
+    deleteUsedEventOperations(m_latest_poll_GCI);
+  }
   NdbMutex_Unlock(m_mutex); // we have moved the data
+
+  if (latestGCI)
+    *latestGCI= m_latest_poll_GCI;
+
   return ret;
 }
 
@@ -1332,11 +1358,6 @@ NdbEventBuffer::nextEvent()
          EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
          while (gci_ops && op->getGCI() > gci_ops->m_gci)
          {
-           // moved to next gci, check if any references have been
-           // released when completing the last gci
-           NdbMutex_Lock(m_mutex);
-           deleteUsedEventOperations();
-           NdbMutex_Unlock(m_mutex);
            gci_ops = m_available_data.delete_next_gci_ops();
          }
          if (!gci_ops->m_consistent)
@@ -1364,17 +1385,21 @@ NdbEventBuffer::nextEvent()
   m_latest_command= m_latest_command_save;
 #endif
 
-  // free all "per gci unique" collected operations
-  // completed gci, check if any references have been
-  // released when completing the gci
-  NdbMutex_Lock(m_mutex);
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   while (gci_ops)
   {
-    deleteUsedEventOperations();
     gci_ops = m_available_data.delete_next_gci_ops();
   }
-  NdbMutex_Unlock(m_mutex);
+  /*
+    gci's consumed up until m_latest_poll_GCI, so we can free all
+    dropped event operations stopped up until that gci
+  */
+  if (m_dropped_ev_op)
+  {
+    NdbMutex_Lock(m_mutex);
+    deleteUsedEventOperations(m_latest_poll_GCI);
+    NdbMutex_Unlock(m_mutex);
+  }
   DBUG_RETURN_EVENT(0);
 }
 
@@ -1431,30 +1456,33 @@ NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 }
 
 void
-NdbEventBuffer::deleteUsedEventOperations()
+NdbEventBuffer::deleteUsedEventOperations(Uint64 last_consumed_gci)
 {
-  Uint32 iter= 0;
-  const NdbEventOperation *op_f;
-  while ((op_f= getGCIEventOperations(&iter, NULL)) != NULL)
+  NdbEventOperationImpl *op= m_dropped_ev_op;
+  while (op && op->m_stop_gci)
   {
-    NdbEventOperationImpl *op = &op_f->m_impl;
-    DBUG_ASSERT(op->m_ref_count > 0);
-    // remove gci reference
-    // added in inserDataL
-    op->m_ref_count--;
-    DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
-    if (op->m_ref_count == 0)
+    if (last_consumed_gci > op->m_stop_gci)
     {
-      DBUG_PRINT("info", ("deleting op: %p", op));
-      DBUG_ASSERT(op->m_node_bit_mask.isclear());
-      if (op->m_next)
-        op->m_next->m_prev = op->m_prev;
-      if (op->m_prev)
-        op->m_prev->m_next = op->m_next;
-      else
-        m_dropped_ev_op = op->m_next;
-      delete op->m_facade;
+      while (op)
+      {
+        NdbEventOperationImpl *next_op= op->m_next;
+        op->m_stop_gci= 0;
+        op->m_ref_count--;
+        if (op->m_ref_count == 0)
+        {
+          if (op->m_next)
+            op->m_next->m_prev = op->m_prev;
+          if (op->m_prev)
+            op->m_prev->m_next = op->m_next;
+          else
+            m_dropped_ev_op = op->m_next;
+          delete op->m_facade;
+        }
+        op = next_op;
+      }
+      break;
     }
+    op = op->m_next;
   }
 }
 
@@ -1851,6 +1879,18 @@ void
 NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
                                          Uint32 len, int complete_cluster_failure)
 {
+  Uint32 gci_hi = rep->gci_hi;
+  Uint32 gci_lo = rep->gci_lo;
+
+  if (unlikely(len < SubGcpCompleteRep::SignalLength))
+  {
+    gci_lo = 0;
+  }
+
+  const Uint64 gci= gci_lo | (Uint64(gci_hi) << 32);
+  if (gci > m_highest_sub_gcp_complete_GCI)
+    m_highest_sub_gcp_complete_GCI = gci;
+
   if (!complete_cluster_failure)
   {
     m_alive_node_bit_mask.set(refToNode(rep->senderRef));
@@ -1863,15 +1903,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
   
   DBUG_ENTER_EVENT("NdbEventBuffer::execSUB_GCP_COMPLETE_REP");
 
-  Uint32 gci_hi = rep->gci_hi;
-  Uint32 gci_lo = rep->gci_lo;
-
-  if (unlikely(len < SubGcpCompleteRep::SignalLength))
-  {
-    gci_lo = 0;
-  }
-
-  const Uint64 gci= gci_lo | (Uint64(gci_hi) << 32);
   const Uint32 cnt= rep->gcp_complete_rep_count;
 
   Gci_container *bucket = find_bucket(gci);
@@ -2029,31 +2060,25 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
                              LinearSectionPtr *ptr,
                              Uint32 &oid_ref)
 {
-  NdbEventOperationImpl *dropped_ev_op = m_dropped_ev_op;
   DBUG_PRINT("info", ("gci{hi/lo}: %u/%u", data.gci_hi, data.gci_lo));
   do
   {
-    do
+    if (impl->m_stop_gci == ~Uint64(0))
     {
-      if (impl->m_node_bit_mask.get(0u))
+      oid_ref = impl->m_oid;
+      insertDataL(impl, &data, SubTableData::SignalLength, ptr);
+    }
+    NdbEventOperationImpl* blob_op = impl->theBlobOpList;
+    while (blob_op != NULL)
+    {
+      if (blob_op->m_stop_gci == ~Uint64(0))
       {
-        oid_ref = impl->m_oid;
-        insertDataL(impl, &data, SubTableData::SignalLength, ptr);
+        oid_ref = blob_op->m_oid;
+        insertDataL(blob_op, &data, SubTableData::SignalLength, ptr);
       }
-      NdbEventOperationImpl* blob_op = impl->theBlobOpList;
-      while (blob_op != NULL)
-      {
-        if (blob_op->m_node_bit_mask.get(0u))
-        {
-          oid_ref = blob_op->m_oid;
-          insertDataL(blob_op, &data, SubTableData::SignalLength, ptr);
-        }
-        blob_op = blob_op->m_next;
-      }
-    } while((impl = impl->m_next));
-    impl = dropped_ev_op;
-    dropped_ev_op = NULL;
-  } while (impl);
+      blob_op = blob_op->m_next;
+    }
+  } while((impl = impl->m_next));
 }
 
 bool
@@ -2249,38 +2274,7 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
 void
 NdbEventBuffer::report_node_connected(Uint32 node_id)
 {
-  NdbEventOperation* op= m_ndb->getEventOperation(0);
-  if (op == 0)
-  {
-    return;
-  }
-  
-  DBUG_ENTER("NdbEventBuffer::report_node_connected");
-  SubTableData data;
-  LinearSectionPtr ptr[3];
-  bzero(&data, sizeof(data));
-  bzero(ptr, sizeof(ptr));
-
-  data.tableId = ~0;
-  data.requestInfo = 0;
-  SubTableData::setOperation(data.requestInfo,
-			     NdbDictionary::Event::_TE_ACTIVE);
-  SubTableData::setReqNodeId(data.requestInfo, node_id);
-  SubTableData::setNdbdNodeId(data.requestInfo, node_id);
-  data.flags = SubTableData::LOG;
-
-  Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
-  find_max_known_gci(&gci);
-
-  data.gci_hi = Uint32(gci >> 32);
-  data.gci_lo = Uint32(gci);
-
-  /**
-   * Insert this event for each operation
-   */
-  // no need to lock()/unlock(), receive thread calls this
-  insert_event(&op->m_impl, data, ptr, data.senderData);
-  DBUG_VOID_RETURN;
+  return;
 }
 
 void
@@ -2432,74 +2426,29 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 
   if (!is_data_event)
   {
-    switch (operation)
+    if (operation == NdbDictionary::Event::_TE_CLUSTER_FAILURE)
     {
-    case NdbDictionary::Event::_TE_NODE_FAILURE:
-      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
-      op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
-      DBUG_PRINT("info",
-                 ("_TE_NODE_FAILURE: m_ref_count: %u for op: %p id: %u",
-                  op->m_ref_count, op, SubTableData::getNdbdNodeId(ri)));
-      break;
-    case NdbDictionary::Event::_TE_ACTIVE:
-      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
-      op->m_node_bit_mask.set(SubTableData::getNdbdNodeId(ri));
+      /*
+        Mark event as stopping.  Subsequent dropEventOperation
+        will add the event to the dropped list for delete
+      */
+      op->m_stop_gci = gci;
+    }
+    else if (operation == NdbDictionary::Event::_TE_ACTIVE)
+    {
       // internal event, do not relay to user
       DBUG_PRINT("info",
                  ("_TE_ACTIVE: m_ref_count: %u for op: %p id: %u",
                   op->m_ref_count, op, SubTableData::getNdbdNodeId(ri)));
       DBUG_RETURN_EVENT(0);
-      break;
-    case NdbDictionary::Event::_TE_CLUSTER_FAILURE:
-      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
-      op->m_node_bit_mask.clear();
-      DBUG_ASSERT(op->m_ref_count > 0);
-      // remove kernel reference
-      // added in execute_nolock
-      op->m_ref_count--;
-      DBUG_PRINT("info", ("_TE_CLUSTER_FAILURE: m_ref_count: %u for op: %p",
-                          op->m_ref_count, op));
-      if (op->theMainOp)
-      {
-        DBUG_ASSERT(op->m_ref_count == 0);
-        DBUG_ASSERT(op->theMainOp->m_ref_count > 0);
-        // remove blob reference in main op
-        // added in execute_no_lock
-        op->theMainOp->m_ref_count--;
-        DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
-                            op->theMainOp->m_ref_count, op->theMainOp));
-      }
-      break;
-    case NdbDictionary::Event::_TE_STOP:
-      DBUG_ASSERT(op->m_node_bit_mask.get(0u) != 0);
-      op->m_node_bit_mask.clear(0u);
-      op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
-      if (op->m_node_bit_mask.isclear())
-      {
-        DBUG_ASSERT(op->m_ref_count > 0);
-        // remove kernel reference
-        // added in execute_no_lock
-        op->m_ref_count--;
-        DBUG_PRINT("info", ("_TE_STOP: m_ref_count: %u for op: %p",
-                            op->m_ref_count, op));
-        if (op->theMainOp)
-        {
-          DBUG_ASSERT(op->m_ref_count == 0);
-          DBUG_ASSERT(op->theMainOp->m_ref_count > 0);
-          // remove blob reference in main op
-          // added in execute_no_lock
-          op->theMainOp->m_ref_count--;
-          DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
-                              op->theMainOp->m_ref_count, op->theMainOp));
-        }
-      }
-      else
-      {
-        op->m_node_bit_mask.set(0u);
-      }
-      break;
-    default:
-      break;
+    }
+    else if (operation == NdbDictionary::Event::_TE_STOP)
+    {
+      // internal event, do not relay to user
+      DBUG_PRINT("info",
+                 ("_TE_STOP: m_ref_count: %u for op: %p id: %u",
+                  op->m_ref_count, op, SubTableData::getNdbdNodeId(ri)));
+      DBUG_RETURN_EVENT(0);
     }
   }
   
@@ -3285,10 +3234,6 @@ EventBufData_list::add_gci_op(Gci_op g)
 #ifndef DBUG_OFF
     i = m_gci_op_count;
 #endif
-    // add gci reference
-    // removed in deleteUsedOperations
-    g.op->m_ref_count++;
-    DBUG_PRINT("info", ("m_ref_count: %u for op: %p", g.op->m_ref_count, g.op));
     m_gci_op_list[m_gci_op_count++] = g;
   }
   DBUG_PRINT_EVENT("exit", ("m_gci_op_list[%u].event_types: %x", i, m_gci_op_list[i].event_types));
@@ -3392,12 +3337,23 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   // stop blob event ops
   if (op->theMainOp == NULL)
   {
+    Uint64 max_stop_gci = op->m_stop_gci;
     NdbEventOperationImpl* tBlobOp = op->theBlobOpList;
     while (tBlobOp != NULL)
     {
       tBlobOp->stop();
+      Uint64 stop_gci = tBlobOp->m_stop_gci;
+      if (stop_gci > max_stop_gci)
+        max_stop_gci = stop_gci;
       tBlobOp = tBlobOp->m_next;
     }
+    tBlobOp = op->theBlobOpList;
+    while (tBlobOp != NULL)
+    {
+      tBlobOp->m_stop_gci = max_stop_gci;
+      tBlobOp = tBlobOp->m_next;
+    }
+    op->m_stop_gci = max_stop_gci;
   }
 
   /**
@@ -3435,7 +3391,6 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   {
     NdbMutex_Unlock(m_mutex);
     DBUG_PRINT("info", ("deleting op: %p", op));
-    DBUG_ASSERT(op->m_node_bit_mask.isclear());
     delete op->m_facade;
   }
   else

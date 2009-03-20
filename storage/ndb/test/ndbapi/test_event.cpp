@@ -1857,6 +1857,13 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
     
+    // consume events to make sure dropped events are deleted
+    if (ndb->pollEvents(0))
+    {
+      while (ndb->nextEvent())
+        ;
+    }
+
     if (ndb->dropEventOperation(pOp))
     {
       g_err << "pOp->execute(): "
@@ -2411,13 +2418,14 @@ runNFSubscribe(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   int codes[] = {
-    13013,
-    13019,
-    13020,
-    13041,
-    0,
+    6023,  (int)NdbRestarter::NS_NON_MASTER,
+    13013, (int)NdbRestarter::NS_RANDOM,
+    13019, (int)NdbRestarter::NS_RANDOM,
+    13020, (int)NdbRestarter::NS_RANDOM,
+    13041, (int)NdbRestarter::NS_RANDOM,
+    0
   };
-
+  
   int nr_codes[] = {
     13039,
     13040,
@@ -2431,13 +2439,14 @@ runNFSubscribe(NDBT_Context* ctx, NDBT_Step* step)
     int i = 0;
     while (codes[i] != 0)
     {
-      int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+      int code = codes[i++];
+      int nodeId = restarter.getNode((NdbRestarter::NodeSelector)codes[i++]);
       int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
       if (restarter.dumpStateOneNode(nodeId, val2, 2))
         return NDBT_FAILED;
       
-      ndbout_c("Node %u error: %u", nodeId, codes[i]);
-      if (restarter.insertErrorInNode(nodeId, codes[i]))
+      ndbout_c("Node %u error: %u", nodeId, code);
+      if (restarter.insertErrorInNode(nodeId, code))
         return NDBT_FAILED;
       
       if (restarter.waitNodesNoStart(&nodeId, 1))
@@ -2448,8 +2457,6 @@ runNFSubscribe(NDBT_Context* ctx, NDBT_Step* step)
       
       if (restarter.waitClusterStarted())
         return NDBT_FAILED;
-      
-      i++;
     }
     
     int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
