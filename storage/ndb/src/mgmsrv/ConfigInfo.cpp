@@ -25,6 +25,7 @@
 #include <m_string.h>
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
+#include <ndb_version.h>
 
 #else
 #include "ConfigInfo.hpp"
@@ -2800,10 +2801,6 @@ ConfigInfo::ConfigInfo()
     pinfo.put("Type",        param._type);
     pinfo.put("Status",      param._status);
 
-    if(param._default == MANDATORY){
-      pinfo.put("Mandatory", (Uint32)1);
-    }
-
     switch (param._type) {
       case CI_BOOL:
       {
@@ -2812,6 +2809,16 @@ ConfigInfo::ConfigInfo()
 	pinfo.put64("Min", tmp_bool);
 	require(InitConfigFileParser::convertStringToBool(param._max, tmp_bool));
 	pinfo.put64("Max", tmp_bool);
+
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default != UNDEFINED)
+        {
+          require(InitConfigFileParser::convertStringToBool(param._default,
+                                                            tmp_bool));
+          pinfo.put("Default", tmp_bool);
+        }
+
 	break;
       }
       case CI_INT:
@@ -2822,12 +2829,25 @@ ConfigInfo::ConfigInfo()
 	pinfo.put64("Min", tmp_uint64);
 	require(InitConfigFileParser::convertStringToUint64(param._max, tmp_uint64));
 	pinfo.put64("Max", tmp_uint64);
+
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default != UNDEFINED)
+        {
+          require(InitConfigFileParser::convertStringToUint64(param._default,
+                                                              tmp_uint64));
+          pinfo.put64("Default", tmp_uint64);
+        }
 	break;
       }
       case CI_SECTION:
 	pinfo.put("SectionType", (Uint32)UintPtr(param._default));
 	break;
       case CI_STRING:
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default != UNDEFINED)
+          pinfo.put("Default", param._default);
 	break;
     }
 
@@ -2864,6 +2884,7 @@ ConfigInfo::ConfigInfo()
 	    {
 	      require(InitConfigFileParser::convertStringToBool(param._default, default_bool));
 	      require(p->put(param._fname, default_bool));
+
 	      break;
 	    }
 	  case CI_INT:
@@ -2984,8 +3005,28 @@ ConfigInfo::getDefault(const Properties * section, const char* fname) const {
 }
 
 const char*
-ConfigInfo::getDescription(const Properties * section, 
-			   const char* fname) const {
+ConfigInfo::getDefaultString(const Properties * section,
+                             const char* fname) const {
+  return getInfoString(section, fname, "Default");
+}
+
+bool
+ConfigInfo::hasDefault(const Properties * section, const char* fname) const {
+  const Properties * p;
+  require(section->get(fname, &p));
+  return p->contains("Default");
+}
+
+bool
+ConfigInfo::getMandatory(const Properties * section, const char* fname) const {
+  const Properties * p;
+  require(section->get(fname, &p));
+  return p->contains("Mandatory");
+}
+
+const char*
+ConfigInfo::getDescription(const Properties * section,
+                           const char* fname) const {
   return getInfoString(section, fname, "Description");
 }
 
@@ -3094,76 +3135,267 @@ ConfigInfo::getStatus(const Properties * section, const char* fname) const {
  * Printers
  ****************************************************************************/
 
-void ConfigInfo::print() const {
-  Properties::Iterator it(&m_info);
-  for (const char* n = it.first(); n != NULL; n = it.next()) {
-    print(n);
+class ConfigPrinter {
+protected:
+  FILE* m_out;
+public:
+  ConfigPrinter(FILE* out = stdout) :
+    m_out(out)
+    {}
+  virtual ~ConfigPrinter() {};
+
+  virtual void start() {}
+  virtual void end() {}
+
+  virtual void section_start(const char* name, const char* alias) {}
+  virtual void section_end(const char* name) {}
+
+  virtual void parameter(const char* section_name,
+                         const Properties* section,
+                         const char* param_name,
+                         const ConfigInfo& info){}
+};
+
+
+class PrettyPrinter : public ConfigPrinter {
+public:
+  PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
+  virtual ~PrettyPrinter() {}
+
+  virtual void section_start(const char* name, const char* alias) {
+    fprintf(m_out, "****** %s ******\n\n", name);
   }
-}
+
+  virtual void parameter(const char* section_name,
+                         const Properties* section,
+                         const char* param_name,
+                         const ConfigInfo& info){
+    switch (info.getType(section, param_name)) {
+    case ConfigInfo::CI_BOOL:
+      fprintf(m_out, "%s (Boolean value)\n", param_name);
+      fprintf(m_out, "%s\n", info.getDescription(section, param_name));
+
+      if (info.getMandatory(section, param_name))
+        fprintf(m_out, "MANDATORY (Legal values: Y, N)\n");
+      else if (info.hasDefault(section, param_name))
+      {
+        if (info.getDefault(section, param_name) == false)
+          fprintf(m_out, "Default: N (Legal values: Y, N)\n");
+        else if (info.getDefault(section, param_name) == true)
+          fprintf(m_out, "Default: Y (Legal values: Y, N)\n");
+        else
+          fprintf(m_out, "UNKNOWN\n");
+      }
+      fprintf(m_out, "\n");
+      break;
+
+    case ConfigInfo::CI_INT:
+    case ConfigInfo::CI_INT64:
+      fprintf(m_out, "%s (Non-negative Integer)\n", param_name);
+      fprintf(m_out, "%s\n", info.getDescription(section, param_name));
+      if (info.getMandatory(section, param_name))
+        fprintf(m_out, "MANDATORY (");
+      else if (info.hasDefault(section, param_name))
+        fprintf(m_out, "Default: %llu (",
+                info.getDefault(section, param_name));
+      else
+        fprintf(m_out, "(");
+      fprintf(m_out, "Min: %llu, ", info.getMin(section, param_name));
+      fprintf(m_out, "Max: %llu)\n", info.getMax(section, param_name));
+      fprintf(m_out, "\n");
+      break;
+
+    case ConfigInfo::CI_STRING:
+      fprintf(m_out, "%s (String)\n", param_name);
+      fprintf(m_out, "%s\n", info.getDescription(section, param_name));
+      if (info.getMandatory(section, param_name))
+        fprintf(m_out, "MANDATORY\n");
+      else if (info.hasDefault(section, param_name))
+        fprintf(m_out, "Default: %s\n",
+              info.getDefaultString(section, param_name));
+      fprintf(m_out, "\n");
+      break;
+    case ConfigInfo::CI_SECTION:
+      break;
+    }
+  }
+};
+
+
+class XMLPrinter : public ConfigPrinter {
+  int m_indent;
+
+  void print_xml(const char* name, const Properties& pairs,
+                 bool close = true) {
+    const char* value;
+    Properties::Iterator it(&pairs);
+    for (int i= 0; i < m_indent; i++)
+      fprintf(m_out, "  ");
+    fprintf(m_out, "<%s", name);
+    for (const char* name = it.first(); name != NULL; name = it.next()) {
+      require(pairs.get(name, &value));
+      fprintf(m_out, " %s=\"%s\"", name, value);
+    }
+    if (close)
+      fprintf(m_out, "/");
+    fprintf(m_out, ">\n");
+  }
+
+public:
+  XMLPrinter(FILE* out = stdout) : ConfigPrinter(out), m_indent(0) {}
+  virtual ~XMLPrinter() {
+    assert(m_indent == 0);
+  }
+
+  virtual void start() {
+    BaseString buf;
+    Properties pairs;
+    pairs.put("protocolversion", "1");
+    pairs.put("ndbversionstring", ndbGetOwnVersionString());
+    Uint32 ndbversion = ndbGetOwnVersion();
+    buf.assfmt("%u", ndbversion);
+    pairs.put("ndbversion", buf.c_str());
+    buf.assfmt("%u", ndbGetMajor(ndbversion));
+    pairs.put("ndbversionmajor", buf.c_str());
+    buf.assfmt("%u", ndbGetMinor(ndbversion));
+    pairs.put("ndbversionminor", buf.c_str());
+    buf.assfmt("%u", ndbGetBuild(ndbversion));
+    pairs.put("ndbversionbuild", buf.c_str());
+
+    print_xml("configvariables", pairs, false);
+    m_indent++;
+  }
+  virtual void end() {
+    m_indent--;
+    Properties pairs;
+    print_xml("/configvariables", pairs, false);
+  }
+
+  virtual void section_start(const char* name, const char* alias) {
+    Properties pairs;
+    pairs.put("name", alias ? alias : name);
+    print_xml("section", pairs, false);
+    m_indent++;
+  }
+  virtual void section_end(const char* name) {
+    m_indent--;
+    Properties pairs;
+    print_xml("/section", pairs, false);
+  }
+
+  virtual void parameter(const char* section_name,
+                         const Properties* section,
+                         const char* param_name,
+                         const ConfigInfo& info){
+    BaseString buf;
+    Properties pairs;
+    pairs.put("name", param_name);
+    pairs.put("comment", info.getDescription(section, param_name));
+
+    switch (info.getType(section, param_name)) {
+    case ConfigInfo::CI_BOOL:
+      pairs.put("type", "bool");
+
+      if (info.getMandatory(section, param_name))
+        pairs.put("mandatory", "true");
+      else if (info.hasDefault(section, param_name))
+      {
+        if (info.getDefault(section, param_name) == false)
+          pairs.put("default", "false");
+        else if (info.getDefault(section, param_name) == true)
+          pairs.put("default", "true");
+      }
+      break;
+
+    case ConfigInfo::CI_INT:
+    case ConfigInfo::CI_INT64:
+      pairs.put("type", "unsigned");
+
+      if (info.getMandatory(section, param_name))
+        pairs.put("mandatory", "true");
+      else if (info.hasDefault(section, param_name))
+      {
+        buf.assfmt("%llu", info.getDefault(section, param_name));
+        pairs.put("default", buf.c_str());
+      }
+      buf.assfmt("%llu", info.getMin(section, param_name));
+      pairs.put("min", buf.c_str());
+      buf.assfmt("%llu", info.getMax(section, param_name));
+      pairs.put("max", buf.c_str());
+    break;
+
+    case ConfigInfo::CI_STRING:
+      pairs.put("type", "string");
+
+      if (info.getMandatory(section, param_name))
+        pairs.put("mandatory", "true");
+      else if (info.hasDefault(section, param_name))
+        pairs.put("default", info.getDefaultString(section, param_name));
+      break;
+
+    case ConfigInfo::CI_SECTION:
+      return; // Don't print anything for the section itself
+    }
+    print_xml("param", pairs);
+  }
+};
 
 void ConfigInfo::print(const char* section) const {
-  ndbout << "****** " << section << " ******" << endl << endl;
-  const Properties * sec = getInfo(section);
-  Properties::Iterator it(sec);
-  for (const char* n = it.first(); n != NULL; n = it.next()) {
-    // Skip entries with different F- and P-names
-    if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-    if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
-    if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
-    print(sec, n);
-  }
+  PrettyPrinter pretty_printer;
+  print_impl(section, pretty_printer);
 }
 
-void ConfigInfo::print(const Properties * section, 
-		       const char* parameter) const {
-  ndbout << parameter;
-  //  ndbout << getDescription(section, parameter) << endl;
-  switch (getType(section, parameter)) {
-  case ConfigInfo::CI_BOOL:
-    ndbout << " (Boolean value)" << endl;
-    ndbout << getDescription(section, parameter) << endl;
-    if (getDefault(section, parameter) == false) {
-      ndbout << "Default: N (Legal values: Y, N)" << endl; 
-    } else if (getDefault(section, parameter) == true) {
-      ndbout << "Default: Y (Legal values: Y, N)" << endl;
-    } else if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
-      ndbout << "MANDATORY (Legal values: Y, N)" << endl;
-    } else {
-      ndbout << "UNKNOWN" << endl;
-    }
-    ndbout << endl;
-    break;    
-    
-  case ConfigInfo::CI_INT:
-  case ConfigInfo::CI_INT64:
-    ndbout << " (Non-negative Integer)" << endl;
-    ndbout << getDescription(section, parameter) << endl;
-    if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
-      ndbout << "MANDATORY (";
-    } else if (getDefault(section, parameter) == (UintPtr)UNDEFINED) {
-      ndbout << "UNDEFINED (";
-    } else {
-      ndbout << "Default: " << getDefault(section, parameter) << " (";
-    }
-    ndbout << "Min: " << getMin(section, parameter) << ", ";
-    ndbout << "Max: " << getMax(section, parameter) << ")" << endl;
-    ndbout << endl;
-    break;
-    
-  case ConfigInfo::CI_STRING:
-    ndbout << " (String)" << endl;
-    ndbout << getDescription(section, parameter) << endl;
-    if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
-      ndbout << "MANDATORY" << endl;
-    } else {
-      ndbout << "No default value" << endl;
-    }
-    ndbout << endl;
-    break;
-  case ConfigInfo::CI_SECTION:
-    break;
-  }
+void ConfigInfo::print_xml(const char* section) const {
+  XMLPrinter xml_printer;
+  print_impl(section, xml_printer);
 }
+
+
+bool
+ConfigInfo::is_internal_section(const Properties* sec) const
+{
+  /* Check if the section is marked as internal */
+  Properties::Iterator it(sec);
+  for (const char* n = it.first(); n != NULL; n = it.next()) {
+    if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL &&
+        getType(sec, n) == ConfigInfo:: CI_SECTION)
+      return true;
+  }
+  return false;
+}
+
+
+void ConfigInfo::print_impl(const char* section_filter,
+                            ConfigPrinter& printer) const {
+  printer.start();
+  /* Iterate through all sections */
+  Properties::Iterator it(&m_info);
+  for (const char* s = it.first(); s != NULL; s = it.next()) {
+    if (section_filter && strcmp(section_filter, s))
+      continue; // Skip this section
+
+    const Properties * sec = getInfo(s);
+
+    if (is_internal_section(sec))
+      continue; // Skip whole section
+
+    printer.section_start(s, nameToAlias(s));
+
+    /* Iterate through all parameters in section */
+    Properties::Iterator it(sec);
+    for (const char* n = it.first(); n != NULL; n = it.next()) {
+      // Skip entries with different F- and P-names
+      if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
+      printer.parameter(s, sec, n, *this);
+    }
+    printer.section_end(s);
+  }
+  printer.end();
+}
+
+
 
 /****************************************************************************
  * Section Rules
