@@ -429,6 +429,7 @@ sub run_test_server ($$$) {
   my $completed= [];
   my %running;
   my $result;
+  my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
 
   my $suite_timeout_proc= My::SafeProcess->timer(suite_timeout());
 
@@ -500,7 +501,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file);
+			   My::CoreDump->show($core_file, $exe_mysqld);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
