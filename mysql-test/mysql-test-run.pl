@@ -1498,7 +1498,7 @@ sub executable_setup () {
     $exe_ndbmtd=
       my_find_bin($basedir,
 		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
-		  "ndbmtd", NOT_REQUIRED);
+		  "ndbmtdXXX", NOT_REQUIRED);
     mtr_report(" - multi threaded ndbd, will be used \"round robin\"")
       if ($exe_ndbmtd);
 
