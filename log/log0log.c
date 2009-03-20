@@ -844,7 +844,7 @@ log_init(void)
 
 #ifdef UNIV_LOG_DEBUG
 	recv_sys_create();
-	recv_sys_init(FALSE, buf_pool_get_curr_size());
+	recv_sys_init(buf_pool_get_curr_size());
 
 	recv_sys->parse_start_lsn = log_sys->lsn;
 	recv_sys->scanned_lsn = log_sys->lsn;
