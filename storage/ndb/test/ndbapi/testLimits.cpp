@@ -20,12 +20,14 @@
 #define CHECKNOTNULL(p) if ((p) == NULL) {          \
     ndbout << "Error at line " << __LINE__ << endl; \
     ERR(trans->getNdbError());                      \
+    trans->close();                                 \
     return NDBT_FAILED; }
 
 #define CHECKEQUAL(v, e) if ((e) != (v)) {            \
     ndbout << "Error at line " << __LINE__ <<         \
       " expected " << v << endl;                      \
     ERR(trans->getNdbError());                        \
+    trans->close();                                   \
     return NDBT_FAILED; }
 
 
@@ -83,7 +85,6 @@ int activateErrorInsert(NdbTransaction* trans,
     
 /* Test for correct behaviour using primary key operations
  * when an NDBD node's SegmentedSection pool is exhausted.
- * Long and Short TCKEYREQ variants are tested
  */
 int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   /*
@@ -94,11 +95,8 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
    *                     TCKEYREQ in batch      Consume + send
    * Long TCKEYREQ     Initial import, not last
    *                     TCKEYREQ in batch      Consume + send
-   * Short TCKEYREQ    KeyInfo accumulate       Consume + send long
-   *                     (TCKEYREQ + KEYINFO)
-   * Short TCKEYREQ    AttrInfo accumulate      Consume + send short key
-   *                                             + long AI
-   *                      (TCKEYREQ + ATTRINFO)
+   * No testing of short TCKEYREQ variants as they cannot be
+   * generated in mysql-5.1-telco-6.4+
    */
 
   /* We just run on one table */
@@ -309,75 +307,6 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
 
   trans->close();
 
-  /* Change error insert so that next TCKEYREQ will grab
-   * all but one SegmentedSection so that we can then test SegmentedSection
-   * exhaustion when importing the Key/AttrInfo words from the
-   * TCKEYREQ signal itself.
-   */
-  restarter.insertErrorInAllNodes(8066);
-
-
-  /* Now a 'short' TCKEYREQ, there will be space to import the
-   * short key, but not the AttrInfo
-   */
-  /* Start transaction on same node */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
-  
-  CHECKNOTNULL(bigInsertOldApi= trans->getNdbOperation(ctx->getTab()));
-  
-  CHECKEQUAL(0, bigInsertOldApi->insertTuple());
-  CHECKEQUAL(0, bigInsertOldApi->equal((Uint32)0, 
-                                       NdbDictionary::getValuePtr
-                                       (record,
-                                        smallRowBuf,
-                                        0)));
-  CHECKEQUAL(0, bigInsertOldApi->setValue(1, NdbDictionary::getValuePtr
-                                          (record,
-                                           smallRowBuf,
-                                           1)));
-
-  CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
-
-  /* ZGET_DATABUF_ERR expected */
-  CHECKEQUAL(218, trans->getNdbError().code)
-
-  trans->close();
-
-  /* Change error insert so that there are no SectionSegments 
-   * This will cause failure when attempting to import the
-   * KeyInfo from the TCKEYREQ
-   */
-  restarter.insertErrorInAllNodes(8067);
-
-  /* Now a 'short' TCKEYREQ - there will be no space to import the key */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
-  
-  CHECKNOTNULL(bigInsertOldApi= trans->getNdbOperation(ctx->getTab()));
-  
-  CHECKEQUAL(0, bigInsertOldApi->insertTuple());
-  CHECKEQUAL(0, bigInsertOldApi->equal((Uint32)0, 
-                                       NdbDictionary::getValuePtr
-                                       (record,
-                                        smallRowBuf,
-                                        0)));
-  CHECKEQUAL(0, bigInsertOldApi->setValue(1, 
-                                          NdbDictionary::getValuePtr
-                                          (record,
-                                           smallRowBuf,
-                                           1)));
-
-  CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
-
-  /* ZGET_DATABUF_ERR expected */
-  CHECKEQUAL(218, trans->getNdbError().code)
-
-  trans->close();  
-
-
   /* Finished with error insert, cleanup the error insertion
    * Error insert 8068 will free the hoarded segments
    */
@@ -403,7 +332,6 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   
 /* Test for correct behaviour using unique key operations
  * when an NDBD node's SegmentedSection pool is exhausted.
- * Long and Short TCKEYREQ variants are tested
  */
 int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* 
@@ -412,23 +340,13 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
    * Long TCINDXREQ    Initial import           Consume + send 
    * Long TCINDXREQ    Build second TCKEYREQ    Consume + send short
    *                                             w. long base key
-   * Short TCINDXREQ   KeyInfo accumulate       Consume + send long
-   *                     (TCINDXREQ + KEYINFO)
-   * Short TCINDXREQ   AttrInfo accumulate      Consume + send short key
-   *                                             + long AI
-   *                     (TCINDXREQ + ATTRINFO)
    */
   /* We will generate : 
    *   10 SS left : 
    *     Long IndexReq with too long Key/AttrInfo
+   *    5 SS left :
    *     Long IndexReq read with short Key + Attrinfo to long 
    *       base table Key
-   *     Short IndexReq with long Keyinfo
-   *     Short IndexReq with long AttrInfo
-   *   1 SS left
-   *     Short IndexReq with any AttrInfo
-   *   0 SS left
-   *     Short IndexReq with any key info 
    */
   /* We just run on one table */
   if (strcmp(ctx->getTab()->getName(), "WIDE_2COL_IX") != 0)
@@ -643,142 +561,22 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                              &smallKey[0],
                                              smallKeySize));
 
+  /* Activate error insert 8066 in this transaction, consumes
+   * all but 5 SectionSegments
+   */
+  CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
+                                          baseRecord, 
+                                          ctx->getTab(),
+                                          smallRowBuf, 
+                                          &restarter, 
+                                          8066));
+  CHECKEQUAL(0, trans->execute(NdbTransaction::NoCommit));
+  
   CHECKNOTNULL(bigRead= trans->readTuple(ixRecord,
                                          bigAttrIxBuf,
                                          baseRecord,
                                          resultSpace));
 
-  CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
-
-  /* ZGET_DATABUF_ERR expected */
-  CHECKEQUAL(218, trans->getNdbError().code)
-
-  trans->close();
-
-  /* Now try with a 'short' TCINDXREQ, generated using the old Api 
-   * with a big index key value
-   */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
-  
-  const NdbDictionary::Index* index;
-  CHECKNOTNULL(index= pNdb->getDictionary()->
-               getIndex(indexName,
-                        ctx->getTab()->getName()));
-
-  NdbIndexOperation* bigReadOldApi;
-  CHECKNOTNULL(bigReadOldApi= trans->getNdbIndexOperation(index));
-
-  CHECKEQUAL(0, bigReadOldApi->readTuple());
-  /* We use the attribute id of the index, not the base table here */
-  CHECKEQUAL(0, bigReadOldApi->equal((Uint32)0, 
-                                     NdbDictionary::getValuePtr
-                                     (ixRecord,
-                                      bigKeyIxBuf,
-                                      1)));
-
-  CHECKNOTNULL(bigReadOldApi->getValue((Uint32)1));
-
-  CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
-
-  /* ZGET_DATABUF_ERR expected */
-  CHECKEQUAL(218, trans->getNdbError().code)
-
-  trans->close();
-
-  /* Now try with a 'short' TCINDXREQ, generated using the old Api 
-   * with a big attrinfo value
-   */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
-  
-  NdbIndexOperation* bigUpdateOldApi;
-  CHECKNOTNULL(bigUpdateOldApi= trans->getNdbIndexOperation(index));
-
-  CHECKEQUAL(0, bigUpdateOldApi->updateTuple());
-  /* We use the attribute id of the index, not the base table here */
-  CHECKEQUAL(0, bigUpdateOldApi->equal((Uint32)0, 
-                                       NdbDictionary::getValuePtr
-                                       (baseRecord,
-                                        smallRowBuf,
-                                        1)));
-
-  CHECKEQUAL(0, bigUpdateOldApi->setValue((Uint32)1,
-                                          NdbDictionary::getValuePtr
-                                          (baseRecord,
-                                           bigAttrIxBuf,
-                                           1)));
-  
-  CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
-
-  /* ZGET_DATABUF_ERR expected */
-  CHECKEQUAL(218, trans->getNdbError().code)
-
-  trans->close();
-
-  /* Change error insert so that next TCINDXREQ will grab
-   * all but one SegmentedSection
-   */
-  restarter.insertErrorInAllNodes(8066);
-
-  /* Now a short TCINDXREQ where the KeyInfo from the TCINDXREQ
-   * can be imported, but the ATTRINFO can't
-   */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
-  
-  CHECKNOTNULL(bigUpdateOldApi= trans->getNdbIndexOperation(index));
-
-  CHECKEQUAL(0, bigUpdateOldApi->updateTuple());
-  /* We use the attribute id of the index, not the base table here */
-  CHECKEQUAL(0, bigUpdateOldApi->equal((Uint32)0, 
-                                       NdbDictionary::getValuePtr
-                                       (baseRecord,
-                                        smallRowBuf,
-                                        1)));
-
-  CHECKEQUAL(0, bigUpdateOldApi->setValue((Uint32)1,
-                                          NdbDictionary::getValuePtr
-                                          (baseRecord,
-                                           bigAttrIxBuf,
-                                           1)));
-  
-  CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
-
-  /* ZGET_DATABUF_ERR expected */
-  CHECKEQUAL(218, trans->getNdbError().code)
-
-  trans->close();
-
-  /* Change error insert so that there are no SectionSegments */
-  restarter.insertErrorInAllNodes(8067);
-
-  /* Now a short TCINDXREQ where the KeyInfo from the TCINDXREQ
-   * can't be imported
-   */
-  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
-                                             &smallKey[0],
-                                             smallKeySize));
-
-  CHECKNOTNULL(bigUpdateOldApi= trans->getNdbIndexOperation(index));
-
-  CHECKEQUAL(0, bigUpdateOldApi->updateTuple());
-  /* We use the attribute id of the index, not the base table here */
-  CHECKEQUAL(0, bigUpdateOldApi->equal((Uint32)0, 
-                                       NdbDictionary::getValuePtr
-                                       (baseRecord,
-                                        smallRowBuf,
-                                        1)));
-
-  CHECKEQUAL(0, bigUpdateOldApi->setValue((Uint32)1,
-                                          NdbDictionary::getValuePtr
-                                          (baseRecord,
-                                           bigAttrIxBuf,
-                                           1)));
-  
   CHECKEQUAL(-1, trans->execute(NdbTransaction::NoCommit));
 
   /* ZGET_DATABUF_ERR expected */
@@ -854,18 +652,18 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
                                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8065 in this transaction, consumes
-   * all but 10 SectionSegments
+  /* Activate error insert 8066 in this transaction, consumes
+   * all but 5 SectionSegments
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
                                           ctx->getTab(),
                                           smallRowBuf, 
                                           &restarter, 
-                                          8065));
+                                          8066));
 
-  /* Ok, now the chosen TC's node should have only 10 
-   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
+  /* Ok, now the chosen TC's node should have only 5 
+   * SegmentedSection buffers = ~ 60 words * 5 = 1200 bytes
    * A scan will always send 2 long sections (Receiver Ids
    * + AttrInfo), so let's start a scan with > 2400 bytes of
    * ATTRINFO and see what happens
