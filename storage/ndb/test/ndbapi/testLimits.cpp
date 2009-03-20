@@ -766,6 +766,12 @@ int testDropSignalFragments(NDBT_Context* ctx, NDBT_Step* step){
 
     Uint32 errorInsertVal= subcase.errorInsertCode;
     // printf("Inserting error : %u\n", errorInsertVal);
+    /* We insert the error twice, to bias races between
+     * error-insert propagation and the succeeding scan
+     * in favour of error insert winning!
+     * This problem needs a more general fix
+     */
+    CHECKEQUAL(0, restarter.insertErrorInAllNodes(errorInsertVal));
     CHECKEQUAL(0, restarter.insertErrorInAllNodes(errorInsertVal));
 
     NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
