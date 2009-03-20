@@ -1,5 +1,10 @@
 2009-03-20	The InnoDB Team
 
+	* data/data0type.c, handler/ha_innodb.cc, include/ha_prototypes.h:
+	Declare innobase_get_at_most_n_mbchars() in ha_prototypes.h.
+
+2009-03-20	The InnoDB Team
+
 	* fil/fil0fil.c:
 	Refer to fil_system directly, not via local variables.
 

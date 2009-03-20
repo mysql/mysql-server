@@ -28,26 +28,8 @@ Created 1/16/1996 Heikki Tuuri
 #include "data0type.ic"
 #endif
 
-/**********************************************************************
-This function is used to find the storage length in bytes of the first n
-characters for prefix indexes using a multibyte character set. The function
-finds charset information and returns length of prefix_len characters in the
-index field in bytes.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-ulint
-innobase_get_at_most_n_mbchars(
-/*===========================*/
-				/* out: number of bytes occupied by the first
-				n characters */
-	ulint charset_id,	/* in: character set id */
-	ulint prefix_len,	/* in: prefix length in bytes of the index
-				(this has to be divided by mbmaxlen to get the
-				number of CHARACTERS n in the prefix) */
-	ulint data_len,		/* in: length of the string in bytes */
-	const char* str);	/* in: character string */
+#ifndef UNIV_HOTBACKUP
+# include "ha_prototypes.h"
 
 /* At the database startup we store the default-charset collation number of
 this MySQL installation to this global variable. If we have < 4.1.2 format
@@ -78,7 +60,6 @@ dtype_get_at_most_n_mbchars(
 	const char*	str)		/* in: the string whose prefix
 					length is being determined */
 {
-#ifndef UNIV_HOTBACKUP
 	ut_a(data_len != UNIV_SQL_NULL);
 	ut_ad(!mbmaxlen || !(prefix_len % mbmaxlen));
 
@@ -96,13 +77,8 @@ dtype_get_at_most_n_mbchars(
 	}
 
 	return(data_len);
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-#endif /* UNIV_HOTBACKUP */
 }
+#endif /* UNIV_HOTBACKUP */
 
 /*************************************************************************
 Checks if a data main type is a string type. Also a BLOB is considered a
@@ -202,7 +178,9 @@ dtype_validate(
 		ut_a((type->prtype & DATA_MYSQL_TYPE_MASK) < DATA_N_SYS_COLS);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	ut_a(type->mbminlen <= type->mbmaxlen);
+#endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
 }

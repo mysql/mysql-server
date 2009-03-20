@@ -8788,10 +8788,7 @@ ha_innobase::get_mysql_bin_log_pos()
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
 finds charset information and returns length of prefix_len characters in the
-index field in bytes.
-
-NOTE: the prototype of this function is copied to data0type.c! If you change
-this function, you MUST change also data0type.c! */
+index field in bytes. */
 extern "C" UNIV_INTERN
 ulint
 innobase_get_at_most_n_mbchars(
