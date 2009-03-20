@@ -343,9 +343,9 @@ page_create_low(
 
 	/* The infimum and supremum records use a dummy index. */
 	if (UNIV_LIKELY(comp)) {
-		index = srv_sys->dummy_ind2;
+		index = dict_ind_compact;
 	} else {
-		index = srv_sys->dummy_ind1;
+		index = dict_ind_redundant;
 	}
 
 	/* 1. INCREMENT MODIFY CLOCK */

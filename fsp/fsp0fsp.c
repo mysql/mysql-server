@@ -994,7 +994,7 @@ fsp_header_init(
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, 0, ut_dulint_add(DICT_IBUF_ID_MIN, space),
-			   srv_sys->dummy_ind1, mtr);
+			   dict_ind_redundant, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
