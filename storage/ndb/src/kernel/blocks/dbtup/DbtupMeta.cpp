@@ -1658,12 +1658,16 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     if (r0)
     {
       jam();
+
+      g_eventLogger->info("QQQ(%u) - Failed to alloc log space for drop table", __LINE__);
+
       warningEvent("Failed to alloc log space for drop table: %u",
  		   tabPtr.i);
       goto done;
     }
 
     int res= lgman.get_log_buffer(signal, sz, &cb);
+    g_eventLogger->info("QQQ(%u) - lgman.get_log_buffer = %d", res);
     switch(res){
     case 0:
       jam();
