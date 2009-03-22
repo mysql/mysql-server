@@ -333,6 +333,8 @@ struct st_translog_descriptor
   my_bool is_everything_flushed;
   /* True when flush pass is in progress */
   my_bool flush_in_progress;
+  /* The flush number (used to distinguish two flushes goes one by one) */
+  volatile int flush_no;
   /* Next flush pass variables */
   TRANSLOG_ADDRESS next_pass_max_lsn;
   pthread_t max_lsn_requester;
@@ -3484,6 +3486,8 @@ my_bool translog_init_with_table(const char *directory,
   id_to_share= NULL;
   log_descriptor.directory_fd= -1;
   log_descriptor.is_everything_flushed= 1;
+  log_descriptor.flush_in_progress= 0;
+  log_descriptor.flush_no= 0;
   log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
 
   (*init_table_func)();
@@ -7548,6 +7552,7 @@ void  translog_flush_wait_for_end(LSN lsn)
 
 void translog_flush_set_new_goal_and_wait(TRANSLOG_ADDRESS lsn)
 {
+  int flush_no= log_descriptor.flush_no;
   DBUG_ENTER("translog_flush_set_new_goal_and_wait");
   DBUG_PRINT("enter", ("LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   safe_mutex_assert_owner(&log_descriptor.log_flush_lock);
@@ -7556,7 +7561,7 @@ void translog_flush_set_new_goal_and_wait(TRANSLOG_ADDRESS lsn)
     log_descriptor.next_pass_max_lsn= lsn;
     log_descriptor.max_lsn_requester= pthread_self();
   }
-  while (log_descriptor.flush_in_progress)
+  while (flush_no == log_descriptor.flush_no)
   {
     pthread_cond_wait(&log_descriptor.log_flush_cond,
                       &log_descriptor.log_flush_lock);
@@ -7735,6 +7740,7 @@ out:
   if (sent_to_disk != LSN_IMPOSSIBLE)
     log_descriptor.flushed= sent_to_disk;
   log_descriptor.flush_in_progress= 0;
+  log_descriptor.flush_no++;
   DBUG_PRINT("info", ("flush_in_progress is dropped"));
   pthread_mutex_unlock(&log_descriptor.log_flush_lock);\
   pthread_cond_broadcast(&log_descriptor.log_flush_cond);

@@ -799,15 +799,6 @@ sub collect_one_test_case {
   push(@{$tinfo->{'master_opt'}}, @$suite_opts);
   push(@{$tinfo->{'slave_opt'}}, @$suite_opts);
 
-  #-----------------------------------------------------------------------
-  # Check for test specific config file
-  #-----------------------------------------------------------------------
-  my $test_cnf_file= "$testdir/$tname.cnf";
-  if ( -f $test_cnf_file) {
-    # Specifies the configuration file to use for this test
-    $tinfo->{'template_path'}= $test_cnf_file;
-  }
-
   # ----------------------------------------------------------------------
   # Check for test specific config file
   # ----------------------------------------------------------------------
