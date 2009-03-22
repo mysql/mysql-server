@@ -13467,9 +13467,9 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
     {
       jam();
       /* Add key information to long section */
-      if (!appendToSection(indexOp->transIdAISectionIVal,
-                           src,
-                           remain))
+      if (appendToSection(indexOp->transIdAISectionIVal,
+                          src,
+                          remain))
       {
         jam();
         remain= 0;
