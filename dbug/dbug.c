@@ -84,8 +84,8 @@
   in pthread_mutex_lock
 */
 
-#undef SAFE_MUTEX
 #include <my_global.h>
+#undef SAFE_MUTEX
 #include <m_string.h>
 #include <errno.h>
 
