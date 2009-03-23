@@ -181,6 +181,13 @@ struct ha_node_struct {
 	ulint		fold;	/* fold value for the data */
 };
 
+#ifndef UNIV_HOTBACKUP
+# define ASSERT_HASH_MUTEX_OWN(table, fold)				\
+	ut_ad(!(table)->mutexes || mutex_own(hash_get_mutex(table, fold)))
+#else /* !UNIV_HOTBACKUP */
+# define ASSERT_HASH_MUTEX_OWN(table, fold) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
+
 #ifndef UNIV_NONINL
 #include "ha0ha.ic"
 #endif
