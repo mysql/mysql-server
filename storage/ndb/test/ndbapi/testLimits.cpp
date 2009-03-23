@@ -54,8 +54,17 @@ int activateErrorInsert(NdbTransaction* trans,
                         NdbRestarter* restarter, 
                         Uint32 val)
 {
+  /* We insert the error twice to avoid what appear to be
+   * races between the error insert and the subsequent
+   * tests
+   * Alternatively we could sleep here.
+   */
   if (restarter->insertErrorInAllNodes(val) != 0){
-    g_err << "error insert (val) failed" << endl;
+    g_err << "error insert 1 (" << val << ") failed" << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter->insertErrorInAllNodes(val) != 0){
+    g_err << "error insert 2 (" << val << ") failed" << endl;
     return NDBT_FAILED;
   }
 
