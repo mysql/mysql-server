@@ -382,7 +382,7 @@ static void cleanup_load_tmpdir()
   uint i;
   char fname[FN_REFLEN], prefbuf[31], *p;
 
-  if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
+  if (!(dirp=my_dir(slave_load_tmpdir,MYF(0))))
     return;
 
   /* 
@@ -6175,6 +6175,12 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
   thd_proc_info(thd, proc_info);
   if (get_create_or_append())
   {
+    /*
+      Usually lex_start() is called by mysql_parse(), but we need it here
+      as the present method does not call mysql_parse().
+    */
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
     my_delete(fname, MYF(0)); // old copy may exist already
     if ((fd= my_create(fname, CREATE_MODE,
 		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
@@ -6194,6 +6200,10 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                 get_type_str(), fname);
     goto err;
   }
+
+  DBUG_EXECUTE_IF("remove_slave_load_file_before_write", 
+                  my_close(fd,MYF(0)); fd= -1; my_delete(fname, MYF(0)););
+
   if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, my_errno,

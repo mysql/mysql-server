@@ -1,0 +1,24 @@
+##########################################################################
+# This test verifies if the start slave fails gracefuly when an 
+# invalid directory is used to set --slave-load-tmpdir.
+##########################################################################
+--source include/have_log_bin.inc
+--source include/not_embedded.inc
+
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+
+connection slave;
+
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+eval CHANGE MASTER TO MASTER_USER='root',
+                      MASTER_CONNECT_RETRY=1,
+                      MASTER_HOST='127.0.0.1',
+                      MASTER_PORT=$MASTER_MYPORT;
+START SLAVE;
+
+source include/wait_for_slave_sql_to_stop.inc;
+let $error=query_get_value("show slave status", Last_SQL_Error, 1);
+echo $error;
