@@ -248,6 +248,7 @@ page_header_set_ptr(
 				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in/out: PAGE_FREE, ... */
 	const byte*	ptr);	/* in: pointer or NULL*/
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Resets the last insert info field in the page header. Writes to mlog
 about this operation. */
@@ -259,6 +260,7 @@ page_header_reset_last_insert(
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 /****************************************************************
 Gets the offset of the first record on the page. */
 UNIV_INLINE
@@ -288,6 +290,7 @@ page_get_middle_rec(
 /*================*/
 			/* out: middle record */
 	page_t*	page);	/* in: page */
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -314,6 +317,7 @@ page_cmp_dtuple_rec_with_match(
 				bytes within the first field not completely
 				matched; when function returns contains the
 				value for current comparison */
+#endif /* !UNIV_HOTBACKUP */
 /*****************************************************************
 Gets the page number. */
 UNIV_INLINE

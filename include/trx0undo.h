@@ -32,6 +32,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "page0types.h"
 #include "trx0xa.h"
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Builds a roll pointer dulint. */
 UNIV_INLINE
@@ -62,6 +63,7 @@ trx_undo_roll_ptr_is_insert(
 /*========================*/
 				/* out: TRUE if insert undo log */
 	dulint	roll_ptr);	/* in: roll pointer */
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************
 Writes a roll ptr to an index page. In case that the size changes in
 some future version, this function should be used instead of
@@ -82,6 +84,7 @@ trx_read_roll_ptr(
 /*==============*/
 				/* out: roll ptr */
 	const byte*	ptr);	/* in: pointer to memory from where to read */
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Gets an undo log page and x-latches it. */
 UNIV_INLINE
@@ -298,6 +301,7 @@ void
 trx_undo_insert_cleanup(
 /*====================*/
 	trx_t*	trx);	/* in: transaction handle */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Parses the redo log entry of an undo log page initialization. */
 UNIV_INTERN
@@ -350,6 +354,7 @@ trx_undo_parse_discard_latest(
 #define	TRX_UNDO_PREPARED	5	/* contains an undo log of an
 					prepared transaction */
 
+#ifndef UNIV_HOTBACKUP
 /* Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
@@ -408,6 +413,7 @@ struct trx_undo_struct{
 					/* undo log objects in the rollback
 					segment are chained into lists */
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /* The offset of the undo log page header on pages of the undo log */
 #define	TRX_UNDO_PAGE_HDR	FSEG_PAGE_DATA

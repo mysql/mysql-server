@@ -309,6 +309,7 @@ mach_dulint_parse_compressed(
 	byte*	ptr,	/* in: pointer to buffer from where to read */
 	byte*	end_ptr,/* in: pointer to end of the buffer */
 	dulint*	val);	/* out: read value */
+#ifndef UNIV_HOTBACKUP
 /*************************************************************
 Reads a double. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -391,6 +392,8 @@ mach_read_int_type(
 	const byte*	src,		/* in: where to read from */
 	ulint		len,		/* in: length of src */
 	ibool		unsigned_type);	/* in: signed or unsigned flag */
+#endif /* !UNIV_HOTBACKUP */
+
 #ifndef UNIV_NONINL
 #include "mach0data.ic"
 #endif

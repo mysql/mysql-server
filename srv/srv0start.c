@@ -29,54 +29,53 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
-#include "os0proc.h"
-#include "sync0sync.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
 #include "buf0buf.h"
-#include "buf0flu.h"
-#include "buf0rea.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "rem0rec.h"
-#include "rem0cmp.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
 #include "trx0trx.h"
-#include "dict0boot.h"
-#include "dict0load.h"
 #include "trx0sys.h"
-#include "dict0crea.h"
 #include "btr0btr.h"
-#include "btr0pcur.h"
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "rem0rec.h"
-#include "srv0srv.h"
-#include "que0que.h"
-#include "usr0sess.h"
-#include "lock0lock.h"
-#include "trx0roll.h"
-#include "trx0purge.h"
-#include "row0ins.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "row0row.h"
-#include "row0mysql.h"
-#include "lock0lock.h"
 #include "ibuf0ibuf.h"
-#include "pars0pars.h"
-#include "btr0sea.h"
 #include "srv0start.h"
-#include "que0que.h"
+#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0proc.h"
+# include "sync0sync.h"
+# include "buf0flu.h"
+# include "buf0rea.h"
+# include "dict0boot.h"
+# include "dict0load.h"
+# include "que0que.h"
+# include "usr0sess.h"
+# include "lock0lock.h"
+# include "trx0roll.h"
+# include "trx0purge.h"
+# include "lock0lock.h"
+# include "pars0pars.h"
+# include "btr0sea.h"
+# include "rem0cmp.h"
+# include "dict0crea.h"
+# include "row0ins.h"
+# include "row0sel.h"
+# include "row0upd.h"
+# include "row0row.h"
+# include "row0mysql.h"
+# include "btr0pcur.h"
 
 /* Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -93,15 +92,12 @@ UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
 UNIV_INTERN ibool	srv_was_started = FALSE;
-#ifndef UNIV_HOTBACKUP
 static ibool	srv_start_has_been_called = FALSE;
-#endif /* !UNIV_HOTBACKUP */
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE */
 UNIV_INTERN ulint		srv_shutdown_state = 0;
 
-#ifndef UNIV_HOTBACKUP
 static os_file_t	files[1000];
 
 static mutex_t		ios_mutex;
@@ -445,7 +441,6 @@ srv_free_paths_and_sizes(void)
 /************************************************************************
 I/o-handler thread function. */
 static
-
 os_thread_ret_t
 io_handler_thread(
 /*==============*/

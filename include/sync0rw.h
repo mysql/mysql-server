@@ -33,6 +33,7 @@ Created 9/11/1995 Heikki Tuuri
 #define sync0rw_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "ut0lst.h"
 #include "sync0sync.h"
 #include "os0sync.h"
@@ -40,6 +41,7 @@ Created 9/11/1995 Heikki Tuuri
 /* The following undef is to prevent a name conflict with a macro
 in MySQL: */
 #undef rw_lock_t
+#endif /* !UNIV_HOTBACKUP */
 
 /* Latch types; these are used also in btr0btr.h: keep the numerical values
 smaller than 30 and the order of the numerical values like below! */
@@ -47,6 +49,7 @@ smaller than 30 and the order of the numerical values like below! */
 #define	RW_X_LATCH	2
 #define	RW_NO_LATCH	3
 
+#ifndef UNIV_HOTBACKUP
 /* We decrement lock_word by this amount for each x_lock. It is also the
 start value for the lock_word, meaning that it limits the maximum number
 of concurrent read locks before the rw_lock breaks. The current value of
@@ -563,5 +566,6 @@ struct	rw_lock_debug_struct {
 #ifndef UNIV_NONINL
 #include "sync0rw.ic"
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

@@ -33,6 +33,7 @@ Created 10/10/1995 Heikki Tuuri
 #define srv0srv_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "sync0sync.h"
 #include "os0sync.h"
 #include "que0types.h"
@@ -89,6 +90,7 @@ extern ulint	srv_check_file_format_at_startup;
 /* Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
+#endif /* !UNIV_HOTBACKUP */
 
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
@@ -97,14 +99,11 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
+extern char**	srv_log_group_home_dirs;
+#ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
-
-#define SRV_NEW_RAW	1
-#define SRV_OLD_RAW	2
-
-extern char**	srv_log_group_home_dirs;
 
 extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
@@ -284,6 +283,10 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /* The server system */
 extern srv_sys_t*	srv_sys;
+#endif /* !UNIV_HOTBACKUP */
+
+#define SRV_NEW_RAW	1
+#define SRV_OLD_RAW	2
 
 /* Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
@@ -319,7 +322,7 @@ of lower numbers are included. */
 					as committed */
 #define SRV_FORCE_NO_LOG_REDO	6	/* do not do the log roll-forward
 					in connection with recovery */
-
+#ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
 enum srv_thread_type {
 	SRV_COM = 1,	/**< threads serving communication and queries */
@@ -581,5 +584,16 @@ struct srv_sys_struct{
 };
 
 extern ulint	srv_n_threads_active[];
+#else /* !UNIV_HOTBACKUP */
+# define srv_use_checksums			TRUE
+# define srv_use_adaptive_hash_indexes		FALSE
+# define srv_force_recovery			0UL
+# define srv_set_io_thread_op_info(t,info)	((void) 0)
+# define srv_is_being_started			0
+# define srv_win_file_flush_method		SRV_WIN_IO_UNBUFFERED
+# define srv_unix_file_flush_method		SRV_UNIX_O_DSYNC
+# define srv_start_raw_disk_in_use		0
+# define srv_file_per_table			1
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

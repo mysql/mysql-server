@@ -26,9 +26,10 @@ Created 11/5/1995 Heikki Tuuri
 #define buf0flu_h
 
 #include "univ.i"
-#include "buf0types.h"
 #include "ut0byte.h"
+#ifndef UNIV_HOTBACKUP
 #include "mtr0types.h"
+#include "buf0types.h"
 
 /************************************************************************
 Remove a block from the flush list of modified blocks. */
@@ -51,6 +52,7 @@ UNIV_INTERN
 void
 buf_flush_free_margin(void);
 /*=======================*/
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
@@ -61,6 +63,7 @@ buf_flush_init_for_writing(
 	void*		page_zip_,	/* in/out: compressed page, or NULL */
 	ib_uint64_t	newest_lsn);	/* in: newest modification lsn
 					to the page */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
@@ -142,6 +145,7 @@ sweep). */
 
 #define BUF_FLUSH_FREE_BLOCK_MARGIN	(5 + BUF_READ_AHEAD_AREA)
 #define BUF_FLUSH_EXTRA_MARGIN		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "buf0flu.ic"

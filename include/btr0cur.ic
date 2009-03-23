@@ -22,6 +22,7 @@ The index tree cursor
 Created 10/16/1994 Heikki Tuuri
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 #include "btr0btr.h"
 
 #ifdef UNIV_DEBUG
@@ -198,3 +199,4 @@ btr_cur_can_delete_without_compress(
 
 	return(TRUE);
 }
+#endif /* !UNIV_HOTBACKUP */

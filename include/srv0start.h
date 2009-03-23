@@ -70,6 +70,7 @@ srv_add_path_separator_if_needed(
 			/* out: string which has the separator if the
 			string is not empty */
 	char*	str);	/* in: null-terminated character string */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Starts Innobase and creates a new database if database files
 are not found and the user wants. */
@@ -111,6 +112,7 @@ extern	ulint	srv_shutdown_state;
 #define SRV_SHUTDOWN_CLEANUP	   1
 #define SRV_SHUTDOWN_LAST_PHASE	   2
 #define SRV_SHUTDOWN_EXIT_THREADS  3
+#endif /* !UNIV_HOTBACKUP */
 
 /* Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL

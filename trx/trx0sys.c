@@ -28,6 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
 #include "mtr0mtr.h"
 #include "trx0trx.h"
@@ -713,41 +714,6 @@ trx_sys_update_mysql_binlog_offset(
 			 MLOG_4BYTES, mtr);
 }
 
-#ifdef UNIV_HOTBACKUP
-/*********************************************************************
-Prints to stderr the MySQL binlog info in the system header if the
-magic number shows it valid. */
-UNIV_INTERN
-void
-trx_sys_print_mysql_binlog_offset_from_page(
-/*========================================*/
-	const byte*	page)	/* in: buffer containing the trx
-				system header page, i.e., page number
-				TRX_SYS_PAGE_NO in the tablespace */
-{
-	const trx_sysf_t*	sys_header;
-
-	sys_header = page + TRX_SYS;
-
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
-		fprintf(stderr,
-			"ibbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s\n",
-			(ulong) mach_read_from_4(
-				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-			(ulong) mach_read_from_4(
-				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-			sys_header + TRX_SYS_MYSQL_LOG_INFO
-			+ TRX_SYS_MYSQL_LOG_NAME);
-	}
-}
-#endif /* UNIV_HOTBACKUP */
-
 /*********************************************************************
 Stores the MySQL binlog offset info in the trx system header if
 the magic number shows it valid, and print the info to stderr */
@@ -1330,3 +1296,37 @@ trx_sys_file_format_close(void)
 {
 	/* Does nothing at the moment */
 }
+#else /* !UNIV_HOTBACKUP */
+/*********************************************************************
+Prints to stderr the MySQL binlog info in the system header if the
+magic number shows it valid. */
+UNIV_INTERN
+void
+trx_sys_print_mysql_binlog_offset_from_page(
+/*========================================*/
+	const byte*	page)	/* in: buffer containing the trx
+				system header page, i.e., page number
+				TRX_SYS_PAGE_NO in the tablespace */
+{
+	const trx_sysf_t*	sys_header;
+
+	sys_header = page + TRX_SYS;
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+		fprintf(stderr,
+			"ibbackup: Last MySQL binlog file position %lu %lu,"
+			" file name %s\n",
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+			sys_header + TRX_SYS_MYSQL_LOG_INFO
+			+ TRX_SYS_MYSQL_LOG_NAME);
+	}
+}
+#endif /* !UNIV_HOTBACKUP */

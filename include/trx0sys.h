@@ -28,16 +28,17 @@ Created 3/26/1996 Heikki Tuuri
 #include "univ.i"
 
 #include "trx0types.h"
+#include "fsp0fsp.h"
+#include "fil0fil.h"
+#include "fut0lst.h"
+#include "buf0buf.h"
+#ifndef UNIV_HOTBACKUP
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
-#include "buf0buf.h"
-#include "fil0fil.h"
-#include "fut0lst.h"
-#include "fsp0fsp.h"
 #include "read0types.h"
 #include "page0types.h"
 
@@ -219,6 +220,7 @@ dulint
 trx_sys_get_new_trx_no(void);
 /*========================*/
 			/* out: new, allocated trx number */
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************
 Writes a trx id to an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -229,6 +231,7 @@ trx_write_trx_id(
 /*=============*/
 	byte*	ptr,	/* in: pointer to memory where written */
 	dulint	id);	/* in: id */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -295,18 +298,6 @@ UNIV_INTERN
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
-#ifdef UNIV_HOTBACKUP
-/*********************************************************************
-Prints to stderr the MySQL binlog info in the system header if the
-magic number shows it valid. */
-UNIV_INTERN
-void
-trx_sys_print_mysql_binlog_offset_from_page(
-/*========================================*/
-	const byte*	page);	/* in: buffer containing the trx
-				system header page, i.e., page number
-				TRX_SYS_PAGE_NO in the tablespace */
-#endif /* UNIV_HOTBACKUP */
 /*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
@@ -380,6 +371,18 @@ trx_sys_file_format_max_upgrade(
 					bigger than the known max id */
 	const char**	name,		/* out: max file format name */
 	ulint		format_id);	/* in: file format identifier */
+#else /* !UNIV_HOTBACKUP */
+/*********************************************************************
+Prints to stderr the MySQL binlog info in the system header if the
+magic number shows it valid. */
+UNIV_INTERN
+void
+trx_sys_print_mysql_binlog_offset_from_page(
+/*========================================*/
+	const byte*	page);	/* in: buffer containing the trx
+				system header page, i.e., page number
+				TRX_SYS_PAGE_NO in the tablespace */
+#endif /* !UNIV_HOTBACKUP */
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
@@ -435,6 +438,7 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 						within that file */
 #define TRX_SYS_MYSQL_LOG_NAME		12	/* MySQL log file name */
 
+#ifndef UNIV_HOTBACKUP
 /* The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE		(UNIV_PAGE_SIZE - 200)
 /*-------------------------------------------------------------*/
@@ -540,6 +544,7 @@ struct trx_sys_struct{
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	256
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "trx0sys.ic"

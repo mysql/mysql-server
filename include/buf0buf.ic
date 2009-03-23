@@ -29,10 +29,11 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
+#include "mtr0mtr.h"
+#ifndef UNIV_HOTBACKUP
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
-#include "mtr0mtr.h"
 
 /************************************************************************
 Reads the freed_page_clock of a buffer block. */
@@ -134,6 +135,7 @@ buf_pool_clock_tic(void)
 
 	return(buf_pool->ulint_clock);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Gets the state of a block. */
@@ -262,6 +264,7 @@ buf_page_in_file(
 	return(FALSE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Determines if a block should be on unzip_LRU list. */
 UNIV_INLINE
@@ -535,6 +538,7 @@ buf_page_get_block(
 
 	return(NULL);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /*************************************************************************
@@ -556,7 +560,9 @@ buf_block_get_frame(
 		ut_error;
 		break;
 	case BUF_BLOCK_FILE_PAGE:
+# ifndef UNIV_HOTBACKUP
 		ut_a(block->page.buf_fix_count > 0);
+# endif /* !UNIV_HOTBACKUP */
 		/* fall through */
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
@@ -653,6 +659,7 @@ buf_block_get_zip_size(
 	return(block->page.zip.ssize ? 512 << block->page.zip.ssize : 0);
 }
 
+#ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
@@ -667,6 +674,7 @@ buf_frame_get_page_zip(
 	return(buf_block_get_page_zip(buf_block_align(ptr)));
 }
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Gets the space id, page offset, and byte offset within page of a
@@ -687,6 +695,7 @@ buf_ptr_get_fsp_addr(
 	addr->boffset = ut_align_offset(ptr, UNIV_PAGE_SIZE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Gets the hash value of the page the pointer is pointing to. This can be used
 in searches in the lock hash table. */
@@ -740,6 +749,7 @@ buf_block_free(
 
 	buf_pool_mutex_exit();
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Copies contents of a buffer frame to a given buffer. */
@@ -758,6 +768,7 @@ buf_frame_copy(
 	return(buf);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Calculates a folded value of a file page address to use in the page hash
 table. */
@@ -1074,3 +1085,4 @@ buf_block_dbg_add_level(
 	sync_thread_add_level(&block->lock, level);
 }
 #endif /* UNIV_SYNC_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

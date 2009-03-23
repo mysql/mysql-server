@@ -24,9 +24,19 @@ Created 7/19/1997 Heikki Tuuri
 
 #include "ibuf0ibuf.h"
 
+/* Number of bits describing a single page */
+#define IBUF_BITS_PER_PAGE	4
+#if IBUF_BITS_PER_PAGE % 2
+# error "IBUF_BITS_PER_PAGE must be an even number!"
+#endif
+/* The start address for an insert buffer bitmap page bitmap */
+#define IBUF_BITMAP		PAGE_DATA
+
 #ifdef UNIV_NONINL
 #include "ibuf0ibuf.ic"
 #endif
+
+#ifndef UNIV_HOTBACKUP
 
 #include "buf0buf.h"
 #include "buf0rea.h"
@@ -196,21 +206,12 @@ ibuf_count_check(
 }
 #endif
 
-/* The start address for an insert buffer bitmap page bitmap */
-#define IBUF_BITMAP		PAGE_DATA
-
 /* Offsets in bits for the bits describing a single page in the bitmap */
 #define	IBUF_BITMAP_FREE	0
 #define IBUF_BITMAP_BUFFERED	2
 #define IBUF_BITMAP_IBUF	3	/* TRUE if page is a part of the ibuf
 					tree, excluding the root page, or is
 					in the free list of the ibuf */
-
-/* Number of bits describing a single page */
-#define IBUF_BITS_PER_PAGE	4
-#if IBUF_BITS_PER_PAGE % 2
-# error "IBUF_BITS_PER_PAGE must be an even number!"
-#endif
 
 /* The mutex used to block pessimistic inserts to ibuf trees */
 static mutex_t	ibuf_pessimistic_insert_mutex;
@@ -492,7 +493,7 @@ ibuf_init_at_db_start(void)
 
 	ibuf->index = dict_table_get_first_index(table);
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Initializes an ibuf bitmap page. */
 UNIV_INTERN
@@ -524,7 +525,9 @@ ibuf_bitmap_page_init(
 
 	/* The remaining area (up to the page trailer) is uninitialized. */
 
+#ifndef UNIV_HOTBACKUP
 	mlog_write_initial_log_record(page, MLOG_IBUF_BITMAP_INIT, mtr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /*************************************************************************
@@ -547,7 +550,7 @@ ibuf_parse_bitmap_init(
 
 	return(ptr);
 }
-
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Gets the desired bits for a given page from a bitmap page. */
 UNIV_INLINE
@@ -3587,3 +3590,4 @@ ibuf_print(
 
 	mutex_exit(&ibuf_mutex);
 }
+#endif /* !UNIV_HOTBACKUP */

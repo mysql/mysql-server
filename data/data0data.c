@@ -28,6 +28,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0data.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "rem0rec.h"
 #include "rem0cmp.h"
 #include "page0page.h"
@@ -36,6 +37,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "btr0cur.h"
 
 #include <ctype.h>
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /* data pointers of tuple fields are initialized to point here
@@ -48,6 +50,7 @@ UNIV_INTERN ulint	data_dummy;
 # endif /* !UNIV_DEBUG_VALGRIND */
 #endif /* UNIV_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Tests if dfield data length and content is equal to the given. */
 UNIV_INTERN
@@ -192,7 +195,9 @@ dump:
 
 	return(TRUE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_DEBUG
 /**************************************************************
 Checks that a data field is typed. Asserts an error if not. */
 UNIV_INTERN
@@ -238,7 +243,6 @@ dtuple_check_typed(
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
 /**************************************************************
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set. */
@@ -291,6 +295,7 @@ dtuple_validate(
 }
 #endif /* UNIV_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Pretty prints a dfield value according to its data type. */
 UNIV_INTERN
@@ -756,3 +761,4 @@ dtuple_convert_back_big_rec(
 
 	mem_heap_free(vector->heap);
 }
+#endif /* !UNIV_HOTBACKUP */

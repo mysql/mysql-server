@@ -22,6 +22,7 @@ The database buffer pool flush algorithm
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
 #include "mtr0mtr.h"
 
@@ -118,3 +119,4 @@ buf_flush_recv_note_modification(
 
 	buf_pool_mutex_exit();
 }
+#endif /* !UNIV_HOTBACKUP */

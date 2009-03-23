@@ -29,11 +29,11 @@ Created 11/5/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "mtr0types.h"
 #include "buf0types.h"
-#include "sync0rw.h"
 #include "hash0hash.h"
 #include "ut0byte.h"
-#include "os0proc.h"
 #include "page0types.h"
+#ifndef UNIV_HOTBACKUP
+#include "os0proc.h"
 
 /* Modes for buf_page_get_gen */
 #define BUF_GET			10	/* get always */
@@ -46,8 +46,6 @@ Created 11/5/1995 Heikki Tuuri
 /* Modes for buf_page_get_known_nowait */
 #define BUF_MAKE_YOUNG	51
 #define BUF_KEEP_OLD	52
-/* Magic value to use instead of checksums when they are disabled */
-#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
 extern buf_pool_t*	buf_pool;	/* The buffer pool of the database */
 #ifdef UNIV_DEBUG
@@ -57,6 +55,13 @@ extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 #endif /* UNIV_DEBUG */
 extern ulint srv_buf_pool_write_requests; /* variable to count write request
 					  issued */
+#else /* !UNIV_HOTBACKUP */
+extern buf_block_t*	back_block1;	/* first block, for --apply-log */
+extern buf_block_t*	back_block2;	/* second block, for page reorganize */
+#endif /* !UNIV_HOTBACKUP */
+
+/* Magic value to use instead of checksums when they are disabled */
+#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
 /* States of a control block (@see buf_page_struct).
 The enumeration values must be 0..7. */
@@ -78,6 +83,7 @@ enum buf_page_state {
 					before putting to the free list */
 };
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Creates the buffer pool. */
 UNIV_INTERN
@@ -155,6 +161,7 @@ void
 buf_block_free(
 /*===========*/
 	buf_block_t*	block);	/* in, own: block to be freed */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Copies contents of a buffer frame to a given buffer. */
 UNIV_INLINE
@@ -164,6 +171,7 @@ buf_frame_copy(
 					/* out: buf */
 	byte*			buf,	/* in: buffer to copy to */
 	const buf_frame_t*	frame);	/* in: buffer frame */
+#ifndef UNIV_HOTBACKUP
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen,
 to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
@@ -283,7 +291,7 @@ buf_page_create(
 			a page */
 	ulint	zip_size,/* in: compressed page size, or 0 */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
-#ifdef UNIV_HOTBACKUP
+#else /* !UNIV_HOTBACKUP */
 /************************************************************************
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
 UNIV_INTERN
@@ -296,7 +304,9 @@ buf_page_init_for_backup_restore(
 	ulint		zip_size,/* in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	buf_block_t*	block);	/* in: block to init */
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Releases a compressed-only page acquired with buf_page_get_zip(). */
 UNIV_INLINE
@@ -443,6 +453,9 @@ buf_block_get_modify_clock(
 /*=======================*/
 				/* out: value */
 	buf_block_t*	block);	/* in: block */
+#else /* !UNIV_HOTBACKUP */
+# define buf_block_modify_clock_inc(block) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
@@ -476,6 +489,7 @@ buf_page_is_corrupted(
 	const byte*	read_buf,	/* in: a database page */
 	ulint		zip_size);	/* in: size of compressed page;
 					0 for uncompressed pages */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Gets the space id, page offset, and byte offset within page of a
 pointer pointing to a buffer frame containing a file page. */
@@ -524,6 +538,7 @@ void
 buf_print(void);
 /*============*/
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Prints a page to stderr. */
 UNIV_INTERN
@@ -533,6 +548,16 @@ buf_page_print(
 	const byte*	read_buf,	/* in: a database page */
 	ulint		zip_size);	/* in: compressed page size, or
 					0 for uncompressed pages */
+/************************************************************************
+Decompress a block. */
+UNIV_INTERN
+ibool
+buf_zip_decompress(
+/*===============*/
+				/* out: TRUE if successful */
+	buf_block_t*	block,	/* in/out: block */
+	ibool		check);	/* in: TRUE=verify the page checksum */
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
@@ -589,6 +614,7 @@ UNIV_INTERN
 void
 buf_pool_invalidate(void);
 /*=====================*/
+#endif /* !UNIV_HOTBACKUP */
 
 /*========================================================================
 --------------------------- LOWER LEVEL ROUTINES -------------------------
@@ -651,6 +677,7 @@ buf_page_in_file(
 					/* out: TRUE if mapped */
 	const buf_page_t*	bpage)	/* in: pointer to control block */
 	__attribute__((pure));
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Determines if a block should be on unzip_LRU list. */
 UNIV_INLINE
@@ -797,6 +824,7 @@ buf_page_get_block(
 				/* out: control block, or NULL */
 	buf_page_t*	bpage)	/* in: control block, or NULL */
 	__attribute__((pure));
+#endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
@@ -869,6 +897,7 @@ Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
 	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INTERN
@@ -972,7 +1001,7 @@ UNIV_INTERN
 ulint
 buf_get_free_list_len(void);
 /*=======================*/
-
+#endif /* !UNIV_HOTBACKUP */
 
 
 /* The common buffer control block structure
@@ -996,6 +1025,7 @@ struct buf_page_struct{
 					BUF_BLOCK_READY_FOR_USE to
 					BUF_BLOCK_MEMORY need not be
 					protected by buf_page_get_mutex(). */
+#ifndef UNIV_HOTBACKUP
 	unsigned	flush_type:2;	/* if this block is currently being
 					flushed to disk, this tells the
 					flush_type (@see enum buf_flush) */
@@ -1010,10 +1040,11 @@ struct buf_page_struct{
 					protected by buf_pool_mutex */
 	unsigned	buf_fix_count:24;/* count of how manyfold this block
 					is currently bufferfixed */
-
+#endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/* compressed page; zip.data
 					(but not the data it points to) is
 					also protected by buf_pool_mutex */
+#ifndef UNIV_HOTBACKUP
 	buf_page_t*	hash;		/* node used in chaining to
 					buf_pool->page_hash or
 					buf_pool->zip_hash */
@@ -1087,6 +1118,7 @@ struct buf_page_struct{
 					/* this is set to TRUE when fsp
 					frees a page in buffer pool */
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* !UNIV_HOTBACKUP */
 };
 
 /* The buffer control block structure */
@@ -1099,6 +1131,11 @@ struct buf_block_struct{
 					be the first field, so that
 					buf_pool->page_hash can point
 					to buf_page_t or buf_block_t */
+	byte*		frame;		/* pointer to buffer frame which
+					is of size UNIV_PAGE_SIZE, and
+					aligned to an address divisible by
+					UNIV_PAGE_SIZE */
+#ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(buf_block_t) unzip_LRU;
 					/* node of the decompressed LRU list;
 					a block is in the unzip_LRU list
@@ -1109,10 +1146,6 @@ struct buf_block_struct{
 					decompressed LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	byte*		frame;		/* pointer to buffer frame which
-					is of size UNIV_PAGE_SIZE, and
-					aligned to an address divisible by
-					UNIV_PAGE_SIZE */
 	mutex_t		mutex;		/* mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
@@ -1192,6 +1225,7 @@ struct buf_block_struct{
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
 #endif
+#endif /* !UNIV_HOTBACKUP */
 };
 
 /* Check if a buf_block_t object is in a valid state. */
@@ -1199,6 +1233,7 @@ struct buf_block_struct{
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_PTR(ptr) ((ulint) (ptr) / UNIV_PAGE_SIZE)
@@ -1359,6 +1394,7 @@ extern ulint	buf_pool_mutex_exit_forbidden;
 /* Release the buffer pool mutex. */
 # define buf_pool_mutex_exit() mutex_exit(&buf_pool_mutex)
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Let us list the consistency conditions for different control block states.

@@ -22,8 +22,10 @@ Mini-transaction buffer
 Created 11/26/1995 Heikki Tuuri
 *******************************************************/
 
-#include "sync0sync.h"
-#include "sync0rw.h"
+#ifndef UNIV_HOTBACKUP
+# include "sync0sync.h"
+# include "sync0rw.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mach0data.h"
 
 /*******************************************************************
@@ -96,6 +98,7 @@ mtr_set_savepoint(
 	return(dyn_array_get_data_size(memo));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************
 Releases the (index tree) s-latch stored in an mtr memo after a
 savepoint. */
@@ -128,7 +131,7 @@ mtr_release_s_latch_at_savepoint(
 	slot->object = NULL;
 }
 
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /**************************************************************
 Checks if memo contains the given item. */
 UNIV_INLINE
@@ -164,7 +167,8 @@ mtr_memo_contains(
 
 	return(FALSE);
 }
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Returns the log object of a mini-transaction buffer. */
@@ -227,6 +231,7 @@ mtr_set_log_mode(
 	return(old_mode);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Locks a lock in s-mode. */
 UNIV_INLINE
@@ -264,3 +269,4 @@ mtr_x_lock_func(
 
 	mtr_memo_push(mtr, lock, MTR_MEMO_X_LOCK);
 }
+#endif /* !UNIV_HOTBACKUP */
