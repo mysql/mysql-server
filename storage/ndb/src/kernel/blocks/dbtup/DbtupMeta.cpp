@@ -1667,7 +1667,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     }
 
     int res= lgman.get_log_buffer(signal, sz, &cb);
-    g_eventLogger->info("QQQ(%u) - lgman.get_log_buffer = %d", res);
+    g_eventLogger->info("QQQ(%u) - lgman.get_log_buffer = %d", __LINE__, res);
     switch(res){
     case 0:
       jam();
