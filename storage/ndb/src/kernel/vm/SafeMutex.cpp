@@ -74,7 +74,11 @@ SafeMutex::lock_impl()
       assert(m_owner == 0);
       m_owner = self;
     } else if (m_owner != self) {
+
+      ndbout_c("QQQ SafeMutex::lock_impl pthread_cond_wait - wait");
       ret = pthread_cond_wait(&m_cond, &m_mutex);
+      ndbout_c("QQQ SafeMutex::lock_impl pthread_cond_wait - done");
+
       if (ret != 0)
         return err(ret, __LINE__);
       continue;
