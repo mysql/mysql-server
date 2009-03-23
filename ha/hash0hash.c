@@ -29,6 +29,7 @@ Created 5/20/1997 Heikki Tuuri
 
 #include "mem0mem.h"
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
@@ -84,6 +85,7 @@ hash_mutex_exit_all(
 		mutex_exit(table->mutexes + i);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
@@ -132,12 +134,15 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/* in, own: hash table */
 {
+#ifndef UNIV_HOTBACKUP
 	ut_a(table->mutexes == NULL);
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_free(table->array);
 	mem_free(table);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Creates a mutex array to protect a hash table. */
 UNIV_INTERN
@@ -165,3 +170,4 @@ hash_create_mutexes_func(
 
 	table->n_mutexes = n_mutexes;
 }
+#endif /* !UNIV_HOTBACKUP */

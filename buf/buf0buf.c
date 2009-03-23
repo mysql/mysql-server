@@ -35,17 +35,20 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0buf.ic"
 #endif
 
-#include "buf0buddy.h"
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"
+#ifndef UNIV_HOTBACKUP
+#include "buf0buddy.h"
 #include "lock0lock.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
+#include "trx0undo.h"
+#include "log0log.h"
+#endif /* !UNIV_HOTBACKUP */
+#include "srv0srv.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "trx0undo.h"
-#include "srv0srv.h"
 #include "page0zip.h"
 
 /*
@@ -235,6 +238,7 @@ that the whole area may be needed in the near future, and issue
 the read requests for the whole area.
 */
 
+#ifndef UNIV_HOTBACKUP
 /* Value in microseconds */
 static const int WAIT_FOR_READ	= 5000;
 
@@ -270,6 +274,7 @@ struct buf_chunk_struct{
 					was allocated for the frames */
 	buf_block_t*	blocks;		/* array of buffer control blocks */
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
@@ -338,9 +343,7 @@ buf_page_is_corrupted(
 {
 	ulint		checksum_field;
 	ulint		old_checksum_field;
-#ifndef UNIV_HOTBACKUP
-	ib_uint64_t	current_lsn;
-#endif
+
 	if (UNIV_LIKELY(!zip_size)
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
 		      read_buf + UNIV_PAGE_SIZE
@@ -353,8 +356,11 @@ buf_page_is_corrupted(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
-		if (current_lsn < mach_read_ull(read_buf + FIL_PAGE_LSN)) {
+	if (recv_lsn_checks_on) {
+		ib_uint64_t	current_lsn;
+
+		if (log_peek_lsn(&current_lsn)
+		    && current_lsn < mach_read_ull(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -438,7 +444,9 @@ buf_page_print(
 	ulint		zip_size)	/* in: compressed page size, or
 				0 for uncompressed pages */
 {
+#ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
+#endif /* !UNIV_HOTBACKUP */
 	ulint		checksum;
 	ulint		old_checksum;
 	ulint		size	= zip_size;
@@ -552,6 +560,7 @@ buf_page_print(
 		(ulong) mach_read_from_4(read_buf
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 
+#ifndef UNIV_HOTBACKUP
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
 	    == TRX_UNDO_INSERT) {
 		fprintf(stderr,
@@ -562,6 +571,7 @@ buf_page_print(
 		fprintf(stderr,
 			"InnoDB: Page may be an update undo log page\n");
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	switch (fil_page_get_type(read_buf)) {
 	case FIL_PAGE_INDEX:
@@ -625,6 +635,7 @@ buf_page_print(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Initializes a buffer control block when the buf_pool is created. */
 static
@@ -998,7 +1009,6 @@ buf_pool_free(void)
 
 	buf_pool->n_chunks = 0;
 }
-
 
 /************************************************************************
 Drops the adaptive hash index.  To prevent a livelock, this function
@@ -1767,10 +1777,11 @@ buf_block_init_low(
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Decompress a block. */
-static
+UNIV_INTERN
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -1834,6 +1845,7 @@ buf_zip_decompress(
 	return(FALSE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INTERN
@@ -2590,39 +2602,6 @@ buf_page_init_low(
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
-
-#ifdef UNIV_HOTBACKUP
-/************************************************************************
-Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
-UNIV_INTERN
-void
-buf_page_init_for_backup_restore(
-/*=============================*/
-	ulint		space,	/* in: space id */
-	ulint		offset,	/* in: offset of the page within space
-				in units of a page */
-	ulint		zip_size,/* in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	buf_block_t*	block)	/* in: block to init */
-{
-	buf_block_init_low(block);
-
-	block->lock_hash_val	= 0;
-
-	buf_page_init_low(&block->page);
-	block->page.state	= BUF_BLOCK_FILE_PAGE;
-	block->page.space	= space;
-	block->page.offset	= offset;
-
-	page_zip_des_init(&block->page.zip);
-
-	/* We assume that block->page.data has been allocated
-	with zip_size == UNIV_PAGE_SIZE. */
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
-	ut_ad(ut_is_2pow(zip_size));
-	page_zip_set_size(&block->page.zip, zip_size);
-}
-#endif /* UNIV_HOTBACKUP */
 
 /************************************************************************
 Inits a page to the buffer buf_pool. */
@@ -3909,3 +3888,33 @@ buf_get_free_list_len(void)
 
 	return(len);
 }
+#else /* !UNIV_HOTBACKUP */
+/************************************************************************
+Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+UNIV_INTERN
+void
+buf_page_init_for_backup_restore(
+/*=============================*/
+	ulint		space,	/* in: space id */
+	ulint		offset,	/* in: offset of the page within space
+				in units of a page */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	buf_block_t*	block)	/* in: block to init */
+{
+	block->page.state	= BUF_BLOCK_FILE_PAGE;
+	block->page.space	= space;
+	block->page.offset	= offset;
+
+	page_zip_des_init(&block->page.zip);
+
+	/* We assume that block->page.data has been allocated
+	with zip_size == UNIV_PAGE_SIZE. */
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(ut_is_2pow(zip_size));
+	page_zip_set_size(&block->page.zip, zip_size);
+	if (zip_size) {
+		block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
+	}
+}
+#endif /* !UNIV_HOTBACKUP */

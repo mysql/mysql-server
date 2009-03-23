@@ -30,8 +30,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0mem.h"
 #include "data0type.h"
 #include "data0data.h"
-#include "sync0sync.h"
-#include "sync0rw.h"
 #include "mem0mem.h"
 #include "rem0types.h"
 #include "ut0mem.h"
@@ -42,6 +40,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0types.h"
 
 #ifndef UNIV_HOTBACKUP
+# include "sync0sync.h"
+# include "sync0rw.h"
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
@@ -49,7 +49,6 @@ void
 dict_casedn_str(
 /*============*/
 	char*	a);	/* in/out: string to put in lower case */
-#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Get the database name length in a table name. */
 UNIV_INTERN
@@ -109,6 +108,7 @@ dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/* in: column */
 	dtype_t*		type);	/* out: data type */
+#endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Assert that a column and a data type match. */
@@ -120,6 +120,7 @@ dict_col_type_assert_equal(
 	const dict_col_t*	col,	/* in: column */
 	const dtype_t*		type);	/* in: data type */
 #endif /* UNIV_DEBUG */
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Returns the minimum size of the column. */
 UNIV_INLINE
@@ -220,6 +221,7 @@ void
 dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table);	/* in/out: table */
+#endif /* !UNIV_HOTBACKUP */
 /**************************************************************************
 Adds system columns to a table object. */
 UNIV_INTERN
@@ -228,6 +230,7 @@ dict_table_add_system_columns(
 /*==========================*/
 	dict_table_t*	table,	/* in/out: table */
 	mem_heap_t*	heap);	/* in: temporary heap */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Adds a table object to the dictionary cache. */
 UNIV_INTERN
@@ -532,6 +535,7 @@ dict_table_get_next_index(
 # define dict_table_get_first_index(table) UT_LIST_GET_FIRST((table)->indexes)
 # define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Check whether the index is the clustered index. */
 UNIV_INLINE
@@ -626,6 +630,7 @@ dict_table_get_sys_col_no(
 					/* out: column number */
 	const dict_table_t*	table,	/* in: table */
 	ulint			sys);	/* in: DATA_ROW_ID, ... */
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Returns the minimum data size of an index record. */
 UNIV_INLINE
@@ -634,6 +639,7 @@ dict_index_get_min_size(
 /*====================*/
 					/* out: minimum data size in bytes */
 	const dict_index_t*	index);	/* in: index */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Check whether the table uses the compact page format. */
 UNIV_INLINE
@@ -689,6 +695,7 @@ dict_table_col_in_clustered_key(
 					prefix, is in the clustered key */
 	const dict_table_t*	table,	/* in: table */
 	ulint			n);	/* in: column number */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should
@@ -731,6 +738,7 @@ dict_index_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table,	/* in/out: table */
 	dict_index_t*	index);	/* in, own: index */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system. */
@@ -877,6 +885,7 @@ dict_index_add_col(
 	const dict_table_t*	table,		/* in: table */
 	dict_col_t*		col,		/* in: column */
 	ulint			prefix_len);	/* in: column prefix length */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Copies types of fields contained in index to tuple. */
 UNIV_INTERN
@@ -887,6 +896,7 @@ dict_index_copy_types(
 	const dict_index_t*	index,		/* in: index */
 	ulint			n_fields);	/* in: number of
 						field types to copy */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Gets the field column. */
 UNIV_INLINE
@@ -894,7 +904,7 @@ const dict_col_t*
 dict_field_get_col(
 /*===============*/
 	const dict_field_t*	field);
-
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache.
 Assumes that dict_sys->mutex is already being held. */
@@ -1139,6 +1149,7 @@ struct dict_sys_struct{
 	dict_table_t*	sys_indexes;	/* SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/* SYS_FIELDS table */
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 extern dict_index_t*	dict_ind_redundant;

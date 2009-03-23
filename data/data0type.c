@@ -185,6 +185,7 @@ dtype_validate(
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Prints a data type structure. */
 UNIV_INTERN
@@ -276,3 +277,4 @@ dtype_print(
 
 	fprintf(stderr, " len %lu", (ulong) len);
 }
+#endif /* !UNIV_HOTBACKUP */

@@ -26,7 +26,9 @@ Created 10/25/1995 Heikki Tuuri
 #define fil0fil_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "sync0rw.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
@@ -145,6 +147,7 @@ extern ulint	fil_n_pending_log_flushes;
 extern ulint	fil_n_pending_tablespace_flushes;
 
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found. */
 UNIV_INTERN
@@ -172,6 +175,7 @@ fil_space_get_type(
 /*===============*/
 			/* out: FIL_TABLESPACE or FIL_LOG */
 	ulint	id);	/* in: space id */
+#endif /* !UNIV_HOTBACKUP */
 /***********************************************************************
 Appends a new file to the chain of files of a space. File must be closed. */
 UNIV_INTERN
@@ -290,6 +294,7 @@ void
 fil_set_max_space_id_if_bigger(
 /*===========================*/
 	ulint	max_id);/* in: maximum known id */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace. */
@@ -335,6 +340,7 @@ void
 fil_decr_pending_ibuf_merges(
 /*=========================*/
 	ulint	id);	/* in: space id */
+#endif /* !UNIV_HOTBACKUP */
 /***********************************************************************
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the
@@ -371,6 +377,7 @@ fil_delete_tablespace(
 /*==================*/
 			/* out: TRUE if success */
 	ulint	id);	/* in: space id */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
@@ -385,6 +392,7 @@ fil_discard_tablespace(
 /*===================*/
 			/* out: TRUE if success */
 	ulint	id);	/* in: space id */
+#endif /* !UNIV_HOTBACKUP */
 /***********************************************************************
 Renames a single-table tablespace. The tablespace must be cached in the
 tablespace memory cache. */
@@ -426,6 +434,7 @@ fil_create_new_single_table_tablespace(
 	ulint		size);		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Tries to open a single-table tablespace and optionally checks the space id is
 right in it. If does not succeed, prints an error message to the .err log. This
@@ -470,6 +479,7 @@ fil_reset_too_high_lsns(
 	ib_uint64_t	current_lsn);	/* in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 At the server startup, if we need crash recovery, scans the database
 directories under the MySQL datadir, looking for .ibd files. Those files are
@@ -513,6 +523,7 @@ fil_tablespace_exists_in_mem(
 /*=========================*/
 			/* out: TRUE if exists */
 	ulint	id);	/* in: space id */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Returns TRUE if a matching tablespace exists in the InnoDB tablespace memory
 cache. Note that if we have not done a crash recovery at the database startup,
@@ -540,6 +551,17 @@ fil_space_for_table_exists_in_mem(
 					information to the .err log if a
 					matching tablespace is not found from
 					memory */
+#else /* !UNIV_HOTBACKUP */
+/************************************************************************
+Extends all tablespaces to the size stored in the space header. During the
+ibbackup --apply-log phase we extended the spaces on-demand so that log records
+could be appllied, but that may have left spaces still too small compared to
+the size stored in the space header. */
+UNIV_INTERN
+void
+fil_extend_tablespaces_to_stored_len(void);
+/*======================================*/
+#endif /* !UNIV_HOTBACKUP */
 /**************************************************************************
 Tries to extend a data file so that it would accommodate the number of pages
 given. The tablespace must be cached in the memory cache. If the space is big
@@ -556,17 +578,6 @@ fil_extend_space_to_desired_size(
 	ulint	size_after_extend);/* in: desired size in pages after the
 				extension; if the current space size is bigger
 				than this already, the function does nothing */
-#ifdef UNIV_HOTBACKUP
-/************************************************************************
-Extends all tablespaces to the size stored in the space header. During the
-ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be appllied, but that may have left spaces still too small compared to
-the size stored in the space header. */
-UNIV_INTERN
-void
-fil_extend_tablespaces_to_stored_len(void);
-/*======================================*/
-#endif
 /***********************************************************************
 Tries to reserve free extents in a file space. */
 UNIV_INTERN

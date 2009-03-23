@@ -54,6 +54,7 @@ page_zip_set_size(
 	page_zip_des_t*	page_zip,	/* in/out: compressed page */
 	ulint		size);		/* in: size in bytes */
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Determine if a record is so big that it needs to be stored externally. */
 UNIV_INLINE
@@ -79,6 +80,7 @@ page_zip_empty_size(
 	ulint	n_fields,	/* in: number of columns in the index */
 	ulint	zip_size)	/* in: compressed page size in bytes */
 	__attribute__((const));
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Initialize a compressed page descriptor. */
@@ -400,6 +402,7 @@ page_zip_reorganize(
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
 	__attribute__((nonnull));
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
@@ -418,6 +421,7 @@ page_zip_copy_recs(
 	dict_index_t*		index,		/* in: index of the B-tree */
 	mtr_t*			mtr)		/* in: mini-transaction */
 	__attribute__((nonnull(1,2,3,4)));
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Parses a log record of compressing an index page. */

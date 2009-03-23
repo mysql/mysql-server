@@ -1623,6 +1623,7 @@ rec_print_old(
 	rec_validate_old(rec);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
@@ -1718,3 +1719,4 @@ rec_print(
 		}
 	}
 }
+#endif /* !UNIV_HOTBACKUP */

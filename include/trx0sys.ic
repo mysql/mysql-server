@@ -22,8 +22,10 @@ Transaction system
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "srv0srv.h"
 #include "trx0trx.h"
+#include "data0type.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0srv.h"
 
 /* The typedef for rseg slot in the file copy */
 typedef byte	trx_sysf_rseg_t;
@@ -211,6 +213,7 @@ trx_sysf_rseg_set_page_no(
 			 page_no,
 			 MLOG_4BYTES, mtr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
 Writes a trx id to an index page. In case that the id size changes in
@@ -229,6 +232,7 @@ trx_write_trx_id(
 	mach_write_to_6(ptr, id);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -381,3 +385,4 @@ trx_sys_get_new_trx_no(void)
 
 	return(trx_sys_get_new_trx_id());
 }
+#endif /* !UNIV_HOTBACKUP */

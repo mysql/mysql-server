@@ -155,6 +155,7 @@ void
 page_cur_move_to_prev(
 /*==================*/
 	page_cur_t*	cur);	/* in/out: cursor; not before first */
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -171,6 +172,7 @@ page_cur_tuple_insert(
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		n_ext,	/* in: number of externally stored columns */
 	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -243,6 +245,7 @@ page_cur_delete_rec(
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Searches the right position for a page cursor. */
 UNIV_INLINE
@@ -294,6 +297,7 @@ page_cur_open_on_rnd_user_rec(
 /*==========================*/
 	buf_block_t*	block,	/* in: page */
 	page_cur_t*	cursor);/* out: page cursor */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Parses a log record of a record insert on a page. */
 UNIV_INTERN

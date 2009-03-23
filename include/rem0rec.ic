@@ -1585,6 +1585,7 @@ rec_get_converted_size(
 	return(data_size + extra_size);
 }
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Folds a prefix of a physical record to a ulint. Folds only existing fields,
 that is, checks that we do not run out of the record. */
@@ -1650,3 +1651,4 @@ rec_fold(
 
 	return(fold);
 }
+#endif /* !UNIV_HOTBACKUP */

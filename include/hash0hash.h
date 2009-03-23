@@ -27,7 +27,9 @@ Created 5/20/1997 Heikki Tuuri
 
 #include "univ.i"
 #include "mem0mem.h"
-#include "sync0sync.h"
+#ifndef UNIV_HOTBACKUP
+# include "sync0sync.h"
+#endif /* !UNIV_HOTBACKUP */
 
 typedef struct hash_table_struct hash_table_t;
 typedef struct hash_cell_struct hash_cell_t;
@@ -46,6 +48,7 @@ hash_create(
 /*========*/
 			/* out, own: created table */
 	ulint	n);	/* in: number of array cells */
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Creates a mutex array to protect a hash table. */
 UNIV_INTERN
@@ -63,6 +66,7 @@ hash_create_mutexes_func(
 #else /* UNIV_SYNC_DEBUG */
 # define hash_create_mutexes(t,n,level) hash_create_mutexes_func(t,n)
 #endif /* UNIV_SYNC_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Frees a hash table. */
@@ -80,10 +84,14 @@ hash_calc_hash(
 				/* out: hashed value */
 	ulint		fold,	/* in: folded value */
 	hash_table_t*	table);	/* in: hash table */
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Assert that the mutex for the table in a hash operation is owned. */
-#define HASH_ASSERT_OWNED(TABLE, FOLD)					\
+# define HASH_ASSERT_OWNED(TABLE, FOLD)					\
 ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));
+#else /* !UNIV_HOTBACKUP */
+# define HASH_ASSERT_OWNED(TABLE, FOLD)
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 Inserts a struct to a hash table. */
@@ -293,6 +301,7 @@ do {\
 	mem_heap_free_top(hash_get_heap(TABLE, fold111), sizeof(TYPE));\
 } while (0)
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Move all hash table entries from OLD_TABLE to NEW_TABLE.*/
 
@@ -317,7 +326,6 @@ do {\
 		}\
 	}\
 } while (0)
-
 
 /****************************************************************
 Gets the mutex index for a fold value in a hash table. */
@@ -394,7 +402,11 @@ void
 hash_mutex_exit_all(
 /*================*/
 	hash_table_t*	table);	/* in: hash table */
-
+#else /* !UNIV_HOTBACKUP */
+# define hash_get_heap(table, fold)	((table)->heap)
+# define hash_mutex_enter(table, fold)	((void) 0)
+# define hash_mutex_exit(table, fold)	((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 struct hash_cell_struct{
 	void*	node;	/* hash chain node, NULL if none */
@@ -410,6 +422,7 @@ struct hash_table_struct {
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	ulint		n_cells;/* number of cells in the hash table */
 	hash_cell_t*	array;	/* pointer to cell array */
+#ifndef UNIV_HOTBACKUP
 	ulint		n_mutexes;/* if mutexes != NULL, then the number of
 				mutexes, must be a power of 2 */
 	mutex_t*	mutexes;/* NULL, or an array of mutexes used to
@@ -418,6 +431,7 @@ struct hash_table_struct {
 				external chaining can be allocated from these
 				memory heaps; there are then n_mutexes many of
 				these heaps */
+#endif /* !UNIV_HOTBACKUP */
 	mem_heap_t*	heap;
 	ulint		magic_n;
 };

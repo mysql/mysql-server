@@ -22,6 +22,7 @@ Mini-transaction logging routines
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 #include "mach0data.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
@@ -245,3 +246,4 @@ mlog_write_initial_log_record_for_file_op(
 
 	return(log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */

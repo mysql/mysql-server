@@ -33,6 +33,7 @@ dict_index_t*	dict_ind_redundant;
 /* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
 dict_index_t*	dict_ind_compact;
 
+#ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
 #include "data0type.h"
 #include "mach0data.h"
@@ -50,10 +51,8 @@ dict_index_t*	dict_ind_compact;
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0merge.h"
-#ifndef UNIV_HOTBACKUP
-# include "m_ctype.h" /* my_isspace() */
-# include "ha_prototypes.h" /* innobase_strcasecmp() */
-#endif /* !UNIV_HOTBACKUP */
+#include "m_ctype.h" /* my_isspace() */
+#include "ha_prototypes.h" /* innobase_strcasecmp() */
 
 #include <ctype.h>
 
@@ -156,7 +155,6 @@ UNIV_INTERN FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
 UNIV_INTERN mutex_t	dict_foreign_err_mutex;
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
@@ -167,7 +165,6 @@ dict_casedn_str(
 {
 	innobase_casedn_str(a);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Checks if the database name in two table names is the same. */
@@ -264,6 +261,7 @@ dict_table_decrement_handle_count(
 		mutex_exit(&dict_sys->mutex);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Returns a column's name. */
@@ -295,7 +293,7 @@ dict_table_get_col_name(
 	return(s);
 }
 
-
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Acquire the autoinc lock.*/
 UNIV_INTERN
@@ -394,6 +392,7 @@ dict_index_get_on_id_low(
 
 	return(NULL);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Looks for column n in an index. */
@@ -437,6 +436,7 @@ dict_index_get_nth_col_pos(
 	return(ULINT_UNDEFINED);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Returns TRUE if the index contains a column or a prefix of that column. */
 UNIV_INTERN
@@ -677,6 +677,7 @@ dict_table_get(
 
 	return(table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Adds system columns to a table object. */
@@ -724,6 +725,7 @@ dict_table_add_system_columns(
 #endif
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Adds a table object to the dictionary cache. */
 UNIV_INTERN
@@ -1712,6 +1714,7 @@ found:
 		;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 Adds a column to index. */
@@ -1759,6 +1762,7 @@ dict_index_add_col(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Copies fields contained in index2 to index1. */
 static
@@ -2198,7 +2202,6 @@ dict_foreign_remove_from_cache(
 	dict_foreign_free(foreign);
 }
 
-#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Looks for the foreign constraint from the foreign and referenced lists
 of a table. */
@@ -3866,7 +3869,6 @@ syntax_error:
 
 	return(DB_CANNOT_DROP_CONSTRAINT);
 }
-#endif /* UNIV_HOTBACKUP */
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
 
@@ -4625,6 +4627,7 @@ dict_index_name_print(
 	fputs(" of table ", file);
 	ut_print_name(file, trx, TRUE, index->table_name);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Inits dict_ind_redundant and dict_ind_compact. */
@@ -4660,6 +4663,7 @@ dict_ind_init(void)
 	dict_ind_redundant->cached = dict_ind_compact->cached = TRUE;
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Get index by name */
 UNIV_INTERN
@@ -4784,3 +4788,4 @@ dict_table_check_for_dup_indexes(
 	}
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

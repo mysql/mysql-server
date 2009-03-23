@@ -30,6 +30,7 @@ Created 10/4/1994 Heikki Tuuri
 #include "page0zip.h"
 #include "mtr0log.h"
 #include "log0recv.h"
+#ifndef UNIV_HOTBACKUP
 #include "rem0cmp.h"
 
 static ulint	page_rnd	= 976722341;
@@ -713,6 +714,9 @@ need_extra_info:
 		mlog_catenate_string(mtr, ins_ptr, rec_size);
 	}
 }
+#else /* !UNIV_HOTBACKUP */
+# define page_cur_insert_rec_write_log(ins_rec,size,cur,index,mtr) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses a log record of a record insert on a page. */
@@ -1466,6 +1470,7 @@ use_heap:
 	return(insert_rec);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************
 Writes a log record of copying a record list end to a new created page. */
 UNIV_INLINE
@@ -1493,6 +1498,7 @@ page_copy_rec_list_to_created_page_write_log(
 
 	return(log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************
 Parses a log record of copying a record list end to a new created page. */
@@ -1550,6 +1556,7 @@ page_parse_copy_rec_list_to_created_page(
 	return(rec_end);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied. */
@@ -1753,6 +1760,9 @@ page_cur_delete_rec_write_log(
 
 	mlog_close(mtr, log_ptr + 2);
 }
+#else /* !UNIV_HOTBACKUP */
+# define page_cur_delete_rec_write_log(rec,index,mtr) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses log record of a record delete on a page. */

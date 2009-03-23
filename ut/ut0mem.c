@@ -28,9 +28,9 @@ Created 5/11/1994 Heikki Tuuri
 #include "ut0mem.ic"
 #endif
 
-#include "mem0mem.h"
-#include "os0thread.h"
-#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0thread.h"
+# include "srv0srv.h"
 
 #include <stdlib.h>
 
@@ -74,6 +74,7 @@ ut_mem_init(void)
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
@@ -90,6 +91,7 @@ ut_malloc_low(
 	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	retry_count;
 	void*	ret;
 
@@ -208,6 +210,17 @@ retry:
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
+#else /* !UNIV_HOTBACKUP */
+	void*	ret = malloc(n);
+	ut_a(ret || !assert_on_error);
+
+# ifdef UNIV_SET_MEM_TO_ZERO
+	if (set_to_zero) {
+		memset(ret, '\0', n);
+	}
+# endif
+	return(ret);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /**************************************************************************
@@ -220,9 +233,14 @@ ut_malloc(
 			/* out, own: allocated memory */
 	ulint	n)	/* in: number of bytes to allocate */
 {
+#ifndef UNIV_HOTBACKUP
 	return(ut_malloc_low(n, TRUE, TRUE));
+#else /* !UNIV_HOTBACKUP */
+	return(malloc(n));
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
@@ -262,6 +280,7 @@ ut_test_malloc(
 
 	return(TRUE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */
@@ -271,6 +290,7 @@ ut_free(
 /*====*/
 	void* ptr)  /* in, own: memory block */
 {
+#ifndef UNIV_HOTBACKUP
 	ut_mem_block_t* block;
 
 	if (UNIV_LIKELY(srv_use_sys_malloc)) {
@@ -291,8 +311,12 @@ ut_free(
 	free(block);
 
 	os_fast_mutex_unlock(&ut_list_mutex);
+#else /* !UNIV_HOTBACKUP */
+	free(ptr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
@@ -403,6 +427,7 @@ ut_free_all_mem(void)
 			(ulong) ut_total_allocated_memory);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Copies up to size - 1 characters from the NUL-terminated string src to
@@ -499,6 +524,7 @@ ut_memcpyq(
 	return(dest);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once. */
@@ -671,3 +697,4 @@ test_ut_str_sql_format()
 }
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* !UNIV_HOTBACKUP */

@@ -26,22 +26,22 @@ Created 11/11/1995 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "buf0flu.ic"
-#include "trx0sys.h"
 #endif
 
+#include "buf0buf.h"
+#include "srv0srv.h"
+#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "page0page.h"
-#include "page0zip.h"
 #include "fil0fil.h"
-#include "buf0buf.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "os0file.h"
 #include "trx0sys.h"
-#include "srv0srv.h"
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
@@ -574,6 +574,7 @@ try_again:
 
 	mutex_exit(&(trx_doublewrite->mutex));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Initializes a page for writing to the tablespace. */
@@ -653,6 +654,7 @@ buf_flush_init_for_writing(
 			: BUF_NO_CHECKSUM_MAGIC);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Does an asynchronous write of a buffer page. NOTE: in simulated aio and
 also when the doublewrite buffer is used, we must call
@@ -1245,3 +1247,4 @@ buf_flush_validate(void)
 	return(ret);
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

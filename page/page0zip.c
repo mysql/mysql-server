@@ -31,15 +31,20 @@ Created June 2005 by Marko Makela
 #include "page0page.h"
 #include "mtr0log.h"
 #include "ut0sort.h"
-#include "dict0boot.h"
 #include "dict0dict.h"
-#include "btr0sea.h"
 #include "btr0cur.h"
 #include "page0types.h"
-#include "lock0lock.h"
 #include "log0recv.h"
 #include "zlib.h"
-#include "buf0lru.h"
+#ifndef UNIV_HOTBACKUP
+# include "buf0lru.h"
+# include "btr0sea.h"
+# include "dict0boot.h"
+# include "lock0lock.h"
+#else /* !UNIV_HOTBACKUP */
+# define lock_move_reorganize_page(block, temp_block)	((void) 0)
+# define buf_LRU_stat_inc_unzip()			((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
@@ -106,6 +111,7 @@ page_zip_fail_func(
 # define page_zip_fail(fmt_args) /* empty */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Determine the guaranteed free space on an empty page. */
 UNIV_INTERN
@@ -129,6 +135,7 @@ page_zip_empty_size(
 		- compressBound(2 * (n_fields + 1));
 	return(size > 0 ? (ulint) size : 0);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
@@ -251,6 +258,7 @@ page_zip_dir_get(
 				- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Write a log record of compressing an index page. */
 static
@@ -312,6 +320,7 @@ page_zip_compress_write_log(
 	mlog_catenate_string(mtr, page_zip->data + page_zip_get_size(page_zip)
 			     - trailer_size, trailer_size);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************
 Determine how many externally stored columns are contained
@@ -1360,7 +1369,9 @@ err_exit:
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (mtr) {
+#ifndef UNIV_HOTBACKUP
 		page_zip_compress_write_log(page_zip, page, index, mtr);
+#endif /* !UNIV_HOTBACKUP */
 	}
 
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -3610,6 +3621,7 @@ page_zip_write_blob_ptr(
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (mtr) {
+#ifndef UNIV_HOTBACKUP
 		byte*	log_ptr	= mlog_open(
 			mtr, 11 + 2 + 2 + BTR_EXTERN_FIELD_REF_SIZE);
 		if (UNIV_UNLIKELY(!log_ptr)) {
@@ -3625,6 +3637,7 @@ page_zip_write_blob_ptr(
 		memcpy(log_ptr, externs, BTR_EXTERN_FIELD_REF_SIZE);
 		log_ptr += BTR_EXTERN_FIELD_REF_SIZE;
 		mlog_close(mtr, log_ptr);
+#endif /* !UNIV_HOTBACKUP */
 	}
 }
 
@@ -3752,6 +3765,7 @@ page_zip_write_node_ptr(
 	memcpy(storage, field, REC_NODE_PTR_SIZE);
 
 	if (mtr) {
+#ifndef UNIV_HOTBACKUP
 		byte*	log_ptr	= mlog_open(mtr,
 					    11 + 2 + 2 + REC_NODE_PTR_SIZE);
 		if (UNIV_UNLIKELY(!log_ptr)) {
@@ -3767,6 +3781,7 @@ page_zip_write_node_ptr(
 		memcpy(log_ptr, field, REC_NODE_PTR_SIZE);
 		log_ptr += REC_NODE_PTR_SIZE;
 		mlog_close(mtr, log_ptr);
+#endif /* !UNIV_HOTBACKUP */
 	}
 }
 
@@ -4286,6 +4301,7 @@ corrupt:
 	return(ptr + len);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Write a log record of writing to the uncompressed header portion of a page. */
 UNIV_INTERN
@@ -4320,6 +4336,7 @@ page_zip_write_header_log(
 
 	mlog_catenate_string(mtr, data, length);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Reorganize and compress a page.  This is a low-level operation for
@@ -4359,10 +4376,15 @@ page_zip_reorganize(
 	/* Disable logging */
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
+#ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(0);
-	temp_page = temp_block->frame;
-
 	btr_search_drop_page_hash_index(block);
+	block->check_index_page_at_flush = TRUE;
+#else /* !UNIV_HOTBACKUP */
+	ut_ad(block == back_block1);
+	temp_block = back_block2;
+#endif /* !UNIV_HOTBACKUP */
+	temp_page = temp_block->frame;
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
@@ -4371,7 +4393,6 @@ page_zip_reorganize(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	page_create(block, mtr, TRUE);
-	block->check_index_page_at_flush = TRUE;
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -4390,16 +4411,21 @@ page_zip_reorganize(
 		/* Restore the old page and exit. */
 		buf_frame_copy(page, temp_page);
 
+#ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
+#endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
 
 	lock_move_reorganize_page(block, temp_block);
 
+#ifndef UNIV_HOTBACKUP
 	buf_block_free(temp_block);
+#endif /* !UNIV_HOTBACKUP */
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
@@ -4486,6 +4512,7 @@ page_zip_copy_recs(
 
 	page_zip_compress_write_log(page_zip, page, index, mtr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Parses a log record of compressing an index page. */

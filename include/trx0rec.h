@@ -30,9 +30,11 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0types.h"
 #include "mtr0mtr.h"
 #include "dict0types.h"
-#include "que0types.h"
 #include "data0data.h"
 #include "rem0types.h"
+
+#ifndef UNIV_HOTBACKUP
+# include "que0types.h"
 
 /***************************************************************************
 Copies the undo record to the heap. */
@@ -281,6 +283,7 @@ trx_undo_prev_version_build(
 	rec_t**		old_vers);/* out, own: previous version, or NULL if
 				rec is the first inserted version, or if
 				history data has been deleted */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Parses a redo log record of adding an undo log record. */
 UNIV_INTERN
@@ -302,6 +305,8 @@ trx_undo_parse_erase_page_end(
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
+
+#ifndef UNIV_HOTBACKUP
 
 /* Types of an undo log record: these have to be smaller than 16, as the
 compilation info multiplied by 16 is ORed to this value in an undo log
@@ -330,4 +335,6 @@ record */
 #include "trx0rec.ic"
 #endif
 
-#endif
+#endif /* !UNIV_HOTBACKUP */
+
+#endif /* trx0rec_h */

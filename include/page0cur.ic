@@ -197,6 +197,7 @@ page_cur_move_to_prev(
 	cur->rec = page_rec_get_prev(cur->rec);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Searches the right position for a page cursor. */
 UNIV_INLINE
@@ -271,6 +272,7 @@ page_cur_tuple_insert(
 	mem_heap_free(heap);
 	return(rec);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
@@ -297,4 +299,3 @@ page_cur_rec_insert(
 					       index, rec, offsets, mtr));
 	}
 }
-
