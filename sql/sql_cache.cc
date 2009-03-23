@@ -363,6 +363,43 @@ TYPELIB query_cache_type_typelib=
   array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
 };
 
+
+/**
+  Helper function for determine if a SELECT statement has a SQL_NO_CACHE
+  directive.
+  
+  @param sql A pointer to the first white space character after SELECT
+  
+  @return
+   @retval TRUE The character string contains SQL_NO_CACHE
+   @retval FALSE No directive found.
+*/
+ 
+static bool has_no_cache_directive(char *sql)
+{
+  int i=0;
+  while (sql[i] == ' ')
+    ++i;
+    
+  if (my_toupper(system_charset_info, sql[i])    == 'S' &&
+      my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
+      my_toupper(system_charset_info, sql[i+2])  == 'L' &&
+      my_toupper(system_charset_info, sql[i+3])  == '_' &&
+      my_toupper(system_charset_info, sql[i+4])  == 'N' &&
+      my_toupper(system_charset_info, sql[i+5])  == 'O' &&
+      my_toupper(system_charset_info, sql[i+6])  == '_' &&
+      my_toupper(system_charset_info, sql[i+7])  == 'C' &&
+      my_toupper(system_charset_info, sql[i+8])  == 'A' &&
+      my_toupper(system_charset_info, sql[i+9])  == 'C' &&
+      my_toupper(system_charset_info, sql[i+10]) == 'H' &&
+      my_toupper(system_charset_info, sql[i+11]) == 'E' &&
+      my_toupper(system_charset_info, sql[i+12]) == ' ')
+    return TRUE;
+  
+  return FALSE;       
+}
+
+
 /*****************************************************************************
  Query_cache_block_table method(s)
 *****************************************************************************/
@@ -1093,6 +1130,16 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
         sql[i] != '/')
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+      goto err;
+    }
+    
+    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+    {
+      /*
+        We do not increase 'refused' statistics here since it will be done
+        later when the query is parsed.
+      */
+      DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
       goto err;
     }
   }
@@ -3126,7 +3173,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
       {
         ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
-        table_count+= (file->end_table - file->open_tables);
+        table_count+= (uint) (file->end_table - file->open_tables);
       }
     }
   }
@@ -3313,7 +3360,7 @@ my_bool Query_cache::move_by_type(byte **border,
 		      *pprev = block->pprev,
 		      *pnext = block->pnext,
 		      *new_block =(Query_cache_block *) *border;
-    uint tablename_offset = block->table()->table() - block->table()->db();
+    size_t tablename_offset= block->table()->table() - block->table()->db();
     char *data = (char*) block->data();
     byte *key;
     uint key_length;
@@ -3625,7 +3672,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   filename=  tablename + dirname_length(tablename + 2) + 2;
   /* Find start of databasename */
   for (dbname= filename - 2 ; dbname[-1] != FN_LIBCHAR ; dbname--) ;
-  *db_length= (filename - dbname) - 1;
+  *db_length= (uint) ((filename - dbname) - 1);
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
   DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
@@ -3934,8 +3981,8 @@ my_bool Query_cache::check_integrity(bool locked)
       }
       else
       {
-	int idx = (((byte*)bin) - ((byte*)bins)) /
-	  sizeof(Query_cache_memory_bin);
+	int idx = (int) ((((byte*)bin) - ((byte*)bins)) /
+	  sizeof(Query_cache_memory_bin));
 	if (in_list(bins[idx].free_blocks, block, "free memory"))
 	  result = 1;
       }

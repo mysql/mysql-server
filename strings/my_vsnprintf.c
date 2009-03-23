@@ -107,7 +107,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       char *par = va_arg(ap, char *);
       DBUG_ASSERT(to <= end);
       if (to + abs(width) + 1 > end)
-        width= end - to - 1;  /* sign doesn't matter */
+        width= (uint) (end - to - 1);  /* sign doesn't matter */
       memmove(to, par, abs(width));
       to+= width;
       continue;

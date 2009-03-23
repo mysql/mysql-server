@@ -177,7 +177,7 @@ Command *parse_command(Instance_map *map, const char *text)
     get_word(&text, &option_len, NONSPACE);
     option= text;
     if ((tmp= strchr(text, '=')) != NULL)
-      option_len= tmp - text;
+      option_len= (uint) (tmp - text);
     text+= option_len;
 
     get_word(&text, &word_len);

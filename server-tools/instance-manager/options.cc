@@ -59,7 +59,7 @@ char **Options::saved_argv= NULL;
 bool Options::is_forced_default_file= 0;
 
 static const char * const ANGEL_PID_FILE_SUFFIX= ".angel.pid";
-static const int ANGEL_PID_FILE_SUFFIX_LEN= strlen(ANGEL_PID_FILE_SUFFIX);
+static const int ANGEL_PID_FILE_SUFFIX_LEN= (uint) strlen(ANGEL_PID_FILE_SUFFIX);
 
 /*
   List of options, accepted by the instance manager.
