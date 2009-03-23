@@ -1,5 +1,5 @@
 set SQL_LOG_BIN=0;
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4;
 create table t4(n int);
 backup table t4 to '../bogus';
 Table	Op	Msg_type	Msg_text
