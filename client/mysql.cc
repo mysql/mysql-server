@@ -2625,7 +2625,7 @@ static void get_current_db()
       (res= mysql_use_result(&mysql)))
   {
     MYSQL_ROW row= mysql_fetch_row(res);
-    if (row[0])
+    if (row && row[0])
       current_db= my_strdup(row[0], MYF(MY_WME));
     mysql_free_result(res);
   }
