@@ -1884,6 +1884,9 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
+
+  g_eventLogger->info("QQQ(%u) - lgman.sync_lsn = %d", __LINE__, ret);
+
   switch(ret){
   case 0:
     return;
