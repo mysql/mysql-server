@@ -303,6 +303,7 @@ log_block_init_in_old_format(
 	log_block_set_first_rec_group(log_block, 0);
 }
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Writes to the log the string given. The log must be released with
 log_release. */
@@ -409,3 +410,4 @@ log_free_check(void)
 		log_check_margins();
 	}
 }
+#endif /* !UNIV_HOTBACKUP */

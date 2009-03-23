@@ -23,7 +23,9 @@ Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
-#include "rem0cmp.h"
+#ifndef UNIV_HOTBACKUP
+# include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mtr0log.h"
 #include "page0zip.h"
 
@@ -182,6 +184,7 @@ page_header_set_ptr(
 	page_header_set_field(page, page_zip, field, offs);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Resets the last insert info field in the page header. Writes to mlog
 about this operation. */
@@ -206,6 +209,7 @@ page_header_reset_last_insert(
 				 MLOG_2BYTES, mtr);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /****************************************************************
 Determine whether the page is in new-style compact format. */
@@ -405,6 +409,7 @@ page_rec_is_infimum(
 	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -453,6 +458,7 @@ page_cmp_dtuple_rec_with_match(
 					 matched_fields,
 					 matched_bytes));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Gets the page number. */

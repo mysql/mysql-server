@@ -22,6 +22,7 @@ Transaction undo log record
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Reads from an undo log record the record type. */
 UNIV_INLINE
@@ -114,3 +115,4 @@ trx_undo_rec_copy(
 
 	return(rec_copy);
 }
+#endif /* !UNIV_HOTBACKUP */

@@ -25,8 +25,6 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0types_h
 #define dict0types_h
 
-#include "ut0list.h"
-
 typedef struct dict_sys_struct		dict_sys_t;
 typedef struct dict_col_struct		dict_col_t;
 typedef struct dict_field_struct	dict_field_t;
@@ -41,5 +39,9 @@ typedef dict_table_t			dict_cluster_t;
 
 typedef struct ind_node_struct		ind_node_t;
 typedef struct tab_node_struct		tab_node_t;
+
+/* Space id and page no where the dictionary header resides */
+#define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
+#define	DICT_HDR_PAGE_NO	FSP_DICT_HDR_PAGE_NO
 
 #endif

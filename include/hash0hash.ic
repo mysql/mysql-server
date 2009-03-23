@@ -76,6 +76,7 @@ hash_calc_hash(
 	return(ut_hash_ulint(fold, table->n_cells));
 }
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Gets the mutex index for a fold value in a hash table. */
 UNIV_INLINE
@@ -158,3 +159,4 @@ hash_get_mutex(
 
 	return(hash_get_nth_mutex(table, i));
 }
+#endif /* !UNIV_HOTBACKUP */

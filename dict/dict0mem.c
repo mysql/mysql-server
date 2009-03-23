@@ -32,7 +32,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "lock0lock.h"
+#ifndef UNIV_HOTBACKUP
+# include "lock0lock.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
 					creating a table or index object */
@@ -72,6 +74,7 @@ dict_mem_table_create(
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
 
+#ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
@@ -81,10 +84,9 @@ dict_mem_table_create(
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
+#endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
-	table->magic_n = DICT_TABLE_MAGIC_N;
-#endif /* UNIV_DEBUG */
+	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
 	return(table);
 }
 
@@ -166,8 +168,10 @@ dict_mem_table_add_col(
 	ulint		len)	/* in: precision */
 {
 	dict_col_t*	col;
+#ifndef UNIV_HOTBACKUP
 	ulint		mbminlen;
 	ulint		mbmaxlen;
+#endif /* !UNIV_HOTBACKUP */
 	ulint		i;
 
 	ut_ad(table);
@@ -199,10 +203,12 @@ dict_mem_table_add_col(
 	col->prtype = (unsigned int) prtype;
 	col->len = (unsigned int) len;
 
+#ifndef UNIV_HOTBACKUP
 	dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
 
 	col->mbminlen = (unsigned int) mbminlen;
 	col->mbmaxlen = (unsigned int) mbmaxlen;
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /**************************************************************************
@@ -232,7 +238,9 @@ dict_mem_index_create(
 	index->heap = heap;
 
 	index->type = type;
+#ifndef UNIV_HOTBACKUP
 	index->space = (unsigned int) space;
+#endif /* !UNIV_HOTBACKUP */
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
 	index->n_fields = (unsigned int) n_fields;

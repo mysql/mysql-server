@@ -28,6 +28,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0log.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
@@ -75,8 +76,6 @@ UNIV_INTERN log_t*	log_sys	= NULL;
 
 #ifdef UNIV_DEBUG
 UNIV_INTERN ibool	log_do_write = TRUE;
-
-UNIV_INTERN ibool	log_debug_writes = FALSE;
 #endif /* UNIV_DEBUG */
 
 /* These control how often we print warnings if the last checkpoint is too
@@ -562,6 +561,11 @@ log_group_calc_lsn_offset(
 
 	return(log_group_calc_real_offset((ulint)offset, group));
 }
+#endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+UNIV_INTERN ibool	log_debug_writes = FALSE;
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Calculates where in log files we find a specified lsn. */
@@ -603,6 +607,7 @@ log_calc_where_lsn_is(
 	return(file_no);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -611,7 +616,7 @@ UNIV_INTERN
 void
 log_group_set_fields(
 /*=================*/
-	log_group_t*	group,	/* in: group */
+	log_group_t*	group,	/* in/out: group */
 	ib_uint64_t	lsn)	/* in: lsn for which the values should be
 				set */
 {
@@ -1799,6 +1804,7 @@ log_group_checkpoint(
 		ut_ad(((ulint)group & 0x1UL) == 0);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /**********************************************************
@@ -1854,6 +1860,7 @@ log_reset_first_header_and_checkpoint(
 }
 #endif /* UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************
 Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */
 UNIV_INTERN
@@ -3306,3 +3313,4 @@ log_refresh_stats(void)
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = time(NULL);
 }
+#endif /* !UNIV_HOTBACKUP */

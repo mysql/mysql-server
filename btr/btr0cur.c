@@ -46,6 +46,8 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0cur.ic"
 #endif
 
+#include "row0upd.h"
+#ifndef UNIV_HOTBACKUP
 #include "page0page.h"
 #include "page0zip.h"
 #include "rem0rec.h"
@@ -53,7 +55,6 @@ Created 10/16/1994 Heikki Tuuri
 #include "buf0lru.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
-#include "row0upd.h"
 #include "trx0rec.h"
 #include "trx0roll.h" /* trx_is_recv() */
 #include "que0que.h"
@@ -87,12 +88,14 @@ can be released by page reorganize, then it is reorganized */
 						FIL_NULL if none */
 /*--------------------------------------*/
 #define BTR_BLOB_HDR_SIZE		8
+#endif /* !UNIV_HOTBACKUP */
 
 /* A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 UNIV_INTERN const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Marks all extern fields in a record as owned by the record. This function
 should be called if the delete mark of a record is removed: a not delete
@@ -161,6 +164,7 @@ btr_rec_get_externally_stored_len(
 				in units of a database page */
 	rec_t*		rec,	/* in: record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************
 The following function is used to set the deleted bit of a record. */
@@ -182,6 +186,7 @@ btr_rec_set_deleted_flag(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*==================== B-TREE SEARCH =========================*/
 
 /************************************************************************
@@ -1535,6 +1540,7 @@ btr_cur_update_in_place_log(
 
 	row_upd_index_write_log(update, log_ptr, mtr);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses a redo log record of updating a record in-place. */
@@ -1614,6 +1620,7 @@ func_exit:
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 See if there is enough place in the page modification log to log
 an update-in-place. */
@@ -2394,6 +2401,7 @@ btr_cur_del_mark_set_clust_rec_log(
 
 	mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a clustered
@@ -2475,6 +2483,7 @@ btr_cur_parse_del_mark_set_clust_rec(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -2599,6 +2608,7 @@ btr_cur_del_mark_set_sec_rec_log(
 
 	mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a secondary
@@ -2643,6 +2653,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Sets a secondary index record delete mark to TRUE or FALSE. */
 UNIV_INTERN
@@ -4818,3 +4829,4 @@ btr_rec_copy_externally_stored_field(
 	return(btr_copy_externally_stored_field(len, data,
 						zip_size, local_len, heap));
 }
+#endif /* !UNIV_HOTBACKUP */

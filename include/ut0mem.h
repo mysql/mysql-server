@@ -26,8 +26,9 @@ Created 5/30/1994 Heikki Tuuri
 #define ut0mem_h
 
 #include "univ.i"
-#include "os0sync.h"
 #include <string.h>
+#ifndef UNIV_HOTBACKUP
+# include "os0sync.h"
 
 /* The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
@@ -36,6 +37,7 @@ extern ulint		ut_total_allocated_memory;
 
 /* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
 extern os_fast_mutex_t	ut_list_mutex;
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INLINE
 void*
@@ -79,6 +81,7 @@ ut_malloc(
 /*======*/
 			/* out, own: allocated memory */
 	ulint	n);	/* in: number of bytes to allocate */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
@@ -89,6 +92,7 @@ ut_test_malloc(
 /*===========*/
 			/* out: TRUE if succeeded */
 	ulint	n);	/* in: try to allocate this many bytes */
+#endif /* !UNIV_HOTBACKUP */
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */
 UNIV_INTERN
@@ -96,6 +100,7 @@ void
 ut_free(
 /*====*/
 	void* ptr);  /* in, own: memory block */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
@@ -133,6 +138,7 @@ UNIV_INTERN
 void
 ut_free_all_mem(void);
 /*=================*/
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INLINE
 char*

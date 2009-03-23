@@ -27,11 +27,12 @@ Created 7/19/1997 Heikki Tuuri
 
 #include "univ.i"
 
-#include "dict0mem.h"
 #include "mtr0mtr.h"
-#include "que0types.h"
-#include "ibuf0types.h"
+#include "dict0mem.h"
 #include "fsp0fsp.h"
+
+#ifndef UNIV_HOTBACKUP
+# include "ibuf0types.h"
 
 /** Combinations of operations that can be buffered.  Because the enum
 values are used for indexing innobase_change_buffering_values[], they
@@ -313,6 +314,7 @@ ibuf_contract_for_n_pages(
 	ulint	n_pages);/* in: try to read at least this many pages to
 			the buffer pool and merge the ibuf contents to
 			them */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Parses a redo log record of an ibuf bitmap page init. */
 UNIV_INTERN
@@ -324,6 +326,7 @@ ibuf_parse_bitmap_init(
 	byte*		end_ptr,/* in: buffer end */
 	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
@@ -353,6 +356,8 @@ ibuf_print(
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
+
+#endif /* !UNIV_HOTBACKUP */
 
 /* The ibuf header page currently contains only the file segment header
 for the file segment from which the pages for the ibuf tree are allocated */

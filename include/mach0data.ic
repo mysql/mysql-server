@@ -547,7 +547,7 @@ mach_dulint_read_much_compressed(
 
 	return(ut_dulint_create(high, low));
 }
-
+#ifndef UNIV_HOTBACKUP
 /*************************************************************
 Reads a double. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -782,3 +782,4 @@ mach_read_int_type(
 
 	return(ret);
 }
+#endif /* !UNIV_HOTBACKUP */

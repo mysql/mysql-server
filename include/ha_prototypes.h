@@ -63,7 +63,7 @@ innobase_raw_format(
 	char*		buf,		/* out: output buffer */
 	ulint		buf_size);	/* in: output buffer size
 					in bytes */
-                    
+
 /*********************************************************************
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed. */

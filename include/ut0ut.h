@@ -230,7 +230,7 @@ ut_get_year_month_day(
 	ulint*	year,	/* out: current year */
 	ulint*	month,	/* out: month */
 	ulint*	day);	/* out: day */
-#endif /* UNIV_HOTBACKUP */
+#else /* UNIV_HOTBACKUP */
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */
@@ -240,6 +240,7 @@ ut_delay(
 /*=====*/
 			/* out: dummy value */
 	ulint	delay);	/* in: delay in microseconds on 100 MHz Pentium */
+#endif /* UNIV_HOTBACKUP */
 /*****************************************************************
 Prints the contents of a memory buffer in hex and ascii. */
 UNIV_INTERN
@@ -259,6 +260,7 @@ ut_print_filename(
 	FILE*		f,	/* in: output stream */
 	const char*	name);	/* in: name to print */
 
+#ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_struct;
 
@@ -301,6 +303,7 @@ ut_copy_file(
 /*=========*/
 	FILE*	dest,	/* in: output file */
 	FILE*	src);	/* in: input file to be appended to output */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 snprintf(). */

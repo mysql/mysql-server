@@ -52,7 +52,9 @@ ha_create_func(
 				hash table: must be a power of 2, or 0 */
 {
 	hash_table_t*	table;
+#ifndef UNIV_HOTBACKUP
 	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	table = hash_create(n);
 
@@ -72,6 +74,7 @@ ha_create_func(
 		return(table);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	hash_create_mutexes(table, n_mutexes, mutex_level);
 
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
@@ -80,6 +83,7 @@ ha_create_func(
 		table->heaps[i] = mem_heap_create_in_btr_search(4096);
 		ut_a(table->heaps[i]);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	return(table);
 }
@@ -99,12 +103,14 @@ ha_clear(
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 	/* Free the memory heaps. */
 	n = table->n_mutexes;
 
 	for (i = 0; i < n; i++) {
 		mem_heap_free(table->heaps[i]);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Clear the hash table. */
 	n = hash_get_n_cells(table);
@@ -305,6 +311,7 @@ ha_search_and_update_if_found_func(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
@@ -452,3 +459,4 @@ builds, see http://bugs.mysql.com/36941 */
 			(ulong) n_bufs);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */

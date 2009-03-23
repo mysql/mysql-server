@@ -24,10 +24,12 @@ Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
 #ifdef UNIV_MEM_DEBUG
+# ifndef UNIV_HOTBACKUP
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
 UNIV_INTERN mutex_t	mem_hash_mutex;
+# endif /* !UNIV_HOTBACKUP */
 
 /* The following variables contain information about the
 extent of memory allocations. Only used in the debug version.
@@ -38,7 +40,10 @@ static ulint		mem_n_allocations		= 0;
 static ulint		mem_total_allocated_memory	= 0;
 UNIV_INTERN ulint	mem_current_allocated_memory	= 0;
 static ulint		mem_max_allocated_memory	= 0;
+# ifndef UNIV_HOTBACKUP
 static ulint		mem_last_print_info		= 0;
+static ibool		mem_hash_initialized		= FALSE;
+# endif /* !UNIV_HOTBACKUP */
 
 /* Size of the hash table for memory management tracking */
 #define	MEM_HASH_SIZE	997
@@ -65,7 +70,6 @@ static mem_hash_cell_t		mem_hash_table[MEM_HASH_SIZE];
 /* The base node of the list of all allocated heaps */
 static mem_hash_cell_t		mem_all_list_base;
 
-static ibool	mem_hash_initialized	= FALSE;
 
 
 UNIV_INLINE
@@ -128,6 +132,7 @@ mem_field_trailer_get_check(byte* field)
 }
 #endif /* UNIV_MEM_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Initializes the memory system. */
 UNIV_INTERN
@@ -164,6 +169,7 @@ mem_init(
 
 	mem_comm_pool = mem_pool_create(size);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_MEM_DEBUG
 /**********************************************************************
@@ -683,8 +689,9 @@ mem_all_freed(void)
 	mutex_exit(&mem_hash_mutex);
 
 	if (heap_count == 0) {
-
+# ifndef UNIV_HOTBACKUP
 		ut_a(mem_pool_get_reserved(mem_comm_pool) == 0);
+# endif /* !UNIV_HOTBACKUP */
 
 		return(TRUE);
 	} else {
@@ -709,7 +716,9 @@ mem_validate_no_assert(void)
 	ulint			n_blocks;
 	ulint			i;
 
+# ifndef UNIV_HOTBACKUP
 	mem_pool_validate(mem_comm_pool);
+# endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&mem_hash_mutex);
 
@@ -887,6 +896,7 @@ mem_analyze_corruption(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated
 memory heaps or buffers. Can only be used in the debug version. */
@@ -1012,3 +1022,4 @@ mem_print_new_info(void)
 {
 	mem_print_info_low(FALSE);
 }
+#endif /* !UNIV_HOTBACKUP */

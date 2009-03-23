@@ -32,9 +32,9 @@ Created 5/11/1994 Heikki Tuuri
 #include <string.h>
 #include <ctype.h>
 
-#include "trx0trx.h"
-#include "ha_prototypes.h"
 #ifndef UNIV_HOTBACKUP
+# include "trx0trx.h"
+# include "ha_prototypes.h"
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
@@ -369,6 +369,7 @@ ut_get_year_month_day(
 }
 #endif /* UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */
@@ -393,6 +394,7 @@ ut_delay(
 
 	return(j);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Prints the contents of a memory buffer in hex and ascii. */
@@ -474,7 +476,7 @@ ut_print_filename(
 done:
 	putc('\'', f);
 }
-
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
@@ -509,9 +511,6 @@ ut_print_namel(
 	const char*	name,	/* in: name to print */
 	ulint		namelen)/* in: length of name */
 {
-#ifdef UNIV_HOTBACKUP
-	fwrite(name, 1, namelen, f);
-#else
 	/* 2 * NAME_LEN for database and table name,
 	and some slack for the #mysql50# prefix and quotes */
 	char		buf[3 * NAME_LEN];
@@ -523,7 +522,6 @@ ut_print_namel(
 				       table_id);
 
 	fwrite(buf, 1, bufend - buf, f);
-#endif
 }
 
 /**************************************************************************
@@ -551,6 +549,7 @@ ut_copy_file(
 		}
 	} while (len > 0);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 snprintf(). */

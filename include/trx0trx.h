@@ -27,12 +27,13 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "univ.i"
 #include "trx0types.h"
+#include "dict0types.h"
+#ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
 #include "usr0types.h"
 #include "que0types.h"
 #include "mem0mem.h"
 #include "read0types.h"
-#include "dict0types.h"
 #include "trx0xa.h"
 #include "ut0vec.h"
 
@@ -799,5 +800,6 @@ struct commit_node_struct{
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

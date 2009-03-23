@@ -41,7 +41,7 @@ ibool
 recv_read_cp_info_for_backup(
 /*=========================*/
 				/* out: TRUE if success */
-	byte*		hdr,	/* in: buffer containing the log group
+	const byte*	hdr,	/* in: buffer containing the log group
 				header */
 	ib_uint64_t*	lsn,	/* out: checkpoint lsn */
 	ulint*		offset,	/* out: checkpoint offset in the log group */
@@ -297,9 +297,11 @@ struct recv_addr_struct{
 /* Recovery system data structure */
 typedef struct recv_sys_struct	recv_sys_t;
 struct recv_sys_struct{
+#ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;	/* mutex protecting the fields apply_log_recs,
 				n_addrs, and the state field in each recv_addr
 				struct */
+#endif /* !UNIV_HOTBACKUP */
 	ibool		apply_log_recs;
 				/* this is TRUE when log rec application to
 				pages is allowed; this flag tells the

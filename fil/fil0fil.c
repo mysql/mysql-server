@@ -25,15 +25,11 @@ Created 10/25/1995 Heikki Tuuri
 #include "fil0fil.h"
 
 #include "mem0mem.h"
-#include "sync0sync.h"
 #include "hash0hash.h"
 #include "os0file.h"
-#include "os0sync.h"
 #include "mach0data.h"
-#include "ibuf0ibuf.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "buf0lru.h"
 #include "log0recv.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
@@ -42,7 +38,14 @@ Created 10/25/1995 Heikki Tuuri
 #include "mtr0log.h"
 #include "dict0dict.h"
 #include "page0zip.h"
-
+#ifndef UNIV_HOTBACKUP
+# include "buf0lru.h"
+# include "ibuf0ibuf.h"
+# include "sync0sync.h"
+# include "os0sync.h"
+#else /* !UNIV_HOTBACKUP */
+static ulint srv_data_read, srv_data_written;
+#endif /* !UNIV_HOTBACKUP */
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -197,8 +200,10 @@ struct fil_space_struct {
 				forbidden if this is > 0 */
 	hash_node_t	hash;	/* hash chain node */
 	hash_node_t	name_hash;/* hash chain the name_hash table */
+#ifndef UNIV_HOTBACKUP
 	rw_lock_t	latch;	/* latch protecting the file space storage
 				allocation */
+#endif /* !UNIV_HOTBACKUP */
 	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
 				/* list of spaces with at least one unflushed
 				file we have written to */
@@ -217,7 +222,9 @@ form a 'space' and it is handled here */
 
 typedef	struct fil_system_struct	fil_system_t;
 struct fil_system_struct {
+#ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/* The mutex protecting the cache */
+#endif /* !UNIV_HOTBACKUP */
 	hash_table_t*	spaces;		/* The hash table of spaces in the
 					system; they are hashed on the space
 					id */
@@ -408,6 +415,7 @@ fil_space_get_by_name(
 	return(space);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found. */
 UNIV_INTERN
@@ -488,6 +496,7 @@ fil_space_get_type(
 
 	return(space->purpose);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Checks if all the file nodes in a space are flushed. The caller must hold
@@ -1753,6 +1762,7 @@ fil_read_flushed_lsn_and_arch_log_no(
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Increments the count of pending insert buffer page merges, if space is not
 being deleted. */
@@ -1817,6 +1827,7 @@ fil_decr_pending_ibuf_merges(
 
 	mutex_exit(&fil_system->mutex);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Creates the database directory for a table if it does not exist yet. */
@@ -2234,6 +2245,7 @@ try_again:
 	return(FALSE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
@@ -2268,6 +2280,7 @@ fil_discard_tablespace(
 
 	return(success);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 Renames the memory cache structures of a single-table tablespace. */
@@ -2704,6 +2717,7 @@ error_exit2:
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf
@@ -3002,6 +3016,7 @@ func_exit:
 
 	return(ret);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /***********************************************************************
@@ -3899,7 +3914,8 @@ fil_extend_tablespaces_to_stored_len(void)
 		mutex_exit(&fil_system->mutex); /* no need to protect with a
 					      mutex, because this is a
 					      single-threaded operation */
-		error = fil_read(TRUE, space->id, space->zip_size,
+		error = fil_read(TRUE, space->id,
+				 dict_table_flags_to_zip_size(space->flags),
 				 0, 0, UNIV_PAGE_SIZE, buf, NULL);
 		ut_a(error == DB_SUCCESS);
 
@@ -4195,14 +4211,15 @@ fil_io(
 # error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
 #endif
 	ut_ad(fil_validate());
-#ifndef UNIV_LOG_DEBUG
+#ifndef UNIV_HOTBACKUP
+# ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
 	      || ibuf_page(space_id, zip_size, block_offset, NULL));
-#endif
+# endif /* UNIV_LOG_DEBUG */
 	if (sync) {
 		mode = OS_AIO_SYNC;
 	} else if (is_log) {
@@ -4214,6 +4231,10 @@ fil_io(
 	} else {
 		mode = OS_AIO_NORMAL;
 	}
+#else /* !UNIV_HOTBACKUP */
+	ut_a(sync);
+	mode = OS_AIO_SYNC;
+#endif /* !UNIV_HOTBACKUP */
 
 	if (type == OS_FILE_READ) {
 		srv_data_read+= len;
@@ -4354,6 +4375,7 @@ fil_io(
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -4415,6 +4437,7 @@ fil_aio_wait(
 		log_io_complete(message);
 	}
 }
+#endif /* UNIV_HOTBACKUP */
 
 /**************************************************************************
 Flushes to disk possible writes cached by the OS. If the space does not exist
