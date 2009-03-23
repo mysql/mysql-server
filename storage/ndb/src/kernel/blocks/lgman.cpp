@@ -137,7 +137,9 @@ Lgman::client_lock(BlockNumber block, int line)
     Uint32 ino = blockToInstance(block);
 #endif
     D("try lock " << bno << "/" << ino << V(line));
+    g_eventLogger->info("QQQ(%u) - Lgman::client_lock %x", line, (Uint32)block);
     int ret = m_client_mutex.lock();
+    g_eventLogger->info("QQQ(%u) - Lgman::client_lock %x success", line, (Uint32)block);
     ndbrequire(ret == 0);
     D("got lock " << bno << "/" << ino << V(line));
   }
@@ -152,7 +154,9 @@ Lgman::client_unlock(BlockNumber block, int line)
     Uint32 ino = blockToInstance(block);
 #endif
     D("unlock " << bno << "/" << ino << V(line));
+    g_eventLogger->info("QQQ(%u) - Lgman::client_unlock %x", line, (Uint32)block);
     int ret = m_client_mutex.unlock();
+    g_eventLogger->info("QQQ(%u) - Lgman::client_unlock %x success", line, (Uint32)block);
     ndbrequire(ret == 0);
   }
 }
@@ -1214,7 +1218,7 @@ Logfile_client::sync_lsn(Signal* signal,
       signal->theData[2] = (Uint32)(lsn >> 32);
       signal->theData[3] = (Uint32)(lsn & 0xFFFFFFFF);
 
-      g_eventLogger->info("QQQ(%u) - lgman LgmanContinueB::FORCE_LOG_SYNC", __LINE__);
+      g_eventLogger->info("QQQ(%u) - lgman LgmanContinueB::FORCE_LOG_SYNC %x", __LINE__, m_lgman->reference());
 
       m_lgman->sendSignalWithDelay(m_lgman->reference(), 
 				   GSN_CONTINUEB, signal, 10, 4);
