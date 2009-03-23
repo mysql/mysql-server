@@ -152,6 +152,7 @@ ha_insert_for_fold_func(
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 			if (table->adaptive) {
 				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->frame
@@ -160,6 +161,7 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
+# endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -187,10 +189,13 @@ ha_insert_for_fold_func(
 	ha_node_set_data(node, block, data);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		block->n_pointers++;
 	}
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 	node->fold = fold;
 
 	node->next = NULL;
@@ -224,12 +229,15 @@ ha_delete_hash_node(
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		ut_a(del_node->block->frame = page_align(del_node->data));
 		ut_a(del_node->block->n_pointers > 0);
 		del_node->block->n_pointers--;
 	}
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
@@ -281,11 +289,13 @@ ha_search_and_update_if_found_func(
 
 	if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 		if (table->adaptive) {
 			ut_a(node->block->n_pointers > 0);
 			node->block->n_pointers--;
 			new_block->n_pointers++;
 		}
+# endif /* !UNIV_HOTBACKUP */
 
 		node->block = new_block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
