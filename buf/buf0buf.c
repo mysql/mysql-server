@@ -572,16 +572,7 @@ buf_page_print(
 				btr_page_get_index_id(read_buf)),
 			(ulong) ut_dulint_get_low(
 				btr_page_get_index_id(read_buf)));
-
-#ifdef UNIV_HOTBACKUP
-		/* If the code is in ibbackup, dict_sys may be uninitialized,
-		i.e., NULL */
-
-		if (dict_sys == NULL) {
-			break;
-		}
-#endif /* UNIV_HOTBACKUP */
-
+#ifndef UNIV_HOTBACKUP
 		index = dict_index_find_on_id_low(
 			btr_page_get_index_id(read_buf));
 		if (index) {
@@ -589,6 +580,7 @@ buf_page_print(
 			dict_index_name_print(stderr, NULL, index);
 			fputs(")\n", stderr);
 		}
+#endif /* !UNIV_HOTBACKUP */
 		break;
 	case FIL_PAGE_INODE:
 		fputs("InnoDB: Page may be an 'inode' page\n", stderr);
