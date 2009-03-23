@@ -11,6 +11,7 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/master-slave.inc
+--source include/not_embedded.inc
 
 ##########################################################################
 #                            Loading data
@@ -31,8 +32,10 @@ commit;
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $error=query_get_value("show slave status", Last_SQL_Error, 1);
-echo $error;
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
+--replace_regex /SQL_LOAD-[0-9]-[0-9]-[0-9]*/SQL_LOAD/
+query_vertical show slave status;
 
 ##########################################################################
 #                             Clean up
