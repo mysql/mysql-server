@@ -141,7 +141,7 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	hash = hash_calc_hash(fold, table);
 
@@ -254,7 +254,7 @@ ha_delete(
 {
 	ha_node_t*	node;
 
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	node = ha_search_with_data(table, fold, data);
 
@@ -280,7 +280,7 @@ ha_search_and_update_if_found_func(
 {
 	ha_node_t*	node;
 
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -316,7 +316,7 @@ ha_remove_all_nodes_to_page(
 {
 	ha_node_t*	node;
 
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	node = ha_chain_get_first(table, fold);
 
