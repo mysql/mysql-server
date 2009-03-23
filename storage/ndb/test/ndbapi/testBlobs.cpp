@@ -3193,6 +3193,7 @@ bugtest_4088()
       CHK((g_opr = g_con->getNdbOperation(name)) != 0);
       CHK(g_opr->readTuple() == 0);
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+      setUDpartId(tup, g_opr);
       CHK(g_opr->getValue("NDB$PK", (char*)&pktup[i].m_pk1) != 0);
     }
     // read blob inline via index as an index
@@ -3241,8 +3242,15 @@ bugtest_27018()
       memcpy(&tup.m_key_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    NdbOperation::OperationOptions opts;
+    setUDpartIdNdbRecord(tup,
+                         g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                         opts);
     CHK((g_const_opr= g_con->updateTuple(g_key_record, tup.m_key_row,
-                                         g_blob_record, tup.m_row)) != 0);
+                                         g_blob_record, tup.m_row,
+                                         NULL, // mask
+                                         &opts,
+                                         sizeof(opts))) != 0);
     CHK(getBlobHandles(g_const_opr) == 0);
     CHK(g_con->execute(NoCommit) == 0);
 
@@ -3254,7 +3262,11 @@ bugtest_27018()
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_const_opr= g_con->readTuple(g_key_record, tup.m_key_row,
-                                       g_blob_record, tup.m_row)) != 0);
+                                       g_blob_record, tup.m_row,
+                                       NdbOperation::LM_Read,
+                                       NULL, // mask
+                                       &opts,
+                                       sizeof(opts))) != 0);
     CHK(getBlobHandles(g_const_opr) == 0);
 
     CHK(g_bh1->getValue(tup.m_bval1.m_buf, tup.m_bval1.m_len) == 0);
@@ -3289,6 +3301,7 @@ struct bug27370_data {
   char *m_read_row;
   char *m_write_row;
   bool m_thread_stop;
+  NdbOperation::OperationOptions* opts;
 };
 
 void *bugtest_27370_thread(void *arg)
@@ -3306,7 +3319,10 @@ void *bugtest_27370_thread(void *arg)
     const NdbOperation *opr;
     memcpy(data->m_write_row, data->m_key_row, g_rowsize);
     if ((opr= con->writeTuple(g_key_record, data->m_key_row,
-                              g_full_record, data->m_write_row)) == 0)
+                              g_full_record, data->m_write_row,
+                              NULL, //mask
+                              data->opts,
+                              sizeof(NdbOperation::OperationOptions))) == 0)
       return (void *)"Failed to create operation";
     NdbBlob *bh;
     if ((bh= opr->getBlobHandle("BL1")) == 0)
@@ -3340,6 +3356,19 @@ bugtest_27370()
   data.m_blob1_size= g_blob1.m_inline + 10 * g_blob1.m_partsize;
   CHK((data.m_writebuf= new char [data.m_blob1_size]) != 0);
   Uint32 pk1_value= 27370;
+
+  const NdbDictionary::Table* t= g_ndb->getDictionary()->getTable(g_opt.m_tname);
+  bool isUserDefined= (t->getFragmentType() == NdbDictionary::Object::UserDefined); 
+  Uint32 partCount= t->getFragmentCount();
+  Uint32 udPartId= pk1_value % partCount;
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent= 0;
+  data.opts= &opts;
+  if (isUserDefined)
+  {
+    opts.optionsPresent= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    opts.partitionId= udPartId;
+  }
   memcpy(&data.m_key_row[g_pk1_offset], &pk1_value, sizeof(pk1_value));
   if (g_opt.m_pk2chr.m_len != 0)
   {
@@ -3357,7 +3386,10 @@ bugtest_27370()
   CHK((g_con= g_ndb->startTransaction()) != 0);
   memcpy(data.m_write_row, data.m_key_row, g_rowsize);
   CHK((g_const_opr= g_con->writeTuple(g_key_record, data.m_key_row,
-                                      g_full_record, data.m_write_row)) != 0);
+                                      g_full_record, data.m_write_row,
+                                      NULL, // mask
+                                      &opts,
+                                      sizeof(opts))) != 0);
   CHK((g_bh1= g_const_opr->getBlobHandle("BL1")) != 0);
   CHK(g_bh1->setValue(data.m_writebuf, data.m_blob1_size) == 0);
   CHK(g_con->execute(Commit) == 0);
@@ -3374,7 +3406,10 @@ bugtest_27370()
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_const_opr= g_con->readTuple(g_key_record, data.m_key_row,
                                        g_blob_record, data.m_read_row,
-                                       NdbOperation::LM_CommittedRead)) != 0);
+                                       NdbOperation::LM_CommittedRead,
+                                       NULL, // mask
+                                       &opts,
+                                       sizeof(opts))) != 0);
     CHK((g_bh1= g_const_opr->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
 
