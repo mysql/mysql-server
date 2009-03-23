@@ -814,22 +814,103 @@ recv_parse_or_apply_log_rec_body(
 	dict_index_t*	index	= NULL;
 	page_t*		page;
 	page_zip_des_t*	page_zip;
+#ifdef UNIV_DEBUG
+	ulint		page_type;
+#endif /* UNIV_DEBUG */
 
 	ut_ad(!block == !mtr);
 
 	if (block) {
 		page = block->frame;
 		page_zip = buf_block_get_page_zip(block);
+		ut_d(page_type = fil_page_get_type(page));
 	} else {
 		page = NULL;
 		page_zip = NULL;
+		ut_d(page_type = FIL_PAGE_TYPE_ALLOCATED);
 	}
 
 	switch (type) {
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
+#ifdef UNIV_DEBUG
+		if (page && page_type == FIL_PAGE_TYPE_ALLOCATED
+		    && end_ptr >= ptr + 2) {
+			/* It is OK to set FIL_PAGE_TYPE and certain
+			list node fields on an empty page.  Any other
+			write is not OK. */
+
+			/* NOTE: There may be bogus assertion failures for
+			dict_hdr_create(), trx_rseg_header_create(),
+			trx_sys_create_doublewrite_buf(), and
+			trx_sysf_create().
+			These are only called during database creation. */
+			ulint	offs = mach_read_from_2(ptr);
+
+			switch (type) {
+			default:
+				ut_error;
+			case MLOG_2BYTES:
+				/* Note that this can fail when the
+				redo log been written with something
+				older than InnoDB Plugin 1.0.4. */
+				ut_ad(offs == FIL_PAGE_TYPE
+				      || offs == IBUF_TREE_SEG_HEADER
+				      + IBUF_HEADER + FSEG_HDR_OFFSET
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      + FIL_ADDR_SIZE
+				      || offs == PAGE_BTR_SEG_LEAF
+				      + PAGE_HEADER + FSEG_HDR_OFFSET
+				      || offs == PAGE_BTR_SEG_TOP
+				      + PAGE_HEADER + FSEG_HDR_OFFSET
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      + 0 /*FLST_PREV*/
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      + FIL_ADDR_SIZE /*FLST_NEXT*/);
+				break;
+			case MLOG_4BYTES:
+				/* Note that this can fail when the
+				redo log been written with something
+				older than InnoDB Plugin 1.0.4. */
+				ut_ad(0
+				      || offs == IBUF_TREE_SEG_HEADER
+				      + IBUF_HEADER + FSEG_HDR_SPACE
+				      || offs == IBUF_TREE_SEG_HEADER
+				      + IBUF_HEADER + FSEG_HDR_PAGE_NO
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER/* flst_init */
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      + FIL_ADDR_SIZE
+				      || offs == PAGE_BTR_SEG_LEAF
+				      + PAGE_HEADER + FSEG_HDR_PAGE_NO
+				      || offs == PAGE_BTR_SEG_LEAF
+				      + PAGE_HEADER + FSEG_HDR_SPACE
+				      || offs == PAGE_BTR_SEG_TOP
+				      + PAGE_HEADER + FSEG_HDR_PAGE_NO
+				      || offs == PAGE_BTR_SEG_TOP
+				      + PAGE_HEADER + FSEG_HDR_SPACE
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      + 0 /*FLST_PREV*/
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      + FIL_ADDR_SIZE /*FLST_NEXT*/);
+				break;
+			}
+		}
+#endif /* UNIV_DEBUG */
 		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_INSERT,
@@ -842,6 +923,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_CLUST_DELETE_MARK,
@@ -854,6 +937,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_COMP_REC_SEC_DELETE_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		/* This log record type is obsolete, but we process it for
 		backward compatibility with MySQL 5.0.3 and 5.0.4. */
 		ut_a(!page || page_is_comp(page));
@@ -864,10 +948,13 @@ recv_parse_or_apply_log_rec_body(
 		}
 		/* Fall through */
 	case MLOG_REC_SEC_DELETE_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr,
 							 page, page_zip);
 		break;
 	case MLOG_REC_UPDATE_IN_PLACE: case MLOG_COMP_REC_UPDATE_IN_PLACE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_UPDATE_IN_PLACE,
@@ -881,6 +968,8 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	case MLOG_LIST_END_DELETE: case MLOG_COMP_LIST_END_DELETE:
 	case MLOG_LIST_START_DELETE: case MLOG_COMP_LIST_START_DELETE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_LIST_END_DELETE
@@ -894,6 +983,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_LIST_END_COPY_CREATED,
@@ -906,6 +997,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_PAGE_REORGANIZE,
@@ -918,29 +1011,36 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
+		/* Allow anything in page_type when creating a page. */
 		ut_a(!page_zip);
 		ptr = page_parse_create(ptr, end_ptr,
 					type == MLOG_COMP_PAGE_CREATE,
 					block, mtr);
 		break;
 	case MLOG_UNDO_INSERT:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_add_undo_rec(ptr, end_ptr, page);
 		break;
 	case MLOG_UNDO_ERASE_END:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_erase_page_end(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_UNDO_INIT:
+		/* Allow anything in page_type when creating a page. */
 		ptr = trx_undo_parse_page_init(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_UNDO_HDR_DISCARD:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_discard_latest(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_UNDO_HDR_CREATE:
 	case MLOG_UNDO_HDR_REUSE:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_page_header(type, ptr, end_ptr,
 						 page, mtr);
 		break;
 	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		/* On a compressed page, MLOG_COMP_REC_MIN_MARK
 		will be followed by MLOG_COMP_REC_DELETE
 		or MLOG_ZIP_WRITE_HEADER(FIL_PAGE_PREV, FIL_NULL)
@@ -951,6 +1051,8 @@ recv_parse_or_apply_log_rec_body(
 			page, mtr);
 		break;
 	case MLOG_REC_DELETE: case MLOG_COMP_REC_DELETE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_DELETE,
@@ -963,12 +1065,15 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:
+		/* Allow anything in page_type when creating a page. */
 		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, block, mtr);
 		break;
 	case MLOG_INIT_FILE_PAGE:
+		/* Allow anything in page_type when creating a page. */
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, block);
 		break;
 	case MLOG_WRITE_STRING:
+		ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED);
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_CREATE:
@@ -978,18 +1083,22 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = page_zip_parse_write_node_ptr(ptr, end_ptr,
 						    page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_BLOB_PTR:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = page_zip_parse_write_blob_ptr(ptr, end_ptr,
 						    page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_HEADER:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = page_zip_parse_write_header(ptr, end_ptr,
 						  page, page_zip);
 		break;
 	case MLOG_ZIP_PAGE_COMPRESS:
+		/* Allow anything in page_type when creating a page. */
 		ptr = page_zip_parse_compress(ptr, end_ptr,
 					      page, page_zip);
 		break;
