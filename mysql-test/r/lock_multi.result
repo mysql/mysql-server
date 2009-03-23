@@ -51,10 +51,10 @@ ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES;
 DROP DATABASE mysqltest_1;
 ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
-use mysql;
+USE mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
-use mysql;
+USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 OPTIMIZE TABLES columns_priv, db, host, user;
 Table	Op	Msg_type	Msg_text
@@ -65,7 +65,7 @@ mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv
 N
-use test;
+USE test;
 use test;
 CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
@@ -93,43 +93,9 @@ create table t1 (a int);
 connection: locker
 lock tables t1 read;
 connection: writer
-create table t2 like t1;;
+create table t2 like t1;
 connection: default
 kill query
 ERROR 70100: Query execution was interrupted
 unlock tables;
 drop table t1;
-CREATE TABLE t1 (
-a int(11) unsigned default NULL,
-b varchar(255) default NULL,
-UNIQUE KEY a (a),
-KEY b (b)
-);
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
-CREATE TABLE t2 SELECT * FROM t1;
-CREATE TABLE t3 SELECT * FROM t1;
-# test altering of columns that multiupdate doesn't use
-# normal mode
-# PS mode
-# test altering of columns that multiupdate uses
-# normal mode
-# PS mode
-DROP TABLE t1, t2, t3;
-CREATE TABLE t1( a INT, b INT );
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
-# 1. test regular tables
-# 1.1. test altering of columns that multiupdate doesn't use
-# 1.1.1. normal mode
-# 1.1.2. PS mode
-# 1.2. test altering of columns that multiupdate uses
-# 1.2.1. normal mode
-# 1.2.2. PS mode
-ALTER TABLE t1 ADD COLUMN a INT;
-# 2. test UNIONs
-# 2.1. test altering of columns that multiupdate doesn't use
-# 2.1.1. normal mode
-# 2.1.2. PS mode
-# 2.2. test altering of columns that multiupdate uses
-# 2.2.1. normal mode
-# 2.2.2. PS mode
-DROP TABLE t1;
