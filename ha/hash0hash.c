@@ -105,14 +105,16 @@ hash_create(
 
 	array = ut_malloc(sizeof(hash_cell_t) * prime);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	table->adaptive = FALSE;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	table->array = array;
 	table->n_cells = prime;
+#ifndef UNIV_HOTBACKUP
+# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	table->adaptive = FALSE;
+# endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	table->n_mutexes = 0;
 	table->mutexes = NULL;
 	table->heaps = NULL;
+#endif /* !UNIV_HOTBACKUP */
 	table->heap = NULL;
 	table->magic_n = HASH_TABLE_MAGIC_N;
 

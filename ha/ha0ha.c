@@ -57,7 +57,9 @@ ha_create_func(
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 	table->adaptive = TRUE;
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
