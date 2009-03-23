@@ -374,7 +374,7 @@ page_zip_write_header(
 {
 	ulint	pos;
 
-	ut_ad(buf_frame_get_page_zip(str) == page_zip);
+	ut_ad(PAGE_ZIP_MATCH(str, page_zip));
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 

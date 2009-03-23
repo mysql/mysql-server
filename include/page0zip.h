@@ -443,6 +443,14 @@ page_zip_calc_checksum(
         ulint           size)   /* in: size of compressed page */
 	__attribute__((nonnull));
 
+#ifndef UNIV_HOTBACKUP
+# define PAGE_ZIP_MATCH(ptr, page_zip)			\
+	(buf_frame_get_page_zip(ptr) == (page_zip))
+#else /* !UNIV_HOTBACKUP */
+# define PAGE_ZIP_MATCH(ptr, page_zip)				\
+	(page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data)
+#endif /* !UNIV_HOTBACKUP */
+
 #ifdef UNIV_MATERIALIZE
 # undef UNIV_INLINE
 # define UNIV_INLINE	UNIV_INLINE_ORIGINAL
