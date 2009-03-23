@@ -23,20 +23,22 @@ Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
 #include "os0file.h"
-#include "os0sync.h"
-#include "os0thread.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
-
-#if defined(UNIV_HOTBACKUP) && defined(__WIN__)
+#ifndef UNIV_HOTBACKUP
+# include "os0sync.h"
+# include "os0thread.h"
+#else /* !UNIV_HOTBACKUP */
+# ifdef __WIN__
 /* Add includes for the _stat() call to compile on Windows */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#endif /* UNIV_HOTBACKUP */
+#  include <sys/types.h>
+#  include <sys/stat.h>
+#  include <errno.h>
+# endif /* __WIN__ */
+#endif /* !UNIV_HOTBACKUP */
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -57,6 +59,7 @@ UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
 /* We do not call os_file_flush in every os_file_write. */
 #endif /* UNIV_DO_FLUSH */
 
+#ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
@@ -154,6 +157,7 @@ static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 /* If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	os_n_file_reads		= 0;
 UNIV_INTERN ulint	os_bytes_read_since_printout = 0;
@@ -166,8 +170,10 @@ UNIV_INTERN time_t	os_last_printout;
 
 UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 
+#ifndef UNIV_HOTBACKUP
 /* The mutex protecting the following counts of pending I/O operations */
 static os_mutex_t	os_file_count_mutex;
+#endif /* !UNIV_HOTBACKUP */
 UNIV_INTERN ulint	os_file_n_pending_preads  = 0;
 UNIV_INTERN ulint	os_file_n_pending_pwrites = 0;
 UNIV_INTERN ulint	os_n_pending_writes = 0;
@@ -497,6 +503,7 @@ os_file_lock(
 }
 #endif /* USE_FILE_LOCK */
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
 UNIV_INTERN
@@ -524,37 +531,32 @@ os_file_create_tmpfile(void)
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
 {
-#ifdef UNIV_HOTBACKUP
-	ut_error;
-
-	return(NULL);
-#else
-# ifdef __NETWARE__
+#ifdef __NETWARE__
 	FILE*	file	= tmpfile();
-# else /* __NETWARE__ */
+#else /* __NETWARE__ */
 	FILE*	file	= NULL;
 	int	fd	= innobase_mysql_tmpfile();
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
-# endif /* __NETWARE__ */
+#endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
-# ifndef __NETWARE__
+#ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
-# endif /* !__NETWARE__ */
+#endif /* !__NETWARE__ */
 	}
 
 	return(file);
-#endif /* UNIV_HOTBACKUP */
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
@@ -2852,6 +2854,7 @@ os_file_create_subdirs_if_needed(
 	return(success);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Returns a pointer to the nth slot in the aio array. */
 static
@@ -4224,3 +4227,5 @@ os_aio_all_slots_free(void)
 	return(FALSE);
 }
 #endif /* UNIV_DEBUG */
+
+#endif /* !UNIV_HOTBACKUP */
