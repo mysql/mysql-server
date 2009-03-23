@@ -57,6 +57,11 @@ SafeMutex::lock()
       return err(ret, __LINE__);
     return 0;
   }
+  if (m_level > 0)
+  {
+    pthread_t self = pthread_self();
+    ndbout_c("QQQ SafeMutex::lock %u %x,%x", m_level, m_owner, self);
+  }
   ret = pthread_mutex_lock(&m_mutex);
   if (ret != 0)
     return err(ret, __LINE__);

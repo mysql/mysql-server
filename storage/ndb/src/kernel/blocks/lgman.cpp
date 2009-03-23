@@ -297,11 +297,11 @@ Lgman::execCONTINUEB(Signal* signal){
   case LgmanContinueB::FORCE_LOG_SYNC:
   {
     jam();
-
-    g_eventLogger->info("QQQ(%u) - execCONTINUEB LgmanContinueB::FORCE_LOG_SYNC", __LINE__);
-
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
+
+    g_eventLogger->info("QQQ(%u) - execCONTINUEB LgmanContinueB::FORCE_LOG_SYNC %u,%x", __LINE__, ptrI, ptr.p->m_state);
+
     force_log_sync(signal, ptr, signal->theData[2], signal->theData[3]);
     break;
   }
@@ -1218,7 +1218,9 @@ Logfile_client::sync_lsn(Signal* signal,
       signal->theData[2] = (Uint32)(lsn >> 32);
       signal->theData[3] = (Uint32)(lsn & 0xFFFFFFFF);
 
-      g_eventLogger->info("QQQ(%u) - lgman LgmanContinueB::FORCE_LOG_SYNC %x", __LINE__, m_lgman->reference());
+      g_eventLogger->info("QQQ(%u) - lgman LgmanContinueB::FORCE_LOG_SYNC %x i=%u,%x/%x %x/%x", __LINE__, m_lgman->reference(),
+                          signal->theData[1],signal->theData[2],signal->theData[3],
+                          Uint32(ptr.p->m_last_sync_req_lsn >> 32), Uint32(ptr.p->m_last_sync_req_lsn));
 
       m_lgman->sendSignalWithDelay(m_lgman->reference(), 
 				   GSN_CONTINUEB, signal, 10, 4);
@@ -1282,12 +1284,15 @@ Lgman::force_log_sync(Signal* signal,
     signal->theData[2] = (Uint32)(max_req_lsn >> 32);
     signal->theData[3] = (Uint32)(max_req_lsn & 0xFFFFFFFF);
 
-    g_eventLogger->info("QQQ(%u) - lgman LgmanContinueB::FORCE_LOG_SYNC", __LINE__);
+    g_eventLogger->info("QQQ(%u) - lgman LgmanContinueB::FORCE_LOG_SYNC i=%u", __LINE__, ptr.i);
 
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
   }
   else
   {
+
+    g_eventLogger->info("QQQ(%u) - lgman ~Lgman::Logfile_group::LG_FORCE_SYNC_THREAD on i=%u", __LINE__, ptr.i);
+
     ptr.p->m_state &= ~(Uint32)Lgman::Logfile_group::LG_FORCE_SYNC_THREAD;
   }
 }
