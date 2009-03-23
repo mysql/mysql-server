@@ -77,12 +77,14 @@ UNIV_INLINE
 ibool
 recv_recovery_is_on(void);
 /*=====================*/
+#ifdef UNIV_LOG_ARCHIVE
 /***********************************************************************
 Returns TRUE if recovery from backup is currently running. */
 UNIV_INLINE
 ibool
 recv_recovery_from_backup_is_on(void);
 /*=================================*/
+#endif /* UNIV_LOG_ARCHIVE */
 /****************************************************************************
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been

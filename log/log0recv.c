@@ -60,7 +60,9 @@ this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 
 UNIV_INTERN recv_sys_t*	recv_sys = NULL;
 UNIV_INTERN ibool	recv_recovery_on = FALSE;
+#ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool	recv_recovery_from_backup_on = FALSE;
+#endif /* UNIV_LOG_ARCHIVE */
 
 UNIV_INTERN ibool	recv_needed_recovery = FALSE;
 
