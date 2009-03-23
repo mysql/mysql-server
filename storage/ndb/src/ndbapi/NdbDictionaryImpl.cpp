@@ -5842,8 +5842,9 @@ ndb_set_record_specification(Uint32 storageOffset,
   }
   else
   {
-    spec->nullbit_byte_offset= 0;
-    spec->nullbit_bit_in_byte= 0;
+    /* For non-nullable columns, use visibly bad offsets */
+    spec->nullbit_byte_offset= ~0;
+    spec->nullbit_bit_in_byte= ~0;
   }
 
   return storageOffset + sizeOfElement;
