@@ -195,6 +195,7 @@ ulint
 os_get_os_version(void);
 /*===================*/
 		  /* out: OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
 UNIV_INTERN
@@ -211,6 +212,7 @@ FILE*
 os_file_create_tmpfile(void);
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
