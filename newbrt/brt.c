@@ -607,7 +607,8 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height)
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = BRT_LAYOUT_VERSION;
+    assert(t->h->layout_version != 0);
+    n->layout_version = t->h->layout_version;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
@@ -2727,6 +2728,8 @@ int toku_brt_alloc_init_header(BRT t, const char *dbname) {
         t->h=0;
         return r;
     }
+
+    t->h->layout_version = BRT_LAYOUT_VERSION;
 
     if ((MALLOC_N(1, t->h->flags_array))==0)  { r = errno; if (0) { died3: toku_free(t->h->flags_array); } goto died2; }
 

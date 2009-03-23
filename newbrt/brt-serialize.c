@@ -105,14 +105,11 @@ toku_pwrite_extend (int fd, const void *buf, size_t count, toku_off_t offset, ss
     }
 }
 
-// Don't include the compressed data size or the uncompressed data size.
-
+// Don't include the compression header
 static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
 					    4+   // nodesize
 					    8+   // checkpoint number
 					    4+   // target node size
- 					    4+   // compressed data size
-					    4+   // uncompressed data size
 					    4+   // flags
 					    4+   // height
 					    4+   // random for fingerprint
@@ -166,7 +163,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
     }
 }
 
-// This is the size of the uncompressed data, including the uncompressed header, and including the 4 bytes for the information about how big is the compressed version, and how big is the uncompressed version.
+// This is the size of the uncompressed data, not including the compression headers
 unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result =brtnode_header_overhead;
     assert(sizeof(toku_off_t)==8);
@@ -202,18 +199,99 @@ wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
 enum { uncompressed_magic_len = (8 // tokuleaf or tokunode
 				 +4 // version
 				 +8 // lsn
-				 ) };
+				 ) 
+};
 
-enum { compression_header_len = (4   // compressed_len
-				 +4 // uncompressed_len
-				 ) };
+// uncompressed header offsets
+enum {
+    uncompressed_magic_offset = 0,
+    uncompressed_version_offset = 8,
+    uncompressed_lsn_offset = 12,
+};
+
+// compression header sub block sizes
+struct sub_block_sizes {
+    u_int32_t compressed_size;
+    u_int32_t uncompressed_size;
+};
+
+// round up n
+static inline int roundup2(int n, int alignment) {
+    return (n+alignment-1)&~(alignment-1);
+}
+
+// choose the number of sub blocks such that the sub block size
+// is around 1 meg.  put an upper bound on the number of sub blocks.
+static int get_sub_block_sizes(int totalsize, int maxn, struct sub_block_sizes sizes[]) {
+    const int meg = 1024*1024;
+    const int alignment = 256;
+
+    int n, subsize;
+    n = totalsize/meg;
+    if (n == 0) {
+	n = 1;
+        subsize = totalsize;
+    } else {
+        if (n > maxn)
+            n = maxn;
+	subsize = roundup2(totalsize/n, alignment);
+        while (n < maxn && subsize >= meg + meg/8) {
+            n++;
+            subsize = roundup2(totalsize/n, alignment);
+        }
+    }
+
+    // generate the sub block sizes
+    int i;
+    for (i=0; i<n-1; i++) {
+        sizes[i].uncompressed_size = subsize;
+        sizes[i].compressed_size = compressBound(subsize);
+        totalsize -= subsize;
+    }
+    if (i == 0 || totalsize > 0) {
+        sizes[i].uncompressed_size = totalsize;
+        sizes[i].compressed_size = compressBound(totalsize);
+        i++;
+    }
+    
+    return i;
+}
+
+// get the size of the compression header
+static size_t get_compression_header_size(int layout_version, int n) {
+    if (layout_version < BRT_LAYOUT_VERSION_10)
+        return n * sizeof (struct sub_block_sizes);
+    else
+        return sizeof (u_int32_t) + n * sizeof (struct sub_block_sizes);
+}
+
+// get the sum of the sub block compressed sizes 
+static size_t get_sum_compressed_size(int n, struct sub_block_sizes sizes[]) {
+    int i;
+    size_t compressed_size = 0;
+    for (i=0; i<n; i++) 
+        compressed_size += sizes[i].compressed_size;
+    return compressed_size;
+}
+
+
+// get the sum of the sub block uncompressed sizes 
+static size_t get_sum_uncompressed_size(int n, struct sub_block_sizes sizes[]) {
+    int i;
+    size_t uncompressed_size = 0;
+    for (i=0; i<n; i++) 
+        uncompressed_size += sizes[i].uncompressed_size;
+    return uncompressed_size;
+}
 
 static inline void ignore_int (int UU(ignore_me)) {}
 
 int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads) {
     struct wbuf w;
     int i;
-    unsigned int calculated_size = toku_serialize_brtnode_size(node) - 8; // don't include the compressed or uncompressed sizes
+
+    // serialize the node into buf
+    unsigned int calculated_size = toku_serialize_brtnode_size(node); 
     //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, calculated_size);
     //assert(calculated_size<=size);
     //char buf[size];
@@ -225,7 +303,8 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     wbuf_literal_bytes(&w, "toku", 4);
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
-    wbuf_int(&w, BRT_LAYOUT_VERSION);
+    assert(node->layout_version == BRT_LAYOUT_VERSION_9 || node->layout_version == BRT_LAYOUT_VERSION);
+    wbuf_int(&w, node->layout_version);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, node->nodesize);
@@ -312,42 +391,78 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     //   tokuleaf(8),
     //   version(4),
     //   lsn(8),
-    //   compressed_len(4),[which includes only the compressed data]
-    //   uncompressed_len(4)[which includes only the compressed data, not the header]
+    //   n_sub_blocks(4), followed by n length pairs
+    //   compressed_len(4)
+    //   uncompressed_len(4)
 
-    // The first part of the data is uncompressed
-    uLongf uncompressed_len = calculated_size-uncompressed_magic_len;
-    uLongf compressed_len   = compressBound(uncompressed_len);
+    // select the number of sub blocks and their sizes. 
+    // impose an upper bound on the number of sub blocks.
+    int max_sub_blocks = 4;
+    if (node->layout_version < BRT_LAYOUT_VERSION_10)
+        max_sub_blocks = 1;
+    struct sub_block_sizes sub_block_sizes[max_sub_blocks];
+    int n_sub_blocks = get_sub_block_sizes(calculated_size-uncompressed_magic_len, max_sub_blocks, sub_block_sizes);
+    assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+    if (0 && n_sub_blocks != 1) {
+        printf("%s:%d %d:", __FUNCTION__, __LINE__, n_sub_blocks);
+        for (i=0; i<n_sub_blocks; i++)
+            printf("%u ", sub_block_sizes[i].uncompressed_size);
+        printf("\n");
+    }
+    
+    size_t compressed_len = get_sum_compressed_size(n_sub_blocks, sub_block_sizes);
+    size_t compression_header_len = get_compression_header_size(node->layout_version, n_sub_blocks);
     char *MALLOC_N(compressed_len+uncompressed_magic_len+compression_header_len, compressed_buf);
-
     memcpy(compressed_buf, buf, uncompressed_magic_len);
     if (0) printf("First 4 bytes before compressing data are %02x%02x%02x%02x\n",
-		  buf[uncompressed_magic_len],   buf[uncompressed_magic_len+1],
-		  buf[uncompressed_magic_len+2], buf[uncompressed_magic_len+3]);
-    {
+                  buf[uncompressed_magic_len],   buf[uncompressed_magic_len+1],
+                  buf[uncompressed_magic_len+2], buf[uncompressed_magic_len+3]);
+
+    // TBD compress all of the sub blocks
+    char *uncompressed_ptr = buf + uncompressed_magic_len;
+    char *compressed_base_ptr = compressed_buf + uncompressed_magic_len + compression_header_len;
+    char *compressed_ptr = compressed_base_ptr;
+    for (i=0; i<n_sub_blocks; i++) {
+        uLongf uncompressed_len = sub_block_sizes[i].uncompressed_size;
+
+        uLongf real_compressed_len   = sub_block_sizes[i].compressed_size;
+
+        {
 #ifdef ADAPTIVE_COMPRESSION
-	// Marketing has expressed concern that this algorithm will make customers go crazy.
-	int compression_level;
-	if      (n_workitems <=   n_threads) compression_level = 5;
-	else if (n_workitems <= 2*n_threads) compression_level = 4;
-	else if (n_workitems <= 3*n_threads) compression_level = 3;
-	else if (n_workitems <= 4*n_threads) compression_level = 2;
-	else                                 compression_level = 1;
+            // Marketing has expressed concern that this algorithm will make customers go crazy.
+            int compression_level;
+            if      (n_workitems <=   n_threads) compression_level = 5;
+            else if (n_workitems <= 2*n_threads) compression_level = 4;
+            else if (n_workitems <= 3*n_threads) compression_level = 3;
+            else if (n_workitems <= 4*n_threads) compression_level = 2;
+            else                                 compression_level = 1;
 #else
-	int compression_level = 5;
-	ignore_int(n_workitems); ignore_int(n_threads);
+            int compression_level = 5;
+            ignore_int(n_workitems); ignore_int(n_threads);
 #endif
-	//printf("compress(%d) n_workitems=%d n_threads=%d\n", compression_level, n_workitems, n_threads);
-	int r = compress2(((Bytef*)compressed_buf)+uncompressed_magic_len + compression_header_len, &compressed_len,
-			  ((Bytef*)buf)+uncompressed_magic_len, calculated_size-uncompressed_magic_len,
-			  compression_level);
-	assert(r==Z_OK);
+            //printf("compress(%d) n_workitems=%d n_threads=%d\n", compression_level, n_workitems, n_threads);
+            int r = compress2((Bytef*)compressed_ptr, &real_compressed_len,
+                              (Bytef*)uncompressed_ptr, uncompressed_len,
+                              compression_level);
+            assert(r==Z_OK);
+            sub_block_sizes[i].compressed_size = real_compressed_len; // replace the compressed size estimate with the real size
+            uncompressed_ptr += uncompressed_len;                     // update the uncompressed and compressed buffer pointers
+            compressed_ptr += real_compressed_len;
+        }
     }
+    compressed_len = compressed_ptr - compressed_base_ptr;
 
     if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %lu\n", blocknum.b, calculated_size-uncompressed_magic_len, compressed_len);
 
-    ((int32_t*)(compressed_buf+uncompressed_magic_len))[0] = toku_htonl(compressed_len);
-    ((int32_t*)(compressed_buf+uncompressed_magic_len))[1] = toku_htonl(uncompressed_len);
+    // write out the compression header
+    uint32_t *compressed_header_ptr = (uint32_t *)(compressed_buf + uncompressed_magic_len);
+    if (node->layout_version >= BRT_LAYOUT_VERSION_10)
+        *compressed_header_ptr++ = toku_htonl(n_sub_blocks);
+    for (i=0; i<n_sub_blocks; i++) {
+        compressed_header_ptr[0] = toku_htonl(sub_block_sizes[i].compressed_size);
+        compressed_header_ptr[1] = toku_htonl(sub_block_sizes[i].uncompressed_size);
+        compressed_header_ptr += 2;
+    }
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     int r;
@@ -383,9 +498,78 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     return r;
 }
 
+#define DO_DECOMPRESS_WORKER 1
+
+struct decompress_work {
+    toku_pthread_t id;
+    void *compress_ptr;
+    void *uncompress_ptr;
+    u_int32_t compress_size;
+    u_int32_t uncompress_size;
+};
+
+// initialize the decompression work
+static void init_decompress_work(struct decompress_work *w,
+                                 void *compress_ptr, u_int32_t compress_size,
+                                 void *uncompress_ptr, u_int32_t uncompress_size) {
+    w->id = 0;
+    w->compress_ptr = compress_ptr; w->compress_size = compress_size;
+    w->uncompress_ptr = uncompress_ptr; w->uncompress_size = uncompress_size;
+}
+
+// do the decompression work
+static void do_decompress_work(struct decompress_work *w) {
+    uLongf destlen = w->uncompress_size;
+    int r = uncompress(w->uncompress_ptr, &destlen,
+                       w->compress_ptr, w->compress_size);
+    assert(destlen==w->uncompress_size);
+    assert(r==Z_OK);
+}
+
+#if DO_DECOMPRESS_WORKER
+
+static void *decompress_worker(void *);
+
+static void start_decompress_work(struct decompress_work *w) {
+    int r = toku_pthread_create(&w->id, NULL, decompress_worker, w); assert(r == 0);
+}
+
+static void wait_decompress_work(struct decompress_work *w) {
+    void *ret;
+    int r = toku_pthread_join(w->id, &ret); assert(r == 0);
+}
+
+static void *decompress_worker(void *arg) {
+    struct decompress_work *w = (struct decompress_work *) arg;
+    do_decompress_work(w);
+    return arg;
+}
+
+#endif
+
+#define DO_TOKU_TRACE 0
+#if DO_TOKU_TRACE
+static int toku_trace_fd = -1;
+
+static inline void do_toku_trace(const char *cp, int len) {
+    write(toku_trace_fd, cp, len);
+}
+#define toku_trace(a)  do_toku_trace(a, strlen(a))
+#else
+#define toku_trace(a)
+#endif
+
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
     if (h->panic) return h->panic;
+
+#if DO_TOKU_TRACE
+    if (toku_trace_fd == -1) 
+        toku_trace_fd = open("/dev/null", O_WRONLY);
+    toku_trace("deserial start");
+#endif
+
+    // get the file offset and block size for the block
     DISKOFF offset, size;
     toku_block_get_offset_size(h->blocktable, blocknum, &offset, &size);
     TAGMALLOC(BRTNODE, result);
@@ -401,38 +585,83 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 
     unsigned char *MALLOC_N(size, compressed_block);
 
+    // read the compressed block
     ssize_t rlen = pread(fd, compressed_block, size, offset);
     assert((DISKOFF)rlen == size);
 
+    // get the layout_version
     unsigned char *uncompressed_header = compressed_block;
-    u_int32_t compressed_size   = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
-    if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
-    u_int32_t uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
-    if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
-    if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
+    int layout_version = toku_ntohl(*(uint32_t*)(uncompressed_header+uncompressed_version_offset));
 
-    unsigned char *compressed_data = compressed_block + uncompressed_magic_len + compression_header_len;
+    // get the number of compressed sub blocks
+    int n_sub_blocks;
+    int compression_header_offset;
+    if (layout_version < BRT_LAYOUT_VERSION_10) {
+        n_sub_blocks = 1; 
+        compression_header_offset = uncompressed_magic_len;
+    } else {
+        n_sub_blocks = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
+        compression_header_offset = uncompressed_magic_len + 4;
+    }
+    assert(0 < n_sub_blocks);
 
-    rc.size= uncompressed_size + uncompressed_magic_len;
+    // verify the sizes of the compressed sub blocks
+    if (0 && n_sub_blocks != 1) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n_sub_blocks);
+
+    struct sub_block_sizes sub_block_sizes[n_sub_blocks];
+    for (i=0; i<n_sub_blocks; i++) {
+        u_int32_t compressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[compression_header_offset+8*i]));
+        if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
+        u_int32_t uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[compression_header_offset+8*i+4]));
+        if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
+        if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
+
+        sub_block_sizes[i].compressed_size = compressed_size;
+        sub_block_sizes[i].uncompressed_size = uncompressed_size;
+    }
+
+    unsigned char *compressed_data = compressed_block + uncompressed_magic_len + get_compression_header_size(layout_version, n_sub_blocks);
+
+    size_t uncompressed_size = get_sum_uncompressed_size(n_sub_blocks, sub_block_sizes);
+    rc.size= uncompressed_magic_len + uncompressed_size;
     assert(rc.size>0);
 
     rc.buf=toku_malloc(rc.size);
     assert(rc.buf);
 
+    // construct the uncompressed block from the header and compressed sub blocks
     memcpy(rc.buf, uncompressed_header, uncompressed_magic_len);
-    {
-	uLongf destlen = uncompressed_size;
-	r = uncompress(rc.buf+uncompressed_magic_len, &destlen,
-		       compressed_data, compressed_size);
-	assert(destlen==uncompressed_size);
-	assert(r==Z_OK);
+
+    // decompress the sub blocks
+    void *uncompressed_data = rc.buf+uncompressed_magic_len;
+    struct decompress_work decompress_work[n_sub_blocks];
+
+    for (i=0; i<n_sub_blocks; i++) {
+        init_decompress_work(&decompress_work[i], compressed_data, sub_block_sizes[i].compressed_size, uncompressed_data, sub_block_sizes[i].uncompressed_size);
+        if (i>0) {
+#if DO_DECOMPRESS_WORKER
+            start_decompress_work(&decompress_work[i]);
+#else
+            do_decompress_work(&decompress_work[i]);
+#endif
+        }
+        uncompressed_data += sub_block_sizes[i].uncompressed_size;
+        compressed_data += sub_block_sizes[i].compressed_size;
     }
+    do_decompress_work(&decompress_work[0]);
+#if DO_DECOMPRESS_WORKER
+    for (i=1; i<n_sub_blocks; i++)
+        wait_decompress_work(&decompress_work[i]);
+#endif
+    toku_trace("decompress done");
+
     if (0) printf("First 4 bytes of uncompressed data are %02x%02x%02x%02x\n",
 		  rc.buf[uncompressed_magic_len],   rc.buf[uncompressed_magic_len+1],
 		  rc.buf[uncompressed_magic_len+2], rc.buf[uncompressed_magic_len+3]);
 
     toku_free(compressed_block);
 
+    // deserialize the uncompressed block
     rc.ndone=0;
     //printf("Deserializing %lld datasize=%d\n", off, datasize);
     {
@@ -447,8 +676,10 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     result->layout_version    = rbuf_int(&rc);
     {
 	switch (result->layout_version) {
-	case BRT_LAYOUT_VERSION_9: goto ok_layout_version;
-	    // Don't support older versions.
+        case BRT_LAYOUT_VERSION_10: 
+        case BRT_LAYOUT_VERSION_9: 
+            goto ok_layout_version;
+            // Don't support older versions.
 	}
 	r=toku_db_badformat();
 	return r;
@@ -570,10 +801,12 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    array[i]=(OMTVALUE)le;
 	    actual_sum += x1764_memory(le, disksize);
 	}
+        toku_trace("fill array");
 	u_int32_t end_of_data = rc.ndone;
 	result->u.l.n_bytes_in_buffer += end_of_data-start_of_data + n_in_buf*OMT_ITEM_OVERHEAD;
 	actual_sum *= result->rand4fingerprint;
 	r = toku_omt_create_steal_sorted_array(&result->u.l.buffer, &array, n_in_buf, n_in_buf);
+        toku_trace("create omt");
 	if (r!=0) {
             toku_free(array);
 	    if (0) { died_21: toku_omt_destroy(&result->u.l.buffer); }
@@ -602,7 +835,9 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (n_read_so_far+4!=rc.size) {
 	    r = toku_db_badformat(); goto died_21;
 	}
+        toku_trace("x1764 start");
 	uint32_t crc = x1764_memory(rc.buf, n_read_so_far);
+        toku_trace("x1764");
 	uint32_t storedcrc = rbuf_int(&rc);
 	if (crc!=storedcrc) {
 	    printf("Bad CRC\n");
@@ -617,6 +852,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	// For height==0 we used the buf inside the OMT
 	toku_free(rc.buf);
     }
+    toku_trace("deserial done");
     *brtnode = result;
     //toku_verify_counts(result);
     return 0;
@@ -695,7 +931,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     unsigned int size = toku_serialize_brt_header_size (h); // !!! seems silly to recompute the size when the caller knew it.  Do we really need the size?
     wbuf_literal_bytes(wbuf, "tokudata", 8);
     wbuf_int    (wbuf, size);
-    wbuf_int    (wbuf, BRT_LAYOUT_VERSION);
+    wbuf_int    (wbuf, h->layout_version);
     wbuf_int    (wbuf, h->nodesize);
     //TODO: Use 'prelocked/unlocked' versions to make this atomic
 //TODO: #1463 START
@@ -810,7 +1046,7 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
     h->panic_string = 0;
     h->layout_version = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
-    assert(h->layout_version==BRT_LAYOUT_VERSION_9);
+    assert(h->layout_version==BRT_LAYOUT_VERSION_9 || h->layout_version==BRT_LAYOUT_VERSION_10);
     BLOCKNUM free_blocks = rbuf_blocknum(&rc);
     BLOCKNUM unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
