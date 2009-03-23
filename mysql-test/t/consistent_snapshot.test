@@ -1,43 +1,61 @@
--- source include/have_innodb.inc
+--source include/have_innodb.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 
 --disable_warnings
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+--echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
+--echo # Establish connection con2 (user=root)
 connect (con2,localhost,root,,);
 
 ### Test 1:
 ### - While a consistent snapshot transaction is executed,
 ###   no external inserts should be visible to the transaction.
 
+--echo # Switch to connection con1
 connection con1;
-create table t1 (a int) engine=innodb;
-start transaction with consistent snapshot;
+CREATE TABLE t1 (a INT) ENGINE=innodb;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
 
+--echo # Switch to connection con2
 connection con2;
-insert into t1 values(1);
+INSERT INTO t1 VALUES(1);
 
+--echo # Switch to connection con1
 connection con1;
-select * from t1; # if consistent snapshot was set as expected, we
+SELECT * FROM t1; # if consistent snapshot was set as expected, we
 # should see nothing.
-commit;
+COMMIT;
 
 ### Test 2:
 ### - For any non-consistent snapshot transaction, external
 ###   committed inserts should be visible to the transaction.
 
-delete from t1;
-start transaction; # Now we omit WITH CONSISTENT SNAPSHOT
+DELETE FROM t1;
+START TRANSACTION; # Now we omit WITH CONSISTENT SNAPSHOT
 
+--echo # Switch to connection con2
 connection con2;
-insert into t1 values(1);
+INSERT INTO t1 VALUES(1);
 
+--echo # Switch to connection con1
 connection con1;
-select * from t1; # if consistent snapshot was not set, as expected, we
+SELECT * FROM t1; # if consistent snapshot was not set, as expected, we
 # should see 1.
-commit;
+COMMIT;
 
-drop table t1;
+--echo # Switch to connection default + close connections con1 and con2
+connection default;
+disconnect con1;
+disconnect con2;
+DROP TABLE t1;
 
 # End of 4.1 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

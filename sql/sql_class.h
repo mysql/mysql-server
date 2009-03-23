@@ -1358,6 +1358,13 @@ public:
     Note: in the parser, stmt_arena == thd, even for PS/SP.
   */
   Query_arena *stmt_arena;
+
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  table_map table_map_for_update;
+
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc

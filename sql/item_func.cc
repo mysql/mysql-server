@@ -2758,7 +2758,7 @@ longlong Item_func_find_in_set::val_int()
           if (is_last_item && !is_separator)
             str_end= substr_end;
           if (!my_strnncoll(cs, (const uchar *) str_begin,
-                            str_end - str_begin,
+                            (uint) (str_end - str_begin),
                             find_str, find_str_len))
             return (longlong) position;
           else
@@ -4792,7 +4792,7 @@ Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
   :var(var_arg), var_type(var_type_arg), component(*component_arg)
 {
   /* set_name() will allocate the name */
-  set_name(name_arg, name_len_arg, system_charset_info);
+  set_name(name_arg, (uint) name_len_arg, system_charset_info);
 }
 
 
@@ -4961,7 +4961,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     if (item->type() == Item::REF_ITEM)
       args[i]= item= *((Item_ref *)item)->ref;
     if (item->type() != Item::FIELD_ITEM)
-      key=NO_SUCH_KEY;
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
+      return TRUE;
+    }
   }
   /*
     Check that all columns come from the same table.

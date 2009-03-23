@@ -801,7 +801,7 @@ void check_command_args(struct st_command *command,
         ptr++;
       if (ptr > start)
       {
-        init_dynamic_string(arg->ds, 0, ptr-start, 32);
+        init_dynamic_string(arg->ds, 0, (uint) (ptr - start), 32);
         do_eval(arg->ds, start, ptr, FALSE);
       }
       else
@@ -1156,16 +1156,16 @@ void warning_msg(const char *fmt, ...)
       len= my_snprintf(buff, sizeof(buff), "in included file %s ",
                        cur_file->file_name);
       dynstr_append_mem(&ds_warning_messages,
-                        buff, len);
+                        buff, (uint) len);
     }
     len= my_snprintf(buff, sizeof(buff), "at line %d: ",
                      start_lineno);
     dynstr_append_mem(&ds_warning_messages,
-                      buff, len);
+                      buff, (uint) len);
   }
 
   len= my_vsnprintf(buff, sizeof(buff), fmt, args);
-  dynstr_append_mem(&ds_warning_messages, buff, len);
+  dynstr_append_mem(&ds_warning_messages, buff, (uint) len);
 
   dynstr_append(&ds_warning_messages, "\n");
   va_end(args);
@@ -1185,7 +1185,7 @@ void log_msg(const char *fmt, ...)
   len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
   va_end(args);
 
-  dynstr_append_mem(&ds_res, buff, len);
+  dynstr_append_mem(&ds_res, buff, (uint) len);
   dynstr_append(&ds_res, "\n");
 
   DBUG_VOID_RETURN;
@@ -1222,7 +1222,7 @@ void cat_file(DYNAMIC_STRING* ds, const char* filename)
         /* Add fake newline instead of cr and output the line */
         *p= '\n';
         p++; /* Step past the "fake" newline */
-        dynstr_append_mem(ds, start, p-start);
+        dynstr_append_mem(ds, start, (uint) (p - start));
         p++; /* Step past the "fake" newline */
         start= p;
       }
@@ -1230,7 +1230,7 @@ void cat_file(DYNAMIC_STRING* ds, const char* filename)
         p++;
     }
     /* Output any chars that migh be left */
-    dynstr_append_mem(ds, start, p-start);
+    dynstr_append_mem(ds, start, (uint) (p - start));
   }
   my_close(fd, MYF(0));
 }
@@ -1770,9 +1770,9 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   int val_alloc_len;
   VAR *tmp_var;
   if (!name_len && name)
-    name_len = strlen(name);
+    name_len = (uint) strlen(name);
   if (!val_len && val)
-    val_len = strlen(val) ;
+    val_len = (uint) strlen(val) ;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
                                                   + name_len+1, MYF(MY_WME))))
@@ -1815,7 +1815,7 @@ VAR* var_from_env(const char *name, const char *def_val)
   if (!(tmp = getenv(name)))
     tmp = def_val;
 
-  v = var_init(0, name, strlen(name), tmp, strlen(tmp));
+  v = var_init(0, name, (uint) strlen(name), tmp, (uint) strlen(tmp));
   my_hash_insert(&var_hash, (byte*)v);
   return v;
 }
@@ -1864,7 +1864,7 @@ VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
   {
     sprintf(v->str_val, "%d", v->int_val);
     v->int_dirty = 0;
-    v->str_val_len = strlen(v->str_val);
+    v->str_val_len = (uint) strlen(v->str_val);
   }
   if (var_name_end)
     *var_name_end = var_name  ;
@@ -1927,7 +1927,7 @@ void var_set(const char *var_name, const char *var_name_end,
     {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty= 0;
-      v->str_val_len= strlen(v->str_val);
+      v->str_val_len= (uint) strlen(v->str_val);
     }
     my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
                 v->name_len, v->name,
@@ -2006,7 +2006,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   ++query;
 
   /* Eval the query, thus replacing all environment variables */
-  init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
+  init_dynamic_string(&ds_query, 0, (uint) ((end - query) + 32), 256);
   do_eval(&ds_query, query, end, FALSE);
 
   if (mysql_real_query(mysql, ds_query.str, ds_query.length))
@@ -2223,7 +2223,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
       struct st_command command;
       memset(&command, 0, sizeof(command));
       command.query= (char*)p;
-      command.first_word_len= len;
+      command.first_word_len= (uint) len;
       command.first_argument= command.query + len;
       command.end= (char*)*p_end;
       var_set_query_get_value(&command, v);
@@ -2413,7 +2413,7 @@ static int replace(DYNAMIC_STRING *ds_str,
     return 1;
   init_dynamic_string(&ds_tmp, "",
                       ds_str->length + replace_len, 256);
-  dynstr_append_mem(&ds_tmp, ds_str->str, start - ds_str->str);
+  dynstr_append_mem(&ds_tmp, ds_str->str, (uint) (start - ds_str->str));
   dynstr_append_mem(&ds_tmp, replace_str, replace_len);
   dynstr_append(&ds_tmp, start + search_len);
   dynstr_set(ds_str, ds_tmp.str);
@@ -2468,7 +2468,7 @@ void do_exec(struct st_command *command)
   if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
   {
     /* Replace echo with our "builtin" echo */
-    replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
+    replace(&ds_cmd, "echo", 4, builtin_echo, (uint) strlen(builtin_echo));
   }
 
 #ifdef __WIN__
@@ -4627,7 +4627,7 @@ void do_delimiter(struct st_command* command)
     die("Can't set empty delimiter");
 
   strmake(delimiter, p, sizeof(delimiter) - 1);
-  delimiter_length= strlen(delimiter);
+  delimiter_length= (uint) strlen(delimiter);
 
   DBUG_PRINT("exit", ("delimiter: %s", delimiter));
   command->last_argument= p + delimiter_length;
@@ -4753,9 +4753,11 @@ int read_line(char *buf, int size)
       }
       else if ((c == '{' &&
                 (!my_strnncoll_simple(charset_info, (const uchar*) "while", 5,
-                                      (uchar*) buf, min(5, p - buf), 0) ||
+                                      (uchar*) buf, min(5, (uint) (p - buf)),
+                                      0) ||
                  !my_strnncoll_simple(charset_info, (const uchar*) "if", 2,
-                                      (uchar*) buf, min(2, p - buf), 0))))
+                                      (uchar*) buf, min(2, (uint) (p - buf)),
+                                      0))))
       {
         /* Only if and while commands can be terminated by { */
         *p++= c;
@@ -5117,7 +5119,7 @@ int read_command(struct st_command** command_ptr)
   command->first_argument= p;
 
   command->end= strend(command->query);
-  command->query_len= (command->end - command->query);
+  command->query_len= (uint) (command->end - command->query);
   parser.read_lines++;
   DBUG_RETURN(0);
 }
@@ -6459,7 +6461,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   else
   {
     query = command->query;
-    query_len = strlen(query);
+    query_len = (uint) strlen(query);
   }
 
   /*
@@ -6520,7 +6522,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
       */
       view_created= 1;
       query= (char*)"SELECT * FROM mysqltest_tmp_v";
-      query_len = strlen(query);
+      query_len = (uint) strlen(query);
 
       /*
         Collect warnings from create of the view that should otherwise
@@ -6568,7 +6570,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
       sp_created= 1;
 
       query= (char*)"CALL mysqltest_tmp_sp()";
-      query_len = strlen(query);
+      query_len = (uint) strlen(query);
     }
     dynstr_free(&query_str);
   }
@@ -6661,7 +6663,7 @@ void init_re_comp(my_regex_t *re, const char* str)
   if (err)
   {
     char erbuf[100];
-    int len= my_regerror(err, re, erbuf, sizeof(erbuf));
+    size_t len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
 	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
   }
@@ -6717,7 +6719,7 @@ int match_re(my_regex_t *re, char *str)
 
   {
     char erbuf[100];
-    int len= my_regerror(err, re, erbuf, sizeof(erbuf));
+    size_t len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
 	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
   }
@@ -7579,7 +7581,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
     if (!(rep_str = ((REPLACE_STRING*) rep_pos))->replace_string)
     {
       /* No match found */
-      dynstr_append_mem(ds, start, from - start - 1);
+      dynstr_append_mem(ds, start, (uint) (from - start - 1));
       DBUG_PRINT("exit", ("Found no more string to replace, appended: %s", start));
       DBUG_VOID_RETURN;
     }
@@ -7590,11 +7592,11 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                         rep_str->from_offset, rep_str->replace_string));
 
     /* Append part of original string before replace string */
-    dynstr_append_mem(ds, start, (from - rep_str->to_offset) - start);
+    dynstr_append_mem(ds, start, (uint) ((from - rep_str->to_offset) - start));
 
     /* Append replace string */
     dynstr_append_mem(ds, rep_str->replace_string,
-                      strlen(rep_str->replace_string));
+                      (uint) strlen(rep_str->replace_string));
 
     if (!*(from-=rep_str->from_offset) && rep_pos->found != 2)
     {
@@ -7689,7 +7691,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
   char* buf,*expr_end;
   char* p;
   char* buf_p;
-  uint expr_len= strlen(expr);
+  size_t expr_len= strlen(expr);
   char last_c = 0;
   struct st_regex reg;
 
@@ -7866,7 +7868,7 @@ void free_replace_regex()
 */
 #define SECURE_REG_BUF   if (buf_len < need_buf_len)                    \
   {                                                                     \
-    int off= res_p - buf;                                               \
+    size_t off= res_p - buf;                                            \
     buf= (char*)my_realloc(buf,need_buf_len,MYF(MY_WME+MY_FAE));        \
     res_p= buf + off;                                                   \
     buf_len= need_buf_len;                                              \
@@ -7898,7 +7900,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   char *res_p,*str_p,*str_end;
 
   buf_len= *buf_len_p;
-  len= strlen(string);
+  len= (uint) strlen(string);
   str_end= string + len;
 
   /* start with a buffer of a reasonable size that hopefully will not
@@ -7950,7 +7952,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         we need at least what we have so far in the buffer + the part
         before this match
       */
-      need_buf_len= (res_p - buf) + (int) subs[0].rm_so;
+      need_buf_len= (uint) (res_p - buf) + (int) subs[0].rm_so;
 
       /* on this pass, calculate the memory for the result buffer */
       while (expr_p < replace_end)
@@ -8040,8 +8042,8 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
     }
     else /* no match this time, just copy the string as is */
     {
-      int left_in_str= str_end-str_p;
-      need_buf_len= (res_p-buf) + left_in_str;
+      size_t left_in_str= str_end-str_p;
+      need_buf_len= (uint) ((res_p-buf) + left_in_str);
       SECURE_REG_BUF
         memcpy(res_p,str_p,left_in_str);
       res_p += left_in_str;
@@ -8708,7 +8710,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
     if (!multi_reg_replace(glob_replace_regex, (char*)val))
     {
       val= glob_replace_regex->buf;
-      len= strlen(val);
+      len= (uint) strlen(val);
     }
   }
 
@@ -8725,7 +8727,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
 /* Append zero-terminated string to ds, with optional replace */
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
 {
-  replace_dynstr_append_mem(ds, val, strlen(val));
+  replace_dynstr_append_mem(ds, val, (uint) strlen(val));
 }
 
 /* Append uint to ds, with optional replace */
@@ -8733,7 +8735,7 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
 {
   char buff[22]; /* This should be enough for any int */
   char *end= longlong10_to_str(val, buff, 10);
-  replace_dynstr_append_mem(ds, buff, end - buff);
+  replace_dynstr_append_mem(ds, buff, (uint) (end - buff));
 }
 
 
@@ -8771,7 +8773,7 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   while (*start && *start != '\n')
     start++;
   start++; /* Skip past \n */
-  dynstr_append_mem(ds, ds_input->str, start - ds_input->str);
+  dynstr_append_mem(ds, ds_input->str, (uint) (start - ds_input->str));
 
   /* Insert line(s) in array */
   while (*start)

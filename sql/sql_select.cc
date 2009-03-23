@@ -2373,11 +2373,12 @@ typedef struct st_sargable_param
 */
 
 static bool
-make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
+make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   TABLE *table;
+  TABLE_LIST *tables= tables_arg;
   uint i,table_count,const_count,key;
   table_map found_const_table_map, all_table_map, found_ref, refs;
   key_map const_ref, eq_part;
@@ -2415,10 +2416,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-    if(error)
+    if (error)
     {
-        table->file->print_error(error, MYF(0));
-        DBUG_RETURN(1);
+      table->file->print_error(error, MYF(0));
+      goto error;
     }
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
@@ -2503,7 +2504,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
-        DBUG_RETURN(1);
+        goto error;
       }
       s->key_dependent= s->dependent;
     }
@@ -2513,7 +2514,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
                             conds, join->cond_equal,
                             ~outer_join, join->select_lex, &sargables))
-      DBUG_RETURN(1);
+      goto error;
 
   /* Read tables with 0 or 1 rows (system tables) */
   join->const_table_map= 0;
@@ -2529,7 +2530,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if ((tmp=join_read_const_table(s, p_pos)))
     {
       if (tmp > 0)
-	DBUG_RETURN(1);			// Fatal error
+	goto error;		// Fatal error
     }
     else
       found_const_table_map|= s->table->map;
@@ -2601,7 +2602,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  if ((tmp= join_read_const_table(s, join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
-	      DBUG_RETURN(1);			// Fatal error
+	      goto error;			// Fatal error
 	  }
 	  else
 	    found_const_table_map|= table->map;
@@ -2650,12 +2651,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	        set_position(join,const_count++,s,start_keyuse);
 	        if (create_ref_for_key(join, s, start_keyuse,
 				       found_const_table_map))
-		  DBUG_RETURN(1);
+                  goto error;
 	        if ((tmp=join_read_const_table(s,
                                                join->positions+const_count-1)))
 	        {
 		  if (tmp > 0)
-		    DBUG_RETURN(1);			// Fatal error
+		    goto error;			// Fatal error
 	        }
 	        else
 		  found_const_table_map|= table->map;
@@ -2732,7 +2733,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 			  *s->on_expr_ref ? *s->on_expr_ref : conds,
 			  1, &error);
       if (!select)
-        DBUG_RETURN(1);
+        goto error;
       records= get_quick_record_count(join->thd, select, s->table,
 				      &s->const_keys, join->row_limit);
       s->quick=select->quick;
@@ -2778,7 +2779,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   {
     optimize_keyuse(join, keyuse_array);
     if (choose_plan(join, all_table_map & ~join->const_table_map))
-      DBUG_RETURN(TRUE);
+      goto error;
   }
   else
   {
@@ -2788,6 +2789,17 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   }
   /* Generate an execution plan from the found optimal join order. */
   DBUG_RETURN(join->thd->killed || get_best_combination(join));
+
+error:
+  /*
+    Need to clean up join_tab from TABLEs in case of error.
+    They won't get cleaned up by JOIN::cleanup() because JOIN::join_tab
+    may not be assigned yet by this function (which is building join_tab).
+    Dangling TABLE::reginfo.join_tab may cause part_of_refkey to choke. 
+  */
+  for (tables= tables_arg; tables; tables= tables->next_leaf)
+    tables->table->reginfo.join_tab= NULL;
+  DBUG_RETURN (1);
 }
 
 
@@ -7605,7 +7617,7 @@ static int compare_fields_by_table_order(Item_field *field1,
   if (outer_ref)
     return cmp;
   JOIN_TAB **idx= (JOIN_TAB **) table_join_idx;
-  cmp= idx[field2->field->table->tablenr]-idx[field1->field->table->tablenr];
+  cmp= (uint) (idx[field2->field->table->tablenr] - idx[field1->field->table->tablenr]);
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
 
@@ -9632,7 +9644,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     table->s->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
-  param->func_count= copy_func - param->items_to_copy; 
+  param->func_count= (uint) (copy_func - param->items_to_copy); 
 
   recinfo=param->start_recinfo;
   null_flags=(uchar*) table->record[0];
@@ -15205,10 +15217,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_int((int32)
 				     join->select_lex->select_number));
     item_list.push_back(new Item_string(join->select_lex->type,
-					strlen(join->select_lex->type), cs));
+					(uint) strlen(join->select_lex->type), cs));
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(item_null);
-    item_list.push_back(new Item_string(message,strlen(message),cs));
+    item_list.push_back(new Item_string(message,(uint) strlen(message),cs));
     if (result->send_data(item_list))
       join->error= 1;
   }
@@ -15227,7 +15239,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_null);
     /* select_type */
     item_list.push_back(new Item_string(join->select_lex->type,
-					strlen(join->select_lex->type),
+					(uint) strlen(join->select_lex->type),
 					cs));
     /* table */
     {
@@ -15254,7 +15266,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     }
     /* type */
     item_list.push_back(new Item_string(join_type_str[JT_ALL],
-					  strlen(join_type_str[JT_ALL]),
+					  (uint) strlen(join_type_str[JT_ALL]),
 					  cs));
     /* possible_keys */
     item_list.push_back(item_null);
@@ -15303,7 +15315,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 				       join->select_lex->select_number));
       /* select_type */
       item_list.push_back(new Item_string(join->select_lex->type,
-					  strlen(join->select_lex->type),
+					  (uint) strlen(join->select_lex->type),
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
       {
@@ -15328,12 +15340,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
         TABLE_LIST *real_table= table->pos_in_table_list; 
 	item_list.push_back(new Item_string(real_table->alias,
-					    strlen(real_table->alias),
+					    (uint) strlen(real_table->alias),
 					    cs));
       }
       /* type */
       item_list.push_back(new Item_string(join_type_str[tab->type],
-					  strlen(join_type_str[tab->type]),
+					  (uint) strlen(join_type_str[tab->type]),
 					  cs));
       /* Build "possible_keys" value and add it to item_list */
       if (!tab->keys.is_clear_all())
@@ -15346,7 +15358,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             if (tmp1.length())
               tmp1.append(',');
             tmp1.append(table->key_info[j].name, 
-			strlen(table->key_info[j].name),
+			(uint) strlen(table->key_info[j].name),
 			system_charset_info);
           }
         }
@@ -15362,17 +15374,17 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	KEY *key_info=table->key_info+ tab->ref.key;
         register uint length;
 	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name),
+					    (uint) strlen(key_info->name),
 					    system_charset_info));
-        length= longlong2str(tab->ref.key_length, keylen_str_buf, 10) - 
-                keylen_str_buf;
+        length= (uint) (longlong2str(tab->ref.key_length, keylen_str_buf, 10) - 
+                keylen_str_buf);
         item_list.push_back(new Item_string(keylen_str_buf, length,
                                             system_charset_info));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name(), strlen((*ref)->name()),
+	  tmp2.append((*ref)->name(), (uint) strlen((*ref)->name()),
 		      system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
@@ -15382,9 +15394,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	KEY *key_info=table->key_info+ tab->index;
         register uint length;
 	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name),cs));
-        length= longlong2str(key_info->key_length, keylen_str_buf, 10) - 
-                keylen_str_buf;
+					    (uint) strlen(key_info->name),cs));
+        length= (uint) (longlong2str(key_info->key_length, keylen_str_buf, 10) - 
+                keylen_str_buf);
         item_list.push_back(new Item_string(keylen_str_buf, 
                                             length,
                                             system_charset_info));
@@ -15417,7 +15429,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         key_read=1;
         
       if (tab->info)
-	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
+	item_list.push_back(new Item_string(tab->info,(uint) strlen(tab->info),cs));
       else if (tab->packed_info & TAB_INFO_HAVE_VALUE)
       {
         if (tab->packed_info & TAB_INFO_USING_INDEX)
@@ -15741,7 +15753,7 @@ void TABLE_LIST::print(THD *thd, String *str)
       if (schema_table)
       {
         append_identifier(thd, str, schema_table_name,
-                          strlen(schema_table_name));
+                          (uint) strlen(schema_table_name));
         cmp_name= schema_table_name;
       }
       else
@@ -15766,7 +15778,7 @@ void TABLE_LIST::print(THD *thd, String *str)
         }
       }
 
-      append_identifier(thd, str, t_alias, strlen(t_alias));
+      append_identifier(thd, str, t_alias, (uint) strlen(t_alias));
     }
 
     if (use_index)

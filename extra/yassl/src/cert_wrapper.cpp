@@ -236,7 +236,7 @@ uint CertManager::get_privateKeyLength() const
 int CertManager::Validate()
 {
     CertList::reverse_iterator last = peerList_.rbegin();
-    int count = peerList_.size();
+    size_t count= peerList_.size();
 
     while ( count > 1 ) {
         TaoCrypt::Source source((*last)->get_buffer(), (*last)->get_length());
@@ -269,13 +269,13 @@ int CertManager::Validate()
         else
             peerKeyType_ = dsa_sa_algo;
 
-        int iSz = strlen(cert.GetIssuer()) + 1;
-        int sSz = strlen(cert.GetCommonName()) + 1;
-        int bSz = strlen(cert.GetBeforeDate()) + 1;
-        int aSz = strlen(cert.GetAfterDate()) + 1;
+        size_t iSz= strlen(cert.GetIssuer()) + 1;
+        size_t sSz= strlen(cert.GetCommonName()) + 1;
+        size_t bSz= strlen(cert.GetBeforeDate()) + 1;
+        size_t aSz= strlen(cert.GetAfterDate()) + 1;
         peerX509_ = NEW_YS X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
-                                sSz, cert.GetBeforeDate(), bSz,
-                                cert.GetAfterDate(), aSz);
+                                sSz, cert.GetBeforeDate(), (int) bSz,
+                                cert.GetAfterDate(), (int) aSz);
     }
     return 0;
 }

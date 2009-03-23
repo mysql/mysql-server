@@ -54,14 +54,14 @@ int main (int argc, char **argv)
     printf("%s\n", mysql_error(&conn));
   }
 
-  OK = mysql_real_query (&conn, query4, strlen(query4));
+  OK = mysql_real_query (&conn, query4, (uint) strlen(query4));
 
   assert(0 == OK);
 
   printf("%ld inserted\n",
          (long) mysql_insert_id(&conn));
 
-  OK = mysql_real_query (&conn, query5, strlen(query5));
+  OK = mysql_real_query (&conn, query5, (uint) strlen(query5));
 
   assert(0 == OK);
 
