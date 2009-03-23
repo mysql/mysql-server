@@ -137,9 +137,9 @@ Lgman::client_lock(BlockNumber block, int line)
     Uint32 ino = blockToInstance(block);
 #endif
     D("try lock " << bno << "/" << ino << V(line));
-    g_eventLogger->info("QQQ(%u) - Lgman::client_lock %x", line, (Uint32)block);
+    //g_eventLogger->info("QQQ(%u) - Lgman::client_lock %x", line, (Uint32)block);
     int ret = m_client_mutex.lock();
-    g_eventLogger->info("QQQ(%u) - Lgman::client_lock %x success", line, (Uint32)block);
+    //g_eventLogger->info("QQQ(%u) - Lgman::client_lock %x success", line, (Uint32)block);
     ndbrequire(ret == 0);
     D("got lock " << bno << "/" << ino << V(line));
   }
@@ -154,9 +154,9 @@ Lgman::client_unlock(BlockNumber block, int line)
     Uint32 ino = blockToInstance(block);
 #endif
     D("unlock " << bno << "/" << ino << V(line));
-    g_eventLogger->info("QQQ(%u) - Lgman::client_unlock %x", line, (Uint32)block);
+    //g_eventLogger->info("QQQ(%u) - Lgman::client_unlock %x", line, (Uint32)block);
     int ret = m_client_mutex.unlock();
-    g_eventLogger->info("QQQ(%u) - Lgman::client_unlock %x success", line, (Uint32)block);
+    //g_eventLogger->info("QQQ(%u) - Lgman::client_unlock %x success", line, (Uint32)block);
     ndbrequire(ret == 0);
   }
 }
