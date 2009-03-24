@@ -57,10 +57,6 @@ SafeMutex::lock()
       return err(ret, __LINE__);
     return 0;
   }
-  if (m_level > 0)
-  {
-    pthread_t self = pthread_self();
-  }
   ret = pthread_mutex_lock(&m_mutex);
   if (ret != 0)
     return err(ret, __LINE__);
