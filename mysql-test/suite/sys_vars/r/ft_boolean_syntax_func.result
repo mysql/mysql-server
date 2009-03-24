@@ -70,7 +70,7 @@ FROM articles WHERE MATCH (title,body)
 AGAINST ('+security configuring' IN BOOLEAN MODE);
 id	title	body	relevance
 8	MySQL Security	When configured properly, MySQL ...	1
-9	Database Security	Configuring MySQL for ...	1.3333333730698
+9	Database Security	Configuring MySQL for ...	1.33333337306976
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('"faster than"' IN BOOLEAN MODE);
 id	title	body
@@ -91,7 +91,7 @@ AGAINST ('+MySQL +(>show <dbms)' IN BOOLEAN MODE)
 ORDER BY relevance DESC;
 id	title	body	relevance
 4	Optimizing MySQL	In this tutorial we will show .... Run command line ...	1.25
-1	MySQL Tutorial	DBMS stands for DataBase ...	0.83333337306976
+1	MySQL Tutorial	DBMS stands for DataBase ...	0.833333373069763
 '---try setting different operators. Default '+ -><()~*:""&|'--'
 SET @@global.ft_boolean_syntax='~ /!@#$%^&*()-';
 SELECT * FROM articles WHERE MATCH (title,body)
