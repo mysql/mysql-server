@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The index tree cursor
-
-(c) 1994-1996 Innobase Oy
 
 Created 10/16/1994 Heikki Tuuri
 *******************************************************/
@@ -13,15 +29,17 @@ Created 10/16/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "btr0types.h"
-#include "que0types.h"
-#include "row0types.h"
-#include "ha0ha.h"
 
 /* Mode flags for btr_cur operations; these can be ORed */
 #define BTR_NO_UNDO_LOG_FLAG	1	/* do no undo logging */
 #define BTR_NO_LOCKING_FLAG	2	/* do no record lock checking */
 #define BTR_KEEP_SYS_FLAG	4	/* sys fields will be found from the
 					update vector or inserted entry */
+
+#ifndef UNIV_HOTBACKUP
+#include "que0types.h"
+#include "row0types.h"
+#include "ha0ha.h"
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
@@ -370,6 +388,7 @@ btr_cur_pessimistic_delete(
 				deleted record on function exit */
 	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Parses a redo log record of updating a record in-place. */
 UNIV_INTERN
@@ -407,6 +426,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 	byte*		end_ptr,/* in: buffer end */
 	page_t*		page,	/* in/out: page or NULL */
 	page_zip_des_t*	page_zip);/* in/out: compressed page, or NULL */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 UNIV_INTERN
@@ -743,6 +763,7 @@ extern ulint	btr_cur_n_non_sea;
 extern ulint	btr_cur_n_sea;
 extern ulint	btr_cur_n_non_sea_old;
 extern ulint	btr_cur_n_sea_old;
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"

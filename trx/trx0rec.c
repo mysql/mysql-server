@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Transaction undo log record
-
-(c) 1996 Innobase Oy
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
@@ -14,15 +30,16 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "fsp0fsp.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
 #include "trx0undo.h"
+#include "mtr0log.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "ut0mem.h"
 #include "row0ext.h"
 #include "row0upd.h"
 #include "que0que.h"
 #include "trx0purge.h"
+#include "trx0rseg.h"
 #include "row0row.h"
 
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
@@ -66,6 +83,7 @@ trx_undof_page_add_undo_rec_log(
 		mlog_catenate_string(mtr, undo_page + old_free + 2, len);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses a redo log record of adding an undo log record. */
@@ -114,6 +132,7 @@ trx_undo_parse_add_undo_rec(
 	return(ptr + len);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Calculates the free space left for extending an undo log record. */
 UNIV_INLINE
@@ -1076,6 +1095,7 @@ trx_undo_rec_get_partial_row(
 
 	return(ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************************
 Erases the unused undo log page end. */
@@ -1120,6 +1140,7 @@ trx_undo_parse_erase_page_end(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Writes information to an undo log about an insert, update, or a delete marking
 of a clustered index record. This information is used in a rollback of the
@@ -1589,3 +1610,4 @@ trx_undo_prev_version_build(
 
 	return(DB_SUCCESS);
 }
+#endif /* !UNIV_HOTBACKUP */

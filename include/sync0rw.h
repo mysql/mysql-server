@@ -1,47 +1,39 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The read-write lock (for threads, not for database transactions)
 
-(c) 1995 Innobase Oy
-
 Created 9/11/1995 Heikki Tuuri
 *******************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
 #ifndef sync0rw_h
 #define sync0rw_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "ut0lst.h"
 #include "sync0sync.h"
 #include "os0sync.h"
@@ -49,6 +41,7 @@ Created 9/11/1995 Heikki Tuuri
 /* The following undef is to prevent a name conflict with a macro
 in MySQL: */
 #undef rw_lock_t
+#endif /* !UNIV_HOTBACKUP */
 
 /* Latch types; these are used also in btr0btr.h: keep the numerical values
 smaller than 30 and the order of the numerical values like below! */
@@ -56,6 +49,7 @@ smaller than 30 and the order of the numerical values like below! */
 #define	RW_X_LATCH	2
 #define	RW_NO_LATCH	3
 
+#ifndef UNIV_HOTBACKUP
 /* We decrement lock_word by this amount for each x_lock. It is also the
 start value for the lock_word, meaning that it limits the maximum number
 of concurrent read locks before the rw_lock breaks. The current value of
@@ -572,5 +566,6 @@ struct	rw_lock_debug_struct {
 #ifndef UNIV_NONINL
 #include "sync0rw.ic"
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

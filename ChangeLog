@@ -1,31 +1,128 @@
+2009-03-20	The InnoDB Team
+
+	* buf/buf0buf.c, include/log0recv.h, log/log0recv.c:
+	Remove the compile-time constant parameters of
+	recv_recover_page(), recv_scan_log_recs(), and recv_sys_init().
+
+2009-03-20	The InnoDB Team
+
+	* data/data0type.c, handler/ha_innodb.cc, include/ha_prototypes.h:
+	Declare innobase_get_at_most_n_mbchars() in ha_prototypes.h.
+
+2009-03-20	The InnoDB Team
+
+	* fil/fil0fil.h, fil/fil0fil.c, srv/srv0start.c:
+	Add the parameter hash_size to fil_init().
+
+2009-03-20	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Refer to fil_system directly, not via local variables.
+
+2009-03-20	The InnoDB Team
+
+	* page/page0page.c:
+	In page_validate(), always report the space id, page number and
+	the name of the index when corruption is noticed.
+
+2009-03-20	The InnoDB Team
+
+	* include/log0log.h, include/log0log.ic, log/log0log.c:
+	Add in/out comments or const qualifiers to some function
+	parameters as appropriate.
+
+2009-03-20	The InnoDB Team
+
+	* dict/dict0boot.c, dict/dict0dict.c, fsp/fsp0fsp.c,
+	include/dict0dict.h, include/srv0srv.h, srv/srv0srv.c,
+	page/page0page.c:
+	Replace srv_sys->dummy_ind1 and srv_sys->dummy_ind2 with
+	dict_ind_redundant and dict_ind_compact, which are
+	initialized by dict_init().
+
+2008-03-11	The InnoDB Team
+
+	InnoDB Plugin 1.0.3 released
+
+2009-03-05	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#43203 Overflow from auto incrementing causes server segv
+
+2009-02-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#42714 AUTO_INCREMENT errors in 5.1.31
+
+2009-02-23	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Fix Bug#43043 Crash on BLOB delete operation
+
+2009-02-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make innodb_use_sys_malloc=ON the default.
+
+2009-02-20	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#42400 InnoDB autoinc code can't handle floating-point columns
+
+2009-02-18	The InnoDB Team
+
+	* include/ut0mem.h, os/os0proc.c, ut/ut0mem.c:
+	Protect ut_total_allocated_memory with ut_list_mutex in
+	os_mem_alloc_large() and os_mem_free_large(). The lack of this mutex
+	protection could cause an assertion failure during fast index
+	creation. Also, add UNIV_MEM_ALLOC and UNIV_MEM_FREE instrumentation
+	to os_mem_alloc_large() and os_mem_free_large(), so that Valgrind can
+	detect more errors.
+
+2009-02-11	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make innodb_thread_concurrency=0 the default. The old default value
+	was 8. A non-zero setting may be useful when InnoDB is showing severe
+	scalability problems under multiple concurrent connections.
+
 2009-02-10	The InnoDB Team
 
-	* handler/ha_innodb.h, handler/ha_innodb.cc:
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
 	Fix Bug#41676 Table names are case insensitive in locking
 
 2009-02-10	The InnoDB Team
 
+	* mem/mem0dbg.c, mem/mem0mem.c, mem/mem0pool.c:
+	When innodb_use_sys_malloc is set, ignore
+	innodb_additional_mem_pool_size, because nothing will be allocated
+	from mem_comm_pool.
+
+2009-02-10	The InnoDB Team
+
 	* ut/ut0mem.c:
-	Map ut_malloc_low(), ut_realloc(), and ut_free() directly to
-	malloc(), realloc(), and free() when innodb_use_sys_malloc is set.
-	As a side effect, ut_total_allocated_memory ("Total memory allocated"
-	in the "BUFFER POOL AND MEMORY" section of SHOW ENGINE INNODB STATUS)
-	will exclude any memory allocated by these functions when
+	Map ut_malloc_low(), ut_realloc(), and ut_free() directly to malloc(),
+	realloc(), and free() when innodb_use_sys_malloc is set. As a side
+	effect, ut_total_allocated_memory ("Total memory allocated" in the
+	"BUFFER POOL AND MEMORY" section of SHOW ENGINE INNODB STATUS) will
+	exclude any memory allocated by these functions when
 	innodb_use_sys_malloc is set.
 
 2009-02-10	The InnoDB Team
 
 	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
-	include/buf0buf.ic, include/os0sync.h, include/os0sync.ic,
-	include/srv0srv.h, include/sync0rw.h, include/sync0rw.ic,
-	include/sync0sync.h, include/sync0sync.ic, include/univ.i,
-	row/row0sel.c, srv/srv0srv.c, srv/srv0start.c,
-	sync/sync0arr.c, sync/sync0rw.c, sync/sync0sync.c:
+	include/buf0buf.ic, include/os0sync.h, include/srv0srv.h,
+	include/sync0rw.h, include/sync0rw.ic, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, row/row0sel.c, srv/srv0srv.c,
+	srv/srv0start.c, sync/sync0arr.c, sync/sync0rw.c, sync/sync0sync.c:
 	On those platforms that support it, implement the synchronization
 	primitives of InnoDB mutexes and read/write locks with GCC atomic
-	builtins instead of Pthreads mutexes and InnoDB mutexes.  These
-	changes are based on a patch supplied by Mark Callaghan of Google
-	under a BSD license.
+	builtins instead of Pthreads mutexes and InnoDB mutexes. These changes
+	are based on a patch supplied by Mark Callaghan of Google under a BSD
+	license.
 
 2009-01-30	The InnoDB Team
 
@@ -37,33 +134,31 @@
 
 2009-01-29	The InnoDB Team
 
-	* handler/ha_innodb.cc, include/ibuf0ibuf.h, include/ibuf0ibuf.ic,
-	ibuf/ibuf0ibuf.c:
+	* handler/ha_innodb.cc, ibuf/ibuf0ibuf.c, include/ibuf0ibuf.h,
+	include/ibuf0ibuf.ic:
 	Implement the settable global variable innodb_change_buffering,
-	with the allowed values 'none' and 'inserts'.  The default value
+	with the allowed values 'none' and 'inserts'. The default value
 	'inserts' enables the buffering of inserts to non-unique secondary
 	index trees when the B-tree leaf page is not in the buffer pool.
 
 2009-01-27	The InnoDB Team
 
 	* buf/buf0lru.c:
-	Fix a race condition in buf_LRU_invalidate_tablespace():
-	The compressed page size (zip_size) was read while the block
-	descriptor was no longer protected by a mutex.  This could lead to
-	corruption when a table is dropped on a busy system that contains
-	compressed tables.
+	Fix a race condition in buf_LRU_invalidate_tablespace(): The
+	compressed page size (zip_size) was read while the block descriptor
+	was no longer protected by a mutex. This could lead to corruption
+	when a table is dropped on a busy system that contains compressed
+	tables.
 
 2009-01-26	The InnoDB Team
 
-	* include/buf0buf.h, include/buf0buf.ic, buf/buf0buf.c,
-	include/mtr0log.ic, include/row0upd.ic, mtr/mtr0mtr.c,
-	btr/btr0sea.c:
-	Implement buf_block_align() with pointer arithmetics, as it is in
-	the built-in InnoDB distributed with MySQL.  Do not acquire the
-	buffer pool mutex before buf_block_align().  This removes a
-	scalability bottleneck in the adaptive hash index lookup.  In
-	CHECK TABLE, check that buf_pool->page_hash is consistent with
-	buf_block_align().
+	* btr/btr0sea.c, buf/buf0buf.c, include/buf0buf.h, include/buf0buf.ic,
+	include/mtr0log.ic, include/row0upd.ic, mtr/mtr0mtr.c:
+	Implement buf_block_align() with pointer arithmetics, as it is in the
+	built-in InnoDB distributed with MySQL. Do not acquire the buffer pool
+	mutex before buf_block_align(). This removes a scalability bottleneck
+	in the adaptive hash index lookup. In CHECK TABLE, check that
+	buf_pool->page_hash is consistent with buf_block_align().
 
 2009-01-23	The InnoDB Team
 
@@ -72,7 +167,7 @@
 
 2009-01-23	The InnoDB Team
 
-	* include/buf0buf.h, buf/buf0buf.c:
+	* buf/buf0buf.c, include/buf0buf.h:
 	Remove the unused mode BUF_GET_NOWAIT of buf_page_get_gen()
 
 2009-01-20	The InnoDB Team
@@ -98,31 +193,31 @@
 
 2009-01-13	The InnoDB Team
 
-	* include/hash0hash.h, include/dict0dict.ic, dict/dict0dict.c,
-	include/buf0buf.ic, buf/buf0buddy.c, trx/trx0i_s.c,
-	handler/ha_innodb.cc, handler/win_delay_loader.cc,
-	dict/dict0mem.c, ha/ha0storage.c, thr/thr0loc.c, fil/fil0fil.c:
+	* buf/buf0buddy.c, dict/dict0dict.c, dict/dict0mem.c, fil/fil0fil.c,
+	ha/ha0storage.c, handler/ha_innodb.cc, handler/win_delay_loader.cc,
+	include/buf0buf.ic, include/dict0dict.ic, include/hash0hash.h,
+	thr/thr0loc.c, trx/trx0i_s.c:
 	Add the parameter ASSERTION to HASH_SEARCH() macro, and use it for
 	light validation of the traversed items in hash table lookups when
 	UNIV_DEBUG is enabled.
 
 2009-01-09	The InnoDB Team
 
-	* include/buf0flu.h, include/buf0flu.ic, buf/buf0flu.c:
+	* buf/buf0flu.c, include/buf0flu.h, include/buf0flu.ic:
 	Remove unused code from the functions
 	buf_flush_insert_into_flush_list() and
 	buf_flush_insert_sorted_into_flush_list().
 
 2009-01-09	The InnoDB Team
 
-	* buf/buf0flu.c: Simplify the functions buf_flush_try_page() and
-	buf_flush_batch().  Add debug assertions and an explanation to
-	buf_flush_write_block_low().
+	* buf/buf0flu.c:
+	Simplify the functions buf_flush_try_page() and buf_flush_batch(). Add
+	debug assertions and an explanation to buf_flush_write_block_low().
 
 2009-01-07	The InnoDB Team
 
 	* row/row0merge.c:
-	Fix a bug in recovery when dropping temporary indexes
+	Fix a bug in recovery when dropping temporary indexes.
 
 2009-01-07	The InnoDB Team
 
@@ -137,115 +232,100 @@
 
 2009-01-02	The InnoDB Team
 
-	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c,
-	srv/srv0start.c, mem/mem0pool.c,
+	* handler/ha_innodb.cc, include/srv0srv.h, mem/mem0pool.c,
 	mysql-test/innodb-use-sys-malloc-master.opt,
 	mysql-test/innodb-use-sys-malloc.result,
-	mysql-test/innodb-use-sys-malloc.test:
-	Implement the configuration parameter innodb_use_sys_malloc
-	(false by default), for disabling InnoDB's internal memory allocator
-	and using system malloc/free instead.  The "BUFFER POOL AND MEMORY"
-	section of SHOW ENGINE INNODB STATUS will report
-	"in additional pool allocated allocated 0" when
-	innodb_use_sys_malloc is set.
+	mysql-test/innodb-use-sys-malloc.test, srv/srv0srv.c, srv/srv0start.c:
+	Implement the configuration parameter innodb_use_sys_malloc (false by
+	default), for disabling InnoDB's internal memory allocator and using
+	system malloc/free instead. The "BUFFER POOL AND MEMORY" section of
+	SHOW ENGINE INNODB STATUS will report "in additional pool allocated
+	allocated 0" when innodb_use_sys_malloc is set.
 
 2008-12-30	The InnoDB Team
 
 	* btr/btr0btr.c:
-	When setting the PAGE_LEVEL of a compressed B-tree page from or to
-	0, compress the page at the same time.  This is necessary, because
-	the column information stored on the compressed page will differ
-	between leaf and non-leaf pages.  Leaf pages are identified by
-	PAGE_LEVEL=0.  This bug can make InnoDB crash when all rows of a
-	compressed table are deleted.
+	When setting the PAGE_LEVEL of a compressed B-tree page from or to 0,
+	compress the page at the same time. This is necessary, because the
+	column information stored on the compressed page will differ between
+	leaf and non-leaf pages. Leaf pages are identified by PAGE_LEVEL=0.
+	This bug can make InnoDB crash when all rows of a compressed table are
+	deleted.
 
 2008-12-17	The InnoDB Team
 
-	* include/row0upd.h, include/row0sel.h, pars/pars0pars.c,
-	row/row0upd.c, row/row0sel.c, row/row0mysql.c:
-	Remove update-in-place select from the internal SQL interpreter.
-	It was only used for updating the InnoDB internal data dictionary
-	when renaming or dropping tables.  It could have caused deadlocks
-	when acquiring latches on insert buffer bitmap pages.
+	* include/row0sel.h, include/row0upd.h, pars/pars0pars.c,
+	row/row0mysql.c, row/row0sel.c, row/row0upd.c:
+	Remove update-in-place select from the internal SQL interpreter. It
+	was only used for updating the InnoDB internal data dictionary when
+	renaming or dropping tables. It could have caused deadlocks when
+	acquiring latches on insert buffer bitmap pages.
 
 2008-12-17	The InnoDB Team
 
-	* include/univ.i, include/buf0buf.h, include/hash0hash.h,
-	include/ha0ha.h, include/ha0ha.ic, ha/ha0ha.c, ha/hash0hash.c,
-	btr/btr0sea.c, buf/buf0lru.c, buf/buf0buf.c:
-	Introduce the preprocessor symbol UNIV_AHI_DEBUG for enabling
-	adaptive hash index debugging independently of UNIV_DEBUG.
+	* btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c, ha/ha0ha.c,
+	ha/hash0hash.c, include/buf0buf.h, include/ha0ha.h, include/ha0ha.ic,
+	include/hash0hash.h, include/univ.i:
+	Introduce the preprocessor symbol UNIV_AHI_DEBUG for enabling adaptive
+	hash index debugging independently of UNIV_DEBUG.
 
 2008-12-16	The InnoDB Team
 
 	* btr/btr0cur.c:
-	Do not update the free bits in the insert buffer bitmap when
-	inserting or deleting from the insert buffer B-tree.  Assert that
-	records in the insert buffer B-tree are never updated.
+	Do not update the free bits in the insert buffer bitmap when inserting
+	or deleting from the insert buffer B-tree. Assert that records in the
+	insert buffer B-tree are never updated.
 
 2008-12-12	The InnoDB Team
 
-	* include/fil0fil.h, include/ibuf0ibuf.h, include/ibuf0types.h,
-	include/ibuf0ibuf.ic, ibuf/ibuf0ibuf.c,
-	buf/buf0buf.c, fil/fil0fil.c, fsp/fsp0fsp.c:
+	* buf/buf0buf.c, fil/fil0fil.c, fsp/fsp0fsp.c, ibuf/ibuf0ibuf.c,
+	include/fil0fil.h, include/ibuf0ibuf.h, include/ibuf0ibuf.ic,
+	include/ibuf0types.h:
 	Clean up the insert buffer subsystem so that only one insert
 	buffer B-tree exists.
-
 	Originally, there were provisions in InnoDB for multiple insert
 	buffer B-trees, apparently one for each tablespace.
-
 	When Heikki Tuuri implemented multiple InnoDB tablespaces in
 	MySQL/InnoDB 4.1, he made the insert buffer live only in the
 	system tablespace (space 0) but left the provisions in the code.
 
 2008-12-11	The InnoDB Team
 
-	* include/srv0srv.h, srv/srv0srv.c, os/os0proc.c:
-	Fix the issue that the InnoDB plugin fails if
-	innodb_buffer_pool_size is defined bigger than 4096M on 64-bit
-	Windows.  This bug should not have affected other 64-bit systems.
+	* include/srv0srv.h, os/os0proc.c, srv/srv0srv.c:
+	Fix the issue that the InnoDB plugin fails if innodb_buffer_pool_size
+	is defined bigger than 4096M on 64-bit Windows. This bug should not
+	have affected other 64-bit systems.
 
 2008-12-09	The InnoDB Team
 
 	* handler/ha_innodb.cc:
 	Fix Bug#40386 Not flushing query cache after truncate.
 
-	ha_statistics.records cannot be 0 unless the table is empty, set
-	to 1 instead. The original problem of Bug#29507 has been fixed in
-	the server.
-
 2008-12-09	The InnoDB Team
 
 	* handler/ha_innodb.cc, srv/srv0srv.c, trx/trx0trx.c:
-	Fix Bug#40760 Getting database deadlocks on simultaneous inserts.
-
-	The config param innodb_thread_concurrency is dynamically set and
-	is read when a thread enters/exits innodb.  If the value is
-	changed between the enter and exit time the behaviour becomes
-	erratic.  The fix is not to use srv_thread_concurrency when
-	exiting, instead use the flag trx->declared_to_be_inside_innodb.
+	Fix Bug#40760 "set global innodb_thread_concurrency = 0;" is not safe
 
 2008-12-04	The InnoDB Team
 
-	* include/mysql_addons.h, handler/mysql_addons.cc,
-	handler/ha_innodb.cc, trx/trx0i_s.c, win-plugin/win-plugin.diff:
+	* handler/ha_innodb.cc, handler/mysql_addons.cc,
+	include/mysql_addons.h, trx/trx0i_s.c, win-plugin/win-plugin.diff:
 	Remove dependencies to MySQL internals (defining MYSQL_SERVER).
 
 2008-12-02	The InnoDB Team
 
 	* page/page0cur.c:
-	When allocating space for a record from the free list of
-	previously purged records, zero out the DB_TRX_ID and DB_ROLL_PTR
-	of the purged record if the new record would not overwrite these
-	fields.  This fixes a harmless content mismatch reported by
-	page_zip_validate().
+	When allocating space for a record from the free list of previously
+	purged records, zero out the DB_TRX_ID and DB_ROLL_PTR of the purged
+	record if the new record would not overwrite these fields. This fixes
+	a harmless content mismatch reported by page_zip_validate().
 
 2008-12-02	The InnoDB Team
 
 	* row/row0merge.c:
-	Replace the WHILE 1 with WHILE 1=1 in the SQL procedure, so that
-	the loop will actually be entered and temporary indexes be dropped
-	during crash recovery.
+	Replace the WHILE 1 with WHILE 1=1 in the SQL procedure, so that the
+	loop will actually be entered and temporary indexes be dropped during
+	crash recovery.
 
 2008-12-01	The InnoDB Team
 

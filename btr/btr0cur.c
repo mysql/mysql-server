@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The index tree cursor
 
@@ -12,42 +37,8 @@ many pages in the tablespace before we start the operation, because
 if leaf splitting has been started, it is difficult to undo, except
 by crashing the database and doing a roll-forward.
 
-(c) 1994-2001 Innobase Oy
-
 Created 10/16/1994 Heikki Tuuri
 *******************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
 #include "btr0cur.h"
 
@@ -55,6 +46,8 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0cur.ic"
 #endif
 
+#include "row0upd.h"
+#ifndef UNIV_HOTBACKUP
 #include "page0page.h"
 #include "page0zip.h"
 #include "rem0rec.h"
@@ -105,12 +98,14 @@ can be released by page reorganize, then it is reorganized */
 						FIL_NULL if none */
 /*--------------------------------------*/
 #define BTR_BLOB_HDR_SIZE		8
+#endif /* !UNIV_HOTBACKUP */
 
 /* A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 UNIV_INTERN const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Marks all extern fields in a record as owned by the record. This function
 should be called if the delete mark of a record is removed: a not delete
@@ -179,6 +174,7 @@ btr_rec_get_externally_stored_len(
 				in units of a database page */
 	rec_t*		rec,	/* in: record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************
 The following function is used to set the deleted bit of a record. */
@@ -200,6 +196,7 @@ btr_rec_set_deleted_flag(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*==================== B-TREE SEARCH =========================*/
 
 /************************************************************************
@@ -1684,6 +1681,7 @@ btr_cur_update_in_place_log(
 
 	row_upd_index_write_log(update, log_ptr, mtr);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses a redo log record of updating a record in-place. */
@@ -1763,6 +1761,7 @@ func_exit:
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 See if there is enough place in the page modification log to log
 an update-in-place. */
@@ -2543,6 +2542,7 @@ btr_cur_del_mark_set_clust_rec_log(
 
 	mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a clustered
@@ -2624,6 +2624,7 @@ btr_cur_parse_del_mark_set_clust_rec(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -2748,6 +2749,7 @@ btr_cur_del_mark_set_sec_rec_log(
 
 	mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a secondary
@@ -2792,6 +2794,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Sets a secondary index record delete mark to TRUE or FALSE. */
 UNIV_INTERN
@@ -4069,10 +4072,21 @@ btr_store_big_rec_extern_fields(
 				int		err;
 				page_zip_des_t*	blob_page_zip;
 
-				mach_write_to_2(page + FIL_PAGE_TYPE,
-						prev_page_no == FIL_NULL
-						? FIL_PAGE_TYPE_ZBLOB
-						: FIL_PAGE_TYPE_ZBLOB2);
+				/* Write FIL_PAGE_TYPE to the redo log
+				separately, before logging any other
+				changes to the page, so that the debug
+				assertions in
+				recv_parse_or_apply_log_rec_body() can
+				be made simpler.  Before InnoDB Plugin
+				1.0.4, the initialization of
+				FIL_PAGE_TYPE was logged as part of
+				the mlog_log_string() below. */
+
+				mlog_write_ulint(page + FIL_PAGE_TYPE,
+						 prev_page_no == FIL_NULL
+						 ? FIL_PAGE_TYPE_ZBLOB
+						 : FIL_PAGE_TYPE_ZBLOB2,
+						 MLOG_2BYTES, &mtr);
 
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
@@ -4118,9 +4132,9 @@ btr_store_big_rec_extern_fields(
 				memset(page + page_zip_get_size(page_zip)
 				       - c_stream.avail_out,
 				       0, c_stream.avail_out);
-				mlog_log_string(page + FIL_PAGE_TYPE,
+				mlog_log_string(page + FIL_PAGE_FILE_FLUSH_LSN,
 						page_zip_get_size(page_zip)
-						- FIL_PAGE_TYPE,
+						- FIL_PAGE_FILE_FLUSH_LSN,
 						&mtr);
 				/* Copy the page to compressed storage,
 				because it will be flushed to disk
@@ -4263,6 +4277,44 @@ next_zip_page:
 	}
 
 	return(DB_SUCCESS);
+}
+
+/***********************************************************************
+Check the FIL_PAGE_TYPE on an uncompressed BLOB page. */
+static
+void
+btr_check_blob_fil_page_type(
+/*=========================*/
+	ulint		space_id,	/* in: space id */
+	ulint		page_no,	/* in: page number */
+	const page_t*	page,		/* in: page */
+	ibool		read)		/* in: TRUE=read, FALSE=purge */
+{
+	ulint	type = fil_page_get_type(page);
+
+	ut_a(space_id == page_get_space_id(page));
+	ut_a(page_no == page_get_page_no(page));
+
+	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
+		ulint	flags = fil_space_get_flags(space_id);
+
+		if (UNIV_LIKELY
+		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
+			/* Old versions of InnoDB did not initialize
+			FIL_PAGE_TYPE on BLOB pages.  Do not print
+			anything about the type mismatch when reading
+			a BLOB page that is in Antelope format.*/
+			return;
+		}
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: FIL_PAGE_TYPE=%lu"
+			" on BLOB %s space %lu page %lu flags %lx\n",
+			(ulong) type, read ? "read" : "purge",
+			(ulong) space_id, (ulong) page_no, (ulong) flags);
+		ut_error;
+	}
 }
 
 /***********************************************************************
@@ -4418,8 +4470,9 @@ btr_free_externally_stored_field(
 						 MLOG_4BYTES, &mtr);
 			}
 		} else {
-			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB);
 			ut_a(!page_zip);
+			btr_check_blob_fil_page_type(space_id, page_no, page,
+						     FALSE);
 
 			next_page_no = mach_read_from_4(
 				page + FIL_PAGE_DATA
@@ -4428,9 +4481,6 @@ btr_free_externally_stored_field(
 			/* We must supply the page level (= 0) as an argument
 			because we did not store it on the page (we save the
 			space overhead from an index page header. */
-
-			ut_a(space_id == page_get_space_id(page));
-			ut_a(page_no == page_get_page_no(page));
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
 
@@ -4569,9 +4619,8 @@ btr_copy_blob_prefix(
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
 		page = buf_block_get_frame(block);
 
-		/* Unfortunately, FIL_PAGE_TYPE was uninitialized for
-		many pages until MySQL/InnoDB 5.1.7. */
-		/* ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB); */
+		btr_check_blob_fil_page_type(space_id, page_no, page, TRUE);
+
 		blob_header = page + offset;
 		part_len = btr_blob_get_part_len(blob_header);
 		copy_len = ut_min(part_len, len - copied_len);
@@ -4922,3 +4971,4 @@ btr_rec_copy_externally_stored_field(
 	return(btr_copy_externally_stored_field(len, data,
 						zip_size, local_len, heap));
 }
+#endif /* !UNIV_HOTBACKUP */

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The interface to the operating system file io
-
-(c) 1995 Innobase Oy
 
 Created 10/21/1995 Heikki Tuuri
 *******************************************************/
@@ -174,6 +190,7 @@ ulint
 os_get_os_version(void);
 /*===================*/
 		  /* out: OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
 UNIV_INTERN
@@ -190,6 +207,7 @@ FILE*
 os_file_create_tmpfile(void);
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned

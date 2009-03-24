@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 Record manager
-
-(c) 1994-1996 Innobase Oy
 
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
@@ -615,6 +631,7 @@ rec_copy(
 	void*		buf,	/* in: buffer */
 	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+#ifndef UNIV_HOTBACKUP
 /******************************************************************
 Copies the first n fields of a physical record to a new physical record in
 a buffer. */
@@ -647,6 +664,7 @@ rec_fold(
 					in an incomplete last field */
 	dulint		tree_id)	/* in: index tree id */
 	__attribute__((pure));
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************
 Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
 UNIV_INTERN
@@ -729,6 +747,7 @@ rec_get_converted_size(
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	dtuple,	/* in: data tuple */
 	ulint		n_ext);	/* in: number of externally stored columns */
+#ifndef UNIV_HOTBACKUP
 /******************************************************************
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */
@@ -742,6 +761,7 @@ rec_copy_prefix_to_dtuple(
 	ulint			n_fields,	/* in: number of fields
 						to copy */
 	mem_heap_t*		heap);		/* in: memory heap */
+#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************
 Validates the consistency of a physical record. */
 UNIV_INTERN
@@ -759,6 +779,7 @@ rec_print_old(
 /*==========*/
 	FILE*		file,	/* in: file where to print */
 	const rec_t*	rec);	/* in: physical record */
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
@@ -787,6 +808,7 @@ rec_print(
 	FILE*		file,	/* in: file where to print */
 	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index);	/* in: record descriptor */
+#endif /* UNIV_HOTBACKUP */
 
 #define REC_INFO_BITS		6	/* This is single byte bit-field */
 

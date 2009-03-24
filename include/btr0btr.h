@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The B-tree
-
-(c) 1994-1996 Innobase Oy
 
 Created 6/2/1994 Heikki Tuuri
 *******************************************************/
@@ -17,6 +33,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "btr0types.h"
 
+#ifndef UNIV_HOTBACKUP
 /* Maximum record size which can be stored on a page, without using the
 special big record storage structure */
 
@@ -97,6 +114,7 @@ btr_page_get(
 	ulint	page_no,	/* in: page number */
 	ulint	mode,		/* in: latch mode */
 	mtr_t*	mtr);		/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 /******************************************************************
 Gets the index id field of a page. */
 UNIV_INLINE
@@ -105,6 +123,7 @@ btr_page_get_index_id(
 /*==================*/
 				/* out: index id */
 	const page_t*	page);	/* in: index page */
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Gets the node level field in an index page. */
 UNIV_INLINE
@@ -306,6 +325,7 @@ btr_insert_on_non_leaf_level(
 	ulint		level,	/* in: level, must be > 0 */
 	dtuple_t*	tuple,	/* in: the record to be inserted */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************
 Sets a record as the predefined minimum record. */
 UNIV_INTERN
@@ -314,6 +334,7 @@ btr_set_min_rec_mark(
 /*=================*/
 	rec_t*	rec,	/* in/out: record */
 	mtr_t*	mtr);	/* in: mtr */
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Deletes on the upper level the node pointer to a page. */
 UNIV_INTERN
@@ -365,6 +386,7 @@ btr_discard_page(
 	btr_cur_t*	cursor,	/* in: cursor on the page to discard: not on
 				the root page */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************
 Parses the redo log record for setting an index record as the predefined
 minimum record. */
@@ -390,6 +412,7 @@ btr_parse_page_reorganize(
 	dict_index_t*	index,	/* in: record descriptor */
 	buf_block_t*	block,	/* in: page to be reorganized, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
+#ifndef UNIV_HOTBACKUP
 /******************************************************************
 Gets the number of pages in a B-tree. */
 UNIV_INTERN
@@ -480,6 +503,7 @@ btr_validate_index(
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "btr0btr.ic"

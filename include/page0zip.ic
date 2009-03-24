@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Compressed page interface
-
-(c) 2005 Innobase Oy
 
 Created June 2005 by Marko Makela
 *******************************************************/
@@ -128,7 +144,8 @@ page_zip_set_size(
 
 		ut_ad(ut_is_2pow(size));
 
-		for (ssize = 1; size > (ulint) (512 << ssize); ssize++);
+		for (ssize = 1; size > (ulint) (512 << ssize); ssize++) {
+		}
 
 		page_zip->ssize = ssize;
 	} else {
@@ -138,6 +155,7 @@ page_zip_set_size(
 	ut_ad(page_zip_get_size(page_zip) == size);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Determine if a record is so big that it needs to be stored externally. */
 UNIV_INLINE
@@ -177,6 +195,7 @@ page_zip_rec_needs_ext(
 
 	return(rec_size >= page_get_free_space_of_empty(comp) / 2);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /**************************************************************************
@@ -357,7 +376,7 @@ page_zip_write_header(
 {
 	ulint	pos;
 
-	ut_ad(buf_frame_get_page_zip(str) == page_zip);
+	ut_ad(PAGE_ZIP_MATCH(str, page_zip));
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
@@ -371,7 +390,9 @@ page_zip_write_header(
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */
 
 	if (UNIV_LIKELY_NULL(mtr)) {
+#ifndef UNIV_HOTBACKUP
 		page_zip_write_header_log(str, length, mtr);
+#endif /* !UNIV_HOTBACKUP */
 	}
 }
 

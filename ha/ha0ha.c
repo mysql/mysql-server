@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The hash table with external chains
-
-(c) 1994-1997 Innobase Oy
 
 Created 8/22/1994 Heikki Tuuri
 *************************************************************************/
@@ -36,12 +52,16 @@ ha_create_func(
 				hash table: must be a power of 2, or 0 */
 {
 	hash_table_t*	table;
+#ifndef UNIV_HOTBACKUP
 	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 	table->adaptive = TRUE;
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
@@ -54,6 +74,7 @@ ha_create_func(
 		return(table);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	hash_create_mutexes(table, n_mutexes, mutex_level);
 
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
@@ -62,6 +83,7 @@ ha_create_func(
 		table->heaps[i] = mem_heap_create_in_btr_search(4096);
 		ut_a(table->heaps[i]);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	return(table);
 }
@@ -81,12 +103,14 @@ ha_clear(
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 	/* Free the memory heaps. */
 	n = table->n_mutexes;
 
 	for (i = 0; i < n; i++) {
 		mem_heap_free(table->heaps[i]);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Clear the hash table. */
 	n = hash_get_n_cells(table);
@@ -125,7 +149,7 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	hash = hash_calc_hash(fold, table);
 
@@ -136,6 +160,7 @@ ha_insert_for_fold_func(
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 			if (table->adaptive) {
 				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->frame
@@ -144,6 +169,7 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
+# endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -171,10 +197,13 @@ ha_insert_for_fold_func(
 	ha_node_set_data(node, block, data);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		block->n_pointers++;
 	}
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 	node->fold = fold;
 
 	node->next = NULL;
@@ -208,12 +237,15 @@ ha_delete_hash_node(
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		ut_a(del_node->block->frame = page_align(del_node->data));
 		ut_a(del_node->block->n_pointers > 0);
 		del_node->block->n_pointers--;
 	}
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
@@ -230,7 +262,7 @@ ha_delete(
 {
 	ha_node_t*	node;
 
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	node = ha_search_with_data(table, fold, data);
 
@@ -256,7 +288,7 @@ ha_search_and_update_if_found_func(
 {
 	ha_node_t*	node;
 
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -265,11 +297,13 @@ ha_search_and_update_if_found_func(
 
 	if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 		if (table->adaptive) {
 			ut_a(node->block->n_pointers > 0);
 			node->block->n_pointers--;
 			new_block->n_pointers++;
 		}
+# endif /* !UNIV_HOTBACKUP */
 
 		node->block = new_block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -277,6 +311,7 @@ ha_search_and_update_if_found_func(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
@@ -290,7 +325,7 @@ ha_remove_all_nodes_to_page(
 {
 	ha_node_t*	node;
 
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	node = ha_chain_get_first(table, fold);
 
@@ -424,3 +459,4 @@ builds, see http://bugs.mysql.com/36941 */
 			(ulong) n_bufs);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */

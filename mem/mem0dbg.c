@@ -1,17 +1,35 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The memory management: the debug code. This is not a compilation module,
 but is included in mem0mem.* !
-
-(c) 1994, 1995 Innobase Oy
 
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
 #ifdef UNIV_MEM_DEBUG
+# ifndef UNIV_HOTBACKUP
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
 UNIV_INTERN mutex_t	mem_hash_mutex;
+# endif /* !UNIV_HOTBACKUP */
 
 /* The following variables contain information about the
 extent of memory allocations. Only used in the debug version.
@@ -22,7 +40,10 @@ static ulint		mem_n_allocations		= 0;
 static ulint		mem_total_allocated_memory	= 0;
 UNIV_INTERN ulint	mem_current_allocated_memory	= 0;
 static ulint		mem_max_allocated_memory	= 0;
+# ifndef UNIV_HOTBACKUP
 static ulint		mem_last_print_info		= 0;
+static ibool		mem_hash_initialized		= FALSE;
+# endif /* !UNIV_HOTBACKUP */
 
 /* Size of the hash table for memory management tracking */
 #define	MEM_HASH_SIZE	997
@@ -49,7 +70,6 @@ static mem_hash_cell_t		mem_hash_table[MEM_HASH_SIZE];
 /* The base node of the list of all allocated heaps */
 static mem_hash_cell_t		mem_all_list_base;
 
-static ibool	mem_hash_initialized	= FALSE;
 
 
 UNIV_INLINE
@@ -112,6 +132,7 @@ mem_field_trailer_get_check(byte* field)
 }
 #endif /* UNIV_MEM_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Initializes the memory system. */
 UNIV_INTERN
@@ -138,8 +159,17 @@ mem_init(
 	mem_hash_initialized = TRUE;
 #endif
 
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		/* When innodb_use_sys_malloc is set, the
+		mem_comm_pool won't be used for any allocations.  We
+		create a dummy mem_comm_pool, because some statistics
+		and debugging code relies on it being initialized. */
+		size = 1;
+	}
+
 	mem_comm_pool = mem_pool_create(size);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_MEM_DEBUG
 /**********************************************************************
@@ -659,8 +689,9 @@ mem_all_freed(void)
 	mutex_exit(&mem_hash_mutex);
 
 	if (heap_count == 0) {
-
+# ifndef UNIV_HOTBACKUP
 		ut_a(mem_pool_get_reserved(mem_comm_pool) == 0);
+# endif /* !UNIV_HOTBACKUP */
 
 		return(TRUE);
 	} else {
@@ -685,7 +716,9 @@ mem_validate_no_assert(void)
 	ulint			n_blocks;
 	ulint			i;
 
+# ifndef UNIV_HOTBACKUP
 	mem_pool_validate(mem_comm_pool);
+# endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&mem_hash_mutex);
 
@@ -863,6 +896,7 @@ mem_analyze_corruption(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated
 memory heaps or buffers. Can only be used in the debug version. */
@@ -988,3 +1022,4 @@ mem_print_new_info(void)
 {
 	mem_print_info_low(FALSE);
 }
+#endif /* !UNIV_HOTBACKUP */

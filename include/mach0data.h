@@ -1,8 +1,24 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 Utilities for converting data from the database file
 to the machine format.
-
-(c) 1995 Innobase Oy
 
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
@@ -293,6 +309,7 @@ mach_dulint_parse_compressed(
 	byte*	ptr,	/* in: pointer to buffer from where to read */
 	byte*	end_ptr,/* in: pointer to end of the buffer */
 	dulint*	val);	/* out: read value */
+#ifndef UNIV_HOTBACKUP
 /*************************************************************
 Reads a double. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -375,6 +392,8 @@ mach_read_int_type(
 	const byte*	src,		/* in: where to read from */
 	ulint		len,		/* in: length of src */
 	ibool		unsigned_type);	/* in: signed or unsigned flag */
+#endif /* !UNIV_HOTBACKUP */
+
 #ifndef UNIV_NONINL
 #include "mach0data.ic"
 #endif

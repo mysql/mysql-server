@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 Memory primitives
-
-(c) 1994, 1995 Innobase Oy
 
 Created 5/11/1994 Heikki Tuuri
 *************************************************************************/
@@ -12,16 +28,22 @@ Created 5/11/1994 Heikki Tuuri
 #include "ut0mem.ic"
 #endif
 
-#include "mem0mem.h"
-#include "os0sync.h"
-#include "os0thread.h"
-#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0thread.h"
+# include "srv0srv.h"
+
+#include <stdlib.h>
 
 /* This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
 
-/* The total amount of memory currently allocated from the OS with malloc */
-UNIV_INTERN ulint	ut_total_allocated_memory	= 0;
+/* The total amount of memory currently allocated from the operating
+system with os_mem_alloc_large() or malloc().  Does not count malloc()
+if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
+UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
+
+/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
 
 struct ut_mem_block_struct{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
@@ -33,10 +55,8 @@ struct ut_mem_block_struct{
 #define UT_MEM_MAGIC_N	1601650166
 
 /* List of all memory blocks allocated from the operating system
-with malloc */
+with malloc.  Protected by ut_list_mutex. */
 static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
-
-static os_fast_mutex_t ut_list_mutex;	/* this protects the list */
 
 static ibool  ut_mem_block_list_inited = FALSE;
 
@@ -44,15 +64,17 @@ static ulint*	ut_mem_null_ptr	= NULL;
 
 /**************************************************************************
 Initializes the mem block list at database startup. */
-static
+UNIV_INTERN
 void
-ut_mem_block_list_init(void)
-/*========================*/
+ut_mem_init(void)
+/*=============*/
 {
+	ut_a(!ut_mem_block_list_inited);
 	os_fast_mutex_init(&ut_list_mutex);
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
@@ -69,10 +91,11 @@ ut_malloc_low(
 	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	retry_count;
 	void*	ret;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		ret = malloc(n);
 		ut_a(ret || !assert_on_error);
 
@@ -86,10 +109,7 @@ ut_malloc_low(
 	}
 
 	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
-
-	if (UNIV_UNLIKELY(!ut_mem_block_list_inited)) {
-		ut_mem_block_list_init();
-	}
+	ut_a(ut_mem_block_list_inited);
 
 	retry_count = 0;
 retry:
@@ -190,6 +210,17 @@ retry:
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
+#else /* !UNIV_HOTBACKUP */
+	void*	ret = malloc(n);
+	ut_a(ret || !assert_on_error);
+
+# ifdef UNIV_SET_MEM_TO_ZERO
+	if (set_to_zero) {
+		memset(ret, '\0', n);
+	}
+# endif
+	return(ret);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /**************************************************************************
@@ -202,9 +233,14 @@ ut_malloc(
 			/* out, own: allocated memory */
 	ulint	n)	/* in: number of bytes to allocate */
 {
+#ifndef UNIV_HOTBACKUP
 	return(ut_malloc_low(n, TRUE, TRUE));
+#else /* !UNIV_HOTBACKUP */
+	return(malloc(n));
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
@@ -244,6 +280,7 @@ ut_test_malloc(
 
 	return(TRUE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */
@@ -253,9 +290,10 @@ ut_free(
 /*====*/
 	void* ptr)  /* in, own: memory block */
 {
+#ifndef UNIV_HOTBACKUP
 	ut_mem_block_t* block;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		free(ptr);
 		return;
 	}
@@ -273,8 +311,12 @@ ut_free(
 	free(block);
 
 	os_fast_mutex_unlock(&ut_list_mutex);
+#else /* !UNIV_HOTBACKUP */
+	free(ptr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
@@ -312,7 +354,7 @@ ut_realloc(
 	ulint		min_size;
 	void*		new_ptr;
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		return(realloc(ptr, size));
 	}
 
@@ -363,10 +405,7 @@ ut_free_all_mem(void)
 {
 	ut_mem_block_t* block;
 
-	if (!ut_mem_block_list_inited) {
-		return;
-	}
-
+	ut_a(ut_mem_block_list_inited);
 	ut_mem_block_list_inited = FALSE;
 	os_fast_mutex_free(&ut_list_mutex);
 
@@ -388,6 +427,7 @@ ut_free_all_mem(void)
 			(ulong) ut_total_allocated_memory);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Copies up to size - 1 characters from the NUL-terminated string src to
@@ -484,6 +524,7 @@ ut_memcpyq(
 	return(dest);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once. */
@@ -656,3 +697,4 @@ test_ut_str_sql_format()
 }
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* !UNIV_HOTBACKUP */

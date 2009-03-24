@@ -1,56 +1,33 @@
-/*   Innobase relational database engine; Copyright (C) 2001 Innobase Oy
+/*****************************************************************************
 
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License 2
-     as published by the Free Software Foundation in June 1991.
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
 
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
 
-     You should have received a copy of the GNU General Public License 2
-     along with this program (in file COPYING); if not, write to the Free
-     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer buf_pool
 
-(c) 1995 Innobase Oy
-
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
 #include "buf0buf.h"
 
@@ -58,17 +35,20 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0buf.ic"
 #endif
 
-#include "buf0buddy.h"
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"
+#ifndef UNIV_HOTBACKUP
+#include "buf0buddy.h"
 #include "lock0lock.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
+#include "trx0undo.h"
+#include "log0log.h"
+#endif /* !UNIV_HOTBACKUP */
+#include "srv0srv.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "trx0undo.h"
-#include "srv0srv.h"
 #include "page0zip.h"
 
 /*
@@ -258,6 +238,7 @@ that the whole area may be needed in the near future, and issue
 the read requests for the whole area.
 */
 
+#ifndef UNIV_HOTBACKUP
 /* Value in microseconds */
 static const int WAIT_FOR_READ	= 5000;
 
@@ -293,6 +274,7 @@ struct buf_chunk_struct{
 					was allocated for the frames */
 	buf_block_t*	blocks;		/* array of buffer control blocks */
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
@@ -361,9 +343,7 @@ buf_page_is_corrupted(
 {
 	ulint		checksum_field;
 	ulint		old_checksum_field;
-#ifndef UNIV_HOTBACKUP
-	ib_uint64_t	current_lsn;
-#endif
+
 	if (UNIV_LIKELY(!zip_size)
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
 		      read_buf + UNIV_PAGE_SIZE
@@ -376,8 +356,11 @@ buf_page_is_corrupted(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
-		if (current_lsn < mach_read_ull(read_buf + FIL_PAGE_LSN)) {
+	if (recv_lsn_checks_on) {
+		ib_uint64_t	current_lsn;
+
+		if (log_peek_lsn(&current_lsn)
+		    && current_lsn < mach_read_ull(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -461,7 +444,9 @@ buf_page_print(
 	ulint		zip_size)	/* in: compressed page size, or
 				0 for uncompressed pages */
 {
+#ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
+#endif /* !UNIV_HOTBACKUP */
 	ulint		checksum;
 	ulint		old_checksum;
 	ulint		size	= zip_size;
@@ -575,6 +560,7 @@ buf_page_print(
 		(ulong) mach_read_from_4(read_buf
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 
+#ifndef UNIV_HOTBACKUP
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
 	    == TRX_UNDO_INSERT) {
 		fprintf(stderr,
@@ -585,6 +571,7 @@ buf_page_print(
 		fprintf(stderr,
 			"InnoDB: Page may be an update undo log page\n");
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	switch (fil_page_get_type(read_buf)) {
 	case FIL_PAGE_INDEX:
@@ -595,16 +582,7 @@ buf_page_print(
 				btr_page_get_index_id(read_buf)),
 			(ulong) ut_dulint_get_low(
 				btr_page_get_index_id(read_buf)));
-
-#ifdef UNIV_HOTBACKUP
-		/* If the code is in ibbackup, dict_sys may be uninitialized,
-		i.e., NULL */
-
-		if (dict_sys == NULL) {
-			break;
-		}
-#endif /* UNIV_HOTBACKUP */
-
+#ifndef UNIV_HOTBACKUP
 		index = dict_index_find_on_id_low(
 			btr_page_get_index_id(read_buf));
 		if (index) {
@@ -612,6 +590,7 @@ buf_page_print(
 			dict_index_name_print(stderr, NULL, index);
 			fputs(")\n", stderr);
 		}
+#endif /* !UNIV_HOTBACKUP */
 		break;
 	case FIL_PAGE_INODE:
 		fputs("InnoDB: Page may be an 'inode' page\n", stderr);
@@ -656,6 +635,7 @@ buf_page_print(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Initializes a buffer control block when the buf_pool is created. */
 static
@@ -1030,7 +1010,6 @@ buf_pool_free(void)
 	buf_pool->n_chunks = 0;
 }
 
-
 /************************************************************************
 Drops the adaptive hash index.  To prevent a livelock, this function
 is only to be called while holding btr_search_latch and while
@@ -1178,7 +1157,8 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU));
+	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU,
+			      ut_ad(ut_list_node_313->in_LRU_list)));
 
 	/* relocate buf_pool->page_hash */
 	fold = buf_page_address_fold(bpage->space, bpage->offset);
@@ -1858,10 +1838,11 @@ buf_block_init_low(
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Decompress a block. */
-static
+UNIV_INTERN
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -1925,6 +1906,7 @@ buf_zip_decompress(
 	return(FALSE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INTERN
@@ -2709,39 +2691,6 @@ buf_pool_watch_notify(
 	}
 }
 
-#ifdef UNIV_HOTBACKUP
-/************************************************************************
-Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
-UNIV_INTERN
-void
-buf_page_init_for_backup_restore(
-/*=============================*/
-	ulint		space,	/* in: space id */
-	ulint		offset,	/* in: offset of the page within space
-				in units of a page */
-	ulint		zip_size,/* in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	buf_block_t*	block)	/* in: block to init */
-{
-	buf_block_init_low(block);
-
-	block->lock_hash_val	= 0;
-
-	buf_page_init_low(&block->page);
-	block->page.state	= BUF_BLOCK_FILE_PAGE;
-	block->page.space	= space;
-	block->page.offset	= offset;
-
-	page_zip_des_init(&block->page.zip);
-
-	/* We assume that block->page.data has been allocated
-	with zip_size == UNIV_PAGE_SIZE. */
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
-	ut_ad(ut_is_2pow(zip_size));
-	page_zip_set_size(&block->page.zip, zip_size);
-}
-#endif /* UNIV_HOTBACKUP */
-
 /************************************************************************
 Inits a page to the buffer buf_pool. */
 static
@@ -3293,7 +3242,7 @@ corrupt:
 		if (recv_recovery_is_on()) {
 			/* Pages must be uncompressed for crash recovery. */
 			ut_a(uncompressed);
-			recv_recover_page(FALSE, TRUE, (buf_block_t*) bpage);
+			recv_recover_page(TRUE, (buf_block_t*) bpage);
 		}
 
 		if (uncompressed && !recv_no_ibuf_operations) {
@@ -4033,3 +3982,33 @@ buf_get_free_list_len(void)
 
 	return(len);
 }
+#else /* !UNIV_HOTBACKUP */
+/************************************************************************
+Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+UNIV_INTERN
+void
+buf_page_init_for_backup_restore(
+/*=============================*/
+	ulint		space,	/* in: space id */
+	ulint		offset,	/* in: offset of the page within space
+				in units of a page */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
+	buf_block_t*	block)	/* in: block to init */
+{
+	block->page.state	= BUF_BLOCK_FILE_PAGE;
+	block->page.space	= space;
+	block->page.offset	= offset;
+
+	page_zip_des_init(&block->page.zip);
+
+	/* We assume that block->page.data has been allocated
+	with zip_size == UNIV_PAGE_SIZE. */
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(ut_is_2pow(zip_size));
+	page_zip_set_size(&block->page.zip, zip_size);
+	if (zip_size) {
+		block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
+	}
+}
+#endif /* !UNIV_HOTBACKUP */

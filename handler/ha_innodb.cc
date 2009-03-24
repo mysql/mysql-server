@@ -1,50 +1,28 @@
-/* Copyright (C) 2000-2005 MySQL AB & Innobase Oy
+/*****************************************************************************
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+Copyright (c) 2000, 2009, MySQL AB & Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
-   GNU General Public License for more details.
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA */
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
 
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at trx->conc_state
   - fix savepoint functions to use savepoint storage area
@@ -1211,6 +1189,12 @@ innobase_next_autoinc(
 	/* Should never be 0. */
 	ut_a(increment > 0);
 
+	/* According to MySQL documentation, if the offset is greater than
+	the increment then the offset is ignored. */
+	if (offset > increment) {
+		offset = 0;
+	}
+
 	if (max_value <= current) {
 		next_value = max_value;
 	} else if (offset <= 1) {
@@ -2010,16 +1994,12 @@ innobase_init(
 						   MYF(MY_FAE));
 
 	ret = (bool) srv_parse_data_file_paths_and_sizes(
-				internal_innobase_data_file_path,
-				&srv_data_file_names,
-				&srv_data_file_sizes,
-				&srv_data_file_is_raw_partition,
-				&srv_n_data_files,
-				&srv_auto_extend_last_data_file,
-				&srv_last_file_size_max);
+		internal_innobase_data_file_path);
 	if (ret == FALSE) {
 		sql_print_error(
 			"InnoDB: syntax error in innodb_data_file_path");
+mem_free_and_error:
+		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
 		goto error;
@@ -2044,16 +2024,13 @@ innobase_init(
 #endif /* UNIG_LOG_ARCHIVE */
 
 	ret = (bool)
-		srv_parse_log_group_home_dirs(innobase_log_group_home_dir,
-						&srv_log_group_home_dirs);
+		srv_parse_log_group_home_dirs(innobase_log_group_home_dir);
 
 	if (ret == FALSE || innobase_mirrored_log_groups != 1) {
 	  sql_print_error("syntax error in innodb_log_group_home_dir, or a "
 			  "wrong number of mirrored log groups");
 
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
-		goto error;
+		goto mem_free_and_error;
 	}
 
 	/* Validate the file format by animal name */
@@ -2066,9 +2043,7 @@ innobase_init(
 
 			sql_print_error("InnoDB: wrong innodb_file_format.");
 
-			my_free(internal_innobase_data_file_path,
-				MYF(MY_ALLOW_ZERO_PTR));
-			goto error;
+			goto mem_free_and_error;
 		}
 	} else {
 		/* Set it to the default file format id. Though this
@@ -2107,10 +2082,7 @@ innobase_init(
 					trx_sys_file_format_id_to_name(
 						DICT_TF_FORMAT_MAX));
 
-			my_free(internal_innobase_data_file_path,
-				MYF(MY_ALLOW_ZERO_PTR));
-
-			goto error;
+			goto mem_free_and_error;
 		}
 	}
 
@@ -2182,9 +2154,7 @@ innobase_init(
 	err = innobase_start_or_create_for_mysql();
 
 	if (err != DB_SUCCESS) {
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
-		goto error;
+		goto mem_free_and_error;
 	}
 
 	innobase_open_tables = hash_create(200);
@@ -2236,6 +2206,7 @@ innobase_end(handlerton *hton, ha_panic_function type)
 		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
 			err = 1;
 		}
+		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
 		pthread_mutex_destroy(&innobase_share_mutex);
@@ -3880,8 +3851,8 @@ build_template(
 				goto include_field;
 			}
 
-                        if (bitmap_is_set(table->read_set, i) ||
-                            bitmap_is_set(table->write_set, i)) {
+			if (bitmap_is_set(table->read_set, i) ||
+			    bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3973,7 +3944,7 @@ skip_field:
 }
 
 /************************************************************************
-Get the upper limit of the MySQL integral type. */
+Get the upper limit of the MySQL integral and floating-point type. */
 UNIV_INTERN
 ulonglong
 ha_innobase::innobase_get_int_col_max_value(
@@ -3984,7 +3955,7 @@ ha_innobase::innobase_get_int_col_max_value(
 
 	switch(field->key_type()) {
 	/* TINY */
-        case HA_KEYTYPE_BINARY:
+	case HA_KEYTYPE_BINARY:
 		max_value = 0xFFULL;
 		break;
 	case HA_KEYTYPE_INT8:
@@ -3998,7 +3969,7 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFULL;
 		break;
 	/* MEDIUM */
-    	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_UINT24:
 		max_value = 0xFFFFFFULL;
 		break;
 	case HA_KEYTYPE_INT24:
@@ -4012,11 +3983,19 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFFFFFULL;
 		break;
 	/* BIG */
-    	case HA_KEYTYPE_ULONGLONG:
+	case HA_KEYTYPE_ULONGLONG:
 		max_value = 0xFFFFFFFFFFFFFFFFULL;
 		break;
 	case HA_KEYTYPE_LONGLONG:
 		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_FLOAT:
+		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
+		max_value = 0x1000000ULL;
+		break;
+	case HA_KEYTYPE_DOUBLE:
+		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
+		max_value = 0x20000000000000ULL;
 		break;
 	default:
 		ut_error;
@@ -4145,7 +4124,8 @@ ha_innobase::write_row(
 			/* out: error code */
 	uchar*	record)	/* in: a row in MySQL format */
 {
-	int		error = 0;
+	ulint		error = 0;
+        int             error_result= 0;
 	ibool		auto_inc_used= FALSE;
 	ulint		sql_command;
 	trx_t*		trx = thd_to_trx(user_thd);
@@ -4255,12 +4235,13 @@ no_commit:
 
 			/* We don't want to mask autoinc overflow errors. */
 			if (prebuilt->autoinc_error != DB_SUCCESS) {
-				error = prebuilt->autoinc_error;
+				error = (int) prebuilt->autoinc_error;
 
 				goto report_error;
 			}
 
 			/* MySQL errors are passed straight back. */
+			error_result = (int) error;
 			goto func_exit;
 		}
 
@@ -4337,7 +4318,7 @@ no_commit:
 			will be 0 if get_auto_increment() was not called.*/
 
 			if (auto_inc <= col_max_value
-			    && auto_inc > prebuilt->autoinc_last_value) {
+			    && auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->autoinc_increment > 0);
 
@@ -4353,7 +4334,7 @@ set_max_autoinc:
 				err = innobase_set_max_autoinc(auto_inc);
 
 				if (err != DB_SUCCESS) {
-					error = (int) err;
+					error = err;
 				}
 			}
 			break;
@@ -4363,13 +4344,14 @@ set_max_autoinc:
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
 report_error:
-	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
-					    user_thd);
+	error_result = convert_error_code_to_mysql((int) error,
+						   prebuilt->table->flags,
+						   user_thd);
 
 func_exit:
 	innobase_active_small();
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(error_result);
 }
 
 /**************************************************************************
@@ -8628,11 +8610,13 @@ ha_innobase::get_auto_increment(
 
 		prebuilt->autoinc_last_value = next_value;
 
-		ut_a(prebuilt->autoinc_last_value >= *first_value);
-
-		/* Update the table autoinc variable */
-		dict_table_autoinc_update_if_greater(
-			prebuilt->table, prebuilt->autoinc_last_value);
+		if (prebuilt->autoinc_last_value < *first_value) {
+			*first_value = (~(ulonglong) 0);
+		} else {
+			/* Update the table autoinc variable */
+			dict_table_autoinc_update_if_greater(
+				prebuilt->table, prebuilt->autoinc_last_value);
+		}
 	} else {
 		/* This will force write_row() into attempting an update
 		of the table's AUTOINC counter. */
@@ -8815,10 +8799,7 @@ ha_innobase::get_mysql_bin_log_pos()
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
 finds charset information and returns length of prefix_len characters in the
-index field in bytes.
-
-NOTE: the prototype of this function is copied to data0type.c! If you change
-this function, you MUST change also data0type.c! */
+index field in bytes. */
 extern "C" UNIV_INTERN
 ulint
 innobase_get_at_most_n_mbchars(
@@ -9693,7 +9674,7 @@ static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-  NULL, NULL, 8, 0, 1000, 0);
+  NULL, NULL, 0, 0, 1000, 0);
 
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
@@ -9724,7 +9705,7 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
 static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Use OS memory allocator instead of InnoDB's internal memory allocator",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,

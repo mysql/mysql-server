@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 List utilities
-
-(c) 1995 Innobase Oy
 
 Created 9/10/1995 Heikki Tuuri
 ***********************************************************************/
@@ -194,34 +210,36 @@ if the list is empty. BASE is the base node (not a pointer to it). */
 
 /************************************************************************
 Checks the consistency of a two-way list. NAME is the name of the list,
-TYPE is the node type, and BASE is the base node (not a pointer to it). */
+TYPE is the node type, BASE is the base node (not a pointer to it),
+and ASSERTION is a condition on ut_list_node_313. */
 
-#define UT_LIST_VALIDATE(NAME, TYPE, BASE)\
-{\
-	ulint	ut_list_i_313;\
-	TYPE *	ut_list_node_313;\
-\
-	ut_list_node_313 = (BASE).start;\
-\
-	for (ut_list_i_313 = 0; ut_list_i_313 < (BASE).count;\
-						ut_list_i_313++) {\
-		ut_a(ut_list_node_313);\
-		ut_list_node_313 = (ut_list_node_313->NAME).next;\
-	}\
-\
-	ut_a(ut_list_node_313 == NULL);\
-\
-	ut_list_node_313 = (BASE).end;\
-\
-	for (ut_list_i_313 = 0; ut_list_i_313 < (BASE).count;\
-						ut_list_i_313++) {\
-		ut_a(ut_list_node_313);\
-		ut_list_node_313 = (ut_list_node_313->NAME).prev;\
-	}\
-\
-	ut_a(ut_list_node_313 == NULL);\
-}\
-
+#define UT_LIST_VALIDATE(NAME, TYPE, BASE, ASSERTION)			\
+do {									\
+	ulint	ut_list_i_313;						\
+	TYPE*	ut_list_node_313;					\
+									\
+	ut_list_node_313 = (BASE).start;				\
+									\
+	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
+		ut_a(ut_list_node_313);					\
+		ASSERTION;						\
+		ut_ad((ut_list_node_313->NAME).next || !ut_list_i_313);	\
+		ut_list_node_313 = (ut_list_node_313->NAME).next;	\
+	}								\
+									\
+	ut_a(ut_list_node_313 == NULL);					\
+									\
+	ut_list_node_313 = (BASE).end;					\
+									\
+	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
+		ut_a(ut_list_node_313);					\
+		ASSERTION;						\
+		ut_ad((ut_list_node_313->NAME).prev || !ut_list_i_313);	\
+		ut_list_node_313 = (ut_list_node_313->NAME).prev;	\
+	}								\
+									\
+	ut_a(ut_list_node_313 == NULL);					\
+} while (0)
 
 #endif
 

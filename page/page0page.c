@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Index page routines
-
-(c) 1994-1996 Innobase Oy
 
 Created 2/2/1994 Heikki Tuuri
 *******************************************************/
@@ -15,12 +31,14 @@ Created 2/2/1994 Heikki Tuuri
 
 #include "page0cur.h"
 #include "page0zip.h"
-#include "lock0lock.h"
-#include "fut0lst.h"
-#include "btr0sea.h"
 #include "buf0buf.h"
-#include "srv0srv.h"
 #include "btr0btr.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0srv.h"
+# include "lock0lock.h"
+# include "fut0lst.h"
+# include "btr0sea.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /*			THE INDEX PAGE
 			==============
@@ -193,12 +211,14 @@ page_set_max_trx_id(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dulint		trx_id)	/* in: transaction id */
 {
-	const ibool	is_hashed	= block->is_hashed;
 	page_t*		page		= buf_block_get_frame(block);
+#ifndef UNIV_HOTBACKUP
+	const ibool	is_hashed	= block->is_hashed;
 
 	if (is_hashed) {
 		rw_lock_x_lock(&btr_search_latch);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* It is not necessary to write this change to the redo log, as
 	during a database recovery we assume that the max trx id of every
@@ -211,9 +231,11 @@ page_set_max_trx_id(
 				      8, NULL);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	if (is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /****************************************************************
@@ -255,6 +277,7 @@ page_mem_alloc_heap(
 	return(NULL);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************
 Writes a log record of page creation. */
 UNIV_INLINE
@@ -270,6 +293,9 @@ page_create_write_log(
 				      ? MLOG_COMP_PAGE_CREATE
 				      : MLOG_PAGE_CREATE, mtr);
 }
+#else /* !UNIV_HOTBACKUP */
+# define page_create_write_log(frame,mtr,comp) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses a redo log record of creating a page. */
@@ -327,9 +353,9 @@ page_create_low(
 
 	/* The infimum and supremum records use a dummy index. */
 	if (UNIV_LIKELY(comp)) {
-		index = srv_sys->dummy_ind2;
+		index = dict_ind_compact;
 	} else {
-		index = srv_sys->dummy_ind1;
+		index = dict_ind_redundant;
 	}
 
 	/* 1. INCREMENT MODIFY CLOCK */
@@ -568,6 +594,7 @@ page_copy_rec_list_end_no_locks(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Copies records from page to new_page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
@@ -811,6 +838,9 @@ page_delete_rec_list_write_log(
 		mlog_close(mtr, log_ptr + 2);
 	}
 }
+#else /* !UNIV_HOTBACKUP */
+# define page_delete_rec_list_write_log(rec,index,type,mtr) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************
 Parses a log record of a record list end or start deletion. */
@@ -1116,6 +1146,7 @@ page_delete_rec_list_start(
 	mtr_set_log_mode(mtr, log_mode);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec. */
@@ -1217,6 +1248,7 @@ page_rec_write_index_page_no(
 
 	mlog_write_ulint(data, page_no, MLOG_4BYTES, mtr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************
 Used to delete n slots from the directory. This function updates
@@ -1428,6 +1460,7 @@ page_dir_balance_slot(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Returns the middle record of the record list. If there are an even number
 of records in the list, returns the first record of the upper half-list. */
@@ -1475,6 +1508,7 @@ page_get_middle_rec(
 
 	return(rec);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Returns the number of records before the given record in chain.
@@ -1540,6 +1574,7 @@ page_rec_get_n_recs_before(
 	return((ulint) n);
 }
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Prints record contents including the data relevant only in
 the index page context. */
@@ -1730,6 +1765,7 @@ page_print(
 	page_dir_print(page, dn);
 	page_print_list(block, index, rn);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 The following is used to validate a record on a page. This function
@@ -1779,6 +1815,7 @@ page_rec_validate(
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
@@ -1814,6 +1851,7 @@ page_check_dir(
 		buf_page_print(page, 0);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 This function checks the consistency of an index page when we do not
@@ -2294,10 +2332,11 @@ page_validate(
 	if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP)
 			    <= page_dir_get_nth_slot(page, n_slots - 1)))) {
 
-		fputs("InnoDB: Record heap and dir overlap on a page ",
-		      stderr);
-		dict_index_name_print(stderr, NULL, index);
-		fprintf(stderr, ", %p, %p\n",
+		fprintf(stderr, 
+			"InnoDB: Record heap and dir overlap"
+			" on space %lu page %lu index %s, %p, %p\n",
+			(ulong) page_get_space_id(page),
+			(ulong) page_get_page_no(page), index->name,
 			page_header_get_ptr(page, PAGE_HEAP_TOP),
 			page_dir_get_nth_slot(page, n_slots - 1));
 
@@ -2329,17 +2368,19 @@ page_validate(
 			goto func_exit;
 		}
 
+#ifndef UNIV_HOTBACKUP
 		/* Check that the records are in the ascending order */
 		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
 		    && !page_rec_is_supremum(rec)) {
 			if (UNIV_UNLIKELY
 			    (1 != cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
-				fprintf(stderr,
+				fprintf(stderr, 
 					"InnoDB: Records in wrong order"
-					" on page %lu ",
-					(ulong) page_get_page_no(page));
-				dict_index_name_print(stderr, NULL, index);
+					" on space %lu page %lu index %s\n",
+					(ulong) page_get_space_id(page),
+					(ulong) page_get_page_no(page),
+					index->name);
 				fputs("\nInnoDB: previous record ", stderr);
 				rec_print_new(stderr, old_rec, old_offsets);
 				fputs("\nInnoDB: record ", stderr);
@@ -2349,6 +2390,7 @@ page_validate(
 				goto func_exit;
 			}
 		}
+#endif /* !UNIV_HOTBACKUP */
 
 		if (page_rec_is_user_rec(rec)) {
 
@@ -2494,16 +2536,19 @@ func_exit:
 
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
-		fprintf(stderr, "InnoDB: Apparent corruption in page %lu in ",
-			(ulong) page_get_page_no(page));
-		dict_index_name_print(stderr, NULL, index);
-		putc('\n', stderr);
+		fprintf(stderr, 
+			"InnoDB: Apparent corruption"
+			" in space %lu page %lu index %s\n",
+			(ulong) page_get_space_id(page),
+			(ulong) page_get_page_no(page),
+			index->name);
 		buf_page_print(page, 0);
 	}
 
 	return(ret);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Looks in the page record list for a record with the given heap number. */
 UNIV_INTERN
@@ -2550,3 +2595,4 @@ page_find_rec_with_heap_no(
 		}
 	}
 }
+#endif /* !UNIV_HOTBACKUP */

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 Various utilities
-
-(c) 1994, 1995 Innobase Oy
 
 Created 1/20/1994 Heikki Tuuri
 ***********************************************************************/
@@ -214,7 +230,7 @@ ut_get_year_month_day(
 	ulint*	year,	/* out: current year */
 	ulint*	month,	/* out: month */
 	ulint*	day);	/* out: day */
-#endif /* UNIV_HOTBACKUP */
+#else /* UNIV_HOTBACKUP */
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */
@@ -224,6 +240,7 @@ ut_delay(
 /*=====*/
 			/* out: dummy value */
 	ulint	delay);	/* in: delay in microseconds on 100 MHz Pentium */
+#endif /* UNIV_HOTBACKUP */
 /*****************************************************************
 Prints the contents of a memory buffer in hex and ascii. */
 UNIV_INTERN
@@ -243,6 +260,7 @@ ut_print_filename(
 	FILE*		f,	/* in: output stream */
 	const char*	name);	/* in: name to print */
 
+#ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_struct;
 
@@ -285,6 +303,7 @@ ut_copy_file(
 /*=========*/
 	FILE*	dest,	/* in: output file */
 	FILE*	src);	/* in: input file to be appended to output */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 snprintf(). */

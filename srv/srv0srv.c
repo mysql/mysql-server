@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database server main program
 
@@ -20,42 +45,9 @@ Windows 2000 will have something called thread pooling
 Another possibility could be to use some very fast user space
 thread library. This might confuse NT though.
 
-(c) 1995 Innobase Oy
-
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
+
 /* Dummy comment */
 #include "srv0srv.h"
 
@@ -175,7 +167,7 @@ collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
 /* use os/external memory allocator */
-UNIV_INTERN my_bool	srv_use_sys_malloc	= FALSE;
+UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* previously requested size */
@@ -873,7 +865,6 @@ srv_init(void)
 {
 	srv_conc_slot_t*	conc_slot;
 	srv_slot_t*		slot;
-	dict_table_t*		table;
 	ulint			i;
 
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
@@ -919,30 +910,9 @@ srv_init(void)
 
 	UT_LIST_INIT(srv_sys->tasks);
 
-	/* create dummy table and index for old-style infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY1",
-				      DICT_HDR_SPACE, 1, 0);
-	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
-			       DATA_ENGLISH | DATA_NOT_NULL, 8);
+	/* Create dummy indexes for infimum and supremum records */
 
-	srv_sys->dummy_ind1 = dict_mem_index_create(
-		"SYS_DUMMY1", "SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(srv_sys->dummy_ind1, table,
-			   dict_table_get_nth_col(table, 0), 0);
-	srv_sys->dummy_ind1->table = table;
-	/* create dummy table and index for new-style infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY2",
-				      DICT_HDR_SPACE, 1, DICT_TF_COMPACT);
-	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
-			       DATA_ENGLISH | DATA_NOT_NULL, 8);
-	srv_sys->dummy_ind2 = dict_mem_index_create(
-		"SYS_DUMMY2", "SYS_DUMMY2", DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(srv_sys->dummy_ind2, table,
-			   dict_table_get_nth_col(table, 0), 0);
-	srv_sys->dummy_ind2->table = table;
-
-	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
-	srv_sys->dummy_ind1->cached = srv_sys->dummy_ind2->cached = TRUE;
+	dict_ind_init();
 
 	/* Init the server concurrency restriction data structures */
 
@@ -981,6 +951,7 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	ut_mem_init();
 	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);

@@ -1,49 +1,40 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /***************************************************************************
 Version control for database, common definitions, and include files
 
-(c) 1994 - 2000 Innobase Oy
-
 Created 1/20/1994 Heikki Tuuri
 ****************************************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
 #ifndef univ_i
 #define univ_i
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	3
+#define INNODB_VERSION_BUGFIX	4
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -125,9 +116,20 @@ of the 32-bit x86 assembler in mutex operations. */
 /* For InnoDB rw_locks to work with atomics we need the thread_id
 to be no more than machine word wide. The following enables using
 atomics for InnoDB rw_locks where these conditions are met. */
-# if defined(HAVE_GCC_ATOMIC_BUILTINS) && defined(UNIV_LINUX)
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+/* if HAVE_ATOMIC_PTHREAD_T is defined at this point that means that
+the code from plug.in has defined it and we do not need to include
+ut0auxconf.h which would either define HAVE_ATOMIC_PTHREAD_T or will
+be empty */
+# ifndef HAVE_ATOMIC_PTHREAD_T
+#  include "ut0auxconf.h"
+# endif /* HAVE_ATOMIC_PTHREAD_T */
+/* now HAVE_ATOMIC_PTHREAD_T is eventually defined either by plug.in or
+from Makefile.in->ut0auxconf.h */
+# ifdef HAVE_ATOMIC_PTHREAD_T
 #  define INNODB_RW_LOCKS_USE_ATOMICS
-# endif
+# endif /* HAVE_ATOMIC_PTHREAD_T */
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 /* We only try to do explicit inlining of functions with gcc and
 Microsoft Visual C++ */
