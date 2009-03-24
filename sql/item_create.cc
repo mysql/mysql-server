@@ -3791,6 +3791,7 @@ Create_func_load_file Create_func_load_file::s_singleton;
 Item*
 Create_func_load_file::create(THD *thd, Item *arg1)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_load_file(arg1);
 }
