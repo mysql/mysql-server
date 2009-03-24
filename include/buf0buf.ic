@@ -1056,10 +1056,6 @@ buf_page_release(
 #endif
 	block->page.buf_fix_count--;
 
-	/* Dirty blocks should be in the flush list. */
-	ut_ad(!block->page.oldest_modification
-	      || block->page.in_flush_list);
-
 	mutex_exit(&block->mutex);
 
 	if (rw_latch == RW_S_LATCH) {

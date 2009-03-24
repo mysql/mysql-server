@@ -1056,9 +1056,10 @@ struct buf_page_struct{
 	/* 2. Page flushing fields; protected by buf_pool_mutex */
 
 	UT_LIST_NODE_T(buf_page_t) list;
-					/* based on state, this is a list
-					node in one of the following lists
-					in buf_pool:
+					/* based on state, this is a
+					list node, protected only by
+					buf_pool_mutex, in one of the
+					following lists in buf_pool:
 
 					BUF_BLOCK_NOT_USED:	free
 					BUF_BLOCK_FILE_PAGE:	flush_list
