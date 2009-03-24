@@ -1,42 +1,33 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The read-write lock (for threads)
 
-(c) 1995 Innobase Oy
-
 Created 9/11/1995 Heikki Tuuri
 *******************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
 /**********************************************************************
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
@@ -98,7 +89,7 @@ rw_lock_set_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	os_compare_and_swap((lint*)&(lock->waiters), 0, 1);
+	os_compare_and_swap(&lock->waiters, 0, 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 1;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -115,7 +106,7 @@ rw_lock_reset_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	os_compare_and_swap((lint*)&(lock->waiters), 1, 0);
+	os_compare_and_swap(&lock->waiters, 1, 0);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 0;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -285,14 +276,19 @@ rw_lock_set_writer_id_and_recursion_flag(
 {
 	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
 
-	ut_ad(lock);
-
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	os_thread_id_t	local_thread;
+	ibool		success;
 
-	os_thread_id_t	local_thread = lock->writer_thread;
-	ibool success = os_compare_and_swap((lint*)&(lock->writer_thread),
-					    (lint)local_thread,
-					    (lint)curr_thread);
+	/* Prevent Valgrind warnings about writer_thread being
+	uninitialized.  It does not matter if writer_thread is
+	uninitialized, because we are comparing writer_thread against
+	itself, and the operation should always succeed. */
+	UNIV_MEM_VALID(&lock->writer_thread, sizeof lock->writer_thread);
+
+	local_thread = lock->writer_thread;
+	success = os_compare_and_swap(&lock->writer_thread,
+				      local_thread, curr_thread);
 	ut_a(success);
 	lock->recursive = recursive;
 
@@ -467,8 +463,8 @@ rw_lock_x_lock_func_nowait(
 	if (success) {
 		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 
-	} else if (lock->recursive &&
-		   os_thread_eq(lock->writer_thread, curr_thread)) {
+	} else if (lock->recursive
+		   && os_thread_eq(lock->writer_thread, curr_thread)) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
@@ -578,6 +574,8 @@ rw_lock_x_unlock_func(
 	if (lock->lock_word == 0) {
 		/* Last caller in a possible recursive chain. */
 		lock->recursive = FALSE;
+		UNIV_MEM_INVALID(&lock->writer_thread,
+				 sizeof lock->writer_thread);
 	}
 
 #ifdef UNIV_SYNC_DEBUG
@@ -622,6 +620,8 @@ rw_lock_x_unlock_direct(
 
 	if (lock->lock_word == 0) {
 		lock->recursive = FALSE;
+		UNIV_MEM_INVALID(&lock->writer_thread,
+				 sizeof lock->writer_thread);
 	}
 
 	lock->lock_word += X_LOCK_DECR;

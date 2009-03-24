@@ -1,14 +1,31 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The memory management
-
-(c) 1994, 1995 Innobase Oy
 
 Created 6/8/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "mem0dbg.ic"
-
-#include "mem0pool.h"
+#ifndef UNIV_HOTBACKUP
+# include "mem0pool.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Creates a memory heap block where data can be allocated. */
@@ -34,6 +51,7 @@ mem_heap_block_free(
 /*================*/
 	mem_heap_t*	heap,	/* in: heap */
 	mem_block_t*	block);	/* in: block to free */
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Frees the free_block field from a memory heap. */
 UNIV_INTERN
@@ -41,6 +59,7 @@ void
 mem_heap_free_block_free(
 /*=====================*/
 	mem_heap_t*	heap);	/* in: heap */
+#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************
 Adds a new block to a memory heap. */
 UNIV_INTERN
@@ -314,10 +333,11 @@ mem_heap_empty(
 	mem_heap_t*	heap)	/* in: heap to empty */
 {
 	mem_heap_free_heap_top(heap, (byte*)heap + mem_block_get_start(heap));
-
+#ifndef UNIV_HOTBACKUP
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /*********************************************************************
@@ -472,10 +492,11 @@ mem_heap_free_func(
 	mem_hash_remove(heap, file_name, line);
 
 #endif
-
+#ifndef UNIV_HOTBACKUP
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	while (block != NULL) {
 		/* Store the contents of info before freeing current block
@@ -574,10 +595,11 @@ mem_heap_get_size(
 		size += mem_block_get_len(block);
 		block = UT_LIST_GET_NEXT(list, block);
 	}
-
+#ifndef UNIV_HOTBACKUP
 	if (heap->free_block) {
 		size += UNIV_PAGE_SIZE;
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	return(size);
 }

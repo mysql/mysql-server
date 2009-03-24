@@ -1,3 +1,21 @@
+/*****************************************************************************
+
+Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
@@ -45,7 +63,7 @@ innobase_raw_format(
 	char*		buf,		/* out: output buffer */
 	ulint		buf_size);	/* in: output buffer size
 					in bytes */
-                    
+
 /*********************************************************************
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed. */
@@ -205,6 +223,24 @@ innobase_get_charset(
 /*=================*/
 				/* out: connection character set */
 	void*	mysql_thd);	/* in: MySQL thread handle */
+
+/**********************************************************************
+This function is used to find the storage length in bytes of the first n
+characters for prefix indexes using a multibyte character set. The function
+finds charset information and returns length of prefix_len characters in the
+index field in bytes. */
+UNIV_INTERN
+ulint
+innobase_get_at_most_n_mbchars(
+/*===========================*/
+				/* out: number of bytes occupied by the first
+				n characters */
+	ulint charset_id,	/* in: character set id */
+	ulint prefix_len,	/* in: prefix length in bytes of the index
+				(this has to be divided by mbmaxlen to get the
+				number of CHARACTERS n in the prefix) */
+	ulint data_len,		/* in: length of the string in bytes */
+	const char* str);	/* in: character string */
 
 /**********************************************************************
 Returns true if the thread supports XA,

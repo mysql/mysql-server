@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Transaction undo log
-
-(c) 1996 Innobase Oy
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
@@ -9,6 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "data0type.h"
 #include "page0page.h"
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Builds a roll pointer dulint. */
 UNIV_INLINE
@@ -85,6 +102,7 @@ trx_undo_roll_ptr_is_insert(
 
 	return(high / (256 * 256 * 128));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
 Writes a roll ptr to an index page. In case that the size changes in
@@ -120,6 +138,7 @@ trx_read_roll_ptr(
 	return(mach_read_from_7(ptr));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Gets an undo log page and x-latches it. */
 UNIV_INLINE
@@ -326,3 +345,4 @@ trx_undo_page_get_first_rec(
 
 	return(undo_page + start);
 }
+#endif /* !UNIV_HOTBACKUP */

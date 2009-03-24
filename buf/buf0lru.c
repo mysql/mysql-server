@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer replacement algorithm
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
@@ -1772,6 +1788,9 @@ buf_LRU_block_remove_hashed_page(
 			void*	data = bpage->zip.data;
 			bpage->zip.data = NULL;
 
+			ut_ad(!bpage->in_free_list);
+			ut_ad(!bpage->in_flush_list);
+			ut_ad(!bpage->in_LRU_list);
 			mutex_exit(&((buf_block_t*) bpage)->mutex);
 			buf_pool_mutex_exit_forbid();
 			buf_buddy_free(data, page_zip_get_size(&bpage->zip));
@@ -1874,7 +1893,8 @@ buf_LRU_validate(void)
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU);
+	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU,
+			 ut_ad(ut_list_node_313->in_LRU_list));
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
@@ -1922,7 +1942,8 @@ buf_LRU_validate(void)
 		ut_a(buf_pool->LRU_old_len == old_len);
 	}
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free);
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free,
+			 ut_ad(ut_list_node_313->in_free_list));
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
@@ -1931,7 +1952,9 @@ buf_LRU_validate(void)
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
-	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU);
+	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
+			 ut_ad(ut_list_node_313->in_unzip_LRU_list
+			       && ut_list_node_313->page.in_LRU_list));
 
 	for (block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
 	     block;

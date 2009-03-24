@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 File space management
-
-(c) 1995 Innobase Oy
 
 Created 11/29/1995 Heikki Tuuri
 ***********************************************************************/
@@ -14,18 +30,23 @@ Created 11/29/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "fil0fil.h"
-#include "sync0sync.h"
 #include "mtr0log.h"
-#include "fut0fut.h"
 #include "ut0byte.h"
-#include "srv0srv.h"
+#include "page0page.h"
 #include "page0zip.h"
-#include "ibuf0ibuf.h"
-#include "btr0btr.h"
-#include "btr0sea.h"
-#include "dict0boot.h"
+#ifdef UNIV_HOTBACKUP
+# include "fut0lst.h"
+#else /* UNIV_HOTBACKUP */
+# include "sync0sync.h"
+# include "fut0fut.h"
+# include "srv0srv.h"
+# include "ibuf0ibuf.h"
+# include "btr0btr.h"
+# include "btr0sea.h"
+# include "dict0boot.h"
+# include "log0log.h"
+#endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
-#include "log0log.h"
 
 
 #define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
@@ -209,6 +230,7 @@ the extent are free and which contain old tuple version to clean. */
 /* Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Returns an extent to the free list of a space. */
 static
@@ -309,7 +331,7 @@ fseg_alloc_free_page_low(
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
 	mtr_t*		mtr);	/* in: mtr handle */
-
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Reads the file space size stored in the header page. */
@@ -323,6 +345,7 @@ fsp_get_size_low(
 	return(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SIZE));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Gets a pointer to the space header and x-locks its page. */
 UNIV_INLINE
@@ -813,6 +836,7 @@ xdes_get_offset(
 	       + ((page_offset(descr) - XDES_ARR_OFFSET) / XDES_SIZE)
 	       * FSP_EXTENT_SIZE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Inits a file page whose prior contents should be ignored. */
@@ -825,7 +849,9 @@ fsp_init_file_page_low(
 	page_t*		page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
+#ifndef UNIV_HOTBACKUP
 	block->check_index_page_at_flush = FALSE;
+#endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		memset(page, 0, UNIV_PAGE_SIZE);
@@ -852,6 +878,7 @@ fsp_init_file_page_low(
 	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Inits a file page whose prior contents should be ignored. */
 static
@@ -866,6 +893,7 @@ fsp_init_file_page(
 	mlog_write_initial_log_record(buf_block_get_frame(block),
 				      MLOG_INIT_FILE_PAGE, mtr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Parses a redo log record of a file page init. */
@@ -922,6 +950,7 @@ fsp_header_init_fields(
 			flags);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */
@@ -978,11 +1007,12 @@ fsp_header_init(
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, 0, ut_dulint_add(DICT_IBUF_ID_MIN, space),
-			   srv_sys->dummy_ind1, mtr);
+			   dict_ind_redundant, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Reads the space id from the first page of a tablespace. */
@@ -1041,6 +1071,7 @@ fsp_header_get_zip_size(
 	return(dict_table_flags_to_zip_size(flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Increases the space size field of a space. */
 UNIV_INTERN
@@ -4266,3 +4297,4 @@ fsp_print(
 
 	fprintf(stderr, "NUMBER of file segments: %lu\n", (ulong) n_segs);
 }
+#endif /* !UNIV_HOTBACKUP */

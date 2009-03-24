@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The hash table with external chains
-
-(c) 1994-1997 Innobase Oy
 
 Created 8/18/1994 Heikki Tuuri
 *******************************************************/
@@ -124,6 +140,7 @@ ha_search_and_delete_if_found(
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
 	void*		data);	/* in: pointer to the data */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
@@ -152,6 +169,7 @@ ha_print_info(
 /*==========*/
 	FILE*		file,	/* in: file where to print */
 	hash_table_t*	table);	/* in: hash table */
+#endif /* !UNIV_HOTBACKUP */
 
 /* The hash table external chain node */
 
@@ -164,6 +182,13 @@ struct ha_node_struct {
 	void*		data;	/* pointer to the data */
 	ulint		fold;	/* fold value for the data */
 };
+
+#ifndef UNIV_HOTBACKUP
+# define ASSERT_HASH_MUTEX_OWN(table, fold)				\
+	ut_ad(!(table)->mutexes || mutex_own(hash_get_mutex(table, fold)))
+#else /* !UNIV_HOTBACKUP */
+# define ASSERT_HASH_MUTEX_OWN(table, fold) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "ha0ha.ic"

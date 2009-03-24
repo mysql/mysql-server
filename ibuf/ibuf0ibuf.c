@@ -1,16 +1,42 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Insert buffer
-
-(c) 1997 Innobase Oy
 
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
 
 #include "ibuf0ibuf.h"
 
+/* Number of bits describing a single page */
+#define IBUF_BITS_PER_PAGE	4
+#if IBUF_BITS_PER_PAGE % 2
+# error "IBUF_BITS_PER_PAGE must be an even number!"
+#endif
+/* The start address for an insert buffer bitmap page bitmap */
+#define IBUF_BITMAP		PAGE_DATA
+
 #ifdef UNIV_NONINL
 #include "ibuf0ibuf.ic"
 #endif
+
+#ifndef UNIV_HOTBACKUP
 
 #include "buf0buf.h"
 #include "buf0rea.h"
@@ -201,21 +227,12 @@ ibuf_count_check(
 }
 #endif
 
-/* The start address for an insert buffer bitmap page bitmap */
-#define IBUF_BITMAP		PAGE_DATA
-
 /* Offsets in bits for the bits describing a single page in the bitmap */
 #define	IBUF_BITMAP_FREE	0
 #define IBUF_BITMAP_BUFFERED	2
 #define IBUF_BITMAP_IBUF	3	/* TRUE if page is a part of the ibuf
 					tree, excluding the root page, or is
 					in the free list of the ibuf */
-
-/* Number of bits describing a single page */
-#define IBUF_BITS_PER_PAGE	4
-#if IBUF_BITS_PER_PAGE % 2
-# error "IBUF_BITS_PER_PAGE must be an even number!"
-#endif
 
 /* Various constants for checking the type of an ibuf record and extracting
 data from it. For details, see the description of the record format at the
@@ -516,7 +533,7 @@ ibuf_init_at_db_start(void)
 
 	ibuf->index = dict_table_get_first_index(table);
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Initializes an ibuf bitmap page. */
 UNIV_INTERN
@@ -548,7 +565,9 @@ ibuf_bitmap_page_init(
 
 	/* The remaining area (up to the page trailer) is uninitialized. */
 
+#ifndef UNIV_HOTBACKUP
 	mlog_write_initial_log_record(page, MLOG_IBUF_BITMAP_INIT, mtr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /*************************************************************************
@@ -571,7 +590,7 @@ ibuf_parse_bitmap_init(
 
 	return(ptr);
 }
-
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Gets the desired bits for a given page from a bitmap page. */
 UNIV_INLINE
@@ -4541,3 +4560,4 @@ ibuf_print(
 
 	mutex_exit(&ibuf_mutex);
 }
+#endif /* !UNIV_HOTBACKUP */

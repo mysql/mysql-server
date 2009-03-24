@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The transaction lock system
-
-(c) 1996 Innobase Oy
 
 Created 5/7/1996 Heikki Tuuri
 *******************************************************/
@@ -1960,12 +1976,6 @@ lock_rec_lock_fast(
 	if (lock == NULL) {
 		if (!impl) {
 			lock_rec_create(mode, block, heap_no, index, trx);
-
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 
 		return(TRUE);
@@ -1989,11 +1999,6 @@ lock_rec_lock_fast(
 
 		if (!lock_rec_get_nth_bit(lock, heap_no)) {
 			lock_rec_set_nth_bit(lock, heap_no);
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 	}
 
@@ -2053,22 +2058,12 @@ lock_rec_lock_slow(
 
 		err = lock_rec_enqueue_waiting(mode, block, heap_no,
 					       index, thr);
-
-		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
-			trx_register_new_rec_lock(trx, index);
-		}
 	} else {
 		if (!impl) {
 			/* Set the requested lock on the record */
 
 			lock_rec_add_to_queue(LOCK_REC | mode, block,
 					      heap_no, index, trx);
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 
 		err = DB_SUCCESS;

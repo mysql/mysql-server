@@ -1,13 +1,31 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Transaction system
-
-(c) 1996 Innobase Oy
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include "srv0srv.h"
 #include "trx0trx.h"
+#include "data0type.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0srv.h"
 
 /* The typedef for rseg slot in the file copy */
 typedef byte	trx_sysf_rseg_t;
@@ -195,6 +213,7 @@ trx_sysf_rseg_set_page_no(
 			 page_no,
 			 MLOG_4BYTES, mtr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
 Writes a trx id to an index page. In case that the id size changes in
@@ -213,6 +232,7 @@ trx_write_trx_id(
 	mach_write_to_6(ptr, id);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -365,3 +385,4 @@ trx_sys_get_new_trx_no(void)
 
 	return(trx_sys_get_new_trx_id());
 }
+#endif /* !UNIV_HOTBACKUP */

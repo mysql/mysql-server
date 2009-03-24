@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mini-transaction buffer
-
-(c) 1995 Innobase Oy
 
 Created 11/26/1995 Heikki Tuuri
 *******************************************************/
@@ -179,6 +195,7 @@ mtr_rollback_to_savepoint(
 /*======================*/
 	mtr_t*	mtr,		/* in: mtr */
 	ulint	savepoint);	/* in: savepoint */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************
 Releases the (index tree) s-latch stored in an mtr memo after a
 savepoint. */
@@ -189,6 +206,9 @@ mtr_release_s_latch_at_savepoint(
 	mtr_t*		mtr,		/* in: mtr */
 	ulint		savepoint,	/* in: savepoint */
 	rw_lock_t*	lock);		/* in: latch to release */
+#else /* !UNIV_HOTBACKUP */
+# define mtr_release_s_latch_at_savepoint(mtr,savepoint,lock) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************
 Gets the logging mode of a mini-transaction. */
 UNIV_INLINE
@@ -225,6 +245,7 @@ mtr_read_dulint(
 				/* out: value read */
 	const byte*	ptr,	/* in: pointer from where to read */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
 #define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), __FILE__, __LINE__,\
@@ -255,6 +276,7 @@ mtr_x_lock_func(
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************
 Releases an object in the memo stack. */
@@ -266,6 +288,7 @@ mtr_memo_release(
 	void*	object,	/* in: object */
 	ulint	type);	/* in: object type: MTR_MEMO_S_LOCK, ... */
 #ifdef UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 /**************************************************************
 Checks if memo contains the given item. */
 UNIV_INLINE
@@ -294,6 +317,10 @@ void
 mtr_print(
 /*======*/
 	mtr_t*	mtr);	/* in: mtr */
+# else /* !UNIV_HOTBACKUP */
+#  define mtr_memo_contains(mtr, object, type)		TRUE
+#  define mtr_memo_contains_page(mtr, ptr, type)	TRUE
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 /*######################################################################*/
 

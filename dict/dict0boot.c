@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Data dictionary creation and booting
-
-(c) 1996 Innobase Oy
 
 Created 4/18/1996 Heikki Tuuri
 *******************************************************/
@@ -145,7 +161,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_TABLES_ID,
-				  srv_sys->dummy_ind1, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -156,7 +172,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE, 0,
 				  DICT_TABLE_IDS_ID,
-				  srv_sys->dummy_ind1, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -167,7 +183,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_COLUMNS_ID,
-				  srv_sys->dummy_ind1, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -178,7 +194,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_INDEXES_ID,
-				  srv_sys->dummy_ind1, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -189,7 +205,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
 				  DICT_HDR_SPACE, 0, DICT_FIELDS_ID,
-				  srv_sys->dummy_ind1, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);

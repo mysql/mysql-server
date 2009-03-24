@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Data dictionary memory object creation
-
-(c) 1996 Innobase Oy
 
 Created 1/8/1996 Heikki Tuuri
 *******************************************************/
@@ -15,14 +31,16 @@ Created 1/8/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "rem0types.h"
 #include "btr0types.h"
+#ifndef UNIV_HOTBACKUP
+# include "lock0types.h"
+# include "que0types.h"
+# include "sync0rw.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
 #include "ut0lst.h"
 #include "ut0rnd.h"
 #include "ut0byte.h"
-#include "sync0rw.h"
-#include "lock0types.h"
 #include "hash0hash.h"
-#include "que0types.h"
 #include "trx0types.h"
 
 /* Type flags of an index: OR'ing of the flags is allowed to define a
@@ -216,9 +234,11 @@ struct dict_index_struct{
 	const char*	name;	/* index name */
 	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
+#ifndef UNIV_HOTBACKUP
 	unsigned	space:32;
 				/* space where the index tree is placed */
 	unsigned	page:32;/* index tree root page number */
+#endif /* !UNIV_HOTBACKUP */
 	unsigned	type:4;	/* index type (DICT_CLUSTERED, DICT_UNIQUE,
 				DICT_UNIVERSAL, DICT_IBUF) */
 	unsigned	trx_id_offset:10;/* position of the trx id column
@@ -242,6 +262,7 @@ struct dict_index_struct{
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
 	dict_field_t*	fields;	/* array of field descriptions */
+#ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/* list of indexes of the table */
 	btr_search_t*	search_info; /* info used in optimistic searches */
@@ -263,6 +284,7 @@ struct dict_index_struct{
 				index, or ut_dulint_zero if the index existed
 				when InnoDB was started up */
 #endif /* ROW_MERGE_IS_INDEX_USABLE */
+#endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_INDEX_MAGIC_N	76789786
@@ -356,6 +378,7 @@ struct dict_table_struct{
 				the string contains n_cols, it will be
 				allocated from a temporary heap.  The final
 				string will be allocated from table->heap. */
+#ifndef UNIV_HOTBACKUP
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	UT_LIST_BASE_NODE_T(dict_index_t)
@@ -471,6 +494,7 @@ struct dict_table_struct{
 				/* The transaction that currently holds the
 				the AUTOINC lock on this table. */
 	/*----------------------*/
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */

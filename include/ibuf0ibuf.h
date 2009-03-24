@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Insert buffer
-
-(c) 1997 Innobase Oy
 
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
@@ -11,11 +27,12 @@ Created 7/19/1997 Heikki Tuuri
 
 #include "univ.i"
 
-#include "dict0mem.h"
 #include "mtr0mtr.h"
-#include "que0types.h"
-#include "ibuf0types.h"
+#include "dict0mem.h"
 #include "fsp0fsp.h"
+
+#ifndef UNIV_HOTBACKUP
+# include "ibuf0types.h"
 
 /* Possible operations buffered in the insert/whatever buffer. See
 ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
@@ -312,6 +329,7 @@ ibuf_contract_for_n_pages(
 	ulint	n_pages);/* in: try to read at least this many pages to
 			the buffer pool and merge the ibuf contents to
 			them */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Parses a redo log record of an ibuf bitmap page init. */
 UNIV_INTERN
@@ -323,6 +341,7 @@ ibuf_parse_bitmap_init(
 	byte*		end_ptr,/* in: buffer end */
 	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
@@ -363,6 +382,8 @@ ibuf_rec_get_counter(
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
+
+#endif /* !UNIV_HOTBACKUP */
 
 /* The ibuf header page currently contains only the file segment header
 for the file segment from which the pages for the ibuf tree are allocated */

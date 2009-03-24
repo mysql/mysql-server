@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mini-transaction buffer
-
-(c) 1995 Innobase Oy
 
 Created 11/26/1995 Heikki Tuuri
 *******************************************************/
@@ -17,6 +33,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "mtr0log.h"
 #include "log0log.h"
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Releases the item in the slot given. */
 UNIV_INLINE
@@ -144,6 +161,7 @@ mtr_log_reserve_and_write(
 
 	mtr->end_lsn = log_close();
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Commits a mini-transaction. */
@@ -153,13 +171,16 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/* in: mini-transaction */
 {
+#ifndef UNIV_HOTBACKUP
 	ibool		write_log;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_d(mtr->state = MTR_COMMITTING);
 
+#ifndef UNIV_HOTBACKUP
 	write_log = mtr->modifications && mtr->n_log_recs;
 
 	if (write_log) {
@@ -179,12 +200,14 @@ mtr_commit(
 	if (write_log) {
 		log_release();
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**************************************************************
 Releases the latches stored in an mtr memo down to a savepoint.
 NOTE! The mtr must not have made changes to buffer pages after the
@@ -254,6 +277,7 @@ mtr_memo_release(
 		}
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Reads 1 - 4 bytes from a file page buffered in the buffer pool. */
@@ -298,6 +322,7 @@ mtr_read_dulint(
 }
 
 #ifdef UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 /**************************************************************
 Checks if memo contains the given page. */
 UNIV_INTERN
@@ -326,4 +351,5 @@ mtr_print(
 		(ulong) dyn_array_get_data_size(&(mtr->memo)),
 		(ulong) dyn_array_get_data_size(&(mtr->log)));
 }
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */

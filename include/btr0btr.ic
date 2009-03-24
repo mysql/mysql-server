@@ -1,12 +1,29 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The B-tree
-
-(c) 1994-1996 Innobase Oy
 
 Created 6/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
+#ifndef UNIV_HOTBACKUP
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "page0zip.h"
@@ -77,6 +94,7 @@ btr_page_set_index_id(
 				  id, mtr);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************
 Gets the index id field of a page. */
@@ -90,6 +108,7 @@ btr_page_get_index_id(
 	return(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID));
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Gets the node level field in an index page. */
 UNIV_INLINE
@@ -283,3 +302,4 @@ btr_leaf_page_release(
 			 ? MTR_MEMO_PAGE_S_FIX
 			 : MTR_MEMO_PAGE_X_FIX);
 }
+#endif /* !UNIV_HOTBACKUP */

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The page cursor
-
-(c) 1994-1996 Innobase Oy
 
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
@@ -139,6 +155,7 @@ void
 page_cur_move_to_prev(
 /*==================*/
 	page_cur_t*	cur);	/* in/out: cursor; not before first */
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -155,6 +172,7 @@ page_cur_tuple_insert(
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		n_ext,	/* in: number of externally stored columns */
 	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -227,6 +245,7 @@ page_cur_delete_rec(
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Searches the right position for a page cursor. */
 UNIV_INLINE
@@ -278,6 +297,7 @@ page_cur_open_on_rnd_user_rec(
 /*==========================*/
 	buf_block_t*	block,	/* in: page */
 	page_cur_t*	cursor);/* out: page cursor */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Parses a log record of a record insert on a page. */
 UNIV_INTERN

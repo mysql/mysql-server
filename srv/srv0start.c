@@ -1,92 +1,81 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 Starts the InnoDB database server
 
-(c) 1996-2000 Innobase Oy
-
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
-#include "os0proc.h"
-#include "sync0sync.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
-#include "mem0pool.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
 #include "buf0buf.h"
-#include "buf0flu.h"
-#include "buf0rea.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "rem0rec.h"
-#include "rem0cmp.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
 #include "trx0trx.h"
-#include "dict0boot.h"
-#include "dict0load.h"
 #include "trx0sys.h"
-#include "dict0crea.h"
 #include "btr0btr.h"
-#include "btr0pcur.h"
 #include "btr0cur.h"
-#include "btr0sea.h"
 #include "rem0rec.h"
-#include "srv0srv.h"
-#include "que0que.h"
-#include "usr0sess.h"
-#include "lock0lock.h"
-#include "trx0roll.h"
-#include "trx0purge.h"
-#include "row0ins.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "row0row.h"
-#include "row0mysql.h"
-#include "lock0lock.h"
 #include "ibuf0ibuf.h"
-#include "pars0pars.h"
-#include "btr0sea.h"
 #include "srv0start.h"
-#include "que0que.h"
+#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0proc.h"
+# include "sync0sync.h"
+# include "buf0flu.h"
+# include "buf0rea.h"
+# include "dict0boot.h"
+# include "dict0load.h"
+# include "que0que.h"
+# include "usr0sess.h"
+# include "lock0lock.h"
+# include "trx0roll.h"
+# include "trx0purge.h"
+# include "lock0lock.h"
+# include "pars0pars.h"
+# include "btr0sea.h"
+# include "rem0cmp.h"
+# include "dict0crea.h"
+# include "row0ins.h"
+# include "row0sel.h"
+# include "row0upd.h"
+# include "row0row.h"
+# include "row0mysql.h"
+# include "btr0pcur.h"
 
 /* Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -103,15 +92,12 @@ UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
 UNIV_INTERN ibool	srv_was_started = FALSE;
-#ifndef UNIV_HOTBACKUP
 static ibool	srv_start_has_been_called = FALSE;
-#endif /* !UNIV_HOTBACKUP */
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE */
 UNIV_INTERN ulint		srv_shutdown_state = 0;
 
-#ifndef UNIV_HOTBACKUP
 static os_file_t	files[1000];
 
 static mutex_t		ios_mutex;
@@ -184,29 +170,19 @@ UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: the data file path string */
-	char***	data_file_names,	/* out, own: array of data file
-					names */
-	ulint**	data_file_sizes,	/* out, own: array of data file sizes
-					in megabytes */
-	ulint**	data_file_is_raw_partition,/* out, own: array of flags
-					showing which data files are raw
-					partitions */
-	ulint*	n_data_files,		/* out: number of data files */
-	ibool*	is_auto_extending,	/* out: TRUE if the last data file is
-					auto-extending */
-	ulint*	max_auto_extend_size)	/* out: max auto extend size for the
-					last file if specified, 0 if not */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str)	/* in/out: the data file path string */
 {
 	char*	input_str;
 	char*	path;
 	ulint	size;
 	ulint	i	= 0;
 
-	*is_auto_extending = FALSE;
-	*max_auto_extend_size = 0;
+	srv_auto_extend_last_data_file = FALSE;
+	srv_last_file_size_max = 0;
+	srv_data_file_names = NULL;
+	srv_data_file_sizes = NULL;
+	srv_data_file_is_raw_partition = NULL;
 
 	input_str = str;
 
@@ -283,11 +259,12 @@ srv_parse_data_file_paths_and_sizes(
 		return(FALSE);
 	}
 
-	*data_file_names = (char**)ut_malloc(i * sizeof(void*));
-	*data_file_sizes = (ulint*)ut_malloc(i * sizeof(ulint));
-	*data_file_is_raw_partition = (ulint*)ut_malloc(i * sizeof(ulint));
+	srv_data_file_names = malloc(i * sizeof *srv_data_file_names);
+	srv_data_file_sizes = malloc(i * sizeof *srv_data_file_sizes);
+	srv_data_file_is_raw_partition = malloc(
+		i * sizeof *srv_data_file_is_raw_partition);
 
-	*n_data_files = i;
+	srv_n_data_files = i;
 
 	/* Then store the actual values to our arrays */
 
@@ -317,13 +294,13 @@ srv_parse_data_file_paths_and_sizes(
 
 		str = srv_parse_megabytes(str, &size);
 
-		(*data_file_names)[i] = path;
-		(*data_file_sizes)[i] = size;
+		srv_data_file_names[i] = path;
+		srv_data_file_sizes[i] = size;
 
 		if (0 == strncmp(str, ":autoextend",
 				 (sizeof ":autoextend") - 1)) {
 
-			*is_auto_extending = TRUE;
+			srv_auto_extend_last_data_file = TRUE;
 
 			str += (sizeof ":autoextend") - 1;
 
@@ -333,7 +310,7 @@ srv_parse_data_file_paths_and_sizes(
 				str += (sizeof ":max:") - 1;
 
 				str = srv_parse_megabytes(
-					str, max_auto_extend_size);
+					str, &srv_last_file_size_max);
 			}
 
 			if (*str != '\0') {
@@ -342,21 +319,21 @@ srv_parse_data_file_paths_and_sizes(
 			}
 		}
 
-		(*data_file_is_raw_partition)[i] = 0;
+		(srv_data_file_is_raw_partition)[i] = 0;
 
 		if (strlen(str) >= 6
 		    && *str == 'n'
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
 			str += 3;
-			(*data_file_is_raw_partition)[i] = SRV_NEW_RAW;
+			(srv_data_file_is_raw_partition)[i] = SRV_NEW_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 			str += 3;
 
-			if ((*data_file_is_raw_partition)[i] == 0) {
-				(*data_file_is_raw_partition)[i] = SRV_OLD_RAW;
+			if ((srv_data_file_is_raw_partition)[i] == 0) {
+				(srv_data_file_is_raw_partition)[i] = SRV_OLD_RAW;
 			}
 		}
 
@@ -377,14 +354,14 @@ UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: character string */
-	char***	log_group_home_dirs)	/* out, own: log group home dirs */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str)	/* in/out: character string */
 {
 	char*	input_str;
 	char*	path;
 	ulint	i	= 0;
+
+	srv_log_group_home_dirs = NULL;
 
 	input_str = str;
 
@@ -415,7 +392,7 @@ srv_parse_log_group_home_dirs(
 		return(FALSE);
 	}
 
-	*log_group_home_dirs = (char**) ut_malloc(i * sizeof(void*));
+	srv_log_group_home_dirs = malloc(i * sizeof *srv_log_group_home_dirs);
 
 	/* Then store the actual values to our array */
 
@@ -434,7 +411,7 @@ srv_parse_log_group_home_dirs(
 			str++;
 		}
 
-		(*log_group_home_dirs)[i] = path;
+		srv_log_group_home_dirs[i] = path;
 
 		i++;
 	}
@@ -442,11 +419,28 @@ srv_parse_log_group_home_dirs(
 	return(TRUE);
 }
 
+/*************************************************************************
+Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
+and srv_parse_log_group_home_dirs(). */
+UNIV_INTERN
+void
+srv_free_paths_and_sizes(void)
+/*==========================*/
+{
+	free(srv_data_file_names);
+	srv_data_file_names = NULL;
+	free(srv_data_file_sizes);
+	srv_data_file_sizes = NULL;
+	free(srv_data_file_is_raw_partition);
+	srv_data_file_is_raw_partition = NULL;
+	free(srv_log_group_home_dirs);
+	srv_log_group_home_dirs = NULL;
+}
+
 #ifndef UNIV_HOTBACKUP
 /************************************************************************
 I/o-handler thread function. */
 static
-
 os_thread_ret_t
 io_handler_thread(
 /*==============*/
@@ -1079,7 +1073,7 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
 
-	if (srv_use_sys_malloc) {
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
 		fprintf(stderr,
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}
@@ -1087,13 +1081,15 @@ innobase_start_or_create_for_mysql(void)
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	fprintf(stderr,
-		"InnoDB: Mutex and rw_lock use GCC atomic builtins.\n");
-#else
+		"InnoDB: Mutexes and rw_locks use GCC atomic builtins.\n");
+#else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	fprintf(stderr,
-		"InnoDB: Mutex use GCC atomic builtins.\n");
-#endif
-
-#endif
+		"InnoDB: Mutexes use GCC atomic builtins, rw_locks do not.\n");
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#else /* HAVE_GCC_ATOMIC_BUILTINS */
+	fprintf(stderr,
+		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1309,7 +1305,8 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	fil_init(srv_max_n_open_files);
+	fil_init(srv_file_per_table ? 50000 : 5000,
+		 srv_max_n_open_files);
 
 	ret = buf_pool_init();
 
