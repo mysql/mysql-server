@@ -694,7 +694,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
                                                          &sql_mode))
     DBUG_RETURN(TRUE);
 
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
+  field_list.push_back(new Item_empty_string("sql_mode", (uint) sql_mode.length));
 
   tz_name= et->time_zone->get_name();
 

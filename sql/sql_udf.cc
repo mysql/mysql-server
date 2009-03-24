@@ -159,7 +159,7 @@ void udf_init()
     DBUG_PRINT("info",("init udf record"));
     LEX_STRING name;
     name.str=get_field(&mem, table->field[0]);
-    name.length = strlen(name.str);
+    name.length = (uint) strlen(name.str);
     char *dl_name= get_field(&mem, table->field[2]);
     bool new_dl=0;
     Item_udftype udftype=UDFTYPE_FUNCTION;
