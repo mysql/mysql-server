@@ -208,7 +208,7 @@ private:
     char write_status_msg[200]; //buffer of 200 should be a good upper bound.
 
     bool fix_rec_buff_for_blob(ulong length);
-#define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 5 // QQQ why 5?
+#define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 8
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
@@ -344,7 +344,7 @@ public:
     inline void get_auto_primary_key(uchar * to) {
         pthread_mutex_lock(&share->mutex);
         share->auto_ident++;
-        int5store(to, share->auto_ident);
+        int8store(to, share->auto_ident);
         pthread_mutex_unlock(&share->mutex);
     }
     virtual void get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values);
