@@ -238,31 +238,19 @@ void Dbtup::execCONTINUEB(Signal* signal)
   switch (actionType) {
   case ZINITIALISE_RECORDS:
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZINITIALISE_RECORDS", __LINE__);
-
     initialiseRecordsLab(signal, dataPtr, 
 			 signal->theData[2], signal->theData[3]);
     break;
   case ZREL_FRAG:
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZREL_FRAG", __LINE__);
-
     releaseFragment(signal, dataPtr, signal->theData[2]);
     break;
   case ZBUILD_INDEX:
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZBUILD_INDEX", __LINE__);
-
     buildIndex(signal, dataPtr);
     break;
   case ZTUP_SCAN:
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZTUP_SCAN", __LINE__);
-
     {
       ScanOpPtr scanPtr;
       c_scanOpPool.getPtr(scanPtr, dataPtr);
@@ -272,9 +260,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZFREE_EXTENT:
   {
     jam();
-    
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZFREE_EXTENT", __LINE__);
-
     TablerecPtr tabPtr;
     tabPtr.i= dataPtr;
     FragrecordPtr fragPtr;
@@ -287,9 +272,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZUNMAP_PAGES:
   {
     jam();
-    
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZUNMAP_PAGES", __LINE__);
-
     TablerecPtr tabPtr;
     tabPtr.i= dataPtr;
     FragrecordPtr fragPtr;
@@ -302,27 +284,18 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZFREE_VAR_PAGES:
   {
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZFREE_VAR_PAGES", __LINE__);
-
     drop_fragment_free_var_pages(signal);
     return;
   }
   case ZFREE_PAGES:
   {
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZFREE_PAGES", __LINE__);
-
     drop_fragment_free_pages(signal);
     return;
   }
   case ZREBUILD_FREE_PAGE_LIST:
   {
     jam();
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZREBUILD_FREE_PAGE_LIST", __LINE__);
-
     rebuild_page_free_list(signal);
     return;
   }
@@ -333,9 +306,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
       jam();
       return;
     }
-
-    g_eventLogger->info("QQQ(%u) - Dbtup execCONTINUEB ZDISK_RESTART_UNDO", __LINE__);
-
     Uint32 type = signal->theData[1];
     Uint32 len = signal->theData[2];
     Uint64 lsn_hi = signal->theData[3];
