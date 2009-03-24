@@ -35,7 +35,7 @@ SELECT @@global.key_cache_division_limit;
 '#--------------------FN_DYNVARS_058_04-------------------------#'
 SET @@global.key_cache_division_limit = -1;
 Warnings:
-Warning	1292	Truncated incorrect key_cache_division_limit value: '4294967295'
+Warning	1292	Truncated incorrect key_cache_division_limit value: '18446744073709551615'
 SELECT @@global.key_cache_division_limit;
 @@global.key_cache_division_limit
 100
@@ -52,7 +52,7 @@ SELECT @@global.key_cache_division_limit;
 100
 SET @@global.key_cache_division_limit = -1024;
 Warnings:
-Warning	1292	Truncated incorrect key_cache_division_limit value: '4294966272'
+Warning	1292	Truncated incorrect key_cache_division_limit value: '18446744073709550592'
 SELECT @@global.key_cache_division_limit;
 @@global.key_cache_division_limit
 100

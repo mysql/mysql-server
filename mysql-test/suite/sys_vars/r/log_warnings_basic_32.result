@@ -76,6 +76,8 @@ SELECT @@global.log_warnings;
 @@global.log_warnings
 4294967295
 SET @@global.log_warnings = -1024;
+Warnings:
+Warning	1292	Truncated incorrect log_warnings value: '-1024'
 SELECT @@global.log_warnings;
 @@global.log_warnings
 0
@@ -96,6 +98,8 @@ SELECT @@session.log_warnings;
 @@session.log_warnings
 4294967295
 SET @@session.log_warnings = -2;
+Warnings:
+Warning	1292	Truncated incorrect log_warnings value: '-2'
 SELECT @@session.log_warnings;
 @@session.log_warnings
 0
