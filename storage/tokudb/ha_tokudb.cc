@@ -991,15 +991,16 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         if (!hidden_primary_key) {
             //
             // I realize this is incredibly confusing, and refactoring should take 
-            // care of this, but we need to set the ref_length to start at 1, to account for
-            // the "infinity byte" in keys.
+            // care of this, but we need to set the ref_length to start at 5, to account for
+            // the "infinity byte" in keys, and for placing the DBT size in the first four bytes
             //
-            ref_length = sizeof(uchar);
+            ref_length = sizeof(u_int32_t) + sizeof(uchar);
             KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
             KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
-            for (; key_part != end; key_part++)
+            for (; key_part != end; key_part++) {
                 ref_length += key_part->field->max_packed_col_length(key_part->length);
-            share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length + sizeof(uchar));
+            }
+            share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length + sizeof(uchar) + sizeof(u_int32_t));
             share->status |= STATUS_PRIMARY_KEY_INIT;
         }
         share->ref_length = ref_length;
@@ -1911,20 +1912,14 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
             );
         goto exit;
     }    
-    //
-    // setting the cmp_prefix to true, because we all the fields should be there
-    // but there might still be junk at the end of ref1 and ref2. The proper way to do it
-    // would be to store the size of the data in the first four bytes of ref1 and ref2, but
-    // that is a change for another day
-    //
     key_info = &table->key_info[table_share->primary_key];
     ret_val = tokudb_compare_two_keys(
         key_info,
-        (void *)ref1,
-        ref_length,
-        ref2,
-        ref_length,
-        true
+        ref1 + sizeof(u_int32_t),
+        *(u_int32_t *)ref1,
+        ref2 + sizeof(u_int32_t),
+        *(u_int32_t *)ref_length,
+        false
         );
 exit:
     return ret_val;
@@ -3232,26 +3227,8 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_pos");
     /* We don't need to set app_data here */
     bzero((void *) to, sizeof(*to));
-
-    //
-    // this should really be done through pack_key functions
-    //
-    to->data = pos;
-    if (share->fixed_length_primary_key)
-        to->size = ref_length;
-    else {
-        //
-        // move up infinity byte
-        //
-        pos++;
-        KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
-        KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
-
-        for (; key_part != end; key_part++) {
-            pos += key_part->field->packed_col_length(pos, key_part->length);
-        }
-        to->size = (uint) (pos - (uchar *) to->data);
-    }
+    to->data = pos + sizeof(u_int32_t);
+    to->size = *(u_int32_t *)pos;
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
     DBUG_RETURN(to);
 }
@@ -3419,11 +3396,15 @@ void ha_tokudb::position(const uchar * record) {
         memcpy_fixed(ref, (char *) current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
     } 
     else {
-        bool has_null;    
-        create_dbt_key_from_table(&key, primary_key, ref, record, &has_null);
-        if (key.size < ref_length) {
-            bzero(ref + key.size, ref_length - key.size);
-        }
+        bool has_null;
+        //
+        // save the data
+        //
+        create_dbt_key_from_table(&key, primary_key, ref + sizeof(u_int32_t), record, &has_null);
+        //
+        // save the size of data in the first four bytes of ref
+        //
+        memcpy(ref, &key.size, sizeof(u_int32_t));
     }
     DBUG_VOID_RETURN;
 }
