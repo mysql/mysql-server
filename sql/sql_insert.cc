@@ -1654,10 +1654,11 @@ public:
   ulong auto_increment_offset;
   timestamp_auto_set_type timestamp_field_type;
   LEX_STRING query;
+  Time_zone *time_zone;
 
   delayed_row(LEX_STRING const query_arg, enum_duplicates dup_arg,
               bool ignore_arg, bool log_query_arg)
-    : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
+    : record(0), time_zone(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
       forced_insert_id(0), query(query_arg)
     {}
   ~delayed_row()
@@ -2147,6 +2148,19 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
     thd->first_successful_insert_id_in_prev_stmt;
   row->timestamp_field_type=    table->timestamp_field_type;
 
+  /* Add session variable timezone
+     Time_zone object will not be freed even the thread is ended.
+     So we can get time_zone object from thread which handling delayed statement.
+     See the comment of my_tz_find() for detail.
+  */
+  if (thd->time_zone_used)
+  {
+    row->time_zone = thd->variables.time_zone;
+  }
+  else
+  {
+    row->time_zone = NULL;
+  }
   /* Copy session variables. */
   row->auto_increment_increment= thd->variables.auto_increment_increment;
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
@@ -2645,6 +2659,14 @@ bool Delayed_insert::handle_inserts(void)
 
     if (log_query && mysql_bin_log.is_open())
     {
+      bool backup_time_zone_used = thd.time_zone_used;
+      Time_zone *backup_time_zone = thd.variables.time_zone;
+      if (row->time_zone != NULL)
+      {
+        thd.time_zone_used = true;
+        thd.variables.time_zone = row->time_zone;
+      }
+
       /*
         If the query has several rows to insert, only the first row will come
         here. In row-based binlogging, this means that the first row will be
@@ -2656,6 +2678,9 @@ bool Delayed_insert::handle_inserts(void)
       thd.binlog_query(THD::ROW_QUERY_TYPE,
                        row->query.str, row->query.length,
                        FALSE, FALSE);
+
+      thd.time_zone_used = backup_time_zone_used;
+      thd.variables.time_zone = backup_time_zone;
     }
 
     if (table->s->blob_fields)
