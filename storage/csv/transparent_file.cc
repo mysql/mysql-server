@@ -45,17 +45,17 @@ uchar *Transparent_file::ptr()
   return buff; 
 }
 
-off_t Transparent_file::start()
+my_off_t Transparent_file::start()
 { 
   return lower_bound; 
 }
 
-off_t Transparent_file::end()
+my_off_t Transparent_file::end()
 { 
   return upper_bound; 
 }
 
-off_t Transparent_file::read_next()
+my_off_t Transparent_file::read_next()
 {
   size_t bytes_read;
 
@@ -64,11 +64,11 @@ off_t Transparent_file::read_next()
      always points to upper_bound byte
   */
   if ((bytes_read= my_read(filedes, buff, buff_size, MYF(0))) == MY_FILE_ERROR)
-    return (off_t) -1;
+    return (my_off_t) -1;
 
   /* end of file */
   if (!bytes_read)
-    return (off_t) -1;
+    return (my_off_t) -1;
 
   lower_bound= upper_bound;
   upper_bound+= bytes_read;
@@ -77,7 +77,7 @@ off_t Transparent_file::read_next()
 }
 
 
-char Transparent_file::get_value(off_t offset)
+char Transparent_file::get_value(my_off_t offset)
 {
   size_t bytes_read;
 
