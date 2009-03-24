@@ -1,11 +1,26 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Starts the Innobase database server
 
-(c) 1995-2000 Innobase Oy
-
 Created 10/10/1995 Heikki Tuuri
 *******************************************************/
-
 
 #ifndef srv0start_h
 #define srv0start_h
@@ -27,21 +42,8 @@ UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: the data file path string */
-	char***	data_file_names,	/* out, own: array of data file
-					names */
-	ulint**	data_file_sizes,	/* out, own: array of data file sizes
-					in megabytes */
-	ulint**	data_file_is_raw_partition,/* out, own: array of flags
-					showing which data files are raw
-					partitions */
-	ulint*	n_data_files,		/* out: number of data files */
-	ibool*	is_auto_extending,	/* out: TRUE if the last data file is
-					auto-extending */
-	ulint*	max_auto_extend_size);	/* out: max auto extend size for the
-					last file if specified, 0 if not */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str);	/* in/out: the data file path string */
 /*************************************************************************
 Reads log group home directories from a character string given in
 the .cnf file. */
@@ -49,10 +51,15 @@ UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: character string */
-	char***	log_group_home_dirs);	/* out, own: log group home dirs */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str);	/* in/out: character string */
+/*************************************************************************
+Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
+and srv_parse_log_group_home_dirs(). */
+UNIV_INTERN
+void
+srv_free_paths_and_sizes(void);
+/*==========================*/
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
@@ -63,6 +70,7 @@ srv_add_path_separator_if_needed(
 			/* out: string which has the separator if the
 			string is not empty */
 	char*	str);	/* in: null-terminated character string */
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Starts Innobase and creates a new database if database files
 are not found and the user wants. */
@@ -104,6 +112,7 @@ extern	ulint	srv_shutdown_state;
 #define SRV_SHUTDOWN_CLEANUP	   1
 #define SRV_SHUTDOWN_LAST_PHASE	   2
 #define SRV_SHUTDOWN_EXIT_THREADS  3
+#endif /* !UNIV_HOTBACKUP */
 
 /* Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL

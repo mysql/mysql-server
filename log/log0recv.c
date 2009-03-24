@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Recovery
-
-(c) 1997 Innobase Oy
 
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
@@ -15,25 +31,30 @@ Created 9/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "buf0rea.h"
-#include "srv0srv.h"
-#include "srv0start.h"
+#include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "page0cur.h"
 #include "page0zip.h"
+#include "btr0btr.h"
 #include "btr0cur.h"
 #include "ibuf0ibuf.h"
 #include "trx0undo.h"
 #include "trx0rec.h"
-#include "trx0roll.h"
-#include "row0merge.h"
+#include "fil0fil.h"
+#ifndef UNIV_HOTBACKUP
+# include "buf0rea.h"
+# include "srv0srv.h"
+# include "srv0start.h"
+# include "trx0roll.h"
+# include "row0merge.h"
+# include "sync0sync.h"
+#else /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_HOTBACKUP
 /* This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 UNIV_INTERN ibool	recv_replay_file_ops	= TRUE;
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /* Log records are stored in the hash table in chunks at most of this size;
 this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
@@ -44,8 +65,11 @@ this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 
 UNIV_INTERN recv_sys_t*	recv_sys = NULL;
 UNIV_INTERN ibool	recv_recovery_on = FALSE;
+#ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool	recv_recovery_from_backup_on = FALSE;
+#endif /* UNIV_LOG_ARCHIVE */
 
+#ifndef UNIV_HOTBACKUP
 UNIV_INTERN ibool	recv_needed_recovery = FALSE;
 
 UNIV_INTERN ibool	recv_lsn_checks_on = FALSE;
@@ -71,17 +95,17 @@ buffer pool before the pages have been recovered to the up-to-date state */
 yet: the variable name is misleading */
 
 UNIV_INTERN ibool	recv_no_ibuf_operations = FALSE;
-
+# define recv_is_making_a_backup		FALSE
+# define recv_is_from_backup			FALSE
+#else /* !UNIV_HOTBACKUP */
+# define recv_needed_recovery			FALSE
+UNIV_INTERN ibool	recv_is_making_a_backup = FALSE;
+UNIV_INTERN ibool	recv_is_from_backup	= FALSE;
+# define buf_pool_get_curr_size() (5 * 1024 * 1024)
+#endif /* !UNIV_HOTBACKUP */
 /* The following counter is used to decide when to print info on
 log scan */
 UNIV_INTERN ulint	recv_scan_print_counter	= 0;
-
-UNIV_INTERN ibool	recv_is_from_backup	= FALSE;
-#ifdef UNIV_HOTBACKUP
-UNIV_INTERN ibool	recv_is_making_a_backup = FALSE;
-#else
-# define recv_is_making_a_backup FALSE
-#endif /* UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	recv_previous_parsed_rec_type	= 999999;
 UNIV_INTERN ulint	recv_previous_parsed_rec_offset	= 0;
@@ -106,6 +130,7 @@ UNIV_INTERN ib_uint64_t	recv_max_page_lsn;
 
 /* prototypes */
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************
 Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == FALSE. */
@@ -113,6 +138,7 @@ static
 void
 recv_init_crash_recovery(void);
 /*===========================*/
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Creates the recovery system. */
@@ -140,8 +166,6 @@ UNIV_INTERN
 void
 recv_sys_init(
 /*==========*/
-	ibool	recover_from_backup,	/* in: TRUE if this is called
-					to recover from a hot backup */
 	ulint	available_memory)	/* in: available memory in bytes */
 {
 	if (recv_sys->heap != NULL) {
@@ -149,20 +173,22 @@ recv_sys_init(
 		return;
 	}
 
+#ifndef UNIV_HOTBACKUP
 	/* Initialize red-black tree for fast insertions into the
 	flush_list during recovery process.
 	As this initialization is done while holding the buffer pool
 	mutex we perform it before acquiring recv_sys->mutex. */
 	buf_flush_init_flush_rbt();
+#endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&(recv_sys->mutex));
 
-	if (!recover_from_backup) {
-		recv_sys->heap = mem_heap_create_in_buffer(256);
-	} else {
-		recv_sys->heap = mem_heap_create(256);
-		recv_is_from_backup = TRUE;
-	}
+#ifndef UNIV_HOTBACKUP
+	recv_sys->heap = mem_heap_create_in_buffer(256);
+#else /* !UNIV_HOTBACKUP */
+	recv_sys->heap = mem_heap_create(256);
+	recv_is_from_backup = TRUE;
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Set appropriate value of recv_n_pool_free_frames. */
 	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)) {
@@ -217,7 +243,8 @@ recv_sys_empty_hash(void)
 	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 256);
 }
 
-#ifndef UNIV_LOG_DEBUG
+#ifndef UNIV_HOTBACKUP
+# ifndef UNIV_LOG_DEBUG
 /************************************************************
 Frees the recovery system. */
 static
@@ -240,7 +267,7 @@ recv_sys_free(void)
 	/* Free up the flush_rbt. */
 	buf_flush_free_flush_rbt();
 }
-#endif /* UNIV_LOG_DEBUG */
+# endif /* UNIV_LOG_DEBUG */
 
 /************************************************************
 Truncates possible corrupted or extra records from a log group. */
@@ -460,6 +487,7 @@ recv_synchronize_groups(
 
 	mutex_enter(&(log_sys->mutex));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************************
 Checks the consistency of the checkpoint info */
@@ -467,8 +495,8 @@ static
 ibool
 recv_check_cp_is_consistent(
 /*========================*/
-			/* out: TRUE if ok */
-	byte*	buf)	/* in: buffer containing checkpoint info */
+				/* out: TRUE if ok */
+	const byte*	buf)	/* in: buffer containing checkpoint info */
 {
 	ulint	fold;
 
@@ -490,6 +518,7 @@ recv_check_cp_is_consistent(
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Looks for the maximum consistent checkpoint from the log groups. */
 static
@@ -590,8 +619,7 @@ not_consistent:
 
 	return(DB_SUCCESS);
 }
-
-#ifdef UNIV_HOTBACKUP
+#else /* !UNIV_HOTBACKUP */
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
 UNIV_INTERN
@@ -599,7 +627,7 @@ ibool
 recv_read_cp_info_for_backup(
 /*=========================*/
 				/* out: TRUE if success */
-	byte*		hdr,	/* in: buffer containing the log group
+	const byte*	hdr,	/* in: buffer containing the log group
 				header */
 	ib_uint64_t*	lsn,	/* out: checkpoint lsn */
 	ulint*		offset,	/* out: checkpoint offset in the log group */
@@ -613,7 +641,7 @@ recv_read_cp_info_for_backup(
 {
 	ulint		max_cp		= 0;
 	ib_uint64_t	max_cp_no	= 0;
-	byte*		cp_buf;
+	const byte*	cp_buf;
 
 	cp_buf = hdr + LOG_CHECKPOINT_1;
 
@@ -662,7 +690,7 @@ recv_read_cp_info_for_backup(
 
 	return(TRUE);
 }
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************
 Checks the 4-byte checksum to the trailer checksum field of a log block.
@@ -672,9 +700,10 @@ static
 ibool
 log_block_checksum_is_ok_or_old_format(
 /*===================================*/
-			/* out: TRUE if ok, or if the log block may be in the
-			format of InnoDB version < 3.23.52 */
-	byte*	block)	/* in: pointer to a log block */
+				/* out: TRUE if ok, or if the log
+				block may be in the format of InnoDB
+				version < 3.23.52 */
+	const byte*	block)	/* in: pointer to a log block */
 {
 #ifdef UNIV_LOG_DEBUG
 	return(TRUE);
@@ -814,22 +843,103 @@ recv_parse_or_apply_log_rec_body(
 	dict_index_t*	index	= NULL;
 	page_t*		page;
 	page_zip_des_t*	page_zip;
+#ifdef UNIV_DEBUG
+	ulint		page_type;
+#endif /* UNIV_DEBUG */
 
 	ut_ad(!block == !mtr);
 
 	if (block) {
 		page = block->frame;
 		page_zip = buf_block_get_page_zip(block);
+		ut_d(page_type = fil_page_get_type(page));
 	} else {
 		page = NULL;
 		page_zip = NULL;
+		ut_d(page_type = FIL_PAGE_TYPE_ALLOCATED);
 	}
 
 	switch (type) {
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
+#ifdef UNIV_DEBUG
+		if (page && page_type == FIL_PAGE_TYPE_ALLOCATED
+		    && end_ptr >= ptr + 2) {
+			/* It is OK to set FIL_PAGE_TYPE and certain
+			list node fields on an empty page.  Any other
+			write is not OK. */
+
+			/* NOTE: There may be bogus assertion failures for
+			dict_hdr_create(), trx_rseg_header_create(),
+			trx_sys_create_doublewrite_buf(), and
+			trx_sysf_create().
+			These are only called during database creation. */
+			ulint	offs = mach_read_from_2(ptr);
+
+			switch (type) {
+			default:
+				ut_error;
+			case MLOG_2BYTES:
+				/* Note that this can fail when the
+				redo log been written with something
+				older than InnoDB Plugin 1.0.4. */
+				ut_ad(offs == FIL_PAGE_TYPE
+				      || offs == IBUF_TREE_SEG_HEADER
+				      + IBUF_HEADER + FSEG_HDR_OFFSET
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      + FIL_ADDR_SIZE
+				      || offs == PAGE_BTR_SEG_LEAF
+				      + PAGE_HEADER + FSEG_HDR_OFFSET
+				      || offs == PAGE_BTR_SEG_TOP
+				      + PAGE_HEADER + FSEG_HDR_OFFSET
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      + 0 /*FLST_PREV*/
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_BYTE
+				      + FIL_ADDR_SIZE /*FLST_NEXT*/);
+				break;
+			case MLOG_4BYTES:
+				/* Note that this can fail when the
+				redo log been written with something
+				older than InnoDB Plugin 1.0.4. */
+				ut_ad(0
+				      || offs == IBUF_TREE_SEG_HEADER
+				      + IBUF_HEADER + FSEG_HDR_SPACE
+				      || offs == IBUF_TREE_SEG_HEADER
+				      + IBUF_HEADER + FSEG_HDR_PAGE_NO
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER/* flst_init */
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      || offs == PAGE_BTR_IBUF_FREE_LIST
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      + FIL_ADDR_SIZE
+				      || offs == PAGE_BTR_SEG_LEAF
+				      + PAGE_HEADER + FSEG_HDR_PAGE_NO
+				      || offs == PAGE_BTR_SEG_LEAF
+				      + PAGE_HEADER + FSEG_HDR_SPACE
+				      || offs == PAGE_BTR_SEG_TOP
+				      + PAGE_HEADER + FSEG_HDR_PAGE_NO
+				      || offs == PAGE_BTR_SEG_TOP
+				      + PAGE_HEADER + FSEG_HDR_SPACE
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      + 0 /*FLST_PREV*/
+				      || offs == PAGE_BTR_IBUF_FREE_LIST_NODE
+				      + PAGE_HEADER + FIL_ADDR_PAGE
+				      + FIL_ADDR_SIZE /*FLST_NEXT*/);
+				break;
+			}
+		}
+#endif /* UNIV_DEBUG */
 		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_INSERT,
@@ -842,6 +952,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_CLUST_DELETE_MARK,
@@ -854,6 +966,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_COMP_REC_SEC_DELETE_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		/* This log record type is obsolete, but we process it for
 		backward compatibility with MySQL 5.0.3 and 5.0.4. */
 		ut_a(!page || page_is_comp(page));
@@ -864,10 +977,13 @@ recv_parse_or_apply_log_rec_body(
 		}
 		/* Fall through */
 	case MLOG_REC_SEC_DELETE_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr,
 							 page, page_zip);
 		break;
 	case MLOG_REC_UPDATE_IN_PLACE: case MLOG_COMP_REC_UPDATE_IN_PLACE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_UPDATE_IN_PLACE,
@@ -881,6 +997,8 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	case MLOG_LIST_END_DELETE: case MLOG_COMP_LIST_END_DELETE:
 	case MLOG_LIST_START_DELETE: case MLOG_COMP_LIST_START_DELETE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_LIST_END_DELETE
@@ -894,6 +1012,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_LIST_END_COPY_CREATED,
@@ -906,6 +1026,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_PAGE_REORGANIZE,
@@ -918,29 +1040,36 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
+		/* Allow anything in page_type when creating a page. */
 		ut_a(!page_zip);
 		ptr = page_parse_create(ptr, end_ptr,
 					type == MLOG_COMP_PAGE_CREATE,
 					block, mtr);
 		break;
 	case MLOG_UNDO_INSERT:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_add_undo_rec(ptr, end_ptr, page);
 		break;
 	case MLOG_UNDO_ERASE_END:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_erase_page_end(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_UNDO_INIT:
+		/* Allow anything in page_type when creating a page. */
 		ptr = trx_undo_parse_page_init(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_UNDO_HDR_DISCARD:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_discard_latest(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_UNDO_HDR_CREATE:
 	case MLOG_UNDO_HDR_REUSE:
+		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
 		ptr = trx_undo_parse_page_header(type, ptr, end_ptr,
 						 page, mtr);
 		break;
 	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		/* On a compressed page, MLOG_COMP_REC_MIN_MARK
 		will be followed by MLOG_COMP_REC_DELETE
 		or MLOG_ZIP_WRITE_HEADER(FIL_PAGE_PREV, FIL_NULL)
@@ -951,6 +1080,8 @@ recv_parse_or_apply_log_rec_body(
 			page, mtr);
 		break;
 	case MLOG_REC_DELETE: case MLOG_COMP_REC_DELETE:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
 				     type == MLOG_COMP_REC_DELETE,
@@ -963,12 +1094,15 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:
+		/* Allow anything in page_type when creating a page. */
 		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, block, mtr);
 		break;
 	case MLOG_INIT_FILE_PAGE:
+		/* Allow anything in page_type when creating a page. */
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, block);
 		break;
 	case MLOG_WRITE_STRING:
+		ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED);
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_CREATE:
@@ -978,18 +1112,22 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = page_zip_parse_write_node_ptr(ptr, end_ptr,
 						    page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_BLOB_PTR:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = page_zip_parse_write_blob_ptr(ptr, end_ptr,
 						    page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_HEADER:
+		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 		ptr = page_zip_parse_write_header(ptr, end_ptr,
 						  page, page_zip);
 		break;
 	case MLOG_ZIP_PAGE_COMPRESS:
+		/* Allow anything in page_type when creating a page. */
 		ptr = page_zip_parse_compress(ptr, end_ptr,
 					      page, page_zip);
 		break;
@@ -1187,16 +1325,13 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
 UNIV_INTERN
 void
-recv_recover_page(
-/*==============*/
-	ibool		recover_backup,
-				/* in: TRUE if we are recovering a backup
-				page: then we do not acquire any latches
-				since the page was read in outside the
-				buffer pool */
+recv_recover_page_func(
+/*===================*/
+#ifndef UNIV_HOTBACKUP
 	ibool		just_read_in,
 				/* in: TRUE if the i/o-handler calls this for
 				a freshly read page */
+#endif /* !UNIV_HOTBACKUP */
 	buf_block_t*	block)	/* in: buffer block */
 {
 	page_t*		page;
@@ -1208,7 +1343,9 @@ recv_recover_page(
 	ib_uint64_t	page_lsn;
 	ib_uint64_t	page_newest_lsn;
 	ibool		modification_to_page;
+#ifndef UNIV_HOTBACKUP
 	ibool		success;
+#endif /* !UNIV_HOTBACKUP */
 	mtr_t		mtr;
 
 	mutex_enter(&(recv_sys->mutex));
@@ -1248,46 +1385,42 @@ recv_recover_page(
 
 	page = block->frame;
 
-	if (!recover_backup) {
-		if (just_read_in) {
-			/* Move the ownership of the x-latch on the
-			page to this OS thread, so that we can acquire
-			a second x-latch on it. This is needed for the
-			operations to the page to pass the debug
-			checks. */
+#ifndef UNIV_HOTBACKUP
+	if (just_read_in) {
+		/* Move the ownership of the x-latch on the page to
+		this OS thread, so that we can acquire a second
+		x-latch on it.  This is needed for the operations to
+		the page to pass the debug checks. */
 
-			rw_lock_x_lock_move_ownership(&(block->lock));
-		}
-
-		success = buf_page_get_known_nowait(RW_X_LATCH, block,
-						    BUF_KEEP_OLD,
-						    __FILE__, __LINE__,
-						    &mtr);
-		ut_a(success);
-
-		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+		rw_lock_x_lock_move_ownership(&block->lock);
 	}
+
+	success = buf_page_get_known_nowait(RW_X_LATCH, block,
+					    BUF_KEEP_OLD,
+					    __FILE__, __LINE__,
+					    &mtr);
+	ut_a(success);
+
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Read the newest modification lsn from the page */
 	page_lsn = mach_read_ull(page + FIL_PAGE_LSN);
 
-	if (!recover_backup) {
-		/* It may be that the page has been modified in the buffer
-		pool: read the newest modification lsn there */
+#ifndef UNIV_HOTBACKUP
+	/* It may be that the page has been modified in the buffer
+	pool: read the newest modification lsn there */
 
-		page_newest_lsn
-			= buf_page_get_newest_modification(&block->page);
+	page_newest_lsn = buf_page_get_newest_modification(&block->page);
 
-		if (page_newest_lsn) {
+	if (page_newest_lsn) {
 
-			page_lsn = page_newest_lsn;
-		}
-	} else {
-		/* In recovery from a backup we do not really use the buffer
-		pool */
-
-		page_newest_lsn = 0;
+		page_lsn = page_newest_lsn;
 	}
+#else /* !UNIV_HOTBACKUP */
+	/* In recovery from a backup we do not really use the buffer pool */
+	page_newest_lsn = 0;
+#endif /* !UNIV_HOTBACKUP */
 
 	modification_to_page = FALSE;
 	start_lsn = end_lsn = 0;
@@ -1376,11 +1509,13 @@ recv_recover_page(
 
 	mutex_exit(&(recv_sys->mutex));
 
-	if (!recover_backup && modification_to_page) {
+#ifndef UNIV_HOTBACKUP
+	if (modification_to_page) {
 		ut_a(block);
 
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Make sure that committing mtr does not change the modification
 	lsn values of page */
@@ -1390,6 +1525,7 @@ recv_recover_page(
 	mtr_commit(&mtr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Reads in pages which have hashed log records, from an area around a given
 page number. */
@@ -1514,7 +1650,7 @@ loop:
 					buf_block_dbg_add_level(
 						block, SYNC_NO_ORDER_CHECK);
 
-					recv_recover_page(FALSE, FALSE, block);
+					recv_recover_page(FALSE, block);
 					mtr_commit(&mtr);
 				} else {
 					recv_read_in_area(space, zip_size,
@@ -1586,8 +1722,7 @@ loop:
 
 	mutex_exit(&(recv_sys->mutex));
 }
-
-#ifdef UNIV_HOTBACKUP
+#else /* !UNIV_HOTBACKUP */
 /***********************************************************************
 Applies log records in the hash table to a backup. */
 UNIV_INTERN
@@ -1606,7 +1741,7 @@ recv_apply_log_recs_for_backup(void)
 	recv_sys->apply_log_recs = TRUE;
 	recv_sys->apply_batch_on = TRUE;
 
-	block = buf_LRU_get_free_block(UNIV_PAGE_SIZE);
+	block = back_block1;
 
 	fputs("InnoDB: Starting an apply batch of log records"
 	      " to the database...\n"
@@ -1674,6 +1809,10 @@ recv_apply_log_recs_for_backup(void)
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0, zip_size,
 					       block->page.zip.data, NULL);
+				if (error == DB_SUCCESS
+				    && !buf_zip_decompress(block, TRUE)) {
+					exit(1);
+				}
 			} else {
 				error = fil_io(OS_FILE_READ, TRUE,
 					       recv_addr->space, 0,
@@ -1694,7 +1833,7 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			/* Apply the log records to this page */
-			recv_recover_page(TRUE, FALSE, block);
+			recv_recover_page(FALSE, block);
 
 			/* Write the page back to the tablespace file using the
 			fil0fil.c routines */
@@ -1728,10 +1867,9 @@ skip_this_recv_addr:
 		}
 	}
 
-	buf_block_free(block);
 	recv_sys_empty_hash();
 }
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 Tries to parse a single log record and returns its length. */
@@ -2159,7 +2297,7 @@ ibool
 recv_sys_add_to_parsing_buf(
 /*========================*/
 					/* out: TRUE if more data added */
-	byte*		log_block,	/* in: log block */
+	const byte*	log_block,	/* in: log block */
 	ib_uint64_t	scanned_lsn)	/* in: lsn of how far we were able
 					to find data in this log block */
 {
@@ -2242,8 +2380,10 @@ recv_sys_justify_left_parsing_buf(void)
 }
 
 /***********************************************************
-Scans log from a buffer and stores new log data to the parsing buffer. Parses
-and hashes the log records if new data found. */
+Scans log from a buffer and stores new log data to the parsing buffer.
+Parses and hashes the log records if new data found.  Unless
+UNIV_HOTBACKUP is defined, this function will apply log records
+automatically when the hash table becomes full. */
 UNIV_INTERN
 ibool
 recv_scan_log_recs(
@@ -2251,20 +2391,14 @@ recv_scan_log_recs(
 					/* out: TRUE if limit_lsn has been
 					reached, or not able to scan any more
 					in this log group */
-	ibool		apply_automatically,/* in: TRUE if we want this
-					function to apply log records
-					automatically when the hash table
-					becomes full; in the hot backup tool
-					the tool does the applying, not this
-					function */
 	ulint		available_memory,/* in: we let the hash table of recs
 					to grow to this size, at the maximum */
 	ibool		store_to_hash,	/* in: TRUE if the records should be
 					stored to the hash table; this is set
 					to FALSE if just debug checking is
 					needed */
-	byte*		buf,		/* in: buffer containing a log segment
-					or garbage */
+	const byte*	buf,		/* in: buffer containing a log
+					segment or garbage */
 	ulint		len,		/* in: buffer length */
 	ib_uint64_t	start_lsn,	/* in: buffer start lsn */
 	ib_uint64_t*	contiguous_lsn,	/* in/out: it is known that all log
@@ -2273,7 +2407,7 @@ recv_scan_log_recs(
 	ib_uint64_t*	group_scanned_lsn)/* out: scanning succeeded up to
 					this lsn */
 {
-	byte*		log_block;
+	const byte*	log_block;
 	ulint		no;
 	ib_uint64_t	scanned_lsn;
 	ibool		finished;
@@ -2283,7 +2417,6 @@ recv_scan_log_recs(
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len > 0);
-	ut_a(apply_automatically <= TRUE);
 	ut_a(store_to_hash <= TRUE);
 
 	finished = FALSE;
@@ -2384,6 +2517,7 @@ recv_scan_log_recs(
  			of startup type, we must initiate crash recovery
 			environment before parsing these log records. */
 
+#ifndef UNIV_HOTBACKUP
 			if (recv_log_scan_is_startup_type
 			    && !recv_needed_recovery) {
 
@@ -2393,6 +2527,7 @@ recv_scan_log_recs(
 					recv_sys->scanned_lsn);
 				recv_init_crash_recovery();
 			}
+#endif /* !UNIV_HOTBACKUP */
 
 			/* We were able to find more log data: add it to the
 			parsing buffer if parse_start_lsn is already
@@ -2446,9 +2581,9 @@ recv_scan_log_recs(
 
 		recv_parse_log_recs(store_to_hash);
 
+#ifndef UNIV_HOTBACKUP
 		if (store_to_hash && mem_heap_get_size(recv_sys->heap)
-		    > available_memory
-		    && apply_automatically) {
+		    > available_memory) {
 
 			/* Hash table of log records has grown too big:
 			empty it; FALSE means no ibuf operations
@@ -2458,6 +2593,7 @@ recv_scan_log_recs(
 
 			recv_apply_hashed_log_recs(FALSE);
 		}
+#endif /* !UNIV_HOTBACKUP */
 
 		if (recv_sys->recovered_offset > RECV_PARSING_BUF_SIZE / 4) {
 			/* Move parsing buffer data to the buffer start */
@@ -2469,6 +2605,7 @@ recv_scan_log_recs(
 	return(finished);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************
 Scans log from a buffer and stores new log data to the parsing buffer. Parses
 and hashes the log records if new data found. */
@@ -2498,7 +2635,7 @@ recv_group_scan_log_recs(
 				       group, start_lsn, end_lsn);
 
 		finished = recv_scan_log_recs(
-			TRUE, (buf_pool->curr_size - recv_n_pool_free_frames)
+			(buf_pool->curr_size - recv_n_pool_free_frames)
 			* UNIV_PAGE_SIZE, TRUE, log_sys->buf, RECV_SCAN_SIZE,
 			start_lsn, contiguous_lsn, group_scanned_lsn);
 		start_lsn = end_lsn;
@@ -2601,7 +2738,7 @@ recv_recovery_from_checkpoint_start_func(
 
 	if (TYPE_CHECKPOINT) {
 		recv_sys_create();
-		recv_sys_init(FALSE, buf_pool_get_curr_size());
+		recv_sys_init(buf_pool_get_curr_size());
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
@@ -3062,6 +3199,7 @@ recv_reset_logs(
 
 	mutex_enter(&(log_sys->mutex));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /**********************************************************
@@ -3321,7 +3459,7 @@ ask_again:
 		       read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
 		ret = recv_scan_log_recs(
-			TRUE, (buf_pool->n_frames - recv_n_pool_free_frames)
+			(buf_pool->n_frames - recv_n_pool_free_frames)
 			* UNIV_PAGE_SIZE, TRUE, buf, len, start_lsn,
 			&dummy_lsn, &scanned_lsn);
 
@@ -3373,7 +3511,7 @@ recv_recovery_from_archive_start(
 	ut_a(0);
 
 	recv_sys_create();
-	recv_sys_init(FALSE, buf_pool_get_curr_size());
+	recv_sys_init(buf_pool_get_curr_size());
 
 	recv_recovery_on = TRUE;
 	recv_recovery_from_backup_on = TRUE;

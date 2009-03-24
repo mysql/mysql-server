@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The simple hash table utility
-
-(c) 1997 Innobase Oy
 
 Created 5/20/1997 Heikki Tuuri
 *******************************************************/
@@ -13,6 +29,7 @@ Created 5/20/1997 Heikki Tuuri
 
 #include "mem0mem.h"
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
@@ -68,6 +85,7 @@ hash_mutex_exit_all(
 		mutex_exit(table->mutexes + i);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
@@ -89,14 +107,16 @@ hash_create(
 
 	array = ut_malloc(sizeof(hash_cell_t) * prime);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	table->adaptive = FALSE;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	table->array = array;
 	table->n_cells = prime;
+#ifndef UNIV_HOTBACKUP
+# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	table->adaptive = FALSE;
+# endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	table->n_mutexes = 0;
 	table->mutexes = NULL;
 	table->heaps = NULL;
+#endif /* !UNIV_HOTBACKUP */
 	table->heap = NULL;
 	table->magic_n = HASH_TABLE_MAGIC_N;
 
@@ -114,12 +134,15 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/* in, own: hash table */
 {
+#ifndef UNIV_HOTBACKUP
 	ut_a(table->mutexes == NULL);
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_free(table->array);
 	mem_free(table);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Creates a mutex array to protect a hash table. */
 UNIV_INTERN
@@ -147,3 +170,4 @@ hash_create_mutexes_func(
 
 	table->n_mutexes = n_mutexes;
 }
+#endif /* !UNIV_HOTBACKUP */

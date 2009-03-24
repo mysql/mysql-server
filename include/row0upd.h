@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Update of a row
-
-(c) 1996 Innobase Oy
 
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
@@ -11,13 +27,16 @@ Created 12/27/1996 Heikki Tuuri
 
 #include "univ.i"
 #include "data0data.h"
+#include "row0types.h"
 #include "btr0types.h"
-#include "btr0pcur.h"
 #include "dict0types.h"
 #include "trx0types.h"
-#include "que0types.h"
-#include "row0types.h"
-#include "pars0types.h"
+
+#ifndef UNIV_HOTBACKUP
+# include "btr0pcur.h"
+# include "que0types.h"
+# include "pars0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Creates an update vector object. */
@@ -50,6 +69,7 @@ upd_get_nth_field(
 #else
 # define upd_get_nth_field(update, n) ((update)->fields + (n))
 #endif
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Sets an index field number to be updated by an update vector field. */
 UNIV_INLINE
@@ -145,6 +165,7 @@ row_upd_changes_field_size_or_external(
 	dict_index_t*	index,	/* in: index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update);/* in: update vector */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
 given. No field size changes are allowed. */
@@ -158,6 +179,7 @@ row_upd_rec_in_place(
 	const upd_t*	update,	/* in: update vector */
 	page_zip_des_t*	page_zip);/* in: compressed page with enough space
 				available, or NULL */
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
@@ -291,6 +313,7 @@ row_upd_step(
 /*=========*/
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Parses the log data of system field values. */
 UNIV_INTERN
@@ -337,6 +360,7 @@ struct upd_field_struct{
 					a secondary index record in btr0cur.c
 					this is the position in the secondary
 					index */
+#ifndef UNIV_HOTBACKUP
 	unsigned	orig_len:16;	/* original length of the locally
 					stored part of an externally stored
 					column, or 0 */
@@ -344,6 +368,7 @@ struct upd_field_struct{
 					value: it refers to column values and
 					constants in the symbol table of the
 					query graph */
+#endif /* !UNIV_HOTBACKUP */
 	dfield_t	new_val;	/* new value for the column */
 };
 
@@ -355,6 +380,7 @@ struct upd_struct{
 	upd_field_t*	fields;		/* array of update fields */
 };
 
+#ifndef UNIV_HOTBACKUP
 /* Update node structure which also implements the delete operation
 of a row */
 
@@ -451,6 +477,8 @@ struct upd_node_struct{
 					field of the clustered index */
 #define UPD_NODE_NO_SIZE_CHANGE	2	/* no record field size will be
 					changed in the update */
+
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "row0upd.ic"

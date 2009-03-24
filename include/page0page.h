@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Index page routines
-
-(c) 1994-1996 Innobase Oy
 
 Created 2/2/1994 Heikki Tuuri
 *******************************************************/
@@ -232,6 +248,7 @@ page_header_set_ptr(
 				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in/out: PAGE_FREE, ... */
 	const byte*	ptr);	/* in: pointer or NULL*/
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Resets the last insert info field in the page header. Writes to mlog
 about this operation. */
@@ -243,6 +260,7 @@ page_header_reset_last_insert(
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* !UNIV_HOTBACKUP */
 /****************************************************************
 Gets the offset of the first record on the page. */
 UNIV_INLINE
@@ -272,6 +290,7 @@ page_get_middle_rec(
 /*================*/
 			/* out: middle record */
 	page_t*	page);	/* in: page */
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -298,6 +317,7 @@ page_cmp_dtuple_rec_with_match(
 				bytes within the first field not completely
 				matched; when function returns contains the
 				value for current comparison */
+#endif /* !UNIV_HOTBACKUP */
 /*****************************************************************
 Gets the page number. */
 UNIV_INLINE

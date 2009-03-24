@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Transaction system
-
-(c) 1996 Innobase Oy
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
@@ -12,6 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
 #include "mtr0mtr.h"
 #include "trx0trx.h"
@@ -322,9 +339,9 @@ start_again:
 			be written to disk in a flush */
 
 			mlog_write_ulint(buf_block_get_frame(new_block)
-					 + FIL_PAGE_DATA,
-					 TRX_SYS_DOUBLEWRITE_MAGIC_N,
-					 MLOG_4BYTES, &mtr);
+					 + FIL_PAGE_TYPE,
+					 FIL_PAGE_TYPE_ALLOCATED,
+					 MLOG_2BYTES, &mtr);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				mlog_write_ulint(doublewrite
@@ -696,41 +713,6 @@ trx_sys_update_mysql_binlog_offset(
 			 (ulint)(offset & 0xFFFFFFFFUL),
 			 MLOG_4BYTES, mtr);
 }
-
-#ifdef UNIV_HOTBACKUP
-/*********************************************************************
-Prints to stderr the MySQL binlog info in the system header if the
-magic number shows it valid. */
-UNIV_INTERN
-void
-trx_sys_print_mysql_binlog_offset_from_page(
-/*========================================*/
-	const byte*	page)	/* in: buffer containing the trx
-				system header page, i.e., page number
-				TRX_SYS_PAGE_NO in the tablespace */
-{
-	const trx_sysf_t*	sys_header;
-
-	sys_header = page + TRX_SYS;
-
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
-		fprintf(stderr,
-			"ibbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s\n",
-			(ulong) mach_read_from_4(
-				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-			(ulong) mach_read_from_4(
-				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-			sys_header + TRX_SYS_MYSQL_LOG_INFO
-			+ TRX_SYS_MYSQL_LOG_NAME);
-	}
-}
-#endif /* UNIV_HOTBACKUP */
 
 /*********************************************************************
 Stores the MySQL binlog offset info in the trx system header if
@@ -1314,3 +1296,37 @@ trx_sys_file_format_close(void)
 {
 	/* Does nothing at the moment */
 }
+#else /* !UNIV_HOTBACKUP */
+/*********************************************************************
+Prints to stderr the MySQL binlog info in the system header if the
+magic number shows it valid. */
+UNIV_INTERN
+void
+trx_sys_print_mysql_binlog_offset_from_page(
+/*========================================*/
+	const byte*	page)	/* in: buffer containing the trx
+				system header page, i.e., page number
+				TRX_SYS_PAGE_NO in the tablespace */
+{
+	const trx_sysf_t*	sys_header;
+
+	sys_header = page + TRX_SYS;
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+		fprintf(stderr,
+			"ibbackup: Last MySQL binlog file position %lu %lu,"
+			" file name %s\n",
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+			sys_header + TRX_SYS_MYSQL_LOG_INFO
+			+ TRX_SYS_MYSQL_LOG_NAME);
+	}
+}
+#endif /* !UNIV_HOTBACKUP */

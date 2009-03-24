@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Update of a row
-
-(c) 1996 Innobase Oy
 
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
@@ -13,10 +29,12 @@ Created 12/27/1996 Heikki Tuuri
 #endif
 
 #include "dict0dict.h"
+#include "trx0undo.h"
+#include "rem0rec.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "mach0data.h"
-#include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "que0que.h"
@@ -297,6 +315,7 @@ upd_node_create(
 
 	return(node);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Updates the trx id and roll ptr field in a clustered index record in database
@@ -331,6 +350,7 @@ row_upd_rec_sys_fields_in_recovery(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Sets the trx id or roll ptr field of a clustered index entry. */
 UNIV_INTERN
@@ -429,6 +449,7 @@ row_upd_changes_field_size_or_external(
 
 	return(FALSE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
@@ -475,6 +496,7 @@ row_upd_rec_in_place(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record. */
@@ -504,6 +526,7 @@ row_upd_write_sys_vals_to_log(
 
 	return(log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Parses the log data of system field values. */
@@ -538,6 +561,7 @@ row_upd_parse_sys_vals(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************
 Writes to the redo log the new values of the fields occurring in the index. */
 UNIV_INTERN
@@ -608,6 +632,7 @@ row_upd_index_write_log(
 
 	mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Parses the log data written by row_upd_index_write_log. */
@@ -688,6 +713,7 @@ row_upd_index_parse(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
@@ -2185,3 +2211,4 @@ error_handling:
 
 	return(thr);
 }
+#endif /* !UNIV_HOTBACKUP */

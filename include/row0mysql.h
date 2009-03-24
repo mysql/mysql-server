@@ -1,8 +1,24 @@
+/*****************************************************************************
+
+Copyright (c) 2000, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Interface between Innobase row operations and MySQL.
 Contains also create table and other data dictionary operations.
-
-(c) 2000 Innobase Oy
 
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
@@ -679,6 +695,21 @@ struct row_prebuilt_struct {
 					This eliminates lock waits in some
 					cases; note that this breaks
 					serializability. */
+	ulint		new_rec_locks;	/* normally 0; if
+					srv_locks_unsafe_for_binlog is
+					TRUE or session is using READ
+					COMMITTED isolation level, in a
+					cursor search, if we set a new
+					record lock on an index, this is
+					incremented; this is used in
+					releasing the locks under the
+					cursors if we are performing an
+					UPDATE and we determine after
+					retrieving the row that it does
+					not need to be locked; thus,
+					these can be used to implement a
+					'mini-rollback' that releases
+					the latest record locks */
 	ulint		mysql_prefix_len;/* byte offset of the end of
 					the last requested column */
 	ulint		mysql_row_len;	/* length in bytes of a row in the

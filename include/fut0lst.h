@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 File-based list utilities
-
-(c) 1995 Innobase Oy
 
 Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
@@ -28,7 +44,7 @@ typedef	byte	flst_node_t;
 /* The physical size of a list node in bytes */
 #define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
 
-
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Initializes a list base node. */
 UNIV_INLINE
@@ -194,5 +210,7 @@ flst_print(
 #ifndef UNIV_NONINL
 #include "fut0lst.ic"
 #endif
+
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

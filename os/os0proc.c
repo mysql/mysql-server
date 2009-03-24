@@ -1,8 +1,24 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The interface to the operating system
 process control primitives
-
-(c) 1995 Innobase Oy
 
 Created 9/30/1995 Heikki Tuuri
 *******************************************************/
@@ -41,28 +57,6 @@ os_proc_get_number(void)
 	return((ulint)GetCurrentProcessId());
 #else
 	return((ulint)getpid());
-#endif
-}
-
-/********************************************************************
-Allocates non-cacheable memory. */
-UNIV_INTERN
-void*
-os_mem_alloc_nocache(
-/*=================*/
-			/* out: allocated memory */
-	ulint	n)	/* in: number of bytes */
-{
-#ifdef __WIN__
-	void*	ptr;
-
-	ptr = VirtualAlloc(NULL, n, MEM_COMMIT,
-			   PAGE_READWRITE | PAGE_NOCACHE);
-	ut_a(ptr);
-
-	return(ptr);
-#else
-	return(ut_malloc(n));
 #endif
 }
 
@@ -111,10 +105,13 @@ os_mem_alloc_large(
 
 	if (ptr) {
 		*n = size;
+		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
+		os_fast_mutex_unlock(&ut_list_mutex);
 # ifdef UNIV_SET_MEM_TO_ZERO
 		memset(ptr, '\0', size);
 # endif
+		UNIV_MEM_ALLOC(ptr, size);
 		return(ptr);
 	}
 
@@ -140,7 +137,10 @@ skip:
 			" Windows error %lu\n",
 			(ulong) size, (ulong) GetLastError());
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_ALLOC(ptr, size);
 	}
 #elif defined __NETWARE__ || !defined OS_MAP_ANON
 	size = *n;
@@ -162,7 +162,10 @@ skip:
 			(ulong) size, (ulong) errno);
 		ptr = NULL;
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_ALLOC(ptr, size);
 	}
 #endif
 	return(ptr);
@@ -179,11 +182,17 @@ os_mem_free_large(
 	ulint	size)			/* in: size returned by
 					os_mem_alloc_large() */
 {
+	os_fast_mutex_lock(&ut_list_mutex);
 	ut_a(ut_total_allocated_memory >= size);
+	os_fast_mutex_unlock(&ut_list_mutex);
 
 #if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
 	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
+		os_fast_mutex_lock(&ut_list_mutex);
+		ut_a(ut_total_allocated_memory >= size);
 		ut_total_allocated_memory -= size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_FREE(ptr, size);
 		return;
 	}
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
@@ -195,7 +204,11 @@ os_mem_free_large(
 			" Windows error %lu\n",
 			ptr, (ulong) size, (ulong) GetLastError());
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
+		ut_a(ut_total_allocated_memory >= size);
 		ut_total_allocated_memory -= size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_FREE(ptr, size);
 	}
 #elif defined __NETWARE__ || !defined OS_MAP_ANON
 	ut_free(ptr);
@@ -205,7 +218,11 @@ os_mem_free_large(
 			" errno %lu\n",
 			ptr, (ulong) size, (ulong) errno);
 	} else {
+		os_fast_mutex_lock(&ut_list_mutex);
+		ut_a(ut_total_allocated_memory >= size);
 		ut_total_allocated_memory -= size;
+		os_fast_mutex_unlock(&ut_list_mutex);
+		UNIV_MEM_FREE(ptr, size);
 	}
 #endif
 }

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer buf_pool flush algorithm
-
-(c) 1995-2001 Innobase Oy
 
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
@@ -10,22 +26,22 @@ Created 11/11/1995 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "buf0flu.ic"
-#include "trx0sys.h"
 #endif
 
+#include "buf0buf.h"
+#include "srv0srv.h"
+#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "page0page.h"
-#include "page0zip.h"
 #include "fil0fil.h"
-#include "buf0buf.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "os0file.h"
 #include "trx0sys.h"
-#include "srv0srv.h"
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
@@ -377,7 +393,8 @@ buf_flush_remove(
 
 	bpage->oldest_modification = 0;
 
-	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list));
+	ut_d(UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list,
+			      ut_ad(ut_list_node_313->in_flush_list)));
 }
 
 /***********************************************************************
@@ -780,6 +797,7 @@ try_again:
 
 	mutex_exit(&(trx_doublewrite->mutex));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Initializes a page for writing to the tablespace. */
@@ -859,6 +877,7 @@ buf_flush_init_for_writing(
 			: BUF_NO_CHECKSUM_MAGIC);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Does an asynchronous write of a buffer page. NOTE: in simulated aio and
 also when the doublewrite buffer is used, we must call
@@ -1414,7 +1433,8 @@ buf_flush_validate_low(void)
 	buf_page_t*		bpage;
 	const ib_rbt_node_t*	rnode = NULL;
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list);
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list,
+			 ut_ad(ut_list_node_313->in_flush_list));
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
@@ -1471,3 +1491,4 @@ buf_flush_validate(void)
 	return(ret);
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

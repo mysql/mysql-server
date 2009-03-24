@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mini-transaction log routines
-
-(c) 1995 Innobase Oy
 
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
@@ -13,9 +29,12 @@ Created 12/7/1995 Heikki Tuuri
 #endif
 
 #include "buf0buf.h"
-#include "dict0boot.h"
+#include "dict0dict.h"
 #include "log0recv.h"
 #include "page0page.h"
+
+#ifndef UNIV_HOTBACKUP
+# include "dict0boot.h"
 
 /************************************************************
 Catenates n bytes to the mtr log. */
@@ -70,6 +89,7 @@ mlog_write_initial_log_record(
 
 	mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Parses an initial log record written by mlog_write_initial_log_record. */
@@ -220,6 +240,7 @@ mlog_parse_nbytes(
 	return(ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
@@ -358,6 +379,7 @@ mlog_log_string(
 
 	mlog_catenate_string(mtr, ptr, len);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Parses a log record written by mlog_write_string. */
@@ -410,6 +432,7 @@ mlog_parse_string(
 	return(ptr + len);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index. */
@@ -507,6 +530,7 @@ mlog_open_and_write_index(
 	}
 	return(log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Parses a log record written by mlog_open_and_write_index. */

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mini-transaction logging routines
-
-(c) 1995 Innobase Oy
 
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
@@ -13,6 +29,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "dict0types.h"
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
@@ -148,6 +165,10 @@ mlog_write_initial_log_record_fast(
 	byte*		log_ptr,/* in: pointer to mtr log which has
 				been opened */
 	mtr_t*		mtr);	/* in: mtr */
+#else /* !UNIV_HOTBACKUP */
+# define mlog_write_initial_log_record(ptr,type,mtr) ((void) 0)
+# define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************
 Parses an initial log record written by mlog_write_initial_log_record. */
 UNIV_INTERN
@@ -187,7 +208,7 @@ mlog_parse_string(
 	byte*	page,	/* in: page where to apply the log record, or NULL */
 	void*	page_zip);/* in/out: compressed page, or NULL */
 
-
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.  Reserves space
@@ -205,6 +226,7 @@ mlog_open_and_write_index(
 	byte		type,	/* in: log item type */
 	ulint		size);	/* in: requested buffer size in bytes
 				(if 0, calls mlog_close() and returns NULL) */
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Parses a log record written by mlog_open_and_write_index. */
@@ -220,9 +242,11 @@ mlog_parse_index(
 	ibool		comp,	/* in: TRUE=compact record format */
 	dict_index_t**	index);	/* out, own: dummy index */
 
+#ifndef UNIV_HOTBACKUP
 /* Insert, update, and maybe other functions may use this value to define an
 extra mlog buffer size for variable size data */
 #define MLOG_BUF_MARGIN	256
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "mtr0log.ic"

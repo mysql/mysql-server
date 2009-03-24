@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /*********************************************************************
 Debug utilities for Innobase.
-
-(c) 1994, 1995 Innobase Oy
 
 Created 1/30/1994 Heikki Tuuri
 **********************************************************************/
@@ -41,10 +57,15 @@ ut_dbg_assertion_failed(
 	ulint line)		/* in: line number of the assertion */
 {
 	ut_print_timestamp(stderr);
+#ifdef UNIV_HOTBACKUP
+	fprintf(stderr, "  InnoDB: Assertion failure in file %s line %lu\n",
+		file, line);
+#else /* UNIV_HOTBACKUP */
 	fprintf(stderr,
 		"  InnoDB: Assertion failure in thread %lu"
 		" in file %s line %lu\n",
 		os_thread_pf(os_thread_get_curr_id()), file, line);
+#endif /* UNIV_HOTBACKUP */
 	if (expr) {
 		fprintf(stderr,
 			"InnoDB: Failing assertion: %s\n", expr);
@@ -90,9 +111,11 @@ ut_dbg_stop_thread(
 	const char*	file,
 	ulint		line)
 {
+#ifndef UNIV_HOTBACKUP
 	fprintf(stderr, "InnoDB: Thread %lu stopped in file %s line %lu\n",
 		os_thread_pf(os_thread_get_curr_id()), file, line);
 	os_thread_sleep(1000000000);
+#endif /* !UNIV_HOTBACKUP */
 }
 # endif
 #endif /* __NETWARE__ */

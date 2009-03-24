@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Transaction undo log
-
-(c) 1996 Innobase Oy
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
@@ -16,6 +32,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "page0types.h"
 #include "trx0xa.h"
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Builds a roll pointer dulint. */
 UNIV_INLINE
@@ -46,6 +63,7 @@ trx_undo_roll_ptr_is_insert(
 /*========================*/
 				/* out: TRUE if insert undo log */
 	dulint	roll_ptr);	/* in: roll pointer */
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************
 Writes a roll ptr to an index page. In case that the size changes in
 some future version, this function should be used instead of
@@ -66,6 +84,7 @@ trx_read_roll_ptr(
 /*==============*/
 				/* out: roll ptr */
 	const byte*	ptr);	/* in: pointer to memory from where to read */
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Gets an undo log page and x-latches it. */
 UNIV_INLINE
@@ -282,6 +301,7 @@ void
 trx_undo_insert_cleanup(
 /*====================*/
 	trx_t*	trx);	/* in: transaction handle */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************
 Parses the redo log entry of an undo log page initialization. */
 UNIV_INTERN
@@ -334,6 +354,7 @@ trx_undo_parse_discard_latest(
 #define	TRX_UNDO_PREPARED	5	/* contains an undo log of an
 					prepared transaction */
 
+#ifndef UNIV_HOTBACKUP
 /* Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
@@ -392,6 +413,7 @@ struct trx_undo_struct{
 					/* undo log objects in the rollback
 					segment are chained into lists */
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /* The offset of the undo log page header on pages of the undo log */
 #define	TRX_UNDO_PAGE_HDR	FSEG_PAGE_DATA

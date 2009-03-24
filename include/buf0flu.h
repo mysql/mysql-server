@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer pool flush algorithm
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
@@ -10,9 +26,10 @@ Created 11/5/1995 Heikki Tuuri
 #define buf0flu_h
 
 #include "univ.i"
-#include "buf0types.h"
 #include "ut0byte.h"
+#ifndef UNIV_HOTBACKUP
 #include "mtr0types.h"
+#include "buf0types.h"
 
 /************************************************************************
 Remove a block from the flush list of modified blocks. */
@@ -45,6 +62,7 @@ UNIV_INTERN
 void
 buf_flush_free_margin(void);
 /*=======================*/
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
@@ -55,6 +73,7 @@ buf_flush_init_for_writing(
 	void*		page_zip_,	/* in/out: compressed page, or NULL */
 	ib_uint64_t	newest_lsn);	/* in: newest modification lsn
 					to the page */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
@@ -152,6 +171,7 @@ sweep). */
 
 #define BUF_FLUSH_FREE_BLOCK_MARGIN	(5 + BUF_READ_AHEAD_AREA)
 #define BUF_FLUSH_EXTRA_MARGIN		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "buf0flu.ic"

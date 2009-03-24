@@ -1,13 +1,31 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Index page routines
-
-(c) 1994-1996 Innobase Oy
 
 Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
-#include "rem0cmp.h"
+#ifndef UNIV_HOTBACKUP
+# include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mtr0log.h"
 #include "page0zip.h"
 
@@ -166,6 +184,7 @@ page_header_set_ptr(
 	page_header_set_field(page, page_zip, field, offs);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Resets the last insert info field in the page header. Writes to mlog
 about this operation. */
@@ -190,6 +209,7 @@ page_header_reset_last_insert(
 				 MLOG_2BYTES, mtr);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /****************************************************************
 Determine whether the page is in new-style compact format. */
@@ -389,6 +409,7 @@ page_rec_is_infimum(
 	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -437,6 +458,7 @@ page_cmp_dtuple_rec_with_match(
 					 matched_fields,
 					 matched_bytes));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 Gets the page number. */

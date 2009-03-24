@@ -1,47 +1,39 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The server main program
 
-(c) 1995 Innobase Oy
-
 Created 10/10/1995 Heikki Tuuri
 *******************************************************/
-/***********************************************************************
-# Copyright (c) 2008, Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#	* Redistributions of source code must retain the above copyright
-#	  notice, this list of conditions and the following disclaimer.
-#	* Redistributions in binary form must reproduce the above
-#	  copyright notice, this list of conditions and the following
-#	  disclaimer in the documentation and/or other materials
-#	  provided with the distribution.
-#	* Neither the name of the Google Inc. nor the names of its
-#	  contributors may be used to endorse or promote products
-#	  derived from this software without specific prior written
-#	  permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Note, the BSD license applies to the new code. The old code is GPL.
-***********************************************************************/
 
 #ifndef srv0srv_h
 #define srv0srv_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "sync0sync.h"
 #include "os0sync.h"
 #include "que0types.h"
@@ -98,6 +90,7 @@ extern ulint	srv_check_file_format_at_startup;
 /* Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
+#endif /* !UNIV_HOTBACKUP */
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
@@ -111,14 +104,11 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
+extern char**	srv_log_group_home_dirs;
+#ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
-
-#define SRV_NEW_RAW	1
-#define SRV_OLD_RAW	2
-
-extern char**	srv_log_group_home_dirs;
 
 extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
@@ -298,6 +288,10 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /* The server system */
 extern srv_sys_t*	srv_sys;
+#endif /* !UNIV_HOTBACKUP */
+
+#define SRV_NEW_RAW	1
+#define SRV_OLD_RAW	2
 
 /* Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
@@ -333,7 +327,7 @@ of lower numbers are included. */
 					as committed */
 #define SRV_FORCE_NO_LOG_REDO	6	/* do not do the log roll-forward
 					in connection with recovery */
-
+#ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
 enum srv_thread_type {
 	SRV_COM = 1,	/**< threads serving communication and queries */
@@ -592,12 +586,20 @@ struct srv_sys_struct{
 	srv_table_t*	threads;	/* server thread table */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;		/* task queue */
-	dict_index_t*	dummy_ind1;	/* dummy index for old-style
-					supremum and infimum records */
-	dict_index_t*	dummy_ind2;	/* dummy index for new-style
-					supremum and infimum records */
 };
 
 extern ulint	srv_n_threads_active[];
+#else /* !UNIV_HOTBACKUP */
+# define srv_use_adaptive_hash_indexes		FALSE
+# define srv_use_checksums			TRUE
+# define srv_use_native_aio			FALSE
+# define srv_force_recovery			0UL
+# define srv_set_io_thread_op_info(t,info)	((void) 0)
+# define srv_is_being_started			0
+# define srv_win_file_flush_method		SRV_WIN_IO_UNBUFFERED
+# define srv_unix_file_flush_method		SRV_UNIX_O_DSYNC
+# define srv_start_raw_disk_in_use		0
+# define srv_file_per_table			1
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

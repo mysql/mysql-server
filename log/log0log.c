@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Database log
-
-(c) 1995-1997 Innobase Oy
 
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
@@ -12,6 +28,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0log.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
@@ -59,8 +76,6 @@ UNIV_INTERN log_t*	log_sys	= NULL;
 
 #ifdef UNIV_DEBUG
 UNIV_INTERN ibool	log_do_write = TRUE;
-
-UNIV_INTERN ibool	log_debug_writes = FALSE;
 #endif /* UNIV_DEBUG */
 
 /* These control how often we print warnings if the last checkpoint is too
@@ -452,8 +467,8 @@ UNIV_INTERN
 ulint
 log_group_get_capacity(
 /*===================*/
-				/* out: capacity in bytes */
-	log_group_t*	group)	/* in: log group */
+					/* out: capacity in bytes */
+	const log_group_t*	group)	/* in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -467,9 +482,10 @@ UNIV_INLINE
 ulint
 log_group_calc_size_offset(
 /*=======================*/
-				/* out: size offset (<= offset) */
-	ulint		offset,	/* in: real offset within the log group */
-	log_group_t*	group)	/* in: log group */
+					/* out: size offset (<= offset) */
+	ulint			offset,	/* in: real offset within the
+					log group */
+	const log_group_t*	group)	/* in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -483,9 +499,10 @@ UNIV_INLINE
 ulint
 log_group_calc_real_offset(
 /*=======================*/
-				/* out: real offset (>= offset) */
-	ulint		offset,	/* in: size offset within the log group */
-	log_group_t*	group)	/* in: log group */
+					/* out: real offset (>= offset) */
+	ulint			offset,	/* in: size offset within the
+					log group */
+	const log_group_t*	group)	/* in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -499,10 +516,10 @@ static
 ulint
 log_group_calc_lsn_offset(
 /*======================*/
-				/* out: offset within the log group */
-	ib_uint64_t	lsn,	/* in: lsn, must be within 4 GB of
-				group->lsn */
-	log_group_t*	group)	/* in: log group */
+					/* out: offset within the log group */
+	ib_uint64_t		lsn,	/* in: lsn, must be within 4 GB of
+					group->lsn */
+	const log_group_t*	group)	/* in: log group */
 {
 	ib_uint64_t	gr_lsn;
 	ib_int64_t	gr_lsn_size_offset;
@@ -544,6 +561,11 @@ log_group_calc_lsn_offset(
 
 	return(log_group_calc_real_offset((ulint)offset, group));
 }
+#endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+UNIV_INTERN ibool	log_debug_writes = FALSE;
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Calculates where in log files we find a specified lsn. */
@@ -585,6 +607,7 @@ log_calc_where_lsn_is(
 	return(file_no);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -593,7 +616,7 @@ UNIV_INTERN
 void
 log_group_set_fields(
 /*=================*/
-	log_group_t*	group,	/* in: group */
+	log_group_t*	group,	/* in/out: group */
 	ib_uint64_t	lsn)	/* in: lsn for which the values should be
 				set */
 {
@@ -826,7 +849,7 @@ log_init(void)
 
 #ifdef UNIV_LOG_DEBUG
 	recv_sys_create();
-	recv_sys_init(FALSE, buf_pool_get_curr_size());
+	recv_sys_init(buf_pool_get_curr_size());
 
 	recv_sys->parse_start_lsn = log_sys->lsn;
 	recv_sys->scanned_lsn = log_sys->lsn;
@@ -1649,10 +1672,10 @@ UNIV_INTERN
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
-	byte*	buf,	/* in: buffer containing checkpoint info */
-	ulint	n,	/* in: nth slot */
-	ulint*	file_no,/* out: archived file number */
-	ulint*	offset)	/* out: archived file offset */
+	const byte*	buf,	/* in: buffer containing checkpoint info */
+	ulint		n,	/* in: nth slot */
+	ulint*		file_no,/* out: archived file number */
+	ulint*		offset)	/* out: archived file offset */
 {
 	ut_ad(n < LOG_MAX_N_GROUPS);
 
@@ -1781,6 +1804,7 @@ log_group_checkpoint(
 		ut_ad(((ulint)group & 0x1UL) == 0);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /**********************************************************
@@ -1836,6 +1860,7 @@ log_reset_first_header_and_checkpoint(
 }
 #endif /* UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************
 Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */
 UNIV_INTERN
@@ -3202,8 +3227,7 @@ log_check_log_recs(
 
 	ut_memcpy(scan_buf, start, end - start);
 
-	recv_scan_log_recs(TRUE,
-			   (buf_pool->curr_size
+	recv_scan_log_recs((buf_pool->curr_size
 			    - recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 			   FALSE, scan_buf, end - start,
 			   ut_uint64_align_down(buf_start_lsn,
@@ -3289,3 +3313,4 @@ log_refresh_stats(void)
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = time(NULL);
 }
+#endif /* !UNIV_HOTBACKUP */

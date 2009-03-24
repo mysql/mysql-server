@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The memory management
-
-(c) 1994, 1995 Innobase Oy
 
 Created 6/9/1994 Heikki Tuuri
 *******************************************************/
@@ -12,9 +28,10 @@ Created 6/9/1994 Heikki Tuuri
 #include "univ.i"
 #include "ut0mem.h"
 #include "ut0byte.h"
-#include "ut0ut.h"
 #include "ut0rnd.h"
-#include "sync0sync.h"
+#ifndef UNIV_HOTBACKUP
+# include "sync0sync.h"
+#endif /* UNIV_HOTBACKUP */
 #include "ut0lst.h"
 #include "mach0data.h"
 
@@ -358,6 +375,7 @@ struct mem_block_info_struct {
 			user data in the block */
 	ulint	start;	/* the value of the struct field 'free' at the
 			creation of the block */
+#ifndef UNIV_HOTBACKUP
 	void*	free_block;
 			/* if the MEM_HEAP_BTR_SEARCH bit is set in type,
 			and this is the heap root, this can contain an
@@ -368,6 +386,7 @@ struct mem_block_info_struct {
 			/* if this block has been allocated from the buffer
 			pool, this contains the buf_block_t handle;
 			otherwise, this is NULL */
+#endif /* !UNIV_HOTBACKUP */
 #ifdef MEM_PERIODIC_CHECK
 	UT_LIST_NODE_T(mem_block_t) mem_block_list;
 			/* List of all mem blocks allocated; protected

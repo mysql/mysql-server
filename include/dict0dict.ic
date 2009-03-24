@@ -1,14 +1,31 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 Data dictionary system
-
-(c) 1996 Innobase Oy
 
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#include "data0type.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "rem0types.h"
-#include "data0type.h"
 
 /*************************************************************************
 Gets the column data type. */
@@ -27,6 +44,7 @@ dict_col_copy_type(
 	type->mbminlen = col->mbminlen;
 	type->mbmaxlen = col->mbmaxlen;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /*************************************************************************
@@ -45,13 +63,16 @@ dict_col_type_assert_equal(
 	ut_ad(col->mtype == type->mtype);
 	ut_ad(col->prtype == type->prtype);
 	ut_ad(col->len == type->len);
+# ifndef UNIV_HOTBACKUP
 	ut_ad(col->mbminlen == type->mbminlen);
 	ut_ad(col->mbmaxlen == type->mbmaxlen);
+# endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Returns the minimum size of the column. */
 UNIV_INLINE
@@ -75,6 +96,7 @@ dict_col_get_max_size(
 {
 	return(dtype_get_max_size_low(col->mtype, col->len));
 }
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************************
 Returns the size of a fixed size column, 0 if not a fixed size column. */
 UNIV_INLINE
@@ -140,6 +162,7 @@ dict_col_get_clust_pos(
 	return(ULINT_UNDEFINED);
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /************************************************************************
 Gets the first index on the table (the clustered index). */
@@ -171,6 +194,7 @@ dict_table_get_next_index(
 	return(UT_LIST_GET_NEXT(indexes, (dict_index_t*) index));
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Check whether the index is the clustered index. */
@@ -577,6 +601,7 @@ dict_index_get_nth_col_no(
 	return(dict_col_get_no(dict_index_get_nth_col(index, pos)));
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Returns the minimum data size of an index record. */
 UNIV_INLINE
@@ -655,21 +680,6 @@ dict_index_set_page(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	index->page = page;
-}
-
-/*************************************************************************
-Gets the type of the index tree. */
-UNIV_INLINE
-ulint
-dict_index_get_type(
-/*================*/
-					/* out: type */
-	const dict_index_t*	index)	/* in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->type);
 }
 
 /*************************************************************************
@@ -781,4 +791,4 @@ dict_table_get_on_id_low(
 
 	return(table);
 }
-
+#endif /* !UNIV_HOTBACKUP */

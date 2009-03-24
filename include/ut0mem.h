@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /***********************************************************************
 Memory primitives
-
-(c) 1994, 1995 Innobase Oy
 
 Created 5/30/1994 Heikki Tuuri
 ************************************************************************/
@@ -11,10 +27,17 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "univ.i"
 #include <string.h>
-#include <stdlib.h>
+#ifndef UNIV_HOTBACKUP
+# include "os0sync.h"
 
-/* The total amount of memory currently allocated from the OS with malloc */
-extern ulint	ut_total_allocated_memory;
+/* The total amount of memory currently allocated from the operating
+system with os_mem_alloc_large() or malloc().  Does not count malloc()
+if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
+extern ulint		ut_total_allocated_memory;
+
+/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+extern os_fast_mutex_t	ut_list_mutex;
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INLINE
 void*
@@ -28,6 +51,12 @@ UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
 
+/**************************************************************************
+Initializes the mem block list at database startup. */
+UNIV_INTERN
+void
+ut_mem_init(void);
+/*=============*/
 
 /**************************************************************************
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
@@ -52,6 +81,7 @@ ut_malloc(
 /*======*/
 			/* out, own: allocated memory */
 	ulint	n);	/* in: number of bytes to allocate */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
@@ -62,6 +92,7 @@ ut_test_malloc(
 /*===========*/
 			/* out: TRUE if succeeded */
 	ulint	n);	/* in: try to allocate this many bytes */
+#endif /* !UNIV_HOTBACKUP */
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */
 UNIV_INTERN
@@ -69,6 +100,7 @@ void
 ut_free(
 /*====*/
 	void* ptr);  /* in, own: memory block */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
@@ -106,6 +138,7 @@ UNIV_INTERN
 void
 ut_free_all_mem(void);
 /*=================*/
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INLINE
 char*

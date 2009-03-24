@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Database log
-
-(c) 1995 Innobase Oy
 
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
@@ -11,8 +27,11 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0byte.h"
+#include "ut0lst.h"
+#ifndef UNIV_HOTBACKUP
 #include "sync0sync.h"
 #include "sync0rw.h"
+#endif /* !UNIV_HOTBACKUP */
 
 typedef struct log_struct	log_t;
 typedef struct log_group_struct	log_group_t;
@@ -30,6 +49,7 @@ extern	ibool	log_debug_writes;
 #define	LOG_WAIT_ALL_GROUPS	93
 #define LOG_MAX_N_GROUPS	32
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Sets the global variable log_fsp_current_free_limit. Also makes a checkpoint,
 so that we know that the limit has been written to a log checkpoint field
@@ -39,6 +59,7 @@ void
 log_fsp_current_free_limit_set_and_checkpoint(
 /*==========================================*/
 	ulint	limit);	/* in: limit to set */
+#endif /* !UNIV_HOTBACKUP */
 /***********************************************************************
 Calculates where in log files we find a specified lsn. */
 UNIV_INTERN
@@ -56,6 +77,7 @@ log_calc_where_lsn_is(
 						files */
 	ib_int64_t	log_file_size);		/* in: log file size
 						(including the header) */
+#ifndef UNIV_HOTBACKUP
 /****************************************************************
 Writes to the log the string given. The log must be released with
 log_release. */
@@ -245,30 +267,16 @@ UNIV_INTERN
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
-	byte*	buf,	/* in: buffer containing checkpoint info */
-	ulint	n,	/* in: nth slot */
-	ulint*	file_no,/* out: archived file number */
-	ulint*	offset);/* out: archived file offset */
+	const byte*	buf,	/* in: buffer containing checkpoint info */
+	ulint		n,	/* in: nth slot */
+	ulint*		file_no,/* out: archived file number */
+	ulint*		offset);/* out: archived file offset */
 /**********************************************************
 Writes checkpoint info to groups. */
 UNIV_INTERN
 void
 log_groups_write_checkpoint_info(void);
 /*==================================*/
-#ifdef UNIV_HOTBACKUP
-/**********************************************************
-Writes info to a buffer of a log group when log files are created in
-backup restoration. */
-UNIV_INTERN
-void
-log_reset_first_header_and_checkpoint(
-/*==================================*/
-	byte*		hdr_buf,/* in: buffer which will be written to the
-				start of the first log file */
-	ib_uint64_t	start);	/* in: lsn of the start of the first log file;
-				we pretend that there is a checkpoint at
-				start + LOG_BLOCK_HDR_SIZE */
-#endif /* UNIV_HOTBACKUP */
 /************************************************************************
 Starts an archiving operation. */
 UNIV_INTERN
@@ -321,6 +329,20 @@ log_archived_file_name_gen(
 	char*	buf,	/* in: buffer where to write */
 	ulint	id,	/* in: group id */
 	ulint	file_no);/* in: file number */
+#else /* !UNIV_HOTBACKUP */
+/**********************************************************
+Writes info to a buffer of a log group when log files are created in
+backup restoration. */
+UNIV_INTERN
+void
+log_reset_first_header_and_checkpoint(
+/*==================================*/
+	byte*		hdr_buf,/* in: buffer which will be written to the
+				start of the first log file */
+	ib_uint64_t	start);	/* in: lsn of the start of the first log file;
+				we pretend that there is a checkpoint at
+				start + LOG_BLOCK_HDR_SIZE */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
@@ -330,6 +352,7 @@ UNIV_INTERN
 void
 log_check_margins(void);
 /*===================*/
+#ifndef UNIV_HOTBACKUP
 /**********************************************************
 Reads a specified log segment to a buffer. */
 UNIV_INTERN
@@ -366,7 +389,7 @@ UNIV_INTERN
 void
 log_group_set_fields(
 /*=================*/
-	log_group_t*	group,	/* in: group */
+	log_group_t*	group,	/* in/out: group */
 	ib_uint64_t	lsn);	/* in: lsn for which the values should be
 				set */
 /**********************************************************
@@ -376,42 +399,45 @@ UNIV_INTERN
 ulint
 log_group_get_capacity(
 /*===================*/
-				/* out: capacity in bytes */
-	log_group_t*	group);	/* in: log group */
+					/* out: capacity in bytes */
+	const log_group_t*	group);	/* in: log group */
+#endif /* !UNIV_HOTBACKUP */
 /****************************************************************
 Gets a log block flush bit. */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
 /*====================*/
-				/* out: TRUE if this block was the first
-				to be written in a log flush */
-	byte*	log_block);	/* in: log block */
+					/* out: TRUE if this block was
+					the first to be written in a
+					log flush */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Gets a log block number stored in the header. */
 UNIV_INLINE
 ulint
 log_block_get_hdr_no(
 /*=================*/
-				/* out: log block number stored in the block
-				header */
-	byte*	log_block);	/* in: log block */
+					/* out: log block number
+					stored in the block header */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Gets a log block data length. */
 UNIV_INLINE
 ulint
 log_block_get_data_len(
 /*===================*/
-				/* out: log block data length measured as a
-				byte offset from the block start */
-	byte*	log_block);	/* in: log block */
+					/* out: log block data length
+					measured as a byte offset from
+					the block start */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Sets the log block data length. */
 UNIV_INLINE
 void
 log_block_set_data_len(
 /*===================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	len);		/* in: data length */
 /****************************************************************
 Calculates the checksum for a log block. */
@@ -435,7 +461,7 @@ UNIV_INLINE
 void
 log_block_set_checksum(
 /*===================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	checksum);	/* in: checksum */
 /****************************************************************
 Gets a log block first mtr log record group offset. */
@@ -443,16 +469,17 @@ UNIV_INLINE
 ulint
 log_block_get_first_rec_group(
 /*==========================*/
-				/* out: first mtr log record group byte offset
-				from the block start, 0 if none */
-	byte*	log_block);	/* in: log block */
+					/* out: first mtr log record
+					group byte offset from the
+					block start, 0 if none */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Sets the log block first mtr log record group offset. */
 UNIV_INLINE
 void
 log_block_set_first_rec_group(
 /*==========================*/
-	byte*	log_block,	/* in: log block */
+	byte*	log_block,	/* in/out: log block */
 	ulint	offset);	/* in: offset, 0 if none */
 /****************************************************************
 Gets a log block checkpoint number field (4 lowest bytes). */
@@ -460,8 +487,9 @@ UNIV_INLINE
 ulint
 log_block_get_checkpoint_no(
 /*========================*/
-				/* out: checkpoint no (4 lowest bytes) */
-	byte*	log_block);	/* in: log block */
+					/* out: checkpoint no (4
+					lowest bytes) */
+	const byte*	log_block);	/* in: log block */
 /****************************************************************
 Initializes a log block in the log buffer. */
 UNIV_INLINE
@@ -697,7 +725,9 @@ struct log_struct{
 	ib_uint64_t	lsn;		/* log sequence number */
 	ulint		buf_free;	/* first free offset within the log
 					buffer */
+#ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/* mutex protecting the log */
+#endif /* !UNIV_HOTBACKUP */
 	byte*		buf;		/* log buffer */
 	ulint		buf_size;	/* log buffer size in bytes */
 	ulint		max_buf_free;	/* recommended maximum value of
@@ -720,6 +750,7 @@ struct log_struct{
 	UT_LIST_BASE_NODE_T(log_group_t)
 			log_groups;	/* log groups */
 
+#ifndef UNIV_HOTBACKUP
 	/* The fields involved in the log buffer flush */
 
 	ulint		buf_next_to_write;/* first offset in the log buffer
@@ -825,6 +856,7 @@ struct log_struct{
 					checkpoint write is running; a thread
 					should wait for this without owning
 					the log mutex */
+#endif /* !UNIV_HOTBACKUP */
 	byte*		checkpoint_buf;	/* checkpoint header is read to this
 					buffer */
 #ifdef UNIV_LOG_ARCHIVE

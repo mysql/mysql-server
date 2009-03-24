@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Data types
-
-(c) 1996 Innobase Oy
 
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
@@ -151,6 +167,7 @@ SQL null*/
 store the charset-collation number; one byte is left unused, though */
 #define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Gets the MySQL type code from a dtype. */
 UNIV_INLINE
@@ -181,6 +198,7 @@ dtype_get_at_most_n_mbchars(
 	ulint		data_len,	/* in: length of str (in bytes) */
 	const char*	str);		/* in: the string whose prefix
 					length is being determined */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type. */
@@ -245,6 +263,7 @@ ulint
 dtype_get_prtype(
 /*=============*/
 	const dtype_t*	type);
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Compute the mbminlen and mbmaxlen members of a data type structure. */
 UNIV_INLINE
@@ -284,6 +303,7 @@ dtype_is_utf8(
 /*==========*/
 			/* out: TRUE if a subset of UTF-8 */
 	ulint	prtype);/* in: precise data type */
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Gets the type length. */
 UNIV_INLINE
@@ -291,6 +311,7 @@ ulint
 dtype_get_len(
 /*==========*/
 	const dtype_t*	type);
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Gets the minimum length of a character, in bytes. */
 UNIV_INLINE
@@ -319,6 +340,7 @@ dtype_get_pad_char(
 				ULINT_UNDEFINED if no padding specified */
 	ulint	mtype,		/* in: main type */
 	ulint	prtype);	/* in: precise type */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE
@@ -331,6 +353,7 @@ dtype_get_fixed_size_low(
 	ulint	len,		/* in: length */
 	ulint	mbminlen,	/* in: minimum length of a multibyte char */
 	ulint	mbmaxlen);	/* in: maximum length of a multibyte char */
+#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Returns the minimum size of a data type. */
 UNIV_INLINE
@@ -353,6 +376,7 @@ dtype_get_max_size_low(
 				/* out: maximum size */
 	ulint	mtype,		/* in: main type */
 	ulint	len);		/* in: length */
+#endif /* !UNIV_HOTBACKUP */
 /***************************************************************************
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
 For fixed length types it is the fixed length of the type, otherwise 0. */
@@ -363,6 +387,7 @@ dtype_get_sql_null_size(
 				/* out: SQL null storage size
 				in ROW_FORMAT=REDUNDANT */
 	const dtype_t*	type);	/* in: type */
+#ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical
 ordering and the storage size of an SQL NULL value. */
@@ -396,6 +421,7 @@ dtype_new_read_for_order_and_null_size(
 /*===================================*/
 	dtype_t*	type,	/* in: type struct */
 	const byte*	buf);	/* in: buffer for stored type order info */
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Validates a data type structure. */
@@ -441,11 +467,12 @@ struct dtype_struct{
 					string data (in addition to
 					the string, MySQL uses 1 or 2
 					bytes to store the string length) */
-
+#ifndef UNIV_HOTBACKUP
 	unsigned	mbminlen:2;	/* minimum length of a
 					character, in bytes */
 	unsigned	mbmaxlen:3;	/* maximum length of a
 					character, in bytes */
+#endif /* !UNIV_HOTBACKUP */
 };
 
 #ifndef UNIV_NONINL

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The interface to the operating system thread control primitives
-
-(c) 1995 Innobase Oy
 
 Created 9/8/1995 Heikki Tuuri
 *******************************************************/
@@ -15,6 +31,7 @@ Created 9/8/1995 Heikki Tuuri
 #include <windows.h>
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "srv0srv.h"
 #include "os0sync.h"
 
@@ -132,7 +149,7 @@ os_thread_create(
 	os_thread_t	pthread;
 	pthread_attr_t	attr;
 
-#if !(defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10))
+#ifndef UNIV_HPUX10
 	pthread_attr_init(&attr);
 #endif
 
@@ -166,7 +183,7 @@ os_thread_create(
 	os_thread_count++;
 	os_mutex_exit(os_sync_mutex);
 
-#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
+#ifdef UNIV_HPUX10
 	ret = pthread_create(&pthread, pthread_attr_default, start_f, arg);
 #else
 	ret = pthread_create(&pthread, &attr, start_f, arg);
@@ -177,7 +194,7 @@ os_thread_create(
 		exit(1);
 	}
 
-#if !(defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10))
+#ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
 #endif
 	if (srv_set_thread_priorities) {
@@ -250,6 +267,7 @@ os_thread_yield(void)
 	os_thread_sleep(0);
 #endif
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
 The thread sleeps at least the time given in microseconds. */
@@ -273,6 +291,7 @@ os_thread_sleep(
 #endif
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Sets a thread priority. */
 UNIV_INTERN
@@ -347,3 +366,4 @@ os_thread_get_last_error(void)
 	return(0);
 #endif
 }
+#endif /* !UNIV_HOTBACKUP */
