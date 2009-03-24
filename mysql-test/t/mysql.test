@@ -332,39 +332,6 @@ EOF
 
 remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 
-#  
-# Bug #41486: extra character appears in BLOB for every ~40Mb after   
-#             mysqldump/import   
-#  
-  
-# Have to change the global variable as the session variable is 
-# read-only.
-set @old_max_allowed_packet = @@global.max_allowed_packet; 
-# 2 MB blob length + some space for the rest of INSERT query
-set @@global.max_allowed_packet = 2 * 1024 * 1024 + 1024; 
-
-# Create a new connection since the global max_allowed_packet
-# has no effect for the current connection
-connect (con1, localhost, root,,);
-connection con1; 
-
-CREATE TABLE t1(data LONGBLOB);  
-INSERT INTO t1 SELECT REPEAT('1', 2*1024*1024);  
-  
---exec $MYSQL_DUMP test t1 >$MYSQLTEST_VARDIR/tmp/bug41486.sql  
-# Check that the mysql client does not insert extra newlines when loading  
-# strings longer than client's max_allowed_packet  
---exec $MYSQL --max_allowed_packet=1M test < $MYSQLTEST_VARDIR/tmp/bug41486.sql 2>&1  
-SELECT LENGTH(data) FROM t1;  
-  
-remove_file $MYSQLTEST_VARDIR/tmp/bug41486.sql; 
-DROP TABLE t1;  
-
-connection default;
-disconnect con1;
-
-set @@global.max_allowed_packet = @old_max_allowed_packet; 
- 
 --echo End of 5.0 tests
 
 #
