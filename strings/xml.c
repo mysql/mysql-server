@@ -147,7 +147,7 @@ static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
   memcpy(st->attrend,str,len);
   st->attrend+=len;
   st->attrend[0]='\0';
-  return st->enter ?  st->enter(st,st->attr,st->attrend-st->attr) : MY_XML_OK;
+  return st->enter ?  st->enter(st,st->attr, (uint) (st->attrend - st->attr)) : MY_XML_OK;
 }
 
 
@@ -179,7 +179,7 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
     return MY_XML_ERROR;
   }
   
-  rc = p->leave_xml ?  p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
+  rc = p->leave_xml ?  p->leave_xml(p,p->attr, (uint) (p->attrend - p->attr)) : MY_XML_OK;
   
   *e='\0';
   p->attrend=e;

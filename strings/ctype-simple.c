@@ -193,7 +193,7 @@ uint my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
-  return str - str_orig;
+  return (uint) (str - str_orig);
 }
 
 
@@ -203,7 +203,7 @@ uint my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
-  return str - str_orig;
+  return (uint) (str - str_orig);
 }
 
 
@@ -1516,7 +1516,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
     }
   }
   
-  digits= str - beg;
+  digits= (int) (str - beg);
 
   /* Continue to accumulate into ulonglong */
   for (dot= NULL, ull= ul; str < end; str++)
@@ -1553,7 +1553,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       }
       else
       {
-        shift= dot - str;
+        shift= (int) (dot - str);
         for ( ; str < end && (ch= (unsigned char) (*str - '0')) < 10; str++);
       }
       goto exp;
@@ -1577,7 +1577,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
     /* Unknown character, exit the loop */
     break; 
   }
-  shift= dot ? dot - str : 0; /* Right shift */
+  shift= dot ? (int) (dot - str) : 0; /* Right shift */
   addon= 0;
 
 exp:    /* [ E [ <sign> ] <unsigned integer> ] */

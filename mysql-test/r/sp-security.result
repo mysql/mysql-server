@@ -332,7 +332,7 @@ ERROR 42000: SELECT command denied to user 'user_bug14533'@'localhost' for table
 drop user user_bug14533@localhost;
 drop database db_bug14533;
 CREATE DATABASE db_bug7787;
-use db_bug7787;
+USE db_bug7787;
 CREATE PROCEDURE p1()
 SHOW INNODB STATUS;
 Warnings:
@@ -352,12 +352,12 @@ GRANT SUPER ON *.* TO mysqltest_2@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 
 ---> connection: mysqltest_2_con
-use mysqltest;
+USE mysqltest;
 CREATE PROCEDURE wl2897_p1() SELECT 1;
 CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
 
 ---> connection: mysqltest_1_con
-use mysqltest;
+USE mysqltest;
 CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
@@ -373,7 +373,7 @@ Warnings:
 Note	1449	There is no 'a @ b @ c'@'localhost' registered
 
 ---> connection: con1root
-use mysqltest;
+USE mysqltest;
 SHOW CREATE PROCEDURE wl2897_p1;
 Procedure	sql_mode	Create Procedure
 wl2897_p1		CREATE DEFINER=`mysqltest_2`@`localhost` PROCEDURE `wl2897_p1`()
@@ -403,7 +403,7 @@ CREATE USER mysqltest_2@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 
 ---> connection: mysqltest_1_con
-use mysqltest;
+USE mysqltest;
 CREATE PROCEDURE bug13198_p1()
 SELECT 1;
 CREATE FUNCTION bug13198_f1() RETURNS INT
@@ -416,7 +416,7 @@ bug13198_f1()
 1
 
 ---> connection: mysqltest_2_con
-use mysqltest;
+USE mysqltest;
 CALL bug13198_p1();
 1
 1
@@ -428,7 +428,7 @@ bug13198_f1()
 DROP USER mysqltest_1@localhost;
 
 ---> connection: mysqltest_2_con
-use mysqltest;
+USE mysqltest;
 CALL bug13198_p1();
 ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
 SELECT bug13198_f1();
@@ -445,7 +445,7 @@ Host	User	Password
 localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
 
 ---> connection: mysqltest_2_con
-use test;
+USE test;
 CREATE PROCEDURE sp19857() DETERMINISTIC
 BEGIN
 DECLARE a INT;

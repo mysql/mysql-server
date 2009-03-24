@@ -35,23 +35,28 @@
 #include "portability.h"
 
 
+#ifndef __WIN__
 static void set_non_blocking(int socket)
 {
-#ifndef __WIN__
   int flags= fcntl(socket, F_GETFL, 0);
   fcntl(socket, F_SETFL, flags | O_NONBLOCK);
 #else
+static void set_non_blocking(SOCKET socket)
+{
   u_long arg= 1;
   ioctlsocket(socket, FIONBIO, &arg);
 #endif
 }
 
 
+#ifndef __WIN__
 static void set_no_inherit(int socket)
 {
-#ifndef __WIN__
   int flags= fcntl(socket, F_GETFD, 0);
   fcntl(socket, F_SETFD, flags | FD_CLOEXEC);
+#else
+static void set_no_inherit(SOCKET socket)
+{
 #endif
 }
 
@@ -71,7 +76,11 @@ private:
   ulong total_connection_count;
   Thread_info thread_info;
 
+#ifdef __WIN__
+  SOCKET  sockets[2];
+#else
   int     sockets[2];
+#endif
   int     num_sockets;
   fd_set  read_fds;
 private:
@@ -110,9 +119,10 @@ Listener_thread::~Listener_thread()
 
 void Listener_thread::run()
 {
-  int i, n= 0;
+  int i= 0;
 
 #ifndef __WIN__
+  int n= 0;
   /* we use this var to check whether we are running on LinuxThreads */
   pid_t thread_pid;
 
@@ -121,6 +131,8 @@ void Listener_thread::run()
   struct sockaddr_un unix_socket_address;
   /* set global variable */
   linuxthreads= (thread_pid != manager_pid);
+#else
+  SOCKET n= 0;
 #endif
 
   thread_registry.register_thread(&thread_info);
@@ -159,7 +171,11 @@ void Listener_thread::run()
       signal during shutdown. This results in failing assert
       (Thread_registry::~Thread_registry). Valgrind 2.2 works fine.
     */
+#ifdef __WIN__
+    int rc= select(0, &read_fds_arg, 0, 0, &tv);
+#else
     int rc= select(n, &read_fds_arg, 0, 0, &tv);
+#endif
 
     if (rc == 0 || rc == -1)
     {
@@ -175,11 +191,18 @@ void Listener_thread::run()
       /* Assuming that rc > 0 as we asked to wait forever */
       if (FD_ISSET(sockets[socket_index], &read_fds_arg))
       {
+#ifdef __WIN__
+        SOCKET client_fd= accept(sockets[socket_index], 0, 0);
+        /* accept may return INVALID_SOCKET on failure */
+        if (client_fd != INVALID_SOCKET)
+		{
+#else
         int client_fd= accept(sockets[socket_index], 0, 0);
         /* accept may return -1 (failure or spurious wakeup) */
         if (client_fd >= 0)                    // connection established
         {
           set_no_inherit(client_fd);
+#endif
 
           Vio *vio= vio_new(client_fd, socket_index == 0 ?
                             VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
@@ -230,7 +253,11 @@ int Listener_thread::create_tcp_socket()
   /* value to be set by setsockopt */
   int arg= 1;
 
+#ifdef __WIN__
+  SOCKET ip_socket= socket(AF_INET, SOCK_STREAM, 0);
+#else
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
+#endif
   if (ip_socket == INVALID_SOCKET)
   {
     log_error("Listener_thead::run(): socket(AF_INET) failed, %s",

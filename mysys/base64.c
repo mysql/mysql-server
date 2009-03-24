@@ -193,7 +193,7 @@ base64_decode(const char *src, size_t size, void *dst)
   {
     return -1;
   }
-  return d - dst_base;
+  return (int) (d - dst_base);
 }
 
 

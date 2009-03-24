@@ -112,6 +112,8 @@ extern "C" {
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
+
 typedef struct st_status
 {
   int exit_status;
@@ -1035,7 +1037,7 @@ static void fix_history(String *final_command);
 
 static COMMANDS *find_command(char *name,char cmd_name);
 static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment);
+                     bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1117,7 +1119,7 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (status.batch && !status.line_buff &&
-      !(status.line_buff=batch_readline_init(opt_max_allowed_packet+512,stdin)))
+      !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
     free_defaults(defaults_argv);
     my_end(0);
@@ -1197,7 +1199,7 @@ int main(int argc,char *argv[])
 #endif
   sprintf(buff, "%s",
 #ifndef NOT_YET
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input statement.\n");
 #else
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
@@ -1226,7 +1228,7 @@ sig_handler mysql_sigint(int sig)
     goto err;
   /* kill_buffer is always big enough because max length of %lu is 15 */
   sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
-  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
+  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
   tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
 
@@ -1766,13 +1768,14 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  bool truncated= 0;
   status.exit_status=1;
   
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
+      line=batch_readline(status.line_buff, &truncated);
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1891,7 +1894,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string,&ml_comment))
+    if (add_line(glob_buffer,line,&in_string,&ml_comment, truncated))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -1977,7 +1980,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
 
 
 static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment)
+                     bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2224,9 +2227,10 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     uint length=(uint) (out-line);
 
-    if (length < 9 || 
-        my_strnncoll (charset_info, 
-                      (uchar *)line, 9, (const uchar *) "delimiter", 9))
+    if (!truncated &&
+        (length < 9 || 
+         my_strnncoll (charset_info, 
+                       (uchar *)line, 9, (const uchar *) "delimiter", 9)))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
@@ -2639,7 +2643,7 @@ static void get_current_db()
       (res= mysql_use_result(&mysql)))
   {
     MYSQL_ROW row= mysql_fetch_row(res);
-    if (row[0])
+    if (row && row[0])
       current_db= my_strdup(row[0], MYF(MY_WME));
     mysql_free_result(res);
   }
@@ -3463,7 +3467,7 @@ static void print_warnings()
 
   /* Get the warnings */
   query= "show warnings";
-  mysql_real_query_for_lazy(query, strlen(query));
+  mysql_real_query_for_lazy(query, (uint) strlen(query));
   mysql_store_result_for_lazy(&result);
 
   /* Bail out when no warnings */
@@ -3886,7 +3890,7 @@ static int com_source(String *buffer, char *line)
     return put_info(buff, INFO_ERROR, 0);
   }
 
-  if (!(line_buff=batch_readline_init(opt_max_allowed_packet+512,sql_file)))
+  if (!(line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, sql_file)))
   {
     my_fclose(sql_file,MYF(0));
     return put_info("Can't initialize batch_readline", INFO_ERROR, 0);
@@ -4343,7 +4347,8 @@ server_version_string(MYSQL *con)
       MYSQL_ROW cur = mysql_fetch_row(result);
       if (cur && cur[0])
       {
-        bufp = strxnmov(bufp, sizeof buf - (bufp - buf), " ", cur[0], NullS);
+        bufp = strxnmov(bufp, (uint) (sizeof buf - (bufp - buf)), " ", cur[0],
+                        NullS);
       }
       mysql_free_result(result);
     }

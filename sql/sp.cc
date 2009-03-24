@@ -414,7 +414,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   thd->lex= &newlex;
   newlex.current_select= NULL;
 
-  parse_user(definer, strlen(definer),
+  parse_user(definer, (uint) strlen(definer),
              definer_user_name.str, &definer_user_name.length,
              definer_host_name.str, &definer_host_name.length);
 
@@ -929,7 +929,7 @@ sp_drop_db_routines(THD *thd, char *db)
   if (!(table= open_proc_table_for_update(thd)))
     goto err;
 
-  table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
+  table->field[MYSQL_PROC_FIELD_DB]->store(db, (uint) strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
 
   ret= SP_OK;
@@ -1099,8 +1099,8 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     sp_name *name;
     LEX_STRING lex_db;
     LEX_STRING lex_name;
-    lex_db.length= strlen(routine->db);
-    lex_name.length= strlen(routine->table_name);
+    lex_db.length= (uint) strlen(routine->db);
+    lex_name.length= (uint) strlen(routine->table_name);
     lex_db.str= thd->strmake(routine->db, lex_db.length);
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name, true);
@@ -1918,7 +1918,7 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
 
   if (thd->db)
   {
-    old_db->length= (strmake(old_db->str, thd->db, old_db->length - 1) -
+    old_db->length= (uint) (strmake(old_db->str, thd->db, old_db->length - 1) -
                      old_db->str);
   }
   else
