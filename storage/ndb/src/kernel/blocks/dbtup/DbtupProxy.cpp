@@ -106,8 +106,6 @@ DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
 void
 DbtupProxy::execDROP_TAB_REQ(Signal* signal)
 {
-  g_eventLogger->info("QQQ(%u) - DbtupProxy::execDROP_TAB_REQ %x", __LINE__, signal->getSendersBlockRef());
-
   const DropTabReq* req = (const DropTabReq*)signal->getDataPtr();
   Uint32 ssId = getSsId(req);
   Ss_DROP_TAB_REQ& ss = ssSeize<Ss_DROP_TAB_REQ>(ssId);
@@ -119,9 +117,6 @@ DbtupProxy::execDROP_TAB_REQ(Signal* signal)
 void
 DbtupProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
 {
-
-  g_eventLogger->info("QQQ(%u) - DbtupProxy::execDROP_TAB_REQ(%u) %x", __LINE__, ssId, signal->getSendersBlockRef());
-
   Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
 
   DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
@@ -135,8 +130,6 @@ DbtupProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
 void
 DbtupProxy::execDROP_TAB_CONF(Signal* signal)
 {
-  g_eventLogger->info("QQQ(%u) - DbtupProxy::execDROP_TAB_CONF %x", __LINE__, signal->getSendersBlockRef());
-
   const DropTabConf* conf = (const DropTabConf*)signal->getDataPtr();
   Uint32 ssId = getSsId(conf);
   Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
@@ -146,8 +139,6 @@ DbtupProxy::execDROP_TAB_CONF(Signal* signal)
 void
 DbtupProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
 {
-  g_eventLogger->info("QQQ(%u) - DbtupProxy::execDROP_TAB_CONF(%u) %x", __LINE__, ssId, signal->getSendersBlockRef());
-
   Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
   BlockReference dictRef = ss.m_req.senderRef;
 

@@ -133,9 +133,6 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
     conf->senderData = req->senderData;
     conf->senderRef = reference();
     conf->tupConnectPtr = fragOperPtr.i;
-
-    g_eventLogger->info("QQQ(%u) - Dbtup GSN_CREATE_TAB_CONF", __LINE__);
-
     sendSignal(req->senderRef, GSN_CREATE_TAB_CONF, signal,
                CreateTabConf::SignalLength, JBB);
   }
@@ -151,9 +148,6 @@ sendref:
   ref->senderData = req->senderData;
   ref->senderRef = reference();
   ref->errorCode = terrorCode;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_CREATE_TAB_REF", __LINE__);
-
   sendSignal(req->senderRef, GSN_CREATE_TAB_REF, signal,
              CreateTabRef::SignalLength, JBB);
 }
@@ -300,9 +294,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     jam();
     signal->theData[0] = fragOperPtr.p->lqhPtrFrag;
     signal->theData[1] = lastAttr;
-
-    g_eventLogger->info("QQQ(%u) - Dbtup GSN_TUP_ADD_ATTCONF", __LINE__);
-
     sendSignal(fragOperPtr.p->lqhBlockrefFrag, GSN_TUP_ADD_ATTCONF, 
 	       signal, 2, JBB);
     return;
@@ -385,9 +376,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 
   signal->theData[0] = fragOperPtr.p->lqhPtrFrag;
   signal->theData[1] = lastAttr;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_TUP_ADD_ATTCONF", __LINE__);
-
   sendSignal(fragOperPtr.p->lqhBlockrefFrag, GSN_TUP_ADD_ATTCONF, 
 	     signal, 2, JBB);
 
@@ -396,9 +384,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 error:
   signal->theData[0]= fragOperPtr.p->lqhPtrFrag;
   signal->theData[1]= terrorCode;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_TUP_ADD_ATTREF", __LINE__);
-
   sendSignal(fragOperPtr.p->lqhBlockrefFrag,
              GSN_TUP_ADD_ATTRREF, signal, 2, JBB);
   
@@ -552,9 +537,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   signal->theData[0]= userptr;
   signal->theData[1]= fragId;
   signal->theData[2]= regFragPtr.i;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_TUPFRAGCONF", __LINE__);
-
   sendSignal(userRef, GSN_TUPFRAGCONF, signal, 3, JBB);
 
   return;
@@ -563,9 +545,6 @@ sendref:
 
   signal->theData[0]= userptr;
   signal->theData[1]= terrorCode;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_TUPFRAGREF", __LINE__);
-
   sendSignal(userRef, GSN_TUPFRAGREF, signal, 2, JBB);
 }
 
@@ -1368,9 +1347,6 @@ Dbtup::undo_createtable_logsync_callback(Signal* signal, Uint32 ptrI,
   
   signal->theData[0] = fragOperPtr.p->lqhPtrFrag;
   signal->theData[1] = 1;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_TUP_ADD_ATTCONF", __LINE__);
-
   sendSignal(fragOperPtr.p->lqhBlockrefFrag, GSN_TUP_ADD_ATTCONF, 
 	     signal, 2, JBB);
   
@@ -1544,9 +1520,6 @@ void
 Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  
-  g_eventLogger->info("QQQ(%u) - Dbtup::execDROP_TAB_REQ %x", __LINE__, signal->getSendersBlockRef());
-
   if (ERROR_INSERTED(4013)) {
 #ifdef VM_TRACE
     verifytabdes();
@@ -1565,9 +1538,6 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
   signal->theData[0]= ZREL_FRAG;
   signal->theData[1]= tabPtr.i;
   signal->theData[2]= RNIL;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup ZREL_FRAG", __LINE__);
-
   sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
 }
 
@@ -1639,9 +1609,6 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     signal->theData[1] = tabPtr.i;
     signal->theData[2] = fragIndex;
     signal->theData[3] = 0;
-
-    g_eventLogger->info("QQQ(%u) - Dbtup ZUNMAP_PAGES", __LINE__);
-
     sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
     return;
   }
@@ -1658,16 +1625,12 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     if (r0)
     {
       jam();
-
-      g_eventLogger->info("QQQ(%u) - Failed to alloc log space for drop table", __LINE__);
-
       warningEvent("Failed to alloc log space for drop table: %u",
  		   tabPtr.i);
       goto done;
     }
 
     int res= lgman.get_log_buffer(signal, sz, &cb);
-    g_eventLogger->info("QQQ(%u) - lgman.get_log_buffer = %d", __LINE__, res);
     switch(res){
     case 0:
       jam();
@@ -1707,9 +1670,6 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
       signal->theData[1] = tabPtr.i;
       signal->theData[2] = fragPtr.i;
       signal->theData[3] = pos;
-
-      g_eventLogger->info("QQQ(%u) - Dbtup ZUNMAP_PAGES", __LINE__);
-
       sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
       return;
     }
@@ -1793,9 +1753,6 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = fragPtr.i;
   signal->theData[3] = pos;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup ZUNMAP_PAGES", __LINE__);
-
   sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
 }
 
@@ -1853,9 +1810,6 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
   signal->theData[0] = ZFREE_VAR_PAGES;
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = fragPtr.i;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup ZFREE_VAR_PAGES", __LINE__);
-
   sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);  
 }
 
@@ -1884,9 +1838,6 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   req.m_callback.m_callbackIndex = DROP_TABLE_LOGSYNC_CALLBACK;
   
   int ret = lgman.sync_lsn(signal, lsn, &req, 0);
-
-  g_eventLogger->info("QQQ(%u) - lgman.sync_lsn = %d", __LINE__, ret);
-
   switch(ret){
   case 0:
     return;
@@ -1910,9 +1861,6 @@ Dbtup::drop_table_logsync_callback(Signal* signal,
   dropConf->senderRef= reference();
   dropConf->senderData= tabPtr.p->m_dropTable.tabUserPtr;
   dropConf->tableId= tabPtr.i;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_DROP_TAB_CONF", __LINE__);
-
   sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_TAB_CONF,
              signal, DropTabConf::SignalLength, JBB);
   
@@ -1977,9 +1925,6 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       signal->theData[1] = tabPtr.i;
       signal->theData[2] = fragPtr.i;
       signal->theData[3] = pos;
-
-      g_eventLogger->info("QQQ(%u) - Dbtup ZFREE_EXTENT", __LINE__);
-
       sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
       return;
     }
@@ -2015,9 +1960,6 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
       signal->theData[0] = ZFREE_VAR_PAGES;
       signal->theData[1] = tabPtr.i;
       signal->theData[2] = fragPtr.i;
-
-      g_eventLogger->info("QQQ(%u) - Dbtup ZFREE_VAR_PAGES", __LINE__);
-
       sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
       return;
     }
@@ -2030,9 +1972,6 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = fragPtrI;
   memcpy(signal->theData+3, &iter, sizeof(iter));
-
-  g_eventLogger->info("QQQ(%u) - Dbtup ZFREE_PAGES", __LINE__);
-
   sendSignal(reference(), GSN_CONTINUEB, signal, 3 + sizeof(iter)/4, JBB);
 }
 
@@ -2074,9 +2013,6 @@ Dbtup::drop_fragment_free_pages(Signal* signal)
   signal->theData[1] = tableId;
   signal->theData[2] = fragPtrI;
   memcpy(signal->theData+3, &iter, sizeof(iter));
-
-  g_eventLogger->info("QQQ(%u) - Dbtup ZFREE_PAGES", __LINE__);
-
   sendSignal(reference(), GSN_CONTINUEB, signal, 3 + sizeof(iter)/4, JBB);
   return;
 
@@ -2133,9 +2069,6 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
     signal->theData[0]= ZREL_FRAG;
     signal->theData[1]= tabPtr.i;
     signal->theData[2]= logfile_group_id;
-
-    g_eventLogger->info("QQQ(%u) - Dbtup ZREL_FRAG", __LINE__);
-
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
   }
   else
@@ -2145,9 +2078,6 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
     conf->senderRef = reference();
     conf->senderData = tabPtr.p->m_dropTable.tabUserPtr;
     conf->tableId = tabPtr.i;
-
-    g_eventLogger->info("QQQ(%u) - Dbtup GSN_DROP_FRAG_CONF", __LINE__);
-
     sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_FRAG_CONF,
                signal, DropFragConf::SignalLength, JBB);
     return;
@@ -2175,9 +2105,6 @@ Dbtup::drop_fragment_fsremove(Signal* signal,
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcpno);
   FsOpenReq::v5_setTableId(req->fileNumber, tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragId);
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_FSREMOVEREQ", __LINE__);
-
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
              FsRemoveReq::SignalLength, JBB);
 }
@@ -2360,9 +2287,6 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
     signal->theData[1] = tabPtr.i;
     signal->theData[2] = fragIndex;
     signal->theData[3] = 0;
-
-    g_eventLogger->info("QQQ(%u) - Dbtup ZUNMAP_PAGES", __LINE__);
-
     sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
     return;
   }
@@ -2371,9 +2295,6 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
   conf->senderRef = reference();
   conf->senderData = tabPtr.p->m_dropTable.tabUserPtr;
   conf->tableId = tabPtr.i;
-
-  g_eventLogger->info("QQQ(%u) - Dbtup GSN_DROP_FRAG_CONF", __LINE__);
-
   sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_FRAG_CONF,
              signal, DropFragConf::SignalLength, JBB);
 }

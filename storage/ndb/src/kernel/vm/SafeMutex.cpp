@@ -60,7 +60,6 @@ SafeMutex::lock()
   if (m_level > 0)
   {
     pthread_t self = pthread_self();
-    ndbout_c("QQQ SafeMutex::lock %u %x,%x", m_level, m_owner, self);
   }
   ret = pthread_mutex_lock(&m_mutex);
   if (ret != 0)
@@ -79,11 +78,7 @@ SafeMutex::lock_impl()
       assert(m_owner == 0);
       m_owner = self;
     } else if (m_owner != self) {
-
-      ndbout_c("QQQ SafeMutex::lock_impl pthread_cond_wait - wait");
       ret = pthread_cond_wait(&m_cond, &m_mutex);
-      ndbout_c("QQQ SafeMutex::lock_impl pthread_cond_wait - done");
-
       if (ret != 0)
         return err(ret, __LINE__);
       continue;
