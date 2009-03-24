@@ -78,7 +78,6 @@ the above strings. */
 	((str1_len) == sizeof(str2_onstack) \
 	 && memcmp(str1, str2_onstack, sizeof(str2_onstack)) == 0)
 
-#ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Determine if the given name is a name reserved for MySQL system tables. */
 static
@@ -98,7 +97,6 @@ row_mysql_is_system_table(
 	       || 0 == strcmp(name + 6, "user")
 	       || 0 == strcmp(name + 6, "db"));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 If a table is not yet in the drop list, adds the table to the list of tables
@@ -489,7 +487,6 @@ row_mysql_handle_errors(
 	que_thr_t*	thr,	/* in: query thread */
 	trx_savept_t*	savept)	/* in: savepoint or NULL */
 {
-#ifndef UNIV_HOTBACKUP
 	ulint	err;
 
 handle_new_error:
@@ -583,13 +580,6 @@ handle_new_error:
 	trx->error_state = DB_SUCCESS;
 
 	return(FALSE);
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-	return(FALSE);
-#endif /* UNIV_HOTBACKUP */
 }
 
 /************************************************************************
@@ -1743,7 +1733,6 @@ row_mysql_unlock_data_dictionary(
 	trx->dict_operation_lock_mode = 0;
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
@@ -2110,12 +2099,11 @@ row_table_add_foreign_constraints(
 
 	err = dict_create_foreign_constraints(trx, sql_string, name,
 					      reject_fks);
-#ifndef UNIV_HOTBACKUP
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		err = dict_load_foreigns(name, TRUE);
 	}
-#endif /* !UNIV_HOTBACKUP */
+
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 
@@ -3375,9 +3363,7 @@ funct_exit:
 
 	trx->op_info = "";
 
-#ifndef UNIV_HOTBACKUP
 	srv_wake_master_thread();
-#endif /* !UNIV_HOTBACKUP */
 
 	return((int) err);
 }
@@ -4198,7 +4184,6 @@ row_check_table_for_mysql(
 
 	return(ret);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Determines if a table is a magic monitor table. */

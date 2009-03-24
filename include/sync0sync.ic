@@ -254,9 +254,7 @@ mutex_enter_func(
 	/* Note that we do not peek at the value of lock_word before trying
 	the atomic test_and_set; we could peek, and possibly save time. */
 
-#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
-	mutex->count_using++;
-#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
+	ut_d(mutex->count_using++);
 
 	if (!mutex_test_and_set(mutex)) {
 		ut_d(mutex->thread_id = os_thread_get_curr_id());

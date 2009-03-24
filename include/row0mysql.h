@@ -351,7 +351,6 @@ void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/* in/out: transaction */
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
@@ -502,7 +501,6 @@ row_check_table_for_mysql(
 					/* out: DB_ERROR or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Determines if a table is a magic monitor table. */

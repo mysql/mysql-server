@@ -824,8 +824,6 @@ row_search_index_entry(
 	return(!page_rec_is_infimum(rec) && low_match == n_fields);
 }
 
-#ifndef UNIV_HOTBACKUP
-
 #include <my_sys.h>
 
 /***********************************************************************
@@ -1019,8 +1017,6 @@ row_raw_format(
 
 	return(ret);
 }
-
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
