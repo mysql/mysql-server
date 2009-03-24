@@ -1583,20 +1583,20 @@ innobase_query_caching_of_table_permitted(
 }
 
 /*********************************************************************
-Invalidates the MySQL query cache for the table.
-NOTE that the exact prototype of this function has to be in
-/innobase/row/row0ins.c! */
+Invalidates the MySQL query cache for the table. */
 extern "C" UNIV_INTERN
 void
 innobase_invalidate_query_cache(
 /*============================*/
-	trx_t*	trx,		/* in: transaction which modifies the table */
-	char*	full_name,	/* in: concatenation of database name, null
-				char '\0', table name, null char'\0';
-				NOTE that in Windows this is always
-				in LOWER CASE! */
-	ulint	full_name_len)	/* in: full name length where also the null
-				chars count */
+	trx_t*		trx,		/* in: transaction which
+					modifies the table */
+	const char*	full_name,	/* in: concatenation of
+					database name, null char '\0',
+					table name, null char '\0';
+					NOTE that in Windows this is
+					always in LOWER CASE! */
+	ulint		full_name_len)	/* in: full name length where
+					also the null chars count */
 {
 	/* Note that the sync0sync.h rank of the query cache mutex is just
 	above the InnoDB kernel mutex. The caller of this function must not
@@ -1605,7 +1605,7 @@ innobase_invalidate_query_cache(
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
 	mysql_query_cache_invalidate4((THD*) trx->mysql_thd,
-				      (const char*) full_name,
+				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
 #endif

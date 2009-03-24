@@ -40,9 +40,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "sync0arr.h"
 
-#ifndef UNIV_HOTBACKUP
 extern my_bool	timed_mutexes;
-#endif /* UNIV_HOTBACKUP */
 
 /**********************************************************************
 Initializes the synchronization data structures. */
@@ -515,9 +513,8 @@ struct mutex_struct {
 	ulint		magic_n;
 # define MUTEX_MAGIC_N	(ulint)979585
 #endif /* UNIV_DEBUG */
-#ifndef UNIV_HOTBACKUP
 	ulong		count_os_wait; /* count of os_wait */
-# ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	ulong		count_using; /* count of times mutex used */
 	ulong		count_spin_loop; /* count of spin loops */
 	ulong		count_spin_rounds; /* count of spin rounds */
@@ -526,8 +523,7 @@ struct mutex_struct {
 	ulonglong	lmax_spent_time; /* mutex os_wait timer msec */
 	const char*	cmutex_name;/* mutex name */
 	ulint		mutex_type;/* 0 - usual mutex 1 - rw_lock mutex	 */
-# endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG */
 };
 
 /* The global array of wait cells for implementation of the databases own
