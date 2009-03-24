@@ -633,7 +633,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     memcpy(rc.buf, uncompressed_header, uncompressed_magic_len);
 
     // decompress the sub blocks
-    void *uncompressed_data = rc.buf+uncompressed_magic_len;
+    unsigned char *uncompressed_data = rc.buf+uncompressed_magic_len;
     struct decompress_work decompress_work[n_sub_blocks];
 
     for (i=0; i<n_sub_blocks; i++) {
