@@ -232,7 +232,7 @@ sub _cdb {
 
   my $cdb_cmd = "!sym prompts off; !analyze -v; .ecxr; !for_each_frame dv /t;!uniqstack -p;q";
   my $cdb_output=
-    `cdb -z $core_name -i "$image_path" -y "$symbol_path" -t 0 -lines -c "$cdb_cmd" 2>&1`;
+    `cdb -c "$cdb_cmd" -z $core_name -i "$image_path" -y "$symbol_path" -t 0 -lines 2>&1`;
   return if $? >> 8;
   return unless $cdb_output;
   
