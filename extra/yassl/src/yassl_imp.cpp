@@ -532,7 +532,7 @@ void Parameters::SetCipherNames()
 
     for (int j = 0; j < suites; j++) {
         int index = suites_[j*2 + 1];  // every other suite is suite id
-        int len = strlen(cipher_names[index]) + 1;
+        size_t len = strlen(cipher_names[index]) + 1;
         strncpy(cipher_list_[pos++], cipher_names[index], len);
     }
     cipher_list_[pos][0] = 0;
