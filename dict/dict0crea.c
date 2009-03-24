@@ -1156,7 +1156,6 @@ function_exit:
 	return(thr);
 }
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
@@ -1500,4 +1499,3 @@ dict_create_add_foreigns_to_dictionary(
 
 	return(DB_SUCCESS);
 }
-#endif /* !UNIV_HOTBACKUP */

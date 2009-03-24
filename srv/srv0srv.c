@@ -356,12 +356,11 @@ UNIV_INTERN ulint		srv_n_rows_inserted		= 0;
 UNIV_INTERN ulint		srv_n_rows_updated		= 0;
 UNIV_INTERN ulint		srv_n_rows_deleted		= 0;
 UNIV_INTERN ulint		srv_n_rows_read			= 0;
-#ifndef UNIV_HOTBACKUP
+
 static ulint	srv_n_rows_inserted_old		= 0;
 static ulint	srv_n_rows_updated_old		= 0;
 static ulint	srv_n_rows_deleted_old		= 0;
 static ulint	srv_n_rows_read_old		= 0;
-#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
@@ -660,7 +659,6 @@ srv_table_get_nth_slot(
 	return(srv_sys->threads + index);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Gets the number of threads in the system. */
 UNIV_INTERN
@@ -766,7 +764,6 @@ srv_suspend_thread(void)
 
 	return(event);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Releases threads of the type given from suspension in the thread table.
@@ -1286,7 +1283,6 @@ srv_boot(void)
 	return(DB_SUCCESS);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Reserves a slot in the thread table for the current MySQL OS thread.
 NOTE! The kernel mutex has to be reserved by the caller! */
@@ -1351,7 +1347,6 @@ srv_table_reserve_slot_for_mysql(void)
 
 	return(slot);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Puts a MySQL OS thread to wait for a lock to be released. If an error
@@ -1366,7 +1361,6 @@ srv_suspend_mysql_thread(
 	que_thr_t*	thr)	/* in: query thread associated with the MySQL
 				OS thread */
 {
-#ifndef UNIV_HOTBACKUP
 	srv_slot_t*	slot;
 	os_event_t	event;
 	double		wait_time;
@@ -1531,12 +1525,6 @@ srv_suspend_mysql_thread(
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 	}
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-#endif /* UNIV_HOTBACKUP */
 }
 
 /************************************************************************
@@ -1549,7 +1537,6 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr)	/* in: query thread associated with the
 				MySQL OS thread	 */
 {
-#ifndef UNIV_HOTBACKUP
 	srv_slot_t*	slot;
 	ulint		i;
 
@@ -1569,15 +1556,8 @@ srv_release_mysql_thread_if_suspended(
 	}
 
 	/* not found */
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-#endif /* UNIV_HOTBACKUP */
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Refreshes the values used to calculate per-second averages. */
 static
@@ -2634,4 +2614,3 @@ suspend_thread:
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
-#endif /* !UNIV_HOTBACKUP */

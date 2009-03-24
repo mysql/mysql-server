@@ -1438,7 +1438,6 @@ lock_rec_has_expl(
 }
 
 #ifdef UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Checks if some other transaction has a lock request in the queue. */
 static
@@ -1485,7 +1484,6 @@ lock_rec_other_has_expl_req(
 
 	return(NULL);
 }
-# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 
 /*************************************************************************
@@ -4330,8 +4328,6 @@ lock_rec_print(
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
-
 #ifdef UNIV_DEBUG
 /* Print the number of lock structs from lock_print_info_summary() only
 in non-production builds for performance reasons, see
@@ -4575,7 +4571,7 @@ loop:
 	goto loop;
 }
 
-# ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a table. */
 static
@@ -4910,8 +4906,7 @@ lock_validate(void)
 
 	return(TRUE);
 }
-# endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG */
 /*============ RECORD LOCK CHECKS FOR ROW OPERATIONS ====================*/
 
 /*************************************************************************
