@@ -44,7 +44,7 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   for (;;)
   {
     errno= 0;					/* Linux doesn't reset this */
-    if ((readbytes= read(Filedes, Buffer, Count)) != Count)
+    if ((readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
     {
       my_errno= errno ? errno : -1;
       DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",

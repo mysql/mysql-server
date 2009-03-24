@@ -130,7 +130,7 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
     total_buf_elems+= *pbuf;
   *last= total_buf_elems;
 
-  int n_buffers= last - first + 1;
+  size_t n_buffers= last - first + 1;
 
   /* Using log2(n)=log(n)/log(2) formula */
   return 2*((double)total_buf_elems*elem_size) / IO_SIZE +

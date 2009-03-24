@@ -39,7 +39,7 @@
   
 */
 
-static char *mstr(char *str,const char *src,uint l1,uint l2)
+static char *mstr(char *str,const char *src,size_t l1,size_t l2)
 {
   l1= l1<l2 ? l1 : l2;
   memcpy(str,src,l1);
@@ -143,7 +143,7 @@ typedef struct my_cs_file_info
 
 
 
-static int fill_uchar(uchar *a,uint size,const char *str, uint len)
+static int fill_uchar(uchar *a,uint size,const char *str, size_t len)
 {
   uint i= 0;
   const char *s, *b, *e=str+len;
