@@ -7169,7 +7169,7 @@ void init_re_comp(my_regex_t *re, const char* str)
     char erbuf[100];
     int len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
-	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
+	re_eprint(err), (int)len, (int)sizeof(erbuf), erbuf);
   }
 }
 
@@ -7225,7 +7225,7 @@ int match_re(my_regex_t *re, char *str)
     char erbuf[100];
     int len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
-	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
+	re_eprint(err), (int)len, (int)sizeof(erbuf), erbuf);
   }
   return 0;
 }
