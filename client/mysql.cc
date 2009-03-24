@@ -49,7 +49,7 @@ const char *VER= "14.14";
 #define MAX_COLUMN_LENGTH	     1024
 
 /* Buffer to hold 'version' and 'version_comment' */
-#define MAX_SERVER_VERSION_LENGTH     128
+static char *server_version= NULL;
 
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
@@ -1236,6 +1236,7 @@ sig_handler mysql_end(int sig)
   glob_buffer.free();
   old_buffer.free();
   processed_prompt.free();
+  my_free(server_version,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
   my_free(histfile,MYF(MY_ALLOW_ZERO_PTR));
@@ -2666,7 +2667,7 @@ static void get_current_db()
       (res= mysql_use_result(&mysql)))
   {
     MYSQL_ROW row= mysql_fetch_row(res);
-    if (row[0])
+    if (row && row[0])
       current_db= my_strdup(row[0], MYF(MY_WME));
     mysql_free_result(res);
   }
@@ -4365,15 +4366,10 @@ select_limit, max_join_size);
 static const char *
 server_version_string(MYSQL *con)
 {
-  static char buf[MAX_SERVER_VERSION_LENGTH] = "";
-
   /* Only one thread calls this, so no synchronization is needed */
-  if (buf[0] == '\0')
+  if (server_version == NULL)
   {
-    char *bufp = buf;
     MYSQL_RES *result;
-
-    bufp= strnmov(buf, mysql_get_server_info(con), sizeof buf);
 
     /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
     if (!mysql_query(con, "select @@version_comment limit 1") &&
@@ -4382,17 +4378,32 @@ server_version_string(MYSQL *con)
       MYSQL_ROW cur = mysql_fetch_row(result);
       if (cur && cur[0])
       {
-        bufp = strxnmov(bufp, sizeof buf - (bufp - buf), " ", cur[0], NullS);
+        /* version, space, comment, \0 */
+        size_t len= strlen(mysql_get_server_info(con)) + strlen(cur[0]) + 2;
+
+        if ((server_version= (char *) my_malloc(len, MYF(MY_WME))))
+        {
+          char *bufp;
+          bufp = strmov(server_version, mysql_get_server_info(con));
+          bufp = strmov(bufp, " ");
+          (void) strmov(bufp, cur[0]);
+        }
       }
       mysql_free_result(result);
     }
 
-    /* str*nmov doesn't guarantee NUL-termination */
-    if (bufp == buf + sizeof buf)
-      buf[sizeof buf - 1] = '\0';
+    /*
+      If for some reason we didn't get a version_comment, we'll
+      keep things simple.
+    */
+
+    if (server_version == NULL)
+    {
+      server_version= strdup(mysql_get_server_info(con));
+    }
   }
 
-  return buf;
+  return server_version ? server_version : "";
 }
 
 static int

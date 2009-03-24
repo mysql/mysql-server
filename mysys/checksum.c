@@ -36,7 +36,7 @@ ha_checksum my_checksum(ha_checksum crc, const uchar *pos, size_t length)
     crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
   return crc;
 #else
-  return (ha_checksum)crc32((uint)crc, pos, length);
+  return (ha_checksum)crc32((uint)crc, pos, (uint)length);
 #endif
 }
 

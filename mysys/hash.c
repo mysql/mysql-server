@@ -33,7 +33,7 @@ typedef struct st_hash_info {
   uchar *data;					/* data for current entry */
 } HASH_LINK;
 
-static uint my_hash_mask(uint hashnr, uint buffmax, uint maxlength);
+static uint my_hash_mask(size_t hashnr, size_t buffmax, size_t maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
 static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
                    size_t length);
@@ -157,14 +157,14 @@ my_hash_key(const HASH *hash, const uchar *record, size_t *length,
 
 	/* Calculate pos according to keys */
 
-static uint my_hash_mask(uint hashnr, uint buffmax, uint maxlength)
+static uint my_hash_mask(size_t hashnr, size_t buffmax, size_t maxlength)
 {
   if ((hashnr & (buffmax-1)) < maxlength) return (hashnr & (buffmax-1));
   return (hashnr & ((buffmax >> 1) -1));
 }
 
 static uint my_hash_rec_mask(const HASH *hash, HASH_LINK *pos,
-                             uint buffmax, uint maxlength)
+                             size_t buffmax, size_t maxlength)
 {
   size_t length;
   uchar *key= (uchar*) my_hash_key(hash, pos->data, &length, 0);
@@ -309,8 +309,7 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 my_bool my_hash_insert(HASH *info, const uchar *record)
 {
   int flag;
-  size_t idx;
-  uint halfbuff,hash_nr,first_index;
+  size_t idx,halfbuff,hash_nr,first_index;
   uchar *ptr_to_rec,*ptr_to_rec2;
   HASH_LINK *data,*empty,*gpos,*gpos2,*pos;
 
@@ -539,8 +538,8 @@ exit:
 my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
                        size_t old_key_length)
 {
-  uint new_index,new_pos_index,blength,records,empty;
-  size_t idx;
+  uint new_index,new_pos_index,blength,records;
+  size_t idx,empty;
   HASH_LINK org_link,*data,*previous,*pos;
   DBUG_ENTER("my_hash_update");
   

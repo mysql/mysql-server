@@ -213,7 +213,7 @@ void PublicKey::AddToEnd(const byte* data, word32 len)
 Signer::Signer(const byte* k, word32 kSz, const char* n, const byte* h)
     : key_(k, kSz)
 {
-        int sz = strlen(n);
+        size_t sz = strlen(n);
         memcpy(name_, n, sz);
         name_[sz] = 0;
 
