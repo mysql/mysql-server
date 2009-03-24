@@ -115,19 +115,6 @@ undefined.  Map it to NULL. */
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* These must be weak global variables in the dynamic plugin. */
 struct handlerton* innodb_hton_ptr;
-#ifdef __WIN__
-struct st_mysql_plugin*	builtin_innobase_plugin_ptr;
-#else
-int builtin_innobase_plugin;
-#endif /* __WIN__ */
-/********************************************************************
-Copy InnoDB system variables from the static InnoDB to the dynamic
-plugin. */
-static
-bool
-innodb_plugin_init(void);
-/*====================*/
-		/* out: TRUE if the dynamic InnoDB plugin should start */
 #else /* MYSQL_DYNAMIC_PLUGIN */
 /* This must be a global variable in the statically linked InnoDB. */
 struct handlerton* innodb_hton_ptr = NULL;
@@ -1857,19 +1844,6 @@ innobase_init(
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
-
-#ifdef MYSQL_DYNAMIC_PLUGIN
-	if (!innodb_plugin_init()) {
-		sql_print_error("InnoDB plugin init failed.");
-		DBUG_RETURN(-1);
-	}
-
-	if (innodb_hton_ptr) {
-		/* Patch the statically linked handlerton and variables */
-		innobase_hton = innodb_hton_ptr;
-	}
-#endif /* MYSQL_DYNAMIC_PLUGIN */
-
         innodb_hton_ptr = innobase_hton;
 
         innobase_hton->state = SHOW_OPTION_YES;
@@ -9753,168 +9727,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   NULL
 };
-
-#ifdef MYSQL_DYNAMIC_PLUGIN
-struct st_mysql_sys_var
-{
-	MYSQL_PLUGIN_VAR_HEADER;
-	void* value;
-};
-
-struct param_mapping
-{
-	const char*	server;		/* Parameter name in the server. */
-	const char*	plugin;		/* Paramater name in the plugin. */
-};
-
-/********************************************************************
-Match the parameters from the static and dynamic versions. */
-static
-bool
-innobase_match_parameter(
-/*=====================*/
-					/* out: true if names match */
-	const char*	from_server,	/* in: variable name from server */
-	const char*	from_plugin)	/* in: variable name from plugin */
-{
-	static const param_mapping param_map[] = {
-		{"use_adaptive_hash_indexes", "adaptive_hash_index"}
-	};
-
-	if (strcmp(from_server, from_plugin) == 0) {
-		return(true);
-	}
-
-	const param_mapping*	param = param_map;
-	int	n_elems = sizeof(param_map) / sizeof(param_map[0]);
-
-	for (int i = 0; i < n_elems; ++i, ++param) {
-
-		if (strcmp(param->server, from_server) == 0
-		    && strcmp(param->plugin, from_plugin) == 0) {
-
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
-/********************************************************************
-Copy InnoDB system variables from the static InnoDB to the dynamic
-plugin. */
-static
-bool
-innodb_plugin_init(void)
-/*====================*/
-		/* out: TRUE if the dynamic InnoDB plugin should start */
-{
-#if !MYSQL_STORAGE_ENGINE_PLUGIN
-#error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
-#endif
-
-	/* Copy the system variables. */
-
-	struct st_mysql_plugin*		builtin;
-	struct st_mysql_sys_var**	sta; /* static parameters */
-	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
-
-#ifdef __WIN__
-	if (!builtin_innobase_plugin_ptr) {
-
-		return(true);
-	}
-
-	builtin = builtin_innobase_plugin_ptr;
-#else
-	switch (builtin_innobase_plugin) {
-	case 0:
-		return(true);
-	case MYSQL_STORAGE_ENGINE_PLUGIN:
-		break;
-	default:
-		return(false);
-	}
-
-	builtin = (struct st_mysql_plugin*) &builtin_innobase_plugin;
-#endif
-
-	for (sta = builtin->system_vars; *sta != NULL; sta++) {
-
-		for (dyn = innobase_system_variables; *dyn != NULL; dyn++) {
-
-			/* do not copy session variables */
-			if (((*sta)->flags | (*dyn)->flags)
-			    & PLUGIN_VAR_THDLOCAL) {
-				continue;
-			}
-
-			if (innobase_match_parameter((*sta)->name,
-						     (*dyn)->name)) {
-
-				/* found the corresponding parameter */
-
-				/* check if the flags are the same,
-				ignoring differences in the READONLY or
-				NOSYSVAR flags;
-				e.g. we are not copying string variable to
-				an integer one, but we do not care if it is
-				readonly in the static and not in the
-				dynamic */
-				if (((*sta)->flags ^ (*dyn)->flags)
-				    & ~(PLUGIN_VAR_READONLY
-					| PLUGIN_VAR_NOSYSVAR)) {
-
-					fprintf(stderr,
-						"InnoDB: %s in static InnoDB "
-						"(flags=0x%x) differs from "
-						"%s in dynamic InnoDB "
-						"(flags=0x%x)\n",
-						(*sta)->name, (*sta)->flags,
-						(*dyn)->name, (*dyn)->flags);
-
-					/* we could break; here leaving this
-					parameter uncopied */
-					return(false);
-				}
-
-				/* assign the value of the static parameter
-				to the dynamic one, according to their type */
-
-#define COPY_VAR(label, type)					\
-	case label:						\
-		*(type*)(*dyn)->value = *(type*)(*sta)->value;	\
-		break;
-
-				switch ((*sta)->flags
-					& ~(PLUGIN_VAR_MASK
-					    | PLUGIN_VAR_UNSIGNED)) {
-
-				COPY_VAR(PLUGIN_VAR_BOOL, char);
-				COPY_VAR(PLUGIN_VAR_INT, int);
-				COPY_VAR(PLUGIN_VAR_LONG, long);
-				COPY_VAR(PLUGIN_VAR_LONGLONG, long long);
-				COPY_VAR(PLUGIN_VAR_STR, char*);
-
-				default:
-					fprintf(stderr,
-						"InnoDB: unknown flags "
-						"0x%x for %s\n",
-						(*sta)->flags, (*sta)->name);
-				}
-
-				/* Make the static InnoDB variable point to
-				the dynamic one */
-				(*sta)->value = (*dyn)->value;
-
-				break;
-			}
-		}
-	}
-
-	return(true);
-}
-#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 mysql_declare_plugin(innobase)
 {
