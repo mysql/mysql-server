@@ -1918,7 +1918,7 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         ref1 + sizeof(u_int32_t),
         *(u_int32_t *)ref1,
         ref2 + sizeof(u_int32_t),
-        *(u_int32_t *)ref_length,
+        *(u_int32_t *)ref2,
         false
         );
 exit:
