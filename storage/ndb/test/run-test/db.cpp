@@ -16,23 +16,82 @@
 #include "atrt.hpp"
 #include <NdbSleep.h>
 
-static bool run_sql(atrt_process*, const char * str);
 static bool connect_mysqld(atrt_process* proc);
 static bool populate_db(atrt_config&, atrt_process*);
 static bool setup_repl(atrt_config&);
 
-static atrt_process* f_mysqld = 0;
-
 static
-int
-run_query(atrt_process* src, const char * query)
+bool
+run_query(atrt_process* proc, const char * query)
 {
-  g_logger.debug("%s:%s - %s",
-		 src->m_cluster->m_name.c_str(),
-		 src->m_host->m_hostname.c_str(),
-		 query);
-  return mysql_query(&src->m_mysql, query);
+  MYSQL* mysql = &proc->m_mysql;
+  g_logger.debug("'%s@%s' - Running query '%s'",
+		 proc->m_cluster->m_name.c_str(),
+		 proc->m_host->m_hostname.c_str(),
+                 query);
+
+  if (mysql_query(mysql, query))
+  {
+    g_logger.error("'%s@%s' - Failed to run query '%s' %d:%s",
+                   proc->m_cluster->m_name.c_str(),
+                   proc->m_host->m_hostname.c_str(),
+                   query,
+                   mysql_errno(mysql),
+                   mysql_error(mysql));
+    return false;
+  }
+  return true;
 }
+
+static const char* create_sql[] = {
+"create database atrt",
+
+"use atrt",
+
+"create table host ("
+"   id int primary key,"
+"   name varchar(255),"
+"   port int unsigned,"
+"   unique(name, port)"
+") engine = myisam;",
+
+"create table cluster ("
+"   id int primary key,"
+"   name varchar(255),"
+"   unique(name)"
+"   ) engine = myisam;",
+
+"create table process ("
+"  id int primary key,"
+"  host_id int not null,"
+"  cluster_id int not null,"
+"  node_id int not null,"
+"  type enum ('ndbd', 'ndbapi', 'ndb_mgmd', 'mysqld', 'mysql') not null,"
+"  state enum ('starting', 'started', 'stopping', 'stopped') not null"
+"  ) engine = myisam;",
+
+"create table options ("
+"  id int primary key,"
+"  process_id int not null,"
+"  name varchar(255) not null,"
+"  value varchar(255) not null"
+"  ) engine = myisam;",
+
+"create table repl ("
+"  id int auto_increment primary key,"
+"  master_id int not null,"
+"  slave_id int not null"
+"  ) engine = myisam;",
+
+"create table command ("
+"  id int auto_increment primary key,"
+"  state enum ('new', 'running', 'done') not null default 'new',"
+"  cmd int not null,"
+"  process_id int not null,"
+"  process_args varchar(255) default NULL"
+"  ) engine = myisam;",
+
+  0};
 
 bool
 setup_db(atrt_config& config)
@@ -77,34 +136,27 @@ setup_db(atrt_config& config)
   
   if (atrt_client)
   {
-    f_mysqld = atrt_client->m_mysqld;
-    assert(f_mysqld);
+    atrt_process* atrt_mysqld = atrt_client->m_mysqld;
+    assert(atrt_mysqld);
 
-    BaseString tmp;
-    tmp.assfmt("%s/bin/mysql -uroot < %s/mysql-test/ndb/db.sql", 
-	       g_prefix, g_prefix);
-    if (!run_sql(atrt_client, tmp.c_str()))
-      return false;
-
-    if (mysql_query(&f_mysqld->m_mysql, "USE atrt"))
+    // Run the commands to create the db
+    for (int i = 0; create_sql[i]; i++)
     {
-      g_logger.error("Failed to change db to atrt");
-      return false;
+      const char* query = create_sql[i];
+      if (!run_query(atrt_mysqld, query))
+        return false;
+      g_logger.info("hello");
     }
     
-    if (!populate_db(config, f_mysqld))
-    {
+    if (!populate_db(config, atrt_mysqld))
       return false;
-    }
   }
   
   /**
    * setup replication
    */
   if (setup_repl(config) != true)
-  {
     return false;
-  }
   
   return true;
 }
@@ -164,35 +216,6 @@ connect_mysqld(atrt_process* proc)
 		 proc->m_host->m_hostname.c_str(), port ? atoi(port) : 0,
 		 socket ? socket : "<null>");
   return false;
-}
-
-bool
-run_sql(atrt_process * proc, const char * sql)
-{
-  bool res = true;
-  if (chdir(proc->m_proc.m_cwd.c_str()))
-  {
-    g_logger.error("Failed to chdir to %s!!", proc->m_proc.m_cwd.c_str());
-    return false;
-  }
-
-  BaseString tmp;
-  tmp.assfmt(". env.sh ; %s", sql);
-
-  g_logger.debug("%s-system(%s)", proc->m_proc.m_cwd.c_str(), tmp.c_str());
-  if (system(tmp.c_str()) != 0)
-  {
-    g_logger.error("Failed to run sql: %s", sql);
-    res = false;
-    abort();
-  }
-  
-  if (chdir(g_cwd))
-  {
-    g_logger.error("Failed to chdir (back) %s", g_cwd);
-  }
-  
-  return res;
 }
 
 void
@@ -419,14 +442,14 @@ static
 bool
 setup_repl(atrt_process* dst, atrt_process* src)
 {
-  if (run_query(src, "STOP SLAVE"))
+  if (!run_query(src, "STOP SLAVE"))
   {
     g_logger.error("Failed to stop slave: %s",
 		   mysql_error(&src->m_mysql));
     return false;
   }
 
-  if (run_query(src, "RESET SLAVE"))
+  if (!run_query(src, "RESET SLAVE"))
   {
     g_logger.error("Failed to reset slave: %s",
 		   mysql_error(&src->m_mysql));
@@ -440,7 +463,7 @@ setup_repl(atrt_process* dst, atrt_process* src)
 	     dst->m_host->m_hostname.c_str(),
 	     atoi(find(dst, "--port=")));
   
-  if (run_query(src, tmp.c_str()))
+  if (!run_query(src, tmp.c_str()))
   {
     g_logger.error("Failed to setup repl from %s to %s: %s",
 		   src->m_host->m_hostname.c_str(),
@@ -449,7 +472,7 @@ setup_repl(atrt_process* dst, atrt_process* src)
     return false;
   }
 
-  if (run_query(src, "START SLAVE"))
+  if (!run_query(src, "START SLAVE"))
   {
     g_logger.error("Failed to start slave: %s",
 		   mysql_error(&src->m_mysql));
