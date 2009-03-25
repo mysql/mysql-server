@@ -870,8 +870,17 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
       if (likely(!(col->flags & (NdbRecord::IsBlob|NdbRecord::IsMysqldBitfield))))
       {
-        if (( ! (col->flags & NdbRecord::IsKey)) ||
-            ( isScanTakeover ) )
+        int idxColNum= -1;
+        const NdbRecord::Attr* idxCol= NULL;
+        
+        /* Take data from the key row for key columns, attr row otherwise 
+         * Always attr row for scan takeover
+         */
+        if (( isScanTakeover ) ||
+            ( ( key_rec->m_attrId_indexes_length <= attrId) ||
+              ( (idxColNum= key_rec->m_attrId_indexes[attrId]) == -1 )   ||
+              ( ! (idxCol= &key_rec->columns[idxColNum] )) ||
+              ( ! (idxCol->flags & NdbRecord::IsKey)) ) )
         {
           /* Normal path where we get data from the attr row 
            * Always get ATTRINFO data from the attr row for ScanTakeover
@@ -891,17 +900,18 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
         }
         else
         {
-          /* For Insert/Write where user provides PK columns,
+          /* For Insert/Write where user provides key columns,
            * take them from the key record row to avoid sending different
            * values in KeyInfo and AttrInfo
            * Need the correct Attr struct from the key
            * record
+           * Note that the key record could be for a unique index.
            */
           assert(key_rec != 0); /* Not scan takeover */
           assert(key_rec->m_attrId_indexes_length > attrId);
-          int keyColIdx= key_rec->m_attrId_indexes[attrId];
-          assert(keyColIdx != -1);
-          col= &key_rec->columns[keyColIdx];
+          assert(key_rec->m_attrId_indexes[attrId] != -1);
+          assert(idxCol != NULL);
+          col= idxCol;
           assert(col->attrId == attrId);
           assert(col->flags & NdbRecord::IsKey);
           
