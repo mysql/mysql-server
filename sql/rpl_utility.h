@@ -294,12 +294,14 @@ namespace {
 }
 #endif
 
+// NB. number of printed bit values is limited to sizeof(buf) - 1
 #define DBUG_PRINT_BITSET(N,FRM,BS)                \
   do {                                             \
     char buf[256];                                 \
-    for (uint i = 0 ; i < (BS)->n_bits ; ++i)      \
+    uint i;                                        \
+    for (i = 0 ; i < min(sizeof(buf) - 1, (BS)->n_bits) ; i++) \
       buf[i] = bitmap_is_set((BS), i) ? '1' : '0'; \
-    buf[(BS)->n_bits] = '\0';                      \
+    buf[i] = '\0';                                 \
     DBUG_PRINT((N), ((FRM), buf));                 \
   } while (0)
 
