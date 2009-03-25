@@ -160,11 +160,11 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  const char * val;
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
-	  tmp.assfmt("%s/bin/mysql_install_db --defaults-file=%s/my.cnf --datadir=%s > /dev/null 2>&1",
-		     g_prefix, g_basedir, val);
+	  tmp.assfmt("%s/bin/mysql_install_db --defaults-file=%s/my.cnf --datadir=%s > %s/mysql_install_db.log 2>&1",
+		     g_prefix, g_basedir, val, proc.m_proc.m_cwd.c_str());
 	  if (system(tmp.c_str()) != 0)
 	  {
-	    g_logger.error("Failed to mysql_install_db for %s, cmd: >%s<",
+	    g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
 			   proc.m_proc.m_cwd.c_str(),
 			   tmp.c_str());
 	  }
