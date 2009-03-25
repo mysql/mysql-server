@@ -1430,6 +1430,32 @@ static void fill_buffer(MI_BIT_BUFF *bit_buff)
     bit_buff->current_byte=0;
     return;
   }
+  else
+  {
+    uint len= 0;
+    uint i= 0;
+    /*
+      Check if the remaining buffer/record to read is less than the word size.
+      If so read byte by byte
+
+      Note: if this branch becomes a bottleneck it can be removed, assuming
+      that the second memory segment allocates 7 extra bytes (see
+      _mi_read_pack_info()).
+    */
+    len= bit_buff->end - bit_buff->pos;
+    if (len < (BITS_SAVED / 8))
+    {
+      bit_buff->current_byte= 0;
+      for (i=0 ; i < len ; i++)
+      {
+        bit_buff->current_byte+= (((uint) ((uchar) bit_buff->pos[len - i - 1]))
+                                                                    << (8 * i));
+      }
+      bit_buff->pos= bit_buff->end;
+      return;
+    }
+  }
+
 #if BITS_SAVED == 64
   bit_buff->current_byte=  ((((uint) ((uchar) bit_buff->pos[7]))) +
 			     (((uint) ((uchar) bit_buff->pos[6])) << 8) +
