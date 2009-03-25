@@ -381,7 +381,7 @@ sp_name::sp_name(THD *thd, char *key, uint key_len)
   m_qname.length= key_len - 1;
   if ((m_name.str= strchr(m_qname.str, '.')))
   {
-    m_db.length= m_name.str - key;
+    m_db.length= (uint) (m_name.str - key);
     m_db.str= strmake_root(thd->mem_root, key, m_db.length);
     m_name.str++;
     m_name.length= m_qname.length - m_db.length - 1;
@@ -447,7 +447,7 @@ sp_head::operator new(size_t size) throw()
   sp_head *sp;
 
   init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-  sp= (sp_head *) alloc_root(&own_root, size);
+  sp= (sp_head *) alloc_root(&own_root, (uint) size);
   if (sp == NULL)
     DBUG_RETURN(NULL);
   sp->main_mem_root= own_root;
@@ -598,7 +598,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
 
   if (m_param_begin && m_param_end)
   {
-    m_params.length= m_param_end - m_param_begin;
+    m_params.length= (uint) (m_param_end - m_param_begin);
     m_params.str= strmake_root(root,
                                (char *)m_param_begin, m_params.length);
   }
@@ -611,9 +611,9 @@ sp_head::init_strings(THD *thd, LEX *lex)
   */
   endp= skip_rear_comments(thd->charset(), (char*) m_body_begin, (char*) endp);
 
-  m_body.length= endp - m_body_begin;
+  m_body.length= (uint) (endp - m_body_begin);
   m_body.str= strmake_root(root, m_body_begin, m_body.length);
-  m_defstr.length= endp - lip->buf;
+  m_defstr.length= (uint) (endp - lip->buf);
   m_defstr.str= strmake_root(root, lip->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
@@ -3606,7 +3606,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       memcpy(tname+tlen, table->table_name, table->table_name_length);
       tlen+= table->table_name_length;
       tname[tlen++]= '\0';
-      alen= strlen(table->alias);
+      alen= (uint) strlen(table->alias);
       memcpy(tname+tlen, table->alias, alen);
       tlen+= alen;
       tname[tlen]= '\0';
@@ -3771,9 +3771,9 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
     thd->fatal_error();
     return NULL;
   }
-  table->db_length= strlen(db);
+  table->db_length= (uint) strlen(db);
   table->db= thd->strmake(db, table->db_length);
-  table->table_name_length= strlen(name);
+  table->table_name_length= (uint) strlen(name);
   table->table_name= thd->strmake(name, table->table_name_length);
   table->alias= thd->strdup(name);
   table->lock_type= locktype;

@@ -54,7 +54,7 @@ static Geometry::Class_info **ci_collection_end=
 
 Geometry::Class_info::Class_info(const char *name, int type_id,
 					 void(*create_func)(void *)):
-  m_name(name, strlen(name)), m_type_id(type_id), m_create_func(create_func)
+  m_name(name, (uint) strlen(name)), m_type_id(type_id), m_create_func(create_func)
 {
   ci_collection[type_id]= this;
 }
