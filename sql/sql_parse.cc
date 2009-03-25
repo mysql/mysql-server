@@ -7427,22 +7427,21 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       If we're SUPER, we can KILL anything, including system-threads.
       No further checks.
 
-      thd..user could in theory be NULL while we're still in
-      "unauthenticated" state. This is more a theoretical case.
+      KILLer: thd->security_ctx->user could in theory be NULL while
+      we're still in "unauthenticated" state. This is a theoretical
+      case (the code suggests this could happen, so we play it safe).
 
-      tmp..user will be NULL for system threads (cf Bug#43748).
+      KILLee: tmp->security_ctx->user will be NULL for system threads.
       We need to check so Jane Random User doesn't crash the server
-      when trying to kill a) system threads or b) unauthenticated
-      users' threads.
+      when trying to kill a) system threads or b) unauthenticated users'
+      threads (Bug#43748).
 
-      If user of both killer and killee are non-null, proceed with
+      If user of both killer and killee are non-NULL, proceed with
       slayage if both are string-equal.
     */
 
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
-        ((thd->security_ctx->user != NULL) &&
-         (tmp->security_ctx->user != NULL) &&
-         !strcmp(thd->security_ctx->user, tmp->security_ctx->user)))
+        thd->security_ctx->user_matches(tmp->security_ctx))
     {
       tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;
