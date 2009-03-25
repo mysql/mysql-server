@@ -604,6 +604,8 @@ END//
 CALL p1();
 c1	c2	c3	d1	d2	d3
 utf8_general_ci	utf8_unicode_ci	utf8_unicode_ci	2	2	2
+Warnings:
+Warning	1105	Invoked routine ran a statement that may cause problems with binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' section of the manual.
 SHOW BINLOG EVENTS FROM 1285;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	1285	Query	1	1483	use `bug39182`; CREATE TEMPORARY TABLE tmp1
@@ -613,4 +615,42 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP DATABASE bug39182;
 USE test;
+CREATE PROCEDURE p1(IN v1 INT)
+BEGIN
+CREATE TABLE t1 SELECT v1;
+DROP TABLE t1;
+END//
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE v1 INT;
+CREATE TABLE t1 SELECT v1+1;
+DROP TABLE t1;
+END//
+CREATE PROCEDURE p3(IN v1 INT)
+BEGIN
+CREATE TABLE t1 SELECT 1 FROM DUAL WHERE v1!=0;
+DROP TABLE t1;
+END//
+CREATE PROCEDURE p4(IN v1 INT)
+BEGIN
+DECLARE v2 INT;
+CREATE TABLE t1 SELECT 1, v1, v2;
+DROP TABLE t1;
+CREATE TABLE t1 SELECT 1, v1+1, v2;
+DROP TABLE t1;
+END//
+CALL p1(1);
+CALL p2();
+Warnings:
+Warning	1105	Invoked routine ran a statement that may cause problems with binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' section of the manual.
+CALL p3(0);
+Warnings:
+Warning	1105	Invoked routine ran a statement that may cause problems with binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' section of the manual.
+CALL p4(0);
+Warnings:
+Warning	1105	Invoked routine ran a statement that may cause problems with binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' section of the manual.
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
 End of 5.0 tests

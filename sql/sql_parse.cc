@@ -3211,6 +3211,42 @@ mysql_execute_command(THD *thd)
     }
     if (select_lex->item_list.elements)		// With select
     {
+      /*
+        If:
+        a) we inside an SP and there was NAME_CONST substitution,
+        b) binlogging is on,
+        c) we log the SP as separate statements
+        raise a warning, as it may cause problems
+        (see 'NAME_CONST issues' in 'Binary Logging of Stored Programs')
+       */
+      if (thd->query_name_consts && 
+          mysql_bin_log.is_open() &&
+          !mysql_bin_log.is_query_in_union(thd, thd->query_id))
+      {
+        List_iterator_fast<Item> it(select_lex->item_list);
+        Item *item;
+        uint splocal_refs= 0;
+        /* Count SP local vars in the top-level SELECT list */
+        while ((item= it++))
+        {
+          if (item->is_splocal())
+            splocal_refs++;
+        }
+        /*
+          If it differs from number of NAME_CONST substitution applied,
+          we may have a SOME_FUNC(NAME_CONST()) in the SELECT list,
+          that may cause a problem with binary log (see BUG#35383),
+          raise a warning. 
+        */
+        if (splocal_refs != thd->query_name_consts)
+          push_warning(thd, 
+                       MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_UNKNOWN_ERROR,
+"Invoked routine ran a statement that may cause problems with "
+"binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
+"section of the manual.");
+      }
+      
       select_result *sel_result;
 
       select_lex->options|= SELECT_NO_UNLOCK;
