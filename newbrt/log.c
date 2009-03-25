@@ -587,29 +587,26 @@ int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len)
 }
 
 int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v) {
-    u_int8_t c0,c1,c2,c3;
+    u_int32_t result;
+    u_int8_t *cp = (u_int8_t*)&result;
     int r;
-    r = toku_fread_u_int8_t_nocrclen (f, &c0); if (r!=0) return r;
-    r = toku_fread_u_int8_t_nocrclen (f, &c1); if (r!=0) return r;
-    r = toku_fread_u_int8_t_nocrclen (f, &c2); if (r!=0) return r;
-    r = toku_fread_u_int8_t_nocrclen (f, &c3); if (r!=0) return r;
-    *v = ((c0<<24)|
-	  (c1<<16)|
-	  (c2<< 8)|
-	  (c3<<0));
+    r = toku_fread_u_int8_t_nocrclen (f, cp+0); if (r!=0) return r;
+    r = toku_fread_u_int8_t_nocrclen (f, cp+1); if (r!=0) return r;
+    r = toku_fread_u_int8_t_nocrclen (f, cp+2); if (r!=0) return r;
+    r = toku_fread_u_int8_t_nocrclen (f, cp+3); if (r!=0) return r;
+    *v = toku_dtoh32(result);
+
     return 0;
 }
 int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct x1764 *checksum, u_int32_t *len) {
-    u_int8_t c0,c1,c2,c3;
+    u_int32_t result;
+    u_int8_t *cp = (u_int8_t*)&result;
     int r;
-    r = toku_fread_u_int8_t (f, &c0, checksum, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, &c1, checksum, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, &c2, checksum, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, &c3, checksum, len); if(r!=0) return r;
-    *v = ((c0<<24)|
-	  (c1<<16)|
-	  (c2<< 8)|
-	  (c3<<0));
+    r = toku_fread_u_int8_t (f, cp+0, checksum, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, cp+1, checksum, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, cp+2, checksum, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, cp+3, checksum, len); if(r!=0) return r;
+    *v = toku_dtoh32(result);
     return 0;
 }
 
