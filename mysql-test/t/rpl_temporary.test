@@ -3,42 +3,6 @@ source include/add_anonymous_users.inc;
 
 source include/master-slave.inc;
 
-#
-# Bug#43748: crash when non-super user tries to kill the replication threads
-#
-
---connection master
-save_master_pos;
-
---connection slave
-sync_with_master;
-
---connection slave
-FLUSH PRIVILEGES;
-
-# in 5.0, we need to do some hocus pocus to get a system-thread ID (-> $id)
---source include/get_binlog_dump_thread_id.inc
-
-# make a non-privileged user on slave. try to KILL system-thread as her.
-GRANT USAGE ON *.* TO user43748@localhost;
-
---connect (mysqltest_2_con,localhost,user43748,,test,$SLAVE_MYPORT,)
---connection mysqltest_2_con
-
---replace_result $id "`select id from information_schema.processlist where command='Binlog Dump'`"
---error ER_KILL_DENIED_ERROR
-eval KILL $id;
-
---disconnect mysqltest_2_con
-
---connection slave
-
-DROP USER user43748@localhost;
-
---connection master
-
-
-
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
 # and this test does SHOW BINLOG EVENTS on the slave's
