@@ -3227,8 +3227,14 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_pos");
     /* We don't need to set app_data here */
     bzero((void *) to, sizeof(*to));
-    to->data = pos + sizeof(u_int32_t);
-    to->size = *(u_int32_t *)pos;
+    if (hidden_primary_key) {
+        to->data = pos;
+        to->size = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
+    }
+    else {
+        to->data = pos + sizeof(u_int32_t);
+        to->size = *(u_int32_t *)pos;
+    }
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
     DBUG_RETURN(to);
 }
