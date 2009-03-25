@@ -2805,6 +2805,14 @@ Security_context::restore_security_context(THD *thd,
 }
 #endif
 
+
+bool Security_context::user_matches(Security_context *them)
+{
+  return ((user != NULL) && (them->user != NULL) &&
+          !strcmp(user, them->user));
+}
+
+
 /****************************************************************************
   Handling of open and locked tables states.
 

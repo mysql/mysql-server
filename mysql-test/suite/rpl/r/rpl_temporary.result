@@ -108,3 +108,13 @@ select * from t1;
 a
 1
 drop table t1;
+Bug#43748
+make a non-privileged user on slave.
+FLUSH PRIVILEGES;
+GRANT USAGE ON *.* TO user43748@127.0.0.1 IDENTIFIED BY 'meow';
+try to KILL system-thread as non-privileged user.
+KILL `select id from information_schema.processlist where command='Binlog Dump'`;
+ERROR HY000: You are not owner of thread `select id from information_schema.processlist where command='Binlog Dump'`
+throw out test-user on slave.
+DROP USER user43748@127.0.0.1;
+done. back to master.
