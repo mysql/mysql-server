@@ -8,6 +8,7 @@
 #include "toku_assert.h"
 #include "brttypes.h"
 #include "memory.h"
+#include "toku_htonl.h"
 
 struct rbuf {
     unsigned char *buf;
@@ -18,6 +19,15 @@ struct rbuf {
 static inline unsigned int rbuf_char (struct rbuf *r) {
     assert(r->ndone<r->size);
     return r->buf[r->ndone++];
+}
+
+//Read an int that MUST be in network order regardless of disk order
+static unsigned int rbuf_network_int (struct rbuf *r) __attribute__((__unused__));
+static unsigned int rbuf_network_int (struct rbuf *r) {
+    assert(r->ndone+4 <= r->size);
+    u_int32_t result = toku_ntohl(*(u_int32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
+    r->ndone+=4;
+    return result;
 }
 
 static unsigned int rbuf_int (struct rbuf *r) {

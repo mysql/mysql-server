@@ -5,6 +5,7 @@
 
 #include "toku_portability.h"
 #include "brt.h"
+#include "toku_htonl.h"
 
 
 #define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); } while (0)

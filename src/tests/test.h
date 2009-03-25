@@ -9,6 +9,7 @@
 #include <db.h>
 #include <assert.h>
 #include <limits.h>
+#include "toku_htonl.h"
 #if defined(USE_TDB)
 #include "ydb.h"
 //TDB uses DB_NOTFOUND for c_del and DB_CURRENT errors.

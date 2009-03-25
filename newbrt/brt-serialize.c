@@ -903,6 +903,7 @@ int toku_serialize_brt_header_size (struct brt_header *h) {
     unsigned int size = (+8 // "tokudata"
 			 +4 // size
 			 +4 // version
+                         +8 // byte order verification
 			 +4 // tree's nodesize
 			 +8 // free blocks
 			 +8 // unused blocks
@@ -930,8 +931,9 @@ int toku_serialize_brt_header_size (struct brt_header *h) {
 int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) {
     unsigned int size = toku_serialize_brt_header_size (h); // !!! seems silly to recompute the size when the caller knew it.  Do we really need the size?
     wbuf_literal_bytes(wbuf, "tokudata", 8);
-    wbuf_int    (wbuf, size);
-    wbuf_int    (wbuf, h->layout_version);
+    wbuf_network_int  (wbuf, size); //MUST be in network order regardless of disk order
+    wbuf_network_int  (wbuf, h->layout_version); //MUST be in network order regardless of disk order
+    wbuf_literal_bytes(wbuf, &toku_byte_order_host, 8); //Must not translate byte order
     wbuf_int    (wbuf, h->nodesize);
     //TODO: Use 'prelocked/unlocked' versions to make this atomic
 //TODO: #1463 START
@@ -1044,9 +1046,15 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
     h->dirty=0;
     h->panic = 0;
     h->panic_string = 0;
-    h->layout_version = rbuf_int(&rc);
+    //version MUST be in network order on disk regardless of disk order
+    h->layout_version = rbuf_network_int(&rc);
+    assert(h->layout_version==BRT_LAYOUT_VERSION_10);
+    bytevec tmp_byte_order_check;
+    rbuf_literal_bytes(&rc, &tmp_byte_order_check, 8); //Must not translate byte order
+    int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
+    assert(byte_order_stored == toku_byte_order_host);
+
     h->nodesize      = rbuf_int(&rc);
-    assert(h->layout_version==BRT_LAYOUT_VERSION_9 || h->layout_version==BRT_LAYOUT_VERSION_10);
     BLOCKNUM free_blocks = rbuf_blocknum(&rc);
     BLOCKNUM unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
@@ -1142,7 +1150,10 @@ int toku_deserialize_brtheader_from (int fd, BLOCKNUM blocknum, struct brt_heade
     if (r!=12) return EINVAL;
     assert(memcmp(magic,"tokudata",8)==0);
     // It's version 7 or later, and the magi clooks OK
-    return deserialize_brtheader(toku_dtoh32(*(int*)(&magic[8])), fd, offset, brth);
+
+    //size MUST be in network order on disk regardless of disk order
+    u_int32_t size = toku_ntohl(*(int*)(&magic[8]));
+    return deserialize_brtheader(size, fd, offset, brth);
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {

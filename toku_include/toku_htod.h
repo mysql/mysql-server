@@ -22,8 +22,9 @@
 #ifndef HTOD_H
 #define HTOD_H
 
-#include "toku_htonl.h"
+static const int64_t toku_byte_order_host = 0x0102030405060708LL;
 
+#include <endian.h>
 #if !defined(__BYTE_ORDER) || \
     !defined(__LITTLE_ENDIAN) || \
     !defined(__BIG_ENDIAN)
@@ -34,52 +35,29 @@
 #define INTEL_BYTE_ORDER    (__LITTLE_ENDIAN)
 #define HOST_BYTE_ORDER     (__BYTE_ORDER)
 
-//Switch DISK_BYTE_ORDER to INTEL_BYTE_ORDER to speed up intel.
-//#define DISK_BYTE_ORDER     (NETWORK_BYTE_ORDER)
+//DISK_BYTE_ORDER is the byte ordering for integers written to disk.
+//If DISK_BYTE_ORDER is the same as HOST_BYTE_ORDER no conversions are necessary.
+//Otherwise some structures require conversion to HOST_BYTE_ORDER on loading from disk (HOST_BYTE_ORDER in memory), and
+//others require conversion to HOST_BYTE_ORDER on every access/mutate (DISK_BYTE_ORDER in memory).
 #define DISK_BYTE_ORDER     (INTEL_BYTE_ORDER)
 
-#if defined(__PDP_ENDIAN) && (HOST_BYTE_ORDER==__PDP_ENDIAN)
-#error "Are we in ancient Rome?  You REALLY want support for PDP_ENDIAN?"
-#elif (HOST_BYTE_ORDER!=__BIG_ENDIAN) && (HOST_BYTE_ORDER!=__LITTLE_ENDIAN)
-#error HOST_BYTE_ORDER not well defined
+#if HOST_BYTE_ORDER!=INTEL_BYTE_ORDER
+//Even though the functions are noops if DISK==HOST, we do not have the logic to test whether the file was moved from another BYTE_ORDER machine.
+#error Only intel byte order supported so far.
 #endif
 
-#if HOST_BYTE_ORDER==DISK_BYTE_ORDER
-#define HTOD_NEED_SWAP 0
+#if DISK_BYTE_ORDER == HOST_BYTE_ORDER
+static inline uint32_t
+toku_dtoh32(uint32_t i) {
+    return i;
+}
+
+static inline uint32_t
+toku_htod32(uint32_t i) {
+    return i;
+}
 #else
-#define HTOD_NEED_SWAP 1
-#if (HOST_BYTE_ORDER==__BIG_ENDIAN)
-#error Byte swapping on Big Endian is not coded in htod.c
-#endif
-#endif
-
-#if !HTOD_NEED_SWAP
-static inline uint32_t
-toku_dtoh32(uint32_t i) {
-    return i;
-}
-
-static inline uint32_t
-toku_htod32(uint32_t i) {
-    return i;
-}
-
-#elif HOST_BYTE_ORDER == __LITTLE_ENDIAN //HTOD_NEED_SWAP
-
-static inline uint32_t
-toku_dtoh32(uint32_t i) {
-    return ntohl(i);
-}
-
-static inline uint32_t
-toku_htod32(uint32_t i) {
-    return htonl(i);
-}
-
-#elif HOST_BYTE_ORDER == __BIG_ENDIAN //!HTOD_NEED_SWAP
-
-#error Byte swapping in big endian not yet supported
-
+#error Not supported
 #endif
 
 #endif
