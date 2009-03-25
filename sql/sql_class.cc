@@ -599,6 +599,7 @@ THD::THD()
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
+  query_name_consts= 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
