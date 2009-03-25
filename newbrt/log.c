@@ -927,9 +927,15 @@ static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
     unsigned char header[SKIP+8];
     int r = read(fd, header, SKIP+8);
     if (r!=SKIP+8) return 0; // cannot determine that it's archivable, so we'll assume no.  If a later-log is archivable is then this one will be too.
-    u_int64_t lsn = 0;
-    int i;
-    for (i=0; i<8; i++) lsn=(lsn<<8)+header[SKIP+i];
+
+    u_int64_t lsn;
+    {
+        struct rbuf rb;
+        rb.buf   = header+SKIP;
+        rb.size  = 8;
+        rb.ndone = 0;
+        lsn = rbuf_ulonglong(&rb);
+    }
 
     r=close(fd);
     if (r!=0) { return 0; }
