@@ -16,19 +16,11 @@ extern "C" {
 #endif
 
 static inline void *thd_data_get(THD *thd, int slot) {
-#if MYSQL_VERSION_ID <= 50123
-    return thd->ha_data[slot];
-#else
     return thd->ha_data[slot].ha_ptr;
-#endif
 }
 
 static inline void thd_data_set(THD *thd, int slot, void *data) {
-#if MYSQL_VERSION_ID <= 50123
-    thd->ha_data[slot] = data;
-#else
     thd->ha_data[slot].ha_ptr = data;
-#endif
 }
 
 #undef PACKAGE
@@ -1514,12 +1506,12 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(uchar * record, uchar* data, uint
         /* tokutek change to make pack_key and unpack_key work for
            decimals */
         uint unpack_length = key_part->length;
-        pos = (uchar *) key_part->field->unpack_key(record + field_offset(key_part->field, table), pos,
-#if MYSQL_VERSION_ID < 50123
-                                                    unpack_length);
-#else
-                                                    unpack_length, table->s->db_low_byte_first);
-#endif
+        pos = (uchar *) key_part->field->unpack_key(
+            record + field_offset(key_part->field, table), 
+            pos,
+            unpack_length, 
+            table->s->db_low_byte_first
+            );
     }
     return pos-data;
 }
@@ -1579,12 +1571,12 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
         // because key_part->offset is SET INCORRECTLY in add_index
         // filed ticket 862 to look into this
         //
-        curr_buff = key_part->field->pack_key(curr_buff, (uchar *) (record + field_offset(key_part->field, table)),
-#if MYSQL_VERSION_ID < 50123
-                                         key_part->length);
-#else
-                                         key_part->length, table->s->db_low_byte_first);
-#endif
+        curr_buff = key_part->field->pack_key(
+            curr_buff, 
+            (uchar *) (record + field_offset(key_part->field, table)),
+            key_part->length, 
+            table->s->db_low_byte_first
+            );
         key_length -= key_part->length;
     }
     return curr_buff - buff;
@@ -1714,12 +1706,12 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
             *buff++ = NONNULL_COL_VAL;
             offset = 1;         // Data is at key_ptr+1
         }
-        buff = key_part->field->pack_key_from_key_image(buff, (uchar *) key_ptr + offset,
-#if MYSQL_VERSION_ID < 50123
-                                                        key_part->length);
-#else
-                                                        key_part->length, table->s->db_low_byte_first);
-#endif
+        buff = key_part->field->pack_key_from_key_image(
+            buff, 
+            (uchar *) key_ptr + offset,
+            key_part->length, 
+            table->s->db_low_byte_first
+            );
         key_ptr += key_part->store_length;
         key_length -= key_part->store_length;
     }
