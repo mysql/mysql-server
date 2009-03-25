@@ -21,9 +21,7 @@ static inline uint32_t toku_ntohl(uint32_t i) {
     return _bswap(i);
 }
 
-#endif
-
-#if defined(_MSVC_VER)
+#elif defined(_MSVC_VER)
 #include <winsock.h>
 
 static inline uint32_t toku_htonl(uint32_t i) {

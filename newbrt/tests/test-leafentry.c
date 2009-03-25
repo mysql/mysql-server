@@ -5,6 +5,16 @@
 #include "brttypes.h"
 #include "includes.h"
 
+static char
+int32_get_char(u_int32_t i, int which) {
+    char *c = (char*)&i;
+    return c[which];
+}
+
+#define UINT32TOCHAR(i) int32_get_char(i, 0), int32_get_char(i, 1), int32_get_char(i, 2), int32_get_char(i, 3)
+#define UINT64TOCHAR(i)  UINT32TOCHAR(i>>32), UINT32TOCHAR(i&0xffffffff)
+
+
 static void test_leafentry_1 (void) {
     LEAFENTRY l;
     int r;
@@ -12,9 +22,9 @@ static void test_leafentry_1 (void) {
     r = le_committed(4, "abc", 3, "xy", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_COMMITTED,
-		     0, 0, 0, 4,
+                     UINT32TOCHAR(4), 
 		     'a', 'b', 'c', 0,
-		     0, 0, 0, 3,
+                     UINT32TOCHAR(3), 
 		     'x', 'y', 0};
     assert(sizeof(expect)==msize);
     assert(msize==dsize);
@@ -29,10 +39,10 @@ static void test_leafentry_2 (void) {
     r = le_both(0x0123456789abcdef0LL, 3, "ab", 4, "xyz", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_BOTH,
-		     0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-		     0, 0, 0, 3, 'a', 'b', 0,
-		     0, 0, 0, 4, 'x', 'y', 'z', 0,
-		     0, 0, 0, 5, 'l', 'm', 'n', 'o', 0};
+                     UINT64TOCHAR(0x0123456789abcdef0LL),
+		     UINT32TOCHAR(3), 'a', 'b', 0,
+		     UINT32TOCHAR(4), 'x', 'y', 'z', 0,
+		     UINT32TOCHAR(5), 'l', 'm', 'n', 'o', 0};
     assert(sizeof(expect)==msize);
     assert(msize==dsize);
     assert(memcmp(l, expect, msize)==0);
@@ -46,9 +56,9 @@ static void test_leafentry_3 (void) {
     r = le_provdel(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_PROVDEL,
-		     0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-		     0, 0, 0, 3, 'a', 'b', 0,
-		     0, 0, 0, 5, 'l', 'm', 'n', 'o', 0};
+                     UINT64TOCHAR(0x0123456789abcdef0LL),
+		     UINT32TOCHAR(3), 'a', 'b', 0,
+		     UINT32TOCHAR(5), 'l', 'm', 'n', 'o', 0};
     assert(sizeof(expect)==msize);
     assert(msize==dsize);
     assert(memcmp(l, expect, msize)==0);
@@ -62,9 +72,9 @@ static void test_leafentry_4 (void) {
     r = le_provpair(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_PROVPAIR,
-		     0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-		     0, 0, 0, 3, 'a', 'b', 0,
-		     0, 0, 0, 5, 'l', 'm', 'n', 'o', 0};
+                     UINT64TOCHAR(0x0123456789abcdef0LL),
+		     UINT32TOCHAR(3), 'a', 'b', 0,
+		     UINT32TOCHAR(5), 'l', 'm', 'n', 'o', 0};
     assert(sizeof(expect)==msize);
     assert(msize==dsize);
     assert(memcmp(l, expect, msize)==0);
@@ -82,12 +92,12 @@ char zeros[1026];
 #define n300zeros n150zeros,n150zeros
 #define n301zeros 0,n300zeros
 #define n1025zeros n300zeros,n300zeros,n300zeros,n125zeros
-char expect_3long[] = {LE_PROVDEL,
-		       0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-		       0, 0, 1, 45, n301zeros,
-		       0, 0, 4, 1,  n1025zeros};
-
 static void test_leafentry_3long (void) {
+    char expect_3long[] = {LE_PROVDEL,
+                           UINT64TOCHAR(0x0123456789abcdef0LL),
+                           UINT32TOCHAR(301), n301zeros,
+                           UINT32TOCHAR(1025),  n1025zeros};
+
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;

@@ -36,7 +36,7 @@ test (int seed) {
 	assert(fd>=0);
 	for (i=0; i<RECORDS; i++) {
 	    sizes[i]  = 1+ random()%RECORDLEN;
-	    sizesn[i] = toku_htonl(sizes[i]);
+	    sizesn[i] = toku_htod32(sizes[i]);
 	    int j;
 	    for (j=0; j<sizes[i]; j++) {
 		buf[i][j] = wrotedata[nwrote++] = (char)random();
@@ -44,7 +44,7 @@ test (int seed) {
 	    uLongf compressed_size = compressBound(sizes[i]);
 	    Bytef compressed_buf[compressed_size];
 	    { int r = compress2(compressed_buf, &compressed_size, (Bytef*)(buf[i]), sizes[i], 1); assert(r==Z_OK); }
-	    u_int32_t compressed_size_n = htonl(compressed_size);
+	    u_int32_t compressed_size_n = toku_htod32(compressed_size);
 	    { int r = write(fd, &compressed_size_n, 4); assert(r==4); }
 	    { int r = write(fd, compressed_buf, compressed_size);    assert(r==(int)compressed_size); }
 	    { int r = write(fd, &sizesn[i], 4);         assert(r==4); } // the uncompressed size

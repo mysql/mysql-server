@@ -457,10 +457,10 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     // write out the compression header
     uint32_t *compressed_header_ptr = (uint32_t *)(compressed_buf + uncompressed_magic_len);
     if (node->layout_version >= BRT_LAYOUT_VERSION_10)
-        *compressed_header_ptr++ = toku_htonl(n_sub_blocks);
+        *compressed_header_ptr++ = toku_htod32(n_sub_blocks);
     for (i=0; i<n_sub_blocks; i++) {
-        compressed_header_ptr[0] = toku_htonl(sub_block_sizes[i].compressed_size);
-        compressed_header_ptr[1] = toku_htonl(sub_block_sizes[i].uncompressed_size);
+        compressed_header_ptr[0] = toku_htod32(sub_block_sizes[i].compressed_size);
+        compressed_header_ptr[1] = toku_htod32(sub_block_sizes[i].uncompressed_size);
         compressed_header_ptr += 2;
     }
 
@@ -591,7 +591,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 
     // get the layout_version
     unsigned char *uncompressed_header = compressed_block;
-    int layout_version = toku_ntohl(*(uint32_t*)(uncompressed_header+uncompressed_version_offset));
+    int layout_version = toku_dtoh32(*(uint32_t*)(uncompressed_header+uncompressed_version_offset));
 
     // get the number of compressed sub blocks
     int n_sub_blocks;
@@ -600,7 +600,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
         n_sub_blocks = 1; 
         compression_header_offset = uncompressed_magic_len;
     } else {
-        n_sub_blocks = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
+        n_sub_blocks = toku_dtoh32(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
         compression_header_offset = uncompressed_magic_len + 4;
     }
     assert(0 < n_sub_blocks);
@@ -610,9 +610,9 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 
     struct sub_block_sizes sub_block_sizes[n_sub_blocks];
     for (i=0; i<n_sub_blocks; i++) {
-        u_int32_t compressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[compression_header_offset+8*i]));
+        u_int32_t compressed_size = toku_dtoh32(*(u_int32_t*)(&uncompressed_header[compression_header_offset+8*i]));
         if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
-        u_int32_t uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[compression_header_offset+8*i+4]));
+        u_int32_t uncompressed_size = toku_dtoh32(*(u_int32_t*)(&uncompressed_header[compression_header_offset+8*i+4]));
         if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
         if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
 
@@ -1079,7 +1079,7 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
 	    u_int32_t x1764 = x1764_memory(tbuf, block_translation_size_on_disk - 4);
 	    u_int64_t offset = block_translation_size_on_disk - 4;
 	    //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
-	    u_int32_t stored_x1764 = toku_ntohl(*(int*)(tbuf + offset));
+	    u_int32_t stored_x1764 = toku_dtoh32(*(int*)(tbuf + offset));
 	    assert(x1764 == stored_x1764);
 	}
 	// Create table and read in data.
@@ -1142,7 +1142,7 @@ int toku_deserialize_brtheader_from (int fd, BLOCKNUM blocknum, struct brt_heade
     if (r!=12) return EINVAL;
     assert(memcmp(magic,"tokudata",8)==0);
     // It's version 7 or later, and the magi clooks OK
-    return deserialize_brtheader(toku_ntohl(*(int*)(&magic[8])), fd, offset, brth);
+    return deserialize_brtheader(toku_dtoh32(*(int*)(&magic[8])), fd, offset, brth);
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
@@ -1217,7 +1217,7 @@ read_int (int fd, toku_off_t *at, u_int32_t *result) {
     ssize_t r = pread(fd, &v, 4, *at);
     if (r<0) return errno;
     assert(r==4);
-    *result = toku_ntohl(v);
+    *result = toku_dtoh32(v);
     (*at) += 4;
     return 0;
 }

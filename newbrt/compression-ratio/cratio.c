@@ -33,7 +33,7 @@ measure_header (int fd, toku_off_t off, // read header from this offset
     r=pread(fd, fbuf, 12, off);
     assert(r==12);
     assert(memcmp(fbuf,"tokudata",8)==0);
-    int bsize = ntohl(*(u_int32_t*)(fbuf+8));
+    int bsize = toku_dtoh32(*(u_int32_t*)(fbuf+8));
     //printf("Bsize=%d\n", bsize);
     (*usize)+=bsize;
     assert(bsize<=NSIZE);
@@ -59,8 +59,8 @@ measure_node (int fd, toku_off_t off, // read header from this offset
     assert(r==24);
     //printf("fbuf[0..7]=%c%c%c%c%c%c%c%c\n", fbuf[0], fbuf[1], fbuf[2], fbuf[3], fbuf[4], fbuf[5], fbuf[6], fbuf[7]);
     assert(memcmp(fbuf,"tokuleaf",8)==0 || memcmp(fbuf, "tokunode", 8)==0);
-    assert(8==ntohl(*(u_int32_t*)(fbuf+8))); // check file version
-    int bsize = ntohl(*(u_int32_t*)(fbuf+20));
+    assert(8==toku_dtoh32(*(u_int32_t*)(fbuf+8))); // check file version
+    int bsize = toku_dtoh32(*(u_int32_t*)(fbuf+20));
     //printf("Bsize=%d\n", bsize);
     (*usize)+=bsize;
 
