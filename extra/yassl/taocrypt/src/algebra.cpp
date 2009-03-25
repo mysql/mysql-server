@@ -288,7 +288,7 @@ void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
         r = buckets[i][buckets[i].size()-1];
         if (buckets[i].size() > 1)
         {
-            for (int j = buckets[i].size()-2; j >= 1; j--)
+            for (int j= (unsigned int) (buckets[i].size()) - 2; j >= 1; j--)
             {
                 Accumulate(buckets[i][j], buckets[i][j+1]);
                 Accumulate(r, buckets[i][j]);

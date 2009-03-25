@@ -1649,6 +1649,20 @@ DROP TABLE t1,t2;
 # We reset concurrent_inserts value to whatever it was at the start of the test
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 
+--echo #
+--echo # Bug #42635: mysqldump includes views that were excluded using 
+--echo #   the --ignore-table option
+--echo #
+
+create database db42635;
+use db42635;
+create table t1 (id int);
+create view db42635.v1 (c) as select * from db42635.t1;
+create view db42635.v2 (c) as select * from db42635.t1;
+--exec $MYSQL_DUMP --skip-comments --ignore-table=db42635.v1 db42635
+use test;
+drop database db42635;
+
 
 --echo #
 --echo # Bug#33550 mysqldump 4.0 compatibility broken

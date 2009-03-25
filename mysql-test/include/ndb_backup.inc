@@ -3,29 +3,49 @@
 # in test cases and can be reused.                   #
 ######################################################
 
-# Bug#41307: Tests using include/ndb_backup.inc won't work on Windows due to
-#            'grep' call
-# This test is disabled on Windows via the next line until the above bug is
-# resolved
---source include/not_windows.inc
-
 --exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
 
-# there is no neat way to find the backupid, this is a hack to find it...
+# To find the backupid, we must dump this data to a table, and SELECT
+# what we want into an outfile.  This could be accomplished with grep, but
+# grep isn't Windows-portable
 
---exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
+--disable_query_log
+# create a table to help us out
+--disable_warnings # leave this on until done with the entire process
+# cleanup
+DROP TABLE IF EXISTS helper1;
+CREATE TABLE helper1(c1 VARCHAR(20));
+# dump raw data to file
+let $ndb_backup_file1= $MYSQLTEST_VARDIR/ndb_backup_tmp.dat;
+let $ndb_backup_file2= $MYSQLTEST_VARDIR/tmp.dat;
+--error 0,1
+--remove_file $ndb_backup_file1
+--exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 > $ndb_backup_file1
+# load the table from the raw data file
+eval LOAD DATA INFILE '$ndb_backup_file1' INTO TABLE helper1;
+--remove_file $ndb_backup_file1
+# output what we need
+eval SELECT * FROM helper1 WHERE c1 LIKE '%520093696%'
+INTO OUTFILE '$ndb_backup_file2';
+# cleanup
+DROP TABLE helper1;
+--enable_warnings
+--enable_query_log
 
-CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
 
 DELETE FROM test.backup_info;
 
-LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval LOAD DATA INFILE '$ndb_backup_file2'
+INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+--remove_file $ndb_backup_file2
 
 --replace_column 1 <the_backup_id>
 
 SELECT @the_backup_id:=backup_id FROM test.backup_info;
-
-let the_backup_id=`select @the_backup_id`;
+let $the_backup_id=`SELECT @the_backup_id`;
 
 DROP TABLE test.backup_info;
 
