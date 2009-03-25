@@ -4,6 +4,24 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+FLUSH PRIVILEGES;
+drop table if exists t999;
+create temporary table t999(
+id int,
+user char(255),
+host char(255),
+db char(255),
+Command char(255),
+time int,
+State char(255),
+info char(255)
+);
+LOAD DATA INFILE "./tmp/bl_dump_thread_id" into table t999;
+drop table t999;
+GRANT USAGE ON *.* TO user43748@localhost;
+KILL `select id from information_schema.processlist where command='Binlog Dump'`;
+ERROR HY000: You are not owner of thread `select id from information_schema.processlist where command='Binlog Dump'`
+DROP USER user43748@localhost;
 reset master;
 SET @save_select_limit=@@session.sql_select_limit;
 SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
