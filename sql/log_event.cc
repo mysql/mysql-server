@@ -6993,8 +6993,8 @@ int Rows_log_event::get_data_size()
 {
   int const type_code= get_type_code();
 
-  uchar buf[sizeof(m_width)+1];
-  uchar *end= net_store_length(buf, (m_width + 7) / 8);
+  uchar buf[sizeof(m_width) + 1];
+  uchar *end= net_store_length(buf, m_width);
 
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   return 6 + no_bytes_in_map(&m_cols) + (end - buf) +
@@ -7583,7 +7583,7 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
      Note that this should be the number of *bits*, not the number of
      bytes.
   */
-  uchar sbuf[sizeof(m_width)];
+  uchar sbuf[sizeof(m_width) + 1];
   my_ptrdiff_t const data_size= m_rows_cur - m_rows_buf;
   bool res= false;
   uchar *const sbuf_end= net_store_length(sbuf, (size_t) m_width);
@@ -7745,6 +7745,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_null_bits(0),
     m_meta_memory(NULL)
 {
+  uchar cbuf[sizeof(m_colcnt) + 1];
+  uchar *cbuf_end;
   DBUG_ASSERT(m_table_id != ~0UL);
   /*
     In TABLE_SHARE, "db" and "table_name" are 0-terminated (see this comment in
@@ -7761,7 +7763,9 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", m_data_size= 6;);
   m_data_size+= m_dblen + 2;	// Include length and terminating \0
   m_data_size+= m_tbllen + 2;	// Include length and terminating \0
-  m_data_size+= 1 + m_colcnt;	// COLCNT and column types
+  cbuf_end= net_store_length(cbuf, (size_t) m_colcnt);
+  DBUG_ASSERT((cbuf_end - cbuf) <= sizeof(cbuf));
+  m_data_size+= (cbuf_end - cbuf) + m_colcnt;	// COLCNT and column types
 
   /* If malloc fails, caught in is_valid() */
   if ((m_memory= (uchar*) my_malloc(m_colcnt, MYF(MY_WME))))
@@ -8053,7 +8057,7 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   uchar const dbuf[]= { (uchar) m_dblen };
   uchar const tbuf[]= { (uchar) m_tbllen };
 
-  uchar cbuf[sizeof(m_colcnt)];
+  uchar cbuf[sizeof(m_colcnt) + 1];
   uchar *const cbuf_end= net_store_length(cbuf, (size_t) m_colcnt);
   DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
