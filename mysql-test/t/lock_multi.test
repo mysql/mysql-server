@@ -84,8 +84,6 @@ insert into t1 values(2,2);
 insert into t2 values(1,2);
 lock table t1 read;
 connection writer;
-# mleich: IMHO the "send is not necessary because the update should not block.
-#         But it will save some runtime in case we block because of an error.
 send
 update t1,t2 set c=a where b=d;
 connection reader;
@@ -191,8 +189,8 @@ connection locker;
 USE mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
---sleep 1
-#
+
+
 connection reader;
 USE mysql;
 # Note:  This must be a multi-table select, otherwise the deadlock will not occur
