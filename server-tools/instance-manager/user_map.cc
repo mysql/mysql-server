@@ -55,7 +55,7 @@ int User::init(const char *line)
       goto err;
     password= name_end + 1;
   }
-  user_length= name_end - name_begin;
+  user_length= (uint) (name_end - name_begin);
   if (user_length > USERNAME_LENGTH)
     goto err;
 
