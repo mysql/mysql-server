@@ -52,7 +52,6 @@ static HANDLE g_shutdown_event;
 static my_daemon_stop_t g_stop_func;
 static my_daemon_run_t g_run_func;
 
-
 static void stopper_thread(void*)
 {
   // Wait forever until the shutdown event is signaled
@@ -235,8 +234,15 @@ static inline int ftruncate(int fd, off_t length)
 {
   return _chsize(fd, length);
 }
+
+static inline int unlink(const char *filename)
+{
+  return _unlink(filename);
+}
 #endif
 
+static const char *g_pidfile_name = 0;
+static int g_pidfd = -1, g_logfd = -1;
 
 static int
 check_files(const char *pidfile_name,
@@ -250,6 +256,7 @@ check_files(const char *pidfile_name,
     if(logfd == -1)
       return ERR1("Failed to open logfile '%s' for write, errno: %d",
                 logfile_name, errno);
+    g_logfd = logfd;
     dlog_file = fdopen(logfd, "a");
     *logfd_ret = logfd;
   }
@@ -261,6 +268,7 @@ check_files(const char *pidfile_name,
   if (pidfd == -1)
     return ERR1("Failed to open pidfile '%s' for write, errno: %d",
                 pidfile_name, errno);
+  g_pidfd = pidfd;
 
   /* Read any old pid from lock file */
   char buf[32];
@@ -334,6 +342,7 @@ do_files(const char *pidfile_name, int pidfd, int logfd)
 int my_daemonize(const char* pidfile_name, const char *logfile_name)
 {
   int pidfd = -1, logfd = -1;
+
   if (check_files(pidfile_name, logfile_name, &pidfd, &logfd))
     return 1;
 
@@ -355,12 +364,22 @@ int my_daemonize(const char* pidfile_name, const char *logfile_name)
   if (do_files(pidfile_name, pidfd, logfd))
     return 1;
 
+  g_pidfile_name = pidfile_name;
+
   return 0;
 }
 
-
 void my_daemon_exit(int status)
 {
+  if (g_pidfd != -1)
+    close(g_pidfd);
+
+  if (g_logfd != -1)
+    close(g_logfd);
+
+  if (g_pidfile_name)
+    unlink(g_pidfile_name);
+
 #ifdef _WIN32
   /*
     Stop by calling NtService::Stop if running
@@ -369,5 +388,6 @@ void my_daemon_exit(int status)
   if (g_shutdown_event)
     g_ntsvc.Stop();
 #endif
+
   exit(status);
 }
