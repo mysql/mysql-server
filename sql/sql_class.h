@@ -813,6 +813,7 @@ public:
   void
   restore_security_context(THD *thd, Security_context *backup);
 #endif
+  bool user_matches(Security_context *);
 };
 
 
