@@ -1934,6 +1934,36 @@ buf_block_align(
 }
 
 /************************************************************************
+Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+the buf_block_t itself or a member of it */
+UNIV_INTERN
+ibool
+buf_pointer_is_block_field(
+/*=======================*/
+					/* out: TRUE if ptr belongs
+					to a buf_block_t struct */
+	const void*		ptr)	/* in: pointer not
+					dereferenced */
+{
+	const buf_chunk_t*		chunk	= buf_pool->chunks;
+	const buf_chunk_t* const	echunk	= chunk + buf_pool->n_chunks;
+
+	/* TODO: protect buf_pool->chunks with a mutex (it will
+	currently remain constant after buf_pool_init()) */
+	while (chunk < echunk) {
+		if (ptr >= (void *)chunk->blocks
+		    && ptr < (void *)(chunk->blocks + chunk->size)) {
+
+			return(TRUE);
+		}
+
+		chunk++;
+	}
+
+	return(FALSE);
+}
+
+/************************************************************************
 Find out if a buffer block was created by buf_chunk_init(). */
 static
 ibool
@@ -1945,9 +1975,6 @@ buf_block_is_uncompressed(
 	const buf_block_t*	block)	/* in: pointer to block,
 					not dereferenced */
 {
-	const buf_chunk_t*		chunk	= buf_pool->chunks;
-	const buf_chunk_t* const	echunk	= chunk + buf_pool->n_chunks;
-
 	ut_ad(buf_pool_mutex_own());
 
 	if (UNIV_UNLIKELY((((ulint) block) % sizeof *block) != 0)) {
@@ -1955,17 +1982,7 @@ buf_block_is_uncompressed(
 		return(FALSE);
 	}
 
-	while (chunk < echunk) {
-		if (block >= chunk->blocks
-		    && block < chunk->blocks + chunk->size) {
-
-			return(TRUE);
-		}
-
-		chunk++;
-	}
-
-	return(FALSE);
+	return(buf_pointer_is_block_field((void *)block));
 }
 
 /************************************************************************

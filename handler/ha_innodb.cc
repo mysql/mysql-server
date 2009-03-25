@@ -8043,6 +8043,10 @@ innodb_mutex_show_status(
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex != NULL) {
+		if (mutex->count_os_wait == 0
+		    || buf_pool_is_block_mutex(mutex)) {
+			goto next_mutex;
+		}
 #ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
 			if (mutex->count_using > 0) {
@@ -8091,6 +8095,7 @@ innodb_mutex_show_status(
 		}
 #endif /* UNIV_DEBUG */
 
+next_mutex:
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
@@ -8101,7 +8106,8 @@ innodb_mutex_show_status(
 	lock = UT_LIST_GET_FIRST(rw_lock_list);
 
 	while (lock != NULL) {
-		if (lock->count_os_wait) {
+		if (lock->count_os_wait
+		    && !buf_pool_is_block_lock(lock)) {
 			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
                                     lock->cfile_name, (ulong) lock->cline);
 			buf2len= my_snprintf(buf2, sizeof(buf2),
