@@ -906,6 +906,22 @@ buf_block_align(
 /*============*/
 				/* out: pointer to block, never NULL */
 	const byte*	ptr);	/* in: pointer to a frame */
+/************************************************************************
+Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+the buf_block_t itself or a member of it */
+UNIV_INTERN
+ibool
+buf_pointer_is_block_field(
+/*=======================*/
+					/* out: TRUE if ptr belongs
+					to a buf_block_t struct */
+	const void*		ptr);	/* in: pointer not
+					dereferenced */
+#define buf_pool_is_block_mutex(m)	\
+		buf_pointer_is_block_field((void *)(m))
+#define buf_pool_is_block_lock(l)	\
+		buf_pointer_is_block_field((void *)(l))
+
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
