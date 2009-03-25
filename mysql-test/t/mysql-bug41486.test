@@ -30,9 +30,12 @@ let $outfile= $MYSQLTEST_VARDIR/tmp/bug41486.sql;
 --error 0,1
 remove_file $outfile;
 --exec $MYSQL_DUMP test t1 > $outfile
+SET @old_general_log = @@global.general_log;
+SET @@global.general_log = 0;
 # Check that the mysql client does not insert extra newlines when loading
 # strings longer than client's max_allowed_packet
 --exec $MYSQL --max_allowed_packet=1M test < $outfile 2>&1
+SET @@global.general_log = @old_general_log;
 SELECT LENGTH(data) FROM t1;
 
 DROP TABLE t1;
