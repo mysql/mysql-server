@@ -148,6 +148,32 @@ class ConfigManager : public MgmtThread {
                           Uint32, Uint32, ConfigState, ConfigState) const;
   void sendConfigCheckConf(SignalSender& ss, BlockReference to) const;
 
+  /*
+    ConfigChecker - for connecting to other mgm nodes without
+    transporter
+  */
+  class ConfigChecker : public MgmtThread {
+    ConfigManager& m_manager;
+    ConfigRetriever m_config_retriever;
+    BaseString m_connect_string;
+    NodeId m_nodeid;
+  public:
+    ConfigChecker(); // Not implemented
+    ConfigChecker(const ConfigChecker&); // Not implemented
+    ConfigChecker(ConfigManager& manager,
+                  const char* connect_string,
+                  const char* bind_address,
+                  NodeId nodeid);
+    bool init();
+    virtual void run();
+  };
+  bool init_checkers(const Config* config);
+  void start_checkers();
+  void stop_checkers();
+  Vector<ConfigChecker*> m_checkers;
+  MutexVector<NodeId> m_exclude_nodes;
+  void handle_exclude_nodes(void);
+
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
                 const char* configdir);
