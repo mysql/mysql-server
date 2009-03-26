@@ -335,7 +335,7 @@ ConfigManager::init(void)
 
   if (m_config_retriever.hasError())
   {
-    g_eventLogger->error(m_config_retriever.getErrorString());
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
     DBUG_RETURN(false);
   }
 
@@ -641,7 +641,7 @@ ConfigManager::config_ok(const Config* conf)
   assert(m_node_id);
   if (!m_config_retriever.verifyConfig(conf->m_configValues, m_node_id))
   {
-    g_eventLogger->error(m_config_retriever.getErrorString());
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
     return false;
   }
 
@@ -1777,7 +1777,7 @@ ConfigManager::fetch_config(void)
   m_config_retriever.disconnect();
 
   if (tmp == NULL) {
-    g_eventLogger->error(m_config_retriever.getErrorString());
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
     DBUG_RETURN(false);
   }
 
