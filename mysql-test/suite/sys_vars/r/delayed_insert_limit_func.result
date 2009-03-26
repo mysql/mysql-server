@@ -3,98 +3,75 @@
 Creating connection con0
 Creating connection con1
 SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
-CREATE TABLE t1 (a varchar(100));
+CREATE TABLE t1 (a VARCHAR(100),b VARCHAR(100),c VARCHAR(100));
 '#--------------------FN_DYNVARS_25_01-------------------------#'
-SET GLOBAL delayed_insert_limit = 9;
-** Connection con0 **
-SET GLOBAL delayed_insert_limit = 9;
-** Connection con1 **
-SET GLOBAL delayed_insert_limit = 9;
-** Connection default **
-SET GLOBAL delayed_insert_limit = 9;
-INSERT INTO t1 VALUES('1');
-INSERT INTO t1 VALUES('2');
-INSERT INTO t1 VALUES('3');
-INSERT INTO t1 VALUES('4');
-INSERT INTO t1 VALUES('5');
-INSERT INTO t1 VALUES('6');
+SET GLOBAL delayed_insert_limit = 14;
+INSERT INTO t1 VALUES('1','1','1');
+INSERT INTO t1 VALUES('2','1','1');
+INSERT INTO t1 VALUES('3','1','1');
+INSERT INTO t1 VALUES('4','1','1');
+INSERT INTO t1 VALUES('5','1','1');
+INSERT INTO t1 VALUES('6','1','1');
 LOCK TABLE t1 WRITE;
 ** Connection con1 **
-INSERT DELAYED INTO t1 VALUES('7');
-INSERT DELAYED INTO t1 VALUES('8');
-INSERT DELAYED INTO t1 VALUES('9');
-INSERT DELAYED INTO t1 VALUES('10');
-INSERT DELAYED INTO t1 VALUES('11');
-INSERT DELAYED INTO t1 VALUES('12');
-INSERT DELAYED INTO t1 VALUES('13');
-INSERT DELAYED INTO t1 VALUES('14');
-INSERT DELAYED INTO t1 VALUES('15');
-INSERT DELAYED INTO t1 VALUES('16');
-INSERT DELAYED INTO t1 VALUES('17');
-INSERT DELAYED INTO t1 VALUES('18');
-INSERT DELAYED INTO t1 VALUES('19');
-INSERT DELAYED INTO t1 VALUES('20');
-INSERT DELAYED INTO t1 VALUES('21');
-INSERT DELAYED INTO t1 VALUES('22');|
+INSERT DELAYED INTO t1 VALUES('7','1','1');
+INSERT DELAYED INTO t1 VALUES('8','1','1');
+INSERT DELAYED INTO t1 VALUES('9','1','1');
+INSERT DELAYED INTO t1 VALUES('10','1','1');
+INSERT DELAYED INTO t1 VALUES('11','1','1');
+INSERT DELAYED INTO t1 VALUES('12','1','1');
+INSERT DELAYED INTO t1 VALUES('13','1','1');
+INSERT DELAYED INTO t1 VALUES('14','1','1');
+INSERT DELAYED INTO t1 VALUES('15','1','1');
+INSERT DELAYED INTO t1 VALUES('16','1','1');
+INSERT DELAYED INTO t1 VALUES('17','1','1');
+INSERT DELAYED INTO t1 VALUES('18','1','1');
+INSERT DELAYED INTO t1 VALUES('19','1','1');
+INSERT DELAYED INTO t1 VALUES('20','1','1');
+INSERT DELAYED INTO t1 VALUES('21','1','1');
+INSERT DELAYED INTO t1 VALUES('22','1','1');
+INSERT DELAYED INTO t1 VALUES('23','1','1');
+INSERT DELAYED INTO t1 VALUES('24','1','1');
+INSERT DELAYED INTO t1 VALUES('25','1','1');
+INSERT DELAYED INTO t1 VALUES('26','1','1');
+INSERT DELAYED INTO t1 VALUES('27','1','1');
+INSERT DELAYED INTO t1 VALUES('28','1','1');
+INSERT DELAYED INTO t1 VALUES('29','1','1');
+INSERT DELAYED INTO t1 VALUES('30','1','1');
+INSERT DELAYED INTO t1 VALUES('31','1','1');
+INSERT DELAYED INTO t1 VALUES('32','1','1');
+INSERT DELAYED INTO t1 VALUES('33','1','1');
+INSERT DELAYED INTO t1 VALUES('34','1','1');
+INSERT DELAYED INTO t1 VALUES('35','1','1');
+INSERT DELAYED INTO t1 VALUES('36','1','1');
+INSERT DELAYED INTO t1 VALUES('37','1','1');
+INSERT DELAYED INTO t1 VALUES('38','1','1');
+INSERT DELAYED INTO t1 VALUES('39','1','1');
+INSERT DELAYED INTO t1 VALUES('40','1','1');
+INSERT DELAYED INTO t1 VALUES('41','1','1');
+INSERT DELAYED INTO t1 VALUES('42','1','1');
+INSERT DELAYED INTO t1 VALUES('43','1','1');|
 ** Connection con0 **
-SELECT * FROM t1;|
+SELECT COUNT(*) FROM t1;
 ** Connection default **
-Waiting for 1 sec
+** Wait till con0 is blocked **
 UNLOCK TABLES;
+** Connection con1 **
+Asynchronous "reap" result
 ** Connection con0 **
-a
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-'Bug#35386: insert delayed inserts 1 + limit rows instead of just limit rows'
+Asynchronous "reap" result
+The next result suffers from
+'# Bug#35386 insert delayed inserts 1 + limit rows instead of just limit rows'
+COUNT(*)
+21
 ** Connection default **
-Waiting for 1 sec
 Checking if the delayed insert continued afterwards
-SELECT * FROM t1;
-a
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-DELETE FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+43
+DROP TABLE t1;
 '#--------------------FN_DYNVARS_25_02-------------------------#'
-SET GLOBAL delayed_insert_limit = 20;
-** Connection con0 **
-SET GLOBAL delayed_insert_limit = 20;
-** Connection con1 **
-SET GLOBAL delayed_insert_limit = 20;
-** Connection default **
+CREATE TABLE t1 (a VARCHAR(100));
 SET GLOBAL delayed_insert_limit = 20;
 INSERT INTO t1 VALUES('1');
 INSERT INTO t1 VALUES('2');
@@ -123,64 +100,21 @@ INSERT DELAYED INTO t1 VALUES('21');
 INSERT DELAYED INTO t1 VALUES('22');|
 ** Connection con0 **
 Asynchronous execute
-SELECT * FROM t1;|
+SELECT COUNT(*) = 22 FROM t1;
 ** Connection default **
-Waiting for 1 sec
+** Wait till con0 is blocked **
 UNLOCK TABLES;
+** Connection con1 **
 ** Connection con0 **
-Asynchronous execute result
-a
+Asynchronous "reap" result
+COUNT(*) = 22
 1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
 ** Connection default**
-Waiting for 1 sec
 Checking if the delayed insert gives the same result afterwards
-SELECT * FROM t1;
-a
+SELECT COUNT(*) = 22 FROM t1;
+COUNT(*) = 22
 1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-DELETE FROM t1;
-Switching to default
-Disconnecting from con1, con0
+** Connection default**
 DROP TABLE t1;
 SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
+Disconnecting from con1, con0

@@ -1,4 +1,4 @@
-############# mysql-test\t\query_cache_wlock_invalidate_func.test ####################
+######################################################################################
 #                                                                                    #
 # Variable Name: query_cache_wlock_invalidate                                        #
 # Scope: GLOBAL & SESSION                                                            #
@@ -10,6 +10,7 @@
 #                                                                                    #
 # Creation Date: 2008-02-21                                                          #
 # Author:  Sharique Abdullah                                                         #
+# Modified: HHunger 2009-02-27 Replaced sleeps, beautifications                      #
 #                                                                                    #
 # Description: Test Cases of Dynamic System Variable "query_cache_wlock_invalidate"  #
 #              that checks behavior of this variable in the following ways           #
@@ -18,8 +19,8 @@
 #              * Scope & Access method                                               #
 #              * Cache behaviors                                                     #
 #                                                                                    #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                                 #
-#            server-system-variables.html#option_mysqld_query_cache_wlock_invalidate #
+# Reference:                                                                         #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html                #
 #                                                                                    #
 ######################################################################################
 
@@ -28,6 +29,8 @@
 #
 # Setup
 #
+
+--source include/not_embedded.inc
 
 # disabled due to differences in the result
 --disable_ps_protocol
@@ -135,8 +138,9 @@ send SELECT * FROM t1;
 --echo ** Connection con0 **
 connection con0;
 
---echo Sleeping 2 Seconds before unlock
---sleep 2
+--echo wait until table is locked
+let $wait_condition= SELECT count(*) > 0 FROM information_schema.processlist WHERE state= 'Locked';
+--source include/wait_condition.inc
 UNLOCK TABLES;
 
 --echo ** Connection con1 **
@@ -195,20 +199,17 @@ SELECT * FROM t1;
 
 --echo ** Connection con0 **
 connection con0;
-
 LOCK TABLE t1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
-
 --echo ** Should not be blocked **
+SELECT * FROM t1;
+SELECT * FROM t1;
 SELECT * FROM t1;
 
 --echo ** Connection con0 **
 connection con0;
-
---echo Sleeping 2 Seconds before unlock
---sleep 2
 UNLOCK TABLES;
 
 --echo ** Connection con1 **
