@@ -22,149 +22,21 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_TIMESTAMP:
         ret_val = toku_type_int;
         break;
+    case MYSQL_TYPE_DOUBLE:
+        ret_val = toku_type_double;
+        break;
     default:
         ret_val = toku_type_unknown;
+        break;
     }
     return ret_val;
-}
-
-
-int compare_field(
-    uchar* a_buf, 
-    uchar* b_buf, 
-    Field* field,
-    u_int32_t key_part_length, //I really hope this is temporary as I phase out the pack_cmp stuff
-    u_int32_t* a_bytes_read, 
-    u_int32_t* b_bytes_read
-    ) {
-    int ret_val = 0;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
-    switch(toku_type) {
-    case (toku_type_int):
-        ret_val = cmp_toku_int(
-            a_buf, 
-            b_buf, 
-            field->flags & UNSIGNED_FLAG, 
-            field->pack_length()
-            );
-        *a_bytes_read = field->pack_length();
-        *b_bytes_read = field->pack_length();
-        goto exit;
-    default:
-        *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
-        *b_bytes_read = field->packed_col_length(b_buf, key_part_length);
-        ret_val = field->pack_cmp(a_buf, b_buf, key_part_length, 0);
-        goto exit;
-    }
-    assert(false);
-exit:
-    return ret_val;
-}
-
-
-//
-// at the moment, this returns new position in buffer
-// I want to change this to be num_bytes_packed
-// cannot do it until all functions converted, because until
-// then, still relying on field->pack_cmp
-//
-uchar* pack_field(
-    uchar* to_tokudb,
-    uchar* from_mysql,
-    Field* field,
-    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
-    )
-{
-    uchar* new_pos = NULL;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
-    switch(toku_type) {
-    case (toku_type_int):
-        assert(key_part_length == field->pack_length());
-        new_pos = pack_toku_int(
-            to_tokudb, 
-            from_mysql,
-            field->pack_length()
-            );
-        goto exit;    
-    default:        
-        new_pos = field->pack_key(
-            to_tokudb, 
-            from_mysql,
-            key_part_length, 
-            TRUE
-            );
-        goto exit;
-    }
-    assert(false);
-exit:
-    return new_pos;
-}
-
-uchar* pack_key_field(
-    uchar* to_tokudb,
-    uchar* from_mysql,
-    Field* field,
-    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
-    )
-{
-    uchar* new_pos = NULL;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
-    switch(toku_type) {
-    case (toku_type_int):
-        new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
-        goto exit;
-    default:
-        new_pos= field->pack_key_from_key_image(
-            to_tokudb, 
-            from_mysql,
-            key_part_length, 
-            true
-            );
-        goto exit;
-    }
-    assert(false);
-exit:
-    return new_pos;
-}
-
-
-uchar* unpack_field(
-    uchar* to_mysql,
-    uchar* from_tokudb,
-    Field* field,
-    u_int32_t key_part_length
-    )
-{
-    uchar* new_pos = NULL;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
-    switch(toku_type) {
-    case (toku_type_int):
-        assert(key_part_length == field->pack_length());
-        new_pos = unpack_toku_int(
-            to_mysql,
-            from_tokudb,
-            field->pack_length()
-            );
-        goto exit;    
-    default:
-        new_pos = (uchar *) field->unpack_key(
-            to_mysql, 
-            from_tokudb,
-            key_part_length, 
-            TRUE
-            );
-        goto exit;
-    }
-    assert(false);
-exit:
-    return new_pos;
 }
 
 
 //
 // assuming MySQL in little endian, and we are storing in little endian
 //
-uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
+inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
     case (2):
@@ -182,7 +54,7 @@ uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) 
 //
 // assuming MySQL in little endian, and we are unpacking to little endian
 //
-uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
+inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
     case (2):
@@ -197,7 +69,7 @@ uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes)
     return from_tokudb+num_bytes;
 }
 
-int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_bytes) {
+inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_bytes) {
     int ret_val = 0;
     //
     // case for unsigned integers
@@ -301,6 +173,189 @@ int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_by
     assert(false);
 exit:
     return ret_val;    
+}
+
+inline uchar* pack_toku_double (uchar* to_tokudb, uchar* from_mysql) {
+    memcpy(to_tokudb, from_mysql, sizeof(double));
+    return to_tokudb + sizeof(double);
+}
+
+
+inline uchar* unpack_toku_double(uchar* to_mysql, uchar* from_tokudb) {
+    memcpy(to_mysql, from_tokudb, sizeof(double));
+    return from_tokudb + sizeof(double);
+}
+
+inline int cmp_toku_double(uchar* a_buf, uchar* b_buf) {
+    int ret_val;
+    double a_num;
+    double b_num;
+    doubleget(a_num, a_buf);
+    doubleget(b_num, b_buf);
+    if (a_num < b_num) {
+        ret_val = -1;
+        goto exit;
+    }
+    else if (a_num > b_num) {
+        ret_val = 1;
+        goto exit;
+    }
+    ret_val = 0;
+exit:
+    return ret_val;
+}
+
+
+int compare_field(
+    uchar* a_buf, 
+    uchar* b_buf, 
+    Field* field,
+    u_int32_t key_part_length, //I really hope this is temporary as I phase out the pack_cmp stuff
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read
+    ) {
+    int ret_val = 0;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        ret_val = cmp_toku_int(
+            a_buf, 
+            b_buf, 
+            field->flags & UNSIGNED_FLAG, 
+            field->pack_length()
+            );
+        *a_bytes_read = field->pack_length();
+        *b_bytes_read = field->pack_length();
+        goto exit;
+    case (toku_type_double):
+        assert(field->pack_length() == sizeof(double));
+        assert(key_part_length == sizeof(double));
+        ret_val = cmp_toku_double(a_buf, b_buf);
+        *a_bytes_read = sizeof(double);
+        *b_bytes_read = sizeof(double);
+        goto exit;
+    default:
+        *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
+        *b_bytes_read = field->packed_col_length(b_buf, key_part_length);
+        ret_val = field->pack_cmp(a_buf, b_buf, key_part_length, 0);
+        goto exit;
+    }
+    assert(false);
+exit:
+    return ret_val;
+}
+
+
+//
+// at the moment, this returns new position in buffer
+// I want to change this to be num_bytes_packed
+// cannot do it until all functions converted, because until
+// then, still relying on field->pack_cmp
+//
+uchar* pack_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
+    )
+{
+    uchar* new_pos = NULL;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        assert(key_part_length == field->pack_length());
+        new_pos = pack_toku_int(
+            to_tokudb, 
+            from_mysql,
+            field->pack_length()
+            );
+        goto exit; 
+    case (toku_type_double):
+        assert(field->pack_length() == sizeof(double));
+        assert(key_part_length == sizeof(double));
+        new_pos = pack_toku_double(to_tokudb, from_mysql);
+        goto exit;
+    default:
+        assert(toku_type == toku_type_unknown);
+        new_pos = field->pack_key(
+            to_tokudb, 
+            from_mysql,
+            key_part_length, 
+            TRUE
+            );
+        goto exit;
+    }
+    assert(false);
+exit:
+    return new_pos;
+}
+
+uchar* pack_key_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
+    )
+{
+    uchar* new_pos = NULL;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+    case (toku_type_double):
+        new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
+        goto exit;
+    default:
+        assert(toku_type == toku_type_unknown);
+        new_pos= field->pack_key_from_key_image(
+            to_tokudb, 
+            from_mysql,
+            key_part_length, 
+            true
+            );
+        goto exit;
+    }
+    assert(false);
+exit:
+    return new_pos;
+}
+
+
+uchar* unpack_field(
+    uchar* to_mysql,
+    uchar* from_tokudb,
+    Field* field,
+    u_int32_t key_part_length
+    )
+{
+    uchar* new_pos = NULL;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        assert(key_part_length == field->pack_length());
+        new_pos = unpack_toku_int(
+            to_mysql,
+            from_tokudb,
+            field->pack_length()
+            );
+        goto exit;    
+    case (toku_type_double):
+        assert(field->pack_length() == sizeof(double));
+        assert(key_part_length == sizeof(double));
+        new_pos = unpack_toku_double(to_mysql, from_tokudb);
+        goto exit;
+    default:
+        assert(toku_type == toku_type_unknown);
+        new_pos = (uchar *) field->unpack_key(
+            to_mysql, 
+            from_tokudb,
+            key_part_length, 
+            TRUE
+            );
+        goto exit;
+    }
+    assert(false);
+exit:
+    return new_pos;
 }
 
 
