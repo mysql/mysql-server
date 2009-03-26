@@ -96,7 +96,7 @@ uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes)
     return from_tokudb+num_bytes;
 }
 
-int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes) {
+int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_bytes) {
     int ret_val = 0;
     //
     // case for unsigned integers
@@ -106,30 +106,32 @@ int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes) {
         u_int64_t a_big_num, b_big_num = 0;
         switch (num_bytes) {
         case (1):
-            a_num = *a;
-            b_num = *b;
+            a_num = *a_buf;
+            b_num = *b_buf;
         case (2):
-            a_num = uint2korr(a);
-            b_num = uint2korr(b);
+            a_num = uint2korr(a_buf);
+            b_num = uint2korr(b_buf);
         case (3):
-            a_num = uint3korr(a);
-            b_num = uint3korr(b);
-            ret_val = a-b;
+            a_num = uint3korr(a_buf);
+            b_num = uint3korr(b_buf);
+            ret_val = a_num-b_num;
             goto exit;
         case (4):
-            a_num = uint4korr(a);
-            b_num = uint4korr(b);
-            if (a < b) {
+            printf("a: %d, %d, %d, %d\n", a_buf[0], a_buf[1], a_buf[2], a_buf[3]);
+            printf("a: %d, %d, %d, %d\n", a_buf[0], a_buf[1], a_buf[2], a_buf[3]);
+            a_num = uint4korr(a_buf);
+            b_num = uint4korr(b_buf);
+            if (a_num < b_num) {
                 ret_val = -1; goto exit;
             }
-            if (a > b) {
+            if (a_num > b_num) {
                 ret_val = 1; goto exit;
             }
             ret_val = 0;
             goto exit;
         case (8):
-            a_big_num = uint8korr(a);
-            b_big_num = uint8korr(b);
+            a_big_num = uint8korr(a_buf);
+            b_big_num = uint8korr(b_buf);
             if (a_big_num < b_big_num) {
                 ret_val = -1; goto exit;
             }
@@ -150,19 +152,19 @@ int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes) {
         int64_t a_big_num, b_big_num = 0;
         switch (num_bytes) {
         case (1):
-            a_num = *(signed char *)a;
-            b_num = *(signed char *)b;
+            a_num = *(signed char *)a_buf;
+            b_num = *(signed char *)b_buf;
         case (2):
-            a_num = sint2korr(a);
-            b_num = sint2korr(b);
+            a_num = sint2korr(a_buf);
+            b_num = sint2korr(b_buf);
         case (3):
-            a_num = sint3korr(a);
-            b_num = sint3korr(b);
-            ret_val = a-b;
+            a_num = sint3korr(a_buf);
+            b_num = sint3korr(b_buf);
+            ret_val = a_num - b_num;
             goto exit;
         case (4):
-            a_num = sint4korr(a);
-            b_num = sint4korr(b);
+            a_num = sint4korr(a_buf);
+            b_num = sint4korr(b_buf);
             if (a_num < b_num) {
                 ret_val = -1; goto exit;
             }
@@ -172,8 +174,8 @@ int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes) {
             ret_val = 0;
             goto exit;
         case (8):
-            a_big_num = sint8korr(a);
-            b_big_num = sint8korr(b);
+            a_big_num = sint8korr(a_buf);
+            b_big_num = sint8korr(b_buf);
             if (a_big_num < b_big_num) {
                 ret_val = -1; goto exit;
             }
@@ -191,6 +193,7 @@ int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes) {
     //
     assert(false);
 exit:
+    printf("ret_val %d\n", ret_val);
     return ret_val;    
 }
 
