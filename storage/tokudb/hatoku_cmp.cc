@@ -100,6 +100,39 @@ exit:
     return new_pos;
 }
 
+uchar* unpack_field(
+    uchar* to_mysql,
+    uchar* from_tokudb,
+    Field* field,
+    u_int32_t key_part_length
+    )
+{
+    uchar* new_pos = NULL;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        assert(key_part_length == field->pack_length());
+        new_pos = unpack_toku_int(
+            to_mysql,
+            from_tokudb,
+            field->pack_length()
+            );
+        goto exit;    
+    default:
+        new_pos = (uchar *) field->unpack_key(
+            to_mysql, 
+            from_tokudb,
+            key_part_length, 
+            TRUE
+            );
+        goto exit;
+    }
+    assert(false);
+exit:
+    return new_pos;
+}
+
+
 //
 // assuming MySQL in little endian, and we are storing in little endian
 //

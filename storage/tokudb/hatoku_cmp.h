@@ -30,6 +30,12 @@ uchar* pack_field(
     u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     );
 
+uchar* unpack_field(
+    uchar* to_mysql,
+    uchar* from_tokudb,
+    Field* field,
+    u_int32_t key_part_length
+    );
 
 uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes);
 uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes);

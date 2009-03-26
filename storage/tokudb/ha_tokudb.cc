@@ -1279,12 +1279,15 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uc
             }
             record[key_part->null_offset] &= ~key_part->null_bit;
         }
-        uint unpack_length = key_part->length;
-        pos = (uchar *) key_part->field->unpack_key(
-            record + field_offset(key_part->field, table), 
+        //
+        // HOPEFULLY TEMPORARY
+        //
+        assert(table->s->db_low_byte_first);
+        pos = unpack_field(
+            record + field_offset(key_part->field, table),
             pos,
-            unpack_length, 
-            table->s->db_low_byte_first
+            key_part->field,
+            key_part->length
             );
     }
     return pos-data;
