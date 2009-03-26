@@ -121,7 +121,6 @@ Configuration::fetch_configuration(const char* _connect_string,
     delete m_config_retriever;
   }
 
-  m_mgmd_port= 0;
   m_config_retriever= new ConfigRetriever(_connect_string,
                                           NDB_VERSION,
                                           NDB_MGM_NODE_TYPE_NDB,
@@ -143,9 +142,6 @@ Configuration::fetch_configuration(const char* _connect_string,
     */
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
   }
-  
-  m_mgmd_port= m_config_retriever->get_mgmd_port();
-  m_mgmd_host.assign(m_config_retriever->get_mgmd_host());
 
   ConfigRetriever &cr= *m_config_retriever;
   
@@ -181,7 +177,21 @@ Configuration::fetch_configuration(const char* _connect_string,
     free(m_clusterConfig);
   
   m_clusterConfig = p;
-  
+
+  {
+    Uint32 generation;
+    ndb_mgm_configuration_iterator sys_iter(*p, CFG_SECTION_SYSTEM);
+    if (sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation)) {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Invalid configuration fetched", "generation missing");
+    }
+
+    g_eventLogger->info("Configuration fetched from '%s:%d', generation: %d",
+                        m_config_retriever->get_mgmd_host(),
+                        m_config_retriever->get_mgmd_port(),
+                        generation);
+  }
+
   ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, globalData.ownId)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
