@@ -100,6 +100,34 @@ exit:
     return new_pos;
 }
 
+uchar* pack_key_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
+    )
+{
+    uchar* new_pos = NULL;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        pack_field(to_tokudb, from_mysql, field, key_part_length);
+        goto exit;
+    default:
+        new_pos= field->pack_key_from_key_image(
+            to_tokudb, 
+            from_mysql,
+            key_part_length, 
+            true
+            );
+        goto exit;
+    }
+    assert(false);
+exit:
+    return new_pos;
+}
+
+
 uchar* unpack_field(
     uchar* to_mysql,
     uchar* from_tokudb,

@@ -1491,12 +1491,15 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
             *buff++ = NONNULL_COL_VAL;
             offset = 1;         // Data is at key_ptr+1
         }
-        buff = key_part->field->pack_key_from_key_image(
-            buff, 
+        assert(table->s->db_low_byte_first);
+
+        buff = pack_key_field(
+            buff,
             (uchar *) key_ptr + offset,
-            key_part->length, 
-            table->s->db_low_byte_first
+            key_part->field,
+            key_part->length
             );
+        
         key_ptr += key_part->store_length;
         key_length -= key_part->store_length;
     }
