@@ -65,17 +65,21 @@ build: build.tdb build.bdb
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-rowsize check-xfast check-x check-no-rolltmp check-4G
+check: check-default check-rowsize-dup check-rowsize check-xfast check-x check-no-rolltmp check-4G
 
 SUPPORT_KEYSIZE=$$((3*1024)) 	# at least 3KiB
 SUPPORT_ROWSIZE=$$((80*1024))  	# at least 80KiB
 
-foo:
-	echo $$((3*1024)) $(SUPPORT_KEYSIZE)
+.PHONY: check-rowsize check-rowsize-dup
 check-rowsize: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.key.dir    --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.key.dir                  --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 $(SUMMARIZE_CMD)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.keyval.dir --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.keyval.dir               --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
+
+check-rowsize-dup: $(TARGET_TDB)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.key.dir    --dupsort --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.keyval.dir --dupsort --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
