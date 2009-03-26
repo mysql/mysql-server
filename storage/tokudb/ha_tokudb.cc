@@ -1345,15 +1345,19 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
             *curr_buff++ = NONNULL_COL_VAL;        // Store NOT NULL marker
         }
         //
+        // HOPEFULLY TEMPORARY
+        //
+        assert(table->s->db_low_byte_first);
+        //
         // accessing field_offset(key_part->field) instead off key_part->offset
         // because key_part->offset is SET INCORRECTLY in add_index
         // filed ticket 862 to look into this
         //
-        curr_buff = key_part->field->pack_key(
-            curr_buff, 
+        curr_buff = pack_field(
+            curr_buff,
             (uchar *) (record + field_offset(key_part->field, table)),
-            key_part->length, 
-            table->s->db_low_byte_first
+            key_part->field,
+            key_part->length
             );
         key_length -= key_part->length;
     }

@@ -63,6 +63,44 @@ exit:
 
 
 //
+// at the moment, this returns new position in buffer
+// I want to change this to be num_bytes_packed
+// cannot do it until all functions converted, because until
+// then, still relying on field->pack_cmp
+//
+uchar* pack_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
+    )
+{
+    uchar* new_pos = NULL;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        assert(key_part_length == field->pack_length());
+        new_pos = pack_toku_int(
+            to_tokudb, 
+            from_mysql,
+            field->pack_length()
+            );
+        goto exit;    
+    default:        
+        new_pos = field->pack_key(
+            to_tokudb, 
+            from_mysql,
+            key_part_length, 
+            TRUE
+            );
+        goto exit;
+    }
+    assert(false);
+exit:
+    return new_pos;
+}
+
+//
 // assuming MySQL in little endian, and we are storing in little endian
 //
 uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
@@ -73,6 +111,7 @@ uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) 
     case (4):
     case (8):
         memcpy(to_tokudb, from_mysql, num_bytes);
+        break;
     default:
         assert(false);
     }
@@ -90,6 +129,7 @@ uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes)
     case (4):
     case (8):
         memcpy(to_mysql, from_tokudb, num_bytes);
+        break;
     default:
         assert(false);
     }
@@ -108,9 +148,13 @@ int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_by
         case (1):
             a_num = *a_buf;
             b_num = *b_buf;
+            ret_val = a_num-b_num;
+            goto exit;
         case (2):
             a_num = uint2korr(a_buf);
             b_num = uint2korr(b_buf);
+            ret_val = a_num-b_num;
+            goto exit;
         case (3):
             a_num = uint3korr(a_buf);
             b_num = uint3korr(b_buf);
@@ -154,9 +198,13 @@ int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_by
         case (1):
             a_num = *(signed char *)a_buf;
             b_num = *(signed char *)b_buf;
+            ret_val = a_num-b_num;
+            goto exit;
         case (2):
             a_num = sint2korr(a_buf);
             b_num = sint2korr(b_buf);
+            ret_val = a_num-b_num;
+            goto exit;
         case (3):
             a_num = sint3korr(a_buf);
             b_num = sint3korr(b_buf);
