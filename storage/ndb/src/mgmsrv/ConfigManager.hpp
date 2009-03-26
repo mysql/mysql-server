@@ -39,13 +39,22 @@ class ConfigManager : public MgmtThread {
 
   ConfigRetriever m_config_retriever;
 
-  enum ConfigChangeState {
-    CCS_IDLE,
-    CCS_PREPARING,
-    CCS_COMITTING,
-    CCS_ABORT,
-    CCS_ABORTING
+  struct ConfigChangeState {
+    enum States {
+      IDLE,
+      PREPARING,
+      COMITTING,
+      ABORT,
+      ABORTING
+    } m_current_state;
+
+    ConfigChangeState() :
+      m_current_state(IDLE) {}
+
+    operator int() const { return m_current_state; }
   } m_config_change_state;
+
+  void set_config_change_state(ConfigChangeState::States state);
 
   enum ConfigState {
     CS_UNINITIALIZED,
