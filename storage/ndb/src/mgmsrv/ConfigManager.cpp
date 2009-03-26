@@ -55,7 +55,6 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
                      NDB_VERSION,
                      NDB_MGM_NODE_TYPE_MGM,
                      opts.bind_address),
-  m_config_change_state(CCS_IDLE),
   m_config_state(CS_UNINITIALIZED),
   m_previous_state(CS_UNINITIALIZED),
   m_config_change_error(ConfigChangeRef::OK),
@@ -869,6 +868,19 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
 }
 
 
+void ConfigManager::set_config_change_state(ConfigChangeState::States state)
+{
+  if (state == ConfigChangeState::IDLE)
+  {
+    // Rebuild m_all_mgm so that each node in config is included
+    // new mgm nodes might have been added
+    m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
+  }
+
+  m_config_change_state.m_current_state = state;
+}
+
+
 void
 ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
 {
@@ -886,9 +898,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
 
   switch(m_config_change_state){
 
-  case CCS_PREPARING:{
+  case ConfigChangeState::PREPARING:{
     /* Got ref while preparing */
-    m_config_change_state = CCS_ABORT;
+    set_config_change_state(ConfigChangeState::ABORT);
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
@@ -907,18 +919,18 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-      m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_ABORTING;
+      set_config_change_state(ConfigChangeState::ABORTING);
     break;
   }
 
-  case CCS_COMITTING:
+  case ConfigChangeState::COMITTING:
     /* Got ref while comitting, impossible */
     abort();
     break;
 
-  case CCS_ABORT:{
+  case ConfigChangeState::ABORT:{
     /* Got ref(another) while already decided to abort */
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
@@ -938,13 +950,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-      m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_ABORTING;
+      set_config_change_state(ConfigChangeState::ABORTING);
     break;
   }
 
-  case CCS_ABORTING:
+  case ConfigChangeState::ABORTING:
     /* Got ref while aborting, impossible */
     abort();
     break;
@@ -966,7 +978,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
   g_eventLogger->debug("Got CONFIG_CHANGE_IMPL_CONF from node %d", nodeId);
 
   switch(m_config_change_state){
-  case CCS_PREPARING:{
+  case ConfigChangeState::PREPARING:{
     require(conf->requestType == ConfigChangeImplReq::Prepare);
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
@@ -986,13 +998,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-      m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_COMITTING;
+      set_config_change_state(ConfigChangeState::COMITTING);
     break;
   }
 
-  case CCS_COMITTING:{
+  case ConfigChangeState::COMITTING:{
     require(conf->requestType == ConfigChangeImplReq::Commit);
 
     m_waiting_for.clear(nodeId);
@@ -1012,11 +1024,11 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
       sendConfigChangeConf(ss, m_client_ref);
     }
     m_client_ref = RNIL;
-    m_config_change_state = CCS_IDLE;
+    set_config_change_state(ConfigChangeState::IDLE);
     break;
   }
 
-  case CCS_ABORT:{
+  case ConfigChangeState::ABORT:{
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
@@ -1034,13 +1046,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-        m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_ABORTING;
+      set_config_change_state(ConfigChangeState::ABORTING);
     break;
   }
 
-  case CCS_ABORTING:{
+  case ConfigChangeState::ABORTING:{
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
@@ -1063,7 +1075,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     }
     m_config_change_error= ConfigChangeRef::OK;
     m_client_ref = RNIL;
-    m_config_change_state = CCS_IDLE;
+    set_config_change_state(ConfigChangeState::IDLE);
     break;
   }
 
@@ -1160,7 +1172,7 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   req->length = buf.length();
 
   require(m_waiting_for.isclear());
-  require(m_config_change_state == CCS_IDLE);
+  require(m_config_change_state == ConfigChangeState::IDLE);
 
   g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
   unsigned i = 0;
@@ -1192,7 +1204,7 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
       // Some nodes got prepare, set state to
       // abort and continue abort when result
       // of prepare arrives
-      m_config_change_state = CCS_ABORT;
+      set_config_change_state(ConfigChangeState::ABORT);
       return false;
     }
 
@@ -1202,7 +1214,7 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
 
   // Prepare has been sent to all mgm nodes
   // continue and wait for prepare conf(s)
-  m_config_change_state = CCS_PREPARING;
+  set_config_change_state(ConfigChangeState::PREPARING);
   return true;
 
 }
@@ -1230,7 +1242,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     return;
   }
 
-  if (m_config_change_state != CCS_IDLE)
+  if (m_config_change_state != ConfigChangeState::IDLE)
   {
     sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigChangeOnGoing);
     return;
@@ -1470,14 +1482,15 @@ ConfigManager::run()
   SignalSender ss(m_facade, MGM_CONFIG_MAN);
   ss.lock();
 
-  ss.getNodes(m_all_mgm, NodeInfo::MGM);
+  // Build bitmaks of all mgm nodes in config
+  m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
 
   m_started.set(m_facade->ownId());
 
   while (!is_stopped())
   {
 
-    if (m_config_change_state == CCS_IDLE)
+    if (m_config_change_state == ConfigChangeState::IDLE)
     {
       bool print_state = false;
       if (m_previous_state != m_config_state)
@@ -1581,7 +1594,7 @@ ConfigManager::run()
       m_checked.clear(nodeId);
       m_defragger.node_failed(nodeId);
 
-      if (m_config_change_state != CCS_IDLE)
+      if (m_config_change_state != ConfigChangeState::IDLE)
       {
         g_eventLogger->info("Node %d failed during config change!!",
                             nodeId);
