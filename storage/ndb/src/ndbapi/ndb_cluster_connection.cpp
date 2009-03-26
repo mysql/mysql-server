@@ -353,7 +353,7 @@ Ndb_cluster_connection_impl(const char *
     ndb_print_state_mutex= NdbMutex_Create();
 #endif
   m_config_retriever=
-    new ConfigRetriever(connect_string, NDB_VERSION, NODE_TYPE_API);
+    new ConfigRetriever(connect_string, NDB_VERSION, NDB_MGM_NODE_TYPE_API);
   if (m_config_retriever->hasError())
   {
     m_latest_error= 1;

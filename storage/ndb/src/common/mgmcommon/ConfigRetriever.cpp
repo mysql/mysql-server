@@ -30,7 +30,8 @@
 //****************************************************************************
 
 ConfigRetriever::ConfigRetriever(const char * _connect_string,
-				 Uint32 version, Uint32 node_type,
+				 Uint32 version,
+                                 ndb_mgm_node_type node_type,
 				 const char * _bindaddress,
                                  int timeout_ms) :
   m_end_session(true),
