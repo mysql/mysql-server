@@ -2085,6 +2085,27 @@ esac
 AC_MSG_CHECKING(for isinf in <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
   AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(whether isinf() is safe to use in C code)
+  AC_TRY_RUN([
+#include <math.h>
+int main()
+{
+  double a= 10.0;
+  double b= 1e308;
+
+  return !isinf(a * b);
+}
+],
+  [AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)
+   AC_DEFINE([HAVE_BROKEN_ISINF], [1],
+             [Define to 1 if isinf() uses 80-bit register for intermediate values])
+  ],
+  [
+# Let's be optimistic when cross-compiling, since the only compiler known
+# to be affected by this isinf() bug is GCC 4.3 on 32-bit x86.
+   AC_MSG_RESULT([[cross-compiling, assuming 'yes']])
+  ])
   AC_MSG_CHECKING(whether isinf() can be used in C++ code)
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS

@@ -1,4 +1,4 @@
-############## mysql-test\t\wait_timeout_func.test ############################
+###############################################################################
 #                                                                             #
 # Variable Name: wait_timeout                                                 #
 # Scope: GLOBAL | SESSION                                                     #

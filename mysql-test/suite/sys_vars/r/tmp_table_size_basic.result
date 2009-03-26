@@ -51,7 +51,7 @@ SELECT @@global.tmp_table_size;
 1024
 SET @@global.tmp_table_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect tmp_table_size value: '0'
+Warning	1292	Truncated incorrect tmp_table_size value: '-1024'
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
 1024
@@ -100,6 +100,8 @@ SELECT @@session.tmp_table_size;
 SET @@session.tmp_table_size = "Test";
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SET @@session.tmp_table_size = 12345678901;
+Warnings:
+Warning	1292	Truncated incorrect tmp_table_size value: '12345678901'
 SELECT @@session.tmp_table_size IN (12345678901,4294967295);
 @@session.tmp_table_size IN (12345678901,4294967295)
 1

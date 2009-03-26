@@ -2303,7 +2303,7 @@ void Query_arena::set_query_arena(Query_arena *set)
 
 void Query_arena::cleanup_stmt()
 {
-  DBUG_ASSERT("Query_arena::cleanup_stmt()" == "not implemented");
+  DBUG_ASSERT(! "Query_arena::cleanup_stmt() not implemented");
 }
 
 /*

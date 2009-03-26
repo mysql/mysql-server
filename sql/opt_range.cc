@@ -9494,7 +9494,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     }
 
     /* If we got to this point, cur_index_info passes the test. */
-    key_infix_parts= cur_key_infix_len ?
+    key_infix_parts= cur_key_infix_len ? (uint) 
                      (first_non_infix_part - first_non_group_part) : 0;
     cur_used_key_parts= cur_group_key_parts + key_infix_parts;
 

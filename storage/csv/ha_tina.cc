@@ -397,12 +397,12 @@ static int free_share(TINA_SHARE *share)
   '\r''\n' --  DOS\Windows line ending
 */
 
-off_t find_eoln_buff(Transparent_file *data_buff, off_t begin,
-                     off_t end, int *eoln_len)
+my_off_t find_eoln_buff(Transparent_file *data_buff, my_off_t begin,
+                     my_off_t end, int *eoln_len)
 {
   *eoln_len= 0;
 
-  for (off_t x= begin; x < end; x++)
+  for (my_off_t x= begin; x < end; x++)
   {
     /* Unix (includes Mac OS X) */
     if (data_buff->get_value(x) == '\n')
@@ -586,7 +586,7 @@ int ha_tina::chain_append()
 */
 int ha_tina::find_current_row(uchar *buf)
 {
-  off_t end_offset, curr_offset= current_position;
+  my_off_t end_offset, curr_offset= current_position;
   int eoln_len;
   my_bitmap_map *org_bitmap;
   int error;
@@ -836,7 +836,7 @@ int ha_tina::open(const char *name, int mode, uint open_options)
     during locking. This is needed to enable concurrent inserts.
   */
   thr_lock_data_init(&share->lock, &lock, (void*) this);
-  ref_length=sizeof(off_t);
+  ref_length= sizeof(my_off_t);
 
   share->lock.get_status= tina_get_status;
   share->lock.update_status= tina_update_status;
@@ -1140,7 +1140,7 @@ int ha_tina::rnd_pos(uchar * buf, uchar *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  current_position= (off_t)my_get_ptr(pos,ref_length);
+  current_position= my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
 
@@ -1180,7 +1180,7 @@ int ha_tina::extra(enum ha_extra_function operation)
   to the given "hole", stored in the buffer. "Valid" here means,
   not listed in the chain of deleted records ("holes").
 */
-bool ha_tina::get_write_pos(off_t *end_pos, tina_set *closest_hole)
+bool ha_tina::get_write_pos(my_off_t *end_pos, tina_set *closest_hole)
 {
   if (closest_hole == chain_ptr) /* no more chains */
     *end_pos= file_buff->end();
@@ -1200,7 +1200,7 @@ bool ha_tina::get_write_pos(off_t *end_pos, tina_set *closest_hole)
 int ha_tina::rnd_end()
 {
   char updated_fname[FN_REFLEN];
-  off_t file_buffer_start= 0;
+  my_off_t file_buffer_start= 0;
   DBUG_ENTER("ha_tina::rnd_end");
 
   free_root(&blobroot, MYF(0));
@@ -1223,17 +1223,17 @@ int ha_tina::rnd_end()
     my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
              (qsort_cmp)sort_set);
 
-    off_t write_begin= 0, write_end;
+    my_off_t write_begin= 0, write_end;
 
     /* create the file to write updated table if it wasn't yet created */
     if (open_update_temp_file_if_needed())
       DBUG_RETURN(-1);
 
     /* write the file with updated info */
-    while ((file_buffer_start != -1))     // while not end of file
+    while ((file_buffer_start != (my_off_t)-1))     // while not end of file
     {
       bool in_hole= get_write_pos(&write_end, ptr);
-      off_t write_length= write_end - write_begin;
+      my_off_t write_length= write_end - write_begin;
 
       /* if there is something to write, write it */
       if (write_length)
@@ -1241,14 +1241,15 @@ int ha_tina::rnd_end()
         if (my_write(update_temp_file, 
                      (uchar*) (file_buff->ptr() +
                                (write_begin - file_buff->start())),
-                     write_length, MYF_RW))
+                     (size_t)write_length, MYF_RW))
           goto error;
         temp_file_length+= write_length;
       }
       if (in_hole)
       {
         /* skip hole */
-        while (file_buff->end() <= ptr->end && file_buffer_start != -1)
+        while (file_buff->end() <= ptr->end &&
+               file_buffer_start != (my_off_t)-1)
           file_buffer_start= file_buff->read_next();
         write_begin= ptr->end;
         ptr++;
@@ -1348,7 +1349,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   File repair_file;
   int rc;
   ha_rows rows_repaired= 0;
-  off_t write_begin= 0, write_end;
+  my_off_t write_begin= 0, write_end;
   DBUG_ENTER("ha_tina::repair");
 
   /* empty file */
@@ -1423,7 +1424,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
     write_end= min(file_buff->end(), current_position);
     if ((write_end - write_begin) &&
         (my_write(repair_file, (uchar*)file_buff->ptr(),
-                  write_end - write_begin, MYF_RW)))
+                  (size_t) (write_end - write_begin), MYF_RW)))
       DBUG_RETURN(-1);
 
     write_begin= write_end;

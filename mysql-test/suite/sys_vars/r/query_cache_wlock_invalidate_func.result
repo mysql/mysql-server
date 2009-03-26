@@ -53,7 +53,7 @@ LOCK TABLE t1 WRITE;
 ** Asynchronous Execution **
 SELECT * FROM t1;
 ** Connection con0 **
-Sleeping 2 Seconds before unlock
+wait until table is locked
 UNLOCK TABLES;
 ** Connection con1 **
 ** Asynchronous Result **
@@ -108,8 +108,17 @@ id	value
 1	val1
 2	val2
 3	val3
+SELECT * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
+SELECT * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
 ** Connection con0 **
-Sleeping 2 Seconds before unlock
 UNLOCK TABLES;
 ** Connection con1 **
 '#----------------------------FN_DYNVARS_136_05------------------------#'
