@@ -7114,7 +7114,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
-
+    /*
+      The current statement is just about to begin and 
+      has not yet modified anything. Note, all.modified is reset
+      by mysql_reset_thd_for_next_command.
+    */
+    thd->transaction.stmt.modified_non_trans_table= FALSE;
     /*
       Check if the slave is set to use SBR.  If so, it should switch
       to using RBR until the end of the "statement", i.e., next
@@ -7217,6 +7222,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (table)
   {
+    bool transactional_table= table->file->has_transactions();
     /*
       table == NULL means that this table should not be replicated
       (this was set up by Table_map_log_event::do_apply_event()
@@ -7348,6 +7354,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   
       m_curr_row= m_curr_row_end;
  
+      if (error == 0 && !transactional_table)
+        thd->transaction.all.modified_non_trans_table=
+          thd->transaction.stmt.modified_non_trans_table= TRUE;
     } // row processing loop
 
     DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
