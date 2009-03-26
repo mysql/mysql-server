@@ -123,8 +123,8 @@ Configuration::fetch_configuration(const char* _connect_string,
 
   m_mgmd_port= 0;
   m_config_retriever= new ConfigRetriever(_connect_string,
-					  NDB_VERSION, 
-					  NODE_TYPE_DB,
+                                          NDB_VERSION,
+                                          NDB_MGM_NODE_TYPE_NDB,
 					  _bind_address);
 
   if (m_config_retriever->hasError())
