@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database server main program
 
@@ -20,10 +45,9 @@ Windows 2000 will have something called thread pooling
 Another possibility could be to use some very fast user space
 thread library. This might confuse NT though.
 
-(c) 1995 Innobase Oy
-
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
+
 /* Dummy comment */
 #include "srv0srv.h"
 
@@ -142,12 +166,14 @@ UNIV_INTERN ulint  srv_show_verbose_locks  = 0;
 collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
 
+/* use os/external memory allocator */
+UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
-UNIV_INTERN ulong	srv_buf_pool_size	= ULINT_MAX;
+UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* previously requested size */
-UNIV_INTERN ulong	srv_buf_pool_old_size;
+UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
-UNIV_INTERN ulong	srv_buf_pool_curr_size	= 0;
+UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 /* size in bytes */
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
@@ -264,10 +290,10 @@ UNIV_INTERN ulong	srv_commit_concurrency	= 0;
 
 /* this mutex protects srv_conc data structures */
 UNIV_INTERN os_fast_mutex_t	srv_conc_mutex;
-/* number of OS threads currently inside InnoDB; it is not an error if
-this drops temporarily below zero because we do not demand that every
-thread increments this, but a thread waiting for a lock decrements
-this temporarily */
+/* number of transactions that have declared_to_be_inside_innodb set.
+It used to be a non-error for this value to drop below zero temporarily.
+This is no longer true. We'll, however, keep the lint datatype to add
+assertions to catch any corner cases that we may have missed. */
 UNIV_INTERN lint	srv_conc_n_threads	= 0;
 /* number of OS threads waiting in the FIFO for a permission to enter
 InnoDB */
@@ -968,6 +994,7 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	ut_mem_init();
 	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);
@@ -1025,6 +1052,8 @@ retry:
 
 		return;
 	}
+
+	ut_ad(srv_conc_n_threads >= 0);
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 
@@ -1152,6 +1181,8 @@ srv_conc_force_enter_innodb(
 		return;
 	}
 
+	ut_ad(srv_conc_n_threads >= 0);
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	srv_conc_n_threads++;
@@ -1173,11 +1204,6 @@ srv_conc_force_exit_innodb(
 {
 	srv_conc_slot_t*	slot	= NULL;
 
-	if (UNIV_LIKELY(!srv_thread_concurrency)) {
-
-		return;
-	}
-
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
@@ -1191,6 +1217,7 @@ srv_conc_force_exit_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
+	ut_ad(srv_conc_n_threads > 0);
 	srv_conc_n_threads--;
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
@@ -1484,9 +1511,12 @@ srv_suspend_mysql_thread(
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	/* Wait for the release */
+	/* Suspend this thread and wait for the event. */
 
 	os_event_wait(event);
+
+	/* After resuming, reacquire the data dictionary latch if
+	necessary. */
 
 	switch (had_dict_lock) {
 	case RW_S_LATCH:
@@ -1927,6 +1957,11 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
 		- UT_LIST_GET_LEN(buf_pool->LRU)
 		- UT_LIST_GET_LEN(buf_pool->free);
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+	export_vars.innodb_have_atomic_builtins = 1;
+#else
+	export_vars.innodb_have_atomic_builtins = 0;
+#endif
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 	export_vars.innodb_log_waits = srv_log_waits;
 	export_vars.innodb_os_log_written = srv_os_log_written;

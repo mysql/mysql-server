@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Update of a row
-
-(c) 1996 Innobase Oy
 
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
@@ -292,16 +308,6 @@ row_upd_step(
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
-Performs an in-place update for the current clustered index record in
-select. */
-UNIV_INTERN
-void
-row_upd_in_place_in_select(
-/*=======================*/
-	sel_node_t*	sel_node,	/* in: select node */
-	que_thr_t*	thr,		/* in: query thread */
-	mtr_t*		mtr);		/* in: mtr */
-/*************************************************************************
 Parses the log data of system field values. */
 UNIV_INTERN
 byte*
@@ -374,11 +380,6 @@ struct upd_node_struct{
 	ibool		searched_update;
 				/* TRUE if searched update, FALSE if
 				positioned */
-	ibool		select_will_do_update;
-				/* TRUE if a searched update where ordering
-				fields will not be updated, and the size of
-				the fields will not change: in this case the
-				select node will take care of the update */
 	ibool		in_mysql_interface;
 				/* TRUE if the update node was created
 				for the MySQL interface */

@@ -1,21 +1,23 @@
-/*   Innobase relational database engine; Copyright (C) 2001 Innobase Oy
+/*****************************************************************************
 
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License 2
-     as published by the Free Software Foundation in June 1991.
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
 
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
 
-     You should have received a copy of the GNU General Public License 2
-     along with this program (in file COPYING); if not, write to the Free
-     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer pool high-level routines
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
@@ -36,8 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 /* Modes for buf_page_get_gen */
 #define BUF_GET			10	/* get always */
 #define	BUF_GET_IF_IN_POOL	11	/* get if in pool */
-#define	BUF_GET_NOWAIT		12	/* get if can set the latch without
-					waiting */
 #define BUF_GET_NO_LATCH	14	/* get and bufferfix, but set no latch;
 					we have separated this case, because
 					it is error-prone programming not to
@@ -93,6 +93,15 @@ UNIV_INTERN
 void
 buf_pool_free(void);
 /*===============*/
+
+/************************************************************************
+Drops the adaptive hash index.  To prevent a livelock, this function
+is only to be called while holding btr_search_latch and while
+btr_search_enabled == FALSE. */
+UNIV_INTERN
+void
+buf_pool_drop_hash_index(void);
+/*==========================*/
 
 /************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
@@ -171,12 +180,6 @@ with care. */
 #define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
-/******************************************************************
-NOTE! The following macros should be used instead of buf_page_get_gen, to
-improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
-#define buf_page_get_nowait(SP, ZS, OF, LA, MTR)	buf_page_get_gen(\
-				SP, ZS, OF, LA, NULL,\
-				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
@@ -866,15 +869,15 @@ Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
 	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
-UNIV_INLINE
-const buf_block_t*
+UNIV_INTERN
+buf_block_t*
 buf_block_align(
 /*============*/
-				/* out: pointer to block */
+				/* out: pointer to block, never NULL */
 	const byte*	ptr);	/* in: pointer to a frame */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
@@ -981,8 +984,10 @@ struct buf_page_struct{
 	since they can be stored in the same machine word.  Some of them are
 	additionally protected by buf_pool_mutex. */
 
-	unsigned	space:32;	/* tablespace id */
-	unsigned	offset:32;	/* page number */
+	unsigned	space:32;	/* tablespace id; also protected
+					by buf_pool_mutex. */
+	unsigned	offset:32;	/* page number; also protected
+					by buf_pool_mutex. */
 
 	unsigned	state:3;	/* state of the control block
 					(@see enum buf_page_state); also
@@ -1051,7 +1056,8 @@ struct buf_page_struct{
 					not yet been flushed on disk; zero if
 					all modifications are on disk */
 
-	/* 3. LRU replacement algorithm fields; protected by buf_pool_mutex */
+	/* 3. LRU replacement algorithm fields; protected by
+	buf_pool_mutex only (not buf_pool_zip_mutex or block->mutex) */
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
@@ -1162,11 +1168,11 @@ struct buf_block_struct{
 	An exception to this is when we init or create a page
 	in the buffer pool in buf0buf.c. */
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ulint		n_pointers;	/* used in debugging: the number of
 					pointers in the adaptive hash index
 					pointing to this frame */
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	unsigned	is_hashed:1;	/* TRUE if hash index has already been
 					built on this page; note that it does
 					not guarantee that the index is

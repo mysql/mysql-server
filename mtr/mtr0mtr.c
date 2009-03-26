@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mini-transaction buffer
-
-(c) 1995 Innobase Oy
 
 Created 11/26/1995 Heikki Tuuri
 *******************************************************/
@@ -158,9 +174,8 @@ mtr_commit(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
-#ifdef UNIV_DEBUG
-	mtr->state = MTR_COMMITTING;
-#endif
+	ut_d(mtr->state = MTR_COMMITTING);
+
 	write_log = mtr->modifications && mtr->n_log_recs;
 
 	if (write_log) {
@@ -181,9 +196,7 @@ mtr_commit(
 		log_release();
 	}
 
-#ifdef UNIV_DEBUG
-	mtr->state = MTR_COMMITTED;
-#endif
+	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
 }
@@ -312,14 +325,7 @@ mtr_memo_contains_page(
 	const byte*	ptr,	/* in: pointer to buffer frame */
 	ulint		type)	/* in: type of object */
 {
-	ibool	ret;
-
-	//buf_pool_mutex_enter();
-	rw_lock_s_lock(&page_hash_latch);
-	ret = mtr_memo_contains(mtr, buf_block_align(ptr), type);
-	//buf_pool_mutex_exit();
-	rw_lock_s_unlock(&page_hash_latch);
-	return(ret);
+	return(mtr_memo_contains(mtr, buf_block_align(ptr), type));
 }
 
 /*************************************************************

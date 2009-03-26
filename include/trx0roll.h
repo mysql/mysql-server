@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Transaction rollback
-
-(c) 1996 Innobase Oy
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
@@ -14,6 +30,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "mtr0mtr.h"
 #include "trx0sys.h"
+
+#define trx_roll_free_all_savepoints(s) trx_roll_savepoints_free((s), NULL)
 
 /***********************************************************************
 Determines if this transaction is rolling back an incomplete transaction
@@ -249,8 +267,18 @@ trx_release_savepoint_for_mysql(
 	const char*	savepoint_name);	/* in: savepoint name */
 
 /***********************************************************************
-Frees savepoint structs. */
+Frees a single savepoint struct. */
 UNIV_INTERN
+void
+trx_roll_savepoint_free(
+/*=====================*/
+	trx_t*			trx,	/* in: transaction handle */
+	trx_named_savept_t*	savep);	/* in: savepoint to free */
+
+/***********************************************************************
+Frees savepoint structs starting from savep, if savep == NULL then
+free all savepoints. */
+
 void
 trx_roll_savepoints_free(
 /*=====================*/

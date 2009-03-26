@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 Memory primitives
-
-(c) 1994, 1995 Innobase Oy
 
 Created 5/11/1994 Heikki Tuuri
 *************************************************************************/
@@ -13,14 +29,21 @@ Created 5/11/1994 Heikki Tuuri
 #endif
 
 #include "mem0mem.h"
-#include "os0sync.h"
 #include "os0thread.h"
+#include "srv0srv.h"
+
+#include <stdlib.h>
 
 /* This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
 
-/* The total amount of memory currently allocated from the OS with malloc */
-UNIV_INTERN ulint	ut_total_allocated_memory	= 0;
+/* The total amount of memory currently allocated from the operating
+system with os_mem_alloc_large() or malloc().  Does not count malloc()
+if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
+UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
+
+/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
 
 struct ut_mem_block_struct{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
@@ -32,10 +55,8 @@ struct ut_mem_block_struct{
 #define UT_MEM_MAGIC_N	1601650166
 
 /* List of all memory blocks allocated from the operating system
-with malloc */
+with malloc.  Protected by ut_list_mutex. */
 static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
-
-static os_fast_mutex_t ut_list_mutex;	/* this protects the list */
 
 static ibool  ut_mem_block_list_inited = FALSE;
 
@@ -43,11 +64,12 @@ static ulint*	ut_mem_null_ptr	= NULL;
 
 /**************************************************************************
 Initializes the mem block list at database startup. */
-static
+UNIV_INTERN
 void
-ut_mem_block_list_init(void)
-/*========================*/
+ut_mem_init(void)
+/*=============*/
 {
+	ut_a(!ut_mem_block_list_inited);
 	os_fast_mutex_init(&ut_list_mutex);
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
@@ -68,14 +90,26 @@ ut_malloc_low(
 	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
-	ulint	retry_count	= 0;
+	ulint	retry_count;
 	void*	ret;
 
-	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		ret = malloc(n);
+		ut_a(ret || !assert_on_error);
 
-	if (!ut_mem_block_list_inited) {
-		ut_mem_block_list_init();
+#ifdef UNIV_SET_MEM_TO_ZERO
+		if (set_to_zero) {
+			memset(ret, '\0', n);
+			UNIV_MEM_ALLOC(ret, n);
+		}
+#endif
+		return(ret);
 	}
+
+	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
+	ut_a(ut_mem_block_list_inited);
+
+	retry_count = 0;
 retry:
 	os_fast_mutex_lock(&ut_list_mutex);
 
@@ -239,6 +273,11 @@ ut_free(
 {
 	ut_mem_block_t* block;
 
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		free(ptr);
+		return;
+	}
+
 	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
 
 	os_fast_mutex_lock(&ut_list_mutex);
@@ -291,6 +330,10 @@ ut_realloc(
 	ulint		min_size;
 	void*		new_ptr;
 
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		return(realloc(ptr, size));
+	}
+
 	if (ptr == NULL) {
 
 		return(ut_malloc(size));
@@ -338,6 +381,8 @@ ut_free_all_mem(void)
 {
 	ut_mem_block_t* block;
 
+	ut_a(ut_mem_block_list_inited);
+	ut_mem_block_list_inited = FALSE;
 	os_fast_mutex_free(&ut_list_mutex);
 
 	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {

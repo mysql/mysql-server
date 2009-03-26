@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 Data dictionary system
-
-(c) 1996 Innobase Oy
 
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
@@ -658,21 +674,6 @@ dict_index_set_page(
 }
 
 /*************************************************************************
-Gets the type of the index tree. */
-UNIV_INLINE
-ulint
-dict_index_get_type(
-/*================*/
-					/* out: type */
-	const dict_index_t*	index)	/* in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->type);
-}
-
-/*************************************************************************
 Gets the read-write lock of the index tree. */
 UNIV_INLINE
 rw_lock_t*
@@ -720,7 +721,8 @@ dict_table_check_if_in_cache_low(
 	table_fold = ut_fold_string(table_name);
 
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
-		    dict_table_t*, table, !strcmp(table->name, table_name));
+		    dict_table_t*, table, ut_ad(table->cached),
+		    !strcmp(table->name, table_name));
 	return(table);
 }
 
@@ -745,6 +747,8 @@ dict_table_get_low(
 		table = dict_load_table(table_name);
 	}
 
+	ut_ad(!table || table->cached);
+
 	return(table);
 }
 
@@ -766,10 +770,13 @@ dict_table_get_on_id_low(
 	fold = ut_fold_dulint(table_id);
 
 	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
-		    dict_table_t*, table, !ut_dulint_cmp(table->id, table_id));
+		    dict_table_t*, table, ut_ad(table->cached),
+		    !ut_dulint_cmp(table->id, table_id));
 	if (table == NULL) {
 		table = dict_load_table_on_id(table_id);
 	}
+
+	ut_ad(!table || table->cached);
 
 	/* TODO: should get the type information from MySQL */
 

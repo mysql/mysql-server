@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Select
-
-(c) 1997 Innobase Oy
 
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
@@ -280,13 +296,6 @@ struct sel_node_struct{
 	ibool		set_x_locks;	/* TRUE if the cursor is for update or
 					delete, which means that a row x-lock
 					should be placed on the cursor row */
-	ibool		select_will_do_update;
-					/* TRUE if the select is for a searched
-					update which can be performed in-place:
-					in this case the select will take care
-					of the update */
-	ulint		latch_mode;	/* BTR_SEARCH_LEAF, or BTR_MODIFY_LEAF
-					if select_will_do_update is TRUE */
 	ulint		row_lock_mode;	/* LOCK_X or LOCK_S */
 	ulint		n_tables;	/* number of tables */
 	ulint		fetch_table;	/* number of the next table to access

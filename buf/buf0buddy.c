@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Binary buddy allocator for compressed pages
-
-(c) 2006 Innobase Oy
 
 Created December 2006 by Marko Makela
 *******************************************************/
@@ -176,6 +192,8 @@ buf_buddy_block_free(
 	mutex_enter(&zip_hash_mutex);
 
 	HASH_SEARCH(hash, buf_pool->zip_hash, fold, buf_page_t*, bpage,
+		    ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY
+			  && bpage->in_zip_hash && !bpage->in_page_hash),
 		    ((buf_block_t*) bpage)->frame == buf);
 	ut_a(bpage);
 	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);

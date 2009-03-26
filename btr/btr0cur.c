@@ -1,3 +1,28 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The index tree cursor
 
@@ -11,8 +36,6 @@ insert or update, we have to reserve 2 x the height of the index tree
 many pages in the tablespace before we start the operation, because
 if leaf splitting has been started, it is difficult to undo, except
 by crashing the database and doing a roll-forward.
-
-(c) 1994-2001 Innobase Oy
 
 Created 10/16/1994 Heikki Tuuri
 *******************************************************/
@@ -318,10 +341,8 @@ btr_cur_search_to_nth_level(
 	ulint		low_bytes;
 	ulint		height;
 	ulint		savepoint;
-	ulint		rw_latch;
 	ulint		page_mode;
 	ulint		insert_planned;
-	ulint		buf_mode;
 	ulint		estimate;
 	ulint		ignore_sec_unique;
 	ulint		root_height = 0; /* remove warning */
@@ -367,13 +388,16 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 #endif
-	if (btr_search_latch.writer == RW_LOCK_NOT_LOCKED
+	if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 	    && !estimate
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 	    && mode != PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
-	    && !UNIV_UNLIKELY(btr_search_disabled)
+	    /* If !has_search_latch, we do a dirty read of
+	    btr_search_enabled below, and btr_search_guess_on_hash()
+	    will have to check it again. */
+	    && UNIV_LIKELY(btr_search_enabled)
 	    && btr_search_guess_on_hash(index, info, tuple, mode,
 					latch_mode, cursor,
 					has_search_latch, mtr)) {
@@ -429,8 +453,6 @@ btr_cur_search_to_nth_level(
 	low_bytes = 0;
 
 	height = ULINT_UNDEFINED;
-	rw_latch = RW_NO_LATCH;
-	buf_mode = BUF_GET;
 
 	/* We use these modified search modes on non-leaf levels of the
 	B-tree. These let us end up in the right B-tree leaf. In that leaf
@@ -459,9 +481,28 @@ btr_cur_search_to_nth_level(
 	for (;;) {
 		ulint		zip_size;
 		buf_block_t*	block;
-retry_page_get:
-		zip_size = dict_table_zip_size(index->table);
+		ulint		rw_latch;
+		ulint		buf_mode;
 
+		zip_size = dict_table_zip_size(index->table);
+		rw_latch = RW_NO_LATCH;
+		buf_mode = BUF_GET;
+
+		if (height == 0 && latch_mode <= BTR_MODIFY_LEAF) {
+
+			rw_latch = latch_mode;
+
+			if (insert_planned
+			    && ibuf_should_try(index, ignore_sec_unique)) {
+
+				/* Try insert to the insert buffer if the
+				page is not in the buffer pool */
+
+				buf_mode = BUF_GET_IF_IN_POOL;
+			}
+		}
+
+retry_page_get:
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 rw_latch, guess, buf_mode,
 					 __FILE__, __LINE__, mtr);
@@ -473,9 +514,8 @@ retry_page_get:
 			ut_ad(insert_planned);
 			ut_ad(cursor->thr);
 
-			if (ibuf_should_try(index, ignore_sec_unique)
-			    && ibuf_insert(tuple, index, space, zip_size,
-					   page_no, cursor->thr)) {
+			if (ibuf_insert(tuple, index, space, zip_size,
+					page_no, cursor->thr)) {
 				/* Insertion to the insert buffer succeeded */
 				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
 				if (UNIV_LIKELY_NULL(heap)) {
@@ -493,17 +533,16 @@ retry_page_get:
 		}
 
 		page = buf_block_get_frame(block);
-#ifdef UNIV_ZIP_DEBUG
-		if (rw_latch != RW_NO_LATCH) {
-			const page_zip_des_t*	page_zip
-				= buf_block_get_page_zip(block);
-			ut_a(!page_zip || page_zip_validate(page_zip, page));
-		}
-#endif /* UNIV_ZIP_DEBUG */
 
 		block->check_index_page_at_flush = TRUE;
 
 		if (rw_latch != RW_NO_LATCH) {
+#ifdef UNIV_ZIP_DEBUG
+			const page_zip_des_t*	page_zip
+				= buf_block_get_page_zip(block);
+			ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
+
 			buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 		}
 
@@ -575,20 +614,6 @@ retry_page_get:
 
 		height--;
 
-		if ((height == 0) && (latch_mode <= BTR_MODIFY_LEAF)) {
-
-			rw_latch = latch_mode;
-
-			if (insert_planned
-			    && ibuf_should_try(index, ignore_sec_unique)) {
-
-				/* Try insert to the insert buffer if the
-				page is not in the buffer pool */
-
-				buf_mode = BUF_GET_IF_IN_POOL;
-			}
-		}
-
 		guess = NULL;
 
 		node_ptr = page_cur_get_rec(page_cursor);
@@ -609,7 +634,11 @@ retry_page_get:
 		cursor->up_bytes = up_bytes;
 
 #ifdef BTR_CUR_ADAPT
-		if (!UNIV_UNLIKELY(btr_search_disabled)) {
+		/* We do a dirty read of btr_search_enabled here.  We
+		will properly check btr_search_enabled again in
+		btr_search_build_page_hash_index() before building a
+		page hash index, while holding btr_search_latch. */
+		if (UNIV_LIKELY(btr_search_enabled)) {
 
 			btr_search_info_update(index, cursor);
 		}
@@ -1218,7 +1247,9 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (!dict_index_is_clust(index) && leaf) {
+	if (leaf
+	    && !dict_index_is_clust(index)
+	    && !dict_index_is_ibuf(index)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
@@ -1599,6 +1630,7 @@ btr_cur_update_alloc_zip(
 {
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
+	ut_ad(!dict_index_is_ibuf(index));
 
 	if (page_zip_available(page_zip, dict_index_is_clust(index),
 			       length, 0)) {
@@ -1675,6 +1707,9 @@ btr_cur_update_in_place(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+	/* The insert buffer tree should never be updated in place. */
+	ut_ad(!dict_index_is_ibuf(index));
+
 	trx = thr_get_trx(thr);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 #ifdef UNIV_DEBUG
@@ -1811,6 +1846,8 @@ btr_cur_optimistic_update(
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* The insert buffer tree should never be updated in place. */
+	ut_ad(!dict_index_is_ibuf(index));
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
@@ -2074,6 +2111,8 @@ btr_cur_pessimistic_update(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
+	/* The insert buffer tree should never be updated in place. */
+	ut_ad(!dict_index_is_ibuf(index));
 
 	optim_err = btr_cur_optimistic_update(flags, cursor, update,
 					      cmpl_info, thr, mtr);
@@ -2723,7 +2762,10 @@ btr_cur_optimistic_delete(
 				delete; cursor stays valid: if deletion
 				succeeds, on function exit it points to the
 				successor of the deleted record */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/* in: mtr; if this function returns
+				TRUE on a leaf page of a secondary
+				index, the mtr must be committed
+				before latching any further pages */
 {
 	buf_block_t*	block;
 	rec_t*		rec;
@@ -2773,10 +2815,12 @@ btr_cur_optimistic_delete(
 #endif /* UNIV_ZIP_DEBUG */
 
 		if (dict_index_is_clust(cursor->index)
+		    || dict_index_is_ibuf(cursor->index)
 		    || !page_is_leaf(page)) {
 			/* The insert buffer does not handle
-			inserts to clustered indexes or to non-leaf
-			pages of secondary index B-trees. */
+			inserts to clustered indexes, to
+			non-leaf pages of secondary index B-trees,
+			or to the insert buffer. */
 		} else if (page_zip) {
 			ibuf_update_free_bits_zip(block, mtr);
 		} else {
@@ -4078,6 +4122,44 @@ next_zip_page:
 }
 
 /***********************************************************************
+Check the FIL_PAGE_TYPE on an uncompressed BLOB page. */
+static
+void
+btr_check_blob_fil_page_type(
+/*=========================*/
+	ulint		space_id,	/* in: space id */
+	ulint		page_no,	/* in: page number */
+	const page_t*	page,		/* in: page */
+	ibool		read)		/* in: TRUE=read, FALSE=purge */
+{
+	ulint	type = fil_page_get_type(page);
+
+	ut_a(space_id == page_get_space_id(page));
+	ut_a(page_no == page_get_page_no(page));
+
+	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
+		ulint	flags = fil_space_get_flags(space_id);
+
+		if (UNIV_LIKELY
+		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
+			/* Old versions of InnoDB did not initialize
+			FIL_PAGE_TYPE on BLOB pages.  Do not print
+			anything about the type mismatch when reading
+			a BLOB page that is in Antelope format.*/
+			return;
+		}
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: FIL_PAGE_TYPE=%lu"
+			" on BLOB %s space %lu page %lu flags %lx\n",
+			(ulong) type, read ? "read" : "purge",
+			(ulong) space_id, (ulong) page_no, (ulong) flags);
+		ut_error;
+	}
+}
+
+/***********************************************************************
 Frees the space in an externally stored field to the file space
 management if the field in data is owned by the externally stored field,
 in a rollback we may have the additional condition that the field must
@@ -4230,8 +4312,9 @@ btr_free_externally_stored_field(
 						 MLOG_4BYTES, &mtr);
 			}
 		} else {
-			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB);
 			ut_a(!page_zip);
+			btr_check_blob_fil_page_type(space_id, page_no, page,
+						     FALSE);
 
 			next_page_no = mach_read_from_4(
 				page + FIL_PAGE_DATA
@@ -4240,9 +4323,6 @@ btr_free_externally_stored_field(
 			/* We must supply the page level (= 0) as an argument
 			because we did not store it on the page (we save the
 			space overhead from an index page header. */
-
-			ut_a(space_id == page_get_space_id(page));
-			ut_a(page_no == page_get_page_no(page));
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
 
@@ -4381,9 +4461,8 @@ btr_copy_blob_prefix(
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
 		page = buf_block_get_frame(block);
 
-		/* Unfortunately, FIL_PAGE_TYPE was uninitialized for
-		many pages until MySQL/InnoDB 5.1.7. */
-		/* ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB); */
+		btr_check_blob_fil_page_type(space_id, page_no, page, TRUE);
+
 		blob_header = page + offset;
 		part_len = btr_blob_get_part_len(blob_header);
 		copy_len = ut_min(part_len, len - copied_len);

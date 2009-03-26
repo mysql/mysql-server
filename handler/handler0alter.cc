@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Smart ALTER TABLE
-
-(c) 2005-2008 Innobase Oy
 *******************************************************/
 
 #include <mysql_priv.h>
@@ -633,11 +649,8 @@ ha_innobase::add_index(
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
-	trx = trx_allocate_for_mysql();
+	trx = innobase_trx_allocate(user_thd);
 	trx_start_if_not_started(trx);
-
-	trx->mysql_thd = user_thd;
-	trx->mysql_query_str = thd_query(user_thd);
 
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
@@ -1125,11 +1138,8 @@ ha_innobase::final_drop_index(
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
-	trx = trx_allocate_for_mysql();
+	trx = innobase_trx_allocate(user_thd);
 	trx_start_if_not_started(trx);
-
-	trx->mysql_thd = user_thd;
-	trx->mysql_query_str = thd_query(user_thd);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */

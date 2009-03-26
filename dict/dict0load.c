@@ -1,8 +1,24 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Loads to the memory cache database object definitions
 from dictionary tables
-
-(c) 1996 Innobase Oy
 
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
@@ -949,11 +965,11 @@ err_exit:
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
-	if (err != DB_SUCCESS && !srv_force_recovery) {
-		dict_mem_table_free(table);
-		table = NULL;
-	} else if (err == DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
 		err = dict_load_foreigns(table->name, TRUE);
+	} else if (!srv_force_recovery) {
+		dict_table_remove_from_cache(table);
+		table = NULL;
 	}
 # if 0
 	if (err != DB_SUCCESS && table != NULL) {

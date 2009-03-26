@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /*********************************************************************
 Debug utilities for Innobase
-
-(c) 1994, 1995 Innobase Oy
 
 Created 1/30/1994 Heikki Tuuri
 **********************************************************************/
@@ -39,7 +55,7 @@ extern ibool	panic_shutdown;
 void ut_dbg_panic(void);
 # define UT_DBG_PANIC ut_dbg_panic()
 /* Stop threads in ut_a(). */
-# define UT_DBG_STOP	while (0)	/* We do not do this on NetWare */
+# define UT_DBG_STOP	do {} while (0)	/* We do not do this on NetWare */
 #else /* __NETWARE__ */
 # if defined(__WIN__) || defined(__INTEL_COMPILER)
 #  undef UT_DBG_USE_ABORT
@@ -71,7 +87,7 @@ ut_dbg_stop_thread(
 /* Abort the execution. */
 #  define UT_DBG_PANIC abort()
 /* Stop threads (null operation) */
-#  define UT_DBG_STOP while (0)
+#  define UT_DBG_STOP do {} while (0)
 # else /* UT_DBG_USE_ABORT */
 /* Abort the execution. */
 #  define UT_DBG_PANIC					\

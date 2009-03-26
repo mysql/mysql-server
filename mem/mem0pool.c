@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The lowest-level memory management
-
-(c) 1997 Innobase Oy
 
 Created 5/12/1997 Heikki Tuuri
 *************************************************************************/
@@ -11,6 +27,7 @@ Created 5/12/1997 Heikki Tuuri
 #include "mem0pool.ic"
 #endif
 
+#include "srv0srv.h"
 #include "sync0sync.h"
 #include "ut0mem.h"
 #include "ut0lst.h"
@@ -192,8 +209,6 @@ mem_pool_create(
 	ulint		i;
 	ulint		used;
 
-	ut_a(size > 10000);
-
 	pool = ut_malloc(sizeof(mem_pool_t));
 
 	/* We do not set the memory to zero (FALSE) in the pool,
@@ -336,6 +351,12 @@ mem_area_alloc(
 	ulint		n;
 	ibool		ret;
 
+	/* If we are using os allocator just make a simple call
+	to malloc */
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		return(malloc(*psize));
+	}
+
 	size = *psize;
 	n = ut_2_log(ut_max(size + MEM_AREA_EXTRA_SIZE, MEM_AREA_MIN_SIZE));
 
@@ -469,6 +490,12 @@ mem_area_free(
 	void*		new_ptr;
 	ulint		size;
 	ulint		n;
+
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		free(ptr);
+
+		return;
+	}
 
 	/* It may be that the area was really allocated from the OS with
 	regular malloc: check if ptr points within our memory pool */

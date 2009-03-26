@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 Data dictionary system
-
-(c) 1996 Innobase Oy
 
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
@@ -751,18 +767,34 @@ dict_table_add_to_cache(
 	{
 		dict_table_t*	table2;
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
-			    dict_table_t*, table2,
-			    (ut_strcmp(table2->name, table->name) == 0));
+			    dict_table_t*, table2, ut_ad(table2->cached),
+			    ut_strcmp(table2->name, table->name) == 0);
 		ut_a(table2 == NULL);
+
+#ifdef UNIV_DEBUG
+		/* Look for the same table pointer with a different name */
+		HASH_SEARCH_ALL(name_hash, dict_sys->table_hash,
+				dict_table_t*, table2, ut_ad(table2->cached),
+				table2 == table);
+		ut_ad(table2 == NULL);
+#endif /* UNIV_DEBUG */
 	}
 
 	/* Look for a table with the same id: error if such exists */
 	{
 		dict_table_t*	table2;
 		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold,
-			    dict_table_t*, table2,
-			    (ut_dulint_cmp(table2->id, table->id) == 0));
+			    dict_table_t*, table2, ut_ad(table2->cached),
+			    ut_dulint_cmp(table2->id, table->id) == 0);
 		ut_a(table2 == NULL);
+
+#ifdef UNIV_DEBUG
+		/* Look for the same table pointer with a different id */
+		HASH_SEARCH_ALL(id_hash, dict_sys->table_id_hash,
+				dict_table_t*, table2, ut_ad(table2->cached),
+				table2 == table);
+		ut_ad(table2 == NULL);
+#endif /* UNIV_DEBUG */
 	}
 
 	/* Add table to hash table of tables */
@@ -844,7 +876,7 @@ dict_table_rename_in_cache(
 	{
 		dict_table_t*	table2;
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
-			    dict_table_t*, table2,
+			    dict_table_t*, table2, ut_ad(table2->cached),
 			    (ut_strcmp(table2->name, new_name) == 0));
 		if (UNIV_LIKELY_NULL(table2)) {
 			ut_print_timestamp(stderr);

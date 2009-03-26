@@ -1,8 +1,24 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The memory management: the debug code. This is not a compilation module,
 but is included in mem0mem.* !
-
-(c) 1994, 1995 Innobase Oy
 
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
@@ -137,6 +153,14 @@ mem_init(
 
 	mem_hash_initialized = TRUE;
 #endif
+
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		/* When innodb_use_sys_malloc is set, the
+		mem_comm_pool won't be used for any allocations.  We
+		create a dummy mem_comm_pool, because some statistics
+		and debugging code relies on it being initialized. */
+		size = 1;
+	}
 
 	mem_comm_pool = mem_pool_create(size);
 }

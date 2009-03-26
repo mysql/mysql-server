@@ -1,3 +1,21 @@
+/*****************************************************************************
+
+Copyright (c) 2008, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /***********************************************************************
 This file contains functions that implement the delay loader on Windows.
 
@@ -18,8 +36,6 @@ Several acronyms used by Microsoft:
 
 See http://msdn.microsoft.com/en-us/magazine/bb985992.aspx for details of
 PE format.
-
-(c) 2008 Innobase Oy
 ***********************************************************************/
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
 # define WIN32_LEAN_AND_MEAN
@@ -453,6 +469,7 @@ wdl_get_procaddr_from_map(
 		map_fold,
 		map_hash_chain_t*,
 		hash_chain,
+		,
 		(ut_strcmp(hash_chain->symbol, import_proc) == 0));
 
 	if (hash_chain == NULL) {
@@ -472,6 +489,7 @@ wdl_get_procaddr_from_map(
 			map_fold,
 			map_hash_chain_t*,
 			hash_chain,
+			,
 			(ut_strcmp(hash_chain->symbol, import_proc) == 0));
 
 		if (hash_chain == NULL) {
@@ -515,6 +533,7 @@ wdl_get_varaddr_from_map(
 		map_fold,
 		map_hash_chain_t*,
 		hash_chain,
+		,
 		(ut_strcmp(hash_chain->symbol, import_variable) == 0));
 
 	if (hash_chain == NULL) {
@@ -534,6 +553,7 @@ wdl_get_varaddr_from_map(
 			map_fold,
 			map_hash_chain_t*,
 			hash_chain,
+			,
 			(ut_strcmp(hash_chain->symbol, import_variable) == 0));
 
 		if (hash_chain == NULL) {

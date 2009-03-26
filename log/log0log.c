@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Database log
-
-(c) 1995-1997 Innobase Oy
 
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
@@ -739,7 +755,7 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
-	buf = ut_malloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	buf = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
@@ -1782,6 +1798,7 @@ log_group_checkpoint(
 	}
 }
 
+#ifdef UNIV_HOTBACKUP
 /**********************************************************
 Writes info to a buffer of a log group when log files are created in
 backup restoration. */
@@ -1833,6 +1850,7 @@ log_reset_first_header_and_checkpoint(
 	allocated size in the tablespace, but unfortunately we do not
 	know it here */
 }
+#endif /* UNIV_HOTBACKUP */
 
 /**********************************************************
 Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */

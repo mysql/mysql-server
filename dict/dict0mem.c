@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /**********************************************************************
 Data dictionary memory object creation
-
-(c) 1996 Innobase Oy
 
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
@@ -16,8 +32,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "que0que.h"
-#include "pars0pars.h"
 #include "lock0lock.h"
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
@@ -84,6 +98,7 @@ dict_mem_table_free(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_d(table->cached = FALSE);
 
 	mutex_free(&(table->autoinc_mutex));
 	mem_heap_free(table->heap);

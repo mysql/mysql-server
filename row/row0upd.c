@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Update of a row
-
-(c) 1996 Innobase Oy
 
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
@@ -275,7 +291,6 @@ upd_node_create(
 	node->common.type = QUE_NODE_UPDATE;
 
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
-	node->select_will_do_update = FALSE;
 	node->in_mysql_interface = FALSE;
 
 	node->row = NULL;
@@ -2150,67 +2165,4 @@ error_handling:
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
 
 	return(thr);
-}
-
-/*************************************************************************
-Performs an in-place update for the current clustered index record in
-select. */
-UNIV_INTERN
-void
-row_upd_in_place_in_select(
-/*=======================*/
-	sel_node_t*	sel_node,	/* in: select node */
-	que_thr_t*	thr,		/* in: query thread */
-	mtr_t*		mtr)		/* in: mtr */
-{
-	upd_node_t*	node;
-	btr_pcur_t*	pcur;
-	btr_cur_t*	btr_cur;
-	ulint		err;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	rec_offs_init(offsets_);
-
-	ut_ad(sel_node->select_will_do_update);
-	ut_ad(sel_node->latch_mode == BTR_MODIFY_LEAF);
-	ut_ad(sel_node->asc);
-
-	node = que_node_get_parent(sel_node);
-
-	ut_ad(que_node_get_type(node) == QUE_NODE_UPDATE);
-
-	pcur = node->pcur;
-	btr_cur = btr_pcur_get_btr_cur(pcur);
-
-	/* Copy the necessary columns from clust_rec and calculate the new
-	values to set */
-
-	row_upd_copy_columns(btr_pcur_get_rec(pcur),
-			     rec_get_offsets(btr_pcur_get_rec(pcur),
-					     btr_cur->index, offsets_,
-					     ULINT_UNDEFINED, &heap),
-			     UT_LIST_GET_FIRST(node->columns));
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-	row_upd_eval_new_vals(node->update);
-
-	ut_ad(!rec_get_deleted_flag(
-		      btr_pcur_get_rec(pcur),
-		      dict_table_is_comp(btr_cur->index->table)));
-
-	ut_ad(node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE);
-	ut_ad(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE);
-	ut_ad(node->select_will_do_update);
-
-	err = btr_cur_update_in_place(BTR_NO_LOCKING_FLAG, btr_cur,
-				      node->update, node->cmpl_info,
-				      thr, mtr);
-	/* TODO: the above can fail with DB_ZIP_OVERFLOW if page_zip != NULL.
-	However, this function row_upd_in_place_in_select() is only invoked
-	when executing UPDATE statements of the built-in InnoDB SQL parser.
-	The built-in SQL is only used for InnoDB system tables, which
-	always are in the old, uncompressed format (ROW_FORMAT=REDUNDANT,
-	comp == FALSE, page_zip == NULL). */
-	ut_ad(err == DB_SUCCESS);
 }

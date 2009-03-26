@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Recovery
-
-(c) 1997 Innobase Oy
 
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
@@ -18,23 +34,14 @@ Created 9/20/1997 Heikki Tuuri
 #include "buf0rea.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "mtr0mtr.h"
 #include "mtr0log.h"
-#include "page0page.h"
 #include "page0cur.h"
 #include "page0zip.h"
-#include "btr0btr.h"
 #include "btr0cur.h"
 #include "ibuf0ibuf.h"
 #include "trx0undo.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
-#include "btr0cur.h"
-#include "btr0cur.h"
-#include "btr0cur.h"
-#include "dict0boot.h"
-#include "fil0fil.h"
-#include "sync0sync.h"
 #include "row0merge.h"
 
 #ifdef UNIV_HOTBACKUP
@@ -583,6 +590,7 @@ not_consistent:
 	return(DB_SUCCESS);
 }
 
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
 UNIV_INTERN
@@ -653,6 +661,7 @@ recv_read_cp_info_for_backup(
 
 	return(TRUE);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /**********************************************************
 Checks the 4-byte checksum to the trailer checksum field of a log block.
@@ -690,6 +699,7 @@ log_block_checksum_is_ok_or_old_format(
 	return(FALSE);
 }
 
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
@@ -779,6 +789,7 @@ recv_scan_log_seg_for_backup(
 		}
 	}
 }
+#endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************
 Tries to parse a single log record body and also applies it to a page if
@@ -2551,12 +2562,14 @@ recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it. */
 UNIV_INTERN
 ulint
-recv_recovery_from_checkpoint_start(
-/*================================*/
+recv_recovery_from_checkpoint_start_func(
+/*=====================================*/
 					/* out: error code or DB_SUCCESS */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint		type,		/* in: LOG_CHECKPOINT or LOG_ARCHIVE */
 	ib_uint64_t	limit_lsn,	/* in: recover up to this lsn
 					if possible */
+#endif /* UNIV_LOG_ARCHIVE */
 	ib_uint64_t	min_flushed_lsn,/* in: min flushed lsn from
 					data files */
 	ib_uint64_t	max_flushed_lsn)/* in: max flushed lsn from
@@ -2572,14 +2585,20 @@ recv_recovery_from_checkpoint_start(
 	ib_uint64_t	group_scanned_lsn;
 	ib_uint64_t	contiguous_lsn;
 	ib_uint64_t	archived_lsn;
-	ulint		capacity;
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	ulint		err;
 
+#ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
+# define TYPE_CHECKPOINT	(type == LOG_CHECKPOINT)
+# define LIMIT_LSN		limit_lsn
+#else /* UNIV_LOG_ARCHIVE */
+# define TYPE_CHECKPOINT	1
+# define LIMIT_LSN		IB_ULONGLONG_MAX
+#endif /* UNIV_LOG_ARCHIVE */
 
-	if (type == LOG_CHECKPOINT) {
+	if (TYPE_CHECKPOINT) {
 		recv_sys_create();
 		recv_sys_init(FALSE, buf_pool_get_curr_size());
 	}
@@ -2595,7 +2614,7 @@ recv_recovery_from_checkpoint_start(
 
 	recv_recovery_on = TRUE;
 
-	recv_sys->limit_lsn = limit_lsn;
+	recv_sys->limit_lsn = LIMIT_LSN;
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -2662,7 +2681,7 @@ recv_recovery_from_checkpoint_start(
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if (type == LOG_CHECKPOINT) {
+	if (TYPE_CHECKPOINT) {
 		/* Start reading the log groups from the checkpoint lsn up. The
 		variable contiguous_lsn contains an lsn up to which the log is
 		known to be contiguously written to all log groups. */
@@ -2677,7 +2696,12 @@ recv_recovery_from_checkpoint_start(
 
 	contiguous_lsn = ut_uint64_align_down(recv_sys->scanned_lsn,
 					      OS_FILE_LOG_BLOCK_SIZE);
-	if (type == LOG_ARCHIVE) {
+	if (TYPE_CHECKPOINT) {
+		up_to_date_group = max_cp_group;
+#ifdef UNIV_LOG_ARCHIVE
+	} else {
+		ulint	capacity;
+
 		/* Try to recover the remaining part from logs: first from
 		the logs of the archived group */
 
@@ -2710,20 +2734,21 @@ recv_recovery_from_checkpoint_start(
 
 		group->scanned_lsn = group_scanned_lsn;
 		up_to_date_group = group;
-	} else {
-		up_to_date_group = max_cp_group;
+#endif /* UNIV_LOG_ARCHIVE */
 	}
 
 	ut_ad(RECV_SCAN_SIZE <= log_sys->buf_size);
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
+#ifdef UNIV_LOG_ARCHIVE
 	if ((type == LOG_ARCHIVE) && (group == recv_sys->archive_group)) {
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
+#endif /* UNIV_LOG_ARCHIVE */
 
 	/* Set the flag to publish that we are doing startup scan. */
-	recv_log_scan_is_startup_type = (type == LOG_CHECKPOINT);
+	recv_log_scan_is_startup_type = TYPE_CHECKPOINT;
 	while (group) {
 		old_scanned_lsn = recv_sys->scanned_lsn;
 
@@ -2737,17 +2762,19 @@ recv_recovery_from_checkpoint_start(
 			up_to_date_group = group;
 		}
 
+#ifdef UNIV_LOG_ARCHIVE
 		if ((type == LOG_ARCHIVE)
 		    && (group == recv_sys->archive_group)) {
 			group = UT_LIST_GET_NEXT(log_groups, group);
 		}
+#endif /* UNIV_LOG_ARCHIVE */
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
 	/* Done with startup scan. Clear the flag. */
 	recv_log_scan_is_startup_type = FALSE;
-	if (type == LOG_CHECKPOINT) {
+	if (TYPE_CHECKPOINT) {
 		/* NOTE: we always do a 'recovery' at startup, but only if
 		there is something wrong we will print a message to the
 		user about recovery: */
@@ -2825,7 +2852,7 @@ recv_recovery_from_checkpoint_start(
 
 		mutex_exit(&(log_sys->mutex));
 
-		if (recv_sys->recovered_lsn >= limit_lsn) {
+		if (recv_sys->recovered_lsn >= LIMIT_LSN) {
 
 			return(DB_SUCCESS);
 		}
@@ -2888,6 +2915,9 @@ recv_recovery_from_checkpoint_start(
 	records in the hash table can be run in background. */
 
 	return(DB_SUCCESS);
+
+#undef TYPE_CHECKPOINT
+#undef LIMIT_LSN
 }
 
 /************************************************************

@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer pool LRU replacement algorithm
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
@@ -87,9 +103,15 @@ buf_LRU_insert_zip_clean(
 
 /**********************************************************************
 Try to free a block.  If bpage is a descriptor of a compressed-only
-page, the descriptor object will be freed as well.  If this function
-returns BUF_LRU_FREED, it will not temporarily release
-buf_pool_mutex. */
+page, the descriptor object will be freed as well.
+
+NOTE: If this function returns BUF_LRU_FREED, it will not temporarily
+release buf_pool_mutex.  Furthermore, the page frame will no longer be
+accessible via bpage.
+
+The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
+release these two mutexes after the call.  No other
+buf_page_get_mutex() may be held when calling this function. */
 UNIV_INTERN
 enum buf_lru_free_block_status
 buf_LRU_free_block(

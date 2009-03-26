@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The index tree cursor
-
-(c) 1994-1996 Innobase Oy
 
 Created 10/16/1994 Heikki Tuuri
 *******************************************************/
@@ -11,7 +27,6 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "univ.i"
 #include "dict0dict.h"
-#include "data0data.h"
 #include "page0cur.h"
 #include "btr0types.h"
 #include "que0types.h"
@@ -353,7 +368,10 @@ btr_cur_optimistic_delete(
 				cursor stays valid: if deletion succeeds,
 				on function exit it points to the successor
 				of the deleted record */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr);	/* in: mtr; if this function returns
+				TRUE on a leaf page of a secondary
+				index, the mtr must be committed
+				before latching any further pages */
 /*****************************************************************
 Removes the record on which the tree cursor is positioned. Tries
 to compress the page if its fillfactor drops below a threshold

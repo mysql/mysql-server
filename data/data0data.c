@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 SQL data field and tuple
-
-(c) 1994-1996 Innobase Oy
 
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
@@ -26,8 +42,10 @@ Created 5/30/1994 Heikki Tuuri
 for error checking */
 UNIV_INTERN byte	data_error;
 
+# ifndef UNIV_DEBUG_VALGRIND
 /* this is used to fool the compiler in dtuple_validate */
 UNIV_INTERN ulint	data_dummy;
+# endif /* !UNIV_DEBUG_VALGRIND */
 #endif /* UNIV_DEBUG */
 
 /*************************************************************************
@@ -232,11 +250,9 @@ dtuple_validate(
 	const dtuple_t*	tuple)	/* in: tuple */
 {
 	const dfield_t*	field;
-	const byte*	data;
 	ulint		n_fields;
 	ulint		len;
 	ulint		i;
-	ulint		j;
 
 	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
@@ -252,8 +268,9 @@ dtuple_validate(
 
 		if (!dfield_is_null(field)) {
 
-			data = dfield_get_data(field);
-			UNIV_MEM_ASSERT_RW(data, len);
+			const byte*	data = dfield_get_data(field);
+#ifndef UNIV_DEBUG_VALGRIND
+			ulint		j;
 
 			for (j = 0; j < len; j++) {
 
@@ -262,6 +279,9 @@ dtuple_validate(
 						      code */
 				data++;
 			}
+#endif /* !UNIV_DEBUG_VALGRIND */
+
+			UNIV_MEM_ASSERT_RW(data, len);
 		}
 	}
 
@@ -530,9 +550,9 @@ dtuple_print(
 		dfield_print_raw(f, dtuple_get_nth_field(tuple, i));
 
 		putc(';', f);
+		putc('\n', f);
 	}
 
-	putc('\n', f);
 	ut_ad(dtuple_validate(tuple));
 }
 

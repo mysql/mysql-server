@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Purge obsolete records
-
-(c) 1997 Innobase Oy
 
 Created 3/14/1997 Heikki Tuuri
 *******************************************************/
@@ -217,7 +233,7 @@ row_purge_remove_sec_if_poss_low(
 	ibool		found;
 	ulint		err;
 	mtr_t		mtr;
-	mtr_t*		mtr_vers;
+	mtr_t		mtr_vers;
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -225,7 +241,15 @@ row_purge_remove_sec_if_poss_low(
 	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
 
 	if (!found) {
-		/* Not found */
+		/* Not found.  This is a legitimate condition.  In a
+		rollback, InnoDB will remove secondary recs that would
+		be purged anyway.  Then the actual purge will not find
+		the secondary index record.  Also, the purge itself is
+		eager: if it comes to consider a secondary index
+		record, and notices it does not need to exist in the
+		index, it will remove it.  Then if/when the purge
+		comes to consider the secondary index record a second
+		time, it will not exist any more in the index. */
 
 		/* fputs("PURGE:........sec entry not found\n", stderr); */
 		/* dtuple_print(stderr, entry); */
@@ -242,21 +266,17 @@ row_purge_remove_sec_if_poss_low(
 	which cannot be purged yet, requires its existence. If some requires,
 	we should do nothing. */
 
-	mtr_vers = mem_alloc(sizeof(mtr_t));
+	mtr_start(&mtr_vers);
 
-	mtr_start(mtr_vers);
-
-	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, mtr_vers);
+	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr_vers);
 
 	if (success) {
 		old_has = row_vers_old_has_index_entry(
 			TRUE, btr_pcur_get_rec(&(node->pcur)),
-			mtr_vers, index, entry);
+			&mtr_vers, index, entry);
 	}
 
-	btr_pcur_commit_specify_mtr(&(node->pcur), mtr_vers);
-
-	mem_free(mtr_vers);
+	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
 
 	if (!success || !old_has) {
 		/* Remove the index record */

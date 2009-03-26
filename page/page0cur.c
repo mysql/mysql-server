@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The page cursor
-
-(c) 1994-1996 Innobase Oy
 
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
@@ -12,7 +28,6 @@ Created 10/4/1994 Heikki Tuuri
 #endif
 
 #include "page0zip.h"
-#include "rem0cmp.h"
 #include "mtr0log.h"
 #include "log0recv.h"
 #include "rem0cmp.h"
@@ -907,7 +922,7 @@ page_cur_insert_rec_low(
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
-	byte*		insert_buf	= NULL;
+	byte*		insert_buf;
 	ulint		rec_size;
 	page_t*		page;		/* the relevant page */
 	rec_t*		last_insert;	/* cursor position at previous
@@ -1172,7 +1187,7 @@ page_cur_insert_rec_zip(
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
-	byte*		insert_buf	= NULL;
+	byte*		insert_buf;
 	ulint		rec_size;
 	page_t*		page;		/* the relevant page */
 	rec_t*		last_insert;	/* cursor position at previous
@@ -1284,6 +1299,55 @@ too_small:
 		page_mem_alloc_free(page, page_zip,
 				    rec_get_next_ptr(free_rec, TRUE),
 				    rec_size);
+
+		if (!page_is_leaf(page)) {
+			/* Zero out the node pointer of free_rec,
+			in case it will not be overwritten by
+			insert_rec. */
+
+			ut_ad(rec_size > REC_NODE_PTR_SIZE);
+
+			if (rec_offs_extra_size(foffsets)
+			    + rec_offs_data_size(foffsets) > rec_size) {
+
+				memset(rec_get_end(free_rec, foffsets)
+				       - REC_NODE_PTR_SIZE, 0,
+				       REC_NODE_PTR_SIZE);
+			}
+		} else if (dict_index_is_clust(index)) {
+			/* Zero out the DB_TRX_ID and DB_ROLL_PTR
+			columns of free_rec, in case it will not be
+			overwritten by insert_rec. */
+
+			ulint	trx_id_col;
+			ulint	trx_id_offs;
+			ulint	len;
+
+			trx_id_col = dict_index_get_sys_col_pos(index,
+								DATA_TRX_ID);
+			ut_ad(trx_id_col > 0);
+			ut_ad(trx_id_col != ULINT_UNDEFINED);
+
+			trx_id_offs = rec_get_nth_field_offs(foffsets,
+							     trx_id_col, &len);
+			ut_ad(len == DATA_TRX_ID_LEN);
+
+			if (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN + trx_id_offs
+			    + rec_offs_extra_size(foffsets) > rec_size) {
+				/* We will have to zero out the
+				DB_TRX_ID and DB_ROLL_PTR, because
+				they will not be fully overwritten by
+				insert_rec. */
+
+				memset(free_rec + trx_id_offs, 0,
+				       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			}
+
+			ut_ad(free_rec + trx_id_offs + DATA_TRX_ID_LEN
+			      == rec_get_nth_field(free_rec, foffsets,
+						   trx_id_col + 1, &len));
+			ut_ad(len == DATA_ROLL_PTR_LEN);
+		}
 
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);

@@ -1,7 +1,30 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The index tree adaptive search
-
-(c) 1996 Innobase Oy
 
 Created 2/17/1996 Heikki Tuuri
 *************************************************************************/
@@ -19,8 +42,11 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "ha0ha.h"
 
-/* Flag: has the search system been disabled? */
-UNIV_INTERN ibool		btr_search_disabled	= FALSE;
+/* Flag: has the search system been enabled?
+Protected by btr_search_latch and btr_search_enabled_mutex. */
+UNIV_INTERN char		btr_search_enabled	= TRUE;
+
+static mutex_t			btr_search_enabled_mutex;
 
 /* A dummy variable to fool the compiler */
 UNIV_INTERN ulint		btr_search_this_is_zero = 0;
@@ -139,11 +165,11 @@ btr_search_sys_create(
 	btr_search_latch_temp = mem_alloc(sizeof(rw_lock_t));
 
 	rw_lock_create(&btr_search_latch, SYNC_SEARCH_SYS);
+	mutex_create(&btr_search_enabled_mutex, SYNC_SEARCH_SYS_CONF);
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
 	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
-
 }
 
 /************************************************************************
@@ -153,12 +179,20 @@ void
 btr_search_disable(void)
 /*====================*/
 {
-	btr_search_disabled = TRUE;
+	mutex_enter(&btr_search_enabled_mutex);
 	rw_lock_x_lock(&btr_search_latch);
 
-	ha_clear(btr_search_sys->hash_index);
+	btr_search_enabled = FALSE;
+
+	/* Clear all block->is_hashed flags and remove all entries
+	from btr_search_sys->hash_index. */
+	buf_pool_drop_hash_index();
+
+	/* btr_search_enabled_mutex should guarantee this. */
+	ut_ad(!btr_search_enabled);
 
 	rw_lock_x_unlock(&btr_search_latch);
+	mutex_exit(&btr_search_enabled_mutex);
 }
 
 /************************************************************************
@@ -168,7 +202,13 @@ void
 btr_search_enable(void)
 /*====================*/
 {
-	btr_search_disabled = FALSE;
+	mutex_enter(&btr_search_enabled_mutex);
+	rw_lock_x_lock(&btr_search_latch);
+
+	btr_search_enabled = TRUE;
+
+	rw_lock_x_unlock(&btr_search_latch);
+	mutex_exit(&btr_search_enabled_mutex);
 }
 
 /*********************************************************************
@@ -758,7 +798,6 @@ btr_search_guess_on_hash(
 {
 	buf_block_t*	block;
 	rec_t*		rec;
-	const page_t*	page;
 	ulint		fold;
 	dulint		index_id;
 #ifdef notdefined
@@ -798,13 +837,14 @@ btr_search_guess_on_hash(
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 		rw_lock_s_lock(&btr_search_latch);
+
+		if (UNIV_UNLIKELY(!btr_search_enabled)) {
+			goto failure_unlock;
+		}
 	}
 
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
-	/* It is used as lock word among x_lock */
-	ut_ad(btr_search_latch.writer != RW_LOCK_EX);
-#endif
-	ut_ad(btr_search_latch.reader_count > 0);
+	ut_ad(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_EX);
+	ut_ad(rw_lock_get_reader_count(&btr_search_latch) > 0);
 
 	rec = ha_search_and_get_data(btr_search_sys->hash_index, fold);
 
@@ -812,31 +852,7 @@ btr_search_guess_on_hash(
 		goto failure_unlock;
 	}
 
-	page = page_align(rec);
-	{
-		ulint	page_no		= page_get_page_no(page);
-		ulint	space_id	= page_get_space_id(page);
-
-		//buf_pool_mutex_enter();
-		rw_lock_s_lock(&page_hash_latch);
-		block = (buf_block_t*) buf_page_hash_get(space_id, page_no);
-		//buf_pool_mutex_exit();
-		rw_lock_s_unlock(&page_hash_latch);
-	}
-
-	if (UNIV_UNLIKELY(!block)
-	    || UNIV_UNLIKELY(buf_block_get_state(block)
-			     != BUF_BLOCK_FILE_PAGE)) {
-
-		/* The block is most probably being freed.
-		The function buf_LRU_search_and_free_block()
-		first removes the block from buf_pool->page_hash
-		by calling buf_LRU_block_remove_hashed_page().
-		After that, it invokes btr_search_drop_page_hash_index().
-		Let us pretend that the block was also removed from
-		the adaptive hash index. */
-		goto failure_unlock;
-	}
+	block = buf_block_align(rec);
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
@@ -853,8 +869,9 @@ btr_search_guess_on_hash(
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 	}
 
-	if (UNIV_UNLIKELY(buf_block_get_state(block)
-			  == BUF_BLOCK_REMOVE_HASH)) {
+	if (UNIV_UNLIKELY(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE)) {
+		ut_ad(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
+
 		if (UNIV_LIKELY(!has_search_latch)) {
 
 			btr_leaf_page_release(block, latch_mode, mtr);
@@ -863,7 +880,6 @@ btr_search_guess_on_hash(
 		goto failure;
 	}
 
-	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(page_rec_is_user_rec(rec));
 
 	btr_cur_position(index, rec, block, cursor);
@@ -875,8 +891,8 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (UNIV_EXPECT(
-		    ut_dulint_cmp(index_id, btr_page_get_index_id(page)), 0)
+	if (UNIV_EXPECT
+	    (ut_dulint_cmp(index_id, btr_page_get_index_id(block->frame)), 0)
 	    || !btr_search_check_guess(cursor,
 				       has_search_latch,
 				       tuple, mode, mtr)) {
@@ -1107,7 +1123,7 @@ next_rec:
 	block->index = NULL;
 	
 cleanup:
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
 		ut_print_timestamp(stderr);
@@ -1123,9 +1139,9 @@ cleanup:
 	} else {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
-#else /* UNIV_DEBUG */
+#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	rw_lock_x_unlock(&btr_search_latch);
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	mem_free(folds);
 }
@@ -1160,10 +1176,18 @@ btr_search_drop_page_hash_when_freed(
 	block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH, NULL,
 				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
+	/* Because the buffer pool mutex was released by
+	buf_page_peek_if_search_hashed(), it is possible that the
+	block was removed from the buffer pool by another thread
+	before buf_page_get_gen() got a chance to acquire the buffer
+	pool mutex again.  Thus, we must check for a NULL return. */
 
-	buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
+	if (UNIV_LIKELY(block != NULL)) {
 
-	btr_search_drop_page_hash_index(block);
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
+
+		btr_search_drop_page_hash_index(block);
+	}
 
 	mtr_commit(&mtr);
 }
@@ -1320,6 +1344,10 @@ btr_search_build_page_hash_index(
 	btr_search_check_free_space_in_heap();
 
 	rw_lock_x_lock(&btr_search_latch);
+
+	if (UNIV_UNLIKELY(!btr_search_enabled)) {
+		goto exit_func;
+	}
 
 	if (block->is_hashed && ((block->curr_n_fields != n_fields)
 				 || (block->curr_n_bytes != n_bytes)
@@ -1687,7 +1715,6 @@ btr_search_validate(void)
 /*=====================*/
 				/* out: TRUE if ok */
 {
-	page_t*		page;
 	ha_node_t*	node;
 	ulint		n_page_dumps	= 0;
 	ibool		ok		= TRUE;
@@ -1725,28 +1752,40 @@ btr_search_validate(void)
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
 
 		for (; node != NULL; node = node->next) {
-			const buf_block_t*	block;
+			const buf_block_t*	block
+				= buf_block_align(node->data);
+			const buf_block_t*	hash_block;
 
-			page = page_align(node->data);
-			{
-				ulint	page_no	= page_get_page_no(page);
-				ulint	space_id= page_get_space_id(page);
+			if (UNIV_LIKELY(buf_block_get_state(block)
+					== BUF_BLOCK_FILE_PAGE)) {
 
-				block = buf_block_hash_get(space_id, page_no);
+				/* The space and offset are only valid
+				for file blocks.  It is possible that
+				the block is being freed
+				(BUF_BLOCK_REMOVE_HASH, see the
+				assertion and the comment below) */
+				hash_block = buf_block_hash_get(
+					buf_block_get_space(block),
+					buf_block_get_page_no(block));
+			} else {
+				hash_block = NULL;
 			}
 
-			if (UNIV_UNLIKELY(!block)) {
-
-				/* The block is most probably being freed.
-				The function buf_LRU_search_and_free_block()
-				first removes the block from
+			if (hash_block) {
+				ut_a(hash_block == block);
+			} else {
+				/* When a block is being freed,
+				buf_LRU_search_and_free_block() first
+				removes the block from
 				buf_pool->page_hash by calling
 				buf_LRU_block_remove_hashed_page().
 				After that, it invokes
-				btr_search_drop_page_hash_index().
-				Let us pretend that the block was also removed
-				from the adaptive hash index. */
-				continue;
+				btr_search_drop_page_hash_index() to
+				remove the block from
+				btr_search_sys->hash_index. */
+
+				ut_a(buf_block_get_state(block)
+				     == BUF_BLOCK_REMOVE_HASH);
 			}
 
 			ut_a(!dict_index_is_ibuf(block->index));
@@ -1762,7 +1801,9 @@ btr_search_validate(void)
 					offsets,
 					block->curr_n_fields,
 					block->curr_n_bytes,
-					btr_page_get_index_id(page))) {
+					btr_page_get_index_id(block->frame))) {
+				const page_t*	page = block->frame;
+
 				ok = FALSE;
 				ut_print_timestamp(stderr);
 

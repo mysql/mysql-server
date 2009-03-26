@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 SQL parser
-
-(c) 1996 Innobase Oy
 
 Created 11/19/1996 Heikki Tuuri
 *******************************************************/
@@ -1030,19 +1046,6 @@ pars_update_statement(
 		node->pcur = &(plan->clust_pcur);
 	} else {
 		node->pcur = &(plan->pcur);
-	}
-
-	if (!node->is_delete && node->searched_update
-	    && (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE)
-	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-
-		/* The select node can perform the update in-place */
-
-		ut_a(plan->asc);
-
-		node->select_will_do_update = TRUE;
-		sel_node->select_will_do_update = TRUE;
-		sel_node->latch_mode = BTR_MODIFY_LEAF;
 	}
 
 	return(node);

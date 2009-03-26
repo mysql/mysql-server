@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 New index creation routines using a merge sort
-
-(c) 2005,2007 Innobase Oy
 
 Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
@@ -442,14 +458,29 @@ row_merge_tuple_cmp(
 	int		cmp;
 	const dfield_t*	field	= a;
 
+	/* Compare the fields of the tuples until a difference is
+	found or we run out of fields to compare.  If !cmp at the
+	end, the tuples are equal. */
 	do {
 		cmp = cmp_dfield_dfield(a++, b++);
 	} while (!cmp && --n_field);
 
 	if (UNIV_UNLIKELY(!cmp) && UNIV_LIKELY_NULL(dup)) {
+		/* Report a duplicate value error if the tuples are
+		logically equal.  NULL columns are logically inequal,
+		although they are equal in the sorting order.  Find
+		out if any of the fields are NULL. */
+		for (b = field; b != a; b++) {
+			if (dfield_is_null(b)) {
+
+				goto func_exit;
+			}
+		}
+
 		row_merge_dup_report(dup, field);
 	}
 
+func_exit:
 	return(cmp);
 }
 
@@ -1818,16 +1849,16 @@ row_merge_drop_temp_indexes(void)
 		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
 		"indexid CHAR;\n"
 		"DECLARE CURSOR c IS SELECT ID FROM SYS_INDEXES\n"
-		"WHERE SUBSTR(NAME,0,1)='\377' FOR UPDATE;\n"
+		"WHERE SUBSTR(NAME,0,1)='\377';\n"
 		"BEGIN\n"
 		"\tOPEN c;\n"
-		"\tWHILE 1 LOOP\n"
+		"\tWHILE 1=1 LOOP\n"
 		"\t\tFETCH c INTO indexid;\n"
 		"\t\tIF (SQL % NOTFOUND) THEN\n"
 		"\t\t\tEXIT;\n"
 		"\t\tEND IF;\n"
 		"\t\tDELETE FROM SYS_FIELDS WHERE INDEX_ID = indexid;\n"
-		"\t\tDELETE FROM SYS_INDEXES WHERE CURRENT OF c;\n"
+		"\t\tDELETE FROM SYS_INDEXES WHERE ID = indexid;\n"
 		"\tEND LOOP;\n"
 		"\tCLOSE c;\n"
 		"\tCOMMIT WORK;\n"
@@ -1837,6 +1868,15 @@ row_merge_drop_temp_indexes(void)
 	trx->op_info = "dropping partially created indexes";
 	row_mysql_lock_data_dictionary(trx);
 
+	/* Incomplete transactions may be holding some locks on the
+	data dictionary tables.  However, they should never have been
+	able to lock the records corresponding to the partially
+	created indexes that we are attempting to delete, because the
+	table was locked when the indexes were being created.  We will
+	drop the partially created indexes before the rollback of
+	incomplete transactions is initiated.  Thus, this should not
+	interfere with the incomplete transactions. */
+	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
 	err = que_eval_sql(NULL, drop_temp_indexes, FALSE, trx);
 	ut_a(err == DB_SUCCESS);
 
@@ -1953,7 +1993,6 @@ row_merge_create_temporary_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		dict_mem_table_free(new_table);
 		new_table = NULL;
 	}
 

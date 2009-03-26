@@ -1,3 +1,21 @@
+/*****************************************************************************
+
+Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 INFORMATION SCHEMA innodb_trx, innodb_locks and
 innodb_lock_waits tables fetch code.
@@ -5,8 +23,6 @@ innodb_lock_waits tables fetch code.
 The code below fetches information needed to fill those
 3 dynamic tables and uploads it into a "transactions
 table cache" for later retrieval.
-
-(c) 2007 Innobase Oy
 
 Created July 17, 2007 Vasil Dimov
 *******************************************************/
@@ -393,7 +409,7 @@ fill_trx_row(
 
 	if (trx->mysql_thd != NULL) {
 		row->trx_mysql_thread_id
-			= ib_thd_get_thread_id(trx->mysql_thd);
+			= thd_get_thread_id(trx->mysql_thd);
 	} else {
 		/* For internal transactions e.g., purge and transactions
 		being recovered at startup there is no associated MySQL
@@ -821,6 +837,8 @@ search_innodb_locks(
 		i_s_hash_chain_t*,
 		/* auxiliary variable */
 		hash_chain,
+		/* assertion on every traversed item */
+		,
 		/* this determines if we have found the lock */
 		locks_row_eq_lock(hash_chain->value, lock, heap_no));
 
@@ -952,6 +970,8 @@ add_trx_relevant_locks_to_cache(
 					requested lock row, or NULL or
 					undefined */
 {
+	ut_ad(mutex_own(&kernel_mutex));
+
 	/* If transaction is waiting we add the wait lock and all locks
 	from another transactions that are blocking the wait lock. */
 	if (trx->que_state == TRX_QUE_LOCK_WAIT) {
@@ -1092,6 +1112,8 @@ fetch_data_into_cache(
 	trx_t*			trx;
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	requested_lock_row;
+
+	ut_ad(mutex_own(&kernel_mutex));
 
 	trx_i_s_cache_clear(cache);
 

@@ -1,7 +1,30 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /***************************************************************************
 Version control for database, common definitions, and include files
-
-(c) 1994 - 2000 Innobase Oy
 
 Created 1/20/1994 Heikki Tuuri
 ****************************************************************************/
@@ -11,7 +34,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	2
+#define INNODB_VERSION_BUGFIX	3
 #define PERCONA_INNODB_VERSION	3
 
 /* The following is the InnoDB version as shown in
@@ -92,6 +115,24 @@ of the 32-bit x86 assembler in mutex operations. */
 #  define UNIV_CAN_USE_X86_ASSEMBLER
 # endif
 
+/* For InnoDB rw_locks to work with atomics we need the thread_id
+to be no more than machine word wide. The following enables using
+atomics for InnoDB rw_locks where these conditions are met. */
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+/* if HAVE_ATOMIC_PTHREAD_T is defined at this point that means that
+the code from plug.in has defined it and we do not need to include
+ut0auxconf.h which would either define HAVE_ATOMIC_PTHREAD_T or will
+be empty */
+# ifndef HAVE_ATOMIC_PTHREAD_T
+#  include "ut0auxconf.h"
+# endif /* HAVE_ATOMIC_PTHREAD_T */
+/* now HAVE_ATOMIC_PTHREAD_T is eventually defined either by plug.in or
+from Makefile.in->ut0auxconf.h */
+# ifdef HAVE_ATOMIC_PTHREAD_T
+#  define INNODB_RW_LOCKS_USE_ATOMICS
+# endif /* HAVE_ATOMIC_PTHREAD_T */
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+
 /* We only try to do explicit inlining of functions with gcc and
 Microsoft Visual C++ */
 
@@ -132,6 +173,8 @@ command. Not tested on Windows. */
 						Valgrind instrumentation */
 #define UNIV_DEBUG_PRINT			/* Enable the compilation of
 						some debug print functions */
+#define UNIV_AHI_DEBUG				/* Enable adaptive hash index
+						debugging without UNIV_DEBUG */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions

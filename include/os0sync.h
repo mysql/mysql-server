@@ -1,11 +1,35 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The interface to the operating system
 synchronization primitives.
 
-(c) 1995 Innobase Oy
-
 Created 9/6/1995 Heikki Tuuri
 *******************************************************/
+
 #ifndef os0sync_h
 #define os0sync_h
 
@@ -260,6 +284,23 @@ void
 os_fast_mutex_free(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
+
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+/**************************************************************
+Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins.
+Returns true if swapped, ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+#define os_compare_and_swap(ptr, old_val, new_val) \
+	__sync_bool_compare_and_swap(ptr, old_val, new_val)
+
+/**************************************************************
+Atomic increment for InnoDB. Currently requires GCC atomic builtins.
+Returns the resulting value, ptr is pointer to target, amount is the
+amount of increment. */
+#define os_atomic_increment(ptr, amount) \
+	__sync_add_and_fetch(ptr, amount)
+
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 #ifndef UNIV_NONINL
 #include "os0sync.ic"

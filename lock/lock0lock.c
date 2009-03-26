@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The transaction lock system
-
-(c) 1996 Innobase Oy
 
 Created 5/7/1996 Heikki Tuuri
 *******************************************************/
@@ -699,7 +715,10 @@ lock_is_table_exclusive(
 	const lock_t*	lock;
 	ibool		ok	= FALSE;
 
-	ut_ad(table && trx);
+	ut_ad(table);
+	ut_ad(trx);
+
+	lock_mutex_enter_kernel();
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock;
@@ -707,7 +726,7 @@ lock_is_table_exclusive(
 		if (lock->trx != trx) {
 			/* A lock on the table is held
 			by some other transaction. */
-			return(FALSE);
+			goto not_ok;
 		}
 
 		if (!(lock_get_type_low(lock) & LOCK_TABLE)) {
@@ -724,10 +743,15 @@ lock_is_table_exclusive(
 			auto_increment lock. */
 			break;
 		default:
+not_ok:
 			/* Other table locks than LOCK_IX are not allowed. */
-			return(FALSE);
+			ok = FALSE;
+			goto func_exit;
 		}
 	}
+
+func_exit:
+	lock_mutex_exit_kernel();
 
 	return(ok);
 }
@@ -3834,6 +3858,7 @@ lock_table_has_to_wait_in_queue(
 	dict_table_t*	table;
 	lock_t*		lock;
 
+	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_wait(wait_lock));
 
 	table = wait_lock->un_member.tab_lock.table;

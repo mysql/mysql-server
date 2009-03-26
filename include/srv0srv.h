@@ -1,11 +1,33 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The server main program
 
-(c) 1995 Innobase Oy
-
 Created 10/10/1995 Heikki Tuuri
 *******************************************************/
-
 
 #ifndef srv0srv_h
 #define srv0srv_h
@@ -98,9 +120,10 @@ extern ulint    srv_show_verbose_locks;
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;
-extern ulong	srv_buf_pool_size;	/* requested size in bytes */
-extern ulong	srv_buf_pool_old_size;	/* previously requested size */
-extern ulong	srv_buf_pool_curr_size;	/* current size in bytes */
+extern my_bool	srv_use_sys_malloc;
+extern ulint	srv_buf_pool_size;	/* requested size in bytes */
+extern ulint	srv_buf_pool_old_size;	/* previously requested size */
+extern ulint	srv_buf_pool_curr_size;	/* current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
@@ -546,6 +569,7 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_read_ahead_rnd;
 	ulint innodb_dblwr_pages_written;
 	ulint innodb_dblwr_writes;
+	ibool innodb_have_atomic_builtins;
 	ulint innodb_log_waits;
 	ulint innodb_log_write_requests;
 	ulint innodb_log_writes;
@@ -582,4 +606,3 @@ struct srv_sys_struct{
 extern ulint	srv_n_threads_active[];
 
 #endif
-

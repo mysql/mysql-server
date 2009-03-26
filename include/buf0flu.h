@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer pool flush algorithm
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
@@ -14,13 +30,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "mtr0types.h"
 
-/************************************************************************
-Inserts a modified block into the flush list. */
-UNIV_INTERN
-void
-buf_flush_insert_into_flush_list(
-/*=============================*/
-	buf_page_t*	bpage);	/* in: block which is modified */
 /************************************************************************
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN

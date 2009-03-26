@@ -15,7 +15,7 @@
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -D_LIB)
+ADD_DEFINITIONS(-D_WIN32 -D_LIB)
 
 # Bug 19424 - InnoDB: Possibly a memory overrun of the buffer being freed (64-bit Visual C)
 # Removing Win64 compiler optimizations for all innodb/mem/* files.
@@ -69,6 +69,7 @@ SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(innobase ${INNOBASE_SOURCES})
   ADD_DEPENDENCIES(innobase GenError)
+  SET_TARGET_PROPERTIES(innobase PROPERTIES COMPILE_FLAGS "-DMYSQL_SERVER")
 
   IF(INNODB_DYNAMIC_PLUGIN)
     # The dynamic plugin requires CMake 2.6.0 or later. Otherwise, the /DELAYLOAD property

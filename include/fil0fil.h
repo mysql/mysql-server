@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The low-level file system
-
-(c) 1995 Innobase Oy
 
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
@@ -12,7 +28,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "univ.i"
 #include "sync0rw.h"
 #include "dict0types.h"
-#include "ibuf0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
 
@@ -158,14 +173,6 @@ fil_space_get_type(
 			/* out: FIL_TABLESPACE or FIL_LOG */
 	ulint	id);	/* in: space id */
 /***********************************************************************
-Returns the ibuf data of a file space. */
-UNIV_INTERN
-ibuf_data_t*
-fil_space_get_ibuf_data(
-/*====================*/
-			/* out: ibuf data for this space */
-	ulint	id);	/* in: space id */
-/***********************************************************************
 Appends a new file to the chain of files of a space. File must be closed. */
 UNIV_INTERN
 void
@@ -282,14 +289,6 @@ void
 fil_set_max_space_id_if_bigger(
 /*===========================*/
 	ulint	max_id);/* in: maximum known id */
-/********************************************************************
-Initializes the ibuf data structure for space 0 == the system tablespace.
-This can be called after the file space headers have been created and the
-dictionary system has been initialized. */
-UNIV_INTERN
-void
-fil_ibuf_init_at_db_start(void);
-/*===========================*/
 /********************************************************************
 Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace. */

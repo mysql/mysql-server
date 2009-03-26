@@ -1,8 +1,24 @@
+/*****************************************************************************
+
+Copyright (c) 2000, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Interface between Innobase row operations and MySQL.
 Contains also create table and other data dictionary operations.
-
-(c) 2000 Innobase Oy
 
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
@@ -361,7 +377,7 @@ row_mysql_store_col_in_innobase_format(
 		/* In some cases we strip trailing spaces from UTF-8 and other
 		multibyte charsets, from FIXED-length CHAR columns, to save
 		space. UTF-8 would otherwise normally use 3 * the string length
-		bytes to store a latin1 string! */
+		bytes to store an ASCII string! */
 
 		/* We assume that this CHAR field is encoded in a
 		variable-length character set where spaces have
@@ -1200,7 +1216,6 @@ row_create_update_node_for_mysql(
 	node->in_mysql_interface = TRUE;
 	node->is_delete = FALSE;
 	node->searched_update = FALSE;
-	node->select_will_do_update = FALSE;
 	node->select = NULL;
 	node->pcur = btr_pcur_create_for_mysql();
 	node->table = table;
@@ -1444,12 +1459,13 @@ row_unlock_for_mysql(
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	if (!(srv_locks_unsafe_for_binlog
-	      || trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+	if (UNIV_UNLIKELY
+	    (!srv_locks_unsafe_for_binlog
+	     && trx->isolation_level != TRX_ISO_READ_COMMITTED)) {
 
 		fprintf(stderr,
 			"InnoDB: Error: calling row_unlock_for_mysql though\n"
-			"InnoDB: srv_locks_unsafe_for_binlog is FALSE and\n"
+			"InnoDB: innodb_locks_unsafe_for_binlog is FALSE and\n"
 			"InnoDB: this session is not using"
 			" READ COMMITTED isolation level.\n");
 
@@ -1635,13 +1651,15 @@ Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
 UNIV_INTERN
 void
-row_mysql_freeze_data_dictionary(
-/*=============================*/
-	trx_t*	trx)	/* in: transaction */
+row_mysql_freeze_data_dictionary_func(
+/*==================================*/
+	trx_t*		trx,	/* in/out: transaction */
+	const char*	file,	/* in: file name */
+	ulint		line)	/* in: line number */
 {
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	rw_lock_s_lock(&dict_operation_lock);
+	rw_lock_s_lock_func(&dict_operation_lock, 0, file, line);
 
 	trx->dict_operation_lock_mode = RW_S_LATCH;
 }
@@ -1652,7 +1670,7 @@ UNIV_INTERN
 void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/* in/out: transaction */
 {
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
@@ -1666,9 +1684,11 @@ Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
 UNIV_INTERN
 void
-row_mysql_lock_data_dictionary(
-/*===========================*/
-	trx_t*	trx)	/* in: transaction */
+row_mysql_lock_data_dictionary_func(
+/*================================*/
+	trx_t*		trx,	/* in/out: transaction */
+	const char*	file,	/* in: file name */
+	ulint		line)	/* in: line number */
 {
 	ut_a(trx->dict_operation_lock_mode == 0
 	     || trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -1676,7 +1696,7 @@ row_mysql_lock_data_dictionary(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock_func(&dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
 	mutex_enter(&(dict_sys->mutex));
@@ -1688,7 +1708,7 @@ UNIV_INTERN
 void
 row_mysql_unlock_data_dictionary(
 /*=============================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/* in/out: transaction */
 {
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 

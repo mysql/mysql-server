@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Recovery
-
-(c) 1997 Innobase Oy
 
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
@@ -17,7 +33,6 @@ Created 9/20/1997 Heikki Tuuri
 
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
-#endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
@@ -55,6 +70,7 @@ recv_scan_log_seg_for_backup(
 	ulint*		n_bytes_scanned);/* out: how much we were able to
 					scan, smaller than buf_len if log
 					data ended here */
+#endif /* UNIV_HOTBACKUP */
 /***********************************************************************
 Returns TRUE if recovery is currently running. */
 UNIV_INLINE
@@ -91,16 +107,25 @@ recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it. */
 UNIV_INTERN
 ulint
-recv_recovery_from_checkpoint_start(
-/*================================*/
+recv_recovery_from_checkpoint_start_func(
+/*=====================================*/
 					/* out: error code or DB_SUCCESS */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint		type,		/* in: LOG_CHECKPOINT or LOG_ARCHIVE */
 	ib_uint64_t	limit_lsn,	/* in: recover up to this lsn
 					if possible */
+#endif /* UNIV_LOG_ARCHIVE */
 	ib_uint64_t	min_flushed_lsn,/* in: min flushed lsn from
 					data files */
 	ib_uint64_t	max_flushed_lsn);/* in: max flushed lsn from
 					 data files */
+#ifdef UNIV_LOG_ARCHIVE
+# define recv_recovery_from_checkpoint_start(type,lim,min,max)		\
+	recv_recovery_from_checkpoint_start_func(type,lim,min,max)
+#else /* UNIV_LOG_ARCHIVE */
+# define recv_recovery_from_checkpoint_start(type,lim,min,max)		\
+	recv_recovery_from_checkpoint_start_func(min,max)
+#endif /* UNIV_LOG_ARCHIVE */
 /************************************************************
 Completes recovery from a checkpoint. */
 UNIV_INTERN
@@ -321,9 +346,11 @@ struct recv_sys_struct{
 				scan find a corrupt log block, or a corrupt
 				log record, or there is a log parsing
 				buffer overflow */
+#ifdef UNIV_LOG_ARCHIVE
 	log_group_t*	archive_group;
 				/* in archive recovery: the log group whose
 				archive is read */
+#endif /* !UNIV_LOG_ARCHIVE */
 	mem_heap_t*	heap;	/* memory heap of log records and file
 				addresses*/
 	hash_table_t*	addr_hash;/* hash table of file addresses of pages */

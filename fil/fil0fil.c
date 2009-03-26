@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The tablespace memory cache
-
-(c) 1995 Innobase Oy
 
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
@@ -18,7 +34,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
-#include "log0log.h"
 #include "log0recv.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
@@ -191,8 +206,6 @@ struct fil_space_struct {
 				currently in the list above */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/* list of all spaces */
-	ibuf_data_t*	ibuf_data;
-				/* insert buffer data */
 	ulint		magic_n;
 };
 
@@ -365,7 +378,9 @@ fil_space_get_by_id(
 	ut_ad(mutex_own(&fil_system->mutex));
 
 	HASH_SEARCH(hash, fil_system->spaces, id,
-		    fil_space_t*, space, space->id == id);
+		    fil_space_t*, space,
+		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
+		    space->id == id);
 
 	return(space);
 }
@@ -386,7 +401,9 @@ fil_space_get_by_name(
 	fold = ut_fold_string(name);
 
 	HASH_SEARCH(name_hash, fil_system->name_hash, fold,
-		    fil_space_t*, space, !strcmp(name, space->name));
+		    fil_space_t*, space,
+		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
+		    !strcmp(name, space->name));
 
 	return(space);
 }
@@ -473,33 +490,6 @@ fil_space_get_type(
 	mutex_exit(&(system->mutex));
 
 	return(space->purpose);
-}
-
-/***********************************************************************
-Returns the ibuf data of a file space. */
-UNIV_INTERN
-ibuf_data_t*
-fil_space_get_ibuf_data(
-/*====================*/
-			/* out: ibuf data for this space */
-	ulint	id)	/* in: space id */
-{
-	fil_system_t*	system		= fil_system;
-	fil_space_t*	space;
-
-	ut_ad(system);
-
-	ut_a(id == 0);
-
-	mutex_enter(&(system->mutex));
-
-	space = fil_space_get_by_id(id);
-
-	mutex_exit(&(system->mutex));
-
-	ut_a(space);
-
-	return(space->ibuf_data);
 }
 
 /**************************************************************************
@@ -1192,8 +1182,6 @@ try_again:
 	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
-	space->ibuf_data = NULL;
-
 	rw_lock_create(&space->latch, SYNC_FSP);
 
 	HASH_INSERT(fil_space_t, hash, system->spaces, id, space);
@@ -1681,25 +1669,6 @@ fil_set_max_space_id_if_bigger(
 }
 
 /********************************************************************
-Initializes the ibuf data structure for space 0 == the system tablespace.
-This can be called after the file space headers have been created and the
-dictionary system has been initialized. */
-UNIV_INTERN
-void
-fil_ibuf_init_at_db_start(void)
-/*===========================*/
-{
-	fil_space_t*	space;
-
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
-
-	ut_a(space);
-	ut_a(space->purpose == FIL_TABLESPACE);
-
-	space->ibuf_data = ibuf_data_init_for_space(space->id);
-}
-
-/********************************************************************
 Writes the flushed lsn and the latest archived log number to the page header
 of the first page of a data file of the system tablespace (space 0),
 which is uncompressed. */
@@ -1724,6 +1693,8 @@ fil_write_lsn_and_arch_no_to_file(
 	mach_write_ull(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
 	fil_write(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+
+	mem_free(buf1);
 
 	return(DB_SUCCESS);
 }
@@ -4313,14 +4284,15 @@ fil_io(
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-	      || ibuf_page(space_id, zip_size, block_offset));
+	      || ibuf_page(space_id, zip_size, block_offset, NULL));
 #endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
 	} else if (type == OS_FILE_READ
-		   && ibuf_page(space_id, zip_size, block_offset)) {
+		   && !recv_no_ibuf_operations
+		   && ibuf_page(space_id, zip_size, block_offset, NULL)) {
 		mode = OS_AIO_IBUF;
 	} else {
 		mode = OS_AIO_NORMAL;

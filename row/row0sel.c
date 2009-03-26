@@ -1,7 +1,30 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /*******************************************************
 Select
-
-(c) 1997 Innobase Oy
 
 Created 12/19/1997 Heikki Tuuri
 *******************************************************/
@@ -229,9 +252,6 @@ sel_node_create(
 	node = mem_heap_alloc(heap, sizeof(sel_node_t));
 	node->common.type = QUE_NODE_SELECT;
 	node->state = SEL_NODE_OPEN;
-
-	node->select_will_do_update = FALSE;
-	node->latch_mode = BTR_SEARCH_LEAF;
 
 	node->plans = NULL;
 
@@ -793,7 +813,7 @@ row_sel_get_clust_rec(
 	index = dict_table_get_first_index(plan->table);
 
 	btr_pcur_open_with_no_init(index, plan->clust_ref, PAGE_CUR_LE,
-				   node->latch_mode, &(plan->clust_pcur),
+				   BTR_SEARCH_LEAF, &plan->clust_pcur,
 				   0, mtr);
 
 	clust_rec = btr_pcur_get_rec(&(plan->clust_pcur));
@@ -962,7 +982,6 @@ static
 void
 row_sel_open_pcur(
 /*==============*/
-	sel_node_t*	node,		/* in: select node */
 	plan_t*		plan,		/* in: table plan */
 	ibool		search_latch_locked,
 					/* in: TRUE if the thread currently
@@ -1015,13 +1034,13 @@ row_sel_open_pcur(
 		/* Open pcur to the index */
 
 		btr_pcur_open_with_no_init(index, plan->tuple, plan->mode,
-					   node->latch_mode, &(plan->pcur),
+					   BTR_SEARCH_LEAF, &plan->pcur,
 					   has_search_latch, mtr);
 	} else {
 		/* Open the cursor to the start or the end of the index
 		(FALSE: no init) */
 
-		btr_pcur_open_at_index_side(plan->asc, index, node->latch_mode,
+		btr_pcur_open_at_index_side(plan->asc, index, BTR_SEARCH_LEAF,
 					    &(plan->pcur), FALSE, mtr);
 	}
 
@@ -1043,7 +1062,6 @@ row_sel_restore_pcur_pos(
 				function (moved to the previous, in the case
 				of a descending cursor) without processing
 				again the current cursor record */
-	sel_node_t*	node,	/* in: select node */
 	plan_t*		plan,	/* in: table plan */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -1054,7 +1072,7 @@ row_sel_restore_pcur_pos(
 
 	relative_position = btr_pcur_get_rel_pos(&(plan->pcur));
 
-	equal_position = btr_pcur_restore_position(node->latch_mode,
+	equal_position = btr_pcur_restore_position(BTR_SEARCH_LEAF,
 						   &(plan->pcur), mtr);
 
 	/* If the cursor is traveling upwards, and relative_position is
@@ -1173,7 +1191,7 @@ row_sel_try_search_shortcut(
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
-	row_sel_open_pcur(node, plan, TRUE, mtr);
+	row_sel_open_pcur(plan, TRUE, mtr);
 
 	rec = btr_pcur_get_rec(&(plan->pcur));
 
@@ -1234,7 +1252,7 @@ row_sel_try_search_shortcut(
 		goto func_exit;
 	}
 
-	ut_ad(plan->pcur.latch_mode == node->latch_mode);
+	ut_ad(plan->pcur.latch_mode == BTR_SEARCH_LEAF);
 
 	plan->n_rows_fetched++;
 	ret = SEL_FOUND;
@@ -1274,13 +1292,6 @@ row_sel(
 	ulint		cost_counter			= 0;
 	ibool		cursor_just_opened;
 	ibool		must_go_to_next;
-	ibool		leaf_contains_updates		= FALSE;
-	/* TRUE if select_will_do_update is
-	TRUE and the current clustered index
-	leaf page has been updated during
-	the current mtr: mtr must be committed
-	at the same time as the leaf x-latch
-	is released */
 	ibool		mtr_has_extra_clust_latch	= FALSE;
 	/* TRUE if the search was made using
 	a non-clustered index, and we had to
@@ -1319,7 +1330,6 @@ table_loop:
 	node->fetch_table changes, and after adding a row to aggregate totals
 	and, of course, when this function is called. */
 
-	ut_ad(leaf_contains_updates == FALSE);
 	ut_ad(mtr_has_extra_clust_latch == FALSE);
 
 	plan = sel_node_get_nth_plan(node, node->fetch_table);
@@ -1352,7 +1362,7 @@ table_loop:
 			rw_lock_s_lock(&btr_search_latch);
 
 			search_latch_locked = TRUE;
-		} else if (btr_search_latch.writer_is_wait_ex) {
+		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1394,7 +1404,7 @@ table_loop:
 		/* Evaluate the expressions to build the search tuple and
 		open the cursor */
 
-		row_sel_open_pcur(node, plan, search_latch_locked, &mtr);
+		row_sel_open_pcur(plan, search_latch_locked, &mtr);
 
 		cursor_just_opened = TRUE;
 
@@ -1403,7 +1413,7 @@ table_loop:
 	} else {
 		/* Restore pcur position to the index */
 
-		must_go_to_next = row_sel_restore_pcur_pos(node, plan, &mtr);
+		must_go_to_next = row_sel_restore_pcur_pos(plan, &mtr);
 
 		cursor_just_opened = FALSE;
 
@@ -1742,29 +1752,7 @@ skip_lock:
 
 	plan->n_rows_fetched++;
 
-	ut_ad(plan->pcur.latch_mode == node->latch_mode);
-
-	if (node->select_will_do_update) {
-		/* This is a searched update and we can do the update in-place,
-		saving CPU time */
-
-		row_upd_in_place_in_select(node, thr, &mtr);
-
-		leaf_contains_updates = TRUE;
-
-		/* When the database is in the online backup mode, the number
-		of log records for a single mtr should be small: increment the
-		cost counter to ensure it */
-
-		cost_counter += 1 + (SEL_COST_LIMIT / 8);
-
-		if (plan->unique_search) {
-
-			goto table_exhausted;
-		}
-
-		goto next_rec;
-	}
+	ut_ad(plan->pcur.latch_mode == BTR_SEARCH_LEAF);
 
 	if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT)
 	    || plan->unique_search || plan->no_prefetch
@@ -1795,19 +1783,6 @@ next_rec:
 		non-clustered index record, because we could break the
 		latching order if we would access a different clustered
 		index page right away without releasing the previous. */
-
-		goto commit_mtr_for_a_while;
-	}
-
-	if (leaf_contains_updates
-	    && btr_pcur_is_after_last_on_page(&plan->pcur)) {
-
-		/* We must commit &mtr if we are moving to a different page,
-		because we have done updates to the x-latched leaf page, and
-		the latch would be released in btr_pcur_move_to_next, without
-		&mtr getting committed there */
-
-		ut_ad(node->asc);
 
 		goto commit_mtr_for_a_while;
 	}
@@ -1848,7 +1823,6 @@ next_table:
 
 	mtr_commit(&mtr);
 
-	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
 next_table_no_mtr:
@@ -1889,7 +1863,6 @@ table_exhausted:
 
 	mtr_commit(&mtr);
 
-	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
 	if (plan->n_rows_prefetched > 0) {
@@ -1958,7 +1931,6 @@ commit_mtr_for_a_while:
 
 	mtr_commit(&mtr);
 
-	leaf_contains_updates = FALSE;
 	mtr_has_extra_clust_latch = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2721,6 +2693,7 @@ row_sel_store_mysql_rec(
 	ulint			i;
 
 	ut_ad(prebuilt->mysql_template);
+	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
@@ -2808,58 +2781,14 @@ row_sel_store_mysql_rec(
 					&= ~(byte) templ->mysql_null_bit_mask;
 			}
 		} else {
-			/* MySQL seems to assume the field for an SQL NULL
-			value is set to zero or space. Not taking this into
-			account caused seg faults with NULL BLOB fields, and
-			bug number 154 in the MySQL bug database: GROUP BY
-			and DISTINCT could treat NULL values inequal. */
-			int	pad_char;
+			/* MySQL assumes that the field for an SQL
+			NULL value is set to the default value. */
 
 			mysql_rec[templ->mysql_null_byte_offset]
 				|= (byte) templ->mysql_null_bit_mask;
-			switch (templ->type) {
-			case DATA_VARCHAR:
-			case DATA_BINARY:
-			case DATA_VARMYSQL:
-				if (templ->mysql_type
-				    == DATA_MYSQL_TRUE_VARCHAR) {
-					/* This is a >= 5.0.3 type
-					true VARCHAR.  Zero the field. */
-					pad_char = 0x00;
-					break;
-				}
-				/* Fall through */
-			case DATA_CHAR:
-			case DATA_FIXBINARY:
-			case DATA_MYSQL:
-				/* MySQL pads all string types (except
-				BLOB, TEXT and true VARCHAR) with space. */
-				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
-					/* Treat UCS2 as a special case. */
-					byte* d	= mysql_rec
-						+ templ->mysql_col_offset;
-					len = templ->mysql_col_len;
-					/* There are two UCS2 bytes per char,
-					so the length has to be even. */
-					ut_a(!(len & 1));
-					/* Pad with 0x0020. */
-					while (len) {
-						*d++ = 0x00;
-						*d++ = 0x20;
-						len -= 2;
-					}
-					continue;
-				}
-				pad_char = 0x20;
-				break;
-			default:
-				pad_char = 0x00;
-				break;
-			}
-
-			ut_ad(!pad_char || templ->mbminlen == 1);
-			memset(mysql_rec + templ->mysql_col_offset,
-			       pad_char, templ->mysql_col_len);
+			memcpy(mysql_rec + templ->mysql_col_offset,
+			       prebuilt->default_rec + templ->mysql_col_offset,
+			       templ->mysql_col_len);
 		}
 	}
 
@@ -3458,7 +3387,7 @@ row_search_for_mysql(
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(btr_search_latch.writer != RW_LOCK_NOT_LOCKED)
+	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
 	    && trx->has_search_latch) {
 
 		/* There is an x-latch request on the adaptive hash index:

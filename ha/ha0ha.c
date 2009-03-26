@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 The hash table with external chains
-
-(c) 1994-1997 Innobase Oy
 
 Created 8/22/1994 Heikki Tuuri
 *************************************************************************/
@@ -40,9 +56,9 @@ ha_create_func(
 
 	table = hash_create(n);
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	table->adaptive = TRUE;
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
 
@@ -111,9 +127,9 @@ ha_insert_for_fold_func(
 				the same fold value already exists, it is
 				updated to point to the same data, and no new
 				node is created! */
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/* in: buffer block containing the data */
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	void*		data)	/* in: data, must not be NULL */
 {
 	hash_cell_t*	cell;
@@ -122,7 +138,9 @@ ha_insert_for_fold_func(
 	ulint		hash;
 
 	ut_ad(table && data);
-	ut_ad(block->frame == page_align(data));
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	ut_a(block->frame == page_align(data));
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 
 	hash = hash_calc_hash(fold, table);
@@ -133,7 +151,7 @@ ha_insert_for_fold_func(
 
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 			if (table->adaptive) {
 				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->frame
@@ -144,7 +162,7 @@ ha_insert_for_fold_func(
 			}
 
 			prev_node->block = block;
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 			prev_node->data = data;
 
 			return(TRUE);
@@ -168,11 +186,11 @@ ha_insert_for_fold_func(
 
 	ha_node_set_data(node, block, data);
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (table->adaptive) {
 		block->n_pointers++;
 	}
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	node->fold = fold;
 
 	node->next = NULL;
@@ -205,13 +223,13 @@ ha_delete_hash_node(
 	hash_table_t*	table,		/* in: hash table */
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (table->adaptive) {
 		ut_a(del_node->block->frame = page_align(del_node->data));
 		ut_a(del_node->block->n_pointers > 0);
 		del_node->block->n_pointers--;
 	}
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
@@ -247,20 +265,22 @@ ha_search_and_update_if_found_func(
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
 	void*		data,	/* in: pointer to the data */
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	new_block,/* in: block containing new_data */
-#endif
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	void*		new_data)/* in: new pointer to the data */
 {
 	ha_node_t*	node;
 
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-	ut_ad(new_block->frame == page_align(new_data));
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	ut_a(new_block->frame == page_align(new_data));
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	node = ha_search_with_data(table, fold, data);
 
 	if (node) {
-#ifdef UNIV_DEBUG
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 		if (table->adaptive) {
 			ut_a(node->block->n_pointers > 0);
 			node->block->n_pointers--;
@@ -268,7 +288,7 @@ ha_search_and_update_if_found_func(
 		}
 
 		node->block = new_block;
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 		node->data = new_data;
 	}
 }

@@ -1,7 +1,30 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The wait array used in synchronization primitives
-
-(c) 1995 Innobase Oy
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
@@ -295,25 +318,28 @@ sync_array_validate(
 }
 
 /***********************************************************************
-Puts the cell event in reset state. */
+Returns the event that the thread owning the cell waits for. */
 static
-ib_int64_t
-sync_cell_event_reset(
-/*==================*/
-				/* out: value of signal_count
-				at the time of reset. */
-	ulint		type,	/* in: lock type mutex/rw_lock */
-	void*		object) /* in: the rw_lock/mutex object */
+os_event_t
+sync_cell_get_event(
+/*================*/
+	sync_cell_t*	cell) /* in: non-empty sync array cell */
 {
+	ulint type = cell->request_type;
+
 	if (type == SYNC_MUTEX) {
-		return(os_event_reset(((mutex_t *) object)->event));
+		return(((mutex_t *) cell->wait_object)->event);
 	} else if (type == RW_LOCK_WAIT_EX) {
-		return(os_event_reset(
-		       ((rw_lock_t *) object)->wait_ex_event));
+		return(((rw_lock_t *) cell->wait_object)->wait_ex_event);
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	} else if (type == RW_LOCK_SHARED) {
-		return(os_event_reset(((rw_lock_t *) object)->s_event));
+		return(((rw_lock_t *) cell->wait_object)->s_event);
 	} else { /* RW_LOCK_EX */
-		return(os_event_reset(((rw_lock_t *) object)->x_event));
+		return(((rw_lock_t *) cell->wait_object)->x_event);
+#else
+	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
+		return(((rw_lock_t *) cell->wait_object)->event);
+#endif
 	}
 }
 
@@ -332,6 +358,7 @@ sync_array_reserve_cell(
 	ulint*		index)	/* out: index of the reserved cell */
 {
 	sync_cell_t*	cell;
+	os_event_t      event;
 	ulint		i;
 
 	ut_a(object);
@@ -370,8 +397,8 @@ sync_array_reserve_cell(
 			/* Make sure the event is reset and also store
 			the value of signal_count at which the event
 			was reset. */
-			cell->signal_count = sync_cell_event_reset(type,
-								object);
+                        event = sync_cell_get_event(cell);
+			cell->signal_count = os_event_reset(event);
 
 			cell->reservation_time = time(NULL);
 
@@ -411,16 +438,7 @@ sync_array_wait_event(
 	ut_a(!cell->waiting);
 	ut_ad(os_thread_get_curr_id() == cell->thread);
 
-	if (cell->request_type == SYNC_MUTEX) {
-		event = ((mutex_t*) cell->wait_object)->event;
-	} else if (cell->request_type == RW_LOCK_WAIT_EX) {
-		event = ((rw_lock_t*) cell->wait_object)->wait_ex_event;
-	} else if (cell->request_type == RW_LOCK_SHARED) {
-		event = ((rw_lock_t*) cell->wait_object)->s_event;
-	} else {
-		event = ((rw_lock_t*) cell->wait_object)->x_event;
-	}
-
+	event = sync_cell_get_event(cell);
 		cell->waiting = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -512,12 +530,22 @@ sync_array_cell_print(
 		}
 
 		fprintf(file,
-			"number of readers %lu, s_waiters flag %lu, x_waiters flag %lu\n"
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+			"number of readers %lu, s_waiters flag %lu, x_waiters flag %lu, "
+#else
+			"number of readers %lu, waiters flag %lu, "
+#endif
+                        "lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
-			(ulong) rwlock->reader_count,
+			(ulong) rw_lock_get_reader_count(rwlock),
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 			(ulong) rwlock->s_waiters,
 			(ulong) (rwlock->x_waiters || rwlock->wait_ex_waiters),
+#else
+			(ulong) rwlock->waiters,
+#endif
+			rwlock->lock_word,
 			rwlock->last_s_file_name,
 			(ulong) rwlock->last_s_line,
 			rwlock->last_x_file_name,
@@ -776,28 +804,30 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX
-		   || cell->request_type == RW_LOCK_WAIT_EX) {
+	} else if (cell->request_type == RW_LOCK_EX) {
 
 		lock = cell->wait_object;
 
-		if (rw_lock_get_reader_count(lock) == 0
-		    && rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+		if (lock->lock_word > 0) {
+		/* Either unlocked or only read locked. */
 
 			return(TRUE);
 		}
 
-		if (rw_lock_get_reader_count(lock) == 0
-		    && rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX
-		    && os_thread_eq(lock->writer_thread, cell->thread)) {
+        } else if (cell->request_type == RW_LOCK_WAIT_EX) {
+
+		lock = cell->wait_object;
+
+                /* lock_word == 0 means all readers have left */
+		if (lock->lock_word == 0) {
 
 			return(TRUE);
 		}
-
 	} else if (cell->request_type == RW_LOCK_SHARED) {
 		lock = cell->wait_object;
 
-		if (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+                /* lock_word > 0 means no writer or reserved writer */
+		if (lock->lock_word > 0) {
 
 			return(TRUE);
 		}
@@ -843,7 +873,7 @@ sync_array_object_signalled(
 	sync_array_t*	arr)	/* in: wait array */
 {
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
-	__sync_fetch_and_add(&(arr->sg_count),1);
+	(void) os_atomic_increment(&arr->sg_count, 1);
 #else
 	sync_array_enter(arr);
 
@@ -870,6 +900,7 @@ sync_arr_wake_threads_if_sema_free(void)
 	sync_cell_t*	cell;
 	ulint		count;
 	ulint		i;
+	os_event_t      event;
 
 	sync_array_enter(arr);
 
@@ -879,40 +910,20 @@ sync_arr_wake_threads_if_sema_free(void)
 	while (count < arr->n_reserved) {
 
 		cell = sync_array_get_nth_cell(arr, i);
+		i++;
 
-		if (cell->wait_object != NULL) {
-
+		if (cell->wait_object == NULL) {
+			continue;
+		}
 			count++;
 
 			if (sync_arr_cell_can_wake_up(cell)) {
 
-				if (cell->request_type == SYNC_MUTEX) {
-					mutex_t*	mutex;
+			event = sync_cell_get_event(cell);
 
-					mutex = cell->wait_object;
-					os_event_set(mutex->event);
-				} else if (cell->request_type
-					   == RW_LOCK_WAIT_EX) {
-					rw_lock_t*	lock;
-
-					lock = cell->wait_object;
-					os_event_set(lock->wait_ex_event);
-				} else if (cell->request_type
-					   == RW_LOCK_SHARED) {
-					rw_lock_t*	lock;
-
-					lock = cell->wait_object;
-					os_event_set(lock->s_event);
-				} else {
-					rw_lock_t*      lock;
-
-					lock = cell->wait_object;
-					os_event_set(lock->x_event);
-				}
-			}
+			os_event_set(event);
 		}
 
-		i++;
 	}
 
 	sync_array_exit(arr);
@@ -1032,4 +1043,3 @@ sync_array_print_info(
 
 	sync_array_exit(arr);
 }
-

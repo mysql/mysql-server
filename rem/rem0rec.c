@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 Record manager
-
-(c) 1994-2001 Innobase Oy
 
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
@@ -681,13 +697,13 @@ rec_get_nth_field_offs_old(
 	ut_ad(rec && len);
 	ut_ad(n < rec_get_n_fields_old(rec));
 
-	if (n > REC_MAX_N_FIELDS) {
+	if (UNIV_UNLIKELY(n > REC_MAX_N_FIELDS)) {
 		fprintf(stderr, "Error: trying to access field %lu in rec\n",
 			(ulong) n);
 		ut_error;
 	}
 
-	if (rec == NULL) {
+	if (UNIV_UNLIKELY(rec == NULL)) {
 		fputs("Error: rec is NULL pointer\n", stderr);
 		ut_error;
 	}
@@ -1599,10 +1615,10 @@ rec_print_old(
 			fprintf(file, " SQL NULL, size %lu ",
 				rec_get_nth_field_size(rec, i));
 		}
-		putc(';', file);
-	}
 
-	putc('\n', file);
+		putc(';', file);
+		putc('\n', file);
+	}
 
 	rec_validate_old(rec);
 }
@@ -1642,9 +1658,8 @@ rec_print_comp(
 			fputs(" SQL NULL", file);
 		}
 		putc(';', file);
+		putc('\n', file);
 	}
-
-	putc('\n', file);
 }
 
 /*******************************************************************

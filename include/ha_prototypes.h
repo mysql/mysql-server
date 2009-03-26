@@ -1,3 +1,21 @@
+/*****************************************************************************
+
+Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
@@ -207,13 +225,15 @@ innobase_get_charset(
 	void*	mysql_thd);	/* in: MySQL thread handle */
 
 /**********************************************************************
-Returns true if the thread is executing in innodb_strict_mode. */
+Returns true if the thread supports XA,
+global value of innodb_supports_xa if thd is NULL. */
 
 ibool
-thd_is_strict(
-/*==========*/
-			/* out: true if thd is in strict mode */
-	void*	thd);	/* in: thread handle (THD*) */
+thd_supports_xa(
+/*============*/
+			/* out: true if thd supports XA */
+	void*	thd);	/* in: thread handle (THD*), or NULL to query
+			the global innodb_supports_xa */
 
 /**********************************************************************
 Returns the lock wait timeout for the current connection. */

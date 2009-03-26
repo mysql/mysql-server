@@ -1,20 +1,33 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mutex, the basic synchronization primitive
 
-(c) 1995 Innobase Oy
-
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
-
-#if defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
-/* %z0: Use the size of operand %0 which in our case is *m to determine
-instruction size, it should end up as xchgl. "1" in the input constraint,
-says that "in" has to go in the same place as "out".*/
-#define TAS(m, in, out) \
-	asm volatile ("xchg%z0 %2, %0" \
-	: "=g" (*(m)), "=r" (out) \
-	: "1" (in))	/* Note: "1" here refers to "=r" (out) */
-#endif
 
 /**********************************************************************
 Sets the waiters field in a mutex. */
@@ -59,7 +72,7 @@ mutex_signal_object(
 Performs an atomic test-and-set instruction to the lock_word field of a
 mutex. */
 UNIV_INLINE
-ulint
+byte
 mutex_test_and_set(
 /*===============*/
 				/* out: the previous value of lock_word: 0 or
@@ -67,18 +80,18 @@ mutex_test_and_set(
 	mutex_t*	mutex)	/* in: mutex */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-	ulint	res;
-	ulint*	lw;		/* assembler code is used to ensure that
+	byte	res;
+	byte*	lw;		/* assembler code is used to ensure that
 				lock_word is loaded from memory */
 	ut_ad(mutex);
-	ut_ad(sizeof(ulint) == 4);
+	ut_ad(sizeof(byte) == 1);
 
 	lw = &(mutex->lock_word);
 
 	__asm	MOV	ECX, lw
 		__asm	MOV	EDX, 1
-		__asm	XCHG	EDX, DWORD PTR [ECX]
-		__asm	MOV	res, EDX
+		__asm	XCHG	DL, BYTE PTR [ECX]
+		__asm	MOV	res, DL
 
 		/* The fence below would prevent this thread from
 		reading the data structure protected by the mutex
@@ -98,12 +111,8 @@ mutex_test_and_set(
 		/* mutex_fence(); */
 
 		return(res);
-#elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
-	ulint	res;
-
-	TAS(&mutex->lock_word, 1, res);
-
-	return(res);
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+	return __sync_lock_test_and_set(&(mutex->lock_word), 1);
 #else
 	ibool	ret;
 
@@ -117,7 +126,7 @@ mutex_test_and_set(
 		mutex->lock_word = 1;
 	}
 
-	return(ret);
+	return((byte)ret);
 #endif
 }
 
@@ -131,7 +140,7 @@ mutex_reset_lock_word(
 	mutex_t*	mutex)	/* in: mutex */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-	ulint*	lw;		/* assembler code is used to ensure that
+	byte*	lw;		/* assembler code is used to ensure that
 				lock_word is loaded from memory */
 	ut_ad(mutex);
 
@@ -139,11 +148,12 @@ mutex_reset_lock_word(
 
 	__asm	MOV	EDX, 0
 		__asm	MOV	ECX, lw
-		__asm	XCHG	EDX, DWORD PTR [ECX]
-#elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
-	ulint	res;
-
-	TAS(&mutex->lock_word, 0, res);
+		__asm	XCHG	DL, BYTE PTR [ECX]
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+	/* In theory __sync_lock_release should be used to release the lock.
+	Unfortunately, it does not work properly alone. The workaround is
+	that more conservative __sync_lock_test_and_set is used instead. */
+	__sync_lock_test_and_set(&(mutex->lock_word), 0);
 #else
 	mutex->lock_word = 0;
 
@@ -154,12 +164,12 @@ mutex_reset_lock_word(
 /**********************************************************************
 Gets the value of the lock word. */
 UNIV_INLINE
-ulint
+byte
 mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex)	/* in: mutex */
 {
-	const volatile ulint*	ptr;	/* declared volatile to ensure that
+	const volatile byte*	ptr;	/* declared volatile to ensure that
 					lock_word is loaded from memory */
 	ut_ad(mutex);
 

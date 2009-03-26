@@ -1,21 +1,30 @@
-/*   Innobase relational database engine; Copyright (C) 2001 Innobase Oy
+/*****************************************************************************
 
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License 2
-     as published by the Free Software Foundation in June 1991.
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
 
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
 
-     You should have received a copy of the GNU General Public License 2
-     along with this program (in file COPYING); if not, write to the Free
-     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 The database buffer buf_pool
-
-(c) 1995 Innobase Oy
 
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
@@ -35,7 +44,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "log0log.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
 #include "page0zip.h"
@@ -251,7 +259,7 @@ static ulint	buf_dbg_counter	= 0; /* This is used to insert validation
 					operations in excution in the
 					debug version */
 /** Flag to forbid the release of the buffer pool mutex.
-Protected by buf_pool->mutex. */
+Protected by buf_pool_mutex. */
 UNIV_INTERN ulint		buf_pool_mutex_exit_forbidden = 0;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG
@@ -662,10 +670,12 @@ buf_block_init(
 	block->page.in_zip_hash = FALSE;
 	block->page.in_flush_list = FALSE;
 	block->page.in_free_list = FALSE;
-	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
 	block->page.in_LRU_list = FALSE;
 	block->in_unzip_LRU_list = FALSE;
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	block->n_pointers = 0;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
 	mutex_create(&block->mutex, SYNC_BUF_BLOCK);
@@ -1018,6 +1028,88 @@ buf_pool_free(void)
 	}
 
 	buf_pool->n_chunks = 0;
+}
+
+
+/************************************************************************
+Drops the adaptive hash index.  To prevent a livelock, this function
+is only to be called while holding btr_search_latch and while
+btr_search_enabled == FALSE. */
+UNIV_INTERN
+void
+buf_pool_drop_hash_index(void)
+/*==========================*/
+{
+	ibool		released_search_latch;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!btr_search_enabled);
+
+	do {
+		buf_chunk_t*	chunks	= buf_pool->chunks;
+		buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
+
+		released_search_latch = FALSE;
+
+		while (--chunk >= chunks) {
+			buf_block_t*	block	= chunk->blocks;
+			ulint		i	= chunk->size;
+
+			for (; i--; block++) {
+				/* block->is_hashed cannot be modified
+				when we have an x-latch on btr_search_latch;
+				see the comment in buf0buf.h */
+
+				if (!block->is_hashed) {
+					continue;
+				}
+
+				/* To follow the latching order, we
+				have to release btr_search_latch
+				before acquiring block->latch. */
+				rw_lock_x_unlock(&btr_search_latch);
+				/* When we release the search latch,
+				we must rescan all blocks, because
+				some may become hashed again. */
+				released_search_latch = TRUE;
+
+				rw_lock_x_lock(&block->lock);
+
+				/* This should be guaranteed by the
+				callers, which will be holding
+				btr_search_enabled_mutex. */
+				ut_ad(!btr_search_enabled);
+
+				/* Because we did not buffer-fix the
+				block by calling buf_block_get_gen(),
+				it is possible that the block has been
+				allocated for some other use after
+				btr_search_latch was released above.
+				We do not care which file page the
+				block is mapped to.  All we want to do
+				is to drop any hash entries referring
+				to the page. */
+
+				/* It is possible that
+				block->page.state != BUF_FILE_PAGE.
+				Even that does not matter, because
+				btr_search_drop_page_hash_index() will
+				check block->is_hashed before doing
+				anything.  block->is_hashed can only
+				be set on uncompressed file pages. */
+
+				btr_search_drop_page_hash_index(block);
+
+				rw_lock_x_unlock(&block->lock);
+
+				rw_lock_x_lock(&btr_search_latch);
+
+				ut_ad(!btr_search_enabled);
+			}
+		}
+	} while (released_search_latch);
 }
 
 /************************************************************************
@@ -1807,6 +1899,93 @@ buf_zip_decompress(
 	return(FALSE);
 }
 
+/***********************************************************************
+Gets the block to whose frame the pointer is pointing to. */
+UNIV_INTERN
+buf_block_t*
+buf_block_align(
+/*============*/
+				/* out: pointer to block, never NULL */
+	const byte*	ptr)	/* in: pointer to a frame */
+{
+	buf_chunk_t*	chunk;
+	ulint		i;
+
+	/* TODO: protect buf_pool->chunks with a mutex (it will
+	currently remain constant after buf_pool_init()) */
+	for (chunk = buf_pool->chunks, i = buf_pool->n_chunks; i--; chunk++) {
+		lint	offs = ptr - chunk->blocks->frame;
+
+		if (UNIV_UNLIKELY(offs < 0)) {
+
+			continue;
+		}
+
+		offs >>= UNIV_PAGE_SIZE_SHIFT;
+
+		if (UNIV_LIKELY((ulint) offs < chunk->size)) {
+			buf_block_t*	block = &chunk->blocks[offs];
+
+			/* The function buf_chunk_init() invokes
+			buf_block_init() so that block[n].frame ==
+			block->frame + n * UNIV_PAGE_SIZE.  Check it. */
+			ut_ad(block->frame == page_align(ptr));
+#ifdef UNIV_DEBUG
+			/* A thread that updates these fields must
+			hold buf_pool_mutex and block->mutex.  Acquire
+			only the latter. */
+			mutex_enter(&block->mutex);
+
+			switch (buf_block_get_state(block)) {
+			case BUF_BLOCK_ZIP_FREE:
+			case BUF_BLOCK_ZIP_PAGE:
+			case BUF_BLOCK_ZIP_DIRTY:
+				/* These types should only be used in
+				the compressed buffer pool, whose
+				memory is allocated from
+				buf_pool->chunks, in UNIV_PAGE_SIZE
+				blocks flagged as BUF_BLOCK_MEMORY. */
+				ut_error;
+				break;
+			case BUF_BLOCK_NOT_USED:
+			case BUF_BLOCK_READY_FOR_USE:
+			case BUF_BLOCK_MEMORY:
+				/* Some data structures contain
+				"guess" pointers to file pages.  The
+				file pages may have been freed and
+				reused.  Do not complain. */
+				break;
+			case BUF_BLOCK_REMOVE_HASH:
+				/* buf_LRU_block_remove_hashed_page()
+				will overwrite the FIL_PAGE_OFFSET and
+				FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID with
+				0xff and set the state to
+				BUF_BLOCK_REMOVE_HASH. */
+				ut_ad(page_get_space_id(page_align(ptr))
+				      == 0xffffffff);
+				ut_ad(page_get_page_no(page_align(ptr))
+				      == 0xffffffff);
+				break;
+			case BUF_BLOCK_FILE_PAGE:
+				ut_ad(block->page.space
+				      == page_get_space_id(page_align(ptr)));
+				ut_ad(block->page.offset
+				      == page_get_page_no(page_align(ptr)));
+				break;
+			}
+
+			mutex_exit(&block->mutex);
+#endif /* UNIV_DEBUG */
+
+			return(block);
+		}
+	}
+
+	/* The block should always be found. */
+	ut_error;
+	return(NULL);
+}
+
 /************************************************************************
 Find out if a buffer block was created by buf_chunk_init(). */
 static
@@ -1856,7 +2035,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH, BUF_GET_NOWAIT */
+				BUF_GET_NO_LATCH */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
@@ -1873,10 +2052,10 @@ buf_page_get_gen(
 	      || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
+	      || (mode == BUF_GET_NO_LATCH));
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset));
+	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
 #endif
 	buf_pool->n_page_gets++;
 loop:
@@ -2172,29 +2351,8 @@ wait_until_unfixed:
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-	if (mode == BUF_GET_NOWAIT) {
-		ibool	success;
-
-		if (rw_latch == RW_S_LATCH) {
-			success = rw_lock_s_lock_func_nowait(&(block->lock),
-							     file, line);
-			fix_type = MTR_MEMO_PAGE_S_FIX;
-		} else {
-			ut_ad(rw_latch == RW_X_LATCH);
-			success = rw_lock_x_lock_func_nowait(&(block->lock),
-							     file, line);
-			fix_type = MTR_MEMO_PAGE_X_FIX;
-		}
-
-		if (!success) {
-			mutex_enter(&block->mutex);
-			buf_block_buf_fix_dec(block);
-			mutex_exit(&block->mutex);
-
-			return(NULL);
-		}
-	} else if (rw_latch == RW_NO_LATCH) {
-
+	switch (rw_latch) {
+	case RW_NO_LATCH:
 		if (must_read) {
 			/* Let us wait until the read operation
 			completes */
@@ -2216,15 +2374,20 @@ wait_until_unfixed:
 		}
 
 		fix_type = MTR_MEMO_BUF_FIX;
-	} else if (rw_latch == RW_S_LATCH) {
+		break;
 
+	case RW_S_LATCH:
 		rw_lock_s_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_S_FIX;
-	} else {
+		break;
+
+	default:
+		ut_ad(rw_latch == RW_X_LATCH);
 		rw_lock_x_lock_func(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
+		break;
 	}
 
 	mtr_memo_push(mtr, block, fix_type);
@@ -2288,11 +2451,11 @@ buf_page_optimistic_get_func(
 	ut_ad(!ibuf_inside()
 	      || ibuf_page(buf_block_get_space(block),
 			   buf_block_get_zip_size(block),
-			   buf_block_get_page_no(block)));
+			   buf_block_get_page_no(block), NULL));
 
 	if (rw_latch == RW_S_LATCH) {
-		success = rw_lock_s_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_s_lock_nowait(&(block->lock),
+						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
@@ -2403,8 +2566,8 @@ buf_page_get_known_nowait(
 	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
 
 	if (rw_latch == RW_S_LATCH) {
-		success = rw_lock_s_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_s_lock_nowait(&(block->lock),
+						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
@@ -2484,7 +2647,7 @@ buf_page_try_get_func(
 	mutex_exit(&block->mutex);
 
 	fix_type = MTR_MEMO_PAGE_S_FIX;
-	success = rw_lock_s_lock_func_nowait(&block->lock, file, line);
+	success = rw_lock_s_lock_nowait(&block->lock, file, line);
 
 	if (!success) {
 		/* Let us try to get an X-latch. If the current thread
@@ -2516,6 +2679,11 @@ buf_page_try_get_func(
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	buf_pool->n_page_gets++;
+
+#ifdef UNIV_IBUF_COUNT_DEBUG
+	ut_a(ibuf_count_get(buf_block_get_space(block),
+			    buf_block_get_page_no(block)) == 0);
+#endif
 
 	return(block);
 }
@@ -2684,7 +2852,8 @@ buf_page_init_for_read(
 
 		mtr_start(&mtr);
 
-		if (!ibuf_page_low(space, zip_size, offset, &mtr)) {
+		if (!recv_no_ibuf_operations
+		    && !ibuf_page(space, zip_size, offset, &mtr)) {
 
 			mtr_commit(&mtr);
 
@@ -2720,19 +2889,13 @@ err_exit:
 			mutex_exit(&block->mutex);
 		}
 		else {
-err_exit2:
-		//buf_pool_mutex_exit();
-		mutex_exit(&LRU_list_mutex);
-		mutex_exit(&flush_list_mutex);
-		rw_lock_x_unlock(&page_hash_latch);
+			mutex_exit(&LRU_list_mutex);
+			mutex_exit(&flush_list_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
 		}
 
-		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
-
-			mtr_commit(&mtr);
-		}
-
-		return(NULL);
+		bpage = NULL;
+		goto func_exit;
 	}
 
 	if (fil_tablespace_deleted_or_being_deleted_in_mem(
@@ -2815,7 +2978,13 @@ err_exit2:
 			/* The block was added by some other thread. */
 			buf_buddy_free(bpage, sizeof *bpage, TRUE);
 			buf_buddy_free(data, zip_size, TRUE);
-			goto err_exit2;
+
+			mutex_exit(&LRU_list_mutex);
+			mutex_exit(&flush_list_mutex);
+			rw_lock_x_unlock(&page_hash_latch);
+
+			bpage = NULL;
+			goto func_exit;
 		}
 
 		page_zip_des_init(&bpage->zip);
@@ -2859,6 +3028,7 @@ err_exit2:
 	mutex_enter(&buf_pool_mutex);
 	buf_pool->n_pend_reads++;
 	mutex_exit(&buf_pool_mutex);
+func_exit:
 	//buf_pool_mutex_exit();
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
@@ -2866,7 +3036,7 @@ err_exit2:
 		mtr_commit(&mtr);
 	}
 
-	ut_ad(buf_page_in_file(bpage));
+	ut_ad(!bpage || buf_page_in_file(bpage));
 	return(bpage);
 }
 

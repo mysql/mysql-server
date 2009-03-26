@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Undo modify of a row
-
-(c) 1997 Innobase Oy
 
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
@@ -312,7 +328,15 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	if (!found) {
-		/* Not found */
+		/* In crash recovery, the secondary index record may
+		be missing if the UPDATE did not have time to insert
+		the secondary index records before the crash.  When we
+		are undoing that UPDATE in crash recovery, the record
+		may be missing.
+
+		In normal processing, if an update ends in a deadlock
+		before it has inserted all updated secondary index
+		records, then the undo will not find those records. */
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);

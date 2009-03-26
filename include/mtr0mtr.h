@@ -1,7 +1,23 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mini-transaction buffer
-
-(c) 1995 Innobase Oy
 
 Created 11/26/1995 Heikki Tuuri
 *******************************************************/
@@ -344,10 +360,14 @@ struct mtr_struct{
 				this mtr */
 	ib_uint64_t	end_lsn;/* end lsn of the possible log entry for
 				this mtr */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
+#endif /* UNIV_DEBUG */
 };
 
-#define	MTR_MAGIC_N		54551
+#ifdef UNIV_DEBUG
+# define MTR_MAGIC_N		54551
+#endif /* UNIV_DEBUG */
 
 #define MTR_ACTIVE		12231
 #define MTR_COMMITTING		56456

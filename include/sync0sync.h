@@ -1,7 +1,30 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /******************************************************
 Mutex, the basic synchronization primitive
-
-(c) 1995 Innobase Oy
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
@@ -237,7 +260,7 @@ mutex_n_reserved(void);
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
 UNIV_INLINE
-ulint
+byte
 mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex);	/* in: mutex */
@@ -433,7 +456,8 @@ or row lock! */
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_RECV		168
-#define SYNC_WORK_QUEUE		161
+#define	SYNC_WORK_QUEUE		162
+#define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
 					buffer pool, its logical level is
@@ -462,9 +486,11 @@ implementation of a mutual exclusion semaphore. */
 
 struct mutex_struct {
 	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
-	ulint	lock_word;	/* This ulint is the target of the atomic
-				test-and-set instruction in Win32 */
-#if defined WIN32 && defined UNIV_CAN_USE_X86_ASSEMBLER
+	byte	lock_word;	/* This byte is the target of the atomic
+				test-and-set instruction in Win32 and
+				x86 32/64 with GCC 4.1.0 or later version */
+#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
 #else
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
@@ -518,8 +544,7 @@ to 20 microseconds. */
 /* The number of system calls made in this module. Intended for performance
 monitoring. */
 
-extern	ulint	mutex_system_call_count;
-extern	ulint	mutex_exit_count;
+extern	ib_int64_t	mutex_exit_count;
 
 #ifdef UNIV_SYNC_DEBUG
 /* Latching order checks start when this is set TRUE */

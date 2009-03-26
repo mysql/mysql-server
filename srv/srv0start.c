@@ -1,7 +1,30 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
 /************************************************************************
 Starts the InnoDB database server
-
-(c) 1996-2000 Innobase Oy
 
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
@@ -10,7 +33,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "sync0sync.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
-#include "mem0pool.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
@@ -152,29 +174,19 @@ UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: the data file path string */
-	char***	data_file_names,	/* out, own: array of data file
-					names */
-	ulint**	data_file_sizes,	/* out, own: array of data file sizes
-					in megabytes */
-	ulint**	data_file_is_raw_partition,/* out, own: array of flags
-					showing which data files are raw
-					partitions */
-	ulint*	n_data_files,		/* out: number of data files */
-	ibool*	is_auto_extending,	/* out: TRUE if the last data file is
-					auto-extending */
-	ulint*	max_auto_extend_size)	/* out: max auto extend size for the
-					last file if specified, 0 if not */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str)	/* in/out: the data file path string */
 {
 	char*	input_str;
 	char*	path;
 	ulint	size;
 	ulint	i	= 0;
 
-	*is_auto_extending = FALSE;
-	*max_auto_extend_size = 0;
+	srv_auto_extend_last_data_file = FALSE;
+	srv_last_file_size_max = 0;
+	srv_data_file_names = NULL;
+	srv_data_file_sizes = NULL;
+	srv_data_file_is_raw_partition = NULL;
 
 	input_str = str;
 
@@ -251,11 +263,12 @@ srv_parse_data_file_paths_and_sizes(
 		return(FALSE);
 	}
 
-	*data_file_names = (char**)ut_malloc(i * sizeof(void*));
-	*data_file_sizes = (ulint*)ut_malloc(i * sizeof(ulint));
-	*data_file_is_raw_partition = (ulint*)ut_malloc(i * sizeof(ulint));
+	srv_data_file_names = malloc(i * sizeof *srv_data_file_names);
+	srv_data_file_sizes = malloc(i * sizeof *srv_data_file_sizes);
+	srv_data_file_is_raw_partition = malloc(
+		i * sizeof *srv_data_file_is_raw_partition);
 
-	*n_data_files = i;
+	srv_n_data_files = i;
 
 	/* Then store the actual values to our arrays */
 
@@ -285,13 +298,13 @@ srv_parse_data_file_paths_and_sizes(
 
 		str = srv_parse_megabytes(str, &size);
 
-		(*data_file_names)[i] = path;
-		(*data_file_sizes)[i] = size;
+		srv_data_file_names[i] = path;
+		srv_data_file_sizes[i] = size;
 
 		if (0 == strncmp(str, ":autoextend",
 				 (sizeof ":autoextend") - 1)) {
 
-			*is_auto_extending = TRUE;
+			srv_auto_extend_last_data_file = TRUE;
 
 			str += (sizeof ":autoextend") - 1;
 
@@ -301,7 +314,7 @@ srv_parse_data_file_paths_and_sizes(
 				str += (sizeof ":max:") - 1;
 
 				str = srv_parse_megabytes(
-					str, max_auto_extend_size);
+					str, &srv_last_file_size_max);
 			}
 
 			if (*str != '\0') {
@@ -310,21 +323,21 @@ srv_parse_data_file_paths_and_sizes(
 			}
 		}
 
-		(*data_file_is_raw_partition)[i] = 0;
+		(srv_data_file_is_raw_partition)[i] = 0;
 
 		if (strlen(str) >= 6
 		    && *str == 'n'
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
 			str += 3;
-			(*data_file_is_raw_partition)[i] = SRV_NEW_RAW;
+			(srv_data_file_is_raw_partition)[i] = SRV_NEW_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 			str += 3;
 
-			if ((*data_file_is_raw_partition)[i] == 0) {
-				(*data_file_is_raw_partition)[i] = SRV_OLD_RAW;
+			if ((srv_data_file_is_raw_partition)[i] == 0) {
+				(srv_data_file_is_raw_partition)[i] = SRV_OLD_RAW;
 			}
 		}
 
@@ -345,14 +358,14 @@ UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-					/* out: TRUE if ok, FALSE if parsing
-					error */
-	char*	str,			/* in: character string */
-	char***	log_group_home_dirs)	/* out, own: log group home dirs */
+			/* out: TRUE if ok, FALSE on parse error */
+	char*	str)	/* in/out: character string */
 {
 	char*	input_str;
 	char*	path;
 	ulint	i	= 0;
+
+	srv_log_group_home_dirs = NULL;
 
 	input_str = str;
 
@@ -383,7 +396,7 @@ srv_parse_log_group_home_dirs(
 		return(FALSE);
 	}
 
-	*log_group_home_dirs = (char**) ut_malloc(i * sizeof(void*));
+	srv_log_group_home_dirs = malloc(i * sizeof *srv_log_group_home_dirs);
 
 	/* Then store the actual values to our array */
 
@@ -402,12 +415,30 @@ srv_parse_log_group_home_dirs(
 			str++;
 		}
 
-		(*log_group_home_dirs)[i] = path;
+		srv_log_group_home_dirs[i] = path;
 
 		i++;
 	}
 
 	return(TRUE);
+}
+
+/*************************************************************************
+Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
+and srv_parse_log_group_home_dirs(). */
+UNIV_INTERN
+void
+srv_free_paths_and_sizes(void)
+/*==========================*/
+{
+	free(srv_data_file_names);
+	srv_data_file_names = NULL;
+	free(srv_data_file_sizes);
+	srv_data_file_sizes = NULL;
+	free(srv_data_file_is_raw_partition);
+	srv_data_file_is_raw_partition = NULL;
+	free(srv_log_group_home_dirs);
+	srv_log_group_home_dirs = NULL;
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -956,8 +987,7 @@ skip_size_check:
 
 /********************************************************************
 Starts InnoDB and creates a new database if database files
-are not found and the user wants. Server parameters are
-read from a file of name "srv_init" in the ib_home directory. */
+are not found and the user wants. */
 UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void)
@@ -1046,6 +1076,24 @@ innobase_start_or_create_for_mysql(void)
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
+
+	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		fprintf(stderr,
+			"InnoDB: The InnoDB memory heap is disabled\n");
+	}
+
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	fprintf(stderr,
+		"InnoDB: Mutexes and rw_locks use GCC atomic builtins.\n");
+#else /* INNODB_RW_LOCKS_USE_ATOMICS */
+	fprintf(stderr,
+		"InnoDB: Mutexes use GCC atomic builtins, rw_locks do not.\n");
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#else /* HAVE_GCC_ATOMIC_BUILTINS */
+	fprintf(stderr,
+		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
