@@ -222,4 +222,42 @@ drop table t1;
 # Delete the anonymous users
 source include/delete_anonymous_users.inc;
 
+
+
+#
+# Bug#43748: crash when non-super user tries to kill the replication threads
+#
+
+--echo Bug#43748
+
+connection slave;
+
+--echo make a non-privileged user on slave.
+
+FLUSH PRIVILEGES;
+GRANT USAGE ON *.* TO user43748@127.0.0.1 IDENTIFIED BY 'meow';
+
+let $id = `SELECT id FROM information_schema.processlist WHERE user='system user' LIMIT 1`;
+
+connect (cont43748,127.0.0.1,user43748,meow,test,$SLAVE_MYPORT,);
+connection cont43748;
+
+--echo try to KILL system-thread as non-privileged user.
+
+--replace_result $id "`select id from information_schema.processlist where command='Binlog Dump'`"
+--error ER_KILL_DENIED_ERROR
+eval KILL $id;
+
+disconnect cont43748;
+
+connection slave;
+
+--echo throw out test-user on slave.
+DROP USER user43748@127.0.0.1;
+
+connection master;
+--echo done. back to master.
+
+
+
 # End of tests

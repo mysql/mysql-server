@@ -599,6 +599,7 @@ THD::THD()
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
+  query_name_consts= 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
@@ -2804,6 +2805,14 @@ Security_context::restore_security_context(THD *thd,
     thd->security_ctx= backup;
 }
 #endif
+
+
+bool Security_context::user_matches(Security_context *them)
+{
+  return ((user != NULL) && (them->user != NULL) &&
+          !strcmp(user, them->user));
+}
+
 
 /****************************************************************************
   Handling of open and locked tables states.

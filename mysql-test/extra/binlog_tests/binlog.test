@@ -164,6 +164,46 @@ DROP TABLE t1;
 DROP DATABASE bug39182;
 USE test;
 
+#
+# Bug#35383: binlog playback and replication breaks due to 
+# name_const substitution
+#
+DELIMITER //;
+CREATE PROCEDURE p1(IN v1 INT)
+BEGIN
+  CREATE TABLE t1 SELECT v1;
+  DROP TABLE t1;
+END//
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE v1 INT;
+  CREATE TABLE t1 SELECT v1+1;
+  DROP TABLE t1;
+END//
+CREATE PROCEDURE p3(IN v1 INT)
+BEGIN
+  CREATE TABLE t1 SELECT 1 FROM DUAL WHERE v1!=0;
+  DROP TABLE t1;
+END//
+CREATE PROCEDURE p4(IN v1 INT)
+BEGIN
+  DECLARE v2 INT;
+  CREATE TABLE t1 SELECT 1, v1, v2;
+  DROP TABLE t1;
+  CREATE TABLE t1 SELECT 1, v1+1, v2;
+  DROP TABLE t1;
+END//
+DELIMITER ;//
+
+CALL p1(1);
+CALL p2();
+CALL p3(0);
+CALL p4(0);
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+
 --echo End of 5.0 tests
 
 # Test of a too big SET INSERT_ID: see if the truncated value goes
