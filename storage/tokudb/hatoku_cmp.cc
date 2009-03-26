@@ -52,7 +52,7 @@ int compare_field(
         goto exit;
     default:
         *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
-        *b_bytes_read = field->packed_col_length(a_buf, key_part_length);
+        *b_bytes_read = field->packed_col_length(b_buf, key_part_length);
         ret_val = field->pack_cmp(a_buf, b_buf, key_part_length, 0);
         goto exit;
     }
