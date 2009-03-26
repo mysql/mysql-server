@@ -123,6 +123,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get config", &MgmApiSession::getConfig, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
+    MGM_ARG("nodetype", Int, Optional, "Type of requesting node"),
 
   MGM_CMD("get nodeid", &MgmApiSession::get_nodeid, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
@@ -586,69 +587,42 @@ void
 MgmApiSession::getConfig(Parser_t::Context &,
                          const class Properties &args)
 {
-  Uint32 version, node = 0;
+  Uint32 nodetype = NDB_MGM_NODE_TYPE_UNKNOWN;
 
-  args.get("version", &version);
-  args.get("node", &node);
+  // Ignoring mandatory parameter "version"
+  // Ignoring optional parameter "node"
+  args.get("nodetype", &nodetype);
 
-  if(node != 0){
-    bool compatible;
-    switch (m_mgmsrv.getNodeType(node)) {
-    case NDB_MGM_NODE_TYPE_NDB:
-      compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
-      break;
-    case NDB_MGM_NODE_TYPE_API:
-    case NDB_MGM_NODE_TYPE_MGM:
-      compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
-      break;
-    default:
-      m_output->println("get config");
-      m_output->println("result: unrecognignized node type");
-      m_output->println("");
-      return;
-    }
-    
-    if (!compatible){
-      m_output->println("get config");
-      m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
-			NDB_VERSION, version);
-      m_output->println("");
-      return;
-    }
-  }  
+  SLEEP_ERROR_INSERTED(1);
+  m_output->println("get config reply");
+
+  BaseString pack64, error;
 
   UtilBuffer packed;
-  if (!m_mgmsrv.getPackedConfig(packed))
+  if (!m_mgmsrv.get_packed_config((ndb_mgm_node_type)nodetype,
+                                  pack64, error))
   {
-    m_output->println("get config reply");
-    m_output->println("result: Could not fetch configuration");
+    m_output->println("result: %s", error.c_str());
     m_output->println("");
     return;
   }
 
-  char *tmp_str =
-    (char *) malloc(base64_needed_encoded_length(packed.length()));
-  (void) base64_encode(packed.get_data(), packed.length(), tmp_str);
-
-  SLEEP_ERROR_INSERTED(1);
-
-  m_output->println("get config reply");
   m_output->println("result: Ok");
-  m_output->println("Content-Length: %ld", strlen(tmp_str));
+  m_output->println("Content-Length: %ld", pack64.length());
   m_output->println("Content-Type: ndbconfig/octet-stream");
   SLEEP_ERROR_INSERTED(2);
   m_output->println("Content-Transfer-Encoding: base64");
-  m_output->println("");
+  m_output->print("\n");
+
   if(ERROR_INSERTED(3))
   {
-    int l= strlen(tmp_str);
-    tmp_str[l/2]='\0';
-    m_output->println(tmp_str);
-    NdbSleep_SecSleep(10);
+    // Return only half the packed config
+    BaseString half64 = pack64.substr(0, pack64.length());
+    m_output->println(half64.c_str());
+    return;
   }
-  m_output->println(tmp_str);
-
-  free(tmp_str);
+  m_output->println(pack64.c_str());
+  m_output->print("\n");
   return;
 }
 

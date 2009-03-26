@@ -46,7 +46,9 @@ const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = {
   /* Service errors - Configuration change */
   { NDB_MGM_CONFIG_CHANGE_FAILED,
     "Failed to complete configuration change" },
-  
+  { NDB_MGM_GET_CONFIG_FAILED,
+    "Failed to get configuration" },
+
   /* Usage errors */
   { NDB_MGM_USAGE_ERROR,
     "Usage error" }

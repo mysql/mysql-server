@@ -190,9 +190,10 @@ public:
   int add_config_change_subscriber(ConfigSubscriber*);
 
   /*
-    Retrieve the current configuration in packed format
+    Retrieve the current configuration in base64 packed format
    */
-  bool get_packed_config(UtilBuffer& pack_buf);
+  bool get_packed_config(ndb_mgm_node_type nodetype,
+                         BaseString& buf64, BaseString& error);
 
   static Config* load_config(const char* config_filename, bool mycnf,
                              BaseString& msg);
