@@ -41,6 +41,27 @@ _require(bool v, const char* expr, const char* file, int line)
 }
 #define require(v)  _require((v), #v, __FILE__, __LINE__)
 
+
+static void
+nodes2str(const NodeBitmask nodes, BaseString& to)
+{
+  unsigned found = 0;
+  const char* delimiter = "";
+  for (int i = 1; i < MAX_NODES; i++)
+  {
+    if (nodes.get(i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      found++;
+      if (found < nodes.count() - 1)
+        delimiter = ", ";
+      else
+        delimiter = " and ";
+    }
+  }
+}
+
+
 extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
@@ -1742,13 +1763,19 @@ ConfigManager::fetch_config(void)
                            "returned!");
       abort();
     }
-    g_eventLogger->info("Connected...");
+    g_eventLogger->info("Connected to '%s:%d'...",
+                        m_config_retriever.get_mgmd_host(),
+                        m_config_retriever.get_mgmd_port());
 
   }
 
   // read config from other management server
   ndb_mgm_configuration * tmp =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
+
+  // Disconnect from other mgmd
+  m_config_retriever.disconnect();
+
   if (tmp == NULL) {
     g_eventLogger->error(m_config_retriever.getErrorString());
     DBUG_RETURN(false);
@@ -1921,16 +1948,48 @@ ConfigManager::load_saved_config(const BaseString& config_name)
 
 
 bool
-ConfigManager::get_packed_config(UtilBuffer& pack_buf)
+ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
+                                 BaseString& buf64, BaseString& error)
 {
   Guard g(m_config_mutex);
 
-  /* Only allow the config to be exported if it's been confirmed */
-  if (m_config_state != CS_CONFIRMED)
-    return false;
+  /*
+    Only allow the config to be exported if it's been confirmed
+    or if another mgmd is asking for it
+  */
+  switch(m_config_state)
+  {
+  case CS_INITIAL:
+    if (nodetype == NDB_MGM_NODE_TYPE_MGM)
+      ; // allow other mgmd to fetch initial configuration
+    else
+    {
+      NodeBitmask not_started(m_all_mgm);
+      not_started.bitANDC(m_started);
+
+      error.assign("The cluster configuration is not yet confirmed "
+                   "by all defined management servers. "
+                   "This management server is still waiting for node ");
+      nodes2str(not_started, error);
+      error.append(" to connect.");
+      return false;
+    }
+    break;
+
+  case CS_CONFIRMED:
+    // OK
+    break;
+
+  default:
+    error.assign("get_packed_config, unknown config state: %d",
+                 m_config_state);
+     return false;
+    break;
+
+  }
 
   require(m_config);
-  return m_config->pack(pack_buf);
+  return m_config->pack64(buf64);
 }
 
 
@@ -2067,14 +2126,14 @@ ConfigManager::ConfigChecker::run()
                          m_connect_string.c_str());
     return;
   }
-  g_eventLogger->debug("mgmd on '%s' has version %d.%02d.%02d",
+  g_eventLogger->debug("mgmd on '%s' has version %d.%d.%d",
                        m_connect_string.c_str(), major, minor, build);
 
   // Versions prior to 7 don't have ConfigManager
   // exclude it from config change protocol
   if (major < 7)
   {
-    g_eventLogger->info("Excluding node %d with version %d.%02d.%02d from "
+    g_eventLogger->info("Excluding node %d with version %d.%d.%d from "
                         "config change protocol",
                         m_nodeid, major, minor, build);
     m_manager.m_exclude_nodes.push_back(m_nodeid);

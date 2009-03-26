@@ -23,6 +23,7 @@
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
+#include <mgmapi_internal.h>
 #include <ConfigValues.hpp>
 
 
@@ -158,8 +159,10 @@ ConfigRetriever::getConfig(Uint32 nodeid) {
 ndb_mgm_configuration *
 ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 {
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(mgm_handle,
-                                                           m_version);
+  ndb_mgm_configuration * conf =
+    ndb_mgm_get_configuration2(mgm_handle,
+                               m_version,
+                               m_node_type);
   if(conf == 0)
   {
     BaseString tmp(ndb_mgm_get_latest_error_msg(mgm_handle));

@@ -816,9 +816,10 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
 
 bool
-MgmtSrvr::getPackedConfig(UtilBuffer& pack_buf)
+MgmtSrvr::get_packed_config(ndb_mgm_node_type node_type,
+                            BaseString& buf64, BaseString& error)
 {
-  return m_config_manager->get_packed_config(pack_buf);
+  return m_config_manager->get_packed_config(node_type, buf64, error);
 }
 
 

@@ -369,11 +369,6 @@ public:
   bool change_config(Config& new_config, BaseString& msg);
 
   /**
-   *
-   */
-  enum ndb_mgm_node_type getNodeType(NodeId) const;
-
-  /**
    *   Get error text
    * 
    *   @param   errorCode: Error code to get a match error text for.
@@ -545,6 +540,8 @@ private:
   
   NodeId m_master_node;
 
+  ndb_mgm_node_type getNodeType(NodeId) const;
+
   /**
    * Handles the thread wich upon a 'Node is started' event will
    * set the node's previous loglevel settings.
@@ -556,10 +553,9 @@ private:
 
 
 public:
-  /*
-    Get packed copy of configuration in the supplied buffer
-  */
-  bool getPackedConfig(UtilBuffer& pack_buf);
+  /* Get copy of configuration packed with base64 */
+  bool get_packed_config(ndb_mgm_node_type nodetype,
+                         BaseString& buf64, BaseString& error);
 
   void print_config(const char* section_filter = NULL,
                     NodeId nodeid_filter = 0,
