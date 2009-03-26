@@ -28,6 +28,16 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
         break;
+    //
+    // I believe these are old types that are no longer
+    // in any 5.1 tables, so tokudb does not need
+    // to worry about them
+    // Putting in this assert in case I am wrong.
+    //
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_VAR_STRING:
+        assert(false);
+        break;
     default:
         ret_val = toku_type_unknown;
         break;
