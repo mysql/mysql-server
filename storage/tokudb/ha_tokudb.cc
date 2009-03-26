@@ -1263,8 +1263,6 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool 
     }
 }
 
-
-
 u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data) {
     KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + key_info->key_parts;
     uchar *pos = data;
@@ -1272,10 +1270,10 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uc
     for (; key_part != end; key_part++) {
         if (key_part->null_bit) {
             if (*pos++ == NULL_COL_VAL) { // Null value
-                /*
-                   We don't need to reset the record data as we will not access it
-                   if the null data is set
-                 */
+                //
+                // We don't need to reset the record data as we will not access it
+                // if the null data is set
+                //            
                 record[key_part->null_offset] |= key_part->null_bit;
                 continue;
             }
@@ -1319,9 +1317,6 @@ void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
             );
     }
 }
-
-
-
 
 u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length) {
     KEY_PART_INFO *key_part = key_info->key_part;
