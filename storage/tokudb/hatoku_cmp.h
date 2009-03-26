@@ -22,11 +22,12 @@ typedef enum {
 
 
 inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type);
+int compare_field(uchar* a_buf, Field* a_field, uchar* b_buf, Field* b_field);
 
 
-uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, int num_bytes);
-uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, int num_bytes);
-int cmp_toku_int (uchar* a, uchar* b, bool is_signed, int num_bytes);
+uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes);
+uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes);
+int cmp_toku_int (uchar* a, uchar* b, bool is_signed, u_int32_t num_bytes);
 
 
 //
