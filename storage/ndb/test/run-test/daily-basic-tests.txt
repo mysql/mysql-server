@@ -786,11 +786,11 @@ args: T6
 
 max-time: 1500
 cmd: testBlobs
-args: -version 1
+args: -version 1 -rows 25
 
 max-time: 1500
 cmd: testBlobs
-args:
+args: -rows 25
 
 max-time: 600
 cmd: testBlobs
