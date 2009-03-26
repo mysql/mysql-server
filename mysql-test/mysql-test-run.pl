@@ -1783,6 +1783,8 @@ sub environment_setup {
   # ----------------------------------------------------
   if ( ! $opt_skip_ndbcluster )
   {
+    $ENV{'NDB_NDBD'}=$exe_ndbd;
+
     $ENV{'NDB_MGM'}=
       native_path(my_find_bin($basedir,
 		  ["storage/ndb/src/mgmclient", "bin"],
