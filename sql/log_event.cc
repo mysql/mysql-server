@@ -1358,6 +1358,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 {
   time_t end_time;
 
+  DBUG_EXECUTE_IF("debug_lock_before_query_log_event",
+                  DBUG_SYNC_POINT("debug_lock.before_query_log_event", 10););
+
   if (killed_status_arg == THD::KILLED_NO_VALUE)
     killed_status_arg= thd_arg->killed;
   error_code=

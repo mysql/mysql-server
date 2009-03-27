@@ -333,7 +333,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (!error)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            FALSE, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -1814,7 +1815,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (!internal_tmp_table && mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          FALSE, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
   error= FALSE;
@@ -2903,7 +2905,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          FALSE, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
   res= FALSE;
@@ -3012,7 +3015,8 @@ mysql_discard_or_import_tablespace(THD *thd,
     goto err;
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          FALSE, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 err:
@@ -3168,7 +3172,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        Query_log_event qinfo(thd, thd->query, thd->query_length,
+                              0, FALSE, THD::NOT_KILLED);
         mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3360,7 +3365,8 @@ view_err:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+	Query_log_event qinfo(thd, thd->query, thd->query_length,
+                              FALSE, FALSE, THD::NOT_KILLED);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3872,7 +3878,8 @@ view_err:
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            FALSE, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
@@ -4007,7 +4014,8 @@ view_err:
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          FALSE, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
   broadcast_refresh();

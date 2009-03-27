@@ -646,7 +646,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 
       /* Such a statement can always go directly to binlog, no trans cache */
       Query_log_event qinfo(thd, log_query.c_ptr(), log_query.length(), 0,
-                            FALSE);
+                            FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
 
@@ -680,7 +680,8 @@ db_drop_routine(THD *thd, int type, sp_name *name)
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            0, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -725,7 +726,8 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            0, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }

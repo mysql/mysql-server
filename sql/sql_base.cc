@@ -793,18 +793,9 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE);
+                            0, FALSE, THD::NOT_KILLED);
       thd->variables.character_set_client= cs_save;
-      /*
-        Imagine the thread had created a temp table, then was doing a SELECT, and
-        the SELECT was killed. Then it's not clever to mark the statement above as
-        "killed", because it's not really a statement updating data, and there
-        are 99.99% chances it will succeed on slave.
-        If a real update (one updating a persistent table) was killed on the
-        master, then this real update will be logged with error_code=killed,
-        rightfully causing the slave to stop.
-      */
-      qinfo.error_code= 0;
+      DBUG_ASSERT(qinfo.error_code == 0);
       mysql_bin_log.write(&qinfo);
     }
     else
@@ -2578,7 +2569,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       {
         end = strxmov(strmov(query, "DELETE FROM `"),
                       db,"`.`",name,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
+        Query_log_event qinfo(thd, query, (ulong)(end-query),
+                              0, FALSE, THD::NOT_KILLED);
         mysql_bin_log.write(&qinfo);
         my_free(query, MYF(0));
       }

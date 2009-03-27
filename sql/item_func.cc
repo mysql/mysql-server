@@ -3377,6 +3377,10 @@ longlong Item_master_pos_wait::val_int()
 }
 
 #ifdef EXTRA_DEBUG
+/**
+  This will release the user lock that the thread currently locked,
+  please see also the comment of DEBUG_SYNC_POINT.
+*/
 void debug_sync_point(const char* lock_name, uint lock_timeout)
 {
   THD* thd=current_thd;

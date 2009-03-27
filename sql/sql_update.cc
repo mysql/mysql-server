@@ -1575,7 +1575,7 @@ void multi_update::send_error(uint errcode,const char *err)
         into repl event.
       */
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            transactional_tables, FALSE);
+                            transactional_tables, FALSE, THD::KILLED_NO_VALUE);
       mysql_bin_log.write(&qinfo);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
