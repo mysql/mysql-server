@@ -6,8 +6,9 @@ extern "C" {
 #include "hatoku_cmp.h"
 
 
-inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
+inline TOKU_TYPE mysql_to_toku_type (Field* field) {
     TOKU_TYPE ret_val = toku_type_unknown;
+    enum_field_types mysql_type = field->real_type();
     switch (mysql_type) {
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
@@ -20,20 +21,22 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
         ret_val = toku_type_int;
-        break;
+        goto exit;
     case MYSQL_TYPE_DOUBLE:
         ret_val = toku_type_double;
-        break;
+        goto exit;
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
-        break;
+        goto exit;
     case MYSQL_TYPE_NEWDECIMAL:
         ret_val = toku_type_decimal;
-        break;
+        goto exit;
     case MYSQL_TYPE_BIT:
         ret_val = toku_type_bitstream;
-        break;
+        goto exit;
     //
     // I believe these are old types that are no longer
     // in any 5.1 tables, so tokudb does not need
@@ -43,11 +46,12 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
         assert(false);
-        break;
+        goto exit;
     default:
         ret_val = toku_type_unknown;
-        break;
+        goto exit;
     }
+exit:
     return ret_val;
 }
 
@@ -305,7 +309,7 @@ int compare_field(
     u_int32_t* b_bytes_read
     ) {
     int ret_val = 0;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    TOKU_TYPE toku_type = mysql_to_toku_type(field);
     u_int32_t num_bytes = 0;
     switch(toku_type) {
     case (toku_type_int):
@@ -360,7 +364,7 @@ uchar* pack_field(
 {
     uchar* new_pos = NULL;
     u_int32_t num_bytes = 0;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
         assert(key_part_length == field->pack_length());
@@ -413,7 +417,7 @@ uchar* pack_key_field(
     )
 {
     uchar* new_pos = NULL;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
     case (toku_type_double):
@@ -447,7 +451,7 @@ uchar* unpack_field(
 {
     uchar* new_pos = NULL;
     u_int32_t num_bytes = 0;
-    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
         assert(key_part_length == field->pack_length());
