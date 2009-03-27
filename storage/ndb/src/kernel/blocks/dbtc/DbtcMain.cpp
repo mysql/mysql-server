@@ -2608,7 +2608,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (ERROR_INSERTED(8066))
   {
     ErrorSignalReceive= 1;
-    ErrorMaxSegmentsToSeize= 5;
+    ErrorMaxSegmentsToSeize= 1;
   }
   if (ERROR_INSERTED(8067))
   {
