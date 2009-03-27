@@ -1071,7 +1071,11 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
   row_len=  uint4korr(size_buffer);
   DBUG_PRINT("ha_archive",("Unpack row length %u -> %u", row_len, 
                            (unsigned int)table->s->reclength));
-  fix_rec_buff(row_len);
+
+  if (fix_rec_buff(row_len))
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
   DBUG_ASSERT(row_len <= record_buffer->length);
 
   read= azread(file_to_read, record_buffer->buffer, row_len, &error);
