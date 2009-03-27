@@ -831,9 +831,19 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 #ifdef HAVE_ISINF
-/* isinf() can be used in both C and C++ code */
-#define my_isinf(X) isinf(X)
+/* Check if C compiler is affected by GCC bug #39228 */
+#if !defined(__cplusplus) && defined(HAVE_BROKEN_ISINF)
+/* Force store/reload of the argument to/from a 64-bit double */
+static inline double my_isinf(double x)
+{
+  volatile double t= x;
+  return isinf(t);
+}
 #else
+/* System-provided isinf() is available and safe to use */
+#define my_isinf(X) isinf(X)
+#endif
+#else /* !HAVE_ISINF */
 #define my_isinf(X) (!finite(X) && !isnan(X))
 #endif
 
