@@ -1046,14 +1046,6 @@ max-time: 1200
 cmd: testNodeRestart
 args: -n Bug41469 T1
 
-max-time: 180
-cmd: testIndex
-args: -n Bug28804 T1 T6
-
-max-time: 180
-cmd: testIndex
-args: -n Bug28804_ATTRINFO T1 T6
-
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_1 D1
