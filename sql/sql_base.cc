@@ -2600,27 +2600,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
-    bool check_if_used= thd->prelocked_mode &&
-                        ((int) table_list->lock_type >=
-                         (int) TL_WRITE_ALLOW_WRITE);
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->table_cache_key.length == key_length &&
 	  !memcmp(table->s->table_cache_key.str, key, key_length))
       {
-        if (check_if_used && table->query_id &&
-            table->query_id != thd->query_id)
-        {
-          /*
-            If we are in stored function or trigger we should ensure that
-            we won't change table that is already used by calling statement.
-            So if we are opening table for writing, we should check that it
-            is not already open by some calling stamement.
-          */
-          my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
-                   table->s->table_name.str);
-          DBUG_RETURN(0);
-        }
         /*
           When looking for a usable TABLE, ignore MERGE children, as they
           belong to their parent and cannot be used explicitly.
@@ -2649,13 +2633,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           {
             best_distance= distance;
             best_table= table;
-            if (best_distance == 0 && !check_if_used)
+            if (best_distance == 0)
             {
               /*
-                If we have found perfect match and we don't need to check that
-                table is not used by one of calling statements (assuming that
-                we are inside of function or trigger) we can finish iterating
-                through open tables list.
+                We have found a perfect match and can finish iterating
+                through open tables list. Check for table use conflict
+                between calling statement and SP/trigger is done in
+                lock_tables().
               */
               break;
             }
@@ -4888,9 +4872,9 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
     lock_flags          Flags passed to mysql_lock_table
 
   NOTE
-    This function don't do anything like SP/SF/views/triggers analysis done
-    in open_tables(). It is intended for opening of only one concrete table.
-    And used only in special contexts.
+    This function doesn't do anything like SP/SF/views/triggers analysis done 
+    in open_table()/lock_tables(). It is intended for opening of only one
+    concrete table. And used only in special contexts.
 
   RETURN VALUES
     table		Opened table
@@ -4907,6 +4891,9 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   TABLE *table;
   bool refresh;
   DBUG_ENTER("open_ltable");
+
+  /* should not be used in a prelocked_mode context, see NOTE above */
+  DBUG_ASSERT(!thd->prelocked_mode);
 
   thd_proc_info(thd, "Opening table");
   thd->current_tablenr= 0;
@@ -5374,8 +5361,29 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
          table && table != first_not_own;
          table= table->next_global)
     {
-      if (!table->placeholder() &&
-	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
+      if (table->placeholder())
+        continue;
+
+      /*
+        In a stored function or trigger we should ensure that we won't change
+        a table that is already used by the calling statement.
+      */
+      if (thd->prelocked_mode &&
+          table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      {
+        for (TABLE* opentab= thd->open_tables; opentab; opentab= opentab->next)
+        {
+          if (table->table->s == opentab->s && opentab->query_id &&
+              table->table->query_id != opentab->query_id)
+          {
+            my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
+                     table->table->s->table_name.str);
+            DBUG_RETURN(-1);
+          }
+        }
+      }
+
+      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	DBUG_RETURN(-1);
       }
