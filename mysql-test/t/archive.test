@@ -1599,18 +1599,3 @@ INSERT INTO t1 VALUES (NULL, NULL),(NULL, NULL);
 FLUSH TABLE t1;
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
-
---echo #
---echo # BUG#32880 - Repairing Archive table fails with internal error 144
---echo #
---echo 
---echo # Test with an existing table which is corrupted
---echo # Copy t1 from std_data
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file std_data/bug32880.frm $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/bug32880.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
-copy_file std_data/bug32880.ARN $MYSQLD_DATADIR/test/t1.ARN;
-SHOW CREATE TABLE t1;
-CHECK TABLE t1;
-REPAIR TABLE t1;
-DROP TABLE t1;
