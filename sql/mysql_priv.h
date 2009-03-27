@@ -451,6 +451,13 @@ MY_LOCALE *my_locale_by_number(uint number);
   The client tells the server to block with SELECT GET_LOCK()
   and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
   concurrency problems
+
+  NOTE: This will release the user lock that the thread currently
+  locked, which can cause problem if users want to use user locks for
+  other purposes. In order to overcome this problem, it's adviced to
+  wrap the call to DBUG_SYNC_POINT() within the DBUG_EXECUTE_IF(), so
+  that it will only be activated if the given keyword is included in
+  the 'debug' option, and will not fiddle user locks otherwise.
 */
 #define DBUG_SYNC_POINT(lock_name,lock_timeout) \
  debug_sync_point(lock_name,lock_timeout)

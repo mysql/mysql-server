@@ -304,7 +304,7 @@ end:
 
       /* Such a statement can always go directly to binlog, no trans cache. */
       Query_log_event qinfo(thd, stmt_query.ptr(), stmt_query.length(), 0,
-                            FALSE);
+                            FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }

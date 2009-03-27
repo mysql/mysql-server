@@ -1601,7 +1601,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
     Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                          thd->binlog_evt_union.unioned_events_trans, FALSE);
+                          thd->binlog_evt_union.unioned_events_trans,
+                          FALSE, THD::KILLED_NO_VALUE);
     if (mysql_bin_log.write(&qinfo) &&
         thd->binlog_evt_union.unioned_events_trans)
     {
