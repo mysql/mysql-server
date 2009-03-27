@@ -17,6 +17,7 @@ typedef enum {
     toku_type_int = 0,
     toku_type_double,
     toku_type_float,
+    toku_type_decimal,
     toku_type_unknown
 } TOKU_TYPE;
 

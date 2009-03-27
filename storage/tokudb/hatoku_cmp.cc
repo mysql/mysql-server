@@ -28,6 +28,9 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
         break;
+    case MYSQL_TYPE_NEWDECIMAL:
+        ret_val = toku_type_decimal;
+        break;
     //
     // I believe these are old types that are no longer
     // in any 5.1 tables, so tokudb does not need
@@ -253,6 +256,42 @@ exit:
 }
 
 
+inline uchar* pack_toku_binary(uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
+    memcpy(to_tokudb, from_mysql, num_bytes);
+    return to_tokudb + num_bytes;
+}
+
+inline uchar* unpack_toku_binary(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
+    memcpy(to_mysql, from_tokudb, num_bytes);
+    return from_tokudb + num_bytes;
+}
+
+
+inline int cmp_toku_binary(
+    uchar* a_buf, 
+    u_int32_t a_num_bytes, 
+    uchar* b_buf, 
+    u_int32_t b_num_bytes
+    ) 
+{
+    int ret_val = 0;
+    u_int32_t num_bytes_to_cmp = (a_num_bytes < b_num_bytes) ? a_num_bytes : b_num_bytes;
+    ret_val = memcmp(a_buf, b_buf, num_bytes_to_cmp);
+    if ((ret_val != 0) || (a_num_bytes == b_num_bytes)) {
+        goto exit;
+    }
+    if (a_num_bytes < b_num_bytes) {
+        ret_val = -1;
+        goto exit;
+    }
+    else {
+        ret_val = 1;
+        goto exit;
+    }
+exit:
+    return ret_val;
+}
+
 
 int compare_field(
     uchar* a_buf, 
@@ -264,6 +303,7 @@ int compare_field(
     ) {
     int ret_val = 0;
     TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    u_int32_t num_bytes = 0;
     switch(toku_type) {
     case (toku_type_int):
         ret_val = cmp_toku_int(
@@ -281,6 +321,13 @@ int compare_field(
         ret_val = cmp_toku_double(a_buf, b_buf);
         *a_bytes_read = sizeof(double);
         *b_bytes_read = sizeof(double);
+        goto exit;
+    case (toku_type_decimal):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        ret_val = cmp_toku_binary(a_buf, num_bytes, b_buf,num_bytes);
+        *a_bytes_read = num_bytes;
+        *b_bytes_read = num_bytes;
         goto exit;
     default:
         *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
@@ -308,6 +355,7 @@ uchar* pack_field(
     )
 {
     uchar* new_pos = NULL;
+    u_int32_t num_bytes = 0;
     TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
     switch(toku_type) {
     case (toku_type_int):
@@ -327,6 +375,15 @@ uchar* pack_field(
         assert(field->pack_length() == sizeof(float));
         assert(key_part_length == sizeof(float));
         new_pos = pack_toku_double(to_tokudb, from_mysql);
+        goto exit;
+    case (toku_type_decimal):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        new_pos = pack_toku_binary(
+            to_tokudb,
+            from_mysql,
+            num_bytes
+            );
         goto exit;
     default:
         assert(toku_type == toku_type_unknown);
@@ -356,6 +413,7 @@ uchar* pack_key_field(
     case (toku_type_int):
     case (toku_type_double):
     case (toku_type_float):
+    case (toku_type_decimal):
         new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     default:
@@ -382,6 +440,7 @@ uchar* unpack_field(
     )
 {
     uchar* new_pos = NULL;
+    u_int32_t num_bytes = 0;
     TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
     switch(toku_type) {
     case (toku_type_int):
@@ -401,6 +460,15 @@ uchar* unpack_field(
         assert(field->pack_length() == sizeof(float));
         assert(key_part_length == sizeof(float));
         new_pos = unpack_toku_float(to_mysql, from_tokudb);
+        goto exit;
+    case (toku_type_decimal):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        new_pos = unpack_toku_binary(
+            to_mysql,
+            from_tokudb,
+            num_bytes
+            );
         goto exit;
     default:
         assert(toku_type == toku_type_unknown);
