@@ -73,7 +73,7 @@ enable_warnings;
 
 CREATE TABLE t1 (t text);
 DELIMITER |;
-CREATE PROCEDURE p(file TEXT) 
+CREATE PROCEDURE p(file varchar(4096)) 
   BEGIN
     INSERT INTO t1 VALUES (LOAD_FILE(file));
   END|
