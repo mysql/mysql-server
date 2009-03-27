@@ -119,11 +119,22 @@ sub collect_test_cases ($$) {
 	if ( $test->{name} =~ /.*\.$tname/ )
 	{
 	  $found= 1;
+	  last;
 	}
       }
       if ( not $found )
       {
-	mtr_error("Could not find '$tname' in '$suites' suite(s)");
+	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
+	# If suite was part of name, find it there
+	my ($this_case) = collect_one_suite($sname, [ $tname ]);
+	if ($this_case)
+        {
+	  push (@$cases, $this_case);
+	}
+	else
+	{
+	  mtr_error("Could not find '$tname' in '$sname' suite");
+        }
       }
     }
   }
