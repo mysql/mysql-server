@@ -188,8 +188,8 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
                                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8065 in this transaction, consumes
-   * all but 10 SectionSegments
+  /* Activate error insert 8065 in this transaction, limits
+   * any single import/append to 1 section
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
@@ -198,9 +198,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
                                           &restarter, 
                                           8065));
 
-  /* Ok, now the chosen TC's node should have only 10 
-   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
-   * Let's try an insert with a key bigger than that
+  /* Ok, let's try an insert with a key bigger than 1 section.
    * Since it's part of the same transaction, it'll go via
    * the same TC.
    */
@@ -318,7 +316,6 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   trans->close();
 
   // TODO : Add code to testUpgrade
-  // Change error insert to get 1 segment left.
 #if 0
   /*
    * Short TCKEYREQ    KeyInfo accumulate       Consume + send long
@@ -433,7 +430,7 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* We will generate : 
    *   10 SS left : 
    *     Long IndexReq with too long Key/AttrInfo
-   *    5 SS left :
+   *    1 SS left :
    *     Long IndexReq read with short Key + Attrinfo to long 
    *       base table Key
    */
@@ -563,8 +560,8 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8065 in this transaction, consumes
-   * all but 10 SectionSegments
+  /* Activate error insert 8065 in this transaction, limits any
+   * single append/import to 10 sections.
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           baseRecord, 
@@ -573,9 +570,7 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                           &restarter, 
                                           8065));
 
-  /* Ok, now the chosen TC's node should have only 10 
-   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
-   * Let's try an index read with an index key bigger than that
+  /* Ok, let's try an index read with a big index key.
    * Since it's part of the same transaction, it'll go via
    * the same TC.
    */
@@ -650,8 +645,12 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                              &smallKey[0],
                                              smallKeySize));
 
-  /* Activate error insert 8066 in this transaction, consumes
-   * all but 5 SectionSegments
+  /* Activate error insert 8066 in this transaction, limits a
+   * single import/append to 1 section.
+   * Note that the TRANSID_AI is received by TC as a short-signal
+   * train, so no single append is large, but when the first
+   * segment is used and append starts on the second, it will
+   * fail.
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           baseRecord, 
@@ -674,7 +673,6 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   trans->close();
 
   // TODO Move short signal testing to testUpgrade
-  // Change error insert to get 1 segment left.
 #if 0
   /*
    * Short TCINDXREQ   KeyInfo accumulate       Consume + send long
@@ -884,8 +882,8 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
                                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8066 in this transaction, consumes
-   * all but 5 SectionSegments
+  /* Activate error insert 8066 in this transaction, limits a 
+   * single import/append to 1 section.
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
@@ -894,10 +892,9 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
                                           &restarter, 
                                           8066));
 
-  /* Ok, now the chosen TC's node should have only 5 
-   * SegmentedSection buffers = ~ 60 words * 5 = 1200 bytes
-   * A scan will always send 2 long sections (Receiver Ids
-   * + AttrInfo), so let's start a scan with > 2400 bytes of
+  /* A scan will always send 2 long sections (Receiver Ids,
+   * AttrInfo)
+   * Let's start a scan with > 2400 bytes of
    * ATTRINFO and see what happens
    */
   NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
