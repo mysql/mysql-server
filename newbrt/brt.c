@@ -2932,6 +2932,7 @@ int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
         brt->h->names[i - 1]       = brt->h->names[i];
         brt->h->roots[i - 1]       = brt->h->roots[i];
         brt->h->root_hashes[i - 1] = brt->h->root_hashes[i];
+        brt->h->flags_array[i - 1] = brt->h->flags_array[i];
     }
     brt->h->n_named_roots--;
     brt->h->dirty = 1;
@@ -2939,6 +2940,7 @@ int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
     XREALLOC_N(brt->h->n_named_roots, brt->h->names);
     XREALLOC_N(brt->h->n_named_roots, brt->h->roots);
     XREALLOC_N(brt->h->n_named_roots, brt->h->root_hashes);
+    XREALLOC_N(brt->h->n_named_roots, brt->h->flags_array);
     return 0;
 
 }
