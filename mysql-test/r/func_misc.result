@@ -329,6 +329,9 @@ SELECT * FROM t1 WHERE a = NAME_CONST('reportDate',
 _binary'2009-01-09' COLLATE 'binary');
 a
 DROP TABLE t1;
+select NAME_CONST('_id',1234) as id;
+id
+1234
 End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0
