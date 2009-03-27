@@ -813,9 +813,13 @@ public:
 
 #ifndef MYSQL_CLIENT
 
+  /*
+    for argument killed_err_arg, use ` THD::NOT_KILLED ' if the killed
+    status should be ignored, otherwise use `THD::KILLED_NO_VALUE'
+  */
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
                   bool using_trans, bool suppress_use,
-                  THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+                  THD::killed_state killed_err_arg);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
