@@ -306,7 +306,7 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
     pos+=2;
   }
   if (message)
-    pos=net_store_data((char*) pos, message, strlen(message));
+    pos=net_store_data((char*) pos, message, (uint) strlen(message));
   VOID(my_net_write(net,buff,(uint) (pos-buff)));
   VOID(net_flush(net));
   /* We can't anymore send an error to the client */
@@ -641,7 +641,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
                      field.length / item->collation.collation->mbminlen :
                      field.length / item->collation.collation->mbmaxlen;
         max_length*= thd_charset->mbmaxlen;
-        field_length= (max_length > UINT_MAX32) ? UINT_MAX32 : max_length;
+        field_length= (max_length > UINT_MAX32) ? 
+          UINT_MAX32 : (uint32) max_length;
         int4store(pos + 2, field_length);
       }
       pos[6]= field.type;
@@ -734,8 +735,8 @@ bool Protocol::store(const char *from, CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
-  uint length= strlen(from);
-  return store(from, length, cs);
+  size_t length= strlen(from);
+  return store(from, (uint) length, cs);
 }
 
 

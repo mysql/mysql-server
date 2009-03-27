@@ -1003,7 +1003,7 @@ int db_ok_with_wild_table(const char *db)
   int len;
   end= strmov(hash_key, db);
   *end++= '.';
-  len= end - hash_key ;
+  len= (uint) (end - hash_key);
   if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
                                         hash_key, len))
     return 1;
@@ -1189,7 +1189,7 @@ void skip_load_data_infile(NET *net)
 bool net_request_file(NET* net, const char* fname)
 {
   DBUG_ENTER("net_request_file");
-  DBUG_RETURN(net_write_command(net, 251, fname, strlen(fname), "", 0));
+  DBUG_RETURN(net_write_command(net, 251, fname, (uint) strlen(fname), "", 0));
 }
 
 
@@ -1581,7 +1581,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   save_db = thd->db;
   save_db_length= thd->db_length;
   DBUG_ASSERT(db != 0);
-  thd->reset_db((char*)db, strlen(db));
+  thd->reset_db((char*)db, (uint) strlen(db));
   mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
   thd->db = save_db;		// leave things the way the were before
   thd->db_length= save_db_length;
@@ -2314,11 +2314,11 @@ int register_slave_on_master(MYSQL* mysql)
 
   if (!report_host)
     return 0;
-  report_host_len= strlen(report_host);
+  report_host_len= (uint) strlen(report_host);
   if (report_user)
-    report_user_len= strlen(report_user);
+    report_user_len= (uint) strlen(report_user);
   if (report_password)
-    report_password_len= strlen(report_password);
+    report_password_len= (uint) strlen(report_password);
   /* 30 is a good safety margin */
   if (report_host_len + report_user_len + report_password_len + 30 >
       sizeof(buf))
@@ -3043,7 +3043,7 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
   *p++ = table_len;
   memcpy(p, table, table_len);
   
-  if (simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
+  if (simple_command(mysql, COM_TABLE_DUMP, buf, (uint) (p - buf + table_len), 1))
   {
     sql_print_error("request_table_dump: Error sending the table dump \
 command");

@@ -31,7 +31,7 @@
 SQL_CRYPT::SQL_CRYPT(const char *password)
 {
   ulong rand_nr[2];
-  hash_password(rand_nr,password, strlen(password));
+  hash_password(rand_nr,password, (uint) strlen(password));
   crypt_init(rand_nr);
 }
 

@@ -46,8 +46,9 @@ void operator delete[] (void *ptr) throw ()
 
 C_MODE_START
 
-int __cxa_pure_virtual() {
-  assert("Pure virtual method called." == "Aborted");
+int __cxa_pure_virtual()
+{
+  assert(! "Aborted: pure virtual method called.");
   return 0;
 }
 
