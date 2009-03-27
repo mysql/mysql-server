@@ -44,7 +44,7 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
 			probes_mysql.h probes_mysql_nodtrace.h
 
-EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d
+EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl
@@ -72,7 +72,7 @@ dist-hook:
 
 probes_mysql.d:
 	if ! test -f probes_mysql.d ; then \
-		$(CP) -f $(top_srcdir)/include/probes_mysql.d probes_mysql.d; \
+		$(CP) -f $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d; \
 	fi
 
 DTRACEPROVIDER = probes_mysql.d
