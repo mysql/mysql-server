@@ -1378,6 +1378,36 @@ a	b	c
 5	1	1
 4	1	1
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
+CREATE INDEX i1 on t1 (a(3));
+SELECT * FROM t1 WHERE a = 'abcde';
+a
+DROP TABLE t1;
+#
+# BUG #26288: savepoint are not deleted on comit, if the transaction 
+# was otherwise empty
+#
+BEGIN;
+SAVEPOINT s1;
+COMMIT;
+RELEASE SAVEPOINT s1;
+ERROR 42000: SAVEPOINT s1 does not exist
+BEGIN;
+SAVEPOINT s2;
+COMMIT;
+ROLLBACK TO SAVEPOINT s2;
+ERROR 42000: SAVEPOINT s2 does not exist
+BEGIN;
+SAVEPOINT s3;
+ROLLBACK;
+RELEASE SAVEPOINT s3;
+ERROR 42000: SAVEPOINT s3 does not exist
+BEGIN;
+SAVEPOINT s4;
+ROLLBACK;
+ROLLBACK TO SAVEPOINT s4;
+ERROR 42000: SAVEPOINT s4 does not exist
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
