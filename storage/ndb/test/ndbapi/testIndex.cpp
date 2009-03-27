@@ -752,7 +752,6 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
 
   UtilTransactions utilTrans(*ctx->getTab());
   HugoTransactions hugoTrans(*ctx->getTab());
-  const char * name = ctx->getTab()->getName();
   while(i<=loops && result != NDBT_FAILED){
 
     ndbout << "Loop " << i << "/"<< loops <<" started" << endl;
@@ -1193,7 +1192,6 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runLQHKEYREF(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
   int loops = ctx->getNumLoops() * 100;
   NdbRestarter restarter;
   
@@ -1283,7 +1281,7 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
     ops.startTransaction(pNdb);
     ops.pkReadRecord(pNdb, 10 + rand() % rows, rows);
     int tmp;
-    if (tmp = ops.execute_Commit(pNdb, AO_IgnoreError))
+    if ((tmp = ops.execute_Commit(pNdb, AO_IgnoreError)))
     {
       if (tmp == 4012)
 	res = NDBT_FAILED;
@@ -1310,7 +1308,7 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
       ndbout_c("ignore error");
       break;
     }
-    if (tmp = ops.execute_Commit(pNdb, (AbortOption)arg))
+    if ((tmp = ops.execute_Commit(pNdb, (AbortOption)arg)))
     {
       if (tmp == 4012)
 	res = NDBT_FAILED;
@@ -1324,6 +1322,15 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
   return res;
 }
 
+// From 6.3.X, Unique index operations do not use
+// TransactionBufferMemory.
+// Long signal KeyInfo and AttrInfo storage exhaustion
+// is already tested by testLimits
+// Testing of segment exhaustion when accumulating from
+// signal trains cannot be tested from 7.0 as we cannot
+// generate short signal trains.
+// TODO : Execute testcase as part of upgrade testing - 
+// 6.3 to 7.0?
 int tcSaveINDX_test(NDBT_Context* ctx, NDBT_Step* step, int inject_err)
 {
   int result= NDBT_OK;
@@ -1340,7 +1347,6 @@ int tcSaveINDX_test(NDBT_Context* ctx, NDBT_Step* step, int inject_err)
 
   int loops = ctx->getNumLoops();
   const int rows = ctx->getNumRecords();
-  const int batchsize = ctx->getProperty("BatchSize", 1);
 
   for(int bs=1; bs < loops; bs++)
   {
