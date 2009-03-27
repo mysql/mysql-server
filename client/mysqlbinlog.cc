@@ -105,7 +105,7 @@ static MYSQL* safe_connect();
 class Load_log_processor
 {
   char target_dir_name[FN_REFLEN];
-  int target_dir_name_len;
+  size_t target_dir_name_len;
 
   /*
     When we see first event corresponding to some LOAD DATA statement in
@@ -275,7 +275,7 @@ File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
   File file;
   
   fn_format(filename, le->fname, target_dir_name, "", 1);
-  len= strlen(filename);
+  len= (uint) strlen(filename);
   tail= filename + len;
   
   if ((file= create_unique_file(filename,tail)) < 0)
@@ -284,7 +284,7 @@ File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
     return -1;
   }
   
-  le->set_fname_outside_temp_buf(filename,len+strlen(tail));
+  le->set_fname_outside_temp_buf(filename,len+(uint) strlen(tail));
   
   return file;
 }
@@ -369,7 +369,7 @@ int Load_log_processor::process_first_event(const char *bname, uint blen,
                                             uint file_id,
                                             Create_file_log_event *ce)
 {
-  uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
+  size_t full_len= target_dir_name_len + blen + 9 + 9 + 1;
   int error= 0;
   char *fname, *ptr;
   File file;
@@ -403,7 +403,7 @@ int Load_log_processor::process_first_event(const char *bname, uint blen,
   }
 
   if (ce)
-    ce->set_fname_outside_temp_buf(fname, strlen(fname));
+    ce->set_fname_outside_temp_buf(fname, (uint) strlen(fname));
 
   if (my_write(file, (byte*)block, block_len, MYF(MY_WME|MY_NABP)))
     error= -1;
@@ -416,7 +416,7 @@ int Load_log_processor::process_first_event(const char *bname, uint blen,
 int Load_log_processor::process(Create_file_log_event *ce)
 {
   const char *bname= ce->fname + dirname_length(ce->fname);
-  uint blen= ce->fname_len - (bname-ce->fname);
+  uint blen= (uint) (ce->fname_len - (bname-ce->fname));
 
   return process_first_event(bname, blen, ce->block, ce->block_len,
                              ce->file_id, ce);
@@ -864,7 +864,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   long dummy_my_timezone;
   my_bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
-  if (str_to_datetime(str, strlen(str), &l_time, 0, &was_cut) !=
+  if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &was_cut) !=
       MYSQL_TIMESTAMP_DATETIME || was_cut)
   {
     fprintf(stderr, "Incorrect date and time argument: %s\n", str);
@@ -1109,7 +1109,7 @@ could be out of memory");
   int4store(buf, (uint32)start_position);
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
 
-  size_s tlen = strlen(logname);
+  size_t tlen= strlen(logname);
   if (tlen > UINT_MAX) 
   {
     fprintf(stderr,"Log name too long\n");
