@@ -118,7 +118,8 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	printf(" subleafentry_estimates={");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    if (i>0) printf(" ");
-	    printf("%llu", (unsigned long long)(BNC_SUBTREE_LEAFENTRY_ESTIMATE(n, i)));
+	    struct subtree_estimates *est = &(BNC_SUBTREE_ESTIMATES(n, i));
+	    printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 "}", est->nkeys, est->ndata, est->dsize);
 	}
 	printf("}\n");
 	printf(" pivots:\n");

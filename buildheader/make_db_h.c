@@ -288,7 +288,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
            "typedef int64_t toku_off_t;\n"
            "#endif\n");
 
-    printf("typedef struct __toku_db_btree_stat DB_BTREE_STAT;\n");
+    //printf("typedef struct __toku_db_btree_stat DB_BTREE_STAT;\n");
     printf("typedef struct __toku_db_env DB_ENV;\n");
     printf("typedef struct __toku_db_key_range DB_KEY_RANGE;\n");
     printf("typedef struct __toku_db_lsn DB_LSN;\n");
@@ -302,6 +302,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
     printf("typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);\n");
     printf("typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);\n");
+
+    //stat64
+    printf("typedef struct __toku_db_btree_stat64 { u_int64_t bt_nkeys, bt_ndata, bt_dsize; } DB_BTREE_STAT64;\n");
+
     print_dbtype();
 //    print_db_notices();
     print_defines();
@@ -309,7 +313,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("/* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/\n");
     printf("#ifdef _TOKUDB_WRAP_H\n#undef txn_begin\n#endif\n");
     assert(sizeof(db_btree_stat_fields32)==sizeof(db_btree_stat_fields64));
-    print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]), 0);
+    // Don't produce db_btree_stat records.
+    //print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]), 0);
     assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
     print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), 0);
 
@@ -322,6 +327,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_fields32)==sizeof(db_fields64));
     {
 	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
+			     "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
 			     "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*)",
 			     "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",

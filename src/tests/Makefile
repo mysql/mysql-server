@@ -66,6 +66,7 @@ BDB_DONTRUN_TESTS = \
 	keyrange-dupsort \
 	keyrange-dupsort-unflat \
 	manyfiles \
+	stat64 \
 	test938c \
 	test1324 \
 	helgrind1 \

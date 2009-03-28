@@ -38,9 +38,35 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + TREE_FANOUT * 8 // children
 			     ) };
 
+struct subtree_estimates {
+    // estimate number of rows in the tree by counting the number of rows
+    // in the leaves.  The stuff in the internal nodes is likely to be off O(1).
+    u_int64_t nkeys;  // number of distinct keys.
+    u_int64_t ndata;; // number of key-data pairs (previously leafentry_estimate)
+    u_int64_t dsize;  // total size of leafentries
+    BOOL      exact;  // are the estimates exact?
+};
+
+static struct subtree_estimates const zero_estimates __attribute__((__unused__)) = {0,0,0,TRUE};
+
+static inline void __attribute__((__unused__))
+subtract_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
+    if (a->nkeys >= b->nkeys) a->nkeys -= b->nkeys; else a->nkeys=0;
+    if (a->ndata >= b->ndata) a->ndata -= b->ndata; else a->ndata=0;
+    if (a->dsize >= b->dsize) a->dsize -= b->dsize; else a->dsize=0;
+}
+
+static inline void __attribute__((__unused__))
+add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
+    a->nkeys += b->nkeys;
+    a->ndata += b->ndata;
+    a->dsize += b->dsize;
+}
+
+
 struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
-    u_int64_t    leafentry_estimate; // estimate how many leafentries are below us.
+    struct subtree_estimates subtree_estimates;
     BLOCKNUM     blocknum;
     BOOL         have_fullhash;     // do we have the full hash?
     u_int32_t    fullhash;          // the fullhash of the child
@@ -81,7 +107,7 @@ struct brtnode {
 	    struct brtnode_nonleaf_childinfo *childinfos; /* One extra so we can grow */
 
 #define BNC_SUBTREE_FINGERPRINT(node,i) ((node)->u.n.childinfos[i].subtree_fingerprint)
-#define BNC_SUBTREE_LEAFENTRY_ESTIMATE(node,i) ((node)->u.n.childinfos[i].leafentry_estimate)
+#define BNC_SUBTREE_ESTIMATES(node,i) ((node)->u.n.childinfos[i].subtree_estimates)
 #define BNC_BLOCKNUM(node,i) ((node)->u.n.childinfos[i].blocknum)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
 #define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
@@ -94,6 +120,7 @@ struct brtnode {
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
         } n;
 	struct leaf {
+	    struct subtree_estimates leaf_stats; // actually it is exact.
 	    OMT buffer;
 	    LEAFLOCK leaflock;
 	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
@@ -278,7 +305,7 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_7 = 7,   // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
     BRT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
     BRT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
-    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order
+    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates.
     BRT_ANTEULTIMATE_VERSION,   // the version after the most recent version
     BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
 };

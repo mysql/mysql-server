@@ -21,7 +21,6 @@ extern "C" {
 #define TOKU_OFF_T_DEFINED
 typedef int64_t toku_off_t;
 #endif
-typedef struct __toku_db_btree_stat DB_BTREE_STAT;
 typedef struct __toku_db_env DB_ENV;
 typedef struct __toku_db_key_range DB_KEY_RANGE;
 typedef struct __toku_db_lsn DB_LSN;
@@ -35,6 +34,7 @@ typedef u_int32_t db_recno_t;
 typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
 typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);
 typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);
+typedef struct __toku_db_btree_stat64 { u_int64_t bt_nkeys, bt_ndata, bt_dsize; } DB_BTREE_STAT64;
 typedef enum {
  DB_BTREE=1,
  DB_UNKNOWN=5
@@ -117,12 +117,6 @@ typedef enum {
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
 #endif
-struct __toku_db_btree_stat {
-  char __toku_dummy0[12];
-  u_int32_t bt_nkeys; /* 32-bit offset=12 size=4, 64=bit offset=12 size=4 */
-  u_int32_t bt_ndata; /* 32-bit offset=16 size=4, 64=bit offset=16 size=4 */
-  char __toku_dummy1[64];  /* Padding at the end */ 
-};
 struct __toku_db_env {
   struct __toku_db_env_internal *i;
   void* __toku_dummy0[10];
@@ -190,15 +184,16 @@ struct __toku_db_lsn {
 struct __toku_db {
   struct __toku_db_internal *i;
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
+  int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *);
   int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
-  int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
+  int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
-  void* __toku_dummy0[28];
+  void* __toku_dummy0[27];
   char __toku_dummy1[96];
   void *api_internal; /* 32-bit offset=248 size=4, 64=bit offset=400 size=8 */
   void* __toku_dummy2[5];
