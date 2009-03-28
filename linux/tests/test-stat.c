@@ -10,7 +10,7 @@ void test_stat(char *dirname, int result, int ex_errno) {
     int r;
     toku_struct_stat buf;
     r = toku_stat(dirname, &buf);
-    printf("stat %s %d %d\n", dirname, r, errno); fflush(stdout);
+    //printf("stat %s %d %d\n", dirname, r, errno); fflush(stdout);
     assert(r==result);
     if (r!=0) assert(errno == ex_errno);
 }
