@@ -1703,3 +1703,20 @@ toku_graceful_delete(const char *db_fname) {
     return r;
 }
 
+u_int64_t
+toku_cachefile_size_in_memory(CACHEFILE cf)
+{
+    u_int64_t result=0;
+    CACHETABLE ct=cf->cachetable;
+    unsigned long i;
+    for (i=0; i<ct->table_size; i++) {
+	PAIR p;
+	for (p=ct->table[i]; p; p=p->hash_chain) {
+	    if (p->cachefile==cf) {
+		result += p->size;
+	    }
+	}
+    }
+    return result;
+}
+    

@@ -304,7 +304,12 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);\n");
 
     //stat64
-    printf("typedef struct __toku_db_btree_stat64 { u_int64_t bt_nkeys, bt_ndata, bt_dsize; } DB_BTREE_STAT64;\n");
+    printf("typedef struct __toku_db_btree_stat64 {\n");
+    printf("  u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */\n");
+    printf("  u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */\n");
+    printf("  u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */\n");
+    printf("  u_int64_t bt_fsize; /* how big is the underlying file                                                         */\n");
+    printf("} DB_BTREE_STAT64;\n");
 
     print_dbtype();
 //    print_db_notices();

@@ -125,7 +125,12 @@ enum brt_header_flags {
 };
 
 int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater);
-int toku_brt_stat64 (BRT, TOKUTXN, u_int64_t *nkeys, u_int64_t *ndata, u_int64_t *dsize);
+int toku_brt_stat64 (BRT, TOKUTXN,
+		     u_int64_t *nkeys, /* estimate how many unique keys (even when flattened this may be an estimate)     */
+		     u_int64_t *ndata, /* estimate the number of pairs (exact when flattened and committed)               */
+		     u_int64_t *dsize, /* estimate the sum of the sizes of the pairs (exact when flattened and committed) */
+		     u_int64_t *fsize  /* the size of the underlying file                                                 */
+		     );
 
 void toku_brt_init(void);
 void toku_brt_destroy(void);

@@ -222,4 +222,6 @@ void toku_graceful_fill_names(const char *db_fname, char *cleanbuf, size_t clean
 
 void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
+u_int64_t toku_cachefile_size_in_memory(CACHEFILE cf);
+
 #endif

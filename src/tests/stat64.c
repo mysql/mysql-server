@@ -17,6 +17,7 @@ test_stat64 (unsigned int N)
     DB_TXN *txn;
     r = db_env_create(&env, 0);                                           CKERR(r);
 
+    r = env->set_cachesize(env, 0, 10000000, 1);
     r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0);                                           CKERR(r);
 
@@ -47,13 +48,16 @@ test_stat64 (unsigned int N)
     DB_BTREE_STAT64 s;
     r=db->stat64(db, txn, &s); CKERR(r);
     if (verbose) {
+	system("ls -l " ENVDIR);
 	printf("nkeys=%" PRIu64 "\nndata=%" PRIu64 "\ndsize=%" PRIu64 "\n",
 	       s.bt_nkeys, s.bt_ndata, s.bt_dsize);
+	printf("fsize=%" PRIu64 "\n", s.bt_fsize);
 	printf("expected dsize=%" PRIu64 "\n", dsize); 
     }
     assert(s.bt_nkeys==N);
     assert(s.bt_ndata==N);
     assert(s.bt_dsize==dsize);
+    assert(s.bt_fsize>N);
     r=txn->commit(txn, 0); CKERR(r);
 
     r=db->close(db, 0); CKERR(r);

@@ -34,7 +34,12 @@ typedef u_int32_t db_recno_t;
 typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
 typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);
 typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);
-typedef struct __toku_db_btree_stat64 { u_int64_t bt_nkeys, bt_ndata, bt_dsize; } DB_BTREE_STAT64;
+typedef struct __toku_db_btree_stat64 {
+  u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */
+  u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */
+  u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */
+  u_int64_t bt_fsize; /* how big is the underlying file                                                         */
+} DB_BTREE_STAT64;
 typedef enum {
  DB_BTREE=1,
  DB_UNKNOWN=5

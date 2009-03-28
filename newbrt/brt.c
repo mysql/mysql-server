@@ -4528,7 +4528,14 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
     return 0;
 }
 
-int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), u_int64_t *nkeys, u_int64_t *ndata, u_int64_t *dsize) {
+int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), u_int64_t *nkeys, u_int64_t *ndata, u_int64_t *dsize, u_int64_t *fsize) {
+    {
+	int64_t file_size;
+	int r = toku_os_get_file_size(toku_cachefile_fd(brt->cf), &file_size);
+	assert(r==0);
+	*fsize = file_size + toku_cachefile_size_in_memory(brt->cf);
+    }
+
     assert(brt->h);
     u_int32_t fullhash;
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
@@ -4539,7 +4546,6 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), u_int64_t *nkeys, u_int64_t *ndat
 					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
     if (r!=0) return r;
     BRTNODE node = node_v;
-
 
     if (node->height==0) {
 	*nkeys = node->u.l.leaf_stats.nkeys;
