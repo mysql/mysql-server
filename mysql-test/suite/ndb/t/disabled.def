@@ -16,20 +16,20 @@ ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 ndb_cache_trans           : Bug#42197 Query cache and autocommit
 
 # the below testcase have detected the bugs that are still open 
-add_node01 :
-add_node02 :
-add_node03 :
-add_node04 :
-add_node05 :
-add_node06 :
-add_node09 :
-add_node10 :
-add_node14 : 
-add_node15 :
-add_node_dd01 :
-add_node_dd02 : 
-add_node_dd03 : Bug#43425 Reorganize partition for disk table
-add_node_dd04 :
-add_node_dd05 : 
-add_node_dd07 : Bug#43425
-add_node_mix  : Bug#43425 Reorganize partition for disk table
+add_node01 : disable waiting for mysqld restart feature (magnus)
+add_node02 : disable waiting for mysqld restart feature (magnus)
+add_node03 : disable waiting for mysqld restart feature (magnus)
+add_node04 : disable waiting for mysqld restart feature (magnus)
+add_node05 : disable waiting for mysqld restart feature (magnus)
+add_node06 : disable waiting for mysqld restart feature (magnus)
+add_node09 : disable waiting for mysqld restart feature (magnus)
+add_node10 : disable waiting for mysqld restart feature (magnus)
+add_node14 : disable waiting for mysqld restart feature (magnus)
+add_node15 : disable waiting for mysqld restart feature (magnus)
+add_node_dd01 : disable waiting for mysqld restart feature (magnus)
+add_node_dd02 : disable waiting for mysqld restart feature (magnus)
+add_node_dd03 : disable waiting for mysqld restart feature (magnus) - Bug#43425 Reorganize partition for disk table
+add_node_dd04 : disable waiting for mysqld restart feature (magnus)
+add_node_dd05 : disable waiting for mysqld restart feature (magnus)
+add_node_dd07 : disable waiting for mysqld restart feature (magnus) - Bug#43425
+add_node_mix  : disable waiting for mysqld restart feature (magnus) - Bug#43425 Reorganize partition for disk table
