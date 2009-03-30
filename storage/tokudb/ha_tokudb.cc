@@ -1283,7 +1283,7 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uc
         // HOPEFULLY TEMPORARY
         //
         assert(table->s->db_low_byte_first);
-        pos = unpack_field(
+        pos = unpack_toku_field(
             record + field_offset(key_part->field, table),
             pos,
             key_part->field,
@@ -1356,7 +1356,7 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
         // because key_part->offset is SET INCORRECTLY in add_index
         // filed ticket 862 to look into this
         //
-        curr_buff = pack_field(
+        curr_buff = pack_toku_field(
             curr_buff,
             (uchar *) (record + field_offset(key_part->field, table)),
             key_part->field,
@@ -1493,7 +1493,7 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
         }
         assert(table->s->db_low_byte_first);
 
-        buff = pack_key_field(
+        buff = pack_key_toku_field(
             buff,
             (uchar *) key_ptr + offset,
             key_part->field,
