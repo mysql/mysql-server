@@ -709,6 +709,8 @@ bool multi_delete::send_data(List<Item> &values)
   TABLE_LIST *del_table;
   DBUG_ENTER("multi_delete::send_data");
 
+  bool ignore= thd->lex->current_select->no_error;
+
   for (del_table= delete_tables;
        del_table;
        del_table= del_table->next_local, secure_counter++)
@@ -741,8 +743,12 @@ bool multi_delete::send_data(List<Item> &values)
                                               TRG_ACTION_AFTER, FALSE))
           DBUG_RETURN(1);
       }
-      else
+      else if (!ignore)
       {
+        /*
+          If the IGNORE option is used errors caused by ha_delete_row don't
+          have to stop the iteration.
+        */
         table->file->print_error(error,MYF(0));
         DBUG_RETURN(1);
       }
@@ -834,6 +840,11 @@ int multi_delete::do_deletes()
 {
   int local_error= 0, counter= 0, tmp_error;
   bool will_batch;
+  /*
+    If the IGNORE option is used all non fatal errors will be translated
+    to warnings and we should not break the row-by-row iteration
+  */
+  bool ignore= thd->lex->current_select->no_error;
   DBUG_ENTER("do_deletes");
   DBUG_ASSERT(do_delete);
 
@@ -872,18 +883,29 @@ int multi_delete::do_deletes()
         local_error= 1;
         break;
       }
-      if ((local_error=table->file->ha_delete_row(table->record[0])))
+
+      local_error= table->file->ha_delete_row(table->record[0]);
+      if (local_error && !ignore)
       {
-	table->file->print_error(local_error,MYF(0));
-	break;
-      }
-      deleted++;
-      if (table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_AFTER, FALSE))
-      {
-        local_error= 1;
+        table->file->print_error(local_error,MYF(0));
         break;
+      }
+
+      /*
+        Increase the reported number of deleted rows only if no error occurred
+        during ha_delete_row.
+        Also, don't execute the AFTER trigger if the row operation failed.
+      */
+      if (!local_error)
+      {
+        deleted++;
+        if (table->triggers &&
+            table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                              TRG_ACTION_AFTER, FALSE))
+        {
+          local_error= 1;
+          break;
+        }
       }
     }
     if (will_batch && (tmp_error= table->file->end_bulk_delete()))
