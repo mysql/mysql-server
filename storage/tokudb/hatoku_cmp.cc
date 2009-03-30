@@ -591,9 +591,14 @@ int compare_field(
     case (toku_type_fixstring):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
-        ret_val = cmp_toku_string(a_buf, num_bytes, b_buf,num_bytes, field->charset()->number);
-        *a_bytes_read = num_bytes;
-        *b_bytes_read = num_bytes;
+        ret_val = cmp_toku_varstring(
+            a_buf, 
+            b_buf, 
+            get_length_bytes_from_max(num_bytes), 
+            field->charset()->number, 
+            a_bytes_read,
+            b_bytes_read
+            );
         goto exit;
     case (toku_type_varbinary):
         ret_val = cmp_toku_varbinary(
@@ -665,13 +670,24 @@ uchar* pack_toku_field(
     case (toku_type_decimal):
     case (toku_type_bitstream):
     case (toku_type_fixbinary):
-    case (toku_type_fixstring):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         new_pos = pack_toku_binary(
             to_tokudb,
             from_mysql,
             num_bytes
+            );
+        goto exit;
+    case (toku_type_fixstring):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        new_pos = pack_toku_varstring(
+            to_tokudb,
+            from_mysql,
+            get_length_bytes_from_max(key_part_length),
+            0,
+            num_bytes,
+            field->charset()
             );
         goto exit;
     case (toku_type_varbinary):
@@ -805,13 +821,20 @@ uchar* unpack_toku_field(
     case (toku_type_decimal):
     case (toku_type_bitstream):
     case (toku_type_fixbinary):
-    case (toku_type_fixstring):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         new_pos = unpack_toku_binary(
             to_mysql,
             from_tokudb,
             num_bytes
+            );
+        goto exit;
+    case (toku_type_fixstring):
+        new_pos = unpack_toku_varbinary(
+            to_mysql,
+            from_tokudb,
+            get_length_bytes_from_max(key_part_length),
+            0
             );
         goto exit;
     case (toku_type_varbinary):
