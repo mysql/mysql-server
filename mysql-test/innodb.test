@@ -19,6 +19,10 @@
 # Small basic test with ignore
 #
 
+-- disable_query_log
+SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
+-- enable_query_log
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
@@ -2523,6 +2527,8 @@ DROP TABLE bug35537;
 
 DISCONNECT c1;
 CONNECTION default;
+
+SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 #######################################################################
 #                                                                     #
