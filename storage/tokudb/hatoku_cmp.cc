@@ -548,7 +548,7 @@ inline int cmp_toku_varstring(
     return ret_val;
 }
 
-int compare_field(
+inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
     Field* field,
@@ -903,7 +903,7 @@ int tokudb_compare_two_keys(
             saved_key_length--;
             if (!*new_key_ptr++) { continue; }
         }
-        cmp = compare_field(
+        cmp = compare_toku_field(
             new_key_ptr, 
             saved_key_ptr,
             key_part->field,
@@ -980,7 +980,7 @@ int tokudb_compare_two_clustered_keys(KEY *key, KEY* primary_key, const DBT * ne
             saved_key_length--;
             if (!*new_key_ptr++) { continue; }
         }
-        cmp = compare_field(
+        cmp = compare_toku_field(
             new_key_ptr, 
             saved_key_ptr,
             key_part->field,
@@ -1041,7 +1041,7 @@ int tokudb_compare_two_clustered_keys(KEY *key, KEY* primary_key, const DBT * ne
                     saved_key_length--;
                     if (!*new_key_ptr++) { continue; }
                 }
-                cmp = compare_field(
+                cmp = compare_toku_field(
                     new_key_ptr, 
                     saved_key_ptr,
                     key_part->field,
