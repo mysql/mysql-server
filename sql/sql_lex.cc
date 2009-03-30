@@ -858,7 +858,7 @@ int MYSQLlex(void *arg, void *yythd)
     case MY_LEX_HEX_NUMBER:		// Found x'hexstring'
       yyGet();				// Skip '
       while (my_isxdigit(cs,(c = yyGet()))) ;
-      length=(lip->ptr - lip->tok_start);	// Length of hexnum+3
+      length=(uint) (lip->ptr - lip->tok_start);	// Length of hexnum+3
       if (!(length & 1) || c != '\'')
       {
 	return(ABORT_SYM);		// Illegal hex constant
@@ -872,7 +872,7 @@ int MYSQLlex(void *arg, void *yythd)
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
       yyGet();                                // Skip '
       while ((c= yyGet()) == '0' || c == '1');
-      length= (lip->ptr - lip->tok_start);    // Length of bin-num + 3
+      length= (uint) (lip->ptr - lip->tok_start);    // Length of bin-num + 3
       if (c != '\'')
       return(ABORT_SYM);              // Illegal hex constant
       yyGet();                        // get_token makes an unget
