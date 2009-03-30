@@ -5308,7 +5308,6 @@ NdbDictInterface::execLIST_TABLES_CONF(NdbApiSignal* signal,
   }
   else
   {
-    Uint32 fid = signal->getFragmentId();
     if (m_fragmentId != signal->getFragmentId())
     {
       abort();
@@ -6083,6 +6082,11 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
     recCol->flags|= NdbRecord::IsNullable;
     recCol->nullbit_byte_offset= recSpec->nullbit_byte_offset;
     recCol->nullbit_bit_in_byte= recSpec->nullbit_bit_in_byte;
+
+    const Uint32 nullbit_byte= recSpec->nullbit_byte_offset + 
+      (recSpec->nullbit_bit_in_byte >> 3);
+    if (nullbit_byte >= rec->m_row_size)
+      rec->m_row_size= nullbit_byte + 1;
   }
   if (col->m_arrayType==NDB_ARRAYTYPE_SHORT_VAR)
   {
