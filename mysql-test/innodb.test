@@ -6,7 +6,9 @@
 # Use innodb_mysql.[test|result] files instead.                       #
 #                                                                     #
 # If nevertheless you need to make some changes here, please, forward #
-# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
@@ -2530,7 +2532,9 @@ CONNECTION default;
 # Use innodb_mysql.[test|result] files instead.                       #
 #                                                                     #
 # If nevertheless you need to make some changes here, please, forward #
-# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
