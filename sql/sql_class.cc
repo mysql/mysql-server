@@ -219,6 +219,7 @@ THD::THD()
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
+  query_name_consts= 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
@@ -1758,7 +1759,7 @@ void Query_arena::set_query_arena(Query_arena *set)
 
 void Query_arena::cleanup_stmt()
 {
-  DBUG_ASSERT("Query_arena::cleanup_stmt()" == "not implemented");
+  DBUG_ASSERT(! "Query_arena::cleanup_stmt() not implemented");
 }
 
 /*
@@ -2141,6 +2142,13 @@ void Security_context::skip_grants()
   master_access= ~NO_ACCESS;
   priv_user= (char *)"";
   *priv_host= '\0';
+}
+
+
+bool Security_context::user_matches(Security_context *them)
+{
+  return ((user != NULL) && (them->user != NULL) &&
+          !strcmp(user, them->user));
 }
 
 

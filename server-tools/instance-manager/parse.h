@@ -58,7 +58,7 @@ inline void get_word(const char **text, uint *word_len,
            (*word_end != '\0'))
       ++word_end;
 
-  *word_len= word_end - *text;
+  *word_len= (uint) (word_end - *text);
 }
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H */
