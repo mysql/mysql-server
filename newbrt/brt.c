@@ -851,7 +851,7 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
             u_int32_t diff_fp = 0;
             u_int32_t diff_size = 0;
 	    struct subtree_estimates diff_est = zero_estimates;
-	    LEAFENTRY free_us[n_leafentries-break_at];
+	    LEAFENTRY *MALLOC_N(n_leafentries-break_at, free_us);
             for (i=break_at; i<n_leafentries; i++) {
 		LEAFENTRY prevle = (i>0) ? leafentries[i-1] : 0;
                 LEAFENTRY oldle = leafentries[i];
@@ -885,6 +885,7 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 		LEAFENTRY oldle = free_us[i-break_at];
                 toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
 	    }
+	    toku_free(free_us);
             node->local_fingerprint -= node->rand4fingerprint * diff_fp;
             B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
             node->u.l.n_bytes_in_buffer -= diff_size;
