@@ -19,6 +19,13 @@ OMTVALUE ps[N];
 
 #define V(x) ((struct value *)(x))
 
+static void callback (OMTCURSOR c, void *extra) {
+    if (verbose) printf("%s:%d %p %p\n", __FUNCTION__, __LINE__, c, extra);
+    OMTVALUE v = NULL;
+    int r = toku_omt_cursor_current(c, &v);
+    if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, r);
+}
+
 static void test (void) {
     OMT o;
     OMTCURSOR curs, curs2, curs3;
@@ -92,6 +99,15 @@ static void test (void) {
     toku_omt_cursor_destroy(&curs2);
     toku_omt_destroy(&o);
     toku_omt_cursor_destroy(&curs3);
+
+    // ticket 1622, invalidate recursion
+    r = toku_omt_create_from_sorted_array(&o, ps, 10);  assert(r==0);
+    r = toku_omt_cursor_create(&curs);                      assert(r==0);
+    toku_omt_cursor_set_invalidate_callback(curs, callback, 0);
+    r = toku_omt_fetch(o, 9, &v, curs);                     assert(r==0);
+    r = toku_omt_cursor_next(curs, &v); 
+    toku_omt_destroy(&o);
+    toku_omt_cursor_destroy(&curs);
 }
 
 int
