@@ -39,6 +39,8 @@ id=255 (not connected, accepting connect from localhost)
 
 
 
+
+
 ## Initial start of "new" data nodes
 ## Wait for added nodes started
 ## Create nodegroup for "new" nodes

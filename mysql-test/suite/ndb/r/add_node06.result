@@ -29,19 +29,15 @@ drop database if exists DB1;
 create database DB1;
 use DB1;
 create table old_table1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
-create table old_table2(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
-create table old_table3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
-create table old_table4(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table1 fields terminated by ' ' lines terminated by '\n';
-load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table2 fields terminated by ' ' lines terminated by '\n';
-load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table3 fields terminated by ' ' lines terminated by '\n';
-load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table4 fields terminated by ' ' lines terminated by '\n';
 
 ## ndb_mgm dump shows data resides only on "old" nodes in cluster log 
 ## Add two nodes to my.cnf
 ## Reload ndb_mgmd
 ## Restart the "old" ndbd nodes
 ## Restart mysqld nodes
+
+
 
 
 
@@ -88,12 +84,9 @@ insert into new_table(id, data) VALUES(1,'new'), (2,'new'),(3,'new'),(4,'new'),(
 
 ## ndb_mgm dump shows old data resides only on "old" nodes and new data resides on all nodes in cluster log 
 alter online table old_table1 reorganize partition;
-alter online table old_table2 reorganize partition;
-alter online table old_table3 reorganize partition;
-alter online table old_table4 reorganize partition;
 
-## ndb_mgm dump shows all data resides on on all nodes after doing "reorganize partition" in cluster log
-use DB1; 
-drop table old_table1,old_table2,old_table3,old_table4,new_table;
+## ndb_mgm dump shows all data resides on on all nodes after doing "reorganize partition" in cluster log 
+use DB1;
+drop table old_table1,new_table;
 drop database DB1;
 

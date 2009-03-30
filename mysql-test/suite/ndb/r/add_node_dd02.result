@@ -62,6 +62,8 @@ CREATE TABLESPACE ts_2
 
 
 
+
+
 ## Initial start of "new" data nodes
 ## Wait for added nodes started
 ## Create nodegroup for "new" nodes

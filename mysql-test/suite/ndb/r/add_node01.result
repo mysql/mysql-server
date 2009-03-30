@@ -39,6 +39,8 @@ id=255 (not connected, accepting connect from localhost)
 
 
 
+
+
 ## Initial start of "new" data nodes
 ## Wait for added nodes started
 ## Cluster running after adding two ndbd nodes:

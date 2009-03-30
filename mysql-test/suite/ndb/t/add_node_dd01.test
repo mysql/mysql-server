@@ -60,7 +60,7 @@ connection default;
 
 ## Initial start of "new" data nodes
 --exec $NDB_NDBD --ndb-nodeid=40 --initial
---exec $NDB_NDBD --ndb-nodedi=41 --initial
+--exec $NDB_NDBD --ndb-nodeid=41 --initial
 
 ## Wait for added nodes started
 --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT 
