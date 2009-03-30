@@ -22,12 +22,6 @@ CREATE TABLESPACE ts_1
     INITIAL_SIZE 32M
     ENGINE NDB;
 
-CREATE TABLESPACE ts_2
-    ADD DATAFILE 'data_2.dat'
-    USE LOGFILE GROUP lg_1
-    INITIAL_SIZE 32M
-    ENGINE NDB;
-
 --disable_warnings
 --error 0,1008
 drop database if exists DB1;
@@ -37,19 +31,7 @@ use DB1;
 create table old_table1(id int NOT NULL PRIMARY KEY, data char(8))
 TABLESPACE ts_1 STORAGE DISK
 engine=ndb;
-create table old_table2(id int NOT NULL PRIMARY KEY, data char(8))
-TABLESPACE ts_1 STORAGE DISK
-engine=ndb;
-create table old_table3(id int NOT NULL PRIMARY KEY, data char(8))
-TABLESPACE ts_2 STORAGE DISK
-engine=ndb;
-create table old_table4(id int NOT NULL PRIMARY KEY, data char(8))
-TABLESPACE ts_2 STORAGE DISK
-engine=ndb;
 load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table1 fields terminated by ' ' lines terminated by '\n';
-load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table2 fields terminated by ' ' lines terminated by '\n';
-load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table3 fields terminated by ' ' lines terminated by '\n';
-load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table4 fields terminated by ' ' lines terminated by '\n';
 
 --error 0, 1
 --remove_file $MYSQLTEST_VARDIR/my.cnf.new
@@ -99,29 +81,20 @@ use DB1;
 create table new_table(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 insert into new_table(id, data) VALUES(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
 alter online table old_table1 reorganize partition;
-alter online table old_table2 reorganize partition;
-alter online table old_table3 reorganize partition;
-alter online table old_table4 reorganize partition;
 
 select LOGFILE_GROUP_NAME,FILE_TYPE,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='undo_1.dat';
 select LOGFILE_GROUP_NAME,FILE_TYPE,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='undo_2.dat';
 select LOGFILE_GROUP_NAME,FILE_TYPE,TABLESPACE_NAME,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='data_1.dat';
-select LOGFILE_GROUP_NAME,FILE_TYPE,TABLESPACE_NAME,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='data_2.dat';
 
 # Cleanup
 use DB1;
-drop table old_table1,old_table2,old_table3,old_table4,new_table;
+drop table old_table1,new_table;
 
 ALTER TABLESPACE ts_1
     DROP DATAFILE 'data_1.dat'
     ENGINE NDB;
 
-ALTER TABLESPACE ts_2
-    DROP DATAFILE 'data_2.dat'
-    ENGINE NDB;
-
 drop TABLESPACE ts_1 ENGINE NDB;
-drop TABLESPACE ts_2 ENGINE NDB;
 
 drop LOGFILE GROUP lg_1 ENGINE NDB;
 

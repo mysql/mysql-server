@@ -26,6 +26,31 @@ id=192 (not connected, accepting connect from localhost)
 id=228 (not connected, accepting connect from localhost)
 id=255 (not connected, accepting connect from localhost)
 
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_1.dat'
+    INITIAL_SIZE 16M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDB;
+
+ALTER LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_2.dat'
+    INITIAL_SIZE 12M
+    ENGINE NDB;
+
+CREATE TABLESPACE ts_1
+    ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 32M
+    ENGINE NDB;
+
+drop database if exists DB1;
+create database DB1;
+use DB1;
+create table old_table1(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK
+engine=ndb;
+load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_table1 fields terminated by ' ' lines terminated by '\n';
+
 ## Add two nodes to my.cnf
 ## Reload ndb_mgmd
 ## Restart the "old" ndbd nodes
@@ -72,4 +97,41 @@ id=127 (not connected, accepting connect from localhost)
 id=192 (not connected, accepting connect from localhost)
 id=228 (not connected, accepting connect from localhost)
 id=255 (not connected, accepting connect from localhost)
+
+use DB1;
+create table new_table(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+insert into new_table(id, data) VALUES(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+alter online table old_table1 reorganize partition;
+
+select LOGFILE_GROUP_NAME,FILE_TYPE,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='undo_1.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	EXTRA
+lg_1	UNDO LOG	CLUSTER_NODE=1;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=2;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=40;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=41;UNDO_BUFFER_SIZE=2097152
+select LOGFILE_GROUP_NAME,FILE_TYPE,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='undo_2.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	EXTRA
+lg_1	UNDO LOG	CLUSTER_NODE=1;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=2;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=40;UNDO_BUFFER_SIZE=2097152
+lg_1	UNDO LOG	CLUSTER_NODE=41;UNDO_BUFFER_SIZE=2097152
+select LOGFILE_GROUP_NAME,FILE_TYPE,TABLESPACE_NAME,EXTRA from INFORMATION_SCHEMA.FILES where FILE_NAME='data_1.dat';
+LOGFILE_GROUP_NAME	FILE_TYPE	TABLESPACE_NAME	EXTRA
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=1
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=2
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=40
+lg_1	DATAFILE	ts_1	CLUSTER_NODE=41
+
+use DB1;
+drop table old_table1,new_table;
+
+ALTER TABLESPACE ts_1
+    DROP DATAFILE 'data_1.dat'
+    ENGINE NDB;
+
+drop TABLESPACE ts_1 ENGINE NDB;
+
+drop LOGFILE GROUP lg_1 ENGINE NDB;
+
+drop database DB1;
 

@@ -52,6 +52,8 @@ load data local infile 'suite/ndb/std_data/table_data100000.dat' into table old_
 
 
 
+
+
 ## Initial start of "new" data nodes
 ## Wait for added nodes started
 ## Create nodegroup for "new" nodes
@@ -94,8 +96,8 @@ DROP TABLE test.backup_info;
 
 use DB1;
 drop table old_table1, old_table2, old_table3, old_table4;
-## ndb_mgm dump shows data resides on all nodes after restore in cluster log
+## ndb_mgm dump shows data resides on all nodes after restore in cluster log 
 use DB1;
 drop table old_table1, old_table2, old_table3, old_table4;
-drop database DB1; 
+drop database DB1;
 
