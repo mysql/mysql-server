@@ -898,11 +898,12 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
     // check to see if we have auto increment field
     //
     bool ai_found = false;
-    uint i = 0;
-    for (Field ** field = table->field; *field; field++,i++) {
-        if ((*field)->flags & AUTO_INCREMENT_FLAG) {
+    uint ai_index = 0;
+    for (uint i = 0; i < table_share->fields; i++, ai_index++) {
+        Field* field = table->field[i];
+        if (field->flags & AUTO_INCREMENT_FLAG) {
             ai_found = true;
-            *index = i;
+            *index = ai_index;
             break;
         }
     }
