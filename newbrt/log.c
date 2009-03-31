@@ -101,7 +101,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->n_in_buf=0;
     result->n_in_file=0;
     result->directory=0;
-    result->checkpoint_lsns[0]=result->checkpoint_lsns[1]=(LSN){0};
+    result->checkpoint_lsn=(LSN){0};
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     *resultp=result;
     r = ml_init(&result->input_lock); if (r!=0) goto died0;
@@ -510,6 +510,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void
     return r;
 }
 
+#if 0
 int toku_logger_log_checkpoint (TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
     int r = toku_cachetable_checkpoint(logger->ct);
@@ -518,6 +519,7 @@ int toku_logger_log_checkpoint (TOKULOGGER logger) {
     logger->checkpoint_lsns[0]=logger->lsn;
     return toku_log_checkpoint(logger, (LSN*)0, 1);
 }
+#endif
 
 int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
@@ -975,8 +977,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // Count the total number of bytes, because we have to return a single big array.  (That's the BDB interface.  Bleah...)
     LSN earliest_lsn_seen={(unsigned long long)(-1LL)};
     r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_seen); // try to find the lsn that's in the most recent log
-    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
-	(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)&&
+    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsn.lsn)&&
 	(earliest_lsn_seen.lsn <= oldest_live_txn_lsn.lsn)) {
 	i=all_n_logs-1;
     } else {
@@ -985,8 +986,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 	    if (r!=0) continue; // In case of error, just keep going
 	
 	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
-	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
-		(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)&&
+	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsn.lsn)&&
 		(earliest_lsn_seen.lsn <= oldest_live_txn_lsn.lsn)) {
 		break;
 	    }
@@ -1189,4 +1189,28 @@ toku_logger_txn_rolltmp_raw_count(TOKUTXN txn, u_int64_t *raw_count)
 {
     *raw_count = txn->rollentry_raw_count;
     return 0;
+}
+
+int
+toku_logger_iterate_over_live_txns (TOKULOGGER logger, int (*f)(TOKULOGGER, TOKUTXN, void*), void *v)
+{
+    struct list *l;
+    for (l = list_head(&logger->live_txns); l != &logger->live_txns; l = l->next) {
+	TOKUTXN txn = list_struct(l, struct tokutxn, live_txns_link);
+	int r = f(logger, txn, v);
+	if (r!=0) return r;
+    }
+    return 0;
+}
+
+TOKUTXN
+toku_logger_txn_parent (TOKUTXN txn)
+{
+    return txn->parent;
+}
+
+void
+toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn)
+{
+    logger->checkpoint_lsn = lsn;
 }

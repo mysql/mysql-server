@@ -13,6 +13,7 @@
 #include "cachetable.h"
 #include "cachetable-rwlock.h"
 #include "toku_worker.h"
+#include "log_header.h"
 
 #if !defined(TOKU_CACHETABLE_DO_EVICT_FROM_WRITER)
 #error
@@ -83,6 +84,9 @@ struct ctpair {
     LSN      modified_lsn;       // What was the LSN when modified (undefined if not dirty)
     LSN      written_lsn;        // What was the LSN when written (we need to get this information when we fetch)
 
+    BOOL     checkpoint_pending; // If this is on, then we have got to write the pair out to disk before modifying it.
+    PAIR     checkpoint_list;
+
     struct ctpair_rwlock rwlock; // multiple get's, single writer
     struct workqueue *cq;        // writers sometimes return ctpair's using this queue
     struct workitem asyncwork;   // work item for the worker threads
@@ -145,15 +149,16 @@ struct cachefile {
 			 * every record in the transaction, we'll be ok.  Hence we use a 64-bit counter to make sure we don't run out.
 			 */
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
-    BOOL is_dirty;      /* Has this been written to since it was closed? */
     CACHETABLE cachetable;
     struct fileid fileid;
     FILENUM filenum;
     char *fname;
 
     void *userdata;
-    int (*close_userdata)(CACHEFILE cf, void *userdata, char **error_string); // when closing the last reference to a cachefile, first call this function.
+    int (*close_userdata)(CACHEFILE cf, void *userdata, char **error_string); // when closing the last reference to a cachefile, first call this function. 
+    int (*begin_checkpoint_userdata)(CACHEFILE cf, LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, void *userdata); // when checkpointing a cachefile, call this function.
+    int (*end_checkpoint_userdata)(CACHEFILE cf, void *userdata); // after checkpointing cachefiles call this function.
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
@@ -238,13 +243,6 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	}
     }
     {
-        BOOL was_dirty = FALSE;
-        r = toku_graceful_open(fname, &was_dirty);
-        if (r!=0) {
-            close(fd); 
-            return r;
-        }
-
         CACHEFILE MALLOC(newcf);
         newcf->cachetable = ct;
         newcf->filenum.fileid = next_filenum_to_use.fileid++;
@@ -256,7 +254,8 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	newcf->userdata = 0;
 	newcf->close_userdata = 0;
 	newcf->checkpoint_userdata = 0;
-        newcf->is_dirty = was_dirty;
+	newcf->begin_checkpoint_userdata = 0;
+	newcf->end_checkpoint_userdata = 0;
 
 	*cfptr = newcf;
 	return 0;
@@ -291,6 +290,8 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname) {
     }
     cf->close_userdata = NULL;
     cf->checkpoint_userdata = NULL;
+    cf->begin_checkpoint_userdata = NULL;
+    cf->end_checkpoint_userdata = NULL;
     cf->userdata = NULL;
 
     close(cf->fd);
@@ -309,8 +310,6 @@ int toku_cachefile_fd (CACHEFILE cf) {
 
 int toku_cachefile_truncate0 (CACHEFILE cf) {
     int r;
-    r = toku_graceful_dirty(cf);
-    if (r!=0) return r;
     r = ftruncate(cf->fd, 0);
     if (r != 0)
         r = errno;
@@ -343,8 +342,7 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
     if (cf->refcount==0) {
 	int r;
 	if ((r = cachetable_flush_cachefile(ct, cf))) {
-            //This is not a graceful shutdown; do not set file as clean.
-	not_graceful_shutdown:
+	error:
 	    cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
 	    if (cf->fname) toku_free(cf->fname);
 	    int r2 = close(cf->fd);
@@ -355,14 +353,12 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	    return r;
         }
 	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, error_string))) {
-	    goto not_graceful_shutdown;
+	    goto error;
 	}
-        //Graceful shutdown.  'clean' the file.
-	if ((r = toku_graceful_close(cf))) {
-	    goto not_graceful_shutdown;
-        }
-	cf->close_userdata = NULL;
+       	cf->close_userdata = NULL;
 	cf->checkpoint_userdata = NULL;
+	cf->begin_checkpoint_userdata = NULL;
+	cf->end_checkpoint_userdata = NULL;
 	cf->userdata = NULL;
         cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
         cachetable_unlock(ct);
@@ -542,7 +538,7 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
         cachetable_unlock(ct);
 
         flush_callback(cachefile, key, value, extraargs, size, FALSE, FALSE, 
-                       lsn_of_checkpoint, need_to_rename);
+                       lsn_of_checkpoint, need_to_rename, TRUE);
 
         cachetable_lock(ct);
 
@@ -622,10 +618,13 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     LSN lsn_of_checkpoint = ct->lsn_of_checkpoint;
     BOOL need_to_rename = need_to_rename_p(ct, p);
 
+    BOOL for_checkpoint = p->checkpoint_pending;
+    //Must set to FALSE before releasing cachetable lock
+    p->checkpoint_pending = FALSE;
     cachetable_unlock(ct);
 
     // write callback
-    flush_callback(cachefile, key, value, extraargs, size, dowrite, TRUE, lsn_of_checkpoint, need_to_rename);
+    flush_callback(cachefile, key, value, extraargs, size, dowrite, TRUE, lsn_of_checkpoint, need_to_rename, for_checkpoint);
 #if DO_CALLBACK_USLEEP
     usleep(DO_CALLBACK_USLEEP);
 #endif
@@ -840,6 +839,24 @@ static u_int64_t tdelta(struct timeval *tnew, struct timeval *told) {
 }
 #endif
 
+// On entry: hold the ct lock and the ctpair_write_lock.
+static void
+write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
+{
+    // this is essentially a flush_and_maybe_remove except that  we already have p->rwlock and we just do the write in
+    // our own thread.
+    assert(p->dirty); // it must be dirty if its pending.
+    assert(p->checkpoint_pending);
+    p->cq = 0; // I don't want any delay, just do it.
+    p->state = CTPAIR_WRITING;
+    assert(ct->size_writing>=0);
+    ct->size_writing += p->size;
+    p->write_me = TRUE;
+    p->remove_me = FALSE;
+    cachetable_write_pair(ct, p); // unlocks the pair
+}
+
+
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 			        CACHETABLE_FLUSH_CALLBACK flush_callback, 
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
@@ -865,6 +882,11 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 		gettimeofday(&t0, NULL);
 #endif
             }
+	    if (p->checkpoint_pending) {
+		ctpair_write_lock(&p->rwlock, ct->mutex);
+		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
+	    }
+	    // still have the cachetable lock
             ctpair_read_lock(&p->rwlock, ct->mutex);
 #if TOKU_DO_WAIT_TIME
 	    if (do_wait_time) {
@@ -937,6 +959,13 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile && p->state == CTPAIR_IDLE) {
+
+	    if (p->checkpoint_pending) {
+		ctpair_write_lock(&p->rwlock, ct->mutex);
+		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
+	    }
+	    // still have the cachetable lock
+
 	    *value = p->value;
 	    ctpair_read_lock(&p->rwlock, ct->mutex);
 	    lru_touch(ct,p);
@@ -1227,7 +1256,17 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
     return r;
 }
 
-int toku_cachetable_checkpoint (CACHETABLE ct) {
+static int
+log_open_txn (TOKULOGGER logger, TOKUTXN txn, void *UU(v))
+{
+    if (toku_logger_txn_parent(txn)==NULL) { // only have to log the open root transactions
+	int r = toku_log_xstillopen(logger, NULL, 0, toku_txn_get_txnid(txn));
+	assert(r==0);
+    }
+    return 0;
+}
+
+int toku_cachetable_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
     // Requires: Everything is unpinned.  (In the multithreaded version we have to wait for things to get unpinned and then
     //  grab them (or else the unpinner has to do something.)
     // Algorithm:  Write a checkpoint record to the log, noting the LSN of that record.
@@ -1236,48 +1275,84 @@ int toku_cachetable_checkpoint (CACHETABLE ct) {
     //      flush the node (giving it a new nodeid, and fixing up the downpointer in the parent)
     // Watch out since evicting the node modifies the hash table.
 
-    //?? This is a skeleton.  It compiles, but doesn't do anything reasonable yet.
-    //??    log_the_checkpoint();
+    LSN begin_lsn;
+    {
+	PAIR pendings=0;
 
-    struct workqueue cq;
-    workqueue_init(&cq);
-
-    cachetable_lock(ct);
-    
-    // set the checkpoint in progress flag. if already set then just return.
-    if (!ct->checkpointing) {
-        ct->checkpointing = 1;
-        
-        unsigned nfound = 0;
         unsigned i;
+	cachetable_lock(ct);
+
+	if (logger) {
+	    // The checkpoint must be performed after the lock is acquired.
+	    {
+		int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0);
+		assert(r==0);
+	    }
+	    // Log all the open transactions
+	    {
+		int r = toku_logger_iterate_over_live_txns (logger, log_open_txn, NULL);
+		assert(r==0);
+	    }
+	    // Log all the open files
+	    {
+		CACHEFILE cf;
+		for (cf = ct->cachefiles; cf; cf=cf->next) {
+		    BYTESTRING bs = { strlen(cf->fname), // don't include the NUL
+				      cf->fname };
+		    int r = toku_log_fassociate(logger, NULL, 0, cf->filenum, bs);
+		    assert(r==0);
+		}
+	    }
+	}
+
+	{
+	    CACHEFILE cf;
+	    for (cf = ct->cachefiles; cf; cf=cf->next) {
+		if (cf->begin_checkpoint_userdata) {
+		    int r = cf->begin_checkpoint_userdata(cf, begin_lsn, cf->userdata);
+		    assert(r==0);
+		}
+	    }
+	}
+
         for (i=0; i < ct->table_size; i++) {
             PAIR p;
             for (p = ct->table[i]; p; p=p->hash_chain) {
+		p->checkpoint_pending = FALSE;
                 // p->dirty && p->modified_lsn.lsn>ct->lsn_of_checkpoint.lsn
                 if (p->state == CTPAIR_READING)
                     continue;   // skip pairs being read as they will be clean
                 else if (p->state == CTPAIR_IDLE || p->state == CTPAIR_WRITING) {
-                    nfound++;
-                    p->cq = &cq;
-                    // TODO force all IDLE pairs through the worker threads as that will
-                    // serialize with any readers
-                    if (p->state == CTPAIR_IDLE)
-                        flush_and_maybe_remove(ct, p, TRUE);
+		    if (p->dirty) {
+			p->checkpoint_pending = TRUE;
+			p->checkpoint_list = pendings;
+			pendings=p;
+		    }
                 } else
                     assert(0);
             }
         }
-        for (i=0; i<nfound; i++) {
-            WORKITEM wi = 0;
-            cachetable_unlock(ct);
-            int r = workqueue_deq(&cq, &wi, 1); assert(r == 0);
-            cachetable_lock(ct);
-            PAIR p = workitem_arg(wi);
-            assert(p->state == CTPAIR_IDLE || p->state == CTPAIR_WRITING);
-            cachetable_complete_write_pair(ct, p, FALSE);
-        }
 
-	{
+	// Now anything that is pending should be written.  If anyone else comes across a pending object, they should make sure it's
+	// written too.  And no one better deallocate a pending PAIR either.
+	PAIR p;
+        while ((p = pendings)!=0) {
+	    pendings = p->checkpoint_list;
+
+	    ctpair_write_lock(&p->rwlock, ct->mutex); // grab an exclusive lock on the pair
+	    // If it is no longer pending we don't have do do anything
+	    if (p->checkpoint_pending) {
+		write_pair_for_checkpoint(ct, p); // clears the pending bit, writes it out, and unlocks the write pair, 
+	    } else {
+		// it was previously written, so we just have to releases the lock.
+		ctpair_write_unlock(&p->rwlock); // didn't call cachetable_write_pair so we have to unlock it ourselves.
+	    }
+
+	    // Don't need to unlock and lock cachetable, because the cachetable was unlocked and locked while the flush callback ran.
+	}
+	cachetable_unlock(ct);
+
+	{   // have just written data blocks, so next write the translation and header for each open dictionary
 	    CACHEFILE cf;
 	    for (cf = ct->cachefiles; cf; cf=cf->next) {
 		if (cf->checkpoint_userdata) {
@@ -1286,12 +1361,24 @@ int toku_cachetable_checkpoint (CACHETABLE ct) {
 		}
 	    }
 	}
+	{   // everything has been written to file (or at least OS internal buffer)...
+            // ... so fsync and call checkpoint-end function in block translator
+	    CACHEFILE cf;
+	    for (cf = ct->cachefiles; cf; cf=cf->next) {
+		if (cf->end_checkpoint_userdata) {
+		    int r = cf->end_checkpoint_userdata(cf, cf->userdata);
+		    assert(r==0);
+		}
+	    }
+	}
 
-        ct->checkpointing = 0; // clear the checkpoint in progress flag
     }
 
-    cachetable_unlock(ct);
-    workqueue_destroy(&cq);
+    if (logger) {
+	int r = toku_log_end_checkpoint(logger, NULL, 0, begin_lsn.lsn);
+	assert(r==0);
+	toku_logger_note_checkpoint(logger, begin_lsn);
+    }
 
     return 0;
 }
@@ -1434,15 +1521,27 @@ void
 toku_cachefile_set_userdata (CACHEFILE cf,
 			     void *userdata,
 			     int (*close_userdata)(CACHEFILE, void*, char**),
-			     int (*checkpoint_userdata)(CACHEFILE, void*))
-{
+			     int (*checkpoint_userdata)(CACHEFILE, void*),
+			     int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*),
+			     int (*end_checkpoint_userdata)(CACHEFILE, void*)) {
     cf->userdata = userdata;
     cf->close_userdata = close_userdata;
     cf->checkpoint_userdata = checkpoint_userdata;
+    cf->begin_checkpoint_userdata = begin_checkpoint_userdata;
+    cf->end_checkpoint_userdata = end_checkpoint_userdata;
 }
 
 void *toku_cachefile_get_userdata(CACHEFILE cf) {
     return cf->userdata;
+}
+
+int
+toku_cachefile_fsync(CACHEFILE cf) {
+    int r;
+
+    if (cf->fname==0) r = 0; //Don't fsync /dev/null
+    else r = fsync(cf->fd);
+    return r;
 }
 
 int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
@@ -1462,247 +1561,6 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
     return 0;
 }
 
-static toku_pthread_mutex_t graceful_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
-static int graceful_is_locked=0;
-
-void toku_graceful_lock_init(void) {
-    int r = toku_pthread_mutex_init(&graceful_mutex, NULL); assert(r == 0);
-}
-
-void toku_graceful_lock_destroy(void) {
-    int r = toku_pthread_mutex_destroy(&graceful_mutex); assert(r == 0);
-}
-
-static inline void
-lock_for_graceful (void) {
-    // Locks the graceful_mutex. 
-    int r = toku_pthread_mutex_lock(&graceful_mutex);
-    assert(r==0);
-    graceful_is_locked = 1;
-}
-
-static inline void
-unlock_for_graceful (void) {
-    graceful_is_locked = 0;
-    int r = toku_pthread_mutex_unlock(&graceful_mutex);
-    assert(r==0);
-}
-
-void
-toku_graceful_fill_names(const char *db_fname, char *cleanbuf, size_t cleansize, char *dirtybuf, size_t dirtysize) {
-    int written;
-    written = snprintf(cleanbuf, cleansize, "%s.clean", db_fname);
-    assert(written>=0);
-    assert((size_t)written<cleansize);
-    written = snprintf(dirtybuf, dirtysize, "%s.dirty", db_fname);
-    assert(written>=0);
-    assert((size_t)written<dirtysize);
-}
-
-static int
-graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create) {
-    BOOL clean_exists;
-    BOOL dirty_exists;
-    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
-    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
-
-    toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
-
-    toku_struct_stat tmpbuf;
-    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
-    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-    int r = 0;
-
-    *was_dirtyp = dirty_exists;
-    *create     = FALSE;
-    if (!dirty_exists && !clean_exists) {
-        *create = TRUE;
-        dirty_exists = TRUE;
-    }
-    if (clean_exists) {
-        if (dirty_exists) r = unlink(cleanbuf);
-        else              r = rename(cleanbuf, dirtybuf);
-    }
-    r = open(dirtybuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
-    return r;
-}
-
-static int
-graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
-    BOOL clean_exists;
-    BOOL dirty_exists;
-    BOOL db_exists;
-    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
-    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
-
-    toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
-
-    toku_struct_stat tmpbuf;
-    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
-    db_exists    = (BOOL)(toku_stat(db_fname, &tmpbuf) == 0);
-    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-    int r = 0;
-
-    if (dirty_exists) {
-        if (clean_exists) r = unlink(dirtybuf);
-        else              r = rename(dirtybuf, cleanbuf);
-    }
-    if (db_exists) r = open(cleanbuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
-    else if (clean_exists) r = unlink(cleanbuf);
-    *db_missing = (BOOL) !db_exists;
-    return r;
-}
-
-static int
-graceful_dirty_get_append_fd(const char *db_fname) {
-    BOOL clean_exists;
-    BOOL dirty_exists;
-    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
-    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
-
-    toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
-
-    toku_struct_stat tmpbuf;
-    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
-    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-    int r = 0;
-
-    if (clean_exists) {
-        if (dirty_exists) r = unlink(cleanbuf);
-        else              r = rename(cleanbuf, dirtybuf);
-    }
-    r = open(dirtybuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
-    return r;
-}
-
-static void
-graceful_log(int fd, char *operation, BOOL was_dirty, BOOL is_dirty) {
-    //Logging.  Ignore errors.
-    char buf[sizeof(":-> pid= tid=  ")
-             +7  //operation
-             +5  //was dirty
-             +5  //is  dirty
-             +10  //process id
-             +10  //thread id
-             +26 //ctime string (including \n)
-             ];
-    assert(graceful_is_locked); //ctime uses static buffer.  Lock must be held.
-    time_t temptime;
-    time(&temptime);
-    int written;
-    written = snprintf(buf, sizeof(buf), "%-7s:%-5s->%-5s pid=%-5d tid=%-5d  %s",
-                       operation,
-                       was_dirty ? "dirty" : "clean",
-                       is_dirty  ? "dirty" : "clean",
-                       toku_os_getpid(),
-                       toku_os_gettid(),
-                       ctime(&temptime));
-    assert(written>=0);
-    assert((size_t)written<sizeof(buf));
-    write(fd, buf, strlen(buf));
-} 
-
-int
-toku_graceful_open(const char *db_fname, BOOL *is_dirtyp) {
-    int r;
-    int r2 = 0;
-    BOOL was_dirty;
-    BOOL created;
-    int fd;
-
-    lock_for_graceful();
-    fd = graceful_open_get_append_fd(db_fname, &was_dirty, &created);
-    if (fd == -1) r = errno;
-    else {
-        graceful_log(fd,
-                     created ? "Created" : "Opened",
-                     was_dirty,
-                     TRUE);
-        *is_dirtyp = TRUE;
-        if (created || !was_dirty) r = 0;
-        else r = TOKUDB_DIRTY_DICTIONARY;
-        r2 = close(fd);
-    }
-    unlock_for_graceful();
-    return r ? r : r2;
-}
-
-int
-toku_graceful_close(CACHEFILE cf) {
-    int r  = 0;
-    int r2 = 0;
-    int fd;
-    const char *db_fname = cf->fname;
-
-    if (db_fname) {
-        lock_for_graceful();
-        BOOL db_missing = FALSE;
-        BOOL was_dirty = cf->is_dirty;
-        fd = graceful_close_get_append_fd(db_fname, &db_missing);
-        if (fd == -1) {
-            if (!db_missing) r = errno;
-        }
-        else {
-            graceful_log(fd, "Closed", was_dirty, FALSE);
-            r2 = close(fd);
-            cf->is_dirty = FALSE;
-        }
-        unlock_for_graceful();
-    }
-    return r ? r : r2;
-
-}
-
-int
-toku_graceful_dirty(CACHEFILE cf) {
-    int r  = 0;
-    int r2 = 0;
-    int fd;
-    const char *db_fname = cf->fname;
-
-    if (!cf->is_dirty && db_fname) {
-        lock_for_graceful();
-        fd = graceful_dirty_get_append_fd(db_fname);
-        if (fd == -1) r = errno;
-        else {
-            graceful_log(fd, "Dirtied", FALSE, TRUE);
-            r2 = close(fd);
-            cf->is_dirty = TRUE;
-        }
-        unlock_for_graceful();
-    }
-    return r ? r : r2;
-}
-
-int
-toku_graceful_delete(const char *db_fname) {
-    BOOL clean_exists;
-    char cleanbuf[strlen(db_fname) + sizeof(".clean")];
-    BOOL dirty_exists;
-    char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
-
-    sprintf(cleanbuf, "%s.clean", db_fname);
-    sprintf(dirtybuf, "%s.dirty", db_fname);
-
-    toku_struct_stat tmpbuf;
-    lock_for_graceful();
-    clean_exists = (BOOL)(toku_stat(cleanbuf, &tmpbuf) == 0);
-    dirty_exists = (BOOL)(toku_stat(dirtybuf, &tmpbuf) == 0);
-
-    int r = 0;
-    if (clean_exists) {
-        r = unlink(cleanbuf);
-    }
-    if (r==0 && dirty_exists) {
-        r = unlink(dirtybuf);
-    }
-    unlock_for_graceful();
-    return r;
-}
-
 u_int64_t
 toku_cachefile_size_in_memory(CACHEFILE cf)
 {
@@ -1719,4 +1577,4 @@ toku_cachefile_size_in_memory(CACHEFILE cf)
     }
     return result;
 }
-    
+

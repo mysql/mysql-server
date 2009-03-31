@@ -23,7 +23,7 @@ static void test_sub_block(int n) {
     BRT brt;
     int i;
 
-    unlink_file_and_bit(fname);
+    unlink(fname);
 
     error = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);

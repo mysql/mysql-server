@@ -17,7 +17,7 @@ test_overflow (void) {
     CACHETABLE ct;
     u_int32_t nodesize = 1<<20; 
     int r;
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
     r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
 

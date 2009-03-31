@@ -9,7 +9,7 @@ static const int item_size = 1;
 
 static int n_flush, n_write_me, n_keep_me, n_fetch;
 
-static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p) {
+static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p, BOOL UU(for_checkpoint)) {
     cf = cf; key = key; value = value; extraargs = extraargs; modified_lsn = modified_lsn; rename_p = rename_p;
     // assert(key == make_blocknum((long)value));
     assert(size == item_size);
@@ -37,7 +37,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
     char fname1[] = __FILE__ "test1.dat";
-    unlink_file_and_bit(fname1);
+    unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
@@ -67,7 +67,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     // the checkpoint should cause n writes, but since n <= the cachetable size,
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
-    r = toku_cachetable_checkpoint(ct);
+    r = toku_cachetable_checkpoint(ct, NULL);
     assert(r == 0);
     assert(n_flush == n && n_write_me == n && n_keep_me == n);
 
@@ -93,12 +93,11 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
         assert(its_size == item_size);
     }
 
-    // a subsequent checkpoint should cause n flushes, but no writes since all
-    // of the items are clean
+    // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
-    r = toku_cachetable_checkpoint(ct);
+    r = toku_cachetable_checkpoint(ct, NULL);
     assert(r == 0);
-    assert(n_flush == n && n_write_me == 0 && n_keep_me == n);
+    assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
     r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);

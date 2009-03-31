@@ -15,7 +15,7 @@
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__)))
 {
-    unlink_file_and_bit(FNAME);
+    unlink(FNAME);
     
     int fd;
     {
@@ -45,6 +45,6 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     assert(file_size==file_size2);
     close(fd);
 
-    unlink_file_and_bit(FNAME);
+    unlink(FNAME);
     return 0;
 }

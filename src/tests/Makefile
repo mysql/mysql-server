@@ -80,6 +80,7 @@ BDB_DONTRUN_TESTS = \
 	test_txn_abort9 \
 	test_txn_close_open_commit \
 	test_txn_commit8 \
+	test_db_descriptor \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)

@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef BRT_INTERNAL_H
 #define BRT_INTERNAL_H
 
@@ -148,7 +149,20 @@ struct remembered_hash {
 
 // The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
 
+enum brtheader_type {BRTHEADER_CURRENT=1, BRTHEADER_CHECKPOINT_INPROGRESS};
+
+struct descriptor {
+    struct simple_dbt sdbt;
+    BLOCKNUM          b;
+};
+
 struct brt_header {
+    enum brtheader_type type;
+    struct brt_header * checkpoint_header;
+    u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
+                                // LSB indicates which header location is used on disk so this
+                                // counter is effectively a boolean which alternates with each checkpoint.
+    LSN checkpoint_lsn;         // LSN of creation of "checkpoint-begin" record in log.  
     int refcount;
     int dirty;
     int panic; // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
@@ -160,6 +174,7 @@ struct brt_header {
     BLOCKNUM *roots;            // An array of the roots of the various dictionaries.  Element 0 holds the element if no subdatabases allowed.
     struct remembered_hash *root_hashes;     // an array of hashes of the root offsets.
     unsigned int *flags_array;  // an array of flags.  Element 0 holds the element if no subdatabases allowed.
+    struct descriptor *descriptors;  // an array of descriptors.  Element 0 holds the element if no subdatabases allowed.
 
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 
@@ -180,6 +195,8 @@ struct brt {
     unsigned int nodesize;
     unsigned int flags;
     unsigned int did_set_flags;
+    unsigned int did_set_descriptor;
+    DBT          temp_descriptor;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
     DB *db;           // To pass to the compare fun
@@ -193,7 +210,7 @@ struct brt {
 };
 
 /* serialization code */
-int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads);
+int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brt_header *h);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
@@ -202,10 +219,12 @@ void toku_verify_counts(BRTNODE);
 
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
-int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
-int toku_deserialize_brtheader_from (int fd, BLOCKNUM off, struct brt_header **brth);
+int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
+int toku_deserialize_brtheader_from (int fd, struct brt_header **brth);
+int toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset);
 
-int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
+int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo, u_int64_t fifo_size); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
+u_int64_t toku_fifo_get_serialized_size (FIFO fifo);
 
 void toku_brtnode_free (BRTNODE *node);
 
@@ -222,7 +241,7 @@ struct brtenv {
 //    SPINLOCK  checkpointing;
 };
 
-extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
+extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn);
 extern int toku_brt_alloc_init_header(BRT t, const char *dbname);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header);
@@ -308,14 +327,16 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_7 = 7,   // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
     BRT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
     BRT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
-    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates.
+    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header
     BRT_ANTEULTIMATE_VERSION,   // the version after the most recent version
     BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
 };
 
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string);
+int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, LSN checkpoint_lsn, void *header_v);
 int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
+int toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v);
 
 int toku_db_badformat(void);
 

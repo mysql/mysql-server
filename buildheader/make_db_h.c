@@ -329,6 +329,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_lsn_fields32)==sizeof(db_lsn_fields64));
     print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
 
+    assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
+    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);
+
     assert(sizeof(db_fields32)==sizeof(db_fields64));
     {
 	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
@@ -339,6 +342,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
                              "int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */",
                              "int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */",
+                             "DBT descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
+                             "int (*set_descriptor) (DB*, const DBT*) /* set row/dictionary descriptor for a db.  Available only while db is open */",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }
@@ -378,9 +383,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
     }
-
-    assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
-    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);
 
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");
     printf("int db_env_create(DB_ENV **, u_int32_t) %s;\n", VISIBLE);

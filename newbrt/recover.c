@@ -103,23 +103,8 @@ toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
     return 0;
 }
 
-#define CLEANSUFFIX ".clean"
-#define DIRTYSUFFIX ".dirty"
-
 static void
 internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum) {
-    // If .dirty file exists rename it to .clean
-    int slen = strlen(fixedfname);
-    char cleanname[slen + sizeof(CLEANSUFFIX)];
-    char dirtyname[slen + sizeof(DIRTYSUFFIX)];
-    toku_graceful_fill_names(fixedfname, cleanname, sizeof(cleanname), dirtyname, sizeof(dirtyname));
-    toku_struct_stat tmpbuf;
-    BOOL clean_exists = toku_stat(cleanname, &tmpbuf)==0;
-    BOOL dirty_exists = toku_stat(dirtyname, &tmpbuf)==0;
-    if (dirty_exists) {
-	if (clean_exists) { int r = unlink(dirtyname);            assert(r==0); }
-	else              { int r = rename(dirtyname, cleanname); assert(r==0); }
-    }
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR|O_BINARY|flags, mode);
     assert(fd>=0);
@@ -181,8 +166,8 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
     XMALLOC(h->flags_array);
     h->flags_array[0] = header.flags;
     h->nodesize = header.nodesize;
-    toku_blocktable_create_from_loggedheader(&h->blocktable,
-					     header);
+    //toku_blocktable_create_from_loggedheader(&h->blocktable, header);
+    assert(0); //create from loggedheader disabled for now. //TODO: #1605
     assert(h->blocktable);
     h->n_named_roots = header.n_named_roots;
     r=toku_fifo_create(&h->fifo);
@@ -211,7 +196,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
     pair->brt->h = h;
     pair->brt->nodesize = h->nodesize;
     pair->brt->flags    = h->nodesize;
-    toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close, toku_brtheader_checkpoint);
+    toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
 }
 
 static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum) {
@@ -291,7 +276,20 @@ toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroo
 static void
 toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
 
-static int toku_recover_checkpoint (LSN UU(lsn)) {
+static int toku_recover_begin_checkpoint (LSN UU(lsn)) {
+    return 0;
+}
+
+
+static int toku_recover_end_checkpoint (LSN UU(lsn), TXNID UU(txnid)) {
+    return 0;
+}
+
+static int toku_recover_fassociate (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(fname)) {
+    return 0;
+}
+
+static int toku_recover_xstillopen (LSN UU(lsn), TXNID UU(txnid)) {
     return 0;
 }
 

@@ -75,6 +75,11 @@ static inline DISKOFF rbuf_diskoff (struct rbuf *r) {
     return rbuf_ulonglong(r);
 }
 
+static inline LSN rbuf_lsn (struct rbuf *r) {
+    LSN lsn = {rbuf_ulonglong(r)};
+    return lsn;
+}
+
 static inline BLOCKNUM rbuf_blocknum (struct rbuf *r) {
     BLOCKNUM result = make_blocknum(rbuf_longlong(r));
     return result;

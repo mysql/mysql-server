@@ -207,4 +207,13 @@ char *toku_strdup_in_rollback(TOKUTXN txn, const char *s);
 // A hook for testing #1572.  Sets the amount that txn's are incremented by.
 void toku_set_lsn_increment (uint64_t incr) __attribute__((__visibility__("default")));
 
+int toku_logger_iterate_over_live_txns (TOKULOGGER logger, int (*f)(TOKULOGGER, TOKUTXN, void*), void *v);
+// Effect: Call f on each open transaction (root transactions and non-root transactions) in no particular order.
+// If f returns nonzero, then this function returns immediately (without calling f any more), and returns that nonzero value.
+// Otherwise returns 0.
+
+TOKUTXN toku_logger_txn_parent (TOKUTXN);
+
+void toku_logger_note_checkpoint(TOKULOGGER, LSN);
+
 #endif

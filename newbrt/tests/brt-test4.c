@@ -16,7 +16,7 @@ static void test4 (int nodesize, int count, int memcheck) {
     int i;
     CACHETABLE ct;
     gettimeofday(&t0, 0);
-    unlink_file_and_bit(fname);
+    unlink(fname);
     toku_memory_check=memcheck;
     toku_memory_check_all_free();
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);

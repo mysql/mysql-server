@@ -69,7 +69,7 @@ struct tokulogger {
     // To access these, you must have the output lock
     LSN written_lsn; // the last lsn written
     LSN fsynced_lsn; // What is the LSN of the highest fsynced log entry
-    LSN checkpoint_lsns[2]; // What are the LSNs of the most recent checkpoints.  checkpoint_lsn[0] is the most recent one.
+    LSN checkpoint_lsn;     // What is the LSN of the most recent completed checkpoint.
     long long next_log_file_number;
     char buf[LOGGER_BUF_SIZE]; // used to marshall logbytes so we can use only a single write
     int n_in_file;

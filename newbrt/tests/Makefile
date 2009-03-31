@@ -29,10 +29,11 @@ endif
 # For very verbose output do 
 #   make VERBOSE=2
 
-
+#test1305 is first, since it is the longest test.  Thus reducing the makespan on parallel checks
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS_RAW = \
+	test1305 \
 	block_allocator_test \
 	bread-test \
 	brt-serialize-test \
@@ -59,6 +60,7 @@ REGRESSION_TESTS_RAW = \
 	cachetable-count-pinned-test \
 	cachetable-debug-test \
 	cachetable-debug-test \
+	cachetable-checkpoint-pending \
 	cachetable-checkpoint-test \
 	cachetable-prefetch-maybegetandpin-test \
 	cachetable-prefetch2-test \
@@ -86,7 +88,6 @@ REGRESSION_TESTS_RAW = \
 	omt-cursor-test \
 	omt-test \
 	shortcut \
-	test1305 \
 	test1308a \
 	test1626 \
 	test-assert \
@@ -131,8 +132,8 @@ check_ok:
 # Don't run 1305 under valgrind.  It takes way too long.
 check_test1305: VGRIND=
 
-ifeq ($(SKIP_VERY_SLOW_TESTS),1)
-check_test1305 check_test1308a:
+ifeq ($(SKIP_1305),1)
+check_test1305:
 	@echo SKIPPED SLOW TEST $@
 endif
 

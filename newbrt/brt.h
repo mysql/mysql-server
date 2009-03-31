@@ -30,6 +30,7 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *, 
 
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
+int toku_brt_set_descriptor (BRT t, const DBT *descriptor);
 int toku_brt_get_flags(BRT, unsigned int *flags);
 int toku_brt_set_nodesize(BRT, unsigned int nodesize);
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize);

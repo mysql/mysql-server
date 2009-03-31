@@ -37,7 +37,11 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 
 // Checkpoint the cachetable.
 // Effects: ?
-int toku_cachetable_checkpoint (CACHETABLE ct);
+int toku_cachetable_checkpoint (CACHETABLE ct, TOKULOGGER);
+
+// Does an fsync of a cachefile.
+// Handles the case where cf points to /dev/null
+int toku_cachefile_fsync(CACHEFILE cf);
 
 // Close the cachetable.
 // Effects: All of the memory objects are flushed to disk, and the cachetable is
@@ -59,8 +63,9 @@ void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threa
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
 // When write_me is true, the value should be written to storage.
 // When keep_me is false, the value should be freed.
+// When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p, BOOL for_checkpoint);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
@@ -68,8 +73,9 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, 
 // associated with the key are returned.
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs, LSN *written_lsn);
 
-void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/), int (*checkpoint_userdata)(CACHEFILE, void*));
+void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/), int (*checkpoint_userdata)(CACHEFILE, void*), int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*), int (*end_checkpoint_userdata)(CACHEFILE, void*));
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
+// Before starting a checkpoint, we call checkpoint_prepare_userdata().
 // When the cachefile needs to be checkpointed, we call checkpoint_userdata().
 // If userdata is already non-NULL, then we simply overwrite it.
 
@@ -208,15 +214,6 @@ void toku_cachetable_verify (CACHETABLE t);
 
 // Not for use in production, but useful for testing.
 void toku_cachetable_print_hash_histogram (void) __attribute__((__visibility__("default")));
-
-int toku_graceful_open(const char *db_fname, BOOL *is_dirtyp);
-int toku_graceful_close(CACHEFILE cf);
-int toku_graceful_dirty(CACHEFILE cf);
-int toku_graceful_delete(const char *db_fname);
-void toku_graceful_lock_init(void);
-void toku_graceful_lock_destroy(void);
-
-void toku_graceful_fill_names(const char *db_fname, char *cleanbuf, size_t cleansize, char *dirtybuf, size_t dirtysize);
 
 #define TOKU_CACHETABLE_DO_EVICT_FROM_WRITER 0
 

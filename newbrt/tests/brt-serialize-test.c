@@ -55,21 +55,29 @@ static void test_serialize(void) {
 
     struct brt *XMALLOC(brt);
     struct brt_header *XMALLOC(brt_h);
-    struct block_translation_pair *XMALLOC_N(21, btps);
-    memset(btps, 0, sizeof(btps));
     brt->h = brt_h;
+    brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_blocktable_create_new(&brt_h->blocktable);
-    toku_blocktable_debug_set_translation(brt_h->blocktable, 1, btps);
-    btps[20].diskoff = 4096;
-    btps[20].size    = 100;
+    //Want to use block #20
+    BLOCKNUM b = make_blocknum(0);
+    while (b.b < 20) {
+        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+    }
+    assert(b.b == 20);
+
     {
-	u_int64_t b;
-        toku_block_alloc(brt_h->blocktable, 100, &b);
-	assert(b==4096);
+        DISKOFF offset;
+        DISKOFF size;
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+
+        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(size   == 100);
     }
     
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1);  
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);  
     assert(r==0);
     
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
@@ -128,7 +136,7 @@ static void test_serialize(void) {
     toku_free(sn.u.n.childinfos);
     toku_free(sn.u.n.childkeys);
 
-    toku_block_free(brt_h->blocktable, 4096);
+    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&brt_h->blocktable);
     toku_free(brt_h);
     toku_free(brt);

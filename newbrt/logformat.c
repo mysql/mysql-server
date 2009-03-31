@@ -88,7 +88,14 @@ const struct logtype rollbacks[] = {
 };
 
 const struct logtype logtypes[] = {
-    {"checkpoint", 'x', FA{NULLFIELD}},
+    // Records produced by checkpoints
+    {"begin_checkpoint", 'x', FA{NULLFIELD}},
+    {"end_checkpoint",   'X', FA{{"TXNID", "txnid", 0}, NULLFIELD}},
+    {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
+			    {"BYTESTRING", "fname", 0},
+			    NULLFIELD}},
+    {"xstillopen", 's', FA{{"TXNID", "txnid", 0}, NULLFIELD}}, // only record root transactions
+    // Reords produced by transactions
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
     {"xabort", 'q', FA{{"TXNID", "txnid", 0},NULLFIELD}},
     {"xbegin", 'b', FA{{"TXNID", "parenttxnid", 0},NULLFIELD}},

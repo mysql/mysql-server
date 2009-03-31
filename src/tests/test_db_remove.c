@@ -17,6 +17,10 @@ void test_db_remove (void) {
     // create the DB
     r = db_create(&db1, null_env, 0);                                  assert(r == 0);
     r = db1->open(db1, null_txn, fname, 0, DB_BTREE, DB_CREATE, 0666); assert(r == 0);
+    r = db1->close(db1, 0); assert(r == 0); //Header has been written to disk
+
+    r = db_create(&db1, null_env, 0);                                  assert(r == 0);
+    r = db1->open(db1, null_txn, fname, 0, DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     // Now remove it, while it is open.
     r = db_create(&db2, null_env, 0);                                  assert(r==0);

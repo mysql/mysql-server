@@ -25,7 +25,6 @@ typedef u_int64_t TXNID;
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
-static const BLOCKNUM header_blocknum = {0};
 
 typedef struct {
     u_int32_t len;
