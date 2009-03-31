@@ -1,6 +1,6 @@
 if (!`SELECT LENGTH("$mysqld_name")`)
 {
-  let $mysqld_name=mysqld.1.1;
+  let $mysqld_name=mysqld.1;
 }
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
