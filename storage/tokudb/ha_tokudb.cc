@@ -1053,7 +1053,7 @@ int ha_tokudb::pack_row(DBT * row, const uchar * record, bool strip_pk) {
     bzero((void *) row, sizeof(*row));
     uint curr_skip_index;
 
-    KEY *key_info = table->key_info + primary_key;
+    KEY *key_info = &table->key_info[primary_key];
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
     //
@@ -1182,7 +1182,7 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool 
         }
         else {
             my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
-            KEY *key_info = table_share->key_info + primary_key;
+            KEY *key_info = &table_share->key_info[primary_key];
 
             uchar* tmp_dest = record;
             uchar* tmp_src = (uchar *)row->data;
@@ -1463,7 +1463,7 @@ DBT *ha_tokudb::create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, c
 //
 DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, uchar inf_byte) {
     TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
-    KEY *key_info = table->key_info + keynr;
+    KEY *key_info = &table->key_info[keynr];
     KEY_PART_INFO *key_part = key_info->key_part;
     KEY_PART_INFO *end = key_part + key_info->key_parts;
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
