@@ -133,16 +133,21 @@ struct read_view_struct{
 				can be removed in purge if not needed by other
 				views */
 	dulint	low_limit_id;	/* The read should not see any transaction
-				with trx id >= this value */
+				with trx id >= this value. In other words,
+				this is the "high water mark". */
 	dulint	up_limit_id;	/* The read should see all trx ids which
-				are strictly smaller (<) than this value */
+				are strictly smaller (<) than this value.
+				In other words,
+				this is the "low water mark". */
 	ulint	n_trx_ids;	/* Number of cells in the trx_ids array */
 	dulint*	trx_ids;	/* Additional trx ids which the read should
 				not see: typically, these are the active
 				transactions at the time when the read is
 				serialized, except the reading transaction
 				itself; the trx ids in this array are in a
-				descending order */
+				descending order. These trx_ids should be
+				between the "low" and "high" water marks,
+				that is, up_limit_id and low_limit_id. */
 	dulint	creator_trx_id;	/* trx id of creating transaction, or
 				(0, 0) used in purge */
 	UT_LIST_NODE_T(read_view_t) view_list;
