@@ -366,14 +366,16 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(hugoOps.pkInsertRecord(pNdb, recordNo) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
+      int remain = maxSleep;
       for (int i = 0; i < 3; i++){
 	// Perform buddy scan reads
 	CHECK((hugoOps.scanReadRecords(pNdb)) == 0);
 	CHECK(hugoOps.execute_NoCommit(pNdb) == 0); 
 	
-	int sleep = myRandom48(maxSleep);   	
-	ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
-	NdbSleep_MilliSleep(sleep);
+        int sleep = myRandom48(remain);
+        remain = remain - sleep + 1;
+        ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
+        NdbSleep_MilliSleep(sleep);
       }
 
       // Expect that transaction has NOT timed-out
