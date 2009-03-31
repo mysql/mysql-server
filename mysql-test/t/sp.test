@@ -1271,7 +1271,7 @@ select *, f8() from v1|
 
 # Let us test what will happen if function is missing
 drop function f1|
---error 1356
+--error ER_VIEW_INVALID
 select * from v1|
 
 # And what will happen if we have recursion which involves
@@ -1310,9 +1310,9 @@ select f0()|
 select * from v0|
 select *, f0() from v0, (select 123) as d1|
 # But these should not !
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select f4()|
 unlock tables|
 
@@ -1322,9 +1322,9 @@ lock tables v2 read, mysql.proc read|
 select * from v2|
 select * from v1|
 # These should not work as we have too little instances of tables locked
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select * from v1, t1|
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select f4()|
 unlock tables|
 
@@ -4501,14 +4501,14 @@ begin
    select bug12379();
 end|
 
---error 1062
+--error ER_DUP_ENTRY
 select bug12379()|
 select 1|
 call bug12379_1()|
 select 2|
 call bug12379_2()|
 select 3|
---error 1062
+--error ER_DUP_ENTRY
 call bug12379_3()|
 select 4|
 
@@ -5235,18 +5235,29 @@ drop procedure bug5967|
 #
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
 #
+--let $backupdir = $MYSQLTEST_VARDIR/tmp/
+--error 0,1
+--remove_file $backupdir/t1.frm
+--error 0,1
+--remove_file $backupdir/t1.MYD
+
 --disable_warnings
 drop procedure if exists bug13012|
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 --enable_warnings
-create procedure bug13012()
-BEGIN
-  REPAIR TABLE t1;
-  BACKUP TABLE t1 to '../tmp';
-  DROP TABLE t1;
-  RESTORE TABLE t1 FROM '../tmp';
-END|
+eval create procedure bug13012()
+    BEGIN
+       REPAIR TABLE t1;
+       BACKUP TABLE t1 to '$backupdir';
+       DROP TABLE t1;
+       RESTORE TABLE t1 FROM '$backupdir';
+    END|
 call bug13012()|
+
+--remove_file $backupdir/t1.frm
+--remove_file $backupdir/t1.MYD
 drop procedure bug13012|
+
 create view v1 as select * from t1|
 create procedure bug13012()
 BEGIN
