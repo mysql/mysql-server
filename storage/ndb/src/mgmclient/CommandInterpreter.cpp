@@ -3055,7 +3055,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 
   NdbLogEventHandle log_handle= NULL;
   struct ndb_logevent log_event;
-  if (flags == 2 && !interactive)
+  if (flags > 0 && !interactive)
   {
     int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0, 0 };
     log_handle = ndb_mgm_create_logevent_handle(m_mgmsrv, filter);
