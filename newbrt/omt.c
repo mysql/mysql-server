@@ -651,9 +651,9 @@ void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t index) {
 
 int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v) {
     if (c->omt == NULL) return EINVAL;
-    c->index++;
-    int r = toku_omt_fetch(c->omt, c->index, v, NULL);
-    if (r!=0) toku_omt_cursor_invalidate(c);
+    int r = toku_omt_fetch(c->omt, c->index+1, v, NULL);
+    if (r==0) c->index++;
+    else      toku_omt_cursor_invalidate(c);
     return r;
 }
 
@@ -672,7 +672,7 @@ int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v) {
 int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v) {
     if (c->omt == NULL) return EINVAL;
     int r = toku_omt_fetch(c->omt, c->index, v, NULL);
-    if (r!=0) toku_omt_cursor_invalidate(c);
+    assert(r==0);
     return r;
 }
 

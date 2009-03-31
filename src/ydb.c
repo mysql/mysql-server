@@ -2301,7 +2301,6 @@ static int c_getf_heaviside_callback(ITEMLEN found_keylen, bytevec found_keyvec,
         const DBT *right_key = toku_lt_infinity;
         const DBT *right_val = toku_lt_infinity;
         RANGE_LOCK_REQUEST_S request;
-#define BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY 1
 #ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
         //Have cursor (base->c)
         //Have txn    (base->txn)

@@ -2353,9 +2353,18 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
     verify_local_fingerprint_nonleaf(node);
     return r;
 }
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+static int STRADDLE_HACK_disable_merges_and_splits = 0;
+#endif
 
 static int
 brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, BOOL *did_react) {
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+    if (STRADDLE_HACK_disable_merges_and_splits) {
+        *did_react = FALSE;
+        return 0;
+    }
+#endif
     switch (re) {
     case RE_STABLE:
         *did_react = FALSE;
@@ -2370,6 +2379,11 @@ brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivi
 
 static int
 brt_handle_maybe_reactive_child_at_root (BRT brt, CACHEKEY *rootp, BRTNODE *nodep, enum reactivity re, TOKULOGGER logger) {
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+    if (STRADDLE_HACK_disable_merges_and_splits) {
+        return 0;
+    }
+#endif
     BRTNODE node = *nodep;
     switch (re) {
     case RE_STABLE:
@@ -4338,12 +4352,37 @@ static int brt_cursor_compare_heaviside(brt_search_t *search, DBT *x, DBT *y) {
 static const DBT __toku_dbt_fake;
 static const DBT* const toku_dbt_fake = &__toku_dbt_fake;
 
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+struct brt_cursor_straddle_search_struct {
+    BRT_GET_STRADDLE_CALLBACK_FUNCTION getf;
+    void *getf_v;
+    BRT_CURSOR cursor;
+    brt_search_t *search;
+};
+
+static int
+straddle_hack_getf(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val,
+                   ITEMLEN next_keylen, bytevec next_key, ITEMLEN next_vallen, bytevec next_val, void* v) {
+    struct brt_cursor_straddle_search_struct *bcsss = v;
+    int old_hack_value = STRADDLE_HACK_disable_merges_and_splits;
+    STRADDLE_HACK_disable_merges_and_splits = 1;
+    int r = bcsss->getf(keylen, key, vallen, val, next_keylen, next_key, next_vallen, next_val, bcsss->getf_v);
+    STRADDLE_HACK_disable_merges_and_splits = old_hack_value;
+    return r;
+}
+#endif
+
 /* search for the first kv pair that matches the search object */
 static int
 brt_cursor_straddle_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, TOKULOGGER logger)
 {
     brt_cursor_invalidate(cursor);
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+    struct brt_cursor_straddle_search_struct bcsss = {getf, getf_v, cursor, search};
+    int r = toku_brt_search(cursor->brt, search, straddle_hack_getf, &bcsss, logger, cursor, &cursor->root_put_counter);
+#else
     int r = toku_brt_search(cursor->brt, search, getf, getf_v, logger, cursor, &cursor->root_put_counter);
+#endif
     return r;
 }
 
