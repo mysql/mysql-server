@@ -15,5 +15,4 @@ innodb_bug39438          : BUG#42383 2009-01-28 lsoares "This fails in embedded 
 innodb			 : Bug #37995  	Error message truncation in test "innodb" in embedded mode
 concurrent_innodb_unsafelog: Bug #41498 concurrent_innodb_unsafelog fails sporadically
 concurrent_innodb_safelog: Bug #39484  	main.concurrent_innodb_safelog fails sporadically
-events_restart           : Disable until Wen fixes add_node*.test related problems
 
