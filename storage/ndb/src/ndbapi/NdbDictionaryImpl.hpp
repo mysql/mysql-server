@@ -327,7 +327,7 @@ private:
 
   State m_state;
   Ndb *m_ndb;
-  typedef struct fifo_element_st {
+  struct fifo_element_st {
     fifo_element_st(const NdbTableImpl *tab, fifo_element_st *prev)
       { 
         table = tab; 
