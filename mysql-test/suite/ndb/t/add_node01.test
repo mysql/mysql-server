@@ -1,6 +1,9 @@
 -- source include/have_ndb.inc
 --result_format 2
 
+## Make mtr.pl restart all servers after this test
+call mtr.force_restart();
+
 ## Show cluster is started with one ndb_mgmd and two ndbd nodes
 --replace_regex /mysql-[0-9]*.[0-9]*.[0-9]*/mysql/ /ndb-[0-9]*.[0-9]*.[0-9]*/ndb/ /localhost:[0-9]*/localhost/
 --exec $NDB_MGM -e show
@@ -28,6 +31,7 @@
 --exec $NDB_WAITER --nowait-nodes=40,41 >> $NDB_TOOLS_OUTPUT
 
 ## Restart mysqld nodes
+let $mysqld_name= mysqld.1.1;
 --source include/restart_mysqld.inc
 connect (mysqld_2_1,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 connection mysqld_2_1;

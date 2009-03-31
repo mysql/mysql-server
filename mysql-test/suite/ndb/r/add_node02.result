@@ -1,4 +1,7 @@
 result_format: 2
+## Make mtr.pl restart all servers after this test
+call mtr.force_restart();
+
 ## Show cluster is started with one ndb_mgmd and two ndbd nodes
 Connected to Management Server at: localhost
 Cluster Configuration
