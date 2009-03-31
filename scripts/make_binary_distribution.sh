@@ -116,10 +116,15 @@ case $PLATFORM in
 esac
 
 # Change the distribution to a long descriptive name
+# For the cluster product, concentrate on the second part
+VERSION_NAME=@VERSION@
+case $VERSION_NAME in
+  *-ndb-* )  VERSION_NAME=`echo $VERSION_NAME | sed -e 's/[.0-9]*-ndb-//'` ;;
+esac
 if [ x"$SHORT_PRODUCT_TAG" != x"" ] ; then
-  NEW_NAME=mysql-$SHORT_PRODUCT_TAG-@VERSION@-$PLATFORM$SUFFIX
+  NEW_NAME=mysql-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX
 else
-  NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-@VERSION@-$PLATFORM$SUFFIX
+  NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$VERSION_NAME-$PLATFORM$SUFFIX
 fi
 
 # ----------------------------------------------------------------------
