@@ -353,19 +353,17 @@ inline int cmp_toku_string(
     CHARSET_INFO* charset = NULL;
 
     //
-    // due to MySQL bug 42649
+    // patternmatched off of InnoDB, due to MySQL bug 42649
     //
-    switch (charset_number) {
-    case(default_charset_info->number):
+    if (charset_number == default_charset_info->number) {
         charset = default_charset_info;
-        break;
-    case(charset_number == my_charset_latin1.number):
-        charset = &my_charset_latin1;
-        break;
-    default:
-        charset = get_charset(charset_number, MYF(MY_WME));
-        break;
     }
+    else if (charset_number == my_charset_latin1.number) {
+        charset = &my_charset_latin1;
+    }
+    else {
+        charset = get_charset(charset_number, MYF(MY_WME));
+    } 
 
     ret_val = charset->coll->strnncollsp(
         charset,

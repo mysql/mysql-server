@@ -36,7 +36,7 @@ typedef struct st_tokudb_share {
     u_int32_t key_type[MAX_KEY +1];
     uint status, version, capabilities;
     uint ref_length;
-    bool fixed_length_primary_key, fixed_length_row; 
+    bool fixed_length_row; 
     //
     // whether table has an auto increment column
     //
