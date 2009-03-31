@@ -26,7 +26,7 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-key_buffer = 384M
+key_buffer_size = 384M
 max_allowed_packet = 1M
 table_cache = 512
 sort_buffer_size = 2M
@@ -117,15 +117,10 @@ server-id	= 1
 #tmpdir		= /tmp/		
 #log-update 	= /path-to-dedicated-directory/hostname
 
-# Uncomment the following if you are using BDB tables
-#bdb_cache_size = 384M
-#bdb_max_lock = 100000
-
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
 #innodb_data_file_path = ibdata1:2000M;ibdata2:10M:autoextend
 #innodb_log_group_home_dir = @localstatedir@/
-#innodb_log_arch_dir = @localstatedir@/
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 384M
@@ -145,14 +140,8 @@ no-auto-rehash
 # Remove the next comment character if you are not familiar with SQL
 #safe-updates
 
-[isamchk]
-key_buffer = 256M
-sort_buffer_size = 256M
-read_buffer = 2M
-write_buffer = 2M
-
 [myisamchk]
-key_buffer = 256M
+key_buffer_size = 256M
 sort_buffer_size = 256M
 read_buffer = 2M
 write_buffer = 2M

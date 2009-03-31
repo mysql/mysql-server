@@ -167,7 +167,7 @@ ft_min_word_len = 4
 
 # Table type which is used by default when creating new tables, if not
 # specified differently during the CREATE TABLE statement.
-default_table_type = MYISAM
+default-storage-engine = MYISAM
 
 # Thread stack size to use. This amount of memory is always reserved at
 # connection time. MySQL itself usually needs no more than 64K of
@@ -208,7 +208,7 @@ log-bin=mysql-bin
 
 # Log slow queries. Slow queries are queries which take more than the
 # amount of time defined in "long_query_time" or which do not use
-# indexes well, if log_long_format is enabled. It is normally good idea
+# indexes well, if log_short_format is not enabled. It is normally good idea
 # to have this turned on if you frequently add new queries to the
 # system.
 log_slow_queries
@@ -218,11 +218,6 @@ log_slow_queries
 # even very fast queries being logged from time to time (as MySQL
 # currently measures time with second accuracy only).
 long_query_time = 2
-
-# Log more information in the slow query log. Normally it is good to
-# have this turned on. This will enable logging of queries that are not
-# using indexes in addition to long running queries.
-log_long_format
 
 # The directory used by MySQL for storing temporary files. For example,
 # it is used to perform disk based large sorts, as well as for internal
@@ -342,12 +337,6 @@ myisam_sort_buffer_size = 128M
 # through the key cache (which is slower).
 myisam_max_sort_file_size = 10G
 
-# If the temporary file used for fast index creation would be bigger
-# than using the key cache by the amount specified here, then prefer the
-# key cache method.  This is mainly used to force long character keys in
-# large tables to use the slower key cache method to create the index.
-myisam_max_extra_sort_file_size = 10G
-
 # If a table has more than one index, MyISAM can use more than one
 # thread to repair them by sorting in parallel. This makes sense if you
 # have multiple CPUs and plenty of memory.
@@ -359,14 +348,6 @@ myisam_recover
 
 # Disable Federated by default
 skip-federated
-
-# *** BDB Specific options ***
-
-# Use this option if you run a MySQL server with BDB support enabled but
-# you do not plan to use it. This will save memory and may speed up some
-# things.
-skip-bdb
-
 
 # *** INNODB Specific options ***
 
@@ -490,14 +471,8 @@ no-auto-rehash
 # Only allow UPDATEs and DELETEs that use keys.
 #safe-updates
 
-[isamchk]
-key_buffer = 512M
-sort_buffer_size = 512M
-read_buffer = 8M
-write_buffer = 8M
-
 [myisamchk]
-key_buffer = 512M
+key_buffer_size = 512M
 sort_buffer_size = 512M
 read_buffer = 8M
 write_buffer = 8M

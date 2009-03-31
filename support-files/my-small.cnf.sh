@@ -27,7 +27,7 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-key_buffer = 16K
+key_buffer_size = 16K
 max_allowed_packet = 1M
 table_cache = 4
 sort_buffer_size = 64K
@@ -51,14 +51,10 @@ server-id	= 1
 # Disable Federated by default
 skip-federated
 
-# Uncomment the following if you are NOT using BDB tables
-#skip-bdb
-
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
 #innodb_data_file_path = ibdata1:10M:autoextend
 #innodb_log_group_home_dir = @localstatedir@/
-#innodb_log_arch_dir = @localstatedir@/
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 16M
@@ -78,12 +74,8 @@ no-auto-rehash
 # Remove the next comment character if you are not familiar with SQL
 #safe-updates
 
-[isamchk]
-key_buffer = 8M
-sort_buffer_size = 8M
-
 [myisamchk]
-key_buffer = 8M
+key_buffer_size = 8M
 sort_buffer_size = 8M
 
 [mysqlhotcopy]
