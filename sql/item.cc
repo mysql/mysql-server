@@ -1323,6 +1323,7 @@ public:
     else
       Item_ident::print(str);
   }
+  virtual Ref_Type ref_type() { return AGGREGATE_REF; }
 };
 
 
