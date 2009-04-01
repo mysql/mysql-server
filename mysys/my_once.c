@@ -15,6 +15,9 @@
 
 /* Not MT-SAFE */
 
+/* my_global.h may define SAFEMALLOC (through my_config.h). */
+#include <my_global.h>
+
 #ifdef SAFEMALLOC			/* We don't need SAFEMALLOC here */
 #undef SAFEMALLOC
 #endif

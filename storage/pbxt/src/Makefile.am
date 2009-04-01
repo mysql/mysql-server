@@ -1,12 +1,19 @@
 # Used to build Makefile.in
 
-INCLUDES =   			$(ENG_MYSQL_INC)
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+pkgplugindir =          $(pkglibdir)/plugin
+INCLUDES=		-I$(top_srcdir)/include -I$(top_builddir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/storage/innobase/include \
+			-I$(top_srcdir)/sql \
+			-I$(srcdir)
 
 LIBS =
 
 LDADD =
-
-plugindir = 			$(ENG_PLUGIN_DIR)
 
 noinst_HEADERS =		bsearch_xt.h cache_xt.h ccutils_xt.h database_xt.h \
 						datadic_xt.h datalog_xt.h filesys_xt.h hashtab_xt.h \
@@ -17,8 +24,7 @@ noinst_HEADERS =		bsearch_xt.h cache_xt.h ccutils_xt.h database_xt.h \
 						util_xt.h xaction_xt.h xactlog_xt.h lock_xt.h \
 						systab_xt.h ha_xtsys.h discover_xt.h \
 						pbms.h xt_config.h xt_defs.h xt_errno.h locklist_xt.h
-
-plugin_LTLIBRARIES =	libpbxt.la
+EXTRA_LTLIBRARIES =	libpbxt.la
 
 libpbxt_la_SOURCES =	bsearch_xt.cc cache_xt.cc ccutils_xt.cc database_xt.cc \
 						datadic_xt.cc datalog_xt.cc filesys_xt.cc hashtab_xt.cc \
@@ -31,21 +37,16 @@ libpbxt_la_SOURCES =	bsearch_xt.cc cache_xt.cc ccutils_xt.cc database_xt.cc \
 
 libpbxt_la_LDFLAGS =	-module
 
-# These are the warnings Drizzle uses:
+# These are the warning Drizzle uses:
 # DRIZZLE_WARNINGS =		-W -Wall -Wextra -pedantic -Wundef -Wredundant-decls -Wno-strict-aliasing -Wno-long-long -Wno-unused-parameter
 
 libpbxt_la_CXXFLAGS =	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libpbxt_la_CFLAGS =		$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -std=c99
 
-EXTRA_LIBRARIES =		libpbxt.a libxtutil.a
-noinst_LIBRARIES = 		libpbxt.a libxtutil.a
+EXTRA_LIBRARIES =		libpbxt.a
+noinst_LIBRARIES = 		libpbxt.a
 libpbxt_a_SOURCES =		$(libpbxt_la_SOURCES)
-libpbxt_a_CXXFLAGS =	$(AM_CXXFLAGS) $(DRIZZLE_WARNINGS)
-libpbxt_a_CFLAGS =		$(AM_CFLAGS) -std=c99 $(DRIZZLE_WARNINGS)
-
-libxtutil_a_SOURCES =	strutil_xt.cc \
-						trace_xt.cc
-libxtutil_a_CXXFLAGS =	$(AM_CXXFLAGS)
-libxtutil_a_CFLAGS =	$(AM_CFLAGS)
+libpbxt_a_CXXFLAGS =	$(AM_CXXFLAGS) -Wno-long-long
+libpbxt_a_CFLAGS =		$(AM_CFLAGS) -std=c99
 
 EXTRA_DIST =			CMakeLists.txt

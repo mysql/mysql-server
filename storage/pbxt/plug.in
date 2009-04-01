@@ -1,8 +1,7 @@
-DRIZZLE_STORAGE_ENGINE(pbxt,no,  [PBXT Storage Engine],
+MYSQL_STORAGE_ENGINE(pbxt,no,  [PBXT Storage Engine],
         [MVCC-based transactional engine], [max,max-no-ndb])
-DRIZZLE_PLUGIN_DIRECTORY(pbxt, [storage/pbxt])
-DRIZZLE_PLUGIN_STATIC(pbxt,    [src/libpbxt.a])
-DRIZZLE_PLUGIN_MANDATORY(pbxt)  dnl Default
-DRIZZLE_PLUGIN_ACTIONS(pbxt,  [
+MYSQL_PLUGIN_DIRECTORY(pbxt, [storage/pbxt])
+MYSQL_PLUGIN_STATIC(pbxt,    [src/libpbxt.a])
+MYSQL_PLUGIN_ACTIONS(pbxt,  [
                AC_CONFIG_FILES(storage/pbxt/src/Makefile)
                ])
