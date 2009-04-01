@@ -1783,6 +1783,8 @@ sub environment_setup {
   # ----------------------------------------------------
   if ( ! $opt_skip_ndbcluster )
   {
+    $ENV{'NDB_NDBD'}=$exe_ndbd;
+
     $ENV{'NDB_MGM'}=
       native_path(my_find_bin($basedir,
 		  ["storage/ndb/src/mgmclient", "bin"],
@@ -3131,6 +3133,26 @@ sub find_analyze_request
 }
 
 
+# The test can leave a file in var/tmp/ to signal
+# that all servers should be restarted
+sub restart_forced_by_test
+{
+  my $restart = 0;
+  foreach my $mysqld ( mysqlds() )
+  {
+    my $datadir = $mysqld->value('datadir');
+    my $force_restart_file = "$datadir/mtr/force_restart";
+    if ( -f $force_restart_file )
+    {
+      mtr_verbose("Restart of servers forced by test");
+      $restart = 1;
+      last;
+    }
+  }
+  return $restart;
+}
+
+
 # Return timezone value of tinfo or default value
 sub timezone {
   my ($tinfo)= @_;
@@ -3299,7 +3321,11 @@ sub run_testcase ($) {
       if ( $res == 0 )
       {
 	my $check_res;
-	if ( $opt_check_testcases and
+	if ( restart_forced_by_test() )
+	{
+	  stop_all_servers();
+	}
+	elsif ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
 	{
 	  if ($check_res == 1) {

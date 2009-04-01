@@ -246,10 +246,11 @@ public:
    * from index table lookup
    */
   enum IndexTransIdAIState {
-    ITAS_WAIT_HEADER = 0,     // Initial state
-    ITAS_WAIT_FRAGID = 1,     // Waiting for fragment id word
-    ITAS_WAIT_KEY = 2,        // Waiting for (more) key information
-    ITAS_ALL_RECEIVED = 3     // All TransIdAI info received
+    ITAS_WAIT_HEADER   = 0,     // Initial state
+    ITAS_WAIT_FRAGID   = 1,     // Waiting for fragment id word
+    ITAS_WAIT_KEY      = 2,     // Waiting for (more) key information
+    ITAS_ALL_RECEIVED  = 3,     // All TransIdAI info received
+    ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
   
 
@@ -1875,9 +1876,6 @@ private:
 #ifdef ERROR_INSERT
   bool testFragmentDrop(Signal* signal);
 #endif
-
-  // For Error inserts
-  Uint32 errorInsertHoardedSegments;
 
   /************************** API CONNECT RECORD ***********************/
   /* *******************************************************************/

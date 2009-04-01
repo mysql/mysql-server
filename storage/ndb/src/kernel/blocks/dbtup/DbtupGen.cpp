@@ -33,6 +33,9 @@
 #include <signaldata/DropTab.hpp>
 #include <SLList.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 #define DEBUG(x) { ndbout << "TUP::" << x << endl; }
 
 void Dbtup::initData() 
@@ -231,6 +234,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
   jamEntry();
   Uint32 actionType = signal->theData[0];
   Uint32 dataPtr = signal->theData[1];
+
   switch (actionType) {
   case ZINITIALISE_RECORDS:
     jam();
@@ -256,7 +260,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZFREE_EXTENT:
   {
     jam();
-    
     TablerecPtr tabPtr;
     tabPtr.i= dataPtr;
     FragrecordPtr fragPtr;
@@ -269,7 +272,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZUNMAP_PAGES:
   {
     jam();
-    
     TablerecPtr tabPtr;
     tabPtr.i= dataPtr;
     FragrecordPtr fragPtr;

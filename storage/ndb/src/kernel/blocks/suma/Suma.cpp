@@ -3468,8 +3468,11 @@ Suma::report_sub_stop_conf(Signal* signal,
   }
   
   SubStopConf * const conf = (SubStopConf*)signal->getDataPtrSend();
+  const Uint64 gci = m_max_seen_gci;
   conf->senderRef= reference();
   conf->senderData= senderData;
+  conf->gci_hi= Uint32(gci>>32);
+  conf->gci_lo= Uint32(gci);
   sendSignal(senderRef, GSN_SUB_STOP_CONF, signal,
 	     SubStopConf::SignalLength, JBB);
 

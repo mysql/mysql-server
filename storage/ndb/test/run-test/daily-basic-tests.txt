@@ -121,10 +121,6 @@ args: -n NoCommitSleep T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommit626 T6 D1 D2
-
-max-time: 500
-cmd: testBasic
 args: -n NoCommitAndClose T6 D1 D2
 
 max-time: 500
@@ -593,22 +589,6 @@ max-time: 3000
 cmd: testNodeRestart
 args: -n Bug25984 T1
 
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug26457 T1
-
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug26481 T1
-
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug28023 T6 D2
-
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug29364 T1
-
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
@@ -785,6 +765,10 @@ cmd: testNdbApi
 args: -n NdbRecordCICharPKUpdate T1 
 
 max-time: 500
+cmd: testNdbApi
+args: -n NdbRecordRowLength
+
+max-time: 500
 cmd: testInterpreter
 args: T1 
 
@@ -802,11 +786,11 @@ args: T6
 
 max-time: 1500
 cmd: testBlobs
-args: -version 1
+args: -version 1 -rows 25
 
 max-time: 1500
 cmd: testBlobs
-args:
+args: -rows 25
 
 max-time: 600
 cmd: testBlobs
@@ -993,6 +977,22 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n NoLoad T6
 
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentFail T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13 
+
 #
 # MGMAPI AND MGSRV
 #
@@ -1049,14 +1049,6 @@ args: -n GCP T1
 max-time: 1200
 cmd: testNodeRestart
 args: -n Bug41469 T1
-
-max-time: 180
-cmd: testIndex
-args: -n Bug28804 T1 T6
-
-max-time: 180
-cmd: testIndex
-args: -n Bug28804_ATTRINFO T1 T6
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1267,8 +1259,8 @@ args: -n bug37672 T1
 
 #EOF 2008-07-04
 max-time: 500
-cmd: testScanFilter T1
-args: 
+cmd: testScanFilter
+args: T1
 
 #EOF 2008-07-09
 max-time: 600
@@ -1385,4 +1377,8 @@ args: -n Stress2
 max-time: 300
 cmd: testScan
 args: -n Bug42545 -l 1 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n -l 3 -n Bug43224 T1
 

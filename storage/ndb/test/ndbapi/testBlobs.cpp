@@ -65,6 +65,7 @@ struct Opt {
   int m_seed;
   const char* m_skip;
   const char* m_test;
+  int m_timeout_retries;
   int m_blob_version;
   // metadata
   const char* m_tname;
@@ -94,6 +95,7 @@ struct Opt {
     m_seed(-1),
     m_skip(0),
     m_test(0),
+    m_timeout_retries(10),
     m_blob_version(2),
     // metadata
     m_tname("TB1"),
@@ -132,6 +134,8 @@ printusage()
     << "  -seed N     random seed 0=loop number -1=random [" << d.m_seed << "]" << endl
     << "  -skip xxx   skip given tests (see list) [no tests]" << endl
     << "  -test xxx   only given tests (see list) [all tests]" << endl
+    << "  -timeoutretries N Number of times to retry in deadlock situations [" 
+    << d.m_timeout_retries << "]" << endl
     << "  -version N  blob version 1 or 2 [" << d.m_blob_version << "]" << endl
     << "metadata" << endl
     << "  -pk2len N   native length of PK2, zero omits PK2,PK3 [" << d.m_pk2chr.m_len << "]" << endl
@@ -306,6 +310,10 @@ printerror(int line, const char* msg)
     if (! g_opt.m_dbg) break; \
     ndbout << "line " << __LINE__ << " " << x << endl; \
   } while (0)
+#define DISP(x) \
+  do { \
+    ndbout << "line " << __LINE__ << " " << x << endl; \
+  } while (0)
 
 struct Bcol {
   int m_type;
@@ -320,6 +328,8 @@ struct Bcol {
 
 static Bcol g_blob1;
 static Bcol g_blob2;
+
+enum OpState {Normal, Retrying};
 
 static void
 initblobs()
@@ -843,6 +853,31 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
   v.trash();
 }
 
+static bool
+conHasTimeoutError()
+{
+  Uint32 code= g_con->getNdbError().code;
+  /* Indicate timeout for cases where LQH too slow responding
+   * (As can happen for disk based tuples with batching or
+   *  lots of parts)
+   */
+  // 296 == Application timeout waiting for SCAN_NEXTREQ from API
+  // 297 == Error code in response to SCAN_NEXTREQ for timed-out scan
+  bool isTimeout= ((code == 274) || // General TC connection timeout 
+                   (code == 266));  // TC Scan frag timeout
+  if (!isTimeout)
+    ndbout << "Connection error is not timeout, but is "
+           << code << endl;
+  
+  return isTimeout;
+}
+
+static
+Uint32 conError()
+{
+  return g_con->getNdbError().code;
+}
+
 static void
 calcBval(Tup& tup, bool keepsize)
 {
@@ -1290,104 +1325,134 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
   NdbRecAttr* ra_part = 0;
   NdbRecAttr* ra_data = 0;
   NdbRecAttr* ra_frag = 0;
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
-  CHK(g_ops->readTuples(NdbScanOperation::LM_Read, 
-                        g_scanFlags,
-                        g_batchSize,
-                        g_parallel) == 0);
-  if (b.m_version == 1) {
-    CHK((ra_pk = g_ops->getValue("PK")) != 0);
-    CHK((ra_part = g_ops->getValue("PART")) != 0);
-    CHK((ra_data = g_ops->getValue("DATA")) != 0);
-  } else {
-    CHK((ra_pk1 = g_ops->getValue("PK1")) != 0);
-    if (g_opt.m_pk2chr.m_len != 0) {
-      CHK((ra_pk2 = g_ops->getValue("PK2")) != 0);
-      CHK((ra_pk3 = g_ops->getValue("PK3")) != 0);
-    }
-    CHK((ra_part = g_ops->getValue("NDB$PART")) != 0);
-    CHK((ra_data = g_ops->getValue("NDB$DATA")) != 0);
-  }
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
 
-  /* No partition id set on Blob part table scan so that we
-   * find any misplaced parts in other partitions
-   */
-
-  CHK((ra_frag = g_ops->getValue(NdbDictionary::Column::FRAGMENT)) != 0);
-  CHK(g_con->execute(NoCommit) == 0);
-  unsigned partcount;
-  if (! exists || v.m_len <= b.m_inline)
-    partcount = 0;
-  else
-    partcount = (v.m_len - b.m_inline + b.m_partsize - 1) / b.m_partsize;
-  char* seen = new char [partcount];
-  memset(seen, 0, partcount);
-  while (1) {
-    int ret;
-    CHK((ret = g_ops->nextResult()) == 0 || ret == 1);
-    if (ret == 1)
-      break;
+  do
+  {
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
+    CHK(g_ops->readTuples(NdbScanOperation::LM_Read, 
+                          g_scanFlags,
+                          g_batchSize,
+                          g_parallel) == 0);
     if (b.m_version == 1) {
-      if (pk1 != ra_pk->u_32_value())
-        continue;
+      CHK((ra_pk = g_ops->getValue("PK")) != 0);
+      CHK((ra_part = g_ops->getValue("PART")) != 0);
+      CHK((ra_data = g_ops->getValue("DATA")) != 0);
     } else {
-      if (pk1 != ra_pk1->u_32_value())
-        continue;
+      CHK((ra_pk1 = g_ops->getValue("PK1")) != 0);
+      if (g_opt.m_pk2chr.m_len != 0) {
+        CHK((ra_pk2 = g_ops->getValue("PK2")) != 0);
+        CHK((ra_pk3 = g_ops->getValue("PK3")) != 0);
+      }
+      CHK((ra_part = g_ops->getValue("NDB$PART")) != 0);
+      CHK((ra_data = g_ops->getValue("NDB$DATA")) != 0);
     }
-    Uint32 part = ra_part->u_32_value();
-    Uint32 frag2 = ra_frag->u_32_value();
-    DBG("part " << part << " of " << partcount << " from fragment " << frag2);
-    CHK(part < partcount && ! seen[part]);
-    seen[part] = 1;
-    unsigned n = b.m_inline + part * b.m_partsize;
-    assert(exists && v.m_val != 0 && n < v.m_len);
-    unsigned m = v.m_len - n;
-    if (m > b.m_partsize)
-      m = b.m_partsize;
-    const char* data = ra_data->aRef();
-    if (b.m_version == 1)
-      ;
-    else {
-      // Blob v2 stored on disk is currently fixed
-      // size, so we skip these tests.
-      if (!g_usingDisk)
+    
+    /* No partition id set on Blob part table scan so that we
+     * find any misplaced parts in other partitions
+     */
+
+    CHK((ra_frag = g_ops->getValue(NdbDictionary::Column::FRAGMENT)) != 0);
+    CHK(g_con->execute(NoCommit) == 0);
+    unsigned partcount;
+    if (! exists || v.m_len <= b.m_inline)
+      partcount = 0;
+    else
+      partcount = (v.m_len - b.m_inline + b.m_partsize - 1) / b.m_partsize;
+    char* seen = new char [partcount];
+    memset(seen, 0, partcount);
+    while (1) {
+      int ret= g_ops->nextResult();
+      if (ret == -1)
       {
-        unsigned sz = getvarsize(data);
-        DBG("varsize " << sz);
-        DBG("b.m_partsize " << b.m_partsize);
-        CHK(sz <= b.m_partsize);
-        data += 2;
-        if (part + 1 < partcount)
-          CHK(sz == b.m_partsize);
+        /* Timeout? */
+        CHK(conHasTimeoutError());
+        
+        /* Break out and restart scan unless we've
+         * run out of attempts
+         */
+        DISP("Parts table scan failed due to timeout("
+             << conError() <<").  Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+        
+        opState= Retrying;
+        sleep(1);
+        break;
+      }
+      CHK(opState == Normal);
+      CHK((ret == 0) || (ret == 1));
+      if (ret == 1)
+        break;
+      if (b.m_version == 1) {
+        if (pk1 != ra_pk->u_32_value())
+          continue;
+      } else {
+        if (pk1 != ra_pk1->u_32_value())
+          continue;
+      }
+      Uint32 part = ra_part->u_32_value();
+      Uint32 frag2 = ra_frag->u_32_value();
+      DBG("part " << part << " of " << partcount << " from fragment " << frag2);
+      CHK(part < partcount && ! seen[part]);
+      seen[part] = 1;
+      unsigned n = b.m_inline + part * b.m_partsize;
+      assert(exists && v.m_val != 0 && n < v.m_len);
+      unsigned m = v.m_len - n;
+      if (m > b.m_partsize)
+        m = b.m_partsize;
+      const char* data = ra_data->aRef();
+      if (b.m_version == 1)
+        ;
+      else {
+        // Blob v2 stored on disk is currently fixed
+        // size, so we skip these tests.
+        if (!g_usingDisk)
+        {
+          unsigned sz = getvarsize(data);
+          DBG("varsize " << sz);
+          DBG("b.m_partsize " << b.m_partsize);
+          CHK(sz <= b.m_partsize);
+          data += 2;
+          if (part + 1 < partcount)
+            CHK(sz == b.m_partsize);
+          else
+            CHK(sz == m);
+        }
+      }
+      CHK(memcmp(data, v.m_val + n, m) == 0);
+      if (b.m_version == 1 || 
+          g_usingDisk ) { // Blob v2 stored on disk is currently
+        // fixed size, so we do these tests.
+        char fillchr;
+        if (b.m_type == NdbDictionary::Column::Text)
+          fillchr = 0x20;
         else
-          CHK(sz == m);
+          fillchr = 0x0;
+        uint i = m;
+        while (i < b.m_partsize) {
+          CHK(data[i] == fillchr);
+          i++;
+        }
       }
+      DBG("frags main=" << frag << " blob=" << frag2 << " stripe=" << b.m_stripe);
+      if (b.m_stripe == 0)
+        CHK(frag == frag2);
     }
-    CHK(memcmp(data, v.m_val + n, m) == 0);
-    if (b.m_version == 1 || 
-        g_usingDisk ) { // Blob v2 stored on disk is currently
-                      // fixed size, so we do these tests.
-      char fillchr;
-      if (b.m_type == NdbDictionary::Column::Text)
-        fillchr = 0x20;
-      else
-        fillchr = 0x0;
-      uint i = m;
-      while (i < b.m_partsize) {
-        CHK(data[i] == fillchr);
-        i++;
-      }
+    
+    if (opState == Normal)
+    {
+      for (unsigned i = 0; i < partcount; i++)
+        CHK(seen[i] == 1);
     }
-    DBG("frags main=" << frag << " blob=" << frag2 << " stripe=" << b.m_stripe);
-    if (b.m_stripe == 0)
-      CHK(frag == frag2);
-  }
-  for (unsigned i = 0; i < partcount; i++)
-    CHK(seen[i] == 1);
-  delete [] seen;
-  g_ops->close();
-  g_ndb->closeTransaction(g_con);
+    delete [] seen;
+    g_ops->close();
+    g_ndb->closeTransaction(g_con);
+  } while (opState == Retrying);
+  
   g_ops = 0;
   g_con = 0;
   return 0;
@@ -1423,66 +1488,106 @@ insertPk(int style, int api)
 {
   DBG("--- insertPk " << stylename[style] << " " << apiName[api] << " ---");
   unsigned n = 0;
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  for (unsigned k = 0; k < g_opt.m_rows; k++) {
-    Tup& tup = g_tups[k];
-    DBG("insertPk pk1=" << hex << tup.m_pk1);
-    if (api == API_RECATTR)
-    {
-      CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-      CHK(g_opr->insertTuple() ==0);
-      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-      if (g_opt.m_pk2chr.m_len != 0)
+  unsigned k = 0;
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+
+  do
+  {
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    for (; k < g_opt.m_rows; k++) {
+      Tup& tup = g_tups[k];
+      DBG("insertPk pk1=" << hex << tup.m_pk1);
+      if (api == API_RECATTR)
       {
-        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        CHK(g_opr->insertTuple() ==0);
+        CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+          CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        }
+        setUDpartId(tup, g_opr);
+        CHK(getBlobHandles(g_opr) == 0);
       }
-      setUDpartId(tup, g_opr);
-      CHK(getBlobHandles(g_opr) == 0);
+      else
+      {
+        memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        if (g_opt.m_pk2chr.m_len != 0) {
+          memcpy(&tup.m_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        }
+        NdbOperation::OperationOptions opts;
+        setUDpartIdNdbRecord(tup,
+                             g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                             opts);
+        CHK((g_const_opr = g_con->insertTuple(g_full_record, 
+                                              tup.m_row,
+                                              NULL,
+                                              &opts,
+                                              sizeof(opts))) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(setBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(presetBH1(k) == 0);
+        CHK(setBlobWriteHook(tup) == 0);
+      } else {
+        CHK(presetBH1(k) == 0);
+        CHK(g_con->execute(NoCommit) == 0);
+        if (writeBlobData(tup) == -1)
+          CHK(timeout= conHasTimeoutError());
+      }
+
+      if (!timeout &&
+          (++n == g_opt.m_batch)) {
+        if (g_con->execute(Commit) == 0)
+        {
+          g_ndb->closeTransaction(g_con);
+          CHK((g_con = g_ndb->startTransaction()) != 0);
+          n = 0;
+        }
+        else
+        {
+          CHK(timeout = conHasTimeoutError());
+          n-= 1;
+        }
+      }
+
+      if (timeout)
+      {
+        /* Timeout */
+        DISP("Insert failed due to timeout("
+             << conError() <<")  "
+             << " Operations lost : " << n - 1
+             << " Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+        
+        k = k - n;
+        n = 0;
+        opState= Retrying;
+        sleep(1);
+        break;
+      }
+
+      g_const_opr = 0;
+      g_opr = 0;
+      tup.m_exists = true;
     }
-    else
+    if (opState == Normal)
     {
-      memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
-      if (g_opt.m_pk2chr.m_len != 0) {
-        memcpy(&tup.m_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      if (n != 0) {
+        CHK(g_con->execute(Commit) == 0);
+        n = 0;
       }
-      NdbOperation::OperationOptions opts;
-      setUDpartIdNdbRecord(tup,
-                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
-                           opts);
-      CHK((g_const_opr = g_con->insertTuple(g_full_record, 
-                                            tup.m_row,
-                                            NULL,
-                                            &opts,
-                                            sizeof(opts))) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
     }
-    if (style == 0) {
-      CHK(setBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(presetBH1(k) == 0);
-      CHK(setBlobWriteHook(tup) == 0);
-    } else {
-      CHK(presetBH1(k) == 0);
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(writeBlobData(tup) == 0);
-    }
-    if (++n == g_opt.m_batch) {
-      CHK(g_con->execute(Commit) == 0);
-      g_ndb->closeTransaction(g_con);
-      CHK((g_con = g_ndb->startTransaction()) != 0);
-      n = 0;
-    }
-    g_const_opr = 0;
-    g_opr = 0;
-    tup.m_exists = true;
-  }
-  if (n != 0) {
-    CHK(g_con->execute(Commit) == 0);
-    n = 0;
-  }
-  g_ndb->closeTransaction(g_con);
+    g_ndb->closeTransaction(g_con);
+  } while (opState == Retrying);
   g_con = 0;
   return 0;
 }
@@ -1493,67 +1598,94 @@ readPk(int style, int api)
   DBG("--- readPk " << stylename[style] <<" " << apiName[api] << " ---");
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
-    DBG("readPk pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    if (api == API_RECATTR)
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    OpState opState;
+
+    do
     {
-      CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-      if (urandom(2) == 0)
-        CHK(g_opr->readTuple() == 0);
-      else
-        CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
-      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-      if (g_opt.m_pk2chr.m_len != 0)
+      opState= Normal;
+      DBG("readPk pk1=" << hex << tup.m_pk1);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      if (api == API_RECATTR)
       {
-        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        if (urandom(2) == 0)
+          CHK(g_opr->readTuple() == 0);
+        else
+          CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
+        CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+          CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        }
+        setUDpartId(tup, g_opr);
+        CHK(getBlobHandles(g_opr) == 0);
       }
-      setUDpartId(tup, g_opr);
-      CHK(getBlobHandles(g_opr) == 0);
-    }
-    else
-    { // NdbRecord
-      memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
-      if (g_opt.m_pk2chr.m_len != 0) {
-        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      }
-      NdbOperation::OperationOptions opts;
-      setUDpartIdNdbRecord(tup,
-                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
-                           opts);
-      if (urandom(2) == 0)
-        CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
-                                            g_blob_record, tup.m_row,
-                                            NdbOperation::LM_Read,
-                                            NULL,
-                                            &opts,
-                                            sizeof(opts))) != 0);
       else
-        CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
-                                            g_blob_record, tup.m_row,
-                                            NdbOperation::LM_CommittedRead,
-                                            NULL,
-                                            &opts,
-                                            sizeof(opts))) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
-    }
-    if (style == 0) {
-      CHK(getBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(setBlobReadHook(tup) == 0);
-    } else {
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(readBlobData(tup) == 0);
-    }
-    CHK(g_con->execute(Commit) == 0);
-    // verify lock mode upgrade
-    CHK((g_opr?g_opr:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
+      { // NdbRecord
+        memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        if (g_opt.m_pk2chr.m_len != 0) {
+          memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        }
+        NdbOperation::OperationOptions opts;
+        setUDpartIdNdbRecord(tup,
+                             g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                             opts);
+        if (urandom(2) == 0)
+          CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
+                                              g_blob_record, tup.m_row,
+                                              NdbOperation::LM_Read,
+                                              NULL,
+                                              &opts,
+                                              sizeof(opts))) != 0);
+        else
+          CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
+                                              g_blob_record, tup.m_row,
+                                              NdbOperation::LM_CommittedRead,
+                                              NULL,
+                                              &opts,
+                                              sizeof(opts))) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(getBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(setBlobReadHook(tup) == 0);
+      } else {
+        CHK(g_con->execute(NoCommit) == 0);
+        if (readBlobData(tup) == -1)
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (!timeout)
+      {
+        if (g_con->execute(Commit) != 0)
+        {
+          CHK(timeout= conHasTimeoutError());
+        }
+      }
+      if (timeout)
+      {
+        DISP("ReadPk failed due to timeout("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+        opState= Retrying;
+        sleep(1);
+      }
+      else
+      {
+        // verify lock mode upgrade
+        CHK((g_opr?g_opr:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
     
-    if (style == 0 || style == 1) {
-      CHK(verifyBlobValue(tup) == 0);
-    }
-    g_ndb->closeTransaction(g_con);
+        if (style == 0 || style == 1) {
+          CHK(verifyBlobValue(tup) == 0);
+        }
+      }
+      g_ndb->closeTransaction(g_con);
+    } while (opState == Retrying);
     g_opr = 0;
     g_const_opr = 0;
     g_con = 0;
@@ -1568,7 +1700,12 @@ updatePk(int style, int api)
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("updatePk pk1=" << hex << tup.m_pk1);
-    while (1) {
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    OpState opState;
+
+    do
+    {
+      opState= Normal;
       int mode = urandom(3);
       int error_code = mode == 0 ? 0 : 4275;
       CHK((g_con = g_ndb->startTransaction()) != 0);
@@ -1626,21 +1763,42 @@ updatePk(int style, int api)
         CHK(getBlobHandles(g_const_opr) == 0);
       }
 
+      bool timeout= false;
       if (style == 0) {
         CHK(setBlobValue(tup, error_code) == 0);
       } else if (style == 1) {
         CHK(setBlobWriteHook(tup, error_code) == 0);
       } else {
         CHK(g_con->execute(NoCommit) == 0);
-        CHK(writeBlobData(tup, error_code) == 0);
+        if (writeBlobData(tup, error_code) != 0)
+          CHK(timeout= conHasTimeoutError());
       }
-      if (error_code == 0) {
-        CHK(g_con->execute(Commit) == 0);
-        g_ndb->closeTransaction(g_con);
-        break;
+      if (!timeout &&
+          (error_code == 0)) {
+        /* Normal success case, try execute commit */
+        if (g_con->execute(Commit) != 0)
+          CHK(timeout= conHasTimeoutError());
+        else
+        {
+          g_ndb->closeTransaction(g_con);
+          break;
+        }
       }
+      if (timeout)
+      {
+        DISP("UpdatePk failed due to timeout("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+        
+        opState= Retrying;
+        sleep(1);
+      }
+      if (error_code)
+        opState= Retrying;
+
       g_ndb->closeTransaction(g_con);
-    }
+    } while (opState == Retrying);
     g_const_opr = 0;
     g_opr = 0;
     g_con = 0;
@@ -1655,52 +1813,77 @@ writePk(int style, int api)
   DBG("--- writePk " << stylename[style] << " " << apiName[api] << " ---");
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
-    DBG("writePk pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    if (api == API_RECATTR)
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    enum OpState opState;
+    
+    do
     {
-      CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-      CHK(g_opr->writeTuple() == 0);
-      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-      if (g_opt.m_pk2chr.m_len != 0)
+      opState= Normal;
+      DBG("writePk pk1=" << hex << tup.m_pk1);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      if (api == API_RECATTR)
       {
-        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        CHK(g_opr->writeTuple() == 0);
+        CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+          CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        }
+        setUDpartId(tup, g_opr);
+        CHK(getBlobHandles(g_opr) == 0);
       }
-      setUDpartId(tup, g_opr);
-      CHK(getBlobHandles(g_opr) == 0);
-    }
-    else
-    {
-      memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
-      memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
-      if (g_opt.m_pk2chr.m_len != 0) {
-        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-        memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      else
+      {
+        memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        if (g_opt.m_pk2chr.m_len != 0) {
+          memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+          memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        }
+        NdbOperation::OperationOptions opts;
+        setUDpartIdNdbRecord(tup,
+                             g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                             opts);
+        CHK((g_const_opr= g_con->writeTuple(g_key_record, tup.m_key_row,
+                                            g_full_record, tup.m_row,
+                                            NULL, &opts, sizeof(opts))) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
       }
-      NdbOperation::OperationOptions opts;
-      setUDpartIdNdbRecord(tup,
-                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
-                           opts);
-      CHK((g_const_opr= g_con->writeTuple(g_key_record, tup.m_key_row,
-                                          g_full_record, tup.m_row,
-                                          NULL, &opts, sizeof(opts))) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
-    }
-    if (style == 0) {
-      CHK(setBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(presetBH1(k) == 0);
-      CHK(setBlobWriteHook(tup) == 0);
-    } else {
-      CHK(presetBH1(k) == 0);
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(writeBlobData(tup) == 0);
-    }
-    CHK(g_con->execute(Commit) == 0);
-    g_ndb->closeTransaction(g_con);
+      bool timeout= false;
+      if (style == 0) {
+        CHK(setBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(presetBH1(k) == 0);
+        CHK(setBlobWriteHook(tup) == 0);
+      } else {
+        CHK(presetBH1(k) == 0);
+        CHK(g_con->execute(NoCommit) == 0);
+        if (writeBlobData(tup) != 0)
+          CHK(timeout= conHasTimeoutError());
+      }
+
+      if (!timeout)
+      {
+        if (g_con->execute(Commit) != 0)
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (timeout)
+      {
+        DISP("WritePk failed due to timeout("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+
+        opState= Retrying;
+        sleep(1);
+      }
+      g_ndb->closeTransaction(g_con);
+    } while (opState == Retrying);
+
     g_const_opr = 0;
     g_opr = 0;
     g_con = 0;
@@ -1714,57 +1897,93 @@ deletePk(int api)
 {
   DBG("--- deletePk " << apiName[api] << " ---");
   unsigned n = 0;
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  for (unsigned k = 0; k < g_opt.m_rows; k++) {
-    Tup& tup = g_tups[k];
-    DBG("deletePk pk1=" << hex << tup.m_pk1);
-    if (api == API_RECATTR)
-    {
-      CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-      CHK(g_opr->deleteTuple() == 0);
-      /* Must set explicit partitionId before equal() calls as that's
-       * where implicit Blob handles are created which need the 
-       * partitioning info
-       */
-      setUDpartId(tup, g_opr);
-      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-      if (g_opt.m_pk2chr.m_len != 0)
+  unsigned k = 0;
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+
+  do
+  {
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    for (; k < g_opt.m_rows; k++) {
+      Tup& tup = g_tups[k];
+      DBG("deletePk pk1=" << hex << tup.m_pk1);
+      if (api == API_RECATTR)
       {
-        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        CHK(g_opr->deleteTuple() == 0);
+        /* Must set explicit partitionId before equal() calls as that's
+         * where implicit Blob handles are created which need the 
+         * partitioning info
+         */
+        setUDpartId(tup, g_opr);
+        CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+          CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        }
       }
-    }
-    else
+      else
+      {
+        memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        if (g_opt.m_pk2chr.m_len != 0) {
+          memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        }
+        NdbOperation::OperationOptions opts;
+        setUDpartIdNdbRecord(tup,
+                             g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                             opts);
+        CHK((g_const_opr= g_con->deleteTuple(g_key_record, tup.m_key_row,
+                                             g_full_record, NULL,
+                                             NULL, &opts, sizeof(opts))) != 0);
+      }
+      if (++n == g_opt.m_batch) {
+        if (g_con->execute(Commit) != 0)
+        {
+          CHK(conHasTimeoutError());
+          DISP("DeletePk failed due to timeout("
+               << conError() <<")  Retries left : "
+               << opTimeoutRetries -1);
+          CHK(--opTimeoutRetries);
+          
+          opState= Retrying;
+          k= k - (n-1);
+          n= 0;
+          sleep(1);
+          break; // Out of for
+        }
+          
+        g_ndb->closeTransaction(g_con);
+        CHK((g_con = g_ndb->startTransaction()) != 0);
+        n = 0;
+      }
+      g_const_opr = 0;
+      g_opr = 0;
+      tup.m_exists = false;
+    } // for(
+    if (opState == Normal)
     {
-      memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
-      if (g_opt.m_pk2chr.m_len != 0) {
-        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+      if (n != 0) {
+        if (g_con->execute(Commit) != 0)
+        {
+          CHK(conHasTimeoutError());
+          DISP("DeletePk failed on last batch ("
+               << conError() <<")  Retries left : "
+               << opTimeoutRetries -1);
+          CHK(--opTimeoutRetries);
+          sleep(1);
+          opState= Retrying;
+          k= k- (n-1);
+        } 
+        n = 0;
       }
-      NdbOperation::OperationOptions opts;
-      setUDpartIdNdbRecord(tup,
-                           g_ndb->getDictionary()->getTable(g_opt.m_tname),
-                           opts);
-      CHK((g_const_opr= g_con->deleteTuple(g_key_record, tup.m_key_row,
-                                           g_full_record, NULL,
-                                           NULL, &opts, sizeof(opts))) != 0);
     }
-    if (++n == g_opt.m_batch) {
-      CHK(g_con->execute(Commit) == 0);
-      g_ndb->closeTransaction(g_con);
-      CHK((g_con = g_ndb->startTransaction()) != 0);
-      n = 0;
-    }
-    g_const_opr = 0;
-    g_opr = 0;
-    tup.m_exists = false;
-  }
-  if (n != 0) {
-    CHK(g_con->execute(Commit) == 0);
-    n = 0;
-  }
-  g_ndb->closeTransaction(g_con);
-  g_con = 0;
+    g_ndb->closeTransaction(g_con);
+    g_con = 0;
+  } while (opState == Retrying);
+
   return 0;
 }
 
@@ -1821,50 +2040,78 @@ readIdx(int style, int api)
   DBG("--- readIdx " << stylename[style] << " " << apiName[api] << " ---");
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
-    DBG("readIdx pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    if (api == API_RECATTR)
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    enum OpState opState;
+    
+    do
     {
-      CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-      if (urandom(2) == 0)
-        CHK(g_opx->readTuple() == 0);
+      opState= Normal;
+      DBG("readIdx pk1=" << hex << tup.m_pk1);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      if (api == API_RECATTR)
+      {
+        CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
+        if (urandom(2) == 0)
+          CHK(g_opx->readTuple() == 0);
+        else
+          CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
+        CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+        /* No need to set partition Id for unique indexes */
+        CHK(getBlobHandles(g_opx) == 0);
+      }
       else
-        CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
-      CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
-      /* No need to set partition Id for unique indexes */
-      CHK(getBlobHandles(g_opx) == 0);
-    }
-    else
-    {
-      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      /* No need to set partition Id for unique indexes */
-      if (urandom(2) == 0)
-        CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
-                                           g_blob_record, tup.m_row)) != 0);
-      else
-        CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
-                                           g_blob_record, tup.m_row,
-                                           NdbOperation::LM_CommittedRead)) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
-    }
+      {
+        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        /* No need to set partition Id for unique indexes */
+        if (urandom(2) == 0)
+          CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
+                                             g_blob_record, tup.m_row)) != 0);
+        else
+          CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
+                                             g_blob_record, tup.m_row,
+                                             NdbOperation::LM_CommittedRead)) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
 
-    if (style == 0) {
-      CHK(getBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(setBlobReadHook(tup) == 0);
-    } else {
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(readBlobData(tup) == 0);
-    }
-    CHK(g_con->execute(Commit) == 0);
-    // verify lock mode upgrade (already done by NdbIndexOperation)
-    CHK((g_opx?g_opx:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
-    if (style == 0 || style == 1) {
-      CHK(verifyBlobValue(tup) == 0);
-    }
-    g_ndb->closeTransaction(g_con);
+      bool timeout= false;
+      if (style == 0) {
+        CHK(getBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(setBlobReadHook(tup) == 0);
+      } else {
+        if(g_con->execute(NoCommit) ||
+           readBlobData(tup))
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (!timeout)
+      {
+        if (g_con->execute(Commit) != 0)
+        {
+          CHK(timeout= conHasTimeoutError());
+        }
+      }
+      if (!timeout)
+      {
+        // verify lock mode upgrade (already done by NdbIndexOperation)
+        CHK((g_opx?g_opx:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
+        if (style == 0 || style == 1) {
+          CHK(verifyBlobValue(tup) == 0);
+        }
+      }
+      else
+      {
+        DISP("Timeout while reading via index ("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+        
+        opState= Retrying;
+        sleep(1);
+      }
+      g_ndb->closeTransaction(g_con);
+    } while (opState == Retrying);
     g_const_opr = 0;
     g_opx = 0;
     g_con = 0;
@@ -1878,37 +2125,59 @@ updateIdx(int style, int api)
   DBG("--- updateIdx " << stylename[style] << " " << apiName[api] << " ---");
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
-    DBG("updateIdx pk1=" << hex << tup.m_pk1);
-    // skip 4275 testing
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    if (api == API_RECATTR)
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    enum OpState opState;
+
+    do
     {
-      CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-      CHK(g_opx->updateTuple() == 0);
-      CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
-      /* No need to set partition Id for unique indexes */
-      CHK(getBlobHandles(g_opx) == 0);
-    }
-    else
-    {
-      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      /* No need to set partition Id for unique indexes */
-      CHK((g_const_opr= g_con->updateTuple(g_idx_record, tup.m_key_row,
-                                           g_blob_record, tup.m_row)) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
-    }
-    if (style == 0) {
-      CHK(setBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(setBlobWriteHook(tup) == 0);
-    } else {
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(writeBlobData(tup) == 0);
-    }
-    CHK(g_con->execute(Commit) == 0);
-    g_ndb->closeTransaction(g_con);
+      opState= Normal;
+      DBG("updateIdx pk1=" << hex << tup.m_pk1);
+      // skip 4275 testing
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      if (api == API_RECATTR)
+      {
+        CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
+        CHK(g_opx->updateTuple() == 0);
+        CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+        /* No need to set partition Id for unique indexes */
+        CHK(getBlobHandles(g_opx) == 0);
+      }
+      else
+      {
+        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        /* No need to set partition Id for unique indexes */
+        CHK((g_const_opr= g_con->updateTuple(g_idx_record, tup.m_key_row,
+                                             g_blob_record, tup.m_row)) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(setBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(setBlobWriteHook(tup) == 0);
+      } else {
+        if (g_con->execute(NoCommit) ||
+            writeBlobData(tup))
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (!timeout)
+      {
+        if (g_con->execute(Commit) != 0)
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (timeout)
+      {
+        DISP("Timeout in Index Update ("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries-1);
+        CHK(--opTimeoutRetries);
+        opState= Retrying;
+        sleep(1);
+      }
+      g_ndb->closeTransaction(g_con);
+    } while (opState == Retrying);
     g_const_opr = 0;
     g_opx = 0;
     g_con = 0;
@@ -1923,43 +2192,65 @@ writeIdx(int style, int api)
   DBG("--- writeIdx " << stylename[style] << " " << apiName[api] << " ---");
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
-    DBG("writeIdx pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    if (api == API_RECATTR)
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    enum OpState opState;
+    
+    do
     {
-      CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-      CHK(g_opx->writeTuple() == 0);
-      CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
-      /* No need to set partition Id for unique indexes */
-      CHK(getBlobHandles(g_opx) == 0);
-    }
-    else
-    {
-      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
-      memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-      memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      /* No need to set partition Id for unique indexes */
-      CHK((g_const_opr= g_con->writeTuple(g_idx_record, tup.m_key_row,
-                                          g_full_record, tup.m_row)) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
-    }
-    if (style == 0) {
-      CHK(setBlobValue(tup) == 0);
-    } else if (style == 1) {
-      // non-nullable must be set
-      CHK(g_bh1->setValue("", 0) == 0);
-      CHK(setBlobWriteHook(tup) == 0);
-    } else {
-      // non-nullable must be set
-      CHK(g_bh1->setValue("", 0) == 0);
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(writeBlobData(tup) == 0);
-    }
-    CHK(g_con->execute(Commit) == 0);
-    g_ndb->closeTransaction(g_con);
+      opState= Normal;
+      DBG("writeIdx pk1=" << hex << tup.m_pk1);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      if (api == API_RECATTR)
+      {
+        CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
+        CHK(g_opx->writeTuple() == 0);
+        CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+        /* No need to set partition Id for unique indexes */
+        CHK(getBlobHandles(g_opx) == 0);
+      }
+      else
+      {
+        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        memcpy(&tup.m_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        memcpy(&tup.m_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+        memcpy(&tup.m_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        /* No need to set partition Id for unique indexes */
+        CHK((g_const_opr= g_con->writeTuple(g_idx_record, tup.m_key_row,
+                                            g_full_record, tup.m_row)) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(setBlobValue(tup) == 0);
+      } else if (style == 1) {
+        // non-nullable must be set
+        CHK(g_bh1->setValue("", 0) == 0);
+        CHK(setBlobWriteHook(tup) == 0);
+      } else {
+        // non-nullable must be set
+        CHK(g_bh1->setValue("", 0) == 0);
+        if (g_con->execute(NoCommit) ||
+            writeBlobData(tup))
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (!timeout)
+      {
+        if (g_con->execute(Commit))
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (timeout)
+      {
+        DISP("Timeout in Index Write ("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries-1);
+        CHK(--opTimeoutRetries);
+        opState= Retrying;
+        sleep(1);
+      }
+      g_ndb->closeTransaction(g_con);
+    } while (opState == Retrying);
     g_const_opr = 0;
     g_opx = 0;
     g_con = 0;
@@ -1973,41 +2264,74 @@ deleteIdx(int api)
 {
   DBG("--- deleteIdx " << apiName[api] << " ---");
   unsigned n = 0;
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  for (unsigned k = 0; k < g_opt.m_rows; k++) {
-    Tup& tup = g_tups[k];
-    DBG("deleteIdx pk1=" << hex << tup.m_pk1);
-    if (api == API_RECATTR)
-    {
-      CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-      CHK(g_opx->deleteTuple() == 0);
-      CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
-      CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
-      /* No need to set partition Id for unique indexes */
+  unsigned k = 0;
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+
+  do
+  {
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    for (; k < g_opt.m_rows; k++) {
+      Tup& tup = g_tups[k];
+      DBG("deleteIdx pk1=" << hex << tup.m_pk1);
+      if (api == API_RECATTR)
+      {
+        CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
+        CHK(g_opx->deleteTuple() == 0);
+        CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
+        /* No need to set partition Id for unique indexes */
+      }
+      else
+      {
+        memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+        memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        /* No need to set partition Id for unique indexes */
+        CHK((g_const_opr= g_con->deleteTuple(g_idx_record, tup.m_key_row,
+                                             g_full_record)) != 0);
+      }
+      if (++n == g_opt.m_batch) {
+        if (g_con->execute(Commit))
+        {
+          CHK(conHasTimeoutError());
+          DISP("Timeout deleteing via index ("
+               << conError() <<")  Retries left :"
+               << opTimeoutRetries-1);
+          CHK(--opTimeoutRetries);
+          opState= Retrying;
+          k= k- (n-1);
+          n= 0;
+          sleep(1);
+          break;
+        }
+
+        g_ndb->closeTransaction(g_con);
+        CHK((g_con = g_ndb->startTransaction()) != 0);
+        n = 0;
+      }
+
+      g_const_opr = 0;
+      g_opx = 0;
+      tup.m_exists = false;
     }
-    else
-    {
-      memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
-      memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      /* No need to set partition Id for unique indexes */
-      CHK((g_const_opr= g_con->deleteTuple(g_idx_record, tup.m_key_row,
-                                           g_full_record)) != 0);
-    }
-    if (++n == g_opt.m_batch) {
-      CHK(g_con->execute(Commit) == 0);
-      g_ndb->closeTransaction(g_con);
-      CHK((g_con = g_ndb->startTransaction()) != 0);
+    if ((opState == Normal) &&
+        (n != 0)) {
+      if(g_con->execute(Commit))
+      {
+        CHK(conHasTimeoutError());
+        DISP("Timeout on last idx delete batch ("
+             << conError() <<")  Retries left :"
+             << opTimeoutRetries-1);
+        CHK(--opTimeoutRetries);
+        opState= Retrying;
+        k= k-(n-1);
+        sleep(1);
+      }
       n = 0;
     }
-    g_const_opr = 0;
-    g_opx = 0;
-    tup.m_exists = false;
-  }
-  if (n != 0) {
-    CHK(g_con->execute(Commit) == 0);
-    n = 0;
-  }
-  g_ndb->closeTransaction(g_con);
+    g_ndb->closeTransaction(g_con);
+  } while (opState == Retrying);
   g_con= 0;
   g_opx= 0;
   g_const_opr= 0;
@@ -2022,298 +2346,96 @@ readScan(int style, int api, bool idx)
   DBG("--- " << "readScan" << (idx ? "Idx" : "") << " " << stylename[style] << " " << apiName[api] << " ---");
   Tup tup;
   tup.alloc();  // allocate buffers
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  if (api == API_RECATTR)
+
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+
+  do
   {
-    if (! idx) {
-      CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-    } else {
-      CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
-    }
-    if (urandom(2) == 0)
-      CHK(g_ops->readTuples(NdbOperation::LM_Read,
-                            g_scanFlags,
-                            g_batchSize,
-                            g_parallel) == 0);
-    else
-      CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead,
-                            g_scanFlags,
-                            g_batchSize,
-                            g_parallel) == 0);
-    CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-    if (g_opt.m_pk2chr.m_len != 0)
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    if (api == API_RECATTR)
     {
-      CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
-      CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
-    }
-    /* Don't bother setting UserDefined partitions for scan tests */
-    CHK(getBlobHandles(g_ops) == 0);   
-  }
-  else
-  {
-    /* Don't bother setting UserDefined partitions for scan tests */
-    if (urandom(2) == 0)
-      if (! idx)
-        CHK((g_ops= g_con->scanTable(g_full_record,
-                                     NdbOperation::LM_Read)) != 0);
-      else 
-        CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
-                                     NdbOperation::LM_Read)) != 0);
-    else
-      if (! idx)
-        CHK((g_ops= g_con->scanTable(g_full_record,
-                                     NdbOperation::LM_CommittedRead)) != 0);
+      if (! idx) {
+        CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
+      } else {
+        CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
+      }
+      if (urandom(2) == 0)
+        CHK(g_ops->readTuples(NdbOperation::LM_Read,
+                              g_scanFlags,
+                              g_batchSize,
+                              g_parallel) == 0);
       else
-        CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
-                                     NdbOperation::LM_CommittedRead)) != 0);
-    CHK(getBlobHandles(g_ops) == 0);
-  }
-
-  if (style == 0) {
-    CHK(getBlobValue(tup) == 0);
-  } else if (style == 1) {
-    CHK(setBlobReadHook(tup) == 0);
-  }
-  CHK(g_con->execute(NoCommit) == 0);
-  // verify lock mode upgrade
-  CHK(g_ops->getLockMode() == NdbOperation::LM_Read);
-  unsigned rows = 0;
-  while (1) {
-    int ret;
-
-    if (api == API_RECATTR)
-    {
-      tup.m_pk1 = (Uint32)-1;
-      memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-      tup.m_pk3 = -1;
-      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-    }
-    else
-    {
-      const char *out_row= NULL;
-
-      CHK((ret = g_ops->nextResult(&out_row, true, false)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-      memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+        CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead,
+                              g_scanFlags,
+                              g_batchSize,
+                              g_parallel) == 0);
+      CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
       if (g_opt.m_pk2chr.m_len != 0)
       {
-        memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+        CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
+        CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
       }
+      /* Don't bother setting UserDefined partitions for scan tests */
+      CHK(getBlobHandles(g_ops) == 0);   
+    }
+    else
+    {
+      /* Don't bother setting UserDefined partitions for scan tests */
+      if (urandom(2) == 0)
+        if (! idx)
+          CHK((g_ops= g_con->scanTable(g_full_record,
+                                       NdbOperation::LM_Read)) != 0);
+        else 
+          CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
+                                       NdbOperation::LM_Read)) != 0);
+      else
+        if (! idx)
+          CHK((g_ops= g_con->scanTable(g_full_record,
+                                       NdbOperation::LM_CommittedRead)) != 0);
+        else
+          CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
+                                       NdbOperation::LM_CommittedRead)) != 0);
+      CHK(getBlobHandles(g_ops) == 0);
     }
 
-    DBG("readScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
-    Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
-    CHK(k < g_opt.m_rows && g_tups[k].m_exists);
-    tup.copyfrom(g_tups[k]);
     if (style == 0) {
-      CHK(verifyBlobValue(tup) == 0);
+      CHK(getBlobValue(tup) == 0);
     } else if (style == 1) {
-      // execute ops generated by callbacks, if any
-      CHK(verifyBlobValue(tup) == 0);
-    } else {
-      CHK(readBlobData(tup) == 0);
+      CHK(setBlobReadHook(tup) == 0);
     }
-    rows++;
-  }
-  g_ndb->closeTransaction(g_con);
-  g_con = 0;
-  g_ops = 0;
-  CHK(g_opt.m_rows == rows);
-  return 0;
-}
-
-static int
-updateScan(int style, int api, bool idx)
-{
-  DBG("--- " << "updateScan" << (idx ? "Idx" : "") << " " << stylename[style] << " " << apiName[api] << " ---");
-  Tup tup;
-  tup.alloc();  // allocate buffers
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  if (api == API_RECATTR)
-  {
-    if (! idx) {
-      CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-    } else {
-      CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
-    }
-    CHK(g_ops->readTuples(NdbOperation::LM_Exclusive,
-                          g_scanFlags,
-                          g_batchSize,
-                          g_parallel) == 0);
-    CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-    if (g_opt.m_pk2chr.m_len != 0)
+    if (g_con->execute(NoCommit))
     {
-      CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
-      CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
+      CHK(conHasTimeoutError());
+      DISP("Timeout scan read ("
+           << conError()
+           << ").  Retries left : "
+           <<  opTimeoutRetries - 1);
+      CHK(--opTimeoutRetries);
+      opState= Retrying;
+      g_ndb->closeTransaction(g_con);
+      continue;
     }
-    /* Don't bother setting UserDefined partitions for scan tests */
-  }
-  else
-  {
-    /* Don't bother setting UserDefined partitions for scan tests */
-    if (! idx)
-      CHK((g_ops= g_con->scanTable(g_key_record,
-                                   NdbOperation::LM_Exclusive)) != 0);
-    else
-      CHK((g_ops= g_con->scanIndex(g_ord_record, g_key_record,
-                                   NdbOperation::LM_Exclusive)) != 0);
-  }
-  CHK(g_con->execute(NoCommit) == 0);
-  unsigned rows = 0;
-  while (1) {
-    const char *out_row= NULL;
-    int ret;
-
-    if (api == API_RECATTR)
-    {
-      tup.m_pk1 = (Uint32)-1;
-      memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_totlen);
-      tup.m_pk3 = -1;
-
-      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-    }
-    else
-    {
-      CHK((ret = g_ops->nextResult(&out_row, true, false)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-      memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
-      if (g_opt.m_pk2chr.m_len != 0) {
-        memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
-      }    
-    }
-
-    DBG("updateScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
-    Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
-    CHK(k < g_opt.m_rows && g_tups[k].m_exists);
-    // calculate new blob values
-    calcBval(g_tups[k], false);
-    tup.copyfrom(g_tups[k]);
-    // cannot do 4275 testing, scan op error code controls execution
-    if (api == API_RECATTR)
-    {
-      CHK((g_opr = g_ops->updateCurrentTuple()) != 0);
-      CHK(getBlobHandles(g_opr) == 0);
-    }
-    else
-    {
-      CHK((g_const_opr = g_ops->updateCurrentTuple(g_con, g_blob_record, tup.m_row)) != 0);
-      CHK(getBlobHandles(g_const_opr) == 0);
-    }
-    if (style == 0) {
-      CHK(setBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(setBlobWriteHook(tup) == 0);
-    } else {
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(writeBlobData(tup) == 0);
-    }
-    CHK(g_con->execute(NoCommit) == 0);
-    g_const_opr = 0;
-    g_opr = 0;
-    rows++;
-  }
-  CHK(g_con->execute(Commit) == 0);
-  g_ndb->closeTransaction(g_con);
-  g_con = 0;
-  g_ops = 0;
-  CHK(g_opt.m_rows == rows);
-  return 0;
-}
-
-static int
-deleteScan(int api, bool idx)
-{
-  DBG("--- " << "deleteScan" << (idx ? "Idx" : "") << apiName[api] << " ---");
-  Tup tup;
-  CHK((g_con = g_ndb->startTransaction()) != 0);
-  
-  if (api == API_RECATTR)
-  {
-    if (! idx) {
-      CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
-    } else {
-      CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
-    }
-    CHK(g_ops->readTuples(NdbOperation::LM_Exclusive,
-                          g_scanFlags,
-                          g_batchSize,
-                          g_parallel) == 0);
-    CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
-    if (g_opt.m_pk2chr.m_len != 0)
-    {
-      CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
-      CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
-    }
-    /* Don't bother setting UserDefined partitions for scan tests */
-  }
-  else
-  {
-    /* Don't bother setting UserDefined partitions for scan tests */
-    if (! idx)
-      CHK((g_ops= g_con->scanTable(g_key_record,
-                                   NdbOperation::LM_Exclusive)) != 0);
-    else
-      CHK((g_ops= g_con->scanIndex(g_ord_record, g_key_record,
-                                   NdbOperation::LM_Exclusive)) != 0);
-  }
-  CHK(g_con->execute(NoCommit) == 0);
-  unsigned rows = 0;
-  unsigned n = 0;
-  while (1) {
-    int ret;
-
-    if (api == API_RECATTR)
-    {
-      tup.m_pk1 = (Uint32)-1;
-      memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-      tup.m_pk3 = -1;
-      CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-    }
-    else
-    {
-      const char *out_row= NULL;
-
-      CHK((ret = g_ops->nextResult(&out_row, true, false)) == 0 || ret == 1);
-      if (ret == 1)
-        break;
-      memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
-      if (g_opt.m_pk2chr.m_len != 0)
-      {
-        memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
-        memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
-      }
-    }
-
+    
+    // verify lock mode upgrade
+    CHK(g_ops->getLockMode() == NdbOperation::LM_Read);
+    unsigned rows = 0;
     while (1) {
-      DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
-      Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
-      CHK(k < g_opt.m_rows && g_tups[k].m_exists);
-      g_tups[k].m_exists = false;
+      int ret;
+
       if (api == API_RECATTR)
-        CHK(g_ops->deleteCurrentTuple() == 0);
+      {
+        tup.m_pk1 = (Uint32)-1;
+        memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
+        tup.m_pk3 = -1;
+        ret = g_ops->nextResult(true);
+      }
       else
-        CHK(g_ops->deleteCurrentTuple(g_con, g_key_record) != NULL);
-      rows++;
-      tup.m_pk1 = (Uint32)-1;
-      memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
-      tup.m_pk3 = -1;
-      if (api == API_RECATTR)
-        CHK((ret = g_ops->nextResult(false)) == 0 || ret == 1 || ret == 2);
-      else
-      {      
+      {
         const char *out_row= NULL;
-        CHK((ret = g_ops->nextResult(&out_row, false, false)) == 0 || ret == 1 || ret == 2);
-        if (ret == 0)
+
+        if (0 == (ret = g_ops->nextResult(&out_row, true, false)))
         {
           memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
           if (g_opt.m_pk2chr.m_len != 0)
@@ -2323,25 +2445,390 @@ deleteScan(int api, bool idx)
           }
         }
       }
-      if (++n == g_opt.m_batch || ret == 2) {
-        DBG("execute batch: n=" << n << " ret=" << ret);
-        if (! g_opt.m_fac) {
-          CHK(g_con->execute(NoCommit) == 0);
-        } else {
-          CHK(g_con->execute(Commit) == 0);
-          CHK(g_con->restart() == 0);
+  
+      if (ret == -1)
+      {
+        /* Timeout? */
+        if (conHasTimeoutError())
+        {
+          /* Break out and restart scan unless we've
+           * run out of attempts
+           */
+          DISP("Scan read failed due to deadlock timeout ("
+               << conError() <<") retries left :" 
+               << opTimeoutRetries -1);
+          CHK(--opTimeoutRetries);
+
+          opState= Retrying;
+          sleep(1);
+          break;
         }
-        n = 0;
       }
-      if (ret == 2)
+      CHK(opState == Normal);
+      CHK((ret == 0) || (ret == 1));
+      if (ret == 1)
         break;
+
+      DBG("readScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
+      Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
+      CHK(k < g_opt.m_rows && g_tups[k].m_exists);
+      tup.copyfrom(g_tups[k]);
+      if (style == 0) {
+        CHK(verifyBlobValue(tup) == 0);
+      } else if (style == 1) {
+        // execute ops generated by callbacks, if any
+        CHK(verifyBlobValue(tup) == 0);
+      } else {
+        if (readBlobData(tup))
+        {
+          CHK(conHasTimeoutError());
+          DISP("Timeout in readScan("
+               << conError()
+               << ") Retries left : "
+               << opTimeoutRetries - 1);
+          CHK(--opTimeoutRetries);
+          opState= Retrying;
+          sleep(1);
+          continue;
+        }
+      }
+      rows++;
     }
-  }
-  CHK(g_con->execute(Commit) == 0);
-  g_ndb->closeTransaction(g_con);
+    g_ndb->closeTransaction(g_con);
+
+    if (opState == Normal)
+      CHK(g_opt.m_rows == rows);
+
+  } while (opState == Retrying);
+
   g_con = 0;
   g_ops = 0;
-  CHK(g_opt.m_rows == rows);
+  return 0;
+}
+
+static int
+updateScan(int style, int api, bool idx)
+{
+  DBG("--- " << "updateScan" << (idx ? "Idx" : "") << " " << stylename[style] << " " << apiName[api] << " ---");
+  Tup tup;
+  tup.alloc();  // allocate buffers
+
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+
+  do
+  {
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    if (api == API_RECATTR)
+    {
+      if (! idx) {
+        CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
+      } else {
+        CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
+      }
+      CHK(g_ops->readTuples(NdbOperation::LM_Exclusive,
+                            g_scanFlags,
+                            g_batchSize,
+                            g_parallel) == 0);
+      CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
+        CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
+      }
+      /* Don't bother setting UserDefined partitions for scan tests */
+    }
+    else
+    {
+      /* Don't bother setting UserDefined partitions for scan tests */
+      if (! idx)
+        CHK((g_ops= g_con->scanTable(g_key_record,
+                                     NdbOperation::LM_Exclusive)) != 0);
+      else
+        CHK((g_ops= g_con->scanIndex(g_ord_record, g_key_record,
+                                     NdbOperation::LM_Exclusive)) != 0);
+    }
+    CHK(g_con->execute(NoCommit) == 0);
+    unsigned rows = 0;
+    while (1) {
+      const char *out_row= NULL;
+      int ret;
+
+      if (api == API_RECATTR)
+      {
+        tup.m_pk1 = (Uint32)-1;
+        memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_totlen);
+        tup.m_pk3 = -1;
+
+        ret = g_ops->nextResult(true);
+      }
+      else
+      {
+        if(0 == (ret = g_ops->nextResult(&out_row, true, false)))
+        {
+          memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+          if (g_opt.m_pk2chr.m_len != 0) {
+            memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+            memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+          }    
+        }
+      }
+      
+      if (ret == -1)
+      {
+        /* Timeout? */
+        if (conHasTimeoutError())
+        {
+          /* Break out and restart scan unless we've
+           * run out of attempts
+           */
+          DISP("Scan update failed due to deadlock timeout ("
+               << conError() <<"), retries left :" 
+               << opTimeoutRetries -1);
+          CHK(--opTimeoutRetries);
+
+          opState= Retrying;
+          sleep(1);
+          break;
+        }
+      }
+      CHK(opState == Normal);
+      CHK((ret == 0) || (ret == 1));
+      if (ret == 1)
+        break;      
+
+      DBG("updateScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
+      Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
+      CHK(k < g_opt.m_rows && g_tups[k].m_exists);
+      // calculate new blob values
+      calcBval(g_tups[k], false);
+      tup.copyfrom(g_tups[k]);
+      // cannot do 4275 testing, scan op error code controls execution
+      if (api == API_RECATTR)
+      {
+        CHK((g_opr = g_ops->updateCurrentTuple()) != 0);
+        CHK(getBlobHandles(g_opr) == 0);
+      }
+      else
+      {
+        CHK((g_const_opr = g_ops->updateCurrentTuple(g_con, g_blob_record, tup.m_row)) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(setBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(setBlobWriteHook(tup) == 0);
+      } else {
+        CHK(g_con->execute(NoCommit) == 0);
+        if (writeBlobData(tup))
+          CHK(timeout= conHasTimeoutError());
+      }
+      if (!timeout &&
+          (g_con->execute(NoCommit)))
+        CHK(timeout= conHasTimeoutError());
+
+      if (timeout)
+      {
+        DISP("Scan update timeout("
+             << conError()
+             << ") Retries left : "
+             << opTimeoutRetries-1);
+        CHK(opTimeoutRetries--);
+        opState= Retrying;
+        sleep(1);
+        break;
+      }
+
+      g_const_opr = 0;
+      g_opr = 0;
+      rows++;
+    }
+    if (opState == Normal)
+    {
+      CHK(g_con->execute(Commit) == 0);
+      CHK(g_opt.m_rows == rows);
+    }
+    g_ndb->closeTransaction(g_con);
+  } while (opState == Retrying);
+  g_con = 0;
+  g_ops = 0;
+  return 0;
+}
+
+static int
+deleteScan(int api, bool idx)
+{
+  DBG("--- " << "deleteScan" << (idx ? "Idx" : "") << apiName[api] << " ---");
+  Tup tup;
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+  unsigned rows = 0;
+  
+  do
+  {
+    opState= Normal;
+    
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    
+    if (api == API_RECATTR)
+    {
+      if (! idx) {
+        CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
+      } else {
+        CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
+      }
+      CHK(g_ops->readTuples(NdbOperation::LM_Exclusive,
+                            g_scanFlags,
+                            g_batchSize,
+                            g_parallel) == 0);
+      CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
+        CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
+      }
+      /* Don't bother setting UserDefined partitions for scan tests */
+    }
+    else
+    {
+      /* Don't bother setting UserDefined partitions for scan tests */
+      if (! idx)
+        CHK((g_ops= g_con->scanTable(g_key_record,
+                                     NdbOperation::LM_Exclusive)) != 0);
+      else
+        CHK((g_ops= g_con->scanIndex(g_ord_record, g_key_record,
+                                     NdbOperation::LM_Exclusive)) != 0);
+    }
+    CHK(g_con->execute(NoCommit) == 0);
+    unsigned n = 0;
+    while (1) {
+      int ret;
+      
+      if (api == API_RECATTR)
+      {
+        tup.m_pk1 = (Uint32)-1;
+        memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
+        tup.m_pk3 = -1;
+        ret = g_ops->nextResult(true);
+      }
+      else
+      {
+        const char *out_row= NULL;
+        
+        if (0 == (ret = g_ops->nextResult(&out_row, true, false)))
+        {
+          memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+          if (g_opt.m_pk2chr.m_len != 0)
+          {
+            memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+            memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+          }
+        }
+      }
+
+      if (ret == -1)
+      {
+        /* Timeout? */
+        if (conHasTimeoutError())
+        {
+          /* Break out and restart scan unless we've
+           * run out of attempts
+           */
+          DISP("Scan delete failed due to deadlock timeout ("
+               << conError() <<") retries left :" 
+               << opTimeoutRetries -1);
+          CHK(--opTimeoutRetries);
+          
+          opState= Retrying;
+          sleep(1);
+          break;
+        }
+      }
+      CHK(opState == Normal);
+      CHK((ret == 0) || (ret == 1));
+      if (ret == 1)
+        break;
+      
+      while (1) {
+        DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
+        Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
+        CHK(k < g_opt.m_rows && g_tups[k].m_exists);
+        g_tups[k].m_exists = false;
+        if (api == API_RECATTR)
+          CHK(g_ops->deleteCurrentTuple() == 0);
+        else
+          CHK(g_ops->deleteCurrentTuple(g_con, g_key_record) != NULL);
+        tup.m_pk1 = (Uint32)-1;
+        memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_len);
+        tup.m_pk3 = -1;
+        if (api == API_RECATTR)
+          ret = g_ops->nextResult(false);
+        else
+        {      
+          const char *out_row= NULL;
+          ret = g_ops->nextResult(&out_row, false, false);
+          if (ret == 0)
+          {
+            memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+            if (g_opt.m_pk2chr.m_len != 0)
+            {
+              memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+              memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+            }
+          }
+        }
+        
+        if (ret == -1)
+        {
+          /* Timeout? */
+          if (conHasTimeoutError())
+          {
+            /* Break out and restart scan unless we've
+             * run out of attempts
+             */
+            DISP("Scan delete failed due to deadlock timeout ("
+                 << conError() <<") retries left :" 
+                 << opTimeoutRetries -1);
+            CHK(--opTimeoutRetries);
+            
+            opState= Retrying;
+            sleep(1);
+            break;
+          }
+        }
+        CHK(opState == Normal);
+        CHK((ret == 0) || (ret == 1) || (ret == 2));
+        
+        if (++n == g_opt.m_batch || ret == 2) {
+          DBG("execute batch: n=" << n << " ret=" << ret);
+          if (! g_opt.m_fac) {
+            CHK(g_con->execute(NoCommit) == 0);
+          } else {
+            CHK(g_con->execute(Commit) == 0);
+            CHK(g_con->restart() == 0);
+          }
+          rows+= n;
+          n = 0;
+        }
+        if (ret == 2)
+          break;
+      }
+      if (opState == Retrying)
+        break;
+    }
+    if (opState == Normal)
+    {
+      rows+= n;
+      CHK(g_con->execute(Commit) == 0);
+      CHK(g_opt.m_rows == rows);
+    }
+    g_ndb->closeTransaction(g_con);
+    
+  } while (opState == Retrying);
+  g_con = 0;
+  g_ops = 0;
   return 0;
 }
 
@@ -2898,14 +3385,14 @@ struct Tmr {    // stolen from testOIBasic
   }
   const char* time() {
     if (m_cnt == 0)
-      sprintf(m_time, "%u ms", m_ms);
+      sprintf(m_time, "%u ms", (Uint32)m_ms);
     else
-      sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", m_ms, m_cnt, (1000 * m_ms) / m_cnt);
+      sprintf(m_time, "%u ms per %u ( %llu ms per 1000 )", (Uint32)m_ms, m_cnt, (1000 * m_ms) / m_cnt);
     return m_time;
   }
   const char* pct (const Tmr& t1) {
     if (0 < t1.m_ms)
-      sprintf(m_text, "%u pct", (100 * m_ms) / t1.m_ms);
+      sprintf(m_text, "%llu pct", (100 * m_ms) / t1.m_ms);
     else
       sprintf(m_text, "[cannot measure]");
     return m_text;
@@ -2913,9 +3400,9 @@ struct Tmr {    // stolen from testOIBasic
   const char* over(const Tmr& t1) {
     if (0 < t1.m_ms) {
       if (t1.m_ms <= m_ms)
-        sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+        sprintf(m_text, "%llu pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
       else
-        sprintf(m_text, "-%u pct", (100 * (t1.m_ms - m_ms)) / t1.m_ms);
+        sprintf(m_text, "-%llu pct", (100 * (t1.m_ms - m_ms)) / t1.m_ms);
     } else
       sprintf(m_text, "[cannot measure]");
     return m_text;
@@ -3199,6 +3686,7 @@ bugtest_4088()
       CHK((g_opr = g_con->getNdbOperation(name)) != 0);
       CHK(g_opr->readTuple() == 0);
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+      setUDpartId(tup, g_opr);
       CHK(g_opr->getValue("NDB$PK", (char*)&pktup[i].m_pk1) != 0);
     }
     // read blob inline via index as an index
@@ -3247,8 +3735,15 @@ bugtest_27018()
       memcpy(&tup.m_key_row[g_pk2_offset], tup.m_pk2, g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
     }
+    NdbOperation::OperationOptions opts;
+    setUDpartIdNdbRecord(tup,
+                         g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                         opts);
     CHK((g_const_opr= g_con->updateTuple(g_key_record, tup.m_key_row,
-                                         g_blob_record, tup.m_row)) != 0);
+                                         g_blob_record, tup.m_row,
+                                         NULL, // mask
+                                         &opts,
+                                         sizeof(opts))) != 0);
     CHK(getBlobHandles(g_const_opr) == 0);
     CHK(g_con->execute(NoCommit) == 0);
 
@@ -3260,7 +3755,11 @@ bugtest_27018()
 
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_const_opr= g_con->readTuple(g_key_record, tup.m_key_row,
-                                       g_blob_record, tup.m_row)) != 0);
+                                       g_blob_record, tup.m_row,
+                                       NdbOperation::LM_Read,
+                                       NULL, // mask
+                                       &opts,
+                                       sizeof(opts))) != 0);
     CHK(getBlobHandles(g_const_opr) == 0);
 
     CHK(g_bh1->getValue(tup.m_bval1.m_buf, tup.m_bval1.m_len) == 0);
@@ -3295,6 +3794,7 @@ struct bug27370_data {
   char *m_read_row;
   char *m_write_row;
   bool m_thread_stop;
+  NdbOperation::OperationOptions* opts;
 };
 
 void *bugtest_27370_thread(void *arg)
@@ -3312,7 +3812,10 @@ void *bugtest_27370_thread(void *arg)
     const NdbOperation *opr;
     memcpy(data->m_write_row, data->m_key_row, g_rowsize);
     if ((opr= con->writeTuple(g_key_record, data->m_key_row,
-                              g_full_record, data->m_write_row)) == 0)
+                              g_full_record, data->m_write_row,
+                              NULL, //mask
+                              data->opts,
+                              sizeof(NdbOperation::OperationOptions))) == 0)
       return (void *)"Failed to create operation";
     NdbBlob *bh;
     if ((bh= opr->getBlobHandle("BL1")) == 0)
@@ -3346,6 +3849,19 @@ bugtest_27370()
   data.m_blob1_size= g_blob1.m_inline + 10 * g_blob1.m_partsize;
   CHK((data.m_writebuf= new char [data.m_blob1_size]) != 0);
   Uint32 pk1_value= 27370;
+
+  const NdbDictionary::Table* t= g_ndb->getDictionary()->getTable(g_opt.m_tname);
+  bool isUserDefined= (t->getFragmentType() == NdbDictionary::Object::UserDefined); 
+  Uint32 partCount= t->getFragmentCount();
+  Uint32 udPartId= pk1_value % partCount;
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent= 0;
+  data.opts= &opts;
+  if (isUserDefined)
+  {
+    opts.optionsPresent= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    opts.partitionId= udPartId;
+  }
   memcpy(&data.m_key_row[g_pk1_offset], &pk1_value, sizeof(pk1_value));
   if (g_opt.m_pk2chr.m_len != 0)
   {
@@ -3363,7 +3879,10 @@ bugtest_27370()
   CHK((g_con= g_ndb->startTransaction()) != 0);
   memcpy(data.m_write_row, data.m_key_row, g_rowsize);
   CHK((g_const_opr= g_con->writeTuple(g_key_record, data.m_key_row,
-                                      g_full_record, data.m_write_row)) != 0);
+                                      g_full_record, data.m_write_row,
+                                      NULL, // mask
+                                      &opts,
+                                      sizeof(opts))) != 0);
   CHK((g_bh1= g_const_opr->getBlobHandle("BL1")) != 0);
   CHK(g_bh1->setValue(data.m_writebuf, data.m_blob1_size) == 0);
   CHK(g_con->execute(Commit) == 0);
@@ -3380,7 +3899,10 @@ bugtest_27370()
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_const_opr= g_con->readTuple(g_key_record, data.m_key_row,
                                        g_blob_record, data.m_read_row,
-                                       NdbOperation::LM_CommittedRead)) != 0);
+                                       NdbOperation::LM_CommittedRead,
+                                       NULL, // mask
+                                       &opts,
+                                       sizeof(opts))) != 0);
     CHK((g_bh1= g_const_opr->getBlobHandle("BL1")) != 0);
     CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
 
@@ -3587,6 +4109,12 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       if (++argv, --argc > 0) {
         g_opt.m_test = strdup(argv[0]);
 	continue;
+      }
+    }
+    if (strcmp(arg, "-timeoutretries") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_timeout_retries = atoi(argv[0]);
+        continue;
       }
     }
     if (strcmp(arg, "-version") == 0) {

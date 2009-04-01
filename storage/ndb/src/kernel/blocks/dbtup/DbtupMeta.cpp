@@ -36,6 +36,9 @@
 #include <my_sys.h>
 #include <signaldata/LqhFrag.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 void
 Dbtup::execCREATE_TAB_REQ(Signal* signal)
 {

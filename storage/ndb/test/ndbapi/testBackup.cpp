@@ -26,9 +26,12 @@
   result = NDBT_FAILED; \
   continue; } 
 
+char tabname[1000];
+
 int
 clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
 {
+  strcpy(tabname, ctx->getTab()->getName());
   NdbBackup backup(GETNDB(step)->getNodeId());
   backup.clearOldBackups();
   return NDBT_OK;
@@ -424,7 +427,6 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
     // TEMPORARY FIX
     // To erase all tables from cache(s)
     // To be removed, maybe replaced by ndb.invalidate();
-    runDropTable(ctx,step);
     {
       Bank bank(ctx->m_cluster_connection);
       
@@ -441,6 +443,10 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     if (restarter.waitClusterStarted() != 0)
       return NDBT_FAILED;
+
+    ndbout << "Dropping " << tabname << endl;
+    NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+    pDict->dropTable(tabname);
 
     ndbout << "Restoring backup " << backupId << endl;
     if (backup.restore(backupId) == -1){
@@ -696,7 +702,7 @@ TESTCASE("BackupBank",
   // TODO  STEP(runBankSum);
   STEP(runBackupBank);
   VERIFIER(runRestoreBankAndVerify);
-  //  FINALIZER(runDropBank);
+  FINALIZER(runDropBank);
 }
 TESTCASE("BackupUndoLog", 
 	 "Test for backup happen at start time\n"

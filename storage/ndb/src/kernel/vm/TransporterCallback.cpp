@@ -39,6 +39,12 @@
  */
 SectionSegmentPool g_sectionSegmentPool;
 
+/* Instance debugging vars
+ * Set from DBTC
+ */
+int ErrorSignalReceive= 0;
+int ErrorMaxSegmentsToSeize= 0;
+
 struct ConnectionError
 {
   enum TransporterError err;

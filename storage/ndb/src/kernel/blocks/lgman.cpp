@@ -1151,6 +1151,7 @@ Logfile_client::Logfile_client(SimulatedBlock* block,
 {
   Uint32 bno = block->number();
   Uint32 ino = block->instance();
+  m_client_block= block;
   m_block= numberToBlock(bno, ino);
   m_lgman= lgman;
   m_lock = lock;
@@ -1210,8 +1211,8 @@ Logfile_client::sync_lsn(Signal* signal,
       signal->theData[1] = ptr.i;
       signal->theData[2] = (Uint32)(lsn >> 32);
       signal->theData[3] = (Uint32)(lsn & 0xFFFFFFFF);
-      m_lgman->sendSignalWithDelay(m_lgman->reference(), 
-				   GSN_CONTINUEB, signal, 10, 4);
+      m_client_block->sendSignalWithDelay(m_lgman->reference(), 
+                                          GSN_CONTINUEB, signal, 10, 4);
     }
     return 0;
   }

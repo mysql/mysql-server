@@ -321,6 +321,7 @@ private:
 };
 
 class Logfile_client {
+  SimulatedBlock *m_client_block;
   Uint32 m_block; // includes instance
   Lgman * m_lgman;
   bool m_lock;

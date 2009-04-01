@@ -156,17 +156,23 @@ public:
   Status       getStatus(const Properties* section, const char* fname) const;
   Uint64       getMin(const Properties * section, const char* fname) const;
   Uint64       getMax(const Properties * section, const char* fname) const;
-  Uint64       getDefault(const Properties * section, const char* fname) const;
-  
+  Uint64 getDefault(const Properties * section, const char* fname) const;
+  const char* getDefaultString(const Properties * section,
+                               const char* fname) const;
+  bool getMandatory(const Properties * section, const char* fname) const;
+  bool hasDefault(const Properties * section, const char* fname) const;
+
   const Properties * getInfo(const char * section) const;
   const Properties * getDefaults(const char * section) const;
-  
-  void print() const;
-  void print(const char* section) const;
-  void print(const Properties * section, const char* parameter) const;
 
-  const char* sectionName(Uint32 section, Uint32 type) const;
+  const char* sectionName(Uint32 section_type, Uint32 type) const;
 
+  void print(const char* section= NULL) const;
+  void print_xml(const char* section= NULL) const;
+private:
+  bool is_internal_section(const Properties* sec) const;
+  void print_impl(const char* section,
+                  class ConfigPrinter& printer) const;
 private:
   Properties               m_info;
   Properties               m_systemDefaults;

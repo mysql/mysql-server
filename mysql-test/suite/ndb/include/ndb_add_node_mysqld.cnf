@@ -1,0 +1,20 @@
+# Default values that applies to all MySQL Servers
+[mysqld]
+open-files-limit=           1024
+local-infile
+default-character-set=      latin1
+
+# Increase default connect_timeout to avoid intermittent
+# disconnects when test servers are put under load see BUG#28359
+connect-timeout=            60
+
+log-bin-trust-function-creators=1
+key_buffer_size=            1M
+sort_buffer=                256K
+max_heap_table_size=        1M
+
+loose-innodb_data_file_path=      ibdata1:10M:autoextend
+
+slave-net-timeout=120
+
+log-bin=mysqld-bin
