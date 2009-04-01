@@ -555,9 +555,11 @@ sub run_test_server ($$$) {
 
 	  # Repeat test $opt_repeat number of times
 	  my $repeat= $result->{repeat} || 1;
-	  if ($repeat < $opt_repeat)
+	  # Don't repeat if test was skipped
+	  if ($repeat < $opt_repeat && $result->{'result'} ne 'MTR_RES_SKIPPED')
 	  {
 	    $result->{retries}= 0;
+	    $result->{rep_failures}++ if $result->{failures};
 	    $result->{failures}= 0;
 	    delete($result->{result});
 	    $result->{repeat}= $repeat+1;
