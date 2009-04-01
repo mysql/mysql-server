@@ -257,6 +257,17 @@ sub mtr_report_stats ($) {
       $tot_restarts++;
     }
 
+    # Add counts for repeated runs, if any.
+    # Note that the last run has already been counted above.
+    my $num_repeat = $tinfo->{'repeat'} - 1;
+    if ( $num_repeat > 0 )
+    {
+      $tot_tests += $num_repeat;
+      my $rep_failed = $tinfo->{'rep_failures'} || 0;
+      $tot_failed += $rep_failed;
+      $tot_passed += $num_repeat - $rep_failed;
+    }
+
     # Look for warnings produced by mysqltest
     my $base_file= mtr_match_extension($tinfo->{'result_file'},
 				       "result"); # Trim extension
@@ -336,7 +347,7 @@ sub mtr_report_stats ($) {
     foreach my $tinfo (@$tests)
     {
       my $tname= $tinfo->{'name'};
-      if ( $tinfo->{failures} and ! $seen{$tname})
+      if ( ($tinfo->{failures} || $tinfo->{rep_failures}) and ! $seen{$tname})
       {
         print " $tname";
 	$seen{$tname}= 1;
