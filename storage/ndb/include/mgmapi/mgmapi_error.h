@@ -75,6 +75,8 @@ extern "C" {
     /* Service errors - Configuration change */
     /** Unable to start config change */
     NDB_MGM_CONFIG_CHANGE_FAILED = 4011,
+    /** Unable to get configuration */
+    NDB_MGM_GET_CONFIG_FAILED = 4012,
 
     /* Usage errors */
     /** Usage error */

@@ -68,13 +68,6 @@ public:
   const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
-  /*
-    Return bitmask of all defined nodes of a certain type
-    returns all defined nodes by default.
-   */
-  void getNodes(NodeBitmask& mask,
-                NodeInfo::NodeType type = NodeInfo::INVALID);
-
   NodeId find_confirmed_node(const NodeBitmask& mask);
   NodeId find_connected_node(const NodeBitmask& mask);
   NodeId find_alive_node(const NodeBitmask& mask);

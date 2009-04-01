@@ -641,13 +641,21 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
     struct ndb_mgm_configuration* conf=
       ndb_mgm_get_configuration(mgmd.handle(), 0);
     if (!conf)
+    {
+      g_err << "ndb_mgm_get_configuration failed, error: "
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
       return NDBT_FAILED;
+    }
 
     int r= ndb_mgm_set_configuration(mgmd.handle(), conf);
     free(conf);
 
     if (r != 0)
+    {
+      g_err << "ndb_mgm_set_configuration failed, error: "
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
       return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }
@@ -1595,10 +1603,12 @@ int runTestReloadConfig(NDBT_Context* ctx, NDBT_Step* step)
   if (!show_variables(mgmd, variables))
     return NDBT_FAILED;
 
+  variables.print();
+
   const char* mycnf_str;
   if (!variables.get("mycnf", &mycnf_str))
     abort();
-  bool uses_mycnf = strcmp(mycnf_str, "1");
+  bool uses_mycnf = (strcmp(mycnf_str, "yes") == 0);
 
   int result= NDBT_FAILED;
   if (

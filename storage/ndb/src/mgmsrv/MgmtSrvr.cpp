@@ -795,9 +795,10 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
 
 
 bool
-MgmtSrvr::getPackedConfig(UtilBuffer& pack_buf)
+MgmtSrvr::get_packed_config(ndb_mgm_node_type node_type,
+                            BaseString& buf64, BaseString& error)
 {
-  return m_config_manager->get_packed_config(pack_buf);
+  return m_config_manager->get_packed_config(node_type, buf64, error);
 }
 
 
@@ -3969,7 +3970,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
   req->length = buf.length();
 
   NodeBitmask mgm_nodes;
-  ss.getNodes(mgm_nodes, NodeInfo::MGM);
+  m_local_config->get_nodemask(mgm_nodes, NDB_MGM_NODE_TYPE_MGM);
 
   NodeId nodeId= ss.find_confirmed_node(mgm_nodes);
   if (nodeId == 0)

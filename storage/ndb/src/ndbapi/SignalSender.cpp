@@ -138,25 +138,6 @@ SignalSender::getNoOfConnectedNodes() const {
 }
 
 
-void
-SignalSender::getNodes(NodeBitmask& mask,
-                       NodeInfo::NodeType type)
-{
-  mask.clear();
-  for(Uint32 i = 1; i < MAX_NODES; i++)
-  {
-    const ClusterMgr::Node& node= getNodeInfo(i);
-    if(!node.defined)
-      continue;
-    if(type == NodeInfo::INVALID || // INVALID -> add all nodes to mask
-       node.m_info.getType() == type)
-    {
-      mask.set(i);
-    }
-  }
-}
-
-
 NodeBitmask
 SignalSender::broadcastSignal(NodeBitmask mask,
                               SimpleSignal& sig,
