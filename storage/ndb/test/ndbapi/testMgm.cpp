@@ -641,13 +641,21 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
     struct ndb_mgm_configuration* conf=
       ndb_mgm_get_configuration(mgmd.handle(), 0);
     if (!conf)
+    {
+      g_err << "ndb_mgm_get_configuration failed, error: "
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
       return NDBT_FAILED;
+    }
 
     int r= ndb_mgm_set_configuration(mgmd.handle(), conf);
     free(conf);
 
     if (r != 0)
+    {
+      g_err << "ndb_mgm_set_configuration failed, error: "
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
       return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }
