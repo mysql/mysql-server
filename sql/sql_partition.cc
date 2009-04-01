@@ -2937,7 +2937,8 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
       the maximum value is in the current partition.
     */
     if (part_func_value > bound ||
-        (part_func_value == bound && !part_info->defined_max_value))
+        (part_func_value == bound &&
+         (!part_info->defined_max_value || loc_part_id < max_partition)))
       loc_part_id++;
   }
   else 
