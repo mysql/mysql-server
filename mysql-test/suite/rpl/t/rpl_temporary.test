@@ -222,4 +222,40 @@ drop table t1;
 # Delete the anonymous users
 source include/delete_anonymous_users.inc;
 
-# End of tests
+
+
+#
+# Bug#43748: crash when non-super user tries to kill the replication threads
+#
+
+--echo -- Bug#43748
+
+--echo -- make a user on the slave that can list but not kill system threads.
+connection slave;
+
+FLUSH PRIVILEGES;
+GRANT USAGE   ON *.* TO user43748@127.0.0.1 IDENTIFIED BY 'meow';
+GRANT PROCESS ON *.* TO user43748@127.0.0.1;
+
+--echo -- try to KILL system-thread as that non-privileged user (on slave).
+connect (cont43748,127.0.0.1,user43748,meow,test,$SLAVE_MYPORT,);
+connection cont43748;
+
+SELECT id INTO @id FROM information_schema.processlist WHERE user='system user' LIMIT 1;
+
+--error ER_KILL_DENIED_ERROR,ER_NO_SUCH_THREAD
+KILL @id;
+
+disconnect cont43748;
+
+--echo -- throw out test-user on slave.
+connection slave;
+
+DROP USER user43748@127.0.0.1;
+
+--echo -- done. back to master.
+connection master;
+
+
+
+--echo End of 5.1 tests
