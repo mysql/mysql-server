@@ -1604,10 +1604,12 @@ int runTestReloadConfig(NDBT_Context* ctx, NDBT_Step* step)
   if (!show_variables(mgmd, variables))
     return NDBT_FAILED;
 
+  variables.print();
+
   const char* mycnf_str;
   if (!variables.get("mycnf", &mycnf_str))
     abort();
-  bool uses_mycnf = strcmp(mycnf_str, "1");
+  bool uses_mycnf = (strcmp(mycnf_str, "yes") == 0);
 
   int result= NDBT_FAILED;
   if (
