@@ -12695,22 +12695,3 @@ a	b
 1	NULL
 2	NULL
 DROP TABLE t1;
-#
-# BUG#32880 - Repairing Archive table fails with internal error 144
-#
-
-# Test with an existing table which is corrupted
-# Copy t1 from std_data
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` blob
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	error	Corrupt
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	error	Corrupt
-DROP TABLE t1;
