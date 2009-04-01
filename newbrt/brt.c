@@ -3346,7 +3346,7 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
 		h->checkpoint_count++;	// checkpoint succeeded, next checkpoint will save to alternate header location
 	}
         toku_block_translation_note_end_checkpoint(h->blocktable);
-        brtheader_destroy(h->checkpoint_header);
+        brtheader_free(h->checkpoint_header);
         h->checkpoint_header = NULL;
     }
     return r;
