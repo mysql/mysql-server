@@ -1127,3 +1127,89 @@ int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
     return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, true);
 }
 
+
+
+//
+// outputs a descriptor for key into buf. num_bytes returns number of bytes used in buf
+// to store the descriptor
+//
+int create_key_descriptor(KEY* key, uchar* buf, u_int32_t* num_bytes) {
+    int ret_val = 0;
+    uchar* pos = buf;
+    u_int32_t num_bytes_in_field = 0;
+    u_int32_t charset_num = 0;
+    for (uint i = 0; i < key->key_parts; i++){
+        Field* field = key->key_part[i].field;
+        //
+        // The first byte for each field is the type
+        //
+        TOKU_TYPE type = mysql_to_toku_type(field);
+        assert (type < 256);
+        *pos = (uchar)(type & 255);
+        pos++;
+        //
+        // based on the type, extra data follows afterwards
+        // doubles and floats have no extra information
+        // after it
+        //
+        switch (type) {
+        //
+        // two bytes follow for ints, first one states how many
+        // bytes the int is (1 , 2, 3, 4 or 8)
+        // next one states if it is signed or not
+        //
+        case (toku_type_int):
+            num_bytes_in_field = field->pack_length();
+            assert (num_bytes_in_field < 256);
+            *pos = (uchar)(num_bytes_in_field & 255);
+            pos++;
+            *pos = (field->flags & UNSIGNED_FLAG) ? 1 : 0;
+            pos++;
+            break;
+        //
+        // nothing follows floats and doubles
+        //
+        case (toku_type_double):
+        case (toku_type_float):
+            break;
+        //
+        // two bytes follow stating the length of the field
+        //
+        case (toku_type_fixbinary):
+            num_bytes_in_field = field->pack_length();
+            set_if_smaller(num_bytes_in_field, key->key_part[i].length);
+            pos[0] = (uchar)(num_bytes_in_field & 255);
+            pos[1] = (uchar) (num_bytes_in_field >> 8);
+            pos += 2;
+            break;
+        //
+        // one byte follows: the number of bytes used to encode the length
+        //
+        case (toku_type_varbinary):
+            *pos = (uchar)(get_length_bytes_from_max(key->key_part[i].length) & 255);
+            pos++;
+            break;
+        //
+        // five bytes follow: one for the number of bytes to encode the length,
+        //                           four for the charset number 
+        //
+        case (toku_type_fixstring):
+        case (toku_type_varstring):
+        case (toku_type_blob):
+            *pos = (uchar)(get_length_bytes_from_max(key->key_part[i].length) & 255);
+            pos++;
+            charset_num = field->charset()->number;
+            pos[0] = (uchar)(charset_num & 255);
+            pos[1] = (uchar)((charset_num >> 8) & 255);
+            pos[2] = (uchar)((charset_num >> 16) & 255);
+            pos[3] = (uchar)((charset_num >> 24) & 255);
+            pos += 4;
+            break;
+        default:
+            assert(false);
+            
+        }
+    }
+    *num_bytes = pos - buf;
+    return ret_val;
+}

@@ -121,5 +121,7 @@ int tokudb_cmp_primary_key(DB *file, const DBT *keya, const DBT *keyb);
 //TODO: QQQ Only do one direction for prefix.
 int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb);
 
+int create_key_descriptor(KEY* key, uchar* buf, u_int32_t* num_bytes);
+
 #endif
 
