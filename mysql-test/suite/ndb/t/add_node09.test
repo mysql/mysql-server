@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source include/not_embedded.inc
 --result_format 2
 
 ## Show cluster is started with one ndb_mgmd and two ndbd nodes

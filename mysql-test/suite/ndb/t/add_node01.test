@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source include/not_embedded.inc
 --result_format 2
 
 ## Make mtr.pl restart all servers after this test
