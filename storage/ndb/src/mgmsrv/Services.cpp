@@ -1077,6 +1077,13 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   m_output->println("");
 }
 
+
+static bool
+isEventLogFilterEnabled(int severity)
+{
+  return g_eventLogger->isEnable((Logger::LoggerLevel)severity);
+}
+
 void
 MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
 		    Properties const &) {
@@ -1087,11 +1094,12 @@ MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
 			  "error",
 			  "critical",
 			  "alert" };
-  
+
   m_output->println("clusterlog");
   for(int i = 0; i < 7; i++) {
     m_output->println("%s: %d",
-		      names[i], m_mgmsrv.isEventLogFilterEnabled(i));
+                      names[i],
+                      isEventLogFilterEnabled(i));
   }
   m_output->println("");
 }
@@ -1308,6 +1316,28 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
   m_output->println("");
 }
 
+
+static bool
+setEventLogFilter(int severity, int enable)
+{
+  Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
+  if (enable > 0) {
+    g_eventLogger->enable(level);
+  } else if (enable == 0) {
+    g_eventLogger->disable(level);
+  }
+  else
+  {
+    /* enable is < 0 => toggle the filter value */
+    if (g_eventLogger->isEnable(level))
+      g_eventLogger->disable(level);
+    else
+      g_eventLogger->enable(level);
+  }
+  return g_eventLogger->isEnable(level);
+}
+
+
 void
 MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 			    const class Properties &args) {
@@ -1317,7 +1347,7 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
   args.get("level", &severity);
   args.get("enable", &enable);
 
-  int result = m_mgmsrv.setEventLogFilter(severity, enable);
+  bool result = setEventLogFilter(severity, enable);
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);

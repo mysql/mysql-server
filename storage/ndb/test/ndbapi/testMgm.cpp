@@ -851,7 +851,6 @@ int runTestStatus(NDBT_Context* ctx, NDBT_Step* step)
   NdbMgmd mgmd;
   struct ndb_mgm_cluster_state *state;
   int iterations = ctx->getNumLoops();
-  int delay = 2;
 
   if (!mgmd.connect())
     return NDBT_FAILED;
@@ -2226,6 +2225,119 @@ int runTestRestartMgmd(NDBT_Context* ctx, NDBT_Step* step)
 #endif
 
 
+static bool
+set_logfilter(NdbMgmd& mgmd,
+              enum ndb_mgm_event_severity severity,
+              int enable)
+{
+  struct ndb_mgm_reply reply;
+  if (ndb_mgm_set_clusterlog_severity_filter(mgmd.handle(),
+					     severity,
+					     enable,
+                                             &reply
+                                             ) == -1)
+  {
+    g_err << "set_logfilter: ndb_mgm_set_clusterlog_severity_filter failed"
+          << endl;
+    return false;
+  }
+  return true;
+}
+
+static bool
+get_logfilter(NdbMgmd& mgmd,
+              enum ndb_mgm_event_severity severity,
+              unsigned int* value)
+{
+
+  struct ndb_mgm_severity severity_struct;
+  severity_struct.category = severity;
+  if (ndb_mgm_get_clusterlog_severity_filter(mgmd.handle(),
+					     &severity_struct,
+					     1) != 1)
+  {
+    g_err << "get_logfilter: ndb_mgm_get_clusterlog_severity_filter failed"
+          << endl;
+    return false;
+  }
+
+  assert(value);
+  *value = severity_struct.value;
+
+  return true;
+}
+
+
+int runTestSetLogFilter(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  for (int i = 0; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++)
+  {
+    g_info << "severity: " << i << endl;
+    ndb_mgm_event_severity severity = (ndb_mgm_event_severity)i;
+
+    // Get initial value of level
+    unsigned int initial_value;
+    if (!get_logfilter(mgmd, severity, &initial_value))
+      return NDBT_FAILED;
+
+    // Turn level off
+    if (!set_logfilter(mgmd, severity, 0))
+      return NDBT_FAILED;
+
+    // Check it's off
+    unsigned int curr_value;
+    if (!get_logfilter(mgmd, severity, &curr_value))
+      return NDBT_FAILED;
+
+    if (curr_value != 0)
+    {
+      g_err << "Failed to turn off severity: "  << severity << endl;
+      return NDBT_FAILED;
+    }
+
+    // Turn level on
+    if (!set_logfilter(mgmd, severity, 1))
+      return NDBT_FAILED;
+
+    // Check it's on
+    if (!get_logfilter(mgmd, severity, &curr_value))
+      return NDBT_FAILED;
+
+    if (curr_value == 0)
+    {
+      g_err << "Filed to turn on severity: "  << severity << endl;
+      return NDBT_FAILED;
+    }
+
+    // Toggle, ie. turn off
+    if (!set_logfilter(mgmd, severity, -1))
+      return NDBT_FAILED;
+
+    // Check it's off
+    if (!get_logfilter(mgmd, severity, &curr_value))
+      return NDBT_FAILED;
+
+    if (curr_value != 0)
+    {
+      g_err << "Failed to toggle severity : "  << severity << endl;
+      return NDBT_FAILED;
+    }
+
+    // Set back initial value
+    if (!set_logfilter(mgmd, severity, initial_value))
+      return NDBT_FAILED;
+
+  }
+
+  return NDBT_OK;
+}
+
+
 int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
@@ -2272,6 +2384,7 @@ int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
 
   return result;
 }
+
 
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
@@ -2366,6 +2479,10 @@ TESTCASE("TestTransporterConnect",
 TESTCASE("TestConnectionParameter",
 	 "Test 'get/set connection parameter'"){
   INITIALIZER(runTestConnectionParameter);
+}
+TESTCASE("TestSetLogFilter",
+	 "Test 'set logfilter' and 'get info clusterlog'"){
+  INITIALIZER(runTestSetLogFilter);
 }
 #ifdef NOT_YET
 TESTCASE("TestRestartMgmd",
