@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Sun Microsystems, Inc.
+/* Copyright (C) 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include "DirIterator.hpp"
 
 #include <NdbConfig.h>
-
+#include <NdbSleep.h>
 #include <SignalSender.hpp>
 #include <NdbApiSignal.hpp>
 #include <signaldata/NFCompleteRep.hpp>
@@ -41,6 +41,27 @@ _require(bool v, const char* expr, const char* file, int line)
 }
 #define require(v)  _require((v), #v, __FILE__, __LINE__)
 
+
+static void
+nodes2str(const NodeBitmask nodes, BaseString& to)
+{
+  unsigned found = 0;
+  const char* delimiter = "";
+  for (int i = 1; i < MAX_NODES; i++)
+  {
+    if (nodes.get(i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      found++;
+      if (found < nodes.count() - 1)
+        delimiter = ", ";
+      else
+        delimiter = " and ";
+    }
+  }
+}
+
+
 extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
@@ -55,7 +76,6 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
                      NDB_VERSION,
                      NDB_MGM_NODE_TYPE_MGM,
                      opts.bind_address),
-  m_config_change_state(CCS_IDLE),
   m_config_state(CS_UNINITIALIZED),
   m_previous_state(CS_UNINITIALIZED),
   m_config_change_error(ConfigChangeRef::OK),
@@ -315,7 +335,7 @@ ConfigManager::init(void)
 
   if (m_config_retriever.hasError())
   {
-    g_eventLogger->error(m_config_retriever.getErrorString());
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
     DBUG_RETURN(false);
   }
 
@@ -419,6 +439,9 @@ ConfigManager::init(void)
                           m_opts.mycnf ? "my.cnf" : m_opts.config_filename);
       m_new_config = new Config(conf); // Copy config
       m_config_state = CS_INITIAL;
+
+      if (!init_checkers(m_new_config))
+        DBUG_RETURN(false);
     }
     else
     {
@@ -434,7 +457,6 @@ ConfigManager::init(void)
 
       /* Use the fetched config for now */
       set_config(conf);
-      m_new_config = new Config(conf); // Copy config
 
       if (m_config->getGeneration() == 0)
       {
@@ -443,6 +465,10 @@ ConfigManager::init(void)
                             "Will try to set it when all ndb_mgmd(s) started",
                             m_config->getGeneration(), m_config->getName());
         m_config_state= CS_INITIAL;
+        m_new_config = new Config(conf); // Copy config
+
+        if (!init_checkers(m_new_config))
+          DBUG_RETURN(false);
       }
       else
       {
@@ -615,7 +641,7 @@ ConfigManager::config_ok(const Config* conf)
   assert(m_node_id);
   if (!m_config_retriever.verifyConfig(conf->m_configValues, m_node_id))
   {
-    g_eventLogger->error(m_config_retriever.getErrorString());
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
     return false;
   }
 
@@ -869,6 +895,19 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REQ(SignalSender& ss, SimpleSignal* sig)
 }
 
 
+void ConfigManager::set_config_change_state(ConfigChangeState::States state)
+{
+  if (state == ConfigChangeState::IDLE)
+  {
+    // Rebuild m_all_mgm so that each node in config is included
+    // new mgm nodes might have been added
+    m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
+  }
+
+  m_config_change_state.m_current_state = state;
+}
+
+
 void
 ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
 {
@@ -886,9 +925,9 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
 
   switch(m_config_change_state){
 
-  case CCS_PREPARING:{
+  case ConfigChangeState::PREPARING:{
     /* Got ref while preparing */
-    m_config_change_state = CCS_ABORT;
+    set_config_change_state(ConfigChangeState::ABORT);
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
@@ -907,18 +946,18 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-      m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_ABORTING;
+      set_config_change_state(ConfigChangeState::ABORTING);
     break;
   }
 
-  case CCS_COMITTING:
+  case ConfigChangeState::COMITTING:
     /* Got ref while comitting, impossible */
     abort();
     break;
 
-  case CCS_ABORT:{
+  case ConfigChangeState::ABORT:{
     /* Got ref(another) while already decided to abort */
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
@@ -938,13 +977,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-      m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_ABORTING;
+      set_config_change_state(ConfigChangeState::ABORTING);
     break;
   }
 
-  case CCS_ABORTING:
+  case ConfigChangeState::ABORTING:
     /* Got ref while aborting, impossible */
     abort();
     break;
@@ -966,7 +1005,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
   g_eventLogger->debug("Got CONFIG_CHANGE_IMPL_CONF from node %d", nodeId);
 
   switch(m_config_change_state){
-  case CCS_PREPARING:{
+  case ConfigChangeState::PREPARING:{
     require(conf->requestType == ConfigChangeImplReq::Prepare);
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
@@ -986,13 +1025,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-      m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_COMITTING;
+      set_config_change_state(ConfigChangeState::COMITTING);
     break;
   }
 
-  case CCS_COMITTING:{
+  case ConfigChangeState::COMITTING:{
     require(conf->requestType == ConfigChangeImplReq::Commit);
 
     m_waiting_for.clear(nodeId);
@@ -1012,11 +1051,11 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
       sendConfigChangeConf(ss, m_client_ref);
     }
     m_client_ref = RNIL;
-    m_config_change_state = CCS_IDLE;
+    set_config_change_state(ConfigChangeState::IDLE);
     break;
   }
 
-  case CCS_ABORT:{
+  case ConfigChangeState::ABORT:{
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
@@ -1034,13 +1073,13 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
                                   GSN_CONFIG_CHANGE_IMPL_REQ,
                                   ConfigChangeImplReq::SignalLength);
     if (m_waiting_for.isclear())
-        m_config_change_state = CCS_IDLE;
+      set_config_change_state(ConfigChangeState::IDLE);
     else
-      m_config_change_state = CCS_ABORTING;
+      set_config_change_state(ConfigChangeState::ABORTING);
     break;
   }
 
-  case CCS_ABORTING:{
+  case ConfigChangeState::ABORTING:{
     m_waiting_for.clear(nodeId);
     if (!m_waiting_for.isclear())
       return;
@@ -1063,7 +1102,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     }
     m_config_change_error= ConfigChangeRef::OK;
     m_client_ref = RNIL;
-    m_config_change_state = CCS_IDLE;
+    set_config_change_state(ConfigChangeState::IDLE);
     break;
   }
 
@@ -1160,7 +1199,7 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
   req->length = buf.length();
 
   require(m_waiting_for.isclear());
-  require(m_config_change_state == CCS_IDLE);
+  require(m_config_change_state == ConfigChangeState::IDLE);
 
   g_eventLogger->debug("Sending CONFIG_CHANGE_IMPL_REQ(prepare)");
   unsigned i = 0;
@@ -1192,7 +1231,7 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
       // Some nodes got prepare, set state to
       // abort and continue abort when result
       // of prepare arrives
-      m_config_change_state = CCS_ABORT;
+      set_config_change_state(ConfigChangeState::ABORT);
       return false;
     }
 
@@ -1202,7 +1241,7 @@ ConfigManager::sendConfigChangeImplReq(SignalSender& ss, const Config* conf)
 
   // Prepare has been sent to all mgm nodes
   // continue and wait for prepare conf(s)
-  m_config_change_state = CCS_PREPARING;
+  set_config_change_state(ConfigChangeState::PREPARING);
   return true;
 
 }
@@ -1230,7 +1269,7 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     return;
   }
 
-  if (m_config_change_state != CCS_IDLE)
+  if (m_config_change_state != ConfigChangeState::IDLE)
   {
     sendConfigChangeRef(ss, from, ConfigChangeRef::ConfigChangeOnGoing);
     return;
@@ -1470,14 +1509,17 @@ ConfigManager::run()
   SignalSender ss(m_facade, MGM_CONFIG_MAN);
   ss.lock();
 
-  ss.getNodes(m_all_mgm, NodeInfo::MGM);
+  // Build bitmaks of all mgm nodes in config
+  m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
 
   m_started.set(m_facade->ownId());
+
+  start_checkers();
 
   while (!is_stopped())
   {
 
-    if (m_config_change_state == CCS_IDLE)
+    if (m_config_change_state == ConfigChangeState::IDLE)
     {
       bool print_state = false;
       if (m_previous_state != m_config_state)
@@ -1543,8 +1585,9 @@ ConfigManager::run()
         not_checked.bitANDC(m_checked);
         sendConfigCheckReq(ss, not_checked);
       }
-    }
 
+      handle_exclude_nodes();
+    }
 
     SimpleSignal *sig = ss.waitFor((Uint32)1000);
     if (!sig)
@@ -1581,7 +1624,7 @@ ConfigManager::run()
       m_checked.clear(nodeId);
       m_defragger.node_failed(nodeId);
 
-      if (m_config_change_state != CCS_IDLE)
+      if (m_config_change_state != ConfigChangeState::IDLE)
       {
         g_eventLogger->info("Node %d failed during config change!!",
                             nodeId);
@@ -1636,6 +1679,7 @@ ConfigManager::run()
       break;
     }
   }
+  stop_checkers();
 }
 
 
@@ -1719,15 +1763,21 @@ ConfigManager::fetch_config(void)
                            "returned!");
       abort();
     }
-    g_eventLogger->info("Connected...");
+    g_eventLogger->info("Connected to '%s:%d'...",
+                        m_config_retriever.get_mgmd_host(),
+                        m_config_retriever.get_mgmd_port());
 
   }
 
   // read config from other management server
   ndb_mgm_configuration * tmp =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
+
+  // Disconnect from other mgmd
+  m_config_retriever.disconnect();
+
   if (tmp == NULL) {
-    g_eventLogger->error(m_config_retriever.getErrorString());
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
     DBUG_RETURN(false);
   }
 
@@ -1898,18 +1948,229 @@ ConfigManager::load_saved_config(const BaseString& config_name)
 
 
 bool
-ConfigManager::get_packed_config(UtilBuffer& pack_buf)
+ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
+                                 BaseString& buf64, BaseString& error)
 {
   Guard g(m_config_mutex);
 
-  /* Only allow the config to be exported if it's been confirmed */
-  if (m_config_state != CS_CONFIRMED)
-    return false;
+  /*
+    Only allow the config to be exported if it's been confirmed
+    or if another mgmd is asking for it
+  */
+  switch(m_config_state)
+  {
+  case CS_INITIAL:
+    if (nodetype == NDB_MGM_NODE_TYPE_MGM)
+      ; // allow other mgmd to fetch initial configuration
+    else
+    {
+      NodeBitmask not_started(m_all_mgm);
+      not_started.bitANDC(m_started);
+
+      error.assign("The cluster configuration is not yet confirmed "
+                   "by all defined management servers. "
+                   "This management server is still waiting for node ");
+      nodes2str(not_started, error);
+      error.append(" to connect.");
+      return false;
+    }
+    break;
+
+  case CS_CONFIRMED:
+    // OK
+    break;
+
+  default:
+    error.assign("get_packed_config, unknown config state: %d",
+                 m_config_state);
+     return false;
+    break;
+
+  }
 
   require(m_config);
-  return m_config->pack(pack_buf);
+  return m_config->pack64(buf64);
+}
+
+
+bool
+ConfigManager::init_checkers(const Config* config)
+{
+
+  // Init one thread for each other mgmd
+  // in the config and check which version it has. If version
+  // does not have config manager, set this node to ignore
+  // that node in the config change protocol
+
+  BaseString connect_string;
+  ConfigIter iter(config, CFG_SECTION_NODE);
+  for (iter.first(); iter.valid(); iter.next())
+  {
+
+    // Only MGM nodes
+    Uint32 type;
+    if (iter.get(CFG_TYPE_OF_SECTION, &type) ||
+        type != NODE_TYPE_MGM)
+      continue;
+
+    // Not this node
+    Uint32 nodeid;
+    if(iter.get(CFG_NODE_ID, &nodeid) ||
+       nodeid == m_node_id)
+      continue;
+
+    const char* hostname;
+    Uint32 port;
+    require(!iter.get(CFG_NODE_HOST, &hostname));
+    require(!iter.get(CFG_MGM_PORT, &port));
+    connect_string.assfmt("%s:%u",hostname,port);
+
+    ConfigChecker* checker =
+      new ConfigChecker(*this, connect_string.c_str(),
+                        m_opts.bind_address, nodeid);
+    if (!checker)
+    {
+      g_eventLogger->error("Failed to create ConfigChecker");
+      return false;
+    }
+
+    if (!checker->init())
+      return false;
+
+    m_checkers.push_back(checker);
+  }
+  return true;
+}
+
+
+void
+ConfigManager::start_checkers(void)
+{
+  for (unsigned i = 0; i < m_checkers.size(); i++)
+    m_checkers[i]->start();
+}
+
+
+void
+ConfigManager::stop_checkers(void)
+{
+  for (unsigned i = 0; i < m_checkers.size(); i++)
+  {
+    ConfigChecker* checker = m_checkers[i];
+    ndbout << "stop checker " << i << endl;
+    checker->stop();
+    delete checker;
+  }
+}
+
+
+ConfigManager::ConfigChecker::ConfigChecker(ConfigManager& manager,
+                                            const char* connect_string,
+                                            const char * bindaddress,
+                                            NodeId nodeid) :
+  MgmtThread("ConfigChecker"),
+  m_manager(manager),
+  m_config_retriever(connect_string, NDB_VERSION,
+                     NDB_MGM_NODE_TYPE_MGM, bindaddress),
+  m_connect_string(connect_string),
+  m_nodeid(nodeid)
+{
+}
+
+
+bool
+ConfigManager::ConfigChecker::init()
+{
+  if (m_config_retriever.hasError())
+  {
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
+    return false;
+  }
+
+  return true;
+}
+
+
+void
+ConfigManager::ConfigChecker::run()
+{
+  // Connect to other mgmd inifintely until thread is stopped
+  // or connect suceeds
+  g_eventLogger->debug("ConfigChecker, connecting to '%s'",
+                       m_connect_string.c_str());
+  while(m_config_retriever.do_connect(0 /* retry */,
+                                      1 /* delay */,
+                                      0 /* verbose */) != 0)
+  {
+    if (is_stopped())
+    {
+      g_eventLogger->debug("ConfigChecker, thread is stopped");
+      return; // Thread is stopped
+    }
+
+    NdbSleep_SecSleep(1);
+  }
+
+  // Connected
+  g_eventLogger->debug("ConfigChecker, connected to '%s'",
+                       m_connect_string.c_str());
+
+  // Check version
+  int major, minor, build;
+  char ver_str[50];
+  if (!ndb_mgm_get_version(m_config_retriever.get_mgmHandle(),
+                           &major, &minor, &build,
+                           sizeof(ver_str), ver_str))
+  {
+    g_eventLogger->error("Could not get version from mgmd on '%s'",
+                         m_connect_string.c_str());
+    return;
+  }
+  g_eventLogger->debug("mgmd on '%s' has version %d.%d.%d",
+                       m_connect_string.c_str(), major, minor, build);
+
+  // Versions prior to 7 don't have ConfigManager
+  // exclude it from config change protocol
+  if (major < 7)
+  {
+    g_eventLogger->info("Excluding node %d with version %d.%d.%d from "
+                        "config change protocol",
+                        m_nodeid, major, minor, build);
+    m_manager.m_exclude_nodes.push_back(m_nodeid);
+  }
+
+  return;
+}
+
+
+void
+ConfigManager::handle_exclude_nodes(void)
+{
+
+  if (!m_waiting_for.isclear())
+    return; // Other things going on
+
+  switch (m_config_state)
+  {
+  case CS_INITIAL:
+    m_exclude_nodes.lock();
+    for (unsigned i = 0; i < m_exclude_nodes.size(); i++)
+    {
+      NodeId nodeid = m_exclude_nodes[i];
+      g_eventLogger->debug("Handle exclusion of node %d", nodeid);
+      m_all_mgm.clear(nodeid);
+    }
+    m_exclude_nodes.unlock();
+    break;
+
+  default:
+    break;
+  }
+  m_exclude_nodes.clear();
+
 }
 
 
 template class Vector<ConfigSubscriber*>;
+template class Vector<ConfigManager::ConfigChecker*>;
 

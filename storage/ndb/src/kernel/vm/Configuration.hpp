@@ -122,8 +122,6 @@ public:
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
-  Uint32 get_mgmd_port() const {return m_mgmd_port;};
-  const char *get_mgmd_host() const {return m_mgmd_host.c_str();};
   ConfigRetriever* get_config_retriever() { return m_config_retriever; };
 
   class LogLevel * m_logLevel;
@@ -167,8 +165,6 @@ private:
   char * _fsPath;
   char * _backupPath;
   bool _initialStart;
-  Uint32 m_mgmd_port;
-  BaseString m_mgmd_host;
   bool _daemonMode; // if not, angel in foreground
 
   void calcSizeAlt(class ConfigValues * );
