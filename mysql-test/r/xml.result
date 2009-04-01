@@ -1064,4 +1064,33 @@ select extractvalue('<a></a>','"b"/a');
 ERROR HY000: XPATH syntax error: '/a'
 select extractvalue('<a></a>','(1)/a');
 ERROR HY000: XPATH syntax error: '/a'
+CREATE TABLE IF NOT EXISTS t1 (
+id int(10) unsigned NOT NULL AUTO_INCREMENT,
+xml text,
+PRIMARY KEY (id)
+) ENGINE=MyISAM;
+INSERT INTO t1 (id, xml) VALUES
+(15, '<?xml version="1.0"?><bla name="blubb"></bla>'),
+(14, '<xml version="kaputt">');
+SELECT
+extractvalue( xml, '/bla/@name' ),
+extractvalue( xml, '/bla/@name' )
+FROM t1 ORDER BY t1.id;
+extractvalue( xml, '/bla/@name' )	extractvalue( xml, '/bla/@name' )
+NULL	NULL
+blubb	blubb
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 23: unexpected END-OF-INPUT'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 23: unexpected END-OF-INPUT'
+SELECT
+UpdateXML(xml, '/bla/@name', 'test'),
+UpdateXML(xml, '/bla/@name', 'test')
+FROM t1 ORDER BY t1.id;
+UpdateXML(xml, '/bla/@name', 'test')	UpdateXML(xml, '/bla/@name', 'test')
+NULL	NULL
+<?xml version="1.0"?><bla test></bla>	<?xml version="1.0"?><bla test></bla>
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 23: unexpected END-OF-INPUT'
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 23: unexpected END-OF-INPUT'
+DROP TABLE t1;
 End of 5.1 tests
