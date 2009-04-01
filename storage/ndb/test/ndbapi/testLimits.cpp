@@ -20,12 +20,14 @@
 #define CHECKNOTNULL(p) if ((p) == NULL) {          \
     ndbout << "Error at line " << __LINE__ << endl; \
     ERR(trans->getNdbError());                      \
+    trans->close();                                 \
     return NDBT_FAILED; }
 
 #define CHECKEQUAL(v, e) if ((e) != (v)) {            \
     ndbout << "Error at line " << __LINE__ <<         \
       " expected " << v << endl;                      \
     ERR(trans->getNdbError());                        \
+    trans->close();                                   \
     return NDBT_FAILED; }
 
 
@@ -52,8 +54,17 @@ int activateErrorInsert(NdbTransaction* trans,
                         NdbRestarter* restarter, 
                         Uint32 val)
 {
+  /* We insert the error twice to avoid what appear to be
+   * races between the error insert and the subsequent
+   * tests
+   * Alternatively we could sleep here.
+   */
   if (restarter->insertErrorInAllNodes(val) != 0){
-    g_err << "error insert (val) failed" << endl;
+    g_err << "error insert 1 (" << val << ") failed" << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter->insertErrorInAllNodes(val) != 0){
+    g_err << "error insert 2 (" << val << ") failed" << endl;
     return NDBT_FAILED;
   }
 
@@ -83,7 +94,6 @@ int activateErrorInsert(NdbTransaction* trans,
     
 /* Test for correct behaviour using primary key operations
  * when an NDBD node's SegmentedSection pool is exhausted.
- * Long and Short TCKEYREQ variants are tested
  */
 int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   /*
@@ -94,11 +104,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
    *                     TCKEYREQ in batch      Consume + send
    * Long TCKEYREQ     Initial import, not last
    *                     TCKEYREQ in batch      Consume + send
-   * Short TCKEYREQ    KeyInfo accumulate       Consume + send long
-   *                     (TCKEYREQ + KEYINFO)
-   * Short TCKEYREQ    AttrInfo accumulate      Consume + send short key
-   *                                             + long AI
-   *                      (TCKEYREQ + ATTRINFO)
+   * No testing of short TCKEYREQ variants as they cannot be
+   * generated in mysql-5.1-telco-6.4+
+   * TODO : Add short variant testing to testUpgrade.
    */
 
   /* We just run on one table */
@@ -180,8 +188,8 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
                                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8065 in this transaction, consumes
-   * all but 10 SectionSegments
+  /* Activate error insert 8065 in this transaction, limits
+   * any single import/append to 1 section
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
@@ -190,9 +198,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
                                           &restarter, 
                                           8065));
 
-  /* Ok, now the chosen TC's node should have only 10 
-   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
-   * Let's try an insert with a key bigger than that
+  /* Ok, let's try an insert with a key bigger than 1 section.
    * Since it's part of the same transaction, it'll go via
    * the same TC.
    */
@@ -309,6 +315,15 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
 
   trans->close();
 
+  // TODO : Add code to testUpgrade
+#if 0
+  /*
+   * Short TCKEYREQ    KeyInfo accumulate       Consume + send long
+   *                     (TCKEYREQ + KEYINFO)
+   * Short TCKEYREQ    AttrInfo accumulate      Consume + send short key
+   *                                             + long AI
+   *                      (TCKEYREQ + ATTRINFO)
+   */
   /* Change error insert so that next TCKEYREQ will grab
    * all but one SegmentedSection so that we can then test SegmentedSection
    * exhaustion when importing the Key/AttrInfo words from the
@@ -376,7 +391,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   CHECKEQUAL(218, trans->getNdbError().code)
 
   trans->close();  
-
+#endif
 
   /* Finished with error insert, cleanup the error insertion
    * Error insert 8068 will free the hoarded segments
@@ -403,7 +418,6 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
   
 /* Test for correct behaviour using unique key operations
  * when an NDBD node's SegmentedSection pool is exhausted.
- * Long and Short TCKEYREQ variants are tested
  */
 int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
   /* 
@@ -412,23 +426,13 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
    * Long TCINDXREQ    Initial import           Consume + send 
    * Long TCINDXREQ    Build second TCKEYREQ    Consume + send short
    *                                             w. long base key
-   * Short TCINDXREQ   KeyInfo accumulate       Consume + send long
-   *                     (TCINDXREQ + KEYINFO)
-   * Short TCINDXREQ   AttrInfo accumulate      Consume + send short key
-   *                                             + long AI
-   *                     (TCINDXREQ + ATTRINFO)
    */
   /* We will generate : 
    *   10 SS left : 
    *     Long IndexReq with too long Key/AttrInfo
+   *    1 SS left :
    *     Long IndexReq read with short Key + Attrinfo to long 
    *       base table Key
-   *     Short IndexReq with long Keyinfo
-   *     Short IndexReq with long AttrInfo
-   *   1 SS left
-   *     Short IndexReq with any AttrInfo
-   *   0 SS left
-   *     Short IndexReq with any key info 
    */
   /* We just run on one table */
   if (strcmp(ctx->getTab()->getName(), "WIDE_2COL_IX") != 0)
@@ -556,8 +560,8 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8065 in this transaction, consumes
-   * all but 10 SectionSegments
+  /* Activate error insert 8065 in this transaction, limits any
+   * single append/import to 10 sections.
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           baseRecord, 
@@ -566,9 +570,7 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                           &restarter, 
                                           8065));
 
-  /* Ok, now the chosen TC's node should have only 10 
-   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
-   * Let's try an index read with an index key bigger than that
+  /* Ok, let's try an index read with a big index key.
    * Since it's part of the same transaction, it'll go via
    * the same TC.
    */
@@ -643,6 +645,21 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
                                              &smallKey[0],
                                              smallKeySize));
 
+  /* Activate error insert 8066 in this transaction, limits a
+   * single import/append to 1 section.
+   * Note that the TRANSID_AI is received by TC as a short-signal
+   * train, so no single append is large, but when the first
+   * segment is used and append starts on the second, it will
+   * fail.
+   */
+  CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
+                                          baseRecord, 
+                                          ctx->getTab(),
+                                          smallRowBuf, 
+                                          &restarter, 
+                                          8066));
+  CHECKEQUAL(0, trans->execute(NdbTransaction::NoCommit));
+  
   CHECKNOTNULL(bigRead= trans->readTuple(ixRecord,
                                          bigAttrIxBuf,
                                          baseRecord,
@@ -655,6 +672,15 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
 
   trans->close();
 
+  // TODO Move short signal testing to testUpgrade
+#if 0
+  /*
+   * Short TCINDXREQ   KeyInfo accumulate       Consume + send long
+   *                     (TCINDXREQ + KEYINFO)
+   * Short TCINDXREQ   AttrInfo accumulate      Consume + send short key
+   *                                             + long AI
+   *                     (TCINDXREQ + ATTRINFO)
+   */
   /* Now try with a 'short' TCINDXREQ, generated using the old Api 
    * with a big index key value
    */
@@ -786,6 +812,8 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
 
   trans->close();
 
+#endif  
+
   /* Finished with error insert, cleanup the error insertion */
   CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
                                              &smallKey[0],
@@ -854,20 +882,19 @@ int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
                                                 smallKeySize);
   CHECKNOTNULL(trans);
 
-  /* Activate error insert 8065 in this transaction, consumes
-   * all but 10 SectionSegments
+  /* Activate error insert 8066 in this transaction, limits a 
+   * single import/append to 1 section.
    */
   CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
                                           record, 
                                           ctx->getTab(),
                                           smallRowBuf, 
                                           &restarter, 
-                                          8065));
+                                          8066));
 
-  /* Ok, now the chosen TC's node should have only 10 
-   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
-   * A scan will always send 2 long sections (Receiver Ids
-   * + AttrInfo), so let's start a scan with > 2400 bytes of
+  /* A scan will always send 2 long sections (Receiver Ids,
+   * AttrInfo)
+   * Let's start a scan with > 2400 bytes of
    * ATTRINFO and see what happens
    */
   NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
@@ -968,6 +995,12 @@ int testDropSignalFragments(NDBT_Context* ctx, NDBT_Step* step){
 
     Uint32 errorInsertVal= subcase.errorInsertCode;
     // printf("Inserting error : %u\n", errorInsertVal);
+    /* We insert the error twice, to bias races between
+     * error-insert propagation and the succeeding scan
+     * in favour of error insert winning!
+     * This problem needs a more general fix
+     */
+    CHECKEQUAL(0, restarter.insertErrorInAllNodes(errorInsertVal));
     CHECKEQUAL(0, restarter.insertErrorInAllNodes(errorInsertVal));
 
     NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());

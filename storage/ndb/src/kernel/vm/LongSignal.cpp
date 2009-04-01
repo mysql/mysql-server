@@ -179,6 +179,9 @@ dupSection(SPC_ARG Uint32& copyFirstIVal, Uint32 srcFirstIVal)
   return true;
 }
 
+extern int ErrorSignalReceive;
+extern int ErrorMaxSegmentsToSeize;
+
 /**
  * appendToSection
  * Append supplied words to the chain of section segments
@@ -211,6 +214,15 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
 
   if (firstSegmentIVal == RNIL)
   {
+#ifdef ERROR_INSERT
+    /* Simulate running out of segments */
+    if ((ErrorSignalReceive == 1) && 
+        (ErrorMaxSegmentsToSeize == 0))
+    {
+      ndbout_c("append exhausted on first segment");
+      return false;
+    }
+#endif
     /* First data to be added to this section */
     bool result= g_sectionSegmentPool.seize(SPC_SEIZE_ARG firstPtr);
 
@@ -245,6 +257,10 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
 
   firstPtr.p->m_sz+= len;
 
+#ifdef ERROR_INSERT
+  Uint32 remainSegs= (Uint32) ErrorMaxSegmentsToSeize - 1;
+#endif
+
   while(len > remain) {
     /* Fill this segment, and link in another one
      * Note that we can memcpy to a bad address with size 0
@@ -253,6 +269,18 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     src += remain;
     len -= remain;
     Ptr<SectionSegment> prevPtr= currPtr;
+
+#ifdef ERROR_INSERT
+    /* Simulate running out of segments */
+    if ((ErrorSignalReceive == 1) && 
+        (0 == remainSegs--))
+    {
+      ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
+      firstPtr.p->m_lastSegment= prevPtr.i;
+      firstPtr.p->m_sz-= len;
+      return false;
+    }
+#endif
     bool result = g_sectionSegmentPool.seize(SPC_SEIZE_ARG currPtr);
     if (!result)
     {
@@ -282,6 +310,16 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
 bool
 import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
 
+#ifdef ERROR_INSERT
+  /* Simulate running out of segments */
+  if ((ErrorSignalReceive == 1) &&
+      (ErrorMaxSegmentsToSeize == 0))
+  {
+    ndbout_c("Import exhausted on first segment");
+    return false;
+  }
+#endif
+
   first.p = 0;
   if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG first)){
     ;
@@ -295,11 +333,30 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
 
   Ptr<SectionSegment> currPtr = first;
 
+#ifdef ERROR_INSERT
+  Uint32 remainSegs= (Uint32) ErrorMaxSegmentsToSeize - 1;
+#endif
+
   while(len > SectionSegment::DataLength){
     memcpy(&currPtr.p->theData[0], src, 4 * SectionSegment::DataLength);
     src += SectionSegment::DataLength;
     len -= SectionSegment::DataLength;
     Ptr<SectionSegment> prevPtr = currPtr;
+
+#ifdef ERROR_INSERT
+    /* Simulate running out of segments */
+    if ((ErrorSignalReceive == 1) &&
+        (0 == remainSegs--))
+    {
+      ndbout_c("Import exhausted on segment %d", 
+               ErrorMaxSegmentsToSeize);
+      first.p->m_lastSegment= prevPtr.i;
+      first.p->m_sz-= len;
+      prevPtr.p->m_nextSegment = RNIL;
+      return false;
+    }
+#endif
+
     if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG currPtr)){
       prevPtr.p->m_nextSegment = currPtr.i;
       ;

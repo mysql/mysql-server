@@ -1,7 +1,11 @@
+if (!`SELECT LENGTH("$mysqld_name")`)
+{
+  let $mysqld_name=mysqld.1;
+}
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--write_file $MYSQLTEST_VARDIR/tmp/$mysqld_name.expect
 wait
 EOF
 
@@ -10,7 +14,7 @@ EOF
 shutdown_server 10;
 
 # Write file to make mysql-test-run.pl start up the server again
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--append_file $MYSQLTEST_VARDIR/tmp/$mysqld_name.expect
 restart
 EOF
 
@@ -22,4 +26,5 @@ EOF
 
 # Turn off reconnect again
 --disable_reconnect
+
 

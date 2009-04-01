@@ -47,7 +47,6 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
   while (l < loops && result == NDBT_OK){
     ndbout_c("loop %d", l + 1);
     int errors = 0;
-    int maxErrors = 5;
     
     Vector<Ndb*> ndbVector;
     int i = 0;
@@ -1611,7 +1610,6 @@ static void print(int op)
 int
 runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   Uint32 loops = ctx->getNumRecords();
   const NdbDictionary::Table* pTab = ctx->getTab();
 
@@ -1653,10 +1651,12 @@ runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
 	switch(et){
 	case Commit: printf("c    "); break;
 	case NoCommit: printf("nc   "); break;
+        default: printf("bad exectype : %d\n", et); return NDBT_FAILED;
 	}
 	switch(ao){
 	case AbortOnError: printf("aoe  "); break;
 	case AO_IgnoreError: printf("ie   "); break;
+        default: printf("bad abortoption : %d\n", ao); return NDBT_FAILED;
 	}
 	printf(": ");
 	
@@ -1707,8 +1707,6 @@ do_cnt(Ndb_cluster_connection* con)
 
 int runCheckNdbObjectList(NDBT_Context* ctx, NDBT_Step* step)
 {
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
   Ndb_cluster_connection* con = &ctx->m_cluster_connection;
   
   Uint32 cnt1 = do_cnt(con);
@@ -2002,6 +2000,8 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 sizeOfTabRec= NdbDictionary::getRecordRowLength(tabRec);
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
   char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
+  bzero(keyRowBuf, sizeof(keyRowBuf));
+  bzero(attrRowBuf, sizeof(attrRowBuf));
 
   HugoCalculator calc(*pTab);
 
@@ -2574,6 +2574,68 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
   
 }
 
+int
+testNdbRecordRowLength(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Bug#43891 ignored null bits at the end of an row
+   * when calculating the row length, leading to various
+   * problems
+   */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  int numCols= pTab->getNoOfColumns();
+  const NdbRecord* defaultRecord= pTab->getDefaultRecord();
+
+  /* Create an NdbRecord structure with all the Null
+   * bits at the end - to test that they are included
+   * correctly in row length calculations.
+   */
+  NdbDictionary::RecordSpecification rsArray[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+
+  bool hasNullable= false;
+  Uint32 highestUsed= 9000;
+  for (int attrId=0; attrId< numCols; attrId++)
+  {
+    NdbDictionary::RecordSpecification& rs= rsArray[attrId];
+    
+    rs.column= pTab->getColumn(attrId);
+    CHECK(NdbDictionary::getOffset(defaultRecord,
+                                   attrId,
+                                   rs.offset));
+    CHECK(NdbDictionary::getNullBitOffset(defaultRecord,
+                                          attrId,
+                                          rs.nullbit_byte_offset,
+                                          rs.nullbit_bit_in_byte));
+    if (rs.column->getNullable())
+    {
+      /* Shift null bit(s) to bytes beyond the end of the record */
+      hasNullable= true;
+      rs.nullbit_byte_offset= highestUsed++;
+      rs.nullbit_bit_in_byte= 0;
+    }
+  }
+  
+  if (hasNullable)
+  {
+    printf("Testing");
+    const NdbRecord* myRecord= pNdb->getDictionary()->createRecord(pTab,
+                                                                   rsArray,
+                                                                   numCols,
+                                                                   sizeof(NdbDictionary::RecordSpecification));
+    CHECK(myRecord != 0);
+    Uint32 rowLength= NdbDictionary::getRecordRowLength(myRecord);
+    if (rowLength != highestUsed)
+    {
+      ndbout << "Failure, expected row length " << highestUsed
+             << " got row length " << rowLength
+             << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -2706,6 +2768,10 @@ TESTCASE("NdbRecordPKUpdate",
 TESTCASE("NdbRecordCICharPKUpdate",
          "Verify that a case-insensitive char pk column can be updated"){
   INITIALIZER(testNdbRecordCICharPKUpdate);
+}
+TESTCASE("NdbRecordRowLength",
+         "Verify that the record row length calculation is correct") {
+  INITIALIZER(testNdbRecordRowLength);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 

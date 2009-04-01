@@ -21,6 +21,9 @@
 #include <pgman.hpp>
 #include <signaldata/LgmanContinueB.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 DbtupProxy::DbtupProxy(Block_context& ctx) :
   LocalProxy(DBTUP, ctx),
   c_pgman(0),

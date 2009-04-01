@@ -442,9 +442,12 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
                           Uint32& len,
                           char* row)
 {
-  /* Clear nullbit in row */
-  row[col->nullbit_byte_offset] &=
-    ~(1 << col->nullbit_bit_in_byte);
+  if (col->flags & NdbRecord::IsNullable)
+  {
+    /* Clear nullbit in row */
+    row[col->nullbit_byte_offset] &=
+      ~(1 << col->nullbit_bit_in_byte);
+  }
 
   char* dest;
   Uint64 mysqldSpace;

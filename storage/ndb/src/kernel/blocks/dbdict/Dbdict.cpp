@@ -6497,7 +6497,6 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
   ref->tableId = req->tableId;
   ref->tableVersion = req->tableVersion;
   getError(error, ref);
-
   sendSignal(req->clientRef, GSN_DROP_TABLE_REF, signal,
              DropTableRef::SignalLength, JBB);
 }
@@ -6732,7 +6731,6 @@ Dbdict::prepDropTab_nextStep(Signal* signal, SchemaOpPtr op_ptr)
     ref->senderData = op_ptr.p->op_key;
     ref->tableId = impl_req->tableId;
     ref->errorCode = 9131;
-
     sendSignal(reference(), GSN_PREP_DROP_TAB_REF, signal,
                PrepDropTabRef::SignalLength, JBB);
     return;
@@ -7024,7 +7022,6 @@ Dbdict::dropTab_complete(Signal* signal,
     }
     conf->senderData = op_key;
     conf->tableId = tableId;
-
     sendSignal(SUMA_REF, GSN_DROP_TAB_CONF, signal,
                DropTabConf::SignalLength, JBB);
   }
@@ -7144,12 +7141,12 @@ void
 Dbdict::execALTER_TABLE_REQ(Signal* signal)
 {
   jamEntry();
+
   if (!assembleFragments(signal)) {
     jam();
     return;
   }
   SectionHandle handle(this, signal);
-
   const AlterTableReq req_copy =
     *(const AlterTableReq*)signal->getDataPtr();
   const AlterTableReq* req = &req_copy;
@@ -7187,7 +7184,6 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   ref->clientData = req->clientData;
   ref->transId = req->transId;
   getError(error, ref);
-
   sendSignal(req->clientRef, GSN_ALTER_TABLE_REF, signal,
              AlterTableRef::SignalLength, JBB);
 }
@@ -8034,7 +8030,6 @@ Dbdict::alterTable_toSumaSync(Signal* signal,
     jamLine(step);
     ndbrequire(false);
   }
-
   sendSignal(reference(), GSN_ALTER_TABLE_REQ, signal,
              AlterTableReq::SignalLength, JBB);
 }
@@ -10879,7 +10874,6 @@ Dbdict::dropIndex_toDropTable(Signal* signal, SchemaOpPtr op_ptr)
   req->requestInfo = requestInfo;
   req->tableId = impl_req->indexId;
   req->tableVersion = impl_req->indexVersion;
-
   sendSignal(reference(), GSN_DROP_TABLE_REQ, signal,
              DropTableReq::SignalLength, JBB);
 }
@@ -13459,6 +13453,15 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
     jam();
     EVENT_TRACE;
     releaseSections(handle);
+
+    if (ERROR_INSERTED(6023))
+    {
+      jam();
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      return;
+    }
+
     createEvent_RT_DICT_AFTER_GET(signal, evntRecPtr);
     return;
   }
@@ -14132,15 +14135,44 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
   ndbout_c("DBDICT(Coordinator) got GSN_CREATE_EVNT_REF evntRecPtr.i = (%d)", evntRecPtr.i);
 #endif
 
-  if (ref->errorCode == CreateEvntRef::NF_FakeErrorREF){
+  LinearSectionPtr ptr[1];
+
+  int noLSP = 0;
+  LinearSectionPtr *ptr0 = NULL;
+  if (ref->errorCode == CreateEvntRef::NF_FakeErrorREF)
+  {
     jam();
-    evntRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(ref->senderRef));
-  } else {
+    evntRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, 
+                                         refToNode(ref->senderRef));
+
+    /**
+     * If a CREATE_EVNT_REF finishes request,
+     *   we need to make sure that table name is sent
+     *   same as it is if a CREATE_EVNT_CONF finishes request
+     */
+    if (evntRecPtr.p->m_reqTracker.done())
+    {
+      jam();
+      /**
+       * Add "extra" check if tracker is done...
+       *   (strictly not necessary...)
+       *   but makes case more explicit
+       */
+      ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
+      ptr[0].sz = (strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4;
+      ptr0 = ptr;
+      noLSP = 1;
+    }
+  }
+  else 
+  {
     jam();
     evntRecPtr.p->m_errorCode = ref->errorCode;
-    evntRecPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(ref->senderRef));
+    evntRecPtr.p->m_reqTracker.reportRef(c_counterMgr, 
+                                         refToNode(ref->senderRef));
   }
-  createEvent_sendReply(signal, evntRecPtr);
+
+  createEvent_sendReply(signal, evntRecPtr, ptr0, noLSP);
 
   return;
 }
@@ -14718,6 +14750,7 @@ busy:
     subbPtr.p->m_subscriptionKey = req->subscriptionKey;
     subbPtr.p->m_subscriberRef = req->subscriberRef;
     subbPtr.p->m_subscriberData = req->subscriberData;
+    bzero(&subbPtr.p->m_sub_stop_conf, sizeof(subbPtr.p->m_sub_stop_conf));
 
     if (signal->getLength() < SubStopReq::SignalLength)
     {
@@ -14862,7 +14895,24 @@ void Dbdict::execSUB_STOP_CONF(Signal* signal)
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
+  Uint64 old_gci, new_gci = 0;
+  {
+    Uint32 old_gci_hi = subbPtr.p->m_sub_stop_conf.gci_hi;
+    Uint32 old_gci_lo = subbPtr.p->m_sub_stop_conf.gci_lo;
+    old_gci = old_gci_lo | (Uint64(old_gci_hi) << 32);
+    if (signal->getLength() >= SubStopConf::SignalLengthWithGci)
+    {
+      Uint32 new_gci_hi = conf->gci_hi;
+      Uint32 new_gci_lo = conf->gci_lo;
+      new_gci = new_gci_lo | (Uint64(new_gci_hi) << 32);
+    }
+  }
   subbPtr.p->m_sub_stop_conf = *conf;
+  if (old_gci > new_gci)
+  {
+    subbPtr.p->m_sub_stop_conf.gci_hi= Uint32(old_gci>>32);
+    subbPtr.p->m_sub_stop_conf.gci_lo= Uint32(old_gci);
+  }
   subbPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
   completeSubStopReq(signal,subbPtr.i,0);
 }
@@ -22348,7 +22398,6 @@ void
 Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
 {
   jamEntry();
-
   const SchemaTransEndReq* req =
     (const SchemaTransEndReq*)signal->getDataPtr();
   Uint32 clientRef = req->clientRef;
@@ -24431,7 +24480,6 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     jam();
     return;
   }
-
   SchemaTransImplReq reqCopy =
     *(const SchemaTransImplReq*)signal->getDataPtr();
   const SchemaTransImplReq *req = &reqCopy;
@@ -25229,7 +25277,6 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
       ref->transId = transId;
       getError(trans_ptr.p->m_error, ref);
       ref->masterNodeId = c_masterNodeId;
-
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_REF, signal,
                  SchemaTransEndRef::SignalLength, JBB);
     }
@@ -25344,7 +25391,6 @@ Dbdict::beginSchemaTrans(Signal* signal, TxHandlePtr tx_ptr)
   req->clientRef = reference();
   req->transId = tx_ptr.p->m_transId;
   req->requestInfo = requestInfo;
-
   sendSignal(reference(), GSN_SCHEMA_TRANS_BEGIN_REQ, signal,
              SchemaTransBeginReq::SignalLength, JBB);
 }
@@ -25375,7 +25421,6 @@ Dbdict::endSchemaTrans(Signal* signal, TxHandlePtr tx_ptr, Uint32 flags)
   req->transKey = tx_ptr.p->m_transKey;
   req->requestInfo = requestInfo;
   req->flags = flags;
-
   sendSignal(reference(), GSN_SCHEMA_TRANS_END_REQ, signal,
              SchemaTransEndReq::SignalLength, JBB);
 }
@@ -25383,7 +25428,7 @@ Dbdict::endSchemaTrans(Signal* signal, TxHandlePtr tx_ptr, Uint32 flags)
 void
 Dbdict::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 {
-  jamEntry();
+  jamEntry(); 
   const SchemaTransBeginConf* conf =
     (const SchemaTransBeginConf*)signal->getDataPtr();
 
