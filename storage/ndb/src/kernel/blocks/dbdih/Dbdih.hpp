@@ -1564,7 +1564,7 @@ private:
     Uint32 failNr;
     bool activeState;
     bool blockLcp;
-    bool blockGcp;
+    Uint32 blockGcp; // 0, 1=ordered, 2=effective
     Uint32 startInfoErrorCode;
     Uint32 m_outstandingGsn;
     MutexHandle2<DIH_FRAGMENT_INFO> m_fragmentInfoMutex;
