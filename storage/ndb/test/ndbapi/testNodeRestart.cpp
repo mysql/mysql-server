@@ -3609,6 +3609,60 @@ runBug43224(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug43888(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  
+  int loops = ctx->getNumLoops();
+  while (--loops >= 0)
+  {
+    int master = res.getMasterNodeId();
+    ndbout_c("master: %u", master);
+    int nodeId = master;
+    do {
+      nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+    } while (nodeId == master);
+
+    ndbout_c("target: %u", nodeId);
+    
+    res.restartOneDbNode(nodeId,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nodeId, 1);
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(nodeId, val2, 2))
+      return NDBT_FAILED;
+    
+    res.insertErrorInNode(master, 7217);
+    res.startNodes(&nodeId, 1);
+    NdbSleep_SecSleep(3);
+    ndbout_c("%u : waiting for %u to not get not-started", __LINE__, nodeId);
+    res.waitNodesNoStart(&nodeId, 1);
+    
+    ndbout_c("%u : starting %u", __LINE__, nodeId);
+    res.startNodes(&nodeId, 1);
+    
+    ndbout_c("%u : waiting for cluster started", __LINE__);
+    if (res.waitClusterStarted())
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -4092,6 +4146,9 @@ TESTCASE("Bug42422", ""){
 TESTCASE("Bug43224", ""){
   INITIALIZER(runBug43224);
 }
+TESTCASE("Bug43888", ""){
+  INITIALIZER(runBug43888);
+}
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
@@ -4106,4 +4163,3 @@ int main(int argc, const char** argv){
 #endif
   return testNodeRestart.execute(argc, argv);
 }
-
