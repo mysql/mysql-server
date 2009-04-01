@@ -96,21 +96,6 @@ public:
   };
 
   /**
-   * Enable/disable eventlog log levels/severities.
-   *
-   * @param serverity the log level/serverity.
-   * @return true if the severity was enabled.
-   */
-  bool setEventLogFilter(int severity, int enable);
-
-  /**
-   * Returns true if the log level/severity is enabled.
-   *
-   * @param severity the severity level.
-   */
-  bool isEventLogFilterEnabled(int severity);
-
-  /**
    *   This enum specifies the different signal loggig modes possible to set 
    *   with the setSignalLoggingMode method.
    */
@@ -531,8 +516,6 @@ private:
  
   class TransporterFacade * theFacade;
 
-  int translateStopRef(Uint32 errCode);
-  
   bool _isStopThread;
   int _logLevelThreadSleep;
   MutexVector<NodeId> m_started_nodes;
