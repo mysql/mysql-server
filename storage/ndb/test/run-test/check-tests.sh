@@ -22,7 +22,8 @@ check_file(){
     testcase=0
 
     echo -n "-- checking $file..."
-    cat $file | awk '{ print "^" $0 "$";}' | while read line
+    cat $file | awk '{ print "^" $0 "$";}' > /tmp/ct.$$
+    while read line
     do
 	lineno=$(expr $lineno + 1)
 	if [ $(echo $line | grep -c "^^#") -ne 0 ]
@@ -54,7 +55,14 @@ check_file(){
 	    *)
 	        die $file $lineno
 	esac
-   done
+   done < /tmp/ct.$$
+   rm -f /tmp/ct.$$
+   if [ $testcase -ne 0 ]
+   then
+   	echo "Missing newline in end-of-file"
+	die $file $lineno
+   fi
+
    echo "ok"
 }
    
