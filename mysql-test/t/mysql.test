@@ -98,35 +98,43 @@ drop table t1;
 # Bug #20432: mysql client interprets commands in comments
 #
 
+--let $file = $MYSQLTEST_VARDIR/tmp/bug20432.sql
+
 # if the client sees the 'use' within the comment, we haven't fixed
---exec echo "/*"          >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec echo "use"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec echo "*/"          >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+--exec echo "/*"          >  $file
+--exec echo "use"         >> $file
+--exec echo "*/"          >> $file
+--exec $MYSQL              < $file 2>&1
 
 # SQL can have embedded comments => workie
---exec echo "select /*"   >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec echo "use"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec echo "*/ 1"        >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+--exec echo "select /*"   >  $file
+--exec echo "use"         >> $file
+--exec echo "*/ 1"        >> $file
+--exec $MYSQL              < $file 2>&1
 
 # client commands on the other hand must be at BOL => error
---exec echo "/*"          >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec echo "xxx"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec echo "*/ use"      >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "/*"          >  $file
+--exec echo "xxx"         >> $file
+--exec echo "*/ use"      >> $file
 --error 1
---exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+--exec $MYSQL              < $file 2>&1
 
 # client comment recognized, but parameter missing => error
---exec echo "use"         >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
---exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+--exec echo "use"         >  $file
+--exec $MYSQL              < $file 2>&1
+
+--remove_file $file
 
 #
 # Bug #20328: mysql client interprets commands in comments
 #
---exec $MYSQL -e "help" > $MYSQLTEST_VARDIR/tmp/bug20328_1.result
---exec $MYSQL -e "help " > $MYSQLTEST_VARDIR/tmp/bug20328_2.result
---diff_files $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+--let $file1 = $MYSQLTEST_VARDIR/tmp/bug20328_1.result
+--let $file2 = $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+--exec $MYSQL -e "help" > $file1
+--exec $MYSQL -e "help " > $file2
+--diff_files $file1 $file2
+--remove_file $file1
+--remove_file $file2
 
 #
 # Bug #19216: Client crashes on long SELECT
@@ -152,13 +160,15 @@ EOF
 #
 # Bug #20103: Escaping with backslash does not work
 #
---exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
---exec echo "SELECT '\';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
+--let $file = $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $file
+--exec echo "SELECT '\';" >> $file
+--exec $MYSQL < $file 2>&1
 
---exec echo "SET SQL_MODE = '';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
---exec echo "SELECT '\';';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
---exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
+--exec echo "SET SQL_MODE = '';"  > $file
+--exec echo "SELECT '\';';" >> $file
+--exec $MYSQL              < $file 2>&1
+--remove_file $file
 
 #
 # Bug#17583: mysql drops connection when stdout is not writable
@@ -314,6 +324,23 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug38158.sql;
 # Bug #41437: Value stored in 'case' lacks charset, causees segfault
 #
 --exec $MYSQL -e "select @z:='1',@z=database()"
+
+
+#
+# Bug #31060: MySQL CLI parser bug 2
+#
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug31060.sql
+;DELIMITER DELIMITER
+;
+SELECT 1DELIMITER
+DELIMITER ;
+SELECT 1;
+EOF
+
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug31060.sql 2>&1
+
+remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 
 --echo End of 5.0 tests
 

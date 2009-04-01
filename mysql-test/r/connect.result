@@ -188,7 +188,7 @@ DROP USER mysqltest_u1@localhost;
 
 # -- End of Bug#33507.
 
-# -- Bug#35074: max_used_connections is not correct. 
+# -- Bug#35074: max_used_connections is not correct.
 
 FLUSH STATUS;
 

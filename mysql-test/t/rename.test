@@ -2,6 +2,8 @@
 # Test of rename table
 #
 
+--source include/count_sessions.inc
+
 --disable_warnings
 drop table if exists t0,t1,t2,t3,t4;
 # Clear up from other tests (to ensure that SHOW TABLES below is right)
@@ -19,16 +21,16 @@ rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
 select * from t1;
 
 # The following should give errors
---error 1050,1050
+--error ER_TABLE_EXISTS_ERROR,ER_TABLE_EXISTS_ERROR
 rename table t1 to t2;
---error 1050,1050
+--error ER_TABLE_EXISTS_ERROR,ER_TABLE_EXISTS_ERROR
 rename table t1 to t1;
---error 1050,1050
+--error ER_TABLE_EXISTS_ERROR,ER_TABLE_EXISTS_ERROR
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
 show tables like "t_";
---error 1050,1050
+--error ER_TABLE_EXISTS_ERROR,ER_TABLE_EXISTS_ERROR
 rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
---error 1017,1017
+--error ER_FILE_NOT_FOUND,ER_FILE_NOT_FOUND
 rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
 
 select * from t1;
@@ -63,7 +65,7 @@ connection con2;
 # Wait for the the tables to be renamed
 # i.e the query below succeds
 let $query= select * from t2, t4;
-source include/wait_for_query_to_suceed.inc;
+source include/wait_for_query_to_succeed.inc;
 
 show tables;
 
@@ -83,13 +85,15 @@ connection default;
 create table t1(f1 int);
 create view v1 as select * from t1;
 alter table v1 rename to v2;
---error 1146
+--error ER_NO_SUCH_TABLE
 alter table v1 rename to v2;
 rename table v2 to v1;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 rename table v2 to v1;
 drop view v1;
 drop table t1;
 
-
 --echo End of 5.0 tests
+
+--source include/wait_until_count_sessions.inc
+

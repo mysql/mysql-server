@@ -168,8 +168,9 @@ our $opt_force;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
-our $opt_gcov_err;
-our $opt_gcov_msg;
+our $opt_gcov_exe= "gcov";
+our $opt_gcov_err= "mysql-test-gcov.msg";
+our $opt_gcov_msg= "mysql-test-gcov.err";
 
 our $glob_debugger= 0;
 our $opt_gdb;
@@ -413,7 +414,7 @@ sub main {
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov,
+    gcov_collect($basedir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
@@ -2977,9 +2978,6 @@ test case was executed:\n";
 	  $result= 2;
 	}
 
-	# Remove the .err file the check generated
-	unlink($err_file);
-
 	# Remove the .result file the check generated
 	unlink("$base_file.result");
 
@@ -3600,6 +3598,7 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
+  mtr_add_arg($args, "--verbose");
 
   if ( $opt_embedded_server )
   {
@@ -3689,10 +3688,9 @@ sub check_warnings ($) {
 
 	if ( $res == 62 ) {
 	  # Test case was ok and called "skip"
-	  ;
+	  # Remove the .err file the check generated
+	  unlink($err_file);
 	}
-	# Remove the .err file the check generated
-	unlink($err_file);
 
 	if ( keys(%started) == 0){
 	  # All checks completed
@@ -3714,8 +3712,6 @@ sub check_warnings ($) {
 
 	$result= 2;
       }
-      # Remove the .err file the check generated
-      unlink($err_file);
     }
     elsif ( $proc eq $timeout_proc ) {
       $tinfo->{comment}.= "Timeout $timeout_proc for ".
@@ -4616,6 +4612,7 @@ sub start_check_testcase ($$$) {
 
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
+  mtr_add_arg($args, "--verbose");
 
   if ( $mode eq "before" )
   {
@@ -4790,8 +4787,7 @@ sub start_mysqltest ($) {
   elsif ( $opt_client_debugger )
   {
     debugger_arguments(\$args, \$exe, "client");
- }
-
+  }
 
   my $proc= My::SafeProcess->new
     (
@@ -5189,6 +5185,8 @@ Misc options
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
                         actions. Disable facility with NUM=0.
+  gcov                  Collect coverage information after the test.
+                        The result is a gcov file per source and header file.
 
 HERE
   exit(1);

@@ -354,7 +354,7 @@ static char *slave_load_file_stem(char *buf, uint file_id,
                                   int event_server_id, const char *ext)
 {
   char *res;
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  fn_format(buf,PREFIX_SQL_LOAD,slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
   buf = strend(buf);
@@ -393,7 +393,7 @@ static void cleanup_load_tmpdir()
      we cannot meet Start_log event in the middle of events from one 
      LOAD DATA.
   */
-  p= strmake(prefbuf, STRING_WITH_LEN("SQL_LOAD-"));
+  p= strmake(prefbuf, STRING_WITH_LEN(PREFIX_SQL_LOAD));
   p= int10_to_str(::server_id, p, 10);
   *(p++)= '-';
   *p= 0;
@@ -1258,7 +1258,7 @@ void Log_event::print_header(IO_CACHE* file,
 
   my_b_printf(file, "#");
   print_timestamp(file);
-  my_b_printf(file, " server id %d  end_log_pos %s ", server_id,
+  my_b_printf(file, " server id %lu  end_log_pos %s ", (ulong) server_id,
               llstr(log_pos,llbuff));
 
   /* mysqlbinlog --hexdump */

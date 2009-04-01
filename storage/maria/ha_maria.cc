@@ -2228,6 +2228,10 @@ int ha_maria::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
+#ifdef NOT_USED
+  if (operation == HA_EXTRA_MMAP && !opt_maria_use_mmap)
+    return 0;
+#endif
 
   /*
     We have to set file->trn here because in some cases we call
