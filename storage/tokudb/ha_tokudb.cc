@@ -3559,22 +3559,31 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
 static int create_sub_table(const char *table_name, int flags) {
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
-    DB *file;
+    DB *file = NULL;
     DBUG_PRINT("enter", ("flags: %d", flags));
-
-    if (!(error = db_create(&file, db_env, 0))) {
-        file->set_flags(file, flags);
-        error = (file->open(file, NULL, table_name, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask));
-        if (error) {
-            DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
-            (void) file->remove(file, table_name, NULL, 0);
-        } else
-            (void) file->close(file, 0);
-    } else {
+    
+    error = db_create(&file, db_env, 0);
+    if (error) {
         DBUG_PRINT("error", ("Got error: %d when creating table", error));
-    }
-    if (error)
         my_errno = error;
+        goto exit;
+    }
+        
+    file->set_flags(file, flags);
+    error = file->open(file, NULL, table_name, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask);
+    if (error) {
+        DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
+        goto exit;
+    } 
+
+    (void) file->close(file, 0);
+    error = 0;
+exit:
+    if (error) {
+        if (file != NULL) {
+            (void) file->remove(file, table_name, NULL, 0);
+        }
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
