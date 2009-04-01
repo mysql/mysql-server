@@ -336,7 +336,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	    wbuf_ulonglong(&w, se->nkeys);
 	    wbuf_ulonglong(&w, se->ndata);
 	    wbuf_ulonglong(&w, se->dsize);
-	    wbuf_char     (&w, se->exact);
+	    wbuf_char     (&w, (char)se->exact);
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	for (i=0; i<node->u.n.n_children-1; i++) {
