@@ -1,7 +1,7 @@
 [ndb_mgmd]
 
 [mysqld]
-skip-innodb
+loose-skip-innodb
 
 [cluster_config.1]
 ndb_mgmd =
