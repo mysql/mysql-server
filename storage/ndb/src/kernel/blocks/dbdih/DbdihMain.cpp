@@ -2217,7 +2217,7 @@ void Dbdih::nodeDictStartConfLab(Signal* signal)
   // THE DICTIONARY AGAIN.
   /*-------------------------------------------------------------------------*/
   c_nodeStartMaster.wait = ZFALSE;
-  c_nodeStartMaster.blockGcp = true;
+  c_nodeStartMaster.blockGcp = 1;
 
   return;
 }//Dbdih::nodeDictStartConfLab()
@@ -2350,7 +2350,7 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   // various blocks we are ready to start the global checkpoint protocol
   /*------------------------------------------------------------------------*/
   c_nodeStartMaster.wait = 11;
-  c_nodeStartMaster.blockGcp = false;
+  c_nodeStartMaster.blockGcp = 0;
 
   /**
    * Restart GCP
@@ -4416,7 +4416,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   Uint32 newMasterId = nodeFail->masterNodeId;
   const Uint32 noOfFailedNodes = nodeFail->noOfNodes;
 
-  if (ERROR_INSERTED(7179))
+  if (ERROR_INSERTED(7179) || ERROR_INSERTED(7217))
   {
     CLEAR_ERROR_INSERT_VALUE;
   }
@@ -4425,6 +4425,8 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   {
     SET_ERROR_INSERT_VALUE(7000);
   }
+
+
 
   /*-------------------------------------------------------------------------*/
   // The first step is to convert from a bit mask to an array of failed nodes.
@@ -8246,7 +8248,7 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 void
 Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
 {
-  if (c_nodeStartMaster.blockGcp == true &&
+  if (c_nodeStartMaster.blockGcp != 0 &&
       m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)
   {
     jam();
@@ -8255,9 +8257,27 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
     /*  A NEW NODE WANTS IN AND WE MUST ALLOW IT TO COME IN NOW SINCE THE */
     /*       GCP IS COMPLETED.                                            */
     /* ------------------------------------------------------------------ */
-    gcpBlockedLab(signal);
-    return;
-  }//if
+
+    if (ERROR_INSERTED(7217))
+    {
+      jam();
+      
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, refToNode(c_nodeStartMaster.startNode)),
+                 GSN_NDB_TAMPER, signal, 1, JBB);
+
+      m_micro_gcp.m_master.m_start_time = 0; // Force start
+      // fall through
+    }
+    else
+    {
+      jam();
+      ndbrequire(c_nodeStartMaster.blockGcp == 1); // Ordered...
+      c_nodeStartMaster.blockGcp = 2; // effective
+      gcpBlockedLab(signal);
+      return;
+    }
+  }
 
   if ((cgcpOrderBlocked == 1) ||
       (cfirstVerifyQueue != RNIL)) {
@@ -12212,7 +12232,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
   if (local)
     goto dolocal;
 
-  if (c_nodeStartMaster.blockGcp)
+  if (c_nodeStartMaster.blockGcp == 2)
   {
     jam();
     /**
@@ -13104,7 +13124,7 @@ void Dbdih::initCommonData()
   cverifyQueueCounter = 0;
   cwaitLcpSr = false;
   c_nextLogPart = 0;
-  c_nodeStartMaster.blockGcp = false;
+  c_nodeStartMaster.blockGcp = 0;
 
   nodeResetStart(0);
   c_nodeStartMaster.wait = ZFALSE;
@@ -13900,17 +13920,17 @@ void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr)
 void Dbdih::nodeResetStart(Signal *signal)
 {
   jam();
-  bool startGCP = c_nodeStartMaster.blockGcp;
+  Uint32 startGCP = c_nodeStartMaster.blockGcp;
 
   c_nodeStartSlave.nodeId = 0;
   c_nodeStartMaster.startNode = RNIL;
   c_nodeStartMaster.failNr = cfailurenr;
   c_nodeStartMaster.activeState = false;
-  c_nodeStartMaster.blockGcp = false;
+  c_nodeStartMaster.blockGcp = 0;
   c_nodeStartMaster.blockLcp = false;
   c_nodeStartMaster.m_outstandingGsn = 0;
 
-  if (startGCP)
+  if (startGCP == 2) // effective
   {
     jam();
     ndbrequire(isMaster());
