@@ -34,7 +34,7 @@ enum {
         TOKUDB_SUCCEEDED_EARLY     = -100001,
         TOKUDB_FOUND_BUT_REJECTED  = -100002,
         TOKUDB_USER_CALLBACK_ERROR = -100003,
-        TOKUDB_DIRTY_DICTIONARY    = -100004
+        TOKUDB_DICTIONARY_TOO_OLD  = -100004
 };
 
 void print_defines (void) {
@@ -140,7 +140,7 @@ void print_defines (void) {
     printf("/* TOKUDB specific error codes */\n");
     dodefine(TOKUDB_OUT_OF_LOCKS);
     dodefine(TOKUDB_SUCCEEDED_EARLY);
-    dodefine(TOKUDB_DIRTY_DICTIONARY);
+    dodefine(TOKUDB_DICTIONARY_TOO_OLD);
     dodefine(TOKUDB_FOUND_BUT_REJECTED);
     dodefine(TOKUDB_USER_CALLBACK_ERROR);
 }

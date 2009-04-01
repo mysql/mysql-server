@@ -118,7 +118,7 @@ typedef enum {
 /* TOKUDB specific error codes */
 #define TOKUDB_OUT_OF_LOCKS -100000
 #define TOKUDB_SUCCEEDED_EARLY -100001
-#define TOKUDB_DIRTY_DICTIONARY -100004
+#define TOKUDB_DICTIONARY_TOO_OLD -100004
 #define TOKUDB_FOUND_BUT_REJECTED -100002
 #define TOKUDB_USER_CALLBACK_ERROR -100003
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
