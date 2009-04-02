@@ -3343,6 +3343,11 @@ row_search_for_mysql(
 		return(DB_ERROR);
 	}
 
+	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+
+		return(DB_MISSING_HISTORY);
+	}
+
 	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
