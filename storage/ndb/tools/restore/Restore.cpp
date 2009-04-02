@@ -34,8 +34,18 @@ Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
 Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
 
 bool
-BackupFile::Twiddle(const AttributeDesc* attr_desc, AttributeData* attr_data, Uint32 arraySize){
+BackupFile::Twiddle(const AttributeDesc * const attr_desc,
+                    AttributeData* attr_data, Uint32 arraySize) const
+{
   Uint32 i;
+
+  // Check parameters are not NULL
+  assert(attr_desc);
+  assert(attr_data);
+
+  // Make sure there is data to fiddle with
+  assert(!attr_data->null);
+  assert(attr_data->void_value);
 
   if(m_hostByteOrder)
     return true;
@@ -1777,10 +1787,10 @@ RestoreLogIterator::getNextLogEntry(int & res) {
 
   AttributeHeader * ah = (AttributeHeader *)attr_data;
   AttributeHeader *end = (AttributeHeader *)(attr_data + attr_data_len);
-  AttributeS *  attr;
+  AttributeS * attr;
   m_logEntry.m_frag_id = frag_id;
   while(ah < end){
-    attr= m_logEntry.add_attr();
+    attr = m_logEntry.add_attr();
     if(attr == NULL) {
       ndbout_c("Restore: Failed to allocate memory");
       res = -1;
@@ -1800,9 +1810,9 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     } else {
       attr->Data.null = false;
       attr->Data.void_value = ah->getDataPtr();
+      Twiddle(attr->Desc, &(attr->Data));
     }
     
-    Twiddle(attr->Desc, &(attr->Data));
     
     ah = ah->getNext();
   }

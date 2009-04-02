@@ -35,24 +35,12 @@ isDrop6(Uint32 version)
   return (getMajor(version) == 5 && getMinor(version) == 2);
 }
 
-const int FileNameLenC = 256;
-const int TableNameLenC = 256;
-const int AttrNameLenC = 256;
-const Uint32 timeToWaitForNdbC = 10000;
-const Uint32 opsDefaultC = 1000;
-
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
 typedef  bool (*AttrCheckCompatFunc)(const NDBCOL &old_col,
                                      const NDBCOL &new_col);
 typedef  void* (*AttrConvertFunc)(const void *old_data, 
                                   void *parameter);
-
-// Forward declarations
-//class AttributeDesc;
-struct AttributeDesc;
-struct AttributeData;
-class AttributeS;
 
 struct AttributeData {
   bool null;
@@ -327,7 +315,9 @@ public:
   const char * getFilename() const { return m_fileName;}
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
-  bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
+  bool Twiddle(const AttributeDesc * const attr_desc,
+               AttributeData * attr_data,
+               Uint32 arraySize = 0) const;
 
   Uint64 get_file_size() const { return m_file_size; }
   Uint64 get_file_pos() const { return m_file_pos; }
