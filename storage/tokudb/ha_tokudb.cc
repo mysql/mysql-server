@@ -3719,11 +3719,20 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     bool dir_path_made = false;
     char* dirname = NULL;
     char* newname = NULL;
+    DBT row_descriptor;
+    uchar* row_desc_buff = NULL;
+
+
+    bzero(&row_descriptor, sizeof(row_descriptor));
+    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+4 ,MYF(MY_WME));
+    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
     dirname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
     if (dirname == NULL){ error = ENOMEM; goto cleanup;}
     newname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
+    primary_key = form->s->primary_key;
+    hidden_primary_key = (primary_key  >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
 
     uint i;    
     //
@@ -3760,8 +3769,22 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     make_name(newname, name, "main");
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
+    //
+    // setup the row descriptor
+    //
+    KEY* prim_key = (hidden_primary_key) ? NULL : &form->s->key_info[primary_key];
+    row_descriptor.data = row_desc_buff;
+    row_descriptor.size = create_toku_descriptor(
+        row_desc_buff, 
+        hidden_primary_key,
+        false,
+        prim_key,
+        false,
+        NULL
+        );
+
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(name_buff, 0, NULL);
+    error = create_sub_table(name_buff, 0, &row_descriptor);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
         TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
     }
@@ -3769,7 +3792,6 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         goto cleanup;
     }
 
-    primary_key = form->s->primary_key;
 
     /* Create the keys */
     char part[MAX_ALIAS_NAME + 10];
@@ -3779,7 +3801,18 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             sprintf(part, "key-%s", form->s->key_info[i].name);
             make_name(newname, name, part);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-            error = create_sub_table(name_buff, flags, NULL);
+            //
+            // setup the row descriptor
+            //
+            row_descriptor.size = create_toku_descriptor(
+                row_desc_buff,
+                false,
+                form->key_info[i].flags & HA_CLUSTERING,
+                &form->key_info[i],
+                hidden_primary_key,
+                prim_key
+                );
+            error = create_sub_table(name_buff, flags, &row_descriptor);
             if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
                 TOKUDB_TRACE("create:%s:flags=%ld:error=%d\n", newname, form->key_info[i].flags, error);
             }
@@ -3820,6 +3853,7 @@ cleanup:
     }
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(dirname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4261,6 +4295,9 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     uchar* tmp_record = NULL;
     THD* thd = ha_thd(); 
     uchar* tmp_record2 = NULL;
+    uchar* row_desc_buff = NULL;
+    DBT row_descriptor;
+    bzero(&row_descriptor, sizeof(row_descriptor));
     //
     // these variables are for error handling
     //
@@ -4283,11 +4320,13 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
     tmp_record2 = (uchar *)my_malloc(2*table_arg->s->rec_buff_length,MYF(MY_WME));
+    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+4 ,MYF(MY_WME));
     if (newname == NULL || 
         tmp_key_buff == NULL ||
         tmp_prim_key_buff == NULL ||
         tmp_record == NULL ||
-        tmp_record2 == NULL) {
+        tmp_record2 == NULL ||
+        row_desc_buff == NULL) {
         error = ENOMEM;
         goto cleanup;
     }
@@ -4319,13 +4358,25 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     //
     // first create all the DB's files
     //
+    row_descriptor.data = row_desc_buff;
     char part[MAX_ALIAS_NAME + 10];
     for (uint i = 0; i < num_of_keys; i++) {
         int flags = (key_info[i].flags & HA_CLUSTERING) ? 0 : DB_DUP + DB_DUPSORT;
         sprintf(part, "key-%s", key_info[i].name);
         make_name(newname, share->table_name, part);
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-        error = create_sub_table(name_buff, flags, NULL);
+        //
+        // setup the row descriptor
+        //
+        row_descriptor.size = create_toku_descriptor(
+            row_desc_buff,
+            false,
+            key_info[i].flags & HA_CLUSTERING,
+            &key_info[i],
+            hidden_primary_key,
+            hidden_primary_key ? NULL : &table_share->key_info[primary_key]
+            );
+        error = create_sub_table(name_buff, flags, &row_descriptor);
         if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
             TOKUDB_TRACE("create:%s:flags=%ld:error=%d\n", newname, key_info[i].flags, error);
         }
@@ -4542,6 +4593,7 @@ cleanup:
     my_free(tmp_prim_key_buff,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_record,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_record2,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(row_desc_buff,MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
