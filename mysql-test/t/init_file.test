@@ -14,7 +14,7 @@ SELECT * INTO @X FROM init_file.startup limit 0,1;
 SELECT * INTO @Y FROM init_file.startup limit 1,1;
 SELECT YEAR(@X)-YEAR(@Y);
 # Enable this DROP DATABASE only after resolving bug #42507
-# DROP DATABASE init_file;
+DROP DATABASE init_file;
 
 --echo ok
 --echo end of 4.1 tests
@@ -28,4 +28,9 @@ select * from t1;
 #   30, 3, 11, 13
 select * from t2;
 # Enable this DROP TABLE only after resolving bug #42507
-#drop table t1, t2;
+drop table t1, t2;
+
+# MTR will restart server anyway, but by forcing it we avoid being warned
+# about the apparent side effect
+
+call mtr.force_restart();
