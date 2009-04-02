@@ -1141,17 +1141,17 @@ int create_toku_key_descriptor(KEY* key, uchar* buf) {
     for (uint i = 0; i < key->key_parts; i++){
         Field* field = key->key_part[i].field;
         //
-        // The first byte for each field is the type
+        // The first byte states if there is a null byte
+        //
+        *pos = field->null_bit;
+        pos++;
+
+        //
+        // The second byte for each field is the type
         //
         TOKU_TYPE type = mysql_to_toku_type(field);
         assert (type < 256);
         *pos = (uchar)(type & 255);
-        pos++;
-
-        //
-        // The second bytes states if there is a null byte
-        //
-        *pos = field->null_bit;
         pos++;
 
         //
@@ -1243,8 +1243,9 @@ int create_toku_descriptor(
     assert(!(is_clustering_key && !is_second_hpk && second_key == NULL));
 
     if (is_first_hpk) {
-        pos[0] = toku_type_hpk;
-        pos++;
+        pos[0] = 0; //field cannot be NULL, stating it
+        pos[1] = toku_type_hpk;
+        pos += 2;
     }
     else {
         //
@@ -1281,8 +1282,9 @@ int create_toku_descriptor(
     // write in the offset to this position in the first four bytes
     //
     if (is_second_hpk) {
-        pos[0] = toku_type_hpk;
-        pos++;
+        pos[0] = 0; //field cannot be NULL, stating it
+        pos[1] = toku_type_hpk;
+        pos += 2;
     }
     else {
         //
