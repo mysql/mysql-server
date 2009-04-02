@@ -25,7 +25,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
                     TOKUDB_DIR_REPLACE_ME/include
                     TOKUDB_DIR_REPLACE_ME/toku_include)
 
-SET(TOKUDB_SOURCES hatoku_hton.cc ha_tokudb.cc hatoku_cmptrace.cc hatoku_cmp.cc)
+SET(TOKUDB_SOURCES hatoku_hton.cc ha_tokudb.cc hatoku_cmp.cc)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(ha_tokudb ${TOKUDB_SOURCES})
