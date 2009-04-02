@@ -49,9 +49,6 @@ typedef  void* (*AttrConvertFunc)(const void *old_data,
                                   void *parameter);
 
 // Forward declarations
-//class AttributeDesc;
-struct AttributeDesc;
-struct AttributeData;
 struct AttributeS;
 
 struct AttributeData {
@@ -324,7 +321,9 @@ public:
   const char * getFilename() const { return m_fileName;}
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
-  bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
+  bool Twiddle(const AttributeDesc * const attr_desc,
+               AttributeData * attr_data,
+               Uint32 arraySize = 0) const;
 
   Uint64 get_file_size() const { return m_file_size; }
   Uint64 get_file_pos() const { return m_file_pos; }
