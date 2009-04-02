@@ -26,9 +26,9 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-key_buffer = 256M
+key_buffer_size = 256M
 max_allowed_packet = 1M
-table_cache = 256
+table_open_cache = 256
 sort_buffer_size = 1M
 read_buffer_size = 1M
 read_rnd_buffer_size = 4M
@@ -45,9 +45,6 @@ thread_concurrency = 8
 # (via the "enable-named-pipe" option) will render mysqld useless!
 # 
 #skip-networking
-
-# Disable Federated by default
-skip-federated
 
 # Replication Master Server (default)
 # binary logging is required for replication
@@ -143,14 +140,8 @@ no-auto-rehash
 # Remove the next comment character if you are not familiar with SQL
 #safe-updates
 
-[isamchk]
-key_buffer = 128M
-sort_buffer_size = 128M
-read_buffer = 2M
-write_buffer = 2M
-
 [myisamchk]
-key_buffer = 128M
+key_buffer_size = 128M
 sort_buffer_size = 128M
 read_buffer = 2M
 write_buffer = 2M
