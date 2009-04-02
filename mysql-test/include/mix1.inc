@@ -1408,6 +1408,7 @@ SELECT * FROM t1;
 
 --echo # Switch to connection con2
 connection con2;
+--reap
 SELECT * FROM t1;
 
 connection default;
