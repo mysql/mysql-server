@@ -985,6 +985,7 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
+  bool user_matches(Security_context *);
 };
 
 
@@ -1555,6 +1556,9 @@ public:
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
+
+  /** number of name_const() substitutions, see sp_head.cc:subst_spvars() */
+  uint       query_name_consts;
 
   /*
     If we do a purge of binary logs, log index info of the threads
