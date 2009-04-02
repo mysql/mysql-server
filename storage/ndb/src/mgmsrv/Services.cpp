@@ -608,7 +608,7 @@ MgmApiSession::getConfig(Parser_t::Context &,
   }
 
   m_output->println("result: Ok");
-  m_output->println("Content-Length: %ld", pack64.length());
+  m_output->println("Content-Length: %u", pack64.length());
   m_output->println("Content-Type: ndbconfig/octet-stream");
   SLEEP_ERROR_INSERTED(2);
   m_output->println("Content-Transfer-Encoding: base64");
